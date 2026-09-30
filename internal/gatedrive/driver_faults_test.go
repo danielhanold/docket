@@ -144,7 +144,7 @@ func TestHaltedDriveDoesNotReleaseSlot(t *testing.T) {
 	if slot.State != admissionUnresolved {
 		t.Fatalf("unproven HALTED teardown must leave an unresolved slot, got %q", slot.State)
 	}
-	if _, err := store.ReserveWorktreeExecution(sampleAdmission(req.Worktree)); !isOwnership(err, ErrUnresolvedExecution) {
+	if _, err := store.ReserveWorktreeExecution(sampleAdmission(req.Worktree)); !isOwnership(err, ErrLaunchUnconfirmed) {
 		t.Fatalf("unproven HALTED teardown must block the next admission, got %v", err)
 	}
 }
@@ -257,7 +257,7 @@ func TestFaultReleaseInterruptedThenRestart(t *testing.T) {
 // launch returns an error and ResolveReservation cannot prove the run never started
 // (a lost launch response). The worktree slot must fail CLOSED to unresolved — a
 // possibly-live process never frees the worktree — so a later start on that worktree
-// is refused ErrUnresolvedExecution until recovery resolves it.
+// is refused ErrLaunchUnconfirmed until recovery resolves it.
 func TestFaultLaunchLostResponseLeavesUnresolved(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
@@ -287,10 +287,10 @@ func TestFaultLaunchLostResponseLeavesUnresolved(t *testing.T) {
 		t.Fatalf("a lost launch response must mark the worktree slot unresolved, got %q", slot.State)
 	}
 	// A follow-up start from a DIFFERENT scope on the same worktree is refused
-	// ErrUnresolvedExecution — the ambiguous slot blocks admission until recovery.
+	// ErrLaunchUnconfirmed — the ambiguous slot blocks admission until recovery.
 	_, req2 := prepareScopedStartAt(t, store, req.Worktree, "0343")
-	if _, err := d.Start(req2); !isOwnershipKind(err, ErrUnresolvedExecution) {
-		t.Fatalf("a start over an unresolved worktree slot must fail ErrUnresolvedExecution, got %v", err)
+	if _, err := d.Start(req2); !isOwnershipKind(err, ErrLaunchUnconfirmed) {
+		t.Fatalf("a start over an unresolved worktree slot must fail ErrLaunchUnconfirmed, got %v", err)
 	}
 }
 

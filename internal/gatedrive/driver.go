@@ -367,7 +367,7 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 // for a scoped start, the scope's single slot and the journaled predecessor
 // retirement), and persists a RESERVED drive record — but launches NO process.
 // Every refusal here (a malformed request, a scope pre-check rejection, a
-// worktree-busy / unresolved-execution / scope-busy slot, or a lost scope
+// worktree-busy / launch-unconfirmed / scope-busy slot, or a lost scope
 // reservation) returns a typed error and reserves nothing the caller must later
 // account for: no process was launched, and any freshly minted worktree slot with
 // no adopter is released before returning. A worktree-busy / unresolved refusal
@@ -470,7 +470,7 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	}
 	err = admit()
 	// Finished-incumbent reconciliation (change 0446 spec §3). A worktree-busy /
-	// unresolved-execution refusal decided on an occupying incumbent is final only
+	// launch-unconfirmed refusal decided on an occupying incumbent is final only
 	// after the exact incumbent was inspected: a proven-finished one is settled and
 	// this SAME admission retries its reservation once. Reconciliation probes
 	// processes, so it runs OUTSIDE the run launch gate (probe outside outer locks) and
@@ -1156,7 +1156,7 @@ func (d *Driver) launchScoped(t *AdmissionTicket, claim *relaunchClaim) (DriveDo
 // RECEIPT-LESS first start that finds a same-scope executing slot has raced an
 // already-launched drive and is refused typed ErrScopeSecondDrive without touching the
 // slot. A slot held by a DIFFERENT scope, or in a stopping/unresolved state, is a
-// genuine cross-scope refusal returned verbatim. ErrUnresolvedExecution and every other
+// genuine cross-scope refusal returned verbatim. ErrLaunchUnconfirmed and every other
 // error (an unresolvable worktree, an IO fault) fail closed unchanged.
 func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFresh, ownsSlot, rotated bool, legacy *LegacyHistorySummary, err error) {
 	rec := admissionRecord{
@@ -1711,10 +1711,10 @@ func (d *Driver) resolveDriveRun(rec driveRecord) (runID string, ok bool, cause 
 	}
 	slot, _, err := d.store.LoadWorktreeExecution(rec.WorktreePath)
 	if err != nil {
-		return "", false, "unresolved-execution"
+		return "", false, "launch-unconfirmed"
 	}
 	if slot.ReservationToken != rec.AdmissionToken {
-		return "", false, "unresolved-execution"
+		return "", false, "launch-unconfirmed"
 	}
 	return slot.RunID, true, ""
 }
@@ -1904,12 +1904,12 @@ func (d *Driver) recoverReservedRelaunch(id, ownerGen string, rec driveRecord, r
 }
 
 func (d *Driver) haltReservedRelaunch(id, ownerGen string, rec driveRecord) (driveRecord, *relaunchClaim, *DriveDoc, error) {
-	return d.haltReservedRelaunchCause(id, ownerGen, rec, "unresolved-execution")
+	return d.haltReservedRelaunchCause(id, ownerGen, rec, "launch-unconfirmed")
 }
 
 // haltReservedRelaunchCause settles a reserved-but-unattached relaunch HALTED with
 // the given cause, preserving the consumed reservation (the CAS never clears
-// RelaunchReserved, so the sole relaunch is never refunded). "unresolved-execution"
+// RelaunchReserved, so the sole relaunch is never refunded). "launch-unconfirmed"
 // is the crash-window uncertainty default; "run-cancelled" is used when the drive's
 // run was revoked before the replacement launched (change 0437 Task 3).
 func (d *Driver) haltReservedRelaunchCause(id, ownerGen string, rec driveRecord, cause string) (driveRecord, *relaunchClaim, *DriveDoc, error) {
@@ -2045,7 +2045,7 @@ func (d *Driver) driveSlice(id, ownerGen string, rec driveRecord, claim *relaunc
 			}
 			if !cur.Equal(rec.Fingerprint) {
 				d.stopIfOwned(runDir)
-				return halt(&res, "identity-mismatch")
+				return halt(&res, "worktree-changed")
 			}
 			res.outcome = PASSED
 			res.rawRunDir = observation.RunDir
@@ -2108,7 +2108,7 @@ func (d *Driver) driveSlice(id, ownerGen string, rec driveRecord, claim *relaunc
 				resolution, rerr := d.proc.ResolveReservation(rec.RunRoot, claim.token)
 				if rerr != nil || resolution == nil || resolution.Disposition == "unresolved" {
 					claim.close()
-					return halt(&res, "unresolved-execution")
+					return halt(&res, "launch-unconfirmed")
 				}
 				if resolution.Disposition != "identified" || resolution.RunID == "" || resolution.RunDir == "" {
 					claim.close()
@@ -2197,7 +2197,7 @@ func (d *Driver) relaunchRefusal(rec *driveRecord, now time.Time) string {
 		return "fingerprint-error"
 	}
 	if !cur.Equal(rec.Fingerprint) {
-		return "identity-mismatch"
+		return "worktree-changed"
 	}
 	return ""
 }

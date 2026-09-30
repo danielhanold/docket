@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:fbb9e156154d595b99095e653c76f49be6ca15a81ecf3d3bc915f0c979b62cd8",
+  "asset_set_id": "sha256:50e967a1cee21c0782a48737ed332c1badf1255ea346d925901069d849a21da8",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -301,22 +301,22 @@
       "path": "skills/docket-build-task/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 14500,
-      "sha256": "af41f2fe23e6c7a2e92d872ecc8ba90163032707625b1a04a5841fc0d90947c2"
+      "size": 14498,
+      "sha256": "6d2fc410c2a1b6d096fbf24ea3dbd037d1cccec07c6d451d206012a3a34ceb0c"
     },
     {
       "path": "skills/docket-build/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 30018,
-      "sha256": "570bf63220d3da8120d7269ea457a960ee6079b206810f8048258ebcbf4f507e"
+      "size": 30022,
+      "sha256": "d11c2bef9353fd51022d1d37fe6aca52e67b60d983c75ed774ecf758f5813d0a"
     },
     {
       "path": "skills/docket-build/references/gate-caller-loop.md",
       "role": "skill",
       "mode": 420,
-      "size": 12651,
-      "sha256": "94d803d6eb9160e39a6b0017c311aae8cf75a241e4117656da3ed66bce0a69a9"
+      "size": 12650,
+      "sha256": "0803e98afb4ba4362e4cfd53f8a6eccfaea5bddd82fbd907a8adaa405b4876f1"
     },
     {
       "path": "skills/docket-build/references/gate-execution-evidence.md",
@@ -393,7 +393,7 @@
       "role": "skill",
       "mode": 420,
       "size": 13479,
-      "sha256": "d5b29a802d59920d7e7d8b6f64fa800446eca63cc269dd13dc89eb97c31f1296"
+      "sha256": "84cf582c9eba4c2109e8b47c1b56ab8b687c35d9aeee1aa1122c712945424b6a"
     },
     {
       "path": "skills/docket-groom-next/SKILL.md",

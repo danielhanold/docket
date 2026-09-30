@@ -356,7 +356,7 @@ it; the raw `gate.launch`/`observe`/`stop` operations are primitives, never this
 (`WAITING`/`PASSED`/`FAILED`/`HALTED`), never on a success marker in the log — a marker-keyed reading
 cannot tell *still running* from a process death, the one moment the wait exists for. `WAITING` is
 the only nonterminal disposition and the only one that advances again. Only `FAILED` — the suite ran
-and went red — feeds repair; a process death, identity drift, uncertain ownership, deadline expiry, or
+and went red — feeds repair; a process death, a changed worktree, uncertain ownership, deadline expiry, or
 malformed observation is `HALTED`, **not** a red suite and it **never** mints repair work. The one
 bounded relaunch of a proven-dead **idempotent** suite gate, under the original deadline, is the
 driver's own — the caller never relaunches, stops a raw run, or composes the raw verbs; a

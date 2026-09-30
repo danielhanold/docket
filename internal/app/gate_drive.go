@@ -452,7 +452,7 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 //     before admission, so an exhausted start neither reserves the worktree slot
 //     nor mints a reserved drive it would have to abandon.
 //  3. Authoritative admission (Admit). A refusal here — a worktree-busy /
-//     unresolved-execution / scope-busy slot the advisory precheck missed under a
+//     launch-unconfirmed / scope-busy slot the advisory precheck missed under a
 //     race — charges NO suite attempt: admission precedes charging.
 //  4. Charge exactly one full-suite attempt BETWEEN admission and launch. Once
 //     charged there are NO refunds: a launch/persistence failure in StartAdmitted
@@ -787,7 +787,7 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 		return "a prior launch transition is unresolved; recover via the parent, not a retry"
 	case gatedrive.ErrWorktreeBusy:
 		return "this worktree's gate execution slot is occupied by an execution admission could not prove finished (a proven-finished occupant is settled automatically); wait for the incumbent or settle its slot through its own stop/cancel route — do not start a second gate in the same worktree"
-	case gatedrive.ErrUnresolvedExecution:
+	case gatedrive.ErrLaunchUnconfirmed:
 		return "a prior execution in this worktree is unresolved; recover it through the parent or run.cancel, never a blind re-start"
 	case gatedrive.ErrStaleRunID:
 		return "an in-flight run owns this worktree; present that run's run id or cancel it before starting"
@@ -871,8 +871,8 @@ func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.In
 			", then settle the slot with docket gate stop " + dir + " --reason <why> — stopping a still-running run cancels it; stopping an already-completed run settles its slot (the stop operation itself decides whether teardown is proven)"
 	case inc != nil && inc.Kind == "raw":
 		return "a raw gate reservation occupies this worktree's execution slot but its run identity is not recorded; do not start a second gate here — resolve the incumbent before retrying"
-	case kind == gatedrive.ErrUnresolvedExecution:
-		return ownershipNextAction(gatedrive.ErrUnresolvedExecution)
+	case kind == gatedrive.ErrLaunchUnconfirmed:
+		return ownershipNextAction(gatedrive.ErrLaunchUnconfirmed)
 	default:
 		return "an execution occupies this worktree's admission slot but its identity could not be established; do not start a second gate here and do not guess a stop target — resolve the incumbent first"
 	}

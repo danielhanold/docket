@@ -282,7 +282,7 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 		t.Fatalf("live run must start and WAIT: doc=%+v err=%v", liveDoc, err)
 	}
 	blocked := realSeqStart(alias, "feat/gen", runRoot, "0446", "gen-blocked", seqPassCmd("gen-blocked"))
-	if _, err := d.Start(blocked); !isOwnershipKind(err, ErrWorktreeBusy) && !isOwnershipKind(err, ErrUnresolvedExecution) {
+	if _, err := d.Start(blocked); !isOwnershipKind(err, ErrWorktreeBusy) && !isOwnershipKind(err, ErrLaunchUnconfirmed) {
 		t.Fatalf("a genuinely live incumbent must still refuse a start through the alias, got %v", err)
 	}
 	if slot := slotOf(wt); slot.State != admissionExecuting {

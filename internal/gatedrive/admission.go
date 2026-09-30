@@ -7,7 +7,7 @@
 // worktree — the launcher reserves the slot for the launch's CANONICAL worktree
 // root. A second reservation for the same worktree, across any scope, run root,
 // owner, task, or phase, is REFUSED with a typed ErrWorktreeBusy (or
-// ErrUnresolvedExecution) and a safe locator — never a get-or-create, never a
+// ErrLaunchUnconfirmed) and a safe locator — never a get-or-create, never a
 // second launch, never stopping the incumbent (spec "at most one
 // reserved-or-running top-level Docket gate execution per worktree").
 //
@@ -251,7 +251,7 @@ func canonicalizeMissingPath(clean string) (string, error) {
 // or refuses it. It serializes on the slot's flock, then reads the current
 // record: an absent or released slot is admitted; a reserved, executing, or
 // stopping slot is refused ErrWorktreeBusy; an unresolved slot is refused
-// ErrUnresolvedExecution; an unreadable record (unknown schema, corrupt JSON, IO
+// ErrLaunchUnconfirmed; an unreadable record (unknown schema, corrupt JSON, IO
 // fault) fails closed with its typed StoreError, never a free slot. On success it
 // bumps ExecutionGen (monotonic across the worktree's whole history), mints a
 // fresh ReservationToken, clears the launch identity, and persists the slot as
@@ -424,7 +424,7 @@ func (s *Store) reserveWorktreeExecutionOnce(rec admissionRecord, proc recoveryS
 		case admissionReleased:
 			prevGen = stored.Record.ExecutionGen // readmit over a released slot
 		case admissionUnresolved:
-			oe := ownershipErr(ErrUnresolvedExecution, op)
+			oe := ownershipErr(ErrLaunchUnconfirmed, op)
 			oe.Incumbent = incumbentSnapshot(stored.Record)
 			return "", nil, nil, oe
 		default:
@@ -526,7 +526,7 @@ func (s *Store) inventoryLegacyDrives(worktreeRoot string, proc recoverySeam) (*
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
 		}
-		return nil, ownershipErr(ErrUnresolvedExecution, "inventory-legacy-drives")
+		return nil, ownershipErr(ErrLaunchUnconfirmed, "inventory-legacy-drives")
 	}
 	sum := &LegacyHistorySummary{}
 	retainedDiagnostic := false
@@ -577,7 +577,7 @@ func (s *Store) inventoryLegacyDrives(worktreeRoot string, proc recoverySeam) (*
 		}
 	}
 	if firstLocator != "" {
-		oe := ownershipErr(ErrUnresolvedExecution, firstLocator)
+		oe := ownershipErr(ErrLaunchUnconfirmed, firstLocator)
 		oe.Legacy = sum
 		return sum, oe
 	}
@@ -739,7 +739,7 @@ func (s *Store) LoadWorktreeExecution(worktreeRoot string) (admissionRecord, str
 // the read-only half of the admission authority the application layer consults
 // BEFORE charging a full-suite attempt (change 0375 Task 8): a plainly busy slot
 // (reserved/executing/stopping) returns ErrWorktreeBusy and an unresolved slot
-// returns ErrUnresolvedExecution, so a plainly inadmissible start short-circuits
+// returns ErrLaunchUnconfirmed, so a plainly inadmissible start short-circuits
 // with no charge. It is deliberately ADVISORY — the authoritative admission is
 // ReserveWorktreeExecution under the slot lock — so anything it cannot determine
 // (an absent record, a worktree it cannot yet resolve, a corrupt or unknown-schema
@@ -758,7 +758,7 @@ func (s *Store) WorktreeAdmissionRefusal(worktreeRoot string) error {
 	case admissionReserved, admissionExecuting, admissionStopping:
 		return ownershipErr(ErrWorktreeBusy, op)
 	case admissionUnresolved:
-		return ownershipErr(ErrUnresolvedExecution, op)
+		return ownershipErr(ErrLaunchUnconfirmed, op)
 	default:
 		return nil
 	}

@@ -540,7 +540,7 @@ func TestReserveInventoriesLegacyHistoryThroughClassifier(t *testing.T) {
 		seam := seamWith(map[string]process.RecoveryEntry{haltedFixtureRunDir: {Disposition: "needs-inspection"}})
 		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
 		oe, ok := AsOwnershipError(err)
-		if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drive-"+id {
+		if !ok || oe.Kind != ErrLaunchUnconfirmed || oe.Op != "inventory-legacy-drive-"+id {
 			t.Fatalf("a needs-inspection HALTED drive must refuse naming its id, got %v", err)
 		}
 		if oe.Legacy == nil || len(oe.Legacy.Retained) != 1 || oe.Legacy.Retained[0].DriveID != id {
@@ -557,7 +557,7 @@ func TestReserveInventoriesLegacyHistoryThroughClassifier(t *testing.T) {
 		seam := &fakeRecovery{err: errors.New("probe failed")}
 		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
 		oe, ok := AsOwnershipError(err)
-		if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drive-"+id {
+		if !ok || oe.Kind != ErrLaunchUnconfirmed || oe.Op != "inventory-legacy-drive-"+id {
 			t.Fatalf("a probe error must refuse naming the id, got %v", err)
 		}
 	})
@@ -571,7 +571,7 @@ func TestReserveInventoriesLegacyHistoryThroughClassifier(t *testing.T) {
 		rewriteRecordField(t, s, id, `"worktree_path": "/repo/.worktrees/old-feature"`, `"worktree_path": "`+wt+`"`)
 		_, err := s.ReserveWorktreeExecution(sampleAdmission(wt))
 		oe, ok := AsOwnershipError(err)
-		if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drive-"+id {
+		if !ok || oe.Kind != ErrLaunchUnconfirmed || oe.Op != "inventory-legacy-drive-"+id {
 			t.Fatalf("a nil seam must fail a HALTED drive closed, got %v", err)
 		}
 	})

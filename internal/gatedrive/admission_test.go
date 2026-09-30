@@ -289,7 +289,7 @@ func TestFirstAdmissionInventoriesLegacyWaitingDrive(t *testing.T) {
 	}
 
 	_, err = s.ReserveWorktreeExecution(sampleAdmission(wt))
-	if !isOwnership(err, ErrUnresolvedExecution) || !strings.Contains(err.Error(), id) {
+	if !isOwnership(err, ErrLaunchUnconfirmed) || !strings.Contains(err.Error(), id) {
 		t.Fatalf("first admission must refuse the legacy waiting drive %s, got %v", id, err)
 	}
 }
@@ -413,7 +413,7 @@ func TestReserveRefusalCarriesIncumbentSnapshot(t *testing.T) {
 	}
 }
 
-// TestReserveUnresolvedRefusalCarriesSnapshot proves the unresolved-execution
+// TestReserveUnresolvedRefusalCarriesSnapshot proves the launch-unconfirmed
 // refusal also snapshots the incumbent, and TestReserveStaleRunCarriesSnapshot
 // proves the stale-run-id fence does (RunOwned true, run id NOT projected).
 func TestReserveUnresolvedRefusalCarriesSnapshot(t *testing.T) {
@@ -427,8 +427,8 @@ func TestReserveUnresolvedRefusalCarriesSnapshot(t *testing.T) {
 	}
 	_, err = store.ReserveRawWorktreeExecution(repoID, worktree, nil)
 	oe, ok := AsOwnershipError(err)
-	if !ok || oe.Kind != ErrUnresolvedExecution {
-		t.Fatalf("err = %v, want unresolved-execution", err)
+	if !ok || oe.Kind != ErrLaunchUnconfirmed {
+		t.Fatalf("err = %v, want launch-unconfirmed", err)
 	}
 	if oe.Incumbent == nil || oe.Incumbent.State != "unresolved" || oe.Incumbent.Kind != "raw" {
 		t.Fatalf("unresolved snapshot = %+v", oe.Incumbent)
@@ -520,7 +520,7 @@ func TestFirstAdmissionUnrelatedHistoryIsDiagnostic(t *testing.T) {
 
 	seedLegacyDrive(t, s, other, PASSED, "", "/runs/gone-passed")
 	seedLegacyDrive(t, s, other, FAILED, "", "/runs/gone-failed")
-	for i, cause := range []string{"deadline-expired", "stopped-not-initiated", "launch-unresolved", "identity-mismatch"} {
+	for i, cause := range []string{"deadline-expired", "stopped-not-initiated", "launch-unresolved", "worktree-changed"} {
 		seedLegacyDrive(t, s, other, HALTED, cause, "/runs/gone-halted-other-"+string(rune('a'+i)))
 		seedLegacyDrive(t, s, removed, HALTED, cause, "/runs/gone-halted-removed-"+string(rune('a'+i)))
 	}
@@ -601,8 +601,8 @@ func TestFirstAdmissionOwnBoundHistoryStillBlocks(t *testing.T) {
 			id := seedLegacyDrive(t, s, bound, c.outcome, "deadline-expired", "/runs/own-bound")
 			_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), &fakeRecovery{})
 			oe, ok := AsOwnershipError(err)
-			if !ok || oe.Kind != ErrUnresolvedExecution {
-				t.Fatalf("own-bound history must refuse ErrUnresolvedExecution, got %v", err)
+			if !ok || oe.Kind != ErrLaunchUnconfirmed {
+				t.Fatalf("own-bound history must refuse ErrLaunchUnconfirmed, got %v", err)
 			}
 			if oe.Op != "inventory-legacy-drive-"+id {
 				t.Fatalf("locator Op = %q, want inventory-legacy-drive-%s", oe.Op, id)
@@ -626,7 +626,7 @@ func TestFirstAdmissionLiveIncumbentSameWorktreeBlocks(t *testing.T) {
 	seam := &fakeRecovery{entries: map[string]process.RecoveryEntry{"/runs/live": {Disposition: "live"}}}
 	_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
 	oe, ok := AsOwnershipError(err)
-	if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drive-"+id {
+	if !ok || oe.Kind != ErrLaunchUnconfirmed || oe.Op != "inventory-legacy-drive-"+id {
 		t.Fatalf("a live same-worktree HALTED incumbent must refuse naming %s, got %v", id, err)
 	}
 	if len(seam.marks) != 0 {
@@ -1093,7 +1093,7 @@ func seedMixedHistory(t *testing.T, s *Store, seed int64, other, removed, scratc
 	for _, wt := range []string{other, removed} {
 		seedLegacyDrive(t, s, wt, PASSED, "", filepath.Join(scratch, "passed"))
 		seedLegacyDrive(t, s, wt, FAILED, "", filepath.Join(scratch, "failed"))
-		for _, cause := range []string{"deadline-expired", "stopped-not-initiated", "launch-unresolved", "identity-mismatch", "run-cancelled"} {
+		for _, cause := range []string{"deadline-expired", "stopped-not-initiated", "launch-unresolved", "worktree-changed", "run-cancelled"} {
 			seedLegacyDrive(t, s, wt, HALTED, cause, filepath.Join(scratch, "halted-"+cause))
 		}
 		seedLegacyDrive(t, s, wt, HALTED, "deadline-expired", "")

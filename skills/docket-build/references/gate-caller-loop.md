@@ -79,7 +79,7 @@ Every successful `start` or `advance` returns exactly one of four dispositions. 
 | `WAITING` | The same drive is live and safe to continue, but this slice ended. | The current owner `advance`s again, or `handoff`s before it returns. |
 | `PASSED` | The suite completed green against the recorded execution identity. | Consume the raw run dir the document exposes for evidence, or continue the task phase. |
 | `FAILED` | The suite itself completed red and produced a trustworthy terminal record. | Enter the existing repair policy, bounded by the build phase's configured suite-attempt budget (`build.max_attempts`). |
-| `HALTED` | Safe automatic continuation is impossible — identity drift, uncertain ownership, deadline expiry, malformed state, or an unadmitted death. | Stop automation, retain diagnostics, surface the typed cause. |
+| `HALTED` | Safe automatic continuation is impossible — a changed worktree, uncertain ownership, deadline expiry, malformed state, or an unadmitted death. | Stop automation, retain diagnostics, surface the typed cause. |
 
 - **`WAITING` is the only nonterminal disposition, and it is not permission to replace an agent.** A
   plain `WAITING` leaves the current owner generation valid; another agent cannot claim a drive
@@ -99,7 +99,7 @@ never silently joined to the running one. Two refusal reasons ride this boundary
 
 - `worktree-busy` — another gate is already live in this worktree. Wait for it to finish or cancel
   that run; **never start a second gate in the same worktree**.
-- `unresolved-execution` — a prior execution ended without proven teardown (a lost launch response,
+- `launch-unconfirmed` — nothing proved whether a launch happened (a lost launch response,
   a crash between launch and confirmation). The slot stays closed until that run is recovered
   through the parent or explicitly cancelled — a blind re-start cannot clear it.
 
@@ -136,7 +136,7 @@ drive. The parent proves its parent capability and the scope identity; the trans
 **supersedes** the child's owner generation and mints a fresh one the parent advances with, so a
 stale child call thereafter fails **owner-superseded**. The authorization is the observed
 dispatch-return event the caller just saw — never a timer, heartbeat, or quiet log. Any ambiguity —
-two candidate drives, an outstanding unclaimed handoff (`claim` it instead), or identity drift —
+two candidate drives, an outstanding unclaimed handoff (`claim` it instead), or a changed worktree —
 fails closed to `HALTED`, never a partial transfer.
 
 ## The raw verbs are primitive/operator APIs, not caller-loop verbs

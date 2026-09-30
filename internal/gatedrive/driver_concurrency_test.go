@@ -2228,7 +2228,7 @@ func TestConcurrentAdmitsOverFinishedIncumbentAdmitOnce(t *testing.T) {
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
-				if oe, ok := AsOwnershipError(err); !ok || (oe.Kind != ErrWorktreeBusy && oe.Kind != ErrUnresolvedExecution) {
+				if oe, ok := AsOwnershipError(err); !ok || (oe.Kind != ErrWorktreeBusy && oe.Kind != ErrLaunchUnconfirmed) {
 					t.Errorf("a losing racer must be refused worktree-busy/unresolved, got %v", err)
 				}
 				refused++
@@ -2349,7 +2349,7 @@ func TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner(t *testing.T) {
 					winners++
 					continue
 				}
-				if !isOwnershipKind(err, ErrWorktreeBusy) && !isOwnershipKind(err, ErrUnresolvedExecution) {
+				if !isOwnershipKind(err, ErrWorktreeBusy) && !isOwnershipKind(err, ErrLaunchUnconfirmed) {
 					t.Fatalf("contender %d must lose with a typed worktree refusal, got %v", i, err)
 				}
 			}
