@@ -440,7 +440,7 @@ func slotNamedRunUnresolved(repoDir, canon string) error {
 			kind = string(se.Kind)
 		}
 		return runErr(ErrRunOwnerUnresolved, "find-by-worktree",
-			fmt.Errorf("the execution slot of worktree %s could not be read (%s), so whether a run owns it is unknown; %s",
+			fmt.Errorf("the slot of worktree %s could not be read (%s), so whether a run owns it is unknown; %s",
 				canon, kind, unresolvedOwnerRemedy(runTrackerRoot)))
 	}
 	if slot.RunID == "" {
@@ -454,7 +454,7 @@ func slotNamedRunUnresolved(repoDir, canon string) error {
 		return nil
 	}
 	return runErr(ErrRunOwnerUnresolved, "find-by-worktree",
-		fmt.Errorf("the execution slot of worktree %s names run %s, but no readable run record carries it; %s",
+		fmt.Errorf("the slot of worktree %s names run %s, but no readable run record carries it; %s",
 			canon, slot.RunID, unresolvedOwnerRemedy(runTrackerRoot)))
 }
 

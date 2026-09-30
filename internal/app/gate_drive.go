@@ -862,15 +862,15 @@ func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.In
 	case inc != nil && inc.RunUnresolved:
 		// No readable run record carries the slot's run: run.cancel targets a run
 		// by key and run id and cannot act on it, so it is never suggested here.
-		return "this worktree's execution slot names a workflow run that no readable run record carries, so neither a continuation nor a cancellation by key and run id can target it; inspect the per-run-key run records under the repository's Git common dir (docket/run-tracker/<run-key>/run.json) — a human must repair the damaged or missing record, or the slot's stale run reference, before a gate can start here; never a raw manual teardown"
+		return "this worktree's slot names a workflow run that no readable run record carries, so neither a continuation nor a cancellation by key and run id can target it; inspect the per-run-key run records under the repository's Git common dir (docket/run-tracker/<run-key>/run.json) — a human must repair the damaged or missing record, or the slot's stale run reference, before a gate can start here; never a raw manual teardown"
 	case kind == gatedrive.ErrStaleRunID || (inc != nil && inc.RunOwned):
-		return "a workflow run owns this worktree's execution slot; continue that run through its own gate-drive continuation, or — when that run's run record resolves — cancel it with the run.cancel operation using that run's key and run id; if no readable run record carries it, run.cancel cannot target it and a human must repair that record under docket/run-tracker — never a raw manual teardown and never a stale run presented as a bypass"
+		return "a workflow run owns this worktree's slot; continue that run through its own gate-drive continuation, or — when that run's run record resolves — cancel it with the run.cancel operation using that run's key and run id; if no readable run record carries it, run.cancel cannot target it and a human must repair that record under docket/run-tracker — never a raw manual teardown and never a stale run presented as a bypass"
 	case inc != nil && inc.Kind == "raw" && inc.RawRunDir != "" && rawRunIDShape.MatchString(inc.RawRunID):
 		dir := quoteOperand(inc.RawRunDir)
-		return "a raw gate run occupies this worktree's execution slot and admission could not prove it finished (a run whose completion is proven is settled automatically by the next admission); it may still be running. Inspect it with docket gate observe " + dir +
+		return "a raw gate run occupies this worktree's slot and admission could not prove it finished (a run whose completion is proven is settled automatically by the next admission); it may still be running. Inspect it with docket gate observe " + dir +
 			", then settle the slot with docket gate stop " + dir + " --reason <why> — stopping a still-running run cancels it; stopping an already-completed run settles its slot (the stop operation itself decides whether teardown is proven)"
 	case inc != nil && inc.Kind == "raw":
-		return "a raw gate reservation occupies this worktree's execution slot but its run identity is not recorded; do not start a second gate here — resolve the incumbent before retrying"
+		return "a raw gate reservation occupies this worktree's slot but its run identity is not recorded; do not start a second gate here — resolve the incumbent before retrying"
 	case kind == gatedrive.ErrLaunchUnconfirmed:
 		return ownershipNextAction(gatedrive.ErrLaunchUnconfirmed)
 	default:

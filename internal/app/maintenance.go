@@ -45,7 +45,7 @@ const (
 	sweepKindReclaim  = "reclaim"
 )
 
-// SweepScope is the closed maintenance-sweep scope vocabulary (change 0389).
+// SweepScope is the allowed maintenance-sweep scope values (change 0389).
 // full is the whole worklist — today's behavior, the default when the flag is
 // omitted. implementation is the implementation-startup preflight: current
 // merged-work closeouts (with their safe cleanup suffixes) and reclaim gating,

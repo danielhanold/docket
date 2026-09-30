@@ -69,7 +69,7 @@ import (
 // OperationRepositoryPrepare is the operation key `repository prepare` records.
 const OperationRepositoryPrepare = "repository.prepare"
 
-// The closed disposition vocabulary a prepare result carries (spec §Structured
+// The allowed disposition values a prepare result carries (spec §Structured
 // result). It is distinct from the protocol-v1 Envelope.Result taxonomy: the
 // disposition is prepare's own applied/no-op/refused/error verdict, while the
 // envelope maps it into the shared result family for exit-code presentation.

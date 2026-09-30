@@ -1131,16 +1131,11 @@ not evidence that it crashed. The caller must never background a run and walk aw
 ### Liveness probe / moved to background
 
 A **liveness probe** checks whether a recorded process is still there. Only a failed existence check proves the process
-is gone. Any other non-zero answer means its liveness is *unprovable*, not that it died. A command **moved to background** is a
-harness moving a still-running command into the background.
+is gone. Any other non-zero answer means its liveness is *unprovable*, not that it died. A command **moved to background** is one
+where the harness returned control to the agent while the command keeps running.
 
 **Used for:** not declaring a run dead or finished too early. When a shell tool yields with a live task or session id,
 keep that id and collect its real exit through the harness's own wait. Do not re-run the command or report completion.
-
-```sh
-docket gate launch  --cwd <worktree> --root <run-root> -- ./run-tests.sh   # primitive; workflows use gate drive
-docket gate observe <run-dir>
-```
 
 ### Observation budget (`gate_observation_budget` / `delegation_observation_budget`)
 

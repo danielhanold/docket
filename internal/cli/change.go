@@ -198,7 +198,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 // request body. Exactly one mode is chosen: --adopt-pr-head (trust the
 // PR, the missing/mismatched-branch recovery) with --expect-pr/--expect-head, or
 // --adopt-pr (trust the record) with --expect-branch. The app layer owns the
-// mode/evidence validation and the closed reason-token vocabulary, so a
+// mode/evidence validation and the allowed reason-token values, so a
 // contradictory flag combination is refused as invalid-request there. It
 // composes the finalize seams — the read-only planning seams, the GitHub adapter
 // (the exact PR read), and the workspace service (the ownership gate) — the same

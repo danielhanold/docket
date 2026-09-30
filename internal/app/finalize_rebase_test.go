@@ -697,7 +697,7 @@ func TestMapDriveOutcomeCarriesRefusalDetail(t *testing.T) {
 	out := GateDriveResult{
 		Envelope: NewEnvelope(OperationGateDriveStart, ResultInvalidInput),
 		Reason:   "worktree-busy",
-		Message:  "a raw gate run occupies this worktree's execution slot; ...",
+		Message:  "a raw gate run occupies this worktree's slot; ...",
 		Stage:    stageWorktreeAdmission,
 		Locator:  "incumbent-run:0123456789abcdef0123456789abcdef",
 	}
