@@ -1,12 +1,6 @@
 # Backlog
 
-**479 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 326 done · 🗑️ 120 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0473](active/0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) | Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks | `medium` | `refactor` | [#355](https://github.com/danielhanold/docket/pull/355) | awaiting merge |
+**479 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 327 done · 🗑️ 120 killed
 
 ## 🔴 Blocked (1)
 
@@ -90,7 +84,6 @@ graph TD
   0457
   0464
   0469
-  0468 --> 0473
   0468 --> 0474
   0475
   0476
@@ -105,11 +98,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (446)</summary>
+<details><summary>✅🗑️ Archive — done + killed (447)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0477](archive/2026-09-30-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md) | Finish the run-tracker rename (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY, dispatch_context) | 2026-09-30 |
+| [0473](archive/2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) | Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks | 2026-09-30 |
 | [0472](archive/2026-09-30-0472-rename-change-version-to-revision-version-revision.md) | Rename change version to revision (--version → --revision) | 2026-09-30 |
 | [0471](archive/2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) | Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) | 2026-09-29 |
 | [0470](archive/2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md) | Install the no-real-git test guard in internal/gatedrive | 2026-09-29 |
@@ -124,7 +118,6 @@ graph TD
 | [0456](archive/2026-09-27-0456-show-finding-remedies-in-docket-status-human-view.md) | Show finding remedies in docket status human view | 2026-09-27 |
 | [0455](archive/2026-09-27-0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) | Document finalize's record-invalid reason in the docket-finalize-change skill | 2026-09-27 |
 | [0447](archive/2026-09-27-0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | 2026-09-27 |
-| [0398](archive/2026-09-27-0398-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) | Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages | 2026-09-27 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -249,7 +242,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 75 done |
+| [2026-09](archive/) | 76 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

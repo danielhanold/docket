@@ -2,7 +2,7 @@
 id: 473
 slug: 'rename-build-profile-and-review-rung-to-tiers-and-dispatch-t'
 title: 'Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
@@ -22,7 +22,7 @@ branch: 'refactor/rename-build-profile-and-review-rung-to-tiers-and-dispatch-t'
 pr: 'https://github.com/danielhanold/docket/pull/355'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-30T12:06:41Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-30T12:06:41Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-30-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-30-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t-design.md) |
-| Plan | [2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md](https://github.com/danielhanold/docket/blob/refactor/rename-build-profile-and-review-rung-to-tiers-and-dispatch-t/docs/superpowers/plans/2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) |
-| Results | [2026-09-30-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t-results.md](https://github.com/danielhanold/docket/blob/refactor/rename-build-profile-and-review-rung-to-tiers-and-dispatch-t/docs/results/2026-09-30-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t-results.md) |
+| Plan | [2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) |
+| Results | [2026-09-30-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-30-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t-results.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0086](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0086-in-context-gating-dispatch-carved-out-of-the-tier-taxonomy.md), [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
