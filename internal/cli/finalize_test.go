@@ -11,7 +11,7 @@ import (
 )
 
 // TestFinalizeRetargetChildrenRegistered proves the subcommand is wired under the
-// finalize group carrying the scalar --id/--version identity flags and the
+// finalize group carrying the scalar --id/--revision identity flags and the
 // --input request-file flag (the authored authorization set rides in the file,
 // never shell-escaped flags), plus --repo-dir.
 func TestFinalizeRetargetChildrenRegistered(t *testing.T) {
@@ -20,7 +20,7 @@ func TestFinalizeRetargetChildrenRegistered(t *testing.T) {
 	if err != nil || cmd == nil || cmd.Name() != "retarget-children" {
 		t.Fatalf("finalize retarget-children not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"id", "version", "input", "repo-dir"} {
+	for _, flag := range []string{"id", "revision", "input", "repo-dir"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("finalize retarget-children: missing --%s flag", flag)
 		}
@@ -35,14 +35,14 @@ func TestFinalizeRetargetChildrenAssetIndependent(t *testing.T) {
 	}
 }
 
-// TestFinalizeRetargetChildrenFlagsRequired proves --id, --version, and --input are
+// TestFinalizeRetargetChildrenFlagsRequired proves --id, --revision, and --input are
 // required: omitting them is an argument error (exit 2) before any operation runs.
 func TestFinalizeRetargetChildrenFlagsRequired(t *testing.T) {
 	_, errS, code := runCLI(t, "finalize", "retarget-children")
 	if code != 2 || errS == "" {
 		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
 	}
-	for _, flag := range []string{"id", "version", "input"} {
+	for _, flag := range []string{"id", "revision", "input"} {
 		if !strings.Contains(errS, flag) {
 			t.Errorf("required-flag error does not name %q: %q", flag, errS)
 		}
@@ -56,7 +56,7 @@ func TestFinalizeRetargetChildrenFlagsRequired(t *testing.T) {
 func TestFinalizeRetargetChildrenReachesOperation(t *testing.T) {
 	out, errS, _ := runCLIStdin(t, `{"children":[{"id":81,"pr_number":810,"pr_revision":"cv810"}]}`,
 		"finalize", "retarget-children",
-		"--id", "80", "--version", "1234123412341234123412341234123412341234",
+		"--id", "80", "--revision", "1234123412341234123412341234123412341234",
 		"--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
@@ -78,7 +78,7 @@ func TestFinalizeRetargetChildrenReachesOperation(t *testing.T) {
 func TestFinalizeRetargetChildrenUnknownFieldRejected(t *testing.T) {
 	_, errS, code := runCLIStdin(t, `{"id":80,"children":[]}`,
 		"finalize", "retarget-children",
-		"--id", "80", "--version", "1234123412341234123412341234123412341234",
+		"--id", "80", "--revision", "1234123412341234123412341234123412341234",
 		"--input", "-", "--json")
 	if code != 2 || errS != "" {
 		t.Fatalf("err=%q code=%d, want an invalid-input argument error", errS, code)
@@ -127,7 +127,7 @@ func TestFinalizeRebaseRegistered(t *testing.T) {
 	if err != nil || cmd == nil || cmd.Name() != "rebase" {
 		t.Fatalf("finalize rebase not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"id", "version", "head", "repo-dir"} {
+	for _, flag := range []string{"id", "revision", "head", "repo-dir"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("finalize rebase: missing --%s flag", flag)
 		}
@@ -219,13 +219,13 @@ func TestFinalizeResolverReserveReachesOperation(t *testing.T) {
 	}
 }
 
-// TestFinalizeRebaseFlagsRequired proves --id, --version, and --head are required.
+// TestFinalizeRebaseFlagsRequired proves --id, --revision, and --head are required.
 func TestFinalizeRebaseFlagsRequired(t *testing.T) {
 	_, errS, code := runCLI(t, "finalize", "rebase")
 	if code != 2 || errS == "" {
 		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
 	}
-	for _, flag := range []string{"id", "version", "head"} {
+	for _, flag := range []string{"id", "revision", "head"} {
 		if !strings.Contains(errS, flag) {
 			t.Errorf("required-flag error does not name %q: %q", flag, errS)
 		}
@@ -236,7 +236,7 @@ func TestFinalizeRebaseFlagsRequired(t *testing.T) {
 // reaches the operation, which emits exactly one protocol-v1 document naming it.
 func TestFinalizeRebaseReachesOperation(t *testing.T) {
 	out, errS, _ := runCLI(t, "finalize", "rebase",
-		"--id", "80", "--version", "1234123412341234123412341234123412341234",
+		"--id", "80", "--revision", "1234123412341234123412341234123412341234",
 		"--head", "abcabcabcabcabcabcabcabcabcabcabcabcabca", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
@@ -331,7 +331,7 @@ func TestFinalizePublishReachesOperation(t *testing.T) {
 }
 
 // TestFinalizeMergeRegistered proves the subcommand is wired under the finalize
-// group carrying the scalar --id/--version/--head identity flags, the --admin
+// group carrying the scalar --id/--revision/--head identity flags, the --admin
 // override flag, and --repo-dir.
 func TestFinalizeMergeRegistered(t *testing.T) {
 	root := captureTree(t)
@@ -339,7 +339,7 @@ func TestFinalizeMergeRegistered(t *testing.T) {
 	if err != nil || cmd == nil || cmd.Name() != "merge" {
 		t.Fatalf("finalize merge not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"id", "version", "head", "admin", "repo-dir"} {
+	for _, flag := range []string{"id", "revision", "head", "admin", "repo-dir"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("finalize merge: missing --%s flag", flag)
 		}
@@ -354,7 +354,7 @@ func TestFinalizeMergeAssetIndependent(t *testing.T) {
 	}
 }
 
-// TestFinalizeMergeFlagsRequired proves --id, --version, and --head are required:
+// TestFinalizeMergeFlagsRequired proves --id, --revision, and --head are required:
 // omitting them is an argument error (exit 2) before any operation runs. --admin
 // is optional.
 func TestFinalizeMergeFlagsRequired(t *testing.T) {
@@ -362,7 +362,7 @@ func TestFinalizeMergeFlagsRequired(t *testing.T) {
 	if code != 2 || errS == "" {
 		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
 	}
-	for _, flag := range []string{"id", "version", "head"} {
+	for _, flag := range []string{"id", "revision", "head"} {
 		if !strings.Contains(errS, flag) {
 			t.Errorf("required-flag error does not name %q: %q", flag, errS)
 		}
@@ -375,7 +375,7 @@ func TestFinalizeMergeFlagsRequired(t *testing.T) {
 // but only after naming itself.
 func TestFinalizeMergeReachesOperation(t *testing.T) {
 	out, errS, _ := runCLI(t, "finalize", "merge",
-		"--id", "80", "--version", "1234123412341234123412341234123412341234",
+		"--id", "80", "--revision", "1234123412341234123412341234123412341234",
 		"--head", "abcabcabcabcabcabcabcabcabcabcabcabcabca",
 		"--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
@@ -403,7 +403,7 @@ func TestFinalizeBlockRegistered(t *testing.T) {
 	if err != nil || cmd == nil || cmd.Name() != "block" {
 		t.Fatalf("finalize block not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"id", "version", "pr-number", "attempt", "reason", "head", "input", "repo-dir"} {
+	for _, flag := range []string{"id", "revision", "pr-number", "attempt", "reason", "head", "input", "repo-dir"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("finalize block: missing --%s flag", flag)
 		}
@@ -419,7 +419,7 @@ func TestFinalizeBlockRegistered(t *testing.T) {
 // reaches the operation without a live repository.
 func TestFinalizeBlockReachesOperation(t *testing.T) {
 	out, errS, _ := runCLIStdin(t, `{"remedy":"fix it"}`,
-		"finalize", "block", "--id", "3", "--version", "1234123412341234123412341234123412341234",
+		"finalize", "block", "--id", "3", "--revision", "1234123412341234123412341234123412341234",
 		"--pr-number", "7", "--attempt", "att1", "--reason", "gate-repair-required",
 		"--head", "aaaa", "--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
@@ -440,7 +440,7 @@ func TestFinalizeBlockFlagsRequired(t *testing.T) {
 	if code != 2 || errS == "" {
 		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
 	}
-	for _, flag := range []string{"id", "version", "pr-number", "attempt", "reason", "head", "input"} {
+	for _, flag := range []string{"id", "revision", "pr-number", "attempt", "reason", "head", "input"} {
 		if !strings.Contains(errS, flag) {
 			t.Errorf("required-flag error does not name %q: %q", flag, errS)
 		}
@@ -455,7 +455,7 @@ func TestFinalizeClearBlockRegistered(t *testing.T) {
 	if err != nil || cmd == nil || cmd.Name() != "clear-block" {
 		t.Fatalf("finalize clear-block not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"id", "version", "head", "pr-number", "repo-dir"} {
+	for _, flag := range []string{"id", "revision", "head", "pr-number", "repo-dir"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("finalize clear-block: missing --%s flag", flag)
 		}
@@ -470,7 +470,7 @@ func TestFinalizeClearBlockRegistered(t *testing.T) {
 // tempdir is no docket repo, so it fails past its shape check — after naming itself).
 func TestFinalizeClearBlockReachesOperation(t *testing.T) {
 	out, errS, _ := runCLI(t, "finalize", "clear-block",
-		"--id", "3", "--version", "1234123412341234123412341234123412341234",
+		"--id", "3", "--revision", "1234123412341234123412341234123412341234",
 		"--head", "aaaa", "--pr-number", "7", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)

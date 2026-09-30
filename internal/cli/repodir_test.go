@@ -96,7 +96,7 @@ func TestContextFinalizeRepoDirDefault(t *testing.T) {
 
 // TestFinalizeMergeRepoDirDefault: the mutating merge verb resolves the same way.
 func TestFinalizeMergeRepoDirDefault(t *testing.T) {
-	repoDirDefaultMatchesExplicit(t, "finalize", "merge", "--id", "1", "--version", "v", "--head", strings.Repeat("a", 40))
+	repoDirDefaultMatchesExplicit(t, "finalize", "merge", "--id", "1", "--revision", "v", "--head", strings.Repeat("a", 40))
 }
 
 // TestStatusRepoDirDefault: at least one NON-finalize command family shares the

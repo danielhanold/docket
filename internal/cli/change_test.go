@@ -144,7 +144,7 @@ func TestChangeCommandsAssetIndependent(t *testing.T) {
 }
 
 // TestChangeClaimCommandsRegistered proves claim and refresh-claim are wired as
-// change subcommands carrying the scalar --id/--version flags (no --request:
+// change subcommands carrying the scalar --id/--revision flags (no --request:
 // they carry no authored Markdown).
 func TestChangeClaimCommandsRegistered(t *testing.T) {
 	root := captureTree(t)
@@ -156,8 +156,8 @@ func TestChangeClaimCommandsRegistered(t *testing.T) {
 		if cmd.Flags().Lookup("id") == nil {
 			t.Errorf("change %s: missing --id flag", sub)
 		}
-		if cmd.Flags().Lookup("version") == nil {
-			t.Errorf("change %s: missing --version flag", sub)
+		if cmd.Flags().Lookup("revision") == nil {
+			t.Errorf("change %s: missing --revision flag", sub)
 		}
 	}
 }
@@ -210,7 +210,7 @@ func TestChangeReconcileInputFlagRequired(t *testing.T) {
 
 // TestChangeReconcileReachesOperation proves reconcile decodes its --input body
 // and reaches the operation, which returns exactly one protocol-v1 document
-// naming it. A `{}` body fails the up-front shape validation (missing version /
+// naming it. A `{}` body fails the up-front shape validation (missing revision /
 // log entry), so this reaches the operation without a live repository.
 func TestChangeReconcileReachesOperation(t *testing.T) {
 	out, errS, code := runCLIStdin(t, `{}`, "change", "reconcile", "--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
@@ -265,11 +265,11 @@ func TestUnknownFieldErrorListsAcceptedKeys(t *testing.T) {
 	}
 }
 
-// TestChangeClaimFlagsRequired proves --id and --version are required: omitting
+// TestChangeClaimFlagsRequired proves --id and --revision are required: omitting
 // them is an argument error (exit 2) before any operation runs.
 func TestChangeClaimFlagsRequired(t *testing.T) {
 	_, errS, code := runCLI(t, "change", "claim")
-	if code != 2 || (!strings.Contains(errS, "id") && !strings.Contains(errS, "version")) {
+	if code != 2 || (!strings.Contains(errS, "id") && !strings.Contains(errS, "revision")) {
 		t.Fatalf("err=%q code=%d", errS, code)
 	}
 }
@@ -285,7 +285,7 @@ func TestChangeClaimCommandsReachOperation(t *testing.T) {
 	}
 	for _, c := range cases {
 		out, errS, code := runCLI(t, "change", c.sub,
-			"--id", "7", "--version", "1234123412341234123412341234123412341234",
+			"--id", "7", "--revision", "1234123412341234123412341234123412341234",
 			"--repo-dir", testsupport.TempDir(t), "--json")
 		_ = code
 		if errS != "" {
@@ -304,7 +304,7 @@ func TestChangeClaimCommandsReachOperation(t *testing.T) {
 }
 
 // TestChangeAttachCommandsRegistered proves attach-plan and attach-results are
-// wired as change subcommands carrying the scalar --id/--version/--path/--commit
+// wired as change subcommands carrying the scalar --id/--revision/--path/--commit
 // flags (no --request: they name a verified Git artifact, not authored Markdown).
 func TestChangeAttachCommandsRegistered(t *testing.T) {
 	root := captureTree(t)
@@ -313,7 +313,7 @@ func TestChangeAttachCommandsRegistered(t *testing.T) {
 		if err != nil || cmd == nil || cmd.Name() != sub {
 			t.Fatalf("change %s not registered: cmd=%v err=%v", sub, cmd, err)
 		}
-		for _, flag := range []string{"id", "version", "path", "commit"} {
+		for _, flag := range []string{"id", "revision", "path", "commit"} {
 			if cmd.Flags().Lookup(flag) == nil {
 				t.Errorf("change %s: missing --%s flag", sub, flag)
 			}
@@ -333,7 +333,7 @@ func TestChangeMarkImplementedRegistered(t *testing.T) {
 	if err != nil || cmd == nil || cmd.Name() != "mark-implemented" {
 		t.Fatalf("change mark-implemented not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"id", "version", "head", "pr", "evidence", "repo-dir"} {
+	for _, flag := range []string{"id", "revision", "head", "pr", "evidence", "repo-dir"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("change mark-implemented: missing --%s flag", flag)
 		}
@@ -364,7 +364,7 @@ func TestChangeMarkImplementedReachesOperation(t *testing.T) {
 	}
 	out, errS, _ := runCLI(t, "change", "mark-implemented",
 		"--id", "7",
-		"--version", "1234123412341234123412341234123412341234",
+		"--revision", "1234123412341234123412341234123412341234",
 		"--head", "1111111111111111111111111111111111111111",
 		"--pr", "github.com/acme/widget#42",
 		"--evidence", evFile,
@@ -400,7 +400,7 @@ func TestChangeAttachCommandsReachOperation(t *testing.T) {
 	}
 	for _, c := range cases {
 		out, errS, _ := runCLI(t, "change", c.sub,
-			"--id", "7", "--version", "1234123412341234123412341234123412341234",
+			"--id", "7", "--revision", "1234123412341234123412341234123412341234",
 			"--path", "docs/superpowers/plans/x.md", "--commit", "1234123412341234123412341234123412341234",
 			"--repo-dir", testsupport.TempDir(t), "--json")
 		if errS != "" {
@@ -426,7 +426,7 @@ func TestChangeHaltRegistered(t *testing.T) {
 	if err != nil || cmd == nil || cmd.Name() != "halt" {
 		t.Fatalf("change halt not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"id", "version", "input", "repo-dir"} {
+	for _, flag := range []string{"id", "revision", "input", "repo-dir"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("change halt: missing --%s flag", flag)
 		}
@@ -442,7 +442,7 @@ func TestChangeHaltRegistered(t *testing.T) {
 // live repository.
 func TestChangeHaltReachesOperation(t *testing.T) {
 	out, errS, _ := runCLIStdin(t, `{}`, "change", "halt",
-		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
+		"--id", "3", "--revision", "1234123412341234123412341234123412341234", "--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -461,7 +461,7 @@ func TestChangeHaltReachesOperation(t *testing.T) {
 // document never echoes the authored report bytes (change 0354).
 func TestChangeHaltRejectsStructuralReport(t *testing.T) {
 	out, errS, _ := runCLIStdin(t, `{"report":"## Run halted\n\nzz-authored-marker-zz\n"}`, "change", "halt",
-		"--id", "3", "--version", "1234123412341234123412341234123412341234",
+		"--id", "3", "--revision", "1234123412341234123412341234123412341234",
 		"--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
@@ -485,7 +485,7 @@ func TestChangeResumeHaltedRegistered(t *testing.T) {
 	if err != nil || cmd == nil || cmd.Name() != "resume-halted" {
 		t.Fatalf("change resume-halted not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"id", "version", "acknowledge-quiescent", "repo-dir"} {
+	for _, flag := range []string{"id", "revision", "acknowledge-quiescent", "repo-dir"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("change resume-halted: missing --%s flag", flag)
 		}
@@ -501,7 +501,7 @@ func TestChangeResumeHaltedRegistered(t *testing.T) {
 // live repository is consulted.
 func TestChangeResumeHaltedReachesOperation(t *testing.T) {
 	out, errS, _ := runCLI(t, "change", "resume-halted",
-		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--repo-dir", testsupport.TempDir(t), "--json")
+		"--id", "3", "--revision", "1234123412341234123412341234123412341234", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -526,7 +526,7 @@ func TestChangeReclaimRegistered(t *testing.T) {
 	if err != nil || cmd == nil || cmd.Name() != "reclaim" {
 		t.Fatalf("change reclaim not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"id", "version", "repo-dir"} {
+	for _, flag := range []string{"id", "revision", "repo-dir"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("change reclaim: missing --%s flag", flag)
 		}
@@ -536,7 +536,7 @@ func TestChangeReclaimRegistered(t *testing.T) {
 	}
 }
 
-// TestChangeReclaimFlagsRequired proves --id and --version are required: omitting
+// TestChangeReclaimFlagsRequired proves --id and --revision are required: omitting
 // them is an argument error (exit 2) before any operation runs.
 func TestChangeReclaimFlagsRequired(t *testing.T) {
 	_, errS, code := runCLI(t, "change", "reclaim")
@@ -551,7 +551,7 @@ func TestChangeReclaimFlagsRequired(t *testing.T) {
 // metadata is mutated.
 func TestChangeReclaimReachesOperation(t *testing.T) {
 	out, errS, _ := runCLI(t, "change", "reclaim",
-		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--repo-dir", testsupport.TempDir(t), "--json")
+		"--id", "3", "--revision", "1234123412341234123412341234123412341234", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -564,7 +564,7 @@ func TestChangeReclaimReachesOperation(t *testing.T) {
 }
 
 // TestChangeRepairIdentityRegistered proves repair-identity is wired as a change
-// subcommand carrying its scalar identity, version pin, and the two mode/evidence
+// subcommand carrying its scalar identity, revision pin, and the two mode/evidence
 // flag sets (no --request: the op writes one frontmatter field, not authored
 // Markdown), and is registered asset-independent.
 func TestChangeRepairIdentityRegistered(t *testing.T) {
@@ -573,7 +573,7 @@ func TestChangeRepairIdentityRegistered(t *testing.T) {
 	if err != nil || cmd == nil || cmd.Name() != "repair-identity" {
 		t.Fatalf("change repair-identity not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"id", "expect-version", "adopt-pr-head", "expect-pr", "expect-head", "adopt-pr", "expect-branch", "repo-dir"} {
+	for _, flag := range []string{"id", "expect-revision", "adopt-pr-head", "expect-pr", "expect-head", "adopt-pr", "expect-branch", "repo-dir"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("change repair-identity: missing --%s flag", flag)
 		}
@@ -583,11 +583,11 @@ func TestChangeRepairIdentityRegistered(t *testing.T) {
 	}
 }
 
-// TestChangeRepairIdentityFlagsRequired proves --id and --expect-version are
+// TestChangeRepairIdentityFlagsRequired proves --id and --expect-revision are
 // required: omitting them is an argument error (exit 2) before any operation runs.
 func TestChangeRepairIdentityFlagsRequired(t *testing.T) {
 	_, errS, code := runCLI(t, "change", "repair-identity")
-	if code != 2 || (!strings.Contains(errS, "id") && !strings.Contains(errS, "expect-version")) {
+	if code != 2 || (!strings.Contains(errS, "id") && !strings.Contains(errS, "expect-revision")) {
 		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
 	}
 }
@@ -598,7 +598,7 @@ func TestChangeRepairIdentityFlagsRequired(t *testing.T) {
 // document naming the operation, before any repository is touched.
 func TestChangeRepairIdentityReachesOperation(t *testing.T) {
 	out, errS, code := runCLI(t, "change", "repair-identity",
-		"--id", "3", "--expect-version", "1234123412341234123412341234123412341234",
+		"--id", "3", "--expect-revision", "1234123412341234123412341234123412341234",
 		"--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)

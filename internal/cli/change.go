@@ -126,7 +126,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 		}, EffectMetadataWrite)
 
 	claim := changeIDRevisionSubcommand("claim",
-		"Claim a build-ready change at an exact version, moving it to in-progress",
+		"Claim a build-ready change at an exact revision, moving it to in-progress",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
 			req.RunContext, _ = c.Flags().GetString("run-context")
 			setResult(app.ChangeClaim(c.Context(), deps, repoDir, req))
@@ -134,7 +134,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	claim.Flags().String("run-context", "", "run-context `token` from run start, binding this claim to its started run (optional; omitted for an untracked claim)")
 
 	refreshClaim := changeIDRevisionSubcommand("refresh-claim",
-		"Re-stamp an in-progress change's claim lease at an exact version",
+		"Re-stamp an in-progress change's claim lease at an exact revision",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
 			setResult(app.ChangeRefreshClaim(c.Context(), deps, repoDir, req))
 		}, EffectMetadataWrite)
@@ -166,7 +166,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 		"Record a bounded run-halted report on an in-progress change from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 			var in changeHaltInput
 			if err := decodeInputFlag(c, &in); err != nil {
 				return err
@@ -175,9 +175,9 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		}, EffectMetadataWrite)
 	halt.Flags().Int("id", 0, "in-progress change `id` to halt (required)")
-	halt.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	halt.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
 	_ = halt.MarkFlagRequired("id")
-	_ = halt.MarkFlagRequired("version")
+	_ = halt.MarkFlagRequired("revision")
 
 	resumeHalted := newResumeHaltedSubcommand(setResult)
 
@@ -191,7 +191,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	return changeCmd
 }
 
-// newRepairIdentitySubcommand builds `change repair-identity`: the version-pinned
+// newRepairIdentitySubcommand builds `change repair-identity`: the revision-pinned
 // single-field identity repair the finalize identity checkpoint hands a human's
 // decision to. Its scalar identities and the approved evidence ride on flags —
 // the op writes exactly one frontmatter field (branch: or pr:), so there is no
@@ -206,7 +206,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "repair-identity",
-		Short:       "Repair a change's recorded identity at an exact version: adopt the PR's head as branch, or a PR reference as pr",
+		Short:       "Repair a change's recorded identity at an exact revision: adopt the PR's head as branch, or a PR reference as pr",
 		Args:        cobra.NoArgs,
 		Annotations: capability("change.repair-identity", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
@@ -215,7 +215,7 @@ func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Com
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			expectRevision, _ := c.Flags().GetString("expect-version")
+			expectRevision, _ := c.Flags().GetString("expect-revision")
 			adoptPRHead, _ := c.Flags().GetBool("adopt-pr-head")
 			expectPR, _ := c.Flags().GetInt("expect-pr")
 			expectHead, _ := c.Flags().GetString("expect-head")
@@ -238,7 +238,7 @@ func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Com
 		},
 	}
 	cmd.Flags().Int("id", 0, "change `id` whose recorded identity to repair (required)")
-	cmd.Flags().String("expect-version", "", "exact change-record version `token` from the finalize report (required)")
+	cmd.Flags().String("expect-revision", "", "exact change-record `revision` from the finalize report (required)")
 	cmd.Flags().Bool("adopt-pr-head", false, "trust the PR: adopt the exact PR's reported head branch as branch:")
 	cmd.Flags().Int("expect-pr", 0, "the exact PR `n`umber the approved evidence showed (with --adopt-pr-head)")
 	cmd.Flags().String("expect-head", "", "the head branch `ref` the human approved (with --adopt-pr-head)")
@@ -246,7 +246,7 @@ func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Com
 	cmd.Flags().String("expect-branch", "", "the recorded branch `name` the human approved (with --adopt-pr)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
-	_ = cmd.MarkFlagRequired("expect-version")
+	_ = cmd.MarkFlagRequired("expect-revision")
 	return cmd
 }
 
@@ -254,7 +254,7 @@ func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Com
 // authored run-halted report — the section body only (the operation owns the
 // "## Run halted" heading and dated sub-heading; a body with its own
 // column-zero "## " heading or an open code fence is refused). The scalar
-// identity (id, version) rides on flags — only the authored Markdown travels
+// identity (id, revision) rides on flags — only the authored Markdown travels
 // through the request file (Global Constraints).
 type changeHaltInput struct {
 	Report string `json:"report"`
@@ -278,7 +278,7 @@ func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Comma
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 			ack, _ := c.Flags().GetBool("acknowledge-quiescent")
 			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
@@ -293,17 +293,17 @@ func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Comma
 		},
 	}
 	cmd.Flags().Int("id", 0, "halted change `id` to resume (required)")
-	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
 	cmd.Flags().Bool("acknowledge-quiescent", false, "explicit acknowledgement that the prior worker is quiescent (required to resume)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
-	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("revision")
 	return cmd
 }
 
 // newReclaimSubcommand builds `change reclaim`: the proof-gated return of a
 // strictly-expired in-progress claim to proposed. Its scalar identities (id,
-// version) ride on flags; the reclaim generates its own dated log entry, so it
+// revision) ride on flags; the reclaim generates its own dated log entry, so it
 // takes no request file. It composes the read-only planning seams and the
 // workspace service — the workspace inspection is the reclaim's ownership and
 // live-gate probe.
@@ -319,7 +319,7 @@ func newReclaimSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
@@ -332,15 +332,15 @@ func newReclaimSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 		},
 	}
 	cmd.Flags().Int("id", 0, "expired in-progress change `id` to reclaim (required)")
-	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
-	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("revision")
 	return cmd
 }
 
 // newMarkImplementedSubcommand builds `change mark-implemented`: the final
-// verified transition. Its scalar identities (id, version, head, pr) ride on
+// verified transition. Its scalar identities (id, revision, head, pr) ride on
 // flags; the canonical build-evidence record rides in a file (or stdin) via
 // --evidence, reparsed by the operation. It composes the read-only planning
 // seams, the workspace service, and the githubcli adapter — the same three seams
@@ -351,7 +351,7 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 		Use:   "mark-implemented",
 		Short: "Mark an in-progress change implemented after reprobing its head, evidence, and published PR",
 		Args:  cobra.NoArgs,
-		// metadata-write: applies the exact-version transaction recording the
+		// metadata-write: applies the exact-revision transaction recording the
 		// implemented transition; the head/evidence/PR reprobes are read-only.
 		Annotations: capability("change.mark-implemented", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
@@ -360,7 +360,7 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 			head, _ := c.Flags().GetString("head")
 			prRef, _ := c.Flags().GetString("pr")
 			evSource, _ := c.Flags().GetString("evidence")
@@ -384,13 +384,13 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 		},
 	}
 	cmd.Flags().Int("id", 0, "change `id` to mark implemented (required)")
-	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
 	cmd.Flags().String("head", "", "exact tested feature head `ref` the transition must certify (required)")
 	cmd.Flags().String("pr", "", "canonical PR `ref`erence returned by pr publish (required)")
 	cmd.Flags().String("evidence", "", "canonical build-evidence record `file`, or - for stdin (required)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
-	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("revision")
 	_ = cmd.MarkFlagRequired("head")
 	_ = cmd.MarkFlagRequired("pr")
 	_ = cmd.MarkFlagRequired("evidence")
@@ -398,7 +398,7 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 }
 
 // changeAttachSubcommand builds one `change <verb>` command whose input is the
-// (id, version, path, commit) tuple: an attach verifies a written artifact from
+// (id, revision, path, commit) tuple: an attach verifies a written artifact from
 // Git and links it, so it takes scalar flags (Global Constraints: request files
 // are for authored Markdown, never these). It builds the workspace-backed deps
 // the attach operation needs to inspect the owned checkout.
@@ -414,7 +414,7 @@ func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps 
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 			artifactPath, _ := c.Flags().GetString("path")
 			commit, _ := c.Flags().GetString("commit")
 			deps, wdeps, err := newWorkspaceDeps(repoDir)
@@ -426,12 +426,12 @@ func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps 
 		},
 	}
 	cmd.Flags().Int("id", 0, "change `id` to attach the artifact to (required)")
-	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
 	cmd.Flags().String("path", "", "canonical repository-relative artifact `path` (required)")
 	cmd.Flags().String("commit", "", "exact feature commit `sha` the writer reported (required)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
-	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("revision")
 	_ = cmd.MarkFlagRequired("path")
 	_ = cmd.MarkFlagRequired("commit")
 	return cmd
@@ -474,7 +474,7 @@ func decodeInputFlag(c *cobra.Command, dst any) error {
 }
 
 // changeIDRevisionSubcommand builds one `change <verb>` command whose input is the
-// (id, version) pair rather than a JSON request body: the claim transitions
+// (id, revision) pair rather than a JSON request body: the claim transitions
 // carry no authored Markdown, so they take scalar flags (Global Constraints:
 // request files are for authored Markdown, never these). run receives the
 // resolved dependencies, repo directory, and decoded request.
@@ -490,7 +490,7 @@ func changeIDRevisionSubcommand(verb, short string, run func(c *cobra.Command, d
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 			deps, err := newPlanningDeps(repoDir)
 			if err != nil {
 				return err
@@ -500,10 +500,10 @@ func changeIDRevisionSubcommand(verb, short string, run func(c *cobra.Command, d
 		},
 	}
 	cmd.Flags().Int("id", 0, "change `id` to operate on (required)")
-	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
-	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("revision")
 	return cmd
 }
 

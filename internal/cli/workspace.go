@@ -12,7 +12,7 @@ import (
 // This file is the `docket workspace` command family: thin adapters that read
 // their scalar flags, hand them to the matching internal/app operation over the
 // real Git-backed seams plus the landed workspace service, and let the presenter
-// own the outcome. Every policy question — base resolution, the claimed-version
+// own the outcome. Every policy question — base resolution, the claimed-revision
 // gate, the expected-head check, disposition mapping — belongs to internal/app,
 // so no body here branches on repository content.
 
@@ -34,7 +34,7 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	prepare := &cobra.Command{
 		Use:         "prepare",
-		Short:       "Prepare (or resume) the feature workspace for an in-progress change at an exact version",
+		Short:       "Prepare (or resume) the feature workspace for an in-progress change at an exact revision",
 		Args:        cobra.NoArgs,
 		Annotations: capability("workspace.prepare", EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
@@ -43,7 +43,7 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
@@ -54,10 +54,10 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 		},
 	}
 	prepare.Flags().Int("id", 0, "change `id` to prepare a workspace for (required)")
-	prepare.Flags().String("version", "", "exact record blob object `id` from the claim receipt (required)")
+	prepare.Flags().String("revision", "", "exact record `revision` (the blob object id) from the claim receipt (required)")
 	prepare.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = prepare.MarkFlagRequired("id")
-	_ = prepare.MarkFlagRequired("version")
+	_ = prepare.MarkFlagRequired("revision")
 
 	inspect := &cobra.Command{
 		Use:         "inspect",
