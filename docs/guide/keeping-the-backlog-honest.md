@@ -63,8 +63,8 @@ re-enter the queue — the one edge in a change's life that runs backward.
   prints a line like `reclaim: <n> expired-lease change(s) can self-heal — run: docket change
   reclaim` and leaves the change alone. With `reclaim.auto: true` status reclaims every eligible
   change itself on each pass.
-- **Run it by hand any time** with `docket change reclaim --id <n> --version <v>` — per change,
-  at its exact recorded version — whether or not `reclaim.auto` is set.
+- **Run it by hand any time** with `docket change reclaim --id <n> --revision <v>` — per change,
+  at its exact recorded revision — whether or not `reclaim.auto` is set.
 - **A change that already has a branch is left to you.** A pushed branch might carry real,
   un-merged work, so reclaim never touches it — the concrete risk is throwing away code nobody
   backed up. It stays flagged instead, for you to resume or discard.
