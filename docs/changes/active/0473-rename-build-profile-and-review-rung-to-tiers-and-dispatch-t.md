@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/rename-build-profile-and-review-rung-to-tiers-and-dispatch-t'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-30T09:00:17Z'
+reconciled: true
+claimed_at: '2026-09-30T09:02:06Z'
 ---
 
 ## Artifacts
@@ -60,3 +60,9 @@ Apply the spec's rename map across maintained source, in one PR:
 - A new guard or retired-vocabulary seal for these terms.
 - Moving `no-fallback` into the convention's table (ADR-0086 rejected a fourth row).
 - Rows owned by the other ADR-0129 families or by change 0469.
+
+## Reconcile log
+
+### 2026-09-30
+
+Reconciled against origin/main c38ca3bed, the same commit grooming traced (2026-09-30); no main commits since, so the spec site list and budgets stand. Dependency 0468 is done. No other change is in-progress or implemented, so the drain precondition holds at claim time; merge must still wait for a drain. Scope unchanged.
