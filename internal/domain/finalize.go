@@ -311,22 +311,22 @@ func allowlistSet(ids []ChangeID) map[ChangeID]bool {
 	return set
 }
 
-// MergeConjuncts is the closed set of preconditions a merge requires, each a
+// MergeConditions is the closed set of preconditions a merge requires, each a
 // Boolean that must hold. AllHold reports whether the merge may proceed;
-// FirstFailure names the first unmet conjunct so a refusal carries a stable,
+// FirstFailure names the first unmet condition so a refusal carries a stable,
 // distinct reason token.
-type MergeConjuncts struct {
+type MergeConditions struct {
 	Implemented, PRLinkMatch, HeadsAgree, OpenNonDraft,
 	BaseIsEffectiveBase, GateSatisfied, ApprovalSatisfied,
 	NoOpenChildren, NotSuperseded bool
 }
 
-// AllHold reports whether every conjunct holds.
-func (m MergeConjuncts) AllHold() bool { return m.FirstFailure() == "" }
+// AllHold reports whether every condition holds.
+func (m MergeConditions) AllHold() bool { return m.FirstFailure() == "" }
 
-// FirstFailure returns the closed token for the first conjunct that does not
-// hold, evaluated in field-declaration order, or "" when every conjunct holds.
-func (m MergeConjuncts) FirstFailure() string {
+// FirstFailure returns the closed token for the first condition that does not
+// hold, evaluated in field-declaration order, or "" when every condition holds.
+func (m MergeConditions) FirstFailure() string {
 	switch {
 	case !m.Implemented:
 		return "not-implemented"

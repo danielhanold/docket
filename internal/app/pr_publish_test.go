@@ -22,7 +22,7 @@ const (
 
 // fakeGitHub is a scriptable GitHubService: it records DiscoverRepository and
 // EnsurePullRequest calls separately, so a test can prove the app layer NEVER
-// reached EnsurePullRequest on a broken identity conjunct.
+// reached EnsurePullRequest on a broken identity condition.
 type fakeGitHub struct {
 	repo      githubcli.Repository
 	repoErr   error
@@ -108,7 +108,7 @@ func readyService(head string) *fakeWorkspaceService {
 	}
 }
 
-// --- (1) agreement checks: each conjunct broken ⇒ typed refusal, gh untouched ---
+// --- (1) agreement checks: each condition broken ⇒ typed refusal, gh untouched ---
 
 // --- (2) body assembly: prose preserved, evidence replaced, backlink once ---
 

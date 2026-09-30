@@ -28,7 +28,7 @@ const (
 
 // rvResultsValidContent is a minimal FINAL-valid results artifact: an H1 title
 // and a substantive ## Outcome. ValidateResultsContent(..., ResultsPhaseFinal)
-// accepts it, so run verify's results content check adds no conjunct — the
+// accepts it, so run verify's results content check adds no condition — the
 // fixture head must carry a genuinely valid results file now that a linked
 // results path is content-validated at the final boundary (change 0410).
 const rvResultsValidContent = "# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the widget behavior; the run now refuses the old path.\n"
@@ -120,7 +120,7 @@ func (f *rvFixture) deps(record []byte, pr githubcli.PullRequest) (PlanningDeps,
 	return deps, wdeps, gdeps
 }
 
-// unmetReasons projects the result's conjunct list onto its stable reason
+// unmetReasons projects the result's condition list onto its stable reason
 // strings, sorted for a stable comparison.
 func unmetReasons(res RunVerifyResult) []string {
 	out := make([]string, 0, len(res.Unmet))
@@ -154,7 +154,7 @@ func TestRunVerifyUnclaimed(t *testing.T) {
 		t.Fatalf("verdict = %q, want %q", res.Verdict, VerdictRunUnclaimed)
 	}
 	if len(res.Unmet) != 0 {
-		t.Errorf("run-unclaimed carried unmet conjuncts: %v", unmetReasons(res))
+		t.Errorf("run-unclaimed carried unmet conditions: %v", unmetReasons(res))
 	}
 	if code := ExitCode(res.Env().Result); code != 0 {
 		t.Errorf("run-unclaimed exit code = %d, want 0", code)
@@ -276,8 +276,8 @@ func TestRunVerifyHaltedVerdict(t *testing.T) {
 
 // TestRunVerifyHaltedPrecedesMissingResults: a change carrying the durable
 // "## Run halted" marker and NO results still short-circuits to run-halted — the
-// missing-results conjunct (change 0410, hoisted outside the blob-read guard)
-// never runs before the halted verdict, so no unmet conjunct leaks into the
+// missing-results condition (change 0410, hoisted outside the blob-read guard)
+// never runs before the halted verdict, so no unmet condition leaks into the
 // terminal report. Pins that the persisted halt stays terminal.
 func TestRunVerifyHaltedPrecedesMissingResults(t *testing.T) {
 	src := strings.TrimRight(lifecycleChange(3, "widget", "in-progress"), "\n") +
@@ -293,9 +293,9 @@ func TestRunVerifyHaltedPrecedesMissingResults(t *testing.T) {
 	got := RunVerify(context.Background(), PlanningDeps{Reader: fake, Clock: testClock()},
 		WorkspaceDeps{}, GitHubDeps{}, "", RunVerifyRequest{ID: 3})
 	if got.Verdict != VerdictRunHalted {
-		t.Fatalf("verdict = %q, want %q (a persisted halt precedes the missing-results conjunct)", got.Verdict, VerdictRunHalted)
+		t.Fatalf("verdict = %q, want %q (a persisted halt precedes the missing-results condition)", got.Verdict, VerdictRunHalted)
 	}
 	if len(got.Unmet) != 0 {
-		t.Fatalf("halted verdict carried unmet conjuncts %v; the missing-results conjunct must not run before the halt short-circuit", unmetReasons(got))
+		t.Fatalf("halted verdict carried unmet conditions %v; the missing-results condition must not run before the halt short-circuit", unmetReasons(got))
 	}
 }

@@ -149,7 +149,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		head := runGit(t, wp, "rev-parse", "HEAD")
 
 		// (7b) Attach the results artifact so the record carries results: — the
-		// mark-implemented results conjunct (change 0410) requires it.
+		// mark-implemented results condition (change 0410) requires it.
 		attachR := ChangeAttachResults(ctx, node.deps, wdeps, node.dir,
 			ChangeAttachRequest{ID: id, Revision: ver(), Path: resultsPath, Commit: head})
 		if attachR.Result != ResultApplied {
@@ -245,7 +245,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 			t.Fatalf("run verify = %q verdict %q, want applied/run-complete (unmet %v)", rv.Result, rv.Verdict, rv.Unmet)
 		}
 		if len(rv.Unmet) != 0 {
-			t.Errorf("run-complete carried unmet conjuncts: %v", rv.Unmet)
+			t.Errorf("run-complete carried unmet conditions: %v", rv.Unmet)
 		}
 
 		// Negative half: every metadata-remote commit past the fixture base is an

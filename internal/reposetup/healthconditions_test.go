@@ -13,11 +13,11 @@ func TestUnmetHealthConditionsHealthyIsEmpty(t *testing.T) {
 	}
 }
 
-// TestUnmetHealthConditionsEachConjunct varies every conjunct of the healthy
-// conjunction through a non-satisfying state and asserts exactly that
+// TestUnmetHealthConditionsEachCondition varies every condition of the healthy
+// conditions through a non-satisfying state and asserts exactly that
 // condition is reported (spec Verification item 1). Unknown and Absent are
-// both non-satisfying for Presence-valued conjuncts.
-func TestUnmetHealthConditionsEachConjunct(t *testing.T) {
+// both non-satisfying for Presence-valued conditions.
+func TestUnmetHealthConditionsEachCondition(t *testing.T) {
 	cases := []struct {
 		name   string
 		mutate func(*Facts)
@@ -59,7 +59,7 @@ func TestUnmetHealthConditionsEachConjunct(t *testing.T) {
 }
 
 // TestUnmetHealthConditionsSurfacesUnauthorized: an unauthorized surface
-// declaration satisfies the surfaces conjunct regardless of SurfacesAgree,
+// declaration satisfies the surfaces condition regardless of SurfacesAgree,
 // exactly like the classifier's `(!f.SurfacesAuthorized || ...)` disjunct.
 func TestUnmetHealthConditionsSurfacesUnauthorized(t *testing.T) {
 	f := healthyFacts()
@@ -86,7 +86,7 @@ func TestUnmetHealthConditionsMultipleInFixedOrder(t *testing.T) {
 // TestClassifyHealthyIffNoUnmetConditions is the drift guard tying the
 // classifier's healthy verdict to the helper (learning
 // duplicated-gate-copies-the-whole-predicate): for the healthy fixture and
-// every single-conjunct mutation above, Classify says healthy exactly when
+// every single-condition mutation above, Classify says healthy exactly when
 // UnmetHealthConditions is empty.
 func TestClassifyHealthyIffNoUnmetConditions(t *testing.T) {
 	probe := func(f Facts) {

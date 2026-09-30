@@ -30,7 +30,7 @@ import (
 
 // TestIntegrationFinalizeOpsFinalizePublishAcceptsSkippedEvidence: a build.gate: off repository's
 // truthful skipped evidence certifying the exact rewritten head passes
-// FinalizePublish's evidence conjunct — the operation proceeds PAST it
+// FinalizePublish's evidence condition — the operation proceeds PAST it
 // (VerdictSkipped is accepted exactly as VerdictVerified). Reverting the
 // green-or-skipped acceptance would refuse here with ReasonPublishEvidenceUnverified,
 // so this pins the verify-site change. (PR-body weaving of a skipped block is a
@@ -53,7 +53,7 @@ func TestIntegrationFinalizeOpsFinalizePublishAcceptsSkippedEvidence(t *testing.
 	res := FinalizePublish(context.Background(), f.publishDeps(gh), f.repo.invocation,
 		FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: []byte(evidence.Render(skipped))})
 	if res.Reason == ReasonPublishEvidenceUnverified {
-		t.Fatalf("skipped evidence at the exact head was refused at the evidence conjunct: %q", res.Message)
+		t.Fatalf("skipped evidence at the exact head was refused at the evidence condition: %q", res.Message)
 	}
 }
 

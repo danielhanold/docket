@@ -1005,7 +1005,7 @@ code or the child's prose.
 
 | Line | Meaning |
 |---|---|
-| `run-retry-once …` | The only line that authorises another dispatch — once, same key, for the id and unmet conjuncts it names. Granted at most `run.max_attempts - 1` times. |
+| `run-retry-once …` | The only line that authorises another dispatch — once, same key, for the id and unmet conditions it names. Granted at most `run.max_attempts - 1` times. |
 | `run-continue <key> run-waiting <id> <continuation-id> <phase>` | Non-terminal: the same attempt still owns work. Resume it with the continuation id; spends no retry. |
 | `run-done …` | Finished (e.g. `run-done run-complete`). |
 | `run-stop …` | Stop; no re-dispatch (e.g. `run-stop run-tracker-unavailable takeover-ambiguous`). |

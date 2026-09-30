@@ -469,7 +469,7 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 		// otherwise the pair encodes a state nothing transitions out of
 		// (learnings: presence-encoded-state).
 		f := setupRebaseFixture(t, main)
-		// No advanceBase: the rebase is a no-op, the skip's first conjunct.
+		// No advanceBase: the rebase is a no-op, the skip's first condition.
 		cont := GateContinuation{DriveID: "drive-3", Generation: "gen-3"}
 		gate := &seqGate{results: []LocalGateResult{
 			{Outcome: FinalizeGateWaiting, Continuation: cont},
@@ -1490,13 +1490,13 @@ func TestIntegrationFinalizeRebaseRecoveryPreStartResume(t *testing.T) {
 }
 
 // TestIntegrationFinalizeRebaseRecoveryPreStartResumeForeignHeadRetained is the
-// direct mutation guard for the pre-start-resume conjunct in recoverFromReceipt:
+// direct mutation guard for the pre-start-resume condition in recoverFromReceipt:
 // resume only re-enters BeginRebase when the clean StateReady head STILL equals
 // the receipt's recorded OrigHead. Here the workspace is StateReady and its head
 // does NOT descend the recorded base (base advanced), but the receipt records a
 // DIFFERENT OrigHead than the current head — so the `string(localHead) ==
-// rec.OrigHead` conjunct is false and the owned attempt is retained for abort, NOT
-// resumed. Dropping that conjunct would let this case resume BeginRebase and rewrite
+// rec.OrigHead` condition is false and the owned attempt is retained for abort, NOT
+// resumed. Dropping that condition would let this case resume BeginRebase and rewrite
 // the head; this test reddens on that mutation.
 func TestIntegrationFinalizeRebaseRecoveryPreStartResumeForeignHeadRetained(t *testing.T) {
 	requireRealGit(t)
@@ -1783,7 +1783,7 @@ func assertRefreshRetained(t *testing.T, f *rebaseFixture, head string, rec work
 }
 
 // TestIntegrationFinalizeRebaseRecoveryForwardRefreshRefusals covers acceptance 4:
-// each admission conjunct refuses with head, files, receipt, and remote unchanged.
+// each admission condition refuses with head, files, receipt, and remote unchanged.
 // A moved lease, a divergent (rewritten) base, and a dirty tree each block; a
 // still-conflicted attempt with an outstanding reservation settles against its
 // RECORDED base rather than being refreshed over (spec §1, §3).
@@ -2042,7 +2042,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshUnchangedRetests(t *test
 	// still equals the receipt's OrigHead (the refresh left it unchanged), and a
 	// valid checkpoint exists for the new base — so the suite is NOT re-run; the
 	// recorded evidence is reused. Before change 0438 the reuse gate's !noop
-	// conjunct excluded this mechanically unchanged case, forcing a needless re-run.
+	// condition excluded this mechanically unchanged case, forcing a needless re-run.
 	third := FinalizeRebase(context.Background(), deps, f.repo.invocation,
 		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if third.Result != ResultApplied || third.Disposition != RebaseDispRebased {
@@ -2223,7 +2223,7 @@ func assertPublishedRefusalRetained(t *testing.T, f *rebaseFixture, want workspa
 // (and the remote-edit half of item 2): every moved remote that is NOT provably
 // this rewrite's published result is retained — no refresh, no overwrite, no
 // budget movement. Each subtest is the mutation detector for one admission
-// conjunct of admitPublishedRefresh.
+// condition of admitPublishedRefresh.
 func TestIntegrationFinalizeRebasePublishedRefreshRefusals(t *testing.T) {
 	requireRealGit(t)
 	reenter := func(f *rebaseFixture, deps FinalizeDeps, head string) FinalizeRebaseResult {
@@ -2270,9 +2270,9 @@ func TestIntegrationFinalizeRebasePublishedRefreshRefusals(t *testing.T) {
 		// A checkpoint whose recorded head names some OTHER head (the pre-rebase
 		// head A) must not admit — EVEN when its evidence still verifies for the
 		// current published head B. Keeping the evidence green for B isolates the
-		// cp.Head conjunct: only the recorded checkpoint head disagrees, so the
-		// evidence conjunct passes and this subtest reddens iff the cp.Head guard
-		// is removed (mutation detector for that conjunct alone).
+		// cp.Head condition: only the recorded checkpoint head disagrees, so the
+		// evidence condition passes and this subtest reddens iff the cp.Head guard
+		// is removed (mutation detector for that condition alone).
 		f, deps, _, _, published := setupPublishedRefresh(t)
 		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
 		rec.PublishCheckpointHead = strings.ToLower(f.head)

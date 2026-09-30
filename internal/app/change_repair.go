@@ -144,7 +144,7 @@ type changeRepairReceipt struct {
 	Op    string `json:"op"`
 }
 
-// Relink re-reads the change record and, when every conjunct the human
+// Relink re-reads the change record and, when every condition the human
 // approved still holds, drives one exact-revision transaction that writes the one
 // approved identity field. Every refusal predates the transaction (so a refused
 // call runs no engine and leaves the metadata untouched); the write is gated on
@@ -218,7 +218,7 @@ func Relink(ctx context.Context, deps FinalizeDeps, repoDir string, req RelinkRe
 		return *refusal
 	}
 
-	// (5) Every conjunct holds: one exact-revision transaction writes the one
+	// (5) Every condition holds: one exact-revision transaction writes the one
 	// approved field plus the refreshed updated stamp — nothing else.
 	op := changeRepairOp{
 		changeID:   req.ID,

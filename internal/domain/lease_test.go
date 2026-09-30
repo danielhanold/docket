@@ -84,7 +84,7 @@ func TestEvaluateLeaseStatusOutranksStamp(t *testing.T) {
 	}
 }
 
-func TestEvaluateReclaimConjuncts(t *testing.T) {
+func TestEvaluateReclaimConditions(t *testing.T) {
 	expired := leaseStamp(-10 * time.Hour)
 	fresh := leaseStamp(-time.Hour)
 
@@ -99,7 +99,7 @@ func TestEvaluateReclaimConjuncts(t *testing.T) {
 		wantBlocking string
 	}{
 		{
-			name: "all three conjuncts met", status: StatusInProgress, stamp: expired,
+			name: "all three conditions met", status: StatusInProgress, stamp: expired,
 			branch: "feat/lease-slug", branches: nil,
 			wantEligible: true, wantLease: LeaseExpired,
 		},

@@ -248,7 +248,7 @@ func (s *Service) awaitEstablishment(runDir, runID string, pipeR *os.File) (*Lau
 }
 
 // tearDownStalledLaunch handles an establishment timeout with an ownership
-// check. If the recorded run is provably ours (identity conjunction holds), it
+// check. If the recorded run is provably ours (identity conditions hold), it
 // SIGKILLs the group and waits, bounded by stopKillWait, for it to vanish, then
 // reports FailExternal. If ownership is not provable, it signals nothing and
 // reports FailBlocked — never a usable handle while an unaddressable command
@@ -257,7 +257,7 @@ func (s *Service) tearDownStalledLaunch(runDir string) error {
 	m, err := readManifest(runDir)
 	if err == nil && m != nil {
 		self, _ := syscall.Getpgid(0)
-		if identityConjunction(m, self) == nil {
+		if identityConditions(m, self) == nil {
 			_ = signalGroup(m.PGID, syscall.SIGKILL)
 			killDeadline := time.Now().Add(s.stopKillWait)
 			for groupAlive(m.PGID) != probeAbsent {

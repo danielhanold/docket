@@ -505,7 +505,7 @@ func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 		tip := originTip(t, f.repo.origin, f.branch)
 		mainTip := originTip(t, f.repo.origin, "main")
 
-		// Every other merge conjunct holds: the one open canonical PR at the
+		// Every other merge condition holds: the one open canonical PR at the
 		// exact head, targeting main, carrying green evidence — so only the
 		// relevant-validation guard stands between B and the GitHub merge.
 		pr := f.prForHead(f.head, greenEvidenceFor(t, f.head))

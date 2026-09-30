@@ -278,7 +278,7 @@ func FinalizePublish(ctx context.Context, deps FinalizeDeps, repoDir string, req
 	}
 
 	// Prove every carried descendant's merged work is preserved at the publication
-	// head BEFORE any remote rewrite: the content proof only ADDS a conjunct and
+	// head BEFORE any remote rewrite: the content proof only ADDS a condition and
 	// changes nothing about the receipt-scoped lease plumbing below (it never
 	// authorizes a different head or broadens the lease). An unproven carry refuses
 	// before PublishRewrite, so nothing is pushed; an observation failure is

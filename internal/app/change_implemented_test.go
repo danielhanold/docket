@@ -114,7 +114,7 @@ func TestMarkImplementedApplies(t *testing.T) {
 // The results artifact paths the mark-implemented fixtures commit at the feature
 // head. A results artifact is REQUIRED at the implemented boundary since change
 // 0410, so every happy fixture attaches miResultsPath; the -invalid / -mismatch
-// variants ride the same head so a conjunct-5 row can point k.results at them.
+// variants ride the same head so a condition-5 row can point k.results at them.
 const (
 	miResultsPath         = "docs/results/2026-08-17-widget-results.md"
 	miResultsInvalidPath  = "docs/results/2026-08-17-widget-invalid.md"
@@ -149,7 +149,7 @@ func miResultsBacklinkMismatch() string {
 
 // miHeadFiles is the feature-head file set the happy mark-implemented fixtures
 // commit: the implementation file plus every results artifact variant the
-// conjunct-5 rows reference.
+// condition-5 rows reference.
 func miHeadFiles() map[string]string {
 	return map[string]string{
 		"impl.go":             "package impl\n",
@@ -172,9 +172,9 @@ func miAdvanceHead(t *testing.T, repo *gitRepo) string {
 	return head
 }
 
-// miKit is the happy configuration of every reprobe input; each conjunct row
+// miKit is the happy configuration of every reprobe input; each condition row
 // overrides exactly one field and asserts the operation refuses with that
-// conjunct's stable reason, having never called the engine.
+// condition's stable reason, having never called the engine.
 type miKit struct {
 	reconciled  bool
 	trivial     bool
@@ -225,7 +225,7 @@ func buildMI(t *testing.T, client *gitcli.Client, invocation string, k miKit) (
 // mirror prRepo(); parsePRRef reads the number after "/pull/".
 func miPRURL() string { return "https://github.com/acme/widget/pull/42" }
 
-// happyPR is the single open PR that satisfies conjunct 4 for the given head. It
+// happyPR is the single open PR that satisfies condition 4 for the given head. It
 // carries the canonical URL the adapter always decodes for a real PR, which the
 // transition records as the manifest pr:.
 func happyPR(head string) githubcli.PullRequest {
@@ -245,12 +245,12 @@ func firstStatusFindingCode(findings []StatusFinding) string {
 
 // --- 0449: unrelated invalid records never block a named mark-implemented ---
 // Shares the unrelated-broken-record fixtures with change_claim_test.go. Unlike
-// the fake-engine conjunct rows above, these drive the production engine and
+// the fake-engine condition rows above, these drive the production engine and
 // the production status reader over a corpus that also carries an unrelated
 // unparseable record; the GitHub and workspace seams stay scripted.
 
 // miRealRun runs mark-implemented through the production planning seams over
-// repo, with every reprobe conjunct satisfied for head.
+// repo, with every reprobe condition satisfied for head.
 func miRealRun(t *testing.T, repo *gitRepo, recPath, head string) ChangeLifecycleResult {
 	t.Helper()
 	node := planningDepsFor(t, repo.invocation)

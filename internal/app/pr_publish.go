@@ -32,7 +32,7 @@ import (
 //     head is proven equal to the requested head by handing EnsurePullRequest an
 //     ExpectedHead of exactly the requested head — the adapter refuses to create
 //     or edit whenever GitHub reports any other head, so local == evidence ==
-//     requested == published-remote is established transitively. A broken conjunct
+//     requested == published-remote is established transitively. A broken condition
 //     is a typed refusal and gh is never invoked.
 //   - Redaction. The authored PR prose is preserved byte-for-byte while only the
 //     Docket-owned backlink and build-evidence blocks are inserted/replaced (via
@@ -81,7 +81,7 @@ const (
 // GitHubService is the seam `pr publish` delegates its GitHub mechanics to.
 // *githubcli.Client satisfies it; unit tests inject a recording fake so the
 // agreement-check table can prove EnsurePullRequest was never reached on a broken
-// conjunct without spawning gh. The protocol-faithful fake-gh probe/act/verify
+// condition without spawning gh. The protocol-faithful fake-gh probe/act/verify
 // matrix lives in the landed internal/githubcli suite; this seam pins only the
 // app-layer disposition mapping and body assembly.
 type GitHubService interface {
@@ -162,7 +162,7 @@ func prRefusal(result Result, reason, message string, id int) PRPublishResult {
 	return newPRResult(result, PRPublishResult{ID: id, Reason: reason, Message: message})
 }
 
-// PRPublish verifies every identity conjunct from authoritative sources, assembles
+// PRPublish verifies every identity condition from authoritative sources, assembles
 // the PR body by weaving the Docket-owned backlink and evidence blocks into the
 // authored prose without disturbing a byte of it, and delegates to the idempotent
 // EnsurePullRequest adapter. contended and unknown dispositions pass through
@@ -260,7 +260,7 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 
 	// (8b) Delegate to the idempotent adapter. ExpectedHead is the requested head,
 	// so the adapter refuses any GitHub head other than the published one — that is
-	// the published-remote-head conjunct. ExpectedRevision is empty: v1 tracks no PR
+	// the published-remote-head condition. ExpectedRevision is empty: v1 tracks no PR
 	// revision, so this is the create-or-adopt face.
 	res, ensErr := gdeps.Service.EnsurePullRequest(ctx, githubcli.EnsurePullRequestRequest{
 		Repository:   repo,

@@ -61,12 +61,12 @@ func probeFlock(path string) (held bool, answer probeAnswer) {
 	return false, probeAbsent
 }
 
-// identityConjunction proves clauses 3-5 of the spec's ownership
-// conjunction for a live run: lock held by a live supervisor whose pid is
+// identityConditions proves clauses 3-5 of the spec's ownership
+// conditions for a live run: lock held by a live supervisor whose pid is
 // >1 and still equals its live pgid and sid, and whose group is not the
 // observer's own. Any unprovable read is FailBlocked — never treated as
 // absence, never permission to signal.
-func identityConjunction(m *manifestRecord, selfPGID int) error {
+func identityConditions(m *manifestRecord, selfPGID int) error {
 	held, ans := probeFlock(filepath.Join(m.RunDir, liveLockFile))
 	if ans == probeUnknown {
 		return failf(FailBlocked, "identity", "live lock unprobeable")

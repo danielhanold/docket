@@ -798,7 +798,7 @@ func runTrackerOwnershipDone(repoDir, key string, rec RunTrackerRecord) *RunVerd
 	return &res
 }
 
-// runTrackerUnmetTokens projects RunVerify's unmet conjuncts onto their stable reason
+// runTrackerUnmetTokens projects RunVerify's unmet conditions onto their stable reason
 // tokens, preserving RunVerify's order (the report echoes the predicate's own
 // enumeration, never a re-sort).
 func runTrackerUnmetTokens(v RunVerifyResult) []string {

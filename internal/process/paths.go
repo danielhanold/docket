@@ -54,7 +54,7 @@ func validateLaunchRequest(req LaunchRequest) error {
 	return nil
 }
 
-// resolveRunDir proves clause 1 of the spec's ownership conjunction:
+// resolveRunDir proves clause 1 of the spec's ownership conditions:
 // containment. Both root and the run dir's parent are canonicalised with
 // filepath.EvalSymlinks on every hop (an absolute symlink target is still a
 // spelling), the run slot is Lstat'd so a symlink there is refused rather than

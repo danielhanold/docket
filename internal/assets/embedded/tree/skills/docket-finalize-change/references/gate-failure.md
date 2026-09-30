@@ -71,8 +71,8 @@ Two outcomes look abort-shaped and are not: a `waiting` (`reason: gate-waiting`)
   forward-rebases the completed rewrite instead; see `SKILL.md`'s moved-base paragraph);
 - a **rewrite the publish cannot certify** — the `finalize.publish` operation returns `rewrite-unknown`/
   `pr-probe-failed` (an `unknown` never authorizes a second mutation);
-- a **merge conjunct that fails at the fresh recheck** or an authoritatively **denied** merge —
-  the `finalize.merge` operation returns the conjunct's token or `merge-denied`; a standing denial is
+- a **merge condition that fails at the fresh recheck** or an authoritatively **denied** merge —
+  the `finalize.merge` operation returns the condition's token or `merge-denied`; a standing denial is
   `halted`, never a retry loop;
 - an **open unauthorized child** on an autonomous run, or a `children-retarget-required` closeout;
 - the **dispatch mechanism being unavailable** for either gate agent — the `no-fallback` posture,
@@ -137,7 +137,7 @@ label. `stacked-merged` earns a status on the terms this case fails — one dura
   marking up front would strand a fixable PR. Marking happens only at an abort-and-report point.
 - **A successful finalize removes the section** via the `finalize.clear-block` operation, which reprobes the
   exact current head, valid gate evidence, the published remote ref, and the matching open PR before
-  removal — each missing conjunct refuses. The condition is machine-verifiable, so requiring a human
+  removal — each missing condition refuses. The condition is machine-verifiable, so requiring a human
   to delete it would strand stale markers on changes that are fine. Nothing strips the section at
   closeout: on an out-of-band merge it rides into the archive verbatim, where its only remaining
   reader is the human record of why the change once stalled — every automated reader is scoped to a

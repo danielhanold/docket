@@ -64,7 +64,7 @@ type ReclaimVerdict struct {
 	BlockingBranch string
 }
 
-// EvaluateReclaim reports whether c's claim may be reclaimed. Three conjuncts
+// EvaluateReclaim reports whether c's claim may be reclaimed. Three conditions
 // must all hold: the record is in-progress, its lease is strictly expired, and
 // neither the branch it recorded nor the branch a fresh claim would mint from
 // type/branch_prefix/slug exists among the supplied facts. A live branch is

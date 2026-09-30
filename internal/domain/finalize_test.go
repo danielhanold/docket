@@ -355,8 +355,8 @@ func TestSelectFinalizeQueueNilSafe(t *testing.T) {
 	}
 }
 
-func TestMergeConjunctsFirstFailure(t *testing.T) {
-	all := MergeConjuncts{
+func TestMergeConditionsFirstFailure(t *testing.T) {
+	all := MergeConditions{
 		Implemented: true, PRLinkMatch: true, HeadsAgree: true, OpenNonDraft: true,
 		BaseIsEffectiveBase: true, GateSatisfied: true, ApprovalSatisfied: true,
 		NoOpenChildren: true, NotSuperseded: true,
@@ -370,18 +370,18 @@ func TestMergeConjunctsFirstFailure(t *testing.T) {
 
 	cases := []struct {
 		name  string
-		mut   func(*MergeConjuncts)
+		mut   func(*MergeConditions)
 		token string
 	}{
-		{"implemented", func(m *MergeConjuncts) { m.Implemented = false }, "not-implemented"},
-		{"pr-link", func(m *MergeConjuncts) { m.PRLinkMatch = false }, "pr-link-mismatch"},
-		{"heads", func(m *MergeConjuncts) { m.HeadsAgree = false }, "head-moved"},
-		{"open-nondraft", func(m *MergeConjuncts) { m.OpenNonDraft = false }, "not-open-nondraft"},
-		{"base", func(m *MergeConjuncts) { m.BaseIsEffectiveBase = false }, "base-mismatch"},
-		{"gate", func(m *MergeConjuncts) { m.GateSatisfied = false }, "gate-unsatisfied"},
-		{"approval", func(m *MergeConjuncts) { m.ApprovalSatisfied = false }, "approval-required"},
-		{"children", func(m *MergeConjuncts) { m.NoOpenChildren = false }, "open-children"},
-		{"superseded", func(m *MergeConjuncts) { m.NotSuperseded = false }, "superseded"},
+		{"implemented", func(m *MergeConditions) { m.Implemented = false }, "not-implemented"},
+		{"pr-link", func(m *MergeConditions) { m.PRLinkMatch = false }, "pr-link-mismatch"},
+		{"heads", func(m *MergeConditions) { m.HeadsAgree = false }, "head-moved"},
+		{"open-nondraft", func(m *MergeConditions) { m.OpenNonDraft = false }, "not-open-nondraft"},
+		{"base", func(m *MergeConditions) { m.BaseIsEffectiveBase = false }, "base-mismatch"},
+		{"gate", func(m *MergeConditions) { m.GateSatisfied = false }, "gate-unsatisfied"},
+		{"approval", func(m *MergeConditions) { m.ApprovalSatisfied = false }, "approval-required"},
+		{"children", func(m *MergeConditions) { m.NoOpenChildren = false }, "open-children"},
+		{"superseded", func(m *MergeConditions) { m.NotSuperseded = false }, "superseded"},
 	}
 	seen := map[string]bool{}
 	for _, tc := range cases {

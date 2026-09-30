@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:f186cd59bc949c62c3b46a3906694f39c0eea843b4b14013d40528019674b139",
+  "asset_set_id": "sha256:84082012c2ce834f4e30663677b689df5045603a3b33e5494b71ec8dc020b602",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -266,8 +266,8 @@
       "path": "cursor-rules/run-tracker.md",
       "role": "dispatch",
       "mode": 420,
-      "size": 5177,
-      "sha256": "4ff93cbfe0b1cb2c9462039a995e1557d436daf33bd2a4edc7de3eabf381d792"
+      "size": 5178,
+      "sha256": "34f067f7ed3d1b44870bac5591ada4373c460e1c5b7d3ce849b0a7771467d3f3"
     },
     {
       "path": "skills/docket-adr/SKILL.md",
@@ -385,15 +385,15 @@
       "path": "skills/docket-finalize-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 39276,
-      "sha256": "84fe523149925fbfc9e00eba369c28c238279b24d1e6b9e964defaf39059ad2c"
+      "size": 39273,
+      "sha256": "a1638f4e0c7e2d9143239a7e9b4afcfdc9e7d64543e08921c83ca92aacdb9c00"
     },
     {
       "path": "skills/docket-finalize-change/references/gate-failure.md",
       "role": "skill",
       "mode": 420,
-      "size": 13479,
-      "sha256": "84cf582c9eba4c2109e8b47c1b56ab8b687c35d9aeee1aa1122c712945424b6a"
+      "size": 13482,
+      "sha256": "6167773b42d355b1dd540c62cd795910fe8e7c84605653155be5c615c9fff816"
     },
     {
       "path": "skills/docket-groom-next/SKILL.md",
@@ -406,15 +406,15 @@
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 56785,
-      "sha256": "8a372419e1de23a528eb2f66219de7f045d343d33e7d1f1e7257e600c221a704"
+      "size": 56787,
+      "sha256": "3fbca552b2cb413b7f79180b022c5aa2313e847d39336baee94329bc881a64d7"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",
       "role": "skill",
       "mode": 420,
-      "size": 10463,
-      "sha256": "f564044421c1d0f7b985a389b8e08fccfb6bf1249741feeff68c38044df1a95e"
+      "size": 10464,
+      "sha256": "166995277130719056a2a1d2388285e35b45cc1006baa8ba1a4ecdfc778ff0a2"
     },
     {
       "path": "skills/docket-implement-next/references/fix-loop.md",

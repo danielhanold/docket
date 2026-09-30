@@ -263,7 +263,7 @@ func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra
 }
 
 // newFinalizeMergeSubcommand builds `finalize merge`: it merges one exact pull
-// request at its authorized head after a fresh recheck of every merge conjunct,
+// request at its authorized head after a fresh recheck of every merge condition,
 // then verifies the merge authoritatively. The scalar identity (id, pinned
 // revision, expected head) rides on flags; --admin requests an admin-override
 // merge. Invoking this attended command is itself the human authorization, so

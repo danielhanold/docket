@@ -49,7 +49,7 @@ func (r *initRepo) commitAndPushMain(t *testing.T, message string, paths ...stri
 // newHealthyRepo builds a repository in the healthy state: init, then the pending
 // .gitignore and generated .docket.yml test-policy edits committed and pushed. It
 // asserts the base state classifies healthy with exit 0 before returning, so a
-// sub-case that breaks one conjunct is measured against a proven-healthy baseline.
+// sub-case that breaks one condition is measured against a proven-healthy baseline.
 func newHealthyRepo(t *testing.T) *initRepo {
 	t.Helper()
 	r := newInitRepo(t, healthySetupYML, nil)
@@ -125,7 +125,7 @@ func TestIntegrationRepoCheckNeedsReviewAfterInit(t *testing.T) {
 }
 
 // TestIntegrationRepoCheckHealthyFullPostcondition proves the healthy
-// baseline and that breaking any single healthy conjunct flips the exit to 1.
+// baseline and that breaking any single healthy condition flips the exit to 1.
 func TestIntegrationRepoCheckHealthyFullPostcondition(t *testing.T) {
 	// The baseline itself is proven healthy inside newHealthyRepo.
 	newHealthyRepo(t)

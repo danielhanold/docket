@@ -16,9 +16,9 @@ import (
 // recording fake FinalizeGitHub that scripts the merge/reprobe outcomes a
 // hermetic suite cannot reach. The expected-head GitHub merge, the authoritative
 // reprobe, and the Git reachability proof are the highest-consequence external
-// effect in the closing path, so every conjunct is rechecked from a fresh
+// effect in the closing path, so every condition is rechecked from a fresh
 // reload immediately before the effect and no merge call is issued once any
-// conjunct is falsified.
+// condition is falsified.
 
 // --- fake FinalizeGitHub for merge ----------------------------------------
 
@@ -180,7 +180,7 @@ func (f *mergeFixture) parentPR(head string, body string) githubcli.PullRequest 
 	}
 }
 
-// baselineFake returns a fake whose parent PR passes every conjunct: open,
+// baselineFake returns a fake whose parent PR passes every condition: open,
 // non-draft, number 7, at the fixture head, base main, green evidence.
 func (f *mergeFixture) baselineFake(t *testing.T) *fakeMergeGitHub {
 	t.Helper()
@@ -215,9 +215,9 @@ func mergeReq(f *mergeFixture, head string, explicit, admin bool) FinalizeMergeR
 	return FinalizeMergeRequest{ID: f.id, Revision: f.revision, Head: head, Admin: admin, ExplicitID: explicit}
 }
 
-// --- TestMergeConjuncts (pure) --------------------------------------------
+// --- TestMergeConditions (pure) --------------------------------------------
 
-// --- TestFinalizeMergeConjunctsRechecked ----------------------------------
+// --- TestFinalizeMergeConditionsRechecked ----------------------------------
 
 // TestProbeUnretargetedOpenChildrenBranchIdentity proves the open-child gate
 // probes each child by ITS OWN recorded branch (never a slug-derived name): a
@@ -278,13 +278,13 @@ func assertMergeRefusal(t *testing.T, res FinalizeMergeResult, gh *fakeMergeGitH
 		t.Fatalf("refusal reason = %q, want %q (result %q msg %q)", res.Reason, token, res.Result, res.Message)
 	}
 	if res.Result == ResultApplied || res.Result == ResultNoOp {
-		t.Fatalf("a conjunct refusal reported a success result %q", res.Result)
+		t.Fatalf("a condition refusal reported a success result %q", res.Result)
 	}
 	if res.Merge != nil {
-		t.Fatalf("a conjunct refusal carried a VerifiedMerge")
+		t.Fatalf("a condition refusal carried a VerifiedMerge")
 	}
 	if gh.mergeCalls != 0 {
-		t.Fatalf("a conjunct refusal issued %d merge call(s); want 0", gh.mergeCalls)
+		t.Fatalf("a condition refusal issued %d merge call(s); want 0", gh.mergeCalls)
 	}
 }
 
