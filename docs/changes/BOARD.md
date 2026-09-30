@@ -1,12 +1,12 @@
 # Backlog
 
-**478 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 325 done · 🗑️ 120 killed
+**478 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 325 done · 🗑️ 120 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0472](active/0472-rename-change-version-to-revision-version-revision.md) | Rename change version to revision (--version → --revision) | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-29-rename-change-version-to-revision-version-revision-design.md) | `refactor/rename-change-version-to-revision-version-revision` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0472](active/0472-rename-change-version-to-revision-version-revision.md) | Rename change version to revision (--version → --revision) | `medium` | `refactor` | [#354](https://github.com/danielhanold/docket/pull/354) | awaiting merge |
 
 ## 🔴 Blocked (1)
 

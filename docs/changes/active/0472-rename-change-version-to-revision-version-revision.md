@@ -2,7 +2,7 @@
 id: 472
 slug: 'rename-change-version-to-revision-version-revision'
 title: 'Rename change version to revision (--version → --revision)'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/rename-change-version-to-revision-version-revision'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/354'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-30T06:12:56Z'
