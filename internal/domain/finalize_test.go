@@ -357,7 +357,7 @@ func TestSelectFinalizeQueueNilSafe(t *testing.T) {
 
 func TestMergeConjunctsFirstFailure(t *testing.T) {
 	all := MergeConjuncts{
-		Implemented: true, PRIdentityMatch: true, HeadsAgree: true, OpenNonDraft: true,
+		Implemented: true, PRLinkMatch: true, HeadsAgree: true, OpenNonDraft: true,
 		BaseIsEffectiveBase: true, GateSatisfied: true, ApprovalSatisfied: true,
 		NoOpenChildren: true, NotSuperseded: true,
 	}
@@ -374,7 +374,7 @@ func TestMergeConjunctsFirstFailure(t *testing.T) {
 		token string
 	}{
 		{"implemented", func(m *MergeConjuncts) { m.Implemented = false }, "not-implemented"},
-		{"pr-identity", func(m *MergeConjuncts) { m.PRIdentityMatch = false }, "pr-identity-mismatch"},
+		{"pr-link", func(m *MergeConjuncts) { m.PRLinkMatch = false }, "pr-link-mismatch"},
 		{"heads", func(m *MergeConjuncts) { m.HeadsAgree = false }, "head-moved"},
 		{"open-nondraft", func(m *MergeConjuncts) { m.OpenNonDraft = false }, "not-open-nondraft"},
 		{"base", func(m *MergeConjuncts) { m.BaseIsEffectiveBase = false }, "base-mismatch"},

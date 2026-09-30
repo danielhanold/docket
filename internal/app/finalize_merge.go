@@ -272,7 +272,7 @@ type mergeConjunctInputs struct {
 func mergeConjuncts(in mergeConjunctInputs) domain.MergeConjuncts {
 	return domain.MergeConjuncts{
 		Implemented:         in.status == domain.StatusImplemented,
-		PRIdentityMatch:     in.prNumber == in.canonicalPRNumber,
+		PRLinkMatch:         in.prNumber == in.canonicalPRNumber,
 		HeadsAgree:          in.reqHead == in.prHead && in.reqHead == in.remoteHead && in.reqHead == in.localHead,
 		OpenNonDraft:        in.prState == githubcli.StateOpen && !in.prDraft,
 		BaseIsEffectiveBase: in.prBase == in.effectiveBase,
@@ -289,7 +289,7 @@ func mergeConjuncts(in mergeConjunctInputs) domain.MergeConjuncts {
 // conjunct is a retained block a human resolves.
 func mergeConjunctOutcome(token string) (Result, string) {
 	switch token {
-	case "head-moved", "pr-identity-mismatch", "superseded":
+	case "head-moved", "pr-link-mismatch", "superseded":
 		return ResultContended, MergeDispContended
 	default:
 		return ResultBlocked, MergeDispBlocked
@@ -741,7 +741,7 @@ func mergeConjunctMessage(token string, id int) string {
 	switch token {
 	case "not-implemented":
 		return fmt.Sprintf("change %04d is not implemented; there is nothing to merge", id)
-	case "pr-identity-mismatch":
+	case "pr-link-mismatch":
 		return "the live open PR is not the canonical PR the manifest tracks; re-read context finalize"
 	case "head-moved":
 		return "the local workspace, remote feature ref, PR head, and requested head do not all agree; re-read context finalize"

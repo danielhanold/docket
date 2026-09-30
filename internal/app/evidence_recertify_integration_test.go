@@ -329,8 +329,8 @@ func TestIntegrationEvidenceEvidenceRecertifyRefusesHeadMovedUnderGate(t *testin
 	if res.Result == ResultApplied || res.Result == ResultNoOp {
 		t.Fatalf("a moved head published evidence: %s/%s", res.Result, res.Reason)
 	}
-	if res.Reason != ReasonRecertifyHeadDisagreement && res.Reason != ReasonRecertifyIdentityDrift {
-		t.Fatalf("reason = %q; want a head-disagreement/identity-drift refusal", res.Reason)
+	if res.Reason != ReasonRecertifyHeadDisagreement && res.Reason != ReasonRecertifyCertifiedInputChanged {
+		t.Fatalf("reason = %q; want a head-disagreement/certified-input-changed refusal", res.Reason)
 	}
 	if gh.ensNext != 0 {
 		t.Fatalf("a moved head reached the PR edit")
@@ -349,8 +349,8 @@ func TestIntegrationEvidenceEvidenceRecertifyRefusesForeignCommandEvidence(t *te
 	}
 	gate.result = LocalGateResult{Outcome: FinalizeGatePassed, Evidence: evidence.Render(foreign), RunDir: "/run/x"}
 	res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
-	if res.Result != ResultBlocked || res.Reason != ReasonRecertifyIdentityDrift {
-		t.Fatalf("result = %s/%s; want blocked/%s", res.Result, res.Reason, ReasonRecertifyIdentityDrift)
+	if res.Result != ResultBlocked || res.Reason != "certified-input-changed" {
+		t.Fatalf("result = %s/%s; want blocked/certified-input-changed", res.Result, res.Reason)
 	}
 	if gh.ensNext != 0 {
 		t.Fatalf("foreign-command evidence reached the PR edit")
