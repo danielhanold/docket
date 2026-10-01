@@ -1,6 +1,6 @@
 # Backlog
 
-**483 changes** — 🔴 1 blocked · 🟣 5 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 329 done · 🗑️ 120 killed
+**483 changes** — 🔴 1 blocked · 🟣 6 groomed · 🟡 15 proposed · ⚪ 12 deferred · ✅ 329 done · 🗑️ 120 killed
 
 ## 🔴 Blocked (1)
 
@@ -8,22 +8,22 @@
 |---|-------|----------|------|----|--------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` |  | Halted at build Task 5 pending a human decision among 3 feasible paths for the AGENTS.md dispatch-budget overage (trim in-block coordinator prose, re-baseline dispatchBudget, or relocate guidance) — see the run-halted record on the change. |
 
-## 🟣 Groomed (5)
+## 🟣 Groomed (6)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0482](active/0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording | `low` | `refactor` | [spec](../superpowers/specs/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-design.md) |
+| [0481](active/0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | `medium` | `refactor` | [spec](../superpowers/specs/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-design.md) |
 | [0480](active/0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md) | Report killed changes truthfully in finalize cleanup | `low` | `fix` | [spec](../superpowers/specs/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (16)
+## 🟡 Proposed (15)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0483](active/0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | `low` | `feat` | needs-grooming |
-| [0481](active/0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | `medium` | `refactor` | needs-grooming |
 | [0479](active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) | Ad hoc `go test -tags integration ./internal/app/` hits go test's default 10-minute timeout | `low` | `chore` | needs-grooming |
 | [0478](active/0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | `low` | `chore` | needs-grooming |
 | [0476](active/0476-bring-test-go-integration-app-rebaserecovery-back-under-its.md) | Bring test_go_integration_app_rebaserecovery back under its runtime budget | `medium` | `chore` | needs-grooming |
