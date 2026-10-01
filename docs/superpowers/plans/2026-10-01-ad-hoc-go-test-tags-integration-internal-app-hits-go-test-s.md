@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0479 — Refuse an unfiltered integration-tagged run of internal/app before go test's 10-minute timeout](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md)**
+> ↩ **[Change 0479 — Refuse an unfiltered integration-tagged run of internal/app before go test's 10-minute timeout](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-01-0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md)**
 <!-- docket:backlink:end -->
 # Refuse an unfiltered integration-tagged run of internal/app Implementation Plan
 
