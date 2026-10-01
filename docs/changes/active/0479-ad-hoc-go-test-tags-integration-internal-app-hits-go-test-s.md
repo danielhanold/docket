@@ -2,7 +2,7 @@
 id: 479
 slug: 'ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s'
 title: 'Refuse an unfiltered integration-tagged run of internal/app before go test''s 10-minute timeout'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'chore'
 created: '2026-09-30'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/362'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-01T21:46:31Z'

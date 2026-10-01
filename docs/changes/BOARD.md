@@ -1,13 +1,18 @@
 # Backlog
 
-**487 changes** — 🟢 2 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 332 done · 🗑️ 125 killed
+**487 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 332 done · 🗑️ 125 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0487](active/0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) | Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go | `medium` | `fix` | [spec](../superpowers/specs/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md) | `fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu` |  |
-| [0479](active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) | Refuse an unfiltered integration-tagged run of internal/app before go test's 10-minute timeout | `low` | `chore` | [spec](../superpowers/specs/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-design.md) | `chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s` |  |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0479](active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) | Refuse an unfiltered integration-tagged run of internal/app before go test's 10-minute timeout | `low` | `chore` | [#362](https://github.com/danielhanold/docket/pull/362) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
