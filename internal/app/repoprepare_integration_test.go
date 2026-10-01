@@ -14,12 +14,12 @@ import (
 
 // --- repository prepare scenarios (its own TestIntegrationRepoPrepare shard) -----
 //
-// These exercise the shared startup-check `repository prepare` service end to end against
-// the same bare-upstream + clone fixture the init/check/migrate shards use. Prepare
-// is the only operation that attaches or fast-forwards the local `.docket` worktree,
-// so its real-git correctness (worktree registration, the clean-behind fast-forward
-// composed from the worktree primitives, and hooks disabling via the mechanism
-// scripts/disable-worktree-hooks.sh documents) is provable only against real
+// These exercise the shared startup-check `repository prepare` service end to end
+// against the same bare-upstream + clone fixture the init/check/migrate shards use.
+// Prepare is the only operation that attaches or fast-forwards the local `.docket`
+// worktree, so its real-git correctness (worktree registration, the clean-behind
+// fast-forward composed from the worktree primitives, and hooks disabling via the
+// mechanism scripts/disable-worktree-hooks.sh documents) is provable only against real
 // repositories — the clean-behind fast-forward in particular (prepareFastForward-
 // Worktree) has no unit coverage of its multi-step remove/delete/re-add sequence.
 //

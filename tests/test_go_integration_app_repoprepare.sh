@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # docket-suite: go
 # tests/test_go_integration_app_repoprepare.sh — Go integration shard (change 0377):
-# the shared startup-check `repository prepare` service scenarios (a real multi-commit docket
-# chain classifies owned, worktree attachment to a healthy remote, the clean-behind
+# the shared startup-check `repository prepare` service scenarios (a real multi-commit
+# docket chain classifies owned, worktree attachment to a healthy remote, the clean-behind
 # fast-forward to the pinned revision, dirty/ahead/diverged refusals with byte-
 # untouched worktree evidence, and re-run idempotence), behind the `integration`
 # build tag, prefix ^TestIntegrationRepoPrepare. A new shard because no existing app
