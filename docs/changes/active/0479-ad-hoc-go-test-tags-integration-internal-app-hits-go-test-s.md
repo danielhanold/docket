@@ -22,7 +22,7 @@ branch: 'chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-01T21:27:51Z'
+claimed_at: '2026-10-01T21:46:31Z'
 ---
 
 ## Artifacts
