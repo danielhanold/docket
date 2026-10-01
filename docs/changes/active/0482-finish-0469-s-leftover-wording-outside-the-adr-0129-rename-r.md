@@ -22,7 +22,7 @@ branch: 'refactor/finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-01T11:55:55Z'
+claimed_at: '2026-10-01T11:59:47Z'
 ---
 
 ## Artifacts
