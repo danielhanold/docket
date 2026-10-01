@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/check-finalize-cleanup-s-not-final-message-for-killed-change'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-01T11:56:27Z'
+reconciled: true
+claimed_at: '2026-10-01T11:58:11Z'
 ---
 
 ## Artifacts
@@ -46,3 +46,9 @@ Make `finalize cleanup` report a killed change truthfully as a deliberate retent
 ## Out of scope
 
 Implementing killed-change cleanup (change 0483). Any wider rewording of lifecycle messages beyond this case. Changes to the `not-final` default branch or the `stacked-merged` path.
+
+## Reconcile log
+
+### 2026-10-01
+
+Re-traced against main 85bace7de: `FinalizeCleanup` still handles only `done` and `stacked-merged` (killed falls to the `default` `not-final` refusal), and the two doc sites (close-out.md step 4, edge-paths.md reconcile-kill) plus their embedded copies still carry the misleading text. Spec holds as written; no scope change. Change 0483 (killed-change cleanup) remains unbuilt follow-up.
