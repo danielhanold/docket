@@ -22,7 +22,7 @@ branch: 'fix/check-finalize-cleanup-s-not-final-message-for-killed-change'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-01T12:07:54Z'
+claimed_at: '2026-10-01T12:29:56Z'
 ---
 
 ## Artifacts
