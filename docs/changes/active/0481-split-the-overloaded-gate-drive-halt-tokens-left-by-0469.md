@@ -22,7 +22,7 @@ branch: 'refactor/split-the-overloaded-gate-drive-halt-tokens-left-by-0469'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-01T11:57:16Z'
+claimed_at: '2026-10-01T11:59:50Z'
 ---
 
 ## Artifacts
