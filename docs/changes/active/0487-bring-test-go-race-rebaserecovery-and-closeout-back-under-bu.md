@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-01T21:54:15Z'
+reconciled: true
+claimed_at: '2026-10-01T21:55:52Z'
 ---
 
 ## Artifacts
@@ -67,3 +67,9 @@ The full suite passes at the gate, and the budget report shows no `SERIAL CONFIR
 - Other budget rows and other `BUDGET WATCH` / `PARALLEL-SENSITIVE` lines, unless the investigation shows a shared cause.
 - `-race` failures in packages other than `internal/repoguard`.
 - Any other gofmt drift, or changing how gofmt is enforced in the suite.
+
+## Reconcile log
+
+### 2026-10-01
+
+Reconciled at claim against origin/main 97cc46c3e, the same head the spec's grooming measurements were taken on. No intervening merges; `gofmt -l internal/ cmd/` still flags only `internal/githubcli/comment_integration_test.go`. Scope unchanged.
