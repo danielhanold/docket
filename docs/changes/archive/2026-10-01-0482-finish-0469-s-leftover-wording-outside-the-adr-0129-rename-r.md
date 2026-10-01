@@ -2,7 +2,7 @@
 id: 482
 slug: 'finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r'
 title: 'Finish 0469''s leftover "repair" (relink) and "Step 0" (startup check) wording'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-01'
@@ -22,7 +22,7 @@ branch: 'refactor/finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r'
 pr: 'https://github.com/danielhanold/docket/pull/361'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-01T12:27:45Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-01T12:27:45Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-design.md) |
-| Plan | [2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md](https://github.com/danielhanold/docket/blob/refactor/finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r/docs/superpowers/plans/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) |
-| Results | [2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-results.md](https://github.com/danielhanold/docket/blob/refactor/finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r/docs/results/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-results.md) |
+| Plan | [2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) |
+| Results | [2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-results.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 

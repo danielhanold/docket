@@ -1,6 +1,6 @@
 # Backlog
 
-**487 changes** — 🟢 1 in progress · 🔵 2 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 330 done · 🗑️ 125 killed
+**487 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 331 done · 🗑️ 125 killed
 
 ## 🟢 In progress (1)
 
@@ -8,11 +8,10 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0479](active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) | Refuse an unfiltered integration-tagged run of internal/app before go test's 10-minute timeout | `low` | `chore` | [spec](../superpowers/specs/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-design.md) | `chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s` |  |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0482](active/0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording | `low` | `refactor` | [#361](https://github.com/danielhanold/docket/pull/361) | awaiting merge |
 | [0481](active/0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | `medium` | `refactor` | [#360](https://github.com/danielhanold/docket/pull/360) | awaiting merge |
 
 ## 🔴 Blocked (1)
@@ -95,7 +94,6 @@ graph TD
   0464
   0479
   0469 --> 0481
-  0469 --> 0482
   0483
   0486
   0487
@@ -108,12 +106,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (455)</summary>
+<details><summary>✅🗑️ Archive — done + killed (456)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0485](archive/2026-10-01-0485-test-go-race-hits-its-8-minute-backstop-in-internal-repoguar.md) | test_go_race hits its 8-minute backstop in internal/repoguard under concurrent gate load | 2026-10-01 |
 | [0484](archive/2026-10-01-0484-bring-test-go-race-back-under-its-budget-row-testretiredvoca.md) | Bring test_go_race back under its budget row (TestRetiredVocabularySeal scan cost) | 2026-10-01 |
+| [0482](archive/2026-10-01-0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording | 2026-10-01 |
 | [0480](archive/2026-10-01-0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md) | Report killed changes truthfully in finalize cleanup | 2026-10-01 |
 | [0478](archive/2026-10-01-0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | 2026-10-01 |
 | [0476](archive/2026-10-01-0476-bring-test-go-integration-app-rebaserecovery-back-under-its.md) | Bring test_go_integration_app_rebaserecovery back under its runtime budget | 2026-10-01 |
@@ -132,7 +131,6 @@ graph TD
 | [0465](archive/2026-09-28-0465-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md) | test_go_race times out on internal/app in CI (Go's 10m per-package limit) | 2026-09-28 |
 | [0463](archive/2026-09-28-0463-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md) | Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch | 2026-09-28 |
 | [0461](archive/2026-09-28-0461-allow-editing-an-existing-change-s-title.md) | Allow editing an existing change's title | 2026-09-28 |
-| [0462](archive/2026-09-27-0462-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) | Close the temp-dir fixture guard's remaining gaps (internal/cli gateTempDir, scan-root removal) | 2026-09-27 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -257,7 +255,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 79 done |
+| [2026-09](archive/) | 80 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
