@@ -183,15 +183,15 @@ func TestRevisionFlagReachesRequest(t *testing.T) {
 		}
 	}
 	// relink validates its own request shape before any read.
-	repair := func(value string) string {
+	relink := func(value string) string {
 		out, _, _ := runCLI(t, "change", "relink", "--id", "1", "--expect-revision", value,
 			"--adopt-pr-head", "--expect-pr", "1", "--expect-head", "b", "--repo-dir", dir, "--json")
 		return out
 	}
-	if out := repair(""); !strings.Contains(out, "expect-revision must be") {
+	if out := relink(""); !strings.Contains(out, "expect-revision must be") {
 		t.Fatalf("relink control: an empty --expect-revision did not reach validation: %s", out)
 	}
-	if out := repair(rev); strings.Contains(out, "expect-revision must be") {
+	if out := relink(rev); strings.Contains(out, "expect-revision must be") {
 		t.Errorf("relink: --expect-revision %s never reached the request: %s", rev, out)
 	}
 }

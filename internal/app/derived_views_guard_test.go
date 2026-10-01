@@ -33,7 +33,7 @@ import (
 //     of a no-arg method named Path. In today's corpus this call form appears
 //     ONLY on a domain.Change value (`c.Path()`), so it uniquely marks an
 //     in-place change-record rewrite (claim, attach, implemented, reclaim,
-//     reconcile, repair, halt, resume-halted, block, clear-block, stacked
+//     reconcile, relink, halt, resume-halted, block, clear-block, stacked
 //     closeout). Every non-change write instead uses a plain identifier
 //     (recPath, adrRelPath, activePath, archivePath, specPath, p) or a field
 //     selector (o.req.Path, p.tg.archivePath, o.req.Target.Path) — never a

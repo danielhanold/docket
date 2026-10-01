@@ -2797,7 +2797,7 @@ func TestIntegrationChangeAuthoringRefreshClaimStampsOnly(t *testing.T) {
 }
 
 // TestRelinkAdoptPRHeadPinsExactRevision proves the transaction pins the approved
-// revision exactly, keying the repair op on the exact record blob.
+// revision exactly, keying the relink op on the exact record blob.
 func TestIntegrationChangeRuntimeRelinkAdoptPRHeadPinsExactRevision(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
@@ -2810,7 +2810,7 @@ func TestIntegrationChangeRuntimeRelinkAdoptPRHeadPinsExactRevision(t *testing.T
 		ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 	if res.Result != ResultApplied || res.Reason != RelinkedBranch {
-		t.Fatalf("repair = (%q, %q)", res.Result, res.Reason)
+		t.Fatalf("relink = (%q, %q)", res.Result, res.Reason)
 	}
 	if len(engine.calls) != 1 {
 		t.Fatalf("engine calls = %d, want exactly 1", len(engine.calls))
@@ -2824,10 +2824,10 @@ func TestIntegrationChangeRuntimeRelinkAdoptPRHeadPinsExactRevision(t *testing.T
 	}
 }
 
-// TestIntegrationChangeRuntimeRelinkAbsentWorkspaceNoConflict is change 0368's repair
+// TestIntegrationChangeRuntimeRelinkAbsentWorkspaceNoConflict is change 0368's relink
 // regression: a proven cleanly-absent workspace (StateAbsent) names no owned
 // checkout at the recorded branch, so it conflicts with nothing — exactly as
-// the foreign classification did pre-change — and the repair proceeds to its
+// the foreign classification did pre-change — and the relink proceeds to its
 // write. It MUST fail if StateAbsent falls through relinkProveWorkspaceClear to
 // the recorded-vs-proposed branch mismatch (RelinkWorkspaceConflict).
 func TestIntegrationChangeRuntimeRelinkAbsentWorkspaceNoConflict(t *testing.T) {
@@ -2850,7 +2850,7 @@ func TestIntegrationChangeRuntimeRelinkAbsentWorkspaceNoConflict(t *testing.T) {
 }
 
 // TestRelinkAdoptPRHeadWritesBranch proves the applied path end-to-end: every
-// condition holds, so the repair opens one exact-revision transaction that adopts
+// condition holds, so the relink opens one exact-revision transaction that adopts
 // the PR's reported head as branch:, refreshes updated, and commits only that.
 func TestIntegrationChangeRuntimeRelinkAdoptPRHeadWritesBranch(t *testing.T) {
 	requireRealGit(t)
@@ -2868,22 +2868,22 @@ func TestIntegrationChangeRuntimeRelinkAdoptPRHeadWritesBranch(t *testing.T) {
 		ID: 3, ExpectRevision: ver, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 	if res.Result != ResultApplied || res.Reason != RelinkedBranch {
-		t.Fatalf("repair = (%q, %q) msg=%q findings=%v", res.Result, res.Reason, res.Message, res.Findings)
+		t.Fatalf("relink = (%q, %q) msg=%q findings=%v", res.Result, res.Reason, res.Message, res.Findings)
 	}
 	if res.Branch != "feat/renamed" || res.Revision == "" {
 		t.Errorf("applied result malformed: %+v", res)
 	}
 	rec, ok := originFile(t, repo.origin, "docket", recPath)
 	if !ok {
-		t.Fatalf("record vanished after repair")
+		t.Fatalf("record vanished after relink")
 	}
 	for _, want := range []string{"branch: 'feat/renamed'", "updated: '2026-08-16'"} {
 		if !strings.Contains(rec, want) {
-			t.Errorf("repaired origin record missing %q:\n%s", want, rec)
+			t.Errorf("relinked origin record missing %q:\n%s", want, rec)
 		}
 	}
 	if strings.Contains(rec, "branch: feat/widget") {
-		t.Errorf("the stale recorded branch survived the repair:\n%s", rec)
+		t.Errorf("the stale recorded branch survived the relink:\n%s", rec)
 	}
 }
 
@@ -2920,11 +2920,11 @@ func TestIntegrationChangeRuntimeRelinkInspectErrorIsConflict(t *testing.T) {
 }
 
 // TestRelinkWorkspaceConflictBlocks proves clause 4: an owned workspace that
-// targets a branch other than the one the record will carry blocks the repair.
-// The fixture's recorded branch (feat/widget) is owned and live while the repair
+// targets a branch other than the one the record will carry blocks the relink.
+// The fixture's recorded branch (feat/widget) is owned and live while the relink
 // proposes feat/renamed; the fake Inspect's recorded call is the sentinel that
 // the conflicting-workspace check actually executed. Deleting the branch
-// comparison in relinkProveWorkspaceClear lets the repair proceed to a write,
+// comparison in relinkProveWorkspaceClear lets the relink proceed to a write,
 // reddening this assertion.
 func TestIntegrationChangeRuntimeRelinkWorkspaceConflictBlocks(t *testing.T) {
 	requireRealGit(t)
