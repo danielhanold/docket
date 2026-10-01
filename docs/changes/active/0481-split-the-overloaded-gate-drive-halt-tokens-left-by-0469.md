@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/split-the-overloaded-gate-drive-halt-tokens-left-by-0469'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-01T11:55:27Z'
+reconciled: true
+claimed_at: '2026-10-01T11:57:16Z'
 ---
 
 ## Artifacts
@@ -50,3 +50,9 @@ Update the emitting sites, the tests that assert them (including the run-verdict
 ## Out of scope
 
 Changing when the gate drive halts or how it recovers; the correct `worktree-changed` / `launch-unconfirmed` sites and the `ErrLaunchUnconfirmed` refusal kind; finalize's `mapDriveHaltCause` mapping (both tokens stay `unavailable`); any other ADR-0129 rename rows; the leftover 0469 wording ("repair" in `change relink`, "Step 0"), tracked separately.
+
+## Reconcile log
+
+### 2026-10-01
+
+2026-10-01 — Reconciled against main 85bace7 (0469 merged). A whole-repo grep confirms the spec trace: takeover.go scopeIdentityMatch halts "worktree-changed"; driver.go resolveDriveRun returns "launch-unconfirmed" on both slot branches; the run-verdict fixture uses worktree-changed. The repoguard retired-vocabulary fixtures (rows 68/69) and the admission_test history-cause lists use the tokens as historical data and stay unchanged. Scope unchanged.
