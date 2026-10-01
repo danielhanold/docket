@@ -2,7 +2,7 @@
 id: 479
 slug: 'ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s'
 title: 'Refuse an unfiltered integration-tagged run of internal/app before go test''s 10-minute timeout'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'chore'
 created: '2026-09-30'
@@ -22,7 +22,7 @@ branch: 'chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s'
 pr: 'https://github.com/danielhanold/docket/pull/362'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-01T21:46:31Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-01T21:46:31Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-design.md) |
-| Plan | [2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md](https://github.com/danielhanold/docket/blob/chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s/docs/superpowers/plans/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) |
-| Results | [2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-results.md](https://github.com/danielhanold/docket/blob/chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s/docs/results/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-results.md) |
+| Plan | [2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) |
+| Results | [2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
