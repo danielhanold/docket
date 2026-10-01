@@ -12,8 +12,9 @@ import (
 	"testing"
 )
 
-// nogitPkg and nogitShardGlob name this package to the shared no-real-git guard
-// (testsupport.InstallNoGitGuard): its diagnostic and its remedy text.
+// nogitPkg and nogitShardGlob name this package to the shared test guards
+// (testsupport.InstallNoGitGuard and testsupport.RefuseUnfilteredIntegrationRun):
+// their diagnostics and their remedy text.
 const (
 	nogitPkg       = "internal/app"
 	nogitShardGlob = "tests/test_go_integration_app_*.sh"
@@ -25,6 +26,7 @@ const (
 // Ordinary `go test` runs set neither and fall through to m.Run.
 // Ordinary runs then install the default-build no-real-git guard (change 0465,
 // testsupport.InstallNoGitGuard since change 0466) around m.Run.
+// Integration-tagged runs first pass the unfiltered-run guard (change 0479).
 func TestMain(m *testing.M) {
 	if process.SupervisorRequested() {
 		os.Exit(process.RunSupervisorFromEnv())
@@ -34,6 +36,15 @@ func TestMain(m *testing.M) {
 	// lifetime rather than re-running the suite (change 0375 Task 13).
 	if GuardianRequested() {
 		os.Exit(RunAgentGuardianFromEnv())
+	}
+	// Change 0479: the integration-tagged build refuses an unfiltered run at go
+	// test's default 10m timeout (the whole corpus outlasts it) and names the
+	// supported forms; every other build gets testsupport's no-op twin. It sits
+	// AFTER the supervisor and guardian re-exec routing (re-exec'd children never
+	// parse test flags) and before m.Run.
+	if err := testsupport.RefuseUnfilteredIntegrationRun(nogitPkg, nogitShardGlob); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 	// Change 0465 (hoisted by change 0466): the default build installs the no-real-git
 	// guard (testsupport.InstallNoGitGuard) AFTER the re-exec routing above, so the

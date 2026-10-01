@@ -29,6 +29,10 @@
 #        tagged-package set equals the runner-declared package set (both directions
 #        reported — a tagged package with no runner, and a runner whose package has
 #        no tagged file). Learning correspondence-guard-runs-one-way.
+#   (11) internal/app's integration-tagged binary refuses an unfiltered run at go
+#        test's default 10m timeout and names the supported forms (change 0479).
+#        The probe passes -skip . so a broken or unwired guard runs zero tests and
+#        reddens in seconds instead of running the ~19-minute corpus.
 #
 # FAIL-CLOSED. A probe error is never read as clean absence: every `go test -list`
 # and `go vet` invocation's exit status is asserted before its output is trusted,
@@ -282,5 +286,15 @@ vet_out="$(go vet -tags integration $vet_pkgs 2>&1)"
 vet_rc=$?
 assert "go vet -tags integration passes for every discovered integration package" \
   '[ "$vet_rc" -eq 0 ] || { printf "%s\n" "$vet_out" >&2; false; }'
+
+# (11) change 0479: the unfiltered-run guard, proved on the real command shape.
+# No -run (the shape the guard refuses) plus -skip . (so with the guard or its
+# TestMain call removed, every test is skipped and the run passes quickly, which
+# reddens this assert rather than starting the whole corpus). The assert pins the
+# MECHANISM, not just a non-zero exit (learning assert-pins-outcome-not-mechanism):
+# a compile failure also exits non-zero, but it does not print the remedy.
+guard_out="$(go test -tags integration -count=1 -skip . ./internal/app/ 2>&1)"; guard_rc=$?
+assert "an unfiltered integration-tagged internal/app run is refused with the remedy (change 0479)" \
+  '[ "$guard_rc" -ne 0 ] && grep -qF -- "default 10m timeout" <<<"$guard_out" && grep -qF -- "tests/test_go_integration_app_*.sh" <<<"$guard_out" && grep -qF -- "-timeout 30m" <<<"$guard_out" || { printf "%s\n" "$guard_out" >&2; false; }'
 
 exit "$fail"
