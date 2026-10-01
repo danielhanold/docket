@@ -2,11 +2,11 @@
 id: 478
 slug: 'gofmt-internal-githubcli-comment-integration-test-go'
 title: 'gofmt internal/githubcli/comment_integration_test.go'
-status: 'proposed'
+status: 'killed'
 priority: 'low'
 type: 'chore'
 created: '2026-09-29'
-updated: '2026-09-29'
+updated: '2026-10-01'
 depends_on: []
 stacked_on:
 related: []
@@ -40,3 +40,7 @@ Run `gofmt -w` on internal/githubcli/comment_integration_test.go and confirm the
 ## Out of scope
 
 Any other file or any non-formatting edit; changing how `gofmt` is enforced in the suite.
+
+## Why killed
+
+Consolidated into #0487 on 2026-10-01 at Daniel's request: the repoguard race-lane backstop timeout (#0485), the three serial-confirmed budget breaches (#0475, #0476, #0484), and the #0478 gofmt cleanup ship as one change.
