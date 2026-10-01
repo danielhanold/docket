@@ -1,18 +1,18 @@
 ---
 id: 480
 slug: 'check-finalize-cleanup-s-not-final-message-for-killed-change'
-title: 'Check finalize cleanup''s not-final message for killed changes'
+title: 'Report killed changes truthfully in finalize cleanup'
 status: 'proposed'
 priority: 'low'
 type: 'fix'
 created: '2026-09-30'
-updated: '2026-09-30'
+updated: '2026-10-01'
 depends_on: []
 stacked_on:
-related: []
+related: [483, 474, 316]
 discovered_from: [474]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md'
 plan:
 results:
 trivial: false
@@ -27,16 +27,21 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Change 0474 renamed "terminal" to "final" across the lifecycle vocabulary. During that work, `finalize cleanup`'s default branch was found to emit a "not final" message that was carried over unchanged from the old "not terminal" wording. If a killed change can reach that default branch, the message is inaccurate, because a killed change is in a final status. Nobody has traced whether that path is reachable.
+Change 0474 renamed "terminal" to "final" across the lifecycle vocabulary and left `finalize cleanup`'s default-branch refusal reading "change is not final". Tracing confirmed a killed change reaches that branch — `FinalizeCleanup` handles only `done` and `stacked-merged`, and nothing upstream filters by status — so `docket finalize cleanup --id <killed>` returns `invalid-state` / `not-final`, which is false: `killed` is final.
+
+The close-out docs compound it: `close-out.md` step 4 and the implementer's reconcile-kill notes tell kill callers to run cleanup and imply it prunes the killed change's worktree and branch. In practice the call fails under abort-and-report after the kill has already archived, and the resources are silently left behind.
 
 ## What changes
 
-Trace `finalize cleanup`'s default branch to confirm whether a killed change (or any final-status change) can reach it. If it can, correct the message so it describes the real condition. If it cannot, record that and close the stub without a code change.
+Make `finalize cleanup` report a killed change truthfully as a deliberate retention — `no-op`, disposition `retained`, new reason `killed-retained`, with an accurate message — mirroring the existing `stacked-merged` case, and correct the close-out kill-path docs (and their embedded copies) so they describe that outcome instead of promising pruning. Actually cleaning up a killed change's resources is follow-up change 0483.
 
 ## Out of scope
 
-Any wider rewording of lifecycle messages beyond this one branch. Changes to which statuses `finalize cleanup` accepts.
+Implementing killed-change cleanup (change 0483). Any wider rewording of lifecycle messages beyond this case. Changes to the `not-final` default branch or the `stacked-merged` path.
