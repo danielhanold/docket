@@ -2,7 +2,7 @@
 id: 479
 slug: 'ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s'
 title: 'Refuse an unfiltered integration-tagged run of internal/app before go test''s 10-minute timeout'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'chore'
 created: '2026-09-30'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-01T12:01:31Z'
 ---
 
 ## Artifacts

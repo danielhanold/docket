@@ -1,14 +1,15 @@
 # Backlog
 
-**483 changes** — 🟢 3 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 14 proposed · ⚪ 12 deferred · ✅ 329 done · 🗑️ 120 killed
+**483 changes** — 🟢 4 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 14 proposed · ⚪ 12 deferred · ✅ 329 done · 🗑️ 120 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (4)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0482](active/0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording | `low` | `refactor` | [spec](../superpowers/specs/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-design.md) | `refactor/finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r` |  |
 | [0481](active/0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | `medium` | `refactor` | [spec](../superpowers/specs/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-design.md) | `refactor/split-the-overloaded-gate-drive-halt-tokens-left-by-0469` |  |
 | [0480](active/0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md) | Report killed changes truthfully in finalize cleanup | `low` | `fix` | [spec](../superpowers/specs/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md) | `fix/check-finalize-cleanup-s-not-final-message-for-killed-change` |  |
+| [0479](active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) | Refuse an unfiltered integration-tagged run of internal/app before go test's 10-minute timeout | `low` | `chore` | [spec](../superpowers/specs/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-design.md) | `chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s` |  |
 
 ## 🔴 Blocked (1)
 
@@ -16,11 +17,10 @@
 |---|-------|----------|------|----|--------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` |  | Halted at build Task 5 pending a human decision among 3 feasible paths for the AGENTS.md dispatch-budget overage (trim in-block coordinator prose, re-baseline dispatchBudget, or relocate guidance) — see the run-halted record on the change. |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0479](active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) | Refuse an unfiltered integration-tagged run of internal/app before go test's 10-minute timeout | `low` | `chore` | [spec](../superpowers/specs/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
