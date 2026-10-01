@@ -27,7 +27,9 @@ const goTestDefaultTimeout = 10 * time.Minute
 // run. Inputs at change 0479: the 39 tests/test_go_integration_app_*.sh ceilings in
 // tests/runtime-budgets.tsv sum to 1125s (about 18.75m). A whole-package run compiles
 // once and runs the same tests, so that sum bounds its wall from above; 30m is about
-// 1.6x it. Recompute from tests/runtime-budgets.tsv when the shard ceilings move.
+// 1.6x it. Recompute from tests/runtime-budgets.tsv when the shard ceilings move, and
+// update tests/README.md ("Running integration-tagged Go tests by hand"), which
+// restates this value and the wall estimate.
 const WholeCorpusTimeout = "30m"
 
 // refuseUnfilteredRun is the decision: refuse only an unfiltered (-run empty),
@@ -39,11 +41,11 @@ func refuseUnfilteredRun(run, list string, timeout time.Duration) bool {
 // UnfilteredRunRemedy is the refusal text for package pkg (module-relative dir),
 // naming its shard runners by shardGlob.
 func UnfilteredRunRemedy(pkg, shardGlob string) string {
-	return fmt.Sprintf("%s: the integration-tagged corpus outlasts go test's default 10m timeout when run whole (change 0479).\n"+
+	return fmt.Sprintf("%s: the integration-tagged corpus outlasts go test's default %dm timeout when run whole (change 0479).\n"+
 		"Run one shard:   bash <one of %s>\n"+
 		"or filter:       go test -tags integration -count=1 -run '^<Prefix>' ./%s/\n"+
 		"or run it whole: add -timeout %s",
-		pkg, shardGlob, pkg, WholeCorpusTimeout)
+		pkg, int(goTestDefaultTimeout.Minutes()), shardGlob, pkg, WholeCorpusTimeout)
 }
 
 // checkUnfilteredRun reads test.run, test.list, and test.timeout from fs and
