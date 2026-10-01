@@ -2,7 +2,7 @@
 id: 482
 slug: 'finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r'
 title: 'Finish 0469''s leftover "repair" (relink) and "Step 0" (startup check) wording'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-01'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/361'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-01T12:27:45Z'
