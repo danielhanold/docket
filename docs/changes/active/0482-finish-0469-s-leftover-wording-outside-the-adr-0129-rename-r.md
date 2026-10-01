@@ -14,7 +14,7 @@ discovered_from: [469]
 adrs: [129]
 spec: 'docs/superpowers/specs/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-design.md'
 plan: 'docs/superpowers/plans/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md'
-results:
+results: 'docs/results/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-01T12:27:45Z'
 |---|---|
 | Spec | [2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-design.md) |
 | Plan | [2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md](https://github.com/danielhanold/docket/blob/refactor/finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r/docs/superpowers/plans/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) |
+| Results | [2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-results.md](https://github.com/danielhanold/docket/blob/refactor/finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r/docs/results/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-results.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
