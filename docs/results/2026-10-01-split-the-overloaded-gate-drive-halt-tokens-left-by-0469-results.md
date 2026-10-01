@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0481 — Split the overloaded gate-drive halt tokens left by 0469](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md)**
+> ↩ **[Change 0481 — Split the overloaded gate-drive halt tokens left by 0469](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-01-0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md)**
 <!-- docket:backlink:end -->
 # Split the overloaded gate-drive halt tokens left by 0469 — Results
 
