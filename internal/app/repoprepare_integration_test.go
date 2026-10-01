@@ -14,7 +14,7 @@ import (
 
 // --- repository prepare scenarios (its own TestIntegrationRepoPrepare shard) -----
 //
-// These exercise the shared Step-0 `repository prepare` service end to end against
+// These exercise the shared startup-check `repository prepare` service end to end against
 // the same bare-upstream + clone fixture the init/check/migrate shards use. Prepare
 // is the only operation that attaches or fast-forwards the local `.docket` worktree,
 // so its real-git correctness (worktree registration, the clean-behind fast-forward
