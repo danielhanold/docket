@@ -2,11 +2,11 @@
 id: 476
 slug: 'bring-test-go-integration-app-rebaserecovery-back-under-its'
 title: 'Bring test_go_integration_app_rebaserecovery back under its runtime budget'
-status: 'proposed'
+status: 'killed'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-29'
-updated: '2026-09-29'
+updated: '2026-10-01'
 depends_on: []
 stacked_on:
 related: [466, 434]
@@ -41,3 +41,7 @@ Find out why the `TestIntegrationFinalizeRebaseRecovery` shard (split out by cha
 
 - Other `BUDGET WATCH` / `PARALLEL-SENSITIVE` lines from the same run; they are screening findings, not confirmed breaches.
 - Changing how the suite runner measures or enforces budgets.
+
+## Why killed
+
+Consolidated into #0487 on 2026-10-01 at Daniel's request: the repoguard race-lane backstop timeout (#0485), the three serial-confirmed budget breaches (#0475, #0476, #0484), and the #0478 gofmt cleanup ship as one change.
