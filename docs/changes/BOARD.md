@@ -1,6 +1,6 @@
 # Backlog
 
-**487 changes** — 🟢 1 in progress · 🔵 2 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 17 proposed · ⚪ 12 deferred · ✅ 330 done · 🗑️ 121 killed
+**487 changes** — 🟢 1 in progress · 🔵 2 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 330 done · 🗑️ 122 killed
 
 ## 🟢 In progress (1)
 
@@ -29,13 +29,12 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (17)
+## 🟡 Proposed (16)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0487](active/0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) | Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go | `medium` | `fix` | needs-grooming |
 | [0486](active/0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | `medium` | `chore` | needs-grooming |
-| [0484](active/0484-bring-test-go-race-back-under-its-budget-row-testretiredvoca.md) | Bring test_go_race back under its budget row (TestRetiredVocabularySeal scan cost) | `medium` | `chore` | needs-grooming |
 | [0483](active/0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | `low` | `feat` | needs-grooming |
 | [0478](active/0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | `low` | `chore` | needs-grooming |
 | [0476](active/0476-bring-test-go-integration-app-rebaserecovery-back-under-its.md) | Bring test_go_integration_app_rebaserecovery back under its runtime budget | `medium` | `chore` | needs-grooming |
@@ -104,7 +103,6 @@ graph TD
   0469 --> 0481
   0469 --> 0482
   0483
-  0484
   0486
   0487
   0192:::done
@@ -116,11 +114,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (451)</summary>
+<details><summary>✅🗑️ Archive — done + killed (452)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0485](archive/2026-10-01-0485-test-go-race-hits-its-8-minute-backstop-in-internal-repoguar.md) | test_go_race hits its 8-minute backstop in internal/repoguard under concurrent gate load | 2026-10-01 |
+| [0484](archive/2026-10-01-0484-bring-test-go-race-back-under-its-budget-row-testretiredvoca.md) | Bring test_go_race back under its budget row (TestRetiredVocabularySeal scan cost) | 2026-10-01 |
 | [0480](archive/2026-10-01-0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md) | Report killed changes truthfully in finalize cleanup | 2026-10-01 |
 | [0469](archive/2026-10-01-0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | 2026-10-01 |
 | [0477](archive/2026-09-30-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md) | Finish the run-tracker rename (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY, dispatch_context) | 2026-09-30 |

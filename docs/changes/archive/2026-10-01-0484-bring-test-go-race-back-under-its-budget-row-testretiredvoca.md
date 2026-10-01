@@ -2,7 +2,7 @@
 id: 484
 slug: 'bring-test-go-race-back-under-its-budget-row-testretiredvoca'
 title: 'Bring test_go_race back under its budget row (TestRetiredVocabularySeal scan cost)'
-status: 'proposed'
+status: 'killed'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-01'
@@ -40,3 +40,7 @@ Make the seal's per-line scan cheaper, for example by pre-filtering each line be
 ## Out of scope
 
 Raising the `-race` timeout or backstop. The flaky load-induced timeout is its own stub. Other budget rows (0475, 0476).
+
+## Why killed
+
+Consolidated into #0487 on 2026-10-01 at Daniel's request: the repoguard race-lane backstop timeout (#0485), the three serial-confirmed budget breaches (#0475, #0476, #0484), and the #0478 gofmt cleanup ship as one change.
