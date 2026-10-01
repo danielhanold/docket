@@ -29,7 +29,7 @@ func TestIntegrationRecordOpsRelinkUnrelatedInvalidRecordProgress(t *testing.T) 
 	}
 	rec, _ := originFile(t, repo.origin, "docket", recPath)
 	if !strings.Contains(rec, "branch: 'feat/renamed'") {
-		t.Errorf("repaired record on origin does not carry the adopted branch:\n%s", rec)
+		t.Errorf("relinked record on origin does not carry the adopted branch:\n%s", rec)
 	}
 	assertUnrelatedBrokenIntact(t, repo)
 }
@@ -88,7 +88,7 @@ func TestIntegrationRecordOpsRelinkAdoptPRHeadAppliesOnMalformedRecordedBranch(t
 			}
 			rec, _ := originFile(t, repo.origin, "docket", recPath)
 			if !strings.Contains(rec, "branch: 'feat/renamed'") {
-				t.Errorf("repaired record on origin does not carry the adopted branch:\n%s", rec)
+				t.Errorf("relinked record on origin does not carry the adopted branch:\n%s", rec)
 			}
 		})
 	}

@@ -197,7 +197,7 @@ func TestRetargetProbesOnlyParentStack(t *testing.T) {
 	}
 }
 
-// --- repair workspace ownership gate (fake reader + fake workspace) ------
+// --- relink workspace ownership gate (fake reader + fake workspace) ------
 
 func TestRelinkWorkspaceClearProbesOnlyOwnStack(t *testing.T) {
 	pin := mainPin(t)
@@ -218,7 +218,7 @@ func TestRelinkWorkspaceClearProbesOnlyOwnStack(t *testing.T) {
 	t.Run("unrelated-poison-does-not-block", func(t *testing.T) {
 		corpus := append(append([]StatusBlob(nil), unrelated...), stackFixtureBlob(30, "b", "in-progress", "feat/b", ""))
 		if r := run(t, corpus, "feat/a-parent"); r != nil {
-			t.Fatalf("repair workspace gate beside an unprobeable unrelated stack refused: %s: %s", r.Reason, r.Message)
+			t.Fatalf("relink workspace gate beside an unprobeable unrelated stack refused: %s: %s", r.Reason, r.Message)
 		}
 	})
 	t.Run("own-ancestor-poison-refuses", func(t *testing.T) {
@@ -226,7 +226,7 @@ func TestRelinkWorkspaceClearProbesOnlyOwnStack(t *testing.T) {
 			stackFixtureBlob(29, "b-parent", "in-progress", "feat/b-parent", ""),
 			stackFixtureBlob(30, "b", "in-progress", "feat/b", "stacked_on: 29\n"))
 		if r := run(t, corpus, "feat/b-parent"); r == nil {
-			t.Fatal("repair workspace gate with B's own parent unprobeable passed; want the fail-closed conflict")
+			t.Fatal("relink workspace gate with B's own parent unprobeable passed; want the fail-closed conflict")
 		}
 	})
 }

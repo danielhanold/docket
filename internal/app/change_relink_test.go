@@ -21,10 +21,10 @@ import (
 
 const relinkRevision = "1234123412341234123412341234123412341234"
 
-// --- fake FinalizeGitHub for repair ----------------------------------------
+// --- fake FinalizeGitHub for relink ----------------------------------------
 
 // fakeRelinkGitHub scripts DiscoverRepository and the exact-number
-// ViewPullRequest the repair reads; every other finalize-half GitHub method
+// ViewPullRequest the relink reads; every other finalize-half GitHub method
 // panics so an accidental call is loud.
 type fakeRelinkGitHub struct {
 	repo    githubcli.Repository
@@ -43,29 +43,29 @@ func (f *fakeRelinkGitHub) ViewPullRequest(_ context.Context, _ githubcli.Reposi
 	return f.pr, f.viewErr
 }
 func (f *fakeRelinkGitHub) ProbeMerged(context.Context, githubcli.Repository, int) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
-	panic("ProbeMerged: repair must not call this")
+	panic("ProbeMerged: relink must not call this")
 }
 func (f *fakeRelinkGitHub) FindOpenPullRequestsByHead(context.Context, githubcli.Repository, string) ([]githubcli.PullRequest, error) {
-	panic("FindOpenPullRequestsByHead: repair must not call this")
+	panic("FindOpenPullRequestsByHead: relink must not call this")
 }
 func (f *fakeRelinkGitHub) RetargetPullRequest(context.Context, githubcli.Repository, int, string, string) (githubcli.RetargetOutcome, githubcli.PullRequest, error) {
-	panic("RetargetPullRequest: repair must not call this")
+	panic("RetargetPullRequest: relink must not call this")
 }
 func (f *fakeRelinkGitHub) EnsureComment(context.Context, githubcli.Repository, int, string, string) (githubcli.CommentOutcome, string, error) {
-	panic("EnsureComment: repair must not call this")
+	panic("EnsureComment: relink must not call this")
 }
 func (f *fakeRelinkGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
-	panic("FindComment: repair must not call this")
+	panic("FindComment: relink must not call this")
 }
 func (f *fakeRelinkGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
-	panic("MergePullRequest: repair must not call this")
+	panic("MergePullRequest: relink must not call this")
 }
 
 // --- fake FinalizeWorkspace for the ownership gate -------------------------
 
 // fakeRelinkWorkspace scripts the inspected workspace state (or a probe error)
 // and records every Inspect call — the sentinel that proves the conflicting-
-// workspace check actually executed. Every non-Inspect method panics: repair
+// workspace check actually executed. Every non-Inspect method panics: relink
 // only inspects.
 type fakeRelinkWorkspace struct {
 	inspection   workspace.Inspection
@@ -78,25 +78,25 @@ func (f *fakeRelinkWorkspace) Inspect(_ context.Context, req workspace.InspectRe
 	return f.inspection, f.inspectErr
 }
 func (f *fakeRelinkWorkspace) ReadRebaseReceipt(context.Context, string) (workspace.RebaseReceipt, bool, error) {
-	panic("ReadRebaseReceipt: repair must not call this")
+	panic("ReadRebaseReceipt: relink must not call this")
 }
 func (f *fakeRelinkWorkspace) WriteRebaseReceipt(context.Context, string, workspace.RebaseReceipt) error {
-	panic("WriteRebaseReceipt: repair must not call this")
+	panic("WriteRebaseReceipt: relink must not call this")
 }
 func (f *fakeRelinkWorkspace) ClearRebaseReceipt(context.Context, string) error {
-	panic("ClearRebaseReceipt: repair must not call this")
+	panic("ClearRebaseReceipt: relink must not call this")
 }
 func (f *fakeRelinkWorkspace) PublishRewrite(context.Context, workspace.RewriteRequest) (workspace.RewriteOutcome, error) {
-	panic("PublishRewrite: repair must not call this")
+	panic("PublishRewrite: relink must not call this")
 }
 func (f *fakeRelinkWorkspace) PublishHead(context.Context, workspace.PublishRequest) (workspace.PublishResult, error) {
-	panic("PublishHead: repair must not call this")
+	panic("PublishHead: relink must not call this")
 }
 func (f *fakeRelinkWorkspace) Cleanup(context.Context, workspace.CleanupRequest) (workspace.CleanupResult, error) {
-	panic("Cleanup: repair must not call this")
+	panic("Cleanup: relink must not call this")
 }
 func (f *fakeRelinkWorkspace) AcquireOperationLock(string) (func(), error) {
-	panic("AcquireOperationLock: repair must not call this")
+	panic("AcquireOperationLock: relink must not call this")
 }
 
 // --- fixtures --------------------------------------------------------------
@@ -153,7 +153,7 @@ func assertRelinkRefused(t *testing.T, res RelinkResult, wantResult Result, want
 		t.Errorf("reason = %q, want %q", res.Reason, wantReason)
 	}
 	if len(engine.calls) != 0 {
-		t.Errorf("a refused repair opened %d transactions, want 0", len(engine.calls))
+		t.Errorf("a refused relink opened %d transactions, want 0", len(engine.calls))
 	}
 }
 
@@ -173,7 +173,7 @@ func TestRelinkStaleRevisionRefused(t *testing.T) {
 // --- clause 2: adopt-pr-head evidence drift ---------------------------------
 
 // TestRelinkStaleHeadRefused proves clause 2: when the PR's reported head branch
-// no longer matches the approved ExpectHead, the repair refuses as
+// no longer matches the approved ExpectHead, the relink refuses as
 // stale-evidence before any Git work.
 func TestRelinkStaleHeadRefused(t *testing.T) {
 	deps, engine := relinkFakeDeps(t, relinkBlob(3, "widget", "", relinkRevision), relinkGitHub("feat/actual"))
@@ -259,7 +259,7 @@ func TestRelinkInvalidRequestShape(t *testing.T) {
 
 // --- clause 5: writes exactly the approved field ----------------------------
 
-// relinkPlanFor runs the repair op's Plan closure over a fake tree so a test can
+// relinkPlanFor runs the relink op's Plan closure over a fake tree so a test can
 // inspect the patched record bytes directly (mirrors implementedPlanFor).
 func relinkPlanFor(t *testing.T, files map[string]string, op changeRelinkOp) transaction.MutationPlan {
 	t.Helper()
@@ -378,7 +378,7 @@ func relinkRealDeps(t *testing.T, dir string, blob StatusBlob, gh *fakeRelinkGit
 }
 
 // TestRelinkEarlyEngineErrorCarriesFailure pins change 0350's propagation for
-// the repair envelope: an engine call-shape validation error (empty
+// the relink envelope: an engine call-shape validation error (empty
 // disposition + typed *Failure) must reach the caller as the mapped result
 // AND a populated failure diagnosis via the default mapping arm — not only
 // via the explicit DispositionFailed arm.
@@ -415,7 +415,7 @@ func TestRelinkEarlyEngineErrorCarriesFailure(t *testing.T) {
 // records the transaction instead) over a corpus that also carries an
 // unrelated unparseable record, adopting the PR head feat/renamed.
 
-// relinkRealRun runs an AdoptPRHead repair through the production planning
+// relinkRealRun runs an AdoptPRHead relink through the production planning
 // seams over repo, with the candidate branch present and no owned workspace.
 func relinkRealRun(t *testing.T, repo *gitRepo, recPath string) RelinkResult {
 	t.Helper()
