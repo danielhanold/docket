@@ -2,7 +2,7 @@
 id: 482
 slug: 'finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r'
 title: 'Finish 0469''s leftover "repair" (relink) and "Step 0" (startup check) wording'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-01'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-01T11:53:54Z'
 ---
 
 ## Artifacts
