@@ -13,7 +13,7 @@ related: [483, 474, 316]
 discovered_from: [474]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-01T11:59:39Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md) |
+| Plan | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change.md](https://github.com/danielhanold/docket/blob/fix/check-finalize-cleanup-s-not-final-message-for-killed-change/docs/superpowers/plans/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
