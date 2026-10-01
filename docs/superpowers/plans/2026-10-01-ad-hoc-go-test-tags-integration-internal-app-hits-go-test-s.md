@@ -539,19 +539,26 @@ exit "$fail"
 
 The `assert` line must match the tree's canonical helper byte for byte (`internal/repoguard` source-hygiene rule (a)). Copy it from `tests/test_go_integration_contract.sh`, not from this plan, if they differ. Measure `time bash tests/test_go_app_integration_guard.sh` solo (second run). Add a row to `tests/runtime-budgets.tsv` next to the `tests/test_go_integration_contract.sh` row: `tests/test_go_app_integration_guard.sh<TAB><measured, rounded up to the next multiple of 5, plus 5, minimum 10><TAB>parallel`. Use a real tab. Then run `go test -count=1 -run 'TestRuntimeBudgetsCorrespondence' ./internal/repoguard/` and expect PASS. In Steps 7 and 8 below, substitute this file for the contract test.
 
-- [ ] **Step 7: Mutation-test the wiring**
+- [ ] **Step 7: Mutation-test the wiring (in a scratch copy, never the live worktree)**
+
+The gate driver halts any drive whose worktree changes mid-run (`worktree-changed`), and the scope then refuses further starts. Mutate a throwaway copy outside the worktree, so nothing under the live tree is ever edited and there is no restore to get wrong.
 
 ```bash
-cp internal/app/gate_test.go "${TMPDIR:-/tmp}/gate_test.go.bak"
-# delete the whole `if err := testsupport.RefuseUnfilteredIntegrationRun(...) { ... }` block from TestMain
+live="$PWD"
+scratch="$(mktemp -d "${TMPDIR:-/tmp}/guard-mutation.XXXXXX")"
+cp -R . "$scratch/tree"            # carries Step 4's uncommitted edit and the .git file
+cd "$scratch/tree"
+# mutation 1, in the COPY: delete the whole `if err := testsupport.RefuseUnfilteredIntegrationRun(...) { ... }` block from internal/app/gate_test.go TestMain
 bash tests/test_go_integration_contract.sh; echo "exit=$?"
-mv -f "${TMPDIR:-/tmp}/gate_test.go.bak" internal/app/gate_test.go
+# mutation 2: put gate_test.go back from the live tree, then in the COPY change the body of internal/testsupport/unfiltered_guard.go to `return nil`
+cp "$live/internal/app/gate_test.go" internal/app/gate_test.go
 bash tests/test_go_integration_contract.sh; echo "exit=$?"
+cd "$live" && rm -rf "$scratch"
+bash tests/test_go_integration_contract.sh; echo "exit=$?"
+git diff --stat internal/app/gate_test.go
 ```
 
-Expected: the mutated run prints `NOT OK - an unfiltered integration-tagged internal/app run is refused with the remedy (change 0479)` and `exit=1`, and finishes in seconds (proof that `-skip .` keeps a broken guard cheap). The restored run is all `ok -` with `exit=0`. Confirm with `git diff --stat internal/app/gate_test.go` that the restore kept your Step 4 edit.
-
-Repeat once with the guard itself mutated: back up `internal/testsupport/unfiltered_guard.go`, change its body to `return nil`, rerun the contract test, expect the same `NOT OK`, and restore with `mv -f`.
+Expected: both mutated runs print `NOT OK - an unfiltered integration-tagged internal/app run is refused with the remedy (change 0479)` and `exit=1`, finishing in seconds (proof that `-skip .` keeps a broken guard cheap). The live-tree run is all `ok -` with `exit=0`, and the diff stat shows only Step 4's edit. Keep `-count=1` on every run. If you chose the fallback sibling test in Step 6, substitute it for the contract test here.
 
 - [ ] **Step 8: Regression-check the shapes that must keep working**
 
