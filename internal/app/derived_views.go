@@ -147,7 +147,7 @@ func renderCanonicalADRIndex(snap domain.Snapshot, unrenderable []render.BoardUn
 //
 // This single declare-only-when-changed shape covers every board-authoritative
 // mutation. Operations whose edits are always board-visible (create, groom,
-// kill, lifecycle, mark-implemented, reclaim, repair, closeout) always render a
+// kill, lifecycle, mark-implemented, reclaim, relink, closeout) always render a
 // board that differs from the committed one, so the board is always declared —
 // as a create when BOARD.md is absent, a replace otherwise. Operations whose
 // edits are NOT board-visible (attach, claim refresh, reconcile, clear-block via
