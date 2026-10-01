@@ -112,6 +112,13 @@ const (
 	// through the injected revocation resolver (an IO/corruption fault). It fails
 	// closed — a run whose run record cannot be read is never revived. (change 0375 Task 12)
 	CauseRunRecordUnreadable = "run-record-unreadable"
+	// CauseRunLinkLost: a scopeless run-linked drive can no longer prove which run
+	// it belongs to — the worktree slot it was admitted through is absent or
+	// unreadable, or now carries a different reservation token. resolveDriveRun
+	// returns it for both slot branches, so the relaunch path refuses new
+	// execution rather than demoting the drive to standalone. Distinct from the
+	// launch-unconfirmed halt, which means a launch itself is in doubt. (change 0481)
+	CauseRunLinkLost = "run-link-lost"
 )
 
 // DriveDoc is the protocol-v1 outcome document emitted by every driver

@@ -513,6 +513,10 @@ func TestMapDriveHaltCauseKeysOnGatedriveConstants(t *testing.T) {
 		gatedrive.CauseUnknownObservation:    GateHaltMalformed,
 		// A deadline-expired variant is matched as a prefix of the constant.
 		gatedrive.CauseDeadlineExpired + "-stop-unproven": GateHaltRunningAtBudget,
+		// Change 0481's tokens are deliberately not distinguished: finalize reads
+		// either as an unavailable gate.
+		gatedrive.CauseRunLinkLost:                 GateHaltUnavailable,
+		string(gatedrive.ErrScopeIdentityMismatch): GateHaltUnavailable,
 		// Any cause the mapping does not distinguish falls through to unavailable.
 		"owner-superseded": GateHaltUnavailable,
 	}

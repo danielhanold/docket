@@ -621,55 +621,72 @@ func TestRecoveredRelaunchValidatesRunBeforeClaim(t *testing.T) {
 }
 
 // TestRelaunchLostLinkageRefuses proves a drive whose run linkage is LOST never
-// demotes to a standalone relaunch: a scopeless drive with an AdmissionToken whose
-// worktree slot now carries a DIFFERENT reservation token can no longer prove
-// whether it is run-backed, so its death-relaunch leg HALTs "launch-unconfirmed"
-// without launching and without consulting the run launch gate.
+// demotes to a standalone relaunch: a scopeless drive with an AdmissionToken
+// whose worktree slot is absent, or now carries a DIFFERENT reservation token,
+// can no longer prove which run it belongs to, so its death-relaunch leg HALTs
+// CauseRunLinkLost without launching and without consulting the run launch gate.
+// One case per resolveDriveRun slot branch (load error, token mismatch). (change 0481)
 func TestRelaunchLostLinkageRefuses(t *testing.T) {
-	store := OpenStore(testsupport.TempDir(t))
-	wt := sampleWorktree()
-	proc := &fakeProc{
-		observe: func(runDir string) (*process.Observation, error) {
-			return obs(process.StateSignaled, runDir), nil
-		},
-	}
-	// Mint a live worktree slot with its own reservation token.
-	slotToken, _, rerr := store.reserveWorktreeExecution(admissionRecord{
-		RepoIdentity: "/repo",
-		WorktreeRoot: wt,
-		Kind:         "scopeless",
-	}, proc)
-	if rerr != nil {
-		t.Fatalf("reserve worktree slot: %v", rerr)
-	}
+	for _, tc := range []struct {
+		name        string
+		reserveSlot bool // false: the worktree has no slot at all (load error)
+	}{
+		{name: "slot reassigned to another reservation", reserveSlot: true},
+		{name: "slot absent", reserveSlot: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := OpenStore(testsupport.TempDir(t))
+			wt := sampleWorktree()
+			proc := &fakeProc{
+				observe: func(runDir string) (*process.Observation, error) {
+					return obs(process.StateSignaled, runDir), nil
+				},
+			}
+			slotToken := ""
+			if tc.reserveSlot {
+				// Mint a live worktree slot with its own reservation token.
+				tok, _, rerr := store.reserveWorktreeExecution(admissionRecord{
+					RepoIdentity: "/repo",
+					WorktreeRoot: wt,
+					Kind:         "scopeless",
+				}, proc)
+				if rerr != nil {
+					t.Fatalf("reserve worktree slot: %v", rerr)
+				}
+				slotToken = tok
+			} else if _, _, lerr := store.LoadWorktreeExecution(wt); lerr == nil {
+				t.Fatal("precondition: the absent-slot case must have no slot to load")
+			}
 
-	rec := seedRecord(t)
-	rec.WorktreePath = wt
-	rec.AdmissionToken = "stale-admission-token" // NOT the slot's current token
-	if rec.AdmissionToken == slotToken {
-		t.Fatal("the drive's stale token must differ from the slot's live token")
-	}
-	id, ownerGen := seedDrive(t, store, rec)
+			rec := seedRecord(t)
+			rec.WorktreePath = wt
+			rec.AdmissionToken = "stale-admission-token" // NOT any slot's current token
+			if rec.AdmissionToken == slotToken {
+				t.Fatal("the drive's stale token must differ from the slot's live token")
+			}
+			id, ownerGen := seedDrive(t, store, rec)
 
-	d := NewDriver(reopenStore(store), &fakeClock{now: startRun().Add(time.Second)}, proc, stableGit())
-	d.slice = pollTick
-	d.pollInterval = pollTick
-	d.sleep = func(dur time.Duration) {}
-	// A gate that fails the test if consulted: lost linkage must refuse BEFORE the gate.
-	d.SetRunLaunchGate(func(_, _ string, _ func() error) error {
-		t.Fatalf("lost linkage must refuse before the run launch gate is consulted")
-		return nil
-	})
+			d := NewDriver(reopenStore(store), &fakeClock{now: startRun().Add(time.Second)}, proc, stableGit())
+			d.slice = pollTick
+			d.pollInterval = pollTick
+			d.sleep = func(dur time.Duration) {}
+			// A gate that fails the test if consulted: lost linkage must refuse BEFORE the gate.
+			d.SetRunLaunchGate(func(_, _ string, _ func() error) error {
+				t.Fatalf("lost linkage must refuse before the run launch gate is consulted")
+				return nil
+			})
 
-	doc, err := d.Advance(id, ownerGen)
-	if err != nil {
-		t.Fatalf("Advance: %v", err)
-	}
-	if doc.Outcome != HALTED || doc.Cause != "launch-unconfirmed" {
-		t.Fatalf("lost linkage = %s/%q, want HALTED/launch-unconfirmed", doc.Outcome, doc.Cause)
-	}
-	if proc.launchN != 0 {
-		t.Fatalf("lost linkage must launch nothing, proc.Launch called %d times", proc.launchN)
+			doc, err := d.Advance(id, ownerGen)
+			if err != nil {
+				t.Fatalf("Advance: %v", err)
+			}
+			if doc.Outcome != HALTED || doc.Cause != CauseRunLinkLost {
+				t.Fatalf("lost linkage = %s/%q, want HALTED/%s", doc.Outcome, doc.Cause, CauseRunLinkLost)
+			}
+			if proc.launchN != 0 {
+				t.Fatalf("lost linkage must launch nothing, proc.Launch called %d times", proc.launchN)
+			}
+		})
 	}
 }
 

@@ -1694,7 +1694,9 @@ var errRelaunchRaceLost = errors.New("gatedrive: relaunch already consumed by a 
 // the slot's ReservationToken still equals that token (an exact-reservation
 // match). ok=false with cause set means the linkage is LOST or inconsistent — the
 // drive can no longer prove whether it is run-backed, so new execution is
-// refused (never demoted to standalone). ("", true, "") is a genuinely no-run-record
+// refused (never demoted to standalone). A scoped drive whose scope cannot be read
+// reports CauseRunRecordUnreadable; an absent, unreadable, or reassigned worktree
+// slot reports CauseRunLinkLost. ("", true, "") is a genuinely no-run-record
 // drive (a legacy empty token, or a slot recording no run). (change 0437 Task 3)
 func (d *Driver) resolveDriveRun(rec driveRecord) (runID string, ok bool, cause string) {
 	if rec.ScopeID != "" {
@@ -1711,10 +1713,10 @@ func (d *Driver) resolveDriveRun(rec driveRecord) (runID string, ok bool, cause 
 	}
 	slot, _, err := d.store.LoadWorktreeExecution(rec.WorktreePath)
 	if err != nil {
-		return "", false, "launch-unconfirmed"
+		return "", false, CauseRunLinkLost
 	}
 	if slot.ReservationToken != rec.AdmissionToken {
-		return "", false, "launch-unconfirmed"
+		return "", false, CauseRunLinkLost
 	}
 	return slot.RunID, true, ""
 }
