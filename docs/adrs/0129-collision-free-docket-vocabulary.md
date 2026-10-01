@@ -294,3 +294,7 @@ The decision stands. Change 0471 kept three run-tracker spellings because no row
 ## Amendment — 2026-09-29 (change 0472 grooming)
 
 Edited in place with the human's explicit authorization, before family (b) was built. Tracing the code showed rows 40-44 were incomplete: row 40 listed operations that take the revision in a request file (or not at all, `workspace.inspect`) as flag operations, and row 43 listed `adr.record`, which carries no target. Rows 40, 41, 43 and 44 were corrected, rows 40a, 41a, 41b, 43a and 44a were added, the note defining "revision" was added under family (b), and "Explicitly not renamed" gained the claim digest's `version` key, the commit-id `*_revision` keys and the release tools' `--version`.
+
+## Update — 2026-10-01 (change 0481)
+
+The decision stands. Rows 68 (`worktree-changed`) and 69 (`launch-unconfirmed`) now cover only the conditions they describe. A gate-drive takeover whose recorded scope identity (repo, branch, worktree, change, task, phase) no longer matches its scope halts with the retained family-(e) token `scope-identity-mismatch` (`ErrScopeIdentityMismatch`), not `worktree-changed`. When `resolveDriveRun` loses the drive's worktree-slot link to its run (the slot is unreadable or absent, or was reassigned to another reservation token), the drive halts with the new token `run-link-lost` (`CauseRunLinkLost`), not `launch-unconfirmed`. This is a token-only change: halt and recovery behavior is unchanged.
