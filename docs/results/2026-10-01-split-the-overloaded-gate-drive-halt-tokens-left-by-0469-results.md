@@ -19,6 +19,7 @@ When the driver halts and how it recovers are unchanged. The correct `worktree-c
 - Each task was test-driven. For the five takeover scope-drift cases and the two lost-link cases, a test failed first and then passed after the fix.
 - Each emitting site was mutation-tested: putting the old token back makes its tests fail. Each of the two lost-link sites has its own failing test.
 - The full suite runs at the build gate, and the build-evidence record in the PR body records the result.
+- A standard-tier whole-branch review returned one minor finding: the glossary's list of takeover identity fields left out "repo". It was fixed in-branch (187f48544).
 
 ## Known issues and follow-ups
 
