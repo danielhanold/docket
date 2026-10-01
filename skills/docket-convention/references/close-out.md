@@ -115,8 +115,9 @@ before the first read; every commit pushes immediately.
    **Kill path:** cleanup removes only a merged `done` change's resources. On a `killed` change it
    removes nothing and returns `no-op` with disposition `retained` and reason `killed-retained` —
    a success, not a failure, so the kill caller continues. Any feature worktree or branch a
-   reconcile-killed change already had stays in place; remove it by hand if it is no longer wanted
-   (docket change 0483 tracks automatic killed-change cleanup). A `proposed`-kill has none.
+   reconcile-killed change already had stays in place; remove it by hand if it is no longer wanted —
+   the branch is the pre-kill `branch:` value (`<type>/<slug>` by default; the kill clears the
+   field) and `git worktree list` finds the worktree (docket change 0483 tracks automatic killed-change cleanup). A `proposed`-kill has none.
 
 5. **Board refresh — owned atomically by step 1, no separate pass.** Both close-out transactions
    render the inline `BOARD.md` **inside their own step-1 metadata commit** — the `finalize.closeout`
