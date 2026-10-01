@@ -2,7 +2,7 @@
 id: 481
 slug: 'split-the-overloaded-gate-drive-halt-tokens-left-by-0469'
 title: 'Split the overloaded gate-drive halt tokens left by 0469'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'refactor'
 created: '2026-10-01'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/split-the-overloaded-gate-drive-halt-tokens-left-by-0469'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-01T11:55:27Z'
 ---
 
 ## Artifacts
