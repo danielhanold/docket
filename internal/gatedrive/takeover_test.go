@@ -235,7 +235,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 				overwriteDriveRecord(t, store, started.DriveID, rec)
 				return grant.ScopeID, grant.ParentCapability, started.DriveID
 			},
-			want: "worktree-changed",
+			want: string(ErrScopeIdentityMismatch),
 		},
 		{
 			name: "identity mismatch worktree",
@@ -246,7 +246,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 				overwriteDriveRecord(t, store, started.DriveID, rec)
 				return grant.ScopeID, grant.ParentCapability, started.DriveID
 			},
-			want: "worktree-changed",
+			want: string(ErrScopeIdentityMismatch),
 		},
 		{
 			name: "identity mismatch change",
@@ -257,7 +257,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 				overwriteDriveRecord(t, store, started.DriveID, rec)
 				return grant.ScopeID, grant.ParentCapability, started.DriveID
 			},
-			want: "worktree-changed",
+			want: string(ErrScopeIdentityMismatch),
 		},
 		{
 			name: "identity mismatch task",
@@ -268,7 +268,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 				overwriteDriveRecord(t, store, started.DriveID, rec)
 				return grant.ScopeID, grant.ParentCapability, started.DriveID
 			},
-			want: "worktree-changed",
+			want: string(ErrScopeIdentityMismatch),
 		},
 		{
 			name: "identity mismatch phase",
@@ -279,7 +279,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 				overwriteDriveRecord(t, store, started.DriveID, rec)
 				return grant.ScopeID, grant.ParentCapability, started.DriveID
 			},
-			want: "worktree-changed",
+			want: string(ErrScopeIdentityMismatch),
 		},
 		{
 			name: "fingerprint drift",

@@ -1110,8 +1110,9 @@ docket gate cleanup <run-dir>
 
 The state a gate checked no longer matches the state now in front of it. A gate drive halts
 `worktree-changed` when the worktree fingerprint (HEAD, index, status, live file bytes) moved
-since the drive started, or when a takeover finds a drive whose recorded branch, worktree or
-change is not the scope's. `evidence.recertify` refuses `certified-input-changed` when the PR
+since the drive started. A takeover that finds a drive whose recorded branch, worktree, change,
+task or phase is not the scope's halts `scope-identity-mismatch` instead, because nothing in the
+worktree changed. `evidence.recertify` refuses `certified-input-changed` when the PR
 head or the build command moved after the gate passed. In finalize, a pull request whose pushed
 head no longer equals the branch finalize just rebased and retested is refused `pr-head-mismatch`.
 
