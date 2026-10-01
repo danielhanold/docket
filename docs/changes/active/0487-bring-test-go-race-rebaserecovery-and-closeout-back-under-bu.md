@@ -11,8 +11,8 @@ depends_on: []
 stacked_on:
 related: [466, 465, 434, 373, 333, 362, 289, 280]
 discovered_from: [475, 476, 478, 484, 485]
-adrs: []
-spec:
+adrs: [108, 129]
+spec: 'docs/superpowers/specs/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md) |
+| ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md), [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -43,18 +47,22 @@ A serial-confirmed breach is the runner's authoritative signal, but it never fai
 
 ## What changes
 
-1. **Seal scan cost (`internal/repoguard`).** Make `TestRetiredVocabularySeal`'s per-line scan cheaper, for example by pre-filtering each line before the per-row regexes run. Measure `tests/test_go_race.sh` solo time before and after on an untouched merge-base.
-2. **Concurrent-gate backstop.** Reproduce the `internal/repoguard` `-race` timeout with two gates running at once, and confirm whether item 1 removes it. If it does not, fix the remaining cause by bounding total test load across concurrent gates (ADR-0108 direction), partitioning the package, or further scan work. Prove the fix with a before/after run under the same load.
-3. **Integration shards.** For the rebaserecovery and closeout shards, find out whether each is a real regression (in the shard or the code it drives) or a row sized below the shard's real worst-case solo time. Fix it by speeding up or splitting the slow tests, as change 0466 did.
-4. **Budget rows.** Re-size a `tests/runtime-budgets.tsv` row only when the time is genuinely needed, from measured worst solo readings (change 0466 precedent), and say why in the change. Keep the ledger narration bound to the numbers (change 0289).
-5. **gofmt.** Run `gofmt -w internal/githubcli/comment_integration_test.go`. Formatting only, no behavior change.
+Settled at grooming (2026-10-01). The full design and measurements are in the linked spec.
 
-The full suite must pass at the gate, and the budget report must show no `SERIAL CONFIRMED OVER BUDGET` line for the three affected files.
+1. **Seal scan cost.** Pre-filter `TestRetiredVocabularySeal`'s scan in `internal/repoguard`. A text or Go-literal row runs its regexp only when the line contains the row's spelling. The catalog operation-reference regexp runs only on blocks that contain a bound-flag spelling. Detection is unchanged by construction, and a mutation probe proves the seal still reddens. Grooming's prototype took the seal from 65.5s to 1.4s and `internal/repoguard` from 87.6s to 25.8s under `-race`.
+2. **Concurrent-gate timeout.** Add no new load-bounding machinery. Prove the seal fix with a before/after run of two gates started together on one machine. If the backstop still trips, record a follow-up.
+3. **Integration shards.** Split the closeout and rebaserecovery shards into two disjoint test-name prefixes each (the 0434 precedent). Add a wrapper and a `tests/runtime-budgets.tsv` row for each half, sized from serial solo readings.
+4. **Budget rows.** `tests/test_go_race.sh` keeps its 60s row and is serial-confirmed under it. Keep the narrated numbers bound to their measurements (change 0289).
+5. **gofmt.** Format `internal/githubcli/comment_integration_test.go`. Formatting only.
+
+The full suite passes at the gate, and the budget report shows no `SERIAL CONFIRMED OVER BUDGET` line for the race gate or any closeout/rebaserecovery shard file.
 
 ## Out of scope
 
 - Raising the 8-minute `-race` backstop.
+- A machine-wide or cross-gate Go test-load bound (an ADR-0108 extension). It was declined at grooming because the measured cause is the seal.
 - Changing the runner's budget regime, slack factor, or report semantics, or how it measures and enforces budgets.
+- Converting the shard tests to `t.Parallel()`, or speeding up the slow integration tests themselves.
 - Other budget rows and other `BUDGET WATCH` / `PARALLEL-SENSITIVE` lines, unless the investigation shows a shared cause.
 - `-race` failures in packages other than `internal/repoguard`.
 - Any other gofmt drift, or changing how gofmt is enforced in the suite.
