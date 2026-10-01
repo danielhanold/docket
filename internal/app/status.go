@@ -406,7 +406,7 @@ func stackBranches(snap domain.Snapshot) []string {
 // c, facts) asks HasBranch about. EvaluateReadiness and ClaimEligibility reach
 // branch facts only through that one ResolveEffectiveBase call on c —
 // EvaluateDependencies consults none — and no named caller (claim, context,
-// workspace, merge, clear-block, repair, retarget) reads a fact for c's own
+// workspace, merge, clear-block, relink, retarget) reads a fact for c's own
 // branch or for a dependency's stack. Sorted, deduped. A named operation uses
 // it instead of the whole-corpus stackBranches, so an unrelated stack — even a
 // dependency's — whose branch cannot be probed never blocks it (change 0449);

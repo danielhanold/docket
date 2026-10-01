@@ -237,7 +237,7 @@ func newRelinkSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "change `id` whose recorded identity to repair (required)")
+	cmd.Flags().Int("id", 0, "change `id` to relink (required)")
 	cmd.Flags().String("expect-revision", "", "exact change-record `revision` from the finalize report (required)")
 	cmd.Flags().Bool("adopt-pr-head", false, "trust the PR: adopt the exact PR's reported head branch as branch:")
 	cmd.Flags().Int("expect-pr", 0, "the exact PR `n`umber the approved evidence showed (with --adopt-pr-head)")

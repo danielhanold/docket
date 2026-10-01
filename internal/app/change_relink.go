@@ -183,7 +183,7 @@ func Relink(ctx context.Context, deps FinalizeDeps, repoDir string, req RelinkRe
 	}
 	if revision != req.ExpectRevision {
 		return relinkRefusal(ResultContended, RelinkStaleEvidence,
-			"the change record moved since the approved revision; re-read authoritative context before repairing", req.ID)
+			"the change record moved since the approved revision; re-read authoritative context before relinking", req.ID)
 	}
 
 	// Resolve the mode into the exact field the record will carry and the branch
@@ -448,7 +448,7 @@ func relinkProveWorkspaceClear(ctx context.Context, deps FinalizeDeps, pin Statu
 	}
 	if target.FeatureBranch() != proposedBranch {
 		return relinkConflict(
-			fmt.Sprintf("an owned workspace targets %q, not the proposed branch %q; the repair would orphan it", target.FeatureBranch(), proposedBranch), id)
+			fmt.Sprintf("an owned workspace targets %q, not the proposed branch %q; the relink would orphan it", target.FeatureBranch(), proposedBranch), id)
 	}
 	return nil
 }
@@ -483,7 +483,7 @@ func relinkResultFromOutcome(field, value string, res transaction.Result, execEr
 	case transaction.DispositionContended:
 		return newRelinkResult(ResultContended, RelinkResult{
 			ID: id, Reason: RelinkStaleEvidence,
-			Message: "the change record moved during the repair transaction; re-read authoritative context",
+			Message: "the change record moved during the relink transaction; re-read authoritative context",
 		})
 	case transaction.DispositionFailed:
 		// A mid-flight transaction failure carries its typed cause in the envelope's
