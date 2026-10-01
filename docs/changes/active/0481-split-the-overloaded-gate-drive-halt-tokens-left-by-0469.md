@@ -14,7 +14,7 @@ discovered_from: [469]
 adrs: [129]
 spec: 'docs/superpowers/specs/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-design.md'
 plan: 'docs/superpowers/plans/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md'
-results:
+results: 'docs/results/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-01T12:05:33Z'
 |---|---|
 | Spec | [2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-design.md) |
 | Plan | [2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md](https://github.com/danielhanold/docket/blob/refactor/split-the-overloaded-gate-drive-halt-tokens-left-by-0469/docs/superpowers/plans/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) |
+| Results | [2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-results.md](https://github.com/danielhanold/docket/blob/refactor/split-the-overloaded-gate-drive-halt-tokens-left-by-0469/docs/results/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-results.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
