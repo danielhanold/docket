@@ -74,3 +74,15 @@ The full suite passes at the gate, and the budget report shows no `SERIAL CONFIR
 ### 2026-10-01
 
 Reconciled at claim against origin/main 97cc46c3e, the same head the spec's grooming measurements were taken on. No intervening merges; `gofmt -l internal/ cmd/` still flags only `internal/githubcli/comment_integration_test.go`. Scope unchanged.
+
+## Run halted
+
+### 2026-10-01
+
+Build role halted during Task 2 (seal pre-filter) because the gate drive's ownership could not be recovered. This is a build-role halting condition: a takeover returned `HALTED`.
+
+- **Plan:** attached and committed at `298189fcb`. The feature worktree is clean, and no code has been committed.
+- **Task 1 (gofmt):** dropped as already satisfied. The declared go1.26.5 gofmt reports nothing; only the go1.27.1 gofmt on PATH flags `internal/githubcli/comment_integration_test.go`, and commit 21f851142 already formatted the file for the declared toolchain. Spec acceptance 7 already holds.
+- **Task 2:** the worker started its baseline `-race` measurement as drive `18c0f9a157642b984acc0c2500960ebc` (scope `09612a91307978a1cd7f9928c12d4577`) and handed it off. The coordinator claimed the handoff, but the claim's command printed only a filtered view of its response, so the fresh owner generation was never captured. A repeat claim returned `HALTED` with `no-handoff-offered`. The parent takeover returned `HALTED` with `scope-closed`. The drive cannot be advanced now, and it may still hold the worktree's gate slot.
+
+**To resume:** confirm the drive is no longer live (its deadline is 2026-10-01T22:37:10Z), clear it with `run.cancel` or the gate recovery or cleanup operations if needed, then resume with `change.resume-halted --acknowledge-quiescent` and re-dispatch implement-next for 487. The baseline JSON from the stranded run is in the worker's temporary scratch directory, `docket-0487.C4mmZw`, if it is still needed. Restart Task 2 from its Step 1.
