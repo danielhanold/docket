@@ -1187,6 +1187,15 @@ gate is live in that worktree. `launch-unconfirmed` means nothing proved whether
 attempt. The fix is an operator act: let the incumbent finish, or stop it with `run.cancel`. A `launch-unconfirmed`
 slot must be recovered or cancelled; restarting blind never clears it.
 
+### `run-link-lost`
+
+A gate drive halts `run-link-lost` when it can no longer prove which run it belongs to: the
+[worktree slot](#worktree-slot) it was admitted through is absent or unreadable, or now holds a
+different reservation. Rather than relaunch as a standalone gate, the drive refuses.
+
+**Used for:** telling an orphaned drive apart from `launch-unconfirmed`, where a launch itself is
+in doubt. It is a halt, never a red suite. Cancel the run with `run.cancel` and start fresh.
+
 ---
 
 ## Review
@@ -2434,6 +2443,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Revision (--revision)](#revision---revision)
 - [Run-context refusal (run-context-invalid / run-context-conflict)](#run-context-refusal-run-context-invalid--run-context-conflict)
 - [Run fence](#run-fence)
+- [run-link-lost](#run-link-lost)
 - [Run tracker](#run-tracker)
 - [Run verdict](#run-verdict)
 - [Run verify](#run-verify)
