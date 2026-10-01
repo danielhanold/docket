@@ -1,12 +1,6 @@
 # Backlog
 
-**482 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 17 proposed · ⚪ 12 deferred · ✅ 328 done · 🗑️ 120 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0469](active/0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | `medium` | `refactor` | [#358](https://github.com/danielhanold/docket/pull/358) | awaiting merge |
+**482 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 17 proposed · ⚪ 12 deferred · ✅ 329 done · 🗑️ 120 killed
 
 ## 🔴 Blocked (1)
 
@@ -26,8 +20,8 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0482](active/0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover wording outside the ADR-0129 rename rows | `low` | `refactor` | ⏳ waiting on #469 — needs your merge |
-| [0481](active/0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | `medium` | `refactor` | ⏳ waiting on #469 — needs your merge |
+| [0482](active/0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover wording outside the ADR-0129 rename rows | `low` | `refactor` | needs-brainstorm |
+| [0481](active/0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | `medium` | `refactor` | needs-brainstorm |
 | [0480](active/0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md) | Check finalize cleanup's not-final message for killed changes | `low` | `fix` | needs-brainstorm |
 | [0479](active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) | Ad hoc `go test -tags integration ./internal/app/` hits go test's default 10-minute timeout | `low` | `chore` | needs-brainstorm |
 | [0478](active/0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | `low` | `chore` | needs-brainstorm |
@@ -90,7 +84,6 @@ graph TD
   0443
   0457
   0464
-  0469
   0475
   0476
   0478
@@ -103,13 +96,15 @@ graph TD
   0370:::done
   0393:::done
   0407:::done
+  0469:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (448)</summary>
+<details><summary>✅🗑️ Archive — done + killed (449)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0469](archive/2026-10-01-0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | 2026-10-01 |
 | [0477](archive/2026-09-30-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md) | Finish the run-tracker rename (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY, dispatch_context) | 2026-09-30 |
 | [0474](archive/2026-09-30-0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) | Rename re-arm to re-enable and retire the lifecycle 'terminal' and non-run 'fence' names | 2026-09-30 |
 | [0473](archive/2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) | Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks | 2026-09-30 |
@@ -125,7 +120,6 @@ graph TD
 | [0461](archive/2026-09-28-0461-allow-editing-an-existing-change-s-title.md) | Allow editing an existing change's title | 2026-09-28 |
 | [0462](archive/2026-09-27-0462-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) | Close the temp-dir fixture guard's remaining gaps (internal/cli gateTempDir, scan-root removal) | 2026-09-27 |
 | [0456](archive/2026-09-27-0456-show-finding-remedies-in-docket-status-human-view.md) | Show finding remedies in docket status human view | 2026-09-27 |
-| [0455](archive/2026-09-27-0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) | Document finalize's record-invalid reason in the docket-finalize-change skill | 2026-09-27 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -250,7 +244,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 77 done |
+| [2026-09](archive/) | 78 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
