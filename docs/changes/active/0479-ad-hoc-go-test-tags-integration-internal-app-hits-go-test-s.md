@@ -22,7 +22,7 @@ branch: 'chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-01T12:17:26Z'
+claimed_at: '2026-10-01T21:27:51Z'
 ---
 
 ## Artifacts
@@ -57,12 +57,3 @@ Timeout changes to the suite, the shard runners, or the race gate (0465, ADR-010
 
 Re-traced against origin/main 85bace7de: `internal/testsupport` still holds only the no-real-git guard pair (`nogit_install.go` / `nogit_install_off.go`), `internal/app/gate_test.go` `TestMain` still passes `nogitPkg`/`nogitShardGlob` to `InstallNoGitGuard`, `tests/test_go_integration_contract.sh` keeps its 15s row, and the `internal/app` shard ceilings still sum to 1125s. No related change has landed this work; scope and spec stand unchanged.
 
-## Run halted
-
-### 2026-10-01
-
-The build role halted on Task 1 (`internal/testsupport` unfiltered-run guard). The `docket-build-standard` worker returned `BLOCKED`, which is a halting condition in docket-build.
-
-- **Cause:** the plan runs Task 1's mutation checks inside a gate drive, and those checks edit `internal/testsupport/unfiltered.go` in place while the drive is running. The driver halted that drive with `worktree-changed` (drive `17a7ffb4cdc6d9c4670f910ec7b3e442`). After that, scope `7e140da6585286d1681a5c04234a2827` refused any further start: `predecessor-not-reusable` when chained to the halted drive, and `scope-second-live-drive` without a predecessor. The scope was never acknowledged.
-- **Code state:** RED (drive `5691b297…`, the intended build failure) and GREEN (drive `0dc01a08…`, PASSED) both completed. The worker reports that all three clause mutations reddened the unit tests and that each was restored byte-identical. The four Task 1 files are **uncommitted** in the feature worktree: `internal/testsupport/unfiltered.go`, `unfiltered_guard.go`, `unfiltered_guard_off.go`, `unfiltered_test.go`. Nothing was committed beyond the plan (`edb7def52`).
-- **To resume:** check the four files, prepare a fresh scope, run one clean GREEN drive, and commit them as Task 1. Then continue to Task 2 through `change.resume-halted`. Mutation steps in this plan (Task 1 and Task 2's wiring mutation) should run outside a gate drive, or in a copy of the tree, because the driver halts on any edit made during a run.
