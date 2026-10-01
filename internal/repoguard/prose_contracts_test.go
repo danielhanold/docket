@@ -459,6 +459,7 @@ var proseContracts = []proseContract{
 		},
 		absent: []string{
 			"so a kill leg whose",
+			"prunes any feature worktree",
 		}},
 	{sentinel: "change_0480_killed_cleanup_retained", file: "skills/docket-implement-next/references/edge-paths.md",
 		present: []string{
@@ -466,6 +467,7 @@ var proseContracts = []proseContract{
 		},
 		absent: []string{
 			"cleanup step prunes any feature worktree",
+			"prunes any feature worktree",
 		}},
 }
 
