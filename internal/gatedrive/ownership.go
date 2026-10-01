@@ -90,6 +90,9 @@ const (
 	// ErrScopeIdentityMismatch: a scope's identity (its bound change, or an
 	// identity field a takeover re-verifies) no longer matches what the caller
 	// presented — e.g. rebinding a scope to a different change. Fail closed.
+	// Takeover also emits it as a HALTED cause when the resolved drive's recorded
+	// repo, branch, worktree, change, task, or phase is not the scope's: the
+	// pairing drifted, while the worktree itself may be untouched (change 0481).
 	ErrScopeIdentityMismatch OwnershipErrorKind = "scope-identity-mismatch"
 	// ErrScopeBusy: a scope transition raced another start or transition that
 	// already owns the scope's single drive slot (a reservation in flight, or a

@@ -575,7 +575,7 @@ func TestIntegrationRunVerdictVerdictTakeoverHaltStops(t *testing.T) {
 	wdeps.Continuation = &fakeContinuationSeam{
 		candidates:    []string{"d0opaque"},
 		takeoverHalt:  true,
-		takeoverCause: "worktree-changed",
+		takeoverCause: "scope-identity-mismatch",
 	}
 	key := runTrackerMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
 
@@ -583,8 +583,8 @@ func TestIntegrationRunVerdictVerdictTakeoverHaltStops(t *testing.T) {
 	if res.Decision != RunDecisionStop || res.Outcome != RunOutcomeUnavailable {
 		t.Fatalf("decision/outcome = %q/%q, want run-stop/run-tracker-unavailable", res.Decision, res.Outcome)
 	}
-	if res.Reason != "worktree-changed" {
-		t.Errorf("reason = %q, want worktree-changed (driver cause passed through)", res.Reason)
+	if res.Reason != "scope-identity-mismatch" {
+		t.Errorf("reason = %q, want scope-identity-mismatch (driver cause passed through)", res.Reason)
 	}
 	if !res.Terminal {
 		t.Errorf("halted takeover must be terminal")
