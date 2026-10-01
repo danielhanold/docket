@@ -2,7 +2,7 @@
 id: 480
 slug: 'check-finalize-cleanup-s-not-final-message-for-killed-change'
 title: 'Report killed changes truthfully in finalize cleanup'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-09-30'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/check-finalize-cleanup-s-not-final-message-for-killed-change'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-01T11:56:27Z'
 ---
 
 ## Artifacts
