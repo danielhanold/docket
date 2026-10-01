@@ -192,6 +192,7 @@ func TestFinalLifecycleCodeSpellings(t *testing.T) {
 		{"ReasonCleanupBacklinkPending", string(ReasonCleanupBacklinkPending), "final-backlink-pending"},
 		{"ReasonCloseoutNotesFrozen", string(ReasonCloseoutNotesFrozen), "final-notes-frozen"},
 		{"ReasonCleanupNotFinal", string(ReasonCleanupNotFinal), "not-final"},
+		{"ReasonCleanupKilledRetained", string(ReasonCleanupKilledRetained), "killed-retained"},
 		{"childOutcomeSkippedDone", string(childOutcomeSkippedDone), "skipped-final"},
 	} {
 		if c.got != c.want {

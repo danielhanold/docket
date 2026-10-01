@@ -28,15 +28,17 @@ import (
 // recorded tip is detached from every worktree AND contained in the verified
 // merge chain; deletes the REMOTE feature ref only under an exact old-value lease
 // AND only after a fresh probe proves no open child PR still targets it; and
-// keeps the cleaned tombstone for replay and health attribution. A stacked-merged
-// change retains its workspace and branches until its root reaches the
-// integration branch; an out-of-band parent merge with unretargeted children
-// archives truthfully but retains the parent branch and reports
-// children-retarget-required. Any probe failure, moved ref, unproven ancestry,
-// blocked workspace, malformed manifest, or exact-lease rejection returns cleanup
-// pending and preserves the resource. It never calls a global worktree prune,
-// force-removes a checkout, recursively deletes by pathname, or touches the
-// primary, metadata, transaction, sibling, or foreign worktree.
+// keeps the cleaned tombstone for replay and health attribution. A killed change
+// is final but never merged, so its workspace and branches are retained (a
+// no-op, killed-retained). A stacked-merged change retains its workspace and
+// branches until its root reaches the integration branch; an out-of-band parent
+// merge with unretargeted children archives truthfully but retains the parent
+// branch and reports children-retarget-required. Any probe failure, moved ref,
+// unproven ancestry, blocked workspace, malformed manifest, or exact-lease
+// rejection returns cleanup pending and preserves the resource. It never calls a
+// global worktree prune, force-removes a checkout, recursively deletes by
+// pathname, or touches the primary, metadata, transaction, sibling, or foreign
+// worktree.
 //
 // `gate cleanup` removes ONE exact private run directory's logs only after
 // validating ownership (a manifest whose run id matches the slot), a durable
@@ -68,7 +70,9 @@ const (
 	// rejected. Nothing was destroyed; the leg is independently retryable.
 	CleanupDispPending = "pending"
 	// CleanupDispRetained: the resource is deliberately retained (a stacked-merged
-	// change kept until its root closes, or a gate run kept for its diagnostics).
+	// change kept until its root closes, a killed change whose workspace and
+	// branches finalize cleanup does not remove, or a gate run kept for its
+	// diagnostics).
 	CleanupDispRetained = "retained"
 	// CleanupDispChildrenRetargetRequired: the parent archived truthfully but an
 	// open child PR still targets its branch; the remote branch is retained.
@@ -83,6 +87,7 @@ const (
 // explanatory and must not be parsed.
 const (
 	ReasonCleanupNotFinal         = "not-final"
+	ReasonCleanupKilledRetained   = "killed-retained"
 	ReasonCleanupNotFinalizable   = "not-finalizable"
 	ReasonCleanupRepoUnresolved   = "repository-unresolved"
 	ReasonCleanupProbeUnknown     = "merge-probe-unknown"
@@ -200,6 +205,16 @@ func FinalizeCleanup(ctx context.Context, deps FinalizeDeps, repoDir string, id 
 		return newCleanupResult(OperationFinalizeCleanup, ResultNoOp, CleanupOpResult{
 			ID: id, Disposition: CleanupDispRetained, Reason: ReasonCleanupNotFinal,
 			Message: "change is stacked-merged; its workspace and branches are retained until its root closes",
+		})
+	case domain.StatusKilled:
+		// Final, but never merged: finalize cleanup removes only a merged change's
+		// resources, so a killed change's workspace and branches are retained. A
+		// kill is reachable only from proposed/in-progress, never from the
+		// implemented state where finalize rebases run, so no aborted-rebase
+		// scratch is consulted.
+		return newCleanupResult(OperationFinalizeCleanup, ResultNoOp, CleanupOpResult{
+			ID: id, Disposition: CleanupDispRetained, Reason: ReasonCleanupKilledRetained,
+			Message: "change is killed; finalize cleanup removes only a merged change's resources — its workspace and branches are retained",
 		})
 	default:
 		// The one pre-final exception: an explicitly-aborted owned rebase that

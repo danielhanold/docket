@@ -310,3 +310,44 @@ func TestIntegrationFinalizeCleanupStackedRetained(t *testing.T) {
 		t.Fatalf("a stacked-merged change must retain its branches")
 	}
 }
+
+// setupKilledCleanupFixture builds a closeout fixture (real prepared workspace
+// and published feature branch) and then relocates its record to archive/ as a
+// killed change — the state a reconcile-kill of a resumed in-progress change
+// leaves behind. A killed record carries no branch or claim stamp (change.kill
+// strips them), which lifecycleChange already models for status "killed".
+func setupKilledCleanupFixture(t *testing.T) *closeoutFixture {
+	t.Helper()
+	f := setupCloseoutFixture(t, planRepoModeDocket())
+	activePath := groomPath(f.id, f.slug)
+	archivePath := "docs/changes/archive/2026-08-16-" + padID(f.id) + "-" + f.slug + ".md"
+	// Sync the writer's metadata branch to origin before removing the active
+	// record, so the removal commits on top of the published tip.
+	runGit(t, f.repo.writer, "fetch", "-q", "origin", f.branch)
+	runGit(t, f.repo.writer, "checkout", "-q", f.branch)
+	runGit(t, f.repo.writer, "reset", "-q", "--hard", "origin/"+f.branch)
+	runGit(t, f.repo.writer, "rm", "-q", activePath)
+	f.repo.writerAdvance(t, f.branch, map[string]string{archivePath: lifecycleChange(f.id, f.slug, "killed")})
+	f.revision = blobRevisionAt(t, f.repo.origin, f.branch, archivePath)
+	return f
+}
+
+func TestIntegrationFinalizeCleanupKilledRetained(t *testing.T) {
+	requireRealGit(t)
+	f := setupKilledCleanupFixture(t)
+	gh := f.mergedCleanupFake(f.head, strings.Repeat("d", 40))
+	res := FinalizeCleanup(context.Background(), f.cleanupDeps(gh, f.deps.Client, f.svc), f.repo.invocation, f.id)
+	if res.Result != ResultNoOp || res.Disposition != CleanupDispRetained || res.Reason != ReasonCleanupKilledRetained {
+		t.Fatalf("a killed change must be a retained no-op, got result %q disp %q reason %q (%s)",
+			res.Result, res.Disposition, res.Reason, res.Message)
+	}
+	if !strings.Contains(res.Message, "killed") {
+		t.Fatalf("the message must name the killed condition, got %q", res.Message)
+	}
+	if _, err := os.Stat(f.wp); err != nil {
+		t.Fatalf("a killed change's workspace must be retained: %v", err)
+	}
+	if !f.localBranchPresent(t) || !f.remoteBranchPresent(t) {
+		t.Fatalf("a killed change must retain its branches")
+	}
+}
