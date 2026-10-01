@@ -13,7 +13,7 @@ related: [466, 465, 434, 373, 333, 362, 289, 280]
 discovered_from: [475, 476, 478, 484, 485]
 adrs: [108, 129]
 spec: 'docs/superpowers/specs/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-01T21:57:07Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md) |
+| Plan | [2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md](https://github.com/danielhanold/docket/blob/fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu/docs/superpowers/plans/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md), [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
