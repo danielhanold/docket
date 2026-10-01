@@ -42,4 +42,7 @@ Do not drop `-skip .` in step 1 on a tree that lacks this change. Without the gu
   - Removing the `TestMain` call, or making the guard return nil, turned the new contract check (11) red within seconds. This ran in a scratch copy outside the worktree.
 - `tests/test_go_integration_app_gatelifecycle.sh` passes. Its guardian tests re-exec the test binary, which shows the re-exec routing still runs before the guard. `tests/test_go_integration_app_runrecord.sh` passes as an ordinary filtered shard.
 - `tests/test_go_integration_contract.sh` takes 12.8s before this change and 12.9s after, against its 15s budget. The fallback sibling test file was not needed.
+- Whole-branch review (standard tier) found no blocker or important issues and two minor ones. Both are fixed in commit e8e3022cf:
+  - The remedy text now takes its "10m" from the `goTestDefaultTimeout` constant, so the message can no longer drift from the decision. The text itself is unchanged.
+  - The comment above `WholeCorpusTimeout` now names `tests/README.md` as a second place to update when the value is recomputed.
 - The whole-suite build gate result is recorded in the PR's build-evidence block.
