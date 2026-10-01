@@ -32,8 +32,8 @@ refusal: an ancestor's closeout cannot prove the carry of a named change not yet
 ## Reconcile-kill (Step 3, change OBSOLETE)
 
 The convention's close-out reference owns invocations and ordering; this skill's posture is CALLER-side only: trust each exit code, a failure aborts the
-kill and is surfaced. The reference's cleanup step prunes any feature worktree/branch already
-created. Terminal publication is deferred from Go v1 — the kill archives on `docket` via the `change.kill`
+kill and is surfaced. The cleanup step retains a killed change's worktree/branch (`killed-retained`, a `no-op`).
+Terminal publication is deferred from Go v1 — the kill archives on `docket` via the `change.kill`
 operation and copies nothing onto the integration branch.
 
 ## Resume of an `in-progress` change
