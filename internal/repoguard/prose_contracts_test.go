@@ -445,6 +445,28 @@ var proseContracts = []proseContract{
 			"the claimed drive's id, its terminal verdict, and an explicit statement that the original scope is closed",
 			"run `gate.drive.prepare-scope` again",
 		}},
+	// change 0480 — finalize cleanup retains a killed change's resources and
+	// reports no-op / retained / killed-retained (FinalizeCleanup's
+	// domain.StatusKilled case). The absent phrases are the retired claims that
+	// cleanup prunes or processes a killed change's worktree/branch
+	// (assert-detects-removal). Each phrase sits on one physical line: this
+	// detector is a raw strings.Contains, so a re-wrap that splits a phrase
+	// reddens the row rather than passing silently.
+	{sentinel: "change_0480_killed_cleanup_retained", file: "skills/docket-convention/references/close-out.md",
+		present: []string{
+			"reason `killed-retained`",
+			"a success, not a failure",
+		},
+		absent: []string{
+			"so a kill leg whose",
+		}},
+	{sentinel: "change_0480_killed_cleanup_retained", file: "skills/docket-implement-next/references/edge-paths.md",
+		present: []string{
+			"The cleanup step retains a killed change's worktree/branch (`killed-retained`, a `no-op`).",
+		},
+		absent: []string{
+			"cleanup step prunes any feature worktree",
+		}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation

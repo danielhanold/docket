@@ -109,9 +109,14 @@ before the first read; every commit pushes immediately.
    only when its recorded tip is detached from every worktree AND contained in the verified merge
    chain, the remote ref only under an exact old-value lease with no open child PR still targeting
    it — never the `.docket/` metadata worktree, the primary tree, or any out-of-tree path. Any
-   resource whose ownership it cannot prove is **retained**, not force-removed (so a kill leg whose
-   branch never merged keeps its feature ref rather than losing it). A failure aborts per the
-   caller's posture.
+   resource whose ownership it cannot prove is **retained**, not force-removed. A failure aborts
+   per the caller's posture.
+
+   **Kill path:** cleanup removes only a merged `done` change's resources. On a `killed` change it
+   removes nothing and returns `no-op` with disposition `retained` and reason `killed-retained` —
+   a success, not a failure, so the kill caller continues. Any feature worktree or branch a
+   reconcile-killed change already had stays in place; remove it by hand if it is no longer wanted
+   (docket change 0483 tracks automatic killed-change cleanup). A `proposed`-kill has none.
 
 5. **Board refresh — owned atomically by step 1, no separate pass.** Both close-out transactions
    render the inline `BOARD.md` **inside their own step-1 metadata commit** — the `finalize.closeout`
