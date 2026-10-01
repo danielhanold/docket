@@ -2,7 +2,7 @@
 id: 480
 slug: 'check-finalize-cleanup-s-not-final-message-for-killed-change'
 title: 'Report killed changes truthfully in finalize cleanup'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-09-30'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/check-finalize-cleanup-s-not-final-message-for-killed-change'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/359'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-01T12:29:56Z'
