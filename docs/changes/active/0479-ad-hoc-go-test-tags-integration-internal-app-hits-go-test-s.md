@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-01T12:01:31Z'
+reconciled: true
+claimed_at: '2026-10-01T12:03:25Z'
 ---
 
 ## Artifacts
@@ -49,3 +49,9 @@ The trace at grooming found that neither the suite runner nor the gate drive is 
 ## Out of scope
 
 Timeout changes to the suite, the shard runners, or the race gate (0465, ADR-0108); other packages' integration corpora; AGENTS.md and the learnings ledger; editing merged plans; weakening or skipping integration tests; and the closeout budget breach (0475).
+
+## Reconcile log
+
+### 2026-10-01
+
+Re-traced against origin/main 85bace7de: `internal/testsupport` still holds only the no-real-git guard pair (`nogit_install.go` / `nogit_install_off.go`), `internal/app/gate_test.go` `TestMain` still passes `nogitPkg`/`nogitShardGlob` to `InstallNoGitGuard`, `tests/test_go_integration_contract.sh` keeps its 15s row, and the `internal/app` shard ceilings still sum to 1125s. No related change has landed this work; scope and spec stand unchanged.
