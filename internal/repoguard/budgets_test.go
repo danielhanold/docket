@@ -34,7 +34,7 @@ type skillBudget struct {
 //
 // The word ceilings for docket-convention/SKILL.md, docket-implement-next/SKILL.md,
 // and docket-convention/references/stacked-changes.md were re-baselined upward once
-// (change 0394) to hold the capability-catalog contract prose: the new Step-0
+// (change 0394) to hold the capability-catalog contract prose: the new startup-check
 // capability bootstrap and the catalog-resolved semantic-operation idiom that
 // replaced hard-coded `docket <argv>` spellings. Change 0399 re-baselined
 // docket-convention/SKILL.md upward once more (7750 -> 7800) to hold the

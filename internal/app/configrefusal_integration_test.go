@@ -87,7 +87,7 @@ func TestIntegrationRepoCheckInvalidConfigDiagnostics(t *testing.T) {
 
 // TestIntegrationRepoPrepareInvalidConfigDiagnostics: prepare still refuses
 // (unsupported-config / refused), and now carries the structured findings the
-// Step-0 contract promises, plus the refs in its human text.
+// startup-check contract promises, plus the refs in its human text.
 func TestIntegrationRepoPrepareInvalidConfigDiagnostics(t *testing.T) {
 	r := newInitRepo(t, invalidConfigYML, nil)
 	res := runPrepareAt(t, r.invocation)

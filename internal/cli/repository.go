@@ -94,7 +94,7 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 		EffectRead)
 	migrateCmd := newRepositoryMigrateCommand(setResult)
 	prepareCmd := repositorySubcommand("prepare",
-		"Prepare the repository for a workflow: pin topology and attach or fast-forward the .docket worktree (Step 0)",
+		"Prepare the repository for a workflow: pin topology and attach or fast-forward the .docket worktree (the startup check)",
 		func(c *cobra.Command, deps app.SetupDeps) {
 			// deps.RepoDir already carries the resolved --repo-dir; RunRepository
 			// prepare keeps its own PrepareOptions.RepoDir override empty here.

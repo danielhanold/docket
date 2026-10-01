@@ -9,7 +9,7 @@ import (
 
 // Ports tests/test_config_read_channel.sh (change 0120/0146, ADR-0052): the
 // PROSE side of ADR-0052's config read-channel rule. A documented config key
-// resolves through the config resolver / Step-0 export; no skill body may tell an
+// resolves through the config resolver / startup-check export; no skill body may tell an
 // agent to READ the config file directly. The guard classifies every occurrence
 // of a config-file token across the skill markdown surface against an inline
 // same-line marker, and rejects any unclassified occurrence.

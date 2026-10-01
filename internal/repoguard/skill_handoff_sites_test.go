@@ -176,9 +176,9 @@ func TestSkillHandoffSites(t *testing.T) {
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
-		const unmarked = "Run the **resolved plan skill** — `$SKILL_PLAN` from the Step-0 config export."
-		const mention = "Resolve nothing new: `$SKILL_PLAN`, `$SKILL_BUILD`, learnings enablement come from the Step-0 export."
-		const braced = "Run the **resolved plan skill** — `${SKILL_PLAN}` from the Step-0 config export."
+		const unmarked = "Run the **resolved plan skill** — `$SKILL_PLAN` from the startup-check config export."
+		const mention = "Resolve nothing new: `$SKILL_PLAN`, `$SKILL_BUILD`, learnings enablement come from the startup-check export."
+		const braced = "Run the **resolved plan skill** — `${SKILL_PLAN}` from the startup-check config export."
 		const framed = "Refresh the claim immediately before this long build dispatch — the resolved build skill `$SKILL_BUILD` is invoked **DIRECTED to:** execute the plan."
 
 		// The marker check is non-vacuous: an unmarked invocation is caught.

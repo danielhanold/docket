@@ -12,7 +12,7 @@ import (
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
-// This file is the `docket repository prepare` service: the sole shared Step-0
+// This file is the `docket repository prepare` service: the sole shared startup-check
 // operation that every operating skill runs before any typed mutation. It
 // replaces the frozen Bash `docket.sh preflight` with one native, structured
 // repository-preparation operation. It discovers the repository, pins the
@@ -38,7 +38,7 @@ import (
 //   - DOCKET_GI_START/END, DOCKET_GI_LEGACY_START/END, DOCKET_GI_CORE_ENTRIES,
 //     DOCKET_GI_HARNESS_TOKENS, DOCKET_GI_DISPATCH_HARNESSES → DROPPED: managed
 //     `.gitignore` block markers/entries, owned by init/migrate rendering, not a
-//     Step-0 context value.
+//     startup-check context value.
 //   - DOCKET_SYNC_ATTEMPTS, DOCKET_SYNC_BACKOFF → DROPPED: the facade's shell
 //     retry-tuning knobs; native sync is a single re-read-keyed effect.
 //   - DOCKET_RUNTIME_VALUE, DOCKET_RUNTIME_DEEP, DOCKET_RUNTIME_COUNT → DROPPED:
@@ -50,7 +50,7 @@ import (
 //     vocabulary owned by the domain/status layer; prepare carries topology, not
 //     the change taxonomy.
 //   - DOCKET_DISPATCH_RETENTION_DAYS → DROPPED: dispatch-retention policy owned by
-//     maintenance sweep, not a Step-0 value.
+//     maintenance sweep, not a startup-check value.
 //   - DOCKET_PREFLIGHT_TEST_SLEEP_CMD → DROPPED: a bash-test-only injection seam.
 //
 // Carried forward as typed fields (the resolved authority current consumers read):
@@ -478,7 +478,7 @@ func buildPrepareContext(cfg config.Effective, sc setupContext, f reposetup.Fact
 	}
 }
 
-// RunRepositoryPrepare is the sole shared Step-0 operation. It discovers the
+// RunRepositoryPrepare is the sole shared startup-check operation. It discovers the
 // repository and origin, pins the topology and loads configuration, gathers the
 // classifier facts augmented with the local worktree/sync state, classifies once
 // through prepareRoute, and — for a healthy topology — attaches an absent local
@@ -718,7 +718,7 @@ func prepareGatherFailure(err error) RepositoryPrepareResult {
 	switch {
 	case errors.As(err, &rre):
 		// Lift the resolver's diagnostics into the structured findings the
-		// Step-0 contract promises, and name each defect's file:line in the
+		// startup-check contract promises, and name each defect's file:line in the
 		// human text (change 0403). Disposition and result are unchanged.
 		// A RepoResolutionError with nil Diagnostics (e.g. a LoadFilesystemSources
 		// failure) yields nil findings and appendConfigFindingBlock returns the
