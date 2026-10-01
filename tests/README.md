@@ -68,6 +68,25 @@ reports, run from the repo root:
 The version is derived from `go.mod` at run time — do not copy a literal
 `goX.Y.Z` into scripts or docs.
 
+### Running integration-tagged Go tests by hand
+
+The real-git, subprocess, and process-lifecycle Go tests sit behind the `integration` build tag
+(change 0333). The suite runs them only through the `tests/test_go_integration_*.sh` shard
+runners, each filtered to one test-name prefix, so no single `go test` process runs a whole
+package's corpus.
+
+To run some by hand, run a shard runner, or filter to a prefix yourself:
+
+```bash
+bash tests/test_go_integration_app_runrecord.sh
+go test -tags integration -count=1 -run '^<Prefix>' <pkg>
+```
+
+Do not drop `-run` on `./internal/app/`: its whole integration corpus takes about 19 minutes,
+longer than go test's default 10-minute per-package timeout. Its test binary refuses an unfiltered
+run at that default timeout (change 0479) and prints these forms. For a deliberate whole-package
+run, add `-timeout 30m`.
+
 ## Where new tests go
 
 The suite is parallel, so its wall-clock floor is `max(slowest single file, total work / -j)`, and
