@@ -2,11 +2,11 @@
 id: 475
 slug: 'bring-test-go-integration-app-closeout-sh-back-under-its-bud'
 title: 'Bring test_go_integration_app_closeout.sh back under its budget row'
-status: 'proposed'
+status: 'killed'
 priority: 'low'
 type: 'chore'
 created: '2026-09-29'
-updated: '2026-09-29'
+updated: '2026-10-01'
 depends_on: []
 stacked_on:
 related: [466, 280]
@@ -40,3 +40,7 @@ Determine whether this is a genuine slowdown (a regression in the closeout integ
 ## Out of scope
 
 Changing the runner's budget regime, slack factor, or report semantics. Other shards' budget rows unless the investigation shows a shared cause.
+
+## Why killed
+
+Consolidated into #0487 on 2026-10-01 at Daniel's request: the repoguard race-lane backstop timeout (#0485), the three serial-confirmed budget breaches (#0475, #0476, #0484), and the #0478 gofmt cleanup ship as one change.
