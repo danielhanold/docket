@@ -22,7 +22,7 @@ branch: 'fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-01T21:57:07Z'
+claimed_at: '2026-10-01T22:05:19Z'
 ---
 
 ## Artifacts
