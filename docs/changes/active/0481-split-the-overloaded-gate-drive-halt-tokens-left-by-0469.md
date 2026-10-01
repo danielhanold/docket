@@ -2,7 +2,7 @@
 id: 481
 slug: 'split-the-overloaded-gate-drive-halt-tokens-left-by-0469'
 title: 'Split the overloaded gate-drive halt tokens left by 0469'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 created: '2026-10-01'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/split-the-overloaded-gate-drive-halt-tokens-left-by-0469'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/360'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-01T12:05:33Z'
