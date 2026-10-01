@@ -1,6 +1,6 @@
 # Backlog
 
-**482 changes** — 🔴 1 blocked · 🟣 4 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 329 done · 🗑️ 120 killed
+**483 changes** — 🔴 1 blocked · 🟣 4 groomed · 🟡 17 proposed · ⚪ 12 deferred · ✅ 329 done · 🗑️ 120 killed
 
 ## 🔴 Blocked (1)
 
@@ -17,10 +17,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (16)
+## 🟡 Proposed (17)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0483](active/0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | `low` | `feat` | needs-grooming |
 | [0481](active/0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | `medium` | `refactor` | needs-grooming |
 | [0480](active/0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md) | Check finalize cleanup's not-final message for killed changes | `low` | `fix` | needs-grooming |
 | [0479](active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) | Ad hoc `go test -tags integration ./internal/app/` hits go test's default 10-minute timeout | `low` | `chore` | needs-grooming |
@@ -91,6 +92,7 @@ graph TD
   0480
   0469 --> 0481
   0469 --> 0482
+  0483
   0192:::done
   0251:::done
   0370:::done
