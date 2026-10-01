@@ -1,6 +1,6 @@
 # Backlog
 
-**484 changes** — 🟢 1 in progress · 🔵 3 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 15 proposed · ⚪ 12 deferred · ✅ 329 done · 🗑️ 120 killed
+**485 changes** — 🟢 1 in progress · 🔵 3 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 329 done · 🗑️ 120 killed
 
 ## 🟢 In progress (1)
 
@@ -30,10 +30,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (15)
+## 🟡 Proposed (16)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0485](active/0485-test-go-race-hits-its-8-minute-backstop-in-internal-repoguar.md) | test_go_race hits its 8-minute backstop in internal/repoguard under concurrent gate load | `medium` | `fix` | needs-grooming |
 | [0484](active/0484-bring-test-go-race-back-under-its-budget-row-testretiredvoca.md) | Bring test_go_race back under its budget row (TestRetiredVocabularySeal scan cost) | `medium` | `chore` | needs-grooming |
 | [0483](active/0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | `low` | `feat` | needs-grooming |
 | [0478](active/0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | `low` | `chore` | needs-grooming |
@@ -105,6 +106,7 @@ graph TD
   0469 --> 0482
   0483
   0484
+  0485
   0192:::done
   0251:::done
   0370:::done
