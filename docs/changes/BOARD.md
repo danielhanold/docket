@@ -1,6 +1,6 @@
 # Backlog
 
-**482 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 17 proposed · ⚪ 12 deferred · ✅ 329 done · 🗑️ 120 killed
+**482 changes** — 🔴 1 blocked · 🟣 4 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 329 done · 🗑️ 120 killed
 
 ## 🔴 Blocked (1)
 
@@ -8,35 +8,35 @@
 |---|-------|----------|------|----|--------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` |  | Halted at build Task 5 pending a human decision among 3 feasible paths for the AGENTS.md dispatch-budget overage (trim in-block coordinator prose, re-baseline dispatchBudget, or relocate guidance) — see the run-halted record on the change. |
 
-## 🟣 Groomed (3)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0482](active/0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording | `low` | `refactor` | [spec](../superpowers/specs/2026-10-01-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (17)
+## 🟡 Proposed (16)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0482](active/0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover wording outside the ADR-0129 rename rows | `low` | `refactor` | needs-brainstorm |
-| [0481](active/0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | `medium` | `refactor` | needs-brainstorm |
-| [0480](active/0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md) | Check finalize cleanup's not-final message for killed changes | `low` | `fix` | needs-brainstorm |
-| [0479](active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) | Ad hoc `go test -tags integration ./internal/app/` hits go test's default 10-minute timeout | `low` | `chore` | needs-brainstorm |
-| [0478](active/0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | `low` | `chore` | needs-brainstorm |
-| [0476](active/0476-bring-test-go-integration-app-rebaserecovery-back-under-its.md) | Bring test_go_integration_app_rebaserecovery back under its runtime budget | `medium` | `chore` | needs-brainstorm |
-| [0475](active/0475-bring-test-go-integration-app-closeout-sh-back-under-its-bud.md) | Bring test_go_integration_app_closeout.sh back under its budget row | `low` | `chore` | needs-brainstorm |
-| [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-brainstorm |
-| [0457](active/0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | `low` | `fix` | needs-brainstorm |
-| [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-brainstorm |
-| [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-brainstorm |
-| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
-| [0387](active/0387-re-cut-frozen-fixtures-to-clear-stale-retired-token-comments.md) | Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml | `low` | `chore` | needs-brainstorm |
-| [0380](active/0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | `medium` | `chore` | needs-brainstorm |
-| [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
-| [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
-| [0291](active/0291-load-gate-failure-md-before-the-dispatch-verb-at-both-finali.md) | Load gate-failure.md before the dispatch verb at both finalize gate steps | `medium` | `refactor` | needs-brainstorm |
+| [0481](active/0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | `medium` | `refactor` | needs-grooming |
+| [0480](active/0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md) | Check finalize cleanup's not-final message for killed changes | `low` | `fix` | needs-grooming |
+| [0479](active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) | Ad hoc `go test -tags integration ./internal/app/` hits go test's default 10-minute timeout | `low` | `chore` | needs-grooming |
+| [0478](active/0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | `low` | `chore` | needs-grooming |
+| [0476](active/0476-bring-test-go-integration-app-rebaserecovery-back-under-its.md) | Bring test_go_integration_app_rebaserecovery back under its runtime budget | `medium` | `chore` | needs-grooming |
+| [0475](active/0475-bring-test-go-integration-app-closeout-sh-back-under-its-bud.md) | Bring test_go_integration_app_closeout.sh back under its budget row | `low` | `chore` | needs-grooming |
+| [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-grooming |
+| [0457](active/0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | `low` | `fix` | needs-grooming |
+| [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-grooming |
+| [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
+| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
+| [0387](active/0387-re-cut-frozen-fixtures-to-clear-stale-retired-token-comments.md) | Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml | `low` | `chore` | needs-grooming |
+| [0380](active/0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | `medium` | `chore` | needs-grooming |
+| [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-grooming |
+| [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-grooming |
+| [0291](active/0291-load-gate-failure-md-before-the-dispatch-verb-at-both-finali.md) | Load gate-failure.md before the dispatch verb at both finalize gate steps | `medium` | `refactor` | needs-grooming |
 
 ## ⚪ Deferred (12)
 
