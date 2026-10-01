@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0480 — Report killed changes truthfully in finalize cleanup](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md)**
+> ↩ **[Change 0480 — Report killed changes truthfully in finalize cleanup](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-01-0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md)**
 <!-- docket:backlink:end -->
 # Report killed changes truthfully in finalize cleanup — Results
 
