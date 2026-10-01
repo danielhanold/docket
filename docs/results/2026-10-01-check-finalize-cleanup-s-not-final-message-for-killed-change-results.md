@@ -24,8 +24,10 @@ Departures from the spec:
 - Running the real binary against archived killed change 0028, `go run ./cmd/docket finalize cleanup --id 28 --json` returned `no-op` / `retained` / `killed-retained`.
 - The full-suite build gate (`go run ./cmd/docket development test`) is recorded in the PR's build-evidence block.
 
+- The whole-branch review (standard tier) found no blockers and two minor issues. Both were fixed in commit `5ea2a6edc`. The close-out docs now say how to find a killed change's leftover branch and worktree, since the kill clears `branch:` from the record. The prose guard now also rejects the broader phrase "prunes any feature worktree", and a mutation test confirmed it catches that phrase.
+
 ## Known issues and follow-ups
 
 ### A killed change's worktree and branches are still not removed
 
-This happens when you kill a change that already had a workspace or branch, such as a reconcile-kill of a resumed in-progress change. Cleanup now says honestly that the resources are retained, but it still leaves them on disk and on the remote. The workaround is to remove the worktree and branches by hand. This is confirmed and intended for this change. The next step is change 0483, which adds real killed-change cleanup.
+This happens when you kill a change that already had a workspace or branch, such as a reconcile-kill of a resumed in-progress change. Cleanup now says honestly that the resources are retained, but it still leaves them on disk and on the remote. The workaround is to remove them by hand. The kill clears `branch:` from the archived record, so the branch is the pre-kill value (`<type>/<slug>` by default), and `git worktree list` shows the worktree. This is confirmed and intended for this change. The next step is change 0483, which adds real killed-change cleanup.
