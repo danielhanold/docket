@@ -1,6 +1,6 @@
 # Backlog
 
-**480 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 15 proposed · ⚪ 12 deferred · ✅ 328 done · 🗑️ 120 killed
+**481 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 328 done · 🗑️ 120 killed
 
 ## 🔵 Built (1)
 
@@ -22,10 +22,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (15)
+## 🟡 Proposed (16)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0481](active/0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | `medium` | `refactor` | ⏳ waiting on #469 — needs your merge |
 | [0480](active/0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md) | Check finalize cleanup's not-final message for killed changes | `low` | `fix` | needs-brainstorm |
 | [0479](active/0479-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) | Ad hoc `go test -tags integration ./internal/app/` hits go test's default 10-minute timeout | `low` | `chore` | needs-brainstorm |
 | [0478](active/0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | `low` | `chore` | needs-brainstorm |
@@ -94,6 +95,7 @@ graph TD
   0478
   0479
   0480
+  0469 --> 0481
   0192:::done
   0251:::done
   0370:::done
