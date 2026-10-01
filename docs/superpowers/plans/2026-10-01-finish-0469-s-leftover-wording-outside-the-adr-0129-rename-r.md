@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0482 — Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md)**
+> ↩ **[Change 0482 — Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-01-0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md)**
 <!-- docket:backlink:end -->
 # Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording Implementation Plan
 
