@@ -2,7 +2,7 @@
 id: 485
 slug: 'test-go-race-hits-its-8-minute-backstop-in-internal-repoguar'
 title: 'test_go_race hits its 8-minute backstop in internal/repoguard under concurrent gate load'
-status: 'proposed'
+status: 'killed'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-01'
@@ -40,3 +40,7 @@ Reproduce the timeout with two gates running concurrently, and find what makes `
 ## Out of scope
 
 Raising the 8-minute backstop. Re-sizing the `test_go_race` budget row (separate stub). Failures in other packages.
+
+## Why killed
+
+Consolidated into #0487 on 2026-10-01 at Daniel's request: the repoguard race-lane backstop timeout (#0485), the three serial-confirmed budget breaches (#0475, #0476, #0484), and the #0478 gofmt cleanup ship as one change.
