@@ -14,7 +14,7 @@ discovered_from: [472]
 adrs: [108]
 spec: 'docs/superpowers/specs/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-design.md'
 plan: 'docs/superpowers/plans/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md'
-results:
+results: 'docs/results/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-01T21:46:31Z'
 |---|---|
 | Spec | [2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-design.md) |
 | Plan | [2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md](https://github.com/danielhanold/docket/blob/chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s/docs/superpowers/plans/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s.md) |
+| Results | [2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-results.md](https://github.com/danielhanold/docket/blob/chore/ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s/docs/results/2026-10-01-ad-hoc-go-test-tags-integration-internal-app-hits-go-test-s-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
