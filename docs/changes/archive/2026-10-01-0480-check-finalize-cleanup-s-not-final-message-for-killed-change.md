@@ -2,7 +2,7 @@
 id: 480
 slug: 'check-finalize-cleanup-s-not-final-message-for-killed-change'
 title: 'Report killed changes truthfully in finalize cleanup'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-09-30'
@@ -22,7 +22,7 @@ branch: 'fix/check-finalize-cleanup-s-not-final-message-for-killed-change'
 pr: 'https://github.com/danielhanold/docket/pull/359'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-01T12:29:56Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-01T12:29:56Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md) |
-| Plan | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change.md](https://github.com/danielhanold/docket/blob/fix/check-finalize-cleanup-s-not-final-message-for-killed-change/docs/superpowers/plans/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change.md) |
-| Results | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-results.md](https://github.com/danielhanold/docket/blob/fix/check-finalize-cleanup-s-not-final-message-for-killed-change/docs/results/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-results.md) |
+| Plan | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change.md) |
+| Results | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
