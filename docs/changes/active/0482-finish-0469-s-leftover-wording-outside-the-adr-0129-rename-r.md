@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-01T11:53:54Z'
+reconciled: true
+claimed_at: '2026-10-01T11:55:55Z'
 ---
 
 ## Artifacts
@@ -48,3 +48,9 @@ Finish ADR-0129 rows 80 and 84 with a full sweep. Change "repair" to "relink" wh
 - Any wire token, flag, schema key, operation id or behavior.
 - Skill and agent-wrapper text (neither leftover sense appears there), so no `docket install` re-run.
 - Point-in-time records (results files, archived changes, specs, Accepted ADR bodies), which keep their historical wording.
+
+## Reconcile log
+
+### 2026-10-01
+
+2026-10-01 (implement-next): re-traced against origin/main 85bace7de (0469 merged). Every inventoried "repair" (relink) and "Step-0"/"Step 0" (startup check) site in the spec is still present unchanged; no intervening change touched them. 0481 (related) remains proposed and out of scope. Scope unchanged; build from the spec inventory, re-derived by whole-repo grep at build time.
