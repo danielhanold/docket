@@ -19,9 +19,17 @@ When the driver halts and how it recovers are unchanged. The correct `worktree-c
 - Each task was test-driven. For the five takeover scope-drift cases and the two lost-link cases, a test failed first and then passed after the fix.
 - Each emitting site was mutation-tested: putting the old token back makes its tests fail. Each of the two lost-link sites has its own failing test.
 - The full suite runs at the build gate, and the build-evidence record in the PR body records the result.
-- A standard-tier whole-branch review returned one minor finding: the glossary's list of takeover identity fields left out "repo". It was fixed in-branch (187f48544).
+- A standard-tier whole-branch review returned one minor finding: the glossary's list of takeover identity fields left out "repo". It was fixed in-branch (187f48544). The full-suite run after that fix then went red, so the fix was reverted (814183325) under the fix-loop's revert-and-record rule. The red run was a race-mode timeout in `TestRetiredVocabularySeal` while the machine's load average was about 55–70; the one-line glossary edit is unlikely to have caused it.
 
 ## Known issues and follow-ups
+
+### Glossary omits "repo" from the takeover identity fields
+
+The *Worktree changed / certified input changed* entry in `docs/reference/glossary.md` lists the drifted takeover fields as "branch, worktree, change, task or phase", but the code also compares the repo. Someone reading the glossary gets an incomplete list; the code behaves correctly. Confirmed (review finding 1, minor). The fix was reverted only because the suite run after it was red (see Verification performed). Suggested action: re-apply the one-word edit ("recorded repo, branch, worktree, change, task or phase") before or after merge.
+
+### `TestRetiredVocabularySeal` can time out under heavy load
+
+The `internal/repoguard` race run hit its 8-minute backstop while several docket loops shared the machine. The run failed with a timeout, not an assertion. Suspected load-sensitive; it passed on an earlier run with almost identical content. Suggested action: watch whether it recurs on a quieter machine.
 
 ### Finalize mapping rows are pinned but not mutation-tested
 
