@@ -9,10 +9,10 @@ created: '2026-10-02'
 updated: '2026-10-02'
 depends_on: [489]
 stacked_on:
-related: [375, 428, 435, 437, 439, 441, 446, 452, 453, 457]
+related: [375, 428, 435, 437, 439, 441, 446, 452, 453, 457, 488, 491]
 discovered_from: []
-adrs: [118, 120, 125]
-spec:
+adrs: [95, 118, 120, 124, 125]
+spec: 'docs/superpowers/specs/2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso-design.md'
 plan:
 results:
 trivial: false
@@ -29,56 +29,52 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0125](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md) |
+| Spec | [2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso-design.md) |
+| ADRs | [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0125](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
 Change 0375 (ADR-0118) enforces "one live gate per worktree" with a durable JSON state machine under `<git-common-dir>/docket/gate-admission/`. Its states are reserved, executing, stopping, unresolved, and released.
 
-The state machine fails closed. Any ambiguous outcome marks the slot `unresolved` or `stopping`: a lost launch response, an interrupted release, or a HALTED drive whose stop can't be proven. From then on every later start in that worktree is blocked, including the build suite and finalize, until someone recovers the slot. The file header says so directly: "the flock is a critical-section primitive here, never the lifetime guarantee — the persisted state … is the authority on whether the worktree is busy."
+The state machine fails closed. Any ambiguous outcome leaves the slot closed: a lost launch response, a crash between reserving and launching, an interrupted release, or a HALTED drive whose stop can't be proven. From then on every later gate in that worktree is refused, including the build suite and finalize, until someone recovers the slot. Several of those states have no recovery path at all. The fixes that followed form the longest chain in the repo: 0428, 0435, 0437, 0439, 0441, 0446, 0452, and 0453. (0457 was killed as superseded by 0489.)
 
-The fixes that followed form the longest chain in the repo:
+The kernel already provides what the slot reconstructs by hand. The gate supervisor holds its run's `live.lock` with flock for its whole life, handed over by the launching CLI, and the kernel releases it when the process dies. A per-worktree lock held the same way makes "busy" mean "a live supervisor holds it", and a dead run frees the worktree with no recovery step.
 
-- 0428: 989 legacy records vetoed admission.
-- 0435, 0437.
-- 0439: a slot left `executing` blocked finalize.rebase.
-- 0441.
-- 0446: one orphaned HALTED drive became a veto over every worktree.
-- 0452, 0453.
-- 0457: still open.
+The earlier objections don't apply:
 
-Together that is about five run halts plus several finalize and resume incidents.
+- 0375's spec rejected "a worktree flock alone" because short-lived CLI calls released it while detached work survived. Here the long-running supervisor holds it.
+- ADR-0118 rejected releasing on process death as fail-open. Here the kernel proves the holder is gone.
 
-The kernel already provides what the slot reconstructs by hand. The gate supervisor holds `live.lock` with flock for its whole lifetime (`internal/process/lock.go`, `supervisor.go`), and the kernel releases it when the process dies.
+What remains open is a process-tree gap the slot never closed either: its release also trusted the supervisor's terminal record or its disappearance. Test processes can outlive a supervisor that died alone, and test targets can survive a KILL escalation.
 
-ADR-0118 rejected two alternatives:
-
-- "A worktree flock alone": short-lived CLI calls release it while detached work survives.
-- Releasing the slot on process death: rejected as fail-open.
-
-Neither objection applies when the long-running supervisor holds the lock. The CLI's lifetime no longer matters. A release is not a guess about liveness; it is the kernel proving no holder remains.
-
-Once task drives are gone (dependency 0489), only build-owned and finalize gates compete for a worktree, so contention is rare.
+The slot also carries the run id that `run.cancel`, `run.verdict`'s closeout, resume, and the mutation fence read. This change removes those slot readers too. Retiring the run id itself stays with 0491.
 
 ## What changes
 
-- **The lock.** For the whole run, the supervisor holds an exclusive flock on a per-worktree lock file keyed by the canonical worktree root. If grooming finds it necessary, the supervised process tree holds it too. `worktree-busy` means the lock is held. A dead run frees it automatically, with no recovery step.
-- **What to retire.** Retire everything that exists only to recover the durable slot: the persisted slot states (reserved/executing/stopping/unresolved/released), `launch-unconfirmed`, incumbent reconciliation, the legacy-history inventory on first admission, and `gate.history.cleanup`. Drive records stay as evidence.
-- **ADRs.** Supersede ADR-0118, and ADR-0120/0125 as far as they cover slot recovery, with a new ADR.
+- **The lock.** Every gate launch first takes a non-blocking exclusive flock on a per-worktree lock file under the git common dir. The key is the worktree root as git reports it, with every symlink resolved, never the caller's spelling. The launching CLI hands the lock to the gate supervisor, which holds it alone (close-on-exec) until its suite ends and releases it last.
+  - A held lock refuses the start with `worktree-busy` and charges no suite attempt.
+  - A dead run frees the worktree automatically.
+  - Finalize's one automatic relaunch takes the lock again, and halts with `worktree-busy` if another gate got there first.
+- **Busy diagnostics.** Whoever takes the lock writes a small holder note. A busy refusal names the holder only after confirming that the holder's run is still running.
+- **What to retire.**
+  - the slot store and its states;
+  - `launch-unconfirmed` as an admission refusal;
+  - finished-incumbent reconciliation;
+  - the first-admission legacy inventory;
+  - `gate.history.cleanup`;
+  - every reader of the slot's run stamp: between-gate run ownership, the relaunch and recovery run checks, and the mutation fence's slot fallback.
+- **Run tracker.** `run.cancel` and the death guardian find a run's drives by the run context the drives already record. A drive counts as torn down once its supervisor is gone. Resume and the success closeout drop their slot steps.
+- **ADRs.** A new ADR supersedes ADR-0118 and records the accepted losses and the known process-tree gaps. ADR-0120, ADR-0124, and ADR-0125 get Update notes for the parts it replaces.
+- **Follow-up.** The process-tree teardown gaps go to a new change.
 
-Grooming must verify:
-
-- the supervisor outlives its test process tree, or the tree inherits the lock fd;
-- flock behaves the same across fork/exec on macOS and Linux;
-- every linked worktree can reach the lock-file location;
-- what `run.cancel` still needs once there is no slot to tear down.
-
-Accepted loss: the `launch-unconfirmed` protection, and the durable record of who last held the slot. Drive records remain.
+Accepted losses: between-gate run ownership, the mutation fence's fallback when a run record is corrupted, and the record of who last held the worktree.
 
 ## Out of scope
 
-- Run-id fencing of gate admission (the follow-up change).
+- Retiring the run id, its start-time check, the `--run-id` flags, and the run-tracker prose (0491).
 - The build-owned drive protocol: start/advance, owner generation, handoff/claim.
 - Fingerprinting, and the stored terminal result record.
 - Finalize's rebase gate logic, apart from its admission call.
+- Making suite teardown complete when a supervisor dies alone or a stop escalates to KILL (the follow-up change).
+- Deleting the old `gate-admission` directory from disk.
