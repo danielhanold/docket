@@ -34,10 +34,13 @@
 # (RACE_TIMEOUT below) of 8m, sized from CI-projected data rather than an idle
 # local run. The measured post-partition worst package is
 # internal/repository/transaction at 48.7s (local, idle, -p 2). Change 0466 then
-# partitioned that package; the measured worst default-corpus package is now
-# internal/cli at 24.0s (-p 2, GOMAXPROCS=2, load 2-5). The backstop and its
-# floor in internal/repoguard keep 0465's larger 48.7s input, so the margin
-# only grew.
+# partitioned that package, and the measured worst default-corpus package
+# became internal/cli at 24.0s (-p 2, GOMAXPROCS=2, load 2-5). Change 0487
+# pre-filtered internal/repoguard's retired-vocabulary seal, which had grown
+# to dominate the gate, and re-measured: the worst default-corpus package is
+# now internal/cli at 24.7s (-p 2, GOMAXPROCS=2, load 2-3). The backstop and
+# its floor in internal/repoguard keep 0465's larger 48.7s input, so the
+# margin only grew.
 # Change 0465's CI data puts the macos-15 runner at ~2.4-3.8x slower than
 # local (this gate: 238s local vs 581-908s on passing CI runs), projecting
 # internal/repository/transaction's 48.7s to ~120-186s in CI (up to ~230s
