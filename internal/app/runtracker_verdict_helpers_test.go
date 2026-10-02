@@ -161,9 +161,9 @@ func newVerdictCompletionFixture(t *testing.T) verdictCompletionFixture {
 	// launchObserver, accounted) finds nothing live, and no worktree record exists to
 	// retire (change 0490).
 	store := gatedrive.OpenStore(common)
-	must(t, RegisterRunParticipant(repo, key, ep.RunID,
+	must(t, RegisterRunParticipant(repo, key,
 		RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-	must(t, RecordRunParticipantTerminal(repo, key, ep.RunID,
+	must(t, RecordRunParticipantTerminal(repo, key,
 		"turn-1", "t1", ParticipantTerminalCompleted))
 
 	observer := &fakeProcessObserver{defaultProven: true}

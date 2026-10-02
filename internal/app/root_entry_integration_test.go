@@ -63,7 +63,7 @@ func TestIntegrationWorkflowLifecycleRootEntryRunAttribution(t *testing.T) {
 				// observation after it settles. Without this the successful-run closeout
 				// (change 0441) would observe an absent coordinator rather than the
 				// terminal-observed one a production run establishes.
-				lifecycle := runLifecycleFixture{repo: node.dir, key: started.Key, runID: started.RunID}
+				lifecycle := runLifecycleFixture{repo: node.dir, key: started.Key}
 				client := codexentry.Client{
 					Start:     func(context.Context, string) (codexentry.Transport, error) { return tr, nil },
 					Registrar: lifecycle,
@@ -158,13 +158,13 @@ func (tr *workflowRootTransport) Close() error { tr.closed = true; return nil }
 // the turn settles. It lets the end-to-end fixture establish the same terminal
 // evidence a real run does, so the successful-run closeout (change 0441) observes a
 // terminal-observed coordinator instead of an absent one.
-type runLifecycleFixture struct{ repo, key, runID string }
+type runLifecycleFixture struct{ repo, key string }
 
 func (e runLifecycleFixture) RegisterParticipant(handle string) error {
-	return RegisterRunParticipant(e.repo, e.key, e.runID,
+	return RegisterRunParticipant(e.repo, e.key,
 		RunParticipant{Kind: participantKindCoordinator, NativeHandle: handle})
 }
 
 func (e runLifecycleFixture) RecordTerminal(handle, turnID, status string) error {
-	return RecordRunParticipantTerminal(e.repo, e.key, e.runID, handle, turnID, status)
+	return RecordRunParticipantTerminal(e.repo, e.key, handle, turnID, status)
 }

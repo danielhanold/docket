@@ -47,7 +47,8 @@ func TestRunTrackerVocabularyHardCut(t *testing.T) {
 		{[]string{"run", "cancel"}, "key", "epoch"},
 		{[]string{"change", "claim"}, "run-context", "gate-context"},
 		{[]string{"agent", "enter"}, "run-key", "run-gate-key"},
-		{[]string{"agent", "enter"}, "run-id", "run-epoch"},
+		{[]string{"agent", "enter"}, "run-key", "run-id"},
+		{[]string{"agent", "enter"}, "run-key", "run-epoch"},
 		// change 0491: the run id is retired; gate drive start carries only the run context.
 		{[]string{"gate", "drive", "start"}, "run-context", "run-id"},
 		{[]string{"gate", "drive", "start"}, "run-context", "run-epoch"},

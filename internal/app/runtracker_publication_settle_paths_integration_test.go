@@ -85,7 +85,7 @@ func TestIntegrationRunCompletionReadOnlyVerdictPathsNeverSettleSettleablePair(t
 			fx := newVerdictCompletionFixture(t)
 			seedSettleablePair(t, fx.repo, fx.key)
 			if state == "completing" {
-				if _, err := FenceRunCompleting(fx.repo, fx.key, ""); err != nil {
+				if _, err := FenceRunCompleting(fx.repo, fx.key); err != nil {
 					t.Fatalf("FenceRunCompleting: %v", err)
 				}
 			}

@@ -521,7 +521,7 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	}
 	// The run's registered execution: its process stop is the mid-teardown hook (b)
 	// turns the store unwritable from.
-	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
+	must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
 	// A read-only key dir still lets the CAS lock and read, but the same-directory
 	// temp file cannot be created, so every run write fails.
 	dir := filepath.Join(fx.common, "docket", runTrackerDirName, fx.key)

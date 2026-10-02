@@ -43,7 +43,7 @@ func spawnTestGuardian(t *testing.T) (*GuardianHandle, RunRecord, string, string
 	if err != nil {
 		t.Fatalf("AgentGuardianMarkerPath: %v", err)
 	}
-	handle, err := SpawnAgentGuardian(guardianExecutable(t), repo, key, ep.RunID, marker)
+	handle, err := SpawnAgentGuardian(guardianExecutable(t), repo, key, marker)
 	if err != nil {
 		t.Fatalf("SpawnAgentGuardian: %v", err)
 	}
@@ -104,8 +104,7 @@ func TestIntegrationGateLifecycleGuardianCompletionMarkerPreventsCancel(t *testi
 func TestIntegrationGateLifecycleGuardianStaleMarkerDoesNotSuppressFence(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintTestRunKey(t, repo)
-	ep, err := MintRunRecord(repo, key, "375")
-	if err != nil {
+	if _, err := MintRunRecord(repo, key, "375"); err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
 	marker, err := AgentGuardianMarkerPath(repo, key)
@@ -118,7 +117,7 @@ func TestIntegrationGateLifecycleGuardianStaleMarkerDoesNotSuppressFence(t *test
 		t.Fatalf("planting stale marker: %v", err)
 	}
 
-	handle, err := SpawnAgentGuardian(guardianExecutable(t), repo, key, ep.RunID, marker)
+	handle, err := SpawnAgentGuardian(guardianExecutable(t), repo, key, marker)
 	if err != nil {
 		t.Fatalf("SpawnAgentGuardian: %v", err)
 	}
@@ -149,8 +148,7 @@ func TestIntegrationGateLifecycleGuardianStaleMarkerDoesNotSuppressFence(t *test
 func TestIntegrationGateLifecycleGuardianCannotMutate(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintTestRunKey(t, repo)
-	ep, err := MintRunRecord(repo, key, "375")
-	if err != nil {
+	if _, err := MintRunRecord(repo, key, "375"); err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
 	// Bind the worktree so the mutation fence resolves this run by worktree.
@@ -163,7 +161,7 @@ func TestIntegrationGateLifecycleGuardianCannotMutate(t *testing.T) {
 	}
 	// Register a guardian participant: a registered-but-passive guardian must not by
 	// itself fence the run.
-	if err := RegisterRunParticipant(repo, key, ep.RunID, RunParticipant{Kind: "guardian", NativeHandle: "g1"}); err != nil {
+	if err := RegisterRunParticipant(repo, key, RunParticipant{Kind: "guardian", NativeHandle: "g1"}); err != nil {
 		t.Fatalf("RegisterRunParticipant: %v", err)
 	}
 	// A registered (even a would-be-dead) guardian participant leaves the run
@@ -187,7 +185,7 @@ func TestIntegrationGateLifecycleGuardianCannotMutate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AgentGuardianMarkerPath: %v", err)
 	}
-	handle, err := SpawnAgentGuardian(guardianExecutable(t), repo, key, ep.RunID, marker)
+	handle, err := SpawnAgentGuardian(guardianExecutable(t), repo, key, marker)
 	if err != nil {
 		t.Fatalf("SpawnAgentGuardian: %v", err)
 	}

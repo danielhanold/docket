@@ -42,9 +42,9 @@ func (f completionFixture) seams() cancelSeams {
 func newCompletionFixture(t *testing.T) completionFixture {
 	t.Helper()
 	base := newCancelFixture(t)
-	must(t, RegisterRunParticipant(base.repo, base.key, base.runID,
+	must(t, RegisterRunParticipant(base.repo, base.key,
 		RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-	must(t, RecordRunParticipantTerminal(base.repo, base.key, base.runID,
+	must(t, RecordRunParticipantTerminal(base.repo, base.key,
 		"turn-1", "t1", ParticipantTerminalCompleted))
 	return completionFixture{
 		repo: base.repo, key: base.key, runID: base.runID, worktree: base.worktree,
@@ -138,19 +138,19 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObli
 	rows := []row{
 		{"native-participant-unobserved", "participant-unobserved:coordinator", func(t *testing.T) (cancelSeams, string, string, string, string) {
 			fx := newCompletionFixture(t)
-			must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: "coordinator", NativeHandle: "turn-2"}))
+			must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: "coordinator", NativeHandle: "turn-2"}))
 			return fx.seams(), fx.repo, fx.key, fx.runID, fx.worktree
 		}},
 		{"live-execution-participant", "process-live:exec-1", func(t *testing.T) (cancelSeams, string, string, string, string) {
 			fx := newCompletionFixture(t)
-			must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: "raw-run", NativeHandle: "exec-1"}))
+			must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: "raw-run", NativeHandle: "exec-1"}))
 			fx.observer.defaultProven = false
 			return fx.seams(), fx.repo, fx.key, fx.runID, fx.worktree
 		}},
 		{"nil-observer", "process-observer-unavailable", func(t *testing.T) (cancelSeams, string, string, string, string) {
 			fx := newCompletionFixture(t)
 			// The nil observer is exercised through the participant pass.
-			must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: "raw-run", NativeHandle: "exec-1"}))
+			must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: "raw-run", NativeHandle: "exec-1"}))
 			s := fx.seams()
 			s.observer = nil
 			return s, fx.repo, fx.key, fx.runID, fx.worktree
@@ -343,7 +343,7 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunDoesNotDuplicateFindings(t
 	t.Run("participant", func(t *testing.T) {
 		fx := newCompletionFixture(t)
 		// A registered native participant with no terminal evidence: unsettled on both reads.
-		must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+		must(t, RegisterRunParticipant(fx.repo, fx.key,
 			RunParticipant{Kind: "coordinator", NativeHandle: "turn-2"}))
 		ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key)
 		if ok || reason != "completion-unaccounted" {
@@ -510,7 +510,7 @@ func TestIntegrationRunCompletionCompleteThenScratchCleanupThenFinalizeAdmits(t 
 	}
 	// The run's gate drive PASSED, naming the run's scratch as its run dir.
 	seedDriveRecord(t, fx.common, "0446cccccccccccccccccccccccccc09", fx.worktree, fx.runDir, gatedrive.PASSED)
-	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+	must(t, RegisterRunParticipant(fx.repo, fx.key,
 		RunParticipant{Kind: participantKindGateScope, NativeHandle: fx.runDir}))
 	seams := fx.seams()
 	seams.observer = &scratchObserver{}

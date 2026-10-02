@@ -131,7 +131,7 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 	// relabelled successful, a superseded run is a stale run, and a store fault is
 	// unreadable. An already-completed run is an idempotent completed-receipt replay
 	// (safe after scratch cleanup): success with no further work.
-	observed, ferr := FenceRunCompleting(repoDir, runKey, "")
+	observed, ferr := FenceRunCompleting(repoDir, runKey)
 	if ferr != nil {
 		if ee, ok := AsRunError(ferr); ok && ee.Kind == ErrRunNotActive {
 			switch observed {

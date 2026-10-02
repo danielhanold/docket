@@ -21,7 +21,7 @@ import (
 func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *cobra.Command {
 	group := &cobra.Command{Use: "agent", Short: "Enter harness agent roles"}
 	var role, requestSource, cwd, approval, sandbox, worktree string
-	var runKey, runID string
+	var runKey string
 	enter := &cobra.Command{
 		Use:   "enter",
 		Short: "Enter a compositional Codex role as a foreground root thread",
@@ -85,43 +85,26 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 				skills = append(skills, codexentry.SkillInput{Name: name, Path: filepath.Join(opts.Roots.Home, ".agents", "skills", name, "SKILL.md")})
 			}
 			client := codexentry.Client{}
-			// Optional lifecycle linkage (change 0375 Task 13): register this entry's
-			// thread as a run participant, and — for a root coordinator only —
-			// connect a catchable Stop to the run's cancellation path and spawn the
-			// detached death guardian for an uncatchable death. A feature child registers
-			// but receives NO cancellation authority: the flags register, they do not
-			// confer. The run id is a public locator; the run-context child
-			// capability continues to carry authority.
+			// Optional lifecycle linkage (change 0375 Task 13; key-only since change
+			// 0491): --run-key registers this entry's thread as a run participant and,
+			// for a root coordinator only, connects a catchable Stop to the run's
+			// cancellation path and spawns the detached death guardian for an
+			// uncatchable death. No documented flow passes it, so the linkage stays
+			// dormant unless a caller opts in.
 			isRootCoordinator := contract.LaunchPosture == harness.LaunchRootCoordinator
-			if runKey == "" && runID != "" {
-				// A lone --run-id (the shape AGENTS.md documents) carries no run key to
-				// register against, but it is still preflighted for existence so a misrouted
-				// token (0382: the run context passed as the run id) refuses with
-				// unknown-run-id instead of proceeding silently unlinked (change 0463).
-				if lerr := app.CheckRunIDExists(effectiveCWD, runID); lerr != nil {
-					res, reason, _ := app.ClassifyRunIDError(lerr)
-					setResult(runIDRefusal(role, res, reason))
+			if runKey != "" {
+				// Preflight the key BEFORE anything is spawned: an unknown key refuses
+				// run-not-found instead of surfacing as a generic root-entry failure
+				// after Codex already started a thread.
+				if lerr := app.CheckRunKey(effectiveCWD, runKey); lerr != nil {
+					res, reason, _ := app.ClassifyRunRecordError(lerr)
+					setResult(runLinkageRefusal(role, res, reason))
 					return nil
 				}
-			}
-			if runKey != "" && runID != "" {
-				// Preflight the linkage BEFORE anything is spawned (change 0463). An unknown
-				// or mismatched run refuses with its named token, instead of surfacing as a
-				// generic root-entry failure after Codex already started a thread.
-				if lerr := app.CheckRunIDLinkage(effectiveCWD, runKey, runID); lerr != nil {
-					res, reason, _ := app.ClassifyRunIDError(lerr)
-					setResult(runIDRefusal(role, res, reason))
-					return nil
-				}
-				kind := "task"
+				link := runLinkageFor(c.Context(), effectiveCWD, runKey, isRootCoordinator)
+				client.Registrar, client.Terminal, client.Canceller = link.registrar, link.terminal, link.canceller
 				if isRootCoordinator {
-					kind = "coordinator"
-				}
-				client.Registrar = runParticipantRegistrar{repoDir: effectiveCWD, runKey: runKey, runID: runID, kind: kind}
-				client.Terminal = runTerminalRecorder{repoDir: effectiveCWD, runKey: runKey, runID: runID}
-				if isRootCoordinator {
-					client.Canceller = runLifecycleCanceller{ctx: c.Context(), repoDir: effectiveCWD, runKey: runKey}
-					if guardian, gerr := spawnAgentDeathGuardian(effectiveCWD, runKey, runID); gerr == nil {
+					if guardian, gerr := spawnAgentDeathGuardian(effectiveCWD, runKey); gerr == nil {
 						defer guardian.Complete()
 					}
 				}
@@ -130,8 +113,8 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			if err != nil {
 				// A registration-time run fault (e.g. the run was fenced after the
 				// preflight) keeps its named token (change 0463).
-				if res, reason, ok := app.ClassifyRunIDError(err); ok {
-					setResult(runIDRefusal(role, res, reason))
+				if res, reason, ok := app.ClassifyRunRecordError(err); ok {
+					setResult(runLinkageRefusal(role, res, reason))
 					return nil
 				}
 				setResult(app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, app.ResultExternalFailed), Role: role, Reason: "root-entry-failed", Message: err.Error()})
@@ -154,8 +137,7 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 	enter.Flags().StringVar(&approval, "approval-policy", "", "caller approval `policy` (required)")
 	enter.Flags().StringVar(&sandbox, "sandbox", "", "caller sandbox `mode` (required)")
 	enter.Flags().StringVar(&worktree, "worktree", "", "verified feature worktree `dir` (required for feature child roles)")
-	enter.Flags().StringVar(&runKey, "run-key", "", "run `key` for lifecycle registration (optional; locator, not a credential)")
-	enter.Flags().StringVar(&runID, "run-id", "", "run `id` for lifecycle registration (optional; public locator, not a credential)")
+	enter.Flags().StringVar(&runKey, "run-key", "", "run `key` for lifecycle registration (optional; a locator, not a credential)")
 	for _, flag := range []string{"role", "request", "cwd", "approval-policy", "sandbox"} {
 		_ = enter.MarkFlagRequired(flag)
 	}
@@ -163,26 +145,55 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 	return group
 }
 
+// runLinkage is the optional lifecycle linkage --run-key wires into one entry.
+type runLinkage struct {
+	registrar codexentry.ParticipantRegistrar
+	terminal  codexentry.TerminalRecorder
+	canceller codexentry.LifecycleCanceller
+}
+
+// runLinkageFor returns the linkage for runKey (change 0491): none for an empty key;
+// otherwise participant registration and terminal recording by key, plus — for a
+// root coordinator only — the catchable-Stop cancellation. A feature child
+// registers but receives no cancellation authority.
+func runLinkageFor(ctx context.Context, repoDir, runKey string, isRootCoordinator bool) runLinkage {
+	if runKey == "" {
+		return runLinkage{}
+	}
+	kind := "task"
+	if isRootCoordinator {
+		kind = "coordinator"
+	}
+	l := runLinkage{
+		registrar: runParticipantRegistrar{repoDir: repoDir, runKey: runKey, kind: kind},
+		terminal:  runTerminalRecorder{repoDir: repoDir, runKey: runKey},
+	}
+	if isRootCoordinator {
+		l.canceller = runLifecycleCanceller{ctx: ctx, repoDir: repoDir, runKey: runKey}
+	}
+	return l
+}
+
 // runParticipantRegistrar adapts app.RegisterRunParticipant to codexentry's
-// ParticipantRegistrar: it registers this entry's thread as a run participant
-// (change 0375 Task 13). The run id is presented as the expected locator so a
-// stale linkage is rejected; the registration carries no capability.
+// ParticipantRegistrar: it registers this entry's thread as a participant of the
+// run its key names (change 0375 Task 13; key-only since change 0491); the
+// registration carries no capability.
 type runParticipantRegistrar struct {
-	repoDir, runKey, runID, kind string
+	repoDir, runKey, kind string
 }
 
 func (r runParticipantRegistrar) RegisterParticipant(handle string) error {
-	return app.RegisterRunParticipant(r.repoDir, r.runKey, r.runID, app.RunParticipant{
+	return app.RegisterRunParticipant(r.repoDir, r.runKey, app.RunParticipant{
 		Kind:         r.kind,
 		NativeHandle: handle,
 	})
 }
 
-// runIDRefusal renders a typed run linkage failure as the agent.enter
+// runLinkageRefusal renders a typed run linkage failure as the agent.enter
 // refusal (change 0463): the named reason token and a credential-free next action.
 // It never includes the presented value.
-func runIDRefusal(role string, res app.Result, reason string) app.AgentEnterResult {
-	msg := app.RunIDNextAction(reason)
+func runLinkageRefusal(role string, res app.Result, reason string) app.AgentEnterResult {
+	msg := app.RunRecordNextAction(reason)
 	if msg == "" {
 		msg = "run linkage refused (" + reason + ")"
 	}
@@ -191,15 +202,14 @@ func runIDRefusal(role string, res app.Result, reason string) app.AgentEnterResu
 
 // runTerminalRecorder adapts app.RecordRunParticipantTerminal to codexentry's
 // TerminalRecorder (change 0441 Task 9): after the entry's turn settles, it stamps
-// the exact terminal observation onto the matching run participant. The run
-// id is the expected locator so a stale linkage is rejected; the record carries no
-// capability, and app validates the status value.
+// the exact terminal observation onto the matching participant of the run its key
+// names; the record carries no capability, and app validates the status value.
 type runTerminalRecorder struct {
-	repoDir, runKey, runID string
+	repoDir, runKey string
 }
 
 func (r runTerminalRecorder) RecordTerminal(handle, turnID, status string) error {
-	return app.RecordRunParticipantTerminal(r.repoDir, r.runKey, r.runID, handle, turnID, status)
+	return app.RecordRunParticipantTerminal(r.repoDir, r.runKey, handle, turnID, status)
 }
 
 // runLifecycleCanceller adapts app.RunCancel to codexentry's LifecycleCanceller
@@ -222,10 +232,10 @@ func (c runLifecycleCanceller) CancelRun(reason string) error {
 }
 
 // spawnAgentDeathGuardian re-execs this binary as a detached run death guardian for
-// (runKey, runID) under repoDir, so an uncatchable owner death fences the run
+// runKey under repoDir, so an uncatchable owner death fences the run
 // automatically. It resolves the completion-marker path the guardian watches and
 // passes this binary's own path as the re-exec target.
-func spawnAgentDeathGuardian(repoDir, runKey, runID string) (*app.GuardianHandle, error) {
+func spawnAgentDeathGuardian(repoDir, runKey string) (*app.GuardianHandle, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -234,7 +244,7 @@ func spawnAgentDeathGuardian(repoDir, runKey, runID string) (*app.GuardianHandle
 	if err != nil {
 		return nil, err
 	}
-	return app.SpawnAgentGuardian(exe, repoDir, runKey, runID, marker)
+	return app.SpawnAgentGuardian(exe, repoDir, runKey, marker)
 }
 
 // resolveAgentEntryCWD keeps role admission and checkout identity together at

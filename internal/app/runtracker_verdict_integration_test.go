@@ -1110,7 +1110,7 @@ func TestIntegrationRunVerdictVerdictRunCompleteWithoutRunUnchanged(t *testing.T
 // budget preservation).
 func TestIntegrationRunVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
-	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+	must(t, RegisterRunParticipant(fx.repo, fx.key,
 		RunParticipant{Kind: "raw-run", NativeHandle: "exec-live"}))
 	fx.observer.defaultProven = false // the participant's run is not provably terminal
 	res := RunVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
