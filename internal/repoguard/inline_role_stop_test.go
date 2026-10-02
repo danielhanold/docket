@@ -65,7 +65,7 @@ var stopSites = []stopSite{
 	{"skills/docket-review/SKILL.md", "An unmet precondition or a blocking ambiguity is **abort-and-report**", "terminal stop"},
 	{"skills/docket-status/SKILL.md", "stop rather than improvising a fix", "hard-error stop"},
 	{"skills/docket-build-task/SKILL.md", "revise or replace them, but never discard them blindly", "second-person prohibitions"},
-	{"skills/docket-build-task/SKILL.md", "Return exactly one of four outcomes", "terminal return"},
+	{"skills/docket-build-task/SKILL.md", "Return exactly one of three outcomes", "terminal return"},
 	{"skills/docket-brainstorm/SKILL.md", "STOP AT THE SPEC", "terminal stop (always-inlined body)"},
 }
 
@@ -146,7 +146,7 @@ func TestInlineRoleStopScoping(t *testing.T) {
 		content := readMaintained(t, root, "skills/docket-build-task/SKILL.md")
 		for _, anc := range []string{
 			"revise or replace them, but never discard them blindly",
-			"Return exactly one of four outcomes",
+			"Return exactly one of three outcomes",
 		} {
 			ln := anchorLine(content, anc)
 			if ln == 0 {

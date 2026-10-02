@@ -5,7 +5,10 @@ package repoguard
 // --json and capture the first response — a drive id gleaned from human text
 // never authorizes advancement or handoff. Two prongs:
 //   (1) the shared caller contract states the capture requirement and the
-//       caller-contract-failure rule (phrase bound to claim, bounded gaps);
+//       caller-contract-failure rule (phrase bound to claim, bounded gaps) —
+//       change 0488 repointed the failure mapping from the retired worker
+//       BLOCKED to the caller's own halt, and retired the parent-capability
+//       clause with the prepare-scope operation it described;
 //   (2) every flag-bearing invocation paragraph of a credential-returning op
 //       (start|handoff|claim|takeover|prepare-scope — advance returns no new
 //       credentials) in the workflow-markdown corpus carries --json.
@@ -30,13 +33,12 @@ var (
 
 	// Contract-clause asserts: one bounded gap each (two stacked gaps
 	// backtrack catastrophically on non-matching input).
-	reqMustJSON  = regexp.MustCompile(`(?i)MUST pass[^.]{0,40}--json`)
-	reqCapture   = regexp.MustCompile(`(?i)--json[^.]{0,200}capture`)
-	reqValidate  = regexp.MustCompile(`(?i)validate[^.]{0,120}before acting`)
-	reqFailure   = regexp.MustCompile(`(?i)missing, malformed, or incomplete[^.]{0,160}caller-contract failure`)
-	reqNoRerun   = regexp.MustCompile(`(?i)not[^.]{0,20}permission to rerun`)
-	reqBlocked   = regexp.MustCompile("(?i)returns `BLOCKED` with the[^.]{0,60}reason")
-	reqParentCap = regexp.MustCompile(`(?i)parent capability[^.]{0,80}stays with the parent`)
+	reqMustJSON = regexp.MustCompile(`(?i)MUST pass[^.]{0,40}--json`)
+	reqCapture  = regexp.MustCompile(`(?i)--json[^.]{0,200}capture`)
+	reqValidate = regexp.MustCompile(`(?i)validate[^.]{0,120}before acting`)
+	reqFailure  = regexp.MustCompile(`(?i)missing, malformed, or incomplete[^.]{0,160}caller-contract failure`)
+	reqNoRerun  = regexp.MustCompile(`(?i)not[^.]{0,20}permission to rerun`)
+	reqHalt     = regexp.MustCompile(`(?i)halt with the[^.]{0,20}missing-response reason`)
 )
 
 // paragraphs splits markdown into blank-line-delimited blocks with all runs
@@ -70,8 +72,7 @@ func TestGateDriveJSONCapture(t *testing.T) {
 		"validate-before-use":   reqValidate,
 		"contract-failure":      reqFailure,
 		"no-rerun-recovery":     reqNoRerun,
-		"maps-to-blocked":       reqBlocked,
-		"parent-cap-stays":      reqParentCap,
+		"maps-to-halt":          reqHalt,
 	} {
 		if !re.MatchString(contract) {
 			t.Errorf("shared contract %s lost its %s clause (pattern %v)", sharedContractRel, name, re)
@@ -99,13 +100,15 @@ func TestGateDriveJSONCapture(t *testing.T) {
 	}
 
 	// Population floors FIRST (a vacuous scan passes every negative): the
-	// three caller skills each contribute, and the corpus (source + embedded
-	// mirrors) stays above a global floor.
+	// two caller skills each contribute, and the corpus (source + embedded
+	// mirrors) stays above a global floor — docket-build's final-gate and
+	// post-repair-attempt starts plus implement-next's two build-owned starts,
+	// doubled by the mirrors. docket-build-task is no longer a caller (change
+	// 0488: workers run tests directly and call no gate operation).
 	if len(sites) < 8 {
 		t.Fatalf("population floor: only %d credential gate.drive invocation sites discovered (expected >= 8)", len(sites))
 	}
 	for _, rel := range []string{
-		"skills/docket-build-task/SKILL.md",
 		"skills/docket-build/SKILL.md",
 		"skills/docket-implement-next/SKILL.md",
 	} {
@@ -118,7 +121,7 @@ func TestGateDriveJSONCapture(t *testing.T) {
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
-		bad := "run the `gate.drive.start` operation with `--owner task --scope-id <id>` and read the drive id"
+		bad := "run the `gate.drive.start` operation with `--owner build --run-root <dir>` and read the drive id"
 		good := bad + " from the `--json` response"
 		mention := "performed an explicit `gate.drive.claim` operation on the named handoff"
 		advOnly := "the `gate.drive.advance` operation with `--drive-id <id> --owner-gen <gen>`"

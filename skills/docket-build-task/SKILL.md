@@ -6,10 +6,8 @@ description: The compact per-task worker contract for docket's own build role �
 # docket-build-task — one plan task, one commit
 
 You own **exactly one task** from the implementation plan, handed to you in your prompt along with
-the branch, the worktree, the selected build tier, the routing reason, and this task's
-start-ready drive scope bundle — its scope id, child capability, and every identity value the
-scope pinned. You are a fresh worker: nothing carries over from earlier tasks
-except the code and commits already on the branch.
+the branch, the worktree, the selected build tier, and the routing reason. You are a fresh worker:
+nothing carries over from earlier tasks except the code and commits already on the branch.
 
 You do not review other tasks, and you do not dispatch anyone. Your self-review is part of
 implementing this task, not a second agent — never dispatch a reviewer, a fix agent, or any other
@@ -55,87 +53,52 @@ Where a meaningful behavioral test is possible:
    is the one you meant, not a typo or an import error.
 3. Implement the smallest change that makes it pass.
 4. Re-run the focused test set. Focused, not the whole suite: the controller runs the full suite
-   once after every task.
+   once, after every task has committed.
 5. Self-review the diff, then commit.
 
-**Every test execution this task runs — baseline, RED, GREEN, focused re-run, ad-hoc
-verification — starts through the native gate driver.** Start it from the canonical feature
-worktree, and use the task-intent owner: the `gate.drive.start` operation with `--owner task
---repo-dir <feature-worktree> --change-id <id> --task-id <task-N> --phase build --branch <branch>
---scope-id <id> --child-cap <token> --run-context <token> --run-root
-<task-scratch-dir> --json -- <the test command>`. Every identity value comes in your dispatch
-prompt — pass the bundle through unchanged, omitting `--run-context` only when no run
-context reached you; the prepared scope pinned exactly this identity, and the driver
-rejects a start that omits or alters any of it. The run id is not in the bundle: it rides on the
-prepared scope, so a task-owned start passes none — a start inventing another run id is
-refused `scope-identity-mismatch`. The run root is a scratch dir you pick and read from.
-Capture the drive id and owner generation from that `--json` response before any advance or handoff
-(the shared JSON-capture requirement in `docket-build`'s `references/gate-caller-loop.md`; human
-text omits the generation). Capture the response into `gate_reply` and its exit code into `gate_rc` — the shared
-contract's shell-safe names, valid in both zsh and bash; never assign a zsh read-only
-special parameter such as `status` or `pipestatus`. A response missing them is a caller-contract failure: return `BLOCKED`
-with the missing-response reason; never rerun `start` to recover credentials.
-**No duration prediction, no test-command spelling list**: a
-command is a test by your running it as this task's verification; the 30-second slice is the
-*maximum* of one observation call, not a minimum — a quick test returns on the next ~250 ms
-observation. You are a dispatched worker with no resumption channel: **never yield to await the
-run**, never background the suite, never author a polling loop, never wait on a notification, and
-never call the raw `gate.launch`/`observe`/`stop` operations directly — they are primitives, not
-this role's workflow API.
-By disposition: `PASSED` → self-review and commit; `FAILED` → the test completed red; read
-streams under `--run-root` and apply the existing repair discretion; `HALTED` → return `BLOCKED`
-with the typed cause; `WAITING` → **immediately** perform the `gate.drive.handoff` operation with
-`--drive-id <id> --owner-gen <gen> --json`, capture the single-use handoff token from its response,
-and return `WAITING` naming the drive id and that token. After a first `WAITING` never `advance` or restart — the controller owns the drive. `WAITING`
-consumes neither repair nor escalation budget.
+**Run every test directly, in the foreground, under a fixed time limit.** Every test this task
+runs — baseline, RED, GREEN, focused re-run, ad-hoc check, mutation probe — runs directly in the
+feature worktree as:
 
-**The one run-id exception:** an integration-repair task's post-fix re-run of the full suite is
-build-owned — run the `gate.drive.start` operation with `--owner build --run-id <run-id> --json`,
-passing the run id your repair dispatch payload carried (omitted when it carried none). Only that
-start takes one; every scoped task-owned start still passes none.
+```text
+timeout --kill-after=10s 10m <test command>
+```
 
-**A `worktree-busy` refusal is a blocking diagnostic, never a retry trigger.** One canonical
-worktree carries at most one running gate at a time. If `gate.drive.start` comes back refused with
-reason `worktree-busy` (or `launch-unconfirmed`), another gate is already live — or was left
-unresolved — in this worktree. That refusal is a **command failure**, not a `FAILED` suite result:
-it earns no repair attempt and no re-run. Never start a second gate in the same worktree and never
-loop on the start hoping the slot frees — return `BLOCKED` naming the reason and the incumbent drive
-id the message reports. A busy slot means something outside your one task's drive holds the
-worktree, which is the human's to clear, not yours to race.
+- **Block until it exits.** Never background a test, and never end your turn while one runs. If
+  the harness hands back a still-running session, keep waiting on that same session, and never
+  start a second copy.
+- **Make the harness wait at least as long.** Raise the harness's own shell-call timeout to at
+  least 10 minutes where the harness allows it, so a shorter default never becomes the real limit.
+  If the harness still cuts the call off, treat that as hitting the limit: `timeout` runs the test
+  in its own process group, so that run still ends at the 10-minute deadline. Start no other test
+  until it is gone; stop it yourself if you can see it.
+- **Fallback.** Use `gtimeout` when `timeout` is not on `PATH`. If neither exists, return
+  `BLOCKED` naming the missing prerequisite (GNU coreutils). Never run a test without the limit.
+- **Never run the configured full-suite command.** The full suite is the controller's gate.
+  "Focused" means the narrowest command that exercises this task.
 
-**Sequential drives within your scope.** Your scope carries a *sequence* of task-owned drives —
-baseline, RED, GREEN, verification — one at a time. The task's **first** test omits the predecessor
-flags; **every later** test also passes `--predecessor-drive-id <previous drive id>
---predecessor-owner-gen <previous generation>` from the previous drive's captured `--json` response,
-acknowledging exactly the `PASSED`/`FAILED` result you received (a `WAITING` drive is never a
-predecessor — `handoff` instead). When ready to return with no further test to run, perform the
-`gate.drive.acknowledge` operation with `--scope-id <id> --child-cap <token> --drive-id <final drive
-id> --owner-gen <gen> --json` first — a `FAILED` final result is still acknowledged and does **not**
-authorize a success report, and a failed acknowledgement returns `BLOCKED` with the typed cause,
-never `COMPLETE`. Acknowledgement retires the scope's recovery authority, not your evidence: keep the
-final drive id and verdict in `VERIFICATION`/`NOTES`.
+Read the result from the **exit status, never from output text**:
 
-**Continued after a `WAITING` handoff — the original scope is no longer yours.** A worker that
-performed `gate.drive.handoff` and returned `WAITING` surrendered its drive; the parent's `claim`
-closed the scope, so when you are resumed or re-dispatched to continue that task you
-never `acknowledge` the original scope and never start a drive on it.
-A `scope-transferred` refusal means you misapplied this rule
-— it is not an acknowledgement failure of an owned scope and it never means the work failed.
-Report on the terminal verdict your continuation supplies
-(the handed-off drive id and its `PASSED`/`FAILED` disposition) plus your own work:
-`PASSED` with exactly one task commit → `COMPLETE`; `FAILED` → the existing repair discretion, and
-never `COMPLETE` on that verdict. Any further test drive runs only under the fresh scope bundle the
-continuation provides, under the normal sequential-drive rules above; with no fresh bundle you
-cannot run tests — return `BLOCKED` naming
-"continuation needs a fresh scope".
-The rule that a failed acknowledgement returns `BLOCKED`, never `COMPLETE`, continues to bind the
-scopes you still own, and the final drive id and verdict stay in `VERIFICATION`/`NOTES` as always.
+| Exit status | Meaning | Your action |
+|---|---|---|
+| `0` | green | continue |
+| `124` or `137` | the 10-minute limit was hit (TERM, or KILL after the 10-second grace) | not red, and not by itself a reason to escalate: narrow the command, or return `BLOCKED` naming it |
+| `125`, `126`, `127` | `timeout` or the command could not run | not red: fix the invocation, or return `BLOCKED` |
+| any other non-zero | red | the existing repair discretion |
+
+You call no gate operation — no `gate.drive` operation and no raw `gate.launch`/`observe`/`stop`
+operation. The gate driver serves the controller's full-suite gate, never a task's focused tests.
+
+**An integration-repair task follows this same contract.** It fixes the cross-task failure,
+re-runs the failing tests directly as its focused check, commits, and returns `COMPLETE`. It never
+runs the full suite: the controller starts the next counted full-suite attempt itself.
 
 Two obligations the cycle does not relax:
 
 - A bug fix requires a **failing regression test** that reproduces the bug before the fix.
-- A guard requires **mutation evidence**: remove or defeat the thing being guarded and verify the
-  guard turns red. A guard you never watched fail is decoration.
+- A guard requires **mutation evidence**: remove or defeat the thing being guarded, run the guard
+  and verify it turns red, then restore and run it again. A guard you never watched fail is
+  decoration.
 
 ## Evidence-bound discretion
 
@@ -164,16 +127,15 @@ Examples of genuine cases — illustrative, not an exhaustive allowlist:
 ## The commit
 
 A task produces a commit **only on success** — `COMPLETE` means focused verification is green and
-**exactly one successful task commit** exists for this task. Never commit on `WAITING`,
-`NEEDS_ESCALATION`, or `BLOCKED`: leave the worktree as it stands so the next worker or the human can
-read it. A commit left behind by a failed attempt does not get escalated onto — it halts the build.
+**exactly one successful task commit** exists for this task. Never commit on `NEEDS_ESCALATION` or
+`BLOCKED`: leave the worktree as it stands so the next worker or the human can read it. A commit left behind by a failed attempt does not get escalated onto — it halts the build.
 
 If the **task text itself** prescribes more than one commit, the plan wins over this default:
 follow the task and report every SHA in your return.
 
 ## Outcomes
 
-Return exactly one of four outcomes. A missing or malformed outcome halts the build, so state it
+Return exactly one of three outcomes. A missing or malformed outcome halts the build, so state it
 plainly.
 
 **Scope of this return:** if you invoked this skill yourself while running another role, returning
@@ -181,11 +143,6 @@ ends only the worker role — you continue to your own next step. Wrapper preloa
 self-invocation: only an agent whose entire assignment is this role ends its turn here.
 
 - **`COMPLETE`** — focused verification is green and exactly one task commit exists.
-- **`WAITING`** — a slice-bounded focused gate run is still live and you must stop before a terminal
-  disposition. Valid **only** when you have performed an explicit `gate.drive.handoff` operation and
-  your return **names that handoff** — the drive id and single-use handoff token the controller
-  `claim`s. A bare "still waiting" with no handoff token strands the drive and is not a valid return.
-  `WAITING` is neither repair nor escalation, and never accompanies a commit.
 - **`NEEDS_ESCALATION`** — the task proves materially more complex or riskier than the assigned
   tier, with a **concrete reason** naming what exceeded it. An expected RED test, ordinary
   debugging, or a single failed test run is **not** an escalation condition, and without a concrete
@@ -198,14 +155,14 @@ self-invocation: only an agent whose entire assignment is this role ends its tur
 ## Your return
 
 Keep it short. The controller keeps only this; there are no brief files, task reports, or review
-records.
+records. `VERIFICATION` lists every test command exactly as it ran, including its `timeout` wrapper,
+with its exit status — the controller audits that line.
 
 ```text
-OUTCOME: COMPLETE | WAITING | NEEDS_ESCALATION | BLOCKED
+OUTCOME: COMPLETE | NEEDS_ESCALATION | BLOCKED
 TIER: <economy|standard|premium|max> — <one-line routing reason as given to you>
-VERIFICATION: <the focused command you ran> -> <result>
+VERIFICATION: <each test command exactly as it ran, timeout wrapper included> -> <exit status>
 TDD: <RED/GREEN evidence, or the three-part exception: why unsuitable / what replaced it / residual risk>
-HANDOFF: <drive-id + single-use handoff token — REQUIRED on WAITING, omit otherwise>
 COMMIT: <sha — every sha, if the task text prescribed more than one — or "none" for a non-COMPLETE outcome>
 NOTES: <only what the next worker or the PR genuinely needs — omit when there is nothing>
 ```
