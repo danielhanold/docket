@@ -1011,9 +1011,11 @@ var errRelaunchRaceLost = errors.New("gatedrive: relaunch already consumed by a 
 // inconsistent — the drive can no longer prove whether it is run-backed, so new
 // execution is refused (never demoted to standalone): an absent, unreadable, or
 // reassigned worktree slot reports CauseRunLinkLost. ("", true, "") is a genuinely
-// no-run-record drive (a legacy empty token, or a slot recording no run) — which
-// includes an old task drive a pre-0489 binary left carrying a scope_id the
-// decoder now ignores (change 0489). (change 0437 Task 3)
+// no-run-record drive (a legacy empty token, or a slot recording no run). An old
+// task drive a pre-0489 binary left carrying a scope_id decodes as a scopeless
+// drive (the decoder ignores scope_id) and resolves through its AdmissionToken's
+// slot like any other: to that slot's run while the token still matches, else
+// CauseRunLinkLost (change 0489). (change 0437 Task 3)
 func (d *Driver) resolveDriveRun(rec driveRecord) (runID string, ok bool, cause string) {
 	if rec.AdmissionToken == "" {
 		return "", true, ""
