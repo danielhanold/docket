@@ -32,7 +32,9 @@
 // whose run root does not exist was never launched (reconcileFirstLaunch). A
 // nonterminal drive is probed under its per-drive claimant flock (nonblocking: a
 // busy claim is pending work, never waited on). The census launches nothing and
-// takes NO run lock (the run is already fenced; the lock order forbids holding the
+// takes NO run lock (in cancel mode the run is already fenced; the verdict-mode
+// census may run over an active, unfenced run on the run-incomplete path via
+// settleNeverLaunchedForVerdict; either way the lock order forbids holding the
 // run while probing a per-drive claim).
 package gatedrive
 
