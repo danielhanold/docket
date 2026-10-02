@@ -61,3 +61,9 @@ Any new check states its failure posture up front, and prefers making the proble
 - The worktree lock and its holder model (0490).
 - The run id and its fences (0491).
 - Process leaks inside individual tests (`t.Cleanup` hygiene), except where a fix here depends on them.
+
+## Open questions
+
+### Item 3 goes away if 0493 retires the relaunch
+
+The 2026-10-02 backlog review retargeted 0493: instead of fixing cancel's accounting for finalize's single automatic relaunch, retire the relaunch (Daniel's decision). If that lands, item 3 (`proveNoTreeSurvives` trusting `vanished` before a relaunch) has no caller left, so drop it here. Items 1, 2 and 4 are unaffected.

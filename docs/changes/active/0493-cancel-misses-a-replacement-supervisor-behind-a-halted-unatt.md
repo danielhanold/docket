@@ -67,3 +67,19 @@ Any new finding token follows 0490's credential-free `<token>:<drive>` shape. An
 - A never-launched drive blocking a successful run's closeout (0490 review finding F3). That is recorded under 0491's "Open questions".
 - The run id and its fences (0491).
 - The worktree lock and its holder model (0490, ADR-0132).
+
+## Open questions
+
+### Retarget: retire the automatic relaunch (direction from the 2026-10-02 backlog review)
+
+Daniel chose to retire finalize's single automatic relaunch rather than fix cancel's accounting for it. The hypotheses under "What changes" are superseded by this direction.
+
+- **Who uses it.** Only finalize's local gate, including its build recertify path, opts into the relaunch (`IdempotentSuiteGate: true` in `internal/app/finalize_rebase.go`). No other caller sets the flag.
+- **What it removes.** This change's whole bug class, plus 0492's item 3 (`proveNoTreeSurvives` trusting `vanished` before a relaunch).
+- **The cost.** When a finalize suite's supervisor dies mid-run, finalize halts with `gate-halted` instead of relaunching once, and a human re-runs finalize, which re-runs the suite anyway.
+
+Grooming should:
+
+- retitle this change to match;
+- trace everything the relaunch carries: the reservation and token fields in the drive record, `recoverReservedRelaunch`, the `relaunch-*` halt causes, the `--idempotent-suite-gate` flag, and ADR-0098's "one permitted relaunch" (carried into ADR-0107);
+- decide how a new ADR records the retirement.

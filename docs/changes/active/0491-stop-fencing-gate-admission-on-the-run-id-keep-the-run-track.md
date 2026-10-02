@@ -61,7 +61,7 @@ Once dependency 0490 replaces the stored slot with a lock held by the running pr
 - **Simpler cancel.** `run.cancel` becomes: mark the run cancelled, then stop the run's registered supervisor process groups. No admission fence.
 - **Keep the core.** Keep attribution, retry accounting, observe mode, the `## Run halted` marker, and resume admission (one live run per worktree), as far as none of them depends on the slot.
 - **Decide on `--run-id`.** Either keep `--run-id` on `gate.drive.start` as a locator for evidence and attribution, or drop it. Then update the run-tracker blocks in CLAUDE.md and AGENTS.md, cursor-rules, and the skills to match.
-- **ADRs and related work.** Supersede or amend ADR-0118/0124/0128 as needed. Re-check 0422 (blocked: retries over-counted) against the slimmer verdict path.
+- **ADRs and related work.** Supersede or amend ADR-0118/0124/0128 as needed. 0422 (retries over-counted when `run.max_attempts` is 3 or more) was killed in the 2026-10-02 backlog review: it can't fire at the default of 2, so there is nothing to re-check.
 
 Accepted loss: an agent left over from a cancelled run could still start a test suite in that worktree. The worktree lock from 0490 still prevents two suites from running at once.
 
@@ -101,3 +101,7 @@ Accepted loss: an agent left over from a cancelled run could still start a test 
 - **Regression test:** admit a tracked drive, kill before launch, then run the keyed verdict, and assert the chosen outcome end-to-end through `run.verdict`, not only at the `gatedrive` layer.
 
 Not part of this note: the sibling gap 0490's results file pointed at 0492, now its own change, 0493. Cancel clears a relaunch that halted without attaching using only the first run's directory, so a replacement supervisor that came up anyway is not stopped.
+
+### Fold in 0443's wording fix (0443 killed 2026-10-02)
+
+0443 recorded an agent running the dotted operation id itself (`docket run.gate-before implement-next`) instead of that operation's argv. 0443 was killed because its file and operation names are gone, but the wording gap remains. When this change rewrites the run-tracker block (`cursor-rules/run-tracker.md`, regenerated into CLAUDE.md and AGENTS.md), say explicitly that an operation id such as `run.start` is not a command: look up its entry in `docket capabilities --json` and run that entry's `argv`.
