@@ -92,10 +92,6 @@ func (p *racingProc) ResolveReservation(root, token string) (*process.Reservatio
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
 }
 
-func (p *racingProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
-	return process.RecoveryEntry{Disposition: "invalid"}, nil
-}
-
 // relaunchStopCount reports how many of the runs THIS proc launched were later
 // passed to Stop — i.e. orphan cleanups, as distinct from the death-probe stops
 // of the original run.
@@ -260,10 +256,6 @@ func (p *terminalSettleProc) ResolveReservation(root, token string) (*process.Re
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
 }
 
-func (p *terminalSettleProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
-	return process.RecoveryEntry{Disposition: "invalid"}, nil
-}
-
 // gatedLoserSeam wraps the shared core for the LOSER driver only: its first
 // dead-run observation signals `observing` (proving the loser loaded a
 // nonterminal record and entered its slice) and then parks on `gate` until the
@@ -295,10 +287,6 @@ func (s *gatedLoserSeam) Stop(runDir, reason string) (*process.StopOutcome, erro
 
 func (s *gatedLoserSeam) ResolveReservation(root, token string) (*process.ReservationResolution, error) {
 	return s.core.ResolveReservation(root, token)
-}
-
-func (s *gatedLoserSeam) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
-	return s.core.ClassifyRun(runDir, mark)
 }
 
 // TestLoserAfterTerminalSettleReturnsRecordedState pins the deterministic
@@ -448,10 +436,6 @@ func (p *claimWindowProc) ResolveReservation(root, token string) (*process.Reser
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
 }
 
-func (p *claimWindowProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
-	return process.RecoveryEntry{Disposition: "invalid"}, nil
-}
-
 func (p *claimWindowProc) counts() (launches, resolutions int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -460,17 +444,9 @@ func (p *claimWindowProc) counts() (launches, resolutions int) {
 
 func TestRelaunchReservationHolderCannotBeStolenBeforeLaunch(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
-	// A live worktree slot backs the admission token (a no-run-record slot, as a
-	// real scopeless drive holds one), so the run-linkage resolution admits the
-	// relaunch through the standalone path (change 0437 Task 3).
 	wt := mkWorktree(t)
-	token, terr := store.ReserveWorktreeExecution(sampleAdmission(wt))
-	if terr != nil {
-		t.Fatalf("reserve admission: %v", terr)
-	}
 	rec := seedRecord(t)
 	rec.WorktreePath = wt
-	rec.AdmissionToken = token
 	id, ownerGen := seedDrive(t, store, rec)
 	proc := newClaimWindowProc()
 
@@ -594,10 +570,6 @@ func (p *countingProc) Stop(runDir, reason string) (*process.StopOutcome, error)
 
 func (p *countingProc) ResolveReservation(root, token string) (*process.ReservationResolution, error) {
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
-}
-
-func (p *countingProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
-	return process.RecoveryEntry{Disposition: "invalid"}, nil
 }
 
 func (p *countingProc) launches() int {

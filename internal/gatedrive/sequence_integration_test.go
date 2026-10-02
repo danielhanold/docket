@@ -24,7 +24,6 @@ package gatedrive
 import (
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -139,22 +138,3 @@ func driveSeqToTerminal(t *testing.T, d *Driver, req StartRequest) DriveDoc {
 // TestRaceIntegrationGatedriveSameWorktreeGenerations, lives in
 // sequence_race_integration_test.go (race shard, change 0466).
 // ---------------------------------------------------------------------------
-
-// genSettled is a thread-safe scripted RunSettledFunc: a run is settled once
-// the test marks it (its run completed, or its cancellation was confirmed).
-type genSettled struct {
-	mu      sync.Mutex
-	settled map[string]bool
-}
-
-func (g *genSettled) settle(runID string) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	g.settled[runID] = true
-}
-
-func (g *genSettled) resolve(runID string) (bool, error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return g.settled[runID], nil
-}

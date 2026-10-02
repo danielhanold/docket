@@ -50,12 +50,6 @@ type ProcessSeam interface {
 	// recovery consult it to attach an identified replacement, and the launch
 	// census consults it to resolve a first launch whose run was never attached.
 	ResolveReservation(root, token string) (*process.ReservationResolution, error)
-	// ClassifyRun assesses one raw run dir's recovery disposition, marking it
-	// abandoned when mark is true. It mirrors process.Service.ClassifyRun exactly
-	// so the real service is a drop-in seam; the first-admission legacy inventory
-	// consults it (through the recoverySeam view) to decide whether a HALTED
-	// historical drive is provably torn down.
-	ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error)
 }
 
 // productionSlice is the slice target: the maximum a single synchronous driver
@@ -169,9 +163,8 @@ type Driver struct {
 type RunLaunchGate func(runID, worktree string, reserve func() error) error
 
 // SetRunLaunchGate injects the gate at composition, before any concurrent
-// start, so it needs no lock (like SetRunSettledResolver). Passing nil
-// clears it (the launch gate is then skipped and the no-run-record standalone
-// behavior governs).
+// start, so it needs no lock. Passing nil clears it (the launch gate is then
+// skipped and the no-run-record standalone behavior governs).
 func (d *Driver) SetRunLaunchGate(g RunLaunchGate) { d.runLaunch = g }
 
 // RunLaunchGateWired reports whether a RunLaunchGate has been injected. It is a
@@ -236,19 +229,6 @@ const (
 	relaunchLockTries = 40
 	relaunchLockPause = 50 * time.Millisecond
 )
-
-// CleanupHistory runs the shared manual legacy-history assessment over this
-// driver's store with its own process-recovery seam (the same recoverySeam the
-// first-admission inventory consults). With an empty HistoryCleanupRequest.DriveID
-// it scans the whole drive registry in ascending id order; a non-empty DriveID
-// assesses exactly that one record. DryRun previews without writing any abandoned
-// marker. Unlike admission, it is a REPORT, never a refusal — every candidate is
-// returned with its class — and it takes NO admission/scope/drive lock: it mutates
-// no gate state, and the only write is the process layer's own lock-guarded
-// abandoned marker under apply.
-func (d *Driver) CleanupHistory(req HistoryCleanupRequest) (HistoryCleanupOutcome, error) {
-	return d.store.cleanupHistory(req, d.proc)
-}
 
 // NewSystemDriver builds a production Driver over the real monotonic clock and
 // the real git seam, composing the given store and process seam. The application

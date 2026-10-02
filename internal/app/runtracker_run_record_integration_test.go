@@ -4,13 +4,10 @@ package app
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/danielhanold/docket/internal/gatedrive"
 )
 
 // These are the run registry tests (change 0375 Task 9). The run lives
@@ -390,47 +387,6 @@ func TestIntegrationRunRecordRecordRunParticipantTerminalAllowedAfterFence(t *te
 		forceRunState(t, repo, key, s)
 		must(t, RecordRunParticipantTerminal(repo, key, "", "h1", "turn-1", ParticipantTerminalFailed))
 	}
-}
-
-// TestIntegrationRunRecordRunSettledResolverStates (change 0446): the admission settlement read
-// reports settled only for a run whose record is terminal with its accounting
-// done — completed, cancelled, superseded. Active, cancelling, and completing
-// runs still own their worktree, and an unknown run id is an unresolved owner,
-// never settlement.
-func TestIntegrationRunRecordRunSettledResolverStates(t *testing.T) {
-	cases := []struct {
-		state   runState
-		settled bool
-	}{
-		{RunActive, false},
-		{RunCancelling, false},
-		{RunCompleting, false},
-		{RunCancelled, true},
-		{RunSuperseded, true},
-		{RunCompleted, true},
-	}
-	for _, tc := range cases {
-		t.Run(string(tc.state), func(t *testing.T) {
-			repo, common, key, runID, _ := runLaunchGateFixture(t)
-			if tc.state != RunActive {
-				fenceRun(t, repo, key, tc.state)
-			}
-			settled, err := runSettledResolver(common)(runID)
-			if err != nil {
-				t.Fatalf("resolver err: %v", err)
-			}
-			if settled != tc.settled {
-				t.Fatalf("state %q settled = %v, want %v", tc.state, settled, tc.settled)
-			}
-		})
-	}
-	t.Run("unknown-run", func(t *testing.T) {
-		_, common, _, _, _ := runLaunchGateFixture(t)
-		settled, err := runSettledResolver(common)("0123456789abcdef0123456789abcdef")
-		if !errors.Is(err, gatedrive.ErrRunRecordUnresolved) || settled {
-			t.Fatalf("unknown run = (%v, %v), want (false, ErrRunRecordUnresolved)", settled, err)
-		}
-	})
 }
 
 // TestIntegrationRunRecordCheckRunIDLinkage (change 0463): the agent.enter preflight answers with a

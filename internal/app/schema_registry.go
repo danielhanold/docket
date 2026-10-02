@@ -82,7 +82,6 @@ var operationBindings = []OperationBinding{
 	{ID: "gate.drive.claim", Request: nil, Result: GateDriveResult{}},                                              // GateDriveService.Claim
 	{ID: "gate.drive.handoff", Request: nil, Result: GateDriveResult{}},                                            // GateDriveService.Handoff
 	{ID: "gate.drive.start", Request: GateDriveStartRequest{}, Result: GateDriveResult{}},                          // GateDriveService.Start
-	{ID: "gate.history.cleanup", Request: GateHistoryCleanupRequest{}, Result: GateHistoryCleanupResult{}},         // GateHistoryCleanup
 	{ID: "gate.launch", Request: nil, Result: GateResult{}},                                                        // GateLaunch
 	{ID: "gate.observe", Request: nil, Result: GateResult{}},                                                       // GateObserve
 	{ID: "gate.recover", Request: nil, Result: GateRecoverResult{}},                                                // GateRecover

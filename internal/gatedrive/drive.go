@@ -34,9 +34,9 @@ const ProtocolVersion = 1
 //
 // Upgrade boundary (change 0428): a retired schema below the executable range is
 // still readable by the HISTORICAL reader (loadHistoricalDrive) — but ONLY for
-// first-admission legacy-history assessment and the `docket gate history cleanup`
-// recovery command. Schema 2 (the immediately-pre-0375 generation) is the sole
-// historical schema recognised today (historicalSchemaV2, history.go). A
+// the launch census (reconcile.go). Schema 2 (the immediately-pre-0375
+// generation) is the sole historical schema recognised today
+// (historicalSchemaV2, history.go). A
 // historical record is never loaded into the executable state machine, never
 // migrated, and never re-written: the execution reader (readStored) keeps
 // accepting exactly v4 + v3 and fails a v2 record closed as ErrUnknownSchema, so
@@ -105,12 +105,6 @@ const (
 	// ambiguous, so the outer continuation fails closed rather than guessing which
 	// live run to supersede. (change 0359)
 	CauseTakeoverAmbiguous = "takeover-ambiguous"
-	// CauseRunLinkLost: a scopeless run-linked drive could no longer prove which
-	// run it belonged to through its worktree slot. No longer emitted: its only
-	// emitter, the relaunch's slot-based run resolution, was removed by change 0490
-	// (the relaunch crosses no run gate); a record carrying it still decodes.
-	// (change 0481)
-	CauseRunLinkLost = "run-link-lost"
 	// CauseWorktreeBusy: the single automatic relaunch found the worktree lock
 	// held by another gate, so the drive HALTs instead of relaunching over it. It
 	// launches nothing; the holder keeps the worktree. (change 0490)
@@ -140,21 +134,6 @@ type DriveDoc struct {
 	// the terminal to avoid leaking one temp dir per drive across retries. Like
 	// RawRunDir it is a host path, not a secret; it carries no argv/env/credential.
 	RunRoot string `json:"run_root,omitempty"`
-	// ReleaseFinding is a bounded, credential-free token set when the terminal
-	// document's worktree-slot release (or its fail-closed stopping/unresolved
-	// marking) could not be persisted — e.g. "release-unsettled:<op>:<kind>". It is
-	// never silently dropped: a caller that sees it retains the run root and
-	// surfaces a local persistence/teardown finding. Empty (omitted) when the
-	// release step succeeded or had nothing to do. An omitempty addition does not
-	// bump ProtocolVersion.
-	ReleaseFinding string `json:"release_finding,omitempty"`
-	// LegacyHistory is the compact first-admission legacy-drive recovery summary,
-	// populated on a START document only and only when the census actually assessed
-	// legacy history (Checked > 0). An ordinary start over a store with no legacy
-	// records carries none (nil, omitted). It is a diagnostic surface — the counts,
-	// recovered ids, and retained findings the census produced — never a credential.
-	// An omitempty addition does not bump ProtocolVersion (see its doc comment).
-	LegacyHistory *LegacyHistorySummary `json:"legacy_history,omitempty"`
 }
 
 // driveRecord is the durable, owner-private persisted schema of one drive. It is

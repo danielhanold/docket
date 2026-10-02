@@ -40,19 +40,13 @@ type GateDriveResult struct {
 	Drive   *gatedrive.DriveDoc `json:"drive,omitempty"`
 	Reason  string              `json:"reason,omitempty"`
 	Message string              `json:"message,omitempty"`
-	// Stage + Locator carry the typed refusal site for the two diagnosable
-	// refusal families. A legacy-inventory refusal: Stage "legacy-inventory",
-	// Locator "inventory-legacy-drive-<id>" (validated id) or the safe
-	// "inventory-legacy-drives". A worktree-busy refusal
+	// Stage + Locator carry the typed refusal site of a worktree-busy refusal
 	// (incumbentRefusalLocator): Stage "worktree-admission", Locator
 	// "incumbent-drive:<id>" / "incumbent-run:<id>" (validated id) naming the
 	// worktree lock's live holder, or "" when the holder is unknown. Empty for
 	// every other refusal.
 	Stage   string `json:"stage,omitempty"`
 	Locator string `json:"locator,omitempty"`
-	// LegacyHistory mirrors the drive document's summary onto refusals, where
-	// no drive document exists.
-	LegacyHistory *gatedrive.LegacyHistorySummary `json:"legacy_history,omitempty"`
 }
 
 // driveEngine is the native gate-drive state machine this seam maps to the
@@ -190,10 +184,6 @@ func newOwnedGateDriveService(gitCommonDir, exePath string, eff config.Effective
 	// 0437): wire the app-side run launch gate over the same registry. It fires only
 	// for a start carrying a RunID, so standalone gates are unaffected.
 	engine.SetRunLaunchGate(runLaunchGate(gitCommonDir))
-	// A released slot whose leftover run is completed or confirmed-cancelled is
-	// settled through exact-token retirement rather than refused stale-run-id
-	// (change 0446): wire the settlement read over the same registry.
-	engine.SetRunSettledResolver(runSettledResolver(gitCommonDir))
 	budget := time.Duration(eff.GateObservation.Value) * time.Minute
 	// Provenance emits layer identities only — never a value — so it is safe to
 	// persist in the drive record. The owning key is <owner>.test_command, derived
@@ -228,10 +218,6 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	// 0437): wire the app-side run launch gate over the same registry. It fires only
 	// for a start carrying a RunID, so standalone gates are unaffected.
 	engine.SetRunLaunchGate(runLaunchGate(gitCommonDir))
-	// A released slot whose leftover run is completed or confirmed-cancelled is
-	// settled through exact-token retirement rather than refused stale-run-id
-	// (change 0446): wire the settlement read over the same registry.
-	engine.SetRunSettledResolver(runSettledResolver(gitCommonDir))
 	return newGateDriveService(engine, 0, "", ""), "", ""
 }
 
@@ -459,15 +445,7 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 		// messages explain the valid next action for the actual state"). The reason
 		// token stays the bounded kind; only this message explains the recourse.
 		if oe, ok := gatedrive.AsOwnershipError(err); ok {
-			// A legacy-inventory refusal carries the typed stage, a SAFE locator, and
-			// the mirrored recovery summary (no drive document exists on a refusal), and
-			// a cleanup-oriented message. Every other ownership kind keeps its existing
-			// next-action message unchanged.
-			if stage, locator, isInventory := legacyInventoryLocator(oe.Op); isInventory {
-				result.Stage, result.Locator = stage, locator
-				result.LegacyHistory = oe.Legacy
-				result.Message = legacyInventoryMessage(oe.Op)
-			} else if oe.Kind == gatedrive.ErrWorktreeBusy {
+			if oe.Kind == gatedrive.ErrWorktreeBusy {
 				// A worktree-busy refusal always names its site, and diagnoses from
 				// the holder snapshot the lock refusal validated as running (never a
 				// re-read) — or says the holder is unknown when there is none.
@@ -476,11 +454,6 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 				result.Message = incumbentRemedyMessage(oe.Incumbent)
 			} else {
 				result.Message = ownershipNextAction(oe.Kind)
-			}
-			// A refusal finished-incumbent reconciliation could not settle names the
-			// obligation that keeps it final (a bounded finding token, change 0446 §6).
-			if oe.Reconciliation != "" {
-				result.Message = appendReconciliationFinding(result.Message, oe.Reconciliation)
 			}
 		} else if fe, ok := AsMutationFenceError(err); ok {
 			result.Message = fenceNextAction(fe.Reason)
@@ -548,27 +521,12 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 		return "a prior launch transition is unresolved; settle it with run.cancel or wait for it, never a blind retry"
 	case gatedrive.ErrWorktreeBusy:
 		return "another gate's supervisor holds this worktree's lock; wait for it to finish — the worktree frees itself when that gate ends — or stop that gate through its own route (run.cancel for a tracked run, gate stop for a raw launch); never start a second gate in the same worktree"
-	case gatedrive.ErrLaunchUnconfirmed:
-		return "a prior execution in this worktree is unresolved; recover it through run.cancel, never a blind re-start"
-	case gatedrive.ErrStaleRunID:
-		return "an in-flight run owns this worktree; present that run's run id or cancel it before starting"
 	default:
 		return ""
 	}
 }
 
-// appendReconciliationFinding appends the bounded finished-incumbent
-// reconciliation finding to a refusal's next-action message.
-func appendReconciliationFinding(message, finding string) string {
-	note := "finished-incumbent check: " + finding
-	if message == "" {
-		return note
-	}
-	return message + " (" + note + ")"
-}
-
-// stageWorktreeAdmission is the typed refusal site for a worktree-busy refusal,
-// distinct from the legacy-inventory stage.
+// stageWorktreeAdmission is the typed refusal site for a worktree-busy refusal.
 const stageWorktreeAdmission = "worktree-admission"
 
 // rawRunIDShape matches the supervisor's run-id shape (32 lowercase hex); the
@@ -646,39 +604,6 @@ func incumbentRemedyMessage(inc *gatedrive.IncumbentSnapshot) string {
 	}
 }
 
-// legacyInventoryMessage is the next-action guidance for a first-admission legacy
-// inventory refusal. Only history positively bound to the requested worktree can
-// refuse (change 0446), so the message names that one matched obligation — the
-// locator identifies the drive and the legacy summary carries its worktree —
-// rather than implying every retained record in the repository blocks. The
-// inventory-level op means the drive registry itself could not be read.
-func legacyInventoryMessage(op string) string {
-	const tail = "; inspect or recover it with docket gate history cleanup (--dry-run first); unrelated or unreadable history never blocks an admission; run.cancel applies only to a live run with a readable run record"
-	if op == "inventory-legacy-drives" {
-		return "the gate drive registry could not be read to assess the requested worktree's pre-slot history" + tail
-	}
-	return "a historical gate drive bound to the requested worktree blocks its admission (the locator names the drive, the legacy summary its worktree)" + tail
-}
-
-// legacyInventoryLocator recognizes the inventory refusal ops and returns a
-// SAFE locator: a drive-id-bearing op is rendered verbatim only when the id
-// validates; anything else collapses to the inventory-level locator so an
-// arbitrary directory name can never render. ok is false for a non-inventory op,
-// which keeps its existing next-action message untouched.
-func legacyInventoryLocator(op string) (stage, locator string, ok bool) {
-	const prefix = "inventory-legacy-drive-"
-	switch {
-	case op == "inventory-legacy-drives":
-		return "legacy-inventory", op, true
-	case strings.HasPrefix(op, prefix):
-		if id := strings.TrimPrefix(op, prefix); gatedrive.ValidDriveID(id) {
-			return "legacy-inventory", op, true
-		}
-		return "legacy-inventory", "inventory-legacy-drives", true
-	}
-	return "", "", false
-}
-
 // fenceNextAction maps a run mutation-fence reason (MutationFenceError.Reason)
 // to a one-line, credential-free description of the caller's valid next action. It
 // mirrors ownershipNextAction for the fence refusal family so a fenced-run error
@@ -715,11 +640,6 @@ func (r GateDriveResult) HumanText() string {
 		if r.Drive.RawRunDir != "" {
 			lines = append(lines, "raw_run_dir: "+r.Drive.RawRunDir)
 		}
-		// A terminal whose slot release could not be persisted says so, never
-		// silently (change 0446): the bounded token names the failed step.
-		if r.Drive.ReleaseFinding != "" {
-			lines = append(lines, "release_finding: "+r.Drive.ReleaseFinding)
-		}
 	}
 	if r.Reason != "" {
 		lines = append(lines, "reason: "+r.Reason)
@@ -733,27 +653,7 @@ func (r GateDriveResult) HumanText() string {
 	if r.Locator != "" {
 		lines = append(lines, "locator: "+r.Locator)
 	}
-	// The legacy-history summary renders as a COMPACT counts-only line — checked,
-	// recovered, retained totals only, never per-record content — from the refusal
-	// mirror or, on a success result, the drive document's own summary.
-	if sum := r.legacySummary(); sum != nil {
-		lines = append(lines, fmt.Sprintf("legacy_history: checked %d recovered %d retained %d",
-			sum.Checked, len(sum.Recovered), len(sum.Retained)))
-	}
 	return strings.Join(lines, "\n")
-}
-
-// legacySummary returns the legacy-history summary to render: the refusal mirror
-// when set (no drive document exists on a refusal), else the success document's
-// own summary. Nil when neither carries one.
-func (r GateDriveResult) legacySummary() *gatedrive.LegacyHistorySummary {
-	if r.LegacyHistory != nil {
-		return r.LegacyHistory
-	}
-	if r.Drive != nil {
-		return r.Drive.LegacyHistory
-	}
-	return nil
 }
 
 // Compile-time seam assertions: the production driver satisfies the engine seam,

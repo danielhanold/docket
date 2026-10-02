@@ -363,48 +363,10 @@ func TestMapDriveOutcomeRetainsRunRootWhileWaiting(t *testing.T) {
 	}
 }
 
-// TestFinalizeCleanupRetainsRootOnUnsettledRelease (change 0446 spec §5 audit):
-// a terminal document whose slot release was interrupted (it carries a
-// ReleaseFinding) must NOT have its run root removed by finalize's terminal
-// cleanup — the root is the evidence a later reconciliation needs, and deleting
-// it is exactly the "time bomb" normal cleanup must not recreate. The retained
-// root is surfaced as a bounded TeardownFinding; the outcome mapping is unchanged.
-func TestFinalizeCleanupRetainsRootOnUnsettledRelease(t *testing.T) {
-	g := &processFinalizeGate{}
-	for _, tc := range []struct {
-		name string
-		doc  gatedrive.DriveDoc
-		want FinalizeGateOutcome
-	}{
-		{"failed", gatedrive.DriveDoc{Outcome: gatedrive.FAILED}, FinalizeGateFailed},
-		{"halted", gatedrive.DriveDoc{Outcome: gatedrive.HALTED, Cause: gatedrive.CauseUnknownObservation}, FinalizeGateHalted},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			root := runRootFixture(t)
-			doc := tc.doc
-			doc.RunRoot = root
-			doc.ReleaseFinding = "release-unsettled:admission-cas:io"
-			res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc})
-			if res.Outcome != tc.want {
-				t.Fatalf("outcome = %q, want %q", res.Outcome, tc.want)
-			}
-			if !dirExists(t, root) {
-				t.Fatalf("an unsettled release must retain the run root %q", root)
-			}
-			if res.TeardownFinding == "" {
-				t.Fatalf("a retained run root must surface a TeardownFinding")
-			}
-			if strings.Contains(res.TeardownFinding, root) {
-				t.Fatalf("TeardownFinding %q must not carry a host path", res.TeardownFinding)
-			}
-		})
-	}
-}
-
 // TestFinalizeCleanupReportsWithheldRunRoot (review fix): a terminal document that
-// carries NO RunRoot — the driver withholds it for a HALTED drive whose slot
-// teardown was never proven — leaves the root the Start minted on disk. That
-// retention must surface as the bounded TeardownFinding, never silently.
+// carries NO RunRoot (a defensive leg — the driver exposes it on every terminal)
+// leaves the root the Start minted on disk. That retention must surface as the
+// bounded TeardownFinding, never silently.
 func TestFinalizeCleanupReportsWithheldRunRoot(t *testing.T) {
 	g := &processFinalizeGate{}
 	doc := gatedrive.DriveDoc{Outcome: gatedrive.HALTED, Cause: gatedrive.CauseUnknownObservation}
@@ -420,15 +382,6 @@ func TestFinalizeCleanupReportsWithheldRunRoot(t *testing.T) {
 	doc.RunRoot = root
 	if res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc}); res.TeardownFinding != "" {
 		t.Fatalf("an exposed, removed root reported TeardownFinding %q", res.TeardownFinding)
-	}
-}
-
-// TestGateDriveHumanTextRendersReleaseFinding: a terminal document's release
-// finding is rendered for the human, never dropped from the text surface.
-func TestGateDriveHumanTextRendersReleaseFinding(t *testing.T) {
-	r := GateDriveResult{Drive: &gatedrive.DriveDoc{Outcome: gatedrive.PASSED, ReleaseFinding: "release-unsettled:admission-cas:io"}}
-	if got := r.HumanText(); !strings.Contains(got, "release_finding: release-unsettled:admission-cas:io") {
-		t.Fatalf("HumanText must render the release finding, got:\n%s", got)
 	}
 }
 
@@ -466,9 +419,8 @@ func TestMapDriveHaltCauseKeysOnGatedriveConstants(t *testing.T) {
 		gatedrive.CauseUnknownObservation:    GateHaltMalformed,
 		// A deadline-expired variant is matched as a prefix of the constant.
 		gatedrive.CauseDeadlineExpired + "-stop-unproven": GateHaltRunningAtBudget,
-		// Change 0481's tokens are deliberately not distinguished: finalize reads
-		// either as an unavailable gate.
-		gatedrive.CauseRunLinkLost:                 GateHaltUnavailable,
+		// Change 0481's token is deliberately not distinguished: finalize reads it
+		// as an unavailable gate.
 		string(gatedrive.ErrScopeIdentityMismatch): GateHaltUnavailable,
 		// Change 0490: a relaunch that found the worktree held by another gate is a
 		// halt (a human or the holder must finish first), never repair work.
@@ -834,10 +786,8 @@ func TestMapDriveFailureOwnershipKinds(t *testing.T) {
 		gatedrive.ErrScopeClosed,
 		gatedrive.ErrHandoffOutstanding,
 		gatedrive.ErrUnresolvedLaunchTransition,
-		// change 0375 worktree-admission ownership kinds.
+		// The worktree-admission ownership kind (change 0490's worktree lock).
 		gatedrive.ErrWorktreeBusy,
-		gatedrive.ErrLaunchUnconfirmed,
-		gatedrive.ErrStaleRunID,
 	}
 	const secret = "SECRET-ARGV"
 	for _, kind := range kinds {
@@ -874,11 +824,9 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 	for _, kind := range []gatedrive.OwnershipErrorKind{
 		gatedrive.ErrHandoffOutstanding,
 		gatedrive.ErrUnresolvedLaunchTransition,
-		// change 0375 worktree-admission ownership kinds — each MUST carry its own
-		// distinct next-action message.
+		// The worktree-admission ownership kind — it MUST carry its own distinct
+		// next-action message.
 		gatedrive.ErrWorktreeBusy,
-		gatedrive.ErrLaunchUnconfirmed,
-		gatedrive.ErrStaleRunID,
 	} {
 		// Wrap the ownership error in credential-shaped free text (a stand-in for a
 		// reservation token / argv) that must reach NEITHER the reason NOR the message.
@@ -910,9 +858,6 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 			if strings.Contains(strings.ToLower(got.Message), retired) {
 				t.Fatalf("kind %v next-action message names the retired %q recovery path: %q", kind, retired, got.Message)
 			}
-		}
-		if kind == gatedrive.ErrStaleRunID && !strings.Contains(got.Message, "present that run's run id or cancel it before starting") {
-			t.Fatalf("stale-run-id message must name the run id, got %q", got.Message)
 		}
 	}
 
@@ -970,128 +915,10 @@ func TestMapDriveFailureFenceReasons(t *testing.T) {
 	}
 }
 
-// ownershipRefusalResult drives a fake engine that fails a resumption operation
-// with the crafted ownership error, so the tests exercise mapDriveResult's
-// ownership-error branch (stage/locator/legacy-summary propagation) directly.
-func ownershipRefusalResult(t *testing.T, oe *gatedrive.OwnershipError) GateDriveResult {
-	t.Helper()
-	eng := &fakeDriveEngine{err: oe}
-	svc := newGateDriveService(eng, 0, "", "")
-	return svc.Advance("d1", "gen1")
-}
-
-// TestLegacyInventoryRefusalCarriesStageLocatorSummary is Task 6 case 1: a
-// drive-id-bearing inventory refusal with a validated id keeps the compatible
-// launch-unconfirmed reason token, carries the legacy-inventory stage, the
-// drive-id-bearing locator, the mirrored summary, and the cleanup-oriented human
-// message — never the slot-recovery "this worktree" prose.
-func TestLegacyInventoryRefusalCarriesStageLocatorSummary(t *testing.T) {
-	validID := strings.Repeat("a", 32)
-	summary := &gatedrive.LegacyHistorySummary{
-		Checked:  1,
-		Retained: []gatedrive.LegacyFinding{{DriveID: validID, Class: gatedrive.LegacyRetained, Reason: "nonterminal execution state"}},
-	}
-	oe := &gatedrive.OwnershipError{Kind: gatedrive.ErrLaunchUnconfirmed, Op: "inventory-legacy-drive-" + validID, Legacy: summary}
-	got := ownershipRefusalResult(t, oe)
-	if got.Reason != string(gatedrive.ErrLaunchUnconfirmed) {
-		t.Fatalf("reason token must stay %q, got %q", gatedrive.ErrLaunchUnconfirmed, got.Reason)
-	}
-	if got.Stage != "legacy-inventory" {
-		t.Fatalf("stage = %q, want legacy-inventory", got.Stage)
-	}
-	if got.Locator != "inventory-legacy-drive-"+validID {
-		t.Fatalf("locator = %q, want the drive-id-bearing op", got.Locator)
-	}
-	if got.LegacyHistory == nil {
-		t.Fatalf("LegacyHistory must be mirrored onto the refusal")
-	}
-	if !strings.Contains(got.Message, "docket gate history cleanup") {
-		t.Fatalf("message must name docket gate history cleanup, got %q", got.Message)
-	}
-	if !strings.Contains(got.Message, "run.cancel applies only to a live run with a readable run record") {
-		t.Fatalf("message must scope run.cancel to a readable run record, got %q", got.Message)
-	}
-	if strings.Contains(got.Message, "this worktree") {
-		t.Fatalf("inventory message must not carry the slot-recovery %q prose, got %q", "this worktree", got.Message)
-	}
-}
-
-// TestLegacyInventoryLevelRefusalLocator is Task 6 case 2: the inventory-level
-// op renders itself as the locator.
-func TestLegacyInventoryLevelRefusalLocator(t *testing.T) {
-	oe := &gatedrive.OwnershipError{Kind: gatedrive.ErrLaunchUnconfirmed, Op: "inventory-legacy-drives",
-		Legacy: &gatedrive.LegacyHistorySummary{Checked: 2}}
-	got := ownershipRefusalResult(t, oe)
-	if got.Stage != "legacy-inventory" || got.Locator != "inventory-legacy-drives" {
-		t.Fatalf("stage/locator = %q/%q, want legacy-inventory/inventory-legacy-drives", got.Stage, got.Locator)
-	}
-}
-
-// TestNonInventoryOwnershipRefusalUnchanged is Task 6 case 3: a non-inventory
-// ownership refusal sets no stage/locator/summary and keeps the existing
-// next-action message (regression pin for the non-inventory path).
-func TestNonInventoryOwnershipRefusalUnchanged(t *testing.T) {
-	oe := &gatedrive.OwnershipError{Kind: gatedrive.ErrLaunchUnconfirmed, Op: "reserve-worktree-execution"}
-	got := ownershipRefusalResult(t, oe)
-	if got.Stage != "" || got.Locator != "" || got.LegacyHistory != nil {
-		t.Fatalf("non-inventory refusal must leave stage/locator/legacy empty, got %q/%q/%v", got.Stage, got.Locator, got.LegacyHistory)
-	}
-	if got.Message != ownershipNextAction(gatedrive.ErrLaunchUnconfirmed) {
-		t.Fatalf("non-inventory refusal must keep the existing slot-recovery message, got %q", got.Message)
-	}
-}
-
-// TestLegacyInventoryLocatorRejectsArbitraryName is Task 6 case 4: an op whose
-// trailing id fails validation collapses to the safe inventory-level locator —
-// an arbitrary name never renders.
-func TestLegacyInventoryLocatorRejectsArbitraryName(t *testing.T) {
-	oe := &gatedrive.OwnershipError{Kind: gatedrive.ErrLaunchUnconfirmed, Op: "inventory-legacy-drive-../evil"}
-	got := ownershipRefusalResult(t, oe)
-	if got.Stage != "legacy-inventory" {
-		t.Fatalf("stage = %q, want legacy-inventory", got.Stage)
-	}
-	if got.Locator != "inventory-legacy-drives" {
-		t.Fatalf("an unvalidated id must collapse to the inventory-level locator, got %q", got.Locator)
-	}
-}
-
-// TestGateDriveHumanTextRendersLegacyLines is Task 6 case 5: HumanText renders
-// the stage, locator, and a compact counts-only legacy_history line for a
-// refusal, and renders the same compact line from Drive.LegacyHistory on a
-// success result.
-func TestGateDriveHumanTextRendersLegacyLines(t *testing.T) {
-	validID := strings.Repeat("b", 32)
-	summary := &gatedrive.LegacyHistorySummary{
-		Checked:  1,
-		Retained: []gatedrive.LegacyFinding{{DriveID: validID, Class: gatedrive.LegacyRetained, Reason: "nonterminal execution state"}},
-	}
-	oe := &gatedrive.OwnershipError{Kind: gatedrive.ErrLaunchUnconfirmed, Op: "inventory-legacy-drive-" + validID, Legacy: summary}
-	human := ownershipRefusalResult(t, oe).HumanText()
-	for _, want := range []string{
-		"stage: legacy-inventory",
-		"locator: inventory-legacy-drive-" + validID,
-		"legacy_history: checked 1 recovered 0 retained 1",
-	} {
-		if !strings.Contains(human, want) {
-			t.Fatalf("refusal human text missing %q; got:\n%s", want, human)
-		}
-	}
-
-	// A SUCCESS result renders the same compact line from Drive.LegacyHistory.
-	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING, DriveID: "d9", LegacyHistory: summary}}
-	svc := newGateDriveService(eng, 0, "", "")
-	successHuman := svc.Advance("d9", "gen9").HumanText()
-	if !strings.Contains(successHuman, "legacy_history: checked 1 recovered 0 retained 1") {
-		t.Fatalf("success human text must render the compact legacy line; got:\n%s", successHuman)
-	}
-}
-
 // TestProductionConstructorsWireRunLaunchGate proves every production gate-drive
 // constructor injects the app-side run launch gate into the driver it composes —
 // the wiring is where the takeover-only defect lived, so deleting any ONE
-// SetRunLaunchGate line must redden this test (change 0437 Task 5). It equally
-// proves each wires the released-slot run settlement read (change 0446): deleting
-// any ONE SetRunSettledResolver line reddens it too.
+// SetRunLaunchGate line must redden this test (change 0437 Task 5).
 func TestProductionConstructorsWireRunLaunchGate(t *testing.T) {
 	dir := testsupport.TempDir(t)
 	eff := buildEffWithMaxAttempts("go test ./...", 4)
@@ -1103,9 +930,6 @@ func TestProductionConstructorsWireRunLaunchGate(t *testing.T) {
 		}
 		if !d.RunLaunchGateWired() {
 			t.Fatalf("%s: run launch gate not wired", name)
-		}
-		if !d.RunSettledResolverWired() {
-			t.Fatalf("%s: run settlement resolver not wired", name)
 		}
 	}
 	driverOf := func(name string, svc *GateDriveService, res Result, reason string) *gatedrive.Driver {
@@ -1257,8 +1081,8 @@ func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
 			"worktree-admission", "",
 			[]string{"another change", "run.cancel"},
 			[]string{"../escape", "rm -rf", "(drive"}},
-		{"a non-busy kind keeps its next action", ownershipErrWith(gatedrive.ErrStaleRunID, buildInc),
-			"", "", []string{ownershipNextAction(gatedrive.ErrStaleRunID)}, nil},
+		{"a non-busy kind keeps its next action", ownershipErrWith(gatedrive.ErrHandoffOutstanding, buildInc),
+			"", "", []string{ownershipNextAction(gatedrive.ErrHandoffOutstanding)}, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

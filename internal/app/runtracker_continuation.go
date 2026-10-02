@@ -115,10 +115,6 @@ func NewContinuationSeam(gitCommonDir, exePath string) (ContinuationSeam, error)
 	// the continuation seam's takeover/handoff synthesis either (change 0437): wire the
 	// app-side run launch gate over this repository's run registry.
 	driver.SetRunLaunchGate(runLaunchGate(gitCommonDir))
-	// A released slot whose leftover run is completed or confirmed-cancelled is
-	// settled through exact-token retirement rather than refused stale-run-id
-	// (change 0446): wire the settlement read over the same registry.
-	driver.SetRunSettledResolver(runSettledResolver(gitCommonDir))
 	return &gatedriveContinuationSeam{store: store, driver: driver}, nil
 }
 
