@@ -1,7 +1,7 @@
 ---
 id: 489
 slug: 'delete-the-task-owned-gate-drive-machinery-once-no-skill-dri'
-title: 'Delete the task-owned gate-drive machinery once no skill drives task tests'
+title: 'Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives'
 status: 'proposed'
 priority: 'critical'
 type: 'refactor'
@@ -9,10 +9,10 @@ created: '2026-10-02'
 updated: '2026-10-02'
 depends_on: [488]
 stacked_on:
-related: [359, 405, 416, 452, 453, 457, 459, 467]
+related: [359, 405, 416, 452, 453, 457, 459, 467, 490, 491]
 discovered_from: []
-adrs: [107, 117, 120, 125]
-spec:
+adrs: [107, 117, 120, 125, 130]
+spec: 'docs/superpowers/specs/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md'
 plan:
 results:
 trivial: false
@@ -29,42 +29,59 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0117](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0125](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md) |
+| Spec | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md) |
+| ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0117](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0125](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md), [ADR-0130](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Once change 0488 lands, no skill calls any of the following:
+Change 0488 moved build-task workers off the gate driver. ADR-0130 left the task-drive Go machinery "in place but unused until change 0489 deletes it". No workflow calls any of these any more:
 
 - `--owner task`;
-- `gate.drive.prepare-scope` for a task;
-- predecessor receipts;
-- `gate.drive.acknowledge`;
-- takeover of a task drive.
+- scoped starts with predecessor receipts;
+- `gate.drive.prepare-scope`, `gate.drive.acknowledge`, and `gate.drive.takeover`.
 
-The code behind them stays in place, though:
+The code behind them is about 2,000 production lines and 6,850 test lines. It includes:
 
-- the slot lifecycle, predecessor receipts and pending-ack journal in `internal/gatedrive/scope.go`;
-- `acknowledge.go`;
-- the scoped paths in `driver.go` and `admission.go` (`admitScoped`, `rotateWorktreeExecutionForSuccessor`, `siblingMayHoldReservation`);
-- the seams in `internal/app/gate_drive.go` and `internal/cli/gate.go`.
+- the scope slot lifecycle and pending-ack journal (`scope.go`, `acknowledge.go`);
+- the scoped admission paths (`admitScoped`, `rotateWorktreeExecutionForSuccessor`, `siblingMayHoldReservation`);
+- the task-intent owner and its CLI surface.
 
-That is roughly 2,000 production lines and 5–6k test lines.
+That code is where the fix chain 0405 → 0416 → 0452 → 0453 → 0459 → 0467 lived, and open change 0457 still targets it. Dead code with live concurrency bugs is a liability. It keeps admission and the lock order complex for the owners that remain.
 
-That code is where the recent fix chain lived: 0405, 0416, 0452, 0453, 0459, 0467. Open change 0457 is still there. Dead code with live concurrency bugs is a liability. It keeps the admission paths and lock order (worktree admission → scope → drive) complex for the owners that remain. It also forces anyone reading a refusal to reason through states no caller can reach any more.
+Grooming also traced a live defect in the part that stays. The run tracker keeps one recovery scope per run. `run.start` prepares it, and `run.verdict` uses it to turn a `run-incomplete` into `run-continue` by taking over a drive that a dead implement-next left behind. The candidate rule counts a finished drive as recoverable until something marks it consumed, and only the task path ever did that.
+
+Since 0488's review fix made build-owned starts carry `--change-id`, every finished build gate stays a candidate for the rest of the run. So an implement-next that dies after a red-then-green gate, or after committing past its last gate, now ends in a terminal `run-stop … takeover-ambiguous` or a fingerprint halt instead of a retry.
 
 ## What changes
 
-- **Remove the task path.** Delete the task-intent owner and its start flags (`--scope-id`, `--child-cap`, `--predecessor-drive-id`, `--predecessor-owner-gen`), task-scope reservation and rotation, the pending-ack journal, `gate.drive.acknowledge`, and takeover of task drives. Their tests and capability-catalog entries go with them.
-- **Keep what other gates use.** Keep everything the build-owned and finalize gates still need. Grooming must trace whether the run tracker's outer scope (prepare-scope at `run.start`, the parent capability, takeover via `run.continue`) still needs scope code. If it does, keep the minimum; if not, remove scopes entirely.
-- **Old records on disk.** Existing `gate-scopes/v2` records must not block admission once the code is gone. Use the assess-and-ignore posture from ADR-0120/0125. Any schema bump follows the stores' fail-closed rules.
-- **Close moot work.** Close 0457 if the code it fixes is gone.
-- **Verify.** Run the whole suite, and re-budget suite runtime rows that shrink.
+- **Delete the task path:**
+  - the three operations, with their catalog, schema, and install-map entries;
+  - `gate.drive.start`'s `--owner task` and its four scope flags;
+  - the task-intent owner;
+  - scoped starts and slot rotation;
+  - the scope's per-test lifecycle and terminal acknowledgement;
+  - the task-only branches in shared code, including `Takeover`'s run-revocation check (the outer scope never carries a run id) and the cancel census's scope walk;
+  - their tests.
+- **Keep a minimal outer scope, in-process.** `run.start` prepares it, `run.verdict` binds and takes over through it, and `run.cancel` reads its worktree. The record keeps repo, change, branch, worktree, the two capability hashes, and the closed flag.
+- **The outer takeover recovers only a still-running drive.** A finished drive is never a candidate. A run that dies mid-gate still continues; a run that dies after its gate finished gets `run-retry-once`.
+- **Old records stay unread.** There is no schema bump, no reset, and no migration.
+  - Outer scopes keep working across the upgrade.
+  - Task-scope and worker-drive files are never opened again.
+  - Legacy `scoped` slots still settle.
+- **0457** was killed at this groom as superseded.
+- **Docs and decision record:**
+  - update the glossary, the Codex dispatch clause, and comments in kept code;
+  - record one new ADR for the takeover rule (`relates_to: [107, 130]`).
+- **Verify:** run the whole suite, and re-budget the runtime rows that shrink.
 
-Accepted loss: none beyond 0488's. This is removal of unreachable code.
+Accepted loss: a gate verdict that finished before implement-next died is not reused. The retry re-runs the suite, which costs one build attempt and the run's retry.
 
 ## Out of scope
 
-- The prose contract change (dependency 0488).
-- Redesigning the worktree admission slot, and run-id fencing (follow-up changes).
-- Build-owned drive mechanics: start/advance, owner generation, handoff/claim of build drives, fingerprinting, idempotent relaunch, and the suite-attempt budget.
+- The worker prose contract (0488, done).
+- Replacing the worktree admission slot (0490) and retiring run-id fencing (0491), apart from the takeover revocation check, which is unreachable today.
+- Build-owned drive mechanics: start/advance, owner generation, handoff/claim, fingerprinting, the idempotent relaunch, and the suite-attempt budget.
+- The run tracker's attribution and retry model, `run.continue`, and the run-context claim binding.
+- The `--task-id`/`--phase` recording flags.
+- Deleting old record files from disk.

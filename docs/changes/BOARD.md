@@ -1,6 +1,6 @@
 # Backlog
 
-**491 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 335 done · 🗑️ 127 killed
+**491 changes** — 🔴 1 blocked · 🟣 4 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 335 done · 🗑️ 127 killed
 
 ## 🔴 Blocked (1)
 
@@ -8,21 +8,21 @@
 |---|-------|----------|------|----|--------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` |  | Halted at build Task 5 pending a human decision among 3 feasible paths for the AGENTS.md dispatch-budget overage (trim in-block coordinator prose, re-baseline dispatchBudget, or relocate guidance) — see the run-halted record on the change. |
 
-## 🟣 Groomed (3)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0489](active/0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) | Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives | `critical` | `refactor` | [spec](../superpowers/specs/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (13)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0491](active/0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Stop fencing gate admission on the run id; keep the run tracker for attribution only | `critical` | `refactor` | ⏳ waiting on #490 — not yet built |
 | [0490](active/0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | `critical` | `refactor` | ⏳ waiting on #489 — not yet built |
-| [0489](active/0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) | Delete the task-owned gate-drive machinery once no skill drives task tests | `critical` | `refactor` | needs-grooming |
 | [0483](active/0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | `low` | `feat` | needs-grooming |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-grooming |
 | [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-grooming |
