@@ -67,8 +67,9 @@ const (
 	// already-in-progress change with a valid workspace identity, so the run tracker
 	// refuses to pre-bind attribution to it. No record is minted (change 0359).
 	ReasonRunResumeUnverified = "resume-unverified"
-	// ReasonRunScopeFailed: the outer recovery scope could not be prepared, so no
-	// run context exists to hand the child. No record is minted (change 0359).
+	// ReasonRunScopeFailed: the outer recovery scope could not be prepared, or its
+	// grant carried no child capability, so no run context exists to hand the
+	// child. No record is minted (change 0359).
 	ReasonRunScopeFailed = "scope-failed"
 	// ReasonRunResumeActiveRun: a --resume id names a change whose prior run is
 	// still ACTIVE — an earlier coordinator can still act on the worktree. Resume
@@ -222,9 +223,12 @@ func runTrackerResumeObserve(reservedKey string) RunStartResult {
 	})
 }
 
-// startedRunResult builds the started report for key. A started run always carries
-// its key and run context, so the positional `run-started <key> <run-context>` line
-// is always two tokens; an empty either fails closed as run-untracked mint-failed.
+// startedRunResult formats the started report for key. Its callers guarantee a
+// non-empty key (a successful mint) and run context (an empty one is refused as
+// scope-failed right after the scope is prepared, before any mint), so the positional
+// `run-started <key> <run-context>` line is always two tokens. The empty-input check
+// below is unreachable defense in depth, never the refusal point: by the time a
+// caller formats, the records are already minted.
 func startedRunResult(key, runContext string) RunStartResult {
 	if key == "" || runContext == "" {
 		return runUntracked(ReasonRunMintFailed)
@@ -350,7 +354,9 @@ func armResumeReplacement(repoDir string, sdeps RunTrackerScopeDeps, oldKey stri
 		Branch:   p.branch,
 		Worktree: p.worktree,
 	})
-	if serr != nil {
+	if serr != nil || grant.ChildCapability == "" {
+		// A grant with no child capability has no run context to hand the child:
+		// refuse before minting, so no record exists behind an untracked report.
 		return runUntracked(ReasonRunScopeFailed)
 	}
 	key, err := MintRunTrackerRecord(repoDir, RunTrackerRecord{
@@ -634,7 +640,9 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 		Branch:   branch,
 		Worktree: worktree,
 	})
-	if serr != nil {
+	if serr != nil || grant.ChildCapability == "" {
+		// A grant with no child capability has no run context to hand the child:
+		// refuse before minting, so no record exists behind an untracked report.
 		return runUntracked(ReasonRunScopeFailed)
 	}
 
@@ -705,7 +713,7 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 	// (7) Report the started run with its key, its run context, and the honest
 	// owner-lifecycle caveat: the dispatched route has no automatic Stop, so a Stop is
 	// the explicit `run.cancel` operation keyed by this run's key (change 0375 Task 13).
-	// startedRunResult refuses an empty key or run context, so the line is always two
-	// tokens.
+	// The key and run context are both non-empty here (the empty-capability refusal
+	// at step 5), so the line is always two tokens.
 	return startedRunResult(key, grant.ChildCapability)
 }
