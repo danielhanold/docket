@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0490 — Replace the durable worktree admission slot with a supervisor-held kernel lock](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md)**
+> ↩ **[Change 0490 — Replace the durable worktree admission slot with a supervisor-held kernel lock](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-02-0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md)**
 <!-- docket:backlink:end -->
 # Replace the durable worktree admission slot with a supervisor-held kernel lock — Results
 
