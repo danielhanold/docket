@@ -539,3 +539,93 @@ func TestIntegrationRunStartStartedLineIsTwoTokens(t *testing.T) {
 		check(t, RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5))
 	})
 }
+
+// runKeyDirCount counts the run-key directories under the run-tracker root — every
+// durable run-tracker record and run record lives in one — tolerating a root that
+// was never created (nothing minted yet).
+func runKeyDirCount(t *testing.T, repoDir string) int {
+	t.Helper()
+	root, err := runTrackerRoot(repoDir)
+	if err != nil {
+		t.Fatalf("runTrackerRoot: %v", err)
+	}
+	entries, err := os.ReadDir(root)
+	if errors.Is(err, os.ErrNotExist) {
+		return 0
+	}
+	if err != nil {
+		t.Fatalf("read run-tracker root: %v", err)
+	}
+	n := 0
+	for _, e := range entries {
+		if e.IsDir() {
+			n++
+		}
+	}
+	return n
+}
+
+// TestIntegrationRunStartEmptyRunContextMintsNothing (review F2): a prepared scope
+// whose grant carries no child capability has no run context to hand the child, so
+// the start must refuse run-untracked scope-failed BEFORE minting anything. A refusal
+// reported after the mint would tell the caller the run is untracked while an active
+// run record already exists. Covers every path that prepares a scope: a fresh start,
+// a no-run-record resume, and a cancelled-replacement resume (which must also leave
+// the cancelled predecessor unsuperseded).
+func TestIntegrationRunStartEmptyRunContextMintsNothing(t *testing.T) {
+	emptyGrant := func() *fakeScopePrep {
+		g := sampleScopeGrant()
+		g.ChildCapability = ""
+		return &fakeScopePrep{grant: g}
+	}
+	check := func(t *testing.T, repoDir string, before int, sp *fakeScopePrep, res RunStartResult) {
+		t.Helper()
+		if res.Started {
+			t.Fatalf("started with an empty run context: %q", res.HumanText())
+		}
+		if res.Reason != ReasonRunScopeFailed {
+			t.Errorf("Reason = %q, want %q", res.Reason, ReasonRunScopeFailed)
+		}
+		if got, want := res.HumanText(), "run-untracked "+ReasonRunScopeFailed; got != want {
+			t.Errorf("HumanText = %q, want %q", got, want)
+		}
+		if res.Key != "" {
+			t.Errorf("returned key %q for an untracked start", res.Key)
+		}
+		if sp.calls != 1 {
+			t.Errorf("PrepareScope called %d times, want 1", sp.calls)
+		}
+		if got := runKeyDirCount(t, repoDir); got != before {
+			t.Errorf("run-key directories = %d, want %d: the refusal minted a record", got, before)
+		}
+	}
+	t.Run("fresh start", func(t *testing.T) {
+		repo := newRunTrackerRepo(t)
+		deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
+		sp := emptyGrant()
+		before := runKeyDirCount(t, repo)
+		check(t, repo, before, sp, RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0))
+	})
+	t.Run("no-run-record resume", func(t *testing.T) {
+		repoDir := newWorkingRepo(t, nil).invocation
+		deps, wdeps := resumeRunDeps(t)
+		sp := emptyGrant()
+		before := runKeyDirCount(t, repoDir)
+		check(t, repoDir, before, sp, RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5))
+	})
+	t.Run("cancelled-replacement resume", func(t *testing.T) {
+		repoDir := newWorkingRepo(t, nil).invocation
+		priorKey := seedPriorRun(t, repoDir, RunCancelled)
+		deps, wdeps := resumeRunDeps(t)
+		sp := emptyGrant()
+		before := runKeyDirCount(t, repoDir)
+		check(t, repoDir, before, sp, RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5))
+		prior, _, err := LoadRunRecord(repoDir, priorKey)
+		if err != nil {
+			t.Fatalf("LoadRunRecord(prior): %v", err)
+		}
+		if prior.State != RunCancelled || prior.ReplacementReserved != "" {
+			t.Errorf("prior run state=%q reserved=%q, want cancelled and unreserved", prior.State, prior.ReplacementReserved)
+		}
+	})
+}
