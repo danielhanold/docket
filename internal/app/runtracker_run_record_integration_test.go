@@ -64,7 +64,7 @@ func TestIntegrationRunRecordRunRecordCRUD(t *testing.T) {
 	}
 
 	p := RunParticipant{Kind: "coordinator", NativeHandle: "handle-1"}
-	if err := RegisterRunParticipant(repo, key, rec.RunID, p); err != nil {
+	if err := RegisterRunParticipant(repo, key, p); err != nil {
 		t.Fatalf("RegisterRunParticipant: %v", err)
 	}
 	got, gen2, err := LoadRunRecord(repo, key)
@@ -83,11 +83,6 @@ func TestIntegrationRunRecordRunRecordCRUD(t *testing.T) {
 	if gen2 == gen {
 		t.Fatalf("a CAS write must rotate the physical generation")
 	}
-
-	// A stale expected-run locator is refused: registration binds to the exact run.
-	if err := RegisterRunParticipant(repo, key, "not-the-run", p); !isRunKind(err, ErrRunIDMismatch) {
-		t.Fatalf("a stale expected-run must be refused ErrRunIDMismatch, got %v", err)
-	}
 }
 
 // TestIntegrationRunRecordRegisterParticipantRejectsNonActive proves a fenced (non-active) run admits
@@ -96,7 +91,7 @@ func TestIntegrationRunRecordRunRecordCRUD(t *testing.T) {
 func TestIntegrationRunRecordRegisterParticipantRejectsNonActive(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintTestRunKey(t, repo)
-	rec, err := MintRunRecord(repo, key, "")
+	_, err := MintRunRecord(repo, key, "")
 	if err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
@@ -108,7 +103,7 @@ func TestIntegrationRunRecordRegisterParticipantRejectsNonActive(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("runRecordCAS fence: %v", err)
 	}
-	err = RegisterRunParticipant(repo, key, rec.RunID, RunParticipant{Kind: "task"})
+	err = RegisterRunParticipant(repo, key, RunParticipant{Kind: "task"})
 	if !isRunKind(err, ErrRunNotActive) {
 		t.Fatalf("register on a cancelling run must be refused ErrRunNotActive, got %v", err)
 	}
@@ -265,7 +260,7 @@ func mintRunFixture(t *testing.T) (repo, key string) {
 
 func TestIntegrationRunRecordFenceRunCompletingFromActive(t *testing.T) {
 	repo, key := mintRunFixture(t) // reuse/extract the file's existing mint helper; changeID "441"
-	st, err := FenceRunCompleting(repo, key, "")
+	st, err := FenceRunCompleting(repo, key)
 	if err != nil || st != RunCompleting {
 		t.Fatalf("fence: state %q err %v", st, err)
 	}
@@ -274,7 +269,7 @@ func TestIntegrationRunRecordFenceRunCompletingFromActive(t *testing.T) {
 		t.Fatalf("persisted state %q", rec.State)
 	}
 	// Idempotent replay resumes the same closeout.
-	if st, err = FenceRunCompleting(repo, key, ""); err != nil || st != RunCompleting {
+	if st, err = FenceRunCompleting(repo, key); err != nil || st != RunCompleting {
 		t.Fatalf("replay: state %q err %v", st, err)
 	}
 }
@@ -283,7 +278,7 @@ func TestIntegrationRunRecordFenceRunCompletingNeverRelabelsTerminalStates(t *te
 	for _, s := range []runState{RunCancelling, RunCancelled, RunSuperseded, runState("garbage")} {
 		repo, key := mintRunFixture(t)
 		forceRunState(t, repo, key, s) // helper: runRecordCAS setting rec.State = s
-		st, err := FenceRunCompleting(repo, key, "")
+		st, err := FenceRunCompleting(repo, key)
 		ee, ok := AsRunError(err)
 		if !ok || ee.Kind != ErrRunNotActive || st != s {
 			t.Fatalf("state %q: got st %q err %v", s, st, err)
@@ -295,20 +290,12 @@ func TestIntegrationRunRecordFenceRunCompletingNeverRelabelsTerminalStates(t *te
 	}
 }
 
-func TestIntegrationRunRecordFenceRunCompletingRejectsStaleLocator(t *testing.T) {
-	repo, key := mintRunFixture(t)
-	_, err := FenceRunCompleting(repo, key, "not-the-run-id")
-	if ee, ok := AsRunError(err); !ok || ee.Kind != ErrRunIDMismatch {
-		t.Fatalf("err %v", err)
-	}
-}
-
 func TestIntegrationRunRecordCompleteRunOnlyFromCompleting(t *testing.T) {
 	repo, key := mintRunFixture(t)
 	if err := CompleteRun(repo, key); err == nil {
 		t.Fatal("completed from active") // never a shortcut past the fence
 	}
-	_, _ = FenceRunCompleting(repo, key, "")
+	_, _ = FenceRunCompleting(repo, key)
 	if err := CompleteRun(repo, key); err != nil {
 		t.Fatalf("complete: %v", err)
 	}
@@ -317,7 +304,7 @@ func TestIntegrationRunRecordCompleteRunOnlyFromCompleting(t *testing.T) {
 	}
 	// Cancellation that won from completing makes completion lose.
 	repo2, key2 := mintRunFixture(t)
-	_, _ = FenceRunCompleting(repo2, key2, "")
+	_, _ = FenceRunCompleting(repo2, key2)
 	forceRunState(t, repo2, key2, RunCancelling)
 	if err := CompleteRun(repo2, key2); err == nil {
 		t.Fatal("completion must lose to a cancellation that won")
@@ -328,7 +315,7 @@ func TestIntegrationRunRecordRegisterRunParticipantRejectedOnCompletingAndComple
 	for _, s := range []runState{RunCompleting, RunCompleted} {
 		repo, key := mintRunFixture(t)
 		forceRunState(t, repo, key, s)
-		err := RegisterRunParticipant(repo, key, "", RunParticipant{Kind: "task", NativeHandle: "h"})
+		err := RegisterRunParticipant(repo, key, RunParticipant{Kind: "task", NativeHandle: "h"})
 		if ee, ok := AsRunError(err); !ok || ee.Kind != ErrRunNotActive {
 			t.Fatalf("state %q admitted a registration: %v", s, err)
 		}
@@ -348,31 +335,31 @@ func TestIntegrationRunRecordSupersedeRefusesCompletingAndCompleted(t *testing.T
 
 func TestIntegrationRunRecordRecordRunParticipantTerminal(t *testing.T) {
 	repo, key := mintRunFixture(t)
-	must(t, RegisterRunParticipant(repo, key, "", RunParticipant{Kind: "coordinator", NativeHandle: "thread-1"}))
-	must(t, RecordRunParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalCompleted))
+	must(t, RegisterRunParticipant(repo, key, RunParticipant{Kind: "coordinator", NativeHandle: "thread-1"}))
+	must(t, RecordRunParticipantTerminal(repo, key, "thread-1", "turn-9", ParticipantTerminalCompleted))
 	rec, _, _ := LoadRunRecord(repo, key)
 	p := rec.Participants[0]
 	if p.TerminalStatus != ParticipantTerminalCompleted || p.TerminalTurn != "turn-9" || p.TerminalObservedAt == "" {
 		t.Fatalf("evidence not persisted: %+v", p)
 	}
 	// Idempotent identical replay; conflicting evidence fails closed.
-	must(t, RecordRunParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalCompleted))
-	if err := RecordRunParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalFailed); err == nil {
+	must(t, RecordRunParticipantTerminal(repo, key, "thread-1", "turn-9", ParticipantTerminalCompleted))
+	if err := RecordRunParticipantTerminal(repo, key, "thread-1", "turn-9", ParticipantTerminalFailed); err == nil {
 		t.Fatal("conflicting terminal status accepted")
 	}
-	if err := RecordRunParticipantTerminal(repo, key, "", "thread-1", "other-turn", ParticipantTerminalCompleted); err == nil {
+	if err := RecordRunParticipantTerminal(repo, key, "thread-1", "other-turn", ParticipantTerminalCompleted); err == nil {
 		t.Fatal("mismatched turn accepted") // AC4: mismatched turn cannot satisfy
 	}
 }
 
 func TestIntegrationRunRecordRecordRunParticipantTerminalUnknownHandleAndBadInput(t *testing.T) {
 	repo, key := mintRunFixture(t)
-	err := RecordRunParticipantTerminal(repo, key, "", "ghost", "t", ParticipantTerminalCompleted)
+	err := RecordRunParticipantTerminal(repo, key, "ghost", "t", ParticipantTerminalCompleted)
 	if ee, ok := AsRunError(err); !ok || ee.Kind != ErrRunParticipantUnknown {
 		t.Fatalf("err %v", err)
 	}
 	for _, bad := range [][3]string{{"", "t", "completed"}, {"h", "", "completed"}, {"h", "t", ""}, {"h", "t", "yielded"}} {
-		if RecordRunParticipantTerminal(repo, key, "", bad[0], bad[1], bad[2]) == nil {
+		if RecordRunParticipantTerminal(repo, key, bad[0], bad[1], bad[2]) == nil {
 			t.Fatalf("malformed evidence %v accepted", bad)
 		}
 	}
@@ -383,44 +370,43 @@ func TestIntegrationRunRecordRecordRunParticipantTerminalAllowedAfterFence(t *te
 	// fence; registering or reopening work is not."
 	for _, s := range []runState{RunCompleting, RunCancelling} {
 		repo, key := mintRunFixture(t)
-		must(t, RegisterRunParticipant(repo, key, "", RunParticipant{Kind: "task", NativeHandle: "h1"}))
+		must(t, RegisterRunParticipant(repo, key, RunParticipant{Kind: "task", NativeHandle: "h1"}))
 		forceRunState(t, repo, key, s)
-		must(t, RecordRunParticipantTerminal(repo, key, "", "h1", "turn-1", ParticipantTerminalFailed))
+		must(t, RecordRunParticipantTerminal(repo, key, "h1", "turn-1", ParticipantTerminalFailed))
 	}
 }
 
-// TestIntegrationRunRecordCheckRunIDLinkage (change 0463): the agent.enter preflight answers with a
-// typed RunError. Not-found covers both a run key with no run and a run key
-// that does not exist (the pair names no run). Mismatch covers a different
-// recorded id. A matching pair is nil.
-func TestIntegrationRunRecordCheckRunIDLinkage(t *testing.T) {
+// TestIntegrationRunRecordCheckRunKey (change 0491): agent.enter's --run-key
+// preflight. A key with no record, a malformed key, or a key whose run record was
+// never minted is run-not-found; a corrupt run record keeps its kind; a key whose
+// run record loads passes. It reads only and never checks liveness.
+func TestIntegrationRunRecordCheckRunKey(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	bare := mintTestRunKey(t, repo)
-	if err := CheckRunIDLinkage(repo, bare, "0790b760e26444866ef2e156ba383326"); !isRunKind(err, ErrRunNotFound) {
-		t.Fatalf("run key without a run: got %v, want run-not-found", err)
-	}
-
 	withRun := mintTestRunKey(t, repo)
-	ep, err := MintRunRecord(repo, withRun, "463")
-	if err != nil {
+	if _, err := MintRunRecord(repo, withRun, "491"); err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
-	if err := CheckRunIDLinkage(repo, withRun, ep.RunID); err != nil {
-		t.Fatalf("matching pair must pass, got %v", err)
+	for _, tc := range []struct{ name, key string }{
+		{"no run record", bare},
+		{"unknown key", "00000000000000000000000000000491"},
+		{"malformed key", "not/a-key"},
+	} {
+		if err := CheckRunKey(repo, tc.key); !isRunKind(err, ErrRunNotFound) {
+			t.Errorf("%s: CheckRunKey = %v, want run-not-found", tc.name, err)
+		}
 	}
-	if err := CheckRunIDLinkage(repo, withRun, "0790b760e26444866ef2e156ba383326"); !isRunKind(err, ErrRunIDMismatch) {
-		t.Fatalf("wrong run id: got %v, want run-id-mismatch", err)
+	if err := CheckRunKey(repo, withRun); err != nil {
+		t.Fatalf("a key with a run record must pass, got %v", err)
 	}
-
-	gone := mintTestRunKey(t, repo)
 	root, rerr := runTrackerRoot(repo)
 	if rerr != nil {
 		t.Fatalf("runTrackerRoot: %v", rerr)
 	}
-	if err := os.RemoveAll(filepath.Join(root, gone)); err != nil {
-		t.Fatalf("remove gate dir: %v", err)
+	if err := os.WriteFile(filepath.Join(root, withRun, runRecordFileName), []byte("{not json"), 0o600); err != nil {
+		t.Fatalf("corrupt run record: %v", err)
 	}
-	if err := CheckRunIDLinkage(repo, gone, ep.RunID); !isRunKind(err, ErrRunNotFound) {
-		t.Fatalf("absent run key: got %v, want run-not-found", err)
+	if err := CheckRunKey(repo, withRun); !isRunKind(err, ErrRunRecordCorrupt) {
+		t.Fatalf("a corrupt run record must keep its kind, got %v", err)
 	}
 }

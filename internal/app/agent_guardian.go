@@ -20,15 +20,16 @@
 //     EOF, finds no marker, and fences the run (active→cancelling) then reaps
 //     the run — so an abandoned run stops blocking a replacement automatically.
 //
-// AUTHORITY. The guardian holds CANCEL/OBSERVE authority only. It carries the gate
-// key and the public run id (locators, not credentials) and NO child capability,
+// AUTHORITY. The guardian holds CANCEL/OBSERVE authority only. It carries the run
+// key (a locator, not a credential) and NO child capability,
 // so it is fenced out of mutation admission exactly like any non-writer (the
 // run mutation fence keys on the run state the guardian drives, never on the
 // guardian's identity). It reaps the run's registered participants and its gate
 // drives (the launch census, attributed by the run's context hash) through the SAME
 // accounting run.cancel uses (reconcileRunTeardown), but WITHOUT
 // the authority conditions — the guardian is a trusted re-exec the already-authorized
-// owner spawned, located to exactly one run, which it verifies before fencing.
+// owner spawned, located to exactly one run by its key. Keys are bind-once and never
+// reused, so the key alone cannot fence a successor run.
 package app
 
 import (
@@ -45,17 +46,11 @@ import (
 const (
 	guardianRepoDirEnv = "DOCKET_AGENT_GUARDIAN_REPO_DIR"
 	guardianRunKeyEnv  = "DOCKET_AGENT_GUARDIAN_RUN_KEY"
-	guardianRunIDEnv   = "DOCKET_AGENT_GUARDIAN_RUN_ID"
 	guardianMarkerEnv  = "DOCKET_AGENT_GUARDIAN_MARKER"
 	// guardianPipeFD is the inherited pipe read end (the first and only ExtraFiles
 	// slot), mirroring the supervisor's inherited-descriptor contract.
 	guardianPipeFD = 3
 )
-
-// errGuardianRunIDMismatch aborts the fence CAS without a write when the located
-// run's public id does not match the id the guardian was spawned for — a stale
-// re-exec can never fence an unrelated successor run. It is internal to the fence.
-var errGuardianRunIDMismatch = errors.New("guardian run id does not match the located run")
 
 // GuardianRequested reports whether this process was re-executed as an agent death
 // guardian. It is the whole predicate cli.Run's pre-Cobra hook keys on: true iff
@@ -80,7 +75,6 @@ func MaybeRunAgentGuardian() (int, bool) {
 func RunAgentGuardianFromEnv() int {
 	repoDir := os.Getenv(guardianRepoDirEnv)
 	runKey := os.Getenv(guardianRunKeyEnv)
-	runID := os.Getenv(guardianRunIDEnv)
 	marker := os.Getenv(guardianMarkerEnv)
 
 	// Adopt the inherited pipe read end and mark it close-on-exec: it must never
@@ -113,15 +107,15 @@ func RunAgentGuardianFromEnv() int {
 	}
 
 	// Abrupt owner death, no marker: fence the run and reap the run.
-	guardianFenceAndReap(repoDir, runKey, runID)
+	guardianFenceAndReap(repoDir, runKey)
 	return 0
 }
 
 // guardianFenceAndReap flips the located run active→cancelling (idempotent; a
 // concurrent or prior run.cancel that already fenced it leaves it cancelling) and,
-// only when the fence holds, reaps the run's participants and gate drives. It
-// verifies the run id before writing so a stale guardian cannot fence a successor
-// run, and it never revives a non-active run — cancelled/superseded, or a
+// only when the fence holds, reaps the run's participants and gate drives. Keys are
+// bind-once and never reused, so the key alone cannot fence a successor run; it
+// never revives a non-active run — cancelled/superseded, or a
 // successful completing/completed closeout (change 0441).
 //
 // The guardian FENCES and reaps best-effort but deliberately does NOT finalize the
@@ -131,11 +125,8 @@ func RunAgentGuardianFromEnv() int {
 // exclusion that blocks any replacement until a human `run.cancel` re-runs the
 // accounting under authority and confirms cancellation. That is the authority split:
 // the guardian (no authority) fences on death; the human (authority) confirms.
-func guardianFenceAndReap(repoDir, runKey, runID string) {
+func guardianFenceAndReap(repoDir, runKey string) {
 	ferr := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
-		if runID != "" && rec.RunID != runID {
-			return errGuardianRunIDMismatch // abort with no write
-		}
 		if rec.State == RunActive {
 			rec.State = RunCancelling
 		}
@@ -173,14 +164,14 @@ type GuardianHandle struct {
 }
 
 // SpawnAgentGuardian re-execs executable as a detached death guardian for the run
-// located by (runKey, runID) under repoDir, watching the returned handle's
+// located by runKey under repoDir, watching the returned handle's
 // pipe. markerPath names the durable completion marker the owner writes (via
 // Complete) on a clean end so the guardian never mistakes it for a Stop. The
 // guardian is a new session leader (Setsid), so it survives the owner's terminal or
 // session ending; it inherits ONLY the pipe read end (fd 3) and none of the owner's
 // standard streams (all routed to /dev/null), carrying no capability. On any error
 // before Start it closes every descriptor it opened.
-func SpawnAgentGuardian(executable, repoDir, runKey, runID, markerPath string) (*GuardianHandle, error) {
+func SpawnAgentGuardian(executable, repoDir, runKey, markerPath string) (*GuardianHandle, error) {
 	// Clear any pre-existing completion marker BEFORE Start, so only a marker THIS
 	// owner writes during THIS lifetime (via Complete) can suppress the guardian's
 	// fence. A stale marker left in a reused run-key directory would otherwise
@@ -209,7 +200,6 @@ func SpawnAgentGuardian(executable, repoDir, runKey, runID, markerPath string) (
 	cmd.Env = append(os.Environ(),
 		guardianRepoDirEnv+"="+repoDir,
 		guardianRunKeyEnv+"="+runKey,
-		guardianRunIDEnv+"="+runID,
 		guardianMarkerEnv+"="+markerPath)
 	// Setsid detaches the guardian into its own session so a SIGHUP to the owner's
 	// session, or the owner's death, does not take the guardian with it.

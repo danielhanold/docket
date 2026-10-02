@@ -57,7 +57,7 @@ func TestIntegrationRunCancelRunCancelHappyPath(t *testing.T) {
 // disposition cancellation-pending with a stop-unproven finding naming it.
 func TestIntegrationRunCancelRunCancelPendingOnUnprovenStop(t *testing.T) {
 	fx := newCancelFixture(t)
-	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
+	must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: false}}
 	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 
@@ -149,7 +149,7 @@ func TestIntegrationRunCancelRunCancelRefusedWrongRepo(t *testing.T) {
 func TestIntegrationRunCancelFencesBeforeStopping(t *testing.T) {
 	fx := newCancelFixture(t)
 	// A raw-run participant present at entry; stopping it proves teardown.
-	if err := RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: "raw-run", NativeHandle: "R1"}); err != nil {
+	if err := RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: "raw-run", NativeHandle: "R1"}); err != nil {
 		t.Fatalf("RegisterRunParticipant P1: %v", err)
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{"R1": true, fx.runDir: true}}
@@ -183,7 +183,7 @@ func TestIntegrationRunCancelFencesBeforeStopping(t *testing.T) {
 // re-fence, no authority restore) and completes to cancelled when the stop proves.
 func TestIntegrationRunCancelRepeatResumesCleanup(t *testing.T) {
 	fx := newCancelFixture(t)
-	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
+	must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: false}}
 
 	first := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
@@ -333,7 +333,7 @@ func TestIntegrationRunCancelStaysPendingWithoutCompletedIdenticalRetry(t *testi
 // accounts the run to cancelled.
 func TestIntegrationRunCancelNativeAdapterAbsentIsFindingNotSilence(t *testing.T) {
 	fx := newCancelFixture(t)
-	if err := RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}); err != nil {
+	if err := RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}); err != nil {
 		t.Fatalf("RegisterRunParticipant: %v", err)
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
@@ -525,7 +525,7 @@ func TestIntegrationRunCancelRunCancelPublicEntry(t *testing.T) {
 // finishes the run transition.
 func TestIntegrationRunCancelInterruptedBeforeFinalWriteConverges(t *testing.T) {
 	fx := newCancelFixture(t)
-	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
+	must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	// Reconstruct the crash state directly: the run record CAS has no seam, so the
 	// fence and the full teardown are driven here, leaving the run cancelling.
@@ -651,7 +651,7 @@ func TestIntegrationRunCancelTerminalRepairRefusesUnsafeHistories(t *testing.T) 
 // no run transition; the cancelling→cancelled CAS stays exclusively in runCancel.
 func TestIntegrationRunCancelGuardianReapsButNeverFinalizes(t *testing.T) {
 	fx := newCancelFixture(t)
-	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
+	must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	recon := okLaunchReconciler()
 	// guardianFenceAndReap composes productionCancelSeams, whose stopper/reconciler
@@ -1166,7 +1166,7 @@ func TestIntegrationRunCancelSignaledOrVanishedSupervisorIsCancelled(t *testing.
 			}
 			// The run also registered the run as an execution participant, so the
 			// stopper's proof rule (process.State.SupervisorExited) is exercised beside the census's.
-			must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+			must(t, RegisterRunParticipant(fx.repo, fx.key,
 				RunParticipant{Kind: participantKindGateScope, NativeHandle: runDir}))
 
 			res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human stop")

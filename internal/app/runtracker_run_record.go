@@ -191,9 +191,11 @@ const (
 	// was attempted on a run whose state is not active — a fenced or terminal run
 	// admits no new participant.
 	ErrRunNotActive RunErrorKind = "run-not-active"
-	// ErrRunIDMismatch: a caller presented an expected run id that is not this
-	// record's RunID — a stale locator. It confers no registration authority.
-	ErrRunIDMismatch RunErrorKind = "run-id-mismatch"
+	// ErrRunRecordConflict: the run record is already bound to a different change
+	// or worktree (bind-run-change, bind-run-worktree), or the presented terminal
+	// evidence is malformed or conflicts with what is recorded
+	// (record-participant-terminal). Recorded state is never silently re-pointed.
+	ErrRunRecordConflict RunErrorKind = "run-record-conflict"
 	// ErrRunNotCancelled: a resume attempted to supersede a run whose state is
 	// not confirmed-cancelled — resume reserves a replacement ONLY after confirmed
 	// cancellation, never over an active or still-cancelling run (change 0375 Task 12).
@@ -328,15 +330,11 @@ func readStoredRun(dir, op string) (RunRecord, string, error) {
 }
 
 // RegisterRunParticipant appends p to the run's participants under the CAS. It
-// verifies expectRunID matches the record's RunID when expectRunID is non-empty
-// (a stale locator is ErrRunIDMismatch) and REJECTS when the state is not active
-// (ErrRunNotActive) — a fenced or terminal run admits no new participant. It
-// stamps RegisteredAt (RFC3339 UTC) when the caller left it empty.
-func RegisterRunParticipant(repoDir, runKey, expectRunID string, p RunParticipant) error {
+// REJECTS when the state is not active (ErrRunNotActive) — a fenced or terminal
+// run admits no new participant. It stamps RegisteredAt (RFC3339 UTC) when the
+// caller left it empty.
+func RegisterRunParticipant(repoDir, runKey string, p RunParticipant) error {
 	return runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
-		if expectRunID != "" && rec.RunID != expectRunID {
-			return runErr(ErrRunIDMismatch, "register-participant", nil)
-		}
 		if rec.State != RunActive {
 			return runErr(ErrRunNotActive, "register-participant", nil)
 		}
@@ -354,20 +352,16 @@ func RegisterRunParticipant(repoDir, runKey, expectRunID string, p RunParticipan
 // RegisterRunParticipant — it is allowed in ANY run state (mirroring the
 // mutation journal's completion callback, which has no state gate); registering
 // NEW work stays active-only. It fails closed on malformed evidence: an empty
-// handle/turn or a status outside {completed, failed} is ErrRunIDMismatch, and a
+// handle/turn or a status outside {completed, failed} is ErrRunRecordConflict, and a
 // handle no participant carries is ErrRunParticipantUnknown. It is idempotent on
-// identical evidence; a DIFFERENT already-recorded status or turn is ErrRunIDMismatch
-// — recorded terminal evidence is never silently overwritten. A non-empty
-// expectRunID mismatching RunID is ErrRunIDMismatch (a stale locator).
-func RecordRunParticipantTerminal(repoDir, runKey, expectRunID, handle, turn, status string) error {
+// identical evidence; a DIFFERENT already-recorded status or turn is ErrRunRecordConflict
+// — recorded terminal evidence is never silently overwritten.
+func RecordRunParticipantTerminal(repoDir, runKey, handle, turn, status string) error {
 	if handle == "" || turn == "" ||
 		(status != ParticipantTerminalCompleted && status != ParticipantTerminalFailed) {
-		return runErr(ErrRunIDMismatch, "record-participant-terminal", nil)
+		return runErr(ErrRunRecordConflict, "record-participant-terminal", nil)
 	}
 	err := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
-		if expectRunID != "" && rec.RunID != expectRunID {
-			return runErr(ErrRunIDMismatch, "record-participant-terminal", nil)
-		}
 		for i := range rec.Participants {
 			p := &rec.Participants[i]
 			if p.NativeHandle != handle {
@@ -377,7 +371,7 @@ func RecordRunParticipantTerminal(repoDir, runKey, expectRunID, handle, turn, st
 				if p.TerminalStatus == status && p.TerminalTurn == turn {
 					return errRunFenceNoWrite // idempotent replay of identical evidence
 				}
-				return runErr(ErrRunIDMismatch, "record-participant-terminal", nil)
+				return runErr(ErrRunRecordConflict, "record-participant-terminal", nil)
 			}
 			p.TerminalStatus = status
 			p.TerminalTurn = turn
@@ -398,7 +392,7 @@ func RecordRunParticipantTerminal(repoDir, runKey, expectRunID, handle, turn, st
 // is a NO-OP when no run exists for the key (a standalone run-tracker record starts none): an
 // ErrRunNotFound is swallowed so a claim over a keyless or no-run-record dispatch is
 // unaffected. Binding is idempotent: an already-bound identical id is a no-op; a
-// bind over a different id fails closed (ErrRunIDMismatch) so a confirmed claim can
+// bind over a different id fails closed (ErrRunRecordConflict) so a confirmed claim can
 // never silently re-point a run's change. Callers treat it best-effort.
 func bindRunChange(repoDir, runKey, changeID string) error {
 	err := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
@@ -406,7 +400,7 @@ func bindRunChange(repoDir, runKey, changeID string) error {
 			if rec.ChangeID == changeID {
 				return nil // idempotent
 			}
-			return runErr(ErrRunIDMismatch, "bind-run-change", nil)
+			return runErr(ErrRunRecordConflict, "bind-run-change", nil)
 		}
 		rec.ChangeID = changeID
 		return nil
@@ -429,7 +423,7 @@ func bindRunChange(repoDir, runKey, changeID string) error {
 // (nothing to bind) and a NO-OP when no run exists for the key (a standalone gate
 // starts none): ErrRunNotFound is swallowed so a claim over a keyless or no-run-record
 // dispatch is unaffected. Binding is idempotent: an already-bound identical worktree is
-// a no-op; a bind over a different worktree fails closed (ErrRunIDMismatch) so a
+// a no-op; a bind over a different worktree fails closed (ErrRunRecordConflict) so a
 // confirmed claim can never silently re-point a run's worktree (mirroring
 // bindRunChange). Callers treat it best-effort.
 func bindRunWorktree(repoDir, runKey, worktree string) error {
@@ -441,7 +435,7 @@ func bindRunWorktree(repoDir, runKey, worktree string) error {
 			if rec.Worktree == worktree {
 				return nil // idempotent
 			}
-			return runErr(ErrRunIDMismatch, "bind-run-worktree", nil)
+			return runErr(ErrRunRecordConflict, "bind-run-worktree", nil)
 		}
 		rec.Worktree = worktree
 		return nil
@@ -554,14 +548,10 @@ var errRunFenceNoWrite = errors.New("run completion state already satisfied")
 // already completing→idempotent replay (RunCompleting, nil); completed→
 // (RunCompleted, nil) (replay of a finished closeout); any cancelling/cancelled/
 // superseded/unknown state is returned as-is plus ErrRunNotActive and is NEVER
-// relabelled successful. A non-empty expectRunID mismatching RunID is
-// ErrRunIDMismatch — a stale locator confers no completion authority.
-func FenceRunCompleting(repoDir, runKey, expectRunID string) (runState, error) {
+// relabelled successful.
+func FenceRunCompleting(repoDir, runKey string) (runState, error) {
 	var observed runState
 	err := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
-		if expectRunID != "" && rec.RunID != expectRunID {
-			return runErr(ErrRunIDMismatch, "fence-completing", nil)
-		}
 		observed = rec.State
 		switch rec.State {
 		case RunActive:
@@ -713,66 +703,6 @@ func FindRunByChange(repoDir, changeID string) (runKey string, rec RunRecord, fo
 		return tail[0].key, tail[0].rec, true, nil
 	}
 	return "", RunRecord{}, false, runErr(ErrRunAmbiguous, "find-by-change", nil)
-}
-
-// runDirMatch is one run-key directory whose run.json records the sought
-// RunID: the shape scanRunsByID yields to findRunDirByID (unique match).
-type runDirMatch struct {
-	dir string
-	rec RunRecord
-}
-
-// scanRunsByID is the walker under findRunDirByID: it enumerates runTrackerRoot
-// and returns every run-key directory whose run.json records RunID == runID. An
-// empty id or a missing
-// root is (nil, nil); an enumeration fault is a typed ErrRunRecordIO; a corrupt or
-// unreadable sibling is SKIPPED for matching (it cannot prove it holds the sought
-// id), mirroring findRunByWorktree's conservative skip.
-func scanRunsByID(runTrackerRoot, runID string) ([]runDirMatch, error) {
-	if runID == "" {
-		return nil, nil
-	}
-	entries, derr := os.ReadDir(runTrackerRoot)
-	if derr != nil {
-		if errors.Is(derr, fs.ErrNotExist) {
-			return nil, nil
-		}
-		return nil, runErr(ErrRunRecordIO, "find-by-id", derr)
-	}
-	var matches []runDirMatch
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		dir := filepath.Join(runTrackerRoot, e.Name())
-		r, _, lerr := readStoredRun(dir, "find-by-id")
-		if lerr != nil {
-			continue
-		}
-		if r.RunID == runID {
-			matches = append(matches, runDirMatch{dir: dir, rec: r})
-		}
-	}
-	return matches, nil
-}
-
-// findRunDirByID resolves the UNIQUE run-key directory holding the run whose
-// public RunID is runID (change 0437 Task 5). Zero matches → ErrRunNotFound;
-// more than one → ErrRunAmbiguous; corrupt/unreadable siblings are skipped for
-// matching, and an enumeration fault is a typed ErrRunRecordIO (scanRunsByID).
-func findRunDirByID(runTrackerRoot, runID string) (dir string, rec RunRecord, err error) {
-	matches, serr := scanRunsByID(runTrackerRoot, runID)
-	if serr != nil {
-		return "", RunRecord{}, serr
-	}
-	switch len(matches) {
-	case 0:
-		return "", RunRecord{}, runErr(ErrRunNotFound, "find-dir-by-id", nil)
-	case 1:
-		return matches[0].dir, matches[0].rec, nil
-	default:
-		return "", RunRecord{}, runErr(ErrRunAmbiguous, "find-dir-by-id", nil)
-	}
 }
 
 // runToken mints a random 32-hex-char token (16 crypto-random bytes) for the

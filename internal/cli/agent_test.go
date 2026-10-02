@@ -393,7 +393,7 @@ func TestAgentEnterCapabilitySignature(t *testing.T) {
 		t.Fatal(err)
 	}
 	entry, ok := entryByID(entries, "agent.enter")
-	want := "--approval-policy <policy> --cwd <dir> --request <file> --role <name> --sandbox <mode> [--run-id <id>] [--run-key <key>] [--worktree <dir>]"
+	want := "--approval-policy <policy> --cwd <dir> --request <file> --role <name> --sandbox <mode> [--run-key <key>] [--worktree <dir>]"
 	if !ok || entry.Signature != want {
 		t.Fatalf("agent.enter signature = %q, present=%v; want %q", entry.Signature, ok, want)
 	}
@@ -428,12 +428,12 @@ func TestAgentEnterRequiresClosedExecutionContext(t *testing.T) {
 	}
 }
 
-// TestAgentEnterRefusesBadRunIDLinkageBeforeLaunch (change 0463): an agent.enter
-// whose --run-key/--run-id pair names no run record, or names a different one,
-// is refused with a named token BEFORE Codex is spawned. A stub codex that records
-// any invocation proves nothing launched. The presented value never appears in the
-// JSON or human output.
-func TestAgentEnterRefusesBadRunIDLinkageBeforeLaunch(t *testing.T) {
+// TestAgentEnterRefusesUnknownRunKeyBeforeLaunch (change 0491; was change 0463's
+// run-id linkage test): an agent.enter whose --run-key names no run record is
+// refused run-not-found BEFORE Codex is spawned. A stub codex that records any
+// invocation proves nothing launched. The presented key never appears in the
+// JSON or human output, and the remedy names --run-key, never the retired --run-id.
+func TestAgentEnterRefusesUnknownRunKeyBeforeLaunch(t *testing.T) {
 	seedAgentInstallation(t)
 	repo := gateDriveRepo(t)
 	bin := testsupport.TempDir(t)
@@ -444,60 +444,47 @@ func TestAgentEnterRefusesBadRunIDLinkageBeforeLaunch(t *testing.T) {
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	const bogus = "0790b760e26444866ef2e156ba383326"
-	mintKey := func() string {
-		key, err := app.MintRunTrackerRecord(repo, app.RunTrackerRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "run-started"})
-		if err != nil {
-			t.Fatalf("MintRunTrackerRecord: %v", err)
-		}
-		return key
-	}
-	bare := mintKey()
-	withRun := mintKey()
-	if _, err := app.MintRunRecord(repo, withRun, "463"); err != nil {
-		t.Fatalf("MintRunRecord: %v", err)
+	bare, err := app.MintRunTrackerRecord(repo, app.RunTrackerRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "run-started"})
+	if err != nil {
+		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
 
-	for _, tc := range []struct {
-		name, key, wantReason string
-	}{
-		{"run key with no run record", bare, "unknown-run-id"},
-		{"run id not the key's", withRun, "stale-run-id"},
+	for _, tc := range []struct{ name, key string }{
+		{"run key with no run record", bare},
+		{"unknown run key", "00000000000000000000000000000491"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			base := []string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", repo,
-				"--approval-policy", "never", "--sandbox", "workspace-write", "--run-key", tc.key, "--run-id", bogus}
+				"--approval-policy", "never", "--sandbox", "workspace-write", "--run-key", tc.key}
 			var out, stderr bytes.Buffer
 			Run(append(base, "--json"), strings.NewReader("req"), &out, &stderr, devInfo(), hostFacts())
 			var res app.AgentEnterResult
 			if err := json.Unmarshal(out.Bytes(), &res); err != nil {
 				t.Fatalf("decode %q: %v (stderr %q)", out.String(), err, stderr.String())
 			}
-			if res.Result != app.ResultInvalidInput || res.Reason != tc.wantReason {
-				t.Fatalf("got (%s, %q), want (invalid-input, %q): %+v", res.Result, res.Reason, tc.wantReason, res)
+			if res.Result != app.ResultInvalidInput || res.Reason != "run-not-found" {
+				t.Fatalf("got (%s, %q), want (invalid-input, \"run-not-found\"): %+v", res.Result, res.Reason, res)
 			}
-			if strings.Contains(out.String(), bogus) {
+			if strings.Contains(out.String(), tc.key) {
 				t.Fatalf("JSON output leaked the presented value: %s", out.String())
 			}
 			var human, herr bytes.Buffer
 			Run(base, strings.NewReader("req"), &human, &herr, devInfo(), hostFacts())
-			if !strings.Contains(human.String()+herr.String(), "--run-id") || strings.Contains(human.String()+herr.String(), bogus) {
-				t.Fatalf("human output must name the remedy and never the value: out=%q err=%q", human.String(), herr.String())
+			text := human.String() + herr.String()
+			if !strings.Contains(text, "--run-key") || strings.Contains(text, "--run-id") || strings.Contains(text, tc.key) {
+				t.Fatalf("human output must name the --run-key remedy, never --run-id or the value: out=%q err=%q", human.String(), herr.String())
 			}
 			if _, err := os.Stat(marker); err == nil {
-				t.Fatalf("codex was launched despite a bad run-id linkage")
+				t.Fatalf("codex was launched despite an unknown run key")
 			}
 		})
 	}
 }
 
-// TestAgentEnterLoneRunIDIsPreflightedBeforeLaunch (change 0463, review fix):
-// AGENTS.md threads only --run-id into agent.enter, so a lone --run-id (no
-// --run-key) must still be checked for existence before Codex is spawned. A
-// misrouted token (0382: the run context passed as the run id) refuses with
-// unknown-run-id and launches nothing; a lone run id that DOES exist passes the
-// preflight and reaches the launch (the stub codex records the invocation).
-func TestAgentEnterLoneRunIDIsPreflightedBeforeLaunch(t *testing.T) {
+// TestAgentEnterLoneRunKeyReachesLaunch (change 0491): a lone --run-key that names a
+// run passes the preflight and reaches the launch (the stub codex records the
+// invocation). Before 0491 a lone --run-key was silently ignored.
+func TestAgentEnterLoneRunKeyReachesLaunch(t *testing.T) {
 	seedAgentInstallation(t)
 	repo := gateDriveRepo(t)
 	bin := testsupport.TempDir(t)
@@ -507,53 +494,63 @@ func TestAgentEnterLoneRunIDIsPreflightedBeforeLaunch(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-
 	key, err := app.MintRunTrackerRecord(repo, app.RunTrackerRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "run-started"})
 	if err != nil {
 		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
-	rec, err := app.MintRunRecord(repo, key, "463")
-	if err != nil {
+	if _, err := app.MintRunRecord(repo, key, "491"); err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
-	enter := func(runID string, extra ...string) []string {
-		return append([]string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", repo,
-			"--approval-policy", "never", "--sandbox", "workspace-write", "--run-id", runID}, extra...)
-	}
-
-	const bogus = "0790b760e26444866ef2e156ba383326"
 	var out, stderr bytes.Buffer
-	Run(enter(bogus, "--json"), strings.NewReader("req"), &out, &stderr, devInfo(), hostFacts())
+	Run([]string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", repo,
+		"--approval-policy", "never", "--sandbox", "workspace-write", "--run-key", key, "--json"},
+		strings.NewReader("req"), &out, &stderr, devInfo(), hostFacts())
 	var res app.AgentEnterResult
 	if err := json.Unmarshal(out.Bytes(), &res); err != nil {
 		t.Fatalf("decode %q: %v (stderr %q)", out.String(), err, stderr.String())
 	}
-	if res.Result != app.ResultInvalidInput || res.Reason != app.ReasonUnknownRunID {
-		t.Fatalf("lone unknown --run-id: got (%s, %q), want (invalid-input, %q): %+v", res.Result, res.Reason, app.ReasonUnknownRunID, res)
-	}
-	if strings.Contains(out.String(), bogus) {
-		t.Fatalf("JSON output leaked the presented value: %s", out.String())
-	}
-	var human, herr bytes.Buffer
-	Run(enter(bogus), strings.NewReader("req"), &human, &herr, devInfo(), hostFacts())
-	if !strings.Contains(human.String()+herr.String(), "--run-id") || strings.Contains(human.String()+herr.String(), bogus) {
-		t.Fatalf("human output must name the remedy and never the value: out=%q err=%q", human.String(), herr.String())
-	}
-	if _, err := os.Stat(marker); err == nil {
-		t.Fatalf("codex was launched despite an unknown lone --run-id")
-	}
-
-	out.Reset()
-	stderr.Reset()
-	Run(enter(rec.RunID, "--json"), strings.NewReader("req"), &out, &stderr, devInfo(), hostFacts())
-	res = app.AgentEnterResult{}
-	if err := json.Unmarshal(out.Bytes(), &res); err != nil {
-		t.Fatalf("decode %q: %v (stderr %q)", out.String(), err, stderr.String())
-	}
-	if res.Reason == app.ReasonUnknownRunID {
-		t.Fatalf("a lone --run-id that exists was refused: %+v", res)
+	if res.Reason == "run-not-found" {
+		t.Fatalf("a lone --run-key naming a run was refused: %+v", res)
 	}
 	if _, err := os.Stat(marker); err != nil {
-		t.Fatalf("a lone existing --run-id must pass the preflight and reach launch; codex not invoked (result %+v)", res)
+		t.Fatalf("a lone --run-key naming a run must reach launch; codex not invoked (result %+v)", res)
+	}
+}
+
+// TestAgentEnterRejectsRunIDFlag (change 0491): --run-id is retired with no alias.
+func TestAgentEnterRejectsRunIDFlag(t *testing.T) {
+	_, errS, code := runCLI(t, "agent", "enter", "--role", "docket-implement-next", "--request", "-",
+		"--cwd", testsupport.TempDir(t), "--approval-policy", "never", "--sandbox", "workspace-write",
+		"--run-id", "0790b760e26444866ef2e156ba383326")
+	if code != 2 || !strings.Contains(errS, "unknown flag: --run-id") {
+		t.Fatalf("exit %d stderr %q, want exit 2 naming the unknown --run-id flag", code, errS)
+	}
+}
+
+// TestRunLinkageFor (change 0491): --run-key alone wires what both flags did
+// together — participant registration and terminal recording by key, and for a
+// root coordinator the lifecycle cancel. An empty key wires nothing. A feature
+// child gets no cancellation authority: the flag registers, it does not confer.
+func TestRunLinkageFor(t *testing.T) {
+	ctx := context.Background()
+	if l := runLinkageFor(ctx, "/repo", "", true); l.registrar != nil || l.terminal != nil || l.canceller != nil {
+		t.Fatalf("an empty --run-key must wire nothing, got %+v", l)
+	}
+	child := runLinkageFor(ctx, "/repo", "k1", false)
+	if reg, ok := child.registrar.(runParticipantRegistrar); !ok || reg.runKey != "k1" || reg.kind != "task" {
+		t.Fatalf("a lone --run-key must register a task participant by key, got %#v", child.registrar)
+	}
+	if term, ok := child.terminal.(runTerminalRecorder); !ok || term.runKey != "k1" {
+		t.Fatalf("a lone --run-key must record terminal evidence by key, got %#v", child.terminal)
+	}
+	if child.canceller != nil {
+		t.Fatalf("a feature child must receive no cancellation authority, got %#v", child.canceller)
+	}
+	root := runLinkageFor(ctx, "/repo", "k1", true)
+	if reg, ok := root.registrar.(runParticipantRegistrar); !ok || reg.kind != "coordinator" {
+		t.Fatalf("a root coordinator registers as coordinator, got %#v", root.registrar)
+	}
+	if c, ok := root.canceller.(runLifecycleCanceller); !ok || c.runKey != "k1" {
+		t.Fatalf("a root coordinator gets the lifecycle canceller by key, got %#v", root.canceller)
 	}
 }

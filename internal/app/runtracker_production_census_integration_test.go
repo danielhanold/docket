@@ -256,9 +256,9 @@ func requireProcessSupervisorHere(t *testing.T) {
 // scratch is gone, and finalize then enters through its real gate-drive Start.
 func TestIntegrationRunCompletionProductionCensusCompleteThenFinalize(t *testing.T) {
 	fx := prepareQuiescentRun(t)
-	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+	must(t, RegisterRunParticipant(fx.repo, fx.key,
 		RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-	must(t, RecordRunParticipantTerminal(fx.repo, fx.key, fx.runID,
+	must(t, RecordRunParticipantTerminal(fx.repo, fx.key,
 		"turn-1", "t1", ParticipantTerminalCompleted))
 	// The run's gate is also a registered gate-scope participant whose scratch
 	// directory no longer exists: the production observer cannot observe it, so only
@@ -267,7 +267,7 @@ func TestIntegrationRunCompletionProductionCensusCompleteThenFinalize(t *testing
 		"worktree_path": fx.worktree, "raw_run_dir": fx.runDir,
 		"last_outcome": string(gatedrive.PASSED), "run_context_hash": fx.contextHash,
 	})
-	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+	must(t, RegisterRunParticipant(fx.repo, fx.key,
 		RunParticipant{Kind: participantKindGateScope, NativeHandle: fx.runDir}))
 	if _, err := os.Stat(fx.runDir); !os.IsNotExist(err) {
 		t.Fatalf("precondition: the run's scratch %q must be absent (err=%v)", fx.runDir, err)
@@ -357,9 +357,9 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 // the live run is never stopped and the run stays completing.
 func TestIntegrationRunCompletionProductionCensusHaltedLiveDriveBlocks(t *testing.T) {
 	registerDone := func(t *testing.T, fx cancelFixture) {
-		must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+		must(t, RegisterRunParticipant(fx.repo, fx.key,
 			RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-		must(t, RecordRunParticipantTerminal(fx.repo, fx.key, fx.runID,
+		must(t, RecordRunParticipantTerminal(fx.repo, fx.key,
 			"turn-1", "t1", ParticipantTerminalCompleted))
 	}
 	t.Run("settled-drives-complete", func(t *testing.T) {
@@ -423,9 +423,9 @@ func TestIntegrationRunCompletionProductionCensusMissingRunRoot(t *testing.T) {
 	})
 	t.Run("closeout-settles-launch-abandoned", func(t *testing.T) {
 		fx := prepareQuiescentRun(t)
-		must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+		must(t, RegisterRunParticipant(fx.repo, fx.key,
 			RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-		must(t, RecordRunParticipantTerminal(fx.repo, fx.key, fx.runID,
+		must(t, RecordRunParticipantTerminal(fx.repo, fx.key,
 			"turn-1", "t1", ParticipantTerminalCompleted))
 		seed(t, fx)
 		if ok, reason, findings := completeSuccessfulRun(productionCancelSeams(fx.repo), fx.repo, fx.key); !ok {
