@@ -122,7 +122,7 @@ There is no migration and no schema bump for kept stores.
 - **The mutation fence's fallback for a corrupted run record.** A metadata write in a worktree whose owning run record is unreadable is no longer refused through the slot.
 - **The record of who last held the worktree.** The holder note names a live holder only.
 - **Unreadable drive records don't block cancel.** A drive whose record cannot be read is not attributed or stopped by cancel. The worktree lock still keeps a second suite out while it runs.
-- **Process-tree teardown gaps, unchanged from today's actual guarantee** (Problem fact 3): a supervisor that dies alone leaves its suite running with the worktree free; a KILL escalation leaves test targets running in their own process groups; the relaunch trusts "vanished" (`proveNoTreeSurvives`); and on a graceful stop `go run` exits on TERM, so the worktree frees while the runner spends up to about 5s stopping targets. The new ADR records them; a follow-up change tracks them.
+- **Process-tree teardown gaps, unchanged from today's actual guarantee** (Problem fact 3): a supervisor that dies alone leaves its suite running with the worktree free; a KILL escalation leaves test targets running in their own process groups; the relaunch trusts "vanished" (`proveNoTreeSurvives`); and on a graceful stop `go run` exits on TERM, so the worktree frees while the runner spends up to about 5s stopping targets. The new ADR records them; change 0492 tracks them.
 
 ## Unchanged
 
@@ -173,7 +173,7 @@ Decide each test by what it guards, not what it asserts (learnings: test-premise
 - **New ADR, recorded through docket-adr:** *Worktree admission is a supervisor-held kernel lock.* `supersedes: [118]`, `relates_to: [95, 120, 124, 125]`.
   - **Context:** Problem facts 1–8.
   - **Decision:** Decisions 1–5. Restate what ADR-0118 established and this keeps: one live gate per canonical worktree; every launch site acquires before launch; a busy start charges no suite attempt, is never queued, and never stops the holder; distinct worktrees are independent. ADR-0118's cancellation and resume rules stand until 0491.
-  - **Consequences:** the accepted losses, including the process-tree gaps and the follow-up change that tracks them.
+  - **Consequences:** the accepted losses, including the process-tree gaps and change 0492, which tracks them.
   - **Alternatives:**
     - Keep the slot and fix the remaining wedges one by one — every ambiguous path needs its own recovery, which is the fix chain.
     - Let the whole tree inherit the lock — a leaked or daemonized descendant pins the worktree, and `gate.stop`/`run.cancel` cannot free it.
@@ -193,14 +193,14 @@ Decide each test by what it guards, not what it asserts (learnings: test-premise
   - most of "simpler cancel": after this change cancel is the fence, a stop of the run's drives found by run context, the journal, and the final write.
 
   Still 0491's: `runLaunchGate` at admission and launch with its `stale-run-id`/cancelled refusals and `fenceNextAction`'s message, the `--run-id` flags (`gate.drive.start`, `agent.enter`, `run.cancel`), the run id in `run.start`'s output, the run-tracker prose, ADR-0124/0128, and the 0422 re-check. Its out-of-scope note on the mutation fence ("unless grooming shows it depends on the slot") is settled: it did, through `slotNamedRunUnresolved`, which this change deletes. An observation for 0491: `run.start` is cataloged `local-write` only, but its resume quiescence check can stop process groups through the census.
-- **New follow-up: suite teardown can outlive its supervisor.** Captured after this groom as a proposed change with `discovered_from: [490]`, covering the four process-tree gaps under *Accepted losses*.
+- **0492 (suite teardown can outlive its supervisor).** Captured at this groom as a proposed change with `discovered_from: [490]` and `depends_on: [490]`. It covers the four process-tree gaps under *Accepted losses*.
 
 ## Out of scope
 
 - The run id and its start-time check (0491).
 - The drive protocol, fingerprinting, the stored terminal result, and the suite-attempt budget.
 - Finalize's rebase logic apart from its admission call.
-- Suite-teardown completeness (the follow-up change).
+- Suite-teardown completeness (0492).
 - Linux CI coverage for the real-process tests.
 - Deleting `gate-admission/v2/` or old drive records from disk.
 - `run.start`'s capability effects (passed to 0491).

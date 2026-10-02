@@ -9,7 +9,7 @@ created: '2026-10-02'
 updated: '2026-10-02'
 depends_on: [489]
 stacked_on:
-related: [375, 428, 435, 437, 439, 441, 446, 452, 453, 457, 488, 491]
+related: [375, 428, 435, 437, 439, 441, 446, 452, 453, 457, 488, 491, 492]
 discovered_from: []
 adrs: [95, 118, 120, 124, 125]
 spec: 'docs/superpowers/specs/2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso-design.md'
@@ -66,7 +66,7 @@ The slot also carries the run id that `run.cancel`, `run.verdict`'s closeout, re
   - every reader of the slot's run stamp: between-gate run ownership, the relaunch and recovery run checks, and the mutation fence's slot fallback.
 - **Run tracker.** `run.cancel` and the death guardian find a run's drives by the run context the drives already record. A drive counts as torn down once its supervisor is gone. Resume and the success closeout drop their slot steps.
 - **ADRs.** A new ADR supersedes ADR-0118 and records the accepted losses and the known process-tree gaps. ADR-0120, ADR-0124, and ADR-0125 get Update notes for the parts it replaces.
-- **Follow-up.** The process-tree teardown gaps go to a new change.
+- **Follow-up.** The process-tree teardown gaps go to 0492.
 
 Accepted losses: between-gate run ownership, the mutation fence's fallback when a run record is corrupted, and the record of who last held the worktree.
 
@@ -76,5 +76,5 @@ Accepted losses: between-gate run ownership, the mutation fence's fallback when 
 - The build-owned drive protocol: start/advance, owner generation, handoff/claim.
 - Fingerprinting, and the stored terminal result record.
 - Finalize's rebase gate logic, apart from its admission call.
-- Making suite teardown complete when a supervisor dies alone or a stop escalates to KILL (the follow-up change).
+- Making suite teardown complete when a supervisor dies alone or a stop escalates to KILL (0492).
 - Deleting the old `gate-admission` directory from disk.
