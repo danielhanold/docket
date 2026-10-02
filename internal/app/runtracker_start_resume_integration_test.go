@@ -564,6 +564,22 @@ func TestIntegrationRunStartResumeDoesNotResetSuiteBudget(t *testing.T) {
 	}
 }
 
+// stampRunContextHash gives the run-tracker record under key a child_context_hash,
+// the attribution key the launch census uses for that run's drives (change 0490),
+// and returns it. A run minted by mintTestRunKey carries none.
+func stampRunContextHash(t *testing.T, repoDir, key, rawContext string) string {
+	t.Helper()
+	rec, err := LoadRunTrackerRecord(repoDir, key)
+	if err != nil {
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
+	}
+	rec.ChildContextHash = runTrackerHashToken(rawContext)
+	if err := SaveRunTrackerRecord(repoDir, key, rec); err != nil {
+		t.Fatalf("SaveRunTrackerRecord: %v", err)
+	}
+	return rec.ChildContextHash
+}
+
 // armSupersededPrior runs the winner resume (permissive production seams) so the
 // prior cancelled run is superseded with its Worktree cleared and a replacement
 // reserved, then rebinds the replacement run to a real worktree directory (the
@@ -594,13 +610,13 @@ func armSupersededPrior(t *testing.T, repoDir string) (priorKey, priorRun, workt
 
 // TestIntegrationRunStartResumeSupersededBranchAccountsScopeLinkedDrives (change 0446 AC5): on the
 // superseded branch the old run's Worktree is empty, which is not proof of
-// quiescence. The launch census runs with the PREDECESSOR's run id against the
-// REPLACEMENT's worktree (threaded through ReplacementReserved), and an unaccounted
-// scope-linked launch it reports refuses the re-authorization instead of reporting
-// "accounted".
+// quiescence. The launch census runs over the PREDECESSOR's own run context (change
+// 0490 — no worktree needed), and an unaccounted launch it reports refuses the
+// re-authorization instead of reporting "accounted".
 func TestIntegrationRunStartResumeSupersededBranchAccountsScopeLinkedDrives(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
-	priorKey, priorRun, worktree := armSupersededPrior(t, repoDir)
+	priorKey, _, _ := armSupersededPrior(t, repoDir)
+	priorContext := stampRunContextHash(t, repoDir, priorKey, "prior-run-context")
 	reservedBefore := func() string {
 		ep, _, err := LoadRunRecord(repoDir, priorKey)
 		if err != nil {
@@ -622,8 +638,8 @@ func TestIntegrationRunStartResumeSupersededBranchAccountsScopeLinkedDrives(t *t
 	if !strings.Contains(res.Message, "launch-pending:d1") {
 		t.Fatalf("Message must carry the launch finding, got %q", res.Message)
 	}
-	if len(launches.calls) != 1 || launches.calls[0] != worktree+"|"+priorRun {
-		t.Fatalf("census calls = %v, want exactly [%s|%s] (replacement worktree, predecessor run)", launches.calls, worktree, priorRun)
+	if len(launches.calls) != 1 || launches.calls[0] != priorContext {
+		t.Fatalf("census calls = %q, want exactly [%s] (the predecessor's own run context)", launches.calls, priorContext)
 	}
 	if got := func() string {
 		ep, _, err := LoadRunRecord(repoDir, priorKey)
@@ -660,8 +676,9 @@ func tornResumePrior(t *testing.T, repoDir string, neverMinted bool) (priorKey, 
 // completion, and admission after safe reconciliation converge using existing
 // operations"): after a torn resume a repeat `run.start --resume` is not a
 // permanent dead end. The superseded branch addresses the request's own feature
-// worktree (what armResumeReplacement binds), runs the census with the predecessor's
-// run id there, and observes the single reserved key — repeatedly, minting nothing.
+// worktree (what armResumeReplacement binds), runs the census over the
+// predecessor's own run context, and observes the single reserved key — repeatedly,
+// minting nothing.
 // A corrupt replacement run still refuses, naming the unreadable record.
 func TestIntegrationRunStartResumeTornReplacementConverges(t *testing.T) {
 	for _, tc := range []struct {
@@ -670,7 +687,8 @@ func TestIntegrationRunStartResumeTornReplacementConverges(t *testing.T) {
 	}{{"replacement-never-minted", true}, {"replacement-unbound", false}} {
 		t.Run(tc.name, func(t *testing.T) {
 			repoDir := newWorkingRepo(t, nil).invocation
-			_, priorRun, replKey := tornResumePrior(t, repoDir, tc.neverMinted)
+			priorKey, _, replKey := tornResumePrior(t, repoDir, tc.neverMinted)
+			priorContext := stampRunContextHash(t, repoDir, priorKey, "prior-run-context")
 			runsBefore := countRunRecords(t, repoDir)
 			for i := 0; i < 2; i++ {
 				launches := okLaunchReconciler()
@@ -682,8 +700,8 @@ func TestIntegrationRunStartResumeTornReplacementConverges(t *testing.T) {
 				if res.Started || res.Reason != ReasonRunResumeReplacementReserved || res.Key != replKey {
 					t.Fatalf("start %d = started %v reason %q key %q (%q), want the reserved key %q observed", i, res.Started, res.Reason, res.Key, res.Message, replKey)
 				}
-				if len(launches.calls) != 1 || launches.calls[0] != "/tmp/wt/epsilon|"+priorRun {
-					t.Fatalf("census calls = %v, want exactly [/tmp/wt/epsilon|%s] (request worktree, predecessor run)", launches.calls, priorRun)
+				if len(launches.calls) != 1 || launches.calls[0] != priorContext {
+					t.Fatalf("census calls = %q, want exactly [%s] (the predecessor's own run context)", launches.calls, priorContext)
 				}
 				if sp.calls != 0 {
 					t.Fatalf("an observing start must prepare no scope, got %d", sp.calls)

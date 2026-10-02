@@ -153,15 +153,47 @@ type nativeTaskCanceller interface {
 	cancelNativeTask(handle string) error
 }
 
-// runLaunchReconciler accounts, for an already-fenced run, the pending and
-// replacement LAUNCH obligations the durable drive records name — a reserved-but-
-// unlaunched drive, a busy launch claim, or a relaunch replacement the worktree slot
-// still records the predecessor for — that the participant/slot teardown above cannot
-// see (change 0437 Task 6). It wraps gatedrive.Driver.ReconcileRunLaunches. A nil
-// reconciler is NOT silence: reconcileRunTeardown records a finding and fails
+// runLaunchReconciler accounts, for an already-fenced run, every gate drive started
+// inside the run — the drives whose run context hash equals contextHash, the run-
+// tracker record's child_context_hash (runContextHash) — stopping a running
+// supervisor and settling a never-launched launch (change 0437 Task 6; attribution
+// by run context, change 0490). It wraps gatedrive.Driver.ReconcileRunLaunches. A
+// nil reconciler is NOT silence: reconcileRunTeardown records a finding and fails
 // closed (accounted=false), mirroring the nil-stopper rule.
 type runLaunchReconciler interface {
-	reconcile(worktree, runID string) (gatedrive.RunLaunchReport, error)
+	reconcile(contextHash string) (gatedrive.RunLaunchReport, error)
+}
+
+// runContextHash returns the run-tracker record's child_context_hash for runKey —
+// the hash every drive started inside that run stores as run_context_hash, and so
+// the census's attribution key. An empty hash (a record minted without a run
+// context) names no drive.
+func runContextHash(repoDir, runKey string) (string, error) {
+	rec, err := LoadRunTrackerRecord(repoDir, runKey)
+	if err != nil {
+		return "", err
+	}
+	return rec.ChildContextHash, nil
+}
+
+// reconcileRunLaunchesFor runs the stop-capable launch census for the run under
+// runKey and reports whether it is accounted plus its findings. A nil reconciler
+// (launch-reconciler-unavailable), an unreadable run context
+// (run-context-unreadable), and a census error (launch-reconcile-failed) each fail
+// closed.
+func reconcileRunLaunchesFor(seams cancelSeams, repoDir, runKey string) (bool, []string) {
+	if seams.launches == nil {
+		return false, []string{"launch-reconciler-unavailable"}
+	}
+	contextHash, err := runContextHash(repoDir, runKey)
+	if err != nil {
+		return false, []string{"run-context-unreadable"}
+	}
+	report, err := seams.launches.reconcile(contextHash)
+	if err != nil {
+		return false, []string{"launch-reconcile-failed"}
+	}
+	return report.Accounted, report.Findings
 }
 
 // cancelSeams bundles the injectable cancellation seams. Production composes them
@@ -240,7 +272,7 @@ func productionCancelSeams(repoDir string) cancelSeams {
 
 // appLaunchReconciler is the production runLaunchReconciler: it composes a gatedrive
 // driver over the cancellation store and the app gate seam's process service, then
-// reconciles one run's launch obligations through ReconcileRunLaunches. The
+// reconciles one run's drives through ReconcileRunLaunches. The
 // composed driver needs no run launch gate (reconcile is teardown, not admission,
 // and takes no run lock). A nil store or an unresolvable process service proves
 // nothing (fail closed): reconcile returns an error the caller turns into a finding +
@@ -250,7 +282,7 @@ type appLaunchReconciler struct {
 	store *gatedrive.Store
 }
 
-func (r appLaunchReconciler) reconcile(worktree, runID string) (gatedrive.RunLaunchReport, error) {
+func (r appLaunchReconciler) reconcile(contextHash string) (gatedrive.RunLaunchReport, error) {
 	if r.store == nil {
 		return gatedrive.RunLaunchReport{}, fmt.Errorf("gate store unavailable")
 	}
@@ -258,7 +290,7 @@ func (r appLaunchReconciler) reconcile(worktree, runID string) (gatedrive.RunLau
 	if svc == nil {
 		return gatedrive.RunLaunchReport{}, fmt.Errorf("gate service unavailable: %s", reason)
 	}
-	return gatedrive.NewSystemDriver(r.store, svc).ReconcileRunLaunches(worktree, runID)
+	return gatedrive.NewSystemDriver(r.store, svc).ReconcileRunLaunches(contextHash)
 }
 
 // appGateStopper is the production cancelStopper: it drives the ownership-gated
@@ -608,16 +640,16 @@ func storedScopeWorktree(seams cancelSeams, repoDir, runKey string) string {
 
 // verifyTerminalRunQuiescence revalidates a terminal (cancelled/superseded)
 // run's EXISTING launch and mutation evidence using the same bounded accounting
-// cancellation uses — change 0437's launch reconciler plus the admitted-mutation
-// journal (reconcileRunTeardown's steps (5c) and (7)). It first resolves the slot
+// cancellation uses — the launch census plus the admitted-mutation journal
+// (reconcileRunTeardown's steps (5c) and (7)). The census is attributed by the
+// run's OWN context hash (its run key's run-tracker record), so a superseded run's
+// drives are found without its cleared worktree. It also resolves the slot
 // worktree (resolveTerminalRunSlot) and returns that resolved record, which the
-// caller hands to the shared retirement: for a superseded run the launch census
-// runs with the PREDECESSOR's run id against the REPLACEMENT's worktree, so both
-// the scope-linked drives (enumerable by RunID) and the replacement slot's
-// references are accounted. It fails closed: an unresolvable replacement worktree,
-// an absent or erroring reconciler, an unaccounted launch obligation (a busy claim,
-// an unresolved relaunch), or an admitted-not-completed mutation is non-quiescence
-// with a bounded finding. It performs no run or slot write, and it does not
+// caller hands to the shared slot retirement. It fails closed: an unresolvable
+// replacement worktree, an absent or erroring reconciler, an unreadable run
+// context, an unaccounted launch obligation (a busy claim, an unresolved relaunch,
+// a supervisor still running), or an admitted-not-completed mutation is
+// non-quiescence with a bounded finding. It performs no run or slot write, and it does not
 // re-prove participants, which terminal repair deliberately does not re-enumerate.
 // requestWorktree is the caller's own verified worktree identity, if any (resume's
 // feature worktree; "" for run.cancel), used only to resolve a torn replacement
@@ -630,17 +662,10 @@ func verifyTerminalRunQuiescence(seams cancelSeams, repoDir string, ep RunRecord
 		findings = append(findings, rfinding)
 		quiescent = false
 	}
-	if seams.launches == nil {
-		findings = append(findings, "launch-reconciler-unavailable")
+	accounted, lfindings := reconcileRunLaunchesFor(seams, repoDir, ep.RunKey)
+	findings = append(findings, lfindings...)
+	if !accounted {
 		quiescent = false
-	} else if report, err := seams.launches.reconcile(slotEp.Worktree, ep.RunID); err != nil {
-		findings = append(findings, "launch-reconcile-failed")
-		quiescent = false
-	} else {
-		findings = append(findings, report.Findings...)
-		if !report.Accounted {
-			quiescent = false
-		}
 	}
 	for _, m := range ep.AdmittedMutations {
 		if m.Status != mutationStatusCompleted {
@@ -748,24 +773,18 @@ func reconcileRunTeardown(seams cancelSeams, repoDir, runKey string, ep RunRecor
 		accounted = false
 	}
 
-	// (5c) Reconcile the run's pending and replacement LAUNCH obligations the durable
-	// drive records name — a reserved-but-unlaunched drive, a busy launch claim, or a
-	// relaunch replacement the worktree slot still records the predecessor for — that
-	// the participant/slot teardown above cannot see (change 0437 Task 6). A nil or
-	// unavailable reconciler is a FINDING and fails closed (accounted=false), mirroring
-	// the nil-stopper rule; a reconciler that reports unsettled launches keeps the
-	// cancellation pending so a completed replacement can never first appear afterward.
-	if seams.launches == nil {
-		findings = append(findings, "launch-reconciler-unavailable")
+	// (5c) Reconcile every gate drive started inside the run — attributed by the run
+	// context hash its run-tracker record carries (change 0490): stop a running
+	// supervisor (teardown proof is "the supervisor is gone"), settle a launch that
+	// provably never launched, and keep a busy claim or an unprovable probe pending. A
+	// nil reconciler or an unreadable run context is a FINDING and fails closed
+	// (accounted=false), mirroring the nil-stopper rule; a census that reports
+	// unsettled drives keeps the cancellation pending so a completed replacement can
+	// never first appear afterward.
+	launchesAccounted, lfindings := reconcileRunLaunchesFor(seams, repoDir, runKey)
+	findings = append(findings, lfindings...)
+	if !launchesAccounted {
 		accounted = false
-	} else if report, rcerr := seams.launches.reconcile(ep.Worktree, ep.RunID); rcerr != nil {
-		findings = append(findings, "launch-reconcile-failed")
-		accounted = false
-	} else {
-		findings = append(findings, report.Findings...)
-		if !report.Accounted {
-			accounted = false
-		}
 	}
 
 	// (5d) Settle uncertain publications proven by a later completed identical

@@ -27,7 +27,10 @@ import (
 //     real process service), appGateObserver, and appGateStopper;
 //   - unrelated corrupt, unsupported-schema, obsolete (lost-linkage, rotated-token),
 //     other-worktree, and HALTED drive records plus a corrupt unrelated run record are
-//     seeded BEFORE cancel/closeout, so the census walks them;
+//     seeded BEFORE cancel/closeout, so the census walks them; beside them sit the
+//     run's OWN finished drives (carrying its run context, change 0490) and another
+//     run's nonterminal drive, so the census attributes by run context for real
+//     (seedRunContextDrives);
 //   - finalize is entered through NewFinalizeGateDriveService(...).Start — the
 //     Driver.Start/Admit path finalize's processFinalizeGate uses — and the resumed
 //     replacement's gate through NewBuildGateDriveService(...).Start carrying its run
@@ -97,6 +100,33 @@ func seedUnrelatedDamagedHistory(t *testing.T, fx cancelFixture, prefix string) 
 	if err := os.WriteFile(filepath.Join(badRun, runRecordFileName), []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// seedRunContextDrives seeds drives the production census must attribute by run
+// context (change 0490): the run's OWN drives — a PASSED one, a HALTED one, and a
+// nonterminal one, each of whose run dirs was removed with its run root (clean
+// absence: torn down) — and a nonterminal drive of ANOTHER run whose run dir exists
+// but holds no supervisor. Attributing the other run's drive would make the
+// production Observe of that dir fail and keep the run pending, so a green census
+// proves it was never touched. prefix keeps the ids distinct across calls.
+func seedRunContextDrives(t *testing.T, fx cancelFixture, prefix string) {
+	t.Helper()
+	id := func(n string) string { return prefix + "cccccccccccccccccccccccccccc" + n }
+	gone := filepath.Join(testsupport.TempDir(t), "removed-run-root")
+	for n, outcome := range map[string]gatedrive.Outcome{"01": gatedrive.PASSED, "02": gatedrive.HALTED, "03": gatedrive.WAITING} {
+		seedCensusDrive(t, fx.common, id(n), map[string]any{
+			"worktree_path": fx.worktree, "raw_run_dir": filepath.Join(gone, "run-"+n),
+			"last_outcome": string(outcome), "run_context_hash": fx.contextHash,
+		})
+	}
+	foreignRunDir := filepath.Join(testsupport.TempDir(t), "foreign-run")
+	if err := os.MkdirAll(foreignRunDir, 0o700); err != nil {
+		t.Fatalf("mkdir foreign run dir: %v", err)
+	}
+	seedCensusDrive(t, fx.common, id("04"), map[string]any{
+		"worktree_path": fx.worktree, "raw_run_dir": foreignRunDir,
+		"last_outcome": string(gatedrive.WAITING), "run_context_hash": runTrackerHashToken("another-run-context"),
+	})
 }
 
 // finalizeEffFor is a finalize-owned effective config carrying a resolved
@@ -180,6 +210,7 @@ func prepareQuiescentRun(t *testing.T) cancelFixture {
 	}
 	seedNamedRun(t, fx.repo, "0000-cancelled-predecessor", fx.worktree, RunCancelled)
 	seedUnrelatedDamagedHistory(t, fx, "a")
+	seedRunContextDrives(t, fx, "a")
 	return fx
 }
 

@@ -37,8 +37,8 @@ func (f *fakeProcessObserver) observeProcessTerminal(runDir string) (bool, error
 	return f.defaultProven, nil
 }
 
-// fakeLaunchObserver is an injectable runLaunchObserver: it records each
-// (worktree,run) pair, returns a canned report/error, and can inject a race via
+// fakeLaunchObserver is an injectable runLaunchObserver: it records each run
+// context hash, returns a canned report/error, and can inject a race via
 // onObserve (a late participant registered after the accounting snapshot but before
 // re-enumeration). It settles nothing.
 type fakeLaunchObserver struct {
@@ -48,8 +48,8 @@ type fakeLaunchObserver struct {
 	onObserve func()
 }
 
-func (f *fakeLaunchObserver) observe(worktree, runID string) (gatedrive.RunLaunchReport, error) {
-	f.calls = append(f.calls, worktree+"|"+runID)
+func (f *fakeLaunchObserver) observe(contextHash string) (gatedrive.RunLaunchReport, error) {
+	f.calls = append(f.calls, contextHash)
 	if f.onObserve != nil {
 		f.onObserve()
 	}

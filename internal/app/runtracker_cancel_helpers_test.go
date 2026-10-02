@@ -45,16 +45,16 @@ func (f *fakeNativeCanceller) cancelNativeTask(handle string) error {
 	return f.err
 }
 
-// fakeLaunchReconciler is an injectable runLaunchReconciler: it records each
-// (worktree,run) pair it was asked to reconcile and returns a canned report/error.
+// fakeLaunchReconciler is an injectable runLaunchReconciler: it records each run
+// context hash it was asked to reconcile and returns a canned report/error.
 type fakeLaunchReconciler struct {
 	report gatedrive.RunLaunchReport
 	err    error
 	calls  []string
 }
 
-func (f *fakeLaunchReconciler) reconcile(worktree, runID string) (gatedrive.RunLaunchReport, error) {
-	f.calls = append(f.calls, worktree+"|"+runID)
+func (f *fakeLaunchReconciler) reconcile(contextHash string) (gatedrive.RunLaunchReport, error) {
+	f.calls = append(f.calls, contextHash)
 	return f.report, f.err
 }
 
@@ -66,17 +66,25 @@ func okLaunchReconciler() *fakeLaunchReconciler {
 }
 
 // cancelFixture is one prepared cancelable run: a gate record with a parent-held
-// authority, an active run bound to change 42 with a confirmed claim, a canonical
-// feature worktree, and a confirmed worktree execution slot whose process is runDir.
+// authority and a run context, an active run bound to change 42 with a confirmed
+// claim, a canonical feature worktree, and a confirmed worktree execution slot whose
+// process is runDir. contextHash is the record's child_context_hash — the hash of
+// cancelFixtureRunContext, so a drive started with that raw context is the run's to
+// the launch census.
 type cancelFixture struct {
-	repo     string
-	key      string
-	runID    string
-	worktree string
-	runDir   string
-	store    *gatedrive.Store
-	common   string
+	repo        string
+	key         string
+	runID       string
+	worktree    string
+	runDir      string
+	store       *gatedrive.Store
+	common      string
+	contextHash string
 }
+
+// cancelFixtureRunContext is the raw run context every cancel fixture's record is
+// minted with (each fixture lives in its own repository).
+const cancelFixtureRunContext = "cancel-fixture-run-context"
 
 // newCancelFixture builds a fully authorized cancelable run. slot controls whether a
 // worktree execution slot is reserved+confirmed; a run with no slot exercises the
@@ -95,6 +103,8 @@ func newCancelFixture(t *testing.T, slot bool) cancelFixture {
 		Disposition:  "run-started",
 		ParentCap:    "parent-cap-raw",
 		ScopeID:      "scope-1",
+		// The run's context hash attributes its drives to the launch census.
+		ChildContextHash: runTrackerHashToken(cancelFixtureRunContext),
 	})
 	if err != nil {
 		t.Fatalf("MintRunTrackerRecord: %v", err)
@@ -121,7 +131,8 @@ func newCancelFixture(t *testing.T, slot bool) cancelFixture {
 		t.Fatalf("runRecordCAS set worktree: %v", err)
 	}
 
-	fx := cancelFixture{repo: repo, key: key, runID: ep.RunID, worktree: worktree, common: common}
+	fx := cancelFixture{repo: repo, key: key, runID: ep.RunID, worktree: worktree, common: common,
+		contextHash: runTrackerHashToken(cancelFixtureRunContext)}
 	fx.store = gatedrive.OpenStore(common)
 	if slot {
 		// The slot records a real owning RunID so the ownership-checked
