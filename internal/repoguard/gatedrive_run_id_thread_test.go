@@ -20,6 +20,10 @@ package repoguard
 // --owner build token in the same paragraph is not a site; at run time the
 // driver still fences such a no-run-record start against a run-owned worktree
 // (stale-run-id).
+// Change 0488 review: the same paragraph must also carry --change-id —
+// GateDriveService.Start charges build.max_attempts only for a build-owned start
+// with a non-empty ChangeID, and FindScopeDriveIDs matches drives on ChangeID, so
+// a build-owned start without it is unbudgeted and invisible to run.verdict.
 
 import (
 	"fmt"
@@ -35,6 +39,7 @@ const implementNextSkillRel = "skills/docket-implement-next/SKILL.md"
 var (
 	ownerBuildRe = regexp.MustCompile(`--owner build(?:[^a-z-]|$)`)
 	runIDFlagRe  = regexp.MustCompile(`--run-id(?:[^a-z-]|$)`)
+	changeIDRe   = regexp.MustCompile(`--change-id(?:[^a-z-]|$)`)
 )
 
 // isBuildOwnerStartSite: a collapsed paragraph that references gate.drive.start
@@ -62,6 +67,10 @@ func TestGateDriveRunIDThreaded(t *testing.T) {
 			if !carriesRunID(p) {
 				violations = append(violations, fmt.Sprintf(
 					"%s: build-owned gate.drive.start instruction lacks --run-id: %.160s", rel, p))
+			}
+			if !changeIDRe.MatchString(p) {
+				violations = append(violations, fmt.Sprintf(
+					"%s: build-owned gate.drive.start instruction lacks --change-id: %.160s", rel, p))
 			}
 		}
 	}
@@ -96,6 +105,9 @@ func TestGateDriveRunIDThreaded(t *testing.T) {
 		}
 		if isBuildOwnerStartSite("the `gate.drive.start` operation with `--owner task --json`") {
 			t.Errorf("a task-owned start was classified as build-owned")
+		}
+		if changeIDRe.MatchString("`--owner build --change-idx 1`") || !changeIDRe.MatchString("`--change-id <id>`") {
+			t.Errorf("--change-id token boundary failed")
 		}
 		if carriesRunID("pass `--run-id-x <x>`") {
 			t.Errorf("--run-id token boundary failed: '--run-id-x' matched")
