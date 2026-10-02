@@ -13,7 +13,7 @@
 //   - the production slice is exactly 30s, and a live child returns WAITING within
 //     one injected-short slice rather than the observation budget (together these
 //     pin "first slice returns by 30s" without sleeping 30s);
-//   - a parent takeover of a live scope-bound drive continues the SAME supervised
+//   - a parent takeover of a live outer-scope drive continues the SAME supervised
 //     run — same raw run dir, raw ownership, attempt, and native pid/pgid/sid — and
 //     never relaunches or duplicates the child;
 //   - a FRESH driver process over the same durable store takes over a
@@ -106,7 +106,7 @@ func TestIntegrationGatedriveSliceBoundIsProductionThirtySeconds(t *testing.T) {
 	}
 }
 
-// TestIntegrationGatedriveTerminalConsumedFromFreshProcess drives a real scope-bound child
+// TestIntegrationGatedriveTerminalConsumedFromFreshProcess drives a real outer-scope child
 // to a terminal PASS in one driver process, then builds a BRAND-NEW Store+Driver
 // over the same Git common dir (a fresh process) and Takeover+Advances the
 // terminal-unconsumed drive. It proves the fresh process consumes the exact
@@ -120,17 +120,16 @@ func TestIntegrationGatedriveTerminalConsumedFromFreshProcess(t *testing.T) {
 	reapSupervisors(t, runRoot)
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 
-	// First process: a scope-bound drive to a terminal PASS. Advance leaves the
+	// First process: an outer-scope drive to a terminal PASS. Advance leaves the
 	// owner generation set, so the terminal is UNCONSUMED (no cooperative claim).
 	store1 := OpenStore(gitCommon)
 	d1 := newIntDriver(store1, svc)
 	req := intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "pass-after", "300")
-	grant, err := store1.PrepareScope(scopeReqFor(req, ""))
+	grant, err := store1.PrepareScope(outerScopeReqFor(req))
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
 	}
-	req.ScopeID = grant.ScopeID
-	req.ChildCapability = grant.ChildCapability
+	req.RunContext = grant.ChildCapability
 	started, err := d1.Start(req)
 	if err != nil {
 		t.Fatalf("Start: %v", err)

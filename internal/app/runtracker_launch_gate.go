@@ -37,7 +37,7 @@ import (
 
 // runLaunchGate builds the production gatedrive.RunLaunchGate over this
 // repository's run registry (rooted at gitCommonDir, the same root
-// runRevokedResolver derives). The returned gate locates the run by its public
+// runSettledResolver derives). The returned gate locates the run by its public
 // id (unique match), acquires that key's run.lock, RE-READS the record under the
 // lock (the unlocked scan only located the directory), validates that the run is
 // active AND owns the worktree the start names, and only then runs reserve while

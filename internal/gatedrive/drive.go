@@ -100,17 +100,15 @@ const (
 	// the running-at-budget analog; a consumer matches it as a PREFIX because a
 	// variant (deadline-expired-stop-unproven) extends it.
 	CauseDeadlineExpired = "deadline-expired"
-	// CauseTakeoverAmbiguous: an event-authorized takeover resolved MORE THAN ONE
-	// candidate drive for one scope — the recovery target is ambiguous, so it
-	// fails closed rather than guessing which live run to supersede. (change 0359)
+	// CauseTakeoverAmbiguous: the run tracker's outer scan found more than one
+	// live candidate drive for one outer recovery scope — the recovery target is
+	// ambiguous, so the outer continuation fails closed rather than guessing which
+	// live run to supersede. (change 0359)
 	CauseTakeoverAmbiguous = "takeover-ambiguous"
-	// CauseTakeoverNoCandidate: a takeover resolved ZERO candidate drives for a
-	// scope with no bound drive — there is no live or unconsumed work to recover,
-	// so it fails closed rather than transferring nothing. (change 0359)
-	CauseTakeoverNoCandidate = "takeover-no-candidate"
-	// CauseRunRecordUnreadable: a takeover could not read the scope's run state
-	// through the injected revocation resolver (an IO/corruption fault). It fails
-	// closed — a run whose run record cannot be read is never revived. (change 0375 Task 12)
+	// CauseRunRecordUnreadable: a drive's run linkage could not be resolved —
+	// resolveDriveRun found a scope-linked drive whose scope (and so whose run)
+	// cannot be read. It fails closed: a drive whose run cannot be proven is never
+	// relaunched as if it were standalone. (change 0437 Task 3)
 	CauseRunRecordUnreadable = "run-record-unreadable"
 	// CauseRunLinkLost: a scopeless run-linked drive can no longer prove which run
 	// it belongs to — the worktree slot it was admitted through is absent or

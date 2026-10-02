@@ -165,16 +165,6 @@ type Driver struct {
 	pollInterval time.Duration
 	sleep        func(time.Duration)
 
-	// runRevoked, when set, answers whether a scope's run is cancelled or
-	// superseded — the state a Takeover must refuse (change 0375 Task 12: "parent
-	// takeover cannot revive a cancelled run"). It is an OPTIONAL seam injected by
-	// the application layer (SetRunRevokedResolver): the gatedrive layer owns no
-	// run store, so the resolver reads the app-owned run registry. When nil,
-	// or when a scope carries no RunID, the run launch gate is skipped and Takeover's
-	// existing ADR-0107 authorization is unchanged. A resolver error fails closed
-	// (the takeover HALTs rather than reviving a run whose run record cannot be read).
-	runRevoked RunRevokedFunc
-
 	// runLaunch, when set, is the app-owned authoritative run liveness read the
 	// launch/reservation paths run their durable reservation body under (change
 	// 0437). Every run-backed reservation/launch authorization in this package
@@ -196,7 +186,7 @@ type Driver struct {
 type RunLaunchGate func(runID, worktree string, reserve func() error) error
 
 // SetRunLaunchGate injects the gate at composition, before any concurrent
-// start, so it needs no lock (mirrors SetRunRevokedResolver). Passing nil
+// start, so it needs no lock (like SetRunSettledResolver). Passing nil
 // clears it (the launch gate is then skipped and the no-run-record standalone
 // behavior governs).
 func (d *Driver) SetRunLaunchGate(g RunLaunchGate) { d.runLaunch = g }
@@ -217,21 +207,6 @@ func (d *Driver) runLaunchGated(runID, worktree string, reserve func() error) er
 	}
 	return d.runLaunch(runID, worktree, reserve)
 }
-
-// RunRevokedFunc reports whether the run named by runID is cancelled or
-// superseded. A clean "no such run" is (false, nil) — a locator that resolves to
-// nothing cannot prove a run was cancelled, and the takeover's other guards
-// (capability, fingerprint, deadline) still protect it; an IO/corruption fault is a
-// non-nil error the takeover treats as fail-closed. It never returns a credential.
-type RunRevokedFunc func(runID string) (revoked bool, err error)
-
-// SetRunRevokedResolver injects the optional run revocation seam the
-// Takeover path consults (change 0375 Task 12). The application layer wires the
-// production resolver over its run registry after composing the driver;
-// gatedrive tests inject a fake. Passing nil clears it (the run launch gate is then
-// skipped). It is set once at composition, before any concurrent Takeover, so it
-// needs no lock.
-func (d *Driver) SetRunRevokedResolver(fn RunRevokedFunc) { d.runRevoked = fn }
 
 // NewDriver builds a Driver over the composed seams with production slice bounds
 // and a real sleep. Tests set the unexported slice/pollInterval/sleep fields to

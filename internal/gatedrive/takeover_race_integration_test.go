@@ -9,8 +9,8 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// TestRaceIntegrationGatedriveTakeoverKeepsRunIdentity drives a REAL scope-bound run: a parent
-// prepares a recovery scope, a scope-bound Start launches a real slow child, and a
+// TestRaceIntegrationGatedriveTakeoverKeepsRunIdentity drives a REAL outer-scope run: a parent
+// prepares a recovery scope, an outer-scope Start launches a real slow child, and a
 // parent Takeover then supersedes the child owner and advances the SAME run to its
 // terminal pass. It proves the takeover continues one stable supervised identity —
 // same raw run dir, raw ownership, attempt, and native pid/pgid/sid — with exactly
@@ -25,21 +25,20 @@ func TestRaceIntegrationGatedriveTakeoverKeepsRunIdentity(t *testing.T) {
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 	d := newIntDriver(store, svc)
 
-	// A real scope-bound start over a child that outlives several short slices and
+	// A real outer-scope start over a child that outlives several short slices and
 	// is still live when the takeover happens.
 	req := intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "pass-after", "500")
-	grant, err := store.PrepareScope(scopeReqFor(req, ""))
+	grant, err := store.PrepareScope(outerScopeReqFor(req))
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
 	}
-	req.ScopeID = grant.ScopeID
-	req.ChildCapability = grant.ChildCapability
+	req.RunContext = grant.ChildCapability
 	started, err := d.Start(req)
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	if started.Outcome != WAITING {
-		t.Fatalf("scope-bound first slice over a live child must WAIT, got %s (%s)", started.Outcome, started.Cause)
+		t.Fatalf("outer-scope first slice over a live child must WAIT, got %s (%s)", started.Outcome, started.Cause)
 	}
 
 	// Identity BEFORE takeover: the durable raw run identity plus the native
@@ -58,7 +57,7 @@ func TestRaceIntegrationGatedriveTakeoverKeepsRunIdentity(t *testing.T) {
 		t.Fatalf("Takeover: %v", err)
 	}
 	if took.Outcome == HALTED {
-		t.Fatalf("a valid takeover of a live scope-bound drive must not HALT: %s", took.Cause)
+		t.Fatalf("a valid takeover of a live outer-scope drive must not HALT: %s", took.Cause)
 	}
 	if took.Generation == "" || took.Generation == started.Generation {
 		t.Fatalf("takeover must mint a fresh owner generation distinct from the child's, got %q", took.Generation)

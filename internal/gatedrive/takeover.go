@@ -1,13 +1,16 @@
-// Event-authorized parent takeover: the exceptional ownership transfer for a
-// direct child that returned WITHOUT handing off.
+// Event-authorized parent takeover: the exceptional ownership transfer for an
+// implement-next run that returned WITHOUT handing off its live suite gate.
 //
 // The cooperative transfer (ownership.go / driver.go Handoff+Claim) is the
 // PREFERRED path and the only one a healthy child uses. Takeover exists for the
-// one case cooperation cannot cover: a parent's direct child was dispatched under
-// a recovery scope (scope.go), then returned without offering a handoff — because
-// it crashed, was killed, or a harness dropped its return. The parent recovers
-// the still-live (or terminal-but-unconsumed) drive so a progressing run is
-// continued rather than restarted.
+// one case cooperation cannot cover, and only at the coordinator → implement-next
+// boundary: run.start prepares one outer recovery scope per run (scope.go) whose
+// child capability is the run context the run's suite gates carry, and when
+// implement-next dies, is killed, or has its return dropped while a gate is still
+// running, run.verdict recovers that drive so the progressing run is continued
+// rather than restarted. run.verdict resolves the one live candidate itself
+// (FindScopeDriveIDs, which lists only nonterminal drives) and calls Takeover with
+// that drive's id; Takeover never scans for a candidate.
 //
 // The AUTHORIZATION is a workflow fact, never a timer: the CALLER asserts "my
 // direct child returned without handing off" simply by calling Takeover at all
@@ -15,35 +18,24 @@
 // process-name liveness guesses anywhere). Takeover proves EVERYTHING ELSE before
 // it transfers a single generation:
 //
-//   - the exact PARENT capability (distinct from the child's own capability);
 //   - the scope is open (a closed scope was already claimed or taken over);
-//   - exactly ONE candidate drive resolves (ambiguity or none fails closed);
+//   - the exact PARENT capability (distinct from the child's own capability);
+//   - the drive/scope IDENTITY agrees (repo, branch, worktree, change);
 //   - no outstanding unclaimed handoff (a valid handoff means Claim, not takeover);
-//   - the drive/scope IDENTITY agrees and the worktree FINGERPRINT still matches;
+//   - the worktree FINGERPRINT still matches the drive start;
 //   - a live drive's DEADLINE has not expired.
 //
 // Only then does it CLAIM THE SCOPE — a single-use open→closed transition that is
 // the atomic winner-selection point under a race — and, under that gate, swap the
-// superseded child owner generation for a fresh parent-minted one. It never
-// launches, stops, or duplicates a process; every uncertainty returns a HALTED
-// document (never a red suite result), exactly like the rest of the driver.
+// superseded child owner generation for a fresh parent-minted one. A drive that
+// finished between run.verdict's scan and the takeover is still accepted: its
+// recorded verdict is handed over unchanged, so a suite that completed in that
+// window is not lost. It never launches, stops, or duplicates a process; every
+// uncertainty returns a HALTED document (never a red suite result), exactly like
+// the rest of the driver.
 package gatedrive
 
-// Takeover performs the event-authorized exceptional transfer of a scope-bound
-// drive to a fresh owner the parent mints. driveID may be "" — then the scope's
-// CurrentDriveID (a task scope's current slot occupant) or the unique run-context
-// match (an outer scope resolved by FindScopeDriveIDs) resolves it. On success the returned
-// document carries, in Generation, the fresh owner generation the parent advances
-// with, and the scope is closed. Any capability failure, ambiguity, identity
-// drift, outstanding handoff, expired deadline, or lost race returns a HALTED
-// document — never a launch, a stop, or a duplicated process.
-// PrepareScope mints a recovery scope through the driver's store, so a single
-// composed *Driver satisfies the application-layer engine seam (which prepares a
-// scope and then starts or takes over drives over the same driver). It is a thin
-// delegation to Store.PrepareScope (scope.go). (change 0359)
-func (d *Driver) PrepareScope(req ScopeRequest) (ScopeGrant, error) {
-	return d.store.PrepareScope(req)
-}
+import "fmt"
 
 // BindScopeChange binds a fresh outer scope's change id exactly once, exposing the
 // store's bind-once transition (scope.go bindScopeChange) across the package
@@ -51,13 +43,26 @@ func (d *Driver) PrepareScope(req ScopeRequest) (ScopeGrant, error) {
 // when attribution first resolves a claim (spec §3 defense-in-depth). Bind-once
 // semantics carry through: an already-bound matching id is an idempotent no-op, a
 // different id fails closed with ErrScopeIdentityMismatch, and a closed scope
-// refuses the bind. Like PrepareScope, it is a thin delegation so a single composed
-// *Driver satisfies the application-layer engine seam. (change 0359)
+// refuses the bind. It is a thin delegation so a single composed *Driver
+// satisfies the application-layer engine seam. (change 0359)
 func (d *Driver) BindScopeChange(scopeID, changeID string) error {
 	return d.store.bindScopeChange(scopeID, changeID)
 }
 
+// Takeover performs the event-authorized exceptional transfer of the outer-scope
+// drive driveID to a fresh owner the parent mints. driveID is required: its only
+// caller (run.verdict's outer continuation) passes the single live candidate its
+// own FindScopeDriveIDs scan resolved, and an empty id is a command error that
+// touches neither record. A drive that finished after that scan is still accepted
+// and its recorded verdict handed over. On success the returned document carries,
+// in Generation, the fresh owner generation the parent advances with, and the
+// scope is closed. Any capability failure, identity drift, outstanding handoff,
+// changed worktree, expired deadline, or lost race returns a HALTED document —
+// never a launch, a stop, or a duplicated process.
 func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, error) {
+	if driveID == "" {
+		return DriveDoc{}, fmt.Errorf("gatedrive: takeover requires an explicit drive id")
+	}
 	scope, err := d.store.LoadScope(scopeID)
 	if err != nil {
 		// A recognized-but-unusable scope (unknown schema, corrupt) fails closed to
@@ -79,65 +84,27 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 		return d.haltDoc(driveID, "", driveRecord{}, string(ErrScopeCapabilityMismatch)), nil
 	}
 
-	// A takeover CANNOT revive a cancelled or superseded run (change 0375
-	// Task 12, spec "Parent takeover cannot revive a cancelled run"). The parent
-	// capability authorizes recovery of HEALTHY non-cancelled work; once the
-	// run is fenced by an explicit cancellation (run.cancel) or superseded by a
-	// resume, no continuation may reattach to its drives. The run state lives in
-	// the app-owned registry, reached through the injected resolver; a resolver error
-	// fails closed (HALT rather than an unproven revival). A scope with no RunID
-	// (a standalone gate, or a scope prepared before run linkage) fences nothing,
-	// so the check is skipped and ADR-0107's authorization is unchanged.
-	if d.runRevoked != nil && scope.RunID != "" {
-		revoked, eerr := d.runRevoked(scope.RunID)
-		if eerr != nil {
-			return d.haltDoc(driveID, "", driveRecord{}, CauseRunRecordUnreadable), nil
-		}
-		if revoked {
-			return d.haltDoc(driveID, "", driveRecord{}, string(ErrNotOwner)), nil
-		}
-	}
-
-	// A slot mid-transition is not a quiescent result to recover: a reservation
-	// persisted but not yet launch-confirmed (scopeStateReserved), or a pending-ack
-	// journal entry between a successor reservation and its predecessor's retirement.
-	// Taking over such a slot would resolve an unresolved launch transition — a
-	// reservation is never a PASSED, FAILED, or safely quiescent result (spec
-	// "Durable state and concurrency"). Fail closed; the parent recovers a settled
-	// slot, never a half-open one.
-	if scope.CurrentDriveState == scopeStateReserved || scope.PendingAckDriveID != "" {
-		return d.haltDoc(driveID, "", driveRecord{}, string(ErrUnresolvedLaunchTransition)), nil
-	}
-
-	resolvedID, cause, rerr := d.resolveTakeoverDrive(scope, driveID)
-	if rerr != nil {
-		return DriveDoc{}, rerr
-	}
-	if cause != "" {
-		return d.haltDoc(driveID, "", driveRecord{}, cause), nil
-	}
-
-	rec, err := d.store.Load(resolvedID)
+	rec, err := d.store.Load(driveID)
 	if err != nil {
 		if se, ok := AsStoreError(err); ok {
 			switch se.Kind {
 			case ErrUnknownSchema, ErrCorruptRecord:
-				return d.haltDoc(resolvedID, "", driveRecord{}, CauseSchemaMismatch), nil
+				return d.haltDoc(driveID, "", driveRecord{}, CauseSchemaMismatch), nil
 			}
 		}
 		return DriveDoc{}, err
 	}
 
-	// The resolved drive must be the scope's own work: its identity (repo, branch,
-	// worktree, change, task, phase — for each field the scope actually pins) must
-	// agree with the scope. A drift is fail-closed, never a transfer.
+	// The drive must be the scope's own work: its identity (repo, branch,
+	// worktree, change — for each field the scope actually pins) must agree with
+	// the scope. A drift is fail-closed, never a transfer.
 	if !scopeIdentityMatch(scope, rec.RepoIdentity, rec.Branch, rec.WorktreePath, rec.ChangeID, rec.TaskID, rec.Phase) {
-		return d.haltDoc(resolvedID, "", rec, string(ErrScopeIdentityMismatch)), nil
+		return d.haltDoc(driveID, "", rec, string(ErrScopeIdentityMismatch)), nil
 	}
 	// A drive that already carries an unclaimed handoff must be CLAIMED, not taken
 	// over — the child cooperated after all.
 	if rec.HandoffGeneration != "" {
-		return d.haltDoc(resolvedID, "", rec, string(ErrHandoffOutstanding)), nil
+		return d.haltDoc(driveID, "", rec, string(ErrHandoffOutstanding)), nil
 	}
 	// The worktree must still match the drive-start execution identity, so a
 	// continuation certifies the original bytes. This is the SOLE fingerprint check
@@ -145,24 +112,24 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 	// driveSlice), so its removal is directly mutation-observable.
 	current, ferr := ComputeFingerprint(rec.WorktreePath, d.git)
 	if ferr != nil {
-		return d.haltDoc(resolvedID, "", rec, "fingerprint-error"), nil
+		return d.haltDoc(driveID, "", rec, "fingerprint-error"), nil
 	}
 	if !rec.Fingerprint.Equal(current) {
-		return d.haltDoc(resolvedID, "", rec, string(ErrFingerprintMismatch)), nil
+		return d.haltDoc(driveID, "", rec, string(ErrFingerprintMismatch)), nil
 	}
 	// A live (nonterminal) drive whose fixed deadline has passed earns no
-	// continuation. A terminal-unconsumed drive is past its run, so its deadline is
-	// immaterial — only the recorded verdict is consumed.
+	// continuation. A drive that finished after run.verdict's scan is past its run,
+	// so its deadline is immaterial — only the recorded verdict is handed over.
 	if !isTerminalOutcome(rec.LastOutcome) {
 		if expired, _ := rec.deadlineState(d.clock.Now()); expired {
-			return d.haltDoc(resolvedID, "", rec, CauseDeadlineExpired), nil
+			return d.haltDoc(driveID, "", rec, CauseDeadlineExpired), nil
 		}
 	}
 	// The child owner generation this takeover supersedes. It must be present (a
 	// fully consumed drive has no owner to supersede).
 	supersededOwner := rec.OwnerGeneration
 	if supersededOwner == "" {
-		return d.haltDoc(resolvedID, "", rec, string(ErrNotOwner)), nil
+		return d.haltDoc(driveID, "", rec, string(ErrNotOwner)), nil
 	}
 
 	freshOwner, err := randomToken(genNBytes)
@@ -174,9 +141,9 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 	// takeovers so EXACTLY ONE proceeds. Every fail-closed check above ran first,
 	// so a rejected takeover never spends the scope; only a fully validated one
 	// reaches this gate. Losing the race (the scope is now closed) is a HALT.
-	if cerr := d.store.claimScopeForTakeover(scopeID, resolvedID); cerr != nil {
+	if cerr := d.store.claimScopeForTakeover(scopeID); cerr != nil {
 		if oe, ok := AsOwnershipError(cerr); ok {
-			return d.haltDoc(resolvedID, "", rec, string(oe.Kind)), nil
+			return d.haltDoc(driveID, "", rec, string(oe.Kind)), nil
 		}
 		return DriveDoc{}, cerr
 	}
@@ -185,7 +152,7 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 	// generation and install the fresh parent-minted one. The supersededOwner guard
 	// fails closed if a concurrent cooperative transfer moved the owner between our
 	// read and this write.
-	cerr := d.store.ownerCAS(resolvedID, func(r *driveRecord) error {
+	cerr := d.store.ownerCAS(driveID, func(r *driveRecord) error {
 		if r.OwnerGeneration == "" || r.OwnerGeneration != supersededOwner {
 			return ownershipErr(ErrNotOwner, "takeover")
 		}
@@ -197,51 +164,16 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 	})
 	if cerr != nil {
 		if oe, ok := AsOwnershipError(cerr); ok {
-			return d.haltDoc(resolvedID, "", rec, string(oe.Kind)), nil
+			return d.haltDoc(driveID, "", rec, string(oe.Kind)), nil
 		}
 		return DriveDoc{}, cerr
 	}
 
-	cur, err := d.store.Load(resolvedID)
+	cur, err := d.store.Load(driveID)
 	if err != nil {
 		return DriveDoc{}, err
 	}
-	return d.transferDoc(resolvedID, freshOwner, cur), nil
-}
-
-// resolveTakeoverDrive resolves the single drive a takeover targets. An explicit
-// driveID is used as given, but it cannot bypass the scope's current-drive
-// association: when a task scope holds a current drive, an explicit id that is not
-// that drive — an acknowledged predecessor (now PriorDriveID) or any other id — is
-// a fail-closed stale-predecessor (spec "An explicitly supplied old drive id cannot
-// bypass the current-scope association"). Otherwise a task scope resolves to its
-// CurrentDriveID, and an outer scope (no current drive) resolves to the UNIQUE
-// run-context match: its nested drives carry RunContextHash == the outer scope's
-// child capability hash (the run context is the outer scope's child
-// capability). Zero matches or more than one fail closed with a distinct cause; a
-// real scan fault is a command error.
-func (d *Driver) resolveTakeoverDrive(scope scopeRecord, driveID string) (string, string, error) {
-	if driveID != "" {
-		if scope.CurrentDriveID != "" && driveID != scope.CurrentDriveID {
-			return "", string(ErrStalePredecessor), nil
-		}
-		return driveID, "", nil
-	}
-	if scope.CurrentDriveID != "" {
-		return scope.CurrentDriveID, "", nil
-	}
-	ids, err := d.store.FindScopeDriveIDs(scope.ChangeID, scope.ChildCapHash)
-	if err != nil {
-		return "", "", err
-	}
-	switch len(ids) {
-	case 0:
-		return "", CauseTakeoverNoCandidate, nil
-	case 1:
-		return ids[0], "", nil
-	default:
-		return "", CauseTakeoverAmbiguous, nil
-	}
+	return d.transferDoc(driveID, freshOwner, cur), nil
 }
 
 // scopeIdentityMatch reports whether a scope's identity agrees with a candidate
@@ -265,17 +197,6 @@ func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change, task,
 // this is the SINGLE-USE takeover gate: under a race exactly one caller wins the
 // open→closed transition, so exactly one takeover mints a fresh owner.
 //
-// It also revalidates the resolved drive under the scope authority (spec "Durable
-// state and concurrency": "Revalidate the target after acquiring the transition's
-// authority: a takeover that read the predecessor before a successor reservation
-// must not later close the scope around the wrong drive"). A task scope's
-// driveID must still be its CurrentDriveID: a concurrent successor reservation that
-// advanced the slot to a new drive between the takeover's read and this close makes
-// the resolved id stale, so the close is refused ErrScopeBusy rather than closing
-// the scope around a drive the successor already superseded. An outer scope (no
-// current drive) resolves nested drives by run context, so its CurrentDriveID is
-// empty and the revalidation is skipped.
-//
 // Single-use is per-scope, and a scope is minted once per run START, so the
 // outer recovery scope grants at most ONE automatic outer takeover per start:
 // the first accepted takeover closes it, and a second detached-crash takeover
@@ -285,13 +206,10 @@ func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change, task,
 // restarting a fresh scope via `run start --resume` — not a bug; see the spec's
 // §5 continuation clause ("remains active until implement-next reaches a true
 // terminal disposition") for the documented bound.
-func (s *Store) claimScopeForTakeover(scopeID, driveID string) error {
+func (s *Store) claimScopeForTakeover(scopeID string) error {
 	return s.scopeCAS(scopeID, func(rec *scopeRecord) error {
 		if rec.Closed {
 			return ownershipErr(ErrScopeClosed, "takeover-close")
-		}
-		if driveID != "" && rec.CurrentDriveID != "" && rec.CurrentDriveID != driveID {
-			return ownershipErr(ErrScopeBusy, "takeover-close")
 		}
 		rec.Closed = true
 		return nil

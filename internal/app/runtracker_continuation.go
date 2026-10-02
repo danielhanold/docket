@@ -111,14 +111,9 @@ func NewContinuationSeam(gitCommonDir, exePath string) (ContinuationSeam, error)
 	}
 	store := gatedrive.OpenStore(gitCommonDir)
 	driver := gatedrive.NewSystemDriver(store, proc)
-	// A parent takeover must not revive a cancelled/superseded run (change 0375
-	// Task 12): the continuation seam performs the automatic outer takeover, so it
-	// carries the same run revocation resolver. It fires only for a scope that
-	// carries a RunID.
-	driver.SetRunRevokedResolver(runRevokedResolver(gitCommonDir))
 	// A revoked/superseded/unbound run must not be admitted or launched through
 	// the continuation seam's takeover/handoff synthesis either (change 0437): wire the
-	// app-side run launch gate over the same registry, beside the revocation resolver.
+	// app-side run launch gate over this repository's run registry.
 	driver.SetRunLaunchGate(runLaunchGate(gitCommonDir))
 	// A released slot whose leftover run is completed or confirmed-cancelled is
 	// settled through exact-token retirement rather than refused stale-run-id

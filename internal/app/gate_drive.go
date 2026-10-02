@@ -189,11 +189,6 @@ func newOwnedGateDriveService(gitCommonDir, exePath string, eff config.Effective
 	}
 	store := gatedrive.OpenStore(gitCommonDir)
 	engine := gatedrive.NewSystemDriver(store, proc)
-	// A parent takeover must not revive a cancelled/superseded run (change 0375
-	// Task 12): wire the run revocation resolver over this repository's registry.
-	// It fires only for a scope carrying a RunID, so standalone/pre-linkage
-	// scopes are unaffected.
-	engine.SetRunRevokedResolver(runRevokedResolver(gitCommonDir))
 	// A revoked/superseded/unbound run must not be admitted or launched (change
 	// 0437): wire the app-side run launch gate over the same registry. It fires only
 	// for a start carrying a RunID, so standalone gates are unaffected.
@@ -232,11 +227,6 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	}
 	store := gatedrive.OpenStore(gitCommonDir)
 	engine := gatedrive.NewSystemDriver(store, proc)
-	// A parent takeover must not revive a cancelled/superseded run (change 0375
-	// Task 12): wire the run revocation resolver over this repository's registry.
-	// It fires only for a scope carrying a RunID, so standalone/pre-linkage
-	// scopes are unaffected.
-	engine.SetRunRevokedResolver(runRevokedResolver(gitCommonDir))
 	// A revoked/superseded/unbound run must not be admitted or launched (change
 	// 0437): wire the app-side run launch gate over the same registry. It fires only
 	// for a start carrying a RunID, so standalone gates are unaffected.
