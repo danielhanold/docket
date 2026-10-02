@@ -29,6 +29,12 @@ type LaunchRequest struct {
 	// Empty means the caller reserved nothing; Launch then mints the fallback
 	// token. Validated as optional lowercase hex up to 128 characters.
 	ReservationToken string
+	// WorktreeLock, when non-nil, is an already-flocked worktree lock the caller
+	// hands over (change 0490). Launch takes ownership on EVERY path: it passes
+	// the descriptor to the supervisor and closes the caller's copy, so a launch
+	// that fails before spawn frees the worktree and one that spawned leaves the
+	// supervisor as the only holder.
+	WorktreeLock *os.File
 }
 
 // validateLaunchRequest refuses a request with FailInvalidInput unless the

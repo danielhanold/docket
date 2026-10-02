@@ -27,7 +27,14 @@ func newTestService(t *testing.T) *Service {
 
 func launchHelper(t *testing.T, svc *Service, root string, mode string, extra ...string) *LaunchOutcome {
 	t.Helper()
-	out, err := svc.Launch(LaunchRequest{Root: root, Cwd: testsupport.TempDir(t), Argv: helperArgv(t, mode, extra...)})
+	return launchHelperReq(t, svc, LaunchRequest{Root: root, Cwd: testsupport.TempDir(t), Argv: helperArgv(t, mode, extra...)})
+}
+
+// launchHelperReq is launchHelper for a caller-built LaunchRequest (for example
+// one carrying a WorktreeLock): same reaping and same drain-on-cleanup.
+func launchHelperReq(t *testing.T, svc *Service, req LaunchRequest) *LaunchOutcome {
+	t.Helper()
+	out, err := svc.Launch(req)
 	if err != nil {
 		t.Fatalf("Launch: %v", err)
 	}

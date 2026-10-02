@@ -17,12 +17,17 @@ import (
 // mode by setting supervisorRunDirEnv and passes the JSON-encoded child argv
 // in supervisorArgvEnv. The inherited live.lock descriptor arrives at
 // supervisorLockFD and the handshake pipe's write end at supervisorHandshakeFD
-// (the first and second ExtraFiles slots).
+// (the first and second ExtraFiles slots). When the caller handed Launch a
+// worktree lock (change 0490), it arrives at supervisorWorktreeLockFD (the
+// third slot) and Launch sets supervisorWorktreeLockEnv; the supervisor adopts
+// fd 5 only when that flag is present, and never touches it otherwise.
 const (
-	supervisorRunDirEnv   = "DOCKET_GATE_SUPERVISOR_RUN_DIR"
-	supervisorArgvEnv     = "DOCKET_GATE_SUPERVISOR_ARGV"
-	supervisorLockFD      = 3
-	supervisorHandshakeFD = 4
+	supervisorRunDirEnv       = "DOCKET_GATE_SUPERVISOR_RUN_DIR"
+	supervisorArgvEnv         = "DOCKET_GATE_SUPERVISOR_ARGV"
+	supervisorWorktreeLockEnv = "DOCKET_GATE_SUPERVISOR_WORKTREE_LOCK"
+	supervisorLockFD          = 3
+	supervisorHandshakeFD     = 4
+	supervisorWorktreeLockFD  = 5
 )
 
 // SupervisorRequested reports whether this process was re-executed as a gate
@@ -74,9 +79,29 @@ func RunSupervisorFromEnv() int {
 	syscall.CloseOnExec(supervisorLockFD)
 	syscall.CloseOnExec(supervisorHandshakeFD)
 
+	// The worktree lock is adopted here, in step (1), before step (2) opens any
+	// file, so fd 5 is still the inherited descriptor. It is marked
+	// close-on-exec at once: the supervised command must never inherit it, or
+	// a surviving suite would pin the worktree after the supervisor is gone.
+	var worktreeLock *os.File
+	if os.Getenv(supervisorWorktreeLockEnv) != "" {
+		worktreeLock = os.NewFile(uintptr(supervisorWorktreeLockFD), "worktree.lock")
+		syscall.CloseOnExec(supervisorWorktreeLockFD)
+	}
+
 	closeLock := func() {
 		if lockFile != nil {
 			lockFile.Close()
+		}
+	}
+	// closeWorktreeLock releases the worktree lock by close only (never LOCK_UN).
+	// It is called LAST on every exit path, after closeLock, so an observer that
+	// finds the worktree free also finds live.lock free and the record durable
+	// (ADR-0095's "free lock implies durable terminal record", one level up).
+	closeWorktreeLock := func() {
+		if worktreeLock != nil {
+			worktreeLock.Close()
+			worktreeLock = nil
 		}
 	}
 	closePipe := func() {
@@ -106,8 +131,9 @@ func RunSupervisorFromEnv() int {
 	}
 
 	// writeFailure records a supervisor start-failure (distinct from a
-	// terminal child record), wakes the launcher, and releases the lock LAST
-	// so the durable record is visible before the lock frees.
+	// terminal child record), wakes the launcher, and releases the locks LAST
+	// — live.lock, then the worktree lock — so the durable record is visible
+	// before either lock frees.
 	writeFailure := func(stage, reason string) int {
 		diag.Printf("failing at %s: %s", stage, reason)
 		_ = writeAtomicJSON(filepath.Join(runDir, failureFile), &failureRecord{
@@ -117,6 +143,7 @@ func RunSupervisorFromEnv() int {
 		handshake("failed\n")
 		closePipe()
 		closeLock()
+		closeWorktreeLock()
 		return 1
 	}
 
@@ -166,7 +193,7 @@ func RunSupervisorFromEnv() int {
 	}()
 
 	// (6) Decode the child argv, then build the command with a scrubbed env
-	// (both private vars removed), the manifest cwd, /dev/null stdin, and the
+	// (every private supervisor var removed), the manifest cwd, /dev/null stdin, and the
 	// two durable log files. No SysProcAttr — the child joins the supervisor's
 	// session/group so one group signal reaches it.
 	var argv []string
@@ -190,7 +217,7 @@ func RunSupervisorFromEnv() int {
 	defer devNull.Close()
 
 	cmd := exec.Command(argv[0], argv[1:]...)
-	cmd.Env = envWithout(os.Environ(), supervisorRunDirEnv, supervisorArgvEnv)
+	cmd.Env = envWithout(os.Environ(), supervisorRunDirEnv, supervisorArgvEnv, supervisorWorktreeLockEnv)
 	cmd.Dir = m.Cwd
 	cmd.Stdin = devNull
 	cmd.Stdout = stdoutF
@@ -234,11 +261,14 @@ func RunSupervisorFromEnv() int {
 		diag.Printf("recording terminal phase failed: %v", err)
 	}
 	// The terminal record is durable now. Wake the launcher, then release the
-	// lock LAST so no observer can see a free lock before the terminal record.
+	// locks LAST — live.lock, then the worktree lock — so no observer can see
+	// a free lock before the terminal record. Nothing is logged after this
+	// point: a free live.lock means the run dir takes no further writes.
 	handshake("terminal\n")
 	diag.Printf("phase: terminal")
 	closePipe()
 	closeLock()
+	closeWorktreeLock()
 	return 0
 }
 

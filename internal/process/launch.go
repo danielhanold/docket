@@ -53,6 +53,19 @@ func terminalState(term *terminalRecord, stopIntentPresent bool) State {
 // survives this process's exit: the supervisor is detached into its own
 // session and this function never waits on it.
 func (s *Service) Launch(req LaunchRequest) (*LaunchOutcome, error) {
+	// (0) Take ownership of the caller's worktree lock (change 0490) before
+	// anything can fail: every return below closes the caller's copy, so a
+	// launch that fails before spawn frees the worktree in-process, and one
+	// that spawned leaves the supervisor's inherited copy as the only holder.
+	// Release is by close only — never LOCK_UN, which would drop the lock for
+	// the supervisor's shared open file description too.
+	wl := req.WorktreeLock
+	defer func() {
+		if wl != nil {
+			wl.Close()
+		}
+	}()
+
 	// (1) All validation precedes any filesystem create.
 	if err := validateLaunchRequest(req); err != nil {
 		return nil, err
@@ -112,8 +125,9 @@ func (s *Service) Launch(req LaunchRequest) (*LaunchOutcome, error) {
 	regLock.Close()
 
 	// (3) Re-exec this binary as the supervisor. The child inherits the live
-	// lock (fd 3) and the handshake pipe's write end (fd 4) via ExtraFiles, and
-	// carries the run dir plus JSON-encoded argv in private env vars.
+	// lock (fd 3), the handshake pipe's write end (fd 4) and, when the caller
+	// handed one over, the worktree lock (fd 5) via ExtraFiles, and carries the
+	// run dir plus JSON-encoded argv in private env vars.
 	handle, err := s.spawnSupervisor(req, runDir, lockFile)
 	if err != nil {
 		lockFile.Close()
@@ -124,6 +138,10 @@ func (s *Service) Launch(req LaunchRequest) (*LaunchOutcome, error) {
 	// supervisor's inherited descriptor, and closing pipeW lets the launcher's
 	// reader observe EOF when the supervisor is gone.
 	lockFile.Close()
+	if wl != nil {
+		wl.Close() // the supervisor's inherited copy now holds the worktree lock alone
+		wl = nil
+	}
 	handle.pipeW.Close()
 	defer handle.pipeR.Close()
 
@@ -140,7 +158,8 @@ type supervisorHandle struct {
 
 // spawnSupervisor builds and starts the re-exec'd supervisor. On any error
 // before or during Start it closes every descriptor it opened (never the
-// caller's lockFile) so the caller's cleanup is single-owner.
+// caller's lockFile, nor req.WorktreeLock, which Launch alone closes) so the
+// caller's cleanup is single-owner.
 func (s *Service) spawnSupervisor(req LaunchRequest, runDir string, lockFile *os.File) (*supervisorHandle, error) {
 	argvJSON, err := json.Marshal(req.Argv)
 	if err != nil {
@@ -167,7 +186,11 @@ func (s *Service) spawnSupervisor(req LaunchRequest, runDir string, lockFile *os
 	defer devNull.Close()
 
 	cmd := exec.Command(s.executable)
-	cmd.Env = append(os.Environ(),
+	// The worktree-lock flag is stripped from the inherited environment first:
+	// only this launcher may set it, and only when it really passes fd 5 — a
+	// stray inherited value must never make the supervisor adopt (and later
+	// close) whatever descriptor happens to sit at fd 5.
+	cmd.Env = append(envWithout(os.Environ(), supervisorWorktreeLockEnv),
 		supervisorRunDirEnv+"="+runDir,
 		supervisorArgvEnv+"="+string(argvJSON))
 	cmd.SysProcAttr = sessionAttrs()
@@ -176,6 +199,12 @@ func (s *Service) spawnSupervisor(req LaunchRequest, runDir string, lockFile *os
 	cmd.Stderr = supLog
 	// ExtraFiles slot 0 -> fd 3 (live lock), slot 1 -> fd 4 (handshake write).
 	cmd.ExtraFiles = []*os.File{lockFile, pipeW}
+	if req.WorktreeLock != nil {
+		// ExtraFiles slot 2 -> fd 5 (worktree lock); the env flag tells the
+		// supervisor to adopt it. Without the flag fd 5 is never touched.
+		cmd.ExtraFiles = append(cmd.ExtraFiles, req.WorktreeLock)
+		cmd.Env = append(cmd.Env, supervisorWorktreeLockEnv+"=1")
+	}
 	if err := cmd.Start(); err != nil {
 		pipeR.Close()
 		pipeW.Close()
