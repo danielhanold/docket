@@ -2,7 +2,7 @@
 id: 491
 slug: 'stop-fencing-gate-admission-on-the-run-id-keep-the-run-track'
 title: 'Retire the run id; the run key becomes the run tracker''s only handle'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'refactor'
 created: '2026-10-02'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-02T21:36:27Z'
 ---
 
 ## Artifacts
