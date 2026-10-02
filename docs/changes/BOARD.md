@@ -1,6 +1,6 @@
 # Backlog
 
-**491 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 12 deferred · ✅ 333 done · 🗑️ 125 killed
+**491 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 14 proposed · ⚪ 12 deferred · ✅ 333 done · 🗑️ 126 killed
 
 ## 🔵 Built (1)
 
@@ -23,14 +23,13 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (15)
+## 🟡 Proposed (14)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0491](active/0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Stop fencing gate admission on the run id; keep the run tracker for attribution only | `critical` | `refactor` | ⏳ waiting on #490 — not yet built |
 | [0490](active/0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | `critical` | `refactor` | ⏳ waiting on #489 — not yet built |
 | [0489](active/0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) | Delete the task-owned gate-drive machinery once no skill drives task tests | `critical` | `refactor` | ⏳ waiting on #488 — not yet built |
-| [0486](active/0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | `medium` | `chore` | needs-grooming |
 | [0483](active/0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | `low` | `feat` | needs-grooming |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-grooming |
 | [0457](active/0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | `low` | `fix` | needs-grooming |
@@ -90,7 +89,6 @@ graph TD
   0457
   0464
   0483
-  0486
   0487
   0488
   0488 --> 0489
@@ -104,10 +102,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (458)</summary>
+<details><summary>✅🗑️ Archive — done + killed (459)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
 | [0485](archive/2026-10-01-0485-test-go-race-hits-its-8-minute-backstop-in-internal-repoguar.md) | test_go_race hits its 8-minute backstop in internal/repoguard under concurrent gate load | 2026-10-01 |
 | [0484](archive/2026-10-01-0484-bring-test-go-race-back-under-its-budget-row-testretiredvoca.md) | Bring test_go_race back under its budget row (TestRetiredVocabularySeal scan cost) | 2026-10-01 |
 | [0482](archive/2026-10-01-0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording | 2026-10-01 |

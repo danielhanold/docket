@@ -2,11 +2,11 @@
 id: 486
 slug: 'run-plan-mutation-checks-outside-a-gate-drive-not-by-editing'
 title: 'Run plan mutation checks outside a gate drive, not by editing the tree under it'
-status: 'proposed'
+status: 'killed'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-01'
-updated: '2026-10-01'
+updated: '2026-10-02'
 depends_on: []
 stacked_on:
 related: [479]
@@ -40,3 +40,13 @@ Make the plan-writing and build guidance prescribe mutation checks that never ed
 ## Out of scope
 
 Changing the gate driver's worktree-changed detection itself. Reworking change 0479's own mutation checks beyond what its resume needs (handled when 0479 is resumed). Any change to the AGENTS.md mutation-testing rule beyond clarifying how to run it.
+
+## Why killed
+
+Superseded by change 0488, which takes build-task workers off the gate driver entirely.
+
+This change fixed a trap. A plan's mutation check edited the feature worktree while a task-owned gate drive was running, so the driver halted the drive as `worktree-changed`. After that, the scope refused every later start (`predecessor-not-reusable`) and the run halted.
+
+Under 0488, workers run their tests directly in the foreground under `timeout --kill-after=10s 10m`, with no drive and no scope. A mutation check is then just an ordinary edit, test run, restore, and re-run, so there is nothing to halt.
+
+Killed at 0488's groom (2026-10-02), on the human's decision.
