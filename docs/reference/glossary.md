@@ -938,15 +938,14 @@ docket workspace publish --id 412 --head <sha>
 
 ## The run tracker
 
-### Start / run key / run id / run context
+### Start / run key / run context
 
-**Starting** a run (`run.start`) mints three values before a dispatch: the **run key** (ties a finish
-to this launch), the **run id** (the id of this run, threaded into cancel and build-owned drive
-flags), and the **run context** (a token). The run context and the run id are both copied into the
-implement-next dispatch prompt; build-task workers never receive either, because they run their
-focused tests directly and call no gate operation. It prints
-`run-started <key> <run-id> <run-context>`; `run-untracked` still allows a keyless dispatch that
-can never authorise a re-dispatch.
+**Starting** a run (`run.start`) mints two values before a dispatch: the **run key** (ties a finish
+to this launch, and is the run tracker's only handle — cancel, verdict, and continue all take it)
+and the **run context** (a token). The run context is copied into the implement-next dispatch
+prompt; build-task workers never receive it, because they run their focused tests directly and call
+no gate operation. It prints `run-started <key> <run-context>`; `run-untracked` still allows a
+keyless dispatch that can never authorise a re-dispatch.
 
 ```sh
 docket run start implement-next
@@ -961,15 +960,15 @@ authorise a re-dispatch. Attribution is conservative: when unsure, the run track
 
 ### Cancel
 
-The explicit stop for a dispatched run — there is no automatic Stop button. It fences the run
-so nothing new attaches, tears down its tasks and processes, and reports `cancelled`,
+The explicit stop for a dispatched run — there is no automatic Stop button. It fences the run,
+tears down its tasks and processes, and reports `cancelled`,
 `cancellation-pending` (re-run to finish), `already-cancelled`, or `refused`. It never counts as a
 failure and never earns a retry. Starting a run states the **owner-lifecycle caveat**: closing a tab,
 interrupting the coordinator, or killing a process does not tell the run tracker the run is over — only
 cancel does.
 
 ```sh
-docket run cancel --key <key> --run-id <run-id> --reason "superseded by 413"
+docket run cancel --key <key> --reason "superseded by 413"
 ```
 
 ### Continuation
@@ -983,8 +982,11 @@ docket run continue <key> <continuation-id>
 
 ### Run fence
 
-The mark `run.cancel` puts on a run, located by its [run id](#start--run-key--run-id--run-context), so nothing new can
-attach to it. A fenced run is never restored.
+The mark `run.cancel` puts on a run, located by its [run key](#start--run-key--run-context), so no new participant, successor, or
+workflow mutation can attach to it (gate starts are not fenced; cancel accounts every gate the run
+started). A fenced run is never restored. A superseded run's mutations are refused
+`run-superseded`; a run record already bound to a different change, worktree, or terminal evidence
+refuses a re-bind with `run-record-conflict`.
 
 **Used for:** making a cancel stick while teardown finishes.
 
@@ -1052,7 +1054,9 @@ names the holder only while that gate is running.
 
 The four outcomes of a `gate drive start` or `advance` call. `WAITING` means the drive is still live and this slice
 ended. `PASSED` and `FAILED` mean the suite finished green or red. `HALTED` means it cannot continue safely: a changed
-worktree, uncertain ownership, deadline expiry, bad state, or a process death.
+worktree, uncertain ownership, deadline expiry, bad state, or a process death. A drive whose
+launch provably never started is settled HALTED too: `launch-abandoned` when the keyed `run.verdict`
+closes it, `run-cancelled` when `run.cancel` does.
 
 **Used for:** keying the next step on `.outcome`, never on an exit status or log text. Only `FAILED` feeds repair. Only
 `PASSED` exposes the run dir for evidence. `HALTED` stops automation and is never turned into a red suite.
@@ -1072,7 +1076,7 @@ when implement-next stopped early. A drive that already finished is never taken 
 retry re-runs the gate. No operation exposes scopes.
 
 ```sh
-docket gate drive start   --repo-dir . --owner build --run-root <dir> --run-id <run-id>
+docket gate drive start   --repo-dir . --owner build --run-root <dir>
 docket gate drive advance --drive-id <id> --owner-gen <gen>
 docket gate drive handoff --drive-id <id> --owner-gen <gen>
 docket gate drive claim   --drive-id <id> --handoff-id <token>
@@ -1510,7 +1514,7 @@ Other harnesses dispatch named agents natively instead.
 
 ```sh
 docket agent enter --role <role> --request req.md --cwd "$PWD" \
-  --approval-policy <policy> --sandbox <mode> --run-id <run-id> --run-key <key>
+  --approval-policy <policy> --sandbox <mode>
 ```
 
 ### Cursor dispatch rule (`docket-dispatch.mdc`)
@@ -2435,7 +2439,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Skill](#skill)
 - [Spec](#spec)
 - [Stacked change / effective base](#stacked-change--effective-base)
-- [Start / run key / run id / run context](#start--run-key--run-id--run-context)
+- [Start / run key / run context](#start--run-key--run-context)
 - [Startup check](#startup-check)
 - [Status](#status)
 - [Status vs the merged-PR sweep](#status-vs-the-merged-pr-sweep)
