@@ -1355,3 +1355,80 @@ func TestIntegrationRunVerdictNeverLaunchedDriveCompletesRun(t *testing.T) {
 		t.Fatalf("drive = %s/%q, want HALTED launch-abandoned", out, cause)
 	}
 }
+
+// TestIntegrationRunVerdictNeverLaunchedDriveEarnsRetry (change 0491, spec T2): the
+// same orphan as T1, on a run-incomplete verdict. FindScopeDriveIDs used to offer
+// the nonterminal reserved record for takeover, so the verdict printed run-stop …
+// continuation-unverified and spent the run's single-use outer scope. The verdict
+// now settles it first: the run earns run-retry-once, the drive is HALTED
+// launch-abandoned, and the outer scope is not consumed.
+func TestIntegrationRunVerdictNeverLaunchedDriveEarnsRetry(t *testing.T) {
+	requireProcessSupervisorHere(t)
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		runTrackerIncompleteRecord(),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	repo := f.repo.invocation
+	common, err := runTrackerGitCommonDir(repo)
+	if err != nil {
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
+	}
+	store := gatedrive.OpenStore(common)
+	grant, err := store.PrepareScope(gatedrive.ScopeRequest{ChangeID: "3"})
+	if err != nil {
+		t.Fatalf("PrepareScope: %v", err)
+	}
+	ctxHash := runTrackerHashToken(grant.ChildCapability)
+	key := runTrackerMintAttributedScoped(t, repo, grant.ScopeID, grant.ParentCapability, ctxHash, 3)
+
+	svc, _, reason := gateService()
+	if svc == nil {
+		t.Skipf("gate service unavailable: %s", reason)
+	}
+	wdeps.Continuation = &gatedriveContinuationSeam{store: store, driver: gatedrive.NewSystemDriver(store, svc)}
+	wdeps.CancelSeams = func(string) cancelSeams {
+		return cancelSeams{store: store, launchObserver: appLaunchObserver{store: store}}
+	}
+	const orphan = "adddddddddddddddddddddddddd00493"
+	seedNeverLaunchedDrive(t, common, orphan, repo, testsupport.TempDir(t), ctxHash,
+		map[string]any{"change_id": "3"})
+
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, repo, key)
+	if got, want := res.HumanText(), "run-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if out, cause := driveOutcome(t, store, orphan); out != gatedrive.HALTED || cause != "launch-abandoned" {
+		t.Fatalf("drive = %s/%q, want HALTED launch-abandoned", out, cause)
+	}
+	sc, err := store.LoadScope(grant.ScopeID)
+	if err != nil {
+		t.Fatalf("LoadScope: %v", err)
+	}
+	if sc.Closed {
+		t.Fatal("the outer recovery scope must not be consumed by a never-launched drive")
+	}
+}
+
+// TestIntegrationRunVerdictUnattributedNeverSettlesNeverLaunchedDrive (change 0491,
+// Review Focus 4): only the attributed, keyed verdict runs the verdict-mode census
+// (ADR-0124 rule 1). An --unattributed verdict stays read-only: the orphan stays
+// nonterminal.
+func TestIntegrationRunVerdictUnattributedNeverSettlesNeverLaunchedDrive(t *testing.T) {
+	requireProcessSupervisorHere(t)
+	fx := newVerdictCompletionFixture(t)
+	common, err := runTrackerGitCommonDir(fx.repo)
+	if err != nil {
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
+	}
+	fx.wdeps.CancelSeams = func(string) cancelSeams {
+		return cancelSeams{store: fx.store, observer: fx.observer, launchObserver: appLaunchObserver{store: fx.store}}
+	}
+	const orphan = "adddddddddddddddddddddddddd00494"
+	seedNeverLaunchedDrive(t, common, orphan, fx.worktree, testsupport.TempDir(t), "ha", nil)
+
+	_ = RunVerdictObserve(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, []string{"3"})
+	if out, _ := driveOutcome(t, fx.store, orphan); out != "" {
+		t.Fatalf("an unattributed verdict settled a drive: outcome %s", out)
+	}
+}
