@@ -78,19 +78,23 @@ const (
 	// repo, branch, worktree, or change is not the scope's: the pairing drifted,
 	// while the worktree itself may be untouched (change 0481).
 	ErrScopeIdentityMismatch OwnershipErrorKind = "scope-identity-mismatch"
-	// ErrUnresolvedLaunchTransition: a launch is mid-transition — a reservation
-	// persisted but not yet launch-confirmed, or a launch handle already attached.
-	// The ambiguous state fails closed with no automatic second launch; recovery is
-	// through run.cancel or waiting for the transition, never a blind retry (spec
-	// "Ambiguous launch or persistence failures fail closed").
+	// ErrUnresolvedLaunchTransition: an admitted drive's launch is mid-transition
+	// or already settled, so StartAdmitted refuses to launch it: its per-drive
+	// launch claim is still held (a launch in flight, or a cancellation probing
+	// it), its reserved record was settled terminal before the launch, or the
+	// ticket was already consumed or abandoned. attachLaunch raises it too when a
+	// launch handle is already attached. The state fails closed with no automatic
+	// second launch; recovery is through run.cancel or waiting for the
+	// transition, never a blind retry (spec "Ambiguous launch or persistence
+	// failures fail closed").
 	ErrUnresolvedLaunchTransition OwnershipErrorKind = "unresolved-launch-transition"
-	// ErrWorktreeBusy: a worktree execution slot (admission.go) already holds a
-	// reserved, executing, or stopping top-level gate run, so a second
-	// reservation for the same canonical worktree is refused. One canonical
-	// worktree carries at most one reserved-or-running gate run across scopes,
-	// scopeless starts, and raw launches (spec "at most one reserved-or-running
-	// top-level Docket gate execution per worktree"). It confers no admission and
-	// never stops the incumbent.
+	// ErrWorktreeBusy: another gate's supervisor holds the canonical worktree's
+	// lock (worktree_lock.go, change 0490), so a second admission for the same
+	// worktree is refused. One canonical worktree carries at most one live
+	// top-level gate across drive starts and raw launches. The refusal is never
+	// queued, never stops the holder, charges no suite attempt, and leaves
+	// nothing behind: the worktree frees itself when the holder's supervisor
+	// exits or dies, so a later start succeeds with no recovery step.
 	ErrWorktreeBusy OwnershipErrorKind = "worktree-busy"
 	// ErrLaunchUnconfirmed: a worktree execution slot is in the unresolved state —
 	// nothing proved whether a launch happened: a lost launch response, or a crash
@@ -151,10 +155,13 @@ type OwnershipError struct {
 	// on those compiles and behaves identically. Bounded ids and reasons only.
 	Legacy *LegacyHistorySummary
 	// Incumbent is the credential-free projection of the execution occupying a
-	// worktree slot, populated ONLY on the worktree-admission refusal
-	// legs (worktree-busy, launch-unconfirmed, stale-run-id) from the exact
-	// record read under the slot's flock. Nil for every other OwnershipError.
-	// Kind/Op/Legacy are unchanged by its presence.
+	// worktree, populated ONLY on the worktree-admission refusal legs: the
+	// worktree lock's busy refusal, from its holder note and only while that run
+	// is observed running (change 0490), and the slot's raw-launch refusals
+	// (worktree-busy, launch-unconfirmed, stale-run-id) from the exact record read
+	// under the slot's flock. Nil for every other OwnershipError, and nil on a
+	// busy refusal whose holder is unknown. Kind/Op/Legacy are unchanged by its
+	// presence.
 	Incumbent *IncumbentSnapshot
 	// Reconciliation is the bounded, credential-free finding the admission-boundary
 	// finished-incumbent reconciliation (reconcileFinishedIncumbent, change 0446 spec

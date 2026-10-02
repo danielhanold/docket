@@ -167,9 +167,10 @@ func TestOldDriveRecordWithScopeIDSettlesScopeless(t *testing.T) {
 		}
 	})
 
-	t.Run("legacy-empty-token-is-no-run-record", func(t *testing.T) {
+	t.Run("old-drive-without-run-context-is-never-attributed", func(t *testing.T) {
 		clk := &fakeClock{now: startRun()}
-		d, store := newTestDriver(t, clk, &fakeProc{}, stableGit())
+		proc := &fakeProc{}
+		d, store := newTestDriver(t, clk, proc, stableGit())
 		rec := seedRecord(t)
 		rec.LastOutcome = WAITING
 		id, _, err := store.NewDrive(rec)
@@ -178,16 +179,15 @@ func TestOldDriveRecordWithScopeIDSettlesScopeless(t *testing.T) {
 		}
 		stampLegacyScopeID(t, store, id, "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd")
 
-		got, err := store.Load(id)
-		if err != nil {
+		if _, err := store.Load(id); err != nil {
 			t.Fatalf("Load of an old drive carrying scope_id: %v", err)
-		}
-		if runID, ok, cause := d.resolveDriveRun(got); !ok || runID != "" || cause != "" {
-			t.Fatalf("an empty-token old drive must resolve as no-run-record, got (%q, %v, %q)", runID, ok, cause)
 		}
 		rep, err := d.ReconcileRunLaunches(capHash("run-0489-any"))
 		if err != nil || !rep.Accounted {
 			t.Fatalf("census over an old scope_id drive = %+v, %v; want accounted", rep, err)
+		}
+		if proc.observeN != 0 || proc.stopN != 0 {
+			t.Fatalf("a drive with no run context is never attributed: observed %d, stopped %d", proc.observeN, proc.stopN)
 		}
 	})
 }

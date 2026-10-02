@@ -41,7 +41,8 @@ func newRacingProc(newRunState process.State) *racingProc {
 	}
 }
 
-func (p *racingProc) Launch(process.LaunchRequest) (*process.LaunchOutcome, error) {
+func (p *racingProc) Launch(req process.LaunchRequest) (*process.LaunchOutcome, error) {
+	defer releaseHandedLock(req)
 	p.mu.Lock()
 	p.launchSeq++
 	id := fmt.Sprintf("relaunch%d", p.launchSeq)
@@ -226,7 +227,8 @@ func newTerminalSettleProc() *terminalSettleProc {
 	return &terminalSettleProc{launched: map[string]bool{}}
 }
 
-func (p *terminalSettleProc) Launch(process.LaunchRequest) (*process.LaunchOutcome, error) {
+func (p *terminalSettleProc) Launch(req process.LaunchRequest) (*process.LaunchOutcome, error) {
+	defer releaseHandedLock(req)
 	p.mu.Lock()
 	p.launchSeq++
 	id := fmt.Sprintf("relaunch%d", p.launchSeq)
@@ -411,7 +413,8 @@ func newClaimWindowProc() *claimWindowProc {
 	}
 }
 
-func (p *claimWindowProc) Launch(process.LaunchRequest) (*process.LaunchOutcome, error) {
+func (p *claimWindowProc) Launch(req process.LaunchRequest) (*process.LaunchOutcome, error) {
+	defer releaseHandedLock(req)
 	p.mu.Lock()
 	p.launchN++
 	n := p.launchN
@@ -540,9 +543,9 @@ func TestRelaunchReservationHolderCannotBeStolenBeforeLaunch(t *testing.T) {
 
 // barrierGit blocks its first read (HeadOID, the first call ComputeFingerprint
 // makes) on a shared N-party barrier, so concurrent Starts all compute their
-// fingerprint BEFORE any reserves the worktree slot — maximizing the reservation
-// race window. The remaining reads are
-// fixed strings so the fingerprint is otherwise deterministic.
+// fingerprint BEFORE any tries the worktree lock — maximizing the admission race
+// window. The remaining reads are fixed strings so the fingerprint is otherwise
+// deterministic.
 type barrierGit struct {
 	wg   *sync.WaitGroup
 	head string
@@ -560,16 +563,22 @@ func (g *barrierGit) WorktreeRoot(dir string) (string, error) { return fakeWorkt
 
 // countingProc is a minimal thread-safe ProcessSeam that counts launches; every
 // launched run stays running so a winning Start reaches WAITING. It is purpose-
-// built for the one-worktree reservation races, where at most one Start launches.
+// built for the one-worktree admission races, where at most one Start launches.
+// Like a live supervisor it RETAINS each handed worktree lock until the test's
+// cleanup calls releaseRetained, so a winner keeps the worktree busy.
 type countingProc struct {
-	mu      sync.Mutex
-	launchN int
+	mu       sync.Mutex
+	launchN  int
+	retained []*os.File
 }
 
-func (p *countingProc) Launch(process.LaunchRequest) (*process.LaunchOutcome, error) {
+func (p *countingProc) Launch(req process.LaunchRequest) (*process.LaunchOutcome, error) {
 	p.mu.Lock()
 	p.launchN++
 	n := p.launchN
+	if req.WorktreeLock != nil {
+		p.retained = append(p.retained, req.WorktreeLock)
+	}
 	p.mu.Unlock()
 	id := fmt.Sprintf("run%d", n)
 	return &process.LaunchOutcome{RunID: id, RunDir: "/runs/" + id, State: process.StateRunning}, nil
@@ -597,17 +606,31 @@ func (p *countingProc) launches() int {
 	return p.launchN
 }
 
+// releaseRetained closes every worktree lock the fake supervisors kept.
+func (p *countingProc) releaseRetained() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, f := range p.retained {
+		_ = f.Close()
+	}
+	p.retained = nil
+}
+
 // TestTwoScopelessStartsOneWorktreeOneLaunch proves that two finalize-style
-// starts contend on the same durable worktree slot despite using independent
-// private RunRoots.
+// starts contend on the same worktree lock despite using independent private
+// RunRoots: exactly one launches, and the loser is refused worktree-busy while
+// the winner's supervisor holds the lock.
 func TestTwoScopelessStartsOneWorktreeOneLaunch(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
 	reqA := sampleStart()
+	reqA.RunRoot = filepath.Join(testsupport.TempDir(t), "runs-a")
 	reqB := sampleStart()
 	reqB.ChangeID = "0343"
+	reqB.RunRoot = filepath.Join(testsupport.TempDir(t), "runs-b")
 	reqs := []StartRequest{reqA, reqB}
 
 	proc := &countingProc{}
+	t.Cleanup(proc.releaseRetained)
 	var barrier sync.WaitGroup
 	barrier.Add(2)
 	git := &barrierGit{wg: &barrier, head: "HEAD1"}
@@ -667,13 +690,14 @@ func TestDistinctWorktreesProgressConcurrently(t *testing.T) {
 	wt1 := testsupport.TempDir(t)
 	wt2 := testsupport.TempDir(t)
 	reqA := sampleStart()
-	reqA.Worktree = wt1
+	reqA.Worktree, reqA.Cwd = wt1, wt1
 	reqB := sampleStart()
-	reqB.Worktree = wt2
+	reqB.Worktree, reqB.Cwd = wt2, wt2
 	reqB.ChangeID = "0343"
 	reqs := []StartRequest{reqA, reqB}
 
 	proc := &countingProc{}
+	t.Cleanup(proc.releaseRetained)
 	mkDriver := func() *Driver {
 		clk := &fakeClock{now: startRun()}
 		d := NewDriver(store, clk, proc, stableGit())
@@ -785,8 +809,8 @@ func TestBarrierCancelBeforeAdmit(t *testing.T) {
 	if ticket != nil {
 		t.Fatalf("a refused admission returns no ticket, got %+v", ticket)
 	}
-	if _, _, lerr := store.LoadWorktreeExecution(req.Worktree); !storeErrIs(lerr, ErrNotFound) {
-		t.Fatalf("a fenced Admit must reserve no worktree slot, LoadWorktreeExecution err = %v", lerr)
+	if !worktreeFree(t, store, req.Cwd) {
+		t.Fatalf("a fenced Admit must leave the worktree lock free")
 	}
 	if n := driveRecordCount(t, store); n != 0 {
 		t.Fatalf("a fenced Admit must mint no drive record, got %d", n)
@@ -909,7 +933,7 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 	d := storeTestDriver(store, clk, proc, stableGit())
 	d.SetRunLaunchGate(reg.gate())
 
-	// A run-backed first start over live run e1 WAITs (run1 running, slot executing).
+	// A run-backed first start over live run e1 WAITs (run1 running).
 	req := sampleStart()
 	req.RunID = "e1"
 	req.RunContext = "ctx-e1"
@@ -918,8 +942,8 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 		t.Fatalf("run-backed first slice must WAIT, got %+v (err=%v)", started, serr)
 	}
 
-	// The run dies; its single automatic relaunch is authorized under the live gate,
-	// then parks in proc.Launch (reserve committed inside the gate; the claim held).
+	// The run dies; its single automatic relaunch is reserved under the drive's
+	// claim, then parks in proc.Launch (reserve committed; the claim held).
 	dead = true
 	advance := make(chan struct {
 		doc DriveDoc
@@ -935,7 +959,7 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 
 	<-launchEntered // the replacement launch is parked: reserve committed, claim held
 
-	// The fence lands NOW — after authorization, during the parked launch.
+	// The fence lands NOW — after the reservation, during the parked launch.
 	reg.fence("e1")
 
 	// A concurrent reconcile (an independent CLI process: its own store handle and
@@ -1098,74 +1122,15 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 	}
 }
 
-// --- change 0446 spec §3 / AC7: finished-incumbent reconciliation under races ---
-
-// TestConcurrentAdmitsOverFinishedIncumbentAdmitOnce races several Admits over ONE
-// proven-finished incumbent (a PASSED drive whose release was interrupted). Every
-// racer may reconcile the incumbent, but the slot CAS with the exact expected token
-// and state lets only one reconciliation release it and the reserve under the slot
-// lock admits exactly one execution; every loser is refused with the winner's slot
-// intact.
-func TestConcurrentAdmitsOverFinishedIncumbentAdmitOnce(t *testing.T) {
-	seam := &incumbentSeam{}
-	d, store := newIncumbentDriver(t, seam)
-	req := incumbentStart(t)
-	finishedDriveIncumbent(t, d, store, seam, req)
-
-	const racers = 4
-	var (
-		start   sync.WaitGroup
-		done    sync.WaitGroup
-		mu      sync.Mutex
-		tickets []*AdmissionTicket
-		refused int
-	)
-	start.Add(1)
-	for i := 0; i < racers; i++ {
-		done.Add(1)
-		go func() {
-			defer done.Done()
-			start.Wait()
-			ticket, err := d.Admit(req)
-			mu.Lock()
-			defer mu.Unlock()
-			if err != nil {
-				if oe, ok := AsOwnershipError(err); !ok || (oe.Kind != ErrWorktreeBusy && oe.Kind != ErrLaunchUnconfirmed) {
-					t.Errorf("a losing racer must be refused worktree-busy/unresolved, got %v", err)
-				}
-				refused++
-				return
-			}
-			tickets = append(tickets, ticket)
-		}()
-	}
-	start.Done()
-	done.Wait()
-
-	if len(tickets) != 1 || refused != racers-1 {
-		t.Fatalf("admitted %d, refused %d; want exactly one admission over one finished incumbent", len(tickets), refused)
-	}
-	slot := mustSlot(t, store, req.Worktree)
-	if slot.State != admissionReserved || slot.ReservationToken != tickets[0].token {
-		t.Fatalf("the winner's reservation must hold the slot: state=%s", slot.State)
-	}
-	launches := seam.launchN
-	if _, err := d.StartAdmitted(tickets[0]); err != nil {
-		t.Fatalf("StartAdmitted: %v", err)
-	}
-	if seam.launchN != launches+1 {
-		t.Fatalf("launches = %d, want exactly one", seam.launchN-launches)
-	}
-}
-
-// TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner (change 0446 spec AC7)
-// extends the pairwise one-worktree races above to the full contender set at once:
-// two starts for different changes, a start through a SYMLINK ALIAS of the
-// worktree, and a participating raw reservation all rendezvous past their
-// unlocked pre-checks and contend for the one worktree slot. Exactly one wins
-// (at most one backend launch; the raw winner launches none), every loser is a
-// typed worktree refusal, and the slot names exactly the winner's reservation.
-// Several rounds widen the interleavings; run under -race.
+// TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner (change 0446 spec AC7,
+// re-targeted onto the worktree lock by change 0490) extends the pairwise
+// one-worktree races above to the full contender set at once: two starts for
+// different changes, a start whose launch cwd is a SYMLINK ALIAS of the
+// worktree, and a raw launcher taking the worktree lock directly all rendezvous
+// past their unlocked pre-checks and contend for the one lock. Exactly one wins
+// (at most one backend launch; the raw winner launches none), every loser is
+// refused worktree-busy, and the winner still holds the lock through either
+// spelling. Several rounds widen the interleavings; run under -race.
 func TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner(t *testing.T) {
 	for round := 0; round < 8; round++ {
 		t.Run(fmt.Sprintf("round-%d", round), func(t *testing.T) {
@@ -1176,22 +1141,23 @@ func TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner(t *testing.T) {
 				t.Fatal(err)
 			}
 			first := sampleStart()
-			first.Worktree = wt
+			first.Worktree, first.Cwd = wt, wt
 			second := sampleStart()
-			second.Worktree = wt
+			second.Worktree, second.Cwd = wt, wt
 			second.ChangeID = "0343"
 			viaAlias := sampleStart()
-			viaAlias.Worktree = alias
+			viaAlias.Worktree, viaAlias.Cwd = alias, alias
 			viaAlias.ChangeID = "0344"
 			reqs := []StartRequest{first, second, viaAlias}
 
 			proc := &countingProc{}
+			t.Cleanup(proc.releaseRetained)
 			var barrier sync.WaitGroup
 			barrier.Add(len(reqs) + 1)
 			git := &barrierGit{wg: &barrier, head: "HEAD1"}
 
 			errs := make([]error, len(reqs)+1)
-			var rawToken string
+			var rawLock *WorktreeLock
 			var wg sync.WaitGroup
 			for i := range reqs {
 				wg.Add(1)
@@ -1206,9 +1172,10 @@ func TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner(t *testing.T) {
 				defer wg.Done()
 				barrier.Done()
 				barrier.Wait()
-				rawToken, errs[len(reqs)] = store.ReserveRawWorktreeExecution("repo-x", wt, proc)
+				rawLock, errs[len(reqs)] = store.TryWorktreeLock(fakeWorktreeRoot(wt), nil)
 			}()
 			wg.Wait()
+			t.Cleanup(rawLock.Release)
 
 			winners := 0
 			for i, err := range errs {
@@ -1216,8 +1183,8 @@ func TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner(t *testing.T) {
 					winners++
 					continue
 				}
-				if !isOwnershipKind(err, ErrWorktreeBusy) && !isOwnershipKind(err, ErrLaunchUnconfirmed) {
-					t.Fatalf("contender %d must lose with a typed worktree refusal, got %v", i, err)
+				if !isOwnershipKind(err, ErrWorktreeBusy) {
+					t.Fatalf("contender %d must lose worktree-busy, got %v", i, err)
 				}
 			}
 			if winners != 1 {
@@ -1231,15 +1198,10 @@ func TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner(t *testing.T) {
 			if got := proc.launches(); got != wantLaunches {
 				t.Fatalf("launches = %d, want %d (raw won: %v)", got, wantLaunches, rawWon)
 			}
-			slot, _, err := store.LoadWorktreeExecution(alias)
-			if err != nil {
-				t.Fatalf("load slot through the alias: %v", err)
-			}
-			if rawWon && (slot.Kind != "raw" || slot.ReservationToken != rawToken) {
-				t.Fatalf("the raw winner's reservation must hold the slot, got kind %q", slot.Kind)
-			}
-			if !rawWon && slot.State != admissionExecuting {
-				t.Fatalf("a driven winner's slot must be executing, got %s", slot.State)
+			for _, spelling := range []string{wt, alias} {
+				if worktreeFree(t, store, spelling) {
+					t.Fatalf("the winner must still hold the worktree through %q", spelling)
+				}
 			}
 		})
 	}

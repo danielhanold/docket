@@ -13,7 +13,6 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gatedrive"
-	"github.com/danielhanold/docket/internal/process"
 )
 
 // fakeDriveEngine is a scriptable driveEngine: every method returns the same
@@ -27,8 +26,8 @@ type fakeDriveEngine struct {
 	startCalled bool
 	startCount  int
 	// admitErr, when set, makes Admit refuse (the launch/StartAdmitted half is never
-	// reached). It models an admission race the app's advisory precheck missed —
-	// e.g. a worktree-busy slot — so a test can prove the charge stays AFTER Admit.
+	// reached) — e.g. a worktree-busy lock — so a test can prove the charge stays
+	// AFTER Admit.
 	admitErr error
 	// startAdmittedCount and abandonCount count the two launch-half calls so a test
 	// can prove the build owner charged BETWEEN admission and launch (and abandoned
@@ -37,19 +36,6 @@ type fakeDriveEngine struct {
 	// unchanged whichever half the owner used.
 	startAdmittedCount int
 	abandonCount       int
-	// reconcile, when set, answers ReconcileFinishedIncumbent (change 0446 §3); nil
-	// reports an unsettled incumbent. reconcileCount counts the consultations so a
-	// test can prove a busy advisory refusal reached reconciliation first.
-	reconcile      func(worktree, runID string) (bool, string, error)
-	reconcileCount int
-}
-
-func (f *fakeDriveEngine) ReconcileFinishedIncumbent(worktree, runID string) (bool, string, error) {
-	f.reconcileCount++
-	if f.reconcile == nil {
-		return false, "", nil
-	}
-	return f.reconcile(worktree, runID)
 }
 
 func (f *fakeDriveEngine) recordStart(r gatedrive.StartRequest) {
@@ -484,6 +470,9 @@ func TestMapDriveHaltCauseKeysOnGatedriveConstants(t *testing.T) {
 		// either as an unavailable gate.
 		gatedrive.CauseRunLinkLost:                 GateHaltUnavailable,
 		string(gatedrive.ErrScopeIdentityMismatch): GateHaltUnavailable,
+		// Change 0490: a relaunch that found the worktree held by another gate is a
+		// halt (a human or the holder must finish first), never repair work.
+		gatedrive.CauseWorktreeBusy: GateHaltUnavailable,
 		// Any cause the mapping does not distinguish falls through to unavailable.
 		"owner-superseded": GateHaltUnavailable,
 	}
@@ -510,6 +499,29 @@ func TestStartForwardsRunFields(t *testing.T) {
 	}
 	if eng.lastStart.RunContext != "ctx-token" || eng.lastStart.RunID != "run-1" {
 		t.Fatalf("Start must forward the run fields, got %+v", eng.lastStart)
+	}
+}
+
+// TestStartRequestCarriesOwner proves every start names its owning policy to the
+// driver (change 0490): the holder note records it so a busy refusal can name
+// the right remedy. The build owner's budgeted path and the finalize owner's
+// thin Start both forward it.
+func TestStartRequestCarriesOwner(t *testing.T) {
+	build, beng, _ := newBudgetTestBuildService(t, 4)
+	if got := build.Start(buildStartReq("0490")); got.Result != ResultApplied {
+		t.Fatalf("build start = %s (%s), want applied", got.Result, got.Reason)
+	}
+	if beng.lastStart.Owner != "build" {
+		t.Fatalf("a build-owned start must carry owner build, got %q", beng.lastStart.Owner)
+	}
+	feng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
+	finalize := newGateDriveService(feng, time.Minute, "go test ./...", "prov")
+	finalize.owner = "finalize"
+	if got := finalize.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: "/repo", ChangeID: "0490"}); got.Result != ResultApplied {
+		t.Fatalf("finalize start = %s (%s), want applied", got.Result, got.Reason)
+	}
+	if feng.lastStart.Owner != "finalize" {
+		t.Fatalf("a finalize-owned start must carry owner finalize, got %q", feng.lastStart.Owner)
 	}
 }
 
@@ -701,206 +713,54 @@ func TestExhaustionDiagnosticNamesKnob(t *testing.T) {
 
 // --- Task 8: worktree admission precedes full-suite attempt charging (ADR-0116) ---
 
-// TestBusyRefusalChargesNoSuiteAttempt proves a build-owned start whose worktree
-// execution slot is already busy is refused with NO suite attempt charged — the
-// advisory admission precheck short-circuits BEFORE the charge (admission precedes
-// charging). The slot is occupied directly in the SAME durable store the service
-// charges against, so the refusal exercises real admission state, not a scripted
-// engine. Moving the charge before the admission check reddens this test.
+// TestBusyRefusalChargesNoSuiteAttempt proves a build-owned start refused by a
+// busy worktree lock charges NO suite attempt and surfaces the full refusal: the
+// reason, the worktree-admission stage, and — with no live holder named — an
+// empty locator and the holder-unknown remedy. The refusal is the store's own
+// (another gate holds the lock in the SAME durable store the service charges
+// against); the lock is taken before the charge, so moving the charge before
+// Admit reddens this test.
 func TestBusyRefusalChargesNoSuiteAttempt(t *testing.T) {
 	svc, eng, dir := newBudgetTestBuildService(t, 4)
-	// A real, resolvable worktree whose execution slot we occupy in the service's
-	// own durable store before the build start runs.
-	worktree := testsupport.TempDir(t)
 	store := gatedrive.OpenStore(dir)
-	if _, err := store.ReserveRawWorktreeExecution("/repo", worktree, nil); err != nil {
-		t.Fatalf("occupy worktree slot: %v", err)
+	root := testsupport.TempDir(t)
+	held, err := store.TryWorktreeLock(root, nil)
+	if err != nil {
+		t.Fatalf("hold the worktree lock: %v", err)
 	}
+	defer held.Release()
+	_, busy := store.TryWorktreeLock(root, nil)
+	if oe, ok := gatedrive.AsOwnershipError(busy); !ok || oe.Kind != gatedrive.ErrWorktreeBusy {
+		t.Fatalf("a second try of a held lock = %v, want worktree-busy", busy)
+	}
+	eng.admitErr = busy
 
-	got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0421"})
+	got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: root, Cwd: root, ChangeID: "0421"})
 	if got.Result == ResultApplied || got.Drive != nil {
 		t.Fatalf("a busy worktree must refuse the build start, got result=%s drive=%v", got.Result, got.Drive)
 	}
-	if got.Reason != string(gatedrive.ErrWorktreeBusy) {
-		t.Fatalf("busy refusal reason = %q, want %q", got.Reason, string(gatedrive.ErrWorktreeBusy))
+	if got.Reason != string(gatedrive.ErrWorktreeBusy) || got.Stage != stageWorktreeAdmission || got.Locator != "" {
+		t.Fatalf("busy refusal = reason %q stage %q locator %q, want worktree-busy / %s / empty", got.Reason, got.Stage, got.Locator, stageWorktreeAdmission)
 	}
-	// The refusal charged NO suite attempt.
-	key := gatedrive.SuiteBudgetKey{RepoIdentity: "/repo", ChangeID: "0421", Phase: "build"}
-	if used, limit, err := store.SuiteBudgetUsage(key); err != nil || used != 0 || limit != 0 {
-		t.Fatalf("a busy-worktree refusal must charge no suite attempt, got usage (%d,%d) err=%v", used, limit, err)
+	if !strings.Contains(got.Message, "holder unknown") {
+		t.Fatalf("a holder-less busy refusal must say the holder is unknown, got %q", got.Message)
 	}
-	// The advisory precheck short-circuited before the engine's admission.
-	if eng.startCount != 0 {
-		t.Fatalf("a busy refusal must not reach the engine's admission, got %d", eng.startCount)
+	if used, limit := suiteUsage(t, dir, "0421"); used != 0 || limit != 0 {
+		t.Fatalf("a busy-worktree refusal must charge no suite attempt, got usage (%d,%d)", used, limit)
+	}
+	if eng.startCount != 1 || eng.startAdmittedCount != 0 {
+		t.Fatalf("admit=%d launch=%d, want the refusal at admission and no launch", eng.startCount, eng.startAdmittedCount)
 	}
 }
 
-// finishedRunProof is a process-recovery seam scripted to one ClassifyRun
-// disposition, so the real store's finished-incumbent reconciliation can be driven
-// from the app layer without a live supervisor.
-type finishedRunProof struct{ disposition string }
-
-func (p finishedRunProof) ClassifyRun(runDir string, _ bool) (process.RecoveryEntry, error) {
-	return process.RecoveryEntry{RunDir: runDir, Disposition: p.disposition}, nil
-}
-
-func (p finishedRunProof) ResolveReservation(string, string) (*process.ReservationResolution, error) {
-	return &process.ReservationResolution{Disposition: "unresolved"}, nil
-}
-
-// TestBudgetedBuildReconcilesBeforeRefusal (change 0446 spec §3): the build owner's
-// advisory busy refusal is final only after the finished-incumbent reconciliation
-// had its chance. A raw incumbent whose run the process predicate proves torn down
-// is settled in the SAME durable store, and the start then admits and launches once,
-// charging exactly one suite attempt. The paired case — an incumbent the predicate
-// reports live — still refuses before the engine's admission and charges nothing.
-func TestBudgetedBuildReconcilesBeforeRefusal(t *testing.T) {
-	const runID = "0446dddddddddddddddddddddddddd01"
-	occupy := func(t *testing.T, dir string) (string, *gatedrive.Store) {
-		t.Helper()
-		worktree := testsupport.TempDir(t)
-		store := gatedrive.OpenStore(dir)
-		tok, err := store.ReserveRawWorktreeExecution("/repo", worktree, nil)
-		if err != nil {
-			t.Fatalf("occupy worktree slot: %v", err)
-		}
-		if err := store.ConfirmWorktreeExecution(worktree, tok, runID, "/runs/"+runID); err != nil {
-			t.Fatalf("confirm raw incumbent: %v", err)
-		}
-		return worktree, store
-	}
-
-	t.Run("finished incumbent settles and starts once", func(t *testing.T) {
-		svc, eng, dir := newBudgetTestBuildService(t, 4)
-		worktree, store := occupy(t, dir)
-		eng.reconcile = func(w, ownerRunID string) (bool, string, error) {
-			return store.ReconcileFinishedIncumbent(w, ownerRunID, finishedRunProof{disposition: "terminal"})
-		}
-
-		got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0446"})
-		if got.Result != ResultApplied {
-			t.Fatalf("a finished incumbent must not refuse the build start: result=%s reason=%q msg=%q", got.Result, got.Reason, got.Message)
-		}
-		if eng.reconcileCount != 1 || eng.startCount != 1 || eng.startAdmittedCount != 1 {
-			t.Fatalf("reconcile=%d admit=%d launch=%d, want 1/1/1", eng.reconcileCount, eng.startCount, eng.startAdmittedCount)
-		}
-		if used, limit := suiteUsage(t, dir, "0446"); used != 1 || limit != 4 {
-			t.Fatalf("usage = (%d,%d), want exactly one charged attempt", used, limit)
-		}
-		slot, _, err := store.LoadWorktreeExecution(worktree)
-		if err != nil || string(slot.State) != "released" {
-			t.Fatalf("the finished incumbent's slot must be settled released, got state=%q err=%v", string(slot.State), err)
-		}
-	})
-
-	t.Run("live incumbent still refuses uncharged", func(t *testing.T) {
-		svc, eng, dir := newBudgetTestBuildService(t, 4)
-		worktree, store := occupy(t, dir)
-		eng.reconcile = func(w, ownerRunID string) (bool, string, error) {
-			return store.ReconcileFinishedIncumbent(w, ownerRunID, finishedRunProof{disposition: "live"})
-		}
-
-		got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0446"})
-		if got.Result == ResultApplied || got.Reason != string(gatedrive.ErrWorktreeBusy) {
-			t.Fatalf("a live incumbent must refuse worktree-busy, got result=%s reason=%q", got.Result, got.Reason)
-		}
-		if !strings.Contains(got.Message, "incumbent-run-unproven") {
-			t.Fatalf("refusal message must name the unsettled obligation, got %q", got.Message)
-		}
-		if eng.reconcileCount != 1 || eng.startCount != 0 {
-			t.Fatalf("reconcile=%d admit=%d, want reconciliation consulted and no admission", eng.reconcileCount, eng.startCount)
-		}
-		if used, limit := suiteUsage(t, dir, "0446"); used != 0 || limit != 0 {
-			t.Fatalf("a refused start must charge nothing, got (%d,%d)", used, limit)
-		}
-	})
-}
-
-// TestBudgetedBuildAdvisoryReconcilesUnderPresentedRun (review finding F2): the
-// build owner's advisory precheck reconciles a finished incumbent under the run
-// id the start PRESENTS. A start presenting the run E that owns a finished
-// incumbent is admitted and charged once; the same setup presenting a foreign run
-// stays fenced and is refused worktree-busy with nothing charged. The reconcile
-// seam is scripted to settle only for the slot's own run, so reconciling under an
-// empty or substituted run id reddens the first case.
-func TestBudgetedBuildAdvisoryReconcilesUnderPresentedRun(t *testing.T) {
-	const (
-		runID      = "0489ffffffffffffffffffffffffff01"
-		ownerRunID = "run-e1"
-	)
-	var reconciledRuns []string
-	setup := func(t *testing.T) (*GateDriveService, *fakeDriveEngine, string, string) {
-		t.Helper()
-		reconciledRuns = nil
-		svc, eng, dir := newBudgetTestBuildService(t, 4)
-		worktree := testsupport.TempDir(t)
-		store := gatedrive.OpenStore(dir)
-		tok, err := store.ReserveWorktreeExecutionForRun("/repo", worktree, ownerRunID, nil)
-		if err != nil {
-			t.Fatalf("occupy worktree slot for %s: %v", ownerRunID, err)
-		}
-		if err := store.ConfirmWorktreeExecution(worktree, tok, runID, "/runs/"+runID); err != nil {
-			t.Fatalf("confirm incumbent: %v", err)
-		}
-		// Scripted seam: apply the store's run fence (a slot another run owns is
-		// never settled) and otherwise report the finished incumbent settled.
-		eng.reconcile = func(w, e string) (bool, string, error) {
-			reconciledRuns = append(reconciledRuns, e)
-			if e != ownerRunID {
-				return false, "incumbent-run-fenced", nil
-			}
-			return true, "incumbent-settled", nil
-		}
-		return svc, eng, dir, worktree
-	}
-
-	t.Run("own presented run is admitted and charged once", func(t *testing.T) {
-		svc, eng, dir, worktree := setup(t)
-		got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0489", RunID: ownerRunID})
-		if got.Result != ResultApplied {
-			t.Fatalf("a start presenting the incumbent's own run must be admitted: result=%s reason=%q msg=%q", got.Result, got.Reason, got.Message)
-		}
-		if len(reconciledRuns) != 1 || reconciledRuns[0] != ownerRunID {
-			t.Fatalf("the advisory check must reconcile under the presented run %q, got %v", ownerRunID, reconciledRuns)
-		}
-		if eng.reconcileCount != 1 || eng.startCount != 1 || eng.startAdmittedCount != 1 {
-			t.Fatalf("reconcile=%d admit=%d launch=%d, want 1/1/1", eng.reconcileCount, eng.startCount, eng.startAdmittedCount)
-		}
-		if used, limit := suiteUsage(t, dir, "0489"); used != 1 || limit != 4 {
-			t.Fatalf("usage = (%d,%d), want exactly one charged attempt", used, limit)
-		}
-	})
-
-	t.Run("foreign presented run stays fenced", func(t *testing.T) {
-		svc, eng, dir, worktree := setup(t)
-		got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0489", RunID: "run-foreign"})
-		if got.Result == ResultApplied || got.Reason != string(gatedrive.ErrWorktreeBusy) {
-			t.Fatalf("a foreign presented run must refuse worktree-busy, got result=%s reason=%q", got.Result, got.Reason)
-		}
-		if !strings.Contains(got.Message, "incumbent-run-fenced") {
-			t.Fatalf("refusal must name the run fence, got %q", got.Message)
-		}
-		if len(reconciledRuns) != 1 || reconciledRuns[0] != "run-foreign" {
-			t.Fatalf("a foreign run must be reconciled as presented, got %v", reconciledRuns)
-		}
-		if eng.startCount != 0 {
-			t.Fatalf("a fenced start must not reach admission, got %d", eng.startCount)
-		}
-		if used, limit := suiteUsage(t, dir, "0489"); used != 0 || limit != 0 {
-			t.Fatalf("a refused start must charge nothing, got (%d,%d)", used, limit)
-		}
-	})
-}
-
-// TestAdmitRefusalChargesNoSuiteAttempt proves the AUTHORITATIVE half of the
-// ordering fix: when the advisory precheck cannot see the busy slot (it cannot
-// resolve the worktree) but Admit itself refuses — a race the precheck missed — the
-// start is still refused with no suite attempt charged, because the charge sits
-// AFTER Admit. The launch half is never reached. Moving the charge before Admit
-// reddens this test.
+// TestAdmitRefusalChargesNoSuiteAttempt proves the ordering: when Admit refuses
+// worktree-busy, the start is refused with no suite attempt charged, because the
+// charge sits AFTER Admit; Admit is reached exactly once (there is no advisory
+// busy pre-check before it) and the launch half is never reached. Moving the
+// charge before Admit reddens this test.
 func TestAdmitRefusalChargesNoSuiteAttempt(t *testing.T) {
 	svc, eng, dir := newBudgetTestBuildService(t, 4)
-	eng.admitErr = &gatedrive.OwnershipError{Kind: gatedrive.ErrWorktreeBusy, Op: "start"}
+	eng.admitErr = &gatedrive.OwnershipError{Kind: gatedrive.ErrWorktreeBusy, Op: "worktree-admission"}
 
 	got := svc.Start(buildStartReq("0421"))
 	if got.Result == ResultApplied || got.Drive != nil {
@@ -1347,21 +1207,23 @@ func ownershipErrWith(kind gatedrive.OwnershipErrorKind, inc *gatedrive.Incumben
 	return &gatedrive.OwnershipError{Kind: kind, Op: "reserve-worktree-execution", Incumbent: inc}
 }
 
-// TestMapDriveResultWorktreeAdmissionRefusal proves an admission refusal
-// carrying an incumbent snapshot surfaces the typed stage, the safe incumbent
-// locator, and per-kind credential-free guidance — and that a snapshot-free
-// refusal keeps the existing generic next-action fallback.
+// TestMapDriveResultWorktreeAdmissionRefusal proves a worktree-busy refusal
+// always carries the worktree-admission stage, a safe locator for a live
+// holder, and the remedy for that holder's kind (change 0490): run.cancel for a
+// build drive's owning run, waiting for finalize's gate, gate stop for a raw
+// launch, and "holder unknown" (lsof on busy.lock) when no running holder could
+// be named. Identities render only after they validate, and a non-busy kind
+// keeps its own next-action message with no stage.
 func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
-	rawInc := &gatedrive.IncumbentSnapshot{Kind: "raw", State: "executing",
-		RawRunID: "0123456789abcdef0123456789abcdef", RawRunDir: "/runs/0123456789abcdef0123456789abcdef"}
-	drivenInc := &gatedrive.IncumbentSnapshot{Kind: "scoped", State: "executing", DriveID: validDriveIDForTest(t)}
-	runInc := &gatedrive.IncumbentSnapshot{Kind: "scopeless", State: "executing", RunOwned: true}
-	blankInc := &gatedrive.IncumbentSnapshot{State: "reserved"}
-	// A raw reservation not yet confirmed (no RawRunDir/RawRunID): the raw-stop
-	// guidance must NOT render, because there is no proven run identity to stop.
-	rawUnconfirmedInc := &gatedrive.IncumbentSnapshot{Kind: "raw", State: "reserved"}
-	// An unresolved execution slot with an incumbent snapshot present.
-	unresolvedInc := &gatedrive.IncumbentSnapshot{State: "unresolved"}
+	driveID := validDriveIDForTest(t)
+	const runID = "0123456789abcdef0123456789abcdef"
+	buildInc := &gatedrive.IncumbentSnapshot{Kind: "drive", DriveID: driveID, RawRunID: runID,
+		RawRunDir: "/runs/" + runID, ChangeID: "0490", Owner: "build"}
+	finalizeInc := &gatedrive.IncumbentSnapshot{Kind: "drive", DriveID: driveID, RawRunID: runID,
+		RawRunDir: "/runs/" + runID, ChangeID: "0490", Owner: "finalize"}
+	rawInc := &gatedrive.IncumbentSnapshot{Kind: "raw", RawRunID: runID, RawRunDir: "/runs/" + runID, Owner: "raw"}
+	rawBadInc := &gatedrive.IncumbentSnapshot{Kind: "raw", RawRunID: "NOT-HEX", RawRunDir: "/runs/NOT-HEX", Owner: "raw"}
+	driveBadInc := &gatedrive.IncumbentSnapshot{Kind: "drive", DriveID: "../escape", ChangeID: "0490; rm -rf /", Owner: "build"}
 
 	cases := []struct {
 		name      string
@@ -1371,42 +1233,32 @@ func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
 		msgHas    []string
 		msgLacks  []string
 	}{
-		{"raw busy", ownershipErrWith(gatedrive.ErrWorktreeBusy, rawInc),
-			"worktree-admission", "incumbent-run:0123456789abcdef0123456789abcdef",
-			[]string{"gate observe", "gate stop", "'/runs/0123456789abcdef0123456789abcdef'", "completed"},
-			[]string{"token"}},
-		// A snapshot DriveID is historical evidence at most (no production writer
-		// sets a slot's DriveID — change 0446): the locator still renders it, but it
-		// never selects "driven gate" guidance.
-		{"driven busy", ownershipErrWith(gatedrive.ErrWorktreeBusy, drivenInc),
-			"worktree-admission", "incumbent-drive:" + drivenInc.DriveID,
-			[]string{"occupies"}, []string{"gate stop", "driven gate occupies"}},
-		{"run owned", ownershipErrWith(gatedrive.ErrStaleRunID, runInc),
+		{"busy with a build drive holder", ownershipErrWith(gatedrive.ErrWorktreeBusy, buildInc),
+			"worktree-admission", "incumbent-drive:" + driveID,
+			[]string{"change 0490", "drive " + driveID, "run.cancel", "--run-id"},
+			[]string{"gate stop", "holder unknown"}},
+		{"busy with a finalize holder", ownershipErrWith(gatedrive.ErrWorktreeBusy, finalizeInc),
+			"worktree-admission", "incumbent-drive:" + driveID,
+			[]string{"finalize", "change 0490", "wait"},
+			[]string{"run.cancel", "gate stop", "holder unknown"}},
+		{"busy with a raw holder", ownershipErrWith(gatedrive.ErrWorktreeBusy, rawInc),
+			"worktree-admission", "incumbent-run:" + runID,
+			[]string{"gate stop '/runs/" + runID + "'", "raw gate run"},
+			[]string{"run.cancel", "holder unknown"}},
+		{"busy with no holder", ownershipErrWith(gatedrive.ErrWorktreeBusy, nil),
 			"worktree-admission", "",
-			[]string{"run.cancel", "resolves"}, []string{"gate stop", "incumbent-run:"}},
-		// A slot-named run no readable record carries: run.cancel cannot target
-		// it, so the remedy must not suggest it and names the store + human repair.
-		{"run unresolved", ownershipErrWith(gatedrive.ErrStaleRunID,
-			&gatedrive.IncumbentSnapshot{Kind: "scopeless", State: "released", RunOwned: true, RunUnresolved: true}),
+			[]string{"holder unknown", "lsof", "busy.lock"},
+			[]string{"run.cancel", "gate stop"}},
+		{"busy with a raw holder whose run id does not validate", ownershipErrWith(gatedrive.ErrWorktreeBusy, rawBadInc),
 			"worktree-admission", "",
-			[]string{"docket/run-tracker", "human"}, []string{"run.cancel", "gate stop", "incumbent-run:"}},
-		{"unknown identity", ownershipErrWith(gatedrive.ErrWorktreeBusy, blankInc),
+			[]string{"raw gate run", "did not validate"},
+			[]string{"gate stop", "NOT-HEX"}},
+		{"busy with a drive holder whose ids do not validate", ownershipErrWith(gatedrive.ErrWorktreeBusy, driveBadInc),
 			"worktree-admission", "",
-			[]string{"occupies"}, []string{"gate stop", "gate observe"}},
-		{"no snapshot keeps fallback", ownershipErrWith(gatedrive.ErrWorktreeBusy, nil),
-			"", "", []string{ownershipNextAction(gatedrive.ErrWorktreeBusy)}, nil},
-		// Safety invariant: raw-stop guidance renders ONLY when a confirmed
-		// RawRunDir exists. An unconfirmed raw reservation routes to the case-3
-		// "run identity is not recorded" remedy, renders no locator, and never
-		// emits raw-stop guidance.
-		{"raw reserved unconfirmed", ownershipErrWith(gatedrive.ErrWorktreeBusy, rawUnconfirmedInc),
-			"worktree-admission", "",
-			[]string{"raw gate reservation", "run identity is not recorded"},
-			[]string{"gate stop", "gate observe", "incumbent-run:"}},
-		{"launch unconfirmed", ownershipErrWith(gatedrive.ErrLaunchUnconfirmed, unresolvedInc),
-			"worktree-admission", "",
-			[]string{ownershipNextAction(gatedrive.ErrLaunchUnconfirmed), "run.cancel"},
-			[]string{"gate stop"}},
+			[]string{"another change", "run.cancel"},
+			[]string{"../escape", "rm -rf", "(drive"}},
+		{"a non-busy kind keeps its next action", ownershipErrWith(gatedrive.ErrStaleRunID, buildInc),
+			"", "", []string{ownershipNextAction(gatedrive.ErrStaleRunID)}, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

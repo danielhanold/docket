@@ -6,42 +6,10 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// These are the gatedrive-side run tests (change 0375 Task 9). A start
-// threads its RunID onto the worktree execution slot, and the slot's
-// run fence refuses any later reservation that does not carry the owning run —
-// an omitted or stale run cannot detach a workflow-owned worktree, even over the
-// released (between-drives) slot the run still owns.
-
-// TestStartCarriesRunIntoSlot proves a Start records its RunID on the worktree
-// execution slot it reserves, so the fence links the worktree to the workflow
-// run.
-func TestStartCarriesRunIntoSlot(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	req := sampleStart()
-	req.RunID = "run-carry-xyz"
-
-	proc := &fakeProc{} // launch + observe running
-	d := storeTestDriver(store, clk, proc, stableGit())
-
-	doc, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	if doc.Outcome != WAITING {
-		t.Fatalf("first slice must WAIT, got %s (%s)", doc.Outcome, doc.Cause)
-	}
-	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	if slot.RunID != "run-carry-xyz" {
-		t.Fatalf("the slot must record the start's run, got %q", slot.RunID)
-	}
-	if slot.State != admissionExecuting {
-		t.Fatalf("after a launched Start the slot must be executing, got %q", slot.State)
-	}
-}
+// These are the store-level slot run-fence tests (change 0375 Task 9): the
+// slot's run fence refuses any later reservation that does not carry the owning
+// run. Drive starts no longer reserve the slot (change 0490 moved drive
+// admission onto the worktree lock); the slot store and these tests go with it.
 
 // TestRunOmissionCannotDetachOwnedWorktree proves the slot's run fence: a
 // slot owned by run E admits only E's own sequential drives. A reservation

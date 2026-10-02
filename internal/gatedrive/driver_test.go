@@ -2,9 +2,11 @@ package gatedrive
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -40,11 +42,20 @@ type fakeProc struct {
 	stop    func(runDir, reason string) (*process.StopOutcome, error)
 	resolve func(root, token string) (*process.ReservationResolution, error)
 
+	// retainLock, when set, leaves the handed worktree lock to the launch
+	// closure (a test that emulates a supervisor still holding it); by default
+	// Launch closes it after the closure runs, as the real process.Launch closes
+	// the caller's copy on every path.
+	retainLock bool
+
 	launchN, observeN, stopN, resolveN int
 }
 
 func (f *fakeProc) Launch(r process.LaunchRequest) (*process.LaunchOutcome, error) {
 	f.launchN++
+	if !f.retainLock {
+		defer releaseHandedLock(r)
+	}
 	if f.launch == nil {
 		id := fmt.Sprintf("run%d", f.launchN)
 		return &process.LaunchOutcome{RunID: id, RunDir: "/runs/" + id, State: process.StateRunning}, nil
@@ -69,9 +80,8 @@ func (f *fakeProc) Stop(runDir, reason string) (*process.StopOutcome, error) {
 }
 
 // ResolveReservation defaults to a proven never-launched verdict — the natural
-// outcome of a launch that returned an error with no run dir, so the worktree
-// slot is released rather than left blocking. Tests that model a lost launch
-// response inject a closure returning "unresolved" or "identified".
+// outcome of a launch that returned an error with no run dir. Tests that model a
+// lost launch response inject a closure returning "unresolved" or "identified".
 func (f *fakeProc) ResolveReservation(root, token string) (*process.ReservationResolution, error) {
 	f.resolveN++
 	if f.resolve == nil {
@@ -148,14 +158,12 @@ func newTestDriver(t *testing.T, clk *fakeClock, proc *fakeProc, git GitSeam) (*
 func startRun() time.Time { return time.Unix(1_000_000, 0).UTC() }
 
 // sampleWorktreeOnce/sampleWorktreeDir back sampleWorktree: a single real,
-// canonical, existing directory used as the sample start worktree. Change
-// 0375's worktree admission derives its slot key from filepath.EvalSymlinks of the
-// worktree root, so a Start now needs a resolvable path (the old "/repo"
-// sentinel cannot be symlink-resolved). One shared directory is safe across tests:
-// every test owns a fresh Store (a fresh admission root under testsupport.TempDir),
-// so its worktree slot is isolated even though the worktree key is shared. The git
-// seam is faked in these tests, so ComputeFingerprint never touches the directory —
-// only admission's EvalSymlinks does.
+// canonical, existing directory used as the sample start worktree. One shared
+// directory is safe across tests: every test owns a fresh Store (a fresh lock
+// root under testsupport.TempDir), so its worktree lock is isolated even though
+// the worktree key is shared. The worktree lock keys on the launch cwd
+// (sampleStart's "/repo", resolved by fakeGit.WorktreeRoot), and the git seam is
+// faked, so ComputeFingerprint never touches the directory.
 var (
 	sampleWorktreeOnce sync.Once
 	sampleWorktreeDir  string
@@ -285,46 +293,6 @@ func TestStartLaunchesAndFirstSliceWaits(t *testing.T) {
 	if _, err := store.Load(doc.DriveID); err != nil {
 		t.Fatalf("Start must persist the drive: %v", err)
 	}
-}
-
-// TestStartCarriesLegacyHistorySummary proves a successful start document carries
-// the first-admission legacy recovery summary when legacy history was assessed,
-// and carries none on an ordinary start over a store with no legacy records. The
-// summary is a diagnostic surface on the START document only.
-func TestStartCarriesLegacyHistorySummary(t *testing.T) {
-	t.Run("legacy-history-present", func(t *testing.T) {
-		clk := &fakeClock{now: startRun()}
-		proc := &fakeProc{} // default: launch running, observe running
-		d, store := newTestDriver(t, clk, proc, stableGit())
-		// A completed v2 drive bound to a since-removed worktree: assessed and
-		// counted by the first-admission census, but not blocking this start.
-		copyLegacyFixture(t, store, "passed")
-
-		doc, err := d.Start(sampleStart())
-		if err != nil {
-			t.Fatalf("Start: %v", err)
-		}
-		if doc.LegacyHistory == nil {
-			t.Fatal("a start over a store carrying legacy history must carry the recovery summary")
-		}
-		if doc.LegacyHistory.Checked != 1 {
-			t.Fatalf("LegacyHistory.Checked = %d, want 1", doc.LegacyHistory.Checked)
-		}
-	})
-
-	t.Run("no-legacy-records-nil", func(t *testing.T) {
-		clk := &fakeClock{now: startRun()}
-		proc := &fakeProc{}
-		d, _ := newTestDriver(t, clk, proc, stableGit())
-
-		doc, err := d.Start(sampleStart())
-		if err != nil {
-			t.Fatalf("Start: %v", err)
-		}
-		if doc.LegacyHistory != nil {
-			t.Fatalf("a normal start with no legacy records must carry no summary narration, got %+v", doc.LegacyHistory)
-		}
-	})
 }
 
 // TestSeveralWaitingSlicesRetainDriveIdentity proves several WAITING slices keep
@@ -1015,17 +983,8 @@ func TestRelaunchCrashBetweenReserveAndLaunchRecovers(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			store := OpenStore(testsupport.TempDir(t))
-			// A live no-run-record worktree slot backs the admission token, as a real
-			// scopeless drive holds one, so the run-linkage resolution admits the
-			// crash-window recovery through the standalone path (change 0437 Task 3).
-			wt := mkWorktree(t)
-			token, terr := store.ReserveWorktreeExecution(sampleAdmission(wt))
-			if terr != nil {
-				t.Fatalf("reserve admission: %v", terr)
-			}
 			rec := seedRecord(t)
-			rec.WorktreePath = wt
-			rec.AdmissionToken = token
+			rec.AdmissionToken = "aaaaaaaaaaaaaaaa"
 			rec.RelaunchToken = "bbbbbbbbbbbbbbbb"
 			id, ownerGen := seedDrive(t, store, rec)
 			if err := store.ownerCAS(id, func(r *driveRecord) error {
@@ -1039,6 +998,11 @@ func TestRelaunchCrashBetweenReserveAndLaunchRecovers(t *testing.T) {
 				launch: func(req process.LaunchRequest) (*process.LaunchOutcome, error) {
 					if req.ReservationToken != rec.RelaunchToken || req.ReservationToken == rec.AdmissionToken {
 						t.Fatalf("replacement token = %q, want unique relaunch token %q", req.ReservationToken, rec.RelaunchToken)
+					}
+					// A recovered replacement re-takes the worktree lock before it
+					// launches, like any relaunch (change 0490).
+					if req.WorktreeLock == nil {
+						t.Fatalf("a recovered replacement must launch holding the worktree lock")
 					}
 					return &process.LaunchOutcome{RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning}, nil
 				},
@@ -1158,103 +1122,118 @@ func storeTestDriver(store *Store, clk *fakeClock, proc ProcessSeam, git GitSeam
 }
 
 // ---------------------------------------------------------------------------
-// Worktree execution slot admission (change 0375 Task 3). A start reserves the
-// canonical worktree's single execution slot before launch, so one worktree
-// carries at most one reserved-or-running top-level gate run.
+// Worktree lock admission (change 0490). Every drive launch site takes the
+// canonical worktree's lock before it launches and hands it to the supervisor,
+// so one worktree carries at most one live gate and a dead gate frees it with no
+// recovery step.
 // ---------------------------------------------------------------------------
 
-// TestStartReservesWorktreeSlot proves a start reserves the worktree execution
-// slot and, once its run is launch-confirmed and still live (WAITING), the slot is
-// executing and carries the drive's raw run identity — the durable locator a later
-// cancellation or recovery resolves the worktree by. (A PASSED/FAILED terminal
-// RELEASES the slot; that lifecycle is proven by TestStartReleasesSlotOnTerminal.)
-func TestStartReservesWorktreeSlot(t *testing.T) {
+// releaseHandedLock closes a launch request's handed worktree lock, as the real
+// process.Launch does on every path. A fake has no supervisor to keep the lock,
+// so closing it emulates one that already exited.
+func releaseHandedLock(req process.LaunchRequest) {
+	if req.WorktreeLock != nil {
+		_ = req.WorktreeLock.Close()
+	}
+}
+
+// worktreeLockDir is the lock directory a drive whose launch cwd is cwd keys on
+// (fakeGit resolves the root through fakeWorktreeRoot).
+func worktreeLockDir(store *Store, cwd string) string {
+	return filepath.Join(store.lockRoot, worktreeLockKey(fakeWorktreeRoot(cwd)))
+}
+
+// worktreeFree reports whether cwd's worktree lock is free right now. It takes
+// and closes the lock, so it leaves no hold behind.
+func worktreeFree(t *testing.T, store *Store, cwd string) bool {
+	t.Helper()
+	l, err := store.TryWorktreeLock(fakeWorktreeRoot(cwd), nil)
+	if isOwnershipKind(err, ErrWorktreeBusy) {
+		return false
+	}
+	if err != nil {
+		t.Fatalf("TryWorktreeLock(%s): %v", cwd, err)
+	}
+	l.Release()
+	return true
+}
+
+// holdWorktree takes cwd's worktree lock as another gate would, until cleanup.
+func holdWorktree(t *testing.T, store *Store, cwd string) {
+	t.Helper()
+	l, err := store.TryWorktreeLock(fakeWorktreeRoot(cwd), nil)
+	if err != nil {
+		t.Fatalf("hold the worktree lock: %v", err)
+	}
+	t.Cleanup(l.Release)
+}
+
+// soleDriveID returns the one drive id the store holds.
+func soleDriveID(t *testing.T, store *Store) string {
+	t.Helper()
+	entries, err := os.ReadDir(store.root)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("want exactly one drive record, got %d (err=%v)", len(entries), err)
+	}
+	return entries[0].Name()
+}
+
+var launchTokenShape = regexp.MustCompile("^[0-9a-f]{32}$")
+
+// TestAdmitRefusesWorktreeBusyAndCreatesNoDrive: a worktree whose lock another
+// gate holds refuses the admission with a typed worktree-busy at the
+// worktree-admission stage, creates no drive, and launches nothing.
+func TestAdmitRefusesWorktreeBusyAndCreatesNoDrive(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	proc := &fakeProc{} // runs stay live so the drive WAITs and holds the slot
-	d := storeTestDriver(store, clk, proc, stableGit())
+	proc := &fakeProc{}
+	d, store := newTestDriver(t, clk, proc, stableGit())
 	req := sampleStart()
+	holdWorktree(t, store, req.Cwd)
 
-	doc, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("Start: %v", err)
+	ticket, err := d.Admit(req)
+	if ticket != nil {
+		t.Fatalf("a busy worktree must not admit, got a ticket")
 	}
-	if doc.Outcome != WAITING {
-		t.Fatalf("start over a live run must WAIT, got %s (%s)", doc.Outcome, doc.Cause)
+	oe, ok := AsOwnershipError(err)
+	if !ok || oe.Kind != ErrWorktreeBusy || oe.Op != opWorktreeAdmission {
+		t.Fatalf("Admit over a held worktree = %v, want worktree-busy at %s", err, opWorktreeAdmission)
 	}
-
-	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
+	if n := driveRecordCount(t, store); n != 0 {
+		t.Fatalf("a busy refusal must create no drive, got %d", n)
 	}
-	if slot.State != admissionExecuting {
-		t.Fatalf("while a drive runs the worktree slot must be executing, got %q", slot.State)
-	}
-	rec, err := store.Load(doc.DriveID)
-	if err != nil {
-		t.Fatalf("Load drive: %v", err)
-	}
-	if slot.RawRunID != rec.RawOwnership || slot.RawRunDir != rec.RawRunDir {
-		t.Fatalf("the slot must carry the drive's raw run identity, slot=(%q,%q) drive=(%q,%q)",
-			slot.RawRunID, slot.RawRunDir, rec.RawOwnership, rec.RawRunDir)
-	}
-	if slot.Kind != "scopeless" {
-		t.Fatalf("the slot kind must be scopeless, got %q", slot.Kind)
-	}
-	// The drive carries the admission token it launched under (threaded into the raw
-	// launch and used by recovery), and it is never a capability.
-	if rec.AdmissionToken == "" || rec.AdmissionToken != slot.ReservationToken {
-		t.Fatalf("the drive must carry the slot's admission token, drive=%q slot=%q", rec.AdmissionToken, slot.ReservationToken)
+	if proc.launchN != 0 {
+		t.Fatalf("a busy refusal must launch nothing, launched %d", proc.launchN)
 	}
 }
 
-// TestStartReleasesSlotOnTerminal proves the per-drive release: a drive that
-// reaches a PASSED terminal frees the worktree execution slot (the supervisor
-// reports PASSED only after tearing the child down), so a LATER drive for a
-// DIFFERENT change can admit onto the same worktree. Without the release a
-// finished drive would fence the worktree forever.
-func TestStartReleasesSlotOnTerminal(t *testing.T) {
+// TestAdmitLockIOErrorIsNotFree: a worktree root that cannot be resolved is a
+// typed I/O failure — never read as a free worktree — and creates no drive.
+func TestAdmitLockIOErrorIsNotFree(t *testing.T) {
+	git := stableGit()
+	git.rootErr = errors.New("gatedrive-test: worktree root unresolvable")
 	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	proc := passObserveProc() // every run PASSES on first observation
-	d := storeTestDriver(store, clk, proc, stableGit())
+	proc := &fakeProc{}
+	d, store := newTestDriver(t, clk, proc, git)
 
-	reqA := sampleStart()
-	a, err := d.Start(reqA)
-	if err != nil {
-		t.Fatalf("drive A Start: %v", err)
+	ticket, err := d.Admit(sampleStart())
+	if ticket != nil {
+		t.Fatalf("an unresolvable worktree must not admit")
 	}
-	if a.Outcome != PASSED {
-		t.Fatalf("drive A must PASS, got %s (%s)", a.Outcome, a.Cause)
+	if se, ok := AsStoreError(err); !ok || se.Kind != ErrIO || se.Op != opWorktreeAdmission {
+		t.Fatalf("Admit with an unresolvable root = %v, want a typed %s I/O error", err, opWorktreeAdmission)
 	}
-	// The passed drive released the slot: the worktree is idle again.
-	slot, _, err := store.LoadWorktreeExecution(reqA.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
+	if n := driveRecordCount(t, store); n != 0 {
+		t.Fatalf("an I/O refusal must create no drive, got %d", n)
 	}
-	if slot.State != admissionReleased {
-		t.Fatalf("a PASSED drive must release the worktree slot, got %q", slot.State)
-	}
-	// A drive for a different change now admits onto the same worktree and PASSES too.
-	reqB := sampleStart()
-	reqB.ChangeID = "0343"
-	b, err := d.Start(reqB)
-	if err != nil {
-		t.Fatalf("drive B Start over a released worktree slot: %v", err)
-	}
-	if b.Outcome != PASSED {
-		t.Fatalf("drive B must PASS over the reused worktree, got %s (%s)", b.Outcome, b.Cause)
-	}
-	if b.DriveID == a.DriveID {
-		t.Fatalf("the second start must be a NEW drive, got the first drive's id")
+	if proc.launchN != 0 {
+		t.Fatalf("an I/O refusal must launch nothing, launched %d", proc.launchN)
 	}
 }
 
-// TestAbandonAdmissionReleasesSlotAndRemovesReservedDrive proves the collapsed
-// AbandonAdmission shape: an admission the caller decides not to launch removes
-// its never-launched RESERVED drive record and releases the worktree slot it
-// reserved, so a later start admits onto the worktree — and nothing launches.
-func TestAbandonAdmissionReleasesSlotAndRemovesReservedDrive(t *testing.T) {
+// TestAbandonAdmissionFreesWorktree: an admitted ticket holds the worktree;
+// abandoning it removes the never-launched reserved drive and frees the
+// worktree, launches nothing, and leaves a ticket that can never launch.
+func TestAbandonAdmissionFreesWorktree(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
@@ -1264,132 +1243,443 @@ func TestAbandonAdmissionReleasesSlotAndRemovesReservedDrive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
 	}
+	if worktreeFree(t, store, req.Cwd) {
+		t.Fatalf("an admitted ticket must hold the worktree lock")
+	}
 	if err := d.AbandonAdmission(ticket); err != nil {
 		t.Fatalf("AbandonAdmission: %v", err)
 	}
-	if proc.launchN != 0 {
-		t.Fatalf("an abandoned admission must launch nothing, got %d", proc.launchN)
-	}
-	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	if slot.State != admissionReleased {
-		t.Fatalf("an abandoned admission must release its slot, got %q", slot.State)
+	if !worktreeFree(t, store, req.Cwd) {
+		t.Fatalf("an abandoned admission must free the worktree")
 	}
 	if _, lerr := store.Load(ticket.id); lerr == nil {
 		t.Fatalf("an abandoned admission must remove its reserved drive record")
 	}
-	if _, err := d.Admit(req); err != nil {
-		t.Fatalf("a later start must admit over the released slot: %v", err)
+	if _, serr := d.StartAdmitted(ticket); !isOwnershipKind(serr, ErrUnresolvedLaunchTransition) {
+		t.Fatalf("an abandoned ticket must never launch, StartAdmitted = %v", serr)
+	}
+	if proc.launchN != 0 {
+		t.Fatalf("an abandoned admission must launch nothing, launched %d", proc.launchN)
 	}
 }
 
-// TestScopelessStartReservesBeforeLaunch proves that the finalize-style,
-// scopeless start owns a durable worktree slot before it asks the
-// process backend to launch. Its private RunRoot is only the supervisor's
-// allocation directory; worktree admission is keyed by Worktree.
-func TestScopelessStartReservesBeforeLaunch(t *testing.T) {
+// TestStartAdmittedRunRefusalFreesWorktree: a run launch gate that refuses at
+// StartAdmitted settles the reserved drive HALTED run-cancelled, launches
+// nothing, and frees the worktree.
+func TestStartAdmittedRunRefusalFreesWorktree(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
+	proc := &fakeProc{}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	sentinel := errors.New("gatedrive-test: run fenced between admit and launch")
+	g := &flippableGate{err: sentinel}
+	d.SetRunLaunchGate(g.gate())
+
+	req := sampleStart()
+	req.RunID = "e1"
+	ticket, err := d.Admit(req)
+	if err != nil {
+		t.Fatalf("Admit: %v", err)
+	}
+	g.setRefuse(true)
+	if _, serr := d.StartAdmitted(ticket); !errors.Is(serr, sentinel) {
+		t.Fatalf("StartAdmitted = %v, want the gate's refusal", serr)
+	}
+	rec, err := store.Load(ticket.id)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if rec.LastOutcome != HALTED || rec.LastCause != "run-cancelled" {
+		t.Fatalf("refused drive = %s/%q, want HALTED/run-cancelled", rec.LastOutcome, rec.LastCause)
+	}
+	if !worktreeFree(t, store, req.Cwd) {
+		t.Fatalf("a refused launch must free the worktree")
+	}
+	if proc.launchN != 0 {
+		t.Fatalf("a refused launch must launch nothing, launched %d", proc.launchN)
+	}
+}
+
+// TestLaunchFailureFreesWorktree: a launch that returns an error (the real
+// Launch closes the handed lock on every path) leaves the drive HALTED
+// launch-failed as evidence and the worktree free — no reservation resolution
+// and no recovery step are needed before the next start admits.
+func TestLaunchFailureFreesWorktree(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
+	proc := &fakeProc{launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+		return nil, errors.New("gatedrive-test: supervisor spawn failed")
+	}}
+	d, store := newTestDriver(t, clk, proc, stableGit())
 	req := sampleStart()
 
-	var atLaunch admissionRecord
-	var loadErr error
+	if _, err := d.Start(req); err == nil {
+		t.Fatalf("a failed launch must be a command failure")
+	}
+	rec, err := store.Load(soleDriveID(t, store))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if rec.LastOutcome != HALTED || rec.LastCause != "launch-failed" {
+		t.Fatalf("failed-launch drive = %s/%q, want HALTED/launch-failed", rec.LastOutcome, rec.LastCause)
+	}
+	if !worktreeFree(t, store, req.Cwd) {
+		t.Fatalf("a failed launch must free the worktree")
+	}
+	if proc.resolveN != 0 {
+		t.Fatalf("a failed first launch needs no reservation resolution, resolved %d", proc.resolveN)
+	}
+	if _, err := d.Admit(req); err != nil {
+		t.Fatalf("the next start must admit with no recovery step: %v", err)
+	}
+}
+
+// TestLaunchHandsLockAndWritesHolder: admission precedes launch — at Launch the
+// reserved drive exists and the worktree is held by the handed lock — the launch
+// carries the drive-minted 32-hex launch token, and after the launch the holder
+// note names the drive, its run dir, its change, and its owner.
+func TestLaunchHandsLockAndWritesHolder(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
+	var store *Store
+	var (
+		handed, heldAtLaunch bool
+		reservedAtLaunch     int
+		token                string
+	)
+	proc := &fakeProc{}
+	proc.launch = func(r process.LaunchRequest) (*process.LaunchOutcome, error) {
+		handed = r.WorktreeLock != nil
+		token = r.ReservationToken
+		heldAtLaunch = !worktreeFree(t, store, r.Cwd)
+		reservedAtLaunch = driveRecordCount(t, store)
+		return &process.LaunchOutcome{RunID: "run1", RunDir: "/runs/run1", State: process.StateRunning}, nil
+	}
+	d, s := newTestDriver(t, clk, proc, stableGit())
+	store = s
+	req := sampleStart()
+	req.Owner = "build"
+
+	doc, err := d.Start(req)
+	if err != nil || doc.Outcome != WAITING {
+		t.Fatalf("Start = %s (%v), want WAITING", doc.Outcome, err)
+	}
+	if !handed || !heldAtLaunch {
+		t.Fatalf("the launch must carry the held worktree lock: handed=%v held=%v", handed, heldAtLaunch)
+	}
+	if reservedAtLaunch != 1 {
+		t.Fatalf("the reserved drive must exist before the launch, found %d", reservedAtLaunch)
+	}
+	rec, err := store.Load(doc.DriveID)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !launchTokenShape.MatchString(token) || rec.AdmissionToken != token {
+		t.Fatalf("launch token %q must be the drive's own 32-hex admission_token %q", token, rec.AdmissionToken)
+	}
+	note, ok := readHolderNote(worktreeLockDir(store, req.Cwd))
+	if !ok {
+		t.Fatalf("the launch must write the holder note")
+	}
+	if note.Kind != "drive" || note.DriveID != doc.DriveID || note.RunDir != "/runs/run1" ||
+		note.ChangeID != req.ChangeID || note.Owner != "build" || note.WrittenAt.IsZero() {
+		t.Fatalf("holder note = %+v, want drive %s run /runs/run1 change %s owner build", note, doc.DriveID, req.ChangeID)
+	}
+}
+
+// TestStartAdmittedRefusesConsumedTicket: a ticket launches at most once. A
+// second StartAdmitted over an already-launched ticket — whose lock now belongs
+// to the supervisor — refuses and launches nothing.
+func TestStartAdmittedRefusesConsumedTicket(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
+	proc := &fakeProc{}
+	d, _ := newTestDriver(t, clk, proc, stableGit())
+
+	ticket, err := d.Admit(sampleStart())
+	if err != nil {
+		t.Fatalf("Admit: %v", err)
+	}
+	if doc, err := d.StartAdmitted(ticket); err != nil || doc.Outcome != WAITING {
+		t.Fatalf("first StartAdmitted = %s (%v), want WAITING", doc.Outcome, err)
+	}
+	if _, err := d.StartAdmitted(ticket); !isOwnershipKind(err, ErrUnresolvedLaunchTransition) {
+		t.Fatalf("a consumed ticket must refuse, got %v", err)
+	}
+	if proc.launchN != 1 {
+		t.Fatalf("a consumed ticket must never launch again, launched %d", proc.launchN)
+	}
+}
+
+// TestScopelessAttachFailureStopsFreshRun: a launch whose handle cannot be
+// attached stops the fresh run (its supervisor's exit then frees the worktree)
+// and fails the start — never an automatic second launch.
+func TestScopelessAttachFailureStopsFreshRun(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
+	store := OpenStore(testsupport.TempDir(t))
+	var recordDir string
 	proc := &fakeProc{
 		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
-			atLaunch, _, loadErr = store.LoadWorktreeExecution(req.Worktree)
+			recordDir = filepath.Join(store.root, soleDriveID(t, store))
+			if err := os.Chmod(recordDir, 0o500); err != nil {
+				return nil, fmt.Errorf("chmod reserved drive: %w", err)
+			}
 			return &process.LaunchOutcome{RunID: "run1", RunDir: "/runs/run1", State: process.StateRunning}, nil
 		},
 	}
+	var stopped []string
+	proc.stop = func(runDir, _ string) (*process.StopOutcome, error) {
+		stopped = append(stopped, runDir)
+		return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
+	}
 	d := storeTestDriver(store, clk, proc, stableGit())
 
-	doc, err := d.Start(req)
-	if loadErr != nil {
-		t.Fatalf("LoadWorktreeExecution at launch: %v", loadErr)
+	_, err := d.Start(sampleStart())
+	if recordDir != "" {
+		_ = os.Chmod(recordDir, 0o700)
 	}
-	if err != nil {
-		t.Fatalf("Start: %v", err)
+	if err == nil {
+		t.Fatalf("an attach failure must fail the start")
 	}
-	if atLaunch.State != admissionReserved {
-		t.Fatalf("at launch the scopeless worktree slot must already be reserved, got %q", atLaunch.State)
+	if len(stopped) != 1 || stopped[0] != "/runs/run1" {
+		t.Fatalf("an attach failure must stop exactly the fresh run, stopped %v", stopped)
 	}
-	if atLaunch.Kind != "scopeless" {
-		t.Fatalf("at launch the slot must be scopeless, got kind=%q", atLaunch.Kind)
-	}
-	if atLaunch.ReservationToken == "" {
-		t.Fatalf("at launch the slot must carry a reservation token")
-	}
-	if doc.Outcome != WAITING {
-		t.Fatalf("scopeless start over a live run must WAIT, got %s (%s)", doc.Outcome, doc.Cause)
-	}
-	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution after Start: %v", err)
-	}
-	if slot.State != admissionExecuting || slot.RawRunID != "run1" || slot.RawRunDir != "/runs/run1" {
-		t.Fatalf("after launch the slot must be executing with the run handle, got state=%q id=%q dir=%q", slot.State, slot.RawRunID, slot.RawRunDir)
+	if proc.launchN != 1 {
+		t.Fatalf("an attach failure must not launch again, launched %d", proc.launchN)
 	}
 }
 
-// TestScopelessPersistFailureReleasesOnProvenStop proves the post-launch
-// attach failure has no ambiguous-free path: a proven owned stop releases the
-// worktree slot, while a stop the seam cannot prove leaves it unresolved.
-func TestScopelessPersistFailureReleasesOnProvenStop(t *testing.T) {
-	for name, stop := range map[string]func(string, string) (*process.StopOutcome, error){
-		"proven stop releases": func(runDir, reason string) (*process.StopOutcome, error) {
-			return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
-		},
-		"unproven stop leaves unresolved": func(string, string) (*process.StopOutcome, error) {
-			return nil, fmt.Errorf("gatedrive-test: stop ownership unproven")
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			clk := &fakeClock{now: startRun()}
-			store := OpenStore(testsupport.TempDir(t))
-			req := sampleStart()
-			var recordDir string
-			proc := &fakeProc{
-				launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
-					entries, err := os.ReadDir(store.root)
-					if err != nil {
-						return nil, err
-					}
-					if len(entries) != 1 || !entries[0].IsDir() {
-						t.Fatalf("the reserved drive must exist before launch, got entries=%v", entries)
-					}
-					recordDir = filepath.Join(store.root, entries[0].Name())
-					if err := os.Chmod(recordDir, 0o500); err != nil {
-						return nil, fmt.Errorf("chmod reserved drive: %w", err)
-					}
-					return &process.LaunchOutcome{RunID: "run1", RunDir: "/runs/run1", State: process.StateRunning}, nil
-				},
-				stop: stop,
-			}
-			d := storeTestDriver(store, clk, proc, stableGit())
+// TestCorruptReservedDriveNeverLaunches: a drive record corrupted in the window
+// between Admit and StartAdmitted refuses the delayed launch typed, launches
+// nothing, and frees the worktree; a corrupt drive's reserved relaunch never
+// launches either.
+func TestCorruptReservedDriveNeverLaunches(t *testing.T) {
+	t.Run("reserved-before-launch", func(t *testing.T) {
+		proc := &fakeProc{}
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+		req := sampleStart()
+		ticket, err := d.Admit(req)
+		if err != nil {
+			t.Fatalf("Admit: %v", err)
+		}
+		corruptFile(t, filepath.Join(store.root, ticket.id, recordFileName))
 
-			if _, err := d.Start(req); err == nil {
-				t.Fatalf("attach failure must return an error")
+		if _, err := d.StartAdmitted(ticket); !isStoreKind(err, ErrCorruptRecord) {
+			t.Fatalf("the delayed launch of a corrupt reserved drive must refuse typed, got %v", err)
+		}
+		if proc.launchN != 0 {
+			t.Fatalf("a corrupt reserved drive must never launch, got %d launches", proc.launchN)
+		}
+		if !worktreeFree(t, store, req.Cwd) {
+			t.Fatalf("a refused launch must free the worktree")
+		}
+	})
+	t.Run("reserved-relaunch", func(t *testing.T) {
+		proc := &fakeProc{}
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+		doc, err := d.Start(sampleStart())
+		if err != nil || doc.Outcome != WAITING {
+			t.Fatalf("Start: doc=%+v err=%v", doc, err)
+		}
+		claim, err := store.reserveRelaunch(doc.DriveID, doc.Generation)
+		if err != nil {
+			t.Fatalf("reserveRelaunch: %v", err)
+		}
+		claim.close()
+		corruptFile(t, filepath.Join(store.root, doc.DriveID, recordFileName))
+
+		launches := proc.launchN
+		if adv, err := d.Advance(doc.DriveID, doc.Generation); err == nil && adv.Outcome != HALTED {
+			t.Fatalf("advancing a corrupt drive must halt or fail, got %+v", adv)
+		}
+		if proc.launchN != launches {
+			t.Fatal("a corrupt drive's reserved relaunch must never launch")
+		}
+	})
+}
+
+// relaunchAfterDeath starts an idempotent drive whose first run stays live for
+// the first slice, then reports it vanished, so the next Advance reaches the
+// single relaunch.
+func relaunchAfterDeath(t *testing.T, owner string) (*Driver, *Store, *fakeProc, *fakeClock, StartRequest, DriveDoc, *bool) {
+	t.Helper()
+	clk := &fakeClock{now: startRun()}
+	dead := false
+	proc := &fakeProc{observe: func(runDir string) (*process.Observation, error) {
+		if dead && strings.HasSuffix(runDir, "run1") {
+			return obs(process.StateVanished, runDir), nil
+		}
+		return obs(process.StateRunning, runDir), nil
+	}}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	req := sampleStart()
+	req.Owner = owner
+	started, err := d.Start(req)
+	if err != nil || started.Outcome != WAITING {
+		t.Fatalf("Start = %s (%v), want WAITING", started.Outcome, err)
+	}
+	return d, store, proc, clk, req, started, &dead
+}
+
+// TestRelaunchFindsWorktreeHeldHaltsWorktreeBusy (L4): when another gate holds
+// the worktree by the time the dead first run would be replaced, the drive HALTs
+// worktree-busy, launches nothing more, and releases its relaunch claim.
+func TestRelaunchFindsWorktreeHeldHaltsWorktreeBusy(t *testing.T) {
+	d, store, proc, _, req, started, dead := relaunchAfterDeath(t, "build")
+	holdWorktree(t, store, req.Cwd) // another gate took the worktree
+	*dead = true
+
+	doc, err := d.Advance(started.DriveID, started.Generation)
+	if err != nil {
+		t.Fatalf("Advance: %v", err)
+	}
+	if doc.Outcome != HALTED || doc.Cause != CauseWorktreeBusy {
+		t.Fatalf("relaunch over a held worktree = %s/%q, want HALTED/%s", doc.Outcome, doc.Cause, CauseWorktreeBusy)
+	}
+	if proc.launchN != 1 {
+		t.Fatalf("a busy worktree must never be relaunched over: launches = %d, want 1", proc.launchN)
+	}
+	rec, err := store.Load(started.DriveID)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if rec.RelaunchCount != 0 || rec.RawRunDir != "/runs/run1" {
+		t.Fatalf("a halted relaunch attaches nothing: count=%d run=%q", rec.RelaunchCount, rec.RawRunDir)
+	}
+	c, busy, err := store.tryRelaunchClaim(started.DriveID)
+	if err != nil || busy {
+		t.Fatalf("the relaunch claim must be released after the halt: busy=%v err=%v", busy, err)
+	}
+	c.close()
+}
+
+// TestRelaunchWaitsOutItsOwnSupervisorsExit: the first run's terminal state is
+// visible a few writes before its dying supervisor closes its copy of the
+// worktree lock. A relaunch that finds the lock still held by that exit keeps
+// trying, within its bound, and relaunches once the lock frees — it never HALTs
+// worktree-busy over its own prior run.
+func TestRelaunchWaitsOutItsOwnSupervisorsExit(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
+	dead := false
+	var firstLock *os.File // the first "supervisor's" copy, held past its death
+	proc := &fakeProc{retainLock: true}
+	proc.launch = func(r process.LaunchRequest) (*process.LaunchOutcome, error) {
+		id := fmt.Sprintf("run%d", proc.launchN)
+		if proc.launchN == 1 {
+			firstLock = r.WorktreeLock
+		} else {
+			releaseHandedLock(r)
+		}
+		return &process.LaunchOutcome{RunID: id, RunDir: "/runs/" + id, State: process.StateRunning}, nil
+	}
+	proc.observe = func(runDir string) (*process.Observation, error) {
+		if dead && strings.HasSuffix(runDir, "run1") {
+			return obs(process.StateVanished, runDir), nil
+		}
+		return obs(process.StateRunning, runDir), nil
+	}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	t.Cleanup(func() {
+		if firstLock != nil {
+			firstLock.Close()
+		}
+	})
+	retries := 0
+	d.sleep = func(dur time.Duration) {
+		clk.advance(dur)
+		if dead && firstLock != nil {
+			retries++
+			if retries == 3 { // the dying supervisor finally closes its copy
+				firstLock.Close()
+				firstLock = nil
 			}
-			if recordDir == "" {
-				t.Fatalf("launch never found the reserved drive record")
+		}
+	}
+	started, err := d.Start(sampleStart())
+	if err != nil || started.Outcome != WAITING {
+		t.Fatalf("Start = %s (%v), want WAITING", started.Outcome, err)
+	}
+	if worktreeFree(t, store, sampleStart().Cwd) {
+		t.Fatalf("the first run's supervisor must hold the worktree")
+	}
+	dead = true
+
+	doc, err := d.Advance(started.DriveID, started.Generation)
+	if err != nil {
+		t.Fatalf("Advance: %v", err)
+	}
+	if doc.Outcome != WAITING || doc.Attempt != 2 {
+		t.Fatalf("relaunch after its own supervisor's exit = %s/%q attempt %d, want WAITING attempt 2", doc.Outcome, doc.Cause, doc.Attempt)
+	}
+	if proc.launchN != 2 || retries != 3 {
+		t.Fatalf("launches = %d (want 2), busy retries = %d (want 3)", proc.launchN, retries)
+	}
+}
+
+// TestRelaunchRewritesHolderKeepingOwner: a relaunch rewrites the holder note
+// with the replacement's run dir and keeps the owner the drive's first launch
+// recorded; a note another drive wrote lends its owner to nobody.
+func TestRelaunchRewritesHolderKeepingOwner(t *testing.T) {
+	t.Run("own note keeps its owner", func(t *testing.T) {
+		d, store, proc, _, req, started, dead := relaunchAfterDeath(t, "finalize")
+		*dead = true
+		doc, err := d.Advance(started.DriveID, started.Generation)
+		if err != nil || doc.Outcome != WAITING || doc.Attempt != 2 {
+			t.Fatalf("relaunch = %s/%q attempt %d (%v), want WAITING attempt 2", doc.Outcome, doc.Cause, doc.Attempt, err)
+		}
+		if proc.launchN != 2 {
+			t.Fatalf("launches = %d, want 2", proc.launchN)
+		}
+		note, ok := readHolderNote(worktreeLockDir(store, req.Cwd))
+		if !ok || note.RunDir != "/runs/run2" || note.DriveID != started.DriveID ||
+			note.Owner != "finalize" || note.ChangeID != req.ChangeID || note.Kind != "drive" {
+			t.Fatalf("holder note after relaunch = %+v, want run2 of drive %s owned by finalize", note, started.DriveID)
+		}
+	})
+	t.Run("another drive's note lends no owner", func(t *testing.T) {
+		d, store, _, _, req, started, dead := relaunchAfterDeath(t, "finalize")
+		other := HolderNote{Kind: "drive", DriveID: strings.Repeat("c", 32), RunDir: "/runs/other", Owner: "build"}
+		if err := writeAtomicJSON(filepath.Join(worktreeLockDir(store, req.Cwd), worktreeHolderFile), other); err != nil {
+			t.Fatalf("seed another drive's note: %v", err)
+		}
+		*dead = true
+		if doc, err := d.Advance(started.DriveID, started.Generation); err != nil || doc.Outcome != WAITING {
+			t.Fatalf("relaunch = %s (%v), want WAITING", doc.Outcome, err)
+		}
+		note, ok := readHolderNote(worktreeLockDir(store, req.Cwd))
+		if !ok || note.DriveID != started.DriveID || note.RunDir != "/runs/run2" || note.Owner != "" {
+			t.Fatalf("holder note = %+v, want this drive's run2 with an unknown owner", note)
+		}
+	})
+}
+
+// TestTerminalDocAlwaysExposesRunRoot: every terminal document — PASSED,
+// FAILED, and HALTED alike — exposes the drive's run root so its owner removes
+// it; a live (WAITING) drive never does.
+func TestTerminalDocAlwaysExposesRunRoot(t *testing.T) {
+	for _, outcome := range []Outcome{PASSED, FAILED, HALTED} {
+		t.Run(string(outcome), func(t *testing.T) {
+			clk := &fakeClock{now: startRun()}
+			d, store := newTestDriver(t, clk, &fakeProc{}, stableGit())
+			rec := seedRecord(t)
+			rec.LastOutcome = outcome
+			if outcome == HALTED {
+				rec.LastCause = "uncertain-ownership"
 			}
-			if err := os.Chmod(recordDir, 0o700); err != nil {
-				t.Fatalf("restore reserved drive permissions: %v", err)
-			}
-			slot, _, err := store.LoadWorktreeExecution(req.Worktree)
+			id, owner := seedDrive(t, store, rec)
+			doc, err := d.Advance(id, owner)
 			if err != nil {
-				t.Fatalf("LoadWorktreeExecution: %v", err)
+				t.Fatalf("Advance: %v", err)
 			}
-			want := admissionReleased
-			if name == "unproven stop leaves unresolved" {
-				want = admissionUnresolved
-			}
-			if slot.State != want {
-				t.Fatalf("persist failure slot state = %q, want %q", slot.State, want)
+			if doc.Outcome != outcome || doc.RunRoot != rec.RunRoot {
+				t.Fatalf("%s document run root = %q, want %q", doc.Outcome, doc.RunRoot, rec.RunRoot)
 			}
 		})
 	}
+	t.Run(string(WAITING), func(t *testing.T) {
+		clk := &fakeClock{now: startRun()}
+		d, _ := newTestDriver(t, clk, &fakeProc{}, stableGit())
+		doc, err := d.Start(sampleStart())
+		if err != nil || doc.Outcome != WAITING || doc.RunRoot != "" {
+			t.Fatalf("a WAITING document must retain its run root: %s root=%q (%v)", doc.Outcome, doc.RunRoot, err)
+		}
+	})
 }
 
 // passObserveProc returns a fakeProc whose every run reports PASSED on the first

@@ -711,11 +711,11 @@ func TestCensusReservedRelaunchResolvesRelaunchToken(t *testing.T) {
 // launch-after-cancel window (spec AC4) is closed: when reconcile resolves a
 // reserved relaunch never-launched UNDER THE HELD CLAIM, it settles the drive
 // terminal HALTED "run-cancelled" before releasing the claim, so a SUBSEQUENT
-// Advance recovery on the same drive launches NOTHING — even though that recovery's
-// own read-only run pass reads the run still live (no run launch gate is injected,
-// so recoveryRunRevoked returns false). The oracle is a strict ordering (reconcile
-// fully returns before Advance runs) plus the proc.Launch count — never a timing
-// sleep.
+// Advance recovery on the same drive launches NOTHING — even though that recovery
+// checks no run at all (the relaunch crosses no run launch gate since change 0490,
+// so this terminal settle is what closes the window). The oracle is a strict
+// ordering (reconcile fully returns before Advance runs) plus the proc.Launch count
+// — never a timing sleep.
 func TestReconcileNeverLaunchedSettlesTerminalClosingRecoveryLaunchWindow(t *testing.T) {
 	recProc := &fakeProc{
 		resolve: func(root, token string) (*process.ReservationResolution, error) {

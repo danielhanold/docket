@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # docket-suite: go
-# tests/test_go_integration_app_buildstart.sh — Go integration shard (change 0428):
-# the legacy-history admission composition driven end-to-end through the application
-# gate-drive seam (a build-owned scoped Start over a store carrying a completed
-# pre-0375 PASSED drive admits with the legacy history recognised nonblocking and
-# launches exactly one raw run; a worktree-busy admission refusal carries no
-# legacy-inventory stage/locator/summary), behind the `integration` build tag,
-# prefix ^TestIntegrationBuildStart. Declarations only — execution and inspection
-# live in tests/lib/go-integration-shard.sh; the completeness contract is
+# tests/test_go_integration_app_buildstart.sh — Go integration shard (change 0428;
+# re-targeted by change 0490): build-owned starts admitted on the worktree lock,
+# driven end-to-end through the application gate-drive seam with the real driver,
+# process supervisor, and git worktree (a start into a worktree whose lock another
+# gate holds is refused worktree-busy with no drive created, no run launched, and
+# no suite attempt charged, and the next start after the holder lets go is
+# admitted; a busy refusal names the running holder's drive, change, and
+# run.cancel), behind the `integration` build tag, prefix ^TestIntegrationBuildStart.
+# Declarations only — execution and inspection live in
+# tests/lib/go-integration-shard.sh; the completeness contract is
 # tests/test_go_integration_contract.sh.
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
