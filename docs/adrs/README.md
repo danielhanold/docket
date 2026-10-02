@@ -116,6 +116,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0130](0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md) — Build-task workers run focused tests directly under a fixed time limit; the gate driver serves only full-suite gates (Accepted) ← change #488 → supersedes ADR-0117 · relates to ADR-0107, ADR-0024
 - [ADR-0131](0131-the-run-tracker-s-outer-takeover-recovers-only-a-still-runni.md) — The run tracker's outer takeover recovers only a still-running drive (Accepted) ← change #489 · relates to ADR-0107, ADR-0130
 - [ADR-0132](0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) — Worktree admission is a supervisor-held kernel lock (Accepted) ← change #490 → supersedes ADR-0118 · relates to ADR-0095, ADR-0120, ADR-0124, ADR-0125
+- [ADR-0133](0133-the-run-key-is-the-run-tracker-s-only-handle-gate-starts-car.md) — The run key is the run tracker's only handle; gate starts carry no run check (Accepted) · relates to ADR-0095, ADR-0111, ADR-0118, ADR-0124, ADR-0128, ADR-0129, ADR-0132
 
 ## Superseded / Reversed
 
