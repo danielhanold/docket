@@ -108,7 +108,7 @@ halts `worktree-busy` instead of relaunching when another gate took the lock fir
 **blocking diagnostic, not a rebase conflict and not a red suite**: it is in neither the
 abort-and-report set above nor a `contended`/`waiting` continuation. Do not race a second gate.
 The remedy is operator-side — let the holding gate finish, or stop it (the `run.cancel` operation
-with `--key <key> --run-id <id> --reason <why>` for a tracked run, `gate.stop <run-dir>` for a raw
+with `--key <key> --reason <why>` for a tracked run, `gate.stop <run-dir>` for a raw
 launch) — then re-run finalize. The worktree frees itself when the holder ends.
 
 **Where the reason surfaces.** The subagent returns its diagnosis in-context; finalize relays it to
