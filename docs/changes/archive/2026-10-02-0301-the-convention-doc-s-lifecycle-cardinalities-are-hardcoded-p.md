@@ -2,11 +2,11 @@
 id: 301
 slug: the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p
 title: 'The convention doc''s lifecycle cardinalities are hardcoded prose with no guard'
-status: proposed
+status: 'killed'
 priority: medium
 type: docs
 created: 2026-08-12
-updated: 2026-08-12
+updated: '2026-10-02'
 depends_on: []
 related: []
 discovered_from: [298]
@@ -57,3 +57,8 @@ re-running the gate on an approved branch for work outside that branch's scope.
 
 - **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the convention still reads `eight states` and `github-board-mirror.md` says `all eight`; the proposed shell-grep guard has no runner. Make it a Go test (e.g. in `internal/domain`, where the status set lives). `github-board-mirror.md` describes the sunset GitHub mirror, so that half may collapse to deleting the doc.
 
+## Why killed
+
+Obsolete. Both lifecycle-count claims this change targeted are gone: `skills/docket-convention/SKILL.md` no longer states a count of states, and `github-board-mirror.md` was deleted along with the GitHub mirror. With nothing left that can drift, the guard has no subject.
+
+Killed in the 2026-10-02 backlog review that followed the gate-machinery simplification (0488–0491), on Daniel's decision.
