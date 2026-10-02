@@ -1,7 +1,7 @@
 ---
 id: 493
 slug: 'cancel-misses-a-replacement-supervisor-behind-a-halted-unatt'
-title: 'Cancel misses a replacement supervisor behind a halted, unattached relaunch'
+title: 'Retire the automatic gate relaunch'
 status: 'proposed'
 priority: 'medium'
 type: 'fix'
@@ -11,8 +11,8 @@ depends_on: [490]
 stacked_on:
 related: [491, 492]
 discovered_from: [490]
-adrs: [132]
-spec:
+adrs: [98, 107, 132]
+spec: 'docs/superpowers/specs/2026-10-02-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-design.md'
 plan:
 results:
 trivial: false
@@ -29,57 +29,35 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
+| Spec | [2026-10-02-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-design.md) |
+| ADRs | [ADR-0098](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0098-structured-gate-waiting-and-ownership-handoff.md), [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-This gap was found while fixing 0490's review findings (PR #366), and is recorded as suspected in 0490's results file under "Known issues and follow-ups". It is confirmed only by reading the code; nothing has reproduced it yet. Code references are to 0490's branch.
+A gate drive whose supervisor dies mid-run can earn one automatic relaunch, if it opted in with `IdempotentSuiteGate`. Only finalize's local gate opts in, and `evidence.recertify` shares that gate. The relaunch has a large crash-window apparatus behind it: a reservation, a token, crash recovery, a lock re-take, and an attach step.
 
-Finalize's single automatic relaunch reserves the relaunch (`RelaunchReserved`, with a `RelaunchToken`), takes the worktree lock, and calls `process.Launch`. When that call returns an error, the driver resolves the relaunch token. If the result is `unresolved` (or the resolve call itself fails), the drive is written HALTED `launch-unconfirmed` (the relaunch path in `internal/gatedrive/driver.go`; `haltReservedRelaunchCause`). Crash recovery through `recoverReservedRelaunch` ends the same way. In both cases a replacement supervisor may have started even though the launch reported an error: the launch response was lost, not the launch.
+This change was captured to fix a gap in that apparatus, found while fixing 0490's review findings. A relaunch whose launch response is lost halts without attaching its run dir, and the run census (`run.cancel` and `run.verdict`'s success closeout) would then miss a replacement supervisor. Grooming found that no production run can reach the gap: relaunching drives never carry a run context, so the census never sees them. ADR-0132 problem fact 6 already records this. The relaunch has also never fired on this machine: none of 216 drive records since 2026-09-29 relaunched.
 
-After that halt, the drive's record names only the first run. The replacement's run dir was never attached, so `RawRunDir` is still the first run's and `PriorRawRunDir` is empty. The relaunch token is kept, but nothing reads it again.
+The 2026-10-02 backlog review chose to **retire the relaunch** rather than harden around it. Retiring it removes this change's whole bug class, removes 0492's item 3 (`proveNoTreeSurvives` trusting `vanished` before a relaunch), and simplifies the driver. The cost is small: a rare supervisor death in finalize halts, and a human re-runs finalize, which re-runs the suite anyway.
 
-When `run.cancel` (`ReconcileRunLaunches`) or the success closeout (`ObserveRunLaunches`) accounts a HALTED drive, `reconcileHaltedDrive` goes to `proveRunDirsGone`, which checks only `RawRunDir` and `PriorRawRunDir`. Only a HALTED first launch with no attached run dir resolves its launch token (`resolveHaltedFirstLaunch`); a HALTED relaunch never resolves its relaunch token. Once the first run's supervisor is gone, the drive counts as settled.
-
-The result:
-
-- **Cancel can report `cancelled` while the replacement supervisor and its suite are still running.** This is the same failure class as 0490's review finding F1 (cancel reporting `cancelled` while a first launch whose launch response was lost may still be running). F1's fix covered the first launch, not the relaunch.
-- **The success closeout can count the run as complete** while an unattributed suite is still running in its worktree.
-- **The worktree stays busy.** The replacement holds the worktree lock, so the next gate start is refused `worktree-busy` until that suite finishes on its own, and nothing in docket names the process or can stop it. The lock still prevents two suites from running at once, so this is a cleanup and attribution gap, not a concurrency hole.
-
-A `relaunch-failed` halt is probably safe. It is written when the lock could not be taken (no launch happened) or when the token resolved to something other than `identified`, such as `never-launched`. Grooming should confirm that every `relaunch-failed` path really proves that no launch happened.
+**This change must add no other risk.** Build gates behave exactly as today apart from a renamed halt cause, and the spec's risk analysis checks every point.
 
 ## What changes
 
-These are hypotheses for grooming to evaluate, not decisions:
-
-- **Resolve the relaunch token for a HALTED drive.** When a HALTED drive still carries a reserved relaunch that never attached (`RelaunchReserved` with a `RelaunchToken`), `reconcileHaltedDrive` resolves that token, the way `resolveHaltedFirstLaunch` resolves a first launch's admission token, in addition to proving the recorded run dirs gone. The outcomes are the same as for a first launch: `identified` means the replacement's supervisor must be proven gone (stopped in cancel mode, `run-live` in observe mode); `never-launched` is settled; `unresolved` or a probe error stays pending and fails closed.
-- **Reuse `reconcileReservation`'s token resolution** instead of adding a new predicate.
-- **Check every halt cause on the relaunch path** (`launch-unconfirmed`, `relaunch-failed`, `worktree-busy`, a lost attach race) and state, for each one, whether a launch could have happened.
-- **Regression tests at the `gatedrive` layer and through `run.cancel`:** a relaunch whose `Launch` errors and whose token resolves `identified` after the halt must be stopped by cancel, and must block the success closeout while it runs.
-
-Any new finding token follows 0490's credential-free `<token>:<drive>` shape. Any new check states its failure posture up front, and prefers making the problem visible over halting a run.
+- **A supervisor death always halts.** Every gate drive halts when its supervisor dies, with a new cause, `supervisor-died`. Build drives already halt here, as `not-idempotent`; only the token is renamed. Finalize and recertify halt where they used to relaunch, and finalize reports `gate-halted`.
+- **The relaunch machinery is deleted:** the reservation and token, crash recovery, the lock re-take and attach, the relaunch-only halt causes, the `IdempotentSuiteGate` opt-in and its `--idempotent-suite-gate` flag, and the relaunch fields in the drive record.
+- **The census handles at most one launch.** With one launch per drive, the census needs no relaunch branch, and 0493's original gap becomes impossible by construction.
+- **Old records still load.** Unknown fields are ignored and there is no schema bump. The per-drive claim keeps its `relaunch.lock` file name on disk. A one-line pre-install check confirms no drive was left mid-relaunch.
+- **Docs and decision record.** Prose in docket-build, finalize's gate-failure reference, and the glossary is updated. A new ADR records the retirement, and ADR-0132 gets an Update note.
+- **Tests.** Relaunch tests are rewritten as halt tests, and mutation checks are added. Every other test passes unmodified.
 
 ## Out of scope
 
-- Tearing down a suite after its supervisor is gone (process groups outliving the supervisor, KILL escalation, `proveNoTreeSurvives` trusting `vanished`). That is 0492.
-- A never-launched drive blocking a successful run's closeout (0490 review finding F3). That is recorded under 0491's "Open questions".
+- Suite teardown after a supervisor is gone: process groups outliving it, KILL escalation, and graceful-stop timing. That is 0492's items 1, 2, and 4. Item 3 is dropped by this change.
+- Any automatic re-run in finalize after a `supervisor-died` halt. That would reintroduce a relaunch.
+- A never-launched drive blocking a successful run's closeout (0490 review finding F3, recorded under 0491).
 - The run id and its fences (0491).
-- The worktree lock and its holder model (0490, ADR-0132).
+- The worktree lock and its holder model (0490, ADR-0132), apart from deleting the relaunch's lock re-take.
+- Deleting `relaunch.lock` files or the old relaunch fields from records already on disk.
 
-## Open questions
-
-### Retarget: retire the automatic relaunch (direction from the 2026-10-02 backlog review)
-
-Daniel chose to retire finalize's single automatic relaunch rather than fix cancel's accounting for it. The hypotheses under "What changes" are superseded by this direction.
-
-- **Who uses it.** Only finalize's local gate, including its build recertify path, opts into the relaunch (`IdempotentSuiteGate: true` in `internal/app/finalize_rebase.go`). No other caller sets the flag.
-- **What it removes.** This change's whole bug class, plus 0492's item 3 (`proveNoTreeSurvives` trusting `vanished` before a relaunch).
-- **The cost.** When a finalize suite's supervisor dies mid-run, finalize halts with `gate-halted` instead of relaunching once, and a human re-runs finalize, which re-runs the suite anyway.
-
-Grooming should:
-
-- retitle this change to match;
-- trace everything the relaunch carries: the reservation and token fields in the drive record, `recoverReservedRelaunch`, the `relaunch-*` halt causes, the `--idempotent-suite-gate` flag, and ADR-0098's "one permitted relaunch" (carried into ADR-0107);
-- decide how a new ADR records the retirement.
