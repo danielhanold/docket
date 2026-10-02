@@ -22,7 +22,7 @@ branch: 'refactor/replace-the-durable-worktree-admission-slot-with-a-superviso'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-02T16:32:57Z'
+claimed_at: '2026-10-02T16:34:07Z'
 ---
 
 ## Artifacts
