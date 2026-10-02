@@ -2,7 +2,7 @@
 id: 489
 slug: 'delete-the-task-owned-gate-drive-machinery-once-no-skill-dri'
 title: 'Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'refactor'
 created: '2026-10-02'
@@ -22,7 +22,7 @@ branch: 'refactor/delete-the-task-owned-gate-drive-machinery-once-no-skill-dri'
 pr: 'https://github.com/danielhanold/docket/pull/365'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-02T10:37:09Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-02T10:37:09Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md) |
-| Plan | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md](https://github.com/danielhanold/docket/blob/refactor/delete-the-task-owned-gate-drive-machinery-once-no-skill-dri/docs/superpowers/plans/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) |
-| Results | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-results.md](https://github.com/danielhanold/docket/blob/refactor/delete-the-task-owned-gate-drive-machinery-once-no-skill-dri/docs/results/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-results.md) |
+| Plan | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) |
+| Results | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-results.md) |
 | ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0117](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0125](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md), [ADR-0130](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md), [ADR-0131](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0131-the-run-tracker-s-outer-takeover-recovers-only-a-still-runni.md) |
 <!-- docket:artifacts:end -->
 

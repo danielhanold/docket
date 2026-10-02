@@ -1,12 +1,6 @@
 # Backlog
 
-**491 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 335 done · 🗑️ 127 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0489](active/0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) | Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives | `critical` | `refactor` | [#365](https://github.com/danielhanold/docket/pull/365) | awaiting merge |
+**491 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 336 done · 🗑️ 127 killed
 
 ## 🔴 Blocked (1)
 
@@ -27,7 +21,7 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0491](active/0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Stop fencing gate admission on the run id; keep the run tracker for attribution only | `critical` | `refactor` | ⏳ waiting on #490 — not yet built |
-| [0490](active/0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | `critical` | `refactor` | ⏳ waiting on #489 — needs your merge |
+| [0490](active/0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | `critical` | `refactor` | needs-grooming |
 | [0483](active/0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | `low` | `feat` | needs-grooming |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-grooming |
 | [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-grooming |
@@ -85,7 +79,6 @@ graph TD
   0443
   0464
   0483
-  0488 --> 0489
   0489 --> 0490
   0490 --> 0491
   0192:::done
@@ -93,14 +86,15 @@ graph TD
   0370:::done
   0393:::done
   0407:::done
-  0488:::done
+  0489:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (462)</summary>
+<details><summary>✅🗑️ Archive — done + killed (463)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0489](archive/2026-10-02-0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) | Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives | 2026-10-02 |
 | [0488](archive/2026-10-02-0488-run-task-worker-tests-directly-in-the-foreground-not-through.md) | Run task-worker tests directly in the foreground, not through gate drives | 2026-10-02 |
 | [0487](archive/2026-10-02-0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) | Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go | 2026-10-02 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
@@ -122,7 +116,6 @@ graph TD
 | [0471](archive/2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) | Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) | 2026-09-29 |
 | [0470](archive/2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md) | Install the no-real-git test guard in internal/gatedrive | 2026-09-29 |
 | [0468](archive/2026-09-29-0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md) | Rename colliding docket terms and retire obsolete glossary entries | 2026-09-29 |
-| [0467](archive/2026-09-29-0467-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) | Scoped gate starts inherit the run epoch; thread it through the build chain | 2026-09-29 |
 | [0292](archive/2026-09-29-0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | 2026-09-29 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
@@ -248,7 +241,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 84 done |
+| [2026-09](archive/) | 85 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
