@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/gatedrive"
+	"github.com/danielhanold/docket/internal/process"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -41,7 +42,9 @@ func TestIntegrationGateLifecycleGateLaunchInvalidInput(t *testing.T) {
 func TestIntegrationGateLifecycleRawLaunchHoldsWorktreeLock(t *testing.T) {
 	requireRealGit(t)
 	worktree, gitDir := initGitRepo(t, "")
-	res := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/sleep", "60"})
+	runRoot := testsupport.TempDir(t)
+	reapRunSupervisors(t, runRoot) // so the cleanup stop proves the group gone promptly
+	res := GateLaunch(runRoot, worktree, []string{"/bin/sleep", "60"})
 	t.Cleanup(func() { GateStop(res.RunDir, "test cleanup") })
 	if res.Result != ResultApplied || res.RunDir == "" {
 		t.Fatalf("launch: result=%s reason=%q rundir=%q", res.Result, res.Reason, res.RunDir)
@@ -134,7 +137,12 @@ func TestIntegrationGateLifecycleGateLaunchOutsideGitUnchanged(t *testing.T) {
 func TestIntegrationGateLifecycleStoppedRawRunFreesWorktree(t *testing.T) {
 	requireRealGit(t)
 	worktree, _ := initGitRepo(t, "")
-	res := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/sleep", "60"})
+	// The reaper plays init's role for the in-process supervisor, as production's
+	// exited launcher leaves it orphaned to init: without it the exited supervisor
+	// stays a zombie group leader and the stop waits out its whole TERM bound.
+	runRoot := testsupport.TempDir(t)
+	reapRunSupervisors(t, runRoot)
+	res := GateLaunch(runRoot, worktree, []string{"/bin/sleep", "60"})
 	t.Cleanup(func() { GateStop(res.RunDir, "test cleanup") })
 	if res.Result != ResultApplied || res.RunDir == "" {
 		t.Fatalf("launch: result=%s reason=%q", res.Result, res.Reason)
@@ -145,7 +153,9 @@ func TestIntegrationGateLifecycleStoppedRawRunFreesWorktree(t *testing.T) {
 		}
 		t.Fatalf("second launch while the first lives = %s/%q, want worktree-busy", busy.Result, busy.Reason)
 	}
-	GateStop(res.RunDir, "test stop")
+	if stop := GateStop(res.RunDir, "test stop"); stop.Result != ResultApplied || stop.State != GateState(process.StateStopped) {
+		t.Fatalf("stop of the live raw run = %s/%s (reason %q), want applied/stopped", stop.Result, stop.State, stop.Reason)
+	}
 	waitGateRunTerminal(t, res.RunDir)
 	readmit := waitLaunchAdmitted(t, worktree)
 	t.Cleanup(func() { waitGateRunTerminal(t, readmit.RunDir); GateStop(readmit.RunDir, "test cleanup") })

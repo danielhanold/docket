@@ -32,7 +32,7 @@ tests/test_go_integration_app_rebaserefresh.sh	35	parallel
 tests/test_go_integration_app_resolverbudget.sh	20	parallel
 tests/test_go_integration_app_generatedbundle.sh	20	parallel
 tests/test_go_integration_app_mixedbundle.sh	15	parallel
-tests/test_go_integration_app_buildstart.sh	20	parallel
+tests/test_go_integration_app_buildstart.sh	10	parallel
 tests/test_go_integration_app_repocheck.sh	20	parallel
 tests/test_go_integration_app_repocontention.sh	15	parallel
 tests/test_go_integration_app_repomigration.sh	20	parallel
@@ -86,7 +86,7 @@ tests/test_go_integration_gatedrive_race.sh	15	parallel
 tests/test_go_integration_release.sh	45	parallel
 tests/test_go_finalize_e2e.sh	30	parallel
 tests/test_go_race.sh	60	parallel
-tests/test_go_toolchain.sh	45	parallel
+tests/test_go_toolchain.sh	40	parallel
 tests/test_release_partition_fidelity.sh	10	parallel
 tests/test_install_bootstrap.sh	10	parallel
 tests/test_license_files.sh	15	parallel
