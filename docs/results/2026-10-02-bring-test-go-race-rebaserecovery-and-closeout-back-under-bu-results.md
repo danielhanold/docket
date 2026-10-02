@@ -1,3 +1,6 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0487 — Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md)**
+<!-- docket:backlink:end -->
 # Bring test_go_race, rebaserecovery, and closeout back under budget — Results
 
 **Human action:** No action is required. The suite is green and no file is over budget. One optional check is listed below if you want to see the speed-up for yourself.
