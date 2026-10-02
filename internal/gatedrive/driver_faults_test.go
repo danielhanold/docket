@@ -9,8 +9,8 @@
 // (change 0490) is released by the kernel when its holder dies, so a crash
 // leaves nothing to recover. The lock's own failure paths are pinned in
 // driver_test.go (TestLaunchFailureFreesWorktree,
-// TestStartAdmittedRunRefusalFreesWorktree, TestAbandonAdmissionFreesWorktree)
-// and, against the real supervisor, in internal/process and the gatedrive
+// TestAbandonAdmissionFreesWorktree), in driver_launch_claim_test.go
+// (TestStartAdmittedRefusesBusyClaim), and, against the real supervisor, in internal/process and the gatedrive
 // integration corpus.
 package gatedrive
 

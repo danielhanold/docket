@@ -45,7 +45,9 @@ func TestRunTrackerVocabularyHardCut(t *testing.T) {
 		{[]string{"change", "claim"}, "run-context", "gate-context"},
 		{[]string{"agent", "enter"}, "run-key", "run-gate-key"},
 		{[]string{"agent", "enter"}, "run-id", "run-epoch"},
-		{[]string{"gate", "drive", "start"}, "run-id", "run-epoch"},
+		// change 0491: the run id is retired; gate drive start carries only the run context.
+		{[]string{"gate", "drive", "start"}, "run-context", "run-id"},
+		{[]string{"gate", "drive", "start"}, "run-context", "run-epoch"},
 		// change 0477, ADR-0129 row 38e: the gate drive takes the same
 		// --run-context as change claim; --gate-context is gone everywhere.
 		{[]string{"gate", "drive", "start"}, "run-context", "gate-context"},

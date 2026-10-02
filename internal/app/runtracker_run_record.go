@@ -20,9 +20,7 @@
 //
 // IDENTITY vs. AUTHORITY: RunID is a random, PUBLIC locator — it authorizes
 // nothing (the run context's child capability continues to carry authority,
-// per ADR-0111) and is what a build-owned start presents to the run launch gate
-// (runLaunchGate), so a cancelled or superseded run cannot start a gate. It is safe
-// to print.
+// per ADR-0111). It is safe to print.
 //
 // DURABILITY + CAS: writes go through the same atomic temp-file + rename discipline
 // as writeRunTrackerRecordAtomic (0600), and every read-modify-write serializes on a
@@ -67,11 +65,10 @@ const (
 type runState string
 
 const (
-	// RunActive: the run owns the run; new participants may register, and the run
-	// launch gate admits the run's gate starts.
+	// RunActive: the run owns the run; new participants may register.
 	RunActive runState = "active"
 	// RunCancelling: an explicit cancellation (run.cancel, Task 10) has fenced the
-	// run and is tearing the run down; no new participant, start, or mutation admits.
+	// run and is tearing the run down; no new participant or mutation admits.
 	RunCancelling runState = "cancelling"
 	// RunCancelled: cancellation completed with full accounting; the run is
 	// terminal and admits nothing.
@@ -84,10 +81,10 @@ const (
 // RunCompleting / RunCompleted: the successful-run closeout lifecycle
 // (change 0441). Completing is the durable success fence — RunVerdict
 // verified run-complete but ownership accounting/retirement is unfinished, so
-// the run still owns its worktree and admits no NEW registration, start,
-// mutation, takeover, or relaunch. Completed means retirement finished:
-// terminal, excluded from ambient worktree-owner lookup, revoked for explicit
-// references. Success is never encoded as cancellation.
+// the run still owns its worktree and admits no NEW registration, mutation, or
+// takeover (gate starts check no run since change 0491). Completed means
+// retirement finished: terminal, excluded from ambient worktree-owner lookup,
+// revoked for explicit references. Success is never encoded as cancellation.
 const (
 	RunCompleting runState = "completing"
 	RunCompleted  runState = "completed"
@@ -422,8 +419,7 @@ func bindRunChange(repoDir, runKey, changeID string) error {
 
 // bindRunWorktree binds the run's Worktree once, at claim confirmation, so a
 // FRESH (non-resume) run's run record is locatable by the mutation fence
-// (findRunByWorktree) and admitted by the run launch gate (runLaunchGate refuses an
-// active run with no Worktree) — the same job armResumeReplacement does for the resume path
+// (findRunByWorktree) — the same job armResumeReplacement does for the resume path
 // (change 0375). Without it a fresh run's run record keeps Worktree == "", which every
 // worktree-keyed consumer skips, so the fence and the teardown are inert for the common
 // first-dispatch case. The bound value is the LOGICAL feature worktree path (it need
@@ -761,8 +757,7 @@ func scanRunsByID(runTrackerRoot, runID string) ([]runDirMatch, error) {
 }
 
 // findRunDirByID resolves the UNIQUE run-key directory holding the run whose
-// public RunID is runID (change 0437 Task 5 — the run launch gate locates the
-// key directory it must lock and re-read under). Zero matches → ErrRunNotFound;
+// public RunID is runID (change 0437 Task 5). Zero matches → ErrRunNotFound;
 // more than one → ErrRunAmbiguous; corrupt/unreadable siblings are skipped for
 // matching, and an enumeration fault is a typed ErrRunRecordIO (scanRunsByID).
 func findRunDirByID(runTrackerRoot, runID string) (dir string, rec RunRecord, err error) {

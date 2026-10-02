@@ -89,7 +89,6 @@ func TestOldTaskScopeOnDiskChangesNothing(t *testing.T) {
 	}
 
 	req := sampleStart()
-	req.RunID = runID
 	ticket, err := d.Admit(req)
 	if err != nil {
 		t.Fatalf("admission beside an old task scope must succeed: %v", err)

@@ -1,7 +1,6 @@
 package gatedrive
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -706,125 +705,36 @@ func TestDistinctWorktreesProgressConcurrently(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Deterministic cancel/launch race barriers (change 0437 Task 7, AC2+AC6). A
-// fake RunLaunchGate backed by a mutable, mutex-guarded registry stands in for
-// the app gate: it reads the run's liveness under the registry mutex and, while
-// STILL holding it, runs the driver's durable reserve body — exactly as the
-// production gate runs reserve under the held run lock. A concurrent fence
-// ("cancel") takes the SAME mutex, so it either lands before the liveness read
-// (reserve never runs) or after the gate released the lock (it observes the
-// durable reservation reserve produced). "cancel" = flip the fake to fenced, then
-// run ReconcileRunLaunches over the run's context hash (which consults NO gate;
-// the run is already fenced, so cancellation may never hold the run while probing
-// a per-drive claim). Every ordering assertion below is a channel/done-ordering
-// fact — no timing sleep is an oracle anywhere.
+// Deterministic cancel/launch race barriers (change 0437 Task 7, AC2+AC6). The
+// census is driven directly: "cancel" = run ReconcileRunLaunches over the run's
+// context hash at a chosen point in the launch. There is no run gate to fence —
+// change 0491 deleted the run launch check — so what keeps a cancellation honest
+// is the census itself: a held per-drive claim is pending work, a proven
+// never-launched launch is settled terminal, and a launched run is stopped
+// before the census accounts. Every ordering assertion below is a
+// channel/done-ordering fact — no timing sleep is an oracle anywhere.
 // ---------------------------------------------------------------------------
 
-// errRunFenced is the sentinel a fenced fakeRunRegistry gate refuses with,
-// standing in for the app's ErrRunCancelled/ErrStaleRunID fence tokens.
-var errRunFenced = errors.New("gatedrive-test: run fenced (cancelled)")
-
-// fakeRunRegistry is a mutable, mutex-guarded stand-in for the app's run
-// registry. The RunLaunchGate it produces holds the registry mutex across the
-// liveness read AND the reserve body — modelling the production run lock held
-// across reserve — so a concurrent fence serializes against it: the fence lands
-// strictly before the read (reserve never runs) or strictly after reserve's
-// durable decision. A fenced run's gate refuses errRunFenced WITHOUT running
-// reserve (the RunLaunchGate contract: a validation failure never calls reserve).
-type fakeRunRegistry struct {
-	mu     sync.Mutex
-	fenced map[string]bool
-}
-
-// fence flips runID to fenced. It takes the same mutex the gate body holds, so
-// it can only land in the serialization windows the gate leaves open.
-func (r *fakeRunRegistry) fence(runID string) {
-	r.mu.Lock()
-	if r.fenced == nil {
-		r.fenced = map[string]bool{}
-	}
-	r.fenced[runID] = true
-	r.mu.Unlock()
-}
-
-func (r *fakeRunRegistry) gate() RunLaunchGate {
-	return func(runID, _ string, reserve func() error) error {
-		r.mu.Lock()
-		defer r.mu.Unlock()
-		if r.fenced[runID] {
-			return errRunFenced // fenced: refuse without running reserve
-		}
-		return reserve()
-	}
-}
-
-// TestBarrierCancelBeforeAdmit proves the fence-first outcome: a fence that lands
-// before Admit's liveness read makes Admit refuse, reserving nothing durable, and
-// a subsequent reconcile has nothing to account (Accounted, no findings).
-func TestBarrierCancelBeforeAdmit(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	proc := &fakeProc{}
-	d, store := newTestDriver(t, clk, proc, stableGit())
-	reg := &fakeRunRegistry{}
-	d.SetRunLaunchGate(reg.gate())
-
-	// The fence lands FIRST.
-	reg.fence("e1")
-
-	req := sampleStart()
-	req.RunID = "e1"
-	req.RunContext = "ctx-e1"
-	ticket, err := d.Admit(req)
-	if !errors.Is(err, errRunFenced) {
-		t.Fatalf("a fence before Admit must refuse, got ticket=%v err=%v", ticket, err)
-	}
-	if ticket != nil {
-		t.Fatalf("a refused admission returns no ticket, got %+v", ticket)
-	}
-	if !worktreeFree(t, store, req.Cwd) {
-		t.Fatalf("a fenced Admit must leave the worktree lock free")
-	}
-	if n := driveRecordCount(t, store); n != 0 {
-		t.Fatalf("a fenced Admit must mint no drive record, got %d", n)
-	}
-	if proc.launchN != 0 {
-		t.Fatalf("a fenced Admit must launch nothing, proc.Launch called %d times", proc.launchN)
-	}
-
-	report, err := d.ReconcileRunLaunches(capHash(req.RunContext))
-	if err != nil {
-		t.Fatalf("ReconcileRunLaunches: %v", err)
-	}
-	if !report.Accounted || len(report.Findings) != 0 {
-		t.Fatalf("a fence before any admission has nothing to account, got %+v", report)
-	}
-}
-
-// TestBarrierCancelBetweenAdmitAndStartAdmitted proves the fence that lands after
+// TestBarrierCancelBetweenAdmitAndStartAdmitted proves a census that runs after
 // Admit's return refuses the delayed launch: reconcile resolves the reserved first
 // launch through its launch token, proves it never launched, and settles the drive
 // HALTED run-cancelled under the held claim (change 0490); the delayed
-// StartAdmitted then refuses, and a replay still accounts. No process is ever
-// launched.
+// StartAdmitted then refuses over the settled record, and a replay still
+// accounts. No process is ever launched.
 func TestBarrierCancelBetweenAdmitAndStartAdmitted(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	reg := &fakeRunRegistry{}
-	d.SetRunLaunchGate(reg.gate())
 
 	req := sampleStart()
-	req.RunID = "e1"
 	req.RunContext = "ctx-e1"
-	ticket, err := d.Admit(req) // run live: the reservation is durable
+	ticket, err := d.Admit(req) // the reservation is durable
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
 	}
 
-	// The fence lands AFTER Admit's return (the serialization window between the
-	// two phases). The durable reservation already exists.
-	reg.fence("e1")
-
+	// The cancellation lands AFTER Admit's return (the window between the two
+	// phases). The durable reservation already exists.
 	// Reconcile proves the reserved first launch never launched (the fake resolves
 	// never-launched) and settles it terminal before the delayed launch runs.
 	first, err := d.ReconcileRunLaunches(capHash(req.RunContext))
@@ -842,12 +752,13 @@ func TestBarrierCancelBetweenAdmitAndStartAdmitted(t *testing.T) {
 		t.Fatalf("reconcile must settle the drive HALTED run-cancelled, got %v/%q", rec.LastOutcome, rec.LastCause)
 	}
 
-	// StartAdmitted observes the fence: it refuses and launches nothing.
-	if _, serr := d.StartAdmitted(ticket); !errors.Is(serr, errRunFenced) {
-		t.Fatalf("StartAdmitted under a fence must refuse, got %v", serr)
+	// StartAdmitted observes the settled record: it refuses and launches nothing.
+	_, serr := d.StartAdmitted(ticket)
+	if oe, ok := AsOwnershipError(serr); !ok || oe.Kind != ErrUnresolvedLaunchTransition {
+		t.Fatalf("StartAdmitted over a settled record must refuse ErrUnresolvedLaunchTransition, got %v", serr)
 	}
 	if proc.launchN != 0 {
-		t.Fatalf("a fenced StartAdmitted must launch nothing, proc.Launch called %d times", proc.launchN)
+		t.Fatalf("a refused StartAdmitted must launch nothing, proc.Launch called %d times", proc.launchN)
 	}
 	if rec, lerr = store.Load(ticket.id); lerr != nil || rec.LastOutcome != HALTED || rec.LastCause != "run-cancelled" {
 		t.Fatalf("the drive must stay HALTED run-cancelled, got %v/%q (err=%v)", rec.LastOutcome, rec.LastCause, lerr)
@@ -864,14 +775,13 @@ func TestBarrierCancelBetweenAdmitAndStartAdmitted(t *testing.T) {
 }
 
 // TestBarrierCancelBetweenAuthorizationAndLaunch proves the spec's second race
-// outcome: a fence that lands AFTER a relaunch won its authorization (reserve
-// committed, the per-drive claim held) but before proc.Launch cannot make
-// cancellation complete while the launch is in flight — a concurrent reconcile
-// reports claim-busy pending. The replacement process CAN be created after the
-// fence, yet cancellation only completes once a replay identifies and stops it.
+// outcome: a cancellation that lands AFTER a relaunch won its authorization
+// (reserve committed, the per-drive claim held) but before proc.Launch cannot
+// complete while the launch is in flight — a concurrent reconcile reports
+// claim-busy pending. The replacement process CAN be created after the
+// cancellation, yet it only completes once a replay identifies and stops it.
 func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
-	reg := &fakeRunRegistry{}
 	clk := &fakeClock{now: startRun()}
 
 	dead := false
@@ -903,11 +813,9 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 		return &process.LaunchOutcome{RunID: id, RunDir: runDir, State: process.StateRunning}, nil
 	}
 	d := storeTestDriver(store, clk, proc, stableGit())
-	d.SetRunLaunchGate(reg.gate())
 
-	// A run-backed first start over live run e1 WAITs (run1 running).
+	// A first start under run context ctx-e1 WAITs (run1 running).
 	req := sampleStart()
-	req.RunID = "e1"
 	req.RunContext = "ctx-e1"
 	started, serr := d.Start(req)
 	if serr != nil || started.Outcome != WAITING {
@@ -931,9 +839,7 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 
 	<-launchEntered // the replacement launch is parked: reserve committed, claim held
 
-	// The fence lands NOW — after the reservation, during the parked launch.
-	reg.fence("e1")
-
+	// The cancellation lands NOW — after the reservation, during the parked launch.
 	// A concurrent reconcile (an independent CLI process: its own store handle and
 	// process seam) reports the held claim as pending work, and returns promptly.
 	recDone := make(chan RunLaunchReport, 1)
@@ -965,7 +871,7 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 		t.Fatalf("an authorized relaunch's healthy new run must WAIT, got %s/%s", res.doc.Outcome, res.doc.Cause)
 	}
 	if got := atomic.LoadInt32(&launchCount); got != 2 {
-		t.Fatalf("the replacement process must have been created after the fence, launches=%d", got)
+		t.Fatalf("the replacement process must have been created after the cancellation, launches=%d", got)
 	}
 
 	// A replay now stops the attached replacement (its supervisor is running), and
@@ -987,13 +893,11 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 	}
 }
 
-// TestBarrierCancelBetweenLaunchAndAttach proves a fence during a scopeless
-// StartAdmitted's launch-to-attach window (the process exists, the claim held
-// across launch+attach) reports claim-busy pending, then a replay accounts once
-// the run is attached and stopped — and, crucially, that once a replay reports
-// accounted, a subsequent start on the fenced run refuses and launches nothing.
+// TestBarrierCancelBetweenLaunchAndAttach proves a cancellation during a
+// scopeless StartAdmitted's launch-to-attach window (the process exists, the
+// claim held across launch+attach) reports claim-busy pending, then a replay
+// accounts once the run is attached and stopped.
 func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
-	reg := &fakeRunRegistry{}
 	clk := &fakeClock{now: startRun()}
 	entered := make(chan struct{})
 	release := make(chan struct{})
@@ -1010,10 +914,8 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 		return &process.LaunchOutcome{RunID: "run1", RunDir: run1, State: process.StateRunning}, nil
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	d.SetRunLaunchGate(reg.gate())
 
 	req := sampleStart()
-	req.RunID = "e1"
 	req.RunContext = "ctx-e1"
 	ticket, err := d.Admit(req)
 	if err != nil {
@@ -1034,9 +936,7 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 
 	<-entered // launch in flight: the process exists, attach pending, claim held
 
-	// The fence lands during the launch-to-attach window.
-	reg.fence("e1")
-
+	// The cancellation lands during the launch-to-attach window.
 	recDone := make(chan RunLaunchReport, 1)
 	go func() {
 		dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
@@ -1079,18 +979,6 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 	}
 	if len(sup.stopped) != 1 || sup.stopped[0] != run1 {
 		t.Fatalf("the replay must stop the attached run %s, stopped %v", run1, sup.stopped)
-	}
-
-	// No launch after an accounted reconcile: a subsequent start on the fenced run
-	// refuses and proc.Launch's call count is final.
-	launchesBefore := proc.launchN
-	next := sampleStart()
-	next.RunID = "e1"
-	if _, nerr := d.Start(next); !errors.Is(nerr, errRunFenced) {
-		t.Fatalf("a start on the fenced run must refuse, got %v", nerr)
-	}
-	if proc.launchN != launchesBefore {
-		t.Fatalf("no launch may occur after an accounted reconcile, launches %d->%d", launchesBefore, proc.launchN)
 	}
 }
 

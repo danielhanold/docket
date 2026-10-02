@@ -859,7 +859,7 @@ func TestCensusReservedRelaunchResolvesRelaunchToken(t *testing.T) {
 // reserved relaunch never-launched UNDER THE HELD CLAIM, it settles the drive
 // terminal HALTED "run-cancelled" before releasing the claim, so a SUBSEQUENT
 // Advance recovery on the same drive launches NOTHING — even though that recovery
-// checks no run at all (the relaunch crosses no run launch gate since change 0490,
+// checks no run at all (no gate start or relaunch checks a run since change 0491,
 // so this terminal settle is what closes the window). The oracle is a strict
 // ordering (reconcile fully returns before Advance runs) plus the proc.Launch count
 // — never a timing sleep.

@@ -858,50 +858,6 @@ func TestIntegrationRunFenceUnreadableOwnerRecordAdmitsUnfenced(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunFenceRunCarryingFencesUnchangedByOwnerSelection (AC6, separate proof): owner
-// selection answers only "who owns this path now". After a NEW active owner binds the
-// path, the stale run's own run-carrying fence — the launch gate (by id) — still
-// refuses it for a cancelled, superseded, and completed stale run alike, while
-// ambient lookup names the new owner.
-func TestIntegrationRunFenceRunCarryingFencesUnchangedByOwnerSelection(t *testing.T) {
-	for _, tc := range []struct {
-		name  string
-		stale func(t *testing.T, repo, key string)
-		want  *MutationFenceError
-	}{
-		{name: "cancelled", want: ErrRunCancelled, stale: func(t *testing.T, repo, key string) {
-			fenceRun(t, repo, key, RunCancelled)
-		}},
-		{name: "superseded", want: ErrStaleRunID, stale: func(t *testing.T, repo, key string) {
-			fenceRun(t, repo, key, RunCancelled)
-			if err := SupersedeCancelledRun(repo, key, "zzzz-new-owner"); err != nil {
-				t.Fatalf("SupersedeCancelledRun: %v", err)
-			}
-		}},
-		{name: "completed", want: ErrRunCompleted, stale: func(t *testing.T, repo, key string) {
-			fenceRun(t, repo, key, RunCompleted)
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			repo, common, key, staleID, worktree := runLaunchGateFixture(t)
-			tc.stale(t, repo, key)
-			seedNamedRun(t, repo, "zzzz-new-owner", worktree, RunActive)
-
-			if got, found, err := findRunByWorktree(repo, mustCanon(t, worktree)); err != nil || !found || got != "zzzz-new-owner" {
-				t.Fatalf("ambient owner = (%q, %v, %v), want the new active owner", got, found, err)
-			}
-			calls := 0
-			lerr := runLaunchGate(common)(staleID, worktree, func() error { calls++; return nil })
-			if fe, ok := AsMutationFenceError(lerr); !ok || fe != tc.want {
-				t.Fatalf("launch gate for the stale %s run = %v, want %v", tc.name, lerr, tc.want)
-			}
-			if calls != 0 {
-				t.Fatalf("the stale run's reserve ran %d times; it must never run", calls)
-			}
-		})
-	}
-}
-
 // TestIntegrationRunFencePRPublishJournalsPublicationIdentity: a fenced (active-run) PR publish
 // journals a VALID descriptor carrying the resolved repo identity, exact head
 // branch + full commit, base branch, and title/body digests — and the journal
@@ -1329,5 +1285,23 @@ func TestIntegrationRunFenceProductionUnverifiedWorkspaceRetryNeverSettles(t *te
 				t.Fatalf("disposition = %q (findings %v), want cancelled via a verified identical retry", res.Disposition, res.Findings)
 			}
 		})
+	}
+}
+
+// runTrackerRootOf builds the run registry root under a git common dir, the same
+// shape run-tracker production code derives (runTrackerDirName).
+func runTrackerRootOf(common string) string {
+	return filepath.Join(common, "docket", runTrackerDirName)
+}
+
+// fenceRun flips a run to the given fenced/terminal state through the CAS, the
+// same durable transition run.cancel/resume drive it into.
+func fenceRun(t *testing.T, repo, key string, state runState) {
+	t.Helper()
+	if err := runRecordCAS(repo, key, func(r *RunRecord) error {
+		r.State = state
+		return nil
+	}); err != nil {
+		t.Fatalf("fence run to %s: %v", state, err)
 	}
 }

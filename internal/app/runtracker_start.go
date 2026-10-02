@@ -682,9 +682,7 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 
 	// (6a) Every started run tracker binds a run beside the just-minted gate record,
 	// keyed by the run key (runtracker_run_record.go). The run is the durable coordinator
-	// fence that a later human cancellation flips and a resume supersedes. Its RunID
-	// is what each build-owned start presents to the run launch gate (runLaunchGate),
-	// so a cancelled or superseded run cannot start a gate. Two starts reach this
+	// fence that a later human cancellation flips and a resume supersedes. Two starts reach this
 	// step: a FRESH start, and a RESUME whose change has no prior run (a legacy/pre-run-record run, or a first dispatch
 	// that was never started; change 0463). A resume that found a prior run never gets
 	// here, because every found state has already returned above (a refusal, an
@@ -694,8 +692,8 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 	// claim confirmation (bindRunChange / bindRunWorktree). A resume has already
 	// claimed, so it binds both NOW, in one runRecordCAS, the same way
 	// armResumeReplacement binds its worktree. Why both are needed:
-	//   - runLaunchGate refuses an active run that has no Worktree, so an unbound
-	//     resume run would be refused on first use.
+	//   - With Worktree bound, the mutation fence (findRunByWorktree) locates the
+	//     run, so the fence and the teardown are not inert for the resume.
 	//   - With ChangeID bound, a later resume of the same change finds this run
 	//     active and refuses resume-active-run.
 	// Binding both in one CAS means a failed bind leaves an UNBOUND orphan (inert,

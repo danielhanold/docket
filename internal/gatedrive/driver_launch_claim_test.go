@@ -1,0 +1,240 @@
+package gatedrive
+
+import (
+	"testing"
+	"time"
+
+	"github.com/danielhanold/docket/internal/process"
+	"github.com/danielhanold/docket/internal/testsupport"
+)
+
+// ---------------------------------------------------------------------------
+// The per-drive launch claim (change 0437 Task 2). StartAdmitted re-reads the
+// ticket's reserved drive and holds the drive's claimant flock across
+// launch/attach, so a concurrent census observes pending work rather than a
+// crashed caller. The worktree itself is held by the ticket's worktree lock
+// (change 0490), so no other gate can take it between the two phases. No run is
+// checked at either phase (change 0491).
+// ---------------------------------------------------------------------------
+
+// blockingLaunch returns a proc.Launch closure that closes entered, blocks until
+// release is closed, then returns a fresh running launch outcome. It is the
+// deterministic barrier the claim-across-launch tests park a launch on.
+func blockingLaunch(entered, release chan struct{}) func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+	return func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+		close(entered)
+		<-release
+		return &process.LaunchOutcome{RunID: "run1", RunDir: "/runs/run1", State: process.StateRunning}, nil
+	}
+}
+
+// TestStartAdmittedRefusesBusyClaim proves a held claimant flock refuses the
+// launch without launching and without waiting: the test holds the drive's claim
+// (a concurrent launch/attach is in flight), so StartAdmitted returns promptly
+// with a typed refusal and frees the ticket's worktree. The done channel — not a timer — is the promptness oracle:
+// tryRelaunchClaim is nonblocking, so StartAdmitted must return without the test
+// ever releasing the claim.
+func TestStartAdmittedRefusesBusyClaim(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
+	proc := &fakeProc{}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+
+	req := sampleStart()
+	ticket, err := d.Admit(req)
+	if err != nil {
+		t.Fatalf("Admit: %v", err)
+	}
+
+	held, busy, cerr := store.tryRelaunchClaim(ticket.id)
+	if cerr != nil {
+		t.Fatalf("tryRelaunchClaim: %v", cerr)
+	}
+	if busy {
+		t.Fatal("the drive's claim must be free before the test holds it")
+	}
+	defer held.close()
+
+	done := make(chan error, 1)
+	go func() {
+		_, serr := d.StartAdmitted(ticket)
+		done <- serr
+	}()
+
+	serr := <-done // no timer: a nonblocking claim probe must return without the release
+	oe, ok := AsOwnershipError(serr)
+	if !ok || oe.Kind != ErrUnresolvedLaunchTransition {
+		t.Fatalf("StartAdmitted error = %v, want ErrUnresolvedLaunchTransition", serr)
+	}
+	if proc.launchN != 0 {
+		t.Fatalf("a busy claim must launch nothing, proc.Launch called %d times", proc.launchN)
+	}
+	if !worktreeFree(t, store, req.Cwd) {
+		t.Fatalf("a refused launch must close the ticket's worktree lock")
+	}
+}
+
+// TestStartAdmittedHoldsClaimAcrossLaunch proves the drive's claimant flock is
+// HELD across the launch: a launch parked on a barrier makes a concurrent
+// tryRelaunchClaim report busy (pending work, never a crashed caller); once
+// launch+attach complete the claim is free again so the drive slice can reserve
+// its own relaunch.
+func TestStartAdmittedHoldsClaimAcrossLaunch(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
+	proc := &fakeProc{}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+
+	req := sampleStart()
+	ticket, err := d.Admit(req)
+	if err != nil {
+		t.Fatalf("Admit: %v", err)
+	}
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	proc.launch = blockingLaunch(entered, release)
+
+	done := make(chan error, 1)
+	go func() {
+		_, serr := d.StartAdmitted(ticket)
+		done <- serr
+	}()
+
+	<-entered // launch is parked: the claim is held across it
+	c, busy, cerr := store.tryRelaunchClaim(ticket.id)
+	if cerr != nil {
+		t.Fatalf("tryRelaunchClaim during launch: %v", cerr)
+	}
+	if !busy {
+		c.close()
+		t.Fatal("the claim must be HELD (busy) while launch is in flight")
+	}
+
+	close(release)
+	if serr := <-done; serr != nil {
+		t.Fatalf("StartAdmitted: %v", serr)
+	}
+
+	free, busyAfter, cerr := store.tryRelaunchClaim(ticket.id)
+	if cerr != nil {
+		t.Fatalf("tryRelaunchClaim after launch: %v", cerr)
+	}
+	if busyAfter {
+		t.Fatal("the claim must be FREE again after launch+attach return")
+	}
+	free.close()
+}
+
+// ---------------------------------------------------------------------------
+// Contention proofs (change 0437 Task 7). The nonblocking per-drive claim bounds
+// every contender — all return, and exactly one launch happens — proved with
+// channel/done oracles, never a timing sleep.
+// ---------------------------------------------------------------------------
+
+// TestClaimContentionBounded proves the nonblocking per-drive claim bounds
+// contention with no deadlock: N advancers race one dead drive's single relaunch
+// while M reconcilers probe it, with the reservation winner parked inside Launch.
+// Every contender returns (done-channel oracles, never a timing sleep as the
+// ordering fact): the losing advancers return authoritative state promptly, the
+// reconcilers report claim-busy promptly, and the winner returns after release —
+// with EXACTLY ONE backend launch, one relaunch, and never a crash-recovery
+// resolution of the live holder.
+func TestClaimContentionBounded(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	proc := newClaimWindowProc()
+	// The drive's run context attributes it to e1's census.
+	rec := seedRecord(t)
+	rec.AdmissionToken = "aaaaaaaaaaaaaaaa"
+	rec.RunContextHash = capHash("ctx-e1")
+	id, ownerGen := seedDrive(t, store, rec)
+
+	mkDriver := func(seam ProcessSeam) *Driver {
+		clk := &fakeClock{now: startRun().Add(time.Second)}
+		d := NewDriver(reopenStore(store), clk, seam, stableGit())
+		d.slice = 4 * pollTick
+		d.pollInterval = pollTick
+		d.sleep = func(dur time.Duration) { clk.advance(dur) }
+		return d
+	}
+
+	const advancers = 4
+	const reconcilers = 2
+
+	advanceDone := make(chan error, advancers)
+	for i := 0; i < advancers; i++ {
+		go func() {
+			_, err := mkDriver(proc).Advance(id, ownerGen)
+			advanceDone <- err
+		}()
+	}
+
+	// The reservation winner parks inside Launch holding the claim.
+	select {
+	case <-proc.launchEntered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the reservation winner did not enter Launch")
+	}
+
+	// Reconcilers race the held claim: each reports claim-busy pending and returns
+	// promptly (nonblocking), without the winner ever being released.
+	reconcileDone := make(chan RunLaunchReport, reconcilers)
+	for i := 0; i < reconcilers; i++ {
+		go func() {
+			r, _ := mkDriver(&fakeProc{}).ReconcileRunLaunches(capHash("ctx-e1"))
+			reconcileDone <- r
+		}()
+	}
+	for i := 0; i < reconcilers; i++ {
+		select {
+		case report := <-reconcileDone:
+			if report.Accounted {
+				t.Errorf("a held claim must not be accounted, got %+v", report)
+			}
+			if !reconcileFindingPresent(report.Findings, "claim-busy:"+id) {
+				t.Errorf("findings = %v, want claim-busy:%s", report.Findings, id)
+			}
+		case <-time.After(5 * time.Second):
+			close(proc.releaseLaunch)
+			t.Fatal("a reconcile blocked on the held claim; it must probe nonblocking")
+		}
+	}
+
+	// The losing advancers return promptly — before the winner is released — proving
+	// the nonblocking claim bounds contention.
+	for i := 0; i < advancers-1; i++ {
+		select {
+		case err := <-advanceDone:
+			if err != nil {
+				t.Errorf("a losing advancer must return authoritative state, got %v", err)
+			}
+		case <-time.After(5 * time.Second):
+			close(proc.releaseLaunch)
+			t.Fatal("a losing advancer blocked; the nonblocking claim must bound contention")
+		}
+	}
+
+	// Release the reservation winner's launch; it returns too.
+	close(proc.releaseLaunch)
+	select {
+	case err := <-advanceDone:
+		if err != nil {
+			t.Errorf("the reservation winner must return without error, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the reservation winner did not return after release")
+	}
+
+	launches, resolutions := proc.counts()
+	if launches != 1 {
+		t.Fatalf("exactly one backend launch under contention, got %d", launches)
+	}
+	if resolutions != 0 {
+		t.Fatalf("the live reservation holder must never be treated as crash recovery, got %d resolutions", resolutions)
+	}
+	final, err := store.Load(id)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if final.RelaunchCount != 1 {
+		t.Fatalf("contention must yield EXACTLY ONE relaunch, got RelaunchCount=%d", final.RelaunchCount)
+	}
+}

@@ -40,10 +40,10 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 	d := realSeqDriver(store, svc)
 
-	passAt := func(path, branch, runID, marker string) DriveDoc {
+	passAt := func(path, branch, runCtx, marker string) DriveDoc {
 		t.Helper()
 		req := realSeqStart(path, branch, runRoot, "0446", marker, seqPassCmd(marker))
-		req.RunID = runID
+		req.RunContext = runCtx
 		doc := driveSeqToTerminal(t, d, req)
 		if doc.Outcome != PASSED {
 			t.Fatalf("%s must PASS, got %s (%s)", marker, doc.Outcome, doc.Cause)
@@ -52,8 +52,8 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 	}
 
 	// 1. Several successive drives on one path, under different runs and none.
-	for i, runID := range []string{"run-g1", "run-g2", "", "run-g3"} {
-		passAt(wt, "feat/gen", runID, fmt.Sprintf("gen-%d", i+1))
+	for i, runCtx := range []string{"run-g1", "run-g2", "", "run-g3"} {
+		passAt(wt, "feat/gen", runCtx, fmt.Sprintf("gen-%d", i+1))
 	}
 
 	// 2. A symlink alias reaches the same lock and admits.

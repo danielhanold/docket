@@ -702,27 +702,6 @@ func TestIntegrationRunCancelGuardianReapsButNeverFinalizes(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelDoesNotUnfenceOldRunLaunches (AC8): after cancellation the
-// OLD run's fresh start is still refused by the 437 launch gate (runLaunchGate) —
-// a completed cancellation never revives the cancelled run's launch authority,
-// and the refused gate never runs the admission body.
-func TestIntegrationRunCancelDoesNotUnfenceOldRunLaunches(t *testing.T) {
-	fx := newCancelFixture(t)
-	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	if res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop"); res.Disposition != CancelDispositionCancelled {
-		t.Fatalf("cancel = %q, want cancelled", res.Disposition)
-	}
-	gate := runLaunchGate(fx.common)
-	reserveRan := false
-	err := gate(fx.runID, fx.worktree, func() error { reserveRan = true; return nil })
-	if err == nil {
-		t.Fatal("the cancelled run's launch authorization must be refused after cancellation")
-	}
-	if reserveRan {
-		t.Fatal("the refused gate must never run the admission body")
-	}
-}
-
 // TestIntegrationRunCancelRepairChargesNothing (AC8): terminal repair — like cancellation — touches
 // neither the suite budget nor the run-tracker retry markers. This mirrors
 // TestIntegrationRunCancelNeverChargesOrResets (same seeding and asserts) with a
@@ -1032,7 +1011,7 @@ func TestIntegrationRunCancelRemovedWorktreeRunCancels(t *testing.T) {
 // --- change 0490: cancel over the production seams and a real supervised drive ---
 
 // startRunDrive starts one build drive INSIDE the fixture's run — carrying the
-// run's id and its raw run context, so the launch census attributes it — through
+// run's raw run context, so the launch census attributes it — through
 // the production build gate-drive service over the real process supervisor. Start
 // observes the suite for up to one slice, so it runs on a goroutine; the returned
 // channel receives its result. Supervisors the test spawns are reaped (so a stop
@@ -1052,7 +1031,7 @@ func startRunDrive(t *testing.T, fx cancelFixture, command string) (string, <-ch
 		done <- svc.Start(GateDriveStartRequest{
 			RepoDir: fx.worktree, Worktree: fx.worktree, ChangeID: "42", TaskID: "task-1",
 			Phase: "build", Branch: "fix/x", Ref: "refs/heads/fix/x", Cwd: fx.worktree,
-			RunRoot: runRoot, RunID: fx.runID, RunContext: cancelFixtureRunContext,
+			RunRoot: runRoot, RunContext: cancelFixtureRunContext,
 		})
 	}()
 	return runRoot, done

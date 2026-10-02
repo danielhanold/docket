@@ -42,7 +42,7 @@ func ClassifyRunIDError(err error) (Result, string, bool) {
 }
 
 // RunIDNextAction maps a run refusal reason to a one-line, credential-free
-// next action (the ownershipNextAction / fenceNextAction pattern). It never echoes
+// next action (the ownershipNextAction pattern). It never echoes
 // the presented value. A reason with no specific remedy yields "", and callers then
 // omit the message.
 func RunIDNextAction(reason string) string {
@@ -60,10 +60,9 @@ func RunIDNextAction(reason string) string {
 
 // runIDLocator builds the existence check CheckRunIDExists runs on a presented
 // --run-id for agent.enter. It resolves the id to exactly one run record under
-// gitCommonDir's run registry through findRunDirByID (the same locator the run
-// launch gate uses) and returns its typed RunError (not-found, ambiguous, IO)
-// unchanged. It checks RESOLVABILITY only, never liveness: the launch gate still
-// enforces liveness and worktree ownership at start.
+// gitCommonDir's run registry through findRunDirByID and returns its typed
+// RunError (not-found, ambiguous, IO) unchanged. It checks RESOLVABILITY only,
+// never liveness.
 func runIDLocator(gitCommonDir string) func(string) error {
 	runTrackerRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
 	return func(runID string) error {

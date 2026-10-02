@@ -1279,42 +1279,6 @@ func TestAbandonAdmissionFreesWorktree(t *testing.T) {
 	}
 }
 
-// TestStartAdmittedRunRefusalFreesWorktree: a run launch gate that refuses at
-// StartAdmitted settles the reserved drive HALTED run-cancelled, launches
-// nothing, and frees the worktree.
-func TestStartAdmittedRunRefusalFreesWorktree(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	proc := &fakeProc{}
-	d, store := newTestDriver(t, clk, proc, stableGit())
-	sentinel := errors.New("gatedrive-test: run fenced between admit and launch")
-	g := &flippableGate{err: sentinel}
-	d.SetRunLaunchGate(g.gate())
-
-	req := sampleStart()
-	req.RunID = "e1"
-	ticket, err := d.Admit(req)
-	if err != nil {
-		t.Fatalf("Admit: %v", err)
-	}
-	g.setRefuse(true)
-	if _, serr := d.StartAdmitted(ticket); !errors.Is(serr, sentinel) {
-		t.Fatalf("StartAdmitted = %v, want the gate's refusal", serr)
-	}
-	rec, err := store.Load(ticket.id)
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if rec.LastOutcome != HALTED || rec.LastCause != "run-cancelled" {
-		t.Fatalf("refused drive = %s/%q, want HALTED/run-cancelled", rec.LastOutcome, rec.LastCause)
-	}
-	if !worktreeFree(t, store, req.Cwd) {
-		t.Fatalf("a refused launch must free the worktree")
-	}
-	if proc.launchN != 0 {
-		t.Fatalf("a refused launch must launch nothing, launched %d", proc.launchN)
-	}
-}
-
 // TestLaunchFailureFreesWorktree: a launch that returns an error (the real
 // Launch closes the handed lock on every path) leaves the drive HALTED
 // launch-failed as evidence and the worktree free — no reservation resolution
@@ -1706,4 +1670,19 @@ func passObserveProc() *fakeProc {
 			return obs(process.StatePassed, runDir), nil
 		},
 	}
+}
+
+// driveRecordCount reports how many drive records the store holds. The store
+// mints nothing until the first NewDrive/NewReservedDrive, so an absent root is
+// zero — a gate refusal that reserves nothing leaves the root absent.
+func driveRecordCount(t *testing.T, store *Store) int {
+	t.Helper()
+	entries, err := os.ReadDir(store.root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0
+		}
+		t.Fatalf("ReadDir drive root: %v", err)
+	}
+	return len(entries)
 }

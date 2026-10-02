@@ -111,10 +111,6 @@ func NewContinuationSeam(gitCommonDir, exePath string) (ContinuationSeam, error)
 	}
 	store := gatedrive.OpenStore(gitCommonDir)
 	driver := gatedrive.NewSystemDriver(store, proc)
-	// A revoked/superseded/unbound run must not be admitted or launched through
-	// the continuation seam's takeover/handoff synthesis either (change 0437): wire the
-	// app-side run launch gate over this repository's run registry.
-	driver.SetRunLaunchGate(runLaunchGate(gitCommonDir))
 	return &gatedriveContinuationSeam{store: store, driver: driver}, nil
 }
 
