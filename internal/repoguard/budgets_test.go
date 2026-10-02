@@ -144,8 +144,8 @@ type skillBudget struct {
 // Change 0375 re-baselined the caller-contract surfaces that document the new
 // worktree-admission and Stop/cancel/resume contract: gate-caller-loop.md gained
 // the one-live-gate-per-worktree admission section, docket-build-task/SKILL.md the
-// worktree-busy-is-not-a-retry rule, gate-failure.md the shared-slot note for the
-// scopeless finalize gate, and both docket-implement-next surfaces the run-tracker
+// worktree-busy-is-not-a-retry rule, gate-failure.md the shared-admission note for
+// the scopeless finalize gate, and both docket-implement-next surfaces the run-tracker
 // resume refusals. Authored contract, not slack — pinned at the exact new counts.
 //
 // Change 0448 re-baselined docket-implement-next/SKILL.md (210/7716 -> 214/8223):
@@ -179,6 +179,12 @@ type skillBudget struct {
 // `timeout --kill-after=10s 10m` and call no gate operation, so the 0405/0416/
 // 0459/0467 worker-scope contract the notes above re-baselined for is gone.
 // Pinned at the exact new counts — the ratchet reddens on any regrowth.
+//
+// Change 0490 rewrote the gate-caller-loop.md admission section and the
+// gate-failure.md finalize note around the supervisor-held worktree lock that
+// replaced the durable slot: a busy worktree means a live supervisor holds the
+// lock, and launch-unconfirmed is no longer an admission refusal. Pinned at the
+// exact new counts.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
@@ -188,7 +194,7 @@ var skillBudgets = []skillBudget{
 	// 0154: docket-build/references/delegation-execution.md removed — it was the
 	// evidence record for the Bash delegation facade that change 0370 deleted; its
 	// budget row is deleted with it.
-	{"docket-build/references/gate-caller-loop.md", 136, 1511}, // 0488 review fix: finalize reaches the driver only through finalize.rebase; task-era handoff clauses dropped (word ceiling 1504 -> 1511); 0488 review: start row carries --change-id (word ceiling 1491 -> 1504); 0488: worker-scope/takeover/acknowledge rows and the parent-takeover section removed; callers are the full-suite gates (175/1872 -> 136/1491); 0467: +prepare-scope --run-id and scope-inherited start run id (word ceiling 1826 -> 1872); 0375: +worktree-admission section (word ceiling 1750 -> 1826)
+	{"docket-build/references/gate-caller-loop.md", 134, 1513}, // 0490: the admission section describes the supervisor-held worktree lock; launch-unconfirmed is no longer a refusal (136/1511 -> 134/1513); 0488 review fix: finalize reaches the driver only through finalize.rebase; task-era handoff clauses dropped (word ceiling 1504 -> 1511); 0488 review: start row carries --change-id (word ceiling 1491 -> 1504); 0488: worker-scope/takeover/acknowledge rows and the parent-takeover section removed; callers are the full-suite gates (175/1872 -> 136/1491); 0467: +prepare-scope --run-id and scope-inherited start run id (word ceiling 1826 -> 1872); 0375: +worktree-admission section (word ceiling 1750 -> 1826)
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
 	{"docket-build/references/gate-execution.md", 163, 1469}, // 0488: 0359 acceptance section narrowed to the run-boundary continuation (170/1520 -> 163/1469)
 	{"docket-build/references/task-routing.md", 50, 500},
@@ -202,7 +208,7 @@ var skillBudgets = []skillBudget{
 	{"docket-convention/references/learnings.md", 84, 580},
 	{"docket-convention/references/stacked-changes.md", 215, 2140},   // 0327: +carry-preservation contract prose (see note above)
 	{"docket-finalize-change/SKILL.md", 239, 5647},                   // 0455: +record-invalid refusal (structural scope, findings remedy, merged-outside-docket precedence) in step 8 (word ceiling 5520 -> 5647); 0442: +post-publication base-advance guidance (word ceiling 5421 -> 5520); de-duplicated the shared forward-rebase mechanic against the 0438 unpublished-case paragraph (reclaimed 57 words), but the distinct published-refresh facts plus the retained 0438 guidance cannot fit the old ceiling without deleting required guidance; 0411: +reconciliation-write recovery exception paragraph in the resolver loop (ceilings 238/5232 -> 239/5421); 0413: +generated-bundle mixed-conflict handoff sentence in the resolver-loop block (word ceiling 5200 -> 5232); 0419: +repair-attempt budget payload line and rewired repair contract (line ceiling 236 -> 238); 0393: +exact payload, marker, and direct-dispatch lines atop 0349/0410 (see note above)
-	{"docket-finalize-change/references/gate-failure.md", 147, 1901}, // 0411: +reconciliation-write exception section and abort-set carve-out (ceilings 135/1472 -> 147/1901); 0413: +conflicted_paths-lists-authored-only rule in the resolver-report section (line ceiling 133 -> 135, word ceiling 1465 -> 1472); 0419: +repair-attempt budget payload and rewired repair contract prose (word ceiling 1450 -> 1465); 0349: +reserve-before-dispatch resolver protocol prose; 0375: +worktree-slot note for the scopeless finalize gate (120/1300 -> 133/1450)
+	{"docket-finalize-change/references/gate-failure.md", 145, 1894}, // 0490: the shared-slot note became the shared worktree-lock note (147/1901 -> 145/1894); 0411: +reconciliation-write exception section and abort-set carve-out (ceilings 135/1472 -> 147/1901); 0413: +conflicted_paths-lists-authored-only rule in the resolver-report section (line ceiling 133 -> 135, word ceiling 1465 -> 1472); 0419: +repair-attempt budget payload and rewired repair contract prose (word ceiling 1450 -> 1465); 0349: +reserve-before-dispatch resolver protocol prose; 0375: +worktree-slot note for the scopeless finalize gate (120/1300 -> 133/1450)
 	{"docket-groom-next/SKILL.md", 78, 2082},                         // 0461: +Step-4 retitle paragraph (title on change.groom; lines 77 -> 78, words 1996 -> 2081); +not-retitleable refusal code (2081 -> 2082); 0382: +typed rearm exit (word ceiling 1889 -> 1996); 0445: +revise route for already-groomed explicit ids (Step 1) and the fifth Step-4 exit (word ceiling 1650 -> 1813); +spec_version pin for a spec-body revise (1813 -> 1849); +revise spec_markdown excludes the backlink block (1849 -> 1850); +revise in the description and the revise contended/board clauses (1850 -> 1889)
 	{"docket-implement-next/SKILL.md", 214, 8183},                    // 0488 review: build-owned starts carry --change-id/--run-context (word ceiling 8162 -> 8183); 0488: run context and run id name only build-owned starts (word ceiling 8175 -> 8162); 0467 review fix: +the repair worker's post-fix re-run is a build-owned start (word ceiling 8165 -> 8175); 0467: +run id threaded to prepare-scope and build-owned starts (word ceiling 8080 -> 8165); 0455: +pr.publish record-invalid refusal clause (word ceiling 8025 -> 8080); 0448: +named-invocation branch; bounded own-dependency closeout moved to edge-paths.md (ceilings 210/7716 -> 214/8270 -> 214/8025); 0393: +exact payload, marker, and direct-dispatch lines atop 0410/0354/0376; 0375: +run-tracker resume pointer (word ceiling 7530 -> 7547); 0440: reader-first results prose
 	{"docket-implement-next/references/edge-paths.md", 118, 1554},    // 0410: +resume/recovery + required-results reconciliation; 0375: +run-tracker resume refusals (78/1091 -> 93/1261); 0448: +named own-dependency closeout moved from SKILL.md (93/1261 -> 118/1554)

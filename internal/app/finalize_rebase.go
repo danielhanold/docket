@@ -2060,8 +2060,8 @@ func (g *processFinalizeGate) RunLocalGate(ctx context.Context, req LocalGateReq
 		// A Start command failure returns no drive document, so mapDriveOutcome
 		// cannot recover the just-minted run root. A pre-launch refusal left it
 		// empty and it is removed so a failed Start does not leak the temp dir; a
-		// failure AFTER the launch (a lost launch response, a persist/confirm
-		// failure) may have left a run — and the slot unresolved — under it, so that
+		// failure AFTER the launch (a lost launch response, a persist/attach
+		// failure) may have left a run under it, so that
 		// root is launch evidence a later reconciliation needs and is retained
 		// (change 0446 spec §5). A drive that DID return a document owns the root;
 		// its removal is at the terminal in mapDriveOutcome.

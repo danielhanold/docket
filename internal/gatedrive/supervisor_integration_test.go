@@ -246,8 +246,8 @@ func intStartRequest(exe, runRoot, cwd, childMode, childArg string) StartRequest
 	return StartRequest{
 		RepoDir: "/repo",
 		// Worktree is the launch cwd — a real, resolvable directory — so a scope-bound
-		// integration start admits through change 0375's worktree execution slot (which
-		// derives its key from filepath.EvalSymlinks of the worktree root). The fake git
+		// integration start takes change 0490's worktree lock (keyed on the canonical
+		// worktree root the git seam resolves from this directory). The fake git
 		// seam keeps the fingerprint path-independent, so this changes no verdict.
 		Worktree:            cwd,
 		ChangeID:            "0342",

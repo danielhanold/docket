@@ -777,7 +777,7 @@ stops it for repair, or halts it for a human. It never guesses a pass from a wor
 - [Run tracker](#run-tracker) — bookkeeping that decides whether a dispatched run may be retried.
 - [Policy gate](#policy-gate-require_pr_approval) — `require_pr_approval`, which asks whether a merge was authorised.
 - Adversarial gate — the [critic](#critic) that must pass an auto-groom draft.
-- [Worktree slot](#worktree-slot) — one gate run per worktree at a time.
+- [Worktree lock](#worktree-lock) — one running gate per worktree at a time.
 
 The build and finalize gates both run the whole suite. The page that covers them is
 [Suite gate](#suite-gate). The `implemented` stop where a person merges is the
@@ -1041,16 +1041,12 @@ are never reimplemented by hand. If the `docket` binary is missing, the install 
 
 ## Supervised gate runs
 
-### Worktree slot
+### Worktree lock
 
-The per-worktree slot that lets only one gate run proceed at a time. A busy-slot refusal means
-the slot is **occupied** by a run admission could not prove finished — not necessarily a live
-process. Inspect with `gate observe`, settle with `gate stop`; history cleanup and `gate recover`
-do not free it.
-
-```sh
-docket gate history cleanup --repo-dir . --dry-run   # historical drives only — not slot evidence
-```
+The per-worktree lock that lets only one gate run at a time. Every gate start takes it without
+waiting; the gate's supervisor holds it for the gate's life, and the kernel releases it when the
+supervisor exits, so a finished or killed gate frees the worktree with no recovery step. A refusal
+names the holder only while that gate is running.
 
 ### Drive disposition: WAITING / PASSED / FAILED / HALTED
 
@@ -1148,20 +1144,15 @@ gate_observation_budget: 30
 delegation_observation_budget: 60
 ```
 
-### Process recovery / gate history cleanup
+### Process recovery
 
 **Process recovery** (`gate recover`) scans a run root and marks owned runs proven abandoned, keeping everything else.
-**Gate history cleanup** assesses the gate-drive history recorded before worktree slots existed, and recovers the
-records it safely can while keeping all evidence.
 
-**Used for:** tidying old run records. Neither one frees a current [worktree slot](#worktree-slot). A cleanup that
-reports zero blockers says nothing about whether the slot is free; inspect it with `gate observe` and settle it with
-`gate stop`.
+**Used for:** tidying old run records. Recovery is not needed to free a worktree: the
+[worktree lock](#worktree-lock) frees itself when the gate's supervisor exits.
 
 ```sh
 docket gate recover --root <run-root>
-docket gate history cleanup --repo-dir . --dry-run    # preview; drop --dry-run to write markers
-docket gate history cleanup --repo-dir . --drive-id <id>
 ```
 
 ### Tri-state verdict / halt exit code
@@ -1173,23 +1164,15 @@ unavailable" are not verdicts; they end as budget halts.
 **Used for:** never reading a halt as a pass or a fail. The run tracker reports a halt with its own exit code. That code
 comes from the run's recorded state, not from how the gate found out the run stopped.
 
-### `worktree-busy` / `launch-unconfirmed`
+### `worktree-busy`
 
-The two reasons a gate start is refused at a worktree's [worktree slot](#worktree-slot). `worktree-busy` means another
-gate is live in that worktree. `launch-unconfirmed` means nothing proved whether an earlier launch happened.
+The reason a gate start is refused because another gate's supervisor holds the
+[worktree lock](#worktree-lock).
 
 **Used for:** recognising a blocking diagnostic, which is neither a red suite nor a retry trigger. It charges no suite
-attempt. The fix is an operator act: let the incumbent finish, or stop it with `run.cancel`. A `launch-unconfirmed`
-slot must be recovered or cancelled; restarting blind never clears it.
-
-### `run-link-lost`
-
-A gate drive halts `run-link-lost` when it can no longer prove which run it belongs to: the
-[worktree slot](#worktree-slot) it was admitted through is absent or unreadable, or now holds a
-different reservation. Rather than relaunch as a standalone gate, the drive refuses.
-
-**Used for:** telling an orphaned drive apart from `launch-unconfirmed`, where a launch itself is
-in doubt. It is a halt, never a red suite. Cancel the run with `run.cancel` and start fresh.
+attempt. The fix is an operator act: let the holder finish, or stop it (`run.cancel` for a tracked run, `gate stop`
+for a raw launch). `launch-unconfirmed` survives only as a gate-drive HALT cause (a relaunch whose launch could not be
+established), never as an admission refusal.
 
 ---
 
@@ -1280,7 +1263,7 @@ re-runs the suite. `finalize.gate` is `local` (run
 Go v1 and block every repository mutation while set.
 
 **Used for:** never merging a stale branch untested. It shares the worktree's single
-[worktree slot](#worktree-slot), so it can be refused with `worktree-busy`.
+[worktree lock](#worktree-lock), so it can be refused with `worktree-busy`.
 
 ### Finalize publish
 
@@ -2409,7 +2392,7 @@ and `true` blocks every repository mutation until you remove it.
 - [PR publish](#pr-publish)
 - [Preflight](#preflight)
 - [Priority](#priority)
-- [Process recovery / gate history cleanup](#process-recovery--gate-history-cleanup)
+- [Process recovery](#process-recovery)
 - [Protocol-v1 envelope](#protocol-v1-envelope)
 - [Quiescent](#halt--resume-halted) — see Halt / resume-halted
 - [Readiness: build-ready / needs-grooming / not-proposed](#readiness-build-ready--needs-grooming--not-proposed)
@@ -2438,7 +2421,6 @@ and `true` blocks every repository mutation until you remove it.
 - [Revision (--revision)](#revision---revision)
 - [Run-context refusal (run-context-invalid / run-context-conflict)](#run-context-refusal-run-context-invalid--run-context-conflict)
 - [Run fence](#run-fence)
-- [run-link-lost](#run-link-lost)
 - [Run tracker](#run-tracker)
 - [Run verdict](#run-verdict)
 - [Run verify](#run-verify)
@@ -2472,5 +2454,5 @@ and `true` blocks every repository mutation until you remove it.
 - [Workspace publish](#workspace-publish)
 - [Worktree / feature workspace](#worktree--feature-workspace)
 - [Worktree changed / certified input changed](#worktree-changed--certified-input-changed)
-- [Worktree slot](#worktree-slot)
-- [worktree-busy / launch-unconfirmed](#worktree-busy--launch-unconfirmed)
+- [Worktree lock](#worktree-lock)
+- [worktree-busy](#worktree-busy)

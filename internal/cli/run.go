@@ -208,8 +208,8 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Cancel a dispatched run: fence it, tear it down, and report the disposition",
 		Args:  cobra.NoArgs,
 		// process-control: stops the run's registered native tasks and processes.
-		// local-write: transitions the durable run record and releases the
-		// worktree execution slot.
+		// local-write: transitions the durable run record and reconciles its
+		// admitted mutations.
 		Annotations: capability("run.cancel", EffectLocalWrite, EffectProcessControl),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)

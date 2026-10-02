@@ -64,41 +64,30 @@ verdict, not the worker's report, says what may happen next.
   exit code, distinct from a plain pass or fail, because a runner that
   exits non-zero for its own reasons has not necessarily failed the work.
 
-## The worktree slot
+## The worktree lock
 
-A worktree allows one gate run at a time, and the gate enforces that
-through its **worktree slot**. When a launch is refused because
-the slot is taken, the refusal means the slot is **occupied** by an
-execution the admission could not prove finished — not necessarily that
-the occupying process is still running. `reserveWorktreeExecution` is the
-point that decides admission, and it fails closed: any non-released
-occupant refuses a new reservation.
+A canonical worktree runs at most one gate at a time. Every gate start
+— a drive's first launch, its single relaunch, and a raw `gate launch` —
+takes that worktree's **lock** without waiting, and hands it to the gate's
+supervisor, which holds it for the gate's whole life. The kernel releases
+the lock when the supervisor exits, so a finished, crashed, or killed gate
+frees the worktree on its own: there is no recovery step and nothing to
+settle afterward.
 
-Before such a refusal is final, the admission inspects the exact occupant
-once (`reconcileFinishedIncumbent`). An occupant whose completion the
-existing records prove — a drive with a recorded PASSED/FAILED verdict, or
-a raw or halted run the process-recovery check proves torn down — is
-settled and the same admission continues, so a completed run that nobody
-stopped no longer needs a manual stop just to update bookkeeping. A live,
-still-owned, or unprovable occupant (a bare halted label is not proof)
-still refuses, and admission never stops an occupant to make room.
+So a `worktree-busy` refusal means exactly one thing: a live supervisor
+holds the lock. The refusal never queues the start, never joins the
+running gate, and never stops it. It names the holder (its drive and
+change, or a raw run dir) only after confirming that gate is still
+running; otherwise it says the holder is unknown. Freeing the worktree is
+the operator's act — wait for the holder to finish, or stop it
+(`run.cancel` for a tracked run, `docket gate stop <run-dir> --reason
+<why>` for a raw launch).
 
-So a busy-slot refusal is diagnosed, never guessed around:
-
-- **Inspect, then settle.** `docket gate observe <run-dir>` reports what the
-  slot holds; `docket gate stop <run-dir> --reason <why>` settles it.
-  Stopping a still-running run is a cancellation; stopping an
-  already-completed run settles its slot. The stop operation itself decides
-  whether teardown is proven — the caller does not assume it.
-- **History cleanup is not slot evidence.** Gate history cleanup assesses
-  **historical drives** only. A cleanup that reports zero blockers says
-  nothing about whether the current worktree slot is free; a
-  clean history and an occupied slot coexist.
-- **Recovery does not free the slot.** Process recovery (`gate recover`)
-  classifies process records; it does not release a current raw worktree
-  slot. Releasing that slot is the stop route's job (`releaseRawSlotForStop`)
-  or, for an occupant proven finished, the next admission's — not
-  recovery's.
+`run.cancel` finds a run's drives by the run context those drives record,
+and counts a drive torn down once its supervisor is gone. The known
+process-tree gaps — a supervisor that dies alone while its children keep
+running, a KILL escalation, and TERM ending `go run` while the suite runner
+is still stopping its targets — are tracked by change 0492.
 
 ## The invariants
 

@@ -244,7 +244,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	start.Flags().String("ref", "", "`ref` recorded alongside the fingerprint")
 	start.Flags().String("env-hash", "", "canonical launch-environment `hash` (recorded only)")
 	start.Flags().String("run-context", "", "run-context `token` from run start, linking this drive to its started run (optional; omitted for an untracked run)")
-	start.Flags().String("run-id", "", "workflow run `id` recorded on the worktree slot (a locator, not a credential)")
+	start.Flags().String("run-id", "", "workflow run `id` the start is gated on (a locator, not a credential)")
 	start.Flags().Bool("idempotent-suite-gate", false, "mark the gate idempotent, eligible for the single relaunch")
 	_ = start.MarkFlagRequired("run-root")
 	_ = start.MarkFlagRequired("owner")

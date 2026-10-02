@@ -164,6 +164,9 @@ var retiredVocabulary = []retiredToken{
 	{Row: "21", Kind: kindToken, Old: "epoch-not-cancelled", New: "run-not-cancelled"},
 	{Row: "22", Kind: kindToken, Old: "epoch-ambiguous", New: "run-ambiguous"},
 	{Row: "23", Kind: kindToken, Old: "epoch-owner-ambiguous", New: "run-owner-ambiguous"},
+	// Row 24's replacement was itself retired by change 0490 (the slot reader that
+	// raised it was deleted); the row stays to seal the epoch-era spelling and to
+	// mirror ADR-0129's table.
 	{Row: "24", Kind: kindToken, Old: "epoch-owner-unresolved", New: "run-owner-unresolved"},
 	{Row: "25", Kind: kindToken, Old: "epoch-io", New: "run-record-io"},
 	{Row: "26", Kind: kindToken, Old: "epoch-participant-unknown", New: "run-participant-unknown"},

@@ -8,12 +8,12 @@
 // the successful-run closeout.
 //
 // Attribution. The census walks the drive registry and accounts every drive whose
-// RunContextHash equals the run's context hash — every such drive, not the one a
-// worktree slot happened to name. A drive without a run context is never
+// RunContextHash equals the run's context hash — every such drive, not only the
+// one a worktree lock holder note happens to name. A drive without a run context is never
 // attributed (raw launches never were). An unreadable record is informational
 // (history-unattributed), because nothing positively names it; a supported
 // schema-2 record with a terminal outcome is settled history. The census reads no
-// worktree slot and no recovery scope (change 0489).
+// worktree lock or holder note, and no recovery scope (change 0489).
 //
 // Teardown proof is the lock model's proof: the supervisor is gone. For each run
 // dir a drive records (RawRunDir, PriorRawRunDir) a dir that no longer exists is
