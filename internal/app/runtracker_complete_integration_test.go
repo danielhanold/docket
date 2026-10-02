@@ -29,10 +29,10 @@ import (
 // recorded terminal evidence, every mutation completed, and permissive observation
 // seams (every process proven terminal, every launch accounted).
 type completionFixture struct {
-	repo, key, runID, worktree, runDir, common, contextHash string
-	store                                                   *gatedrive.Store
-	observer                                                *fakeProcessObserver
-	launchObserver                                          *fakeLaunchObserver
+	repo, key, worktree, runDir, common, contextHash string
+	store                                            *gatedrive.Store
+	observer                                         *fakeProcessObserver
+	launchObserver                                   *fakeLaunchObserver
 }
 
 func (f completionFixture) seams() cancelSeams {
@@ -47,7 +47,7 @@ func newCompletionFixture(t *testing.T) completionFixture {
 	must(t, RecordRunParticipantTerminal(base.repo, base.key,
 		"turn-1", "t1", ParticipantTerminalCompleted))
 	return completionFixture{
-		repo: base.repo, key: base.key, runID: base.runID, worktree: base.worktree,
+		repo: base.repo, key: base.key, worktree: base.worktree,
 		runDir: base.runDir, common: base.common, contextHash: base.contextHash, store: base.store,
 		observer:       &fakeProcessObserver{defaultProven: true},
 		launchObserver: &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}},
@@ -133,56 +133,56 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObli
 	type row struct {
 		name    string
 		finding string
-		build   func(t *testing.T) (seams cancelSeams, repo, key, runID, worktree string)
+		build   func(t *testing.T) (seams cancelSeams, repo, key, worktree string)
 	}
 	rows := []row{
-		{"native-participant-unobserved", "participant-unobserved:coordinator", func(t *testing.T) (cancelSeams, string, string, string, string) {
+		{"native-participant-unobserved", "participant-unobserved:coordinator", func(t *testing.T) (cancelSeams, string, string, string) {
 			fx := newCompletionFixture(t)
 			must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: "coordinator", NativeHandle: "turn-2"}))
-			return fx.seams(), fx.repo, fx.key, fx.runID, fx.worktree
+			return fx.seams(), fx.repo, fx.key, fx.worktree
 		}},
-		{"live-execution-participant", "process-live:exec-1", func(t *testing.T) (cancelSeams, string, string, string, string) {
+		{"live-execution-participant", "process-live:exec-1", func(t *testing.T) (cancelSeams, string, string, string) {
 			fx := newCompletionFixture(t)
 			must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: "raw-run", NativeHandle: "exec-1"}))
 			fx.observer.defaultProven = false
-			return fx.seams(), fx.repo, fx.key, fx.runID, fx.worktree
+			return fx.seams(), fx.repo, fx.key, fx.worktree
 		}},
-		{"nil-observer", "process-observer-unavailable", func(t *testing.T) (cancelSeams, string, string, string, string) {
+		{"nil-observer", "process-observer-unavailable", func(t *testing.T) (cancelSeams, string, string, string) {
 			fx := newCompletionFixture(t)
 			// The nil observer is exercised through the participant pass.
 			must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: "raw-run", NativeHandle: "exec-1"}))
 			s := fx.seams()
 			s.observer = nil
-			return s, fx.repo, fx.key, fx.runID, fx.worktree
+			return s, fx.repo, fx.key, fx.worktree
 		}},
-		{"launch-not-accounted", "claim-busy:d9", func(t *testing.T) (cancelSeams, string, string, string, string) {
+		{"launch-not-accounted", "claim-busy:d9", func(t *testing.T) (cancelSeams, string, string, string) {
 			fx := newCompletionFixture(t)
 			fx.launchObserver.report = gatedrive.RunLaunchReport{Accounted: false, Findings: []string{"claim-busy:d9"}}
-			return fx.seams(), fx.repo, fx.key, fx.runID, fx.worktree
+			return fx.seams(), fx.repo, fx.key, fx.worktree
 		}},
-		{"nil-launch-observer", "launch-observer-unavailable", func(t *testing.T) (cancelSeams, string, string, string, string) {
+		{"nil-launch-observer", "launch-observer-unavailable", func(t *testing.T) (cancelSeams, string, string, string) {
 			fx := newCompletionFixture(t)
 			s := fx.seams()
 			s.launchObserver = nil
-			return s, fx.repo, fx.key, fx.runID, fx.worktree
+			return s, fx.repo, fx.key, fx.worktree
 		}},
-		{"mutation-pending", "mutation-pending:pr.publish", func(t *testing.T) (cancelSeams, string, string, string, string) {
+		{"mutation-pending", "mutation-pending:pr.publish", func(t *testing.T) (cancelSeams, string, string, string) {
 			fx := newCompletionFixture(t)
 			must(t, runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
 				r.AdmittedMutations = []AdmittedMutation{{OpKey: "pr.publish", Status: "admitted"}}
 				return nil
 			}))
-			return fx.seams(), fx.repo, fx.key, fx.runID, fx.worktree
+			return fx.seams(), fx.repo, fx.key, fx.worktree
 		}},
-		{"run-live-drive", "run-live:d7", func(t *testing.T) (cancelSeams, string, string, string, string) {
+		{"run-live-drive", "run-live:d7", func(t *testing.T) (cancelSeams, string, string, string) {
 			fx := newCompletionFixture(t)
 			fx.launchObserver.report = gatedrive.RunLaunchReport{Accounted: false, Findings: []string{"run-live:d7"}}
-			return fx.seams(), fx.repo, fx.key, fx.runID, fx.worktree
+			return fx.seams(), fx.repo, fx.key, fx.worktree
 		}},
 	}
 	for _, r := range rows {
 		t.Run(r.name, func(t *testing.T) {
-			seams, repo, key, _, _ := r.build(t)
+			seams, repo, key, _ := r.build(t)
 			ok, reason, findings := completeSuccessfulRun(seams, repo, key)
 			if ok {
 				t.Fatalf("closed out with an unsettled obligation")
@@ -483,7 +483,7 @@ func TestIntegrationRunCompletionCompletionParticipantDurableProof(t *testing.T)
 		t.Run(r.name, func(t *testing.T) {
 			fx := newCompletionFixture(t)
 			handle, seams := r.build(t, fx)
-			ep := RunRecord{RunID: fx.runID, Worktree: fx.worktree,
+			ep := RunRecord{Worktree: fx.worktree,
 				Participants: []RunParticipant{{Kind: participantKindRawRun, NativeHandle: handle}}}
 			blocked, findings := accountCompletionParticipants(seams, ep)
 			if blocked != r.blocked {

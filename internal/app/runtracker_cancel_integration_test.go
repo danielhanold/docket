@@ -1219,3 +1219,36 @@ func TestIntegrationRunCancelRepeatOnTerminalRunRerunsCensus(t *testing.T) {
 		t.Fatalf("run state = %q, want cancelled (never regressed)", st)
 	}
 }
+
+// TestIntegrationRunCancelOldRecordWithRunIDCancelsByKey (change 0491, Decision 8,
+// Review Focus 5): a run started by the pre-0491 binary carries run_id in its
+// run.json. No migration runs: the record still loads (unknown keys are ignored),
+// and run.cancel cancels it by its key alone.
+func TestIntegrationRunCancelOldRecordWithRunIDCancelsByKey(t *testing.T) {
+	fx := newCancelFixture(t)
+	path := filepath.Join(fx.common, "docket", runTrackerDirName, fx.key, runRecordFileName)
+	buf, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read run.json: %v", err)
+	}
+	var stored map[string]any
+	if err := json.Unmarshal(buf, &stored); err != nil {
+		t.Fatalf("decode run.json: %v", err)
+	}
+	stored["record"].(map[string]any)["run_id"] = "0790b760e26444866ef2e156ba383326"
+	old, err := json.Marshal(stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, old, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := LoadRunRecord(fx.repo, fx.key); err != nil {
+		t.Fatalf("an old run.json carrying run_id must still load, got %v", err)
+	}
+	seams := cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
+	res := runCancel(seams, fx.repo, fx.key, "human stop")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("cancel by key = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+	}
+}

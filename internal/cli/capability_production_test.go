@@ -355,6 +355,11 @@ func TestRepresentativeSignatures(t *testing.T) {
 			t.Errorf("signature drift for %q:\n  got  %q\n  want %q", id, e.Signature, wantSig)
 		}
 	}
+	// change 0491: run.start's resume quiescence check runs the stop-capable census
+	// on a cancelled or superseded predecessor, so it declares process-control.
+	if e, ok := entryByID(entries, "run.start"); !ok || strings.Join(e.Effects, " ") != "local-write process-control" {
+		t.Errorf("run.start effects = %v, want [local-write process-control]", e.Effects)
+	}
 	// change 0472: no catalog operation's signature carries the retired
 	// record-revision flags (the `version` op itself takes no flags).
 	for _, e := range entries {

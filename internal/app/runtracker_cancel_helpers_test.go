@@ -73,7 +73,6 @@ func okLaunchReconciler() *fakeLaunchReconciler {
 type cancelFixture struct {
 	repo        string
 	key         string
-	runID       string
 	worktree    string
 	runDir      string
 	store       *gatedrive.Store
@@ -107,8 +106,7 @@ func newCancelFixture(t *testing.T) cancelFixture {
 	if err != nil {
 		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
-	ep, err := MintRunRecord(repo, key, "42")
-	if err != nil {
+	if _, err := MintRunRecord(repo, key, "42"); err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
 	if err := ReserveRunTrackerClaim(repo, key, 42, "req-1"); err != nil {
@@ -129,7 +127,7 @@ func newCancelFixture(t *testing.T) cancelFixture {
 		t.Fatalf("runRecordCAS set worktree: %v", err)
 	}
 
-	return cancelFixture{repo: repo, key: key, runID: ep.RunID, worktree: worktree, common: common,
+	return cancelFixture{repo: repo, key: key, worktree: worktree, common: common,
 		runDir: filepath.Join(worktree, "run-1"), store: gatedrive.OpenStore(common),
 		contextHash: runTrackerHashToken(cancelFixtureRunContext)}
 }

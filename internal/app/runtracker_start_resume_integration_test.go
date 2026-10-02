@@ -35,13 +35,11 @@ func resumeRunDeps(t *testing.T) (PlanningDeps, WorkspaceDeps) {
 }
 
 // seedPriorRun mints a gate record + a run bound to change 5 in the given
-// state, returning the prior run's run key and its public run id — the run a
-// resume of change 5 shares.
-func seedPriorRun(t *testing.T, repoDir string, state runState) (runKey, runID string) {
+// state, returning the prior run's run key — the run a resume of change 5 shares.
+func seedPriorRun(t *testing.T, repoDir string, state runState) (runKey string) {
 	t.Helper()
 	key := mintTestRunKey(t, repoDir)
-	ep, err := MintRunRecord(repoDir, key, "5")
-	if err != nil {
+	if _, err := MintRunRecord(repoDir, key, "5"); err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
 	if state != RunActive {
@@ -52,17 +50,17 @@ func seedPriorRun(t *testing.T, repoDir string, state runState) (runKey, runID s
 			t.Fatalf("runRecordCAS to %q: %v", state, err)
 		}
 	}
-	return key, ep.RunID
+	return key
 }
 
 // TestIntegrationRunStartResumeRefusesActiveRunWithLocator: a resume of a change whose prior run is
-// still ACTIVE is refused with the safe locator (public run id + run key) and the
+// still ACTIVE is refused with the safe locator (the run key) and the
 // explicit cancel/continue remedy — no record minted, no scope prepared, incumbent
 // untouched.
 func TestIntegrationRunStartResumeRefusesActiveRunWithLocator(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeRunDeps(t)
-	priorKey, runID := seedPriorRun(t, repoDir, RunActive)
+	priorKey := seedPriorRun(t, repoDir, RunActive)
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
 	res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
@@ -72,8 +70,8 @@ func TestIntegrationRunStartResumeRefusesActiveRunWithLocator(t *testing.T) {
 	if res.Reason != ReasonRunResumeActiveRun {
 		t.Fatalf("Reason = %q, want %q", res.Reason, ReasonRunResumeActiveRun)
 	}
-	if !strings.Contains(res.Message, runID) || !strings.Contains(res.Message, priorKey) {
-		t.Fatalf("Message must name the safe locator (run %q, key %q), got %q", runID, priorKey, res.Message)
+	if !strings.Contains(res.Message, "run key "+priorKey) {
+		t.Fatalf("Message must name the safe locator (run key %q), got %q", priorKey, res.Message)
 	}
 	if !strings.Contains(res.Message, "run cancel") {
 		t.Fatalf("Message must name the explicit cancel remedy, got %q", res.Message)
@@ -99,7 +97,7 @@ func TestIntegrationRunStartResumeRefusesActiveRunWithLocator(t *testing.T) {
 func TestIntegrationRunStartResumeRefusesCompletingRunWithoutSuperseding(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeRunDeps(t)
-	priorKey, runID := seedPriorRun(t, repoDir, RunCompleting)
+	priorKey := seedPriorRun(t, repoDir, RunCompleting)
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
 	res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
@@ -109,8 +107,8 @@ func TestIntegrationRunStartResumeRefusesCompletingRunWithoutSuperseding(t *test
 	if res.Reason != ReasonRunResumeRunCompleting {
 		t.Fatalf("Reason = %q, want %q", res.Reason, ReasonRunResumeRunCompleting)
 	}
-	if !strings.Contains(res.Message, runID) || !strings.Contains(res.Message, "run verdict") {
-		t.Fatalf("Message must name the run %q and the keyed run verdict remedy, got %q", runID, res.Message)
+	if !strings.Contains(res.Message, "run key "+priorKey) || !strings.Contains(res.Message, "run verdict") {
+		t.Fatalf("Message must name the run key %q and the keyed run verdict remedy, got %q", priorKey, res.Message)
 	}
 	if res.Key != "" || sp.calls != 0 {
 		t.Fatalf("completing refusal must mint no record and prepare no scope: key=%q calls=%d", res.Key, sp.calls)
@@ -134,7 +132,7 @@ func TestIntegrationRunStartResumeRefusesCompletingRunWithoutSuperseding(t *test
 func TestIntegrationRunStartResumeRefusesCompletedRunWithoutSuperseding(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeRunDeps(t)
-	priorKey, runID := seedPriorRun(t, repoDir, RunCompleted)
+	priorKey := seedPriorRun(t, repoDir, RunCompleted)
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
 	res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
@@ -144,8 +142,8 @@ func TestIntegrationRunStartResumeRefusesCompletedRunWithoutSuperseding(t *testi
 	if res.Reason != ReasonRunResumeRunCompleted {
 		t.Fatalf("Reason = %q, want %q", res.Reason, ReasonRunResumeRunCompleted)
 	}
-	if !strings.Contains(res.Message, runID) || !strings.Contains(res.Message, "run verify") {
-		t.Fatalf("Message must name the run %q and the verify/finalize remedy, got %q", runID, res.Message)
+	if !strings.Contains(res.Message, "run key "+priorKey) || !strings.Contains(res.Message, "run verify") {
+		t.Fatalf("Message must name the run key %q and the verify/finalize remedy, got %q", priorKey, res.Message)
 	}
 	if res.Key != "" || sp.calls != 0 {
 		t.Fatalf("completed refusal must mint no record and prepare no scope: key=%q calls=%d", res.Key, sp.calls)
@@ -189,7 +187,7 @@ func TestIntegrationRunStartResumeCancellingIsPending(t *testing.T) {
 // Race shard (change 0465): two RunStart resume starts released by one barrier race to supersede the same cancelled run.
 func TestRaceIntegrationAppConcurrencyResumeAfterCancelledSupersedesOnce(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
-	priorKey, _ := seedPriorRun(t, repoDir, RunCancelled)
+	priorKey := seedPriorRun(t, repoDir, RunCancelled)
 
 	deps1, wdeps1 := resumeRunDeps(t)
 	deps2, wdeps2 := resumeRunDeps(t)
@@ -336,7 +334,7 @@ func TestIntegrationRunStartResumeDeniedWhileOldRunNotQuiescent(t *testing.T) {
 	for _, finding := range []string{"claim-busy:d1", "run-live:d1"} {
 		t.Run(finding, func(t *testing.T) {
 			repoDir := newWorkingRepo(t, nil).invocation
-			priorKey, _ := seedPriorRun(t, repoDir, RunCancelled)
+			priorKey := seedPriorRun(t, repoDir, RunCancelled)
 
 			deps, wdeps := resumeRunDeps(t)
 			sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -378,7 +376,7 @@ func TestIntegrationRunStartResumeDeniedWhileOldRunNotQuiescent(t *testing.T) {
 // no worktree record to retire first; a repeat start observes the same key.
 func TestIntegrationRunStartResumeAfterCancelReservesOnce(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
-	priorKey, _ := seedPriorRun(t, repoDir, RunCancelled)
+	priorKey := seedPriorRun(t, repoDir, RunCancelled)
 	priorContext := stampRunContextHash(t, repoDir, priorKey, "prior-run-context")
 
 	launches := okLaunchReconciler()
@@ -420,7 +418,7 @@ func TestIntegrationRunStartResumeAfterCancelReservesOnce(t *testing.T) {
 // evidence refuses without touching the reservation.
 func TestIntegrationRunStartResumeSupersededValidatesBeforeObserve(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
-	priorKey, _ := seedPriorRun(t, repoDir, RunCancelled)
+	priorKey := seedPriorRun(t, repoDir, RunCancelled)
 
 	// Winner start (permissive) supersedes and reserves the one replacement.
 	deps, wdeps := resumeRunDeps(t)
@@ -519,11 +517,11 @@ func stampRunContextHash(t *testing.T, repoDir, key, rawContext string) string {
 // armSupersededPrior runs the winner resume (permissive production seams) so the
 // prior cancelled run is superseded with its Worktree cleared and a replacement
 // reserved, then rebinds the replacement run to a real worktree directory (the
-// resume fixture's inspect path is not a real directory). It returns the prior key,
-// the prior run id, and the replacement's worktree.
-func armSupersededPrior(t *testing.T, repoDir string) (priorKey, priorRun, worktree string) {
+// resume fixture's inspect path is not a real directory). It returns the prior key
+// and the replacement's worktree.
+func armSupersededPrior(t *testing.T, repoDir string) (priorKey, worktree string) {
 	t.Helper()
-	priorKey, priorRun = seedPriorRun(t, repoDir, RunCancelled)
+	priorKey = seedPriorRun(t, repoDir, RunCancelled)
 	deps, wdeps := resumeRunDeps(t)
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 	first := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
@@ -541,7 +539,7 @@ func armSupersededPrior(t *testing.T, repoDir string) (priorKey, priorRun, workt
 	if err := runRecordCAS(repoDir, first.Key, func(r *RunRecord) error { r.Worktree = worktree; return nil }); err != nil {
 		t.Fatalf("rebind replacement worktree: %v", err)
 	}
-	return priorKey, priorRun, worktree
+	return priorKey, worktree
 }
 
 // TestIntegrationRunStartResumeSupersededBranchAccountsScopeLinkedDrives (change 0446 AC5): on the
@@ -551,7 +549,7 @@ func armSupersededPrior(t *testing.T, repoDir string) (priorKey, priorRun, workt
 // re-authorization instead of reporting "accounted".
 func TestIntegrationRunStartResumeSupersededBranchAccountsScopeLinkedDrives(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
-	priorKey, _, _ := armSupersededPrior(t, repoDir)
+	priorKey, _ := armSupersededPrior(t, repoDir)
 	priorContext := stampRunContextHash(t, repoDir, priorKey, "prior-run-context")
 	reservedBefore := func() string {
 		ep, _, err := LoadRunRecord(repoDir, priorKey)
@@ -591,11 +589,11 @@ func TestIntegrationRunStartResumeSupersededBranchAccountsScopeLinkedDrives(t *t
 // tornResumePrior leaves change 5's cancelled prior run superseded by a replacement
 // key whose run was never minted (neverMinted) or minted but never bound to a
 // worktree — the state armResumeReplacement leaves when MintRunRecord or its
-// Worktree CAS fails after the supersede. It returns the prior run id and the
+// Worktree CAS fails after the supersede. It returns the prior run key and the
 // replacement key.
-func tornResumePrior(t *testing.T, repoDir string, neverMinted bool) (priorKey, priorRun, replKey string) {
+func tornResumePrior(t *testing.T, repoDir string, neverMinted bool) (priorKey, replKey string) {
 	t.Helper()
-	priorKey, priorRun = seedPriorRun(t, repoDir, RunCancelled)
+	priorKey = seedPriorRun(t, repoDir, RunCancelled)
 	replKey = mintTestRunKey(t, repoDir)
 	if err := SupersedeCancelledRun(repoDir, priorKey, replKey); err != nil {
 		t.Fatalf("SupersedeCancelledRun: %v", err)
@@ -605,7 +603,7 @@ func tornResumePrior(t *testing.T, repoDir string, neverMinted bool) (priorKey, 
 			t.Fatalf("MintRunRecord(replacement): %v", err)
 		}
 	}
-	return priorKey, priorRun, replKey
+	return priorKey, replKey
 }
 
 // TestIntegrationRunStartResumeTornReplacementConverges (change 0446 spec "Repeated cancellation,
@@ -622,7 +620,7 @@ func TestIntegrationRunStartResumeTornReplacementConverges(t *testing.T) {
 	}{{"replacement-never-minted", true}, {"replacement-unbound", false}} {
 		t.Run(tc.name, func(t *testing.T) {
 			repoDir := newWorkingRepo(t, nil).invocation
-			priorKey, _, replKey := tornResumePrior(t, repoDir, tc.neverMinted)
+			priorKey, replKey := tornResumePrior(t, repoDir, tc.neverMinted)
 			priorContext := stampRunContextHash(t, repoDir, priorKey, "prior-run-context")
 			runsBefore := countRunRecords(t, repoDir)
 			for i := 0; i < 2; i++ {
@@ -649,7 +647,7 @@ func TestIntegrationRunStartResumeTornReplacementConverges(t *testing.T) {
 	}
 	t.Run("corrupt-replacement-observed", func(t *testing.T) {
 		repoDir := newWorkingRepo(t, nil).invocation
-		_, _, replKey := tornResumePrior(t, repoDir, false)
+		_, replKey := tornResumePrior(t, repoDir, false)
 		dir, err := runKeyDir(repoDir, replKey, "test")
 		if err != nil {
 			t.Fatalf("runKeyDir: %v", err)
@@ -670,8 +668,8 @@ func TestIntegrationRunStartResumeTornReplacementConverges(t *testing.T) {
 
 // TestIntegrationRunStartNoRunRecordResumeMintsBoundRun (change 0463): resuming an in-progress change
 // that has NO prior run (its first dispatch was never started) mints one. The
-// run is bound to the change and to the verified feature worktree, and the result
-// carries its id, so the started line is always `run-started <key> <run-id> <run-context>`.
+// run is bound to the change and to the verified feature worktree under the start's
+// key, so the started line is always `run-started <key> <run-context>`.
 func TestIntegrationRunStartNoRunRecordResumeMintsBoundRun(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeRunDeps(t)
@@ -684,15 +682,9 @@ func TestIntegrationRunStartNoRunRecordResumeMintsBoundRun(t *testing.T) {
 	if !res.Started || res.Key == "" {
 		t.Fatalf("a no-run-record resume must start: %q", res.HumanText())
 	}
-	if res.RunID == "" {
-		t.Fatalf("a no-run-record resume started with no run: %q", res.HumanText())
-	}
 	ep, _, err := LoadRunRecord(repoDir, res.Key)
 	if err != nil {
-		t.Fatalf("LoadRunRecord: %v", err)
-	}
-	if ep.RunID != res.RunID {
-		t.Errorf("result Run = %q, want the minted run id %q", res.RunID, ep.RunID)
+		t.Fatalf("a no-run-record resume started with no run under its key: %v", err)
 	}
 	if ep.ChangeID != "5" {
 		t.Errorf("run ChangeID = %q, want \"5\" (bound to the resumed change)", ep.ChangeID)
@@ -703,15 +695,19 @@ func TestIntegrationRunStartNoRunRecordResumeMintsBoundRun(t *testing.T) {
 	if ep.Worktree != "/tmp/wt/epsilon" {
 		t.Errorf("run Worktree = %q, want the verified feature worktree /tmp/wt/epsilon", ep.Worktree)
 	}
-	// JSON consumers see the run on this path too, and the shape is unchanged.
+	// JSON consumers see the key and the run context on this path too, and no
+	// retired run_id key (change 0491).
 	buf, err := json.Marshal(res)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	for _, want := range []string{`"run_id":"` + res.RunID + `"`, `"key":"` + res.Key + `"`, `"run_context":"` + scopeGrantChild + `"`} {
+	for _, want := range []string{`"key":"` + res.Key + `"`, `"run_context":"` + scopeGrantChild + `"`} {
 		if !strings.Contains(string(buf), want) {
 			t.Errorf("JSON result missing %s: %s", want, buf)
 		}
+	}
+	if strings.Contains(string(buf), `"run_id"`) {
+		t.Errorf("JSON result still carries the retired run_id key: %s", buf)
 	}
 }
 
@@ -737,8 +733,8 @@ func TestIntegrationRunStartRepeatNoRunRecordResumeRefusedActive(t *testing.T) {
 	if second.Reason != ReasonRunResumeActiveRun {
 		t.Fatalf("Reason = %q, want %q", second.Reason, ReasonRunResumeActiveRun)
 	}
-	if !strings.Contains(second.Message, first.RunID) || !strings.Contains(second.Message, first.Key) {
-		t.Fatalf("locator must name run %q and key %q, got %q", first.RunID, first.Key, second.Message)
+	if !strings.Contains(second.Message, "run key "+first.Key) {
+		t.Fatalf("locator must name run key %q, got %q", first.Key, second.Message)
 	}
 	if second.Key != "" || sp2.calls != 0 {
 		t.Fatalf("an active refusal mints nothing: key=%q calls=%d", second.Key, sp2.calls)
@@ -748,7 +744,7 @@ func TestIntegrationRunStartRepeatNoRunRecordResumeRefusedActive(t *testing.T) {
 // TestIntegrationRunStartNoRunRecordResumeRunJoinsCancelCycle (change 0463, Review Focus 2): the run
 // a no-run-record resume mints goes through the ordinary lifecycle, driven by the REAL
 // cancel path. The resume-active-run refusal names `run cancel` as its remedy, so
-// that remedy must work with the start's own key and run id: a resume start has no claim
+// that remedy must work with the start's own key: a resume start has no claim
 // binding (change.claim requires a proposed change), and runCancel must accept its
 // resume-verified attribution instead of refusing claim-unconfirmed forever. Once
 // cancelled, the next resume supersedes the run and reserves exactly one
@@ -771,7 +767,7 @@ func TestIntegrationRunStartNoRunRecordResumeRunJoinsCancelCycle(t *testing.T) {
 		t.Fatalf("first no-run-record resume must start: %q", first.HumanText())
 	}
 
-	// The documented remedy: cancel with the start's own key and run id.
+	// The documented remedy: cancel with the start's own key.
 	cancel := runCancel(seams, repoDir, first.Key, "human stop")
 	if cancel.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancelling the no-run-record resume's run: disposition = %q, want cancelled (findings=%v)", cancel.Disposition, cancel.Findings)
@@ -785,8 +781,8 @@ func TestIntegrationRunStartNoRunRecordResumeRunJoinsCancelCycle(t *testing.T) {
 	d2 := sp2.deps()
 	d2.CancelSeams = mkSeams
 	repl := RunStart(context.Background(), deps2, wdeps2, d2, repoDir, "implement-next", 5)
-	if !repl.Started || repl.RunID == "" || repl.RunID == first.RunID {
-		t.Fatalf("the resume after cancel must start one replacement with a fresh run: %q (first run %q)", repl.HumanText(), first.RunID)
+	if !repl.Started || repl.Key == "" || repl.Key == first.Key {
+		t.Fatalf("the resume after cancel must start one replacement with a fresh run key: %q (first key %q)", repl.HumanText(), first.Key)
 	}
 	prior, _, err := LoadRunRecord(repoDir, first.Key)
 	if err != nil {
@@ -863,7 +859,7 @@ func TestIntegrationRunCancelRunCancelResumeAuthorityFailsClosed(t *testing.T) {
 // change (TestRaceIntegrationAppConcurrencyNoRunRecordResumesStartOnce), but such a pair can still exist,
 // for example left by a binary that predates the lock. A resume over it must fail
 // closed as resume-run-record-unreadable and must never start a third run. Recovery is an
-// explicit 'docket run cancel' of either run by its own key and run id, which
+// explicit 'docket run cancel' of either run by its own key, which
 // runCancel's resume-verified authority accepts (TestIntegrationRunStartNoRunRecordResumeRunJoinsCancelCycle
 // drives that cancel path); the surviving run is then the worktree's sole live owner.
 func TestIntegrationRunStartConcurrentNoRunRecordResumeRunsFailSafe(t *testing.T) {
@@ -934,8 +930,8 @@ func TestRaceIntegrationAppConcurrencyNoRunRecordResumesStartOnce(t *testing.T) 
 // by worktree).
 func TestIntegrationRunStartResumeRefusalNamesAbandonedStartRemedy(t *testing.T) {
 	for _, msg := range []string{
-		resumeActiveLocator("k", RunRecord{ChangeID: "5", RunID: "e"}),
-		resumeWorktreeOwnerLocator("/tmp/wt/epsilon", "k", RunRecord{RunID: "e"}),
+		resumeActiveLocator("k", RunRecord{ChangeID: "5"}),
+		resumeWorktreeOwnerLocator("/tmp/wt/epsilon", "k", RunRecord{}),
 	} {
 		for _, want := range []string{"never dispatched", "run cancel --key k --reason <why>", "still running", "run verdict"} {
 			if !strings.Contains(msg, want) {
@@ -959,12 +955,11 @@ func TestIntegrationRunStartResumeRefusalNamesAbandonedStartRemedy(t *testing.T)
 // (cancelled) run on the worktree is not a live owner and does not block.
 func TestIntegrationRunStartNoRunRecordResumeRefusesLiveWorktreeOwner(t *testing.T) {
 	// seedWorktreeOwner mints a run bound to worktree (and to changeID, when set)
-	// in the given state, returning its run key and run id.
-	seedWorktreeOwner := func(t *testing.T, repoDir, changeID, worktree string, state runState) (string, string) {
+	// in the given state, returning its run key.
+	seedWorktreeOwner := func(t *testing.T, repoDir, changeID, worktree string, state runState) string {
 		t.Helper()
 		key := mintTestRunKey(t, repoDir)
-		ep, err := MintRunRecord(repoDir, key, changeID)
-		if err != nil {
+		if _, err := MintRunRecord(repoDir, key, changeID); err != nil {
 			t.Fatalf("MintRunRecord: %v", err)
 		}
 		if err := runRecordCAS(repoDir, key, func(r *RunRecord) error {
@@ -974,9 +969,9 @@ func TestIntegrationRunStartNoRunRecordResumeRefusesLiveWorktreeOwner(t *testing
 		}); err != nil {
 			t.Fatalf("runRecordCAS bind: %v", err)
 		}
-		return key, ep.RunID
+		return key
 	}
-	assertRefused := func(t *testing.T, res RunStartResult, sp *fakeScopePrep, ownerKey, ownerRun string) {
+	assertRefused := func(t *testing.T, res RunStartResult, sp *fakeScopePrep, ownerKey string) {
 		t.Helper()
 		if res.Started {
 			t.Fatalf("resume started over a live worktree owner: %q", res.HumanText())
@@ -984,8 +979,8 @@ func TestIntegrationRunStartNoRunRecordResumeRefusesLiveWorktreeOwner(t *testing
 		if res.Reason != ReasonRunResumeActiveRun {
 			t.Fatalf("Reason = %q, want %q", res.Reason, ReasonRunResumeActiveRun)
 		}
-		if !strings.Contains(res.Message, ownerRun) || !strings.Contains(res.Message, ownerKey) || !strings.Contains(res.Message, "run cancel") {
-			t.Fatalf("Message must name the owner's locator (run %q, key %q) and the cancel remedy, got %q", ownerRun, ownerKey, res.Message)
+		if !strings.Contains(res.Message, "run key "+ownerKey) || !strings.Contains(res.Message, "run cancel") {
+			t.Fatalf("Message must name the owner's locator (run key %q) and the cancel remedy, got %q", ownerKey, res.Message)
 		}
 		if res.Key != "" || sp.calls != 0 {
 			t.Fatalf("the refusal must mint no record and prepare no scope: key=%q calls=%d", res.Key, sp.calls)
@@ -1002,11 +997,11 @@ func TestIntegrationRunStartNoRunRecordResumeRefusesLiveWorktreeOwner(t *testing
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			repoDir := newWorkingRepo(t, nil).invocation
-			ownerKey, ownerRun := seedWorktreeOwner(t, repoDir, tc.changeID, "/tmp/wt/epsilon", tc.state)
+			ownerKey := seedWorktreeOwner(t, repoDir, tc.changeID, "/tmp/wt/epsilon", tc.state)
 			deps, wdeps := resumeRunDeps(t)
 			sp := &fakeScopePrep{grant: sampleScopeGrant()}
 			res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
-			assertRefused(t, res, sp, ownerKey, ownerRun)
+			assertRefused(t, res, sp, ownerKey)
 			if st := loadRunState(t, repoDir, ownerKey); st != tc.state {
 				t.Fatalf("the incumbent must be untouched: state = %q, want %q", st, tc.state)
 			}
@@ -1023,13 +1018,13 @@ func TestIntegrationRunStartNoRunRecordResumeRefusesLiveWorktreeOwner(t *testing
 		if err := os.Symlink(raw, link); err != nil {
 			t.Fatalf("symlink: %v", err)
 		}
-		ownerKey, ownerRun := seedWorktreeOwner(t, repoDir, "", raw, RunActive)
+		ownerKey := seedWorktreeOwner(t, repoDir, "", raw, RunActive)
 		reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(5, "epsilon", "v5", "")}}
 		deps := workspaceDepsFor(t, reader)
 		wdeps := WorkspaceDeps{Service: resumeInspectService(link)}
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}
 		res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
-		assertRefused(t, res, sp, ownerKey, ownerRun)
+		assertRefused(t, res, sp, ownerKey)
 	})
 
 	t.Run("cancelled run on the worktree does not block", func(t *testing.T) {
@@ -1038,21 +1033,23 @@ func TestIntegrationRunStartNoRunRecordResumeRefusesLiveWorktreeOwner(t *testing
 		deps, wdeps := resumeRunDeps(t)
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}
 		res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
-		if !res.Started || res.RunID == "" {
+		if !res.Started || res.Key == "" {
 			t.Fatalf("a fenced run on the worktree is not a live owner; the resume must start: %q", res.HumanText())
 		}
 	})
 }
 
-// TestIntegrationRunStartStartedResultRequiresRun (change 0463): the started constructor refuses to
-// start without a run. That guarantee is what makes the positional three-token
-// line unambiguous.
-func TestIntegrationRunStartStartedResultRequiresRun(t *testing.T) {
-	if got := startedRunResult("k", "", "ctx"); got.Started || got.Reason != ReasonRunMintFailed || got.Key != "" || got.RunContext != "" {
-		t.Fatalf("a no-run-record started result must fail closed as run-untracked mint-failed, got %+v", got)
+// TestIntegrationRunStartStartedResultRequiresKeyAndContext (changes 0463, 0491): the
+// started constructor refuses to start without a key or a run context. That
+// guarantee is what makes the positional two-token line unambiguous.
+func TestIntegrationRunStartStartedResultRequiresKeyAndContext(t *testing.T) {
+	for _, tc := range [][2]string{{"", "ctx"}, {"k", ""}} {
+		if got := startedRunResult(tc[0], tc[1]); got.Started || got.Reason != ReasonRunMintFailed || got.Key != "" || got.RunContext != "" {
+			t.Fatalf("startedRunResult(%q, %q) must fail closed as run-untracked mint-failed, got %+v", tc[0], tc[1], got)
+		}
 	}
-	got := startedRunResult("k", "e", "ctx")
-	if !got.Started || got.Result != ResultApplied || got.Key != "k" || got.RunID != "e" || got.RunContext != "ctx" ||
+	got := startedRunResult("k", "ctx")
+	if !got.Started || got.Result != ResultApplied || got.Key != "k" || got.RunContext != "ctx" ||
 		got.Target != runStartStoredTarget || got.OwnerLifecycle != ReasonOwnerLifecycleUnavailable {
 		t.Fatalf("started result fields wrong: %+v", got)
 	}

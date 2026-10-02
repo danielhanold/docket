@@ -105,13 +105,13 @@ func runTrackerRetryMarkerExists(t *testing.T, repoDir, key string) bool {
 // run-complete AND whose run is ready to close out: a terminal coordinator and an
 // accounted launch census.
 type verdictCompletionFixture struct {
-	repo, key, runID, worktree string
-	store                      *gatedrive.Store
-	deps                       PlanningDeps
-	wdeps                      WorkspaceDeps
-	gdeps                      GitHubDeps
-	observer                   *fakeProcessObserver
-	launchObserver             *fakeLaunchObserver
+	repo, key, worktree string
+	store               *gatedrive.Store
+	deps                PlanningDeps
+	wdeps               WorkspaceDeps
+	gdeps               GitHubDeps
+	observer            *fakeProcessObserver
+	launchObserver      *fakeLaunchObserver
 }
 
 // seams returns the injected completion seam bundle for a direct completeSuccessfulRun
@@ -143,8 +143,7 @@ func newVerdictCompletionFixture(t *testing.T) verdictCompletionFixture {
 		{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
 	}}
 
-	ep, err := MintRunRecord(repo, key, "3")
-	if err != nil {
+	if _, err := MintRunRecord(repo, key, "3"); err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
 	worktree := filepath.Join(repo, "feature-wt")
@@ -172,7 +171,7 @@ func newVerdictCompletionFixture(t *testing.T) verdictCompletionFixture {
 		return cancelSeams{store: store, observer: observer, launchObserver: launchObserver}
 	}
 	return verdictCompletionFixture{
-		repo: repo, key: key, runID: ep.RunID, worktree: worktree, store: store,
+		repo: repo, key: key, worktree: worktree, store: store,
 		deps: deps, wdeps: wdeps, gdeps: gdeps, observer: observer, launchObserver: launchObserver,
 	}
 }

@@ -18,9 +18,11 @@
 // registration, and the state-gated conflict-checked write; the transitions and the
 // mutation journal reconciliation are wired by later tasks.
 //
-// IDENTITY vs. AUTHORITY: RunID is a random, PUBLIC locator — it authorizes
-// nothing (the run context's child capability continues to carry authority,
-// per ADR-0111). It is safe to print.
+// IDENTITY vs. AUTHORITY: the run key locates the run (bind-once, never reused)
+// and authorizes nothing — the run context's child capability continues to carry
+// authority, per ADR-0111. Since change 0491 the run carries no separate run id; an
+// old run.json that still has a run_id key decodes unchanged, because unknown keys
+// are ignored.
 //
 // DURABILITY + CAS: writes go through the same atomic temp-file + rename discipline
 // as writeRunTrackerRecordAtomic (0600), and every read-modify-write serializes on a
@@ -145,15 +147,13 @@ type AdmittedMutation struct {
 // RunRecord is the durable run state. RunKey binds it to the starting gate
 // record it lives beside; ChangeID and Worktree are bound once the claim confirms
 // the change instance (bindRunChange) and a scope claims the feature worktree.
-// RunID is the random public locator. Participants and AdmittedMutations are the
-// accounting a cancellation reconciles.
+// Participants and AdmittedMutations are the accounting a cancellation reconciles.
 type RunRecord struct {
 	SchemaVersion     int                `json:"schema_version"`
 	RunKey            string             `json:"run_key"`
 	ChangeID          string             `json:"change_id,omitempty"`
 	Worktree          string             `json:"worktree,omitempty"`
 	State             runState           `json:"state"`
-	RunID             string             `json:"run_id"`
 	Participants      []RunParticipant   `json:"participants,omitempty"`
 	AdmittedMutations []AdmittedMutation `json:"admitted_mutations,omitempty"`
 	// ReplacementReserved carries the resume winner's replacement reservation (the
@@ -253,7 +253,7 @@ func AsRunError(err error) (*RunError, bool) {
 // directory must already exist (minted by MintRunTrackerRecord). It mints under the
 // per-key flock and refuses ErrRunExists if a run was already minted for the
 // key — bind-once, a second start can never clobber the first. On success it returns
-// the persisted active record (RunID + Generation stamped).
+// the persisted active record (its Generation stamped).
 func MintRunRecord(repoDir, runKey, changeID string) (RunRecord, error) {
 	dir, err := runKeyDir(repoDir, runKey, "mint-run")
 	if err != nil {
@@ -271,10 +271,6 @@ func MintRunRecord(repoDir, runKey, changeID string) (RunRecord, error) {
 		return RunRecord{}, runErr(ErrRunRecordIO, "mint-run", serr)
 	}
 
-	runID, err := runToken()
-	if err != nil {
-		return RunRecord{}, runErr(ErrRunRecordIO, "mint-run", err)
-	}
 	gen, err := runToken()
 	if err != nil {
 		return RunRecord{}, runErr(ErrRunRecordIO, "mint-run", err)
@@ -285,7 +281,6 @@ func MintRunRecord(repoDir, runKey, changeID string) (RunRecord, error) {
 		RunKey:        runKey,
 		ChangeID:      changeID,
 		State:         RunActive,
-		RunID:         runID,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
@@ -706,8 +701,7 @@ func FindRunByChange(repoDir, changeID string) (runKey string, rec RunRecord, fo
 }
 
 // runToken mints a random 32-hex-char token (16 crypto-random bytes) for the
-// public RunID locator and for the physical generation. Both are opaque lookup
-// tokens, never encoded state.
+// physical generation. It is an opaque lookup token, never encoded state.
 func runToken() (string, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {

@@ -326,7 +326,7 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 	started := armResumeReplacement(fx.repo, sdeps, fx.key, resumeReplacementParams{
 		attributedID: 42, scopeChangeID: "42", branch: "fix/x", worktree: fx.worktree, attemptLimit: 2,
 	})
-	if !started.Started || started.RunID == "" {
+	if !started.Started || started.Key == "" {
 		t.Fatalf("resume did not start a replacement: %+v", started)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunSuperseded {

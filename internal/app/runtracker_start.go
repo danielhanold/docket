@@ -23,7 +23,7 @@ import (
 // origin, reads the current in-progress claim set, captures a dispatch time
 // AFTER that read, and mints a durable gate record under the git common dir
 // (runtracker_store.go). Its whole contract is the printed report line:
-// `run-started <key> <run-id> <run-context>` on success, `run-untracked
+// `run-started <key> <run-context>` on success, `run-untracked
 // <reason-token>` on any failure — both exit 0 (learning
 // exit-code-encodes-a-non-failure). Only `implement-next` is an accepted
 // target; anything else is a usage error that exits non-zero.
@@ -153,18 +153,9 @@ type RunStartResult struct {
 	// child (change 0359). The parent capability is deliberately absent from this
 	// result — it lives only in the 0600-private gate record.
 	RunContext string `json:"run_context,omitempty"`
-	// RunID is the fresh run's PUBLIC run id, minted at start time beside the run-tracker
-	// record (runtracker_run_record.go). It authorizes nothing (ADR-0111) but is the locator
-	// the operator threads into `run.cancel --run-id <id>` — the primary human Stop —
-	// and the dispatcher threads into each `--run-id` flag (agent.enter and each
-	// build-owned gate drive start). Without it the documented Stop path names an
-	// run the start never surfaced (change 0375). Never empty on a started result
-	// (change 0463): startedRunResult refuses to start without one, so the positional
-	// `run-started <key> <run-id> <run-context>` line always has three tokens.
-	RunID   string `json:"run_id,omitempty"`
-	Target  string `json:"target,omitempty"`
-	Reason  string `json:"reason,omitempty"`
-	Message string `json:"message,omitempty"`
+	Target     string `json:"target,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	Message    string `json:"message,omitempty"`
 	// OwnerLifecycle is the honest owner-lifecycle limitation of the dispatched
 	// route (change 0375 Task 13). On a started run it carries
 	// `owner-lifecycle-unavailable`: the default dispatch route has no automatic
@@ -174,9 +165,8 @@ type RunStartResult struct {
 }
 
 // HumanText renders the one report line. A started run prints `run-started <key>
-// <run-id> <run-context>`. That is always three tokens, because every started
-// result carries a run (startedRunResult, change 0463), so a positional
-// parser can never read the run context as the run. A run-untracked
+// <run-context>`. That is always two tokens, because every started result carries
+// both (startedRunResult). A run-untracked
 // report prints `run-untracked <reason-token>`; a usage error (a non-applied
 // result) names its reason instead of a report line. The parent capability
 // never appears here — only the child run context, which is meant for the
@@ -184,7 +174,7 @@ type RunStartResult struct {
 func (r RunStartResult) HumanText() string {
 	if r.Result == ResultApplied {
 		if r.Started {
-			line := "run-started " + r.Key + " " + r.RunID + " " + r.RunContext
+			line := "run-started " + r.Key + " " + r.RunContext
 			if r.OwnerLifecycle != "" {
 				// Honest standing caveat: the dispatched route cancels no run on owner
 				// death; a Stop is the explicit `run.cancel` operation.
@@ -214,7 +204,7 @@ func runUntracked(reason string) RunStartResult {
 
 // runUntrackedMsg is runUntracked with a bounded human Message — a safe locator and
 // remedy for a resume refusal. The Message carries only public locators (a run key,
-// a public run id, a change id), never a capability or reservation token.
+// a change id), never a capability or reservation token.
 func runUntrackedMsg(reason, message string) RunStartResult {
 	return newRunStartResult(ResultApplied, RunStartResult{Started: false, Reason: reason, Message: message})
 }
@@ -232,20 +222,16 @@ func runTrackerResumeObserve(reservedKey string) RunStartResult {
 	})
 }
 
-// startedRunResult builds the started report for key. Every started run carries a run
-// id (change 0463): parents read the `run-started <key> <run-id> <run-context>`
-// line positionally, and both tokens are 32-hex, so the line is unambiguous only
-// when the run slot is always filled. An empty run therefore fails closed as
-// run-untracked mint-failed. It never prints a two-token line whose run context
-// a parent would read as the run.
-func startedRunResult(key, runID, runContext string) RunStartResult {
-	if runID == "" {
+// startedRunResult builds the started report for key. A started run always carries
+// its key and run context, so the positional `run-started <key> <run-context>` line
+// is always two tokens; an empty either fails closed as run-untracked mint-failed.
+func startedRunResult(key, runContext string) RunStartResult {
+	if key == "" || runContext == "" {
 		return runUntracked(ReasonRunMintFailed)
 	}
 	return newRunStartResult(ResultApplied, RunStartResult{
 		Started:        true,
 		Key:            key,
-		RunID:          runID,
 		Target:         runStartStoredTarget,
 		RunContext:     runContext,
 		OwnerLifecycle: ReasonOwnerLifecycleUnavailable,
@@ -254,11 +240,10 @@ func startedRunResult(key, runID, runContext string) RunStartResult {
 
 // resumeActiveLocator renders the safe locator and explicit cancel/continue remedy
 // a resume prints when the prior run is still active (change 0375 Task 12). It names
-// only public locators — the change id, the public run id, and the run key — never
-// a capability or reservation token.
+// only public locators — the change id and the run key — never a capability or
+// reservation token.
 func resumeActiveLocator(runKey string, ep RunRecord) string {
-	return "change " + ep.ChangeID + " has an active run (run " + ep.RunID +
-		", run key " + runKey + "); " + resumeIncumbentRemedy(runKey)
+	return "change " + ep.ChangeID + " has an active run (run key " + runKey + "); " + resumeIncumbentRemedy(runKey)
 }
 
 // resumeIncumbentRemedy renders the two remedies for a resume refused over a live
@@ -331,7 +316,7 @@ func resumeWorktreeOwnerLocator(worktree, runKey string, ep RunRecord) string {
 		owner = "a live run of change " + ep.ChangeID
 	}
 	return "worktree " + worktree + " is already owned by " + owner + " (state " + string(ep.State) +
-		", run " + ep.RunID + ", run key " + runKey + "); " + resumeIncumbentRemedy(runKey)
+		", run key " + runKey + "); " + resumeIncumbentRemedy(runKey)
 }
 
 // resumeReplacementParams carries the immutable start facts armResumeReplacement mints
@@ -397,8 +382,7 @@ func armResumeReplacement(repoDir string, sdeps RunTrackerScopeDeps, oldKey stri
 		return runUntrackedMsg(ReasonResumeRunRecordUnreadable,
 			"change "+p.scopeChangeID+" could not be superseded for resume")
 	}
-	runRec, eerr := MintRunRecord(repoDir, key, "")
-	if eerr != nil {
+	if _, eerr := MintRunRecord(repoDir, key, ""); eerr != nil {
 		return runUntracked(ReasonRunMintFailed)
 	}
 	if werr := runRecordCAS(repoDir, key, func(rec *RunRecord) error {
@@ -407,10 +391,10 @@ func armResumeReplacement(repoDir string, sdeps RunTrackerScopeDeps, oldKey stri
 	}); werr != nil {
 		return runUntracked(ReasonRunMintFailed)
 	}
-	// The replacement dispatch gets a fresh live run; surface its public id so the
-	// resumed run's Stop path (`run.cancel --run-id`) and `--run-id` flags are
-	// followable, exactly as a fresh start's are (change 0375).
-	return startedRunResult(key, runRec.RunID, grant.ChildCapability)
+	// The replacement dispatch gets a fresh live run keyed by its new run key, so the
+	// resumed run's Stop path (`run.cancel --key`) is followable, exactly as a fresh
+	// start's is (change 0375).
+	return startedRunResult(key, grant.ChildCapability)
 }
 
 // validateResumeQuiescence re-proves the OLD run's quiescence before resume may
@@ -433,8 +417,8 @@ func validateResumeQuiescence(seams cancelSeams, repoDir string, ep RunRecord) (
 // usage error (non-zero exit); otherwise it re-syncs, reads the in-progress
 // claim set, captures the dispatch time after that read, optionally verifies an
 // explicit resume id, prepares the OUTER recovery scope (change 0359), mints the
-// durable record and its run, and returns `run-started <key> <run-id>
-// <run-context>` — degrading any starting failure to a `run-untracked <reason>`
+// durable record and its run, and returns `run-started <key> <run-context>` —
+// degrading any starting failure to a `run-untracked <reason>`
 // report line that still exits 0.
 //
 // resumeID (0 = none) requests explicit resume attribution: the id is pre-bound
@@ -564,7 +548,7 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 			case RunCancelling:
 				// Cancellation cleanup is still in progress: admit no replacement.
 				return runUntrackedMsg(ReasonRunResumeCancellationPending,
-					"change "+scopeChangeID+" is cancelling (run "+oldEp.RunID+
+					"change "+scopeChangeID+" is cancelling (run key "+oldKey+
 						"); finish cancellation with 'docket run cancel' before resuming")
 			case RunSuperseded:
 				// A replacement was already reserved (a lost response or a repeat start):
@@ -612,16 +596,16 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 				// cancelled predecessor or reserve a replacement. Finish the closeout with
 				// the keyed verdict, or cancel explicitly.
 				return runUntrackedMsg(ReasonRunResumeRunCompleting,
-					"change "+scopeChangeID+" completed its run and is closing out (run "+
-						oldEp.RunID+"); re-run the keyed 'docket run verdict' to finish "+
+					"change "+scopeChangeID+" completed its run and is closing out (run key "+
+						oldKey+"); re-run the keyed 'docket run verdict' to finish "+
 						"closeout, or cancel explicitly with 'docket run cancel'")
 			case RunCompleted:
 				// The successful closeout finished (change 0441): terminal, nothing to
 				// resume — never quiescence-checked into a supersede, never a replacement
 				// reservation. Verify and finalize instead.
 				return runUntrackedMsg(ReasonRunResumeRunCompleted,
-					"change "+scopeChangeID+"'s run completed successfully (run "+
-						oldEp.RunID+"); there is nothing to resume — verify with 'docket run "+
+					"change "+scopeChangeID+"'s run completed successfully (run key "+
+						oldKey+"); there is nothing to resume — verify with 'docket run "+
 						"verify --id "+scopeChangeID+"' and finalize instead")
 			default:
 				return runUntrackedMsg(ReasonResumeRunRecordUnreadable,
@@ -705,8 +689,7 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 	// took at step 4 (acquireResumeLock). Run locks are per run key, so without it
 	// concurrent no-run-record resumes of one change would each pass step 4's checks and
 	// each mint and bind a live run here.
-	runRec, eerr := MintRunRecord(repoDir, key, "")
-	if eerr != nil {
+	if _, eerr := MintRunRecord(repoDir, key, ""); eerr != nil {
 		return runUntracked(ReasonRunMintFailed)
 	}
 	if resumeID != 0 {
@@ -719,10 +702,10 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 		}
 	}
 
-	// (7) Report the started run with its run context, its run id, and the
-	// honest owner-lifecycle caveat: the dispatched route has no automatic Stop, so a
-	// Stop is the explicit `run.cancel` operation keyed by this run (change 0375
-	// Task 13). startedRunResult refuses an empty run, so the line is always three
-	// tokens (change 0463).
-	return startedRunResult(key, runRec.RunID, grant.ChildCapability)
+	// (7) Report the started run with its key, its run context, and the honest
+	// owner-lifecycle caveat: the dispatched route has no automatic Stop, so a Stop is
+	// the explicit `run.cancel` operation keyed by this run's key (change 0375 Task 13).
+	// startedRunResult refuses an empty key or run context, so the line is always two
+	// tokens.
+	return startedRunResult(key, grant.ChildCapability)
 }

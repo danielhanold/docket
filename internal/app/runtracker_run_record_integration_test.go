@@ -25,7 +25,7 @@ func isRunKind(err error, kind RunErrorKind) bool {
 }
 
 // TestIntegrationRunRecordRunRecordCRUD proves mint → load → register round-trips: mint yields an
-// active record with a non-empty public RunID keyed by the run key, load
+// active record keyed by the run key, load
 // returns a generation, a second mint is refused bind-once, a participant is
 // appended with a stamped RegisteredAt under a rotated generation, and a stale
 // expected-run locator confers no registration authority.
@@ -39,9 +39,6 @@ func TestIntegrationRunRecordRunRecordCRUD(t *testing.T) {
 	}
 	if rec.State != RunActive {
 		t.Fatalf("a fresh run must be active, got %q", rec.State)
-	}
-	if rec.RunID == "" {
-		t.Fatalf("mint must assign a public RunID locator")
 	}
 	if rec.RunKey != key {
 		t.Fatalf("run must record its run key %q, got %q", key, rec.RunKey)
@@ -59,7 +56,7 @@ func TestIntegrationRunRecordRunRecordCRUD(t *testing.T) {
 	if gen == "" {
 		t.Fatalf("load must return a physical generation")
 	}
-	if got.RunID != rec.RunID || got.ChangeID != "375" || got.State != RunActive {
+	if got.RunKey != rec.RunKey || got.ChangeID != "375" || got.State != RunActive {
 		t.Fatalf("load round-trip mismatch: %+v", got)
 	}
 
@@ -141,7 +138,7 @@ func TestIntegrationRunRecordRunUnknownSchemaFailsClosed(t *testing.T) {
 		t.Fatalf("runTrackerGitCommonDir: %v", err)
 	}
 	path := filepath.Join(common, "docket", runTrackerDirName, key, runRecordFileName)
-	bad := `{"generation":"g","record":{"schema_version":99,"run_key":"` + key + `","state":"active","run_id":"e"}}`
+	bad := `{"generation":"g","record":{"schema_version":99,"run_key":"` + key + `","state":"active"}}`
 	if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
 		t.Fatalf("seed bad schema: %v", err)
 	}
@@ -151,7 +148,7 @@ func TestIntegrationRunRecordRunUnknownSchemaFailsClosed(t *testing.T) {
 }
 
 // TestIntegrationRunRecordRunStartMintsRun proves a fresh (non-resume) start binds a new run
-// beside the run-tracker record, keyed by the run key: active, with a public RunID and
+// beside the run-tracker record, keyed by the run key: active, with
 // no change bound yet.
 func TestIntegrationRunRecordRunStartMintsRun(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -168,9 +165,6 @@ func TestIntegrationRunRecordRunStartMintsRun(t *testing.T) {
 	}
 	if ep.State != RunActive {
 		t.Fatalf("minted run must be active, got %q", ep.State)
-	}
-	if ep.RunID == "" {
-		t.Fatalf("minted run must carry a public RunID")
 	}
 	if ep.RunKey != res.Key {
 		t.Fatalf("run record key = %q, want %q", ep.RunKey, res.Key)

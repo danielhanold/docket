@@ -40,7 +40,7 @@ func RunRecordNextAction(reason string) string {
 
 // CheckRunKey verifies, before agent.enter spawns anything, that --run-key names a
 // run in repoDir's repository (change 0491; it replaces change 0463's
-// run-id linkage check). It returns nil when the key's run record loads and otherwise
+// linkage check, which matched a separate locator the run no longer carries). It returns nil when the key's run record loads and otherwise
 // ALWAYS a *RunError: ErrRunNotFound for a key with no directory, a malformed key,
 // or no run record; ErrRunRecordCorrupt for a corrupt record; ErrRunRecordIO for
 // any other fault. It only reads and never checks liveness: participant
