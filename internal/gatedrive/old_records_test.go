@@ -134,28 +134,66 @@ func TestOldOuterScopeOnDiskStillLoadsBindsAndTakesOver(t *testing.T) {
 
 // TestOldDriveRecordWithScopeIDSettlesScopeless (change 0489, Decision 4; Review
 // Focus 3): a pre-0489 task drive record still carrying scope_id — naming a scope
-// that is not on disk — decodes and resolves as a scopeless, no-run-record drive,
-// never run-record-unreadable, so the census treats it as history.
+// that is not on disk — decodes as a scopeless drive, never run-record-unreadable,
+// and resolves through its AdmissionToken's worktree slot like any other drive. A
+// real old task drive carries the AdmissionToken the pre-0489 admission stamped;
+// once that slot has moved on, the drive resolves CauseRunLinkLost and the census
+// reports it as informational history without blocking the run.
 func TestOldDriveRecordWithScopeIDSettlesScopeless(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	d, store := newTestDriver(t, clk, &fakeProc{}, stableGit())
-	rec := seedRecord(t)
-	rec.LastOutcome = WAITING
-	id, _, err := store.NewDrive(rec)
-	if err != nil {
-		t.Fatalf("NewDrive: %v", err)
-	}
-	stampLegacyScopeID(t, store, id, "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd")
+	t.Run("admitted-token-slot-moved-on-is-history", func(t *testing.T) {
+		clk := &fakeClock{now: startRun()}
+		d, store := newTestDriver(t, clk, &fakeProc{}, stableGit())
+		const runID = "run-0489-old-task-drive"
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), runID, func(r *driveRecord) {
+			r.LastOutcome = WAITING
+		})
+		stampLegacyScopeID(t, store, id, "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd")
 
-	got, err := store.Load(id)
-	if err != nil {
-		t.Fatalf("Load of an old drive carrying scope_id: %v", err)
-	}
-	if runID, ok, cause := d.resolveDriveRun(got); !ok || runID != "" || cause != "" {
-		t.Fatalf("old drive must resolve as scopeless no-run-record, got (%q, %v, %q)", runID, ok, cause)
-	}
-	rep, err := d.ReconcileRunLaunches("", "run-0489-any")
-	if err != nil || !rep.Accounted {
-		t.Fatalf("census over an old scope_id drive = %+v, %v; want accounted", rep, err)
-	}
+		got, err := store.Load(id)
+		if err != nil {
+			t.Fatalf("Load of an old drive carrying scope_id: %v", err)
+		}
+		if got.AdmissionToken == "" {
+			t.Fatalf("fixture must carry the AdmissionToken a pre-0489 admission stamped")
+		}
+		rotateSlotToken(t, store, got, runID)
+		if _, ok, cause := d.resolveDriveRun(got); ok || cause != CauseRunLinkLost {
+			t.Fatalf("old drive whose slot moved on must resolve CauseRunLinkLost, got (ok=%v, cause=%q)", ok, cause)
+		}
+
+		rep, err := d.ReconcileRunLaunches(sampleWorktree(), runID)
+		if err != nil {
+			t.Fatalf("ReconcileRunLaunches: %v", err)
+		}
+		if !rep.Accounted {
+			t.Fatalf("an old task drive whose slot moved on must not block the run, findings=%v", rep.Findings)
+		}
+		if !findingFor(rep.Findings, "history-unattributed", id) || reconcileFindingPresent(rep.Findings, "linkage-unresolved:") {
+			t.Fatalf("findings = %v, want informational history-unattributed:%s and no linkage-unresolved", rep.Findings, id)
+		}
+	})
+
+	t.Run("legacy-empty-token-is-no-run-record", func(t *testing.T) {
+		clk := &fakeClock{now: startRun()}
+		d, store := newTestDriver(t, clk, &fakeProc{}, stableGit())
+		rec := seedRecord(t)
+		rec.LastOutcome = WAITING
+		id, _, err := store.NewDrive(rec)
+		if err != nil {
+			t.Fatalf("NewDrive: %v", err)
+		}
+		stampLegacyScopeID(t, store, id, "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd")
+
+		got, err := store.Load(id)
+		if err != nil {
+			t.Fatalf("Load of an old drive carrying scope_id: %v", err)
+		}
+		if runID, ok, cause := d.resolveDriveRun(got); !ok || runID != "" || cause != "" {
+			t.Fatalf("an empty-token old drive must resolve as no-run-record, got (%q, %v, %q)", runID, ok, cause)
+		}
+		rep, err := d.ReconcileRunLaunches("", "run-0489-any")
+		if err != nil || !rep.Accounted {
+			t.Fatalf("census over an old scope_id drive = %+v, %v; want accounted", rep, err)
+		}
+	})
 }

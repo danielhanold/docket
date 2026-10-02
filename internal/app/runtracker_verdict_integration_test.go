@@ -6,8 +6,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1243,7 +1245,7 @@ func TestIntegrationRunVerdictFinishedBuildDrivesAreNotTakeoverCandidates(t *tes
 	sum := sha256.Sum256([]byte(runContext))
 	ctxHash := hex.EncodeToString(sum[:])
 
-	finish := func(command string) gatedrive.Outcome {
+	finish := func(command string) (gatedrive.Outcome, string) {
 		t.Helper()
 		runRoot := filepath.Join(testsupport.TempDir(t), "runs")
 		t.Cleanup(func() { stopRunsUnder(runRoot) })
@@ -1259,12 +1261,13 @@ func TestIntegrationRunVerdictFinishedBuildDrivesAreNotTakeoverCandidates(t *tes
 		if got.Result != ResultApplied || got.Drive == nil {
 			t.Fatalf("build start refused: result=%s reason=%q message=%q", got.Result, got.Reason, got.Message)
 		}
-		return runDriveToTerminal(t, svc, got)
+		return runDriveToTerminal(t, svc, got), got.Drive.DriveID
 	}
-	if out := finish("/usr/bin/false"); out != gatedrive.FAILED {
+	out, redID := finish("/usr/bin/false")
+	if out != gatedrive.FAILED {
 		t.Fatalf("red gate outcome = %s, want FAILED", out)
 	}
-	if out := finish("/bin/echo green"); out != gatedrive.PASSED {
+	if out, _ := finish("/bin/echo green"); out != gatedrive.PASSED {
 		t.Fatalf("green re-gate outcome = %s, want PASSED", out)
 	}
 
@@ -1278,5 +1281,59 @@ func TestIntegrationRunVerdictFinishedBuildDrivesAreNotTakeoverCandidates(t *tes
 	}
 	if len(ids) != 0 {
 		t.Fatalf("a red-then-green run must leave NO takeover candidate (else run.verdict stops takeover-ambiguous), got %v", ids)
+	}
+
+	// Positive control: the same red drive — same change id and run context —
+	// re-marked WAITING on disk is located, and only it, so the empty scan above
+	// proves the finished drives are excluded by their terminal outcome rather
+	// than that the seam finds nothing at all. (A real WAITING drive would cost a
+	// full 30s production observation slice plus its stop.)
+	markDriveWaiting(t, gitDir, redID)
+	ids, err = seam.LocateOuterDrive(3, ctxHash)
+	if err != nil {
+		t.Fatalf("LocateOuterDrive (positive control): %v", err)
+	}
+	if len(ids) != 1 || ids[0] != redID {
+		t.Fatalf("a WAITING build drive must be the one takeover candidate (finished drives excluded), got %v want [%s]", ids, redID)
+	}
+}
+
+// markDriveWaiting rewrites the persisted record of drive id (found under the
+// gate-drive store beneath gitDir) so its last outcome reads WAITING, leaving
+// every other field as the production driver wrote it.
+func markDriveWaiting(t *testing.T, gitDir, id string) {
+	t.Helper()
+	var path string
+	walkErr := filepath.WalkDir(gitDir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && d.Name() == "record.json" && filepath.Base(filepath.Dir(p)) == id {
+			path = p
+			return fs.SkipAll
+		}
+		return nil
+	})
+	if walkErr != nil || path == "" {
+		t.Fatalf("drive %s record not found under %s: %v", id, gitDir, walkErr)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read drive record: %v", err)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(raw, &env); err != nil {
+		t.Fatalf("decode drive record: %v", err)
+	}
+	rec, ok := env["record"].(map[string]any)
+	if !ok {
+		t.Fatalf("drive record %s has no record object", path)
+	}
+	rec["last_outcome"] = string(gatedrive.WAITING)
+	if raw, err = json.Marshal(env); err != nil {
+		t.Fatalf("encode drive record: %v", err)
+	}
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatalf("write drive record: %v", err)
 	}
 }
