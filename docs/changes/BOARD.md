@@ -1,6 +1,6 @@
 # Backlog
 
-**491 changes** — 🔴 1 blocked · 🟣 4 groomed · 🟡 11 proposed · ⚪ 12 deferred · ✅ 336 done · 🗑️ 127 killed
+**492 changes** — 🔴 1 blocked · 🟣 4 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 336 done · 🗑️ 127 killed
 
 ## 🔴 Blocked (1)
 
@@ -17,10 +17,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (11)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0492](active/0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | `medium` | `fix` | ⏳ waiting on #490 — not yet built |
 | [0491](active/0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Stop fencing gate admission on the run id; keep the run tracker for attribution only | `critical` | `refactor` | ⏳ waiting on #490 — not yet built |
 | [0483](active/0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | `low` | `feat` | needs-grooming |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-grooming |
@@ -81,6 +82,7 @@ graph TD
   0483
   0489 --> 0490
   0490 --> 0491
+  0490 --> 0492
   0192:::done
   0251:::done
   0370:::done
