@@ -210,8 +210,10 @@ authoritative config the build role reads, never a command it invents:
    **skipped** evidence via the `evidence.record` operation (no run dir) — `result: skipped` /
    `reason: build-gate-off` at the current head — and proceed to review. Nothing to run or repair.
 2. **`build_gate: local`, non-empty `build_test_command`** — drive it through the native gate
-   **driver**: the `gate.drive.start` operation with `--owner build --run-id <run-id> --json`
-   (`--run-id` only when your prompt carried a run id) — capture that first response into `gate_reply` (its exit
+   **driver**: the `gate.drive.start` operation with `--owner build --change-id <id> --run-id
+   <run-id> --run-context <token> --json` (`--run-id`/`--run-context` only when your prompt
+   carried them; `--change-id` always — it is what charges `build_max_attempts` and lets the run
+   tracker find the drive) — capture that first response into `gate_reply` (its exit
    code, if needed, into `gate_rc`; never a zsh read-only special parameter such as
    `status`) and read the drive id and owner generation from it — then `gate.drive.advance` operation slices,
    exactly as *Gate run posture* describes. `--owner build` resolves the build-owned command
@@ -266,8 +268,8 @@ default 4) caps the full-suite runs this phase may spend, counting the initial r
    directly as its focused check, and commits; it never runs the full suite, and its dispatch
    payload carries no run id.
 2. When the repair worker returns `COMPLETE`, you start the next counted attempt yourself with the
-   same build-owned start — the `gate.drive.start` operation with `--owner build --run-id <run-id>
-   --json` (`--run-id` only when your prompt carried a run id) — and drive it to a final result
+   same build-owned start — the `gate.drive.start` operation with `--owner build --change-id <id>
+   --run-id <run-id> --run-context <token> --json` (flags as above) — and drive it to a final result
    exactly as *Gate run posture* describes, so the facade charges it with no bypass.
 3. **Green at any point ends the phase immediately; review is never invoked while red.** A red
    result becomes the next repair task while attempts remain. A refused start
