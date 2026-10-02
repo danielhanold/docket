@@ -105,7 +105,7 @@ func TestBusyRefusalNamesHolderOnlyWhileRunning(t *testing.T) {
 			}
 			defer held.Release()
 			if tc.note != nil {
-				held.WriteHolder(*tc.note)
+				held.writeHolder(*tc.note)
 			}
 			if tc.raw != nil {
 				if err := os.WriteFile(filepath.Join(held.dir, worktreeHolderFile), tc.raw, 0o600); err != nil {
@@ -145,7 +145,7 @@ func TestBusyRefusalNilObserverIsHolderUnknown(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer held.Release()
-	held.WriteHolder(HolderNote{Kind: "raw", RunDir: "/runs/x", Owner: "raw"})
+	held.writeHolder(HolderNote{Kind: "raw", RunDir: "/runs/x", Owner: "raw"})
 	_, err = store.TryWorktreeLock(root, nil)
 	oe, ok := AsOwnershipError(err)
 	if !ok || oe.Kind != ErrWorktreeBusy || oe.Incumbent != nil {
@@ -164,7 +164,7 @@ func TestWorktreeLockPriorHolderRoundTrips(t *testing.T) {
 		t.Fatal("a fresh lock has no prior holder")
 	}
 	want := HolderNote{Kind: "drive", DriveID: strings.Repeat("b", 32), RunDir: "/runs/y", ChangeID: "7", Owner: "finalize"}
-	l.WriteHolder(want)
+	l.writeHolder(want)
 	got, ok := l.PriorHolder()
 	if !ok {
 		t.Fatal("PriorHolder after WriteHolder must read the note")
@@ -196,7 +196,7 @@ func TestWorktreeLockFilesArePrivateAndNeverDeleted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	l.WriteHolder(HolderNote{Kind: "raw", RunDir: "/runs/x", Owner: "raw"})
+	l.writeHolder(HolderNote{Kind: "raw", RunDir: "/runs/x", Owner: "raw"})
 	l.Release()
 	for path, want := range map[string]os.FileMode{
 		l.dir: 0o700, filepath.Join(l.dir, worktreeLockFile): 0o600, filepath.Join(l.dir, worktreeHolderFile): 0o600,
@@ -239,5 +239,43 @@ func TestTryWorktreeLockRefusesRelativeRoot(t *testing.T) {
 	_, err := OpenStore(testsupport.TempDir(t)).TryWorktreeLock("relative/root", nil)
 	if se, ok := AsStoreError(err); !ok || se.Kind != ErrInvalidID {
 		t.Fatalf("relative root = %v, want ErrInvalidID", err)
+	}
+}
+
+// WriteHolder writes the note only while the launched run still observes
+// running: the caller no longer holds the lock, so a run that already exited
+// (and freed the worktree to a newer holder) must never overwrite that newer
+// holder's note. A nil observer or an unobservable run also skips the write.
+func TestWriteHolderSkipsWhenRunNoLongerRunning(t *testing.T) {
+	const runDir = "/runs/0123456789abcdef0123456789abcdef"
+	newer := HolderNote{Kind: "raw", RunDir: "/runs/fedcba9876543210fedcba9876543210", Owner: "raw"}
+	for _, tc := range []struct {
+		name  string
+		obs   HolderObserver
+		write bool
+	}{
+		{"running", fakeObserver{states: map[string]process.State{runDir: process.StateRunning}}, true},
+		{"passed", fakeObserver{states: map[string]process.State{runDir: process.StatePassed}}, false},
+		{"vanished", fakeObserver{states: map[string]process.State{runDir: process.StateVanished}}, false},
+		{"unobservable", fakeObserver{states: map[string]process.State{}}, false},
+		{"nil observer", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := OpenStore(testsupport.TempDir(t))
+			l, err := store.TryWorktreeLock(testsupport.TempDir(t), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer l.Release()
+			l.writeHolder(newer) // the newer holder's note already on disk
+			l.WriteHolder(HolderNote{Kind: "drive", DriveID: strings.Repeat("c", 32), RunDir: runDir, Owner: "build"}, tc.obs)
+			got, ok := l.PriorHolder()
+			if !ok {
+				t.Fatal("the holder note must remain readable")
+			}
+			if wrote := got.RunDir == runDir; wrote != tc.write {
+				t.Fatalf("note run dir = %q; wrote = %v, want %v", got.RunDir, wrote, tc.write)
+			}
+		})
 	}
 }

@@ -1202,7 +1202,7 @@ func TestIntegrationRunCancelSignaledOrVanishedSupervisorIsCancelled(t *testing.
 				t.Fatalf("precondition: the supervisor must be gone, observed %q", obs.State)
 			}
 			// The run also registered the run as an execution participant, so the
-			// stopper's proof rule (supervisorGone) is exercised beside the census's.
+			// stopper's proof rule (process.State.SupervisorExited) is exercised beside the census's.
 			must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
 				RunParticipant{Kind: participantKindGateScope, NativeHandle: runDir}))
 

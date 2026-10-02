@@ -87,7 +87,7 @@ func (appGateObserver) observeProcessTerminal(runDir string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return supervisorGone(obs.State), nil
+	return obs.State.SupervisorExited(), nil
 }
 
 // appLaunchObserver is the production runLaunchObserver: it composes a gatedrive

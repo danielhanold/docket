@@ -13,6 +13,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gatedrive"
+	"github.com/danielhanold/docket/internal/process"
 )
 
 // fakeDriveEngine is a scriptable driveEngine: every method returns the same
@@ -382,6 +383,65 @@ func TestFinalizeCleanupReportsWithheldRunRoot(t *testing.T) {
 	doc.RunRoot = root
 	if res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc}); res.TeardownFinding != "" {
 		t.Fatalf("an exposed, removed root reported TeardownFinding %q", res.TeardownFinding)
+	}
+}
+
+// runRootObserver answers Observe from a map keyed by run dir; a missing dir is
+// an observation error.
+type runRootObserver map[string]process.State
+
+func (m runRootObserver) Observe(runDir string) (*process.Observation, error) {
+	st, ok := m[runDir]
+	if !ok {
+		return nil, errors.New("unobservable")
+	}
+	return &process.Observation{RunDir: runDir, State: st}, nil
+}
+
+// TestMapDriveOutcomeRetainsHaltedRunRootWithUnexitedRun: a HALTED drive whose
+// recorded run's supervisor may still be live (a deadline expiry whose stop was
+// unproven) must NOT have its run root deleted — that would destroy the live
+// gate's manifest and logs and leave busy refusals saying "holder unknown". The
+// root is kept and the retention surfaces as the bounded TeardownFinding. A run
+// that observes exited still has its root removed.
+func TestMapDriveOutcomeRetainsHaltedRunRootWithUnexitedRun(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		state  process.State // "" = unobservable
+		retain bool
+	}{
+		{"running", process.StateRunning, true},
+		{"unobservable", "", true},
+		{"stopped", process.StateStopped, false},
+		{"vanished", process.StateVanished, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := runRootFixture(t)
+			runDir := filepath.Join(root, "0123456789abcdef0123456789abcdef")
+			if err := os.MkdirAll(runDir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			obs := runRootObserver{}
+			if tc.state != "" {
+				obs[runDir] = tc.state
+			}
+			g := &processFinalizeGate{observer: obs}
+			doc := gatedrive.DriveDoc{Outcome: gatedrive.HALTED, Cause: "deadline-expired-stop-unproven", RunRoot: root}
+			res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc})
+			if res.Outcome != FinalizeGateHalted {
+				t.Fatalf("outcome = %q, want halted", res.Outcome)
+			}
+			if got := dirExists(t, runDir); got != tc.retain {
+				t.Fatalf("run dir retained = %v, want %v", got, tc.retain)
+			}
+			wantFinding := ""
+			if tc.retain {
+				wantFinding = teardownFindingRunRootRetainedUnsettled
+			}
+			if res.TeardownFinding != wantFinding {
+				t.Fatalf("TeardownFinding = %q, want %q", res.TeardownFinding, wantFinding)
+			}
+		})
 	}
 }
 
@@ -788,6 +848,8 @@ func TestMapDriveFailureOwnershipKinds(t *testing.T) {
 		gatedrive.ErrUnresolvedLaunchTransition,
 		// The worktree-admission ownership kind (change 0490's worktree lock).
 		gatedrive.ErrWorktreeBusy,
+		// A launch cwd outside any git worktree: refused, never internal.
+		gatedrive.ErrWorktreeUnresolved,
 	}
 	const secret = "SECRET-ARGV"
 	for _, kind := range kinds {
@@ -827,6 +889,7 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 		// The worktree-admission ownership kind — it MUST carry its own distinct
 		// next-action message.
 		gatedrive.ErrWorktreeBusy,
+		gatedrive.ErrWorktreeUnresolved,
 	} {
 		// Wrap the ownership error in credential-shaped free text (a stand-in for a
 		// reservation token / argv) that must reach NEITHER the reason NOR the message.

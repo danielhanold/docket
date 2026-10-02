@@ -96,6 +96,12 @@ const (
 	// nothing behind: the worktree frees itself when the holder's supervisor
 	// exits or dies, so a later start succeeds with no recovery step.
 	ErrWorktreeBusy OwnershipErrorKind = "worktree-busy"
+	// ErrWorktreeUnresolved: the launch working directory resolves to no
+	// registered git worktree, so there is no canonical worktree to key the lock
+	// on and the start is refused (change 0490). It is the caller's input — a cwd
+	// outside any worktree — never an internal fault, launches nothing, and
+	// leaves nothing behind. OwnershipError.Cwd names the cwd.
+	ErrWorktreeUnresolved OwnershipErrorKind = "worktree-unresolved"
 )
 
 // IncumbentSnapshot is a bounded, credential-free projection of the gate that
@@ -129,6 +135,10 @@ type OwnershipError struct {
 	// other OwnershipError, and nil on a busy refusal whose holder is unknown.
 	// Kind/Op are unchanged by its presence.
 	Incumbent *IncumbentSnapshot
+	// Cwd is the launch working directory a worktree-unresolved refusal could
+	// not resolve to a git worktree. "" for every other OwnershipError. It is
+	// diagnosis for the operator and never part of the bounded reason token.
+	Cwd string
 }
 
 func (e *OwnershipError) Error() string {

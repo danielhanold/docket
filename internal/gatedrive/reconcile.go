@@ -389,7 +389,7 @@ func (d *Driver) supervisorGone(id, runDir string, observeOnly bool) (bool, stri
 		return false, "resolution-unresolved:" + id
 	}
 	switch {
-	case supervisorExited(o.State):
+	case o.State.SupervisorExited():
 		return true, "run-terminal:" + id
 	case o.State != process.StateRunning:
 		return false, "resolution-unresolved:" + id // an unknown state proves nothing
@@ -405,23 +405,11 @@ func (d *Driver) supervisorGone(id, runDir string, observeOnly bool) (bool, stri
 		return false, "resolution-unresolved:" + id
 	}
 	switch {
-	case supervisorExited(o.State):
+	case o.State.SupervisorExited():
 		return true, "replacement-stopped:" + id
 	case o.State == process.StateRunning:
 		return false, "run-live:" + id
 	default:
 		return false, "resolution-unresolved:" + id
-	}
-}
-
-// supervisorExited reports whether an observed state means the run's supervisor
-// has exited: every state the process service reports other than running. An
-// empty or unknown state is not in this set — it proves nothing.
-func supervisorExited(st process.State) bool {
-	switch st {
-	case process.StatePassed, process.StateFailed, process.StateSignaled, process.StateStopped, process.StateVanished:
-		return true
-	default:
-		return false
 	}
 }

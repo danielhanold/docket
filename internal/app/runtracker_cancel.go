@@ -296,14 +296,14 @@ func (appGateStopper) stopProcess(runDir string) (bool, error) {
 	if svc == nil {
 		return false, fmt.Errorf("gate service unavailable: %s", reason)
 	}
-	if obs, oerr := svc.Observe(runDir); oerr == nil && obs != nil && supervisorGone(obs.State) {
+	if obs, oerr := svc.Observe(runDir); oerr == nil && obs != nil && obs.State.SupervisorExited() {
 		return true, nil
 	}
 	out, err := svc.Stop(runDir, "run.cancel: stopping a cancelled run's process")
 	if err != nil {
 		return false, err
 	}
-	return out.Performed || supervisorGone(out.State), nil
+	return out.Performed || out.State.SupervisorExited(), nil
 }
 
 // runCancel drives the whole cancellation flow in the spec's exact order over the

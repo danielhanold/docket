@@ -114,9 +114,25 @@ func (l *WorktreeLock) Release() {
 	l.file = nil
 }
 
-// WriteHolder records the holder note atomically beside (never over) busy.lock.
-// Best effort: a failed write is ignored and never fails the launch.
-func (l *WorktreeLock) WriteHolder(n HolderNote) {
+// WriteHolder records the holder note for the run the lock was handed to,
+// atomically beside (never over) busy.lock. The caller no longer holds the lock
+// once Launch took it, so a late write could overwrite a NEWER holder's note
+// after this run already exited and freed the worktree; WriteHolder therefore
+// observes n.RunDir first and writes only while that run is still running. A nil
+// observer, an observation error, or any other state skips the write. Best
+// effort and diagnostic only: a skipped or failed write never fails the launch.
+func (l *WorktreeLock) WriteHolder(n HolderNote, obs HolderObserver) {
+	if l == nil || obs == nil || n.RunDir == "" {
+		return
+	}
+	if o, err := obs.Observe(n.RunDir); err != nil || o == nil || o.State != process.StateRunning {
+		return
+	}
+	l.writeHolder(n)
+}
+
+// writeHolder writes the note unconditionally. Best effort.
+func (l *WorktreeLock) writeHolder(n HolderNote) {
 	if l == nil {
 		return
 	}

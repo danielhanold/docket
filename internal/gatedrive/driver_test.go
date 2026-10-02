@@ -113,7 +113,7 @@ func obs(state process.State, runDir string) *process.Observation {
 type fakeGit struct {
 	head, index, status string
 	err                 error
-	// rootErr, when set, is WorktreeRoot's error (the root-resolution I/O case).
+	// rootErr, when set, is WorktreeRoot's error (a cwd outside any worktree).
 	rootErr error
 }
 
@@ -476,8 +476,10 @@ func TestZeroBudgetTakesOneObservationThenStopsAndHalts(t *testing.T) {
 	if doc.Outcome != HALTED {
 		t.Fatalf("zero budget must HALT a still-live run, got %s", doc.Outcome)
 	}
-	if proc.observeN != 1 {
-		t.Fatalf("zero budget must take exactly one observation, took %d", proc.observeN)
+	// One slice observation, plus the holder note's pre-write liveness check
+	// (WorktreeLock.WriteHolder observes the launched run before writing).
+	if proc.observeN != 2 {
+		t.Fatalf("zero budget must take exactly one slice observation (2 with the holder-note check), took %d", proc.observeN)
 	}
 	if proc.stopN == 0 {
 		t.Fatalf("zero budget must stop the still-live run")
@@ -1210,21 +1212,31 @@ func TestAdmitRefusesWorktreeBusyAndCreatesNoDrive(t *testing.T) {
 	}
 }
 
-// TestAdmitLockIOErrorIsNotFree: a worktree root that cannot be resolved is a
-// typed I/O failure — never read as a free worktree — and creates no drive.
-func TestAdmitLockIOErrorIsNotFree(t *testing.T) {
+// TestAdmitUnresolvedWorktreeIsRefusedNotFree: a launch cwd that resolves to no
+// git worktree is a typed worktree-unresolved refusal naming that cwd — never
+// read as a free worktree, and never an I/O (internal) failure — and creates no
+// drive.
+func TestAdmitUnresolvedWorktreeIsRefusedNotFree(t *testing.T) {
 	git := stableGit()
 	git.rootErr = errors.New("gatedrive-test: worktree root unresolvable")
 	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, git)
+	req := sampleStart()
 
-	ticket, err := d.Admit(sampleStart())
+	ticket, err := d.Admit(req)
 	if ticket != nil {
 		t.Fatalf("an unresolvable worktree must not admit")
 	}
-	if se, ok := AsStoreError(err); !ok || se.Kind != ErrIO || se.Op != opWorktreeAdmission {
-		t.Fatalf("Admit with an unresolvable root = %v, want a typed %s I/O error", err, opWorktreeAdmission)
+	oe, ok := AsOwnershipError(err)
+	if !ok || oe.Kind != ErrWorktreeUnresolved || oe.Op != opWorktreeAdmission {
+		t.Fatalf("Admit with an unresolvable root = %v, want a typed %s refusal at %s", err, ErrWorktreeUnresolved, opWorktreeAdmission)
+	}
+	if oe.Cwd != req.Cwd {
+		t.Fatalf("worktree-unresolved refusal Cwd = %q, want the launch cwd %q", oe.Cwd, req.Cwd)
+	}
+	if _, isStore := AsStoreError(err); isStore {
+		t.Fatalf("an unresolvable worktree must not be a store (internal) error: %v", err)
 	}
 	if n := driveRecordCount(t, store); n != 0 {
 		t.Fatalf("an I/O refusal must create no drive, got %d", n)
