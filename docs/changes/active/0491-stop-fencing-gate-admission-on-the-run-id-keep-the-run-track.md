@@ -56,7 +56,8 @@ Once dependency 0490 replaces the stored slot with a lock held by the running pr
 
 ## What changes
 
-- **Remove the fence.** Drop run-id checks from gate admission and launch: `runLaunchGate`, stamping the run id on slots, the `stale-run-id` refusal, `settleStaleReleasedRun`, and the revocation checks at launch, recovery, and takeover. Also drop the `run.verdict` closeout steps that exist only to release slots.
+- **Remove the fence.** Drop run-id checks from gate admission and launch: `runLaunchGate`, stamping the run id on slots, the `stale-run-id` refusal, `settleStaleReleasedRun`, and the revocation checks at launch and recovery. Also drop the `run.verdict` closeout steps that exist only to release slots.
+  - **Already done by 0489:** the revocation check at takeover is gone. 0489 (PR #365) deleted `Takeover`'s run-revocation check, `SetRunRevokedResolver`/`runRevokedResolver`, and the recovery scope's `RunID`; the outer recovery scope never carried a run id. Don't re-plan it here — see 0489's spec, "Effect on follow-ups".
 - **Simpler cancel.** `run.cancel` becomes: mark the run cancelled, then stop the run's registered supervisor process groups. No admission fence.
 - **Keep the core.** Keep attribution, retry accounting, observe mode, the `## Run halted` marker, and resume admission (one live run per worktree), as far as none of them depends on the slot.
 - **Decide on `--run-id`.** Either keep `--run-id` on `gate.drive.start` as a locator for evidence and attribution, or drop it. Then update the run-tracker blocks in CLAUDE.md and AGENTS.md, cursor-rules, and the skills to match.
