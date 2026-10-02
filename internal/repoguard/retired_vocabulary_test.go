@@ -305,6 +305,14 @@ func textMatcher(r retiredToken) *regexp.Regexp {
 func scanTextLine(rel string, lineNo int, line string) []retiredHit {
 	var hits []retiredHit
 	for _, r := range retiredVocabulary {
+		// Pre-filter (change 0487): every text matcher embeds
+		// regexp.QuoteMeta(r.Old) literally, so a line without r.Old cannot
+		// match. Skipping the regexp is detection-neutral and avoids a
+		// byte-by-byte regexp walk per row per line; testRetiredPrefilterEquivalence
+		// pins the equivalence.
+		if !strings.Contains(line, r.Old) {
+			continue
+		}
 		re := textMatcher(r)
 		if re == nil {
 			continue
@@ -351,9 +359,10 @@ func scanGoLiteral(rel string, lineNo int, lit string) []retiredHit {
 		hit := false
 		switch r.Kind {
 		case kindToken:
-			hit = tokenRe(r.Old).MatchString(val)
+			// Pre-filter (change 0487), on the UNQUOTED value: see scanTextLine.
+			hit = strings.Contains(val, r.Old) && tokenRe(r.Old).MatchString(val)
 		case kindWord:
-			hit = wordRe(r.Old).MatchString(val)
+			hit = strings.Contains(val, r.Old) && wordRe(r.Old).MatchString(val)
 		case kindGoFlag:
 			hit = val == r.Old
 		case kindGoPrefix:
@@ -511,6 +520,20 @@ func refFamily(ref string) string {
 // pass.
 var foreignVersionRe = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.-])(releasepkg|release-smoke|install\.sh|docket[ \t]+version|codex|opencode|cursor-agent|claude)(?:[^A-Za-z0-9_-]|$)`)
 
+// blockMayBindFlag reports whether block contains some kindBoundFlag row's Old
+// literally. A block without one cannot produce a bound-flag hit (each row is
+// matched by tokenRe, which embeds regexp.QuoteMeta(r.Old)), so scanBoundFlags
+// skips it before running the catalog operation-reference alternation over it
+// (change 0487).
+func blockMayBindFlag(block string) bool {
+	for _, r := range retiredVocabulary {
+		if r.Kind == kindBoundFlag && strings.Contains(block, r.Old) {
+			return true
+		}
+	}
+	return false
+}
+
 // scanBoundFlags reports each kindBoundFlag row's retired flag. A block is a
 // maximal run of non-blank lines, so a flag wrapped onto the line after its
 // operation still binds, and a blank line ends the binding. The flag's binding
@@ -558,6 +581,10 @@ func scanBoundFlags(rel string, lines []string, md bool) []retiredHit {
 			end++
 		}
 		block := strings.Join(lines[start:end], "\n")
+		if !blockMayBindFlag(block) {
+			start = end
+			continue
+		}
 		refs := re.FindAllStringSubmatchIndex(block, -1)
 		for _, r := range retiredVocabulary {
 			if r.Kind != kindBoundFlag {
@@ -692,6 +719,87 @@ func TestRetiredVocabularySeal(t *testing.T) {
 	t.Run("maintained_surfaces", testRetiredMaintainedSurfaces)
 	t.Run("generator_output", testRetiredGeneratorOutput)
 	t.Run("schema_walk", testRetiredSchemaWalk)
+	t.Run("prefilter_equivalence", testRetiredPrefilterEquivalence)
+}
+
+// testRetiredPrefilterEquivalence pins the scan pre-filters (change 0487) to
+// the matchers they guard. For every text row, on lines and Go literals that
+// do and do not carry the row's spelling, the filtered scan reports a hit
+// attributed to that row exactly when the row's own regexp matches. A future
+// row whose matcher stops containing its Old literally (a case-insensitive
+// kind, say) reddens here instead of silently scanning nothing. Go literals
+// are also planted with every '-' escaped as \x2d, so the literal filter must
+// run on the unquoted value. A bound flag wrapped onto the line after its
+// operation reference must still bind, so the block filter must read the
+// whole block.
+func testRetiredPrefilterEquivalence(t *testing.T) {
+	ownHits := func(hits []retiredHit, r retiredToken) int {
+		n := 0
+		for _, h := range hits {
+			if h.row.Kind == r.Kind && h.row.Old == r.Old {
+				n++
+			}
+		}
+		return n
+	}
+	checked := 0
+	for _, r := range retiredVocabulary {
+		re := textMatcher(r)
+		if re == nil {
+			continue
+		}
+		upper := strings.ToUpper(r.Old)
+		lines := []string{
+			r.Old,
+			"run " + r.Old + " now",
+			"x" + r.Old,
+			r.Old + "-x",
+			"(" + r.Old + ")",
+			upper,
+			"run " + upper + " now",
+		}
+		for _, line := range lines {
+			want := 0
+			if re.MatchString(line) {
+				want = 1
+			}
+			if got := ownHits(scanTextLine("skills/x/SKILL.md", 1, line), r); got != want {
+				t.Errorf("row %s: text line %q: filtered scan reports %d hit(s), its matcher says %d", r.Row, line, got, want)
+			}
+			lit := strconv.Quote(line)
+			for _, l := range []string{lit, strings.ReplaceAll(lit, "-", `\x2d`)} {
+				val, err := strconv.Unquote(l)
+				if err != nil {
+					t.Fatalf("row %s: planted literal %s does not unquote: %v", r.Row, l, err)
+				}
+				want := 0
+				if re.MatchString(val) {
+					want = 1
+				}
+				if got := ownHits(scanGoLiteral("internal/p/p.go", 1, l), r); got != want {
+					t.Errorf("row %s: Go literal %s: filtered scan reports %d hit(s), its matcher says %d", r.Row, l, got, want)
+				}
+			}
+			checked++
+		}
+	}
+	if checked == 0 {
+		t.Fatalf("population floor: no text row was checked")
+	}
+	bound := 0
+	for _, r := range retiredVocabulary {
+		if r.Kind != kindBoundFlag {
+			continue
+		}
+		bound++
+		block := "the `change.claim` operation\nwith `--id <id> " + r.Old + " <v>`"
+		if got := ownHits(scanBoundFlags("skills/x/SKILL.md", strings.Split(block, "\n"), true), r); got != 1 {
+			t.Errorf("row %s: %q wrapped onto the line after its operation reference: %d hit(s), want 1", r.Row, r.Old, got)
+		}
+	}
+	if bound == 0 {
+		t.Fatalf("population floor: no kindBoundFlag row was checked")
+	}
 }
 
 // testRetiredCatalogVocabulary derives the operation references the bound-flag
