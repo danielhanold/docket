@@ -13,7 +13,7 @@ related: [359, 405, 416, 452, 453, 457, 459, 467, 490, 491]
 discovered_from: []
 adrs: [107, 117, 120, 125, 130]
 spec: 'docs/superpowers/specs/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-02T10:14:16Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md) |
+| Plan | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md](https://github.com/danielhanold/docket/blob/refactor/delete-the-task-owned-gate-drive-machinery-once-no-skill-dri/docs/superpowers/plans/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) |
 | ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0117](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0125](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md), [ADR-0130](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md) |
 <!-- docket:artifacts:end -->
 
