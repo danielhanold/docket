@@ -70,3 +70,34 @@ Accepted loss: an agent left over from a cancelled run could still start a test 
 - Retiring the run tracker itself, or its attribution and retry model.
 - Changing the `run-*` report vocabulary beyond lines that exist only for slot fencing.
 - The workflow-mutation fence (`admitWorkflowMutation` over metadata transactions and PR/workspace publish), unless grooming shows it depends on the slot.
+
+## Open questions
+
+### A never-launched drive blocks a successful run's closeout (from 0490 review finding F3)
+
+0490's deep review found this (finding F3, confirmed). It was deliberately not fixed in 0490 (PR #366); 0490's results file records it under "Known issues and follow-ups" and hands it to 0491. Nothing else tracks it, so it has to be decided while grooming this change. Code references below are to 0490's branch.
+
+**How it happens**
+
+1. A tracked `gate.drive.start` admits a drive. The drive record is written with the run's context hash and an admission token (or, for the single relaunch, a reservation), but the supervisor has not been started yet.
+2. The CLI is killed in that window (Ctrl-C, coordinator interrupt, crash). No supervisor ever starts, so no worktree lock is taken and the worktree itself is free. The drive record stays in its reserved, never-launched state.
+3. The build otherwise finishes, and the coordinator runs `run.verdict <key>`. The success closeout (`completeSuccessfulRun`, `internal/app/runtracker_complete.go`) moves the run `active → completing` and walks its drives with `ObserveRunLaunches` (`internal/gatedrive/reconcile.go`). That walk only observes. A drive proven never-launched (`reconcileFirstLaunch` for a first launch, `reconcileReservation` for a reserved relaunch) yields the finding `launch-pending:<drive>` and is never settled.
+4. The verdict prints `run-stop <key> run-tracker-unavailable completion-unaccounted` with that finding. The run stays durably `completing`, and every repeat of the verdict gives the same answer.
+
+**What the coordinator sees.** A `run-stop`, which forbids re-dispatch, on a run whose work is actually done. The finding names the drive but not the remedy, and nothing in CLAUDE.md, AGENTS.md or the skills tells an operator what to do.
+
+**The only remedy today** is `run.cancel --key <key> --run-id <id> --reason <why>`. Cancel's walk (`ReconcileRunLaunches`) settles the never-launched drive HALTED `run-cancelled` (`settleNeverLaunchedFirstLaunch` / `settleNeverLaunchedCancelled`). The cost is that a successful build ends up recorded as **cancelled**, not complete.
+
+**Why 0490 left it.** Every clean fix either changes the verdict's `run-*` report lines or changes what the success closeout is allowed to do. Both were outside 0490's scope.
+
+**To decide while grooming:**
+
+- **Does the success closeout survive 0491?** "What changes" drops the closeout steps "that exist only to release slots". After 0490 the closeout writes no worktree record. What is left is the success fence that releases the run's hold on the workflow-mutation fence (`admitWorkflowMutation`), which "Out of scope" excludes unless it depends on the slot. If the closeout, or its launch census, goes away, this problem goes with it; say so explicitly. If it stays, the problem stays and needs one of the fixes below.
+- **If it stays, pick a fix:**
+  - **(a) Let the success closeout settle a proven never-launched drive** under the held per-drive claim, the same way cancel already does. A proven never-launched drive is not running, and once settled it can never run, so it has no bearing on whether the run succeeded. The report lines stay as they are. Open points: the terminal label (it must not be `run-cancelled`), and that this breaks the closeout's "observation only" rule in the `runtracker_complete.go` header comment, which the ADR-0124 line of decisions rests on. `internal/gatedrive/reconcile_test.go` pins today's behaviour (observe mode leaves the never-launched drive `launch-pending` with its record untouched) and would flip.
+  - **(b) Keep the closeout observation-only, but name the remedy.** When every finding is `launch-pending`, the `completion-unaccounted` line or its next action names `run.cancel`. This changes the report vocabulary, so the second "Out of scope" bullet would have to be widened. It still ends a good build as cancelled.
+  - **(c) Leave the behaviour and document the manual remedy** in the run-tracker blocks of CLAUDE.md and AGENTS.md. This is the cheapest option and has the same cancelled-not-complete cost.
+- **`resolution-unresolved:<drive>` stays fail-closed** under any option, because a reservation that can't be proven either way might be running. Confirm that.
+- **Regression test:** admit a tracked drive, kill before launch, then run the keyed verdict, and assert the chosen outcome end-to-end through `run.verdict`, not only at the `gatedrive` layer.
+
+Not part of this note: the sibling gap 0490 routed to 0492. Cancel clears a relaunch that halted without attaching using only the first run's directory, so a replacement supervisor that came up anyway is not stopped.
