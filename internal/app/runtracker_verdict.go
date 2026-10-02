@@ -309,11 +309,7 @@ func RunVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gde
 		// worktree. The seam bundle is injectable (unit tests fake the observers);
 		// production composes productionCancelSeams(repoDir). RunVerify's verdict is
 		// still reported as fact — runTrackerCompleteRun never re-derives it.
-		seams := productionCancelSeams(repoDir)
-		if wdeps.CancelSeams != nil {
-			seams = wdeps.CancelSeams(repoDir)
-		}
-		return runTrackerCompleteRun(repoDir, key, rec, id, seams)
+		return runTrackerCompleteRun(repoDir, key, rec, id, verdictSeams(repoDir, wdeps))
 	case VerdictRunUnclaimed:
 		return persistRunVerdict(repoDir, key, rec,
 			runVerdictLine(key, RunDecisionDone, VerdictRunUnclaimed, id, true, nil))
@@ -469,6 +465,26 @@ func runTrackerCompleteRun(repoDir, key string, rec RunTrackerRecord, id int, se
 	return res
 }
 
+// verdictSeams composes the census seam bundle the keyed run.verdict uses on both
+// of its paths (change 0491): the injected bundle when a caller wires one, else
+// the production bundle over repoDir.
+func verdictSeams(repoDir string, wdeps WorkspaceDeps) cancelSeams {
+	if wdeps.CancelSeams != nil {
+		return wdeps.CancelSeams(repoDir)
+	}
+	return productionCancelSeams(repoDir)
+}
+
+// settleNeverLaunchedForVerdict runs the verdict-mode census for contextHash and
+// discards its report: on the run-incomplete path only its settles matter (change
+// 0491, Decision 3). It stops nothing. A nil census seam settles nothing.
+func settleNeverLaunchedForVerdict(seams cancelSeams, contextHash string) {
+	if seams.launchObserver == nil {
+		return
+	}
+	_, _ = seams.launchObserver.observe(contextHash)
+}
+
 // runTrackerContinueFromWaiting emits the nonterminal run-continue for a RunVerify
 // run-waiting (a worker cooperatively handed off): it reads the drive's unclaimed
 // handoff token through the continuation seam and records the continuation triple.
@@ -495,6 +511,8 @@ func runTrackerContinueFromWaiting(seam ContinuationSeam, repoDir, key string, r
 // outcome — a certified continuation, or an unsafe/ambiguous/erred takeover — is a
 // terminal decision it returns with handled=true. Unsafe ownership never earns
 // retry OR continuation, and this whole path runs BEFORE the retry CAS.
+// It first settles the run's proven never-launched first launches
+// (settleNeverLaunchedForVerdict).
 func runTrackerOuterContinuation(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps, repoDir, key string, rec RunTrackerRecord, id int) (RunVerdictResult, bool) {
 	seam := wdeps.Continuation
 	if seam == nil {
@@ -502,6 +520,14 @@ func runTrackerOuterContinuation(ctx context.Context, deps PlanningDeps, wdeps W
 		// quiescent and take the ordinary retry path (the pre-0359 behavior).
 		return RunVerdictResult{}, false
 	}
+	// Settle the run's proven never-launched first launches BEFORE locating
+	// candidates (change 0491, Decision 3). A gate.drive.start killed between Admit
+	// and StartAdmitted leaves a nonterminal reserved record that FindScopeDriveIDs
+	// would offer for takeover, stranding the run as continuation-unverified and
+	// spending its single-use outer scope. The verdict-mode census settles it HALTED
+	// launch-abandoned under its per-drive claim and stops nothing. Its findings are
+	// ignored here: a live, busy, or unresolved drive is still found and handled below.
+	settleNeverLaunchedForVerdict(verdictSeams(repoDir, wdeps), rec.ChildContextHash)
 	ids, err := seam.LocateOuterDrive(id, rec.ChildContextHash)
 	if err != nil {
 		return runTrackerStopUnavailable(repoDir, key, rec, id, ReasonRunLocateFailed), true
