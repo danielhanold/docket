@@ -2,7 +2,7 @@
 id: 117
 slug: 'sequential-test-drives-within-one-worker-recovery-scope'
 title: 'Sequential test drives within one worker recovery scope'
-status: 'Accepted'
+status: 'Superseded by ADR-0130'
 date: '2026-09-10'
 supersedes: []
 reverses: []

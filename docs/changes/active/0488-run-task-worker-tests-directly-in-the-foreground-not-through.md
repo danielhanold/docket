@@ -11,7 +11,7 @@ depends_on: []
 stacked_on:
 related: [333, 359, 405, 412, 416, 459, 467, 479, 486, 491]
 discovered_from: []
-adrs: [24, 107, 117]
+adrs: [24, 107, 117, 130]
 spec: 'docs/superpowers/specs/2026-10-02-run-task-worker-tests-directly-in-the-foreground-not-through-design.md'
 plan: 'docs/superpowers/plans/2026-10-02-run-task-worker-tests-directly-in-the-foreground-not-through.md'
 results:
@@ -32,7 +32,7 @@ claimed_at: '2026-10-02T07:26:37Z'
 |---|---|
 | Spec | [2026-10-02-run-task-worker-tests-directly-in-the-foreground-not-through-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-run-task-worker-tests-directly-in-the-foreground-not-through-design.md) |
 | Plan | [2026-10-02-run-task-worker-tests-directly-in-the-foreground-not-through.md](https://github.com/danielhanold/docket/blob/fix/run-task-worker-tests-directly-in-the-foreground-not-through/docs/superpowers/plans/2026-10-02-run-task-worker-tests-directly-in-the-foreground-not-through.md) |
-| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0117](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md) |
+| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0117](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md), [ADR-0130](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
