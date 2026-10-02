@@ -1,7 +1,7 @@
 ---
 id: 491
 slug: 'stop-fencing-gate-admission-on-the-run-id-keep-the-run-track'
-title: 'Stop fencing gate admission on the run id; keep the run tracker for attribution only'
+title: 'Retire the run id; the run key becomes the run tracker''s only handle'
 status: 'proposed'
 priority: 'critical'
 type: 'refactor'
@@ -9,10 +9,10 @@ created: '2026-10-02'
 updated: '2026-10-02'
 depends_on: [490]
 stacked_on:
-related: [375, 422, 435, 437, 441, 463, 467]
+related: [375, 422, 435, 437, 441, 443, 463, 467, 488, 489, 492, 493, 494]
 discovered_from: []
-adrs: [111, 118, 124, 128]
-spec:
+adrs: [111, 118, 124, 128, 129, 132]
+spec: 'docs/superpowers/specs/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md'
 plan:
 results:
 trivial: false
@@ -29,79 +29,50 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0128](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md) |
+| Spec | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md) |
+| ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0128](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md), [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-The run tracker does two jobs.
+The run tracker hands out three tokens per run: a run key, a run id, and a run context. The coordinator threads all three. The run id adds nothing the key doesn't give. The two are minted together and stay one-to-one, and a retry keeps both. Yet the id is what gate starts are fenced on.
 
-Its core guards against unreliable child reports: the run key, binding the dispatch's run context to its claim, retry-once accounting, and observe mode. At worst it produces misleading verdicts; it has caused no run halts.
+`runLaunchGate` refuses with `stale-run-id` whenever the run's worktree is unbound or different, or the `--repo-dir` spelling differs, not only when a resume superseded the run. Every one of those refusals says "superseded by a resume", which sends agents looking for a resume that never happened. The token-threading bugs in 0463, 0467, and 0477 came from the same chain. Changes 0489 and 0490 removed the takeover and slot fences; this change finishes the job.
 
-Its second job is fencing gate admission. Changes 0375, 0437, and 0467 (ADR-0124/0128) added it:
+Two stuck states ride along.
 
-- The run id is stamped on worktree slots and scopes.
-- `runLaunchGate` re-checks it at start, revalidation, recovery, and takeover.
-- `run.verdict` carries a closeout step that exists because slots owned by a run block finalize's gate.
-
-That coupling causes stuck builds whenever a token goes missing on the way:
-
-- `runLaunchGate` refuses with `stale-run-id` when the run record's worktree is empty, wrong, or unbound, not only when the run was superseded. A claim made without `--run-context` never binds the worktree, so every later gate start is refused, and `run.cancel` refuses `claim-unconfirmed`.
-- A slot keeps the run id it was stamped with. Any start without that id is refused `stale-run-id`. That includes fix-loop workers, a start without a scope, and finalize before the closeout runs.
-- Every `stale-run-id` refusal gives the same next action, "the run was superseded by a resume" (`fenceNextAction` in `internal/app/gate_drive.go`), even when the real cause is an unbound worktree or a missing run id. Agents are sent hunting for a resume that never happened.
-
-The fix chain: 0375 → 0435 → 0437 → 0441 → 0463 → 0467.
-
-Once dependency 0490 replaces the stored slot with a lock held by the running process, the run id has nothing durable left to fence.
+- **A never-launched drive.** A `gate.drive.start` can be killed between writing its drive record and launching the suite. The leftover record makes `run.verdict` stop a successful run for good (`completion-unaccounted`, 0490 review finding F3). The only way out is `run.cancel`, which records the success as cancelled. The same record turns an early-stopped run's retry into `continuation-unverified`.
+- **A missing run root.** It does the same to cancel, resume, and the verdict: `resolution-unresolved` forever.
 
 ## What changes
 
-- **Remove the fence.** Drop run-id checks from gate admission and launch: `runLaunchGate`, stamping the run id on slots, the `stale-run-id` refusal, `settleStaleReleasedRun`, and the revocation checks at launch and recovery. Also drop the `run.verdict` closeout steps that exist only to release slots.
-  - **Already done by 0489:** the revocation check at takeover is gone. 0489 (PR #365) deleted `Takeover`'s run-revocation check, `SetRunRevokedResolver`/`runRevokedResolver`, and the recovery scope's `RunID`; the outer recovery scope never carried a run id. Don't re-plan it here — see 0489's spec, "Effect on follow-ups".
-- **Simpler cancel.** `run.cancel` becomes: mark the run cancelled, then stop the run's registered supervisor process groups. No admission fence.
-- **Keep the core.** Keep attribution, retry accounting, observe mode, the `## Run halted` marker, and resume admission (one live run per worktree), as far as none of them depends on the slot.
-- **Decide on `--run-id`.** Either keep `--run-id` on `gate.drive.start` as a locator for evidence and attribution, or drop it. Then update the run-tracker blocks in CLAUDE.md and AGENTS.md, cursor-rules, and the skills to match.
-- **ADRs and related work.** Supersede or amend ADR-0118/0124/0128 as needed. 0422 (retries over-counted when `run.max_attempts` is 3 or more) was killed in the 2026-10-02 backlog review: it can't fire at the default of 2, so there is nothing to re-check.
+- **Retire the run id.** The run key becomes the run tracker's only handle:
+  - `run.start` prints `run-started <key> <run-context>`;
+  - cancel is `run.cancel --key <key> --reason <why>`;
+  - `--run-id` is removed from `gate.drive.start` and `agent.enter`;
+  - run records stop storing an id.
+- **Delete the run check on gate starts** (`runLaunchGate`). A gate start is refused only by the worktree lock (`worktree-busy`).
+- **The keyed `run.verdict` closes a proven never-launched drive.** It marks the drive HALTED `launch-abandoned` on both its success and run-incomplete paths, under the same per-drive lock cancel uses, and it stops nothing.
+- **A missing run root counts as never launched,** for cancel and the verdict alike.
+- **Names:**
+  - `stale-run-id` becomes `run-superseded`.
+  - `unknown-run-id` is retired; an unknown key reports `run-not-found`.
+  - The non-cancel meaning of `run-id-mismatch` becomes `run-record-conflict`.
+- **`agent.enter --run-key`** alone drives the dormant Codex lifecycle linkage. Nothing documents passing it.
+- **`run.start`** declares `process-control`.
+- **Prose and decisions:**
+  - update the CLAUDE.md/AGENTS.md run-tracker block, the skills, the glossary, and the Codex clause;
+  - fold in 0443's wording fix (killed 2026-10-02): the run-tracker block says an operation id such as `run.start` is not a command; look it up in `docket capabilities --json` and run that entry's `argv`;
+  - record a new ADR, with Update notes on ADR-0124, ADR-0128, and ADR-0132;
+  - amend ADR-0129's rename rows in place.
 
-Accepted loss: an agent left over from a cancelled run could still start a test suite in that worktree. The worktree lock from 0490 still prevents two suites from running at once.
+Accepted loss: an agent left over from a cancelled run could still start a suite in that worktree. The worktree lock keeps it to one suite, and a repeat `run.cancel` on the old key stops it.
 
 ## Out of scope
 
 - Retiring the run tracker itself, or its attribution and retry model.
-- Changing the `run-*` report vocabulary beyond lines that exist only for slot fencing.
-- The workflow-mutation fence (`admitWorkflowMutation` over metadata transactions and PR/workspace publish), unless grooming shows it depends on the slot.
+- The workflow-mutation fence beyond the rename, and the publish journal wedge (0494).
+- Process-tree teardown (0492), and finalize's automatic relaunch with its reserved-relaunch accounting (0493 retires it).
+- Launches that cannot be resolved either way: `resolution-unresolved` stays fail-closed.
+- Deleting the dormant `agent.enter` lifecycle linkage.
 
-## Open questions
-
-### A never-launched drive blocks a successful run's closeout (from 0490 review finding F3)
-
-0490's deep review found this (finding F3, confirmed). It was deliberately not fixed in 0490 (PR #366); 0490's results file records it under "Known issues and follow-ups" and hands it to 0491. Nothing else tracks it, so it has to be decided while grooming this change. Code references below are to 0490's branch.
-
-**How it happens**
-
-1. A tracked `gate.drive.start` admits a drive. The drive record is written with the run's context hash and an admission token (or, for the single relaunch, a reservation), but the supervisor has not been started yet.
-2. The CLI is killed in that window (Ctrl-C, coordinator interrupt, crash). No supervisor ever starts, so no worktree lock is taken and the worktree itself is free. The drive record stays in its reserved, never-launched state.
-3. The build otherwise finishes, and the coordinator runs `run.verdict <key>`. The success closeout (`completeSuccessfulRun`, `internal/app/runtracker_complete.go`) moves the run `active → completing` and walks its drives with `ObserveRunLaunches` (`internal/gatedrive/reconcile.go`). That walk only observes. A drive proven never-launched (`reconcileFirstLaunch` for a first launch, `reconcileReservation` for a reserved relaunch) yields the finding `launch-pending:<drive>` and is never settled.
-4. The verdict prints `run-stop <key> run-tracker-unavailable completion-unaccounted` with that finding. The run stays durably `completing`, and every repeat of the verdict gives the same answer.
-
-**What the coordinator sees.** A `run-stop`, which forbids re-dispatch, on a run whose work is actually done. The finding names the drive but not the remedy, and nothing in CLAUDE.md, AGENTS.md or the skills tells an operator what to do.
-
-**The only remedy today** is `run.cancel --key <key> --run-id <id> --reason <why>`. Cancel's walk (`ReconcileRunLaunches`) settles the never-launched drive HALTED `run-cancelled` (`settleNeverLaunchedFirstLaunch` / `settleNeverLaunchedCancelled`). The cost is that a successful build ends up recorded as **cancelled**, not complete.
-
-**Why 0490 left it.** Every clean fix either changes the verdict's `run-*` report lines or changes what the success closeout is allowed to do. Both were outside 0490's scope.
-
-**To decide while grooming:**
-
-- **Does the success closeout survive 0491?** "What changes" drops the closeout steps "that exist only to release slots". After 0490 the closeout writes no worktree record. What is left is the success fence that releases the run's hold on the workflow-mutation fence (`admitWorkflowMutation`), which "Out of scope" excludes unless it depends on the slot. If the closeout, or its launch census, goes away, this problem goes with it; say so explicitly. If it stays, the problem stays and needs one of the fixes below.
-- **If it stays, pick a fix:**
-  - **(a) Let the success closeout settle a proven never-launched drive** under the held per-drive claim, the same way cancel already does. A proven never-launched drive is not running, and once settled it can never run, so it has no bearing on whether the run succeeded. The report lines stay as they are. Open points: the terminal label (it must not be `run-cancelled`), and that this breaks the closeout's "observation only" rule in the `runtracker_complete.go` header comment, which the ADR-0124 line of decisions rests on. `internal/gatedrive/reconcile_test.go` pins today's behaviour (observe mode leaves the never-launched drive `launch-pending` with its record untouched) and would flip.
-  - **(b) Keep the closeout observation-only, but name the remedy.** When every finding is `launch-pending`, the `completion-unaccounted` line or its next action names `run.cancel`. This changes the report vocabulary, so the second "Out of scope" bullet would have to be widened. It still ends a good build as cancelled.
-  - **(c) Leave the behaviour and document the manual remedy** in the run-tracker blocks of CLAUDE.md and AGENTS.md. This is the cheapest option and has the same cancelled-not-complete cost.
-- **`resolution-unresolved:<drive>` stays fail-closed** under any option, because a reservation that can't be proven either way might be running. Confirm that.
-- **Regression test:** admit a tracked drive, kill before launch, then run the keyed verdict, and assert the chosen outcome end-to-end through `run.verdict`, not only at the `gatedrive` layer.
-
-Not part of this note: the sibling gap 0490's results file pointed at 0492, now its own change, 0493. Cancel clears a relaunch that halted without attaching using only the first run's directory, so a replacement supervisor that came up anyway is not stopped.
-
-### Fold in 0443's wording fix (0443 killed 2026-10-02)
-
-0443 recorded an agent running the dotted operation id itself (`docket run.gate-before implement-next`) instead of that operation's argv. 0443 was killed because its file and operation names are gone, but the wording gap remains. When this change rewrites the run-tracker block (`cursor-rules/run-tracker.md`, regenerated into CLAUDE.md and AGENTS.md), say explicitly that an operation id such as `run.start` is not a command: look up its entry in `docket capabilities --json` and run that entry's `argv`.
