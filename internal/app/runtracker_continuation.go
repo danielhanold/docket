@@ -1,9 +1,8 @@
 // The continuation seam for the run tracker's `run-continue` decision (change 0359).
 //
-// A tracked gate drive that a dispatched implement-next run left live (or wrote a
-// verdict for and then died before its parent consumed it) is HEALTHY work to
-// CONTINUE, not a quiescent incomplete to stop and spend the one retry on. This
-// file is the drive-layer surface RunVerdict needs to recognize and recover
+// A tracked gate drive that a dispatched implement-next run left live is HEALTHY
+// work to CONTINUE, not a quiescent incomplete to stop and spend the one retry on.
+// This file is the drive-layer surface RunVerdict needs to recognize and recover
 // such a drive:
 //
 //   - LocateOuterDrive resolves the candidate drives nested under this dispatch's
@@ -36,11 +35,10 @@ import (
 )
 
 // RunDecisionContinue is the NONTERMINAL gate decision (change 0359): the same
-// implement-next attempt owns live or terminal-unconsumed tracked work, so the
-// gate keeps the same key and spends no retry. It joins run-done / run-retry-once
-// / run-stop (attributed) and run-observe (unattributed) as a leading report
-// token, but unlike run-retry-once it is a continuation of the SAME attempt, not
-// a second attempt.
+// implement-next attempt owns live tracked work, so the gate keeps the same key
+// and spends no retry. It joins run-done / run-retry-once / run-stop (attributed)
+// and run-observe (unattributed) as a leading report token, but unlike
+// run-retry-once it is a continuation of the SAME attempt, not a second attempt.
 const RunDecisionContinue = "run-continue"
 
 // Continuation-path run-tracker-unavailable reason tokens. A takeover that HALTs passes
@@ -70,8 +68,8 @@ const (
 // the Git common dir + exe path; unit tests fake it.
 type ContinuationSeam interface {
 	// LocateOuterDrive returns the candidate drive ids for (changeID,
-	// childContextHash) whose outcome is nonterminal OR terminal-unconsumed; exactly
-	// one is required upstream to authorize a takeover.
+	// childContextHash) whose outcome is nonterminal (a still-running drive);
+	// exactly one is required upstream to authorize a takeover.
 	LocateOuterDrive(changeID int, childContextHash string) ([]string, error)
 	// TakeoverAndHandoff performs the event-authorized outer takeover of driveID
 	// under (scopeID, parentCap), then an immediate NORMAL Handoff by the fresh

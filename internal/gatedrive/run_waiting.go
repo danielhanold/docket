@@ -140,21 +140,15 @@ func receiptOf(id string, rec driveRecord) DriveReceipt {
 }
 
 // FindScopeDriveIDs lists the drive ids for changeID whose RunContextHash equals
-// runContextHash and whose LastOutcome is nonterminal OR terminal-unconsumed
-// (terminal with a still-set OwnerGeneration — a child that wrote a verdict then
-// died before the parent consumed it). A terminal-AND-consumed drive (owner
-// cleared) is excluded: there is nothing left to recover. This is precisely the
-// exclusion that keeps a SEQUENTIAL scope's history unambiguous (change 0405):
-// each acknowledged predecessor is terminal-and-consumed — its owner generation was
-// cleared by the successor start that acknowledged it (retirePredecessor) or by the
-// final terminal acknowledgement (Driver.Acknowledge) — so a scope that ran a whole
-// baseline/RED/GREEN sequence still resolves to exactly its one current drive here,
-// never to a crowd of consumed historical results. A record that will not load
+// runContextHash and whose LastOutcome is nonterminal — a still-running drive. A
+// finished drive (PASSED, FAILED, or HALTED), whether its owner generation is still
+// set or already cleared, is never a candidate (change 0489): its verdict is not
+// reused, and the run's retry re-runs the gate. A record that will not load
 // (unknown schema, corrupt, invalid id) is SKIPPED rather than failing the scan —
 // an unreadable record is not evidence of a recoverable drive. Only a real
-// filesystem fault reading the root is returned as an error. It is the outer
-// gate's candidate resolver: exactly one match authorizes an outer takeover
-// (takeover.go); zero or many fail closed upstream.
+// filesystem fault reading the root is returned as an error. It is run.verdict's
+// outer candidate scan: exactly one live match authorizes an outer takeover; zero
+// falls through to the retry path, more than one stops `takeover-ambiguous`.
 func (s *Store) FindScopeDriveIDs(changeID, runContextHash string) ([]string, error) {
 	entries, err := os.ReadDir(s.root)
 	if err != nil {
@@ -180,10 +174,10 @@ func (s *Store) FindScopeDriveIDs(changeID, runContextHash string) ([]string, er
 		if rec.RunContextHash != runContextHash {
 			continue
 		}
-		// Include a nonterminal (still live) drive, and a terminal drive whose owner
-		// generation is still set (a verdict written but not yet consumed). Exclude a
-		// terminal drive whose owner was cleared: it was already consumed.
-		if isTerminalOutcome(rec.LastOutcome) && rec.OwnerGeneration == "" {
+		// Only a still-running drive is a takeover candidate (change 0489). A
+		// finished drive — PASSED, FAILED, or HALTED, owned or not — is never
+		// recovered: its verdict is not reused, and the run's retry re-runs the gate.
+		if isTerminalOutcome(rec.LastOutcome) {
 			continue
 		}
 		ids = append(ids, e.Name())
