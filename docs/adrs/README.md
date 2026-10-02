@@ -115,6 +115,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0128](0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md) — Resume arms mint an arm-time epoch that run.cancel can cancel without a claim binding (Accepted) ← change #463 · relates to ADR-0111, ADR-0118
 - [ADR-0129](0129-collision-free-docket-vocabulary.md) — Collision-free docket vocabulary (Accepted)
 - [ADR-0130](0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md) — Build-task workers run focused tests directly under a fixed time limit; the gate driver serves only full-suite gates (Accepted) ← change #488 → supersedes ADR-0117 · relates to ADR-0107, ADR-0024
+- [ADR-0131](0131-the-run-tracker-s-outer-takeover-recovers-only-a-still-runni.md) — The run tracker's outer takeover recovers only a still-running drive (Accepted) ← change #489 · relates to ADR-0107, ADR-0130
 
 ## Superseded / Reversed
 
