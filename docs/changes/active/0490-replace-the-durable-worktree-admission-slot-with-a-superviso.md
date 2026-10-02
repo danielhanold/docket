@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/replace-the-durable-worktree-admission-slot-with-a-superviso'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-02T16:31:21Z'
+reconciled: true
+claimed_at: '2026-10-02T16:32:57Z'
 ---
 
 ## Artifacts
@@ -79,3 +79,9 @@ Accepted losses: between-gate run ownership, the mutation fence's fallback when 
 - Finalize's rebase gate logic, apart from its admission call.
 - Making suite teardown complete when a supervisor dies alone or a stop escalates to KILL (0492).
 - Deleting the old `gate-admission` directory from disk.
+
+## Reconcile log
+
+### 2026-10-02
+
+Reconciled against main at 1fb39868f (change 0489 merged and archived). Every slot symbol the spec names to delete or rewire (admissionRecord, ReserveWorktreeExecution*, releaseAdmissionIfProven, inventoryLegacyDrives, GateHistoryCleanup, reconcileWorktreeSlot, censusReferences, resolveDriveRun, accountCompletionSlot, slotNamedRunUnresolved, authorizeRelaunch, recoveryRunRevoked, settleStaleReleasedRun, rawStaleRunRefusal, ReconcileFinishedIncumbent) is still present, and FindScopeDriveIDs (the context-hash attribution path) exists. The spec was groomed today against post-0489 reality; no scope change. 0491 and 0492 remain follow-ups.
