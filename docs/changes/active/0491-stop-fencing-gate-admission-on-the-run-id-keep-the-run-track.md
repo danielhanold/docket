@@ -100,4 +100,4 @@ Accepted loss: an agent left over from a cancelled run could still start a test 
 - **`resolution-unresolved:<drive>` stays fail-closed** under any option, because a reservation that can't be proven either way might be running. Confirm that.
 - **Regression test:** admit a tracked drive, kill before launch, then run the keyed verdict, and assert the chosen outcome end-to-end through `run.verdict`, not only at the `gatedrive` layer.
 
-Not part of this note: the sibling gap 0490 routed to 0492. Cancel clears a relaunch that halted without attaching using only the first run's directory, so a replacement supervisor that came up anyway is not stopped.
+Not part of this note: the sibling gap 0490's results file pointed at 0492, now its own change, 0493. Cancel clears a relaunch that halted without attaching using only the first run's directory, so a replacement supervisor that came up anyway is not stopped.
