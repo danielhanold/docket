@@ -144,9 +144,9 @@ func TestPRFenceRefusalMessageIsReasonAware(t *testing.T) {
 	if cancelled.Message != "the run that owns this change was cancelled or superseded; publish nothing" {
 		t.Fatalf("cancelled message unexpectedly changed: %q", cancelled.Message)
 	}
-	if superseded := prFenceRefusal(7, ErrStaleRunID); superseded.Reason != "stale-run-id" ||
+	if superseded := prFenceRefusal(7, ErrRunSuperseded); superseded.Reason != "run-superseded" ||
 		superseded.Message != cancelled.Message {
-		t.Fatalf("superseded reason=%q message=%q, want stale-run-id + the cancelled-or-superseded wording", superseded.Reason, superseded.Message)
+		t.Fatalf("superseded reason=%q message=%q, want run-superseded + the cancelled-or-superseded wording", superseded.Reason, superseded.Message)
 	}
 	completed := prFenceRefusal(7, ErrRunCompleted)
 	if completed.Reason != "run-completed" {

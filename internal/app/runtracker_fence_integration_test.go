@@ -244,9 +244,9 @@ func TestIntegrationRunFenceStandaloneMutationUnfenced(t *testing.T) {
 	done2(mutationStatusCompleted, false)
 }
 
-// TestIntegrationRunFenceFenceRefusesSupersededRunAsStale: a superseded run (a resume replaced it)
-// refuses the mutation with the stale-run-id reason, distinct from run-cancelled.
-func TestIntegrationRunFenceFenceRefusesSupersededRunAsStale(t *testing.T) {
+// TestIntegrationRunFenceFenceRefusesSupersededRun: a superseded run (a resume replaced it)
+// refuses the mutation with the run-superseded reason, distinct from run-cancelled.
+func TestIntegrationRunFenceFenceRefusesSupersededRun(t *testing.T) {
 	repoDir := newRunTrackerRepo(t)
 	mintFenceRun(t, repoDir, repoDir, RunSuperseded)
 
@@ -255,8 +255,8 @@ func TestIntegrationRunFenceFenceRefusesSupersededRunAsStale(t *testing.T) {
 	if !ok {
 		t.Fatalf("err = %v, want a MutationFenceError", err)
 	}
-	if fe.Reason != "stale-run-id" {
-		t.Fatalf("reason = %q, want stale-run-id", fe.Reason)
+	if fe.Reason != "run-superseded" {
+		t.Fatalf("reason = %q, want run-superseded", fe.Reason)
 	}
 }
 

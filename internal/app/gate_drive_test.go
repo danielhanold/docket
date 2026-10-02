@@ -935,7 +935,7 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 // TestMapDriveFailureFenceReasons proves the run mutation-fence refusal
 // (MutationFenceError) is classified through the SAME shared mapDriveFailure
 // classifier into (invalid-input, <its bounded, stable token>) — run-cancelled /
-// stale-run-id — and that a wrapped credential leaks into neither the reason nor
+// run-superseded — and that a wrapped credential leaks into neither the reason nor
 // the message. It is the fail-safe path for a fenced-run error that ever chains
 // through the gate-drive seam (no gate-drive path raises one since change 0491).
 func TestMapDriveFailureFenceReasons(t *testing.T) {
@@ -945,7 +945,7 @@ func TestMapDriveFailureFenceReasons(t *testing.T) {
 		err  *MutationFenceError
 	}{
 		{"run-cancelled", ErrRunCancelled},
-		{"stale-run-id", ErrStaleRunID},
+		{"run-superseded", ErrRunSuperseded},
 	} {
 		wrapped := fmt.Errorf("mutation refused carrying %s: %w", secret, tc.err)
 		res, reason := mapDriveFailure(wrapped)

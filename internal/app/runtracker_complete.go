@@ -37,7 +37,7 @@
 //
 // NEVER RELABEL. completing/completed are new states; a cancelling/cancelled/
 // superseded/mismatched run is never relabelled successful (run-cancelled /
-// stale-run-id), and an explicit human cancellation may win from completing —
+// run-superseded), and an explicit human cancellation may win from completing —
 // completion then loses without reporting success (CompleteRun's completing→
 // completed CAS refuses once a cancel fence lands).
 //
@@ -117,7 +117,7 @@ func (o appLaunchObserver) observe(contextHash string) (gatedrive.RunLaunchRepor
 
 // completeSuccessfulRun drives the whole successful-run ownership closeout over the
 // injected seams, returning ok, a bounded reason token for the run-tracker-unavailable
-// channel when ok is false (one of run-cancelled, stale-run-id,
+// channel when ok is false (one of run-cancelled, run-superseded,
 // completion-unaccounted, completion-unpersisted, run-record-unreadable), and the bounded
 // credential-free findings that name every unsettled obligation; findings may also
 // carry informational mutation-settled:<op> tokens, even on a successful closeout.
@@ -138,7 +138,7 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 			case RunCancelling, RunCancelled:
 				return false, "run-cancelled", nil
 			case RunSuperseded:
-				return false, "stale-run-id", nil
+				return false, ReasonRunSuperseded, nil
 			default:
 				return false, "run-record-unreadable", nil // an unknown/garbage state: fail closed
 			}
