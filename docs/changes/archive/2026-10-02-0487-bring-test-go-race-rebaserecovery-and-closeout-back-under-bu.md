@@ -2,7 +2,7 @@
 id: 487
 slug: 'bring-test-go-race-rebaserecovery-and-closeout-back-under-bu'
 title: 'Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-01'
@@ -22,7 +22,7 @@ branch: 'fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu'
 pr: 'https://github.com/danielhanold/docket/pull/363'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-02T05:54:20Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-02T05:54:20Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md) |
-| Plan | [2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md](https://github.com/danielhanold/docket/blob/fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu/docs/superpowers/plans/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) |
-| Results | [2026-10-02-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-results.md](https://github.com/danielhanold/docket/blob/fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu/docs/results/2026-10-02-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-results.md) |
+| Plan | [2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) |
+| Results | [2026-10-02-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-02-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md), [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 

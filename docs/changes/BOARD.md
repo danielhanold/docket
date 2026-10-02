@@ -1,12 +1,6 @@
 # Backlog
 
-**491 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 14 proposed · ⚪ 12 deferred · ✅ 333 done · 🗑️ 126 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0487](active/0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) | Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go | `medium` | `fix` | [#363](https://github.com/danielhanold/docket/pull/363) | awaiting merge |
+**491 changes** — 🔴 1 blocked · 🟣 4 groomed · 🟡 14 proposed · ⚪ 12 deferred · ✅ 334 done · 🗑️ 126 killed
 
 ## 🔴 Blocked (1)
 
@@ -89,7 +83,6 @@ graph TD
   0457
   0464
   0483
-  0487
   0488
   0488 --> 0489
   0489 --> 0490
@@ -102,10 +95,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (459)</summary>
+<details><summary>✅🗑️ Archive — done + killed (460)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0487](archive/2026-10-02-0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) | Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go | 2026-10-02 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
 | [0485](archive/2026-10-01-0485-test-go-race-hits-its-8-minute-backstop-in-internal-repoguar.md) | test_go_race hits its 8-minute backstop in internal/repoguard under concurrent gate load | 2026-10-01 |
 | [0484](archive/2026-10-01-0484-bring-test-go-race-back-under-its-budget-row-testretiredvoca.md) | Bring test_go_race back under its budget row (TestRetiredVocabularySeal scan cost) | 2026-10-01 |
@@ -127,7 +121,6 @@ graph TD
 | [0467](archive/2026-09-29-0467-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) | Scoped gate starts inherit the run epoch; thread it through the build chain | 2026-09-29 |
 | [0466](archive/2026-09-29-0466-bring-test-go-race-back-under-its-60s-budget-row-transaction.md) | Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive) | 2026-09-29 |
 | [0292](archive/2026-09-29-0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | 2026-09-29 |
-| [0465](archive/2026-09-28-0465-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md) | test_go_race times out on internal/app in CI (Go's 10m per-package limit) | 2026-09-28 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -252,7 +245,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 82 done |
+| [2026-09](archive/) | 83 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
