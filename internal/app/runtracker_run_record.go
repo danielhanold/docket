@@ -20,9 +20,9 @@
 //
 // IDENTITY vs. AUTHORITY: RunID is a random, PUBLIC locator — it authorizes
 // nothing (the run context's child capability continues to carry authority,
-// per ADR-0111) and travels onto a build-owned start's worktree execution slot so an
-// omitted or stale run cannot detach a workflow-owned worktree (the gatedrive
-// stale-run-id fence). It is safe to print.
+// per ADR-0111) and is what a build-owned start presents to the run launch gate
+// (runLaunchGate), so a cancelled or superseded run cannot start a gate. It is safe
+// to print.
 //
 // DURABILITY + CAS: writes go through the same atomic temp-file + rename discipline
 // as writeRunTrackerRecordAtomic (0600), and every read-modify-write serializes on a
@@ -69,8 +69,8 @@ const (
 type runState string
 
 const (
-	// RunActive: the run owns the run; new participants may register, and the
-	// worktree admission fence links its slots to this run.
+	// RunActive: the run owns the run; new participants may register, and the run
+	// launch gate admits the run's gate starts.
 	RunActive runState = "active"
 	// RunCancelling: an explicit cancellation (run.cancel, Task 10) has fenced the
 	// run and is tearing the run down; no new participant, start, or mutation admits.
@@ -211,11 +211,6 @@ const (
 	// a single current owner. It is a contradiction, never resolved by directory order
 	// or timestamp: the path fence refuses locally (change 0446 spec §5).
 	ErrRunOwnerAmbiguous RunErrorKind = "run-owner-ambiguous"
-	// ErrRunOwnerUnresolved: the worktree's execution slot names a RunID that no
-	// readable run record carries, so the worktree's current owner is unresolved. The
-	// path fence refuses locally with that locator rather than admitting unfenced
-	// (change 0446 spec §1).
-	ErrRunOwnerUnresolved RunErrorKind = "run-owner-unresolved"
 	// ErrRunRecordIO: an underlying filesystem, lock, or randomness operation failed.
 	ErrRunRecordIO RunErrorKind = "run-record-io"
 	// ErrRunParticipantUnknown: a terminal-observation record named a native
@@ -429,8 +424,8 @@ func bindRunChange(repoDir, runKey, changeID string) error {
 
 // bindRunWorktree binds the run's Worktree once, at claim confirmation, so a
 // FRESH (non-resume) run's run record is locatable by the mutation fence
-// (findRunByWorktree) and actionable by run.cancel's worktree teardown
-// (reconcileWorktreeSlot) — the same job armResumeReplacement does for the resume path
+// (findRunByWorktree) and admitted by the run launch gate (runLaunchGate refuses an
+// active run with no Worktree) — the same job armResumeReplacement does for the resume path
 // (change 0375). Without it a fresh run's run record keeps Worktree == "", which every
 // worktree-keyed consumer skips, so the fence and the teardown are inert for the common
 // first-dispatch case. The bound value is the LOGICAL feature worktree path (it need
@@ -727,16 +722,15 @@ func FindRunByChange(repoDir, changeID string) (runKey string, rec RunRecord, fo
 }
 
 // runDirMatch is one run-key directory whose run.json records the sought
-// RunID: the shared shape scanRunsByID yields to both findRunByID (first
-// match) and findRunDirByID (unique match).
+// RunID: the shape scanRunsByID yields to findRunDirByID (unique match).
 type runDirMatch struct {
 	dir string
 	rec RunRecord
 }
 
-// scanRunsByID is the single walker under findRunByID and findRunDirByID (one
-// walker, two shapes): it enumerates runTrackerRoot and returns every run-key
-// directory whose run.json records RunID == runID. An empty id or a missing
+// scanRunsByID is the walker under findRunDirByID: it enumerates runTrackerRoot
+// and returns every run-key directory whose run.json records RunID == runID. An
+// empty id or a missing
 // root is (nil, nil); an enumeration fault is a typed ErrRunRecordIO; a corrupt or
 // unreadable sibling is SKIPPED for matching (it cannot prove it holds the sought
 // id), mirroring findRunByWorktree's conservative skip.
@@ -768,29 +762,11 @@ func scanRunsByID(runTrackerRoot, runID string) ([]runDirMatch, error) {
 	return matches, nil
 }
 
-// findRunByID locates the run whose public RunID equals runID by scanning
-// runTrackerRoot (each run-key directory may hold one run.json). It returns the
-// record and found=true on a match, (found=false, nil) for a clean absence, and a
-// typed error only for an enumeration fault. A corrupt/unreadable sibling is
-// skipped. slotNamedRunUnresolved uses it to check whether the run a worktree
-// slot names (by its public RunID, not the run key) still exists.
-func findRunByID(runTrackerRoot, runID string) (RunRecord, bool, error) {
-	matches, err := scanRunsByID(runTrackerRoot, runID)
-	if err != nil {
-		return RunRecord{}, false, err
-	}
-	if len(matches) == 0 {
-		return RunRecord{}, false, nil
-	}
-	return matches[0].rec, true, nil
-}
-
 // findRunDirByID resolves the UNIQUE run-key directory holding the run whose
 // public RunID is runID (change 0437 Task 5 — the run launch gate locates the
 // key directory it must lock and re-read under). Zero matches → ErrRunNotFound;
 // more than one → ErrRunAmbiguous; corrupt/unreadable siblings are skipped for
-// matching but the enumeration-fault contract mirrors findRunByID. It shares the
-// one walker (scanRunsByID) with findRunByID.
+// matching, and an enumeration fault is a typed ErrRunRecordIO (scanRunsByID).
 func findRunDirByID(runTrackerRoot, runID string) (dir string, rec RunRecord, err error) {
 	matches, serr := scanRunsByID(runTrackerRoot, runID)
 	if serr != nil {

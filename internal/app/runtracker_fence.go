@@ -29,8 +29,7 @@
 // admission function all three reach and the anchor the guard keys on.
 //
 // LINKAGE. The owning run of a mutation is the run bound to the change's
-// canonical feature worktree — the SAME link run.cancel (runtracker_cancel.go) drives
-// the slot teardown through: RunRecord.Worktree, the canonical feature worktree an
+// canonical feature worktree: RunRecord.Worktree, the canonical feature worktree a
 // run records once its run claims the workspace (spec "Bind a run to the
 // existing verified claim instance and canonical workspace"). A mutation boundary
 // runs with repoDir = that feature worktree, so it canonicalizes repoDir and finds
@@ -55,7 +54,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
@@ -121,16 +119,15 @@ func AsMutationFenceError(err error) (*MutationFenceError, bool) {
 // its message never falsely claims cancellation; run-cancelled/stale-run-id keep
 // the cancelled-or-superseded wording. An unrecognized reason falls back to the
 // reason-neutral "no longer accepting mutations" phrasing. An owner-resolution
-// refusal (ErrRunOwnerAmbiguous / ErrRunOwnerUnresolved, change 0446) reports its
-// own kind as the reason, never relabelled as a cancellation.
+// refusal (ErrRunOwnerAmbiguous, change 0446) reports its own kind as the reason,
+// never relabelled as a cancellation.
 func fenceRefusalReasonMessage(ferr error, subject string) (reason, message string) {
 	reason = "run-cancelled"
 	if fe, ok := AsMutationFenceError(ferr); ok {
 		reason = fe.Reason
-	} else if ee, ok := AsRunError(ferr); ok &&
-		(ee.Kind == ErrRunOwnerAmbiguous || ee.Kind == ErrRunOwnerUnresolved) {
-		// An unresolved or contradictory CURRENT owner (change 0446 §§1, 5) is not a
-		// cancellation: surface its own kind and the locator the error carries.
+	} else if ee, ok := AsRunError(ferr); ok && ee.Kind == ErrRunOwnerAmbiguous {
+		// A contradictory CURRENT owner (change 0446 §5) is not a cancellation:
+		// surface its own kind and the locator the error carries.
 		return string(ee.Kind), "the run that owns this " + subject + " cannot be resolved (" +
 			ferr.Error() + "); publish nothing"
 	}
@@ -165,10 +162,12 @@ func noopJournalDone(string, bool) {}
 // journaled with the admission (change 0444); nil for non-publication boundaries.
 // It returns a completion callback and an error:
 //
-//   - No owning run (no registered worktree, no slot, a standalone-gate slot with
-//     no run, or a pruned run no slot names) → (noopJournalDone, nil): admit
-//     UNFENCED. This is the standalone contract — a mutation outside any workflow run
-//     is unchanged.
+//   - No readable owning run (no run bound to the worktree, a pruned run, or an
+//     unreadable run record) → (noopJournalDone, nil): admit UNFENCED. This is the
+//     standalone contract — a mutation outside any workflow run is unchanged. The
+//     owner is found from run records only (change 0490): a worktree whose owning
+//     run record is unreadable is no longer refused through the retired worktree
+//     slot — an accepted loss the change's spec records.
 //   - Owning run ACTIVE → journal an `admitted` entry under the run's
 //     conflict-checked write and return (done, nil). `done(completed|uncertain, verified)`
 //     updates exactly that entry after the mutation resolves.
@@ -179,17 +178,11 @@ func noopJournalDone(string, bool) {}
 //     fences a completing (mid-closeout) run; the completed start is defense in depth.
 //   - Two or more active owners bound to the worktree → (nil, ErrRunOwnerAmbiguous):
 //     a contradiction refuses locally, never resolved by order (change 0446 §5).
-//   - No ambient owner, but the worktree's execution slot NAMES a RunID that no
-//     readable run record carries (corrupt, IO-unreadable, or absent) → fail closed
-//     with ErrRunOwnerUnresolved naming the run id and worktree (change 0446 §1).
-//     A record the store cannot read is never treated as a free run when a current
-//     reference names it; an unreadable run no slot names stays diagnostic. A slot
-//     the store cannot read at all (anything but absent) fails closed the same way.
-//   - Any registry enumeration or slot-store fault while resolving that owner → fail
-//     closed: (nil, err).
+//   - A registry enumeration fault while resolving that owner → fail closed:
+//     (nil, err).
 //
 // The state gate and the `admitted` append happen in ONE runRecordCAS, so a cancellation
-// that fences the run between the slot read and the journal write is observed
+// that fences the run between the owner lookup and the journal write is observed
 // atomically — there is no admit-then-fenced window.
 func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutationJournalDone, error) {
 	// Canonicalize the change's feature worktree so a different spelling of one
@@ -214,14 +207,8 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 		return nil, ferr
 	}
 	if !found {
-		// No readable run owns this worktree. Before admitting unfenced, honour
-		// the worktree slot's positive reference (spec §1): a slot naming a run that
-		// no readable record carries means the current owner is unresolved.
-		if uerr := slotNamedRunUnresolved(repoDir, canon); uerr != nil {
-			return nil, uerr
-		}
-		// Standalone use, or the run's run record was pruned with its gate record and no
-		// slot names it: the mutation is unfenced.
+		// Standalone use, or no readable run record owns this worktree: the
+		// mutation is unfenced.
 		return noopJournalDone, nil
 	}
 
@@ -341,11 +328,9 @@ func canonicalWorktree(path string) (string, error) {
 // no run.json, a run with no bound Worktree (a standalone or not-yet-claimed
 // run, and every superseded run — SupersedeCancelledRun clears it), a fully
 // COMPLETED run (a successful closeout no longer owns its worktree — change 0441; a
-// completing run still does), or an UNREADABLE/corrupt record is skipped. Skipping
-// an unreadable record is discovery, not required evidence (spec §1): the required
-// half — a slot that NAMES a run no readable record carries — is enforced by
-// admitWorkflowMutation through that positive slot reference, never by failing
-// closed on every unreadable sibling.
+// completing run still does), or an UNREADABLE/corrupt record is skipped: an
+// unreadable sibling is never failed closed on, so one damaged record cannot
+// fence every worktree.
 func findRunByWorktree(repoDir, canon string) (runKey string, found bool, err error) {
 	root, rerr := runTrackerRoot(repoDir)
 	if rerr != nil {
@@ -397,77 +382,6 @@ func findRunByWorktree(repoDir, canon string) (runKey string, found bool, err er
 		return fenced[0], true, nil
 	}
 	return "", false, nil
-}
-
-// slotNamedRunUnresolved enforces the required-evidence half of ambient owner
-// lookup (change 0446 spec §1): "when the requested worktree's slot names a
-// `RunID`, ambient owner lookup for that worktree must resolve that run to a
-// readable record". It is consulted only after findRunByWorktree found no readable
-// owner. It opens the gatedrive admission store at the repository's Git common dir
-// (the same store productionCancelSeams opens) and reads the worktree's slot:
-//
-//   - an absent slot, or a slot with no RunID, names nothing → nil (the
-//     unfenced admit is unchanged);
-//   - a slot the store cannot READ (corrupt, IO, invalid — any error but
-//     ErrNotFound) → ErrRunOwnerUnresolved naming the worktree: an unreadable
-//     slot is not evidence that it names no run, so the fence fails closed;
-//   - a slot naming a run some readable record carries → nil (that run simply
-//     does not own this path now: completed, superseded, not yet bound, or bound
-//     elsewhere);
-//   - a slot naming a run NO readable record carries → ErrRunOwnerUnresolved
-//     naming the run id and worktree. The positive reference comes from the slot,
-//     so the refusal never depends on reading the unreadable record itself;
-//   - a common-dir, registry-enumeration, or ambiguous-id fault → that error (fail
-//     closed).
-//
-// The run id is a public locator, never a credential (ADR-0111), so the locator
-// carries it verbatim.
-func slotNamedRunUnresolved(repoDir, canon string) error {
-	common, err := runTrackerGitCommonDir(repoDir)
-	if err != nil {
-		return err
-	}
-	runTrackerRoot := filepath.Join(common, "docket", runTrackerDirName)
-	slot, _, lerr := gatedrive.OpenStore(common).LoadWorktreeExecution(canon)
-	if lerr != nil {
-		if se, ok := gatedrive.AsStoreError(lerr); ok && se.Kind == gatedrive.ErrNotFound {
-			return nil // no slot: nothing names a run (the standalone contract)
-		}
-		// A slot the store cannot read (corrupt, IO, invalid) is not evidence that it
-		// names no run: fail closed. Only the bounded store kind is rendered.
-		kind := "unreadable"
-		if se, ok := gatedrive.AsStoreError(lerr); ok {
-			kind = string(se.Kind)
-		}
-		return runErr(ErrRunOwnerUnresolved, "find-by-worktree",
-			fmt.Errorf("the slot of worktree %s could not be read (%s), so whether a run owns it is unknown; %s",
-				canon, kind, unresolvedOwnerRemedy(runTrackerRoot)))
-	}
-	if slot.RunID == "" {
-		return nil
-	}
-	_, ok, ferr := findRunByID(runTrackerRoot, slot.RunID)
-	if ferr != nil {
-		return ferr
-	}
-	if ok {
-		return nil
-	}
-	return runErr(ErrRunOwnerUnresolved, "find-by-worktree",
-		fmt.Errorf("the slot of worktree %s names run %s, but no readable run record carries it; %s",
-			canon, slot.RunID, unresolvedOwnerRemedy(runTrackerRoot)))
-}
-
-// unresolvedOwnerRemedy is the next step an ErrRunOwnerUnresolved refusal prints.
-// It must be valid in the state that produced it: no readable run record resolves
-// the owner, so run.cancel (which targets a run by its key and run id) cannot act on
-// it. The concrete step is inspecting the per-run-key run records under the
-// run-tracker store and a human repair of the damaged or missing record (or of the
-// slot's stale reference) before this worktree is mutated.
-func unresolvedOwnerRemedy(runTrackerRoot string) string {
-	return "run.cancel cannot target a run no readable record carries — inspect the per-run-key run records (" +
-		filepath.Join(runTrackerRoot, "<run-key>", runRecordFileName) +
-		"); a human must repair the damaged or missing record, or the worktree slot's stale reference, before mutating this worktree"
 }
 
 // runOwnsWorktree reports whether a run's stored Worktree names the same

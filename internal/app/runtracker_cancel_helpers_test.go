@@ -1,8 +1,6 @@
 package app
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,10 +65,11 @@ func okLaunchReconciler() *fakeLaunchReconciler {
 
 // cancelFixture is one prepared cancelable run: a gate record with a parent-held
 // authority and a run context, an active run bound to change 42 with a confirmed
-// claim, a canonical feature worktree, and a confirmed worktree execution slot whose
-// process is runDir. contextHash is the record's child_context_hash — the hash of
-// cancelFixtureRunContext, so a drive started with that raw context is the run's to
-// the launch census.
+// claim, and a canonical feature worktree. contextHash is the record's
+// child_context_hash — the hash of cancelFixtureRunContext, so a drive started (or
+// seeded) with that raw context is the run's to the launch census (change 0490).
+// runDir is a run directory under the worktree that nothing registers: a test that
+// needs an execution to stop registers it as a participant or starts a drive.
 type cancelFixture struct {
 	repo        string
 	key         string
@@ -86,10 +85,9 @@ type cancelFixture struct {
 // minted with (each fixture lives in its own repository).
 const cancelFixtureRunContext = "cancel-fixture-run-context"
 
-// newCancelFixture builds a fully authorized cancelable run. slot controls whether a
-// worktree execution slot is reserved+confirmed; a run with no slot exercises the
-// keyless/standalone path.
-func newCancelFixture(t *testing.T, slot bool) cancelFixture {
+// newCancelFixture builds a fully authorized cancelable run. It writes no gate
+// state: no drive, no participant, and no worktree record.
+func newCancelFixture(t *testing.T) cancelFixture {
 	t.Helper()
 	repo := newRunTrackerRepo(t)
 	common, err := runTrackerGitCommonDir(repo)
@@ -131,25 +129,9 @@ func newCancelFixture(t *testing.T, slot bool) cancelFixture {
 		t.Fatalf("runRecordCAS set worktree: %v", err)
 	}
 
-	fx := cancelFixture{repo: repo, key: key, runID: ep.RunID, worktree: worktree, common: common,
+	return cancelFixture{repo: repo, key: key, runID: ep.RunID, worktree: worktree, common: common,
+		runDir: filepath.Join(worktree, "run-1"), store: gatedrive.OpenStore(common),
 		contextHash: runTrackerHashToken(cancelFixtureRunContext)}
-	fx.store = gatedrive.OpenStore(common)
-	if slot {
-		// The slot records a real owning RunID so the ownership-checked
-		// teardown treats it as slotOwned (change 0435) — the same teardown behavior
-		// the raw (no-run-record) reservation used to get, now anchored on true run
-		// ownership rather than the worktree location alone.
-		runDir := filepath.Join(worktree, "run-1")
-		token, terr := fx.store.ReserveWorktreeExecutionForRun(common, worktree, ep.RunID, nil)
-		if terr != nil {
-			t.Fatalf("ReserveWorktreeExecutionForRun: %v", terr)
-		}
-		if cerr := fx.store.ConfirmWorktreeExecution(worktree, token, "run-1", runDir); cerr != nil {
-			t.Fatalf("ConfirmWorktreeExecution: %v", cerr)
-		}
-		fx.runDir = runDir
-	}
-	return fx
 }
 
 // loadRunState reads the run's current state.
@@ -162,26 +144,6 @@ func loadRunState(t *testing.T, repo, key string) runState {
 	return ep.State
 }
 
-// loadSlotState reads the worktree slot's current state as a string.
-func loadSlotState(t *testing.T, store *gatedrive.Store, worktree string) string {
-	t.Helper()
-	slot, _, err := store.LoadWorktreeExecution(worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	return string(slot.State)
-}
-
-// loadSlotRun reads the worktree slot's current RunID.
-func loadSlotRun(t *testing.T, store *gatedrive.Store, worktree string) string {
-	t.Helper()
-	slot, _, err := store.LoadWorktreeExecution(worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	return slot.RunID
-}
-
 func hasFinding(findings []string, prefix string) bool {
 	for _, f := range findings {
 		if strings.HasPrefix(f, prefix) {
@@ -189,17 +151,4 @@ func hasFinding(findings []string, prefix string) bool {
 		}
 	}
 	return false
-}
-
-// admissionRecordFile returns the worktree slot's record path at the documented
-// storage layout (see removeAdmissionRecord): the byte-identity probe the
-// retirement-convergence tests use to prove a successor's slot is untouched.
-func admissionRecordFile(t *testing.T, common, worktree string) string {
-	t.Helper()
-	canon, err := filepath.EvalSymlinks(worktree)
-	if err != nil {
-		t.Fatalf("EvalSymlinks: %v", err)
-	}
-	sum := sha256.Sum256([]byte(canon))
-	return filepath.Join(common, "docket", "gate-admission", "v2", hex.EncodeToString(sum[:]), "record.json")
 }

@@ -16,22 +16,22 @@ import (
 // These are the successful-run ownership closeout tests (change 0441 Task 7).
 // completeSuccessfulRun is the observation-only counterpart of runCancel: on a
 // verified keyed run-complete it fences the run completing, proves every registered
-// obligation terminal WITHOUT stopping anything, retires the released worktree slot,
-// and CASes completing→completed — failing closed on any unsettled obligation and
+// obligation terminal WITHOUT stopping anything (the run's drives through the
+// observe-only launch census, attributed by its context hash — change 0490), and
+// CASes completing→completed — failing closed on any unsettled obligation and
 // never relabelling a cancelled/superseded run successful. The tests drive the flow
-// over faked observation seams and a real gatedrive admission store, reusing
-// the run-cancel fixtures in runtracker_cancel_helpers_test.go.
+// over faked observation seams and a real gatedrive store, reusing the run-cancel
+// fixtures in runtracker_cancel_helpers_test.go.
 
 // completionFixture is one prepared successfully-finished run: a fully authorized
-// active run bound to a worktree whose run-owned slot is RELEASED (its drives are
-// done), a registered coordinator native task carrying recorded terminal evidence,
-// every mutation completed, and permissive observation seams (every process proven
-// terminal, every launch accounted).
+// active run bound to a worktree, a registered coordinator native task carrying
+// recorded terminal evidence, every mutation completed, and permissive observation
+// seams (every process proven terminal, every launch accounted).
 type completionFixture struct {
-	repo, key, runID, worktree, runDir, common string
-	store                                      *gatedrive.Store
-	observer                                   *fakeProcessObserver
-	launchObserver                             *fakeLaunchObserver
+	repo, key, runID, worktree, runDir, common, contextHash string
+	store                                                   *gatedrive.Store
+	observer                                                *fakeProcessObserver
+	launchObserver                                          *fakeLaunchObserver
 }
 
 func (f completionFixture) seams() cancelSeams {
@@ -40,47 +40,24 @@ func (f completionFixture) seams() cancelSeams {
 
 func newCompletionFixture(t *testing.T) completionFixture {
 	t.Helper()
-	base := newCancelFixture(t, true)
-	// A successful closeout retires only a RELEASED owned slot (the run's drives are
-	// done), exactly like cancellation — release the fixture's confirmed slot.
-	slot, _, err := base.store.LoadWorktreeExecution(base.worktree)
-	if err != nil {
-		t.Fatalf("load slot: %v", err)
-	}
-	if err := base.store.ReleaseWorktreeExecution(base.worktree, slot.ReservationToken); err != nil {
-		t.Fatalf("release slot: %v", err)
-	}
+	base := newCancelFixture(t)
 	must(t, RegisterRunParticipant(base.repo, base.key, base.runID,
 		RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
 	must(t, RecordRunParticipantTerminal(base.repo, base.key, base.runID,
 		"turn-1", "t1", ParticipantTerminalCompleted))
 	return completionFixture{
 		repo: base.repo, key: base.key, runID: base.runID, worktree: base.worktree,
-		runDir: base.runDir, common: base.common, store: base.store,
+		runDir: base.runDir, common: base.common, contextHash: base.contextHash, store: base.store,
 		observer:       &fakeProcessObserver{defaultProven: true},
 		launchObserver: &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}},
 	}
 }
 
-// slotReservationToken reads the worktree slot's current reservation token.
-func slotReservationToken(t *testing.T, store *gatedrive.Store, worktree string) string {
-	t.Helper()
-	slot, _, err := store.LoadWorktreeExecution(worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	return slot.ReservationToken
-}
-
-// TestIntegrationRunCompletionCompleteSuccessfulRunHappyPath: a fully settled run closes out — ok, run
-// RunCompleted, the owned released slot detached (RunID cleared) with its state
-// still released and every history field intact (AC2 history preservation).
+// TestIntegrationRunCompletionCompleteSuccessfulRunHappyPath: a fully settled run
+// closes out — ok, run RunCompleted, and the observe-only census run once for the
+// run's context hash.
 func TestIntegrationRunCompletionCompleteSuccessfulRunHappyPath(t *testing.T) {
 	fx := newCompletionFixture(t)
-	before, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
-	if err != nil {
-		t.Fatalf("load before: %v", err)
-	}
 	ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key)
 	if !ok {
 		t.Fatalf("ok=false reason=%q findings=%v", reason, findings)
@@ -88,20 +65,8 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunHappyPath(t *testing.T) {
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
 		t.Fatalf("run state = %q, want completed", st)
 	}
-	after, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
-	if err != nil {
-		t.Fatalf("load after: %v", err)
-	}
-	if after.RunID != "" {
-		t.Fatalf("slot RunID = %q, want cleared", after.RunID)
-	}
-	if string(after.State) != "released" {
-		t.Fatalf("slot state = %q, want released", after.State)
-	}
-	if after.RawRunID != before.RawRunID || after.RawRunDir != before.RawRunDir ||
-		after.ExecutionGen != before.ExecutionGen || after.DriveID != before.DriveID ||
-		after.Kind != before.Kind {
-		t.Fatalf("closeout must preserve history: before=%+v after=%+v", before, after)
+	if calls := fx.launchObserver.calls; len(calls) != 1 || calls[0] != fx.contextHash {
+		t.Fatalf("census calls = %v, want [%s] (the run's context hash)", calls, fx.contextHash)
 	}
 }
 
@@ -160,7 +125,7 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunNeverRelabelsCancellation(
 
 // TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObligation (AC3): each unsettled
 // obligation fails closed — ok false, reason completion-unaccounted, the named
-// finding present, the run left durably completing, and the slot untouched.
+// finding present, and the run left durably completing.
 func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObligation(t *testing.T) {
 	// each build returns the seams and the located run; the run begins active so the
 	// closeout drives the real completing fence before it blocks.
@@ -168,15 +133,6 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObli
 		name    string
 		finding string
 		build   func(t *testing.T) (seams cancelSeams, repo, key, runID, worktree string)
-	}
-	permissiveSeams := func(store *gatedrive.Store) cancelSeams {
-		return cancelSeams{store: store,
-			observer:       &fakeProcessObserver{defaultProven: true},
-			launchObserver: &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}}}
-	}
-	registerDoneCoordinator := func(t *testing.T, repo, key, runID string) {
-		must(t, RegisterRunParticipant(repo, key, runID, RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-		must(t, RecordRunParticipantTerminal(repo, key, runID, "turn-1", "t1", ParticipantTerminalCompleted))
 	}
 	rows := []row{
 		{"native-participant-unobserved", "participant-unobserved:coordinator", func(t *testing.T) (cancelSeams, string, string, string, string) {
@@ -188,14 +144,11 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObli
 			fx := newCompletionFixture(t)
 			must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: "raw-run", NativeHandle: "exec-1"}))
 			fx.observer.defaultProven = false
-			fx.observer.proven = map[string]bool{fx.runDir: true} // the slot's run stays proven
 			return fx.seams(), fx.repo, fx.key, fx.runID, fx.worktree
 		}},
 		{"nil-observer", "process-observer-unavailable", func(t *testing.T) (cancelSeams, string, string, string, string) {
 			fx := newCompletionFixture(t)
-			// An execution participant needs observation; a released owned slot does
-			// not (its release is the durable proof — change 0446), so the nil
-			// observer is exercised through the participant pass.
+			// The nil observer is exercised through the participant pass.
 			must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: "raw-run", NativeHandle: "exec-1"}))
 			s := fx.seams()
 			s.observer = nil
@@ -220,29 +173,15 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObli
 			}))
 			return fx.seams(), fx.repo, fx.key, fx.runID, fx.worktree
 		}},
-		{"owned-slot-not-released", "slot-not-released", func(t *testing.T) (cancelSeams, string, string, string, string) {
-			base := newCancelFixture(t, true) // slot left executing (not released)
-			registerDoneCoordinator(t, base.repo, base.key, base.runID)
-			return permissiveSeams(base.store), base.repo, base.key, base.runID, base.worktree
-		}},
-		{"unowned-slot", "slot-ownership-unresolved", func(t *testing.T) (cancelSeams, string, string, string, string) {
-			base := newCancelFixture(t, false) // no run-owned slot; worktree bound
-			// A no-run-record EXECUTING slot not linked to any registered participant.
-			tok, err := base.store.ReserveRawWorktreeExecution(base.common, base.worktree, nil)
-			if err != nil {
-				t.Fatalf("reserve raw: %v", err)
-			}
-			if err := base.store.ConfirmWorktreeExecution(base.worktree, tok, "run-U", filepath.Join(base.worktree, "run-U")); err != nil {
-				t.Fatalf("confirm raw: %v", err)
-			}
-			registerDoneCoordinator(t, base.repo, base.key, base.runID)
-			return permissiveSeams(base.store), base.repo, base.key, base.runID, base.worktree
+		{"run-live-drive", "run-live:d7", func(t *testing.T) (cancelSeams, string, string, string, string) {
+			fx := newCompletionFixture(t)
+			fx.launchObserver.report = gatedrive.RunLaunchReport{Accounted: false, Findings: []string{"run-live:d7"}}
+			return fx.seams(), fx.repo, fx.key, fx.runID, fx.worktree
 		}},
 	}
 	for _, r := range rows {
 		t.Run(r.name, func(t *testing.T) {
-			seams, repo, key, _, worktree := r.build(t)
-			slotRunBefore := loadSlotRun(t, seams.store, worktree)
+			seams, repo, key, _, _ := r.build(t)
 			ok, reason, findings := completeSuccessfulRun(seams, repo, key)
 			if ok {
 				t.Fatalf("closed out with an unsettled obligation")
@@ -256,39 +195,7 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObli
 			if st := loadRunState(t, repo, key); st != RunCompleting {
 				t.Fatalf("run state = %q, want completing (success fence held)", st)
 			}
-			if epo := loadSlotRun(t, seams.store, worktree); epo != slotRunBefore {
-				t.Fatalf("blocked closeout touched the slot: RunID %q -> %q", slotRunBefore, epo)
-			}
 		})
-	}
-}
-
-// TestIntegrationRunCompletionCompleteSuccessfulRunSkipsObservingNonReleasedOwnedSlot isolates step (3)'s
-// slot-released guard from retirement's own slot-not-released check (defense in
-// depth): a non-released owned slot is refused BEFORE its process is observed, so a
-// live slot is never probed as if it were settled. Retirement independently refuses a
-// non-released owned slot with the same finding, so this observation-order assertion
-// is what pins the EARLY guard as load-bearing rather than decoration.
-func TestIntegrationRunCompletionCompleteSuccessfulRunSkipsObservingNonReleasedOwnedSlot(t *testing.T) {
-	base := newCancelFixture(t, true) // run-owned slot left EXECUTING (not released)
-	must(t, RegisterRunParticipant(base.repo, base.key, base.runID,
-		RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-	must(t, RecordRunParticipantTerminal(base.repo, base.key, base.runID,
-		"turn-1", "t1", ParticipantTerminalCompleted))
-	observer := &fakeProcessObserver{defaultProven: true}
-	seams := cancelSeams{store: base.store, observer: observer,
-		launchObserver: &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}}}
-	ok, reason, findings := completeSuccessfulRun(seams, base.repo, base.key)
-	if ok {
-		t.Fatal("closed out over a non-released owned slot")
-	}
-	if reason != "completion-unaccounted" || !hasFinding(findings, "slot-not-released") {
-		t.Fatalf("reason=%q findings=%v, want completion-unaccounted + slot-not-released", reason, findings)
-	}
-	for _, c := range observer.calls {
-		if c == base.runDir {
-			t.Fatalf("a non-released owned slot's process was observed (%q); the released guard must short-circuit first", c)
-		}
 	}
 }
 
@@ -335,13 +242,12 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunSendsNoStops(t *testing.T)
 }
 
 // TestIntegrationRunCompletionCompleteSuccessfulRunLateParticipantBlocks (AC3 "late participant"): a
-// participant appended after the accounting snapshot but before retirement is caught
-// by re-enumeration, blocking the closeout.
+// participant appended after the accounting snapshot but before the completing
+// write is caught by re-enumeration, blocking the closeout.
 func TestIntegrationRunCompletionCompleteSuccessfulRunLateParticipantBlocks(t *testing.T) {
 	fx := newCompletionFixture(t)
-	// The observer proves the slot's own run terminal but nothing else.
+	// The observer proves no execution terminal.
 	fx.observer.defaultProven = false
-	fx.observer.proven = map[string]bool{fx.runDir: true}
 	// During the accounting pass's launch observation, a pre-fence launch registers a
 	// terminal-unproven execution participant directly (the completing fence would
 	// refuse the normal registration path — this stands in for that race).
@@ -366,16 +272,12 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunLateParticipantBlocks(t *t
 	}
 }
 
-// TestIntegrationRunCompletionCompleteSuccessfulRunReplayAfterRetireBeforeComplete (AC6 "interruption
-// before/after slot retirement"): a crash between the slot retirement and the
-// completing→completed CAS leaves the slot already detached and the run still
-// completing; a replay accepts the safe prior detachment and finishes to completed.
-func TestIntegrationRunCompletionCompleteSuccessfulRunReplayAfterRetireBeforeComplete(t *testing.T) {
+// TestIntegrationRunCompletionCompleteSuccessfulRunReplayBeforeCompleteConverges
+// (AC6 "interruption before the completing write"): a crash before the
+// completing→completed CAS leaves the run completing; a replay re-proves the
+// obligations and finishes to completed.
+func TestIntegrationRunCompletionCompleteSuccessfulRunReplayBeforeCompleteConverges(t *testing.T) {
 	fx := newCompletionFixture(t)
-	token := slotReservationToken(t, fx.store, fx.worktree)
-	if err := fx.store.RetireWorktreeExecutionRun(fx.worktree, fx.runID, token); err != nil {
-		t.Fatalf("out-of-band retire: %v", err)
-	}
 	forceRunState(t, fx.repo, fx.key, RunCompleting)
 	ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key)
 	if !ok {
@@ -384,115 +286,32 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunReplayAfterRetireBeforeCom
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
 		t.Fatalf("run state = %q, want completed", st)
 	}
-	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-		t.Fatalf("slot run = %q, want still cleared", epo)
-	}
 }
 
-// TestIntegrationRunCompletionCompleteSuccessfulRunForeignSuccessorUntouched (AC5/AC6 successor protection): a
-// slot carrying a DIFFERENT nonempty RunID (a successor that reserved after safe
-// detachment) is left untouched, and the closeout still completes.
-func TestIntegrationRunCompletionCompleteSuccessfulRunForeignSuccessorUntouched(t *testing.T) {
-	base := newCancelFixture(t, false) // no run-owned slot; worktree bound
-	if _, err := base.store.ReserveWorktreeExecutionForRun(base.common, base.worktree, "successor-run", nil); err != nil {
-		t.Fatalf("successor reserve: %v", err)
-	}
-	must(t, RegisterRunParticipant(base.repo, base.key, base.runID, RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-	must(t, RecordRunParticipantTerminal(base.repo, base.key, base.runID, "turn-1", "t1", ParticipantTerminalCompleted))
-	seams := cancelSeams{store: base.store,
-		observer:       &fakeProcessObserver{defaultProven: true},
-		launchObserver: &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}}}
-	ok, reason, findings := completeSuccessfulRun(seams, base.repo, base.key)
-	if !ok {
-		t.Fatalf("ok=false reason=%q findings=%v", reason, findings)
-	}
-	if st := loadRunState(t, base.repo, base.key); st != RunCompleted {
-		t.Fatalf("run state = %q, want completed", st)
-	}
-	if epo := loadSlotRun(t, base.store, base.worktree); epo != "successor-run" {
-		t.Fatalf("successor slot run = %q, want untouched successor-run", epo)
-	}
-	if st := loadSlotState(t, base.store, base.worktree); st != "reserved" {
-		t.Fatalf("successor slot state = %q, want reserved (untouched)", st)
-	}
-}
-
-// TestIntegrationRunCompletionStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout is AC1/AC2's
-// end-to-end integration pin: a standalone finalize gate's worktree admission is
-// REFUSED before the successful closeout and ADMITTED after it, at the exact
-// admission shape the finalize path composes (GateLaunch reserves via the store's
-// standalone entrypoint ReserveRawWorktreeExecution). Before closeout the released
-// but still run-owned slot presents the finalize gate's empty run to the
-// reserveWorktreeExecution "RunID != rec.RunID" fence and is refused
-// ErrStaleRunID (omission cannot detach a workflow-owned worktree). After
-// completeSuccessfulRun retires the slot the same no-run-record reservation admits, and
-// a following admitWorkflowMutation on the worktree is unfenced (a usable done
-// callback) — proving later workflow mutations on that worktree are not trapped by
-// the retired run.
-func TestIntegrationRunCompletionStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout(t *testing.T) {
+// TestIntegrationRunCompletionCloseoutLeavesLaterMutationsUnfenced (AC1/AC2): after
+// the successful closeout a workflow mutation on the run's worktree is unfenced —
+// the completed run no longer owns it, so admitWorkflowMutation returns a usable
+// done callback — proving later workflow mutations on that worktree are not trapped
+// by the finished run.
+func TestIntegrationRunCompletionCloseoutLeavesLaterMutationsUnfenced(t *testing.T) {
 	fx := newCompletionFixture(t)
-
-	// BEFORE closeout: the standalone finalize gate's admission shape presents an
-	// empty run to a slot the run still owns (released, between drives) and is
-	// refused stale-run-id.
-	if _, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil); func() bool {
-		oe, ok := gatedrive.AsOwnershipError(err)
-		return !ok || oe.Kind != gatedrive.ErrStaleRunID
-	}() {
-		t.Fatalf("before closeout: raw reserve must refuse stale-run-id, got %v", err)
-	}
-
-	// Close out the verified successful run.
 	if ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key); !ok {
 		t.Fatalf("closeout ok=false reason=%q findings=%v", reason, findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
 		t.Fatalf("run state = %q, want completed", st)
 	}
-
-	// AFTER closeout: the same no-run-record reservation now admits (the slot was
-	// detached from its retired run); release it back so the worktree is idle.
-	token, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
-	if err != nil {
-		t.Fatalf("after closeout: raw reserve must admit, got %v", err)
-	}
-	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, token); err != nil {
-		t.Fatalf("release standalone reservation: %v", err)
-	}
-
-	// A subsequent workflow mutation on the worktree is unfenced: the retired run no
-	// longer owns it, so admitWorkflowMutation returns a usable done callback.
 	done, err := admitWorkflowMutation(fx.worktree, "pr.publish", nil)
 	if err != nil || done == nil {
 		t.Fatalf("admitWorkflowMutation after closeout: done=%v err=%v, want a usable callback", done, err)
 	}
 	done(mutationStatusCompleted, false)
-}
-
-// TestIntegrationRunCompletionOrdinaryReleaseStillRetainsRunBetweenDrives is AC8's ordinary-release fence
-// probe: ReleaseWorktreeExecution on a run-owned slot leaves RunID intact, so
-// a foreign/no-run-record reserve BETWEEN drives is still refused ErrStaleRunID. Only
-// the attributed successful closeout (or an explicit cancellation) detaches the run;
-// a plain between-drives release never does. This pins the fence the change must NOT
-// weaken.
-func TestIntegrationRunCompletionOrdinaryReleaseStillRetainsRunBetweenDrives(t *testing.T) {
-	fx := newCancelFixture(t, true) // confirmed run-owned slot
-	token := slotReservationToken(t, fx.store, fx.worktree)
-	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, token); err != nil {
-		t.Fatalf("release: %v", err)
+	ep, _, err := LoadRunRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
-	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != fx.runID {
-		t.Fatalf("released slot RunID = %q, want retained %q", epo, fx.runID)
-	}
-	if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
-		t.Fatalf("slot state = %q, want released", st)
-	}
-	// A between-drives foreign (no-run-record) reserve is still fenced.
-	if _, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil); func() bool {
-		oe, ok := gatedrive.AsOwnershipError(err)
-		return !ok || oe.Kind != gatedrive.ErrStaleRunID
-	}() {
-		t.Fatalf("foreign reserve between drives must refuse stale-run-id, got %v", err)
+	if len(ep.AdmittedMutations) != 0 {
+		t.Fatalf("the completed run journaled a later mutation: %+v", ep.AdmittedMutations)
 	}
 }
 
@@ -543,10 +362,10 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunDoesNotDuplicateFindings(t
 }
 
 // --- change 0446 Task 8: durable completion facts survive scratch cleanup (spec §5,
-// AC6). A released owned slot, an exact matching released slot, or a persisted
-// PASSED/FAILED drive record is the sufficient durable proof of an execution's
-// teardown; deleting the run's optional scratch directory must not reopen it. HALTED
-// is never that proof, and the absence of any durable record still blocks. ---
+// AC6). A persisted PASSED/FAILED drive record is the sufficient durable proof of an
+// execution's teardown; deleting the run's optional scratch directory must not
+// reopen it. HALTED is never that proof, and the absence of any durable record
+// still blocks. ---
 
 // errScratchGone stands in for the production observer's failure on a run whose
 // scratch directory was removed: process.Observe cannot read what no longer exists.
@@ -594,57 +413,11 @@ func seedDriveRecord(t *testing.T, common, id, worktree, runDir string, outcome 
 	}
 }
 
-// TestIntegrationRunCompletionCompletionSlotReleasedOwnedNoReobservation: a RELEASED slot this run owns is
-// itself the durable proof of that slot's execution. Its run directory has been
-// deleted (scratch cleanup), so re-observing the process could only fail — and the
-// closeout must not reopen it: the slot leg is accounted and the observer is never
-// asked about the slot's run. Before the fix the re-observation turned the deleted
-// scratch into a process-unobserved blocker.
-func TestIntegrationRunCompletionCompletionSlotReleasedOwnedNoReobservation(t *testing.T) {
-	fx := newCompletionFixture(t)
-	if _, err := os.Stat(fx.runDir); !os.IsNotExist(err) {
-		t.Fatalf("precondition: the slot's run dir %q must be absent (err=%v)", fx.runDir, err)
-	}
-	observer := &scratchObserver{}
-	seams := fx.seams()
-	seams.observer = observer
-
-	blocked, findings := accountCompletionSlot(seams, RunRecord{RunID: fx.runID, Worktree: fx.worktree})
-	if blocked {
-		t.Fatalf("a released owned slot blocked on deleted scratch: findings=%v", findings)
-	}
-	if len(observer.calls) != 0 {
-		t.Fatalf("the released owned slot's run was re-observed: %v", observer.calls)
-	}
-
-	ok, reason, cfindings := completeSuccessfulRun(seams, fx.repo, fx.key)
-	if !ok {
-		t.Fatalf("closeout ok=false reason=%q findings=%v", reason, cfindings)
-	}
-	if len(observer.calls) != 0 {
-		t.Fatalf("closeout re-observed a run after scratch cleanup: %v", observer.calls)
-	}
-}
-
-// TestIntegrationRunCompletionCompletionUnreleasedOwnedSlotStillBlocks: an owned slot still EXECUTING is a
-// live obligation — no durable release exists, so the slot leg blocks
-// slot-not-released exactly as before (unchanged safety).
-func TestIntegrationRunCompletionCompletionUnreleasedOwnedSlotStillBlocks(t *testing.T) {
-	base := newCancelFixture(t, true) // run-owned slot left executing
-	seams := cancelSeams{store: base.store, observer: &scratchObserver{},
-		launchObserver: &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}}}
-	blocked, findings := accountCompletionSlot(seams, RunRecord{RunID: base.runID, Worktree: base.worktree})
-	if !blocked || !hasFinding(findings, "slot-not-released") {
-		t.Fatalf("blocked=%v findings=%v, want blocked slot-not-released", blocked, findings)
-	}
-}
-
 // TestIntegrationRunCompletionCompletionParticipantDurableProof: an execution participant whose direct
 // observation fails because its scratch is gone is accounted by an EXACT matching
-// durable record — the released slot recording that run, or the one persisted
-// PASSED/FAILED drive naming it. HALTED, a missing record, an ambiguous record, a
-// released slot recording a different run, an unreleased slot, and a live
-// observation all keep it blocking.
+// durable record — the one persisted PASSED/FAILED drive naming it. HALTED, a
+// missing record, an ambiguous record, and a live observation all keep it
+// blocking.
 func TestIntegrationRunCompletionCompletionParticipantDurableProof(t *testing.T) {
 	const (
 		idA = "0446cccccccccccccccccccccccccc01"
@@ -661,9 +434,6 @@ func TestIntegrationRunCompletionCompletionParticipantDurableProof(t *testing.T)
 		blocked bool
 		build   setup
 	}{
-		{"released slot records the run", false, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
-			return fx.runDir, gone(fx)
-		}},
 		{"persisted PASSED drive", false, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
 			h := filepath.Join(fx.worktree, "run-P")
 			seedDriveRecord(t, fx.common, idA, fx.worktree, h, gatedrive.PASSED)
@@ -693,9 +463,6 @@ func TestIntegrationRunCompletionCompletionParticipantDurableProof(t *testing.T)
 			seedDriveRecord(t, fx.common, idB, fx.worktree, h, gatedrive.PASSED)
 			return h, gone(fx)
 		}},
-		{"released slot records a different run", true, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
-			return filepath.Join(fx.worktree, "run-other"), gone(fx)
-		}},
 		{"live observation contradicts a PASSED record", true, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
 			h := filepath.Join(fx.worktree, "run-L")
 			seedDriveRecord(t, fx.common, idA, fx.worktree, h, gatedrive.PASSED)
@@ -719,30 +486,22 @@ func TestIntegrationRunCompletionCompletionParticipantDurableProof(t *testing.T)
 			}
 		})
 	}
-
-	t.Run("unreleased slot recording the run", func(t *testing.T) {
-		base := newCancelFixture(t, true) // slot still executing base.runDir
-		seams := cancelSeams{store: base.store, observer: &fakeProcessObserver{err: errScratchGone}}
-		ep := RunRecord{RunID: base.runID, Worktree: base.worktree,
-			Participants: []RunParticipant{{Kind: participantKindGateScope, NativeHandle: base.runDir}}}
-		if blocked, findings := accountCompletionParticipants(seams, ep); !blocked {
-			t.Fatalf("an unreleased slot was accepted as execution proof: findings=%v", findings)
-		}
-	})
 }
 
 // TestIntegrationRunCompletionCompleteThenScratchCleanupThenFinalizeAdmits (AC6): a successful run whose
 // first closeout was held by an in-flight mutation has its optional scratch removed
-// before the closeout is repeated; the repeat still completes on the durable release
-// facts. Then — with a cancelled, never-superseded predecessor run bound to the
-// same path in a directory that sorts first, and unrelated damaged drive and run
-// history present — the finalize gate's admission on that worktree, composed exactly
-// as GateLaunch composes it, admits.
+// before the closeout is repeated; the repeat still completes on the durable fact
+// that its gate's drive PASSED. Then — with a cancelled, never-superseded
+// predecessor run bound to the same path in a directory that sorts first, and
+// unrelated damaged drive and run history present — the worktree's lock, the one
+// admission every gate start (finalize's included) takes, is free.
 func TestIntegrationRunCompletionCompleteThenScratchCleanupThenFinalizeAdmits(t *testing.T) {
 	fx := newCompletionFixture(t)
 	if err := os.MkdirAll(fx.runDir, 0o755); err != nil {
 		t.Fatalf("create the run's scratch: %v", err)
 	}
+	// The run's gate drive PASSED, naming the run's scratch as its run dir.
+	seedDriveRecord(t, fx.common, "0446cccccccccccccccccccccccccc09", fx.worktree, fx.runDir, gatedrive.PASSED)
 	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
 		RunParticipant{Kind: participantKindGateScope, NativeHandle: fx.runDir}))
 	seams := fx.seams()
@@ -784,16 +543,16 @@ func TestIntegrationRunCompletionCompleteThenScratchCleanupThenFinalizeAdmits(t 
 		t.Fatal(err)
 	}
 
-	// Finalize's gate admission, composed as GateLaunch composes it.
-	store := gatedrive.OpenStore(fx.common)
-	store.SetRunSettledResolver(runSettledResolver(fx.common))
-	token, err := store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
+	// Finalize's gate admission is the worktree lock on the canonical root.
+	root, store, ok := resolveWorktreeAdmission(fx.worktree)
+	if !ok {
+		t.Fatal("resolveWorktreeAdmission: the fixture worktree did not resolve")
+	}
+	lock, err := store.TryWorktreeLock(root, nil)
 	if err != nil {
 		t.Fatalf("finalize gate admission on the completed worktree refused: %v", err)
 	}
-	if err := store.ReleaseWorktreeExecution(fx.worktree, token); err != nil {
-		t.Fatalf("release finalize reservation: %v", err)
-	}
+	lock.Release()
 }
 
 // TestIntegrationRunCompletionCompleteSuccessfulRunSettlesUncertainPublication (change 0444 acceptance 3): the
@@ -921,7 +680,7 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnUnverifiedRetry(t 
 // these same predicates). Settlement is a write, and only cancellation and the
 // attributed keyed closeout may write.
 func TestIntegrationRunCompletionReadOnlyPathsNeverSettle(t *testing.T) {
-	fx := newCancelFixture(t, false)
+	fx := newCancelFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
@@ -944,11 +703,11 @@ func TestIntegrationRunCompletionReadOnlyPathsNeverSettle(t *testing.T) {
 		t.Fatalf("LoadRunRecord: %v", lerr)
 	}
 	seams := cancelSeams{launches: okLaunchReconciler()}
-	if _, quiescent, vf := verifyTerminalRunQuiescence(seams, fx.repo, ep, fx.worktree); quiescent ||
+	if quiescent, vf := verifyTerminalRunQuiescence(seams, fx.repo, ep); quiescent ||
 		!hasFinding(vf, "mutation-pending:"+OperationWorkspacePublish) {
 		t.Fatalf("verifyTerminalRunQuiescence = %v %v, want the unsettled entry reported pending", quiescent, vf)
 	}
-	if rok, detail := validateResumeQuiescence(seams, fx.repo, ep, fx.worktree); rok {
+	if rok, detail := validateResumeQuiescence(seams, fx.repo, ep); rok {
 		t.Fatalf("validateResumeQuiescence ok (detail %q), want the unsettled entry to block", detail)
 	}
 	after, err := os.ReadFile(recPath)

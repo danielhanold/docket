@@ -21,7 +21,7 @@ import (
 // descriptor persists it verbatim in the journal entry (schema v1, additive field);
 // an existing entry WITHOUT the field still decodes (legacy compatibility).
 func TestIntegrationRunCompletionAdmissionJournalsPublicationDescriptorAndLegacyDecodes(t *testing.T) {
-	fx := newCancelFixture(t, false) // active run bound to the fixture worktree
+	fx := newCancelFixture(t) // active run bound to the fixture worktree
 	pub := &MutationPublication{
 		RepoHost: "github.com", RepoOwner: "o", RepoName: "r",
 		HeadRef: "fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -75,7 +75,7 @@ func TestIntegrationRunCompletionAdmissionJournalsPublicationDescriptorAndLegacy
 // uncertain completion is never persisted; and a legacy completed entry decoded
 // without the field is unverified.
 func TestIntegrationRunCompletionJournaledRetryOutcomeGatesSettlement(t *testing.T) {
-	fx := newCancelFixture(t, false)
+	fx := newCancelFixture(t)
 	cases := []struct {
 		r      Result
 		settle bool
@@ -153,7 +153,7 @@ func TestIntegrationRunCompletionJournaledRetryOutcomeGatesSettlement(t *testing
 // run lock, flips ONLY matched originals uncertain→completed, is idempotent, and
 // never touches unmatched entries, participants, or run state.
 func TestIntegrationRunCompletionSettleUncertainPublicationsDurable(t *testing.T) {
-	fx := newCancelFixture(t, false)
+	fx := newCancelFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	participant := RunParticipant{Kind: "task", NativeHandle: "handle-1", RegisteredAt: "2026-09-23T00:00:00Z"}
@@ -231,7 +231,7 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsDurable(t *testing.T
 // TestIntegrationRunCompletionSettleUncertainPublicationsFailureIsBoundedFinding: an unreadable run is a
 // bounded finding, never a panic and never a fabricated settlement.
 func TestIntegrationRunCompletionSettleUncertainPublicationsFailureIsBoundedFinding(t *testing.T) {
-	fx := newCancelFixture(t, false)
+	fx := newCancelFixture(t)
 	// Corrupt the record so the CAS read fails closed.
 	dir := filepath.Join(fx.common, "docket", runTrackerDirName, fx.key)
 	if err := os.WriteFile(filepath.Join(dir, runRecordFileName), []byte("{not json"), 0o600); err != nil {
@@ -254,7 +254,7 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsWriteFailureReportsN
 	if os.Geteuid() == 0 {
 		t.Skip("root ignores directory write permission")
 	}
-	fx := newCancelFixture(t, false)
+	fx := newCancelFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
@@ -301,7 +301,7 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsWriteFailureReportsN
 // re-derives its matches from the fresh record under the lock.
 // Race shard (change 0465): eight settlements race the retry completion callback and four fresh admissions per round.
 func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallback(t *testing.T) {
-	fx := newCancelFixture(t, false)
+	fx := newCancelFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	other := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
@@ -507,7 +507,7 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root ignores directory write permission")
 	}
-	fx := newCancelFixture(t, true)
+	fx := newCancelFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
@@ -519,6 +519,9 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
+	// The run's registered execution: its process stop is the mid-teardown hook (b)
+	// turns the store unwritable from.
+	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
 	// A read-only key dir still lets the CAS lock and read, but the same-directory
 	// temp file cannot be created, so every run write fails.
 	dir := filepath.Join(fx.common, "docket", runTrackerDirName, fx.key)
@@ -554,7 +557,7 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	}
 
 	// (b) Interrupted between the fence and the settlement: the fence lands, then
-	// the store turns unwritable during teardown (the process stop), so ONLY the
+	// the store turns unwritable during teardown (the participant's process stop), so ONLY the
 	// settlement write fails. Cancellation must stay pending with the bounded
 	// finding, report no settlement, and leave the entry uncertain.
 	stopper.onStop = func(string) {

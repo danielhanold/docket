@@ -23,7 +23,6 @@ func TestClassifyRunIDError(t *testing.T) {
 		{ErrRunAmbiguous, ResultInvalidInput, "run-ambiguous"},
 		{ErrRunNotActive, ResultInvalidInput, "run-not-active"},
 		{ErrRunOwnerAmbiguous, ResultInvalidInput, "run-owner-ambiguous"},
-		{ErrRunOwnerUnresolved, ResultInvalidInput, "run-owner-unresolved"},
 		{ErrRunRecordCorrupt, ResultInternalError, "run-record-corrupt"},
 		{ErrRunRecordIO, ResultInternalError, "run-record-io"},
 	}

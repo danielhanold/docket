@@ -235,18 +235,16 @@ func mapAdmissionFailure(err error) (Result, string) {
 	return ResultInternalError, "admission-failed"
 }
 
-// rawTeardownProven reports whether a run state proves its process group is gone,
-// as the run tracker's participant stop and closeout observer read it
-// (appGateStopper, appGateObserver): a passed, failed, stopped, or vanished run is
-// proven; a signalled run is NOT (its group may still hold descendants), and a
-// running run is obviously not.
-func rawTeardownProven(st process.State) bool {
-	switch st {
-	case process.StatePassed, process.StateFailed, process.StateStopped, process.StateVanished:
-		return true
-	default:
-		return false
-	}
+// supervisorGone reports whether a run state proves the run's supervisor is gone —
+// the worktree lock model's teardown proof (change 0490), as the run tracker's
+// participant stop and closeout observer read it (appGateStopper,
+// appGateObserver). Every state but running proves it: passed, failed, signaled,
+// stopped, and vanished all mean no live supervisor holds the run (and with it the
+// worktree's lock). The process-tree gaps that leaves — a suite outliving a
+// supervisor that died alone — are the spec's accepted losses, tracked by change
+// 0492.
+func supervisorGone(st process.State) bool {
+	return st != process.StateRunning
 }
 
 // GateObserve reports a run's state through the read-only observe decision.

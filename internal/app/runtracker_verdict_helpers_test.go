@@ -102,7 +102,8 @@ func runTrackerRetryMarkerExists(t *testing.T, repoDir, key string) bool {
 }
 
 // verdictCompletionFixture is one prepared run whose keyed verdict verifies
-// run-complete AND whose run ownership is ready to close out.
+// run-complete AND whose run is ready to close out: a terminal coordinator and an
+// accounted launch census.
 type verdictCompletionFixture struct {
 	repo, key, runID, worktree string
 	store                      *gatedrive.Store
@@ -156,26 +157,10 @@ func newVerdictCompletionFixture(t *testing.T) verdictCompletionFixture {
 	}); err != nil {
 		t.Fatalf("runRecordCAS set worktree: %v", err)
 	}
+	// The run's drives are done: the closeout's observe-only census (faked here by
+	// launchObserver, accounted) finds nothing live, and no worktree record exists to
+	// retire (change 0490).
 	store := gatedrive.OpenStore(common)
-	// A released run-owned slot (the run's drives are done) is exactly what the
-	// closeout retires — reserve+confirm+release, mirroring the cancel/completion
-	// fixtures. Release retains RunID (between-drive ownership), so the slot is
-	// slotOwned+released until the closeout detaches it.
-	runDir := filepath.Join(worktree, "run-1")
-	token, terr := store.ReserveWorktreeExecutionForRun(common, worktree, ep.RunID, nil)
-	if terr != nil {
-		t.Fatalf("ReserveWorktreeExecutionForRun: %v", terr)
-	}
-	if cerr := store.ConfirmWorktreeExecution(worktree, token, "run-1", runDir); cerr != nil {
-		t.Fatalf("ConfirmWorktreeExecution: %v", cerr)
-	}
-	slot, _, lerr := store.LoadWorktreeExecution(worktree)
-	if lerr != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", lerr)
-	}
-	if rerr := store.ReleaseWorktreeExecution(worktree, slot.ReservationToken); rerr != nil {
-		t.Fatalf("ReleaseWorktreeExecution: %v", rerr)
-	}
 	must(t, RegisterRunParticipant(repo, key, ep.RunID,
 		RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
 	must(t, RecordRunParticipantTerminal(repo, key, ep.RunID,

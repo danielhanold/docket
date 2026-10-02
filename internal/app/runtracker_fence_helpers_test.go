@@ -15,11 +15,8 @@ import (
 // the run at key: a genuinely owned in-flight effect, which keeps the successful-run
 // closeout (change 0441) fail-closed with mutation-pending. The two verdict recovery
 // tests in runtracker_fence_integration_test.go use it to hold their run at
-// completing so a later explicit cancellation is meaningful. They formerly relied on the ABSENT feature directory
-// making the slot unreadable; change 0446 (spec §2) addresses a slot through its
-// stored identity, so a never-reserved slot now reads as truly absent (safely
-// detached) and the closeout would legitimately complete — an absent directory is not
-// an obligation, an owned pending mutation is.
+// completing so a later explicit cancellation is meaningful: an absent feature
+// directory is not an obligation, an owned pending mutation is.
 func seedPendingRunMutation(t *testing.T, repo, key string) {
 	t.Helper()
 	if err := runRecordCAS(repo, key, func(r *RunRecord) error {

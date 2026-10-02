@@ -1046,18 +1046,17 @@ func TestIntegrationRunVerdictVerdictOwnershipIgnoresBeforeSetAndRun(t *testing.
 // --- successful-run ownership closeout on a keyed run-complete (change 0441) ------
 //
 // A verified keyed run-complete now additionally drives the run-ownership closeout
-// (runTrackerCompleteRun → completeSuccessfulRun) so a standalone finalize gate can admit on
-// the same worktree. These tests wire Task 7's completion shape UNDER the key the
-// verdict loads: the run-verify fixture drives RunVerify to run-complete for change 3,
-// a confirmed binding + matching proof resolve ownership, and an active run bound to
-// a released run-owned slot (with a terminal-recorded coordinator participant and
-// permissive observation seams) is the ownership the closeout retires. The
+// (runTrackerCompleteRun → completeSuccessfulRun). These tests wire Task 7's completion
+// shape UNDER the key the verdict loads: the run-verify fixture drives RunVerify to
+// run-complete for change 3, a confirmed binding + matching proof resolve ownership,
+// and an active run bound to a worktree (with a terminal-recorded coordinator
+// participant and permissive observation seams) is the run the closeout completes. The
 // keyless/standalone/legacy shape (no run beside the record) keeps EXACTLY the prior
 // behavior, and unattributed observe mode never touches ownership.
 
 // TestIntegrationRunVerdictVerdictRunCompleteClosesOutRunOwnership: a keyed run-complete drives the
-// closeout — run-done run-complete, the run is completed, and the slot's RunID
-// is cleared so a standalone finalize gate can admit.
+// closeout — run-done run-complete, the run is completed, and its drives were
+// observed through the census for the run's context hash.
 func TestIntegrationRunVerdictVerdictRunCompleteClosesOutRunOwnership(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	res := RunVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
@@ -1067,12 +1066,8 @@ func TestIntegrationRunVerdictVerdictRunCompleteClosesOutRunOwnership(t *testing
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
 		t.Fatalf("run state = %q, want completed", st)
 	}
-	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
-	if err != nil {
-		t.Fatalf("load slot: %v", err)
-	}
-	if slot.RunID != "" {
-		t.Fatalf("slot RunID = %q, want cleared", slot.RunID)
+	if calls := fx.launchObserver.calls; len(calls) != 1 || calls[0] != "ha" {
+		t.Fatalf("census calls = %v, want [ha] (the run's context hash)", calls)
 	}
 }
 
@@ -1112,9 +1107,7 @@ func TestIntegrationRunVerdictVerdictRunCompleteWithoutRunUnchanged(t *testing.T
 // (a registered execution participant whose run is observed live) blocks the
 // closeout — run-stop run-tracker-unavailable completion-unaccounted with diagnostic
 // findings, the run stays completing (the fence holds), and no retry is spent (AC2
-// budget preservation). The released owned slot itself is NOT that obligation: its
-// release is the durable proof of its run (change 0446 spec §5), so it is never
-// re-observed.
+// budget preservation).
 func TestIntegrationRunVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
@@ -1195,19 +1188,15 @@ func TestIntegrationRunVerdictVerdictRunCompleteReportPersistFailureIsReported(t
 }
 
 // TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership: the unattributed observe path over the
-// same run-backed complete fixture leaves the run and slot byte-identical (AC5) —
-// it holds no key, drives no closeout, and renders the plain observe run-complete line.
+// same run-backed complete fixture leaves the run byte-identical (AC5) — it holds
+// no key, drives no closeout (not even the observe-only census), and renders the
+// plain observe run-complete line.
 func TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	_, genBefore, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
 		t.Fatalf("load run before: %v", err)
 	}
-	slotBefore, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
-	if err != nil {
-		t.Fatalf("load slot before: %v", err)
-	}
-
 	res := RunVerdictObserve(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, []string{"3"})
 	if got, want := res.HumanText(), "run-observe run-complete 3"; got != want {
 		t.Fatalf("observe HumanText = %q, want %q", got, want)
@@ -1220,13 +1209,8 @@ func TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership(t *testing
 	if genAfter != genBefore {
 		t.Fatalf("observe mode wrote the run: generation %q -> %q", genBefore, genAfter)
 	}
-	slotAfter, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
-	if err != nil {
-		t.Fatalf("load slot after: %v", err)
-	}
-	if slotAfter.RunID != slotBefore.RunID || slotAfter.State != slotBefore.State {
-		t.Fatalf("observe mode mutated the slot: before {RunID:%q State:%q} after {RunID:%q State:%q}",
-			slotBefore.RunID, slotBefore.State, slotAfter.RunID, slotAfter.State)
+	if len(fx.launchObserver.calls) != 0 {
+		t.Fatalf("observe mode ran the closeout census: %v", fx.launchObserver.calls)
 	}
 }
 

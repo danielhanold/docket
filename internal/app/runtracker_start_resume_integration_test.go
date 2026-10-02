@@ -326,88 +326,64 @@ func countRunRecords(t *testing.T, repoDir string) int {
 	return n
 }
 
-// seedResumeSlot binds the prior run's Worktree to a fresh real directory and
-// reserves a RELEASED worktree slot there owned by ownerRun, returning the common
-// dir, the store, and the bound worktree. The slot-bearing resume-quiescence tests
-// (change 0435) use it: the run's Worktree must be the same directory the slot is
-// reserved for, mirroring the cancel fixture's runRecordCAS worktree bind.
-func seedResumeSlot(t *testing.T, repoDir, priorKey, ownerRun string) (common string, store *gatedrive.Store, worktree string) {
-	t.Helper()
-	common, err := runTrackerGitCommonDir(repoDir)
-	if err != nil {
-		t.Fatalf("runTrackerGitCommonDir: %v", err)
+// TestIntegrationRunStartResumeDeniedWhileOldRunNotQuiescent (AC6/AC7): a durably cancelled run
+// whose launch evidence is still unsettled — a busy drive claim, or a drive of the
+// predecessor whose supervisor still runs after the census's stop — cannot
+// authorize a replacement: the start refuses on the existing run-untracked channel
+// (ReasonRunResumeCancellationPending), mints no record, reserves no replacement,
+// and leaves the old run cancelled.
+func TestIntegrationRunStartResumeDeniedWhileOldRunNotQuiescent(t *testing.T) {
+	for _, finding := range []string{"claim-busy:d1", "run-live:d1"} {
+		t.Run(finding, func(t *testing.T) {
+			repoDir := newWorkingRepo(t, nil).invocation
+			priorKey, _ := seedPriorRun(t, repoDir, RunCancelled)
+
+			deps, wdeps := resumeRunDeps(t)
+			sp := &fakeScopePrep{grant: sampleScopeGrant()}
+			d := sp.deps()
+			d.CancelSeams = func(string) cancelSeams {
+				return cancelSeams{launches: &fakeLaunchReconciler{report: gatedrive.RunLaunchReport{
+					Accounted: false, Findings: []string{finding}}}}
+			}
+			res := RunStart(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
+			if res.Started {
+				t.Fatalf("resume started over a non-quiescent old run: %q", res.HumanText())
+			}
+			if res.Reason != ReasonRunResumeCancellationPending {
+				t.Fatalf("Reason = %q, want %q", res.Reason, ReasonRunResumeCancellationPending)
+			}
+			if !strings.Contains(res.Message, finding) {
+				t.Fatalf("Message must carry the unresolved finding, got %q", res.Message)
+			}
+			if res.Key != "" || sp.calls != 0 {
+				t.Fatalf("a denied resume must mint no record and prepare no scope: key=%q calls=%d", res.Key, sp.calls)
+			}
+			prior, _, err := LoadRunRecord(repoDir, priorKey)
+			if err != nil {
+				t.Fatalf("LoadRunRecord: %v", err)
+			}
+			if prior.State != RunCancelled {
+				t.Fatalf("denied resume must leave the old run cancelled, got %q", prior.State)
+			}
+			if prior.ReplacementReserved != "" {
+				t.Fatalf("denied resume must reserve no replacement, got %q", prior.ReplacementReserved)
+			}
+		})
 	}
-	store = gatedrive.OpenStore(common)
-	worktree = testsupport.TempDir(t)
-	if err := runRecordCAS(repoDir, priorKey, func(r *RunRecord) error {
-		r.Worktree = worktree
-		return nil
-	}); err != nil {
-		t.Fatalf("runRecordCAS bind worktree: %v", err)
-	}
-	token, err := store.ReserveWorktreeExecutionForRun(common, worktree, ownerRun, nil)
-	if err != nil {
-		t.Fatalf("ReserveWorktreeExecutionForRun: %v", err)
-	}
-	if err := store.ConfirmWorktreeExecution(worktree, token, "run-1", filepath.Join(worktree, "rd")); err != nil {
-		t.Fatalf("ConfirmWorktreeExecution: %v", err)
-	}
-	if err := store.ReleaseWorktreeExecution(worktree, token); err != nil {
-		t.Fatalf("ReleaseWorktreeExecution: %v", err)
-	}
-	return common, store, worktree
 }
 
-// TestIntegrationRunStartResumeDeniedWhileOldRunNotQuiescent (AC6/AC7): a durably cancelled run
-// whose launch evidence is still unsettled cannot authorize a replacement — the start
-// refuses on the existing run-untracked channel (ReasonRunResumeCancellationPending),
-// mints no record, reserves no replacement, and leaves the old run cancelled.
-func TestIntegrationRunStartResumeDeniedWhileOldRunNotQuiescent(t *testing.T) {
+// TestIntegrationRunStartResumeAfterCancelReservesOnce (AC1/AC7; change 0490): after
+// a confirmed cancel, resume re-proves the old run's quiescence through the census
+// for the old run's own context hash and then reserves EXACTLY ONE replacement, with
+// no worktree record to retire first; a repeat start observes the same key.
+func TestIntegrationRunStartResumeAfterCancelReservesOnce(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	priorKey, _ := seedPriorRun(t, repoDir, RunCancelled)
+	priorContext := stampRunContextHash(t, repoDir, priorKey, "prior-run-context")
 
-	deps, wdeps := resumeRunDeps(t)
-	sp := &fakeScopePrep{grant: sampleScopeGrant()}
-	d := sp.deps()
-	d.CancelSeams = func(string) cancelSeams {
-		return cancelSeams{launches: &fakeLaunchReconciler{report: gatedrive.RunLaunchReport{
-			Accounted: false, Findings: []string{"claim-busy:d1"}}}}
-	}
-	res := RunStart(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
-	if res.Started {
-		t.Fatalf("resume started over a non-quiescent old run: %q", res.HumanText())
-	}
-	if res.Reason != ReasonRunResumeCancellationPending {
-		t.Fatalf("Reason = %q, want %q", res.Reason, ReasonRunResumeCancellationPending)
-	}
-	if !strings.Contains(res.Message, "claim-busy:d1") {
-		t.Fatalf("Message must carry the unresolved finding, got %q", res.Message)
-	}
-	if res.Key != "" || sp.calls != 0 {
-		t.Fatalf("a denied resume must mint no record and prepare no scope: key=%q calls=%d", res.Key, sp.calls)
-	}
-	prior, _, err := LoadRunRecord(repoDir, priorKey)
-	if err != nil {
-		t.Fatalf("LoadRunRecord: %v", err)
-	}
-	if prior.State != RunCancelled {
-		t.Fatalf("denied resume must leave the old run cancelled, got %q", prior.State)
-	}
-	if prior.ReplacementReserved != "" {
-		t.Fatalf("denied resume must reserve no replacement, got %q", prior.ReplacementReserved)
-	}
-}
-
-// TestIntegrationRunStartResumeRetiresStaleSlotThenReservesOnce (AC1/AC7): a cancelled run whose
-// released slot still carries its RunID is retired by the resume validation,
-// then EXACTLY ONE replacement is reserved; a repeat start observes the same key.
-func TestIntegrationRunStartResumeRetiresStaleSlotThenReservesOnce(t *testing.T) {
-	repoDir := newWorkingRepo(t, nil).invocation
-	priorKey, runID := seedPriorRun(t, repoDir, RunCancelled)
-	_, store, worktree := seedResumeSlot(t, repoDir, priorKey, runID)
-
+	launches := okLaunchReconciler()
 	mkSeams := func(string) cancelSeams {
-		return cancelSeams{store: store, launches: okLaunchReconciler()}
+		return cancelSeams{launches: launches}
 	}
 
 	deps, wdeps := resumeRunDeps(t)
@@ -418,13 +394,8 @@ func TestIntegrationRunStartResumeRetiresStaleSlotThenReservesOnce(t *testing.T)
 	if !first.Started {
 		t.Fatalf("first resume must start the replacement: %q", first.HumanText())
 	}
-	// The stale ownership was retired: RunID cleared, state still released (the
-	// replacement's own drive reserves it later).
-	if epo := loadSlotRun(t, store, worktree); epo != "" {
-		t.Fatalf("slot RunID = %q, want cleared by resume retirement", epo)
-	}
-	if st := loadSlotState(t, store, worktree); st != "released" {
-		t.Fatalf("slot state = %q, want released", st)
+	if len(launches.calls) != 1 || launches.calls[0] != priorContext {
+		t.Fatalf("census calls = %q, want exactly [%s] (the old run's own context)", launches.calls, priorContext)
 	}
 
 	// A repeat start observes the SAME single reservation — never a second.
@@ -489,41 +460,6 @@ func TestIntegrationRunStartResumeSupersededValidatesBeforeObserve(t *testing.T)
 	}
 	if after.ReplacementReserved != reservedBefore {
 		t.Fatalf("restart must not alter the reservation: before %q after %q", reservedBefore, after.ReplacementReserved)
-	}
-}
-
-// TestIntegrationRunStartResumeForeignSlotIsNeutral (AC7): a slot owned by a DIFFERENT run neither
-// blocks nor is touched by resume — quiescent old-run evidence still admits the
-// replacement, and the foreign slot is byte-identical after.
-func TestIntegrationRunStartResumeForeignSlotIsNeutral(t *testing.T) {
-	repoDir := newWorkingRepo(t, nil).invocation
-	priorKey, _ := seedPriorRun(t, repoDir, RunCancelled)
-	_, store, worktree := seedResumeSlot(t, repoDir, priorKey, "someone-else")
-
-	beforeSlot, _, err := store.LoadWorktreeExecution(worktree)
-	if err != nil {
-		t.Fatalf("load slot before: %v", err)
-	}
-
-	deps, wdeps := resumeRunDeps(t)
-	sp := &fakeScopePrep{grant: sampleScopeGrant()}
-	d := sp.deps()
-	d.CancelSeams = func(string) cancelSeams {
-		return cancelSeams{store: store, launches: okLaunchReconciler()}
-	}
-	res := RunStart(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
-	if !res.Started {
-		t.Fatalf("a foreign slot must neither block nor be touched by resume: %q", res.HumanText())
-	}
-	afterSlot, _, err := store.LoadWorktreeExecution(worktree)
-	if err != nil {
-		t.Fatalf("load slot after: %v", err)
-	}
-	if afterSlot.RunID != "someone-else" {
-		t.Fatalf("foreign slot RunID = %q, want someone-else (untouched)", afterSlot.RunID)
-	}
-	if string(afterSlot.State) != string(beforeSlot.State) {
-		t.Fatalf("foreign slot state changed: before %q after %q", beforeSlot.State, afterSlot.State)
 	}
 }
 
@@ -675,11 +611,10 @@ func tornResumePrior(t *testing.T, repoDir string, neverMinted bool) (priorKey, 
 // TestIntegrationRunStartResumeTornReplacementConverges (change 0446 spec "Repeated cancellation,
 // completion, and admission after safe reconciliation converge using existing
 // operations"): after a torn resume a repeat `run.start --resume` is not a
-// permanent dead end. The superseded branch addresses the request's own feature
-// worktree (what armResumeReplacement binds), runs the census over the
-// predecessor's own run context, and observes the single reserved key — repeatedly,
-// minting nothing.
-// A corrupt replacement run still refuses, naming the unreadable record.
+// permanent dead end. The superseded branch runs the census over the predecessor's
+// own run context — reading none of the replacement chain (change 0490) — and
+// observes the single reserved key, repeatedly, minting nothing, even when the
+// replacement's run record is unreadable.
 func TestIntegrationRunStartResumeTornReplacementConverges(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
@@ -712,7 +647,7 @@ func TestIntegrationRunStartResumeTornReplacementConverges(t *testing.T) {
 			}
 		})
 	}
-	t.Run("corrupt-replacement-refused", func(t *testing.T) {
+	t.Run("corrupt-replacement-observed", func(t *testing.T) {
 		repoDir := newWorkingRepo(t, nil).invocation
 		_, _, replKey := tornResumePrior(t, repoDir, false)
 		dir, err := runKeyDir(repoDir, replKey, "test")
@@ -727,70 +662,10 @@ func TestIntegrationRunStartResumeTornReplacementConverges(t *testing.T) {
 		d := sp.deps()
 		d.CancelSeams = func(string) cancelSeams { return cancelSeams{launches: okLaunchReconciler()} }
 		res := RunStart(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
-		if res.Started || res.Reason != ReasonRunResumeCancellationPending || !strings.Contains(res.Message, "replacement-run-record-unreadable:"+replKey) {
-			t.Fatalf("result = started %v reason %q message %q, want cancellation-pending naming replacement-run-record-unreadable:%s", res.Started, res.Reason, res.Message, replKey)
+		if res.Started || res.Reason != ReasonRunResumeReplacementReserved || res.Key != replKey {
+			t.Fatalf("result = started %v reason %q key %q message %q, want the reserved key %s observed", res.Started, res.Reason, res.Key, res.Message, replKey)
 		}
 	})
-}
-
-// TestIntegrationRunStartResumeSupersededChecksReplacementSlot (change 0446 spec §4): the superseded
-// branch's slot check uses the replacement's worktree slot to confirm the
-// predecessor's run no longer holds it — an unreleased predecessor-owned slot
-// refuses, a released one is retired through the shared retirement and then
-// observed, and a slot the replacement itself holds is the successor outcome.
-func TestIntegrationRunStartResumeSupersededChecksReplacementSlot(t *testing.T) {
-	for _, tc := range []struct {
-		name        string
-		owner       func(priorRun string) string
-		release     bool
-		wantStarted bool   // true: the reservation is observed
-		wantRun     string // "" = retired, "prior" = the predecessor's id kept, else literal
-	}{
-		{"predecessor-unreleased-refuses", func(p string) string { return p }, false, false, "prior"},
-		{"predecessor-released-retired", func(p string) string { return p }, true, true, ""},
-		{"replacement-held-neutral", func(string) string { return "replacement-run" }, true, true, "replacement-run"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			repoDir := newWorkingRepo(t, nil).invocation
-			_, priorRun, worktree := armSupersededPrior(t, repoDir)
-			common, err := runTrackerGitCommonDir(repoDir)
-			if err != nil {
-				t.Fatalf("runTrackerGitCommonDir: %v", err)
-			}
-			store := gatedrive.OpenStore(common)
-			token, err := store.ReserveWorktreeExecutionForRun(common, worktree, tc.owner(priorRun), nil)
-			if err != nil {
-				t.Fatalf("reserve: %v", err)
-			}
-			if tc.release {
-				if err := store.ReleaseWorktreeExecution(worktree, token); err != nil {
-					t.Fatalf("release: %v", err)
-				}
-			}
-
-			deps, wdeps := resumeRunDeps(t)
-			sp := &fakeScopePrep{grant: sampleScopeGrant()}
-			d := sp.deps()
-			d.CancelSeams = func(string) cancelSeams { return cancelSeams{store: store, launches: okLaunchReconciler()} }
-			res := RunStart(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
-			if tc.wantStarted {
-				if res.Reason != ReasonRunResumeReplacementReserved {
-					t.Fatalf("Reason = %q (%q), want the reservation observed", res.Reason, res.Message)
-				}
-			} else {
-				if res.Reason != ReasonRunResumeCancellationPending || !strings.Contains(res.Message, "slot-not-released") {
-					t.Fatalf("result = %q %q, want cancellation-pending naming slot-not-released", res.Reason, res.Message)
-				}
-			}
-			want := tc.wantRun
-			if want == "prior" {
-				want = priorRun
-			}
-			if epo := loadSlotRun(t, store, worktree); epo != want {
-				t.Fatalf("slot run = %q, want %q", epo, want)
-			}
-		})
-	}
 }
 
 // TestIntegrationRunStartNoRunRecordResumeMintsBoundRun (change 0463): resuming an in-progress change
