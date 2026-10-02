@@ -73,28 +73,14 @@ Emit one concise routing line per task naming both the tier and its reason.
 ## Dispatching a task
 
 <!-- docket:feature-dispatch:start targets=docket-build-economy,docket-build-max,docket-build-premium,docket-build-standard -->
-**Before each worker dispatch, prepare its recovery scope:** run the `gate.drive.prepare-scope`
-operation with `--change-id <id> --task-id <task-N> --phase build --branch <branch> --worktree
-<worktree> --run-context <run-context> --run-id <run-id> --json` (the run context and
-the run id arrived in *your* prompt from the gated parent — pass each value through, omitting a
-flag only when your prompt carried no such value). Capture the scope id and **both** capabilities from the
-`--json` response before dispatching (the shared JSON-capture requirement); the parent capability
-stays in your notes. Then dispatch the selected tier agent **by name** — one of
-`docket-build-economy`, `docket-build-standard`, `docket-build-premium`, or `docket-build-max` —
-foreground, one task at a time; later tasks build on earlier task commits and share the worktree, so
-workers are strictly sequential. Its dispatch payload contains:
+Dispatch the selected tier agent **by name** — one of `docket-build-economy`,
+`docket-build-standard`, `docket-build-premium`, or `docket-build-max` — foreground, one task at a
+time; later tasks build on earlier task commits and share the worktree, so workers are strictly
+sequential. Its dispatch payload contains:
 Feature worktree: <absolute canonical feature-worktree root>
 It also gives the worker the plan task text, applicable repository instructions, selected
-tier and routing reason, the completion schema, and one **complete start-ready scope bundle**:
-the change id, task id, phase (`build`), branch, scope id, child capability, and the run
-context when your prompt carried one — each value exactly as `prepare-scope` pinned it, for the
-worker to pass through to `gate.drive.start` unchanged. The bundle carries no run id: the scope
-pinned it, and every scoped start inherits it. One scope now carries the worker's whole
-*sequence* of task-owned drives — baseline, RED, GREEN, verification — one at a time, and the worker
-closes it with a terminal `gate.drive.acknowledge` on normal completion; your WAITING-handoff and
-takeover handling below is unchanged. Of the two capabilities the worker
-receives the child capability only; the parent
-capability stays in your notes and never enters any prompt, log, or report. Never dispatch a task reviewer, and
+tier and routing reason, and the return schema. No run context, run id, or capability goes into a
+worker prompt: the worker runs its tests directly and calls no gate operation. Never dispatch a task reviewer, and
 never dispatch two workers concurrently — that binds a controller who *believes the first worker
 is gone* exactly as it binds one dispatching deliberately. Never preload a review skill either —
 for a **named** agent the wrapper's own `skills:` frontmatter is the operative protection, so what it
@@ -115,8 +101,8 @@ halt, naming a re-run of `install.sh` plus a fresh session as the remedy.
 
 ## Reading a worker's return
 
-Valid outcomes are `COMPLETE`, `WAITING`, `NEEDS_ESCALATION`, and `BLOCKED`; a **missing or malformed
-outcome halts** the build. Never infer success from a child reporting it finished: a completion report
+Valid outcomes are `COMPLETE`, `NEEDS_ESCALATION`, and `BLOCKED`; any other token, or a **missing or
+malformed outcome, halts** the build. Never infer success from a child reporting it finished: a completion report
 is unreliable in **both** directions, so every claim is settled against git state, never the return's
 prose — a SHA-shaped string somewhere in the text is not a commit.
 
@@ -128,42 +114,17 @@ task to "fix" its own return. A `COMPLETE` must equally carry the focused verifi
 task without a commit is not complete; a `NEEDS_ESCALATION` with no concrete reason is malformed the
 same way (see *Escalation*).
 
-## Task-level WAITING and the continuation
-
-A **`WAITING`** return means the worker drove its focused gate through the native gate driver,
-reached the end of an observation slice, and had to stop before a terminal disposition. It is valid
-**only** when it names an explicit driver handoff — the drive id and the single-use handoff token; a
-bare "still waiting" with no handoff token is a **malformed return** and halts, exactly as a
-commitless `COMPLETE` does. `WAITING` is neither a completion nor a failure, and it is **never**
-permission to start another task in the shared worktree.
-
-You are the nearest live owner while that worker is absent, so you **own the continuation**: run the
-`gate.drive.claim` operation with `--drive-id <id> --handoff-id <token> --json` on the named handoff,
-capture the **fresh** owner generation from its response, and drive the same drive through short `gate.drive.advance`
-operation calls yourself to a terminal disposition — never a raw observe loop, background suite, or
-notification wait. When agent judgment is needed again, dispatch a fresh worker for the **same** task
-and worktree with an explicit continuation; a trusted `PASSED` is not re-driven for a changed
-transcript. The continuation — a same-agent resume or a fresh dispatch alike — must carry
-the claimed drive's id, its terminal verdict, and an explicit statement that the original scope is closed
-by your claim and must never be acknowledged or reused. When the continued task may still need test
-drives, run `gate.drive.prepare-scope` again
-for the same change, task, phase, branch, and worktree (and run context and
-`--run-id <run-id>`, as for the first scope) and include the new
-start-ready scope bundle — child capability only; the parent capability stays in your notes, as for
-any dispatch. Reading the continuation's return is unchanged: a `COMPLETE` is settled against git
-state exactly as *Reading a worker's return* requires. Waiting consumes neither the task's repair
-allowance nor its one escalation. If you must unwind, hand off to your parent rather than stranding
-the drive.
-
-**Exceptional branch — a return with no valid handoff.** When the worker's dispatch returns
-**without** a valid handoff while its scope still binds a nonterminal (or terminal-unconsumed) drive,
-run the `gate.drive.takeover` operation with `--scope-id <id> --parent-cap <token> --json` — authorized by
-the return event you just observed, **never** a timer, heartbeat, or quiet log — capture the fresh
-owner generation from its response, then advance that
-same drive to a terminal disposition via `gate.drive.advance`. A takeover `HALTED` is a **halting
-condition** (unsafe ownership), never repair, escalation, or a fresh worker; a trusted terminal
-`PASSED` consumed after takeover is **not** re-run. Neither takeover nor `WAITING` consumes repair or
-escalation budget.
+**Time-limit audit — visibility only.** For every return, check each test command in
+`VERIFICATION` for the `timeout --kill-after=10s 10m` wrapper (or `gtimeout`).
+- A command without it, or a `VERIFICATION` line too unclear to tell, becomes one informational
+  line in the results file's `## Verification performed` section, through the worker-surfaced
+  findings path (*Build-findings checkpoint*): "task N: `<command>` ran without the 10-minute
+  `timeout` wrapper — informational, no action required; the full-suite gate certified the branch."
+- The audit is never a halting condition and never makes a return malformed. It never
+  re-dispatches, escalates, or re-runs a test, and never casts doubt on the task's commit; it adds
+  no operation, state, transaction, or commit of its own and rides on the results checkpoint the
+  coordinator already writes.
+- It catches an honest omission. It cannot catch a worker misreporting what it ran.
 
 ## Escalation
 
@@ -215,7 +176,7 @@ disposition.
   it. Remedy: re-run `install.sh`, then start a fresh session.
 - **An explicit plan `Build tier:` value is invalid** — a plan contract error; never fall back
   to a default.
-- **A worker return is malformed or unverifiable** — a missing or unparsable outcome, a `COMPLETE`
+- **A worker return is malformed or unverifiable** — a missing, unparsable, or unknown outcome, a `COMPLETE`
   whose commit is absent, unresolvable, or not an ancestor of the branch tip, or a
   `NEEDS_ESCALATION` with no concrete reason. Never re-dispatch a task to repair its own return,
   and never discard the worktree and dispatch a fresh worker for that task either: a worker you
@@ -239,8 +200,8 @@ disposition.
 ## The build gate
 
 Workers run focused tests only. After every plan task has committed, apply this role's own gate
-policy. A worker's passed *task* gate does **not** substitute for this final full-suite gate: task
-gates cover only what each worker ran, and this is the one run that certifies the branch. On a final
+policy. A worker's focused tests do **not** substitute for this final full-suite gate: they cover
+only what each worker ran, and this is the one run that certifies the branch. On a final
 `PASSED`, the drive's raw run directory feeds the existing evidence operation. The policy arrives in
 the implementation context as `build_gate`, `build_test_command`, and `build_max_attempts` —
 authoritative config the build role reads, never a command it invents:
@@ -270,7 +231,7 @@ runner defines as a **non-failure** outcome is a halt per *Halting conditions*, 
 configuration gap gets — neither has a failure to repair. **Red** is a completed run that is neither
 green nor one of those halts. When the resolved command is a **loop over per-file commands**, the
 deciding status is the **aggregate** the loop exits with, never any individual file's. This rule
-binds every full-suite run this role performs, including the repair worker's post-fix re-run below.
+binds every full-suite run this role performs, including every post-repair attempt below.
 
 **Green** → the build is done. Emit the **build-evidence** record — a marker-bounded block carrying
 `command` (the exact full-suite command run), `result: green`, `head_sha` (the branch HEAD the run
@@ -295,22 +256,26 @@ role once over the whole branch. Only a green run — or an explicit `build_gate
 record: a red suite mints no evidence record at all, and enters the repair path below.
 
 **Red** → the build **never invokes review**. `build_max_attempts` (from the implementation context,
-default 4) caps the full-suite runs this phase may spend, counting the initial run. While the budget
-admits another attempt, each red full-suite result becomes exactly one synthetic integration-repair
-task, run through the same worker contract on the ladder `premium -> max -> halt`. The repair worker
-diagnoses the cross-task failure, adds regression coverage where appropriate, fixes it, and re-runs
-the full suite; that post-fix re-run **is** the next budgeted attempt — started build-owned through
-the same driver so the facade charges it, no bypass. Its dispatch payload therefore also carries the
-run id from your prompt, outside the scope bundle, for that one start: the `gate.drive.start`
-operation with `--owner build --run-id <run-id> --json` (flag omitted when your prompt carried none).
-That ladder starts one tier above the default
-deliberately: repair is cross-task diagnosis, never routine work. **Green at any point ends the phase
-immediately; review is never invoked while red.** A refused start (`suite-attempts-exhausted`) or a
-red final permitted run halts per *Halting conditions* with the exhaustion reason naming
-`build.max_attempts` and used/limit; `build_max_attempts: 1` means a red initial run halts with no
-repair cycle. `build_gate: off` runs no suite and spends no attempt, and an infrastructure,
-result-unavailable, configuration-gap, or observation-budget halt is unchanged and is **not** a red
-result to repair.
+default 4) caps the full-suite runs this phase may spend, counting the initial run;
+`build_max_attempts: 1` means a red initial run halts with no repair cycle. Otherwise:
+
+1. Each red full-suite result becomes exactly one synthetic integration-repair task, run through
+   the same worker contract on the ladder `premium -> max -> halt` — one tier above the default
+   deliberately: repair is cross-task diagnosis, never routine work. The repair worker diagnoses
+   the failure, adds regression coverage where appropriate, fixes it, re-runs the failing tests
+   directly as its focused check, and commits; it never runs the full suite, and its dispatch
+   payload carries no run id.
+2. When the repair worker returns `COMPLETE`, you start the next counted attempt yourself with the
+   same build-owned start — the `gate.drive.start` operation with `--owner build --run-id <run-id>
+   --json` (`--run-id` only when your prompt carried a run id) — and drive it to a final result
+   exactly as *Gate run posture* describes, so the facade charges it with no bypass.
+3. **Green at any point ends the phase immediately; review is never invoked while red.** A red
+   result becomes the next repair task while attempts remain. A refused start
+   (`suite-attempts-exhausted`) or a red final permitted run halts per *Halting conditions* with
+   the exhaustion reason naming `build.max_attempts` and used/limit.
+
+`build_gate: off` runs no suite and spends no attempt, and an infrastructure, result-unavailable,
+configuration-gap, or observation-budget halt is unchanged and is **not** a red result to repair.
 
 ### Gate run posture
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -426,25 +427,6 @@ var proseContracts = []proseContract{
 			"runs inline at its Step 0 — not a mode of this skill",
 			"(`docket-implement-next` Step 0 runs that operation inline)",
 		}},
-	// change 0459 — a handed-off worker's scope authority ends at the parent's
-	// claim: the worker contract forbids acknowledging or reusing the claim-closed
-	// scope, keys the outcome to the continuation's verdict, names the honest
-	// BLOCKED for a missing fresh bundle, and classifies scope-transferred as a
-	// misapplied-rule signal; the parent contract makes the continuation carry the
-	// verdict, the closed-scope statement, and a fresh prepare-scope bundle.
-	{sentinel: "change_0459_scope_transferred", file: "skills/docket-build-task/SKILL.md",
-		present: []string{
-			"never `acknowledge` the original scope and never start a drive on it",
-			"A `scope-transferred` refusal means you misapplied this rule",
-			"Report on the terminal verdict your continuation supplies",
-			"never `COMPLETE` on that verdict",
-			"\"continuation needs a fresh scope\"",
-		}},
-	{sentinel: "change_0459_scope_transferred", file: "skills/docket-build/SKILL.md",
-		present: []string{
-			"the claimed drive's id, its terminal verdict, and an explicit statement that the original scope is closed",
-			"run `gate.drive.prepare-scope` again",
-		}},
 	// change 0480 — finalize cleanup retains a killed change's resources and
 	// reports no-op / retained / killed-retained (FinalizeCleanup's
 	// domain.StatusKilled case). The absent phrases are the retired claims that
@@ -739,4 +721,85 @@ func TestRebaseRecoveryDocContracts(t *testing.T) {
 	if len(violations) != 0 {
 		t.Errorf("recovery-exception doc contracts (%d violations):\n%s", len(violations), strings.Join(violations, "\n"))
 	}
+}
+
+// change 0488 — build-task workers run every test directly under a fixed
+// 10-minute GNU timeout, read the result from the exit status, and report each
+// command exactly as run; the build controller's time-limit audit reports a
+// missing wrapper and is never a halting condition. Each clause is matched
+// against a backtick-and-emphasis-stripped, whitespace-collapsed haystack
+// (phrase-grep-over-wrapped-prose) and bound to its claim with one bounded
+// gap (prose-guard-binds-phrase-to-claim).
+var timeLimitContracts = []struct {
+	name string
+	file string
+	re   *regexp.Regexp
+}{
+	{"worker-runs-under-timeout", buildTaskSkillRel, regexp.MustCompile(`timeout --kill-after=10s 10m <test command>`)},
+	{"worker-limit-hit-is-not-red", buildTaskSkillRel, regexp.MustCompile(`\| 124 or 137 \| the 10-minute limit was hit[^|]{0,60}\| not red`)},
+	{"worker-never-unlimited", buildTaskSkillRel, regexp.MustCompile(`Never run a test without the limit`)},
+	{"worker-verification-as-run", buildTaskSkillRel, regexp.MustCompile(`VERIFICATION lists every test command exactly as it ran[^.]{0,60}timeout wrapper`)},
+	{"controller-audits-wrapper", buildSkillRel, regexp.MustCompile(`Time-limit audit.{0,160}timeout --kill-after=10s 10m`)},
+	{"controller-audit-never-halts", buildSkillRel, regexp.MustCompile(`The audit is never a halting condition and never makes a return malformed`)},
+	// Review-focus pins (plan): the inputs the spec implies but no other test exercises.
+	{"worker-gtimeout-fallback", buildTaskSkillRel, regexp.MustCompile(`Use gtimeout when timeout is not on PATH\. If neither exists, return BLOCKED naming the missing prerequisite \(GNU coreutils\)`)},
+	{"worker-harness-wait", buildTaskSkillRel, regexp.MustCompile(`Raise the harness's own shell-call timeout to at least 10 minutes`)},
+	{"worker-never-full-suite", buildTaskSkillRel, regexp.MustCompile(`Never run the configured full-suite command\. The full suite is the controller's gate`)},
+	{"worker-mutation-restore", buildTaskSkillRel, regexp.MustCompile(`verify it turns red, then restore and run it again`)},
+	{"controller-unknown-outcome-halts", buildSkillRel, regexp.MustCompile(`Valid outcomes are COMPLETE, NEEDS_ESCALATION, and BLOCKED; any other token, or a missing or malformed outcome, halts the build`)},
+	{"repair-never-full-suite", buildSkillRel, regexp.MustCompile(`re-runs the failing tests directly as its focused check, and commits; it never runs the full suite`)},
+}
+
+// timeLimitHaystack strips inline-code and emphasis markers and collapses
+// whitespace, so a re-flow or a re-emphasis never reddens a clause.
+func timeLimitHaystack(content string) string {
+	return collapseWS(strings.NewReplacer("`", "", "*", "").Replace(content))
+}
+
+func TestTaskTestTimeLimitContract(t *testing.T) {
+	root := guardRoot(t)
+	for _, c := range timeLimitContracts {
+		if !c.re.MatchString(timeLimitHaystack(readMaintained(t, root, c.file))) {
+			t.Errorf("%s lost its %s clause (pattern %v)", c.file, c.name, c.re)
+		}
+	}
+
+	t.Run("non_vacuity", func(t *testing.T) {
+		good := map[string]string{
+			"worker-runs-under-timeout":        "```text\ntimeout --kill-after=10s 10m <test command>\n```",
+			"worker-limit-hit-is-not-red":      "| `124` or `137` | the 10-minute limit was hit (TERM, or KILL after the\n10-second grace) | not red, and not by itself a reason to escalate |",
+			"worker-never-unlimited":           "If neither exists, return `BLOCKED`. Never run a\ntest without the limit.",
+			"worker-verification-as-run":       "`VERIFICATION` lists every test command exactly as it ran,\nincluding its `timeout` wrapper, with its exit status.",
+			"controller-audits-wrapper":        "**Time-limit audit — visibility only.** For every return, check each test command in\n`VERIFICATION` for the `timeout --kill-after=10s 10m` wrapper (or `gtimeout`).",
+			"controller-audit-never-halts":     "- The audit is never a halting\n  condition and never makes a return malformed.",
+			"worker-gtimeout-fallback":         "- **Fallback.** Use `gtimeout` when `timeout` is not on `PATH`. If neither exists, return\n  `BLOCKED` naming the missing prerequisite (GNU coreutils).",
+			"worker-harness-wait":              "Raise the harness's own shell-call timeout to\n  at least 10 minutes where the harness allows it",
+			"worker-never-full-suite":          "- **Never run the configured full-suite command.** The full suite is the controller's gate.",
+			"worker-mutation-restore":          "run the guard and verify it turns red, then restore and\n  run it again.",
+			"controller-unknown-outcome-halts": "Valid outcomes are `COMPLETE`, `NEEDS_ESCALATION`, and `BLOCKED`; any other token, or a **missing or\nmalformed outcome, halts** the build.",
+			"repair-never-full-suite":          "fixes it, re-runs the failing tests\n   directly as its focused check, and commits; it never runs the full suite, and",
+		}
+		bad := map[string]string{
+			"worker-runs-under-timeout":        "run <test command> directly",
+			"worker-limit-hit-is-not-red":      "| `124` or `137` | the 10-minute limit was hit | red |",
+			"worker-never-unlimited":           "Run a test without the limit when timeout is missing.",
+			"worker-verification-as-run":       "`VERIFICATION` lists the focused command. The timeout wrapper is optional.",
+			"controller-audits-wrapper":        "**Time-limit audit — visibility only.** For every return, read `VERIFICATION`.",
+			"controller-audit-never-halts":     "- The audit is a halting condition when the wrapper is missing.",
+			"worker-gtimeout-fallback":         "- **Fallback.** Use `gtimeout` when `timeout` is not on `PATH`. If neither exists, run the test anyway.",
+			"worker-harness-wait":              "Keep the harness's default shell-call timeout.",
+			"worker-never-full-suite":          "- Run the configured full-suite command when unsure.",
+			"worker-mutation-restore":          "run the guard and verify it turns red.",
+			"controller-unknown-outcome-halts": "Valid outcomes are `COMPLETE`, `WAITING`, `NEEDS_ESCALATION`, and `BLOCKED`; a missing outcome halts the build.",
+			"repair-never-full-suite":          "fixes it, re-runs the full suite, and commits",
+		}
+		for _, c := range timeLimitContracts {
+			if !c.re.MatchString(timeLimitHaystack(good[c.name])) {
+				t.Errorf("%s: the intended (wrapped) wording did not match", c.name)
+			}
+			if c.re.MatchString(timeLimitHaystack(bad[c.name])) {
+				t.Errorf("%s: a wording that drops the claim still matched", c.name)
+			}
+		}
+	})
 }

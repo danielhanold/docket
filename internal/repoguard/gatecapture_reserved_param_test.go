@@ -97,11 +97,12 @@ func TestGateCaptureReservedShellParams(t *testing.T) {
 	// Population floors FIRST (a vacuous scan passes every negative): each
 	// caller skill carries the shell-safe names at a gate.drive paragraph,
 	// and the corpus (source + embedded mirrors) stays above a global floor.
-	if sites < 6 {
-		t.Fatalf("population floor: only %d gate.drive paragraphs carry the shell-safe capture names (expected >= 6: three caller skills plus embedded mirrors)", sites)
+	// Change 0488 lowered the floor 6 -> 4: docket-build-task is no longer a
+	// gate caller (workers run tests directly and call no gate operation).
+	if sites < 4 {
+		t.Fatalf("population floor: only %d gate.drive paragraphs carry the shell-safe capture names (expected >= 4: two caller skills plus embedded mirrors)", sites)
 	}
 	for _, rel := range []string{
-		"skills/docket-build-task/SKILL.md",
 		"skills/docket-build/SKILL.md",
 		"skills/docket-implement-next/SKILL.md",
 	} {

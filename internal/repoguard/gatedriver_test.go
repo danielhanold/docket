@@ -12,27 +12,24 @@ import (
 // surface for advancing a suite run. The raw verbs (`docket gate launch|observe|
 // stop`) and the app-orchestration seam (GateLaunch|GateObserve|GateStop) survive
 // only as PRIMITIVES the driver composes; a workflow caller never composes them
-// directly, never re-parses raw observation state, never recreates a poll loop,
-// and every task-level WAITING return names an explicit ownership handoff.
+// directly, never re-parses raw observation state, and never recreates a poll
+// loop. Change 0488 retired detector D (a task-level WAITING return must name an
+// explicit ownership handoff): workers no longer return WAITING, and its shape
+// lives on, inverted, in TestNoTaskOwnedDriveInstructions.
 //
-// Four detectors, each keyed on a syntactic SHAPE (never a per-file allowlist),
+// Three detectors, each keyed on a syntactic SHAPE (never a per-file allowlist),
 // classified by PATH shape (which layer a file is) plus CONTENT shape (a fenced
 // runnable recipe vs an inline prose mention). Residual risk, recorded not hidden:
 // an author who writes an imperative raw invocation in INLINE backticks rather
 // than a fence dodges the markdown detector (A/C); the fence is the mechanical
 // shape signal the house convention uses for every runnable recipe, and the
-// Go/handoff detectors carry the rest of the teeth.
+// Go detector carries the rest of the teeth.
 
 var (
 	rawGateVerb    = regexp.MustCompile(`docket[[:space:]]+gate[[:space:]]+(launch|observe|stop)([[:space:]]|$)`)
 	rawGateObserve = regexp.MustCompile(`docket[[:space:]]+gate[[:space:]]+observe`)
 	pollIdiom      = regexp.MustCompile(`(?i)jq|sleep[[:space:]]+[0-9]|while`)
 	directGoCall   = regexp.MustCompile(`\.(GateLaunch|GateObserve|GateStop)\(`)
-
-	waitFwd      = regexp.MustCompile(`(^|[^-A-Za-z])WAITING([^-A-Za-z]).{0,45}(COMPLETE|BLOCKED|NEEDS_ESCALATION)`)
-	waitRev      = regexp.MustCompile(`(COMPLETE|BLOCKED|NEEDS_ESCALATION)([^-A-Za-z]).{0,45}([^-A-Za-z])WAITING([^-A-Za-z])`)
-	namesHandoff = regexp.MustCompile(`(?i)handoff token`)
-	forbidsBare  = regexp.MustCompile(`(?i)no handoff token|without[^.]{0,25}handoff|bare[^.]{0,45}wait`)
 
 	permittedGoLayer = regexp.MustCompile(`^(internal/cli/|internal/gatedrive/|internal/process/)`)
 	appGateSeam      = regexp.MustCompile(`^internal/app/gate[^/]*\.go$`)
@@ -122,21 +119,6 @@ func scanPollLoop(rel, content string) []string {
 	return nil
 }
 
-// scanWaitingHandoff (D): a WAITING outcome contract that omits the explicit
-// handoff identity. Back-ticks stripped and whitespace flattened first so a
-// back-tick-wrapped vocabulary still reads as a token set.
-func scanWaitingHandoff(rel, content string) []string {
-	flat := strings.ReplaceAll(content, "`", "")
-	flat = strings.Join(strings.Fields(flat), " ")
-	if !waitFwd.MatchString(flat) && !waitRev.MatchString(flat) {
-		return nil
-	}
-	if namesHandoff.MatchString(flat) && forbidsBare.MatchString(flat) {
-		return nil
-	}
-	return []string{"D\t" + rel + ": WAITING outcome without an explicit handoff identity"}
-}
-
 // scanDirectGoCall (B): a direct app-orchestration call to the gate seam outside
 // the permitted layers.
 func scanDirectGoCall(rel, content string) []string {
@@ -174,14 +156,9 @@ func TestGateDriverBoundary(t *testing.T) {
 	if len(orchGo) < 20 {
 		t.Fatalf("population floor: only %d orchestration Go files (expected >= 20)", len(orchGo))
 	}
-	// The driver surface being protected actually exists, and detector D has live
-	// input (a real WAITING contract).
+	// The driver surface being protected actually exists.
 	if !slices_containsPrefix(pop, "internal/gatedrive/") {
 		t.Fatalf("the native gate driver package internal/gatedrive is absent")
-	}
-	buildTask := readMaintained(t, root, "skills/docket-build-task/SKILL.md")
-	if !regexp.MustCompile(`(^|[^-A-Za-z])WAITING([^-A-Za-z])`).MatchString(buildTask) {
-		t.Fatalf("detector D has no live input: skills/docket-build-task/SKILL.md declares no WAITING outcome")
 	}
 
 	var violations []string
@@ -189,7 +166,6 @@ func TestGateDriverBoundary(t *testing.T) {
 		c := readMaintained(t, root, rel)
 		violations = append(violations, scanRawFencedMD(rel, c)...)
 		violations = append(violations, scanPollLoop(rel, c)...)
-		violations = append(violations, scanWaitingHandoff(rel, c)...)
 	}
 	for _, rel := range wfSH {
 		violations = append(violations, scanRawFencedSH(rel, readMaintained(t, root, rel))...)
@@ -240,14 +216,6 @@ func TestGateDriverBoundary(t *testing.T) {
 		clean := "```bash\ndocket gate drive advance run\n```\n"
 		if got := scanPollLoop("skills/x/SKILL.md", clean); len(got) != 0 {
 			t.Errorf("C: wrongly flagged a clean driver recipe: %v", got)
-		}
-		// (D) WAITING contract missing the handoff clauses vs the real, complete one.
-		bad := "Return COMPLETE, WAITING, or BLOCKED when the run stalls.\n"
-		if got := scanWaitingHandoff("skills/x/SKILL.md", bad); len(got) == 0 {
-			t.Errorf("D: missed a WAITING contract with no handoff identity")
-		}
-		if got := scanWaitingHandoff("skills/docket-build-task/SKILL.md", buildTask); len(got) != 0 {
-			t.Errorf("D: wrongly flagged the real, complete build-task WAITING contract: %v", got)
 		}
 	})
 }

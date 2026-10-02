@@ -1,30 +1,25 @@
 package repoguard
 
-// Change 0467: the run id that run.start prints must reach every call
-// that mints a recovery scope or starts a build-owned drive, while a build-task
-// worker's scoped starts never carry it — the driver hands a scoped start the
-// run id its scope pinned. The one worker exception is the integration-repair
-// worker's build-owned post-fix full-suite re-run: docket-build hands it the
-// run id in the repair dispatch payload (0467 review fix-1). Prongs over maintained workflow markdown (isWorkflowMD, so the
-// embedded mirrors are scanned too):
-//   (A) every paragraph referencing gate.drive.prepare-scope carries --run-id;
-//   (B) every build-owned gate.drive.start paragraph (--owner build) carries
-//       --run-id;
-//   (C) no scoped task-owned start paragraph (--owner task) carries --run-id —
-//       the worker passes none; the scope supplies it;
-//   (D) the repair worker's post-fix re-run is a build-owned start site in both
-//       docket-build and docket-build-task (floor), so prong B binds it to
-//       --run-id — the exception is pinned, and prong C stays unweakened.
+// Change 0467 threaded run.start's run id into the build chain; change 0488
+// retired its worker half (prepare-scope, task-owned starts, and the repair
+// worker's re-run): build-task workers now run tests directly and call no gate
+// operation, an absence TestNoTaskOwnedDriveInstructions guards. One prong
+// remains over maintained workflow markdown (isWorkflowMD, so the embedded
+// mirrors are scanned too): every build-owned gate.drive.start paragraph
+// (--owner build) carries --run-id. run.cancel finds a run's suites by run id,
+// so a build-owned start without it would survive a cancel (until change 0491
+// retires the run id). Floors: docket-build carries both the final-gate start
+// and the post-repair-attempt start the controller now makes itself, and
+// docket-implement-next carries its own build-owned starts.
 // TestRunTrackerCopiesRunIDIntoDispatchPrompt (below) binds the managed run-tracker
 // source to copying the run into the dispatch prompt.
 // Site discovery is keyed on syntactic shape, never a per-file allowlist; the
 // shared caller contract (sharedContractRel) is the operation reference, not a
-// caller, and is excluded exactly as in TestGateDriveScopedStartIdentity.
-// Residual risk, recorded not hidden: an instruction that names the operation
-// without its `gate.drive.` prefix (a bare `prepare-scope`), or a build-owned
-// start without the --owner build token in the same paragraph, is not a site;
-// at run time the driver still fences such a no-run-record start against a
-// run-owned worktree (stale-run-id).
+// caller, and is excluded.
+// Residual risk, recorded not hidden: a build-owned start without the
+// --owner build token in the same paragraph is not a site; at run time the
+// driver still fences such a no-run-record start against a run-owned worktree
+// (stale-run-id).
 
 import (
 	"fmt"
@@ -38,26 +33,14 @@ import (
 const implementNextSkillRel = "skills/docket-implement-next/SKILL.md"
 
 var (
-	prepareScopeOpRe = regexp.MustCompile(`gate\.drive\.prepare-scope`)
-	ownerBuildRe     = regexp.MustCompile(`--owner build(?:[^a-z-]|$)`)
-	repairRerunRe    = regexp.MustCompile(`(?i)post-fix re-run`)
-	runIDFlagRe      = regexp.MustCompile(`--run-id(?:[^a-z-]|$)`)
+	ownerBuildRe = regexp.MustCompile(`--owner build(?:[^a-z-]|$)`)
+	runIDFlagRe  = regexp.MustCompile(`--run-id(?:[^a-z-]|$)`)
 )
-
-// isPrepareScopeSite: a collapsed paragraph that references the
-// gate.drive.prepare-scope operation.
-func isPrepareScopeSite(p string) bool { return prepareScopeOpRe.MatchString(p) }
 
 // isBuildOwnerStartSite: a collapsed paragraph that references gate.drive.start
 // AND carries the --owner build token.
 func isBuildOwnerStartSite(p string) bool {
 	return startOpRe.MatchString(p) && ownerBuildRe.MatchString(p)
-}
-
-// isRepairRerunSite: a build-owned start paragraph that is about the
-// integration-repair worker's post-fix re-run.
-func isRepairRerunSite(p string) bool {
-	return isBuildOwnerStartSite(p) && repairRerunRe.MatchString(p)
 }
 
 // carriesRunID: the paragraph carries the --run-id flag token.
@@ -66,67 +49,34 @@ func carriesRunID(p string) bool { return runIDFlagRe.MatchString(p) }
 func TestGateDriveRunIDThreaded(t *testing.T) {
 	root := guardRoot(t)
 	var violations []string
-	prepSites := map[string]int{}
 	buildSites := map[string]int{}
-	taskSites := map[string]int{}
-	repairSites := map[string]int{}
 	for _, rel := range maintainedPop(t, root) {
 		if !isWorkflowMD(rel) || strings.HasSuffix(rel, sharedContractRel) {
 			continue
 		}
 		for _, p := range paragraphs(readMaintained(t, root, rel)) {
-			if isPrepareScopeSite(p) {
-				prepSites[rel]++
-				if !carriesRunID(p) {
-					violations = append(violations, fmt.Sprintf(
-						"%s: gate.drive.prepare-scope instruction lacks --run-id: %.160s", rel, p))
-				}
+			if !isBuildOwnerStartSite(p) {
+				continue
 			}
-			if isBuildOwnerStartSite(p) {
-				buildSites[rel]++
-				if isRepairRerunSite(p) {
-					repairSites[rel]++
-				}
-				if !carriesRunID(p) {
-					violations = append(violations, fmt.Sprintf(
-						"%s: build-owned gate.drive.start instruction lacks --run-id: %.160s", rel, p))
-				}
-			}
-			if isScopedTaskStartSite(p) {
-				taskSites[rel]++
-				if carriesRunID(p) {
-					violations = append(violations, fmt.Sprintf(
-						"%s: scoped task-owned start must not pass --run-id (the scope supplies it): %.160s", rel, p))
-				}
+			buildSites[rel]++
+			if !carriesRunID(p) {
+				violations = append(violations, fmt.Sprintf(
+					"%s: build-owned gate.drive.start instruction lacks --run-id: %.160s", rel, p))
 			}
 		}
 	}
 
 	// Population floors FIRST (a vacuous scan passes every negative).
 	mirror := func(rel string) []string { return []string{rel, "internal/assets/embedded/tree/" + rel} }
-	for _, rel := range append(mirror(buildSkillRel), mirror(implementNextSkillRel)...) {
-		if prepSites[rel] == 0 {
-			t.Errorf("coverage floor: %s contributes no gate.drive.prepare-scope site (scan or corpus drifted)", rel)
-		}
+	for _, rel := range mirror(implementNextSkillRel) {
 		if buildSites[rel] == 0 {
 			t.Errorf("coverage floor: %s contributes no build-owned gate.drive.start site (scan or corpus drifted)", rel)
 		}
 	}
 	for _, rel := range mirror(buildSkillRel) {
-		// The per-dispatch scope AND the WAITING-continuation re-prepare.
-		if prepSites[rel] < 2 {
-			t.Errorf("coverage floor: %s must carry both the per-dispatch and the continuation prepare-scope sites, found %d", rel, prepSites[rel])
-		}
-	}
-	for _, rel := range append(mirror(buildSkillRel), mirror(buildTaskSkillRel)...) {
-		// (D) The repair worker's build-owned re-run is handed the run id.
-		if repairSites[rel] == 0 {
-			t.Errorf("coverage floor: %s carries no build-owned repair re-run start with --run-id site (the repair worker has no run-id source)", rel)
-		}
-	}
-	for _, rel := range mirror(buildTaskSkillRel) {
-		if taskSites[rel] == 0 {
-			t.Errorf("coverage floor: %s contributes no scoped task-start site (scan or corpus drifted)", rel)
+		// The final suite gate AND the post-repair attempt the controller starts itself.
+		if buildSites[rel] < 2 {
+			t.Errorf("coverage floor: %s must carry both the final-gate and the post-repair-attempt build-owned start sites, found %d", rel, buildSites[rel])
 		}
 	}
 	if len(violations) != 0 {
@@ -134,13 +84,6 @@ func TestGateDriveRunIDThreaded(t *testing.T) {
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
-		prep := "run the `gate.drive.prepare-scope` operation with `--change-id <id> --worktree <w> --run-context <g> --run-id <run-id> --json`"
-		if !isPrepareScopeSite(prep) || !carriesRunID(prep) {
-			t.Fatalf("a complete prepare-scope invocation was misclassified")
-		}
-		if carriesRunID(strings.Replace(prep, "--run-id <run-id> ", "", 1)) {
-			t.Errorf("stripping --run-id from a prepare-scope invocation was not detected")
-		}
 		build := "the `gate.drive.start` operation with `--owner build --run-id <run-id> --json`"
 		if !isBuildOwnerStartSite(build) || !carriesRunID(build) {
 			t.Fatalf("a complete build-owned start was misclassified")
@@ -157,26 +100,9 @@ func TestGateDriveRunIDThreaded(t *testing.T) {
 		if carriesRunID("pass `--run-id-x <x>`") {
 			t.Errorf("--run-id token boundary failed: '--run-id-x' matched")
 		}
-		repair := "the repair worker's post-fix re-run is the `gate.drive.start` operation with `--owner build --run-id <run-id> --json`"
-		if !isRepairRerunSite(repair) || !carriesRunID(repair) {
-			t.Fatalf("a complete repair re-run start was misclassified")
-		}
-		if carriesRunID(strings.Replace(repair, "--run-id <run-id> ", "", 1)) {
-			t.Errorf("stripping --run-id from the repair re-run start was not detected")
-		}
-		if isRepairRerunSite("the final suite gate is the `gate.drive.start` operation with `--owner build --json`, no failure to repair") {
-			t.Errorf("a non-repair build-owned start that merely mentions repair was classified as the repair re-run")
-		}
-		if isRepairRerunSite("the post-fix re-run: the `gate.drive.start` operation with `--owner task --json`") {
-			t.Errorf("a task-owned start was classified as the build-owned repair re-run")
-		}
-		task := "the `gate.drive.start` operation with `--owner task --scope-id <s> --child-cap <c> --run-id <e> --json`"
-		if !isScopedTaskStartSite(task) || !carriesRunID(task) {
-			t.Errorf("a worker start that passes --run-id must be classified and flagged")
-		}
-		wrapped := "run `gate.drive.prepare-scope` again\nfor the same change (and `--run-id\n<run-id>`)"
-		if got := paragraphs(wrapped); len(got) != 1 || !isPrepareScopeSite(got[0]) || !carriesRunID(got[0]) {
-			t.Errorf("whitespace collapse failed: a wrapped prepare-scope site did not match as one paragraph")
+		wrapped := "start the next attempt with the `gate.drive.start`\noperation with `--owner build\n--run-id <run-id>`"
+		if got := paragraphs(wrapped); len(got) != 1 || !isBuildOwnerStartSite(got[0]) || !carriesRunID(got[0]) {
+			t.Errorf("whitespace collapse failed: a wrapped build-owned start did not match as one paragraph")
 		}
 	})
 }
