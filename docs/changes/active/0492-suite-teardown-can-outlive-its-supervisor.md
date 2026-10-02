@@ -9,10 +9,10 @@ created: '2026-10-02'
 updated: '2026-10-02'
 depends_on: [490]
 stacked_on:
-related: [375, 491]
+related: [375, 491, 493]
 discovered_from: [490]
-adrs: [95]
-spec:
+adrs: [95, 132]
+spec: 'docs/superpowers/specs/2026-10-02-suite-teardown-can-outlive-its-supervisor-design.md'
 plan:
 results:
 trivial: false
@@ -29,41 +29,38 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) |
+| Spec | [2026-10-02-suite-teardown-can-outlive-its-supervisor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-suite-teardown-can-outlive-its-supervisor-design.md) |
+| ADRs | [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Grooming 0490 traced how completely a gate's test suite is torn down and found four places where docket treats a suite as gone too early. None of them comes from the worktree slot, and 0490's worktree lock doesn't fix them; its ADR records them as known limitations.
+A gate's test suite runs as a process tree: supervisor → `go run` → test runner → one test target per process group. Docket decides "the suite is gone" by looking only at the supervisor. Grooming 0490 found four ways the suite can keep running after docket thinks it stopped; 0490's ADR (ADR-0132) records them as accepted losses.
 
-The gate's process tree is supervisor → `go run` → test runner → one test target per process group (the runner starts each target with `Setpgid`). The supervisor waits only for its direct child (`RunSupervisorFromEnv`, `cmd.Wait`).
+Tracing them at this groom:
 
-1. **A supervisor that dies alone leaves its suite running.** After `kill -9` or a crash of the supervisor process, its lock frees at once and `Observe` reports `vanished`, while the child tree keeps running with ppid 1. After 0490 the worktree reads as free, so a new gate can start next to the orphaned suite.
-2. **A KILL escalation leaves test targets running.** `process.Service.Stop` sends TERM, then KILL, to the supervisor's process group. KILL takes down the runner before it can stop its targets. The targets live in their own process groups, so they survive and run to completion, while `Stop` reports verified absence (it checks only the supervisor's group).
-3. **The single relaunch trusts "vanished".** Before finalize's automatic relaunch, `proveNoTreeSurvives` returns true for `vanished` without any probe, so the replacement can start beside the first run's still-running runner. The code contradicts itself: `stopProvesTeardown` says a signaled group "may still hold descendants", and `incumbent.go` says "a free lock alone ('vanished') is never sufficient".
-4. **On a graceful stop the worktree frees before teardown ends.** `go run` exits as soon as it gets TERM, so the supervisor records a terminal status and lets go while the runner spends up to about 5s forwarding TERM to its targets and then killing them.
+1. **A supervisor killed alone (SIGKILL or a crash) leaves its suite running.** `run.cancel` reports `cancelled` and the worktree reads as free. This is the gap this change fixes.
+2. **A KILL escalation can leave test targets running**, but only when the runner is stuck for more than 10s after a stop's TERM; the runner's own 5s grace normally finishes first.
+3. **Finalize's single automatic relaunch trusts a dead supervisor.** The 2026-10-02 backlog review retargeted 0493 to retire that relaunch, which removes this gap.
+4. **A graceful stop frees the worktree a moment before teardown ends**, usually milliseconds.
 
-Experiments on macOS (recorded in the 0490 groom) reproduced 1 and 2. 3 and 4 come from reading the code.
+Nothing like this has happened in production. The harm is a false `cancelled`, CPU contention from an overlapping suite, and leftover processes that finish on their own.
 
 ## What changes
 
-Make "the suite is gone" mean the whole test tree, not just the supervisor. These are hypotheses for grooming to evaluate, not decisions:
+Teach docket to notice when a crashed gate's suite is still running, and say so, without killing anything:
 
-- **Relaunch:** before relaunching, `proveNoTreeSurvives` probes the old supervisor's process group, reusing `ClassifyRun`'s group check rather than adding a new predicate. It refuses or stops on a live group.
-- **Stop:** the escalation path also reaches the runner's target groups, or the runner reaps its targets before it exits on TERM.
-- **Graceful stop:** remove the `go run` indirection from the supervised command, or have the supervisor wait until its group drains before it records a terminal status.
-- **Supervisor-only death:** decide whether anything short of a subreaper or a tree-held lock is worth it. 0490's groom rejected having the whole tree inherit the worktree lock, because a leaked or daemonized process would pin the worktree and nothing in docket could free it.
+- **A read-only leftover check** in the process layer: once a run's supervisor has exited, its suite counts as gone only when the supervisor's process group is empty. A populated group whose supervisor pid is gone is a **leftover**; anything ambiguous (a zombie supervisor, a reused process number, a probe error) is **unclear** and keeps today's behavior.
+- **Cancel and the success closeout report a leftover** with an informational `tree-survives:<drive>:<pgid>` finding. The cancel disposition and the closeout verdict never change.
+- **Docket never signals on this evidence.** A new ADR records the rule; ADR-0132 gets a dated Update note.
 
-Any new check states its failure posture up front, and prefers making the problem visible over halting a run.
+Failure posture: no new halt and no new block. The finding is information only, pinned by a mutation-checked test. Gaps 2 and 4 stay documented as accepted.
 
 ## Out of scope
 
-- The worktree lock and its holder model (0490).
+- Finalize's automatic relaunch and `proveNoTreeSurvives` (0493 retires the relaunch).
+- Stopping a leftover suite, or making cancel wait for one.
+- The worktree lock and its holder model (0490), and checks at gate start.
 - The run id and its fences (0491).
-- Process leaks inside individual tests (`t.Cleanup` hygiene), except where a fix here depends on them.
+- Process leaks inside individual tests (`t.Cleanup` hygiene).
 
-## Open questions
-
-### Item 3 goes away if 0493 retires the relaunch
-
-The 2026-10-02 backlog review retargeted 0493: instead of fixing cancel's accounting for finalize's single automatic relaunch, retire the relaunch (Daniel's decision). If that lands, item 3 (`proveNoTreeSurvives` trusting `vanished` before a relaunch) has no caller left, so drop it here. Items 1, 2 and 4 are unaffected.
