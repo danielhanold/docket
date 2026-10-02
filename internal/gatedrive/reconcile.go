@@ -22,10 +22,12 @@
 // running. A probe or stop error is never clean absence: it keeps the run pending.
 // PASSED/FAILED drives are settled by their verdict (the supervisor wrote it before
 // exiting); a HALTED drive can still have a live supervisor, so its run dirs are
-// proven too. A nonterminal drive is probed under its per-drive claimant flock
-// (nonblocking: a busy claim is pending work, never waited on). The census launches
-// nothing and takes NO run lock (the run is already fenced; the lock order forbids
-// holding the run while probing a per-drive claim).
+// proven too — or, for a first launch that failed before attaching one, its
+// launch token is resolved (reconcileHaltedDrive). A nonterminal drive is probed
+// under its per-drive claimant flock (nonblocking: a busy claim is pending work,
+// never waited on). The census launches nothing and takes NO run lock (the run is
+// already fenced; the lock order forbids holding the run while probing a
+// per-drive claim).
 package gatedrive
 
 import (
@@ -126,8 +128,9 @@ func (d *Driver) accountRunLaunches(runContextHash string, observeOnly bool) (Ru
 // reconcileRunDrive accounts one attributed drive and reports whether it is
 // settled plus a bounded, credential-free finding (drive id + disposition token).
 //   - PASSED/FAILED: settled by the verdict the supervisor wrote before exiting.
-//   - HALTED: launches nothing more, so no claim is taken; its recorded run dirs
-//     must prove their supervisors gone (proveRunDirsGone).
+//   - HALTED: launches nothing more, so no claim is taken; its supervisors must
+//     be proven gone (reconcileHaltedDrive) — through its recorded run dirs, or,
+//     for a first launch that never attached one, through its launch token.
 //   - Nonterminal: the claimant flock is tried nonblocking (busy → claim-busy), the
 //     record re-read under it, and then a reserved relaunch resolves its RELAUNCH
 //     token, a first launch that never attached resolves its launch (admission)
@@ -137,7 +140,7 @@ func (d *Driver) reconcileRunDrive(id string, rec driveRecord, observeOnly bool)
 	case PASSED, FAILED:
 		return true, ""
 	case HALTED:
-		return d.proveRunDirsGone(id, rec, observeOnly)
+		return d.reconcileHaltedDrive(id, rec, observeOnly)
 	}
 	claim, busy, cerr := d.store.tryRelaunchClaim(id)
 	if cerr != nil {
@@ -161,7 +164,7 @@ func (d *Driver) reconcileRunDrive(id string, rec driveRecord, observeOnly bool)
 	case PASSED, FAILED:
 		return true, ""
 	case HALTED:
-		return d.proveRunDirsGone(id, cur, observeOnly)
+		return d.reconcileHaltedDrive(id, cur, observeOnly)
 	}
 
 	// A reserved-but-unattached relaunch (the crash window recoverReservedRelaunch
@@ -184,6 +187,51 @@ func (d *Driver) reconcileRunDrive(id string, rec driveRecord, observeOnly bool)
 	}
 
 	return d.proveRunDirsGone(id, cur, observeOnly)
+}
+
+// reconcileHaltedDrive accounts a HALTED drive. A HALTED label proves nothing
+// about the supervisor: a first launch whose process.Launch returned an error is
+// written HALTED "launch-failed" with no run dir (launchScopeless), yet the launch
+// may have spawned a supervisor before its response was lost. Such a drive — no
+// attached run dir, a launch token on record — resolves that exact token
+// (resolveHaltedFirstLaunch); every other HALTED drive proves its recorded run
+// dirs gone.
+func (d *Driver) reconcileHaltedDrive(id string, rec driveRecord, observeOnly bool) (bool, string) {
+	if rec.RawRunDir == "" && rec.AdmissionToken != "" {
+		return d.resolveHaltedFirstLaunch(id, rec, observeOnly)
+	}
+	return d.proveRunDirsGone(id, rec, observeOnly)
+}
+
+// resolveHaltedFirstLaunch resolves a HALTED first launch's launch token. An
+// identified run must prove its supervisor gone (stopped in cancellation mode,
+// run-live in observeOnly mode while it runs). A proven never-launched launch is
+// settled in both modes and the record is left as is: the drive is already
+// terminal, so no later launch can follow (unlike reconcileFirstLaunch, nothing
+// needs foreclosing). A run root that no longer exists holds no run dir, so it is
+// clean absence, as supervisorGone treats a removed run dir. An unresolved verdict,
+// a resolve error, or any other probe error keeps the run pending.
+func (d *Driver) resolveHaltedFirstLaunch(id string, rec driveRecord, observeOnly bool) (bool, string) {
+	if rec.RunRoot != "" {
+		if _, err := os.Lstat(rec.RunRoot); err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return true, ""
+			}
+			return false, "resolution-unresolved:" + id
+		}
+	}
+	res, rerr := d.proc.ResolveReservation(rec.RunRoot, rec.AdmissionToken)
+	if rerr != nil || res == nil {
+		return false, "resolution-unresolved:" + id
+	}
+	switch res.Disposition {
+	case "never-launched":
+		return true, ""
+	case "identified":
+		return d.supervisorGone(id, res.RunDir, observeOnly)
+	default:
+		return false, "resolution-unresolved:" + id
+	}
 }
 
 // reconcileReservation resolves a reserved (but unattached) relaunch through the

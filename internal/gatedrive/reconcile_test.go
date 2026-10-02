@@ -294,6 +294,153 @@ func TestCensusStopsIdentifiedFirstLaunch(t *testing.T) {
 	}
 }
 
+// TestCensusResolvesLaunchFailedFirstLaunch (review F1): a first launch whose
+// process.Launch returned an error is written HALTED "launch-failed" with no run
+// dir — but the launch may have spawned a supervisor before losing its response.
+// The census must not settle it by its empty run dirs: it resolves the drive's
+// launch token. An identified running run is stopped (cancel) or run-live
+// (observe); a proven never-launched launch is settled in both modes without
+// rewriting the already-terminal record; an unresolved verdict or a resolve error
+// keeps the run pending; a run root that no longer exists is clean absence.
+func TestCensusResolvesLaunchFailedFirstLaunch(t *testing.T) {
+	seed := func(t *testing.T, store *Store, runRoot string) string {
+		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
+			r.RawRunDir, r.RawOwnership = "", ""
+			r.AdmissionToken = censusAdmissionToken
+			r.RunRoot = runRoot
+			r.LastOutcome = HALTED
+			r.LastCause = "launch-failed"
+		})
+		return id
+	}
+
+	t.Run("identified-running", func(t *testing.T) {
+		for _, mode := range []string{"reconcile", "observe"} {
+			t.Run(mode, func(t *testing.T) {
+				sup := newSupervisors()
+				root := testsupport.TempDir(t)
+				dir := liveRunDir(t, "run1")
+				sup.state[dir] = process.StateRunning
+				var gotRoot, gotToken string
+				sup.resolve = func(r, token string) (*process.ReservationResolution, error) {
+					gotRoot, gotToken = r, token
+					return &process.ReservationResolution{Disposition: "identified", RunID: "run1", RunDir: dir, State: process.StateRunning}, nil
+				}
+				proc := sup.proc()
+				d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+				id := seed(t, store, root)
+
+				if mode == "reconcile" {
+					report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
+					if err != nil {
+						t.Fatalf("ReconcileRunLaunches: %v", err)
+					}
+					if !report.Accounted || !findingFor(report.Findings, "replacement-stopped", id) {
+						t.Fatalf("a launch-failed drive whose launch token resolves to a running run must have it stopped, got %+v", report)
+					}
+					if len(sup.stopped) != 1 || sup.stopped[0] != dir {
+						t.Fatalf("stopped %v, want exactly [%s]", sup.stopped, dir)
+					}
+				} else {
+					report, err := d.ObserveRunLaunches(capHash(censusCtxA))
+					if err != nil {
+						t.Fatalf("ObserveRunLaunches: %v", err)
+					}
+					if report.Accounted || !findingFor(report.Findings, "run-live", id) {
+						t.Fatalf("observe must keep a launch-failed drive's live supervisor pending, got %+v", report)
+					}
+					if proc.stopN != 0 {
+						t.Fatalf("observe mode must never stop, Stop called %d times", proc.stopN)
+					}
+				}
+				if gotRoot != root || gotToken != censusAdmissionToken {
+					t.Fatalf("resolved (%q, %q), want the drive's run root and launch token", gotRoot, gotToken)
+				}
+				if proc.launchN != 0 {
+					t.Fatalf("the census must launch nothing, Launch called %d times", proc.launchN)
+				}
+			})
+		}
+	})
+
+	t.Run("never-launched-settled", func(t *testing.T) {
+		proc := &fakeProc{resolve: func(root, token string) (*process.ReservationResolution, error) {
+			return &process.ReservationResolution{Disposition: "never-launched"}, nil
+		}}
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+		id := seed(t, store, testsupport.TempDir(t))
+		recPath := filepath.Join(store.root, id, recordFileName)
+		before, err := os.ReadFile(recPath)
+		if err != nil {
+			t.Fatalf("read record: %v", err)
+		}
+		for _, mode := range censusModes(d) {
+			report, err := mode.run(capHash(censusCtxA))
+			if err != nil {
+				t.Fatalf("%s: %v", mode.name, err)
+			}
+			if !report.Accounted || len(report.Findings) != 0 {
+				t.Fatalf("%s: a launch-failed drive that provably never launched is settled, got %+v", mode.name, report)
+			}
+		}
+		if proc.resolveN != 2 {
+			t.Fatalf("each census must resolve the launch token, ResolveReservation called %d times", proc.resolveN)
+		}
+		after, err := os.ReadFile(recPath)
+		if err != nil {
+			t.Fatalf("read record: %v", err)
+		}
+		if string(before) != string(after) {
+			t.Fatal("the census must not rewrite an already-terminal launch-failed record")
+		}
+	})
+
+	pending := map[string]func(root, token string) (*process.ReservationResolution, error){
+		"unresolved": func(root, token string) (*process.ReservationResolution, error) {
+			return &process.ReservationResolution{Disposition: "unresolved"}, nil
+		},
+		"resolve-error": func(root, token string) (*process.ReservationResolution, error) {
+			return nil, errors.New("census incomplete")
+		},
+	}
+	for name, resolve := range pending {
+		t.Run(name, func(t *testing.T) {
+			proc := &fakeProc{resolve: resolve}
+			d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+			id := seed(t, store, testsupport.TempDir(t))
+			for _, mode := range censusModes(d) {
+				report, err := mode.run(capHash(censusCtxA))
+				if err != nil {
+					t.Fatalf("%s: %v", mode.name, err)
+				}
+				if report.Accounted || !findingFor(report.Findings, "resolution-unresolved", id) {
+					t.Fatalf("%s: an unresolvable launch-failed launch must keep the run pending, got %+v", mode.name, report)
+				}
+			}
+		})
+	}
+
+	t.Run("run-root-absent", func(t *testing.T) {
+		proc := &fakeProc{resolve: func(root, token string) (*process.ReservationResolution, error) {
+			return nil, errors.New("root must be an existing directory")
+		}}
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+		seed(t, store, filepath.Join(testsupport.TempDir(t), "removed-run-root"))
+		for _, mode := range censusModes(d) {
+			report, err := mode.run(capHash(censusCtxA))
+			if err != nil {
+				t.Fatalf("%s: %v", mode.name, err)
+			}
+			if !report.Accounted {
+				t.Fatalf("%s: a run root that no longer exists holds no run dir — clean absence, got %+v", mode.name, report)
+			}
+		}
+		if proc.resolveN != 0 {
+			t.Fatalf("an absent run root needs no resolve, ResolveReservation called %d times", proc.resolveN)
+		}
+	})
+}
+
 // TestCensusPendingOnClaimBusy (L9): a held claimant flock (a launch in flight)
 // is claim-busy and not accounted in either mode, and the census returns without
 // waiting on the claim.
