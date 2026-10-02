@@ -22,7 +22,7 @@ branch: 'fix/run-task-worker-tests-directly-in-the-foreground-not-through'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-02T07:02:24Z'
+claimed_at: '2026-10-02T07:03:34Z'
 ---
 
 ## Artifacts
