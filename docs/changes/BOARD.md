@@ -1,12 +1,6 @@
 # Backlog
 
-**493 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 8 proposed · ⚪ 12 deferred · ✅ 337 done · 🗑️ 132 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
+**493 changes** — 🟣 3 groomed · 🟡 8 proposed · ⚪ 12 deferred · ✅ 337 done · 🗑️ 133 killed
 
 ## 🟣 Groomed (3)
 
@@ -67,7 +61,6 @@ graph TD
   0380
   0409
   0412
-  0422
   0433
   0464
   0490 --> 0491
@@ -82,7 +75,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (469)</summary>
+<details><summary>✅🗑️ Archive — done + killed (470)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -94,6 +87,7 @@ graph TD
 | [0483](archive/2026-10-02-0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | 2026-10-02 |
 | [0457](archive/2026-10-02-0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | 2026-10-02 |
 | [0443](archive/2026-10-02-0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | 2026-10-02 |
+| [0422](archive/2026-10-02-0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | 2026-10-02 |
 | [0387](archive/2026-10-02-0387-re-cut-frozen-fixtures-to-clear-stale-retired-token-comments.md) | Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml | 2026-10-02 |
 | [0301](archive/2026-10-02-0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | 2026-10-02 |
 | [0291](archive/2026-10-02-0291-load-gate-failure-md-before-the-dispatch-verb-at-both-finali.md) | Load gate-failure.md before the dispatch verb at both finalize gate steps | 2026-10-02 |

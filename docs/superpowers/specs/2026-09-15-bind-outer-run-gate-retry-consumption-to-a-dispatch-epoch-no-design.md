@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0422 — Bind outer run-gate retry consumption to a dispatch epoch, not each observation](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md)**
+> ↩ **[Change 0422 — Bind outer run-gate retry consumption to a dispatch epoch, not each observation](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-02-0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md)**
 <!-- docket:backlink:end -->
 
 # Change 0422: reuse the same retry marker for repeated attempt observations

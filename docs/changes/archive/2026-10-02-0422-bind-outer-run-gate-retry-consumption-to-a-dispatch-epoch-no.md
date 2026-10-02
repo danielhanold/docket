@@ -2,7 +2,7 @@
 id: 422
 slug: 'bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no'
 title: 'Bind outer run-gate retry consumption to a dispatch epoch, not each observation'
-status: 'in-progress'
+status: 'killed'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-10'
@@ -18,11 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch: 'chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no'
+branch:
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-15T12:55:21Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,7 +31,7 @@ claimed_at: '2026-09-15T12:55:21Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) |
-| Plan | [2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md](https://github.com/danielhanold/docket/blob/chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no/docs/superpowers/plans/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) |
+| Plan | [2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) |
 | ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0115](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
@@ -82,3 +82,11 @@ The revised decision carries three constraints that cannot all hold: (1) do not 
 ### State left for inspection / resume
 
 Tasks 1–4 remain committed and untouched on `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` (tip a0327d35): the entire functional fix and its tests. Task 5's additive edits are still uncommitted in the feature worktree (`AGENTS.md`, `cursor-rules/run-gate.md`, `docs/concepts/run-gate.md`, `skills/docket-implement-next/SKILL.md`, and the regenerated `internal/assets/embedded/**` mirrors) — the exact additive prose the plan specified, ready for a human to inspect and adjust. No results artifact was authored and no PR was opened. The final full-suite build gate has not been run.
+
+## Why killed
+
+This change can't fire in this repo. The retry over-count happens only when `run.max_attempts` is 3 or more; no config layer sets it, so the built-in default of 2 applies.
+
+Its build halted at Task 5, waiting on a human decision about the AGENTS.md dispatch-budget overage. Change 0491 rewrites the run tracker's verdict and cancel code that this change touches.
+
+Killed in the 2026-10-02 backlog review that followed the gate-machinery simplification (0488–0491), on Daniel's decision. It was unblocked first only because a kill must start from `proposed` or `in-progress`. Its feature branch `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` and its worktree under `.worktrees/` are left in place for a human to remove.
