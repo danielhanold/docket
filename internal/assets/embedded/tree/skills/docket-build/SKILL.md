@@ -79,7 +79,7 @@ time; later tasks build on earlier task commits and share the worktree, so worke
 sequential. Its dispatch payload contains:
 Feature worktree: <absolute canonical feature-worktree root>
 It also gives the worker the branch name, the plan task text, applicable repository instructions, selected
-tier and routing reason, and the return schema. No run context, run id, or capability goes into a
+tier and routing reason, and the return schema. No run context or capability goes into a
 worker prompt: the worker runs its tests directly and calls no gate operation. Never dispatch a task reviewer, and
 never dispatch two workers concurrently — that binds a controller who *believes the first worker
 is gone* exactly as it binds one dispatching deliberately. Never preload a review skill either —
@@ -210,9 +210,8 @@ authoritative config the build role reads, never a command it invents:
    **skipped** evidence via the `evidence.record` operation (no run dir) — `result: skipped` /
    `reason: build-gate-off` at the current head — and proceed to review. Nothing to run or repair.
 2. **`build_gate: local`, non-empty `build_test_command`** — drive it through the native gate
-   **driver**: the `gate.drive.start` operation with `--owner build --change-id <id> --run-id
-   <run-id> --run-context <token> --json` (`--run-id`/`--run-context` only when your prompt
-   carried them; `--change-id` always — it is what charges `build_max_attempts` and lets the run
+   **driver**: the `gate.drive.start` operation with `--owner build --change-id <id>
+   --run-context <token> --json` (`--run-context` only when your prompt carried it; `--change-id` always — it is what charges `build_max_attempts` and lets the run
    tracker find the drive) — capture that first response into `gate_reply` (its exit
    code, if needed, into `gate_rc`; never a zsh read-only special parameter such as
    `status`) and read the drive id and owner generation from it — then `gate.drive.advance` operation slices,
@@ -265,11 +264,10 @@ default 4) caps the full-suite runs this phase may spend, counting the initial r
    the same worker contract on the ladder `premium -> max -> halt` — one tier above the default
    deliberately: repair is cross-task diagnosis, never routine work. The repair worker diagnoses
    the failure, adds regression coverage where appropriate, fixes it, re-runs the failing tests
-   directly as its focused check, and commits; it never runs the full suite, and its dispatch
-   payload carries no run id.
+   directly as its focused check, and commits; it never runs the full suite.
 2. When the repair worker returns `COMPLETE`, you start the next counted attempt yourself with the
    same build-owned start — the `gate.drive.start` operation with `--owner build --change-id <id>
-   --run-id <run-id> --run-context <token> --json` (flags as above) — and drive it to a final result
+   --run-context <token> --json` (flags as above) — and drive it to a final result
    exactly as *Gate run posture* describes, so the facade charges it with no bypass.
 3. **Green at any point ends the phase immediately; review is never invoked while red.** A red
    result becomes the next repair task while attempts remain. A refused start

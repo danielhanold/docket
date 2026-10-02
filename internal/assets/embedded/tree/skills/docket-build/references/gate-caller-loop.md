@@ -26,7 +26,7 @@ copy):
 
 | Operation | What it does |
 |---|---|
-| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. A build or implement-next caller passes `--repo-dir <worktree> --owner build --change-id <id> --run-root <dir> --json` (`--change-id` charges `build.max_attempts` and lets the run tracker match the drive), plus `--run-context <token>` and `--run-id <id>` when its prompt carried them; `--owner build` resolves the build-owned suite command from config, so the caller passes no suite argv. |
+| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. A build or implement-next caller passes `--repo-dir <worktree> --owner build --change-id <id> --run-root <dir> --json` (`--change-id` charges `build.max_attempts` and lets the run tracker match the drive), plus `--run-context <token>` when its prompt carried it; `--owner build` resolves the build-owned suite command from config, so the caller passes no suite argv. |
 | `advance` | Resume the current attempt of a drive (by opaque drive id + owner generation) through one more slice. |
 | `handoff` | Prove current ownership, revalidate repository + process identity, invalidate the current owner, and mint a **single-use** handoff token — the only way a departing owner transfers a live drive. |
 | `claim` | Recompute identity, consume a handoff token (conflict-checked), and return a **fresh** owner generation the claimant advances with. |

@@ -153,7 +153,7 @@ func TestNoTaskOwnedDriveInstructions(t *testing.T) {
 			}
 		}
 		clean := []string{
-			"the `gate.drive.start` operation with `--owner build --run-id <run-id> --json`",
+			"the `gate.drive.start` operation with `--owner build --change-id <id> --json`",
 			"`WAITING` is the only nonterminal disposition and the only one that advances again",
 			workerOutcomeList,
 			"the `--owner taskforce` flag, `--scope-ids`, and `--child-capacity`",

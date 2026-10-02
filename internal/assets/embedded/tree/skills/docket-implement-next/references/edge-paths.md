@@ -58,8 +58,8 @@ worktree carries at most one live run. When the caller starts the resume (`run.s
 <id>`), `run.start` refuses to open a second run over one that has not verifiably stopped:
 
 - Prior run still **active** (an undispatched earlier resume start counts) → refused
-  `resume-active-run`, naming the change, run id, and run key, with the remedy: cancel the prior run
-  via the `run.cancel` operation (`--key <key> --run-id <id> --reason <why>`) and resume after
+  `resume-active-run`, naming the change and run key, with the remedy: cancel the prior run via the
+  `run.cancel` operation (`--key <key> --reason <why>`) and resume after
   confirmed cancellation, or continue the live run via `run.verdict`. **Never** force a fresh
   claim over a possibly-live run — that is claim theft.
 - Cancellation still finishing → refused `cancellation-pending`; the resume observes that cleanup
