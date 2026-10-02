@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0487](active/0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) | Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go | `medium` | `fix` | [spec](../superpowers/specs/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md) | `fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu` |  |
+| [0487](active/0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) | Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go | `medium` | `fix` | [spec](../superpowers/specs/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md) | `fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu` | run halted — needs you |
 
 ## 🔴 Blocked (1)
 
