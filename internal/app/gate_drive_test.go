@@ -21,14 +21,11 @@ import (
 // outcome mapping and its authoritative-config injection are tested without a
 // real driver, store, process supervisor, or repository.
 type fakeDriveEngine struct {
-	doc          gatedrive.DriveDoc
-	err          error
-	lastStart    gatedrive.StartRequest
-	startCalled  bool
-	startCount   int
-	grant        gatedrive.ScopeGrant
-	grantErr     error
-	lastScopeReq gatedrive.ScopeRequest
+	doc         gatedrive.DriveDoc
+	err         error
+	lastStart   gatedrive.StartRequest
+	startCalled bool
+	startCount  int
 	// admitErr, when set, makes Admit refuse (the launch/StartAdmitted half is never
 	// reached). It models an admission race the app's advisory precheck missed —
 	// e.g. a worktree-busy slot — so a test can prove the charge stays AFTER Admit.
@@ -40,11 +37,6 @@ type fakeDriveEngine struct {
 	// unchanged whichever half the owner used.
 	startAdmittedCount int
 	abandonCount       int
-	// lastAck records the four arguments the most recent Acknowledge call
-	// forwarded, so the seam's argument passthrough is asserted without a real
-	// driver.
-	lastAck   [4]string
-	ackCalled bool
 	// reconcile, when set, answers ReconcileFinishedIncumbent (change 0446 §3); nil
 	// reports an unsettled incumbent. reconcileCount counts the consultations so a
 	// test can prove a busy advisory refusal reached reconciliation first.
@@ -108,18 +100,6 @@ func (f *fakeDriveEngine) Handoff(id, ownerGen string) (gatedrive.DriveDoc, erro
 	return f.doc, f.err
 }
 func (f *fakeDriveEngine) Claim(id, handoffID string) (gatedrive.DriveDoc, error) {
-	return f.doc, f.err
-}
-func (f *fakeDriveEngine) Takeover(scopeID, parentCap, driveID string) (gatedrive.DriveDoc, error) {
-	return f.doc, f.err
-}
-func (f *fakeDriveEngine) PrepareScope(r gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
-	f.lastScopeReq = r
-	return f.grant, f.grantErr
-}
-func (f *fakeDriveEngine) Acknowledge(scopeID, childCap, driveID, ownerGen string) (gatedrive.DriveDoc, error) {
-	f.lastAck = [4]string{scopeID, childCap, driveID, ownerGen}
-	f.ackCalled = true
 	return f.doc, f.err
 }
 
@@ -527,39 +507,7 @@ func TestMapDriveHaltCauseKeysOnGatedriveConstants(t *testing.T) {
 	}
 }
 
-// --- Task 3: prepare-scope, takeover, and the task-intent owner ------------
-
-// TestPrepareScopeHumanTextRedactsCapabilities proves the grant travels in the
-// JSON document (all three fields) while the human text carries ONLY the scope
-// id — never either capability token.
-func TestPrepareScopeHumanTextRedactsCapabilities(t *testing.T) {
-	eng := &fakeDriveEngine{grant: gatedrive.ScopeGrant{
-		ScopeID:          "scope-123",
-		ChildCapability:  "childcapsecret",
-		ParentCapability: "parentcapsecret",
-	}}
-	svc := newGateDriveService(eng, 0, "", "")
-	got := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "0359"})
-	if got.Result != ResultApplied {
-		t.Fatalf("prepare-scope result = %s, want applied", got.Result)
-	}
-	if got.Operation != OperationGateDrivePrepareScope {
-		t.Fatalf("operation = %q, want %q", got.Operation, OperationGateDrivePrepareScope)
-	}
-	if got.ScopeID != "scope-123" || got.ChildCapability != "childcapsecret" || got.ParentCapability != "parentcapsecret" {
-		t.Fatalf("JSON document must carry all three grant fields, got %+v", got)
-	}
-	if eng.lastScopeReq.ChangeID != "0359" {
-		t.Fatalf("PrepareScope must forward the request, got %+v", eng.lastScopeReq)
-	}
-	human := got.HumanText()
-	if !strings.Contains(human, "scope-123") {
-		t.Fatalf("human text must name the scope id, got %q", human)
-	}
-	if strings.Contains(human, "childcapsecret") || strings.Contains(human, "parentcapsecret") {
-		t.Fatalf("human text must NOT carry any capability, got %q", human)
-	}
-}
+// --- Task 3: the task-intent owner ------------------------------------------
 
 // TestTaskServiceForcesNonIdempotent proves the task-intent owner forces
 // IdempotentSuiteGate false regardless of the request, passes the agent-supplied
@@ -681,98 +629,6 @@ func TestStartForwardsPredecessorFields(t *testing.T) {
 	}
 	if eng.lastStart.PredecessorDriveID != "prev-drive" || eng.lastStart.PredecessorOwnerGen != "prev-gen" {
 		t.Fatalf("Start must forward the predecessor fields, got %+v", eng.lastStart)
-	}
-}
-
-// TestAcknowledgeForwardsArgsAndMapsDoc proves the Acknowledge seam forwards all
-// four arguments verbatim to the engine, maps a produced document to an applied
-// result carrying the shared DriveDoc under the acknowledge operation name, and
-// maps a typed OwnershipError to the bounded reason token plus its next-action
-// message (never the generic invalid-request, never leaking wrapped text).
-func TestAcknowledgeForwardsArgsAndMapsDoc(t *testing.T) {
-	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.PASSED, DriveID: "d2", Generation: "gen2"}}
-	svc := newGateDriveService(eng, 0, "", "")
-	got := svc.Acknowledge("sc-1", "childcap", "d2", "gen2")
-	if !eng.ackCalled || eng.lastAck != [4]string{"sc-1", "childcap", "d2", "gen2"} {
-		t.Fatalf("Acknowledge must forward all four args verbatim, got called=%v args=%v", eng.ackCalled, eng.lastAck)
-	}
-	if got.Result != ResultApplied || got.Drive == nil || got.Drive.Outcome != gatedrive.PASSED {
-		t.Fatalf("acknowledge success must be an applied result carrying the doc, got %s", got.Result)
-	}
-	if got.Operation != OperationGateDriveAcknowledge {
-		t.Fatalf("operation = %q, want %q", got.Operation, OperationGateDriveAcknowledge)
-	}
-
-	// A typed ownership rejection surfaces its bounded kind token and a
-	// next-action message, exactly like the other drive operations.
-	bad := &fakeDriveEngine{err: &gatedrive.OwnershipError{Kind: gatedrive.ErrScopeClosed, Op: "acknowledge"}}
-	svc2 := newGateDriveService(bad, 0, "", "")
-	got2 := svc2.Acknowledge("sc-x", "childcap", "dx", "genx")
-	if got2.Result != ResultInvalidInput || got2.Drive != nil {
-		t.Fatalf("ownership rejection must be invalid-input with no drive, got result=%s", got2.Result)
-	}
-	if got2.Reason != string(gatedrive.ErrScopeClosed) {
-		t.Fatalf("reason = %q, want the typed kind token %q", got2.Reason, string(gatedrive.ErrScopeClosed))
-	}
-	if got2.Message == "" {
-		t.Fatalf("ownership rejection must carry a valid-next-action message")
-	}
-}
-
-// TestAcknowledgeScopeTransferredEnvelope is the change-0459 app-layer pin: a
-// scope-transferred ownership rejection surfaces reason "scope-transferred"
-// under invalid-input, with a next-action message that names the real state
-// (parent claimed/took over; report on the continuation's verdict; fresh scope
-// for further tests) and never says BLOCKED — while the reworded scope-closed
-// message keeps BLOCKED and drops the old "transferred or" wording.
-func TestAcknowledgeScopeTransferredEnvelope(t *testing.T) {
-	bad := &fakeDriveEngine{err: &gatedrive.OwnershipError{Kind: gatedrive.ErrScopeTransferred, Op: "acknowledge"}}
-	svc := newGateDriveService(bad, 0, "", "")
-	got := svc.Acknowledge("sc-x", "childcap", "dx", "genx")
-	if got.Result != ResultInvalidInput || got.Drive != nil {
-		t.Fatalf("scope-transferred must map to invalid-input with no drive, got result=%s", got.Result)
-	}
-	if got.Reason != string(gatedrive.ErrScopeTransferred) {
-		t.Fatalf("reason = %q, want %q", got.Reason, string(gatedrive.ErrScopeTransferred))
-	}
-	if strings.Contains(got.Message, "BLOCKED") {
-		t.Fatalf("the scope-transferred message must never direct the worker to BLOCKED, got %q", got.Message)
-	}
-	for _, want := range []string{"parent claimed or took over", "verdict your continuation supplied", "fresh scope"} {
-		if !strings.Contains(got.Message, want) {
-			t.Fatalf("scope-transferred message must contain %q, got %q", want, got.Message)
-		}
-	}
-
-	// The finished-scope message: still directs BLOCKED, no longer claims a transfer.
-	closedMsg := ownershipNextAction(gatedrive.ErrScopeClosed)
-	if !strings.Contains(closedMsg, "BLOCKED") {
-		t.Fatalf("the scope-closed message must keep directing BLOCKED, got %q", closedMsg)
-	}
-	if strings.Contains(closedMsg, "transferred") {
-		t.Fatalf("the scope-closed message must no longer say transferred, got %q", closedMsg)
-	}
-}
-
-// TestTakeoverMapsDoc proves Takeover delegates to the engine, carries a
-// successful document verbatim under the takeover operation name, and maps a
-// command failure through the shared mapDriveFailure classifier.
-func TestTakeoverMapsDoc(t *testing.T) {
-	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.PASSED, DriveID: "d1", Generation: "freshgen"}}
-	svc := newGateDriveService(eng, 0, "", "")
-	got := svc.Takeover("sc-1", "parentcap", "d1")
-	if got.Result != ResultApplied || got.Drive == nil || got.Drive.Outcome != gatedrive.PASSED {
-		t.Fatalf("takeover success must be an applied result carrying the doc, got %s", got.Result)
-	}
-	if got.Operation != OperationGateDriveTakeover {
-		t.Fatalf("operation = %q, want %q", got.Operation, OperationGateDriveTakeover)
-	}
-
-	bad := &fakeDriveEngine{err: &gatedrive.StoreError{Kind: gatedrive.ErrNotFound, Op: "resolve"}}
-	svc2 := newGateDriveService(bad, 0, "", "")
-	got2 := svc2.Takeover("sc-x", "parentcap", "dx")
-	if got2.Result != ResultInvalidInput || got2.Drive != nil || got2.Reason == "" {
-		t.Fatalf("takeover command failure must map like the other ops, got result=%s reason=%q", got2.Result, got2.Reason)
 	}
 }
 
@@ -941,9 +797,9 @@ func TestScopelessBuildStartNotBudgeted(t *testing.T) {
 }
 
 // TestAdvanceRecoverTakeoverDoNotCharge proves the non-start drive operations —
-// advance (observation), takeover (ownership transfer), and handoff/claim
-// (continuation) — never charge the budget: after one budgeted start, usage stays
-// at exactly 1 no matter how many of these resume/transfer calls run.
+// advance (observation) and handoff/claim (continuation and ownership transfer) —
+// never charge the budget: after one budgeted start, usage stays at exactly 1 no
+// matter how many of these resume/transfer calls run.
 func TestAdvanceRecoverTakeoverDoNotCharge(t *testing.T) {
 	svc, _, dir := newBudgetTestBuildService(t, 4)
 
@@ -959,10 +815,9 @@ func TestAdvanceRecoverTakeoverDoNotCharge(t *testing.T) {
 	svc.Advance("d1", "gen")
 	svc.Handoff("d1", "gen")
 	svc.Claim("d1", "handoff")
-	svc.Takeover("sc-1", "parentcap", "d1")
 
 	if used, limit := suiteUsage(t, dir, "0421"); used != 1 || limit != 4 {
-		t.Fatalf("advance/handoff/claim/takeover must charge nothing, got usage (%d,%d)", used, limit)
+		t.Fatalf("advance/handoff/claim must charge nothing, got usage (%d,%d)", used, limit)
 	}
 }
 
@@ -1250,11 +1105,9 @@ func TestCancellationDoesNotCharge(t *testing.T) {
 	svc.Advance("d1", "gen")
 	svc.Handoff("d1", "gen")
 	svc.Claim("d1", "h")
-	svc.Takeover("sc-1", "cap", "d1")
-	svc.Acknowledge("sc-1", "cap", "d1", "gen")
 
 	if used, limit := suiteUsage(t, dir, "0421"); used != 0 || limit != 0 {
-		t.Fatalf("advance/handoff/claim/takeover/acknowledge must charge nothing, got usage (%d,%d)", used, limit)
+		t.Fatalf("advance/handoff/claim must charge nothing, got usage (%d,%d)", used, limit)
 	}
 }
 
@@ -1779,43 +1632,5 @@ func TestMapDriveFailureRunErrors(t *testing.T) {
 	}
 	if strings.Contains(got.Message, presented) || strings.Contains(got.HumanText(), presented) {
 		t.Fatalf("the presented value leaked: message=%q human=%q", got.Message, got.HumanText())
-	}
-}
-
-// TestPrepareScopeRefusesUnknownRunID (change 0463): a presented --run-id that
-// the registry cannot resolve is refused before any scope is minted, with the named
-// token and the next action and without echoing the value. A scope with no
-// --run-id never consults the locator (standalone scopes are unchanged).
-func TestPrepareScopeRefusesUnknownRunID(t *testing.T) {
-	eng := &fakeDriveEngine{grant: gatedrive.ScopeGrant{ScopeID: "scope-1", ChildCapability: "c", ParentCapability: "p"}}
-	svc := newGateDriveService(eng, 0, "", "")
-	var asked string
-	svc.runLocate = func(id string) error {
-		asked = id
-		return runErr(ErrRunNotFound, "find-dir-by-id", nil)
-	}
-	got := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "463", RunID: "bogus-run-value"})
-	if got.Result != ResultInvalidInput || got.Reason != ReasonUnknownRunID {
-		t.Fatalf("got (%s, %q), want (invalid-input, unknown-run-id)", got.Result, got.Reason)
-	}
-	if got.ScopeID != "" || got.ChildCapability != "" || got.ParentCapability != "" {
-		t.Fatalf("a refused prepare-scope must carry no grant: %+v", got)
-	}
-	if eng.lastScopeReq.ChangeID != "" {
-		t.Fatalf("an unresolvable run must mint no scope, engine saw %+v", eng.lastScopeReq)
-	}
-	if asked != "bogus-run-value" {
-		t.Fatalf("locator asked %q, want the presented id", asked)
-	}
-	if !strings.Contains(got.Message, "--run-context") || strings.Contains(got.Message, "--gate-context") || !strings.Contains(got.HumanText(), "unknown-run-id") {
-		t.Fatalf("refusal must carry reason and next action: message=%q human=%q", got.Message, got.HumanText())
-	}
-	if strings.Contains(got.Message, "bogus-run-value") || strings.Contains(got.HumanText(), "bogus-run-value") {
-		t.Fatalf("the presented value leaked: %q / %q", got.Message, got.HumanText())
-	}
-
-	asked = ""
-	if ok := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "463"}); ok.Result != ResultApplied || asked != "" {
-		t.Fatalf("a scope without --run-id must skip the locator and apply: result=%s asked=%q", ok.Result, asked)
 	}
 }

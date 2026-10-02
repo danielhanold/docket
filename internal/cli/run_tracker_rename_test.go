@@ -46,11 +46,9 @@ func TestRunTrackerVocabularyHardCut(t *testing.T) {
 		{[]string{"agent", "enter"}, "run-key", "run-gate-key"},
 		{[]string{"agent", "enter"}, "run-id", "run-epoch"},
 		{[]string{"gate", "drive", "start"}, "run-id", "run-epoch"},
-		{[]string{"gate", "drive", "prepare-scope"}, "run-id", "run-epoch"},
 		// change 0477, ADR-0129 row 38e: the gate drive takes the same
 		// --run-context as change claim; --gate-context is gone everywhere.
 		{[]string{"gate", "drive", "start"}, "run-context", "gate-context"},
-		{[]string{"gate", "drive", "prepare-scope"}, "run-context", "gate-context"},
 	} {
 		cmd := find(f.path...)
 		if cmd.Flags().Lookup(f.want) == nil {
@@ -66,12 +64,5 @@ func TestRunTrackerVocabularyHardCut(t *testing.T) {
 	}
 	if _, _, code := runCLI(t, "--json", "run", "cancel", "--key", "k", "--epoch", "e", "--reason", "r"); code != 2 {
 		t.Errorf("docket run cancel --epoch exited %d, want 2 (unknown flag)", code)
-	}
-	// change 0477: an in-flight caller still passing the gate drive's old flag
-	// fails loudly as an unknown flag (exit 2), never silently ignored.
-	if _, _, code := runCLI(t, "--json", "gate", "drive", "prepare-scope",
-		"--change-id", "1", "--task-id", "t", "--phase", "build", "--branch", "b",
-		"--worktree", "/tmp", "--gate-context", "x"); code != 2 {
-		t.Errorf("docket gate drive prepare-scope --gate-context exited %d, want 2 (unknown flag)", code)
 	}
 }

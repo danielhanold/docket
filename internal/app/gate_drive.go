@@ -23,13 +23,10 @@ import (
 // Gate-drive operation names — the fixed protocol identifiers for the
 // slice-bounded gate-driver operations this seam exposes.
 const (
-	OperationGateDriveStart        = "gate.drive.start"
-	OperationGateDriveAdvance      = "gate.drive.advance"
-	OperationGateDriveAcknowledge  = "gate.drive.acknowledge"
-	OperationGateDriveHandoff      = "gate.drive.handoff"
-	OperationGateDriveClaim        = "gate.drive.claim"
-	OperationGateDrivePrepareScope = "gate.drive.prepare-scope"
-	OperationGateDriveTakeover     = "gate.drive.takeover"
+	OperationGateDriveStart   = "gate.drive.start"
+	OperationGateDriveAdvance = "gate.drive.advance"
+	OperationGateDriveHandoff = "gate.drive.handoff"
+	OperationGateDriveClaim   = "gate.drive.claim"
 )
 
 // GateDriveResult is the protocol document for the gate-drive operations. It
@@ -57,40 +54,6 @@ type GateDriveResult struct {
 	LegacyHistory *gatedrive.LegacyHistorySummary `json:"legacy_history,omitempty"`
 }
 
-// GateScopeResult is the protocol document for gate.drive.prepare-scope. It
-// carries the scope locator and the two SEPARATE opaque capabilities in JSON,
-// but its HumanText prints ONLY the scope id: the capabilities are authority and
-// travel exclusively in the protocol document, never in diagnostic prose (spec
-// "Capabilities and owner generations never appear in human text").
-type GateScopeResult struct {
-	Envelope
-	ScopeID          string `json:"scope_id,omitempty"`
-	ChildCapability  string `json:"child_capability,omitempty"`
-	ParentCapability string `json:"parent_capability,omitempty"`
-	Reason           string `json:"reason,omitempty"`
-	// Message is the one-line next action on a command failure (change 0463), e.g.
-	// the unknown-run-id remedy. It never carries a capability or the presented
-	// run value.
-	Message string `json:"message,omitempty"`
-}
-
-// HumanText renders GateScopeResult naming ONLY the scope id (and a bounded
-// reason on a command failure). The child and parent capabilities are
-// deliberately omitted — they are authority, carried only in the JSON document.
-func (r GateScopeResult) HumanText() string {
-	var lines []string
-	if r.ScopeID != "" {
-		lines = append(lines, "scope_id: "+r.ScopeID)
-	}
-	if r.Reason != "" {
-		lines = append(lines, "reason: "+r.Reason)
-	}
-	if r.Message != "" {
-		lines = append(lines, "message: "+r.Message)
-	}
-	return strings.Join(lines, "\n")
-}
-
 // driveEngine is the native gate-drive state machine this seam maps to the
 // protocol. *gatedrive.Driver satisfies it; unit tests inject a fake engine to
 // prove the outcome mapping and the authoritative-config injection independent of
@@ -105,11 +68,8 @@ type driveEngine interface {
 	StartAdmitted(*gatedrive.AdmissionTicket) (gatedrive.DriveDoc, error)
 	AbandonAdmission(*gatedrive.AdmissionTicket) error
 	Advance(id, ownerGen string) (gatedrive.DriveDoc, error)
-	Acknowledge(scopeID, childCapability, driveID, ownerGen string) (gatedrive.DriveDoc, error)
 	Handoff(id, ownerGen string) (gatedrive.DriveDoc, error)
 	Claim(id, handoffID string) (gatedrive.DriveDoc, error)
-	Takeover(scopeID, parentCap, driveID string) (gatedrive.DriveDoc, error)
-	PrepareScope(gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error)
 	// ReconcileFinishedIncumbent settles a proven-finished incumbent on a worktree's
 	// execution slot with the engine's own process seam (change 0446 spec §3), so an
 	// advisory busy refusal is final only after reconciliation had its chance.
@@ -154,11 +114,6 @@ type GateDriveService struct {
 	// finalize service also stores a non-nil budgetStore.
 	budgetStore *gatedrive.Store
 	maxAttempts int
-	// runLocate resolves a presented run id against the repository's run
-	// registry before PrepareScope mints a scope (change 0463). A non-nil error is a
-	// typed RunError. Nil on the fake-engine test seam and on services that never
-	// serve prepare-scope.
-	runLocate func(runID string) error
 }
 
 // GateDriveStartRequest is the caller-supplied identity and launch context for a
@@ -315,11 +270,7 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	// settled through exact-token retirement rather than refused stale-run-id
 	// (change 0446): wire the settlement read over the same registry.
 	engine.SetRunSettledResolver(runSettledResolver(gitCommonDir))
-	svc := newGateDriveService(engine, 0, "", "")
-	// prepare-scope is served by this commandless service: resolve a presented
-	// --run-id against the same registry before minting a scope (change 0463).
-	svc.runLocate = runIDLocator(gitCommonDir)
-	return svc, "", ""
+	return newGateDriveService(engine, 0, "", ""), "", ""
 }
 
 // NewTaskGateDriveService composes the gate-drive seam for TASK-INTENT
@@ -588,21 +539,6 @@ func (s *GateDriveService) Advance(id, ownerGen string) GateDriveResult {
 	return mapDriveResult(OperationGateDriveAdvance, doc, err)
 }
 
-// Acknowledge consumes the scope's final drive result and closes the scope. It
-// is the final drive's "successor" — the terminal counterpart of the successor
-// receipt a Start carries — and needs no suite command or observation budget, so
-// it composes over the commandless service exactly like advance/handoff/claim.
-// The driver verifies the child capability, that driveID is the scope's current
-// launched drive with a durable PASSED/FAILED outcome and no outstanding handoff,
-// and current ownership; a byte-identical repeat after success is idempotent. Its
-// outcome maps exactly like the other drive operations: a produced document is an
-// applied result; a typed ownership rejection carries the bounded reason and its
-// next-action message.
-func (s *GateDriveService) Acknowledge(scopeID, childCap, driveID, ownerGen string) GateDriveResult {
-	doc, err := s.engine.Acknowledge(scopeID, childCap, driveID, ownerGen)
-	return mapDriveResult(OperationGateDriveAcknowledge, doc, err)
-}
-
 // Handoff transfers a live drive to a fresh owner, returning the single-use
 // handoff token (in the document's generation) a claimant presents to Claim.
 func (s *GateDriveService) Handoff(id, ownerGen string) GateDriveResult {
@@ -615,48 +551,6 @@ func (s *GateDriveService) Handoff(id, ownerGen string) GateDriveResult {
 func (s *GateDriveService) Claim(id, handoffID string) GateDriveResult {
 	doc, err := s.engine.Claim(id, handoffID)
 	return mapDriveResult(OperationGateDriveClaim, doc, err)
-}
-
-// PrepareScope mints a recovery scope for one parent/child dispatch boundary and
-// returns the grant. On success the JSON document carries all three grant fields
-// (scope id + child/parent capabilities); a command failure carries a bounded
-// safe reason and no grant. The two capabilities travel ONLY in the JSON
-// document — never in the human text (GateScopeResult.HumanText).
-func (s *GateDriveService) PrepareScope(req gatedrive.ScopeRequest) GateScopeResult {
-	// A presented --run-id must resolve before it is baked into the scope (change
-	// 0463): an unresolvable one refuses now with its named token, instead of
-	// surfacing later at start as a refusal the caller cannot attribute.
-	if req.RunID != "" && s.runLocate != nil {
-		if lerr := s.runLocate(req.RunID); lerr != nil {
-			res, reason := mapDriveFailure(lerr)
-			return GateScopeResult{
-				Envelope: NewEnvelope(OperationGateDrivePrepareScope, res),
-				Reason:   reason,
-				Message:  RunIDNextAction(reason),
-			}
-		}
-	}
-	grant, err := s.engine.PrepareScope(req)
-	if err != nil {
-		res, reason := mapDriveFailure(err)
-		return GateScopeResult{Envelope: NewEnvelope(OperationGateDrivePrepareScope, res), Reason: reason}
-	}
-	return GateScopeResult{
-		Envelope:         NewEnvelope(OperationGateDrivePrepareScope, ResultApplied),
-		ScopeID:          grant.ScopeID,
-		ChildCapability:  grant.ChildCapability,
-		ParentCapability: grant.ParentCapability,
-	}
-}
-
-// Takeover performs the event-authorized exceptional transfer of a scope-bound
-// drive to a fresh owner the parent mints. It delegates to the driver and maps
-// the outcome exactly like the other drive operations: a produced document
-// (including a HALTED refusal) is an applied result carrying the shared DriveDoc;
-// a command failure carries a bounded safe reason and no document.
-func (s *GateDriveService) Takeover(scopeID, parentCap, driveID string) GateDriveResult {
-	doc, err := s.engine.Takeover(scopeID, parentCap, driveID)
-	return mapDriveResult(OperationGateDriveTakeover, doc, err)
 }
 
 // commandArgv shells the resolved suite command exactly as the finalize gate does
@@ -993,5 +887,4 @@ func (r GateDriveResult) legacySummary() *gatedrive.LegacyHistorySummary {
 var (
 	_ driveEngine     = (*gatedrive.Driver)(nil)
 	_ OperationResult = GateDriveResult{}
-	_ OperationResult = GateScopeResult{}
 )
