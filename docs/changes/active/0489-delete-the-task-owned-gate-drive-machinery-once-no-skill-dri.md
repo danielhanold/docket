@@ -2,7 +2,7 @@
 id: 489
 slug: 'delete-the-task-owned-gate-drive-machinery-once-no-skill-dri'
 title: 'Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'refactor'
 created: '2026-10-02'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/delete-the-task-owned-gate-drive-machinery-once-no-skill-dri'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/365'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-02T10:37:09Z'
