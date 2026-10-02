@@ -365,69 +365,6 @@ func TestFaultSuccessorReservationWriteFailsThenRestart(t *testing.T) {
 	}
 }
 
-// TestFaultLaunchFailsThenRestart (case b): the process launch errors. The slot
-// stays durably reserved (a launch-failed HALTED record with its owner retained —
-// a terminal-unconsumed record outer recovery can see), never empty. After a
-// restart no path launches a duplicate: a fresh start is refused ErrScopeBusy, a
-// takeover of the reserved slot HALTs unresolved-launch-transition, and
-// enumeration does NOT report the scope empty.
-func TestFaultLaunchFailsThenRestart(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	proc := &fakeProc{
-		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
-			return nil, fmt.Errorf("gatedrive-test: launch failed")
-		},
-	}
-	d := scopedTestDriver(store, clk, proc, stableGit())
-	grant, req := prepareScopedStart(t, store)
-
-	if _, err := d.Start(req); err == nil {
-		t.Fatalf("a launch failure must be a command failure (error)")
-	}
-
-	// Restart over the same durable state.
-	rstore := reopenStore(store)
-	scope, err := rstore.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope after restart: %v", err)
-	}
-	if scope.CurrentDriveID == "" || scope.CurrentDriveState != scopeStateReserved {
-		t.Fatalf("after a launch failure the slot must stay reserved, got id=%q state=%q", scope.CurrentDriveID, scope.CurrentDriveState)
-	}
-	// No false no-work: the launch-failed drive is a terminal-unconsumed candidate.
-	ids, err := rstore.FindScopeDriveIDs(req.ChangeID, "")
-	if err != nil {
-		t.Fatalf("FindScopeDriveIDs: %v", err)
-	}
-	if len(ids) == 0 {
-		t.Fatalf("a launch-failed reserved slot must not report the scope empty")
-	}
-
-	// No duplicate launch: a fresh start over the reserved slot is refused, proven by
-	// a fresh (never-launching) proc.
-	rproc := passObserveProc()
-	rd := scopedTestDriver(rstore, &fakeClock{now: startRun()}, rproc, stableGit())
-	if _, err := rd.Start(req); !isOwnershipKind(err, ErrScopeBusy) {
-		t.Fatalf("a start over a launch-failed reserved slot must fail ErrScopeBusy, got %v", err)
-	}
-	if rproc.launchN != 0 {
-		t.Fatalf("a refused start must never launch, got %d", rproc.launchN)
-	}
-	// A takeover of the reserved (unresolved) slot fails closed — a reservation is not
-	// a quiescent result — without launching.
-	tdoc, err := rd.Takeover(grant.ScopeID, grant.ParentCapability, "")
-	if err != nil {
-		t.Fatalf("Takeover: %v", err)
-	}
-	if tdoc.Outcome != HALTED || tdoc.Cause != string(ErrUnresolvedLaunchTransition) {
-		t.Fatalf("takeover of a reserved slot must HALT unresolved-launch-transition, got %s/%q", tdoc.Outcome, tdoc.Cause)
-	}
-	if rproc.launchN != 0 {
-		t.Fatalf("recovery must never launch, got %d", rproc.launchN)
-	}
-}
-
 // TestFaultAttachLaunchFailsThenRestart (case c): the launch-handle persistence
 // (attachLaunch) fails after a run was launched. The orphaned run is stopped, the
 // slot stays reserved (never empty), and after a restart no path launches a

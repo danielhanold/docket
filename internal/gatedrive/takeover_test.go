@@ -550,8 +550,9 @@ func TestStartBindsScope(t *testing.T) {
 }
 
 // TestFindScopeDriveIDs proves the outer-scope candidate resolver: it lists drives
-// matching change + run-context hash that are nonterminal OR terminal-unconsumed,
-// excludes a terminal-consumed drive, and skips unreadable records.
+// matching change + run-context hash that are still live; excludes every finished
+// drive (owned or consumed), a wrong run context, a wrong change, and unreadable
+// records.
 func TestFindScopeDriveIDs(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
 
@@ -577,10 +578,10 @@ func TestFindScopeDriveIDs(t *testing.T) {
 	other := capHash("other-ctx")
 
 	waiting := seed("0342", h, WAITING, "own-w")
-	termUnconsumed := seed("0342", h, PASSED, "own-t") // terminal, owner still set
-	seed("0342", h, PASSED, "")                        // terminal AND consumed → excluded
-	seed("0342", other, WAITING, "own-o")              // wrong run context → excluded
-	seed("0400", h, WAITING, "own-c")                  // wrong change → excluded
+	finishedOwned := seed("0342", h, PASSED, "own-t") // finished, owner still set → excluded
+	seed("0342", h, PASSED, "")                       // finished AND consumed → excluded
+	seed("0342", other, WAITING, "own-o")             // wrong run context → excluded
+	seed("0400", h, WAITING, "own-c")                 // wrong change → excluded
 
 	// A corrupt record must be skipped, never fail the scan.
 	corrupt := seed("0342", h, WAITING, "own-x")
@@ -596,8 +597,50 @@ func TestFindScopeDriveIDs(t *testing.T) {
 	for _, id := range ids {
 		got[id] = true
 	}
-	if len(got) != 2 || !got[waiting] || !got[termUnconsumed] {
-		t.Fatalf("want exactly {waiting, terminal-unconsumed}, got %v", ids)
+	if len(got) != 1 || !got[waiting] {
+		t.Fatalf("want exactly {waiting}, got %v (finished-owned %s must be excluded)", ids, finishedOwned)
+	}
+}
+
+// TestFindScopeDriveIDsFinishedDrivesAreNeverCandidates pins change 0489's R1: a
+// run whose only drives are a FAILED and a PASSED build drive — both still owned,
+// both carrying the run's change id and run context — has NO outer-takeover
+// candidate, so run.verdict falls through to its retry path instead of stopping
+// takeover-ambiguous. A live drive beside them is the single candidate.
+func TestFindScopeDriveIDsFinishedDrivesAreNeverCandidates(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	h := capHash("run-ctx-0489")
+	seed := func(outcome Outcome) string {
+		t.Helper()
+		rec := seedRecord(t)
+		rec.ChangeID = "0342"
+		rec.RunContextHash = h
+		rec.LastOutcome = outcome
+		rec.OwnerGeneration = "owner-" + string(outcome) // still owned: never consumed
+		id, _, err := store.NewDrive(rec)
+		if err != nil {
+			t.Fatalf("NewDrive: %v", err)
+		}
+		return id
+	}
+
+	seed(FAILED) // the red gate
+	seed(PASSED) // the green re-gate
+	ids, err := store.FindScopeDriveIDs("0342", h)
+	if err != nil {
+		t.Fatalf("FindScopeDriveIDs: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Fatalf("finished build drives must never be takeover candidates, got %v", ids)
+	}
+
+	live := seed(WAITING)
+	ids, err = store.FindScopeDriveIDs("0342", h)
+	if err != nil {
+		t.Fatalf("FindScopeDriveIDs: %v", err)
+	}
+	if len(ids) != 1 || ids[0] != live {
+		t.Fatalf("a live drive beside finished ones must be the single candidate, got %v want [%s]", ids, live)
 	}
 }
 

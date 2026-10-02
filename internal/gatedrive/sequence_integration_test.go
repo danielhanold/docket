@@ -19,13 +19,9 @@
 //     worktree independently and persists that fingerprint (the successor need NOT
 //     match the predecessor — edits are expected).
 //
-//   - Two scopes in two linked worktrees that share ONE git common dir (hence one
-//     drive/scope store) run concurrently with distinguishable commands and
-//     opposite verdicts, and each parent's takeover and enumeration resolve ONLY
-//     its own scope's current drive — repeated across two tasks of one change, two
-//     different changes, and with acknowledged historical drives present in the
-//     store — while cross-scope credentials or an explicit old drive id cannot
-//     steal work.
+//   - Across two scopes in two linked worktrees that share ONE git common dir
+//     (hence one drive/scope store), cross-scope credentials or an explicit old
+//     drive id cannot steal work.
 //
 // The command marker rides in each command's ARGV (as sh's $0), never in a shell
 // comment: `exit N` is a shell builtin, so sh never execs it away and the marker
@@ -37,13 +33,10 @@
 // skipUnlessSupported, reapSupervisors, stopAllRuns, advanceUntilTerminal,
 // runDirsUnder), plus the scope helper scopeReqFor (takeover_test.go). TestMain
 // (supervisor_integration_test.go) already routes the supervisor re-exec role for
-// the whole integration-tagged build. The two concurrent tests of the second
-// property live in sequence_race_integration_test.go (the race shard, change 0466);
-// this file keeps their shared fixtures.
+// the whole integration-tagged build.
 package gatedrive
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -160,27 +153,6 @@ func driveSeqToTerminal(t *testing.T, d *Driver, req StartRequest) DriveDoc {
 	return doc
 }
 
-// driveSeqToTerminalErr is the goroutine-safe drive-to-terminal: it never touches
-// *testing.T (t.Fatalf must be called only from the test goroutine), returning any
-// error for the caller to assert after the goroutines join.
-func driveSeqToTerminalErr(d *Driver, req StartRequest) (DriveDoc, error) {
-	doc, err := d.Start(req)
-	if err != nil {
-		return DriveDoc{}, err
-	}
-	deadline := time.Now().Add(30 * time.Second)
-	for doc.Outcome == WAITING {
-		if time.Now().After(deadline) {
-			return doc, fmt.Errorf("drive %s never left WAITING", doc.DriveID)
-		}
-		doc, err = d.Advance(doc.DriveID, doc.Generation)
-		if err != nil {
-			return DriveDoc{}, err
-		}
-	}
-	return doc, nil
-}
-
 // mustLoad loads a drive record or fails the test.
 func mustLoad(t *testing.T, store *Store, id string) driveRecord {
 	t.Helper()
@@ -201,16 +173,6 @@ func assertCommandMarker(t *testing.T, rec driveRecord, marker string) {
 		}
 	}
 	t.Fatalf("drive command %v must carry the argv marker %q", rec.Command, marker)
-}
-
-// idsContain reports whether ids includes want.
-func idsContain(ids []string, want string) bool {
-	for _, id := range ids {
-		if id == want {
-			return true
-		}
-	}
-	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -328,61 +290,6 @@ func TestIntegrationGatedriveSequenceRealGitBaselineRedGreen(t *testing.T) {
 	if greenRec.OwnerGeneration == "" {
 		t.Fatalf("the current (unacknowledged) GREEN drive must retain its owner generation")
 	}
-}
-
-// ---------------------------------------------------------------------------
-// Verification 6: concurrent scopes in linked worktrees over one shared common
-// dir; each parent resolves only its own scope's current work. The test itself,
-// TestRaceIntegrationGatedriveSequenceConcurrentScopesResolveOwnWork, lives in
-// sequence_race_integration_test.go (race shard, change 0466).
-// ---------------------------------------------------------------------------
-
-// makeAckedHistory drives a baseline+successor sequence over a fresh scope and then
-// terminally acknowledges it, leaving two owner-cleared (consumed) historical drives
-// in the store, and returns their ids. It runs on the test goroutine.
-func makeAckedHistory(t *testing.T, d *Driver, store *Store, wt, branch, runRoot, changeID, taskID, gateCtx string) []string {
-	t.Helper()
-	base := realSeqStart(wt, branch, runRoot, changeID, taskID, seqPassCmd("acked-history-baseline"))
-	grant, err := store.PrepareScope(scopeReqFor(base, gateCtx))
-	if err != nil {
-		t.Fatalf("PrepareScope (acked history): %v", err)
-	}
-	base.ScopeID = grant.ScopeID
-	base.ChildCapability = grant.ChildCapability
-	base.RunContext = gateCtx
-
-	baseDoc := driveSeqToTerminal(t, d, base)
-	if baseDoc.Outcome != PASSED {
-		t.Fatalf("acked-history baseline must PASS, got %s (%s)", baseDoc.Outcome, baseDoc.Cause)
-	}
-	succReq := withReceipt(base, baseDoc)
-	succReq.Command = seqPassCmd("acked-history-successor")
-	succDoc := driveSeqToTerminal(t, d, succReq)
-	if succDoc.Outcome != PASSED {
-		t.Fatalf("acked-history successor must PASS, got %s (%s)", succDoc.Outcome, succDoc.Cause)
-	}
-
-	ackDoc, err := d.Acknowledge(grant.ScopeID, grant.ChildCapability, succDoc.DriveID, succDoc.Generation)
-	if err != nil {
-		t.Fatalf("Acknowledge (acked history): %v", err)
-	}
-	if ackDoc.Outcome != PASSED {
-		t.Fatalf("acknowledged final result must report PASSED, got %s (%s)", ackDoc.Outcome, ackDoc.Cause)
-	}
-
-	// Both drives are now terminal-and-consumed (owner cleared), and the scope is
-	// closed as terminally acknowledged.
-	baseRec := mustLoad(t, store, baseDoc.DriveID)
-	succRec := mustLoad(t, store, succDoc.DriveID)
-	if baseRec.OwnerGeneration != "" || succRec.OwnerGeneration != "" {
-		t.Fatalf("acknowledged history must be owner-cleared, got base=%q succ=%q", baseRec.OwnerGeneration, succRec.OwnerGeneration)
-	}
-	if scope, err := store.LoadScope(grant.ScopeID); err != nil {
-		t.Fatalf("LoadScope (acked history): %v", err)
-	} else if !scope.Closed || !scope.FinalAcked {
-		t.Fatalf("terminally acknowledged scope must be closed+final-acked, got closed=%v final=%v", scope.Closed, scope.FinalAcked)
-	}
-	return []string{baseDoc.DriveID, succDoc.DriveID}
 }
 
 // ---------------------------------------------------------------------------

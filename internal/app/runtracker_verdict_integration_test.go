@@ -4,6 +4,8 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -12,7 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/repository"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // These are the `docket run verdict <key>` (attributed mode) tests (change
@@ -1221,5 +1225,58 @@ func TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership(t *testing
 	if slotAfter.RunID != slotBefore.RunID || slotAfter.State != slotBefore.State {
 		t.Fatalf("observe mode mutated the slot: before {RunID:%q State:%q} after {RunID:%q State:%q}",
 			slotBefore.RunID, slotBefore.State, slotAfter.RunID, slotAfter.State)
+	}
+}
+
+// TestIntegrationRunVerdictFinishedBuildDrivesAreNotTakeoverCandidates (change 0489,
+// R1) drives a REAL red gate and a REAL green re-gate — build-owned drives carrying
+// the run's change id and run context, as implement-next starts them — through the
+// production gate-drive service, then asks the PRODUCTION continuation seam for
+// outer-takeover candidates. Finished drives must yield none, so run.verdict takes
+// its retry path (TestIntegrationRunVerdictVerdictIncompleteQuiescentStillRetriesOnce
+// pins zero candidates -> run-retry-once) instead of stopping takeover-ambiguous.
+func TestIntegrationRunVerdictFinishedBuildDrivesAreNotTakeoverCandidates(t *testing.T) {
+	requireRealGit(t)
+	requireProcessSupervisor(t)
+	worktree, gitDir := initGitRepo(t, "")
+	const runContext = "run-ctx-0489-r1"
+	sum := sha256.Sum256([]byte(runContext))
+	ctxHash := hex.EncodeToString(sum[:])
+
+	finish := func(command string) gatedrive.Outcome {
+		t.Helper()
+		runRoot := filepath.Join(testsupport.TempDir(t), "runs")
+		t.Cleanup(func() { stopRunsUnder(runRoot) })
+		svc, res, reason := NewBuildGateDriveService(gitDir, guardianExecutable(t), buildEffWithMaxAttempts(command, 4))
+		if svc == nil {
+			t.Fatalf("build gate-drive service was nil: %s %s", res, reason)
+		}
+		got := svc.Start(GateDriveStartRequest{
+			RepoDir: worktree, Worktree: worktree, ChangeID: "0003", Phase: "build",
+			Branch: "fix/x", Ref: "refs/heads/fix/x", Cwd: worktree, RunRoot: runRoot,
+			RunContext: runContext, IdempotentSuiteGate: true,
+		})
+		if got.Result != ResultApplied || got.Drive == nil {
+			t.Fatalf("build start refused: result=%s reason=%q message=%q", got.Result, got.Reason, got.Message)
+		}
+		return runDriveToTerminal(t, svc, got)
+	}
+	if out := finish("/usr/bin/false"); out != gatedrive.FAILED {
+		t.Fatalf("red gate outcome = %s, want FAILED", out)
+	}
+	if out := finish("/bin/echo green"); out != gatedrive.PASSED {
+		t.Fatalf("green re-gate outcome = %s, want PASSED", out)
+	}
+
+	seam, err := NewContinuationSeam(gitDir, guardianExecutable(t))
+	if err != nil {
+		t.Fatalf("NewContinuationSeam: %v", err)
+	}
+	ids, err := seam.LocateOuterDrive(3, ctxHash)
+	if err != nil {
+		t.Fatalf("LocateOuterDrive: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Fatalf("a red-then-green run must leave NO takeover candidate (else run.verdict stops takeover-ambiguous), got %v", ids)
 	}
 }
