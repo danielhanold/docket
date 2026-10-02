@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:b3e9bbb84f8830400119e2a16152303c48565b001e444f1b7c34904404b35140",
+  "asset_set_id": "sha256:8e2938e583467ba50695f100dea8e66fb5f17c43f4d6e1b5cfcc0d0582d118ec",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -266,8 +266,8 @@
       "path": "cursor-rules/run-tracker.md",
       "role": "dispatch",
       "mode": 420,
-      "size": 5178,
-      "sha256": "34f067f7ed3d1b44870bac5591ada4373c460e1c5b7d3ce849b0a7771467d3f3"
+      "size": 5150,
+      "sha256": "46541fe4e17d4863729999c094c2d580cfc481e330c9708eeabcfe505ab9a0de"
     },
     {
       "path": "skills/docket-adr/SKILL.md",

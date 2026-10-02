@@ -13,6 +13,9 @@ section because harness setup is exactly what it is about; the guide keeps them 
   also writes into `.agents/`, `.kiro/`, and `.windsurf/` harness roots when they are present.
 - **`git` and the GitHub CLI (`gh`).** Every docket operation is a git operation, and the
   implementer opens pull requests with `gh`.
+- **GNU coreutils `timeout`.** Build workers run each focused test under
+  `timeout --kill-after=10s 10m`. It is standard on Linux; on macOS, run `brew install coreutils`
+  (it may install as `gtimeout`, which workers also accept).
 - **A GitHub remote** for the pull-request flow. docket pushes branches and opens PRs against your
   `origin`.
 - **The superpowers plugin — recommended, not required.** superpowers is docket's default execution

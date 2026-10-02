@@ -579,6 +579,26 @@ var uninstallDocContracts = []docSectionContract{
 		}},
 }
 
+// change 0488 — build workers run every focused test under GNU `timeout`, so the
+// install prerequisites name GNU coreutils and the macOS `gtimeout` spelling.
+var prerequisiteDocContracts = []docSectionContract{
+	{change: "change_0488_coreutils_prerequisite", file: "docs/install/install.md",
+		section: "## What you need first", terminator: "## Install docket on your machine",
+		present: []string{
+			"**GNU coreutils `timeout`.** Build workers run each focused test under `timeout --kill-after=10s 10m`.",
+			"on macOS, run `brew install coreutils` (it may install as `gtimeout`, which workers also accept)",
+		}},
+}
+
+func TestInstallPrerequisiteDocContracts(t *testing.T) {
+	root := guardRoot(t)
+	for _, c := range prerequisiteDocContracts {
+		for _, v := range scanDocSection(readMaintained(t, root, c.file), c) {
+			t.Errorf("[%s] %s", c.change, v)
+		}
+	}
+}
+
 // scanDocSection is the whole detector, exposed so non_vacuity exercises the
 // missing-section, missing-terminator, and missing-clause branches directly.
 func scanDocSection(content string, c docSectionContract) []string {

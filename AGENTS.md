@@ -25,7 +25,7 @@ never rebuild the run tracker by hand.
    `run-started <key> <run-id> <run-context>`; keep all three (they won't survive the next tool
    call) and copy the `<run-context>` and the `<run-id>` into the dispatch prompt. The `<run-id>`
    is the id you thread into `run.cancel --run-id` (below) and every `--run-id` dispatch
-   flag (`agent.enter`, `gate drive start`, `gate drive prepare-scope`). Add `--resume <id>` to
+   flag (`agent.enter`, `gate drive start`). Add `--resume <id>` to
    start a run that resumes an already-in-progress change. `run-untracked` still lets you dispatch,
    but keyless (step 2's fallback) and can never authorize a re-dispatch.
 2. After the run returns, or its completion notification arrives, run `run.verdict`

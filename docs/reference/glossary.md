@@ -941,11 +941,10 @@ docket workspace publish --id 412 --head <sha>
 ### Start / run key / run id / run context
 
 **Starting** a run (`run.start`) mints three values before a dispatch: the **run key** (ties a finish
-to this launch), the **run id** (the id of this run, threaded into cancel and drive flags), and
-the **run context** (a token). The run context and the run id are both copied into the
-implement-next dispatch prompt; a scope prepared with `--run-id` hands that run id to every scoped
-start under it, so build-task workers never receive it (except the repair worker, for its
-build-owned post-fix re-run). It prints
+to this launch), the **run id** (the id of this run, threaded into cancel and build-owned drive
+flags), and the **run context** (a token). The run context and the run id are both copied into the
+implement-next dispatch prompt; build-task workers never receive either, because they run their
+focused tests directly and call no gate operation. It prints
 `run-started <key> <run-id> <run-context>`; `run-untracked` still allows a keyless dispatch that
 can never authorise a re-dispatch.
 
@@ -985,8 +984,7 @@ docket run continue <key> <continuation-id>
 ### Run fence
 
 The mark `run.cancel` puts on a run, located by its [run id](#start--run-key--run-id--run-context), so nothing new can
-attach to it. A fenced run is never restored, and a scope prepared with `--run-id` lets the fence also revoke a later
-takeover.
+attach to it. A fenced run is never restored.
 
 **Used for:** making a cancel stick while teardown finishes.
 
@@ -1067,24 +1065,20 @@ worktree, uncertain ownership, deadline expiry, bad state, or a process death.
 
 A **gate drive** runs a gate in resumable **slices** so no agent has to block for the whole suite.
 Each drive has an **owner generation**; ownership moves by **handoff** (a single-use token the next
-owner **claims**) or, when a child returned without handing off, by **takeover**. A **scope** binds
-a drive to one parent/child dispatch boundary; the final PASSED/FAILED result is
-**acknowledged** to close it.
+owner **claims**).
 
-**Used for:** the build and finalize suite gates. The component making these calls is the **gate
-driver**. A forked worker drives the suite with inline, blocking `advance` calls — it must never
-background the suite and yield. `prepare-scope` mints a recovery scope for one parent/child
-dispatch boundary; `takeover` lets the parent reclaim a drive whose child returned without handing
-off; `acknowledge` consumes the final PASSED/FAILED result and closes the scope (idempotent).
+**Used for:** the build and finalize suite gates. Build-task workers never start a drive: they run
+their focused tests directly under a fixed `timeout`. The component making these calls is the **gate
+driver**. A forked controller drives the suite with inline, blocking `advance` calls — it must never
+background the suite and yield. The catalog still carries the recovery-scope operations
+(`prepare-scope`, `takeover`, `acknowledge`) that once served build-task workers; no workflow uses
+them, and change 0489 removes them.
 
 ```sh
 docket gate drive start   --repo-dir . --owner build --run-root <dir> --run-id <run-id> -- <suite argv>
 docket gate drive advance --drive-id <id> --owner-gen <gen>
 docket gate drive handoff --drive-id <id> --owner-gen <gen>
 docket gate drive claim   --drive-id <id> --handoff-id <token>
-docket gate drive prepare-scope --change-id 412 --task-id <id> --phase <name> --branch <name> --worktree <dir> --run-id <run-id>
-docket gate drive takeover      --scope-id <id> --parent-cap <token>
-docket gate drive acknowledge   --scope-id <id> --child-cap <token> --drive-id <id> --owner-gen <gen>
 ```
 
 ### Gate run / run dir
@@ -1616,7 +1610,7 @@ the four build-tier agents, allows one bounded escalation per task, skips per-ta
 ends with a single full-suite build gate.
 
 **Used for:** executing the plan inside implement-next's Step 5. A human does not invoke it
-directly. Worker outcomes are `COMPLETE`, `WAITING`, `NEEDS_ESCALATION`, or `BLOCKED`, and a
+directly. Worker outcomes are `COMPLETE`, `NEEDS_ESCALATION`, or `BLOCKED`, and a
 malformed return halts the build. See *Build tier / escalation* and *Build gate*.
 
 ### docket-build-task
