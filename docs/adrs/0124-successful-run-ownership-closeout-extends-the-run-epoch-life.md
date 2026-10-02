@@ -55,3 +55,11 @@ This lets a standalone finalize gate reuse the same worktree after a verified-co
 ## Update (2026-10-02)
 
 ADR-0132 (change 0490) replaces the durable worktree admission slot with a supervisor-held kernel lock, so the closeout's slot retirement is removed: `run.verdict`'s success closeout drops `accountCompletionSlot`, the slot branch of `durableExecutionProof`, and the slot retire. The rest of the closeout stands (`FenceRunCompleting`, publication settlement, participant status, the journal, the observe-only launch census — now attributed by run-context hash — and `CompleteRun`) until change 0491 retires the run id.
+
+## Update — 2026-10-02 (change 0491, ADR-0133)
+
+The decision stands, with three changes in context recorded by ADR-0133:
+
+- Rule 3 changes: the keyed verdict's census now settles a proven never-launched drive HALTED `launch-abandoned`. It still stops no process and signals nothing.
+- `completing` no longer refuses gate starts, because no run launch check exists any more.
+- Since ADR-0132, finalize's gate no longer depends on the closeout. The closeout still retires the run's worktree ownership for the mutation fence, and makes cancel and resume refuse a completed run.

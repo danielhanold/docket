@@ -82,15 +82,15 @@ Go identifiers follow their row's term (e.g. `EpochRecord` → `RunRecord`, `rev
 |---|---|---|---|
 | 1 | concept | run gate / gate facade | run tracker |
 | 2 | concept | arm / arming | start / starting a run |
-| 3 | concept | run epoch (the run) / epoch id | run / run id |
+| 3 | concept | run epoch (the run) / epoch id | run / run id (run id retired by change 0491; the run key is the only handle) |
 | 4 | concept | epoch fence | run fence |
 | 5 | concept | gate key | run key |
 | 6 | concept | dispatch context | run context |
 | 7 | op + CLI | `run.gate-before` / `docket run gate-before` | `run.start` / `docket run start` |
 | 8 | op + CLI | `run.gate-verdict` / `docket run gate-verdict` | `run.verdict` / `docket run verdict` |
 | 9 | op + CLI | `run.gate-claim` / `docket run gate-claim` | `run.continue` / `docket run continue` |
-| 10 | flag | `--run-epoch` (`agent.enter`, `gate drive start`, `gate drive prepare-scope`) | `--run-id` |
-| 11 | flag | `run cancel --epoch` | `run cancel --run-id` |
+| 10 | flag | `--run-epoch` (`agent.enter`, `gate drive start`, `gate drive prepare-scope`) | `--run-id` (retired by change 0491: no flag, the run key is the handle) |
+| 11 | flag | `run cancel --epoch` | `run cancel --key` (`--run-id` retired by change 0491) |
 | 12 | flag | `change claim --gate-context` | `--run-context` |
 | 13 | token | `gate-armed` / `gate-unarmed` lines; JSON `armed` | `run-started` / `run-untracked`; `started` |
 | 14 | token | verdict lines `gate-retry-once`, `gate-continue`, `gate-done`, `gate-stop`, `gate-observe` | `run-retry-once`, `run-continue`, `run-done`, `run-stop`, `run-observe` |
@@ -99,7 +99,7 @@ Go identifiers follow their row's term (e.g. `EpochRecord` → `RunRecord`, `rev
 | 17 | code | `epoch-corrupt` | `run-record-corrupt` |
 | 18 | code | `epoch-exists` | `run-exists` |
 | 19 | code | `epoch-not-active` | `run-not-active` |
-| 20 | code | `epoch-mismatch` | `run-id-mismatch` |
+| 20 | code | `epoch-mismatch` | `run-record-conflict` (`run-id-mismatch` retired by change 0491) |
 | 21 | code | `epoch-not-cancelled` | `run-not-cancelled` |
 | 22 | code | `epoch-ambiguous` | `run-ambiguous` |
 | 23 | code | `epoch-owner-ambiguous` | `run-owner-ambiguous` |
@@ -111,8 +111,8 @@ Go identifiers follow their row's term (e.g. `EpochRecord` → `RunRecord`, `rev
 | 28a | code | `replacement-epoch-unreadable` (`run.cancel` finding token, form `replacement-epoch-unreadable:<key>`) | `replacement-run-record-unreadable` |
 | 29 | code | `incumbent-epoch-fenced` | `incumbent-run-fenced` |
 | 30 | code | `resume-epoch-unreadable` | `resume-run-record-unreadable` |
-| 31 | code | `stale-run-epoch` | `stale-run-id` |
-| 32 | code | `unknown-run-epoch` | `unknown-run-id` |
+| 31 | code | `stale-run-epoch` | `run-superseded` (`stale-run-id` retired by change 0491) |
+| 32 | code | `unknown-run-epoch` | `run-not-found` (`unknown-run-id` retired by change 0491) |
 | 33 | code | `gate-unavailable` (verdict outcome and store error) | `run-tracker-unavailable` |
 | 34 | code | `gate-context-invalid` / `gate-context-conflict` | `run-context-invalid` / `run-context-conflict` |
 | 35 | stage | `mint-epoch`, `find-epoch`, `complete-epoch`, `supersede-epoch` | `mint-run`, `find-run`, `complete-run`, `supersede-run` |
@@ -120,9 +120,9 @@ Go identifiers follow their row's term (e.g. `EpochRecord` → `RunRecord`, `rev
 | 37 | stage | `bind-epoch-change`, `bind-epoch-worktree`, `epoch-launch-gate`, `reserve-worktree-execution-epoch`, `retire-worktree-execution-epoch`; error-text prefix `run epoch` | `bind-run-change`, `bind-run-worktree`, `run-launch-gate`, `reserve-worktree-execution-run`, `retire-worktree-execution-run`; prefix `run` |
 | 38 | disk | under `.git/docket/`: `rungate/<key>/` (files `epoch.json`, `epoch.lock`; keys `epoch_id`, `gate_key`, `dispatch_epoch`); `rungate-resume/<id>/epoch.lock`; `gate-admission/v1` (implicit key `RunEpochID`); `gate-scopes/v1` (keys `run_epoch_id`, `gate_context_hash`); `gate-drives/v1` (key `gate_context_hash`) | `run-tracker/<key>/` (files `run.json`, `run.lock`; keys `run_id`, `run_key`, `dispatched_at`); `run-tracker-resume/<id>/run.lock`; `gate-admission/v2` (explicit JSON tags on every field; key `run_id`); `gate-scopes/v2` (keys `run_id`, `run_context_hash`); `gate-drives/v2` (key `run_context_hash`). Reset, not migrated (Decision 3). `dispatch_epoch` is a Unix timestamp, so it becomes `dispatched_at` beside `created_at` |
 | 38a | flag | `agent enter --run-gate-key` | `--run-key` |
-| 38b | key | `run.gate-before` (row 7: `run.start`) result JSON `epoch` | `run_id` |
+| 38b | key | `run.gate-before` (row 7: `run.start`) result JSON `epoch` | retired by change 0491 (`run_id` removed; `run.start` reports key and run_context) |
 | 38c | key | `change.claim` request `gate_context` | `run_context` |
-| 38d | env | `DOCKET_AGENT_GUARDIAN_EPOCH` | `DOCKET_AGENT_GUARDIAN_RUN_ID` |
+| 38d | env | `DOCKET_AGENT_GUARDIAN_EPOCH` | `DOCKET_AGENT_GUARDIAN_RUN_KEY` (`DOCKET_AGENT_GUARDIAN_RUN_ID` retired by change 0491) |
 | 38e | flag | gate drive `--gate-context` (`gate drive start`, `gate drive prepare-scope`) | `--run-context` |
 | 38f | env | `DOCKET_AGENT_GUARDIAN_GATE_KEY` | `DOCKET_AGENT_GUARDIAN_RUN_KEY` |
 | 38g | key | `run.start` (row 7) result JSON `dispatch_context` | `run_context` |
@@ -298,3 +298,7 @@ Edited in place with the human's explicit authorization, before family (b) was b
 ## Update — 2026-10-01 (change 0481)
 
 The decision stands. Rows 68 (`worktree-changed`) and 69 (`launch-unconfirmed`) now cover only the conditions they describe. A gate-drive takeover whose recorded scope identity (repo, branch, worktree, change, task, phase) no longer matches its scope halts with the retained family-(e) token `scope-identity-mismatch` (`ErrScopeIdentityMismatch`), not `worktree-changed`. When `resolveDriveRun` loses the drive's worktree-slot link to its run (the slot is unreadable or absent, or was reassigned to another reservation token), the drive halts with the new token `run-link-lost` (`CauseRunLinkLost`), not `launch-unconfirmed`. This is a token-only change: halt and recovery behavior is unchanged.
+
+## Amendment — 2026-10-02 (change 0491 grooming)
+
+Edited in place with the human's explicit authorization at change 0491's grooming. Change 0491 retires the run id, so rows 3, 10, 11, 20, 31, 32, 38b and 38d now name their 0491 successors (`run-superseded`, `run-record-conflict`, `run-not-found`, `run cancel --key`, `DOCKET_AGENT_GUARDIAN_RUN_KEY`) or are marked retired. ADR-0133 records the decision.

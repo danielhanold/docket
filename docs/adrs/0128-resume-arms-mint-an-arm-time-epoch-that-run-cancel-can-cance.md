@@ -37,3 +37,7 @@ Resumed runs, including resume-after-cancel replacements, are now cancellable, s
 - Let a new arm take over an epoch that looks unused: a just-dispatched agent that has made no docket call yet is indistinguishable from an abandoned arm.
 - Check-after-bind re-scan with an id tie-break: an arm can finish its check and report armed before a racer binds, so a tie-break can crown the racer while the first is also armed; the lock closes the window instead.
 - Keep a confirmed claim binding as the only cancel authority: resumed runs could never be cancelled.
+
+## Update — 2026-10-02 (change 0491, ADR-0133)
+
+Decisions 1–4 stand. The arm-time "epoch" is now the run record named by the run key, since the run id is retired (ADR-0133), and `run.cancel` is keyed by the run key alone (`--key <key> --reason <why>`).

@@ -159,3 +159,7 @@ Costs: the slot's run linkage moves to `run_context_hash` attribution; an old-bi
 - **No holder note, or a drive-record scan** — loses the 0439 locator, or cannot see raw launches.
 
 **Answers to the earlier rejections.** Change 0375's spec rejected "a worktree flock alone" because short-lived CLI calls released it while detached work survived; here the supervisor holds it for the run's whole life. ADR-0118 rejected release on process death as fail-open; here the kernel proves the holder is gone, and what remains open is the process-tree gap the slot did not close either (tracked by change 0492).
+
+## Update — 2026-10-02 (change 0491, ADR-0133)
+
+The decision stands. The cancellation and resume rules of ADR-0118 that this ADR left standing until change 0491 are replaced by ADR-0133: the run key is the run tracker's only handle, and gate starts carry no run check.
