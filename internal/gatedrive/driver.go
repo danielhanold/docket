@@ -203,13 +203,16 @@ func NewDriver(store *Store, clock Clock, proc ProcessSeam, git GitSeam) *Driver
 // worktree containing cwd — the drive's launch working directory, resolved
 // through GitSeam.WorktreeRoot so every spelling of one worktree maps to one
 // lock. It is only ever TRIED: a held lock is a typed ErrWorktreeBusy naming a
-// live holder when the process seam confirms one, and a root that cannot be
-// resolved is a typed ErrIO — never read as free. Every drive launch site takes
-// it before launching (change 0490).
+// live holder when the process seam confirms one, and a cwd that resolves to no
+// git worktree is a typed ErrWorktreeUnresolved refusal naming that cwd — never
+// read as free, and never an internal fault (the cwd is the caller's input).
+// Every drive launch site takes it before launching (change 0490).
 func (d *Driver) lockWorktree(cwd string) (*WorktreeLock, error) {
 	root, err := d.git.WorktreeRoot(cwd)
 	if err != nil {
-		return nil, storeErr(ErrIO, opWorktreeAdmission, err)
+		oe := ownershipErr(ErrWorktreeUnresolved, opWorktreeAdmission)
+		oe.Cwd = cwd
+		return nil, oe
 	}
 	return d.store.TryWorktreeLock(root, d.proc)
 }
@@ -579,7 +582,7 @@ func (d *Driver) launchScopeless(t *AdmissionTicket, claim *relaunchClaim) (Driv
 		d.stopIfOwned(out.RunDir) // the supervisor's exit frees the worktree
 		return DriveDoc{}, err
 	}
-	t.lock.WriteHolder(HolderNote{Kind: "drive", DriveID: id, RunDir: out.RunDir, ChangeID: rec.ChangeID, Owner: t.owner})
+	t.lock.WriteHolder(HolderNote{Kind: "drive", DriveID: id, RunDir: out.RunDir, ChangeID: rec.ChangeID, Owner: t.owner}, d.proc)
 
 	// Launch and attach are confirmed: release the launch claim so the drive slice
 	// can reserve its own single relaunch (the claim is the SAME lock file
@@ -1176,7 +1179,7 @@ func (d *Driver) driveSlice(id, ownerGen string, rec driveRecord, claim *relaunc
 				res.err = err
 				return res
 			}
-			lock.WriteHolder(HolderNote{Kind: "drive", DriveID: id, RunDir: out.RunDir, ChangeID: rec.ChangeID, Owner: ownerIf(prior, id)})
+			lock.WriteHolder(HolderNote{Kind: "drive", DriveID: id, RunDir: out.RunDir, ChangeID: rec.ChangeID, Owner: ownerIf(prior, id)}, d.proc)
 			claim.close()
 			claim = nil
 			cur, err := d.store.Load(id)
@@ -1270,7 +1273,10 @@ func (d *Driver) stopIfOwned(runDir string) bool {
 // replay under it. Under the worktree lock (change 0490) nothing about a terminal
 // drive needs its root kept as release evidence: a HALTED drive whose supervisor
 // still runs holds the lock itself, and the launch census proves its teardown
-// from the run dirs the drive record names. haltDoc paths (empty or stale-owner
+// from the run dirs the drive record names. A HALTED verdict alone does not prove
+// its supervisor exited, so the owning caller keeps a HALTED root that still
+// holds an unexited run (the finalize seam's haltedRunRootHoldsUnexitedRun)
+// rather than deleting a live gate's manifest and logs. haltDoc paths (empty or stale-owner
 // records) never reach here, so a superseded owner never deletes a live drive's
 // root.
 func (d *Driver) recordedDoc(id, ownerGen string, rec driveRecord) DriveDoc {

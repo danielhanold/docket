@@ -53,6 +53,21 @@ const (
 	StateVanished State = "vanished"
 )
 
+// SupervisorExited reports whether st proves the run's supervisor has exited:
+// passed, failed, signaled, stopped, and vanished all mean no live supervisor
+// holds the run (and with it any worktree lock it was handed). Running does not,
+// and neither does an empty or unrecognized state — an unknown state proves
+// nothing. It is the single teardown predicate the gate driver and the run
+// tracker share; callers never re-derive it as "not running".
+func (st State) SupervisorExited() bool {
+	switch st {
+	case StatePassed, StateFailed, StateSignaled, StateStopped, StateVanished:
+		return true
+	default:
+		return false
+	}
+}
+
 // Terminal is the exact decoded child wait status. Kind is "exit" or
 // "signal"; exactly one of ExitCode/Signal is meaningful per Kind.
 type Terminal struct {

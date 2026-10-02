@@ -521,6 +521,8 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 		return "a prior launch transition is unresolved; settle it with run.cancel or wait for it, never a blind retry"
 	case gatedrive.ErrWorktreeBusy:
 		return "another gate's supervisor holds this worktree's lock; wait for it to finish — the worktree frees itself when that gate ends — or stop that gate through its own route (run.cancel for a tracked run, gate stop for a raw launch); never start a second gate in the same worktree"
+	case gatedrive.ErrWorktreeUnresolved:
+		return "the launch working directory is not inside a git worktree; start the gate from the change's worktree"
 	default:
 		return ""
 	}

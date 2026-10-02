@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -1986,6 +1987,10 @@ type processFinalizeGate struct {
 	// (build.test_command — `evidence recertify`, change 0415). The command
 	// choice is a domain boundary (ADR-0102): each owner reads ONLY its own key.
 	owner string
+	// observer reads a run's state for the HALTED run-root teardown check
+	// (haltedRunRootHoldsUnexitedRun). nil composes the production process
+	// service through gateService; tests inject a fake.
+	observer gatedrive.HolderObserver
 }
 
 // finalizeLocalGatePhase names the workflow phase a finalize local-gate drive
@@ -2161,9 +2166,18 @@ func (g *processFinalizeGate) mapDriveOutcome(ctx context.Context, req LocalGate
 	// it on every terminal) leaves the root this caller's Start minted on disk, so
 	// its retention is surfaced as a bounded TeardownFinding rather than left
 	// silent; the outcome mapping is unchanged.
+	//
+	// A HALTED drive is the one terminal whose supervisor is not proven exited by
+	// its verdict (e.g. a deadline expiry whose stop was unproven): when a run
+	// under its root does not observe exited, the root is retained — deleting it
+	// would destroy a possibly-live gate's manifest and logs and leave busy
+	// refusals unable to name the holder — and the same finding surfaces.
 	removeRoot := true
 	var teardownFinding string
 	if doc.RunRoot == "" {
+		teardownFinding = teardownFindingRunRootRetainedUnsettled
+	} else if doc.Outcome == gatedrive.HALTED && g.haltedRunRootHoldsUnexitedRun(doc.RunRoot) {
+		removeRoot = false
 		teardownFinding = teardownFindingRunRootRetainedUnsettled
 	}
 	res := g.mapTerminalDrive(ctx, req, doc, &removeRoot)
@@ -2207,13 +2221,44 @@ func removeGateRunRoot(runRoot string) {
 	_ = os.RemoveAll(runRoot)
 }
 
+// haltedRunRootHoldsUnexitedRun reports whether runRoot still holds a run slot
+// whose supervisor is not proven exited (process.State.SupervisorExited). It
+// fails closed: an unreadable root, an unavailable process service, or a slot
+// that cannot be observed counts as unexited, so the root is retained rather
+// than deleted under a possibly-live run. A root already gone holds nothing.
+func (g *processFinalizeGate) haltedRunRootHoldsUnexitedRun(runRoot string) bool {
+	entries, err := os.ReadDir(runRoot)
+	if err != nil {
+		return !os.IsNotExist(err)
+	}
+	obs := g.observer
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue // the allocation registry lock and other plain files are not runs
+		}
+		if obs == nil {
+			svc, _, _ := gateService()
+			if svc == nil {
+				return true
+			}
+			obs = svc
+		}
+		o, oerr := obs.Observe(filepath.Join(runRoot, e.Name()))
+		if oerr != nil || o == nil || !o.State.SupervisorExited() {
+			return true
+		}
+	}
+	return false
+}
+
 // teardownFindingStartRootRetained is the bounded TeardownFinding a failed Start
 // reports when its run root held launch evidence and was therefore retained.
 const teardownFindingStartRootRetained = "start-failed-run-root-retained"
 
 // teardownFindingRunRootRetainedUnsettled is the bounded TeardownFinding a terminal
-// drive reports when its document carries no RunRoot (a defensive leg: the driver
-// exposes it on every terminal): the root the Start minted stays on disk.
+// drive reports when the root the Start minted stays on disk: its document
+// carries no RunRoot (a defensive leg: the driver exposes it on every terminal),
+// or it is a HALTED drive with a run not proven exited under that root.
 const teardownFindingRunRootRetainedUnsettled = "run-root-retained-unsettled"
 
 // removeUnlaunchedGateRunRoot removes the run root a failed Start minted ONLY when

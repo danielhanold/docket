@@ -171,7 +171,7 @@ func GateLaunch(root, cwd string, argv []string) GateResult {
 		res, reason := mapGateFailure(err)
 		return GateResult{Envelope: NewEnvelope(OperationGateLaunch, res), Reason: reason}
 	}
-	lock.WriteHolder(gatedrive.HolderNote{Kind: "raw", RunDir: out.RunDir, Owner: "raw"})
+	lock.WriteHolder(gatedrive.HolderNote{Kind: "raw", RunDir: out.RunDir, Owner: "raw"}, svc)
 	r := GateResult{
 		Envelope:  NewEnvelope(OperationGateLaunch, mapObservation(out.State)),
 		RunID:     out.RunID,
@@ -233,18 +233,6 @@ func mapAdmissionFailure(err error) (Result, string) {
 		return ResultInternalError, string(se.Kind)
 	}
 	return ResultInternalError, "admission-failed"
-}
-
-// supervisorGone reports whether a run state proves the run's supervisor is gone —
-// the worktree lock model's teardown proof (change 0490), as the run tracker's
-// participant stop and closeout observer read it (appGateStopper,
-// appGateObserver). Every state but running proves it: passed, failed, signaled,
-// stopped, and vanished all mean no live supervisor holds the run (and with it the
-// worktree's lock). The process-tree gaps that leaves — a suite outliving a
-// supervisor that died alone — are the spec's accepted losses, tracked by change
-// 0492.
-func supervisorGone(st process.State) bool {
-	return st != process.StateRunning
 }
 
 // GateObserve reports a run's state through the read-only observe decision.
