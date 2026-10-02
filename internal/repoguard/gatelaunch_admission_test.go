@@ -17,14 +17,18 @@ package repoguard
 //   - internal/process/ — the lowest-level OS launcher (spawnSupervisor); it is the
 //     primitive the whole slot mechanism sits on.
 //   - internal/gatedrive/ — the admission-HOLDING driver: its ProcessSeam.Launch
-//     calls run only after the driver itself reserved the slot (Tasks 3–5), so they
-//     carry the ticket and must not re-reserve.
+//     calls run only after the driver itself took the worktree lock (change 0490;
+//     before it, the slot), and hand that lock to the supervisor.
 //
 // Every REMAINING launch site must sit in a package that reaches the slot's reserve
 // API (AST-level: the package contains a call to a reserve-admission symbol). The
 // reverse correspondence — a guard runs both ways — is that every package which
 // RESERVES the slot also confirms-or-releases it, so a slot is never taken and
-// abandoned.
+// abandoned. The slot store's own package (internal/gatedrive, slotStoreLayer) is
+// excluded from that reverse check: its reserve calls are the store's exported
+// entry points delegating to its internal reserve, and since change 0490 its
+// driver takes no slot. Change 0490 Task 5 rewrites this guard around the
+// worktree lock.
 //
 // RESIDUAL RISK, recorded not hidden: the launch detector keys on the `.Launch(`
 // selector name rather than the receiver's resolved type (no go/types pass), so an
@@ -54,6 +58,10 @@ var (
 
 	// The two sanctioned launch interiors, by PATH shape.
 	sanctionedLaunchLayer = regexp.MustCompile(`^internal/(process|gatedrive)/`)
+
+	// The slot store's own package, by PATH shape: its reserve calls are its own
+	// API's internal delegation, not a consumer taking a slot (change 0490).
+	slotStoreLayer = regexp.MustCompile(`^internal/gatedrive$`)
 )
 
 // launchCallShape reports whether call is a top-level gate launch by syntactic
@@ -203,11 +211,20 @@ func TestGateLaunchAdmissionCoverage(t *testing.T) {
 	}
 
 	// Reverse (both-ways correspondence): every package that reserves the slot also
-	// confirms-or-releases it — a slot is never taken and abandoned.
+	// confirms-or-releases it — a slot is never taken and abandoned. The slot store's
+	// own package is its API, not a consumer; at least one consumer must be checked.
+	consumers := 0
 	for dir := range reserveDirs {
+		if slotStoreLayer.MatchString(dir) {
+			continue
+		}
+		consumers++
 		if !crDirs[dir] {
 			violations = append(violations, "package "+dir+" reserves the worktree execution slot but never confirms or releases it")
 		}
+	}
+	if consumers < 1 {
+		t.Fatalf("population floor: found %d slot-consumer packages for the reverse check (want >= 1, e.g. internal/app raw gate.launch)", consumers)
 	}
 
 	if len(violations) != 0 {

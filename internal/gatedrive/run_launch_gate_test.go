@@ -7,10 +7,11 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// RunLaunchGate seam: Admit fences its durable reservation behind the
-// app-injected run liveness read (change 0437 Task 1). The gate is faked as a
-// closure recording its calls; the reservation body (reserve) runs only when the
-// gate lets it, so a refusal reserves nothing.
+// RunLaunchGate seam: Admit fences its admission behind the app-injected run
+// liveness read (change 0437 Task 1; kept for change 0491). The gate is faked as
+// a closure recording its calls; the admission body (reserve) — taking the
+// worktree lock and minting the reserved drive (change 0490) — runs only when
+// the gate lets it, so a refusal takes and creates nothing.
 // ---------------------------------------------------------------------------
 
 // recordingGate is a fake RunLaunchGate: it records each call's run id and
@@ -80,8 +81,8 @@ func TestAdmitConsultsRunLaunchGateWithIDAndWorktree(t *testing.T) {
 }
 
 // TestAdmitRunLaunchGateRefusalReservesNothing proves a gate refusal reserves
-// nothing: reserve is never called, Admit returns the gate's exact error, no
-// worktree slot exists, and no reserved drive record was minted.
+// nothing: reserve is never called, Admit returns the gate's exact error, the
+// worktree lock stays free, and no reserved drive record was minted.
 func TestAdmitRunLaunchGateRefusalReservesNothing(t *testing.T) {
 	sentinel := errors.New("gatedrive-test: run fence refusal")
 
@@ -103,8 +104,8 @@ func TestAdmitRunLaunchGateRefusalReservesNothing(t *testing.T) {
 		if ticket != nil {
 			t.Fatalf("a refused admission must return no ticket, got %+v", ticket)
 		}
-		if _, _, lerr := store.LoadWorktreeExecution(req.Worktree); !storeErrIs(lerr, ErrNotFound) {
-			t.Fatalf("no worktree slot must exist after refusal, LoadWorktreeExecution err = %v", lerr)
+		if !worktreeFree(t, store, req.Cwd) {
+			t.Fatalf("a refused admission must leave the worktree lock free")
 		}
 		if n := driveRecordCount(t, store); n != 0 {
 			t.Fatalf("a refused admission must mint no reserved drive record, got %d", n)
@@ -112,47 +113,75 @@ func TestAdmitRunLaunchGateRefusalReservesNothing(t *testing.T) {
 	})
 }
 
-// TestAdmitReservationRunsInsideGate proves the durable decision happens while
-// the gate is held: the fake gate observes the worktree slot absent before
-// reserve and reserved after.
-func TestAdmitReservationRunsInsideGate(t *testing.T) {
+// TestAdmitGateErrorAfterReserveLeavesNothing proves an admission the caller
+// never sees leaks nothing: a gate that runs reserve and then still fails makes
+// Admit return the gate's error with the worktree lock closed and the reserved
+// drive removed.
+func TestAdmitGateErrorAfterReserveLeavesNothing(t *testing.T) {
+	sentinel := errors.New("gatedrive-test: gate failed after reserve")
 	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-
-	sawBeforeAbsent := false
-	sawAfterReserved := false
-	rg := &recordingGate{behave: func(_, worktree string, reserve func() error) error {
-		if _, _, err := store.LoadWorktreeExecution(worktree); storeErrIs(err, ErrNotFound) {
-			sawBeforeAbsent = true
-		} else {
-			t.Errorf("worktree slot must be absent before reserve, LoadWorktreeExecution err = %v", err)
-		}
+	rg := &recordingGate{behave: func(_, _ string, reserve func() error) error {
 		if err := reserve(); err != nil {
 			return err
 		}
-		slot, _, err := store.LoadWorktreeExecution(worktree)
-		if err != nil {
-			t.Errorf("worktree slot must exist after reserve: %v", err)
-		} else if slot.State == admissionReserved {
-			sawAfterReserved = true
-		} else {
-			t.Errorf("slot state after reserve = %q, want %q", slot.State, admissionReserved)
-		}
-		return nil
+		return sentinel
 	}}
 	d.SetRunLaunchGate(rg.gate())
 
 	req := sampleStart()
 	req.RunID = "e1"
+	ticket, err := d.Admit(req)
+	if !errors.Is(err, sentinel) || ticket != nil {
+		t.Fatalf("Admit = (%v, %v), want the gate's error and no ticket", ticket, err)
+	}
+	if !worktreeFree(t, store, req.Cwd) {
+		t.Fatalf("an admission the caller never sees must not keep the worktree lock")
+	}
+	if n := driveRecordCount(t, store); n != 0 {
+		t.Fatalf("an admission the caller never sees must leave no reserved drive, got %d", n)
+	}
+}
+
+// TestAdmitReservationRunsInsideGate proves the admission happens while the gate
+// is held: the fake gate observes the worktree lock free and no drive before
+// reserve, and the lock held with one reserved drive after.
+func TestAdmitReservationRunsInsideGate(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
+	proc := &fakeProc{}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	req := sampleStart()
+	req.RunID = "e1"
+
+	sawBeforeFree := false
+	sawAfterHeld := false
+	rg := &recordingGate{behave: func(_, _ string, reserve func() error) error {
+		if worktreeFree(t, store, req.Cwd) && driveRecordCount(t, store) == 0 {
+			sawBeforeFree = true
+		} else {
+			t.Errorf("the worktree must be free with no drive before reserve")
+		}
+		if err := reserve(); err != nil {
+			return err
+		}
+		if !worktreeFree(t, store, req.Cwd) && driveRecordCount(t, store) == 1 {
+			sawAfterHeld = true
+		} else {
+			t.Errorf("reserve must take the worktree lock and mint one reserved drive")
+		}
+		return nil
+	}}
+	d.SetRunLaunchGate(rg.gate())
+
 	if _, err := d.Admit(req); err != nil {
 		t.Fatalf("Admit: %v", err)
 	}
-	if !sawBeforeAbsent {
-		t.Fatal("the gate must observe the worktree slot ABSENT before reserve")
+	if !sawBeforeFree {
+		t.Fatal("the gate must observe the worktree FREE before reserve")
 	}
-	if !sawAfterReserved {
-		t.Fatal("the gate must observe the worktree slot RESERVED after reserve")
+	if !sawAfterHeld {
+		t.Fatal("the gate must observe the worktree HELD after reserve")
 	}
 }
 
@@ -175,8 +204,8 @@ func TestAdmitNilGateOrEmptyRunUnchanged(t *testing.T) {
 		if ticket == nil {
 			t.Fatal("Admit must return a ticket")
 		}
-		if slot, _, lerr := store.LoadWorktreeExecution(req.Worktree); lerr != nil || slot.State != admissionReserved {
-			t.Fatalf("a nil-gate admission must reserve the slot as today, state=%q err=%v", slot.State, lerr)
+		if worktreeFree(t, store, req.Cwd) {
+			t.Fatalf("a nil-gate admission must take the worktree lock")
 		}
 	})
 
@@ -198,8 +227,8 @@ func TestAdmitNilGateOrEmptyRunUnchanged(t *testing.T) {
 		if rg.calls != 0 {
 			t.Fatalf("an empty-run admission must NOT consult the gate, called %d times", rg.calls)
 		}
-		if slot, _, lerr := store.LoadWorktreeExecution(req.Worktree); lerr != nil || slot.State != admissionReserved {
-			t.Fatalf("an empty-run admission must reserve the slot as today, state=%q err=%v", slot.State, lerr)
+		if worktreeFree(t, store, req.Cwd) {
+			t.Fatalf("an empty-run admission must take the worktree lock")
 		}
 	})
 }

@@ -2,7 +2,6 @@ package gatedrive
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -15,10 +14,11 @@ import (
 // ---------------------------------------------------------------------------
 // StartAdmitted revalidation, per-drive claim across launch, delayed-ticket
 // refusal (change 0437 Task 2). Between Admit and StartAdmitted a cancellation
-// fence can revoke the run, or a rotated/foreign reservation can take the
-// slot. StartAdmitted re-reads the EXACT durable reservation the ticket minted
-// under the run launch gate and holds the drive's claimant flock across launch/attach
-// so a concurrent cancellation observes pending work rather than a free slot.
+// fence can revoke the run. StartAdmitted re-reads the ticket's reserved drive
+// under the run launch gate (kept for change 0491) and holds the drive's
+// claimant flock across launch/attach so a concurrent cancellation observes
+// pending work. The worktree itself is held by the ticket's worktree lock
+// (change 0490), so no other gate can take it between the two phases.
 // ---------------------------------------------------------------------------
 
 // flippableGate is a fake RunLaunchGate whose verdict can be flipped between
@@ -72,9 +72,9 @@ func blockingLaunch(entered, release chan struct{}) func(process.LaunchRequest) 
 // TestStartAdmittedRevalidatesRun proves a fence landing between Admit and
 // StartAdmitted refuses the delayed launch: the gate is flipped to refuse after a
 // permissive Admit, so StartAdmitted returns the gate's typed error, launches
-// nothing, fail-closed settles the reserved drive record HALTED "run-cancelled",
-// and releases the freshly reserved worktree slot (never-launched by
-// construction — no Launch call happened).
+// nothing, and fail-closed settles the reserved drive record HALTED
+// "run-cancelled" (never-launched by construction — no Launch call happened).
+// TestStartAdmittedRunRefusalFreesWorktree pins that the worktree frees too.
 func TestStartAdmittedRevalidatesRun(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
@@ -108,70 +108,12 @@ func TestStartAdmittedRevalidatesRun(t *testing.T) {
 	if rec.LastOutcome != HALTED || rec.LastCause != "run-cancelled" {
 		t.Fatalf("drive record settled (%v,%q), want (HALTED,%q)", rec.LastOutcome, rec.LastCause, "run-cancelled")
 	}
-
-	// The freshly reserved worktree slot is released (provably idle).
-	slot, _, werr := store.LoadWorktreeExecution(req.Worktree)
-	if werr != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", werr)
-	}
-	if slot.State != admissionReleased {
-		t.Fatalf("worktree slot state = %q, want %q (released)", slot.State, admissionReleased)
-	}
-}
-
-// TestStartAdmittedRefusesForeignReservation proves the revalidation re-reads the
-// EXACT durable reservation the ticket minted: after Admit, the slot is released
-// and reserved anew (a rotated/foreign reservation under the same run now owns
-// the slot with a different token). StartAdmitted refuses
-// ErrUnresolvedLaunchTransition without launching.
-func TestStartAdmittedRefusesForeignReservation(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	proc := &fakeProc{}
-	d, store := newTestDriver(t, clk, proc, stableGit())
-	// A permissive gate: the run stays live, so the refusal must come from the
-	// exact-reservation revalidation, never the run check.
-	g := &flippableGate{}
-	d.SetRunLaunchGate(g.gate())
-
-	req := sampleStart()
-	req.RunID = "e1"
-	ticket, err := d.Admit(req)
-	if err != nil {
-		t.Fatalf("Admit: %v", err)
-	}
-
-	// Release this ticket's slot and reserve the worktree anew under the same
-	// run: a rotated/foreign reservation now owns the slot with a different token.
-	if rerr := store.ReleaseWorktreeExecution(req.Worktree, ticket.token); rerr != nil {
-		t.Fatalf("ReleaseWorktreeExecution: %v", rerr)
-	}
-	newToken, _, rerr := store.reserveWorktreeExecution(admissionRecord{
-		RepoIdentity: req.RepoDir,
-		WorktreeRoot: req.Worktree,
-		RunID:        "e1",
-		Kind:         "scopeless",
-	}, proc)
-	if rerr != nil {
-		t.Fatalf("reserve foreign slot: %v", rerr)
-	}
-	if newToken == ticket.token {
-		t.Fatal("the foreign reservation must mint a different token")
-	}
-
-	_, serr := d.StartAdmitted(ticket)
-	oe, ok := AsOwnershipError(serr)
-	if !ok || oe.Kind != ErrUnresolvedLaunchTransition {
-		t.Fatalf("StartAdmitted error = %v, want ErrUnresolvedLaunchTransition", serr)
-	}
-	if proc.launchN != 0 {
-		t.Fatalf("a foreign reservation must launch nothing, proc.Launch called %d times", proc.launchN)
-	}
 }
 
 // TestStartAdmittedRefusesBusyClaim proves a held claimant flock refuses the
 // launch without launching and without waiting: the test holds the drive's claim
 // (a concurrent launch/attach is in flight), so StartAdmitted returns promptly
-// with a typed refusal. The done channel — not a timer — is the promptness oracle:
+// with a typed refusal and frees the ticket's worktree. The done channel — not a timer — is the promptness oracle:
 // tryRelaunchClaim is nonblocking, so StartAdmitted must return without the test
 // ever releasing the claim.
 func TestStartAdmittedRefusesBusyClaim(t *testing.T) {
@@ -210,6 +152,9 @@ func TestStartAdmittedRefusesBusyClaim(t *testing.T) {
 	}
 	if proc.launchN != 0 {
 		t.Fatalf("a busy claim must launch nothing, proc.Launch called %d times", proc.launchN)
+	}
+	if !worktreeFree(t, store, req.Cwd) {
+		t.Fatalf("a refused launch must close the ticket's worktree lock")
 	}
 }
 
@@ -327,416 +272,79 @@ func TestStartAdmittedNoRunRecordUnchanged(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Run linkage resolution; fence automatic relaunch and reserved-relaunch
-// recovery (change 0437 Task 3). A death earns at most one automatic relaunch,
-// and a crash between reserving that relaunch and attaching it earns recovery —
-// both now flow through the run launch gate. resolveDriveRun answers, from durable
-// records only, which run a drive is linked to; authorizeRelaunch reserves
-// the automatic replacement while the gate is held; and the recovery entry
-// validates the run (read-only) BEFORE taking the per-drive claim.
+// The single automatic relaunch crosses no run launch gate (change 0490). No
+// production drive both carries a run and can relaunch (only finalize's run-less
+// local gate is idempotent), so the relaunch's admission is the worktree lock it
+// re-takes, never a run check — whatever run the drive was started under.
 // ---------------------------------------------------------------------------
 
-// startWaitingWithRun Starts a scopeless drive carrying runID under a permissive
-// launch gate and asserts the first slice WAITs. The worktree execution slot the
-// start reserves records runID, so resolveDriveRun links the drive to its run
-// through the exact-reservation match. It returns the StartRequest and the
-// WAITING doc; the caller can flip the gate to refuse a later relaunch.
-func startWaitingWithRun(t *testing.T, d *Driver, runID string) (StartRequest, DriveDoc) {
-	t.Helper()
-	req := sampleStart()
-	req.RunID = runID
-	started, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	if started.Outcome != WAITING {
-		t.Fatalf("run-backed first slice must WAIT, got %s (%s)", started.Outcome, started.Cause)
-	}
-	return req, started
-}
-
-// seedRunLinkedRecord returns a seedRecord linked to runID through a live
-// worktree execution slot: the slot records runID and the record carries the
-// slot's reservation token, so resolveDriveRun answers runID through the
-// exact-reservation match.
-func seedRunLinkedRecord(t *testing.T, store *Store, runID string) driveRecord {
-	t.Helper()
-	wt := mkWorktree(t)
-	token, _, err := store.reserveWorktreeExecution(admissionRecord{
-		RepoIdentity: "/repo",
-		WorktreeRoot: wt,
-		RunID:        runID,
-		Kind:         "scopeless",
-	}, &fakeProc{})
-	if err != nil {
-		t.Fatalf("reserve worktree slot: %v", err)
-	}
-	rec := seedRecord(t)
-	rec.WorktreePath = wt
-	rec.AdmissionToken = token
-	return rec
-}
-
-// TestRelaunchRefusedWhenRunRevoked proves a death's single automatic relaunch
-// is fenced on run liveness: a drive whose worktree slot records a run
-// dies while the gate refuses (a cancellation fence landed), so the relaunch leg
-// HALTs "run-cancelled", the ORIGINAL launch is the only one (no replacement),
-// and no relaunch was reserved.
-func TestRelaunchRefusedWhenRunRevoked(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	dead := false
-	proc := &fakeProc{
-		observe: func(runDir string) (*process.Observation, error) {
-			if dead && strings.HasSuffix(runDir, "run1") {
-				return obs(process.StateSignaled, runDir), nil
-			}
-			return obs(process.StateRunning, runDir), nil
-		},
-	}
-	d, store := newTestDriver(t, clk, proc, stableGit())
-	g := &flippableGate{err: errors.New("gatedrive-test: relaunch run fence")}
-	d.SetRunLaunchGate(g.gate())
-
-	req, started := startWaitingWithRun(t, d, "e1")
-
-	// A cancellation fence revokes the run; the run dies on the next slice.
-	dead = true
-	g.setRefuse(true)
-
-	doc, err := d.Advance(started.DriveID, started.Generation)
-	if err != nil {
-		t.Fatalf("Advance: %v", err)
-	}
-	if doc.Outcome != HALTED || doc.Cause != "run-cancelled" {
-		t.Fatalf("relaunch under a revoked run = %s/%q, want HALTED/run-cancelled", doc.Outcome, doc.Cause)
-	}
-	if proc.launchN != 1 {
-		t.Fatalf("a revoked run must not relaunch: proc.Launch called %d times, want 1", proc.launchN)
-	}
-	rec, lerr := store.Load(started.DriveID)
-	if lerr != nil {
-		t.Fatalf("Load: %v", lerr)
-	}
-	if rec.RelaunchReserved || rec.RelaunchToken != "" || rec.RelaunchCount != 0 {
-		t.Fatalf("a refused relaunch must reserve nothing, got reserved=%v token=%q count=%d", rec.RelaunchReserved, rec.RelaunchToken, rec.RelaunchCount)
-	}
-	_ = req
-}
-
-// TestRelaunchAuthorizedUnderGateThenLaunchedOutside proves the durable relaunch
-// reservation commits WHILE the run launch gate is held, and the replacement process
-// launches OUTSIDE it. A permissive recording gate marks its held window; the
-// replacement launch asserts the gate is not held when it runs, and the gate
-// wrapper asserts reserveRelaunch's CAS committed (RelaunchReserved set) before it
-// released.
-func TestRelaunchAuthorizedUnderGateThenLaunchedOutside(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	dead := false
-	var (
-		mu              sync.Mutex
-		gateHeld        bool
-		committedInside bool
-		driveID         string
-	)
-	proc := &fakeProc{
-		observe: func(runDir string) (*process.Observation, error) {
-			if dead && strings.HasSuffix(runDir, "run1") {
-				return obs(process.StateSignaled, runDir), nil
-			}
-			return obs(process.StateRunning, runDir), nil
-		},
-	}
-	proc.launch = func(process.LaunchRequest) (*process.LaunchOutcome, error) {
-		id := fmt.Sprintf("run%d", proc.launchN)
-		if proc.launchN == 2 { // the replacement launch
-			mu.Lock()
-			held := gateHeld
-			mu.Unlock()
-			if held {
-				t.Errorf("the replacement launch must run OUTSIDE the run launch gate")
-			}
-		}
-		return &process.LaunchOutcome{RunID: id, RunDir: "/runs/" + id, State: process.StateRunning}, nil
-	}
-	d, store := newTestDriver(t, clk, proc, stableGit())
-	gate := func(_, _ string, reserve func() error) error {
-		mu.Lock()
-		gateHeld = true
-		mu.Unlock()
-		rerr := reserve()
-		if rerr == nil && driveID != "" {
-			if rec, lerr := store.Load(driveID); lerr == nil && rec.RelaunchReserved {
-				mu.Lock()
-				committedInside = true
-				mu.Unlock()
-			}
-		}
-		mu.Lock()
-		gateHeld = false
-		mu.Unlock()
-		return rerr
-	}
-	d.SetRunLaunchGate(gate)
-
-	// Permissive Start (RelaunchReserved never set during Start's admission
-	// reservations, so committedInside stays false until the relaunch reserve).
-	req := sampleStart()
-	req.RunID = "e1"
-	started, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	if started.Outcome != WAITING {
-		t.Fatalf("first slice must WAIT, got %s/%s", started.Outcome, started.Cause)
-	}
-	driveID = started.DriveID
-
-	dead = true
-	doc, err := d.Advance(started.DriveID, started.Generation)
-	if err != nil {
-		t.Fatalf("Advance: %v", err)
-	}
-	if doc.Outcome != WAITING {
-		t.Fatalf("an authorized relaunch's healthy new run must WAIT, got %s/%s", doc.Outcome, doc.Cause)
-	}
-	if proc.launchN != 2 {
-		t.Fatalf("exactly one relaunch (two launches) must occur, got %d", proc.launchN)
-	}
-	mu.Lock()
-	committed := committedInside
-	mu.Unlock()
-	if !committed {
-		t.Fatalf("reserveRelaunch's CAS must commit WHILE the run launch gate is held")
-	}
-}
-
-// TestRecoveredRelaunchValidatesRunBeforeClaim proves the reserved-relaunch
-// recovery entry validates the run (read-only) BEFORE taking the per-drive
-// claim — the lock order that forbids acquiring the run while holding the claim.
-// A revoked run settles a proven never-launched replacement HALTED
-// "run-cancelled" with no launch, while an identified replacement still attaches
-// and is observed normally (reconcile is teardown, not permission).
-func TestRecoveredRelaunchValidatesRunBeforeClaim(t *testing.T) {
-	// seed persists a drive whose worktree slot records run e1 and whose record has a reserved-but-unattached relaunch (the crash window
-	// recoverReservedRelaunch resolves).
-	seed := func(t *testing.T, store *Store) (id, ownerGen string) {
-		t.Helper()
-		rec := seedRunLinkedRecord(t, store, "e1")
-		rec.RelaunchToken = "bbbbbbbbbbbbbbbb"
-		id, ownerGen = seedDrive(t, store, rec)
-		if err := store.ownerCAS(id, func(r *driveRecord) error {
-			r.RelaunchReserved = true
-			return nil
-		}); err != nil {
-			t.Fatalf("reserve relaunch: %v", err)
-		}
-		return id, ownerGen
-	}
-
-	// revokingProbeGate refuses (the run is revoked) AND probes that the drive's
-	// per-drive claim is FREE when the gate is entered — proving the run is
-	// acquired before the claim.
-	revokingProbeGate := func(store *Store, id string, sawFreeClaim *bool) RunLaunchGate {
+// TestRelaunchCrossesNoRunGate proves a death's single automatic relaunch never
+// consults the run launch gate: a drive started under a live run, and a legacy
+// drive with no launch token, each earn their replacement with a gate that
+// fails the test if consulted.
+func TestRelaunchCrossesNoRunGate(t *testing.T) {
+	tripGate := func(t *testing.T) RunLaunchGate {
 		return func(_, _ string, _ func() error) error {
-			c, busy, cerr := store.tryRelaunchClaim(id)
-			if cerr == nil && !busy {
-				*sawFreeClaim = true
-				c.close()
-			}
-			return errors.New("gatedrive-test: recovery run fence")
+			t.Fatalf("the single relaunch must NOT consult the run launch gate")
+			return nil
 		}
 	}
 
-	t.Run("never-launched under a revoked run halts run-cancelled", func(t *testing.T) {
-		store := OpenStore(testsupport.TempDir(t))
-		id, ownerGen := seed(t, store)
-		proc := &fakeProc{
-			resolve: func(root, token string) (*process.ReservationResolution, error) {
-				return &process.ReservationResolution{Disposition: "never-launched"}, nil
-			},
+	t.Run("drive started under a run", func(t *testing.T) {
+		clk := &fakeClock{now: startRun()}
+		dead := false
+		proc := &fakeProc{observe: func(runDir string) (*process.Observation, error) {
+			if dead && strings.HasSuffix(runDir, "run1") {
+				return obs(process.StateSignaled, runDir), nil
+			}
+			return obs(process.StateRunning, runDir), nil
+		}}
+		proc.stop = func(runDir, _ string) (*process.StopOutcome, error) {
+			return &process.StopOutcome{State: process.StateSignaled, RunDir: runDir, Performed: false,
+				Terminal: &process.Terminal{Kind: "signal", Signal: 9}}, nil
 		}
-		sawFreeClaim := false
-		clk := &fakeClock{now: startRun().Add(time.Second)}
-		d := NewDriver(reopenStore(store), clk, proc, stableGit())
-		d.slice = 4 * pollTick
-		d.pollInterval = pollTick
-		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		d.SetRunLaunchGate(revokingProbeGate(store, id, &sawFreeClaim))
+		d, _ := newTestDriver(t, clk, proc, stableGit())
+		d.SetRunLaunchGate((&flippableGate{}).gate())
+		req := sampleStart()
+		req.RunID = "e1"
+		started, err := d.Start(req)
+		if err != nil || started.Outcome != WAITING {
+			t.Fatalf("run-backed first slice = %s (%v), want WAITING", started.Outcome, err)
+		}
 
-		doc, err := d.Advance(id, ownerGen)
+		d.SetRunLaunchGate(tripGate(t))
+		dead = true
+		doc, err := d.Advance(started.DriveID, started.Generation)
 		if err != nil {
 			t.Fatalf("Advance: %v", err)
 		}
-		if doc.Outcome != HALTED || doc.Cause != "run-cancelled" {
-			t.Fatalf("a never-launched replacement under a revoked run = %s/%q, want HALTED/run-cancelled", doc.Outcome, doc.Cause)
+		if doc.Outcome != WAITING || doc.Attempt != 2 {
+			t.Fatalf("relaunch = %s/%q attempt %d, want WAITING attempt 2", doc.Outcome, doc.Cause, doc.Attempt)
 		}
-		if proc.launchN != 0 {
-			t.Fatalf("a revoked recovery must not launch, proc.Launch called %d times", proc.launchN)
-		}
-		if !sawFreeClaim {
-			t.Fatalf("the run launch gate must be consulted while the per-drive claim is still free (run before claim)")
+		if proc.launchN != 2 {
+			t.Fatalf("exactly one relaunch (two launches) must occur, got %d", proc.launchN)
 		}
 	})
 
-	t.Run("identified replacement still attaches under a revoked run", func(t *testing.T) {
+	t.Run("legacy drive with no launch token", func(t *testing.T) {
 		store := OpenStore(testsupport.TempDir(t))
-		id, ownerGen := seed(t, store)
-		proc := &fakeProc{
-			resolve: func(root, token string) (*process.ReservationResolution, error) {
-				return &process.ReservationResolution{Disposition: "identified", RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning}, nil
-			},
-			observe: func(runDir string) (*process.Observation, error) {
-				return obs(process.StateRunning, runDir), nil
-			},
-		}
-		sawFreeClaim := false
-		clk := &fakeClock{now: startRun().Add(time.Second)}
-		d := NewDriver(reopenStore(store), clk, proc, stableGit())
-		d.slice = 4 * pollTick
-		d.pollInterval = pollTick
-		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		d.SetRunLaunchGate(revokingProbeGate(store, id, &sawFreeClaim))
-
-		doc, err := d.Advance(id, ownerGen)
-		if err != nil {
-			t.Fatalf("Advance: %v", err)
-		}
-		if doc.Outcome != WAITING {
-			t.Fatalf("an identified replacement is reconciled (attached+observed), got %s/%q", doc.Outcome, doc.Cause)
-		}
-		if proc.launchN != 0 {
-			t.Fatalf("an identified replacement attaches without a new launch, proc.Launch called %d times", proc.launchN)
-		}
-		rec, lerr := store.Load(id)
-		if lerr != nil {
-			t.Fatalf("Load: %v", lerr)
-		}
-		if rec.RawRunDir != "/runs/run2" || rec.RelaunchCount != 1 {
-			t.Fatalf("the identified replacement must be attached, got RawRunDir=%q count=%d", rec.RawRunDir, rec.RelaunchCount)
-		}
-	})
-}
-
-// TestRelaunchLostLinkageRefuses proves a drive whose run linkage is LOST never
-// demotes to a standalone relaunch: a scopeless drive with an AdmissionToken
-// whose worktree slot is absent, or now carries a DIFFERENT reservation token,
-// can no longer prove which run it belongs to, so its death-relaunch leg HALTs
-// CauseRunLinkLost without launching and without consulting the run launch gate.
-// One case per resolveDriveRun slot branch (load error, token mismatch). (change 0481)
-func TestRelaunchLostLinkageRefuses(t *testing.T) {
-	for _, tc := range []struct {
-		name        string
-		reserveSlot bool // false: the worktree has no slot at all (load error)
-	}{
-		{name: "slot reassigned to another reservation", reserveSlot: true},
-		{name: "slot absent", reserveSlot: false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			store := OpenStore(testsupport.TempDir(t))
-			wt := sampleWorktree()
-			proc := &fakeProc{
-				observe: func(runDir string) (*process.Observation, error) {
-					return obs(process.StateSignaled, runDir), nil
-				},
-			}
-			slotToken := ""
-			if tc.reserveSlot {
-				// Mint a live worktree slot with its own reservation token.
-				tok, _, rerr := store.reserveWorktreeExecution(admissionRecord{
-					RepoIdentity: "/repo",
-					WorktreeRoot: wt,
-					Kind:         "scopeless",
-				}, proc)
-				if rerr != nil {
-					t.Fatalf("reserve worktree slot: %v", rerr)
-				}
-				slotToken = tok
-			} else if _, _, lerr := store.LoadWorktreeExecution(wt); lerr == nil {
-				t.Fatal("precondition: the absent-slot case must have no slot to load")
-			}
-
-			rec := seedRecord(t)
-			rec.WorktreePath = wt
-			rec.AdmissionToken = "stale-admission-token" // NOT any slot's current token
-			if rec.AdmissionToken == slotToken {
-				t.Fatal("the drive's stale token must differ from the slot's live token")
-			}
-			id, ownerGen := seedDrive(t, store, rec)
-
-			d := NewDriver(reopenStore(store), &fakeClock{now: startRun().Add(time.Second)}, proc, stableGit())
-			d.slice = pollTick
-			d.pollInterval = pollTick
-			d.sleep = func(dur time.Duration) {}
-			// A gate that fails the test if consulted: lost linkage must refuse BEFORE the gate.
-			d.SetRunLaunchGate(func(_, _ string, _ func() error) error {
-				t.Fatalf("lost linkage must refuse before the run launch gate is consulted")
-				return nil
-			})
-
-			doc, err := d.Advance(id, ownerGen)
-			if err != nil {
-				t.Fatalf("Advance: %v", err)
-			}
-			if doc.Outcome != HALTED || doc.Cause != CauseRunLinkLost {
-				t.Fatalf("lost linkage = %s/%q, want HALTED/%s", doc.Outcome, doc.Cause, CauseRunLinkLost)
-			}
-			if proc.launchN != 0 {
-				t.Fatalf("lost linkage must launch nothing, proc.Launch called %d times", proc.launchN)
-			}
-		})
-	}
-}
-
-// TestRelaunchStandaloneUnchanged proves a genuinely no-run-record drive relaunches
-// exactly as before this change, with the launch gate wired but never consulted:
-// a scopeless drive whose worktree slot records an empty RunID, and a legacy
-// drive with no admission token and no scope, each earn their single automatic
-// relaunch through the no-run-record path.
-func TestRelaunchStandaloneUnchanged(t *testing.T) {
-	relaunchProc := func() *fakeProc {
-		p := &fakeProc{}
+		proc := &fakeProc{}
 		// The seeded drive already owns /runs/run1; the single relaunch must mint a
-		// DISTINCT run dir (the first launch through this proc becomes run2), else the
-		// replacement would collide with the dead original and relaunch-exhaust.
-		p.launch = func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+		// DISTINCT run dir, else the replacement would collide with the dead original.
+		proc.launch = func(process.LaunchRequest) (*process.LaunchOutcome, error) {
 			return &process.LaunchOutcome{RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning}, nil
 		}
-		p.observe = func(runDir string) (*process.Observation, error) {
+		proc.observe = func(runDir string) (*process.Observation, error) {
 			if strings.HasSuffix(runDir, "run1") {
 				return obs(process.StateSignaled, runDir), nil
 			}
 			return obs(process.StateRunning, runDir), nil
 		}
-		p.stop = func(runDir, reason string) (*process.StopOutcome, error) {
+		proc.stop = func(runDir, _ string) (*process.StopOutcome, error) {
 			return &process.StopOutcome{State: process.StateSignaled, RunDir: runDir, Performed: false,
 				Terminal: &process.Terminal{Kind: "signal", Signal: 9}}, nil
 		}
-		return p
-	}
-	tripGate := func(t *testing.T) RunLaunchGate {
-		return func(_, _ string, _ func() error) error {
-			t.Fatalf("a no-run-record drive must NOT consult the launch gate")
-			return nil
-		}
-	}
-
-	t.Run("scopeless slot with empty run", func(t *testing.T) {
-		store := OpenStore(testsupport.TempDir(t))
-		wt := sampleWorktree()
-		proc := relaunchProc()
-		slotToken, _, rerr := store.reserveWorktreeExecution(admissionRecord{
-			RepoIdentity: "/repo",
-			WorktreeRoot: wt,
-			RunID:        "", // no-run-record slot
-			Kind:         "scopeless",
-		}, proc)
-		if rerr != nil {
-			t.Fatalf("reserve worktree slot: %v", rerr)
-		}
-		rec := seedRecord(t)
-		rec.WorktreePath = wt
-		rec.AdmissionToken = slotToken // matches: linkage resolves to an empty run
-		id, ownerGen := seedDrive(t, store, rec)
+		id, ownerGen := seedDrive(t, store, seedRecord(t)) // AdmissionToken == ""
 
 		clk := &fakeClock{now: startRun().Add(time.Second)}
 		d := NewDriver(reopenStore(store), clk, proc, stableGit())
@@ -750,32 +358,7 @@ func TestRelaunchStandaloneUnchanged(t *testing.T) {
 			t.Fatalf("Advance: %v", err)
 		}
 		if doc.Outcome != WAITING || doc.Attempt != 2 {
-			t.Fatalf("no-run-record relaunch = %s/%q attempt=%d, want WAITING attempt 2", doc.Outcome, doc.Cause, doc.Attempt)
-		}
-		if proc.launchN != 1 {
-			t.Fatalf("no-run-record relaunch must launch the replacement exactly once, got %d", proc.launchN)
-		}
-	})
-
-	t.Run("legacy drive with no admission token or scope", func(t *testing.T) {
-		store := OpenStore(testsupport.TempDir(t))
-		proc := relaunchProc()
-		rec := seedRecord(t) // AdmissionToken == "", ScopeID == ""
-		id, ownerGen := seedDrive(t, store, rec)
-
-		clk := &fakeClock{now: startRun().Add(time.Second)}
-		d := NewDriver(reopenStore(store), clk, proc, stableGit())
-		d.slice = 4 * pollTick
-		d.pollInterval = pollTick
-		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		d.SetRunLaunchGate(tripGate(t))
-
-		doc, err := d.Advance(id, ownerGen)
-		if err != nil {
-			t.Fatalf("Advance: %v", err)
-		}
-		if doc.Outcome != WAITING || doc.Attempt != 2 {
-			t.Fatalf("legacy relaunch = %s/%q attempt=%d, want WAITING attempt 2", doc.Outcome, doc.Cause, doc.Attempt)
+			t.Fatalf("legacy relaunch = %s/%q attempt %d, want WAITING attempt 2", doc.Outcome, doc.Cause, doc.Attempt)
 		}
 		if proc.launchN != 1 {
 			t.Fatalf("legacy relaunch must launch the replacement exactly once, got %d", proc.launchN)
@@ -789,14 +372,14 @@ func TestRelaunchStandaloneUnchanged(t *testing.T) {
 // the claim. These prove it deterministically: a probing gate asserts the claim is
 // still free at every gate ENTER, and a contention race proves the nonblocking
 // claim bounds every contender (all return; exactly one launch) with channel/done
-// oracles, never a timing sleep.
+// oracles, never a timing sleep. Since change 0490 only the first launch crosses
+// the run gate; the relaunch reserves under its claim alone.
 // ---------------------------------------------------------------------------
 
 // TestNoRunAcquisitionWhileClaimHeld proves the run launch gate is entered only while
-// the per-drive claim is still free — for both the delayed StartAdmitted launch
-// and the reserved-relaunch recovery entry. A probing gate acquires the claim at
-// entry: if it is ever already held by this caller when the gate is entered, the
-// lock order (run before claim) is violated.
+// the per-drive claim is still free for the delayed StartAdmitted launch. A
+// probing gate acquires the claim at entry: if it is ever already held by this
+// caller when the gate is entered, the lock order (run before claim) is violated.
 func TestNoRunAcquisitionWhileClaimHeld(t *testing.T) {
 	// probeGate is a permissive gate that, at each ENTER, probes the drive's claim.
 	// The lock order requires it FREE at every entry; the gate records enters and
@@ -845,48 +428,6 @@ func TestNoRunAcquisitionWhileClaimHeld(t *testing.T) {
 			t.Fatalf("the run launch gate must be entered while the per-drive claim is still FREE (run before claim)")
 		}
 	})
-
-	t.Run("reserved-relaunch recovery validates the run before the claim", func(t *testing.T) {
-		store := OpenStore(testsupport.TempDir(t))
-		rec := seedRunLinkedRecord(t, store, "e1")
-		rec.RelaunchToken = "bbbbbbbbbbbbbbbb"
-		id, ownerGen := seedDrive(t, store, rec)
-		if err := store.ownerCAS(id, func(r *driveRecord) error {
-			r.RelaunchReserved = true
-			return nil
-		}); err != nil {
-			t.Fatalf("reserve relaunch: %v", err)
-		}
-		proc := &fakeProc{
-			resolve: func(root, token string) (*process.ReservationResolution, error) {
-				return &process.ReservationResolution{Disposition: "identified", RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning}, nil
-			},
-			observe: func(runDir string) (*process.Observation, error) {
-				return obs(process.StateRunning, runDir), nil
-			},
-		}
-		enters, sawHeld := 0, false
-		clk := &fakeClock{now: startRun().Add(time.Second)}
-		d := NewDriver(reopenStore(store), clk, proc, stableGit())
-		d.slice = 4 * pollTick
-		d.pollInterval = pollTick
-		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		d.SetRunLaunchGate(probeGate(store, id, &enters, &sawHeld))
-
-		doc, err := d.Advance(id, ownerGen)
-		if err != nil {
-			t.Fatalf("Advance: %v", err)
-		}
-		if doc.Outcome != WAITING {
-			t.Fatalf("an identified recovered replacement is attached+observed, got %s/%s", doc.Outcome, doc.Cause)
-		}
-		if enters == 0 {
-			t.Fatalf("the recovery entry must consult the run launch gate")
-		}
-		if sawHeld {
-			t.Fatalf("the recovery run pass must run while the per-drive claim is still FREE (run before claim)")
-		}
-	})
 }
 
 // TestClaimContentionBounded proves the nonblocking per-drive claim bounds
@@ -899,23 +440,10 @@ func TestNoRunAcquisitionWhileClaimHeld(t *testing.T) {
 // resolution of the live holder.
 func TestClaimContentionBounded(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
-	wt := mkWorktree(t)
 	proc := newClaimWindowProc()
-	// A live worktree slot recording run e1 backs the scopeless drive's admission
-	// token (the relaunch's run pass reads it); the drive's run context attributes it
-	// to e1's census.
-	token, _, terr := store.reserveWorktreeExecution(admissionRecord{
-		RepoIdentity: "/repo",
-		WorktreeRoot: wt,
-		RunID:        "e1",
-		Kind:         "scopeless",
-	}, proc)
-	if terr != nil {
-		t.Fatalf("reserve worktree slot: %v", terr)
-	}
+	// The drive's run context attributes it to e1's census.
 	rec := seedRecord(t)
-	rec.WorktreePath = wt
-	rec.AdmissionToken = token
+	rec.AdmissionToken = "aaaaaaaaaaaaaaaa"
 	rec.RunContextHash = capHash("ctx-e1")
 	id, ownerGen := seedDrive(t, store, rec)
 

@@ -2242,8 +2242,9 @@ func removeUnlaunchedGateRunRoot(runRoot string) (retained bool) {
 // mapDriveHaltCause maps a driver HALTED cause token onto the closed finalize
 // halt vocabulary. A deadline expiry is the running-at-budget analog; every other
 // fail-closed cause (a changed worktree, uncertain ownership, malformed/unreadable
-// state, an unadmitted death) is reported as unavailable — a human is needed. It
-// never fabricates a decidable pass/fail.
+// state, an unadmitted death, a relaunch that found the worktree held by another
+// gate — gatedrive.CauseWorktreeBusy) is reported as unavailable — a human is
+// needed, never repair work. It never fabricates a decidable pass/fail.
 func mapDriveHaltCause(cause string) string {
 	switch {
 	case strings.HasPrefix(cause, gatedrive.CauseDeadlineExpired):

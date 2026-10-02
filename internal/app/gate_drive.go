@@ -43,10 +43,11 @@ type GateDriveResult struct {
 	// Stage + Locator carry the typed refusal site for the two diagnosable
 	// refusal families. A legacy-inventory refusal: Stage "legacy-inventory",
 	// Locator "inventory-legacy-drive-<id>" (validated id) or the safe
-	// "inventory-legacy-drives". A current worktree-admission refusal
+	// "inventory-legacy-drives". A worktree-busy refusal
 	// (incumbentRefusalLocator): Stage "worktree-admission", Locator
-	// "incumbent-drive:<id>" / "incumbent-run:<id>" (validated id) or "" when no
-	// identity validates. Empty for every other refusal.
+	// "incumbent-drive:<id>" / "incumbent-run:<id>" (validated id) naming the
+	// worktree lock's live holder, or "" when the holder is unknown. Empty for
+	// every other refusal.
 	Stage   string `json:"stage,omitempty"`
 	Locator string `json:"locator,omitempty"`
 	// LegacyHistory mirrors the drive document's summary onto refusals, where
@@ -70,10 +71,6 @@ type driveEngine interface {
 	Advance(id, ownerGen string) (gatedrive.DriveDoc, error)
 	Handoff(id, ownerGen string) (gatedrive.DriveDoc, error)
 	Claim(id, handoffID string) (gatedrive.DriveDoc, error)
-	// ReconcileFinishedIncumbent settles a proven-finished incumbent on a worktree's
-	// execution slot with the engine's own process seam (change 0446 spec §3), so an
-	// advisory busy refusal is final only after reconciliation had its chance.
-	ReconcileFinishedIncumbent(worktree, runID string) (settled bool, finding string, err error)
 }
 
 // GateDriveService is the in-process seam over the native gate driver. It owns
@@ -123,10 +120,10 @@ type GateDriveStartRequest struct {
 	// the dispatched run; the driver persists only its hash, which run.verdict's
 	// outer scan matches a run's drives on. Optional: empty for an untracked run.
 	RunContext string
-	// RunID links this drive to the workflow run (change 0375 Task 9): a
-	// locator, not a credential, recorded on the worktree execution slot so an omitted
-	// or stale run cannot detach a workflow-owned worktree. Empty for a standalone
-	// gate (finalize's local gate, an ad-hoc build drive) that owns no run.
+	// RunID names the workflow run (change 0375 Task 9): a locator, not a
+	// credential, that the run launch gate checks at admission and launch. Empty for
+	// a standalone gate (finalize's local gate, an ad-hoc build drive) that owns no
+	// run.
 	RunID string
 }
 
@@ -288,46 +285,30 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 		IdempotentSuiteGate: req.IdempotentSuiteGate,
 		RunContext:          req.RunContext,
 		RunID:               req.RunID,
+		Owner:               s.owner,
 	}
 }
 
 // startBudgetedBuild is the build owner's admission-precedes-charging start
 // (change 0375 Task 8, ADR-0116). The ordering is load-bearing:
 //
-//  1. Advisory admission precheck — a plainly busy/unresolved worktree slot
-//     short-circuits BEFORE any charge. It is advisory (WorktreeAdmissionRefusal
-//     defers to the authoritative reserve on anything it cannot read), and its
-//     refusal is final only after finished-incumbent reconciliation (change 0446
-//     spec §3) could not settle the incumbent: a proven-finished incumbent is
-//     settled and the start continues, so this early short-circuit never refuses a
-//     start the authoritative admission would admit. Reconciliation charges nothing.
-//  2. Advisory budget precheck — an already-spent phase budget short-circuits
-//     before admission, so an exhausted start neither reserves the worktree slot
-//     nor mints a reserved drive it would have to abandon.
-//  3. Authoritative admission (Admit). A refusal here — a worktree-busy /
-//     launch-unconfirmed / stale-run-id slot the advisory precheck missed under a
-//     race — charges NO suite attempt: admission precedes charging.
-//  4. Charge exactly one full-suite attempt BETWEEN admission and launch. Once
+//  1. Advisory budget precheck — an already-spent phase budget short-circuits
+//     before admission, so an exhausted start neither takes the worktree lock nor
+//     mints a reserved drive it would have to abandon.
+//  2. Authoritative admission (Admit): the worktree lock is taken before the
+//     charge. A refusal here — another gate's supervisor holds the worktree
+//     (worktree-busy), or the run launch gate refuses — charges NO suite attempt
+//     and creates no drive: admission precedes charging.
+//  3. Charge exactly one full-suite attempt BETWEEN admission and launch. Once
 //     charged there are NO refunds: a launch/persistence failure in StartAdmitted
 //     spends the attempt. A charge that cannot be reserved after admission (an
-//     exhausted race the peek missed, or an IO fault) abandons the admission
-//     fail-closed and refuses.
-//  5. Launch the admitted, charged drive (StartAdmitted).
+//     exhausted race the peek missed, or an IO fault) abandons the admission —
+//     closing the worktree lock — and refuses.
+//  4. Launch the admitted, charged drive (StartAdmitted).
 //
-// Do not reorder the charge before the admission — that is exactly the defect this
-// change fixes (a worktree-busy refusal must reserve no attempt).
+// Do not reorder the charge before the admission — a worktree-busy refusal must
+// reserve no attempt.
 func (s *GateDriveService) startBudgetedBuild(req GateDriveStartRequest, startReq gatedrive.StartRequest) GateDriveResult {
-	if err := s.budgetStore.WorktreeAdmissionRefusal(req.Worktree); err != nil {
-		// Reconcile under the run this start presents.
-		runID := startReq.RunID
-		settled, finding, _ := s.engine.ReconcileFinishedIncumbent(req.Worktree, runID)
-		if !settled {
-			if oe, ok := gatedrive.AsOwnershipError(err); ok {
-				oe.Reconciliation = finding
-			}
-			return mapDriveResult(OperationGateDriveStart, gatedrive.DriveDoc{}, err)
-		}
-	}
 	if refusal, refused := s.suiteBudgetPrecheck(req); refused {
 		return refusal
 	}
@@ -386,7 +367,7 @@ func (s *GateDriveService) reserveBuildSuiteAttempt(req GateDriveStartRequest) (
 // suiteBudgetPrecheck is the ADVISORY, read-only budget short-circuit the build
 // owner consults before admission (change 0375 Task 8): an already-spent phase
 // budget refuses with the same exhausted refusal reserveBuildSuiteAttempt would,
-// so an exhausted start never admits (and so never reserves a worktree slot or
+// so an exhausted start never admits (and so never takes the worktree lock or
 // mints a reserved drive it would have to abandon). It never charges. A key with no
 // record yet reports (0,0) → not exhausted → proceed to admission, where the
 // authoritative ReserveSuiteAttempt creates the record. A corrupt/unknown-schema
@@ -481,17 +462,18 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 			// A legacy-inventory refusal carries the typed stage, a SAFE locator, and
 			// the mirrored recovery summary (no drive document exists on a refusal), and
 			// a cleanup-oriented message. Every other ownership kind keeps its existing
-			// slot-recovery next-action message unchanged.
+			// next-action message unchanged.
 			if stage, locator, isInventory := legacyInventoryLocator(oe.Op); isInventory {
 				result.Stage, result.Locator = stage, locator
 				result.LegacyHistory = oe.Legacy
 				result.Message = legacyInventoryMessage(oe.Op)
-			} else if oe.Incumbent != nil {
-				// A CURRENT worktree-admission refusal diagnoses from the exact
-				// incumbent snapshot the refusal was decided on (never a re-read).
+			} else if oe.Kind == gatedrive.ErrWorktreeBusy {
+				// A worktree-busy refusal always names its site, and diagnoses from
+				// the holder snapshot the lock refusal validated as running (never a
+				// re-read) — or says the holder is unknown when there is none.
 				result.Stage = stageWorktreeAdmission
 				result.Locator = incumbentRefusalLocator(oe.Incumbent)
-				result.Message = incumbentRemedyMessage(oe.Kind, oe.Incumbent)
+				result.Message = incumbentRemedyMessage(oe.Incumbent)
 			} else {
 				result.Message = ownershipNextAction(oe.Kind)
 			}
@@ -565,7 +547,7 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 	case gatedrive.ErrUnresolvedLaunchTransition:
 		return "a prior launch transition is unresolved; settle it with run.cancel or wait for it, never a blind retry"
 	case gatedrive.ErrWorktreeBusy:
-		return "this worktree's slot is occupied by a gate run admission could not prove finished (a proven-finished occupant is settled automatically); wait for the incumbent or settle its slot through its own stop/cancel route — do not start a second gate in the same worktree"
+		return "another gate's supervisor holds this worktree's lock; wait for it to finish — the worktree frees itself when that gate ends — or stop that gate through its own route (run.cancel for a tracked run, gate stop for a raw launch); never start a second gate in the same worktree"
 	case gatedrive.ErrLaunchUnconfirmed:
 		return "a prior execution in this worktree is unresolved; recover it through run.cancel, never a blind re-start"
 	case gatedrive.ErrStaleRunID:
@@ -585,8 +567,8 @@ func appendReconciliationFinding(message, finding string) string {
 	return message + " (" + note + ")"
 }
 
-// stageWorktreeAdmission is the typed refusal site for a CURRENT worktree
-// worktree-slot refusal, distinct from the legacy-inventory stage.
+// stageWorktreeAdmission is the typed refusal site for a worktree-busy refusal,
+// distinct from the legacy-inventory stage.
 const stageWorktreeAdmission = "worktree-admission"
 
 // rawRunIDShape matches the supervisor's run-id shape (32 lowercase hex); the
@@ -621,33 +603,45 @@ func quoteOperand(path string) string {
 	return "'" + strings.ReplaceAll(path, "'", `'\''`) + "'"
 }
 
-// incumbentRemedyMessage returns the credential-free next-action guidance for the
-// refusal kind + incumbent — always a bounded honest sentence, never "". It never
-// suggests a raw manual teardown for a driven or run-owned slot, renders the raw
-// stop guidance only when a confirmed RawRunDir + valid RawRunID exist, and never
-// projects a reservation token, owner generation, capability, or run id.
-//
-// There is deliberately no drive-id branch: no production writer sets the worktree
-// slot's DriveID (TestAdmissionSlotDriveIDHasNoProductionWriter), so a snapshot's
-// DriveID is historical evidence at most and never selects guidance (change 0446).
-func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.IncumbentSnapshot) string {
+// changeIDShape bounds the change id a holder note may render into guidance:
+// change ids are decimal (finalize passes strconv.Itoa; the build controller its
+// numeric id). Anything else renders generically, never verbatim.
+var changeIDShape = regexp.MustCompile("^[0-9]{1,9}$")
+
+// holderChangeLabel names the holder's change for guidance: "change <id>" for a
+// validated id, else a generic phrase.
+func holderChangeLabel(changeID string) string {
+	if changeIDShape.MatchString(changeID) {
+		return "change " + changeID
+	}
+	return "another change"
+}
+
+// incumbentRemedyMessage returns the credential-free next-action guidance for a
+// worktree-busy refusal — always a bounded honest sentence, never "". inc is the
+// worktree lock's holder snapshot, present only when the holder note's run was
+// observed running (gatedrive.liveHolder); nil means the holder is unknown. The
+// remedy names the right tool for the holder's kind: run.cancel for a build
+// drive's owning run, waiting for finalize's gate, or gate stop for a raw launch.
+// It renders a drive id, change id, or run dir only after validating it, and
+// never projects a token, owner generation, capability, or run id.
+func incumbentRemedyMessage(inc *gatedrive.IncumbentSnapshot) string {
 	switch {
-	case inc != nil && inc.RunUnresolved:
-		// No readable run record carries the slot's run: run.cancel targets a run
-		// by key and run id and cannot act on it, so it is never suggested here.
-		return "this worktree's slot names a workflow run that no readable run record carries, so neither a continuation nor a cancellation by key and run id can target it; inspect the per-run-key run records under the repository's Git common dir (docket/run-tracker/<run-key>/run.json) — a human must repair the damaged or missing record, or the slot's stale run reference, before a gate can start here; never a raw manual teardown"
-	case kind == gatedrive.ErrStaleRunID || (inc != nil && inc.RunOwned):
-		return "a workflow run owns this worktree's slot; continue that run through its own gate-drive continuation, or — when that run's run record resolves — cancel it with the run.cancel operation using that run's key and run id; if no readable run record carries it, run.cancel cannot target it and a human must repair that record under docket/run-tracker — never a raw manual teardown and never a stale run presented as a bypass"
-	case inc != nil && inc.Kind == "raw" && inc.RawRunDir != "" && rawRunIDShape.MatchString(inc.RawRunID):
+	case inc == nil:
+		return "holder unknown: another gate's supervisor holds this worktree's lock and it could not be confirmed running; wait for it to finish — the worktree frees itself when that gate ends — or find the holding process with lsof on this worktree's busy.lock under the repository's Git common dir (docket/worktree-locks/<key>/busy.lock); never start a second gate here"
+	case inc.Kind == "raw" && inc.RawRunDir != "" && rawRunIDShape.MatchString(inc.RawRunID):
 		dir := quoteOperand(inc.RawRunDir)
-		return "a raw gate run occupies this worktree's slot and admission could not prove it finished (a run whose completion is proven is settled automatically by the next admission); it may still be running. Inspect it with docket gate observe " + dir +
-			", then settle the slot with docket gate stop " + dir + " --reason <why> — stopping a still-running run cancels it; stopping an already-completed run settles its slot (the stop operation itself decides whether teardown is proven)"
-	case inc != nil && inc.Kind == "raw":
-		return "a raw gate reservation occupies this worktree's slot but its run identity is not recorded; do not start a second gate here — resolve the incumbent before retrying"
-	case kind == gatedrive.ErrLaunchUnconfirmed:
-		return ownershipNextAction(gatedrive.ErrLaunchUnconfirmed)
+		return "a raw gate run holds this worktree (run dir " + dir + "); wait for it, or stop it with docket gate stop " + dir + " --reason <why> — the worktree frees itself when the run ends"
+	case inc.Kind == "raw":
+		return "a raw gate run holds this worktree but its run identity did not validate; wait for it to finish — the worktree frees itself when the run ends; never start a second gate here"
+	case inc.Owner == "finalize":
+		return "finalize's local gate for " + holderChangeLabel(inc.ChangeID) + " holds this worktree; wait for it to finish — it frees the worktree when it ends"
 	default:
-		return "an execution occupies this worktree's slot but its identity could not be established; do not start a second gate here and do not guess a stop target — resolve the incumbent first"
+		gate := holderChangeLabel(inc.ChangeID) + "'s build gate"
+		if gatedrive.ValidDriveID(inc.DriveID) {
+			gate += " (drive " + inc.DriveID + ")"
+		}
+		return gate + " holds this worktree; wait for it, or stop the owning run with the run.cancel operation (--key <key> --run-id <id> --reason <why>) — the worktree frees itself when that gate ends"
 	}
 }
 

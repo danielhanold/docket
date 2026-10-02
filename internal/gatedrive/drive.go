@@ -105,13 +105,16 @@ const (
 	// ambiguous, so the outer continuation fails closed rather than guessing which
 	// live run to supersede. (change 0359)
 	CauseTakeoverAmbiguous = "takeover-ambiguous"
-	// CauseRunLinkLost: a scopeless run-linked drive can no longer prove which run
-	// it belongs to — the worktree slot it was admitted through is absent or
-	// unreadable, or now carries a different reservation token. resolveDriveRun
-	// returns it for both slot branches, so the relaunch path refuses new
-	// execution rather than demoting the drive to standalone. Distinct from the
-	// launch-unconfirmed halt, which means a launch itself is in doubt. (change 0481)
+	// CauseRunLinkLost: a scopeless run-linked drive could no longer prove which
+	// run it belonged to through its worktree slot. No longer emitted: its only
+	// emitter, the relaunch's slot-based run resolution, was removed by change 0490
+	// (the relaunch crosses no run gate); a record carrying it still decodes.
+	// (change 0481)
 	CauseRunLinkLost = "run-link-lost"
+	// CauseWorktreeBusy: the single automatic relaunch found the worktree lock
+	// held by another gate, so the drive HALTs instead of relaunching over it. It
+	// launches nothing; the holder keeps the worktree. (change 0490)
+	CauseWorktreeBusy = "worktree-busy"
 )
 
 // DriveDoc is the protocol-v1 outcome document emitted by every driver
@@ -130,16 +133,12 @@ type DriveDoc struct {
 	Cause           string    `json:"cause,omitempty"`
 	RawRunDir       string    `json:"raw_run_dir,omitempty"`
 	// RunRoot is the drive's private process-supervisor allocation root (the
-	// parent of the raw run dir(s)). It is populated on a TERMINAL document only
+	// parent of the raw run dir(s)). It is always exposed on a TERMINAL document
 	// (PASSED/FAILED/HALTED, omitempty) and never on WAITING — a live drive may
 	// still relaunch under it, so a WAITING consumer must retain it. It is exposed
 	// for exactly one purpose: the owning caller that minted the root removes it at
 	// the terminal to avoid leaking one temp dir per drive across retries. Like
 	// RawRunDir it is a host path, not a secret; it carries no argv/env/credential.
-	// It is advertised only once the drive's worktree-slot release evidence is
-	// settled (change 0446): a HALTED drive whose slot was only marked
-	// stopping/unresolved, or any terminal whose release write failed, withholds it,
-	// because the root is the evidence a later reconciliation needs.
 	RunRoot string `json:"run_root,omitempty"`
 	// ReleaseFinding is a bounded, credential-free token set when the terminal
 	// document's worktree-slot release (or its fail-closed stopping/unresolved
@@ -267,13 +266,13 @@ type driveRecord struct {
 	// 0489, and a pre-0489 record still carrying it decodes with it ignored.)
 	RunContextHash string `json:"run_context_hash,omitempty"`
 
-	// AdmissionToken is the worktree execution slot's reservation token this
-	// drive launched under (admission.go). It is threaded into the raw launch as
-	// LaunchRequest.ReservationToken so a lost launch response is resolvable to
-	// this exact run (ResolveReservation, Task 2), and it lets restart recovery
-	// (Task 5) resolve or release the slot the drive holds. It is the slot's own
-	// authority, never a child capability. Empty for a scopeless drive that does
-	// not admit through the slot in this generation (Task 4 wires scopeless
-	// admission). (schema v3, change 0375)
+	// AdmissionToken is the launch token the driver mints at admission for the
+	// drive's first launch (change 0490; the JSON key is unchanged from the slot
+	// era, change 0375, when the worktree slot minted it). It is threaded into the
+	// raw launch as LaunchRequest.ReservationToken so a lost launch response is
+	// resolvable to this exact run (ResolveReservation), which the launch census
+	// uses to settle a first launch whose run was never attached. It is never a
+	// child capability. Empty on a legacy record that launched without one.
+	// (schema v3)
 	AdmissionToken string `json:"admission_token,omitempty"`
 }

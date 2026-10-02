@@ -16,7 +16,8 @@ import (
 // The change was claimed by an UNTRACKED first dispatch, so no run exists. The
 // resume start must print `run-started <key> <run-id> <run-context>`. Parsed
 // positionally (as AGENTS.md tells a parent), the <run-id> is admitted by the real
-// run launch gate for the resumed worktree and recorded on its execution slot.
+// run launch gate for the resumed worktree. (Change 0490 retired the slot that
+// used to record it; admission now holds the worktree lock and records no run.)
 // The misrouted 0382 call (the run context presented as the run id) is refused
 // with the named unknown-run-id. The resume inspect path uses the raw temp
 // spelling and the start uses the symlink-resolved one (Review Focus 1).
@@ -78,11 +79,4 @@ func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
 		t.Fatalf("the parsed run id must admit for the resumed worktree, got (%s, %q): %v", r, why, aerr)
 	}
 	t.Cleanup(func() { _ = svc.engine.AbandonAdmission(ticket) })
-	slot, _, lerr := store.LoadWorktreeExecution(worktree)
-	if lerr != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", lerr)
-	}
-	if slot.RunID != runID {
-		t.Fatalf("worktree slot RunID = %q, want the started run id %q", slot.RunID, runID)
-	}
 }
