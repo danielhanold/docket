@@ -256,8 +256,7 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 		}
 	}
 	startReq := s.startRequest(req)
-	// A build-role start that certifies a change (non-empty ChangeID — change 0416
-	// guarantees a scoped start carries the full change/task/phase bundle) is the
+	// A build-role start that certifies a change (non-empty ChangeID) is the
 	// only owner that charges the phase suite-attempt budget. The finalize owner
 	// never reaches this branch (different owner), and a build-owned start with
 	// NO ChangeID (a scopeless ad-hoc drive) is deliberately unbudgeted — both

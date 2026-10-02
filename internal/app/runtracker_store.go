@@ -694,8 +694,8 @@ func ReserveRunTrackerClaim(repoDir, key string, changeID int, requestID string)
 	// short-circuiting pre-read, so the exists-decision always flows through the
 	// fs.ErrExist re-load branch and the atomicity guard stays load-bearing (a
 	// pre-read that answered match-or-conflict on its own would make the CAS
-	// untestable and would race a concurrent writer). This mirrors the
-	// reserveScopeDrive CAS discipline: the conflict-checked write is authority.
+	// untestable and would race a concurrent writer): the conflict-checked write is
+	// authority.
 	buf, err := json.Marshal(RunTrackerClaimBinding{Schema: bindingSchemaVersion, ChangeID: changeID, RequestID: requestID, Confirmed: false})
 	if err != nil {
 		return runTrackerErr(ErrRunTrackerIO, "reserve", err)

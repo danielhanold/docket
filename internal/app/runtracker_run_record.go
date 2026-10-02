@@ -20,7 +20,7 @@
 //
 // IDENTITY vs. AUTHORITY: RunID is a random, PUBLIC locator — it authorizes
 // nothing (the run context's child capability continues to carry authority,
-// per ADR-0111) and travels onto a scoped start's worktree execution slot so an
+// per ADR-0111) and travels onto a build-owned start's worktree execution slot so an
 // omitted or stale run cannot detach a workflow-owned worktree (the gatedrive
 // stale-run-id fence). It is safe to print.
 //
