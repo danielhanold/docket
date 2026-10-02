@@ -12,9 +12,13 @@ import (
 	"github.com/danielhanold/docket/internal/config"
 )
 
-// Enforces change 0359's migration invariant: after Tasks 8/9/10 every test-intent
-// command on a workflow fixture routes through the native gate DRIVER (`docket gate
-// drive …`); a DIRECT test execution injected into a workflow fixture is a defect.
+// Enforces the full-suite channel boundary (change 0359, narrowed by change 0488):
+// every FULL-SUITE command on a workflow fixture — docket's own suite channel or a
+// resolved test_command — routes through the native gate DRIVER (`docket gate
+// drive …`); a DIRECT full-suite execution injected into a workflow fixture is a
+// defect. Focused task tests are outside this boundary: since change 0488 a
+// build-task worker runs them directly under `timeout --kill-after=10s 10m`
+// (pinned by TestTaskTestTimeLimitContract), and only the full suite is the gate's.
 // The guard classifies workflow-shaped test-execution SITES by syntactic SHAPE,
 // never by a hand-listed filename or a third-party runner spelling — the two things
 // the repo's byte-pattern-guard rules forbid. Both closed identifiers it keys on are
@@ -32,8 +36,8 @@ import (
 //     consumer rule.
 //
 // A site of either shape is a violation UNLESS it routes through `gate drive` on the
-// SAME line — the sanctioned task-owner recipe carries the suite argv AFTER `-- ` on a
-// `gate drive start` line, so a same-line excuse covers it, while a direct-suite
+// SAME line — a driver recipe that carries the suite argv AFTER `-- ` on a
+// `gate drive start` line is excused by that same line, while a direct-suite
 // spelling that merely shares a fence with an unrelated driver line is still a defect.
 //
 // Residual risk, recorded not hidden (mirroring gatedriver_test.go's recorded
@@ -160,8 +164,8 @@ func buildIdentityRe(exported []string) *regexp.Regexp {
 var gateDriveRe = regexp.MustCompile(`gate[[:space:]]+drive`)
 
 // scanWorkflowMD (a+b): fenced runnable recipes only. Both shapes are excused only on
-// a `gate drive` line — the task-owner recipe carries the suite argv after `-- ` on the
-// driver line, so a same-line excuse covers it, while a direct-suite spelling on any
+// a `gate drive` line — a driver recipe carrying the suite argv after `-- ` on the
+// driver line is excused by that line, while a direct-suite spelling on any
 // other line in the fence is still flagged.
 func scanWorkflowMD(rel, content string, suiteRe, identityRe *regexp.Regexp) []string {
 	var v []string
