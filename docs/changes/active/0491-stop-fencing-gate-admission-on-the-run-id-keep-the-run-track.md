@@ -11,7 +11,7 @@ depends_on: [490]
 stacked_on:
 related: [375, 422, 435, 437, 441, 443, 463, 467, 488, 489, 492, 493, 494]
 discovered_from: []
-adrs: [111, 118, 124, 128, 129, 132]
+adrs: [111, 118, 124, 128, 129, 132, 133]
 spec: 'docs/superpowers/specs/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md'
 plan: 'docs/superpowers/plans/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md'
 results: 'docs/results/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-results.md'
@@ -22,7 +22,7 @@ branch: 'refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-02T23:06:02Z'
+claimed_at: '2026-10-02T23:23:45Z'
 ---
 
 ## Artifacts
@@ -33,7 +33,7 @@ claimed_at: '2026-10-02T23:06:02Z'
 | Spec | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md) |
 | Plan | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md](https://github.com/danielhanold/docket/blob/refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track/docs/superpowers/plans/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) |
 | Results | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-results.md](https://github.com/danielhanold/docket/blob/refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track/docs/results/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-results.md) |
-| ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0128](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md), [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
+| ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0128](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md), [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md), [ADR-0133](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0133-the-run-key-is-the-run-tracker-s-only-handle-gate-starts-car.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -84,3 +84,7 @@ Accepted loss: an agent left over from a cancelled run could still start a suite
 ### 2026-10-02
 
 2026-10-02 — Reconciled against main at 756fea9fe, the exact commit the spec traced (after 0489 and 0490 landed; 0490 is done). No other change is in-progress or implemented, so nothing concurrent touches reconcile.go (0493 is still proposed). 0422 and 0443 were killed in the 2026-10-02 backlog review, as the spec already records. Scope, spec, and relations unchanged.
+
+### 2026-10-02
+
+2026-10-02 — Recorded ADR-0133 (the run key is the run tracker's only handle; gate starts carry no run check), produced by this change; Update notes on ADR-0124/0128/0132 and the authorized in-place ADR-0129 amendment landed on docket.
