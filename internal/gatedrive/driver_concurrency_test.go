@@ -1,7 +1,6 @@
 package gatedrive
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -540,9 +539,9 @@ func TestRelaunchReservationHolderCannotBeStolenBeforeLaunch(t *testing.T) {
 }
 
 // barrierGit blocks its first read (HeadOID, the first call ComputeFingerprint
-// makes) on a shared 2-party barrier, so two concurrent Starts both pass their
-// unlocked pre-check AND compute their fingerprint BEFORE either reserves the
-// scope slot — maximizing the reservation race window. The remaining reads are
+// makes) on a shared N-party barrier, so concurrent Starts all compute their
+// fingerprint BEFORE any reserves the worktree slot — maximizing the reservation
+// race window. The remaining reads are
 // fixed strings so the fingerprint is otherwise deterministic.
 type barrierGit struct {
 	wg   *sync.WaitGroup
@@ -560,7 +559,7 @@ func (g *barrierGit) WorktreePaths(string) ([]byte, error) { return nil, nil }
 
 // countingProc is a minimal thread-safe ProcessSeam that counts launches; every
 // launched run stays running so a winning Start reaches WAITING. It is purpose-
-// built for the empty-scope reservation race, where at most one Start launches.
+// built for the one-worktree reservation races, where at most one Start launches.
 type countingProc struct {
 	mu      sync.Mutex
 	launchN int
@@ -595,191 +594,6 @@ func (p *countingProc) launches() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.launchN
-}
-
-// TestDriverConcurrencyScopedStartReservationRace proves the durable pre-launch
-// reservation makes an empty-scope start race admit EXACTLY ONE launch: two
-// goroutines Start the same empty scope, rendezvous at the fingerprint barrier
-// (both past their pre-check), then contend at reserveScopeDrive — exactly one
-// wins and launches, and the loser is refused with a typed ErrScopeBusy /
-// ErrScopeSecondDrive and never launches. Run under -race.
-func TestDriverConcurrencyScopedStartReservationRace(t *testing.T) {
-	store := OpenStore(testsupport.TempDir(t))
-	req := sampleStart()
-	grant, err := store.PrepareScope(scopeReqFor(req, ""))
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	req.ScopeID = grant.ScopeID
-	req.ChildCapability = grant.ChildCapability
-
-	proc := &countingProc{}
-	var barrier sync.WaitGroup
-	barrier.Add(2)
-	git := &barrierGit{wg: &barrier, head: "HEAD1"}
-
-	mkDriver := func() *Driver {
-		clk := &fakeClock{now: startRun()}
-		d := NewDriver(store, clk, proc, git)
-		d.slice = 4 * pollTick
-		d.pollInterval = pollTick
-		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		return d
-	}
-	drivers := []*Driver{mkDriver(), mkDriver()}
-
-	docs := make([]DriveDoc, 2)
-	errs := make([]error, 2)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	for i := range drivers {
-		go func(i int) {
-			defer wg.Done()
-			docs[i], errs[i] = drivers[i].Start(req)
-		}(i)
-	}
-	wg.Wait()
-
-	// Exactly one launch total — the reservation, not the launch, arbitrates.
-	if got := proc.launches(); got != 1 {
-		t.Fatalf("two concurrent empty-scope starts must admit EXACTLY ONE launch, got %d", got)
-	}
-	// Exactly one nil-error winner; the loser is a typed reservation rejection.
-	winners := 0
-	winIdx := -1
-	for i, e := range errs {
-		if e == nil {
-			winners++
-			winIdx = i
-			continue
-		}
-		if !isOwnershipKind(e, ErrScopeBusy) && !isOwnershipKind(e, ErrScopeSecondDrive) {
-			t.Fatalf("the losing start must fail ErrScopeBusy or ErrScopeSecondDrive, got %v", e)
-		}
-	}
-	if winners != 1 {
-		t.Fatalf("exactly one start must win, got %d", winners)
-	}
-	if docs[winIdx].Outcome != WAITING {
-		t.Fatalf("the winning start must WAIT, got %s (%s)", docs[winIdx].Outcome, docs[winIdx].Cause)
-	}
-	// The persisted scope names exactly the sole winner's launched drive.
-	scope, err := store.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope: %v", err)
-	}
-	if scope.CurrentDriveID != docs[winIdx].DriveID {
-		t.Fatalf("the scope must name the sole winner's drive %q, got %q", docs[winIdx].DriveID, scope.CurrentDriveID)
-	}
-	if scope.CurrentDriveState != scopeStateLaunched {
-		t.Fatalf("the winner's slot must be launched, got %q", scope.CurrentDriveState)
-	}
-}
-
-// TestScopedStartConcurrentAcrossScopesOneLaunch proves the worktree execution slot
-// admits EXACTLY ONE launch when two DIFFERENT scopes race a start on ONE worktree:
-// two goroutines rendezvous at the fingerprint barrier (both past their unlocked
-// pre-check), then contend at ReserveWorktreeExecution. Exactly one wins and launches;
-// the loser is refused ErrWorktreeBusy and never launches. Run under -race.
-func TestScopedStartConcurrentAcrossScopesOneLaunch(t *testing.T) {
-	store := OpenStore(testsupport.TempDir(t))
-	_, reqA := prepareScopedStartAt(t, store, sampleWorktree(), "0342")
-	_, reqB := prepareScopedStartAt(t, store, sampleWorktree(), "0343")
-	reqs := []StartRequest{reqA, reqB}
-
-	proc := &countingProc{}
-	var barrier sync.WaitGroup
-	barrier.Add(2)
-	git := &barrierGit{wg: &barrier, head: "HEAD1"}
-
-	mkDriver := func() *Driver {
-		clk := &fakeClock{now: startRun()}
-		d := NewDriver(store, clk, proc, git)
-		d.slice = 4 * pollTick
-		d.pollInterval = pollTick
-		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		return d
-	}
-	drivers := []*Driver{mkDriver(), mkDriver()}
-
-	docs := make([]DriveDoc, 2)
-	errs := make([]error, 2)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	for i := range drivers {
-		go func(i int) {
-			defer wg.Done()
-			docs[i], errs[i] = drivers[i].Start(reqs[i])
-		}(i)
-	}
-	wg.Wait()
-
-	// Exactly one launch total — the worktree slot, not the launch, arbitrates.
-	if got := proc.launches(); got != 1 {
-		t.Fatalf("two scopes racing one worktree must admit EXACTLY ONE launch, got %d", got)
-	}
-	winners := 0
-	winIdx := -1
-	for i, e := range errs {
-		if e == nil {
-			winners++
-			winIdx = i
-			continue
-		}
-		if !isOwnershipKind(e, ErrWorktreeBusy) {
-			t.Fatalf("the losing cross-scope start must fail ErrWorktreeBusy, got %v", e)
-		}
-	}
-	if winners != 1 {
-		t.Fatalf("exactly one start must win, got %d", winners)
-	}
-	if docs[winIdx].Outcome != WAITING {
-		t.Fatalf("the winning start must WAIT, got %s (%s)", docs[winIdx].Outcome, docs[winIdx].Cause)
-	}
-}
-
-// TestMixedScopedScopelessOneWorktreeOneLaunch proves the worktree slot is the
-// outer admission authority even when only one contender has a recovery scope.
-// Both callers pass the fingerprint barrier before either can reserve; exactly
-// one may reach the backend Launch.
-func TestMixedScopedScopelessOneWorktreeOneLaunch(t *testing.T) {
-	store := OpenStore(testsupport.TempDir(t))
-	_, scoped := prepareScopedStartAt(t, store, sampleWorktree(), "0342")
-	scopeless := sampleStart()
-	scopeless.Worktree = scoped.Worktree
-	scopeless.ChangeID = "0343"
-	reqs := []StartRequest{scoped, scopeless}
-
-	proc := &countingProc{}
-	var barrier sync.WaitGroup
-	barrier.Add(2)
-	git := &barrierGit{wg: &barrier, head: "HEAD1"}
-	mkDriver := func() *Driver {
-		clk := &fakeClock{now: startRun()}
-		d := NewDriver(store, clk, proc, git)
-		d.slice = 4 * pollTick
-		d.pollInterval = pollTick
-		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		return d
-	}
-	drivers := []*Driver{mkDriver(), mkDriver()}
-
-	docs := make([]DriveDoc, 2)
-	errs := make([]error, 2)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	for i := range drivers {
-		go func(i int) {
-			defer wg.Done()
-			docs[i], errs[i] = drivers[i].Start(reqs[i])
-		}(i)
-	}
-	wg.Wait()
-
-	if got := proc.launches(); got != 1 {
-		t.Fatalf("mixed scoped/scopeless starts on one worktree must launch once, got %d", got)
-	}
-	assertOneWorktreeStartWinner(t, docs, errs)
 }
 
 // TestTwoScopelessStartsOneWorktreeOneLaunch proves that two finalize-style
@@ -845,14 +659,17 @@ func assertOneWorktreeStartWinner(t *testing.T, docs []DriveDoc, errs []error) {
 }
 
 // TestDistinctWorktreesProgressConcurrently proves separate worktrees do NOT contend:
-// two scopes on two distinct worktrees both launch concurrently over one shared store.
+// two starts on two distinct worktrees both launch concurrently over one shared store.
 // Run under -race.
 func TestDistinctWorktreesProgressConcurrently(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
 	wt1 := testsupport.TempDir(t)
 	wt2 := testsupport.TempDir(t)
-	_, reqA := prepareScopedStartAt(t, store, wt1, "0342")
-	_, reqB := prepareScopedStartAt(t, store, wt2, "0343")
+	reqA := sampleStart()
+	reqA.Worktree = wt1
+	reqB := sampleStart()
+	reqB.Worktree = wt2
+	reqB.ChangeID = "0343"
 	reqs := []StartRequest{reqA, reqB}
 
 	proc := &countingProc{}
@@ -888,131 +705,6 @@ func TestDistinctWorktreesProgressConcurrently(t *testing.T) {
 		if docs[i].Outcome != WAITING {
 			t.Fatalf("start %d must WAIT, got %s (%s)", i, docs[i].Outcome, docs[i].Cause)
 		}
-	}
-}
-
-// TestDriverConcurrencySuccessorStartRace reproduces spec verification 5 (successor
-// half): two goroutines present the SAME valid predecessor receipt and rendezvous
-// at the fingerprint barrier (both past their unlocked pre-check) before contending
-// at reserveScopeDrive's scope CAS. Exactly one wins and launches its successor; the
-// loser is refused with a typed ErrScopeBusy / ErrStalePredecessor and never
-// launches; and the predecessor is retired exactly once (its owner cleared, its
-// verdict intact). Run under -race.
-func TestDriverConcurrencySuccessorStartRace(t *testing.T) {
-	store := OpenStore(testsupport.TempDir(t))
-	req := sampleStart()
-	grant, err := store.PrepareScope(scopeReqFor(req, ""))
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	req.ScopeID = grant.ScopeID
-	req.ChildCapability = grant.ChildCapability
-
-	// Setup: drive the first drive to a durable PASSED with a plain passing seam.
-	setupClk := &fakeClock{now: startRun()}
-	setupProc := &fakeProc{
-		observe: func(runDir string) (*process.Observation, error) {
-			return &process.Observation{State: process.StatePassed, RunDir: runDir}, nil
-		},
-	}
-	setupDriver := NewDriver(store, setupClk, setupProc, stableGit())
-	setupDriver.slice = 4 * pollTick
-	setupDriver.pollInterval = pollTick
-	setupDriver.sleep = func(dur time.Duration) { setupClk.advance(dur) }
-	first, err := setupDriver.Start(req)
-	if err != nil {
-		t.Fatalf("setup Start: %v", err)
-	}
-	if first.Outcome != PASSED {
-		t.Fatalf("setup first drive must PASS, got %s (%s)", first.Outcome, first.Cause)
-	}
-
-	// Race: two successors present the same valid receipt. countingProc runs stay
-	// live so the winner WAITs; barrierGit rendezvouses both past their pre-check and
-	// fingerprint before either reserves the slot.
-	succ := req
-	succ.PredecessorDriveID = first.DriveID
-	succ.PredecessorOwnerGen = first.Generation
-
-	proc := &countingProc{}
-	var barrier sync.WaitGroup
-	barrier.Add(2)
-	git := &barrierGit{wg: &barrier, head: "HEAD1"}
-
-	mkDriver := func() *Driver {
-		clk := &fakeClock{now: startRun()}
-		d := NewDriver(store, clk, proc, git)
-		d.slice = 4 * pollTick
-		d.pollInterval = pollTick
-		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		return d
-	}
-	drivers := []*Driver{mkDriver(), mkDriver()}
-
-	docs := make([]DriveDoc, 2)
-	errs := make([]error, 2)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	for i := range drivers {
-		go func(i int) {
-			defer wg.Done()
-			docs[i], errs[i] = drivers[i].Start(succ)
-		}(i)
-	}
-	wg.Wait()
-
-	// Exactly one launch total — the reservation, not the launch, arbitrates.
-	if got := proc.launches(); got != 1 {
-		t.Fatalf("two concurrent successor starts must admit EXACTLY ONE launch, got %d", got)
-	}
-	// Exactly one nil-error winner; the loser is a typed reservation rejection.
-	winners := 0
-	winIdx := -1
-	for i, e := range errs {
-		if e == nil {
-			winners++
-			winIdx = i
-			continue
-		}
-		if !isOwnershipKind(e, ErrScopeBusy) && !isOwnershipKind(e, ErrStalePredecessor) {
-			t.Fatalf("the losing successor must fail ErrScopeBusy or ErrStalePredecessor, got %v", e)
-		}
-	}
-	if winners != 1 {
-		t.Fatalf("exactly one successor must win, got %d", winners)
-	}
-	if docs[winIdx].Outcome != WAITING {
-		t.Fatalf("the winning successor must WAIT, got %s (%s)", docs[winIdx].Outcome, docs[winIdx].Cause)
-	}
-	if docs[winIdx].DriveID == first.DriveID {
-		t.Fatalf("the winning successor must be a NEW drive, got the predecessor's id")
-	}
-
-	// The predecessor was retired exactly once: owner cleared, verdict intact.
-	firstRec, err := store.Load(first.DriveID)
-	if err != nil {
-		t.Fatalf("Load predecessor: %v", err)
-	}
-	if firstRec.OwnerGeneration != "" {
-		t.Fatalf("the predecessor must be retired (owner cleared), got %q", firstRec.OwnerGeneration)
-	}
-	if firstRec.LastOutcome != PASSED {
-		t.Fatalf("the predecessor verdict must survive retirement, got %s", firstRec.LastOutcome)
-	}
-
-	// The scope names exactly the sole winner's launched successor, chained to the pred.
-	scope, err := store.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope: %v", err)
-	}
-	if scope.CurrentDriveID != docs[winIdx].DriveID || scope.CurrentDriveState != scopeStateLaunched {
-		t.Fatalf("the slot must name the sole winner launched, got id=%q state=%q", scope.CurrentDriveID, scope.CurrentDriveState)
-	}
-	if scope.PriorDriveID != first.DriveID {
-		t.Fatalf("the prior drive must chain to the retired predecessor, got %q", scope.PriorDriveID)
-	}
-	if scope.PendingAckDriveID != "" {
-		t.Fatalf("the completed transition must leave no pending ack, got %q", scope.PendingAckDriveID)
 	}
 }
 
@@ -1199,11 +891,11 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 		}
 		return &process.LaunchOutcome{RunID: id, RunDir: "/runs/" + id, State: process.StateRunning}, nil
 	}
-	d := scopedTestDriver(store, clk, proc, stableGit())
+	d := storeTestDriver(store, clk, proc, stableGit())
 	d.SetRunLaunchGate(reg.gate())
 
-	// A scope-bound first start over live run e1 WAITs (run1 running, slot executing).
-	req, started := startScopedWaitingWithRun(t, d, store, "e1")
+	// A run-backed first start over live run e1 WAITs (run1 running, slot executing).
+	req, started := startWaitingWithRun(t, d, "e1")
 
 	// The run dies; its single automatic relaunch is authorized under the live gate,
 	// then parks in proc.Launch (reserve committed inside the gate; the claim held).
@@ -1229,7 +921,7 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 	// process seam) reports the held claim as pending work, and returns promptly.
 	recDone := make(chan RunLaunchReport, 1)
 	go func() {
-		dr := scopedTestDriver(reopenStore(store), &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
+		dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 		r, _ := dr.ReconcileRunLaunches(req.Worktree, "e1")
 		recDone <- r
 	}()
@@ -1270,7 +962,7 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 			return &process.ReservationResolution{Disposition: "identified", RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning}, nil
 		},
 	}
-	dr := scopedTestDriver(reopenStore(store), &fakeClock{now: startRun()}, recProc, stableGit())
+	dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, recProc, stableGit())
 	replay, err := dr.ReconcileRunLaunches(req.Worktree, "e1")
 	if err != nil {
 		t.Fatalf("ReconcileRunLaunches (replay): %v", err)
@@ -1330,7 +1022,7 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 
 	recDone := make(chan RunLaunchReport, 1)
 	go func() {
-		dr := scopedTestDriver(reopenStore(store), &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
+		dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 		r, _ := dr.ReconcileRunLaunches(req.Worktree, "e1")
 		recDone <- r
 	}()
@@ -1365,7 +1057,7 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 			return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
 		},
 	}
-	dr := scopedTestDriver(reopenStore(store), &fakeClock{now: startRun()}, recProc, stableGit())
+	dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, recProc, stableGit())
 	replay, err := dr.ReconcileRunLaunches(req.Worktree, "e1")
 	if err != nil {
 		t.Fatalf("ReconcileRunLaunches (replay): %v", err)
@@ -1387,812 +1079,6 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 	}
 	if proc.launchN != launchesBefore {
 		t.Fatalf("no launch may occur after an accounted reconcile, launches %d->%d", launchesBefore, proc.launchN)
-	}
-}
-
-// TestBarrierSameScopeFirstStartContention proves the initial-start peer race is
-// unaffected by the run launch gate: two same-scope, same-run first starts rendezvous
-// past their fingerprint pre-check, then contend; exactly one wins and launches,
-// the loser is refused typed and launches nothing, and the loser releases nothing
-// the winner adopted. Run under -race.
-func TestBarrierSameScopeFirstStartContention(t *testing.T) {
-	store := OpenStore(testsupport.TempDir(t))
-	req := sampleStart()
-	sreq := scopeReqFor(req, "")
-	sreq.RunID = "e1"
-	grant, err := store.PrepareScope(sreq)
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	req.ScopeID = grant.ScopeID
-	req.ChildCapability = grant.ChildCapability
-	req.RunID = "e1"
-
-	reg := &fakeRunRegistry{}
-	proc := &countingProc{}
-	var barrier sync.WaitGroup
-	barrier.Add(2)
-	git := &barrierGit{wg: &barrier, head: "HEAD1"}
-
-	mkDriver := func() *Driver {
-		clk := &fakeClock{now: startRun()}
-		d := NewDriver(store, clk, proc, git)
-		d.slice = 4 * pollTick
-		d.pollInterval = pollTick
-		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		d.SetRunLaunchGate(reg.gate())
-		return d
-	}
-	drivers := []*Driver{mkDriver(), mkDriver()}
-
-	docs := make([]DriveDoc, 2)
-	errs := make([]error, 2)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	for i := range drivers {
-		go func(i int) {
-			defer wg.Done()
-			docs[i], errs[i] = drivers[i].Start(req)
-		}(i)
-	}
-	wg.Wait()
-
-	if got := proc.launches(); got != 1 {
-		t.Fatalf("two same-scope same-run first starts must launch EXACTLY once, got %d", got)
-	}
-	winners, winIdx := 0, -1
-	for i, e := range errs {
-		if e == nil {
-			winners++
-			winIdx = i
-			continue
-		}
-		if !isOwnershipKind(e, ErrScopeBusy) && !isOwnershipKind(e, ErrScopeSecondDrive) {
-			t.Fatalf("the losing start must fail ErrScopeBusy or ErrScopeSecondDrive, got %v", e)
-		}
-	}
-	if winners != 1 {
-		t.Fatalf("exactly one start must win, got %d", winners)
-	}
-	if docs[winIdx].Outcome != WAITING {
-		t.Fatalf("the winning start must WAIT, got %s (%s)", docs[winIdx].Outcome, docs[winIdx].Cause)
-	}
-	// The loser released nothing the winner adopted: the scope names the winner's
-	// launched drive, and the worktree slot is the winner's executing reservation.
-	scope, err := store.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope: %v", err)
-	}
-	if scope.CurrentDriveID != docs[winIdx].DriveID || scope.CurrentDriveState != scopeStateLaunched {
-		t.Fatalf("the scope must name the sole winner launched, got id=%q state=%q", scope.CurrentDriveID, scope.CurrentDriveState)
-	}
-	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	if slot.State != admissionExecuting {
-		t.Fatalf("the winner's worktree slot must be executing, got %q", slot.State)
-	}
-}
-
-// TestSameScopeFirstStartLateLoserDoesNotRotate deterministically pins the losing
-// interleaving of TestBarrierSameScopeFirstStartContention: a receipt-less first
-// start that passed precheckScopedStart before the winner published the scope, and
-// whose worktree admission runs only AFTER the winner confirmed the slot to
-// executing. Rotation is successor-only, so the late loser must be refused typed
-// ErrScopeSecondDrive with the winner's executing reservation untouched — same
-// state, same token, same ExecutionGen.
-func TestSameScopeFirstStartLateLoserDoesNotRotate(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	proc := &fakeProc{}
-	d := scopedTestDriver(store, clk, proc, stableGit())
-	_, req := prepareScopedStart(t, store)
-
-	// The winner: a full first start that launches and confirms its slot.
-	doc, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("winner Start: %v", err)
-	}
-	if doc.Outcome != WAITING {
-		t.Fatalf("winner must WAIT, got %s (%s)", doc.Outcome, doc.Cause)
-	}
-	before, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	if before.State != admissionExecuting {
-		t.Fatalf("precondition: the winner's slot must be executing, got %q", before.State)
-	}
-
-	// The late loser: the SAME receipt-less request reaches worktree admission only
-	// now. Calling admitScopedWorktree directly models the loser that already passed
-	// its precheck against the then-empty scope; admission must refuse typed and
-	// must not rotate the winner's live reservation.
-	_, _, _, _, _, aerr := d.admitScopedWorktree(req)
-	if !isOwnershipKind(aerr, ErrScopeSecondDrive) {
-		t.Fatalf("a late receipt-less first start must refuse ErrScopeSecondDrive, got %v", aerr)
-	}
-	after, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution after refusal: %v", err)
-	}
-	if after.State != admissionExecuting || after.ReservationToken != before.ReservationToken || after.ExecutionGen != before.ExecutionGen {
-		t.Fatalf("the winner's executing reservation must be untouched: state %q->%q, token changed=%v, gen %d->%d",
-			before.State, after.State, after.ReservationToken != before.ReservationToken, before.ExecutionGen, after.ExecutionGen)
-	}
-}
-
-// TestSameScopeSuccessorStaleReceiptDoesNotRotate deterministically pins the
-// two-successor sibling of TestSameScopeFirstStartLateLoserDoesNotRotate
-// (change 0453): successors S1 and S2 both present predecessor P's receipt and
-// both passed precheckScopedStart before S1 retired P. S1 wins — launches and
-// leaves the worktree slot executing under its own token. S2's worktree
-// admission runs only now, with a receipt that no longer names the scope's
-// CURRENT drive: it must refuse typed ErrStalePredecessor WITHOUT rotating,
-// so its failure cleanup can never release S1's live reservation — same
-// state, same token, same ExecutionGen.
-func TestSameScopeSuccessorStaleReceiptDoesNotRotate(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	proc := &fakeProc{}
-	d := scopedTestDriver(store, clk, proc, stableGit())
-	_, req := prepareScopedStart(t, store)
-
-	// Predecessor P: a full first start that launches, then settles to a
-	// durable PASSED in the terminal-before-release window (the
-	// TestBarrierSuccessorUnderCancel pattern), so successors may present it.
-	first, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("predecessor Start: %v", err)
-	}
-	if first.Outcome != WAITING {
-		t.Fatalf("predecessor must WAIT, got %s (%s)", first.Outcome, first.Cause)
-	}
-	if err := store.ownerCAS(first.DriveID, func(r *driveRecord) error {
-		r.LastOutcome = PASSED
-		return nil
-	}); err != nil {
-		t.Fatalf("settle predecessor terminal: %v", err)
-	}
-
-	// Successor S1 with P's receipt: rotates P's slot, launches, and leaves the
-	// worktree slot executing under S1's OWN token.
-	succ := req
-	succ.PredecessorDriveID = first.DriveID
-	succ.PredecessorOwnerGen = first.Generation
-	s1, err := d.Start(succ)
-	if err != nil {
-		t.Fatalf("successor S1 Start: %v", err)
-	}
-	if s1.Outcome != WAITING {
-		t.Fatalf("S1 must WAIT, got %s (%s)", s1.Outcome, s1.Cause)
-	}
-	before, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	if before.State != admissionExecuting {
-		t.Fatalf("precondition: S1's slot must be executing, got %q", before.State)
-	}
-
-	// S2: the SAME (now-stale) P receipt reaches worktree admission only now.
-	// Calling admitScopedWorktree directly models the successor that already
-	// passed its precheck before P was retired; admission must refuse typed
-	// and must not rotate S1's live reservation.
-	_, _, _, _, _, aerr := d.admitScopedWorktree(succ)
-	if !isOwnershipKind(aerr, ErrStalePredecessor) {
-		t.Fatalf("a stale-receipt successor must refuse ErrStalePredecessor, got %v", aerr)
-	}
-	after, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution after refusal: %v", err)
-	}
-	if after.State != admissionExecuting || after.ReservationToken != before.ReservationToken || after.ExecutionGen != before.ExecutionGen {
-		t.Fatalf("S1's executing reservation must be untouched: state %q->%q, token changed=%v, gen %d->%d",
-			before.State, after.State, after.ReservationToken != before.ReservationToken, before.ExecutionGen, after.ExecutionGen)
-	}
-
-	// Belt and suspenders: the FULL Start path for S2 must also launch nothing
-	// and leave S1's slot intact, whatever typed refusal its precheck produces.
-	launchesBefore := proc.launchN
-	if _, serr := d.Start(succ); serr == nil {
-		t.Fatalf("a stale-receipt successor Start must refuse")
-	}
-	if proc.launchN != launchesBefore {
-		t.Fatalf("a stale-receipt successor must never launch, launched %d->%d", launchesBefore, proc.launchN)
-	}
-	final, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution after full Start: %v", err)
-	}
-	if final.State != admissionExecuting || final.ReservationToken != before.ReservationToken || final.ExecutionGen != before.ExecutionGen {
-		t.Fatalf("S1's executing reservation must survive S2's full Start: state %q, token changed=%v, gen %d->%d",
-			final.State, final.ReservationToken != before.ReservationToken, before.ExecutionGen, final.ExecutionGen)
-	}
-}
-
-// TestSameScopeSuccessorScopeReadFailureFailsClosed pins the guard's error leg
-// (change 0453): when the scope record cannot be read at the pre-rotation
-// staleness check, admission must fail closed with the load error itself —
-// never rotate, and never degrade into an ErrStalePredecessor verdict computed
-// against a zero-valued record.
-func TestSameScopeSuccessorScopeReadFailureFailsClosed(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	proc := &fakeProc{}
-	d := scopedTestDriver(store, clk, proc, stableGit())
-	_, req := prepareScopedStart(t, store)
-
-	// Predecessor P launches and settles terminal; successor S1 rotates,
-	// launches, and leaves the slot executing under its own token (the
-	// TestSameScopeSuccessorStaleReceiptDoesNotRotate fixture).
-	first, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("predecessor Start: %v", err)
-	}
-	if err := store.ownerCAS(first.DriveID, func(r *driveRecord) error {
-		r.LastOutcome = PASSED
-		return nil
-	}); err != nil {
-		t.Fatalf("settle predecessor terminal: %v", err)
-	}
-	succ := req
-	succ.PredecessorDriveID = first.DriveID
-	succ.PredecessorOwnerGen = first.Generation
-	if _, err := d.Start(succ); err != nil {
-		t.Fatalf("successor S1 Start: %v", err)
-	}
-	before, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	if before.State != admissionExecuting {
-		t.Fatalf("precondition: S1's slot must be executing, got %q", before.State)
-	}
-
-	// Corrupt the stored scope record so the guard's LoadScope fails.
-	dir, err := store.scopeDir(req.ScopeID)
-	if err != nil {
-		t.Fatalf("scopeDir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, recordFileName), []byte("{corrupt"), 0o644); err != nil {
-		t.Fatalf("corrupt scope record: %v", err)
-	}
-
-	_, _, _, _, _, aerr := d.admitScopedWorktree(succ)
-	if aerr == nil {
-		t.Fatalf("a failed scope read must refuse admission")
-	}
-	if isOwnershipKind(aerr, ErrStalePredecessor) {
-		t.Fatalf("a failed scope read must surface the load error, not a staleness verdict: %v", aerr)
-	}
-	if !isStoreKind(aerr, ErrCorruptRecord) {
-		t.Fatalf("a failed scope read must surface the scope load error itself (ErrCorruptRecord), got %v", aerr)
-	}
-	after, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution after refusal: %v", err)
-	}
-	if after.State != admissionExecuting || after.ReservationToken != before.ReservationToken || after.ExecutionGen != before.ExecutionGen {
-		t.Fatalf("a failed scope read must leave S1's reservation untouched: state %q->%q, token changed=%v, gen %d->%d",
-			before.State, after.State, after.ReservationToken != before.ReservationToken, before.ExecutionGen, after.ExecutionGen)
-	}
-}
-
-// TestSameScopeSuccessorGuardAppliesWholeReservePredicate pins that the
-// pre-rotation guard in admitScopedWorktree applies reserveScopeDrive's WHOLE
-// ordered predicate (scopeReserveRefusal), not only its final staleness clause
-// (change 0453 review finding): a scope condition that the authority checks
-// BEFORE staleness must surface its own typed refusal — never be masked as
-// ErrStalePredecessor — and a receipt that names the current drive but fails an
-// earlier clause must be refused before the rotation. Every case refuses with
-// S1's executing reservation and the scope record untouched, and the guard's
-// verdict equals the reserveScopeDrive authority's on the same scope snapshot.
-func TestSameScopeSuccessorGuardAppliesWholeReservePredicate(t *testing.T) {
-	// setScope edits the stored scope record directly (an out-of-band state).
-	setScope := func(t *testing.T, store *Store, scopeID string, fn func(*scopeRecord)) {
-		t.Helper()
-		if err := store.scopeCAS(scopeID, func(rec *scopeRecord) error {
-			fn(rec)
-			return nil
-		}); err != nil {
-			t.Fatalf("mutate scope: %v", err)
-		}
-	}
-	cases := []struct {
-		name string
-		// mutate edits the scope record (and may edit S2's request) after S1 is
-		// executing; s1ID is the scope's current drive.
-		mutate func(t *testing.T, store *Store, req *StartRequest, s1ID string)
-		want   OwnershipErrorKind
-	}{
-		{
-			// A claim/takeover-style close (not FinalAcked) is transferred (change 0459).
-			name: "transferred scope with a stale receipt is ErrScopeTransferred",
-			mutate: func(t *testing.T, store *Store, req *StartRequest, _ string) {
-				setScope(t, store, req.ScopeID, func(rec *scopeRecord) { rec.Closed = true })
-			},
-			want: ErrScopeTransferred,
-		},
-		{
-			name: "final-acked closed scope with a stale receipt is ErrScopeClosed",
-			mutate: func(t *testing.T, store *Store, req *StartRequest, _ string) {
-				setScope(t, store, req.ScopeID, func(rec *scopeRecord) {
-					rec.Closed = true
-					rec.FinalAcked = true
-				})
-			},
-			want: ErrScopeClosed,
-		},
-		{
-			name: "capability mismatch with a stale receipt is ErrScopeCapabilityMismatch",
-			mutate: func(_ *testing.T, _ *Store, req *StartRequest, _ string) {
-				req.ChildCapability = "not-the-scope-capability"
-			},
-			want: ErrScopeCapabilityMismatch,
-		},
-		{
-			name: "reserved scope slot with a stale receipt is ErrScopeBusy",
-			mutate: func(t *testing.T, store *Store, req *StartRequest, _ string) {
-				setScope(t, store, req.ScopeID, func(rec *scopeRecord) { rec.CurrentDriveState = scopeStateReserved })
-			},
-			want: ErrScopeBusy,
-		},
-		{
-			name: "pending ack with a stale receipt is ErrUnresolvedLaunchTransition",
-			mutate: func(t *testing.T, store *Store, req *StartRequest, _ string) {
-				setScope(t, store, req.ScopeID, func(rec *scopeRecord) {
-					rec.PendingAckDriveID = "unretired-predecessor"
-					rec.PendingAckOwnerGen = "unretired-generation"
-				})
-			},
-			want: ErrUnresolvedLaunchTransition,
-		},
-		{
-			name: "half-filled receipt naming the current drive is ErrStalePredecessor before rotation",
-			mutate: func(_ *testing.T, _ *Store, req *StartRequest, s1ID string) {
-				req.PredecessorDriveID = s1ID
-				req.PredecessorOwnerGen = ""
-			},
-			want: ErrStalePredecessor,
-		},
-		{
-			name: "transferred scope with a receipt naming the current drive is ErrScopeTransferred before rotation",
-			mutate: func(t *testing.T, store *Store, req *StartRequest, s1ID string) {
-				setScope(t, store, req.ScopeID, func(rec *scopeRecord) { rec.Closed = true })
-				req.PredecessorDriveID = s1ID
-				req.PredecessorOwnerGen = "any-generation"
-			},
-			want: ErrScopeTransferred,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			clk := &fakeClock{now: startRun()}
-			store := OpenStore(testsupport.TempDir(t))
-			d := scopedTestDriver(store, clk, &fakeProc{}, stableGit())
-			_, req := prepareScopedStart(t, store)
-
-			// P launches and settles PASSED; S1 presents P's receipt, rotates, and
-			// leaves the worktree slot executing under its own token.
-			first, err := d.Start(req)
-			if err != nil {
-				t.Fatalf("predecessor Start: %v", err)
-			}
-			if err := store.ownerCAS(first.DriveID, func(r *driveRecord) error {
-				r.LastOutcome = PASSED
-				return nil
-			}); err != nil {
-				t.Fatalf("settle predecessor terminal: %v", err)
-			}
-			succ := req
-			succ.PredecessorDriveID = first.DriveID
-			succ.PredecessorOwnerGen = first.Generation
-			s1, err := d.Start(succ)
-			if err != nil {
-				t.Fatalf("successor S1 Start: %v", err)
-			}
-			before, _, err := store.LoadWorktreeExecution(req.Worktree)
-			if err != nil {
-				t.Fatalf("LoadWorktreeExecution: %v", err)
-			}
-			if before.State != admissionExecuting {
-				t.Fatalf("precondition: S1's slot must be executing, got %q", before.State)
-			}
-
-			// S2 keeps P's (now-stale) receipt unless the case rewrites it.
-			s2 := succ
-			tc.mutate(t, store, &s2, s1.DriveID)
-			scopeBefore := readScopeBytes(t, store, req.ScopeID)
-
-			_, _, _, _, _, aerr := d.admitScopedWorktree(s2)
-			if !isOwnershipKind(aerr, tc.want) {
-				t.Fatalf("the guard must refuse %v (reserveScopeDrive's ordered verdict), got %v", tc.want, aerr)
-			}
-			after, _, err := store.LoadWorktreeExecution(req.Worktree)
-			if err != nil {
-				t.Fatalf("LoadWorktreeExecution after refusal: %v", err)
-			}
-			if after.State != admissionExecuting || after.ReservationToken != before.ReservationToken || after.ExecutionGen != before.ExecutionGen {
-				t.Fatalf("S1's executing reservation must be untouched: state %q->%q, token changed=%v, gen %d->%d",
-					before.State, after.State, after.ReservationToken != before.ReservationToken, before.ExecutionGen, after.ExecutionGen)
-			}
-			if !bytes.Equal(scopeBefore, readScopeBytes(t, store, req.ScopeID)) {
-				t.Fatalf("a guard refusal must leave the scope record byte-unchanged")
-			}
-
-			// Parity: the reserveScopeDrive authority, on the same snapshot, refuses
-			// with the same kind (and, refusing, writes nothing).
-			receipt := predecessorReceipt{DriveID: s2.PredecessorDriveID, OwnerGen: s2.PredecessorOwnerGen}
-			if rerr := store.reserveScopeDrive(req.ScopeID, s2.ChildCapability, "parity-probe", receipt); !isOwnershipKind(rerr, tc.want) {
-				t.Fatalf("parity: reserveScopeDrive must refuse %v on the same snapshot, got %v", tc.want, rerr)
-			}
-		})
-	}
-}
-
-// hookGit is a GitSeam whose onHead fires once, on the next fingerprint's first
-// read. Start fingerprints AFTER precheckScopedStart and BEFORE worktree admission,
-// so a test uses it to land a sibling's whole start between the two.
-type hookGit struct {
-	*fakeGit
-	onHead func()
-}
-
-func (g *hookGit) HeadOID(dir string) (string, error) {
-	if fn := g.onHead; fn != nil {
-		g.onHead = nil
-		fn()
-	}
-	return g.fakeGit.HeadOID(dir)
-}
-
-// siblingFixture is a no-run-record scope whose first drive P has launched and
-// settled PASSED, so successors may present P's receipt.
-type siblingFixture struct {
-	d     *Driver
-	store *Store
-	proc  *fakeProc
-	git   *hookGit
-	req   StartRequest
-	pred  DriveDoc
-}
-
-func newSiblingFixture(t *testing.T) *siblingFixture {
-	t.Helper()
-	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	proc := &fakeProc{}
-	git := &hookGit{fakeGit: stableGit()}
-	d := scopedTestDriver(store, clk, proc, git)
-	_, req := prepareScopedStart(t, store)
-	if req.RunID != "" {
-		t.Fatalf("precondition: the scope must be no-run-record (admissions unserialized), got run %q", req.RunID)
-	}
-	f := &siblingFixture{d: d, store: store, proc: proc, git: git, req: req}
-	f.pred = f.startWaiting(t, req, "predecessor P")
-	f.settlePassed(t, f.pred)
-	return f
-}
-
-func (f *siblingFixture) successorOf(doc DriveDoc) StartRequest {
-	s := f.req
-	s.PredecessorDriveID = doc.DriveID
-	s.PredecessorOwnerGen = doc.Generation
-	return s
-}
-
-func (f *siblingFixture) startWaiting(t *testing.T, req StartRequest, who string) DriveDoc {
-	t.Helper()
-	doc, err := f.d.Start(req)
-	if err != nil {
-		t.Fatalf("%s Start: %v", who, err)
-	}
-	if doc.Outcome != WAITING {
-		t.Fatalf("%s must WAIT, got %s (%s)", who, doc.Outcome, doc.Cause)
-	}
-	return doc
-}
-
-func (f *siblingFixture) settlePassed(t *testing.T, doc DriveDoc) {
-	t.Helper()
-	if err := f.store.ownerCAS(doc.DriveID, func(r *driveRecord) error {
-		r.LastOutcome = PASSED
-		return nil
-	}); err != nil {
-		t.Fatalf("settle %s PASSED: %v", doc.DriveID, err)
-	}
-}
-
-func (f *siblingFixture) slot(t *testing.T) admissionRecord {
-	t.Helper()
-	slot, _, err := f.store.LoadWorktreeExecution(f.req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	return slot
-}
-
-// releaseSlot releases the settled drive's worktree slot, closing the
-// terminal-before-release window so the next start freshly reserves.
-func (f *siblingFixture) releaseSlot(t *testing.T) {
-	t.Helper()
-	if err := f.store.ReleaseWorktreeExecution(f.req.Worktree, f.slot(t).ReservationToken); err != nil {
-		t.Fatalf("release settled slot: %v", err)
-	}
-}
-
-// assertExecutingUnder asserts the worktree slot is executing under token AND
-// that token is the named winner's own admission token — the winner's live slot.
-func (f *siblingFixture) assertExecutingUnder(t *testing.T, winnerID, token string) {
-	t.Helper()
-	slot := f.slot(t)
-	if slot.State != admissionExecuting || slot.ReservationToken != token {
-		t.Fatalf("the winner's slot must stay executing under the adopted token: state %q, token kept=%v",
-			slot.State, slot.ReservationToken == token)
-	}
-	rec, err := f.store.Load(winnerID)
-	if err != nil {
-		t.Fatalf("load winner: %v", err)
-	}
-	if rec.AdmissionToken != token {
-		t.Fatalf("the winner must run under the adopted token")
-	}
-}
-
-func setScopedAdmissionHook(t *testing.T, fn func(StartRequest)) {
-	t.Helper()
-	scopedAdmissionHook = fn
-	t.Cleanup(func() { scopedAdmissionHook = nil })
-}
-
-// TestStaleSuccessorLeavesSiblingAdoptedReservation pins change 0453's
-// admitScoped failure leg: two successors present the same predecessor receipt on
-// a no-run-record scope (admissions unserialized). S2 takes the worktree first —
-// rotating P's executing slot, or freshly reserving a released one — to token T,
-// then pauses before reserveScopeDrive (scopedAdmissionHook). A same-scope sibling
-// adopts T, wins the scope slot, launches, and confirms T executing. S2's
-// reserveScopeDrive then refuses ErrStalePredecessor, and S2 must NOT release T:
-// the sibling's slot stays executing under T. Each subtest isolates one of
-// siblingMayHoldReservation's signs.
-func TestStaleSuccessorLeavesSiblingAdoptedReservation(t *testing.T) {
-	// runS2 starts S2 with P's receipt and asserts its admission reached the seam.
-	// hookOnce fires onAdmitted exactly once, at S2's own scopedAdmissionHook, with
-	// S2's worktree token (which it asserts is RESERVED).
-	runS2 := func(t *testing.T, f *siblingFixture, armed *bool) error {
-		t.Helper()
-		_, err := f.d.Start(f.successorOf(f.pred))
-		if *armed {
-			t.Fatalf("S2's admission never reached the scope-reservation seam")
-		}
-		return err
-	}
-	hookOnce := func(t *testing.T, f *siblingFixture, armed *bool, onAdmitted func(token string)) {
-		setScopedAdmissionHook(t, func(r StartRequest) {
-			if !*armed || r.PredecessorDriveID != f.pred.DriveID {
-				return
-			}
-			*armed = false
-			slot := f.slot(t)
-			if slot.State != admissionReserved {
-				t.Fatalf("S2 must hold a RESERVED worktree slot at the seam, got %q", slot.State)
-			}
-			onAdmitted(slot.ReservationToken)
-		})
-	}
-
-	// P's receipt consumed by a sibling that adopted S2's token: both signs hold.
-	for _, tc := range []struct {
-		name        string
-		releasePred bool // P's slot released before S2: S2 freshly reserves instead of rotating
-	}{
-		{name: "rotated", releasePred: false},
-		{name: "fresh", releasePred: true},
-	} {
-		t.Run(tc.name+"/sibling-adopts-and-wins", func(t *testing.T) {
-			f := newSiblingFixture(t)
-			predToken := f.slot(t).ReservationToken
-			if tc.releasePred {
-				f.releaseSlot(t)
-			}
-			launches := f.proc.launchN
-			var s2Token string
-			var s1 DriveDoc
-			armed := true
-			hookOnce(t, f, &armed, func(token string) {
-				s2Token = token
-				// S1: the SAME receipt. It adopts S2's reserved token, wins the
-				// scope slot, retires P, launches, and confirms the slot executing.
-				s1 = f.startWaiting(t, f.successorOf(f.pred), "sibling S1")
-			})
-			s2Err := runS2(t, f, &armed)
-			if !isOwnershipKind(s2Err, ErrStalePredecessor) {
-				t.Fatalf("S2 must lose the scope slot ErrStalePredecessor, got %v", s2Err)
-			}
-			if s2Token == predToken {
-				t.Fatalf("S2 must have taken its OWN token (rotated or fresh) before losing")
-			}
-			if f.proc.launchN != launches+1 {
-				t.Fatalf("exactly the winner S1 must launch, launched %d->%d", launches, f.proc.launchN)
-			}
-			f.assertExecutingUnder(t, s1.DriveID, s2Token)
-		})
-	}
-
-	// The scope has moved past the receipt's consumer: only the current drive's
-	// AdmissionToken shows the adoption.
-	t.Run("fresh/later-drive-adopts-and-wins", func(t *testing.T) {
-		f := newSiblingFixture(t)
-		f.releaseSlot(t)
-		armed := false
-		var c DriveDoc
-		// Between S2's precheck (P current) and its worktree admission, sibling C
-		// consumes P's receipt, completes, and releases its own slot.
-		f.git.onHead = func() {
-			c = f.startWaiting(t, f.successorOf(f.pred), "sibling C")
-			f.settlePassed(t, c)
-			f.releaseSlot(t)
-			armed = true
-		}
-		var s2Token string
-		var cNext DriveDoc
-		hookOnce(t, f, &armed, func(token string) {
-			s2Token = token
-			// C's successor adopts S2's fresh token and wins the scope slot.
-			cNext = f.startWaiting(t, f.successorOf(c), "C's successor")
-		})
-		s2Err := runS2(t, f, &armed)
-		if !isOwnershipKind(s2Err, ErrStalePredecessor) {
-			t.Fatalf("S2 must lose the scope slot ErrStalePredecessor, got %v", s2Err)
-		}
-		scope, err := f.store.LoadScope(f.req.ScopeID)
-		if err != nil {
-			t.Fatalf("LoadScope: %v", err)
-		}
-		if scope.PriorDriveID == f.pred.DriveID {
-			t.Fatalf("precondition: the scope must have moved past P's consumer")
-		}
-		f.assertExecutingUnder(t, cNext.DriveID, s2Token)
-	})
-
-	// The receipt's consumer ran earlier on its own token; an adopter of S2's token
-	// is still on its way to the scope slot when S2 loses. Only PriorDriveID shows it.
-	t.Run("fresh/adopter-pending-when-s2-loses", func(t *testing.T) {
-		f := newSiblingFixture(t)
-		f.releaseSlot(t)
-		armed := false
-		var c DriveDoc
-		f.git.onHead = func() {
-			c = f.startWaiting(t, f.successorOf(f.pred), "sibling C")
-			f.settlePassed(t, c)
-			f.releaseSlot(t)
-			armed = true
-		}
-		type result struct {
-			doc DriveDoc
-			err error
-		}
-		adopted := make(chan struct{})
-		proceed := make(chan struct{})
-		done := make(chan result, 1)
-		var s2Token string
-		var early *result
-		setScopedAdmissionHook(t, func(r StartRequest) {
-			if r.PredecessorDriveID == c.DriveID && c.DriveID != "" {
-				// C's successor, in its own goroutine: it has ADOPTED S2's token and
-				// now pauses before its reserveScopeDrive.
-				adopted <- struct{}{}
-				<-proceed
-				return
-			}
-			if !armed || r.PredecessorDriveID != f.pred.DriveID {
-				return
-			}
-			armed = false
-			s2Token = f.slot(t).ReservationToken
-			next := f.successorOf(c)
-			go func() {
-				doc, err := f.d.Start(next)
-				done <- result{doc, err}
-			}()
-			select {
-			case <-adopted:
-			case r := <-done:
-				early = &r
-			}
-		})
-		s2Err := runS2(t, f, &armed)
-		close(proceed)
-		if early != nil {
-			t.Fatalf("C's successor finished before adopting S2's token: %+v", *early)
-		}
-		if !isOwnershipKind(s2Err, ErrStalePredecessor) {
-			t.Fatalf("S2 must lose the scope slot ErrStalePredecessor, got %v", s2Err)
-		}
-		r := <-done
-		if r.err != nil {
-			t.Fatalf("the pending adopter must still launch on the token S2 left it: %v", r.err)
-		}
-		if r.doc.Outcome != WAITING {
-			t.Fatalf("the pending adopter must WAIT, got %s (%s)", r.doc.Outcome, r.doc.Cause)
-		}
-		f.assertExecutingUnder(t, r.doc.DriveID, s2Token)
-	})
-}
-
-// TestBarrierSuccessorUnderCancel proves the successor path under a mid-flight
-// fence: a fenced successor start refuses without launching, and it leaves the slot
-// EITHER the predecessor's executing reservation (refused before rotation) OR
-// released (refused after rotation) — both legal, and neither leaks a
-// reserved-but-unreleased rotation. Cancellation then has nothing to chase.
-func TestBarrierSuccessorUnderCancel(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	proc := &fakeProc{} // WAIT: executing slot
-	reg := &fakeRunRegistry{}
-	d := scopedTestDriver(store, clk, proc, stableGit())
-	d.SetRunLaunchGate(reg.gate())
-	_, req := prepareScopedStart(t, store)
-	req.RunID = "e1"
-
-	first, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("first Start: %v", err)
-	}
-	if first.Outcome != WAITING {
-		t.Fatalf("first start must WAIT, got %s (%s)", first.Outcome, first.Cause)
-	}
-	predSlot, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	oldToken := predSlot.ReservationToken
-	// Terminal-before-release window: the successor would reach the executing arm.
-	if err := store.ownerCAS(first.DriveID, func(r *driveRecord) error {
-		r.LastOutcome = PASSED
-		return nil
-	}); err != nil {
-		t.Fatalf("settle predecessor terminal: %v", err)
-	}
-
-	// The fence lands mid-flight, before the successor starts.
-	reg.fence("e1")
-
-	launchesBefore := proc.launchN
-	succ := req
-	succ.PredecessorDriveID = first.DriveID
-	succ.PredecessorOwnerGen = first.Generation
-	if _, serr := d.Start(succ); !errors.Is(serr, errRunFenced) {
-		t.Fatalf("a fenced successor start must refuse, got %v", serr)
-	}
-	if proc.launchN != launchesBefore {
-		t.Fatalf("a fenced successor must never launch, launched %d->%d", launchesBefore, proc.launchN)
-	}
-
-	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution after refusal: %v", err)
-	}
-	switch slot.State {
-	case admissionExecuting:
-		if slot.ReservationToken != oldToken {
-			t.Fatalf("before-rotation refusal must keep the predecessor's executing reservation, token changed")
-		}
-	case admissionReleased:
-		// after-rotation-then-released: legal, nothing leaked.
-	default:
-		t.Fatalf("a fenced successor must leave the slot executing (unrotated) or released, got %q", slot.State)
-	}
-
-	// Cancellation has nothing to chase: the predecessor is terminal (accounted by
-	// slot/participant teardown), and the successor created no drive.
-	report, err := d.ReconcileRunLaunches(req.Worktree, "e1")
-	if err != nil {
-		t.Fatalf("ReconcileRunLaunches: %v", err)
-	}
-	if !report.Accounted {
-		t.Fatalf("a fenced successor leaves nothing pending, got %+v", report)
 	}
 }
 
@@ -2256,46 +1142,10 @@ func TestConcurrentAdmitsOverFinishedIncumbentAdmitOnce(t *testing.T) {
 	}
 }
 
-// TestReconcileSuccessorRaceLeavesSuccessorUntouched: a successor reservation lands
-// between reconciliation's probe and its CAS (the probe proved the OLD incumbent
-// finished). The CAS with the old expected token fails, reconciliation re-evaluates
-// the ACTUAL incumbent once — never releasing it with the newly observed token — and
-// the admission is refused with the successor's slot byte-identical.
-func TestReconcileSuccessorRaceLeavesSuccessorUntouched(t *testing.T) {
-	seam := &incumbentSeam{}
-	d, store := newIncumbentDriver(t, seam)
-	req := incumbentStart(t)
-	old := finishedDriveIncumbent(t, d, store, seam, req)
-
-	fired := 0
-	var successor string
-	incumbentApplyHook = func() {
-		fired++
-		if fired > 1 {
-			return
-		}
-		tok, err := store.rotateWorktreeExecutionForSuccessor(req.Worktree, old)
-		if err != nil {
-			t.Errorf("successor rotation: %v", err)
-		}
-		successor = tok
-	}
-	t.Cleanup(func() { incumbentApplyHook = nil })
-
-	ticket, err := d.Admit(req)
-	if ticket != nil {
-		t.Fatalf("the admission must not win over a successor that raced the settle")
-	}
-	requireIncumbentRefusal(t, err, store, req.Worktree, successor, admissionReserved)
-	if fired != 1 {
-		t.Fatalf("apply hook fired %d times; the successor must be re-evaluated, never released on its new token", fired)
-	}
-}
-
 // TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner (change 0446 spec AC7)
 // extends the pairwise one-worktree races above to the full contender set at once:
-// a scoped start, a scopeless start, a scopeless start through a SYMLINK ALIAS of
-// the worktree, and a participating raw reservation all rendezvous past their
+// two starts for different changes, a start through a SYMLINK ALIAS of the
+// worktree, and a participating raw reservation all rendezvous past their
 // unlocked pre-checks and contend for the one worktree slot. Exactly one wins
 // (at most one backend launch; the raw winner launches none), every loser is a
 // typed worktree refusal, and the slot names exactly the winner's reservation.
@@ -2309,14 +1159,15 @@ func TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner(t *testing.T) {
 			if err := os.Symlink(wt, alias); err != nil {
 				t.Fatal(err)
 			}
-			_, scoped := prepareScopedStartAt(t, store, wt, "0342")
-			scopeless := sampleStart()
-			scopeless.Worktree = wt
-			scopeless.ChangeID = "0343"
+			first := sampleStart()
+			first.Worktree = wt
+			second := sampleStart()
+			second.Worktree = wt
+			second.ChangeID = "0343"
 			viaAlias := sampleStart()
 			viaAlias.Worktree = alias
 			viaAlias.ChangeID = "0344"
-			reqs := []StartRequest{scoped, scopeless, viaAlias}
+			reqs := []StartRequest{first, second, viaAlias}
 
 			proc := &countingProc{}
 			var barrier sync.WaitGroup
@@ -2331,7 +1182,7 @@ func TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner(t *testing.T) {
 				go func(i int) {
 					defer wg.Done()
 					clk := &fakeClock{now: startRun()}
-					_, errs[i] = scopedTestDriver(store, clk, proc, git).Start(reqs[i])
+					_, errs[i] = storeTestDriver(store, clk, proc, git).Start(reqs[i])
 				}(i)
 			}
 			wg.Add(1)

@@ -19,9 +19,9 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// scopeReqFor builds a ScopeRequest whose identity matches a StartRequest, so a
-// drive Started under the grant binds cleanly. runContext is the raw outer
-// child-context token (empty for a plain task scope in these tests).
+// scopeReqFor builds a task-shaped ScopeRequest from a StartRequest's identity,
+// for fixtures that seed a pre-0489 task scope directly in the store. runContext
+// is the raw outer child-context token (empty for a plain task scope).
 func scopeReqFor(req StartRequest, runContext string) ScopeRequest {
 	return ScopeRequest{
 		RepoIdentity: req.RepoDir,
@@ -32,27 +32,6 @@ func scopeReqFor(req StartRequest, runContext string) ScopeRequest {
 		Worktree:     req.Worktree,
 		RunContext:   runContext,
 	}
-}
-
-// bindWaiting prepares a task scope, Starts a scope-bound drive under it, and
-// asserts the first slice WAITs. It returns the grant and the WAITING doc.
-func bindWaiting(t *testing.T, d *Driver, store *Store) (ScopeGrant, DriveDoc) {
-	t.Helper()
-	req := sampleStart()
-	grant, err := store.PrepareScope(scopeReqFor(req, ""))
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	req.ScopeID = grant.ScopeID
-	req.ChildCapability = grant.ChildCapability
-	started, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	if started.Outcome != WAITING {
-		t.Fatalf("scope-bound first slice must WAIT, got %s (%s)", started.Outcome, started.Cause)
-	}
-	return grant, started
 }
 
 // outerScopeReqFor builds the outer recovery scope run.start prepares for a
@@ -442,78 +421,6 @@ func TestTakeoverRequiresExplicitDriveID(t *testing.T) {
 	}
 }
 
-// TestStartBindsScope proves Start with ScopeID+ChildCapability binds the drive
-// into the scope and stamps ScopeID + RunContextHash; a wrong capability fails
-// BEFORE launch; a second Start on the same scope while the first drive is live
-// fails.
-func TestStartBindsScope(t *testing.T) {
-	const gateCtx = "outer-run-context-token"
-
-	// Happy path: binds + stamps.
-	clk := &fakeClock{now: startRun()}
-	proc := &fakeProc{}
-	d, store := newTestDriver(t, clk, proc, stableGit())
-	req := sampleStart()
-	grant, err := store.PrepareScope(scopeReqFor(req, gateCtx))
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	req.ScopeID = grant.ScopeID
-	req.ChildCapability = grant.ChildCapability
-	req.RunContext = gateCtx
-	started, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	scope, err := store.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope: %v", err)
-	}
-	if scope.CurrentDriveID != started.DriveID {
-		t.Fatalf("Start must bind the drive into the scope: CurrentDriveID=%q want %q", scope.CurrentDriveID, started.DriveID)
-	}
-	rec, err := store.Load(started.DriveID)
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if rec.ScopeID != grant.ScopeID {
-		t.Fatalf("Start must stamp ScopeID, got %q", rec.ScopeID)
-	}
-	if rec.RunContextHash != capHash(gateCtx) {
-		t.Fatalf("Start must stamp the run-context hash, got %q", rec.RunContextHash)
-	}
-
-	// A second Start on the same (already-bound) scope fails while the first is live.
-	dup := sampleStart()
-	dup.ScopeID = grant.ScopeID
-	dup.ChildCapability = grant.ChildCapability
-	launchesBefore := proc.launchN
-	if _, err := d.Start(dup); !isOwnershipKind(err, ErrScopeSecondDrive) {
-		t.Fatalf("a second Start on a bound scope must fail ErrScopeSecondDrive, got %v", err)
-	}
-	if proc.launchN != launchesBefore {
-		t.Fatalf("a rejected second Start must not launch, launched %d->%d", launchesBefore, proc.launchN)
-	}
-
-	// A wrong capability fails BEFORE launch on a fresh scope.
-	clk2 := &fakeClock{now: startRun()}
-	proc2 := &fakeProc{}
-	d2, store2 := newTestDriver(t, clk2, proc2, stableGit())
-	req2 := sampleStart()
-	grant2, err := store2.PrepareScope(scopeReqFor(req2, ""))
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	req2.ScopeID = grant2.ScopeID
-	req2.ChildCapability = "wrong-capability"
-	if _, err := d2.Start(req2); !isOwnershipKind(err, ErrScopeCapabilityMismatch) {
-		t.Fatalf("a wrong capability must fail ErrScopeCapabilityMismatch, got %v", err)
-	}
-	if proc2.launchN != 0 {
-		t.Fatalf("a wrong capability must fail BEFORE launch, launched %d", proc2.launchN)
-	}
-}
-
 // TestFindScopeDriveIDs proves the outer-scope candidate resolver: it lists drives
 // matching change + run-context hash that are still live; excludes every finished
 // drive (owned or consumed), a wrong run context, a wrong change, and unreadable
@@ -636,37 +543,5 @@ func TestContinuationHandle(t *testing.T) {
 	}
 	if tok != handoff.Generation {
 		t.Fatalf("ContinuationHandle must return the outstanding handoff token, got %q want %q", tok, handoff.Generation)
-	}
-}
-
-// TestFindScopeDriveIDsExcludesAcknowledgedHistory pins spec verification 7's tail:
-// outer discovery over a change with two acknowledged predecessors (terminal,
-// owner-cleared) and one current WAITING drive resolves to exactly the current one,
-// never a crowd of consumed historical results from the same sequence.
-func TestFindScopeDriveIDsExcludesAcknowledgedHistory(t *testing.T) {
-	store := OpenStore(testsupport.TempDir(t))
-	seed := func(outcome Outcome, owner string) string {
-		t.Helper()
-		rec := seedRecord(t)
-		rec.ChangeID = "0342"
-		rec.RunContextHash = capHash("seq-ctx")
-		rec.LastOutcome = outcome
-		rec.OwnerGeneration = owner
-		id, _, err := store.NewDrive(rec)
-		if err != nil {
-			t.Fatalf("NewDrive: %v", err)
-		}
-		return id
-	}
-	seed(PASSED, "")                        // acknowledged predecessor 1 (consumed)
-	seed(PASSED, "")                        // acknowledged predecessor 2 (consumed)
-	current := seed(WAITING, "own-current") // the current live drive
-
-	ids, err := store.FindScopeDriveIDs("0342", capHash("seq-ctx"))
-	if err != nil {
-		t.Fatalf("FindScopeDriveIDs: %v", err)
-	}
-	if len(ids) != 1 || ids[0] != current {
-		t.Fatalf("outer discovery must find exactly the current drive %q, got %v", current, ids)
 	}
 }

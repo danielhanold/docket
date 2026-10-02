@@ -977,24 +977,19 @@ func installQuarantineFixture(t *testing.T, s *Store) []byte {
 // TestQuarantinedHaltedRecordIsNonblockingForUnrelatedWorktree: the exact record
 // that blocked every new worktree's first gate admission in the 0368 incident is
 // seeded into an isolated store; a fresh, unrelated worktree then admits through
-// every start shape — a scopeless (finalize-style) drive, a scoped (task-style)
-// drive, a run-carrying (build-style) drive, and a participating raw
-// reservation — and the run launch census of an unrelated run is accounted.
+// every start shape — a no-run (finalize-style) drive, a run-carrying
+// (build-style) drive, and a participating raw reservation — and the run launch census of an unrelated run is accounted.
 // The frozen record's bytes never change.
 func TestQuarantinedHaltedRecordIsNonblockingForUnrelatedWorktree(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	fixture := installQuarantineFixture(t, s)
 	proc := &fakeProc{} // ClassifyRun answers "invalid": no teardown proof for anything
-	d := scopedTestDriver(s, &fakeClock{now: startRun()}, proc, stableGit())
+	d := storeTestDriver(s, &fakeClock{now: startRun()}, proc, stableGit())
 
 	scopeless := sampleStart()
 	scopeless.Worktree = mkWorktree(t)
 	if doc, err := d.Start(scopeless); err != nil || doc.Outcome != WAITING {
 		t.Fatalf("scopeless start over the quarantined record: doc=%+v err=%v", doc, err)
-	}
-	_, scoped := prepareScopedStartAt(t, s, mkWorktree(t), "0446")
-	if doc, err := d.Start(scoped); err != nil || doc.Outcome != WAITING {
-		t.Fatalf("scoped start over the quarantined record: doc=%+v err=%v", doc, err)
 	}
 	build := sampleStart()
 	build.Worktree = mkWorktree(t)
@@ -1030,7 +1025,7 @@ func TestQuarantinedHaltedRecordIsNonblockingForUnrelatedWorktree(t *testing.T) 
 func TestQuarantinedHaltedRecordStillInspectable(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	fixture := installQuarantineFixture(t, s)
-	d := scopedTestDriver(s, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
+	d := storeTestDriver(s, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 
 	out, err := d.CleanupHistory(HistoryCleanupRequest{DryRun: true})
 	if err != nil {
@@ -1159,8 +1154,8 @@ func seedMixedHistory(t *testing.T, s *Store, seed int64, other, removed, scratc
 // every class, several of each, under several registry orderings, and both before
 // and after their scratch run dirs are deleted — never veto an unrelated worktree.
 // With scratch present every recorded run even LOOKS live to the process seam, the
-// worst case an unrelated record can present. Every start shape admits (scopeless,
-// scoped, run-carrying, participating raw), admission probes no unrelated history,
+// worst case an unrelated record can present. Every start shape admits (no-run,
+// run-carrying, participating raw), admission probes no unrelated history,
 // no historical byte changes, and the repository-wide cleanup assessment still
 // reports every record with its class counters partitioning the findings exactly.
 func TestFirstAdmissionMixedHistorySweep(t *testing.T) {
@@ -1183,15 +1178,11 @@ func TestFirstAdmissionMixedHistorySweep(t *testing.T) {
 				before := snapshotRegistry(t, s)
 
 				proc := &scratchAwareProc{fakeProc: &fakeProc{}}
-				d := scopedTestDriver(s, &fakeClock{now: startRun()}, proc, stableGit())
+				d := storeTestDriver(s, &fakeClock{now: startRun()}, proc, stableGit())
 				scopeless := sampleStart()
 				scopeless.Worktree = mkWorktree(t)
 				if doc, err := d.Start(scopeless); err != nil || doc.Outcome != WAITING {
 					t.Fatalf("scopeless start: doc=%+v err=%v", doc, err)
-				}
-				_, scoped := prepareScopedStartAt(t, s, mkWorktree(t), "0446")
-				if doc, err := d.Start(scoped); err != nil || doc.Outcome != WAITING {
-					t.Fatalf("scoped start: doc=%+v err=%v", doc, err)
 				}
 				build := sampleStart()
 				build.Worktree = mkWorktree(t)
@@ -1348,4 +1339,34 @@ func TestTargetedCorruptionRefusesLocallyCompanionProceeds(t *testing.T) {
 		assertLocalRefusal(t, d, store, req, doc.DriveID, string(admissionExecuting))
 		assertCompanionProceeds(t, d, proc)
 	})
+}
+
+// TestOrdinaryReleasePreservesRunID pins that an ordinary release of a slot's
+// own token preserves RunID on the released record (the between-drives fence
+// depends on it; change 0437 must not weaken it).
+func TestOrdinaryReleasePreservesRunID(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	wt := mkWorktree(t)
+	rec := sampleAdmission(wt)
+	rec.RunID = "E-keep"
+	token, err := s.ReserveWorktreeExecution(rec)
+	if err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	if err := s.ConfirmWorktreeExecution(wt, token, "run-x", "/runs/x"); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	if err := s.ReleaseWorktreeExecution(wt, token); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	got, _, err := s.LoadWorktreeExecution(wt)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if got.State != admissionReleased {
+		t.Fatalf("state after release = %q, want %q", got.State, admissionReleased)
+	}
+	if got.RunID != "E-keep" {
+		t.Fatalf("ordinary release must preserve RunID, got %q", got.RunID)
+	}
 }

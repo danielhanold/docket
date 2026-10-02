@@ -45,7 +45,7 @@ type ProcessSeam interface {
 	Stop(runDir, reason string) (*process.StopOutcome, error)
 	// ResolveReservation answers what became of a launch handed the caller
 	// reservation token but whose response was lost — never-launched, identified,
-	// or unresolved (Task 2). The scoped-start launch-failure leg consults it to
+	// or unresolved (Task 2). The start's launch-failure leg consults it to
 	// decide whether to release the worktree execution slot (a proven
 	// never-launched) or fail it closed to unresolved.
 	ResolveReservation(root, token string) (*process.ReservationResolution, error)
@@ -111,43 +111,21 @@ type StartRequest struct {
 	// idempotent; ONLY such a gate may earn the single relaunch.
 	IdempotentSuiteGate bool
 
-	// Recovery-scope linkage (all optional; empty = a scopeless drive, the
-	// pre-0359 behavior). ScopeID + ChildCapability enroll this new drive in a
-	// recovery scope so a parent can take it over later (scope.go, takeover.go):
-	// Start verifies the capability and scope identity BEFORE launching, reserves
-	// the scope's single slot durably, and only then launches. ChildCapability is
-	// the RAW capability, verified against the scope's stored hash and persisted
-	// nowhere. RunContext is the RAW outer child-context token linking a nested
-	// drive to the dispatched run; it is stored only as its sha256 hash
-	// (RunContextHash). (change 0359)
-	ScopeID         string
-	ChildCapability string
-	RunContext      string
+	// RunContext is the RAW outer child-context token linking this drive to the
+	// dispatched run whose outer recovery scope run.start prepared; it is stored
+	// only as its sha256 hash (RunContextHash), which the run tracker's outer
+	// takeover matches. Empty for a drive outside any dispatched run. (change 0359)
+	RunContext string
 
 	// RunID links this drive's top-level execution to the workflow run
 	// (runtracker_run_record.go) the starting run tracker minted, and is recorded on the worktree
 	// execution slot the start reserves (admission.go). It is a LOCATOR, never a
-	// credential: it authorizes nothing (the scope's child capability carries
-	// authority), but it fences the worktree — a later gate in the same worktree that
-	// does not carry this run is refused ErrStaleRunID, so an omitted or stale
-	// run cannot detach a workflow-owned worktree from its run. Empty for a
-	// standalone gate that owns no implementation run (finalize's local gate, an
-	// ad-hoc task drive). (change 0375 Task 9) A scoped start inherits the run its
-	// scope pinned when it presents none, and presenting a different one is refused
-	// ErrScopeIdentityMismatch (change 0467).
+	// credential: it authorizes nothing, but it fences the worktree — a later gate
+	// in the same worktree that does not carry this run is refused ErrStaleRunID,
+	// so an omitted or stale run cannot detach a workflow-owned worktree from its
+	// run. Empty for a standalone gate that owns no implementation run (finalize's
+	// local gate). (change 0375 Task 9)
 	RunID string
-
-	// Recovery-scope successor receipt (change 0405 Task 4): the previous drive's
-	// id and its current owner generation, captured from that drive's response. BOTH
-	// are required together for a successor start over an occupied scope slot and
-	// BOTH are forbidden for a scope's first start (a half-filled receipt is a
-	// fail-closed ErrStalePredecessor). A successor acknowledges exactly this
-	// predecessor result — retiring its recovery authority so it survives only as
-	// history — before launching its own new drive over the same scope slot. A scope
-	// carries a SEQUENCE of drives (baseline, RED, GREEN, verification) through one
-	// slot; the receipt is the explicit hand-off between one drive and the next.
-	PredecessorDriveID  string
-	PredecessorOwnerGen string
 }
 
 // Driver is the gate-drive state machine. It holds no mutable per-drive state:
@@ -263,59 +241,34 @@ func NewSystemDriver(store *Store, proc ProcessSeam) *Driver {
 	return NewDriver(store, systemClock{}, proc, realGit{})
 }
 
-// AdmissionTicket is the opaque result of Admit: a worktree execution slot (and,
-// for a scoped start, its scope slot) durably reserved and a RESERVED drive record
-// persisted, but with NO process launched yet. StartAdmitted consumes the ticket
-// to launch the raw run and drive one slice; AbandonAdmission releases it when the
-// caller decides between admission and launch not to proceed.
+// AdmissionTicket is the opaque result of Admit: a worktree execution slot durably
+// reserved and a RESERVED drive record persisted, but with NO process launched
+// yet. StartAdmitted consumes the ticket to launch the raw run and drive one
+// slice; AbandonAdmission releases it when the caller decides between admission
+// and launch not to proceed.
 //
 // The two-phase split exists so a caller can interpose exactly one accounting
 // decision BETWEEN admission and launch: the BUILD owner reserves one full-suite
 // attempt only after Admit succeeds, so a refused admission (worktree-busy,
-// unresolved, scope-busy) charges nothing, while a launch/persistence failure in
+// unresolved) charges nothing, while a launch/persistence failure in
 // StartAdmitted keeps the charge — admission precedes charging, and once charged
 // there are no refunds (change 0375 Task 8, ADR-0116). Every other caller composes
 // the two through the thin Start.
 type AdmissionTicket struct {
-	// scoped selects StartAdmitted's launch path; the rest carry the reserved state.
-	scoped   bool
 	id       string
 	ownerGen string
 	rec      driveRecord
 	token    string
-	// reservedFresh reports that THIS start minted the worktree reservation (a
-	// scoped start may instead reuse a same-scope peer's slot). ownsSlot reports
-	// that the slot is still RESERVED and this start must confirm it to executing.
-	// Both are meaningful only for a scoped ticket; a scopeless start always
-	// freshly reserves and always confirms its own slot.
-	reservedFresh bool
-	ownsSlot      bool
-	// rotated reports that THIS start rotated an executing same-scope slot to its
-	// OWN fresh reservation (a same-scope successor continuing the sequence). Like
-	// reservedFresh it means this start alone holds the reservation's authority, so
-	// a genuine pre-launch failure releases it; unlike reservedFresh the slot was
-	// executing, not absent/released. releasable() unifies the two.
-	rotated bool
 	// legacy is the first-admission legacy-drive recovery summary the worktree
-	// reservation produced (nil when no legacy history was relevant, or when this
-	// start reused an incumbent same-scope slot rather than freshly reserving). The
-	// launch half carries it onto the returned START document.
+	// reservation produced (nil when no legacy history was relevant). The launch
+	// half carries it onto the returned START document.
 	legacy *LegacyHistorySummary
 	// runID retains, in memory only, the run this admission was gated
 	// under so the launch half can revalidate the SAME run before launching
 	// (change 0437). It is NEVER persisted — the durable linkage stays the
-	// slot/scope records; an empty value is a genuinely no-run-record standalone gate.
+	// worktree slot record; an empty value is a genuinely no-run-record standalone gate.
 	runID string
 }
-
-// releasable reports whether THIS scoped start holds sole authority over the
-// worktree reservation its token names — because it either freshly reserved the
-// slot (reservedFresh) or rotated an executing same-scope slot to its own fresh
-// reservation (rotated). Both are released on a genuine pre-launch failure; a start
-// that merely adopted a same-scope peer's reservation is neither, so it never
-// frees the winner's slot. It intentionally does NOT cover the same-scope-race-loss
-// case, which callers guard separately with isSameScopeRaceLoss.
-func (t *AdmissionTicket) releasable() bool { return t.reservedFresh || t.rotated }
 
 // Start creates a drive, validates and fingerprints the execution context,
 // launches the first raw run through the process seam, persists the drive
@@ -325,8 +278,7 @@ func (t *AdmissionTicket) releasable() bool { return t.reservedFresh || t.rotate
 //
 // Start is the thin composition of Admit (the pre-launch admission half) and
 // StartAdmitted (the launch half) for callers that charge nothing between the two
-// — finalize's local gate, the commandless resumption service, and the
-// task-intent owner. The BUILD owner composes the two halves itself so it can
+// — finalize's local gate and the commandless resumption service. The BUILD owner composes the two halves itself so it can
 // reserve one full-suite attempt between them (gate_drive.go); its behavior is
 // otherwise identical to this composition.
 func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
@@ -338,14 +290,11 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 }
 
 // Admit performs the pre-launch half of a start: it validates the request,
-// fingerprints the execution context, reserves the worktree execution slot (and,
-// for a scoped start, the scope's single slot and the journaled predecessor
-// retirement), and persists a RESERVED drive record — but launches NO process.
-// Every refusal here (a malformed request, a scope pre-check rejection, a
-// worktree-busy / launch-unconfirmed / scope-busy slot, or a lost scope
-// reservation) returns a typed error and reserves nothing the caller must later
-// account for: no process was launched, and any freshly minted worktree slot with
-// no adopter is released before returning. A worktree-busy / unresolved refusal
+// fingerprints the execution context, reserves the worktree execution slot, and
+// persists a RESERVED drive record — but launches NO process. Every refusal here
+// (a malformed request, or a worktree-busy / launch-unconfirmed slot) returns a
+// typed error and reserves nothing the caller must later account for: no process
+// was launched, and a freshly minted worktree slot is released before returning. A worktree-busy / unresolved refusal
 // is returned only after finished-incumbent reconciliation could not settle the
 // incumbent (its bounded finding rides OwnershipError.Reconciliation); admission
 // never stops an incumbent to make room. On success it returns the ticket
@@ -356,27 +305,6 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	}
 	if req.Budget < 0 {
 		return nil, fmt.Errorf("gatedrive: start requires a non-negative budget")
-	}
-
-	// Scope pre-check BEFORE any launch: an uncontended bad request short-circuits
-	// here so proc.Launch is never reached on it and, crucially, so it consumes
-	// nothing — no reserved drive record is minted and a legitimate predecessor
-	// keeps its recovery authority. This unlocked block is a fast-fail ONLY;
-	// reserveScopeDrive and retirePredecessor under their locks (below) are the
-	// AUTHORITY that re-check every condition and arbitrate races, so a state
-	// observed here but changed by a concurrent transition is caught there.
-	if req.ScopeID != "" {
-		runID, err := d.precheckScopedStart(req)
-		if err != nil {
-			return nil, err
-		}
-		// A scoped start takes its run from the scope it was prepared under
-		// (change 0467): the scope's RunID is written once by PrepareScope and
-		// never mutated, so this unlocked read is authoritative. req is Admit's own
-		// copy, so every later use — the run launch gate, the scoped worktree admission
-		// record, finished-incumbent reconciliation, and the admission ticket — sees
-		// the effective run rather than the caller-presented one.
-		req.RunID = runID
 	}
 
 	fp, err := ComputeFingerprint(req.Worktree, d.git)
@@ -415,12 +343,8 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 		Attempt:             1,
 		OwnerGeneration:     ownerGen,
 	}
-	// Stamp the recovery-scope linkage onto the record (both empty for a scopeless
-	// drive). ScopeID links the drive to the scope its owner was dispatched under;
-	// RunContextHash links a nested drive to the dispatched run.
-	if req.ScopeID != "" {
-		rec.ScopeID = req.ScopeID
-	}
+	// RunContextHash links a drive started inside a dispatched run to that run's
+	// outer recovery scope (empty for a drive outside any dispatched run).
 	if req.RunContext != "" {
 		rec.RunContextHash = capHash(req.RunContext)
 	}
@@ -429,17 +353,13 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	// reservation body runs while the run registry lock is held, so a concurrent
 	// cancellation fence either lands before the read (reserve never runs, nothing
 	// is reserved) or observes the durable reservation reserve produced. The
-	// fingerprint (above) and precheckScopedStart stay OUTSIDE the gate; the lock
-	// order inside reserve is unchanged (admission → scope → drive).
+	// fingerprint (above) stays OUTSIDE the gate; the lock order inside reserve is
+	// unchanged (admission → drive).
 	var ticket *AdmissionTicket
 	admit := func() error {
 		return d.runLaunchGated(req.RunID, req.Worktree, func() error {
 			var aerr error
-			if req.ScopeID == "" {
-				ticket, aerr = d.admitScopeless(rec, ownerGen, req.RunID)
-			} else {
-				ticket, aerr = d.admitScoped(req, rec, ownerGen)
-			}
+			ticket, aerr = d.admitScopeless(rec, ownerGen, req.RunID)
 			return aerr
 		})
 	}
@@ -451,9 +371,9 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	// processes, so it runs OUTSIDE the run launch gate (probe outside outer locks) and
 	// applies its release under the slot CAS with the expected token; the retry then
 	// re-enters the gate, which revalidates the run. The pre-reserve checks above
-	// (command/budget, precheckScopedStart, ComputeFingerprint) validate the request
-	// or the requesting scope's own slot and never depend on the incumbent, so none
-	// of them can refuse a finished incumbent before this point.
+	// (command/budget, ComputeFingerprint) validate the request and never depend on
+	// the incumbent, so none of them can refuse a finished incumbent before this
+	// point.
 	if oe, ok := isIncumbentRefusal(err); ok {
 		settled, finding, _ := d.reconcileFinishedIncumbent(req.Worktree, req.RunID)
 		if settled {
@@ -470,8 +390,8 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 }
 
 // StartAdmitted performs the launch half of a start: it launches the admitted
-// drive's raw run, persists the launch handle, confirms the scope and worktree
-// slots, and advances through at most one slice — returning the same typed outcome
+// drive's raw run, persists the launch handle, confirms the worktree slot, and
+// advances through at most one slice — returning the same typed outcome
 // document Advance returns. A launch or persistence failure is a command failure
 // (an error), not a drive outcome, and — because the caller may already have
 // charged a suite attempt against this ticket — it never refunds: it either proves
@@ -483,8 +403,8 @@ func (d *Driver) StartAdmitted(t *AdmissionTicket) (DriveDoc, error) {
 	}
 	// Revalidate the run and the EXACT durable reservation this ticket minted,
 	// and acquire the drive's claimant flock, before any launch (change 0437 Task
-	// 2). A fence that landed between Admit and here — or a rotated/foreign
-	// reservation, a busy claim, or a settled record — refuses with a typed error
+	// 2). A fence that landed between Admit and here — or a foreign reservation, a
+	// busy claim, or a settled record — refuses with a typed error
 	// and launches nothing. On success the returned claim is HELD across
 	// launch/attach so a concurrent cancellation observes pending work rather than
 	// a free slot; the launch half releases it once the launch is confirmed.
@@ -492,16 +412,12 @@ func (d *Driver) StartAdmitted(t *AdmissionTicket) (DriveDoc, error) {
 	if err != nil {
 		return DriveDoc{}, err
 	}
-	if t.scoped {
-		return d.launchScoped(t, claim)
-	}
 	return d.launchScopeless(t, claim)
 }
 
 // revalidateAdmittedLaunch re-reads, under the run launch gate, the EXACT durable
 // reservation this ticket minted — the worktree slot must still carry the
-// ticket's ReservationToken in the state the ticket expects (reserved when the
-// ticket owns the slot, executing when it reuses a peer's), and the RESERVED
+// ticket's ReservationToken and still be reserved, and the RESERVED
 // drive record must still exist under the ticket's owner generation and stay
 // nonterminal — and acquires the drive's claimant flock NONBLOCKING. Any
 // mismatch, a busy claim, or a revoked run refuses with a typed error and
@@ -513,8 +429,8 @@ func (d *Driver) StartAdmitted(t *AdmissionTicket) (DriveDoc, error) {
 // The run lock is held only inside the gate; the returned claim is retained by
 // the caller across the out-of-gate launch. A run refusal (the gate refused
 // before running reserve) fail-closes the delayed ticket: it settles the drive
-// HALTED "run-cancelled" and, for a ticket that minted its own slot, releases the
-// slot — nothing launched, provably idle — then returns the gate's error
+// HALTED "run-cancelled" and releases the ticket's slot — nothing launched,
+// provably idle — then returns the gate's error
 // unchanged so the app surfaces the fence token.
 func (d *Driver) revalidateAdmittedLaunch(t *AdmissionTicket) (*relaunchClaim, error) {
 	var claim *relaunchClaim
@@ -530,8 +446,8 @@ func (d *Driver) revalidateAdmittedLaunch(t *AdmissionTicket) (*relaunchClaim, e
 		if busy {
 			return ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted")
 		}
-		// (b) The worktree slot must still carry this ticket's reservation token in
-		// the state the ticket expects.
+		// (b) The worktree slot must still carry this ticket's reservation token and
+		// still be reserved.
 		if verr := d.verifyAdmittedSlot(t); verr != nil {
 			c.close()
 			return verr
@@ -570,12 +486,10 @@ func (d *Driver) revalidateAdmittedLaunch(t *AdmissionTicket) (*relaunchClaim, e
 }
 
 // verifyAdmittedSlot confirms the worktree slot still carries this ticket's
-// reservation token in the state the ticket expects: reserved when this ticket
-// owns the slot (a scopeless start, or a scoped start that minted or reused a
-// still-reserved same-scope slot it must confirm), executing when the ticket
-// reused an already-executing peer's slot (a same-scope successor). Any load
-// error, token mismatch, or unexpected state is a fail-closed
-// ErrUnresolvedLaunchTransition — the exact reservation the ticket minted is gone.
+// reservation token and is still reserved (the ticket minted the reservation and
+// confirms it to executing only after launch). Any load error, token mismatch, or
+// other state is a fail-closed ErrUnresolvedLaunchTransition — the exact
+// reservation the ticket minted is gone.
 func (d *Driver) verifyAdmittedSlot(t *AdmissionTicket) error {
 	slot, _, err := d.store.LoadWorktreeExecution(t.rec.WorktreePath)
 	if err != nil {
@@ -584,11 +498,7 @@ func (d *Driver) verifyAdmittedSlot(t *AdmissionTicket) error {
 	if slot.ReservationToken != t.token {
 		return ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted")
 	}
-	expected := admissionReserved
-	if t.scoped && !t.ownsSlot {
-		expected = admissionExecuting
-	}
-	if slot.State != expected {
+	if slot.State != admissionReserved {
 		return ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted")
 	}
 	return nil
@@ -596,13 +506,9 @@ func (d *Driver) verifyAdmittedSlot(t *AdmissionTicket) error {
 
 // settleAdmittedAfterRunRefusal fail-closes a delayed ticket whose run was
 // revoked between Admit and StartAdmitted. It settles the reserved drive record
-// HALTED "run-cancelled" (mirroring the launch-failed CAS blocks in the launch
-// legs) and, for a ticket that minted its own worktree slot (a scopeless start,
-// or a scoped start that freshly reserved), releases the slot — nothing launched,
-// so it is provably idle. A slot the ticket merely ADOPTED from a same-scope peer
-// is left untouched: it belongs to the sequence, not this ticket. A slot the ticket
-// ROTATED (a successor) is its own fresh reservation, so it is released like a
-// freshly reserved one (releasable()).
+// HALTED "run-cancelled" (mirroring the launch-failed CAS block in
+// launchScopeless) and releases the worktree slot the ticket minted — nothing
+// launched, so it is provably idle.
 func (d *Driver) settleAdmittedAfterRunRefusal(t *AdmissionTicket) {
 	_ = d.store.ownerCAS(t.id, func(r *driveRecord) error {
 		if err := verifyOwner(r, t.ownerGen); err != nil {
@@ -615,190 +521,37 @@ func (d *Driver) settleAdmittedAfterRunRefusal(t *AdmissionTicket) {
 		r.LastCause = "run-cancelled"
 		return nil
 	})
-	if t.releasable() || !t.scoped {
-		_ = d.store.ReleaseWorktreeExecution(t.rec.WorktreePath, t.token)
-	}
+	_ = d.store.ReleaseWorktreeExecution(t.rec.WorktreePath, t.token)
 }
 
 // AbandonAdmission releases an admission the caller decided, between Admit and
 // StartAdmitted, not to launch (change 0375 Task 8: a build-owned start whose
 // full-suite attempt could not be reserved after admission). Because no process
 // was launched, the reserved drive record is a pure orphan (removed so it is not a
-// spurious recovery candidate) and the worktree slot THIS start freshly reserved
-// is provably idle (released). A start that reused an incumbent same-scope slot
-// never disturbs the peer that owns it. AbandonAdmission is only reachable when the
-// advisory budget precheck (gate_drive.go) was raced or a store fault intervened;
-// it is deliberately best-effort and fail-closed, never a refund path.
+// spurious recovery candidate) and the worktree slot the start reserved is
+// provably idle (released). AbandonAdmission is only reachable when the advisory
+// budget precheck (gate_drive.go) was raced or a store fault intervened; it is
+// deliberately best-effort and fail-closed, never a refund path.
 func (d *Driver) AbandonAdmission(t *AdmissionTicket) error {
 	if t == nil {
 		return nil
 	}
 	_ = d.store.removeReservedDrive(t.id)
-	// A scopeless start always freshly reserves its own slot; a scoped start
-	// releases only the slot it minted or rotated (releasable()), never a peer's
-	// adopted reservation.
-	if (t.scoped && !t.releasable()) || t.token == "" {
+	if t.token == "" {
 		return nil
 	}
 	return d.store.ReleaseWorktreeExecution(t.rec.WorktreePath, t.token)
 }
 
-// precheckScopedStart is the unlocked fast-fail gate for a scoped Start. It is NOT
-// the authority — reserveScopeDrive (the slot) and retirePredecessor (the
-// predecessor's recovery authority) re-check every condition under their locks and
-// arbitrate races — but it rejects an uncontended bad request before any reserved
-// drive record is minted or any process is launched, so an ordinary invalid request
-// consumes nothing and a legitimate predecessor is never touched.
-//
-// A first start (empty receipt) succeeds only against an empty slot; an occupied
-// slot is ErrScopeBusy (a reserved/in-flight or launch-failed start owns it, so no
-// automatic second launch) or ErrScopeSecondDrive (a launched drive with no
-// successor receipt). A successor start (both receipt fields set) must present the
-// scope's complete pinned identity, name a scope whose slot holds a launched current
-// drive, and name a predecessor with a durable PASSED/FAILED result still owned by
-// the presented generation and carrying no outstanding handoff. A half-filled
-// receipt is a fail-closed ErrStalePredecessor. On success it returns the start's
-// effective run (scopedRunID).
-func (d *Driver) precheckScopedStart(req StartRequest) (string, error) {
-	scope, err := d.store.LoadScope(req.ScopeID)
-	if err != nil {
-		return "", err
-	}
-	// The child capability is checked before the closed state, matching Acknowledge
-	// and scopeReserveRefusal, so a rejected credential never learns whether the
-	// scope was transferred or finished.
-	if req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
-		return "", ownershipErr(ErrScopeCapabilityMismatch, "start")
-	}
-	if scope.Closed {
-		if !scope.FinalAcked {
-			// Closed by a claim or takeover: scope authority transferred to the
-			// parent, not finished by its own terminal acknowledgement (change 0459).
-			return "", ownershipErr(ErrScopeTransferred, "start")
-		}
-		return "", ownershipErr(ErrScopeClosed, "start")
-	}
-
-	receipt := predecessorReceipt{DriveID: req.PredecessorDriveID, OwnerGen: req.PredecessorOwnerGen}
-	if receipt.halfFilled() {
-		return "", ownershipErr(ErrStalePredecessor, "start")
-	}
-
-	if receipt.empty() {
-		// First start: an occupied slot short-circuits with the same typed rejection
-		// reserveScopeDrive returns for an empty receipt, and identity is checked only
-		// against an empty slot (a first start still fixes the scope's identity).
-		if scope.CurrentDriveID != "" {
-			if scope.CurrentDriveState == scopeStateReserved {
-				return "", ownershipErr(ErrScopeBusy, "start")
-			}
-			return "", ownershipErr(ErrScopeSecondDrive, "start")
-		}
-		if !scopedIdentityMatch(scope, req) {
-			return "", ownershipErr(ErrScopeIdentityMismatch, "start")
-		}
-		return scopedRunID(scope, req.RunID), nil
-	}
-
-	// Successor start: the complete pinned identity, a launched current slot, and a
-	// durable reusable predecessor the receipt names.
-	if !scopedIdentityMatch(scope, req) {
-		return "", ownershipErr(ErrScopeIdentityMismatch, "start")
-	}
-	if scope.CurrentDriveID == "" {
-		// A successor acknowledges a predecessor result, but the scope holds none.
-		return "", ownershipErr(ErrStalePredecessor, "start")
-	}
-	if scope.CurrentDriveState == scopeStateReserved {
-		return "", ownershipErr(ErrScopeBusy, "start")
-	}
-	if scope.PendingAckDriveID != "" {
-		return "", ownershipErr(ErrUnresolvedLaunchTransition, "start")
-	}
-	// Validate the CLAIMED predecessor record (cheap, consumes nothing). Whether it is
-	// the scope's CURRENT drive is reserveScopeDrive's authority — a wrong id there is
-	// refused without consuming the slot; here we reject a predecessor that is not a
-	// durable reusable result up front. A receipt naming a drive that cannot be loaded
-	// is not a reusable predecessor.
-	prec, lerr := d.store.Load(receipt.DriveID)
-	if lerr != nil {
-		if _, ok := AsStoreError(lerr); ok {
-			return "", ownershipErr(ErrStalePredecessor, "start")
-		}
-		return "", lerr
-	}
-	if err := predecessorReusableError(&prec, receipt.OwnerGen); err != nil {
-		return "", err
-	}
-	return scopedRunID(scope, req.RunID), nil
-}
-
-// scopedIdentityMatch reports whether a scoped Start request carries the scope's
-// complete pinned identity: the repo/branch/worktree/change/task/phase bundle
-// scopeIdentityMatch checks, plus the run-context token when the scope pinned one
-// (Invariant 6 — omission or alteration must not detach a drive from outer
-// recovery), and the run when both the scope and the request carry one. A
-// scope that pinned no run context accepts any (the pre-0359 default).
-func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
-	if !scopeIdentityMatch(scope, req.RepoDir, req.Branch, req.Worktree, req.ChangeID, req.TaskID, req.Phase) {
-		return false
-	}
-	if scope.RunContextHash != "" && capHash(req.RunContext) != scope.RunContextHash {
-		return false
-	}
-	// A scope that pinned a run accepts a start presenting none (it inherits
-	// the scope's — scopedRunID) or the same one; a different presented run is
-	// an altered identity (change 0467).
-	if scope.RunID != "" && req.RunID != "" && req.RunID != scope.RunID {
-		return false
-	}
-	return true
-}
-
-// scopedRunID resolves the effective run of a scoped start (change 0467):
-// a scope that pinned a run supplies it — scopedIdentityMatch has already
-// refused a start presenting a different one — and a scope with no run (a legacy
-// v2 scope, or one prepared without) leaves the presented value governing,
-// unchanged from before.
-func scopedRunID(scope scopeRecord, presented string) string {
-	if scope.RunID != "" {
-		return scope.RunID
-	}
-	return presented
-}
-
-// AdvisoryRunID resolves, without writing anything, the run Admit would
-// admit req under, for the application layer's advisory pre-admission check
-// (change 0467). A scoped start that presents its scope's child capability takes
-// scopedRunID — the scope's pinned run, or the presented one for an
-// no-run-record scope. A start presenting a foreign run keeps it (Admit refuses
-// that start scope-identity-mismatch, so the advisory check must stay fenced), as
-// does a scopeless start, an unreadable scope, or a rejected capability: those are
-// Admit's to refuse, never the advisory check's to widen.
-func (d *Driver) AdvisoryRunID(req StartRequest) string {
-	if req.ScopeID == "" {
-		return req.RunID
-	}
-	scope, err := d.store.LoadScope(req.ScopeID)
-	if err != nil || req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
-		return req.RunID
-	}
-	if scope.RunID != "" && req.RunID != "" && req.RunID != scope.RunID {
-		return req.RunID
-	}
-	return scopedRunID(scope, req.RunID)
-}
-
-// admitScopeless runs the pre-launch admission half for a gate without a recovery
-// scope (for example, finalize's local gate):
+// admitScopeless runs the pre-launch admission half of a start:
 //
 //	ReserveWorktreeExecution -> NewReservedDrive.
 //
 // RunRoot only scopes process-supervisor allocation. Worktree admission still
-// keys on WorktreePath, so independent scopeless callers cannot use distinct
-// private run roots to launch concurrently against one worktree. It launches no
-// process; launchScopeless does. A NewReservedDrive failure releases the freshly
-// reserved slot before returning, so a refused admission leaks nothing.
+// keys on WorktreePath, so independent callers cannot use distinct private run
+// roots to launch concurrently against one worktree. It launches no process;
+// launchScopeless does. A NewReservedDrive failure releases the freshly reserved
+// slot before returning, so a refused admission leaks nothing.
 func (d *Driver) admitScopeless(rec driveRecord, ownerGen, runID string) (*AdmissionTicket, error) {
 	token, legacy, err := d.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: rec.RepoIdentity,
@@ -822,16 +575,17 @@ func (d *Driver) admitScopeless(rec driveRecord, ownerGen, runID string) (*Admis
 	return &AdmissionTicket{id: id, ownerGen: ownerGen, rec: rec, token: token, legacy: legacy}, nil
 }
 
-// launchScopeless runs the launch half for a scopeless admission:
+// launchScopeless runs the launch half of a start:
 //
 //	Launch -> attachLaunch -> ConfirmWorktreeExecution -> driveAndPersist.
 //
 // Every post-launch failure either proves the fresh process stopped before
 // releasing the slot, or marks the slot unresolved and fails future admission
-// closed. The claimant flock revalidateAdmittedLaunch acquired is HELD across
-// Launch and attach (so a concurrent cancellation observes pending work), then
-// released before the drive slice so a first-slice relaunch can reserve its own
-// claim; the deferred close is an idempotent safety net for every failure leg.
+// closed — never an automatic second launch. The claimant flock
+// revalidateAdmittedLaunch acquired is HELD across Launch and attach (so a
+// concurrent cancellation observes pending work), then released before the drive
+// slice so a first-slice relaunch can reserve its own claim; the deferred close is
+// an idempotent safety net for every failure leg.
 func (d *Driver) launchScopeless(t *AdmissionTicket, claim *relaunchClaim) (DriveDoc, error) {
 	defer claim.close()
 	rec := t.rec
@@ -841,10 +595,10 @@ func (d *Driver) launchScopeless(t *AdmissionTicket, claim *relaunchClaim) (Driv
 
 	out, lerr := d.proc.Launch(rec.launchRequest())
 	if lerr != nil {
-		// Keep the attempted drive as durable recovery evidence, mirroring the
-		// scoped launch-failure leg. ResolveReservation is the only proof that
-		// an error response means no process was launched; every other outcome
-		// leaves the worktree slot unresolved.
+		// Keep the attempted drive as durable recovery evidence (HALTED
+		// "launch-failed"). ResolveReservation is the only proof that an error
+		// response means no process was launched; every other outcome leaves the
+		// worktree slot unresolved.
 		_ = d.store.ownerCAS(id, func(r *driveRecord) error {
 			if err := verifyOwner(r, ownerGen); err != nil {
 				return err
@@ -882,340 +636,6 @@ func (d *Driver) launchScopeless(t *AdmissionTicket, claim *relaunchClaim) (Driv
 	return startDocWithLegacy(doc, derr, t.legacy)
 }
 
-// scopedAdmissionHook is a package-private test seam fired once per scoped admission,
-// after admitScopedWorktree has returned this start's worktree token and before
-// reserveScopeDrive arbitrates the scope slot. Production leaves it nil; a test sets
-// it to land a same-scope sibling's start at exactly that instant (change 0453).
-var scopedAdmissionHook func(req StartRequest)
-
-// admitScoped runs the pre-launch admission half of the pinned scoped-start order
-// (change 0405 Tasks 3–4 plus change 0375 worktree admission):
-//
-//	ReserveWorktreeExecution → NewReservedDrive → reserveScopeDrive →
-//	(successor: retirePredecessor → clearPendingAck).
-//
-// The worktree execution slot (admission.go) is the OUTERMOST admission authority:
-// one canonical worktree carries at most one reserved-or-running top-level gate
-// run across DIFFERENT scopes, scopeless starts, and raw launches. A start
-// belonging to the SAME scope as the incumbent slot — a concurrent first-start peer,
-// or a successor continuing this scope's sequence — REUSES the slot the scope
-// already holds rather than reserving a second one, so same-scope arbitration stays
-// at the scope slot (reserveScopeDrive) and only a genuine cross-scope/scopeless/raw
-// overlap is refused ErrWorktreeBusy (admitScopedWorktree). The durable reservation
-// precedes the process (launchScoped), so a crash or failure between reservation and
-// launch leaves a recoverable slot rather than a silently double-launched one, and
-// every ambiguous launch/persist failure fails closed with NO automatic second
-// launch. A first start passes an empty receipt; a successor passes the predecessor
-// receipt so reserveScopeDrive advances the slot and the journaled retire/clear pair
-// retires the predecessor as one logical transition. Every admission-half failure
-// leg releases the freshly reserved worktree slot (unless a same-scope peer adopted
-// it) and removes the orphan reserved record, so a refused admission leaks nothing.
-func (d *Driver) admitScoped(req StartRequest, rec driveRecord, ownerGen string) (*AdmissionTicket, error) {
-	receipt := predecessorReceipt{DriveID: req.PredecessorDriveID, OwnerGen: req.PredecessorOwnerGen}
-
-	// WORKTREE ADMISSION. reservedFresh marks whether THIS start minted the
-	// reservation (so a genuine pre-launch failure with no adopter releases it, while
-	// a same-scope race loss leaves the slot to the peer that adopted it). rotated
-	// marks whether THIS start rotated an executing same-scope slot to its own fresh
-	// reservation (a successor) — it too holds sole authority and releases on a
-	// genuine failure (releasable()). ownsSlot marks whether the slot is still
-	// RESERVED and this start must confirm it to executing and owns its post-launch
-	// failure legs; a start reusing an already-executing slot without rotating must
-	// not re-confirm or disturb it.
-	token, reservedFresh, ownsSlot, rotated, legacy, aerr := d.admitScopedWorktree(req)
-	if aerr != nil {
-		return nil, aerr
-	}
-	if scopedAdmissionHook != nil {
-		scopedAdmissionHook(req)
-	}
-	rec.AdmissionToken = token
-	// releasable unifies "freshly reserved" and "rotated": either way this start
-	// alone owns the reservation and must release it on a genuine pre-launch failure.
-	releasable := reservedFresh || rotated
-
-	// Persist a RESERVED drive record (no launch handle), then durably reserve the
-	// scope's single slot. reserveScopeDrive under the scope lock is the authority
-	// that arbitrates the SCOPE slot: for a first start it fills an empty slot, for a
-	// successor it advances the slot only when the receipt names the current launched
-	// drive (and journals the pending ack). A reserve failure (a concurrent start won
-	// the slot, a stale receipt, the scope closed, an unresolved transition, or a
-	// capability change) means this start owns nothing and never launched, so surface
-	// the typed rejection.
-	id, _, err := d.store.NewReservedDrive(rec)
-	if err != nil {
-		if releasable {
-			_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
-		}
-		return nil, err
-	}
-	if rerr := d.store.reserveScopeDrive(req.ScopeID, req.ChildCapability, id, receipt); rerr != nil {
-		// The reservation never won the slot, so the just-minted reserved record is a
-		// pure orphan (no launch, no scope binding). Remove it best-effort so its
-		// nonterminal outcome never lingers as a spurious FindScopeDriveIDs recovery
-		// candidate that would fail an outer takeover closed on ambiguity (removeReservedDrive).
-		_ = d.store.removeReservedDrive(id)
-		// Release the worktree slot ONLY when THIS start freshly reserved it AND the
-		// loss is not a same-scope race: a same-scope peer that beat us to the scope slot
-		// has adopted our reservation (there is at most one fresh reservation per worktree
-		// at a time), so releasing it would free a slot the winner is using. A successor
-		// refused ErrStalePredecessor because a SIBLING consumed the same receipt is the
-		// same race (siblingMayHoldReservation). A genuine failure (scope closed, an IO
-		// fault, an identity mismatch) has no adopter, so the fresh (or rotated)
-		// reservation must be released rather than leaked.
-		if releasable && !isSameScopeRaceLoss(rerr) && !d.siblingMayHoldReservation(req.ScopeID, receipt, token, rerr) {
-			_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
-		}
-		return nil, rerr
-	}
-
-	// Successor: retire the predecessor's recovery authority and clear the pending-ack
-	// journal as the journaled second half of this one logical transition — both AFTER
-	// a won reservation and BEFORE any launch. A failure here is an ambiguous
-	// launch/persistence transition (a concurrent transition moved the predecessor
-	// between the unlocked pre-check and this locked retirement): fail closed
-	// ErrUnresolvedLaunchTransition with the reservation retained and nothing launched.
-	// The exit is parent recovery, never a blind retry or a fabricated second launch.
-	if !receipt.empty() {
-		if rerr := d.store.retirePredecessor(receipt.DriveID, receipt.OwnerGen); rerr != nil {
-			// The reservation won the slot but the predecessor could not be retired: the
-			// slot is left reserved+pending-ack, an unresolved launch transition every
-			// consumer (Start, Takeover, Acknowledge) fails closed on WITHOUT loading the
-			// reserved record. So removing that never-launched record severs no live
-			// recovery; it only spares outer enumeration a spurious candidate (removeReservedDrive).
-			_ = d.store.removeReservedDrive(id)
-			if releasable {
-				_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
-			}
-			return nil, ownershipErr(ErrUnresolvedLaunchTransition, "start")
-		}
-		if cerr := d.store.clearPendingAck(req.ScopeID, receipt.DriveID); cerr != nil {
-			_ = d.store.removeReservedDrive(id)
-			if releasable {
-				_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
-			}
-			return nil, ownershipErr(ErrUnresolvedLaunchTransition, "start")
-		}
-	}
-
-	return &AdmissionTicket{
-		scoped:        true,
-		id:            id,
-		ownerGen:      ownerGen,
-		rec:           rec,
-		token:         token,
-		reservedFresh: reservedFresh,
-		ownsSlot:      ownsSlot,
-		rotated:       rotated,
-		legacy:        legacy,
-	}, nil
-}
-
-// launchScoped runs the launch half of the pinned scoped-start order:
-//
-//	Launch → attachLaunch → confirmScopeLaunch → ConfirmWorktreeExecution →
-//	driveAndPersist.
-//
-// Every ambiguous launch/persist failure fails closed with NO automatic second
-// launch. The scope slot stays durably reserved so a subsequent start is refused
-// rather than launching a duplicate; the worktree slot this start owns is released
-// only on proven teardown/never-launched and marked unresolved otherwise. The
-// claimant flock revalidateAdmittedLaunch acquired is HELD across Launch and
-// attach, then released before the drive slice; the deferred close is an
-// idempotent safety net for every failure leg.
-func (d *Driver) launchScoped(t *AdmissionTicket, claim *relaunchClaim) (DriveDoc, error) {
-	defer claim.close()
-	rec := t.rec
-	id := t.id
-	ownerGen := t.ownerGen
-	token := t.token
-	ownsSlot := t.ownsSlot
-	worktree := rec.WorktreePath
-	scopeID := rec.ScopeID
-
-	// Launch the raw run. A launch failure is a command failure that leaves the scope
-	// slot durably reserved (no automatic second launch): persist the drive HALTED so
-	// outer recovery can see a terminal-unconsumed record. For the worktree slot this
-	// start owns, ResolveReservation decides: a proven never-launched releases it (the
-	// worktree is genuinely free), any other verdict fails it closed to unresolved so
-	// admission blocks until recovery. No fabricated verdict document flows.
-	out, lerr := d.proc.Launch(rec.launchRequest())
-	if lerr != nil {
-		_ = d.store.ownerCAS(id, func(r *driveRecord) error {
-			if err := verifyOwner(r, ownerGen); err != nil {
-				return err
-			}
-			if isTerminalOutcome(r.LastOutcome) {
-				return errAlreadyTerminal
-			}
-			r.LastOutcome = HALTED
-			r.LastCause = "launch-failed"
-			return nil
-		})
-		if ownsSlot {
-			d.resolveWorktreeAfterLaunchFailure(worktree, rec.RunRoot, token)
-		}
-		return DriveDoc{}, fmt.Errorf("gatedrive: start launch: %w", lerr)
-	}
-
-	// Persist the launch handle onto the reserved record, then confirm the scope slot's
-	// launch. On a persist failure the freshly launched run is orphaned: stop it
-	// best-effort. The scope slot stays reserved (never treated as empty), so a
-	// subsequent start is refused rather than launching a duplicate. For the worktree
-	// slot this start owns, a proven stop releases it; an unproven stop fails it closed
-	// to unresolved (a possibly-live process never frees the slot).
-	if aerr := d.store.attachLaunch(id, ownerGen, out.RunDir, out.RunID); aerr != nil {
-		stopped := d.stopIfOwned(out.RunDir)
-		if ownsSlot {
-			d.releaseOrUnresolveWorktree(worktree, token, stopped)
-		}
-		return DriveDoc{}, aerr
-	}
-	if cerr := d.store.confirmScopeLaunch(scopeID, id); cerr != nil {
-		stopped := d.stopIfOwned(out.RunDir)
-		if ownsSlot {
-			d.releaseOrUnresolveWorktree(worktree, token, stopped)
-		}
-		return DriveDoc{}, cerr
-	}
-
-	// Confirm the worktree slot to executing, attaching the raw run identity — but ONLY
-	// for the start that owns the reserved slot. A successor reusing an already-executing
-	// slot leaves it untouched (its stored run identity is the current sequence's, and a
-	// re-confirm with a new run id would be a fail-closed unresolved transition). A confirm
-	// failure cannot prove the run torn down, so it stops-if-owned and fails the slot
-	// closed the same way a persist failure does.
-	if ownsSlot {
-		if cerr := d.store.ConfirmWorktreeExecution(worktree, token, out.RunID, out.RunDir); cerr != nil {
-			stopped := d.stopIfOwned(out.RunDir)
-			d.releaseOrUnresolveWorktree(worktree, token, stopped)
-			return DriveDoc{}, cerr
-		}
-	}
-
-	// Launch and attach are confirmed: release the launch claim so the drive slice
-	// can reserve its own single relaunch (the claim is the SAME lock file
-	// reserveRelaunch takes). close is idempotent with the deferred safety net.
-	claim.close()
-
-	rec.RawRunDir = out.RunDir
-	rec.RawOwnership = out.RunID
-	doc, derr := d.driveAndPersist(id, ownerGen, rec)
-	return startDocWithLegacy(doc, derr, t.legacy)
-}
-
-// admitScopedWorktree reserves (or reuses) the worktree execution slot for a scoped
-// start and reports how the start relates to it. It returns the reservation token to
-// thread into the launch, whether THIS start freshly reserved the slot (reservedFresh),
-// whether THIS start rotated an executing same-scope slot to its own fresh reservation
-// (rotated), and whether the slot is still RESERVED and this start must drive it to
-// executing (ownsSlot).
-//
-// A fresh reservation is the common first-start path: the slot was absent or released.
-// When the reserve is refused ErrWorktreeBusy, the slot may already be held by THIS
-// scope — a concurrent same-scope first-start peer that won the reservation, or the
-// predecessor whose executing slot this scope's successor continues under. A start that
-// finds a same-scope RESERVED peer ADOPTS the incumbent token so the scope slot (not the
-// worktree slot) arbitrates same-scope races. Rotation is successor-only: a start
-// carrying a predecessor receipt that finds a same-scope EXECUTING slot (a successor
-// continuing the sequence in the terminal-before-release window) ROTATES it to its
-// OWN fresh reservation — a new ReservationToken and bumped ExecutionGen — so the
-// predecessor's stale token can never free or poison the successor's slot, and the
-// successor confirms and owns its own post-launch failure legs (ownsSlot=true).
-// Rotation additionally requires the scope to still admit the presented receipt
-// (reserveScopeDrive's own ordered predicate, scopeReserveRefusal, applied
-// before the mutating step): a successor whose predecessor was already
-// superseded is refused typed ErrStalePredecessor, and one refused by an earlier
-// clause (a closed scope, a busy slot, ...) gets that clause's typed refusal,
-// all without touching the slot. A
-// RECEIPT-LESS first start that finds a same-scope executing slot has raced an
-// already-launched drive and is refused typed ErrScopeSecondDrive without touching the
-// slot. A slot held by a DIFFERENT scope, or in a stopping/unresolved state, is a
-// genuine cross-scope refusal returned verbatim. ErrLaunchUnconfirmed and every other
-// error (an unresolvable worktree, an IO fault) fail closed unchanged.
-func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFresh, ownsSlot, rotated bool, legacy *LegacyHistorySummary, err error) {
-	rec := admissionRecord{
-		RepoIdentity: req.RepoDir,
-		WorktreeRoot: req.Worktree,
-		ScopeID:      req.ScopeID,
-		RunID:        req.RunID,
-		Kind:         "scoped",
-	}
-	token, legacy, rerr := d.reserveWorktreeExecution(rec)
-	if rerr == nil {
-		return token, true, true, false, legacy, nil // freshly reserved: this start confirms it
-	}
-	if oe, ok := AsOwnershipError(rerr); !ok || oe.Kind != ErrWorktreeBusy {
-		return "", false, false, false, nil, rerr // unresolved / invalid / IO: fail closed
-	}
-	// Busy: reuse only when the incumbent slot belongs to THIS scope. A reused slot
-	// ran no fresh census, so it carries no legacy summary.
-	slot, _, lerr := d.store.LoadWorktreeExecution(req.Worktree)
-	if lerr != nil {
-		return "", false, false, false, nil, rerr // fail closed on the original busy error
-	}
-	if slot.ScopeID != "" && slot.ScopeID == req.ScopeID {
-		switch slot.State {
-		case admissionReserved:
-			return slot.ReservationToken, false, true, false, nil, nil // adopt a peer's reservation; still confirm it
-		case admissionExecuting:
-			// Rotation is successor-only. A receipt-less first start that reaches an
-			// executing same-scope slot has raced an already-launched same-scope drive
-			// past its precheck (the winner confirmed while this loser was in flight):
-			// refuse with the same typed rejection precheckScopedStart gives that
-			// condition, without touching the winner's live reservation. Rotating here
-			// would replace the winner's token under the loser's hands and strand the
-			// winner's run under a reserved slot with a foreign token.
-			if req.PredecessorDriveID == "" {
-				return "", false, false, false, nil, ownershipErr(ErrScopeSecondDrive, "start")
-			}
-			// The scope must still admit this successor before the one mutating
-			// admission step (the rotation) runs. reserveScopeDrive stays the
-			// authority for the scope slot — this evaluates its WHOLE ordered
-			// predicate (scopeReserveRefusal: capability, closed, receipt shape,
-			// reserved slot, pending ack, then staleness) earlier, on an unlocked
-			// snapshot, so a second successor holding a retired predecessor's
-			// receipt never rotates a live slot that its inevitable
-			// ErrStalePredecessor cleanup would then release (change 0453), and a
-			// condition the authority checks before staleness (a closed scope, say)
-			// surfaces its own typed refusal rather than ErrStalePredecessor. Any
-			// refusal leaves the slot untouched. This unlocked read excludes only a
-			// successor that arrives AFTER a sibling launched on the same receipt:
-			// for that ordering, reading the scope after the slot read suffices,
-			// because a slot executing under a successor's token was confirmed only
-			// after that successor's reserveScopeDrive advanced the scope, the scope
-			// never moves back to an earlier drive, and a racer holding an older
-			// slot token is refused by the rotation's own token check. It does NOT
-			// serialize two successors that both pass it while the receipt is still
-			// current: the second can adopt this start's rotated reservation and win
-			// the scope slot, so this start's later ErrStalePredecessor must leave
-			// the reservation to that adopter — admitScoped's reserveScopeDrive
-			// failure leg does (siblingMayHoldReservation). A scope load failure
-			// fails closed unchanged, like the unreadable-slot leg above.
-			scope, serr := d.store.LoadScope(req.ScopeID)
-			if serr != nil {
-				return "", false, false, false, nil, serr
-			}
-			receipt := predecessorReceipt{DriveID: req.PredecessorDriveID, OwnerGen: req.PredecessorOwnerGen}
-			if refusal := scopeReserveRefusal(scope, req.ChildCapability, receipt, "start"); refusal != nil {
-				return "", false, false, false, nil, refusal
-			}
-			// A same-scope successor continues over the executing slot: rotate it to
-			// this start's OWN fresh reservation rather than reusing the predecessor's
-			// token. The successor then confirms and owns its slot (ownsSlot=true), and
-			// its stale predecessor cannot free or poison it. A rotation failure
-			// (a token race, a state change under the lock, an unreadable record) fails
-			// closed with the typed rotation error.
-			newToken, rotErr := d.store.rotateWorktreeExecutionForSuccessor(req.Worktree, slot.ReservationToken)
-			if rotErr != nil {
-				return "", false, false, false, nil, rotErr
-			}
-			return newToken, false, true, true, nil, nil // rotated; this successor confirms its own slot
-		}
-	}
-	return "", false, false, false, nil, rerr // cross-scope or non-reusable state: ErrWorktreeBusy
-}
-
 // resolveWorktreeAfterLaunchFailure consults the process backend for the fate of a
 // launch that returned an error, then releases or fails the worktree slot closed. A
 // PROVEN never-launched (a clean census carried no matching run) frees the slot — the
@@ -1242,78 +662,6 @@ func (d *Driver) releaseOrUnresolveWorktree(worktree, token string, stopProven b
 		return
 	}
 	_ = d.store.MarkWorktreeExecutionUnresolved(worktree, token)
-}
-
-// isSameScopeRaceLoss reports whether a reserveScopeDrive rejection means a same-scope
-// peer won the scope slot (ErrScopeBusy) or a receipt-less start raced an already-launched
-// same-scope drive (ErrScopeSecondDrive) — the losses under which a same-scope peer has
-// ADOPTED this start's fresh worktree reservation, so it must not be released. Every other
-// rejection (a closed scope, an identity mismatch, an IO fault) has no adopter and its
-// fresh reservation is released rather than leaked.
-func isSameScopeRaceLoss(err error) bool {
-	oe, ok := AsOwnershipError(err)
-	if !ok {
-		return false
-	}
-	return oe.Kind == ErrScopeBusy || oe.Kind == ErrScopeSecondDrive
-}
-
-// siblingMayHoldReservation reports whether a successor start whose reserveScopeDrive
-// was refused ErrStalePredecessor may have had its fresh or rotated worktree
-// reservation ADOPTED by a same-scope sibling, so the reservation must be left in
-// place rather than released (change 0453). It is the successor counterpart of
-// isSameScopeRaceLoss.
-//
-// Two successors can present the same predecessor receipt P. Admissions are not
-// serialized across them (a no-run-record scope runs the admission body directly), so
-// the pre-rotation staleness guard in admitScopedWorktree does not exclude this
-// interleaving: S2 passes the guard while P is current and rotates (or freshly
-// reserves) the slot to T; S1 finds a same-scope RESERVED slot and adopts T; S1 wins
-// reserveScopeDrive, retires P, launches, and confirms the slot executing under T;
-// only then does S2's reserveScopeDrive refuse ErrStalePredecessor. Releasing T there
-// would free S1's live slot.
-//
-// The reservation is left in place when the reloaded scope shows either sign of a
-// sibling:
-//
-//   - PriorDriveID still names the receipt's drive: a sibling consumed THIS receipt.
-//     A sibling that did so while this start held T could take the worktree only by
-//     adopting T — always the case for a rotated start, whose pre-rotation guard saw
-//     the receipt current — and a sibling adopting T may still be on its way to the
-//     scope slot. (A freshly reserving start can also lose to a sibling that
-//     consumed the receipt earlier and released its own slot; T is then merely
-//     leaked, which fails closed as below.)
-//   - The scope's current drive carries T as its AdmissionToken: a later drive of
-//     the sequence adopted T after the scope moved past the receipt's successor.
-//
-// An unreadable scope or current drive record cannot prove T unadopted and also
-// keeps it. Keeping is the fail-closed direction: a leaked reserved slot is adopted
-// by the scope's next start and refuses every other admission until recovery,
-// whereas releasing an adopted one frees a live slot. Every other rejection, and a
-// stale receipt showing neither sign (a receipt the scope never advanced from, or
-// one it has moved two drives past with T unadopted), has no adopter and is released.
-func (d *Driver) siblingMayHoldReservation(scopeID string, receipt predecessorReceipt, token string, rerr error) bool {
-	if receipt.empty() {
-		return false
-	}
-	if oe, ok := AsOwnershipError(rerr); !ok || oe.Kind != ErrStalePredecessor {
-		return false
-	}
-	scope, err := d.store.LoadScope(scopeID)
-	if err != nil {
-		return true
-	}
-	if scope.PriorDriveID == receipt.DriveID {
-		return true
-	}
-	if scope.CurrentDriveID == "" {
-		return false
-	}
-	cur, err := d.store.Load(scope.CurrentDriveID)
-	if err != nil {
-		return true
-	}
-	return cur.AdmissionToken == token
 }
 
 // Advance resumes a drive through at most one slice. It loads the durable record
@@ -1569,15 +917,14 @@ func releaseFinding(err error) string {
 }
 
 // releaseAdmissionIfProven frees the drive's worktree execution slot once the
-// drive's teardown is proven, so the next top-level execution — a different scope, a
-// scopeless start, or this scope's next sequential drive — can admit onto the same
-// worktree. It reports settled=true only when the slot is PROVEN not to be held by
+// drive's teardown is proven, so the next top-level execution can admit onto the
+// same worktree. It reports settled=true only when the slot is PROVEN not to be held by
 // this drive's execution any more (released under its token, already released, or
 // already carrying a successor's token), and returns every write/read error rather
 // than dropping it (change 0446).
 //
 // A record with no admission token carries no slot this driver can free: every
-// admission path (admitScopeless and admitScoped alike) stamps a token, so an
+// admission path (admitScopeless) stamps a token, so an
 // empty token is a legacy/raw-history record. For PASSED/FAILED its process has
 // finished, so it is settled; for HALTED nothing proves teardown, so it is not.
 //
@@ -2253,8 +1600,8 @@ func isTerminalOutcome(o Outcome) bool {
 // the single relaunch: the same allocation root, working directory, and argv.
 // ReservationToken carries the drive's worktree admission token so a lost launch
 // response is resolvable to this exact run (ResolveReservation, change 0375); it
-// is empty for a drive that admitted through no slot (a scopeless drive in this
-// generation), which the process backend accepts as an unset optional token.
+// is empty for a legacy drive that admitted through no slot, which the process
+// backend accepts as an unset optional token.
 func (rec *driveRecord) launchRequest() process.LaunchRequest {
 	return rec.launchRequestWithReservation(rec.AdmissionToken)
 }

@@ -1,27 +1,13 @@
 //go:build integration
 
-// Real-git, real-process integration for a scope that carries a SEQUENCE of
-// task-owned drives (change 0405 Task 9, spec verifications "2 (real git)" and 6).
+// Real-git, real-process fixtures shared by the integration tests that drive
+// drives through real linked worktrees (sequence_race_integration_test.go's
+// same-worktree generations).
 //
-// Every other scope-sequence test in this package drives a fakeProc and either a
-// fakeGit or a real GitSeam. This file proves the composition a double cannot
-// vouch for: the real native process supervisor (internal/process.Service, the
-// same seam supervisor_integration_test.go composes) drives real `/bin/sh -c 'exit N'`
-// commands to genuine PASSED/FAILED verdicts, while the real git seam (realGit)
-// fingerprints real linked worktrees so a git-visible edit between RED and GREEN
-// produces genuinely distinct per-drive fingerprints.
-//
-// Two properties are load-bearing here and only observable against real git:
-//
-//   - A recovery scope runs baseline → RED → GREEN as three distinct drives over
-//     ONE slot, each successor acknowledging its predecessor receipt, with a real
-//     git-visible edit between RED and GREEN; each drive fingerprints the current
-//     worktree independently and persists that fingerprint (the successor need NOT
-//     match the predecessor — edits are expected).
-//
-//   - Across two scopes in two linked worktrees that share ONE git common dir
-//     (hence one drive/scope store), cross-scope credentials or an explicit old
-//     drive id cannot steal work.
+// These helpers compose the real native process supervisor
+// (internal/process.Service, the same seam supervisor_integration_test.go
+// composes) driving real `/bin/sh -c 'exit N'` commands to genuine verdicts, with
+// the real git seam (realGit) fingerprinting real linked worktrees.
 //
 // The command marker rides in each command's ARGV (as sh's $0), never in a shell
 // comment: `exit N` is a shell builtin, so sh never execs it away and the marker
@@ -31,9 +17,8 @@
 // (fingerprint_integration_test.go: gitInit, writeFile, gitAdd, gitCommit, git) and
 // the real-process fixtures (supervisor_integration_test.go: mustService, mustExe,
 // skipUnlessSupported, reapSupervisors, stopAllRuns, advanceUntilTerminal,
-// runDirsUnder), plus the scope helper scopeReqFor (takeover_test.go). TestMain
-// (supervisor_integration_test.go) already routes the supervisor re-exec role for
-// the whole integration-tagged build.
+// runDirsUnder). TestMain (supervisor_integration_test.go) already routes the
+// supervisor re-exec role for the whole integration-tagged build.
 package gatedrive
 
 import (
@@ -48,7 +33,7 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Real-git + real-process fixtures for the sequential-scope integration tests.
+// Real-git + real-process fixtures.
 // ---------------------------------------------------------------------------
 
 // realSeqDriver wires a driver over the REAL process service and the REAL git
@@ -81,7 +66,7 @@ func seedSeqRepo(t *testing.T) string {
 
 // addLinkedWorktree adds a linked worktree of repo on a fresh branch and returns
 // its absolute path. The linked worktree shares repo's git common dir, so drives
-// enrolled under either worktree land in one shared store.
+// started under either worktree land in one shared store.
 func addLinkedWorktree(t *testing.T, repo, name, branch string) string {
 	t.Helper()
 	wt := filepath.Join(testsupport.TempDir(t), name)
@@ -102,11 +87,10 @@ func commonDirOf(t *testing.T, worktree string) string {
 	return abs
 }
 
-// seqPassCmd / seqFailCmd build distinguishable suite commands whose verdict is a
-// real process exit code (0 → PASSED, 1 → FAILED). The marker is a real argv token
-// (sh's $0), so it survives exec and is persisted on the drive record's Command.
+// seqPassCmd builds a distinguishable suite command whose verdict is a real
+// process exit code (0 → PASSED). The marker is a real argv token (sh's $0), so it
+// survives exec and is persisted on the drive record's Command.
 func seqPassCmd(marker string) []string { return []string{"/bin/sh", "-c", "exit 0", marker} }
-func seqFailCmd(marker string) []string { return []string{"/bin/sh", "-c", "exit 1", marker} }
 
 // realSeqStart builds a well-formed StartRequest bound to a real worktree, so its
 // fingerprint is computed over real git bytes and its launch runs a real command.
@@ -129,14 +113,6 @@ func realSeqStart(worktree, branch, runRoot, changeID, taskID string, cmd []stri
 	}
 }
 
-// withReceipt returns a copy of req carrying the successor receipt from a
-// predecessor's terminal document.
-func withReceipt(req StartRequest, pred DriveDoc) StartRequest {
-	req.PredecessorDriveID = pred.DriveID
-	req.PredecessorOwnerGen = pred.Generation
-	return req
-}
-
 // driveSeqToTerminal starts req and drives it to a terminal outcome on the test's
 // own goroutine (it may call t.Fatalf), asserting every invocation is
 // slice-bounded via advanceUntilTerminal.
@@ -153,144 +129,9 @@ func driveSeqToTerminal(t *testing.T, d *Driver, req StartRequest) DriveDoc {
 	return doc
 }
 
-// mustLoad loads a drive record or fails the test.
-func mustLoad(t *testing.T, store *Store, id string) driveRecord {
-	t.Helper()
-	rec, err := store.Load(id)
-	if err != nil {
-		t.Fatalf("load drive %s: %v", id, err)
-	}
-	return rec
-}
-
-// assertCommandMarker asserts the persisted command carries marker as an argv
-// token — proof the distinguishable command was recorded for this drive.
-func assertCommandMarker(t *testing.T, rec driveRecord, marker string) {
-	t.Helper()
-	for _, a := range rec.Command {
-		if a == marker {
-			return
-		}
-	}
-	t.Fatalf("drive command %v must carry the argv marker %q", rec.Command, marker)
-}
-
 // ---------------------------------------------------------------------------
 // Verification 2 (real git): baseline → RED → GREEN as a real-git sequence.
 // ---------------------------------------------------------------------------
-
-// TestIntegrationGatedriveSequenceRealGitBaselineRedGreen drives a real recovery-scope
-// sequence over real git and the real process supervisor: a PASSED baseline, a
-// FAILED RED, a real git-visible edit, then a PASSED GREEN. It proves three
-// distinct drives run over one slot with exactly one execution each, each
-// fingerprinting the current worktree independently — so the edit between RED and
-// GREEN yields a genuinely different persisted GREEN fingerprint — while the scope
-// chains the slot and retires each acknowledged predecessor's authority.
-func TestIntegrationGatedriveSequenceRealGitBaselineRedGreen(t *testing.T) {
-	skipUnlessSupported(t)
-	repo := seedSeqRepo(t)
-	wt := addLinkedWorktree(t, repo, "wt", "feat/seq")
-	common := commonDirOf(t, wt)
-	store := OpenStore(common)
-	svc := mustService(t)
-	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
-	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
-	reapSupervisors(t, runRoot)
-	d := realSeqDriver(store, svc)
-
-	const gateCtx = "seq-real-git-context"
-	base := realSeqStart(wt, "feat/seq", runRoot, "0530", "task-9", seqPassCmd("scope-seq-baseline"))
-	grant, err := store.PrepareScope(scopeReqFor(base, gateCtx))
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	base.ScopeID = grant.ScopeID
-	base.ChildCapability = grant.ChildCapability
-	base.RunContext = gateCtx
-
-	baseDoc := driveSeqToTerminal(t, d, base)
-	if baseDoc.Outcome != PASSED {
-		t.Fatalf("baseline over real git+process must PASS, got %s (%s)", baseDoc.Outcome, baseDoc.Cause)
-	}
-
-	redReq := withReceipt(base, baseDoc)
-	redReq.Command = seqFailCmd("scope-seq-red")
-	redDoc := driveSeqToTerminal(t, d, redReq)
-	if redDoc.Outcome != FAILED {
-		t.Fatalf("RED must FAIL, got %s (%s)", redDoc.Outcome, redDoc.Cause)
-	}
-
-	// A real, git-visible edit between RED and GREEN: an untracked file changes the
-	// worktree's fingerprint (see TestIntegrationGatedriveFingerprintUntrackedFileAdded). Each drive
-	// fingerprints the current worktree independently.
-	writeFile(t, wt, "between-red-and-green.txt", "edited between RED and GREEN\n")
-
-	greenReq := withReceipt(base, redDoc)
-	greenReq.Command = seqPassCmd("scope-seq-green")
-	greenDoc := driveSeqToTerminal(t, d, greenReq)
-	if greenDoc.Outcome != PASSED {
-		t.Fatalf("GREEN must PASS after the edit, got %s (%s)", greenDoc.Outcome, greenDoc.Cause)
-	}
-
-	// Three distinct drives, and exactly one raw execution each (no relaunch on a
-	// clean terminal): three run directories under the run root.
-	ids := map[string]bool{baseDoc.DriveID: true, redDoc.DriveID: true, greenDoc.DriveID: true}
-	if len(ids) != 3 {
-		t.Fatalf("baseline/RED/GREEN must be three distinct drives, got %v", ids)
-	}
-	if got := len(runDirsUnder(t, runRoot)); got != 3 {
-		t.Fatalf("each of three drives must execute exactly once, got %d raw run dirs", got)
-	}
-
-	scope, err := store.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope: %v", err)
-	}
-	if scope.DriveCount != 3 {
-		t.Fatalf("scope must have admitted three drives, got DriveCount=%d", scope.DriveCount)
-	}
-	if scope.CurrentDriveID != greenDoc.DriveID {
-		t.Fatalf("current drive must be GREEN %q, got %q", greenDoc.DriveID, scope.CurrentDriveID)
-	}
-	if scope.PriorDriveID != redDoc.DriveID {
-		t.Fatalf("prior drive must be RED %q, got %q", redDoc.DriveID, scope.PriorDriveID)
-	}
-
-	baseRec := mustLoad(t, store, baseDoc.DriveID)
-	redRec := mustLoad(t, store, redDoc.DriveID)
-	greenRec := mustLoad(t, store, greenDoc.DriveID)
-
-	// Per-drive fingerprints persist independently: baseline and RED ran over the
-	// same (pre-edit) worktree, so they agree; GREEN ran over the post-edit worktree,
-	// so it differs — the real edit is genuinely visible across the git seam.
-	if !baseRec.Fingerprint.Equal(redRec.Fingerprint) {
-		t.Fatalf("baseline and RED over the same worktree must share a fingerprint")
-	}
-	if greenRec.Fingerprint.Equal(redRec.Fingerprint) {
-		t.Fatalf("the git-visible edit between RED and GREEN must change GREEN's persisted fingerprint")
-	}
-	live, err := ComputeLiveFingerprint(wt)
-	if err != nil {
-		t.Fatalf("ComputeLiveFingerprint: %v", err)
-	}
-	if !live.Equal(greenRec.Fingerprint) {
-		t.Fatalf("GREEN's persisted fingerprint must match the current (post-edit) worktree")
-	}
-
-	// Distinguishable commands persisted per drive (markers ride in argv).
-	assertCommandMarker(t, baseRec, "scope-seq-baseline")
-	assertCommandMarker(t, redRec, "scope-seq-red")
-	assertCommandMarker(t, greenRec, "scope-seq-green")
-
-	// Acknowledged predecessors are consumed history; only the current drive retains
-	// its recovery authority.
-	if baseRec.OwnerGeneration != "" || redRec.OwnerGeneration != "" {
-		t.Fatalf("acknowledged predecessors must be owner-cleared, got base=%q red=%q", baseRec.OwnerGeneration, redRec.OwnerGeneration)
-	}
-	if greenRec.OwnerGeneration == "" {
-		t.Fatalf("the current (unacknowledged) GREEN drive must retain its owner generation")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // Change 0446 Task 10 — spec AC2: same-worktree generations over real git and

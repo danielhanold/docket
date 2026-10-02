@@ -60,31 +60,18 @@ func seedScopedRunDrive(t *testing.T, store *Store, runID string, mutate func(*d
 }
 
 // admitRunDrive admits (reserve only, no launch) a REAL drive on the sample
-// worktree for runID through Driver.Admit — scoped under a fresh scope carrying
-// runID, or scopeless — so the worktree slot names the run and holds the drive's
-// AdmissionToken exactly as production leaves it. It returns the ticket and, for a
-// scoped admission, the scope id.
-func admitRunDrive(t *testing.T, d *Driver, store *Store, runID string, scoped bool) (*AdmissionTicket, string) {
+// worktree for runID through Driver.Admit, so the worktree slot names the run and
+// holds the drive's AdmissionToken exactly as production leaves it. It returns the
+// ticket.
+func admitRunDrive(t *testing.T, d *Driver, runID string) *AdmissionTicket {
 	t.Helper()
 	req := sampleStart()
 	req.RunID = runID
-	scopeID := ""
-	if scoped {
-		sreq := scopeReqFor(req, "")
-		sreq.RunID = runID
-		grant, err := store.PrepareScope(sreq)
-		if err != nil {
-			t.Fatalf("PrepareScope: %v", err)
-		}
-		req.ScopeID = grant.ScopeID
-		req.ChildCapability = grant.ChildCapability
-		scopeID = grant.ScopeID
-	}
 	ticket, err := d.Admit(req)
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
 	}
-	return ticket, scopeID
+	return ticket
 }
 
 // settleDriveOutcome forces drive id's recorded outcome (a test stand-in for the
@@ -545,50 +532,11 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 	})
 }
 
-// TestReconcileLostLinkageFailsClosed is change 0437's lost-linkage regression,
-// strengthened by change 0446 (spec §4): the drive is a REAL admitted drive whose
-// AdmissionToken the current worktree slot still holds — an ownership association
-// independent of the scope — before its scope is corrupted. resolveDriveRun then
-// cannot resolve it (ok==false, CauseRunRecordUnreadable), and because a current
-// reference names it the census fails closed: Accounted=false with the exact
-// linkage-unresolved:<id> locator, never a silent skip out of cancellation's
-// pending-launch accounting.
-//
-// Its paired countertest is the hand-seeded orphan: the same corruption on a drive
-// no surviving current reference names (no slot, its only naming scope unreadable)
-// is informational history, not a repository-wide veto on the run.
+// TestReconcileLostLinkageFailsClosed is change 0437's lost-linkage regression
+// (change 0446 spec §4): a hand-seeded drive whose run linkage is lost (its only
+// naming scope unreadable) that no surviving current reference names (no slot) is
+// informational history, not a repository-wide veto on the run.
 func TestReconcileLostLinkageFailsClosed(t *testing.T) {
-	t.Run("referenced-by-current-slot", func(t *testing.T) {
-		clk := &fakeClock{now: startRun()}
-		proc := &fakeProc{}
-		d, store := newTestDriver(t, clk, proc, stableGit())
-		ticket, scopeID := admitRunDrive(t, d, store, "e1", true)
-
-		// Sever the drive's run linkage: corrupt its scope record so LoadScope fails.
-		// The drive itself remains a readable, nonterminal record whose token the
-		// worktree slot still carries.
-		corruptFile(t, filepath.Join(store.scopeRoot, scopeID, recordFileName))
-
-		for _, mode := range []struct {
-			name string
-			run  func(string, string) (RunLaunchReport, error)
-		}{{"reconcile", d.ReconcileRunLaunches}, {"observe", d.ObserveRunLaunches}} {
-			report, err := mode.run(sampleWorktree(), "e1")
-			if err != nil {
-				t.Fatalf("%s: %v", mode.name, err)
-			}
-			if report.Accounted {
-				t.Fatalf("%s: a slot-referenced drive with lost run linkage must fail closed, findings=%v", mode.name, report.Findings)
-			}
-			if !findingFor(report.Findings, "linkage-unresolved", ticket.id) {
-				t.Fatalf("%s: findings = %v, want linkage-unresolved:%s", mode.name, report.Findings, ticket.id)
-			}
-		}
-		if proc.launchN != 0 {
-			t.Fatalf("reconcile must launch nothing, proc.Launch called %d times", proc.launchN)
-		}
-	})
-
 	t.Run("hand-seeded-orphan-is-history", func(t *testing.T) {
 		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
@@ -685,7 +633,7 @@ func TestCensusUnreferencedCorruptRecordInformational(t *testing.T) {
 
 	t.Run("slot-holder-readable", func(t *testing.T) {
 		d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
-		ticket, _ := admitRunDrive(t, d, store, "e1", false)
+		ticket := admitRunDrive(t, d, "e1")
 		settleDriveOutcome(t, store, ticket.id, PASSED) // the slot's holder is readable and settled
 		id := seedUnrelatedCorrupt(t, store)
 		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
@@ -701,53 +649,25 @@ func TestCensusUnreferencedCorruptRecordInformational(t *testing.T) {
 	})
 }
 
-// TestCensusReferencedCorruptRecordBlocks proves rule 3's fail-closed half on REAL
-// admitted drives: a record a current reference names still keeps the run
-// unaccounted with its exact locator — the scoped drive through the scope that names
-// it, the scopeless drive through the occupied run slot whose token no readable
-// drive holds. The reference is established from the slot/scope side, never by
+// TestCensusReferencedCorruptRecordBlocks proves rule 3's fail-closed half on a REAL
+// admitted drive: a record a current reference names still keeps the run
+// unaccounted with its exact locator — through the occupied run slot whose token no
+// readable drive holds. The reference is established from the slot side, never by
 // reading the corrupt record.
 func TestCensusReferencedCorruptRecordBlocks(t *testing.T) {
-	for _, scoped := range []bool{true, false} {
-		name := map[bool]string{true: "scoped", false: "scopeless"}[scoped]
-		t.Run(name, func(t *testing.T) {
-			d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
-			ticket, _ := admitRunDrive(t, d, store, "e1", scoped)
-			corruptFile(t, filepath.Join(store.root, ticket.id, recordFileName))
-
-			report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
-			if err != nil {
-				t.Fatalf("ReconcileRunLaunches: %v", err)
-			}
-			if report.Accounted {
-				t.Fatalf("a corrupt record named by current ownership must fail closed, findings=%v", report.Findings)
-			}
-			if !findingFor(report.Findings, "record-unreadable", ticket.id) {
-				t.Fatalf("findings = %v, want record-unreadable:%s", report.Findings, ticket.id)
-			}
-		})
-	}
-}
-
-// TestCensusSlotNamedCorruptScopeBlocks proves rule 4: a scope named by the target
-// run's current slot that cannot be read keeps the run unaccounted — even when
-// the drive under it is itself terminal — because its current/pending drives can no
-// longer be followed.
-func TestCensusSlotNamedCorruptScopeBlocks(t *testing.T) {
 	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
-	ticket, scopeID := admitRunDrive(t, d, store, "e1", true)
-	settleDriveOutcome(t, store, ticket.id, PASSED)
-	corruptFile(t, filepath.Join(store.scopeRoot, scopeID, recordFileName))
+	ticket := admitRunDrive(t, d, "e1")
+	corruptFile(t, filepath.Join(store.root, ticket.id, recordFileName))
 
 	report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
 		t.Fatalf("ReconcileRunLaunches: %v", err)
 	}
 	if report.Accounted {
-		t.Fatalf("a slot-named unreadable scope must fail closed, findings=%v", report.Findings)
+		t.Fatalf("a corrupt record named by current ownership must fail closed, findings=%v", report.Findings)
 	}
-	if !findingFor(report.Findings, "scope-unreadable", scopeID) {
-		t.Fatalf("findings = %v, want scope-unreadable:%s", report.Findings, scopeID)
+	if !findingFor(report.Findings, "record-unreadable", ticket.id) {
+		t.Fatalf("findings = %v, want record-unreadable:%s", report.Findings, ticket.id)
 	}
 }
 
@@ -814,11 +734,11 @@ func TestCensusSupersededRunStillEnumerates(t *testing.T) {
 // run's live obligation and is accounted on its own.
 func TestCensusRotatedTokenScopelessIsHistorical(t *testing.T) {
 	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
-	older, _ := admitRunDrive(t, d, store, "e1", false)
+	older := admitRunDrive(t, d, "e1")
 	if err := store.ReleaseWorktreeExecution(sampleWorktree(), older.token); err != nil {
 		t.Fatalf("ReleaseWorktreeExecution: %v", err)
 	}
-	current, _ := admitRunDrive(t, d, store, "e1", false) // the slot now holds a new token
+	current := admitRunDrive(t, d, "e1") // the slot now holds a new token
 
 	report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
@@ -1234,21 +1154,6 @@ func TestCensusScopeNamedMissingDriveBlocks(t *testing.T) {
 			}
 			return id
 		}},
-		{"launched-released-slot-deleted", func(t *testing.T, d *Driver, store *Store) string {
-			// A launch-confirmed drive whose slot was released under its scope: the
-			// released slot proves teardown, never that the named drive was withdrawn.
-			ticket, scopeID := admitRunDrive(t, d, store, "e1", true)
-			if err := store.confirmScopeLaunch(scopeID, ticket.id); err != nil {
-				t.Fatalf("confirmScopeLaunch: %v", err)
-			}
-			if err := store.ReleaseWorktreeExecution(sampleWorktree(), ticket.token); err != nil {
-				t.Fatalf("ReleaseWorktreeExecution: %v", err)
-			}
-			if err := os.RemoveAll(filepath.Join(store.root, ticket.id)); err != nil {
-				t.Fatalf("remove drive: %v", err)
-			}
-			return ticket.id
-		}},
 		{"pending-ack-predecessor-deleted", func(t *testing.T, d *Driver, store *Store) string {
 			pred, scopeID, childCap := seedLaunchedScopePredecessor(t, store)
 			succ, _, err := store.NewReservedDrive(seedRecord(t))
@@ -1319,8 +1224,7 @@ func seedLaunchedScopePredecessor(t *testing.T, store *Store) (scopePredecessor,
 // removed, never-launched reserved drive is accounted (an informational
 // reservation-withdrawn:<id>, never record-missing) when the records prove the
 // withdrawal — the successor admission's retirePredecessor failure leg (open
-// pending-ack journal), and a real scoped Admit abandoned through AbandonAdmission
-// (the run slot released under this scope).
+// pending-ack journal).
 func TestCensusWithdrawnReservationStaysAccounted(t *testing.T) {
 	cases := []struct {
 		name string
@@ -1341,13 +1245,6 @@ func TestCensusWithdrawnReservationStaysAccounted(t *testing.T) {
 				t.Fatalf("removeReservedDrive: %v", err)
 			}
 			return succ
-		}},
-		{"abandon-admission", func(t *testing.T, d *Driver, store *Store) string {
-			ticket, _ := admitRunDrive(t, d, store, "e1", true)
-			if err := d.AbandonAdmission(ticket); err != nil {
-				t.Fatalf("AbandonAdmission: %v", err)
-			}
-			return ticket.id
 		}},
 	}
 	for _, tc := range cases {

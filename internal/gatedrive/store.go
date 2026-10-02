@@ -163,14 +163,14 @@ func OpenStore(gitCommonDir string) *Store {
 // NewDrive allocates an opaque high-entropy id and initial generation, stamps
 // the current schema version, and atomically persists the record in a fresh
 // owner-only directory. It returns the id and the generation a first CAS must
-// present. It is the scopeless launch-then-persist path: the record already
-// carries its launch handle (a scoped start reserves first — see NewReservedDrive).
+// present. It persists a record that already carries its launch handle; a drive
+// start reserves its record before launching instead (NewReservedDrive).
 func (s *Store) NewDrive(rec driveRecord) (id string, gen string, err error) {
 	return s.writeNewDrive(rec)
 }
 
-// NewReservedDrive persists a drive record BEFORE its first launch, so a scoped
-// start's durable slot precedes the process (change 0405 Task 3). It clears the
+// NewReservedDrive persists a drive record BEFORE its first launch, so every
+// drive start's durable record precedes the process (change 0405 Task 3). It clears the
 // launch handle and any recorded outcome so a reserved record can never smuggle a
 // launch in before attachLaunch persists one; a later attachLaunch fills the raw
 // run identity under the ownership CAS. It shares NewDrive's id-minting, owner-only
@@ -208,15 +208,14 @@ func (s *Store) writeNewDrive(rec driveRecord) (id string, gen string, err error
 	return id, gen, nil
 }
 
-// removeReservedDrive best-effort deletes a drive's whole directory. admitScoped
-// calls it on the failure legs after NewReservedDrive but before the drive is a
-// scope's launch-confirmed occupant (a lost reservation, or a failed
-// retirePredecessor/clearPendingAck), so the just-minted RESERVED record — which
-// carries no launch handle and no live process — never lingers as a spurious
-// FindScopeDriveIDs recovery candidate that would fail an outer takeover closed on
-// ambiguity. It validates the id and refuses a symlinked directory before removal
-// (driveDir), then removes the directory; the returned error is for the caller to
-// discard, mirroring the best-effort stopIfOwned.
+// removeReservedDrive best-effort deletes a drive's whole directory.
+// AbandonAdmission calls it when a caller decides between Admit and StartAdmitted
+// not to launch, so the just-minted RESERVED record — which carries no launch
+// handle and no live process — never lingers as a spurious FindScopeDriveIDs
+// recovery candidate that would fail an outer takeover closed on ambiguity. It
+// validates the id and refuses a symlinked directory before removal (driveDir),
+// then removes the directory; the returned error is for the caller to discard,
+// mirroring the best-effort stopIfOwned.
 func (s *Store) removeReservedDrive(id string) error {
 	dir, err := s.driveDir(id)
 	if err != nil {
@@ -226,7 +225,7 @@ func (s *Store) removeReservedDrive(id string) error {
 }
 
 // attachLaunch persists the raw launch identity onto a reserved drive record under
-// the ownership CAS, completing the durable half of a scoped start once the process
+// the ownership CAS, completing the durable half of a drive start once the process
 // exists (change 0405 Task 3). It verifies the presented owner is current and that
 // the record carries no launch handle yet (RawRunDir empty); a record that already
 // has a handle is a fail-closed ErrUnresolvedLaunchTransition, so a double-attach

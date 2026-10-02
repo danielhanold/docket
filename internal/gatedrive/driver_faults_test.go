@@ -1,23 +1,19 @@
-// Fault injection and restart recovery for the sequential-scope transitions
-// (change 0405 Task 7, spec verification 8). Each test injects a fault at one of
-// the durable transition points a scoped start or terminal acknowledgement passes
-// through — the reservation write, the process launch, the launch-handle
-// persistence, the predecessor retirement, and the closing acknowledgement — then
-// RESTARTS (a fresh Driver over a fresh OpenStore of the same durable root) and
-// proves the recovered state is coherent: never a duplicate launch, never a false
-// "no work" (a start/ack/takeover/enumeration that wrongly reports the scope empty
-// or quiescent), and — for the acknowledgement interrupted between the retire and
-// the close — an idempotent repeat that COMPLETES the close is the recovery.
+// Fault injection and restart recovery for the worktree execution slot a drive
+// start and its terminal release pass through (change 0405 Task 7, change 0375).
+// Each test injects a fault at one durable transition point — the process launch
+// or the slot release — and, where a restart is the
+// recovery, RESTARTS (a fresh Driver over a fresh OpenStore of the same durable
+// root) and proves the recovered state is coherent: never a duplicate launch and
+// never a slot freed while a process may still be live.
 //
 // Faults are injected at the seams the driver already takes (a fake ProcessSeam's
-// Launch/Stop) and at the filesystem (a read-only scope or drive directory makes
+// Launch/Stop) and at the filesystem (a read-only drive or slot directory makes
 // the next atomic write fail); a mid-transition crash is modeled by hand-driving
 // the durable first half of a two-phase transition and then STOPPING before the
 // second, which is exactly what a fresh Store observes after a real crash.
 package gatedrive
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -35,82 +31,6 @@ import (
 func reopenStore(s *Store) *Store {
 	common := filepath.Dir(filepath.Dir(filepath.Dir(s.root)))
 	return OpenStore(common)
-}
-
-// faultFirstPassed prepares a task scope and drives a first PASSED drive over its
-// slot, returning the store, driver, the driver's process seam (for launch
-// counts), the grant, the base request, and the first drive doc. The current slot
-// is that first drive: launched, PASSED, owner set — a durable reusable
-// predecessor a successor start (or the terminal acknowledgement) can consume.
-func faultFirstPassed(t *testing.T) (*Store, *Driver, *fakeProc, ScopeGrant, StartRequest, DriveDoc) {
-	t.Helper()
-	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	proc := passObserveProc()
-	d := scopedTestDriver(store, clk, proc, stableGit())
-	grant, req := prepareScopedStart(t, store)
-	first, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("first Start: %v", err)
-	}
-	if first.Outcome != PASSED {
-		t.Fatalf("first start must PASS (positive control), got %s (%s)", first.Outcome, first.Cause)
-	}
-	return store, d, proc, grant, req, first
-}
-
-// successorReq builds a successor StartRequest that presents pred as its
-// predecessor receipt.
-func successorReq(base StartRequest, pred DriveDoc) StartRequest {
-	r := base
-	r.PredecessorDriveID = pred.DriveID
-	r.PredecessorOwnerGen = pred.Generation
-	return r
-}
-
-// TestFaultAdmissionThenScopeReservationLostReleasesSlot (change 0375 Task 3): a
-// first start freshly reserves the worktree execution slot, then reserveScopeDrive's
-// write fails GENUINELY (the scope directory is read-only) — no same-scope peer
-// adopted the reservation. The fresh worktree slot must be RELEASED rather than
-// leaked, so the worktree is free for a later execution; nothing launches.
-func TestFaultAdmissionThenScopeReservationLostReleasesSlot(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	proc := passObserveProc()
-	d := scopedTestDriver(store, clk, proc, stableGit())
-	grant, req := prepareScopedStart(t, store)
-
-	// Make the scope dir read-only so reserveScopeDrive's slot write fails AFTER the
-	// worktree slot is freshly reserved (the admission root stays writable).
-	scopeDir := filepath.Join(store.scopeRoot, grant.ScopeID)
-	if err := os.Chmod(scopeDir, 0o500); err != nil {
-		t.Fatalf("chmod scope dir read-only: %v", err)
-	}
-	_, serr := d.Start(req)
-	if cerr := os.Chmod(scopeDir, 0o700); cerr != nil {
-		t.Fatalf("restore scope dir perms: %v", cerr)
-	}
-	if serr == nil {
-		t.Fatalf("a genuine scope-reservation write failure must fail the start")
-	}
-	if proc.launchN != 0 {
-		t.Fatalf("a reservation failure must never launch, got %d", proc.launchN)
-	}
-
-	// The fresh worktree slot is released — a genuine loss with no adopter never leaks it.
-	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	if slot.State != admissionReleased {
-		t.Fatalf("a genuine scope-reservation loss must release the fresh worktree slot, got %q", slot.State)
-	}
-	// The released slot genuinely re-admits a new execution.
-	if _, rerr := store.ReserveWorktreeExecution(admissionRecord{
-		RepoIdentity: req.RepoDir, WorktreeRoot: req.Worktree, ScopeID: "other-scope", Kind: "scoped",
-	}); rerr != nil {
-		t.Fatalf("a released slot must re-admit a new execution, got %v", rerr)
-	}
 }
 
 // TestHaltedDriveDoesNotReleaseSlot proves a HALTED record does not by itself
@@ -253,7 +173,7 @@ func TestFaultReleaseInterruptedThenRestart(t *testing.T) {
 	}
 }
 
-// TestFaultLaunchLostResponseLeavesUnresolved (change 0375 Task 3): a scoped start's
+// TestFaultLaunchLostResponseLeavesUnresolved (change 0375 Task 3): a start's
 // launch returns an error and ResolveReservation cannot prove the run never started
 // (a lost launch response). The worktree slot must fail CLOSED to unresolved — a
 // possibly-live process never frees the worktree — so a later start on that worktree
@@ -269,8 +189,8 @@ func TestFaultLaunchLostResponseLeavesUnresolved(t *testing.T) {
 			return &process.ReservationResolution{Disposition: "unresolved"}, nil
 		},
 	}
-	d := scopedTestDriver(store, clk, proc, stableGit())
-	_, req := prepareScopedStart(t, store)
+	d := storeTestDriver(store, clk, proc, stableGit())
+	req := sampleStart()
 
 	if _, err := d.Start(req); err == nil {
 		t.Fatalf("a lost launch response must be a command failure (error)")
@@ -286,260 +206,12 @@ func TestFaultLaunchLostResponseLeavesUnresolved(t *testing.T) {
 	if slot.State != admissionUnresolved {
 		t.Fatalf("a lost launch response must mark the worktree slot unresolved, got %q", slot.State)
 	}
-	// A follow-up start from a DIFFERENT scope on the same worktree is refused
+	// A follow-up start for a DIFFERENT change on the same worktree is refused
 	// ErrLaunchUnconfirmed — the ambiguous slot blocks admission until recovery.
-	_, req2 := prepareScopedStartAt(t, store, req.Worktree, "0343")
+	req2 := sampleStart()
+	req2.ChangeID = "0343"
 	if _, err := d.Start(req2); !isOwnershipKind(err, ErrLaunchUnconfirmed) {
 		t.Fatalf("a start over an unresolved worktree slot must fail ErrLaunchUnconfirmed, got %v", err)
-	}
-}
-
-// TestFaultSuccessorReservationWriteFailsThenRestart (case a): a successor's
-// reservation write fails (the scope directory is read-only around
-// reserveScopeDrive). A pre-reservation failure must leave the scope AND the
-// predecessor byte-unchanged (the predecessor keeps its recovery authority —
-// retirePredecessor is never reached), launch nothing, and — after a restart — a
-// correct successor retry succeeds and launches exactly once.
-func TestFaultSuccessorReservationWriteFailsThenRestart(t *testing.T) {
-	store, d, proc, grant, req, first := faultFirstPassed(t)
-	succ := successorReq(req, first)
-
-	scopeBefore := readScopeBytes(t, store, grant.ScopeID)
-	predBefore := readDriveBytes(t, store, first.DriveID)
-	launchesBefore := proc.launchN
-
-	scopeDir := filepath.Join(store.scopeRoot, grant.ScopeID)
-	if err := os.Chmod(scopeDir, 0o500); err != nil {
-		t.Fatalf("chmod scope dir read-only: %v", err)
-	}
-	_, serr := d.Start(succ)
-	// Restore perms before any read so the restart and cleanup work.
-	if cerr := os.Chmod(scopeDir, 0o700); cerr != nil {
-		t.Fatalf("restore scope dir perms: %v", cerr)
-	}
-	if serr == nil {
-		t.Fatalf("a successor reservation write failure must fail the start")
-	}
-	if proc.launchN != launchesBefore {
-		t.Fatalf("a reservation failure must never launch, launched %d->%d", launchesBefore, proc.launchN)
-	}
-	// Pre-reservation failure: scope and predecessor are byte-unchanged.
-	if !bytes.Equal(scopeBefore, readScopeBytes(t, store, grant.ScopeID)) {
-		t.Fatalf("a failed reservation must leave the scope record byte-unchanged")
-	}
-	if !bytes.Equal(predBefore, readDriveBytes(t, store, first.DriveID)) {
-		t.Fatalf("a failed reservation must leave the predecessor byte-unchanged (recovery authority intact)")
-	}
-
-	// Restart: a correct successor retry over the same durable state succeeds and
-	// launches exactly once — no duplicate from the failed attempt.
-	rstore := reopenStore(store)
-	rproc := passObserveProc()
-	rd := scopedTestDriver(rstore, &fakeClock{now: startRun()}, rproc, stableGit())
-	second, err := rd.Start(succ)
-	if err != nil {
-		t.Fatalf("a successor retry after a reservation failure must succeed: %v", err)
-	}
-	if second.Outcome != PASSED {
-		t.Fatalf("the successor retry must PASS, got %s (%s)", second.Outcome, second.Cause)
-	}
-	if second.DriveID == first.DriveID {
-		t.Fatalf("a successor must be a NEW drive, never a relaunch of the predecessor")
-	}
-	if rproc.launchN != 1 {
-		t.Fatalf("the successor retry must launch exactly once, got %d", rproc.launchN)
-	}
-	predRec, err := rstore.Load(first.DriveID)
-	if err != nil {
-		t.Fatalf("Load predecessor after retry: %v", err)
-	}
-	if predRec.OwnerGeneration != "" {
-		t.Fatalf("after the successful retry the predecessor must be retired (owner cleared)")
-	}
-	scope, err := rstore.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope after retry: %v", err)
-	}
-	if scope.CurrentDriveID != second.DriveID || scope.CurrentDriveState != scopeStateLaunched {
-		t.Fatalf("after the retry the slot must be the launched successor, got id=%q state=%q", scope.CurrentDriveID, scope.CurrentDriveState)
-	}
-}
-
-// TestFaultAttachLaunchFailsThenRestart (case c): the launch-handle persistence
-// (attachLaunch) fails after a run was launched. The orphaned run is stopped, the
-// slot stays reserved (never empty), and after a restart no path launches a
-// duplicate and enumeration does not report the scope empty.
-func TestFaultAttachLaunchFailsThenRestart(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	grant, req := prepareScopedStart(t, store)
-
-	const runDir = "/runs/run1"
-	var stopped []string
-	proc := &fakeProc{
-		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
-			// Sabotage the reserved drive's record dir so the attachLaunch write fails.
-			sc, err := store.LoadScope(grant.ScopeID)
-			if err != nil {
-				return nil, err
-			}
-			if sc.CurrentDriveID != "" {
-				if err := os.Chmod(filepath.Join(store.root, sc.CurrentDriveID), 0o500); err != nil {
-					return nil, err
-				}
-			}
-			return &process.LaunchOutcome{RunID: "run1", RunDir: runDir, State: process.StateRunning}, nil
-		},
-		stop: func(rd, reason string) (*process.StopOutcome, error) {
-			stopped = append(stopped, rd)
-			return &process.StopOutcome{State: process.StateStopped, RunDir: rd, Performed: true}, nil
-		},
-	}
-	d := scopedTestDriver(store, clk, proc, stableGit())
-
-	if _, err := d.Start(req); err == nil {
-		t.Fatalf("an attachLaunch persist failure must be a command failure (error)")
-	}
-	// Restore perms so the restart's reads and cleanup work.
-	scope, err := store.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope: %v", err)
-	}
-	if scope.CurrentDriveID != "" {
-		if err := os.Chmod(filepath.Join(store.root, scope.CurrentDriveID), 0o700); err != nil {
-			t.Fatalf("restore drive dir perms: %v", err)
-		}
-	}
-	// The orphaned run was stopped (orphan control).
-	foundStop := false
-	for _, rd := range stopped {
-		if rd == runDir {
-			foundStop = true
-		}
-	}
-	if !foundStop {
-		t.Fatalf("a persist failure must stop the orphaned run %q, stops=%v", runDir, stopped)
-	}
-
-	// Restart: the slot stays reserved (never treated as empty).
-	rstore := reopenStore(store)
-	rscope, err := rstore.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope after restart: %v", err)
-	}
-	if rscope.CurrentDriveID == "" || rscope.CurrentDriveState != scopeStateReserved {
-		t.Fatalf("after a persist failure the slot must stay reserved, got id=%q state=%q", rscope.CurrentDriveID, rscope.CurrentDriveState)
-	}
-	ids, err := rstore.FindScopeDriveIDs(req.ChangeID, "")
-	if err != nil {
-		t.Fatalf("FindScopeDriveIDs: %v", err)
-	}
-	if len(ids) == 0 {
-		t.Fatalf("a persist-failed reserved slot must not report the scope empty")
-	}
-	// No duplicate launch: a fresh start is refused ErrScopeBusy without launching.
-	rproc := passObserveProc()
-	rd := scopedTestDriver(rstore, &fakeClock{now: startRun()}, rproc, stableGit())
-	if _, err := rd.Start(req); !isOwnershipKind(err, ErrScopeBusy) {
-		t.Fatalf("a start over a persist-failed reserved slot must fail ErrScopeBusy, got %v", err)
-	}
-	if rproc.launchN != 0 {
-		t.Fatalf("a refused start must never launch, got %d", rproc.launchN)
-	}
-}
-
-// TestFaultFinalAckInterruptedThenRestart (case e): a crash between the terminal
-// acknowledgement's retirePredecessor (which clears the final drive's owner) and
-// its closeScopeFinal (which closes the still-open scope). This is the recovery
-// hole: a repeat Acknowledge with the same arguments must COMPLETE the close — the
-// resumable second half of its own transition — not fail ErrStalePredecessor
-// because the owner is already cleared. Recovery never launches and leaves zero
-// stale recovery candidates.
-func TestFaultFinalAckInterruptedThenRestart(t *testing.T) {
-	_, store, grant, req, _, second := ackTwoDriveSequence(t)
-
-	// Hand-drive the FIRST half of the terminal acknowledgement, then STOP before
-	// closeScopeFinal: the drive's owner is cleared while the scope stays OPEN with
-	// the final drive still current.
-	if err := store.retirePredecessor(second.DriveID, second.Generation); err != nil {
-		t.Fatalf("retirePredecessor (first half of the terminal ack): %v", err)
-	}
-	scope, err := store.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope: %v", err)
-	}
-	if scope.Closed {
-		t.Fatalf("the interrupted ack must leave the scope OPEN")
-	}
-	if scope.CurrentDriveID != second.DriveID {
-		t.Fatalf("the final drive must still be the scope's current drive, got %q", scope.CurrentDriveID)
-	}
-	rec, err := store.Load(second.DriveID)
-	if err != nil {
-		t.Fatalf("Load final drive: %v", err)
-	}
-	if rec.OwnerGeneration != "" {
-		t.Fatalf("the first half of the ack must clear the final drive's owner")
-	}
-	if rec.LastOutcome != PASSED {
-		t.Fatalf("the final drive must retain its terminal verdict, got %s", rec.LastOutcome)
-	}
-
-	// Restart: a fresh driver over the same durable state. A repeat Acknowledge with
-	// the SAME arguments must complete the close.
-	rstore := reopenStore(store)
-	rproc := passObserveProc()
-	rd := scopedTestDriver(rstore, &fakeClock{now: startRun()}, rproc, stableGit())
-
-	doc, err := rd.Acknowledge(grant.ScopeID, grant.ChildCapability, second.DriveID, second.Generation)
-	if err != nil {
-		t.Fatalf("a repeat Acknowledge after an interrupted close must complete it, got %v", err)
-	}
-	if doc.Outcome != PASSED {
-		t.Fatalf("the recovered ack must report the recorded PASSED verdict, got %s (%s)", doc.Outcome, doc.Cause)
-	}
-	if doc.DriveID != second.DriveID {
-		t.Fatalf("the recovered ack must name the final drive, got %q", doc.DriveID)
-	}
-
-	// The close is now complete.
-	rscope, err := rstore.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope after recovery: %v", err)
-	}
-	if !rscope.Closed || !rscope.FinalAcked {
-		t.Fatalf("the recovered ack must close the scope with FinalAcked, got Closed=%v FinalAcked=%v", rscope.Closed, rscope.FinalAcked)
-	}
-
-	// Recovery never launches, and leaves zero stale recovery candidates.
-	if rproc.launchN != 0 {
-		t.Fatalf("acknowledgement recovery must never launch, got %d", rproc.launchN)
-	}
-	ids, err := rstore.FindScopeDriveIDs(req.ChangeID, "")
-	if err != nil {
-		t.Fatalf("FindScopeDriveIDs: %v", err)
-	}
-	if len(ids) != 0 {
-		t.Fatalf("after a completed acknowledgement there must be zero recovery candidates, got %v", ids)
-	}
-
-	// A further repeat is the idempotent byte-identical no-op (the closed-scope
-	// recorded-terminal fast path).
-	doc2, err := rd.Acknowledge(grant.ScopeID, grant.ChildCapability, second.DriveID, second.Generation)
-	if err != nil {
-		t.Fatalf("a repeat after recovery must be an idempotent no-op, got %v", err)
-	}
-	if doc2.Outcome != PASSED {
-		t.Fatalf("the idempotent repeat must return the recorded PASSED, got %s", doc2.Outcome)
-	}
-
-	// A successor presenting the acknowledged final drive is refused: the scope is
-	// closed, never a false no-work that admits a new launch.
-	if _, err := rd.Start(successorReq(req, second)); !isOwnershipKind(err, ErrScopeClosed) {
-		t.Fatalf("a successor after the recovered terminal ack must be refused ErrScopeClosed, got %v", err)
-	}
-	if rproc.launchN != 0 {
-		t.Fatalf("a refused post-recovery successor must never launch, got %d", rproc.launchN)
 	}
 }
 
