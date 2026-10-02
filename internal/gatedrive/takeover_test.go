@@ -8,7 +8,6 @@ package gatedrive
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,6 +55,35 @@ func bindWaiting(t *testing.T, d *Driver, store *Store) (ScopeGrant, DriveDoc) {
 	return grant, started
 }
 
+// outerScopeReqFor builds the outer recovery scope run.start prepares for a
+// dispatch whose drives carry req's identity: repo, change, branch, and worktree —
+// never a task, phase, run id, or run context (change 0489).
+func outerScopeReqFor(req StartRequest) ScopeRequest {
+	return ScopeRequest{RepoIdentity: req.RepoDir, ChangeID: req.ChangeID, Branch: req.Branch, Worktree: req.Worktree}
+}
+
+// startUnderOuterScope prepares an outer scope matching sampleStart's identity and
+// starts a drive whose RunContext is that scope's child capability — exactly how
+// run.start's run context links implement-next's suite gates to the run — and
+// asserts the first slice WAITs.
+func startUnderOuterScope(t *testing.T, d *Driver, store *Store) (ScopeGrant, DriveDoc) {
+	t.Helper()
+	req := sampleStart()
+	grant, err := store.PrepareScope(outerScopeReqFor(req))
+	if err != nil {
+		t.Fatalf("PrepareScope: %v", err)
+	}
+	req.RunContext = grant.ChildCapability
+	started, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if started.Outcome != WAITING {
+		t.Fatalf("a drive under the outer scope must WAIT on its first slice, got %s (%s)", started.Outcome, started.Cause)
+	}
+	return grant, started
+}
+
 // overwriteDriveRecord replaces a drive's on-disk record with rec, preserving a
 // loadable envelope. Tests use it to inject a scope/drive identity mismatch, a
 // past deadline, or a corrupt schema without going through a state transition.
@@ -80,7 +108,7 @@ func mustReadBytes(t *testing.T, path string) []byte {
 }
 
 // TestTakeoverInvalidatesChildAndMintsParentOwner proves the happy path: a
-// takeover of a WAITING scope-bound drive returns a NEW owner generation, the old
+// takeover of a WAITING outer-scope drive returns a NEW owner generation, the old
 // child owner can no longer advance, the new owner advances normally, the scope
 // is closed, and the takeover itself neither launched nor stopped any process.
 func TestTakeoverInvalidatesChildAndMintsParentOwner(t *testing.T) {
@@ -88,7 +116,7 @@ func TestTakeoverInvalidatesChildAndMintsParentOwner(t *testing.T) {
 	proc := &fakeProc{} // stays running across slices
 	d, store := newTestDriver(t, clk, proc, stableGit())
 
-	grant, started := bindWaiting(t, d, store)
+	grant, started := startUnderOuterScope(t, d, store)
 
 	launchesBefore, stopsBefore := proc.launchN, proc.stopN
 	took, err := d.Takeover(grant.ScopeID, grant.ParentCapability, started.DriveID)
@@ -137,11 +165,13 @@ func TestTakeoverInvalidatesChildAndMintsParentOwner(t *testing.T) {
 	}
 }
 
-// TestTakeoverTerminalUnconsumed proves a takeover of an already-PASSED drive
-// whose owner generation is still set (the child died after writing the verdict)
-// succeeds, and the fresh owner's Advance returns the recorded PASSED with the
-// same attempt and no relaunch.
-func TestTakeoverTerminalUnconsumed(t *testing.T) {
+// TestTakeoverAcceptsDriveThatFinishedAfterScan: the outer scan saw the drive
+// live, then the suite finished before the takeover: Takeover, given the drive id
+// explicitly, still accepts it and hands the recorded verdict over unchanged — the
+// suite that completed in that window is not lost (Review Focus 5). The fresh
+// owner's Advance returns the recorded PASSED with the same attempt and no
+// relaunch.
+func TestTakeoverAcceptsDriveThatFinishedAfterScan(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	running := true
 	proc := &fakeProc{
@@ -153,7 +183,7 @@ func TestTakeoverTerminalUnconsumed(t *testing.T) {
 		},
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	grant, started := bindWaiting(t, d, store)
+	grant, started := startUnderOuterScope(t, d, store)
 
 	// Drive it to a terminal PASSED; Advance leaves the owner generation set.
 	running = false
@@ -202,7 +232,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 		{
 			name: "wrong parent capability",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
+				grant, started := startUnderOuterScope(t, d, store)
 				return grant.ScopeID, bogusCap, started.DriveID
 			},
 			want: string(ErrScopeCapabilityMismatch),
@@ -210,7 +240,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 		{
 			name: "child capability presented as parent",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
+				grant, started := startUnderOuterScope(t, d, store)
 				return grant.ScopeID, grant.ChildCapability, started.DriveID
 			},
 			want: string(ErrScopeCapabilityMismatch),
@@ -218,7 +248,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 		{
 			name: "closed scope",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
+				grant, started := startUnderOuterScope(t, d, store)
 				if err := store.closeScope(grant.ScopeID); err != nil {
 					t.Fatalf("closeScope: %v", err)
 				}
@@ -229,7 +259,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 		{
 			name: "identity mismatch branch",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
+				grant, started := startUnderOuterScope(t, d, store)
 				rec, _ := store.Load(started.DriveID)
 				rec.Branch = "feat/other"
 				overwriteDriveRecord(t, store, started.DriveID, rec)
@@ -240,7 +270,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 		{
 			name: "identity mismatch worktree",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
+				grant, started := startUnderOuterScope(t, d, store)
 				rec, _ := store.Load(started.DriveID)
 				rec.WorktreePath = "/repo/other"
 				overwriteDriveRecord(t, store, started.DriveID, rec)
@@ -251,7 +281,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 		{
 			name: "identity mismatch change",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
+				grant, started := startUnderOuterScope(t, d, store)
 				rec, _ := store.Load(started.DriveID)
 				rec.ChangeID = "9999"
 				overwriteDriveRecord(t, store, started.DriveID, rec)
@@ -260,31 +290,9 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 			want: string(ErrScopeIdentityMismatch),
 		},
 		{
-			name: "identity mismatch task",
-			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
-				rec, _ := store.Load(started.DriveID)
-				rec.TaskID = "task-other"
-				overwriteDriveRecord(t, store, started.DriveID, rec)
-				return grant.ScopeID, grant.ParentCapability, started.DriveID
-			},
-			want: string(ErrScopeIdentityMismatch),
-		},
-		{
-			name: "identity mismatch phase",
-			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
-				rec, _ := store.Load(started.DriveID)
-				rec.Phase = "finalize"
-				overwriteDriveRecord(t, store, started.DriveID, rec)
-				return grant.ScopeID, grant.ParentCapability, started.DriveID
-			},
-			want: string(ErrScopeIdentityMismatch),
-		},
-		{
 			name: "fingerprint drift",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
+				grant, started := startUnderOuterScope(t, d, store)
 				git.status = "DRIFTED" // the worktree changed since drive start
 				return grant.ScopeID, grant.ParentCapability, started.DriveID
 			},
@@ -293,7 +301,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 		{
 			name: "expired deadline on a live drive",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
+				grant, started := startUnderOuterScope(t, d, store)
 				rec, _ := store.Load(started.DriveID)
 				rec.Deadline = startRun().Add(-time.Minute) // past, drive still WAITING
 				overwriteDriveRecord(t, store, started.DriveID, rec)
@@ -304,7 +312,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 		{
 			name: "outstanding unclaimed handoff must be claimed",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
+				grant, started := startUnderOuterScope(t, d, store)
 				if _, err := d.Handoff(started.DriveID, started.Generation); err != nil {
 					t.Fatalf("Handoff: %v", err)
 				}
@@ -313,40 +321,9 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 			want: string(ErrHandoffOutstanding),
 		},
 		{
-			name: "two candidate drives for one outer scope",
-			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant := prepareOuterScope(t, store)
-				first := startNested(t, d, grant.ChildCapability)
-				// The worktree slot deliberately forbids constructing this
-				// historical ambiguity through a second live launch. Seed the second
-				// durable recovery candidate directly so Takeover still proves that an
-				// outer scope fails closed when its candidate scan is ambiguous.
-				rec, err := store.Load(first.DriveID)
-				if err != nil {
-					t.Fatalf("Load first nested drive: %v", err)
-				}
-				rec.RawRunDir = "/runs/ambiguous-second"
-				rec.RawOwnership = "ambiguous-second"
-				rec.OwnerGeneration = "ambiguous-second-owner"
-				if _, _, err := store.NewDrive(rec); err != nil {
-					t.Fatalf("seed second nested recovery candidate: %v", err)
-				}
-				return grant.ScopeID, grant.ParentCapability, "" // resolve via run context
-			},
-			want: CauseTakeoverAmbiguous,
-		},
-		{
-			name: "zero candidate drives",
-			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant := prepareOuterScope(t, store)
-				return grant.ScopeID, grant.ParentCapability, ""
-			},
-			want: CauseTakeoverNoCandidate,
-		},
-		{
 			name: "unknown drive schema",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
-				grant, started := bindWaiting(t, d, store)
+				grant, started := startUnderOuterScope(t, d, store)
 				rec, _ := store.Load(started.DriveID)
 				rec.SchemaVersion = driveSchemaVersion + 999
 				overwriteDriveRecord(t, store, started.DriveID, rec)
@@ -401,35 +378,6 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 	}
 }
 
-// prepareOuterScope prepares an outer recovery scope (no bound drive) whose change
-// and child capability are the run-context discriminators nested drives carry.
-func prepareOuterScope(t *testing.T, store *Store) ScopeGrant {
-	t.Helper()
-	grant, err := store.PrepareScope(ScopeRequest{
-		RepoIdentity: "/repo",
-		ChangeID:     "0342",
-		Branch:       "feat/x",
-		Worktree:     "/repo",
-	})
-	if err != nil {
-		t.Fatalf("PrepareScope outer: %v", err)
-	}
-	return grant
-}
-
-// startNested Starts a nested (non-scope-bound) drive whose RunContext is the
-// outer scope's child capability, so its RunContextHash matches the outer scope.
-func startNested(t *testing.T, d *Driver, runContext string) DriveDoc {
-	t.Helper()
-	req := sampleStart()
-	req.RunContext = runContext
-	doc, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("Start nested: %v", err)
-	}
-	return doc
-}
-
 // TestTakeoverRace proves two goroutines racing Takeover with the same parent
 // capability yield exactly one fresh owner; the loser HALTs and the old child
 // owner is invalid either way. Run under -race.
@@ -437,7 +385,7 @@ func TestTakeoverRace(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	grant, started := bindWaiting(t, d, store)
+	grant, started := startUnderOuterScope(t, d, store)
 
 	var wg sync.WaitGroup
 	docs := make([]DriveDoc, 2)
@@ -474,6 +422,23 @@ func TestTakeoverRace(t *testing.T) {
 	}
 	if stale.Outcome != HALTED {
 		t.Fatalf("the superseded child owner must HALT after a race, got %s", stale.Outcome)
+	}
+}
+
+// TestTakeoverRequiresExplicitDriveID (change 0489): Takeover no longer resolves a
+// drive itself; its only caller passes the id the outer scan found. An empty id is
+// a command error that mutates neither record.
+func TestTakeoverRequiresExplicitDriveID(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
+	d, store := newTestDriver(t, clk, &fakeProc{}, stableGit())
+	grant, _ := startUnderOuterScope(t, d, store)
+	scopePath := filepath.Join(store.scopeRoot, grant.ScopeID, recordFileName)
+	before := mustReadBytes(t, scopePath)
+	if _, err := d.Takeover(grant.ScopeID, grant.ParentCapability, ""); err == nil {
+		t.Fatalf("an empty drive id must be a command error")
+	}
+	if got := mustReadBytes(t, scopePath); string(got) != string(before) {
+		t.Fatalf("a refused takeover must not mutate the scope record")
 	}
 }
 
@@ -672,570 +637,6 @@ func TestContinuationHandle(t *testing.T) {
 	if tok != handoff.Generation {
 		t.Fatalf("ContinuationHandle must return the outstanding handoff token, got %q want %q", tok, handoff.Generation)
 	}
-}
-
-// ---------------------------------------------------------------------------
-// Recovery interplay for the sequential scope (change 0405 Task 6): takeover,
-// handoff/claim, and enumeration resolve only the scope's CURRENT work — never an
-// acknowledged predecessor, a mid-transition slot, or a stale explicit drive id —
-// and remain coherent under a race against a successor start or the final
-// acknowledgement. These reuse the deterministic fake seams from driver_test.go.
-// ---------------------------------------------------------------------------
-
-// overwriteScopeRecord replaces a scope's on-disk record with rec, preserving a
-// loadable v2 envelope. Tests use it to inject a precise slot state (e.g. a
-// launched slot that still carries a pending-ack journal) without driving the
-// transition that would normally produce it.
-func overwriteScopeRecord(t *testing.T, store *Store, scopeID string, rec scopeRecord) {
-	t.Helper()
-	buf, err := json.Marshal(storedScope{Generation: "overwrite-scope-gen", Record: rec})
-	if err != nil {
-		t.Fatalf("marshal scope: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(store.scopeRoot, scopeID, recordFileName), buf, 0o600); err != nil {
-		t.Fatalf("overwrite scope record: %v", err)
-	}
-}
-
-// scopedSequenceProc returns a fakeProc where the FIRST launched run (run1) passes
-// on its first observation and every later run reports `later` — so a scope's first
-// drive PASSES and a successor settles to `later` (StateRunning → WAITING,
-// StateFailed → FAILED, StatePassed → PASSED).
-func scopedSequenceProc(later process.State) *fakeProc {
-	return &fakeProc{
-		observe: func(runDir string) (*process.Observation, error) {
-			if strings.HasSuffix(runDir, "run1") {
-				return obs(process.StatePassed, runDir), nil
-			}
-			return obs(later, runDir), nil
-		},
-	}
-}
-
-// scopedPredecessorThenSuccessor prepares a no-context task scope over a new store,
-// drives a first PASSED drive, then starts a successor over the same slot whose
-// outcome is governed by proc's later-run state. It returns the driver, store,
-// grant, the base request, and the two drive docs. The current slot occupant is the
-// second drive.
-func scopedPredecessorThenSuccessor(t *testing.T, proc *fakeProc) (*Driver, *Store, ScopeGrant, StartRequest, DriveDoc, DriveDoc) {
-	t.Helper()
-	clk := &fakeClock{now: startRun()}
-	store := OpenStore(testsupport.TempDir(t))
-	d := scopedTestDriver(store, clk, proc, stableGit())
-	grant, req := prepareScopedStart(t, store)
-	first, err := d.Start(req)
-	if err != nil {
-		t.Fatalf("first Start: %v", err)
-	}
-	if first.Outcome != PASSED {
-		t.Fatalf("first start must PASS (positive control), got %s (%s)", first.Outcome, first.Cause)
-	}
-	succ := req
-	succ.PredecessorDriveID = first.DriveID
-	succ.PredecessorOwnerGen = first.Generation
-	second, err := d.Start(succ)
-	if err != nil {
-		t.Fatalf("successor Start: %v", err)
-	}
-	return d, store, grant, req, first, second
-}
-
-// TestTakeoverResolvesCurrentNotAcknowledgedPredecessor proves an event-authorized
-// takeover after a completed predecessor resolves the CURRENT drive (the live
-// successor), never the acknowledged predecessor: the superseded child generation
-// can no longer advance, the scope closes, and the predecessor survives as consumed
-// history untouched (spec verification 7).
-func TestTakeoverResolvesCurrentNotAcknowledgedPredecessor(t *testing.T) {
-	proc := scopedSequenceProc(process.StateRunning) // successor stays live (WAITING)
-	d, store, grant, _, first, second := scopedPredecessorThenSuccessor(t, proc)
-	if second.Outcome != WAITING {
-		t.Fatalf("successor must WAIT (live), got %s (%s)", second.Outcome, second.Cause)
-	}
-
-	launchesBefore, stopsBefore := proc.launchN, proc.stopN
-	took, err := d.Takeover(grant.ScopeID, grant.ParentCapability, "")
-	if err != nil {
-		t.Fatalf("Takeover: %v", err)
-	}
-	if took.Outcome == HALTED {
-		t.Fatalf("takeover of the current live successor must not HALT: %s", took.Cause)
-	}
-	if took.DriveID != second.DriveID {
-		t.Fatalf("takeover must resolve the CURRENT successor %q, got %q", second.DriveID, took.DriveID)
-	}
-	if took.DriveID == first.DriveID {
-		t.Fatalf("takeover must NOT resolve the acknowledged predecessor")
-	}
-	if took.Generation == "" || took.Generation == second.Generation {
-		t.Fatalf("takeover must mint a fresh owner generation, got %q", took.Generation)
-	}
-	if proc.launchN != launchesBefore || proc.stopN != stopsBefore {
-		t.Fatalf("takeover must not launch or stop a process")
-	}
-
-	// The superseded child generation can no longer advance.
-	stale, err := d.Advance(second.DriveID, second.Generation)
-	if err != nil {
-		t.Fatalf("stale Advance: %v", err)
-	}
-	if stale.Outcome != HALTED {
-		t.Fatalf("the superseded child owner must HALT, got %s", stale.Outcome)
-	}
-
-	// The scope is closed.
-	scope, err := store.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope: %v", err)
-	}
-	if !scope.Closed {
-		t.Fatalf("a takeover must close the scope")
-	}
-
-	// The acknowledged predecessor is untouched consumed history.
-	firstRec, err := store.Load(first.DriveID)
-	if err != nil {
-		t.Fatalf("Load predecessor: %v", err)
-	}
-	if firstRec.LastOutcome != PASSED || firstRec.OwnerGeneration != "" {
-		t.Fatalf("acknowledged predecessor must remain consumed history, got %s owner=%q", firstRec.LastOutcome, firstRec.OwnerGeneration)
-	}
-}
-
-// TestTakeoverUnacknowledgedTerminalResult proves a takeover resolves the scope's
-// current drive when it is an unacknowledged last terminal result (durably FAILED,
-// owner still set — the child died after writing the verdict): the takeover reports
-// that verdict and closes the scope (spec verification 7).
-func TestTakeoverUnacknowledgedTerminalResult(t *testing.T) {
-	proc := scopedSequenceProc(process.StateFailed) // successor settles FAILED, unacknowledged
-	d, store, grant, _, _, second := scopedPredecessorThenSuccessor(t, proc)
-	if second.Outcome != FAILED {
-		t.Fatalf("successor must be durably FAILED, got %s (%s)", second.Outcome, second.Cause)
-	}
-
-	took, err := d.Takeover(grant.ScopeID, grant.ParentCapability, "")
-	if err != nil {
-		t.Fatalf("Takeover: %v", err)
-	}
-	if took.Outcome != FAILED {
-		t.Fatalf("takeover of an unacknowledged terminal result must report it, got %s (%s)", took.Outcome, took.Cause)
-	}
-	if took.DriveID != second.DriveID {
-		t.Fatalf("takeover must resolve the current drive %q, got %q", second.DriveID, took.DriveID)
-	}
-	if took.Generation == "" || took.Generation == second.Generation {
-		t.Fatalf("takeover must mint a fresh owner, got %q", took.Generation)
-	}
-	scope, err := store.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope: %v", err)
-	}
-	if !scope.Closed {
-		t.Fatalf("a takeover must close the scope")
-	}
-}
-
-// TestTakeoverExplicitStaleDriveIDRefused proves an explicitly supplied old drive
-// id cannot bypass the scope's current-drive association: presenting the
-// acknowledged predecessor id to a takeover whose scope now holds a different
-// current drive HALTs stale-predecessor, claims nothing, and leaves the current
-// drive advanceable (spec verification 4/7).
-func TestTakeoverExplicitStaleDriveIDRefused(t *testing.T) {
-	proc := scopedSequenceProc(process.StateRunning) // successor live (current)
-	d, store, grant, _, first, second := scopedPredecessorThenSuccessor(t, proc)
-
-	launchesBefore, stopsBefore := proc.launchN, proc.stopN
-	scopeBefore := readScopeBytes(t, store, grant.ScopeID)
-
-	took, err := d.Takeover(grant.ScopeID, grant.ParentCapability, first.DriveID)
-	if err != nil {
-		t.Fatalf("Takeover: %v", err)
-	}
-	if took.Outcome != HALTED {
-		t.Fatalf("an explicit stale drive id must HALT, got %s (%s)", took.Outcome, took.Cause)
-	}
-	if !strings.Contains(took.Cause, string(ErrStalePredecessor)) {
-		t.Fatalf("cause must name %q, got %q", ErrStalePredecessor, took.Cause)
-	}
-	if string(scopeBefore) != string(readScopeBytes(t, store, grant.ScopeID)) {
-		t.Fatalf("a rejected takeover must not mutate the scope record")
-	}
-	if proc.launchN != launchesBefore || proc.stopN != stopsBefore {
-		t.Fatalf("a rejected takeover must not launch or stop a process")
-	}
-	// The current successor's owner is intact: nothing was superseded.
-	if _, err := d.Advance(second.DriveID, second.Generation); err != nil {
-		t.Fatalf("the current owner must still advance after a rejected takeover: %v", err)
-	}
-}
-
-// TestTakeoverReservedOrPendingSlotHalts proves a takeover refuses a slot that is
-// mid-transition — a reservation not yet launch-confirmed, or a pending-ack journal
-// — with a typed unresolved-launch-transition HALT: a reservation is not a
-// quiescent result to recover (spec "Durable state and concurrency").
-func TestTakeoverReservedOrPendingSlotHalts(t *testing.T) {
-	launchFail := func() *fakeProc {
-		return &fakeProc{
-			launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
-				return nil, fmt.Errorf("gatedrive-test: launch failed")
-			},
-		}
-	}
-
-	t.Run("reserved slot via launch failure", func(t *testing.T) {
-		clk := &fakeClock{now: startRun()}
-		store := OpenStore(testsupport.TempDir(t))
-		grant, req := prepareScopedStart(t, store)
-		d := scopedTestDriver(store, clk, launchFail(), stableGit())
-		if _, err := d.Start(req); err == nil {
-			t.Fatalf("a launch failure must be a command error")
-		}
-		scope, err := store.LoadScope(grant.ScopeID)
-		if err != nil {
-			t.Fatalf("LoadScope: %v", err)
-		}
-		if scope.CurrentDriveState != scopeStateReserved {
-			t.Fatalf("precondition: slot must be reserved, got %q", scope.CurrentDriveState)
-		}
-		took, err := d.Takeover(grant.ScopeID, grant.ParentCapability, "")
-		if err != nil {
-			t.Fatalf("Takeover: %v", err)
-		}
-		if took.Outcome != HALTED || !strings.Contains(took.Cause, string(ErrUnresolvedLaunchTransition)) {
-			t.Fatalf("a reserved-slot takeover must HALT unresolved-launch-transition, got %s (%s)", took.Outcome, took.Cause)
-		}
-	})
-
-	t.Run("pending-ack journal on a launched slot", func(t *testing.T) {
-		clk := &fakeClock{now: startRun()}
-		store := OpenStore(testsupport.TempDir(t))
-		grant, req := prepareScopedStart(t, store)
-		d := scopedTestDriver(store, clk, launchFail(), stableGit())
-		if _, err := d.Start(req); err == nil {
-			t.Fatalf("a launch failure must be a command error")
-		}
-		// Model an interrupted successor transition: a launched slot still carrying a
-		// pending-ack journal entry, so the reserved disjunct is false and this isolates
-		// the pending-ack disjunct of the guard.
-		scope, err := store.LoadScope(grant.ScopeID)
-		if err != nil {
-			t.Fatalf("LoadScope: %v", err)
-		}
-		scope.CurrentDriveState = scopeStateLaunched
-		scope.PendingAckDriveID = scope.CurrentDriveID
-		scope.PendingAckOwnerGen = "some-owner-gen"
-		overwriteScopeRecord(t, store, grant.ScopeID, scope)
-
-		took, err := d.Takeover(grant.ScopeID, grant.ParentCapability, "")
-		if err != nil {
-			t.Fatalf("Takeover: %v", err)
-		}
-		if took.Outcome != HALTED || !strings.Contains(took.Cause, string(ErrUnresolvedLaunchTransition)) {
-			t.Fatalf("a pending-ack-slot takeover must HALT unresolved-launch-transition, got %s (%s)", took.Outcome, took.Cause)
-		}
-	})
-}
-
-// TestClaimScopeForTakeoverRevalidates unit-tests the claimScopeForTakeover store
-// transition directly (revalidate-after-authority): it closes an open scope ONLY
-// when the resolved driveID is still the scope's current drive. A concurrent
-// successor reservation that advanced the slot to another drive makes the resolved
-// id stale, so the close is refused ErrScopeBusy with no write; an outer scope (no
-// current drive) closes with any resolved nested id; an already-closed scope is
-// ErrScopeClosed; and a takeover close never sets FinalAcked.
-func TestClaimScopeForTakeoverRevalidates(t *testing.T) {
-	store := OpenStore(testsupport.TempDir(t))
-	grant, err := store.PrepareScope(sampleScopeReq())
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	launchOne(t, store, grant, scopeDriveA) // current = A, launched
-
-	// A drive id that is no longer the slot's current occupant is refused with no write.
-	before := readScopeBytes(t, store, grant.ScopeID)
-	if err := store.claimScopeForTakeover(grant.ScopeID, scopeDriveB); !isOwnershipKind(err, ErrScopeBusy) {
-		t.Fatalf("claimScopeForTakeover on a non-current drive must fail ErrScopeBusy, got %v", err)
-	}
-	if string(before) != string(readScopeBytes(t, store, grant.ScopeID)) {
-		t.Fatalf("a refused claimScopeForTakeover must not rewrite the scope record")
-	}
-
-	// The current drive id closes the scope as a takeover (Closed, NOT FinalAcked).
-	if err := store.claimScopeForTakeover(grant.ScopeID, scopeDriveA); err != nil {
-		t.Fatalf("claimScopeForTakeover on the current drive: %v", err)
-	}
-	rec, err := store.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope: %v", err)
-	}
-	if !rec.Closed {
-		t.Fatalf("claimScopeForTakeover must close the scope")
-	}
-	if rec.FinalAcked {
-		t.Fatalf("a takeover close must not set FinalAcked (that is the terminal ack's mark)")
-	}
-
-	// An outer scope (no current drive) closes with any resolved nested id.
-	outer := prepareOuterScope(t, store)
-	if err := store.claimScopeForTakeover(outer.ScopeID, "ffffffffffffffffffffffffffffffff"); err != nil {
-		t.Fatalf("an outer scope must close with any resolved nested id: %v", err)
-	}
-
-	// An already-closed scope refuses a second close.
-	if err := store.claimScopeForTakeover(grant.ScopeID, scopeDriveA); !isOwnershipKind(err, ErrScopeClosed) {
-		t.Fatalf("claimScopeForTakeover on a closed scope must fail ErrScopeClosed, got %v", err)
-	}
-}
-
-// TestTakeoverRaceVsSuccessorStart reproduces spec verification 5 (successor-start
-// vs takeover): a successor start and a parent takeover of the CURRENT drive
-// rendezvous at the fingerprint barrier, then contend on the scope. Exactly one
-// wins a coherent ownership transition — either the start wins (the takeover HALTs
-// scope-busy/scope-closed and supersedes no generation) or the takeover wins (the
-// start is rejected ErrScopeTransferred, change 0459) — and at most the winner's Launch happened. Run
-// under -race.
-func TestTakeoverRaceVsSuccessorStart(t *testing.T) {
-	store := OpenStore(testsupport.TempDir(t))
-	req := sampleStart()
-	grant, err := store.PrepareScope(scopeReqFor(req, ""))
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	req.ScopeID = grant.ScopeID
-	req.ChildCapability = grant.ChildCapability
-
-	// Setup: a first drive durably PASSED (current, launched, owner set).
-	setupClk := &fakeClock{now: startRun()}
-	setupProc := &fakeProc{
-		observe: func(runDir string) (*process.Observation, error) {
-			return obs(process.StatePassed, runDir), nil
-		},
-	}
-	setupDriver := scopedTestDriver(store, setupClk, setupProc, stableGit())
-	first, err := setupDriver.Start(req)
-	if err != nil {
-		t.Fatalf("setup Start: %v", err)
-	}
-	if first.Outcome != PASSED {
-		t.Fatalf("setup first drive must PASS, got %s (%s)", first.Outcome, first.Cause)
-	}
-
-	// Race: a successor start (receipt = first) vs a parent takeover of the current
-	// (first) drive. barrierGit rendezvouses both past their fingerprint reads before
-	// either contends on the scope CAS.
-	succ := req
-	succ.PredecessorDriveID = first.DriveID
-	succ.PredecessorOwnerGen = first.Generation
-
-	proc := &countingProc{}
-	var barrier sync.WaitGroup
-	barrier.Add(2)
-	git := &barrierGit{wg: &barrier, head: "HEAD1"}
-	mkDriver := func() *Driver {
-		clk := &fakeClock{now: startRun()}
-		d := NewDriver(store, clk, proc, git)
-		d.slice = 4 * pollTick
-		d.pollInterval = pollTick
-		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		return d
-	}
-	startD, takeD := mkDriver(), mkDriver()
-
-	var startDoc, takeDoc DriveDoc
-	var startErr, takeErr error
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() { defer wg.Done(); startDoc, startErr = startD.Start(succ) }()
-	go func() { defer wg.Done(); takeDoc, takeErr = takeD.Takeover(grant.ScopeID, grant.ParentCapability, "") }()
-	wg.Wait()
-
-	if takeErr != nil {
-		t.Fatalf("Takeover returned a command error: %v", takeErr)
-	}
-
-	scope, err := store.LoadScope(grant.ScopeID)
-	if err != nil {
-		t.Fatalf("LoadScope: %v", err)
-	}
-	firstRec, err := store.Load(first.DriveID)
-	if err != nil {
-		t.Fatalf("Load first: %v", err)
-	}
-
-	startWon := startErr == nil
-	takeoverWon := takeDoc.Outcome != HALTED
-	if startWon == takeoverWon {
-		t.Fatalf("exactly one of start/takeover must win: startWon=%v takeoverWon=%v (startErr=%v takeover=%s/%s)",
-			startWon, takeoverWon, startErr, takeDoc.Outcome, takeDoc.Cause)
-	}
-
-	if startWon {
-		// The successor start wins: it launched exactly once, the scope is NOT closed by
-		// the takeover, the slot names the launched successor, and the predecessor was
-		// retired by the ack (owner cleared) but no parent generation was superseded.
-		if proc.launches() != 1 {
-			t.Fatalf("a winning successor start must launch exactly once, got %d", proc.launches())
-		}
-		if !strings.Contains(takeDoc.Cause, string(ErrScopeBusy)) && !strings.Contains(takeDoc.Cause, string(ErrScopeClosed)) {
-			t.Fatalf("a losing takeover must HALT scope-busy or scope-closed, got %q", takeDoc.Cause)
-		}
-		if scope.Closed {
-			t.Fatalf("when the start wins the takeover must not have closed the scope")
-		}
-		if scope.CurrentDriveID != startDoc.DriveID || scope.CurrentDriveState != scopeStateLaunched {
-			t.Fatalf("the slot must name the launched successor, got id=%q state=%q", scope.CurrentDriveID, scope.CurrentDriveState)
-		}
-		if firstRec.OwnerGeneration != "" {
-			t.Fatalf("the predecessor must be retired (owner cleared) by the winning successor, got %q", firstRec.OwnerGeneration)
-		}
-	} else {
-		// The takeover wins: nothing launched, the start is rejected ErrScopeTransferred, the
-		// scope is closed, and the predecessor's owner is the takeover's fresh generation.
-		if proc.launches() != 0 {
-			t.Fatalf("when the takeover wins no successor launch must happen, got %d", proc.launches())
-		}
-		if !isOwnershipKind(startErr, ErrScopeTransferred) {
-			t.Fatalf("a losing successor start must be rejected ErrScopeTransferred, got %v", startErr)
-		}
-		if !scope.Closed {
-			t.Fatalf("when the takeover wins the scope must be closed")
-		}
-		if takeDoc.Generation == "" || takeDoc.Generation == first.Generation {
-			t.Fatalf("a winning takeover must mint a fresh owner, got %q", takeDoc.Generation)
-		}
-		if firstRec.OwnerGeneration != takeDoc.Generation {
-			t.Fatalf("the drive owner must be the takeover's fresh generation, got %q want %q", firstRec.OwnerGeneration, takeDoc.Generation)
-		}
-	}
-}
-
-// gateGit parks its first HeadOID read: it signals readiness once (closing ready)
-// and then blocks until release is closed, so a test can drive another transition
-// to completion while a takeover is held past its scope/drive reads but before its
-// scope claim. Its fixed reads reproduce the stableGit fingerprint so the parked
-// takeover's fingerprint check still passes on release.
-type gateGit struct {
-	ready    chan struct{}
-	release  chan struct{}
-	head     string
-	mu       sync.Mutex
-	signaled bool
-}
-
-func (g *gateGit) HeadOID(string) (string, error) {
-	g.mu.Lock()
-	if !g.signaled {
-		g.signaled = true
-		close(g.ready)
-	}
-	g.mu.Unlock()
-	<-g.release
-	return g.head, nil
-}
-func (g *gateGit) IndexEntries(string) ([]byte, error)  { return []byte("IDX1"), nil }
-func (g *gateGit) Status(string) ([]byte, error)        { return []byte("ST1"), nil }
-func (g *gateGit) WorktreePaths(string) ([]byte, error) { return nil, nil }
-
-// TestTakeoverRaceVsFinalAcknowledge reproduces spec verification 5 (final-ack vs
-// takeover): only one coherent ownership transition wins in each ordering. When the
-// takeover completes first it supersedes the owner and the later ack is refused
-// stale-predecessor; when the final ack completes while the takeover is parked past
-// its reads, the takeover revalidates under its scope claim and HALTs scope-closed.
-func TestTakeoverRaceVsFinalAcknowledge(t *testing.T) {
-	t.Run("takeover before ack", func(t *testing.T) {
-		proc := scopedSequenceProc(process.StatePassed) // successor durably PASSED (current)
-		d, store, grant, _, _, second := scopedPredecessorThenSuccessor(t, proc)
-		if second.Outcome != PASSED {
-			t.Fatalf("successor must be durably PASSED, got %s", second.Outcome)
-		}
-		took, err := d.Takeover(grant.ScopeID, grant.ParentCapability, "")
-		if err != nil {
-			t.Fatalf("Takeover: %v", err)
-		}
-		if took.Outcome == HALTED {
-			t.Fatalf("the takeover must win, got HALTED %s", took.Cause)
-		}
-		// The final acknowledgement can no longer consume this scope: the takeover
-		// closed it (Closed, not FinalAcked), so the ack is refused ErrScopeTransferred
-		// (change 0459: authority moved to the parent) and writes nothing — the
-		// takeover, not the ack, owns this terminal transition.
-		scopeBytes := readScopeBytes(t, store, grant.ScopeID)
-		if _, aerr := d.Acknowledge(grant.ScopeID, grant.ChildCapability, second.DriveID, second.Generation); !isOwnershipKind(aerr, ErrScopeTransferred) {
-			t.Fatalf("an ack after a takeover closed the scope must fail ErrScopeTransferred, got %v", aerr)
-		}
-		if string(scopeBytes) != string(readScopeBytes(t, store, grant.ScopeID)) {
-			t.Fatalf("a refused ack must not rewrite the scope record")
-		}
-		scope, err := store.LoadScope(grant.ScopeID)
-		if err != nil {
-			t.Fatalf("LoadScope: %v", err)
-		}
-		if !scope.Closed || scope.FinalAcked {
-			t.Fatalf("a takeover close must leave the scope Closed and NOT FinalAcked, got Closed=%v FinalAcked=%v", scope.Closed, scope.FinalAcked)
-		}
-	})
-
-	t.Run("ack completes while a takeover is parked past its reads", func(t *testing.T) {
-		store := OpenStore(testsupport.TempDir(t))
-		req := sampleStart()
-		grant, err := store.PrepareScope(scopeReqFor(req, ""))
-		if err != nil {
-			t.Fatalf("PrepareScope: %v", err)
-		}
-		req.ScopeID = grant.ScopeID
-		req.ChildCapability = grant.ChildCapability
-
-		setupDriver := scopedTestDriver(store, &fakeClock{now: startRun()}, passObserveProc(), stableGit())
-		started, err := setupDriver.Start(req)
-		if err != nil {
-			t.Fatalf("setup Start: %v", err)
-		}
-		if started.Outcome != PASSED {
-			t.Fatalf("setup drive must PASS, got %s", started.Outcome)
-		}
-
-		gate := &gateGit{ready: make(chan struct{}), release: make(chan struct{}), head: "HEAD1"}
-		takeClk := &fakeClock{now: startRun()}
-		takeDriver := NewDriver(store, takeClk, &fakeProc{}, gate)
-		takeDriver.slice = 4 * pollTick
-		takeDriver.pollInterval = pollTick
-		takeDriver.sleep = func(dur time.Duration) { takeClk.advance(dur) }
-
-		var takeDoc DriveDoc
-		var takeErr error
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
-			takeDoc, takeErr = takeDriver.Takeover(grant.ScopeID, grant.ParentCapability, "")
-		}()
-
-		<-gate.ready // the takeover is parked past its scope/drive reads, before its close
-
-		ackDriver := scopedTestDriver(store, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
-		ackDoc, aerr := ackDriver.Acknowledge(grant.ScopeID, grant.ChildCapability, started.DriveID, started.Generation)
-		if aerr != nil {
-			t.Fatalf("Acknowledge: %v", aerr)
-		}
-		if ackDoc.Outcome != PASSED {
-			t.Fatalf("ack must report PASSED, got %s", ackDoc.Outcome)
-		}
-
-		close(gate.release) // release the parked takeover
-		<-done
-
-		if takeErr != nil {
-			t.Fatalf("Takeover returned a command error: %v", takeErr)
-		}
-		if takeDoc.Outcome != HALTED || !strings.Contains(takeDoc.Cause, string(ErrScopeClosed)) {
-			t.Fatalf("a takeover racing a completed ack must HALT scope-closed, got %s (%s)", takeDoc.Outcome, takeDoc.Cause)
-		}
-		scope, err := store.LoadScope(grant.ScopeID)
-		if err != nil {
-			t.Fatalf("LoadScope: %v", err)
-		}
-		if !scope.Closed || !scope.FinalAcked {
-			t.Fatalf("the ack must have closed the scope FinalAcked, got Closed=%v FinalAcked=%v", scope.Closed, scope.FinalAcked)
-		}
-	})
 }
 
 // TestFindScopeDriveIDsExcludesAcknowledgedHistory pins spec verification 7's tail:

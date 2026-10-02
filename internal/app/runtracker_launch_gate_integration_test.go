@@ -258,26 +258,6 @@ func TestIntegrationRunRecordRunLaunchGateRefusesCompletingAndCompleted(t *testi
 	}
 }
 
-// TestIntegrationRunRecordRunRevokedResolverRevokesCompletingAndCompleted: the takeover revocation
-// resolver reports revoked for a completing or completed run (change 0441), mirroring
-// the cancelled/superseded cases — a takeover of a completing/completed run refuses,
-// and explicit references to a completed run remain revoked.
-func TestIntegrationRunRecordRunRevokedResolverRevokesCompletingAndCompleted(t *testing.T) {
-	for _, s := range []runState{RunCompleting, RunCompleted} {
-		t.Run(string(s), func(t *testing.T) {
-			repo, common, key, runID, _ := runLaunchGateFixture(t)
-			fenceRun(t, repo, key, s)
-			revoked, err := runRevokedResolver(common)(runID)
-			if err != nil {
-				t.Fatalf("resolver err: %v", err)
-			}
-			if !revoked {
-				t.Fatalf("state %q must be revoked", s)
-			}
-		})
-	}
-}
-
 // fenceRun flips a run to the given fenced/terminal state through the CAS, the
 // same durable transition run.cancel/resume drive it into.
 func fenceRun(t *testing.T, repo, key string, state runState) {

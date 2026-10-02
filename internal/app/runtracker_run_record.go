@@ -772,8 +772,8 @@ func scanRunsByID(runTrackerRoot, runID string) ([]runDirMatch, error) {
 // runTrackerRoot (each run-key directory may hold one run.json). It returns the
 // record and found=true on a match, (found=false, nil) for a clean absence, and a
 // typed error only for an enumeration fault. A corrupt/unreadable sibling is
-// skipped. It underlies the Takeover revocation resolver, which keys on a scope's
-// RunID (the public locator, not the run key).
+// skipped. slotNamedRunUnresolved uses it to check whether the run a worktree
+// slot names (by its public RunID, not the run key) still exists.
 func findRunByID(runTrackerRoot, runID string) (RunRecord, bool, error) {
 	matches, err := scanRunsByID(runTrackerRoot, runID)
 	if err != nil {
@@ -803,31 +803,6 @@ func findRunDirByID(runTrackerRoot, runID string) (dir string, rec RunRecord, er
 		return matches[0].dir, matches[0].rec, nil
 	default:
 		return "", RunRecord{}, runErr(ErrRunAmbiguous, "find-dir-by-id", nil)
-	}
-}
-
-// runRevokedResolver builds the gatedrive.RunRevokedFunc the Takeover path
-// consults (change 0375 Task 12). It reads the app-owned run registry under
-// gitCommonDir and reports revoked=true when the named run is cancelled,
-// superseded, or completing/completed (a successful closeout — change 0441; a
-// takeover of a completing/completed run refuses, and explicit references to a
-// completed run remain revoked) — the states a takeover must refuse. A clean
-// "no such run" is
-// (false, nil): a locator that resolves to nothing cannot prove a run was cancelled,
-// and the takeover's other guards still protect it. An enumeration/IO fault is
-// returned so the takeover fails closed (HALT run-record-unreadable).
-func runRevokedResolver(gitCommonDir string) func(string) (bool, error) {
-	runTrackerRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
-	return func(runID string) (bool, error) {
-		rec, ok, err := findRunByID(runTrackerRoot, runID)
-		if err != nil {
-			return false, err
-		}
-		if !ok {
-			return false, nil
-		}
-		return rec.State == RunCancelled || rec.State == RunSuperseded ||
-			rec.State == RunCompleting || rec.State == RunCompleted, nil
 	}
 }
 

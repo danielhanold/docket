@@ -930,9 +930,9 @@ func TestIntegrationRunFenceUnreadableSlotRefusesLocally(t *testing.T) {
 
 // TestIntegrationRunFenceRunCarryingFencesUnchangedByOwnerSelection (AC6, separate proof): owner
 // selection answers only "who owns this path now". After a NEW active owner binds the
-// path, the stale run's own run-carrying fences still refuse it — the launch gate
-// (by id) and the takeover revocation resolver — for a cancelled, superseded, and
-// completed stale run alike, while ambient lookup names the new owner.
+// path, the stale run's own run-carrying fence — the launch gate (by id) — still
+// refuses it for a cancelled, superseded, and completed stale run alike, while
+// ambient lookup names the new owner.
 func TestIntegrationRunFenceRunCarryingFencesUnchangedByOwnerSelection(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
@@ -967,9 +967,6 @@ func TestIntegrationRunFenceRunCarryingFencesUnchangedByOwnerSelection(t *testin
 			}
 			if calls != 0 {
 				t.Fatalf("the stale run's reserve ran %d times; it must never run", calls)
-			}
-			if revoked, err := runRevokedResolver(common)(staleID); err != nil || !revoked {
-				t.Fatalf("takeover resolver for the stale %s run = (%v, %v), want revoked", tc.name, revoked, err)
 			}
 		})
 	}

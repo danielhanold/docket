@@ -63,8 +63,8 @@ func RunIDNextAction(reason string) string {
 // run registry through findRunDirByID (the same locator the run launch
 // gate uses) and returns its typed RunError (not-found, ambiguous, IO) unchanged.
 // It checks RESOLVABILITY only, never liveness: a scope may legitimately carry a
-// cancelled run (the takeover revocation gate reads it later), and the launch gate
-// still enforces liveness and worktree ownership at start.
+// cancelled run, and the launch gate still enforces liveness and worktree
+// ownership at start.
 func runIDLocator(gitCommonDir string) func(string) error {
 	runTrackerRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
 	return func(runID string) error {
