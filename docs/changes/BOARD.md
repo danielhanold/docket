@@ -1,12 +1,12 @@
 # Backlog
 
-**493 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 8 proposed · ⚪ 12 deferred · ✅ 337 done · 🗑️ 132 killed
+**493 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 8 proposed · ⚪ 12 deferred · ✅ 337 done · 🗑️ 132 killed
 
-## 🔴 Blocked (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | PR | Reason |
-|---|-------|----------|------|----|--------|
-| [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` |  | Halted at build Task 5 pending a human decision among 3 feasible paths for the AGENTS.md dispatch-budget overage (trim in-block coordinator prose, re-baseline dispatchBudget, or relocate guidance) — see the run-halted record on the change. |
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
 ## 🟣 Groomed (3)
 
