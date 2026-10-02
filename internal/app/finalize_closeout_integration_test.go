@@ -157,7 +157,7 @@ func TestIntegrationFinalizeCloseoutBacklinkPendingFindingNamesTheCause(t *testi
 
 // TestCloseoutIdempotent proves a replay after a response-lost success is a
 // verified no-op keyed on the promised archive record, never a second commit.
-func TestIntegrationFinalizeCloseoutIdempotent(t *testing.T) {
+func TestIntegrationFinalizeArchiveIdempotent(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]
 	f := setupCloseoutFixture(t, m)
@@ -185,7 +185,7 @@ func TestIntegrationFinalizeCloseoutIdempotent(t *testing.T) {
 // TestCloseoutNeverEditsAuthoredBytes proves the authored content of the merged
 // plan/results outside the docket:backlink block is byte-identical after a
 // closeout.
-func TestIntegrationFinalizeCloseoutNeverEditsAuthoredBytes(t *testing.T) {
+func TestIntegrationFinalizeArchiveNeverEditsAuthoredBytes(t *testing.T) {
 	requireRealGit(t)
 	for _, m := range planRepoModes() {
 		m := m
@@ -460,7 +460,7 @@ func TestIntegrationFinalizeCloseoutNotesStackedInPlace(t *testing.T) {
 // archive path, its claim is cleared, its updated stamp is the merge date, its
 // board is refreshed, and every backlink retargets to the archive path. It runs
 // in both metadata modes.
-func TestIntegrationFinalizeCloseoutOrdinary(t *testing.T) {
+func TestIntegrationFinalizeArchiveOrdinary(t *testing.T) {
 	requireRealGit(t)
 	for _, m := range planRepoModes() {
 		m := m
@@ -532,7 +532,7 @@ func TestIntegrationFinalizeCloseoutOrdinary(t *testing.T) {
 // TestCloseoutRefusals proves an open PR, an unknown probe, a destination
 // mismatch, and an illegal source status each refuse with a closed disposition
 // and land nothing on the metadata ref.
-func TestIntegrationFinalizeCloseoutRefusals(t *testing.T) {
+func TestIntegrationFinalizeArchiveRefusals(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]
 
@@ -627,7 +627,7 @@ func (f *closeoutFixture) carryOntoRootFeature(t *testing.T, files map[string]st
 // the verbatim call `return FinalizeCloseout(ctx, depsFor(obs), repoDir, id,
 // CloseoutNotes{})` (internal/app/maintenance.go), so a direct FinalizeCloseout
 // invocation exercises the exact path the sweep drives (maintenance-sweep-same-refusal).
-func TestIntegrationFinalizeCloseoutRootCarry(t *testing.T) {
+func TestIntegrationFinalizeArchiveRootCarry(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0] // main mode: one ref carries every backlink
 
@@ -924,7 +924,7 @@ func (f *closeoutFixture) carryLiveParent(t *testing.T, childStatus, parentBranc
 	return recPath, mc
 }
 
-func TestIntegrationFinalizeCloseoutStackedMerged(t *testing.T) {
+func TestIntegrationFinalizeArchiveStackedMerged(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]
 	f := setupCloseoutFixture(t, m)
@@ -970,7 +970,7 @@ func TestIntegrationFinalizeCloseoutStackedMerged(t *testing.T) {
 // into the parent's non-derived recorded branch takes the in-place stacked path,
 // and a live parent whose record carries no branch fails closed to invalid-state
 // with the child record left untouched.
-func TestIntegrationFinalizeCloseoutStackedParentBranchIdentity(t *testing.T) {
+func TestIntegrationFinalizeArchiveStackedParentBranchIdentity(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]
 
@@ -1054,12 +1054,12 @@ func (f *closeoutFixture) carryStackRebasedPreserved(t *testing.T, childStatus, 
 	return recPath, mc
 }
 
-// TestIntegrationFinalizeCloseoutStackedPreservation proves the stacked-merged
+// TestIntegrationFinalizeArchiveStackedPreservation proves the stacked-merged
 // closeout path (fresh marking AND the already-stacked-merged replay) refuses
 // unless the child's merge result is preserved at the parent's freshly pinned
 // remote head — a historical PR destination is a relationship, never evidence the
 // parent still carries the merge (change 0327).
-func TestIntegrationFinalizeCloseoutStackedPreservation(t *testing.T) {
+func TestIntegrationFinalizeArchiveStackedPreservation(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]
 

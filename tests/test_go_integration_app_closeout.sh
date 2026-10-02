@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # docket-suite: go
-# tests/test_go_integration_app_closeout.sh — Go integration shard (change 0333):
-# the finalize closeout real-repository tests (archive, notes, backlink legs, stacked identity), behind the `integration` build tag, prefix
-# ^TestIntegrationFinalizeCloseout. Declarations only — execution and inspection live in
+# tests/test_go_integration_app_closeout.sh — Go integration shard (change 0333;
+# split by change 0487): the finalize closeout notes, backlink-leg, and
+# unrelated-record real-repository tests, behind the `integration` build tag, prefix
+# ^TestIntegrationFinalizeCloseout. The root/stacked/lifecycle half lives in
+# tests/test_go_integration_app_archive.sh. Declarations only — execution and inspection live in
 # tests/lib/go-integration-shard.sh; the completeness contract is
 # tests/test_go_integration_contract.sh.
 set -uo pipefail
