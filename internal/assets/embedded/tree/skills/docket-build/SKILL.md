@@ -78,7 +78,7 @@ Dispatch the selected tier agent **by name** — one of `docket-build-economy`,
 time; later tasks build on earlier task commits and share the worktree, so workers are strictly
 sequential. Its dispatch payload contains:
 Feature worktree: <absolute canonical feature-worktree root>
-It also gives the worker the plan task text, applicable repository instructions, selected
+It also gives the worker the branch name, the plan task text, applicable repository instructions, selected
 tier and routing reason, and the return schema. No run context, run id, or capability goes into a
 worker prompt: the worker runs its tests directly and calls no gate operation. Never dispatch a task reviewer, and
 never dispatch two workers concurrently — that binds a controller who *believes the first worker

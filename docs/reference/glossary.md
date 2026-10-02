@@ -1071,11 +1071,12 @@ owner **claims**).
 their focused tests directly under a fixed `timeout`. The component making these calls is the **gate
 driver**. A forked controller drives the suite with inline, blocking `advance` calls — it must never
 background the suite and yield. The catalog still carries the recovery-scope operations
-(`prepare-scope`, `takeover`, `acknowledge`) that once served build-task workers; no workflow uses
-them, and change 0489 removes them.
+(`prepare-scope`, `takeover`, `acknowledge`) that once served build-task workers. No skill invokes
+them directly, but the run tracker still uses a scope internally: `run.start` prepares an outer
+scope, and `run.verdict` can take over a drive through it. Change 0489 decides their fate.
 
 ```sh
-docket gate drive start   --repo-dir . --owner build --run-root <dir> --run-id <run-id> -- <suite argv>
+docket gate drive start   --repo-dir . --owner build --run-root <dir> --run-id <run-id>
 docket gate drive advance --drive-id <id> --owner-gen <gen>
 docket gate drive handoff --drive-id <id> --owner-gen <gen>
 docket gate drive claim   --drive-id <id> --handoff-id <token>

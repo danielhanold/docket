@@ -24,7 +24,7 @@ The outcome forks two ways:
   escalated once to the strongest, and if that still cannot green the suite, the build halts for a
   human rather than merging a broken integration.
 
-Running the suite here — on the build side, owned by the worker that can fix a failure — rather than
+Running the suite here — on the build side, owned by the build controller, the side that can route a failure to a repair worker — rather than
 inside the reviewer is deliberate: the suite is the boundary between building and reviewing, and it
 belongs to the side that can act on a failure. The reasoning behind that split is
 [Reviewing before the human does](./reviewing-before-the-human.md).
