@@ -1167,7 +1167,8 @@ comes from the run's recorded state, not from how the gate found out the run sto
 ### `worktree-busy`
 
 The reason a gate start is refused because another gate's supervisor holds the
-[worktree lock](#worktree-lock).
+[worktree lock](#worktree-lock). A gate-drive relaunch that finds the worktree lock held by another gate HALTs with
+cause `worktree-busy` instead of relaunching over it.
 
 **Used for:** recognising a blocking diagnostic, which is neither a red suite nor a retry trigger. It charges no suite
 attempt. The fix is an operator act: let the holder finish, or stop it (`run.cancel` for a tracked run, `gate stop`
