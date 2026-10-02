@@ -2,11 +2,11 @@
 id: 443
 slug: 'clarify-gate-operation-ids-versus-executable-argv'
 title: 'Clarify gate operation IDs versus executable argv'
-status: 'proposed'
+status: 'killed'
 priority: 'low'
 type: 'docs'
 created: '2026-09-22'
-updated: '2026-09-22'
+updated: '2026-10-02'
 depends_on: []
 stacked_on:
 related: [394, 395]
@@ -43,3 +43,11 @@ Suggested direction for later grooming: clarify the shared run-gate instructions
 ## Out of scope
 
 Full grooming, a spec or implementation plan, implementation now, CLI aliases or behavior changes, and broader dispatch redesign.
+
+## Why killed
+
+Obsolete as filed. It targets `cursor-rules/run-gate.md` and the `run.gate-before` operation, which have since been renamed to `cursor-rules/run-tracker.md` and `run.start`. The current block already tells the coordinator to resolve each operation from the capability catalog. The confusion was seen once and hasn't recurred.
+
+Change 0491 rewrites the same run-tracker block when it retires the run id, so the one-line clarification ("never execute an operation id; run its catalog argv") moves there.
+
+Killed in the 2026-10-02 backlog review, on Daniel's decision.
