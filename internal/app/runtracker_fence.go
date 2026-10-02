@@ -71,7 +71,7 @@ const (
 
 // MutationFenceError is the typed refusal a fenced run raises at a mutation
 // boundary. Reason is one of the stable tokens the fence vocabulary defines —
-// "run-cancelled" (the owning run is cancelling/cancelled), "stale-run-id"
+// "run-cancelled" (the owning run is cancelling/cancelled), "run-superseded"
 // (the owning run was superseded by a resume), or "run-completed" (the owning
 // run is completing/completed a successful closeout, change 0441). It carries no
 // credential, argv, environment, or child output — only the bounded reason token.
@@ -85,15 +85,15 @@ func (e *MutationFenceError) Error() string {
 
 // The two fence refusals, as reusable sentinels (compared by identity through the
 // errors chain, or by Reason). run-cancelled fences a cancelling/cancelled run;
-// stale-run-id fences a superseded one.
+// run-superseded fences a superseded one.
 var (
 	// ErrRunCancelled: the owning run is cancelling or cancelled — no new
 	// mutation from that run is admitted (spec "After cancellation is recorded, no
 	// new mutation from the old run is admitted").
 	ErrRunCancelled = &MutationFenceError{Reason: "run-cancelled"}
-	// ErrStaleRunID: the owning run was superseded by a confirmed resume —
-	// this caller carries a stale run identity and is refused.
-	ErrStaleRunID = &MutationFenceError{Reason: "stale-run-id"}
+	// ErrRunSuperseded: the owning run was superseded by a confirmed resume —
+	// its replacement now owns the worktree, and this run's mutations are refused.
+	ErrRunSuperseded = &MutationFenceError{Reason: "run-superseded"}
 	// ErrRunCompleted: the owning run finished (or is finishing) a SUCCESSFUL
 	// closeout (change 0441) — completing/completed. No new mutation, launch, or
 	// registration from that run admits, and the refusal is distinguishable from
@@ -116,7 +116,7 @@ func AsMutationFenceError(err error) (*MutationFenceError, bool) {
 // subject ("change" / "workspace"). Only the reason token is machine-readable —
 // gate logic keys on it and it rides through unchanged. The message is explanatory
 // and reason-aware: a run-completed fence (change 0441) is a SUCCESSFUL closeout, so
-// its message never falsely claims cancellation; run-cancelled/stale-run-id keep
+// its message never falsely claims cancellation; run-cancelled/run-superseded keep
 // the cancelled-or-superseded wording. An unrecognized reason falls back to the
 // reason-neutral "no longer accepting mutations" phrasing. An owner-resolution
 // refusal (ErrRunOwnerAmbiguous, change 0446) reports its own kind as the reason,
@@ -132,7 +132,7 @@ func fenceRefusalReasonMessage(ferr error, subject string) (reason, message stri
 			ferr.Error() + "); publish nothing"
 	}
 	switch reason {
-	case "run-cancelled", "stale-run-id":
+	case "run-cancelled", "run-superseded":
 		message = "the run that owns this " + subject + " was cancelled or superseded; publish nothing"
 	case "run-completed":
 		message = "the run that owns this " + subject + " finished successfully and is no longer accepting mutations; publish nothing"
@@ -172,7 +172,7 @@ func noopJournalDone(string, bool) {}
 //     conflict-checked write and return (done, nil). `done(completed|uncertain, verified)`
 //     updates exactly that entry after the mutation resolves.
 //   - Owning run CANCELLING/CANCELLED → (nil, ErrRunCancelled).
-//   - Owning run SUPERSEDED → (nil, ErrStaleRunID).
+//   - Owning run SUPERSEDED → (nil, ErrRunSuperseded).
 //   - Owning run COMPLETING/COMPLETED → (nil, ErrRunCompleted). A completed run
 //     is normally already excluded from findRunByWorktree, so this start chiefly
 //     fences a completing (mid-closeout) run; the completed start is defense in depth.
@@ -227,7 +227,7 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 			})
 			return nil
 		case RunSuperseded:
-			return ErrStaleRunID
+			return ErrRunSuperseded
 		case RunCancelling, RunCancelled:
 			return ErrRunCancelled
 		case RunCompleting, RunCompleted:

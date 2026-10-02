@@ -19,7 +19,7 @@ package repoguard
 // Residual risk, recorded not hidden: a build-owned start without the
 // --owner build token in the same paragraph is not a site; at run time the
 // driver still fences such a no-run-record start against a run-owned worktree
-// (stale-run-id).
+// (run-superseded).
 // Change 0488 review: the same paragraph must also carry --change-id —
 // GateDriveService.Start charges build.max_attempts only for a build-owned start
 // with a non-empty ChangeID, and FindScopeDriveIDs matches drives on ChangeID, so

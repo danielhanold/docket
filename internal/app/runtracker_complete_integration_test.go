@@ -95,7 +95,7 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunIdempotentReplay(t *testin
 }
 
 // TestIntegrationRunCompletionCompleteSuccessfulRunNeverRelabelsCancellation: a cancelling/cancelled run is
-// run-cancelled, a superseded run is stale-run-id, and the run state is never
+// run-cancelled, a superseded run is run-superseded, and the run state is never
 // rewritten to a successful one.
 func TestIntegrationRunCompletionCompleteSuccessfulRunNeverRelabelsCancellation(t *testing.T) {
 	cases := []struct {
@@ -104,7 +104,7 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunNeverRelabelsCancellation(
 	}{
 		{RunCancelling, "run-cancelled"},
 		{RunCancelled, "run-cancelled"},
-		{RunSuperseded, "stale-run-id"},
+		{RunSuperseded, "run-superseded"},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.state), func(t *testing.T) {

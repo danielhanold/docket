@@ -31,10 +31,10 @@ import (
 // the sole authority MAPPER — it never re-derives RunVerify's run-complete. On a
 // keyed run-complete it additionally drives the successful-run ownership closeout
 // (runTrackerCompleteRun → completeSuccessfulRun) so a standalone finalize gate can admit
-// on the same worktree without a stale-run-id refusal or a human cancellation. A
+// on the same worktree without a run-superseded refusal or a human cancellation. A
 // BLOCKED or lost closeout maps to `run-stop <key> run-tracker-unavailable <reason>` on the
 // existing run-tracker-unavailable channel with the new bounded reason tokens (run-cancelled
-// / stale-run-id / completion-unaccounted / completion-unpersisted /
+// / run-superseded / completion-unaccounted / completion-unpersisted /
 // report-unpersisted / run-record-unreadable) and never reports success — RunVerify's own
 // verdict is reported as fact through those tokens, never re-derived. The closeout is
 // observation-only, fails closed on missing evidence, and consumes no retry. A
@@ -141,8 +141,8 @@ const (
 	// ReasonRunCancelled: a cancelling/cancelled run — never relabelled successful
 	// (an explicit human cancellation won, from active or from completing).
 	ReasonRunCancelled = "run-cancelled"
-	// ReasonStaleRunID: a superseded run — the run this key named is stale.
-	ReasonStaleRunID = "stale-run-id"
+	// ReasonRunSuperseded: a superseded run — a confirmed resume replaced it.
+	ReasonRunSuperseded = "run-superseded"
 	// ReasonRunCompletionUnaccounted: a live/busy/pending/uncertain obligation blocks
 	// completion (fail closed). The run stays durably completing; the remedy — named
 	// in the result's CompletionFindings — is to settle the evidence and repeat the same
@@ -434,7 +434,7 @@ func runTrackerCompleteRun(repoDir, key string, rec RunTrackerRecord, id int, se
 	}
 
 	// (2) Drive the ownership closeout. completeSuccessfulRun's reason is a bounded
-	// run-tracker-unavailable token (run-cancelled / stale-run-id / completion-unaccounted /
+	// run-tracker-unavailable token (run-cancelled / run-superseded / completion-unaccounted /
 	// completion-unpersisted / run-record-unreadable), passed through verbatim; the findings
 	// name what to settle. A blocked closeout never reports success and spends no retry.
 	ok, reason, findings := completeSuccessfulRun(seams, repoDir, key)
