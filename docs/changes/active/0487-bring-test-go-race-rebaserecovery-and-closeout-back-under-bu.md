@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-01'
-updated: '2026-10-01'
+updated: '2026-10-02'
 depends_on: []
 stacked_on:
 related: [466, 465, 434, 373, 333, 362, 289, 280]
@@ -22,7 +22,7 @@ branch: 'fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-02T05:53:34Z'
+claimed_at: '2026-10-02T05:54:04Z'
 ---
 
 ## Artifacts
@@ -75,3 +75,6 @@ The full suite passes at the gate, and the budget report shows no `SERIAL CONFIR
 
 Reconciled at claim against origin/main 97cc46c3e, the same head the spec's grooming measurements were taken on. No intervening merges; `gofmt -l internal/ cmd/` still flags only `internal/githubcli/comment_integration_test.go`. Scope unchanged.
 
+### 2026-10-02
+
+Resume reconcile after the 2026-10-01 halt (resumed via change.resume-halted on 2026-10-02; the stranded drive's deadline had passed and no docket or go test process was live). origin/main advanced 97cc46c3e -> b15e07c43 with change 0479 only: an unfiltered-run guard in internal/testsupport + internal/app, a new probe (11) in tests/test_go_integration_contract.sh, and a tests/README.md section. None of it touches the retired-vocabulary seal, the closeout/rebaserecovery shard wrappers, their SHARD_PREFIX values, or tests/runtime-budgets.tsv, so scope is unchanged. The feature branch stays on its recorded base (plan-only commit); finalize's rebase brings 0479 in. Task 1 (gofmt) remains already satisfied under the declared toolchain.
