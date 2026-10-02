@@ -31,3 +31,7 @@ A stale or orphaned historical record no longer blocks unrelated worktrees; new 
 ## Alternatives considered
 
 Keep the global veto and require manual history cleanup before any new drive (rejected: one orphan halts all work). Fully supersede ADR-0118/0120 (rejected: most of their guarantees still hold). Treat HALTED as release proof (rejected: a halted drive may still own live work needing a human). Treat probe errors as absence (rejected: silently unsafe).
+
+## Update (2026-10-02)
+
+ADR-0132 (change 0490) replaces the durable worktree admission slot with a supervisor-held kernel lock and removes this decision's slot-bound rules: finished-incumbent settlement (`internal/gatedrive/incumbent.go`), removed-path slot addressing, and the slot legs of its relevance and owner rules. Relevance to the current worktree and "a probe error is never absence" stay in force.

@@ -25,3 +25,7 @@ Legacy completed history no longer blocks unrelated first admissions, and refusa
 ## Alternatives considered
 
 Widen the executable reader to accept schema 2: rejected — it would admit records the state machine cannot faithfully execute, trading a false refusal for a real correctness hazard. Migrate or rewrite legacy records in place: rejected — history is evidence, and rewriting it destroys the audit value while adding a write path to a read-only assessment. Add a second liveness probe for HALTED history: rejected in favor of reusing process.Service.ClassifyRun, so there is exactly one recovery predicate. Introduce a drive-retirement lifecycle with receipts: rejected as scope beyond the observed defect.
+
+## Update (2026-10-02)
+
+ADR-0132 (change 0490) replaces the durable worktree admission slot with a supervisor-held kernel lock and deletes the uses of this decision in first admission and in history cleanup: the first-admission legacy inventory (`inventoryLegacyDrives`, `classifyLegacyDrive`, the `legacy_history` result field) and `gate.history.cleanup` (`Driver.CleanupHistory`, `assessLegacyRecord`) are removed. The assessment-only historical reader (`loadHistoricalDrive`) stays: the launch census uses it to skip historical drives with a terminal outcome. Historical schemas are still assessed, never executed.

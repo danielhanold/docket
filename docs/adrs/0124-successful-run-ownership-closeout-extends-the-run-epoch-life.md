@@ -51,3 +51,7 @@ This lets a standalone finalize gate reuse the same worktree after a verified-co
 - **Let RunVerify (or an unattributed/observe-mode verdict) drive closeout.** Rejected: RunVerify is read-only by contract and an unattributed verdict cannot establish which run it speaks for; ownership must only change on an attributed, keyed authority.
 - **Treat registration or the owner-complete marker as sufficient quiescence evidence.** Rejected: neither proves a native participant terminated, so closeout could release a worktree with live work attached. Exact persisted terminal observation — including terminal failure — is required, and its absence means unproven.
 - **Have closeout stop or signal remaining participants.** Rejected: that duplicates cancellation's authority on a path that no human authorized. Closeout observes and fails closed instead.
+
+## Update (2026-10-02)
+
+ADR-0132 (change 0490) replaces the durable worktree admission slot with a supervisor-held kernel lock, so the closeout's slot retirement is removed: `run.verdict`'s success closeout drops `accountCompletionSlot`, the slot branch of `durableExecutionProof`, and the slot retire. The rest of the closeout stands (`FenceRunCompleting`, publication settlement, participant status, the journal, the observe-only launch census — now attributed by run-context hash — and `CompleteRun`) until change 0491 retires the run id.
