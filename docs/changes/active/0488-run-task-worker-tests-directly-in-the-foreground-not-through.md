@@ -2,7 +2,7 @@
 id: 488
 slug: 'run-task-worker-tests-directly-in-the-foreground-not-through'
 title: 'Run task-worker tests directly in the foreground, not through gate drives'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'fix'
 created: '2026-10-02'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/run-task-worker-tests-directly-in-the-foreground-not-through'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/364'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-02T07:26:37Z'
