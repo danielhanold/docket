@@ -2,7 +2,7 @@
 id: 491
 slug: 'stop-fencing-gate-admission-on-the-run-id-keep-the-run-track'
 title: 'Retire the run id; the run key becomes the run tracker''s only handle'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'refactor'
 created: '2026-10-02'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/367'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-02T23:23:45Z'

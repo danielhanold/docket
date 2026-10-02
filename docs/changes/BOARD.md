@@ -1,12 +1,12 @@
 # Backlog
 
-**494 changes** — 🟢 1 in progress · 🟣 5 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 337 done · 🗑️ 133 killed
+**494 changes** — 🔵 1 built · 🟣 5 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 337 done · 🗑️ 133 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0491](active/0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Retire the run id; the run key becomes the run tracker's only handle | `critical` | `refactor` | [spec](../superpowers/specs/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md) | `refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0491](active/0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Retire the run id; the run key becomes the run tracker's only handle | `critical` | `refactor` | [#367](https://github.com/danielhanold/docket/pull/367) | awaiting merge |
 
 ## 🟣 Groomed (5)
 
