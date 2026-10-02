@@ -15,11 +15,11 @@ import (
 // TestIntegrationRunStartNoRunRecordResumeEndToEnd0382 reproduces change 0382's resumed run (change 0463).
 // The change was claimed by an UNTRACKED first dispatch, so no run exists. The
 // resume start must print `run-started <key> <run-id> <run-context>`. Parsed
-// positionally (as AGENTS.md tells a parent), the <run-id> is admitted by the real
-// run launch gate for the resumed worktree. (Change 0490 retired the slot that
-// used to record it; admission now holds the worktree lock and records no run.)
-// The misrouted 0382 call (the run context presented as the run id) is refused
-// with the named unknown-run-id. The resume inspect path uses the raw temp
+// positionally (as AGENTS.md tells a parent), the <run-context> links a gate start
+// for the resumed worktree, which admission takes under the worktree lock alone:
+// change 0491 deleted the run launch check, so gate drive start carries no run id
+// and the misrouted 0382 call (the run context presented as the run id) has no
+// flag left to misroute through. The resume inspect path uses the raw temp
 // spelling and the start uses the symlink-resolved one (Review Focus 1).
 func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
@@ -60,23 +60,14 @@ func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
 	}
 	req := GateDriveStartRequest{
 		RepoDir: common, Worktree: worktree, ChangeID: "5", Phase: "build",
-		RunRoot: testsupport.TempDir(t), Cwd: worktree, RunContext: runCtx, RunID: runID,
+		RunRoot: testsupport.TempDir(t), Cwd: worktree, RunContext: runCtx,
 	}
 
-	// The misrouted 0382 call: the run context presented as the run id.
-	bad := req
-	bad.RunID = runCtx
-	if _, berr := svc.engine.Admit(svc.startRequest(bad)); berr == nil {
-		t.Fatalf("the run context must never admit as a run id")
-	} else if r, why := mapDriveFailure(berr); r != ResultInvalidInput || why != ReasonUnknownRunID {
-		t.Fatalf("misrouted run id refused as (%s, %q), want (invalid-input, unknown-run-id)", r, why)
-	}
-
-	// The correctly parsed run id is admitted by the real launch gate.
+	// A gate start carrying the parsed run context is admitted for the resumed worktree.
 	ticket, aerr := svc.engine.Admit(svc.startRequest(req))
 	if aerr != nil {
 		r, why := mapDriveFailure(aerr)
-		t.Fatalf("the parsed run id must admit for the resumed worktree, got (%s, %q): %v", r, why, aerr)
+		t.Fatalf("the parsed run context must admit for the resumed worktree, got (%s, %q): %v", r, why, aerr)
 	}
 	t.Cleanup(func() { _ = svc.engine.AbandonAdmission(ticket) })
 }

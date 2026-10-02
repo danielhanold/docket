@@ -629,34 +629,6 @@ func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 	}
 }
 
-// TestGateDriveStartUnknownRunIDIsNamed (change 0463): the 0382 misuse, where a
-// well-formed but unknown --run-id (a run-context-shaped 32-hex token) goes
-// through the REAL run launch gate, is refused invalid-input with the named
-// unknown-run-id, never the catch-all invalid-request. The presented value is
-// never echoed.
-func TestGateDriveStartUnknownRunIDIsNamed(t *testing.T) {
-	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /bin/echo hi\n")
-	root := testsupport.TempDir(t)
-	const bogus = "0790b760e26444866ef2e156ba383326"
-	out, _, _ := runCLI(t, "--json", "gate", "drive", "start",
-		"--repo-dir", wt, "--run-root", root, "--owner", "build",
-		"--change-id", "463", "--task-id", "task-3", "--phase", "build", "--branch", "fix/x",
-		"--run-id", bogus)
-	doc := decodeOneJSON(t, out)
-	if doc["result"] != "invalid-input" || doc["reason"] != "unknown-run-id" {
-		t.Fatalf("unknown --run-id must refuse invalid-input/unknown-run-id, got %v", doc)
-	}
-	if _, ok := doc["drive"]; ok {
-		t.Fatalf("a refused start must carry no drive document: %v", doc)
-	}
-	if msg, _ := doc["message"].(string); !strings.Contains(msg, "--run-context") || strings.Contains(msg, "--gate-context") {
-		t.Fatalf("refusal must carry the next action naming --run-context, got %q", msg)
-	}
-	if strings.Contains(out, bogus) {
-		t.Fatalf("the presented --run-id value leaked into the output: %s", out)
-	}
-}
-
 // TestGateDriveRetiredScopeCommandsAreUnknown (change 0489): the recovery-scope
 // operations are gone from the CLI. The leaf is not registered, and a stale caller
 // invoking one gets a usage error and no gate.drive.* protocol document — never a
@@ -751,5 +723,16 @@ func TestGateDriveStartBuildOwnedStoresRunContextHash(t *testing.T) {
 	sum := sha256.Sum256([]byte("ctx-0489"))
 	if want := hex.EncodeToString(sum[:]); env.Record.RunContextHash != want {
 		t.Fatalf("drive run_context_hash = %q, want sha256(--run-context) %q", env.Record.RunContextHash, want)
+	}
+}
+
+// TestGateDriveStartRejectsRunIDFlag (change 0491): gate drive start no longer
+// takes --run-id. The run launch check it fed is gone, so a caller still passing
+// it fails on an unknown flag (exit 2) instead of being silently accepted.
+func TestGateDriveStartRejectsRunIDFlag(t *testing.T) {
+	_, errS, code := runCLI(t, "gate", "drive", "start", "--owner", "build",
+		"--run-root", "/tmp/docket-0491-run-root", "--run-id", "0790b760e26444866ef2e156ba383326")
+	if code != 2 || !strings.Contains(errS, "unknown flag: --run-id") {
+		t.Fatalf("exit %d stderr %q, want exit 2 naming the unknown --run-id flag", code, errS)
 	}
 }

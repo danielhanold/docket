@@ -112,14 +112,6 @@ type StartRequest struct {
 	// takeover matches. Empty for a drive outside any dispatched run. (change 0359)
 	RunContext string
 
-	// RunID names the workflow run (runtracker_run_record.go) the starting run
-	// tracker minted. It is only the run launch gate's locator (RunLaunchGate,
-	// consulted at Admit and StartAdmitted): a LOCATOR, never a credential, it
-	// authorizes nothing and is never persisted. Empty for a standalone gate that
-	// owns no implementation run (finalize's local gate). (change 0375 Task 9;
-	// kept for change 0491)
-	RunID string
-
 	// Owner names the policy that owns this drive ("build", "finalize", or ""),
 	// recorded only in the worktree lock's diagnostic holder note so a busy
 	// refusal can name the right remedy. It is never persisted on the drive and
@@ -141,47 +133,6 @@ type Driver struct {
 	slice        time.Duration
 	pollInterval time.Duration
 	sleep        func(time.Duration)
-
-	// runLaunch, when set, is the app-owned authoritative run liveness read the
-	// launch/reservation paths run their durable reservation body under (change
-	// 0437). Every run-backed reservation/launch authorization in this package
-	// flows through the runLaunchGated helper, which consults this seam only when both
-	// it and a run id are present. It is injected once at composition
-	// (SetRunLaunchGate), before any concurrent start, so it needs no lock.
-	runLaunch RunLaunchGate
-}
-
-// RunLaunchGate is the app-injected authority that validates a run is
-// LIVE (active, uniquely resolved in this repository's registry, and bound to
-// worktree) and, while the registry's per-key run lock is held, runs reserve —
-// the driver's durable admission/reservation body — so a concurrent cancellation
-// fence either lands before the liveness read (reserve never runs) or observes
-// the durable reservation reserve produced. A validation failure returns a typed
-// error and reserve is NEVER called. The gate performs no run write. A nil gate
-// or an empty runID runs reserve directly (a genuinely no-run-record standalone
-// gate keeps its existing behavior).
-type RunLaunchGate func(runID, worktree string, reserve func() error) error
-
-// SetRunLaunchGate injects the gate at composition, before any concurrent
-// start, so it needs no lock. Passing nil clears it (the launch gate is then
-// skipped and the no-run-record standalone behavior governs).
-func (d *Driver) SetRunLaunchGate(g RunLaunchGate) { d.runLaunch = g }
-
-// RunLaunchGateWired reports whether a RunLaunchGate has been injected. It is a
-// read-only composition probe the app-layer wiring test keys on (change 0437 Task 5:
-// the wiring is where the takeover-only defect lived) — never part of the drive
-// protocol and never consulted by a drive operation.
-func (d *Driver) RunLaunchGateWired() bool { return d.runLaunch != nil }
-
-// runLaunchGated runs reserve under the injected gate when both the gate and the
-// run id are present, else directly. Every run-backed reservation/launch
-// authorization in this package flows through this ONE helper (the launch-site
-// guard in change 0437 Task 8 keys on it).
-func (d *Driver) runLaunchGated(runID, worktree string, reserve func() error) error {
-	if d.runLaunch == nil || runID == "" {
-		return reserve()
-	}
-	return d.runLaunch(runID, worktree, reserve)
 }
 
 // NewDriver builds a Driver over the composed seams with production slice bounds
@@ -265,11 +216,6 @@ type AdmissionTicket struct {
 	lock *WorktreeLock
 	// owner is StartRequest.Owner, carried to the holder note the launch writes.
 	owner string
-	// runID retains, in memory only, the run this admission was gated
-	// under so the launch half can revalidate the SAME run before launching
-	// (change 0437). It is NEVER persisted; an empty value is a genuinely
-	// no-run-record standalone gate.
-	runID string
 }
 
 // Start creates a drive, validates and fingerprints the execution context,
@@ -350,28 +296,10 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 		rec.RunContextHash = capHash(req.RunContext)
 	}
 
-	// Fence the admission behind the app-owned run liveness read: the admission
-	// body runs while the run registry lock is held, so a concurrent cancellation
-	// fence either lands before the read (nothing is admitted) or observes the
-	// reserved drive the body produced. The fingerprint (above) stays OUTSIDE the
-	// gate. Lock order inside: run.lock (the gate) → the worktree lock (only ever
-	// tried, so it adds no deadlock edge) → the drive store's CAS lock.
-	var ticket *AdmissionTicket
-	err = d.runLaunchGated(req.RunID, req.Worktree, func() error {
-		var aerr error
-		ticket, aerr = d.admitScopeless(rec, ownerGen, req.Owner)
-		return aerr
-	})
-	if err != nil {
-		if ticket != nil {
-			// The body admitted but the gate still failed: never leak the lock or the
-			// reserved drive of an admission the caller will never see.
-			_ = d.AbandonAdmission(ticket)
-		}
-		return nil, err
-	}
-	ticket.runID = req.RunID
-	return ticket, nil
+	// Admission takes the worktree lock and persists the reserved drive. No run is
+	// checked (change 0491): a gate start is refused only by the worktree lock
+	// (worktree-busy) and the drive protocol's own checks.
+	return d.admitScopeless(rec, ownerGen, req.Owner)
 }
 
 // StartAdmitted performs the launch half of a start: it launches the admitted
@@ -395,12 +323,12 @@ func (d *Driver) StartAdmitted(t *AdmissionTicket) (DriveDoc, error) {
 		// ticket already consumed or abandoned admits nothing.
 		return DriveDoc{}, ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted")
 	}
-	// Revalidate the run and the ticket's RESERVED drive record, and acquire the
-	// drive's claimant flock, before any launch (change 0437 Task 2). A fence that
-	// landed between Admit and here, a busy claim, or a settled record refuses with
-	// a typed error and launches nothing. On success the returned claim is HELD
-	// across launch/attach so a concurrent cancellation observes pending work; the
-	// launch half releases it once the launch is attached.
+	// Revalidate the ticket's RESERVED drive record, and acquire the drive's
+	// claimant flock, before any launch (change 0437 Task 2). A busy claim or a
+	// settled record refuses with a typed error and launches nothing. On success
+	// the returned claim is HELD across launch/attach so a concurrent census
+	// observes pending work; the launch half releases it once the launch is
+	// attached.
 	claim, err := d.revalidateAdmittedLaunch(t)
 	if err != nil {
 		return DriveDoc{}, err
@@ -408,85 +336,43 @@ func (d *Driver) StartAdmitted(t *AdmissionTicket) (DriveDoc, error) {
 	return d.launchScopeless(t, claim)
 }
 
-// revalidateAdmittedLaunch re-reads, under the run launch gate, the RESERVED
-// drive record this ticket minted — it must still exist under the ticket's owner
-// generation and stay nonterminal — and acquires the drive's claimant flock
-// NONBLOCKING. Any mismatch, a busy claim, or a revoked run refuses with a typed
-// error, closes the ticket's worktree lock, and launches nothing.
+// revalidateAdmittedLaunch re-reads the RESERVED drive record this ticket minted
+// — it must still exist under the ticket's owner generation and stay nonterminal
+// — and acquires the drive's claimant flock NONBLOCKING. A busy claim, a lost
+// owner, or a settled record (run.cancel or the keyed run.verdict settled a
+// proven never-launched launch, change 0491) refuses with a typed error, closes
+// the ticket's worktree lock, and launches nothing.
 //
 // The claim is taken as the nonblocking per-drive launch claimant (the SAME lock
-// file tryRelaunchClaim/reserveRelaunch use), so a concurrent cancellation that
-// probes the claim reports busy — pending work, never proof of a crashed caller.
-// The run lock is held only inside the gate; the returned claim is retained by
-// the caller across the out-of-gate launch. A run refusal (the gate refused
-// before running reserve) fail-closes the delayed ticket: it settles the drive
-// HALTED "run-cancelled" — nothing launched, provably idle — then returns the
-// gate's error unchanged so the app surfaces the fence token.
+// file tryRelaunchClaim/reserveRelaunch use), so a concurrent census that probes
+// the claim reports busy — pending work, never proof of a crashed caller. The
+// returned claim is retained by the caller across the launch.
 func (d *Driver) revalidateAdmittedLaunch(t *AdmissionTicket) (*relaunchClaim, error) {
-	var claim *relaunchClaim
-	reserveEntered := false
-	err := d.runLaunchGated(t.runID, t.rec.WorktreePath, func() error {
-		reserveEntered = true
-		// (a) The drive's claimant flock, nonblocking. A busy claim is a launch
-		// still in flight (or a cancellation probing it), never free.
-		c, busy, cerr := d.store.tryRelaunchClaim(t.id)
-		if cerr != nil {
-			return cerr
-		}
-		if busy {
-			return ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted")
-		}
-		// (b) The RESERVED drive record must still exist under this owner
-		// generation and remain nonterminal.
-		cur, lerr := d.store.Load(t.id)
-		if lerr != nil {
+	refuse := func(c *relaunchClaim, err error) (*relaunchClaim, error) {
+		if c != nil {
 			c.close()
-			return lerr
-		}
-		if verr := verifyOwner(&cur, t.ownerGen); verr != nil {
-			c.close()
-			return verr
-		}
-		if isTerminalOutcome(cur.LastOutcome) {
-			c.close()
-			return ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted")
-		}
-		claim = c
-		return nil
-	})
-	if err != nil {
-		if claim != nil {
-			claim.close()
-			claim = nil
-		}
-		if !reserveEntered {
-			// Run refusal: the gate refused before running reserve, so nothing was
-			// claimed. Fail-close the delayed ticket and surface the gate's error.
-			d.settleAdmittedAfterRunRefusal(t)
 		}
 		t.lock.Release()
 		return nil, err
 	}
-	return claim, nil
-}
-
-// settleAdmittedAfterRunRefusal fail-closes a delayed ticket whose run was
-// revoked between Admit and StartAdmitted. It settles the reserved drive record
-// HALTED "run-cancelled" (mirroring the launch-failed CAS block in
-// launchScopeless) — nothing launched, so it is provably idle. The caller then
-// closes the ticket's worktree lock.
-func (d *Driver) settleAdmittedAfterRunRefusal(t *AdmissionTicket) {
-	_ = d.store.ownerCAS(t.id, func(r *driveRecord) error {
-		if err := verifyOwner(r, t.ownerGen); err != nil {
-			return err
-		}
-		if isTerminalOutcome(r.LastOutcome) {
-			return errAlreadyTerminal
-		}
-		r.LastOutcome = HALTED
-		r.LastCause = "run-cancelled"
-		return nil
-	})
+	c, busy, cerr := d.store.tryRelaunchClaim(t.id)
+	if cerr != nil {
+		return refuse(nil, cerr)
+	}
+	if busy {
+		return refuse(nil, ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted"))
+	}
+	cur, lerr := d.store.Load(t.id)
+	if lerr != nil {
+		return refuse(c, lerr)
+	}
+	if verr := verifyOwner(&cur, t.ownerGen); verr != nil {
+		return refuse(c, verr)
+	}
+	if isTerminalOutcome(cur.LastOutcome) {
+		return refuse(c, ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted"))
+	}
+	return c, nil
 }
 
 // AbandonAdmission releases an admission the caller decided, between Admit and
@@ -1107,10 +993,8 @@ func (d *Driver) driveSlice(id, ownerGen string, rec driveRecord, claim *relaunc
 			}
 			if claim == nil {
 				// Reserve the single automatic relaunch under the per-drive claim. The
-				// relaunch crosses no run launch gate: no production drive both
-				// carries a run and can relaunch (only finalize's run-less local gate
-				// is idempotent), so the worktree lock below is its admission
-				// (change 0490).
+				// relaunch checks no run (no gate start does since change 0491),
+				// so the worktree lock below is its admission (change 0490).
 				var err error
 				claim, err = d.store.reserveRelaunch(id, ownerGen)
 				if err != nil {

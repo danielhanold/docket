@@ -291,7 +291,7 @@ func (d *Driver) reconcileFirstLaunch(id string, cur driveRecord, observeOnly bo
 // AND cannot be launched while the claim is held. Settling the drive terminal HALTED
 // "run-cancelled" here — BEFORE the caller releases the claim — closes the
 // launch-after-cancel window (spec AC4): a later Advance recovery — which checks
-// no run, since the relaunch crosses no run launch gate (change 0490) — finds a
+// no run, since no gate start or relaunch checks one (change 0491) — finds a
 // terminal record at isTerminalOutcome and returns the recorded verdict rather
 // than launching the replacement. The CAS preserves the consumed
 // reservation (RelaunchReserved is never cleared, mirroring haltReservedRelaunchCause)

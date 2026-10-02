@@ -304,7 +304,7 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 	got := svc.Start(GateDriveStartRequest{
 		RepoDir: fx.worktree, Worktree: fx.worktree, ChangeID: "42", TaskID: "task-1",
 		Phase: "build", Branch: "fix/x", Ref: "refs/heads/fix/x", Cwd: fx.worktree,
-		RunRoot: runRoot, RunID: started.RunID, IdempotentSuiteGate: true,
+		RunRoot: runRoot, IdempotentSuiteGate: true,
 	})
 	if got.Result != ResultApplied || got.Drive == nil {
 		t.Fatalf("replacement gate Start refused: result=%s reason=%q stage=%q locator=%q message=%q",

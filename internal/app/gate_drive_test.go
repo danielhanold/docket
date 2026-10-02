@@ -495,8 +495,9 @@ func TestMapDriveHaltCauseKeysOnGatedriveConstants(t *testing.T) {
 	}
 }
 
-// TestStartForwardsRunFields proves Start carries the run-linkage fields
-// (RunContext, RunID) through to the engine unchanged.
+// TestStartForwardsRunFields proves Start carries the run-linkage field
+// (RunContext) through to the engine unchanged. No run id is carried (change
+// 0491).
 func TestStartForwardsRunFields(t *testing.T) {
 	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
 	svc := newGateDriveService(eng, 5*time.Minute, "go test ./...", "prov")
@@ -504,13 +505,12 @@ func TestStartForwardsRunFields(t *testing.T) {
 		RepoDir:    "/repo",
 		Worktree:   "/repo",
 		RunContext: "ctx-token",
-		RunID:      "run-1",
 	})
 	if got.Result != ResultApplied {
 		t.Fatalf("result = %s, want applied", got.Result)
 	}
-	if eng.lastStart.RunContext != "ctx-token" || eng.lastStart.RunID != "run-1" {
-		t.Fatalf("Start must forward the run fields, got %+v", eng.lastStart)
+	if eng.lastStart.RunContext != "ctx-token" {
+		t.Fatalf("Start must forward the run context, got %+v", eng.lastStart)
 	}
 }
 
@@ -934,13 +934,12 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 
 // TestMapDriveFailureFenceReasons proves the run mutation-fence refusal
 // (MutationFenceError) is classified through the SAME shared mapDriveFailure
-// classifier into its bounded, stable token (run-cancelled / stale-run-id) with
-// a distinct valid-next-action message, and that a wrapped credential leaks into
-// neither the reason nor the message. It is the fail-safe path for a fenced-run
-// error that ever chains through the gate-drive seam.
+// classifier into (invalid-input, <its bounded, stable token>) — run-cancelled /
+// stale-run-id — and that a wrapped credential leaks into neither the reason nor
+// the message. It is the fail-safe path for a fenced-run error that ever chains
+// through the gate-drive seam (no gate-drive path raises one since change 0491).
 func TestMapDriveFailureFenceReasons(t *testing.T) {
 	const secret = "SECRET-TOKEN-cafebabecafebabe"
-	seen := map[string]bool{}
 	for _, tc := range []struct {
 		name string
 		err  *MutationFenceError
@@ -959,120 +958,15 @@ func TestMapDriveFailureFenceReasons(t *testing.T) {
 		if strings.Contains(reason, secret) {
 			t.Fatalf("%s reason leaked the wrapped credential: %q", tc.name, reason)
 		}
-		// The service surfaces the next-action message through the same seam.
+		// The service surfaces the same bounded reason through the same seam.
 		eng := &fakeDriveEngine{err: wrapped}
 		got := newGateDriveService(eng, 0, "", "").Advance("d1", "owner")
 		if got.Reason != tc.name {
 			t.Fatalf("%s service reason = %q, want %q", tc.name, got.Reason, tc.name)
 		}
-		if got.Message == "" {
-			t.Fatalf("%s must carry a valid-next-action message", tc.name)
+		if strings.Contains(got.Message, secret) || strings.Contains(got.HumanText(), secret) {
+			t.Fatalf("%s leaked the wrapped credential: message=%q human=%q", tc.name, got.Message, got.HumanText())
 		}
-		if strings.Contains(got.Message, secret) {
-			t.Fatalf("%s leaked the wrapped credential into the message: %q", tc.name, got.Message)
-		}
-		if seen[got.Message] {
-			t.Fatalf("%s fence message is not distinct: %q", tc.name, got.Message)
-		}
-		seen[got.Message] = true
-	}
-}
-
-// TestProductionConstructorsWireRunLaunchGate proves every production gate-drive
-// constructor injects the app-side run launch gate into the driver it composes —
-// the wiring is where the takeover-only defect lived, so deleting any ONE
-// SetRunLaunchGate line must redden this test (change 0437 Task 5).
-func TestProductionConstructorsWireRunLaunchGate(t *testing.T) {
-	dir := testsupport.TempDir(t)
-	eff := buildEffWithMaxAttempts("go test ./...", 4)
-
-	check := func(name string, d *gatedrive.Driver) {
-		t.Helper()
-		if d == nil {
-			t.Fatalf("%s: nil driver", name)
-		}
-		if !d.RunLaunchGateWired() {
-			t.Fatalf("%s: run launch gate not wired", name)
-		}
-	}
-	driverOf := func(name string, svc *GateDriveService, res Result, reason string) *gatedrive.Driver {
-		t.Helper()
-		if svc == nil {
-			t.Fatalf("%s constructor must build a service: %s %s", name, res, reason)
-		}
-		d, ok := svc.engine.(*gatedrive.Driver)
-		if !ok {
-			t.Fatalf("%s: engine is not the production driver", name)
-		}
-		return d
-	}
-
-	b, res, reason := NewBuildGateDriveService(dir, "/bin/true", eff)
-	check("build", driverOf("build", b, res, reason))
-
-	f, res, reason := NewFinalizeGateDriveService(dir, "/bin/true", eff)
-	check("finalize", driverOf("finalize", f, res, reason))
-
-	c, res, reason := NewCommandlessGateDriveService(dir, "/bin/true")
-	check("commandless", driverOf("commandless", c, res, reason))
-
-	seam, err := NewContinuationSeam(dir, "/bin/true")
-	if err != nil {
-		t.Fatalf("continuation seam: %v", err)
-	}
-	gs, ok := seam.(*gatedriveContinuationSeam)
-	if !ok {
-		t.Fatalf("continuation seam is not the production seam")
-	}
-	check("continuation", gs.driver)
-}
-
-// TestBuildStartRunRefusalChargesNoAttempt proves a run-fenced admission
-// charges no suite attempt: Admit returns ErrRunCancelled (a cancellation landed
-// before admission), so the start refuses with reason "run-cancelled", never
-// launches, and the budget is untouched — admission precedes charging (change 0437
-// Task 5).
-func TestBuildStartRunRefusalChargesNoAttempt(t *testing.T) {
-	svc, eng, dir := newBudgetTestBuildService(t, 4)
-	eng.admitErr = ErrRunCancelled
-
-	got := svc.Start(buildStartReq("0437"))
-	if got.Result == ResultApplied || got.Drive != nil {
-		t.Fatalf("a run-cancelled admission must refuse the start, got result=%s", got.Result)
-	}
-	if got.Reason != "run-cancelled" {
-		t.Fatalf("refusal reason = %q, want run-cancelled", got.Reason)
-	}
-	if eng.startAdmittedCount != 0 {
-		t.Fatalf("a refused admission must never launch, got %d StartAdmitted calls", eng.startAdmittedCount)
-	}
-	if used, limit := suiteUsage(t, dir, "0437"); used != 0 || limit != 0 {
-		t.Fatalf("a run refusal must charge no suite attempt, got usage (%d,%d)", used, limit)
-	}
-}
-
-// TestBuildStartChargedAttemptNotRefundedOnFencedLaunch proves an attempt reserved
-// before a later cancellation stays charged: Admit succeeds and charges, then
-// StartAdmitted returns ErrRunCancelled (the fence landed between admission and
-// launch). The attempt is not refunded and the admission is not abandoned — no
-// refunds (change 0437 Task 5).
-func TestBuildStartChargedAttemptNotRefundedOnFencedLaunch(t *testing.T) {
-	svc, eng, dir := newBudgetTestBuildService(t, 4)
-	eng.doc = gatedrive.DriveDoc{}
-	eng.err = ErrRunCancelled
-
-	got := svc.Start(buildStartReq("0437"))
-	if got.Result == ResultApplied {
-		t.Fatalf("a fenced launch is a command failure, got applied")
-	}
-	if used, limit := suiteUsage(t, dir, "0437"); used != 1 || limit != 4 {
-		t.Fatalf("an admitted-then-fenced launch keeps its charge (no refund), got usage (%d,%d)", used, limit)
-	}
-	if eng.startCount != 1 || eng.startAdmittedCount != 1 {
-		t.Fatalf("the start must admit then launch exactly once, got admit=%d launch=%d", eng.startCount, eng.startAdmittedCount)
-	}
-	if eng.abandonCount != 0 {
-		t.Fatalf("a charged admitted start must not abandon its admission, got %d", eng.abandonCount)
 	}
 }
 
@@ -1187,32 +1081,5 @@ func TestIncumbentRefusalLocatorValidatesIDs(t *testing.T) {
 func TestQuoteOperand(t *testing.T) {
 	if got := quoteOperand(`/tmp/o'brien`); got != `'/tmp/o'\''brien'` {
 		t.Fatalf("quoteOperand = %q", got)
-	}
-}
-
-// TestMapDriveFailureRunErrors (change 0463): a RunError chained through the
-// gate-drive seam (the run launch gate refusing an unknown --run-id) surfaces
-// its named token, never the catch-all invalid-request. The service attaches the
-// next-action message, and neither the reason nor the message echoes the value.
-func TestMapDriveFailureRunErrors(t *testing.T) {
-	const presented = "0790b760e26444866ef2e156ba383326"
-	wrapped := fmt.Errorf("refused %s: %w", presented, runErr(ErrRunNotFound, "find-dir-by-id", nil))
-	res, reason := mapDriveFailure(wrapped)
-	if res != ResultInvalidInput || reason != ReasonUnknownRunID {
-		t.Fatalf("mapDriveFailure = (%s, %q), want (invalid-input, unknown-run-id)", res, reason)
-	}
-	if res, reason := mapDriveFailure(runErr(ErrRunRecordIO, "find-by-id", nil)); res != ResultInternalError || reason != "run-record-io" {
-		t.Fatalf("an unreadable registry must be an internal error, got (%s, %q)", res, reason)
-	}
-	eng := &fakeDriveEngine{err: wrapped}
-	got := newGateDriveService(eng, 0, "", "").Advance("d1", "owner")
-	if got.Reason != ReasonUnknownRunID {
-		t.Fatalf("service reason = %q, want unknown-run-id", got.Reason)
-	}
-	if !strings.Contains(got.Message, "--run-context") || strings.Contains(got.Message, "--gate-context") {
-		t.Fatalf("service must attach the unknown-run-id next action, got %q", got.Message)
-	}
-	if strings.Contains(got.Message, presented) || strings.Contains(got.HumanText(), presented) {
-		t.Fatalf("the presented value leaked: message=%q human=%q", got.Message, got.HumanText())
 	}
 }

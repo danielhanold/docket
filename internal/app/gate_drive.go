@@ -114,11 +114,6 @@ type GateDriveStartRequest struct {
 	// the dispatched run; the driver persists only its hash, which run.verdict's
 	// outer scan matches a run's drives on. Optional: empty for an untracked run.
 	RunContext string
-	// RunID names the workflow run (change 0375 Task 9): a locator, not a
-	// credential, that the run launch gate checks at admission and launch. Empty for
-	// a standalone gate (finalize's local gate, an ad-hoc build drive) that owns no
-	// run.
-	RunID string
 }
 
 // newGateDriveService is the seam-injecting core constructor: it binds a drive
@@ -180,10 +175,6 @@ func newOwnedGateDriveService(gitCommonDir, exePath string, eff config.Effective
 	}
 	store := gatedrive.OpenStore(gitCommonDir)
 	engine := gatedrive.NewSystemDriver(store, proc)
-	// A revoked/superseded/unbound run must not be admitted or launched (change
-	// 0437): wire the app-side run launch gate over the same registry. It fires only
-	// for a start carrying a RunID, so standalone gates are unaffected.
-	engine.SetRunLaunchGate(runLaunchGate(gitCommonDir))
 	budget := time.Duration(eff.GateObservation.Value) * time.Minute
 	// Provenance emits layer identities only — never a value — so it is safe to
 	// persist in the drive record. The owning key is <owner>.test_command, derived
@@ -214,10 +205,6 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	}
 	store := gatedrive.OpenStore(gitCommonDir)
 	engine := gatedrive.NewSystemDriver(store, proc)
-	// A revoked/superseded/unbound run must not be admitted or launched (change
-	// 0437): wire the app-side run launch gate over the same registry. It fires only
-	// for a start carrying a RunID, so standalone gates are unaffected.
-	engine.SetRunLaunchGate(runLaunchGate(gitCommonDir))
 	return newGateDriveService(engine, 0, "", ""), "", ""
 }
 
@@ -270,7 +257,6 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 		RunRoot:             req.RunRoot,
 		IdempotentSuiteGate: req.IdempotentSuiteGate,
 		RunContext:          req.RunContext,
-		RunID:               req.RunID,
 		Owner:               s.owner,
 	}
 }
@@ -283,7 +269,7 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 //     mints a reserved drive it would have to abandon.
 //  2. Authoritative admission (Admit): the worktree lock is taken before the
 //     charge. A refusal here — another gate's supervisor holds the worktree
-//     (worktree-busy), or the run launch gate refuses — charges NO suite attempt
+//     (worktree-busy) — charges NO suite attempt
 //     and creates no drive: admission precedes charging.
 //  3. Charge exactly one full-suite attempt BETWEEN admission and launch. Once
 //     charged there are NO refunds: a launch/persistence failure in StartAdmitted
@@ -455,10 +441,6 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 			} else {
 				result.Message = ownershipNextAction(oe.Kind)
 			}
-		} else if fe, ok := AsMutationFenceError(err); ok {
-			result.Message = fenceNextAction(fe.Reason)
-		} else if _, reason, ok := ClassifyRunIDError(err); ok {
-			result.Message = RunIDNextAction(reason)
 		}
 		return result
 	}
@@ -478,24 +460,13 @@ func mapDriveFailure(err error) (Result, string) {
 	if oe, ok := gatedrive.AsOwnershipError(err); ok {
 		return ResultInvalidInput, string(oe.Kind)
 	}
-	// A run mutation fence (runtracker_fence.go) is a distinct refusal type
-	// carrying its OWN stable token — "run-cancelled" (the owning run is
-	// cancelling/cancelled), "stale-run-id" (superseded by a resume), or
-	// "run-completed" (a successful completing/completed closeout, change 0441). It
-	// never reaches the standalone gate-drive path today, but classifying it here is
-	// fail-safe: if a fenced-run error ever chains through this seam it surfaces its
-	// bounded token instead of leaking the wrapped refusal text or collapsing to the
-	// generic invalid-request. The Reason field is a fixed vocabulary token, never
-	// record content, argv, env, or a credential.
+	// A run mutation fence (runtracker_fence.go) is a distinct refusal type carrying
+	// its OWN stable token. No gate-drive path raises it since change 0491 deleted
+	// the run launch check, but classifying it stays fail-safe: a fenced-run error
+	// that ever chains through this seam surfaces its bounded token instead of
+	// leaking the wrapped refusal text or collapsing to the generic invalid-request.
 	if fe, ok := AsMutationFenceError(err); ok {
 		return ResultInvalidInput, fe.Reason
-	}
-	// A run registry failure (the run launch gate could not resolve the
-	// presented --run-id) surfaces its named token rather than collapsing to the
-	// generic invalid-request (change 0463): unknown-run-id for a not-found run,
-	// the kind for any other registry fault.
-	if res, reason, ok := ClassifyRunIDError(err); ok {
-		return res, reason
 	}
 	if se, ok := gatedrive.AsStoreError(err); ok {
 		switch se.Kind {
@@ -603,22 +574,6 @@ func incumbentRemedyMessage(inc *gatedrive.IncumbentSnapshot) string {
 			gate += " (drive " + inc.DriveID + ")"
 		}
 		return gate + " holds this worktree; wait for it, or stop the owning run with the run.cancel operation (--key <key> --run-id <id> --reason <why>) — the worktree frees itself when that gate ends"
-	}
-}
-
-// fenceNextAction maps a run mutation-fence reason (MutationFenceError.Reason)
-// to a one-line, credential-free description of the caller's valid next action. It
-// mirrors ownershipNextAction for the fence refusal family so a fenced-run error
-// surfaced through this seam explains the recourse rather than inviting a blind
-// retry. An unrecognized reason yields the empty string, so callers omit the message.
-func fenceNextAction(reason string) string {
-	switch reason {
-	case "run-cancelled":
-		return "the run was cancelled; do not retry — a resume after confirmed cancellation admits exactly one replacement"
-	case "stale-run-id":
-		return "the run was superseded by a resume; use the current run's identity, not this stale one"
-	default:
-		return ""
 	}
 }
 

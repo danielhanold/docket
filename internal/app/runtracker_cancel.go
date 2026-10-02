@@ -3,9 +3,11 @@
 // dispatch return NEVER invokes this — only an explicit human cancellation (or, in
 // Task 13, a registered lifecycle event) does. Cancellation is the coordinator's
 // authoritative Stop: it durably FENCES the run (runtracker_run_record.go) before any
-// teardown, so once fenced no new participant, start, relaunch, successor, resume
-// claim, or mutation admission can attach to the run, and it reports `cancelled`
-// ONLY after full accounting of registered tasks, processes and admitted mutations.
+// teardown, so once fenced no new participant, successor, resume claim, or
+// mutation admission can attach to the run (gate starts are not fenced since
+// change 0491; the census still accounts every drive the run's context names),
+// and it reports `cancelled` ONLY after full accounting of registered tasks,
+// processes and admitted mutations.
 //
 // AUTHORITY. The run key LOCATES the run (the durable gate record + the run that
 // lives beside it); it does not authorize. Authorization is the set of conditions the spec
@@ -259,10 +261,9 @@ func productionCancelSeams(repoDir string) cancelSeams {
 
 // appLaunchReconciler is the production runLaunchReconciler: it composes a gatedrive
 // driver over the cancellation store and the app gate seam's process service, then
-// reconciles one run's drives through ReconcileRunLaunches. The
-// composed driver needs no run launch gate (reconcile is teardown, not admission,
-// and takes no run lock). A nil store or an unresolvable process service proves
-// nothing (fail closed): reconcile returns an error the caller turns into a finding +
+// reconciles one run's drives through ReconcileRunLaunches. Reconcile is
+// teardown, not admission, and takes no run lock. A nil store or an unresolvable
+// process service proves nothing (fail closed): reconcile returns an error the caller turns into a finding +
 // accounted=false, mirroring the nil-stopper rule. It resolves the process service
 // per call, exactly as appGateStopper does.
 type appLaunchReconciler struct {
