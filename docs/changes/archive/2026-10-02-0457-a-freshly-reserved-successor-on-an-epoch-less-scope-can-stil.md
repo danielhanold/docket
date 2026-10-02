@@ -2,11 +2,11 @@
 id: 457
 slug: 'a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil'
 title: 'A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted'
-status: 'proposed'
+status: 'killed'
 priority: 'low'
 type: 'fix'
 created: '2026-09-25'
-updated: '2026-09-25'
+updated: '2026-10-02'
 depends_on: []
 stacked_on:
 related: [453]
@@ -40,3 +40,7 @@ Make the release in admitScoped's reserveScopeDrive failure leg conditional unde
 ## Out of scope
 
 Epoch-backed scopes, which are already serialized. Rotated successor starts, which 0453 covers. Recovering a leaked reserved slot left by siblingMayHoldReservation's fail-closed keep, unless the atomic release makes it trivial to address together. Any change to reserveScopeDrive's ordered refusal predicate (scopeReserveRefusal).
+
+## Why killed
+
+Superseded by 0489. The race this change targets lives in `siblingMayHoldReservation` and `admitScoped`'s reservation-failure leg, which run only for scoped successor task-drive starts. No workflow has made such a start since change 0488 moved build-task workers off the gate driver, and change 0489 deletes that code along with the rest of the task-owned gate-drive machinery. Killed by the human while grooming 0489 (2026-10-02).
