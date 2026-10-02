@@ -1587,14 +1587,14 @@ func TestIntegrationFinalizeRebaseRecoveryNoEvidenceSkip(t *testing.T) {
 	}
 }
 
-// TestIntegrationFinalizeRebaseRecoveryForwardRefresh covers acceptance 1+2 (spec
+// TestIntegrationFinalizeRebaseForwardRefresh covers acceptance 1+2 (spec
 // §1–§2): a completed rebase carrying a resolver-authored resolution, interrupted
 // before publication; the base advances again (non-conflicting); re-invoking
 // finalize.rebase forward-rebases from the CURRENT head, preserving the
 // resolution, running the suite on the new head, and refreshing OrigHead/BaseHead/
 // Attempt while preserving OrigRemoteHead and the consumed resolver budget. The
 // superseded attempt token can no longer continue the refreshed rewrite.
-func TestIntegrationFinalizeRebaseRecoveryForwardRefresh(t *testing.T) {
+func TestIntegrationFinalizeRebaseForwardRefresh(t *testing.T) {
 	requireRealGit(t)
 	f, deps, head, begin := beginSuccessiveConflicts(t, 0, nil,
 		map[string]string{"feature.txt": "conflicting base content\n"})
@@ -1687,7 +1687,7 @@ func (w *divergeOnLockWorkspace) AcquireOperationLock(dir string) (func(), error
 	return release, err
 }
 
-// TestIntegrationFinalizeRebaseRecoveryForwardRefreshContended covers acceptance §3's
+// TestIntegrationFinalizeRebaseForwardRefreshContended covers acceptance §3's
 // concurrent-re-entry requirement: the refresh decide-and-act-on-same-copy guard in
 // refreshOwnedRewrite. A completed, quiescent, unpublished owned rewrite has its base
 // advanced (so the invocation would forward-refresh); but between the classification
@@ -1696,7 +1696,7 @@ func (w *divergeOnLockWorkspace) AcquireOperationLock(dir string) (func(), error
 // must refuse ResultContended/refresh-contended and retain all local work: no new
 // rebase, the winner's receipt (as of divergence) intact, the workspace head and the
 // remote feature head unchanged.
-func TestIntegrationFinalizeRebaseRecoveryForwardRefreshContended(t *testing.T) {
+func TestIntegrationFinalizeRebaseForwardRefreshContended(t *testing.T) {
 	requireRealGit(t)
 	f, deps, head, begin := beginSuccessiveConflicts(t, 0, nil,
 		map[string]string{"feature.txt": "conflicting base content\n"})
@@ -1782,12 +1782,12 @@ func assertRefreshRetained(t *testing.T, f *rebaseFixture, head string, rec work
 	}
 }
 
-// TestIntegrationFinalizeRebaseRecoveryForwardRefreshRefusals covers acceptance 4:
+// TestIntegrationFinalizeRebaseForwardRefreshRefusals covers acceptance 4:
 // each admission condition refuses with head, files, receipt, and remote unchanged.
 // A moved lease, a divergent (rewritten) base, and a dirty tree each block; a
 // still-conflicted attempt with an outstanding reservation settles against its
 // RECORDED base rather than being refreshed over (spec §1, §3).
-func TestIntegrationFinalizeRebaseRecoveryForwardRefreshRefusals(t *testing.T) {
+func TestIntegrationFinalizeRebaseForwardRefreshRefusals(t *testing.T) {
 	requireRealGit(t)
 
 	// setup drives a conflict to a completed, quiescent, unpublished rewrite (no
@@ -1873,12 +1873,12 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshRefusals(t *testing.T) {
 	})
 }
 
-// TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions covers
+// TestIntegrationFinalizeRebaseForwardRefreshInterruptions covers
 // acceptance 3 (spec §3): a crash after the refreshed receipt persisted but before
 // Git started resumes BeginRebase against the recorded NEW target keeping the
 // recorded attempt; a lost response after a completed refresh does not rebase
 // again; and a further base advance triggers a second refresh with a fresh token.
-func TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions(t *testing.T) {
+func TestIntegrationFinalizeRebaseForwardRefreshInterruptions(t *testing.T) {
 	requireRealGit(t)
 
 	completedThenAdvance := func(t *testing.T) (*rebaseFixture, FinalizeDeps, string, string) {
@@ -1977,7 +1977,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions(t *testing
 	})
 }
 
-// TestIntegrationFinalizeRebaseRecoveryForwardRefreshUnchangedRetests covers
+// TestIntegrationFinalizeRebaseForwardRefreshUnchangedRetests covers
 // acceptance 5 and spec §4: when the effective base advances to a commit the
 // completed rewrite ALREADY contains, the forward refresh is a mechanically
 // unchanged rebase (Git rewrites nothing), yet the full suite still re-runs on
@@ -1987,7 +1987,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions(t *testing
 // checkpoint-reuse gate to the mechanically unchanged refresh (a valid
 // checkpoint itself proves a required gate ran; a fresh no-op records none),
 // so interruption needs no new persistent flag.
-func TestIntegrationFinalizeRebaseRecoveryForwardRefreshUnchangedRetests(t *testing.T) {
+func TestIntegrationFinalizeRebaseForwardRefreshUnchangedRetests(t *testing.T) {
 	requireRealGit(t)
 	f := setupRebaseFixture(t, planRepoModes()[0])
 	f.advanceBase(t) // origin/main -> B1, off the feature base
