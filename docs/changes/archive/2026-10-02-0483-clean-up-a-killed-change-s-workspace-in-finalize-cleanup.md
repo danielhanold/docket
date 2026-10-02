@@ -2,11 +2,11 @@
 id: 483
 slug: 'clean-up-a-killed-change-s-workspace-in-finalize-cleanup'
 title: 'Clean up a killed change''s workspace in finalize cleanup'
-status: 'proposed'
+status: 'killed'
 priority: 'low'
 type: 'feat'
 created: '2026-10-01'
-updated: '2026-10-01'
+updated: '2026-10-02'
 depends_on: []
 stacked_on:
 related: [480]
@@ -40,3 +40,9 @@ Teach `finalize cleanup` to handle a `killed` change: remove its feature workspa
 ## Out of scope
 
 Deleting unmerged feature branches or remote refs of a killed change. Any change to the `done` or `stacked-merged` cleanup paths.
+
+## Why killed
+
+Low value. A killed change has a workspace to clean up only when reconcile kills an in-progress change, which is rare. Change 0480 already makes `finalize cleanup` report `killed-retained` truthfully, and removing the worktree by hand works.
+
+Killed in the 2026-10-02 backlog review, on Daniel's decision.
