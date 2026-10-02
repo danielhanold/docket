@@ -2,11 +2,11 @@
 id: 387
 slug: 're-cut-frozen-fixtures-to-clear-stale-retired-token-comments'
 title: 'Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml'
-status: 'proposed'
+status: 'killed'
 priority: 'low'
 type: 'chore'
 created: '2026-08-31'
-updated: '2026-08-31'
+updated: '2026-10-02'
 depends_on: []
 stacked_on:
 related: []
@@ -50,3 +50,11 @@ Changing the resolved default values themselves; any behavior change to config r
   3. **More of the header is stale than `scripts/lib/harness-defaults.sh`.** The same header also cites `HD_SHIPPED_HARNESSES` (only a historical mention survives, in `internal/harness/dispatch.go`), `hd_validate`, and the Bash reader's parsing rule ("the reader consumes everything up to the next `,` or `}`"). Rewrite the whole rules block against the Go validator, not just the one path.
   - Correction to the note above: `.docket.yml` *is* now byte-pinned — `TestFixtureDocketSelf` (`internal/config/fixtures_test.go`) compares it against `testdata/repositories/v0.9.8/docket-self/repo/.docket.yml`, so its half needs a versioned re-cut too.
 
+## Why killed
+
+Low value for the cost. The fix itself is a comment correction, but both files are byte-pinned to frozen fixtures, so it would need a versioned fixture re-cut:
+
+- `agents/harness-defaults.yml` is pinned by the v0.9.9 sidecar and by the embedded mirror;
+- `.docket.yml` is pinned by `TestFixtureDocketSelf`.
+
+Killed in the 2026-10-02 backlog review, on Daniel's decision.
