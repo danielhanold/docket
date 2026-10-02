@@ -1,123 +1,201 @@
 package repoguard
 
-// Computed launch-site admission guard (change 0375 Task 14). One canonical
-// worktree carries at most one reserved-or-running top-level gate run, so
-// EVERY top-level gate launch must first reserve the worktree execution slot
-// (internal/gatedrive/admission.go). This guard proves that admission is composed
-// wherever a launch happens, and that whatever reserves the slot also releases it.
+// Computed launch-site lock hand-over guard (change 0490, rewriting change 0375's
+// slot-admission guard). One canonical worktree admits at most one live top-level
+// gate, and "busy" means "a live supervisor holds the worktree lock": every launch
+// site takes the per-worktree lock (gatedrive.Store.TryWorktreeLock) and hands it
+// to the supervisor through process.LaunchRequest.WorktreeLock, which holds it for
+// its whole life. A launch that builds its request WITHOUT a WorktreeLock spawns a
+// gate no other launch can see — exactly the double-suite this guard exists to
+// stop. So EVERY process launch outside internal/process must hand one over.
 //
-// DERIVATION. The covered population is DERIVED, never remembered — the same rule
-// anchored on admitWorkflowMutation (internal/app/runtracker_fence.go, "do not rely on
-// a remembered list"): this guard WALKS the maintained non-test Go surface under
-// internal/, collects launch call sites by SYNTACTIC SHAPE (a `.Launch(` selector,
-// a spawnSupervisor call, or an exec.Command that shells `docket ... gate`), keyed
-// on shape rather than an enumerated file allowlist, and subtracts the two
-// SANCTIONED interiors by PATH shape:
+// DERIVATION. The covered population is DERIVED, never remembered: this guard WALKS
+// the maintained non-test Go surface under internal/ and collects launch sites by
+// SYNTACTIC SHAPE — a call whose selector is `Launch` with exactly one argument —
+// subtracting only the launcher's own package (internal/process, by PATH shape).
+// Each site's single argument must be either
 //
-//   - internal/process/ — the lowest-level OS launcher (spawnSupervisor); it is the
-//     primitive the whole slot mechanism sits on.
-//   - internal/gatedrive/ — the admission-HOLDING driver: its ProcessSeam.Launch
-//     calls run only after the driver itself took the worktree lock (change 0490;
-//     before it, the slot), and hand that lock to the supervisor.
+//	(a) a process.LaunchRequest (or package-local LaunchRequest) composite literal
+//	    that sets the WorktreeLock key, or
+//	(b) a call to a function or method declared in the SAME package (resolved by
+//	    the callee's name among that package's FuncDecls) whose body builds such a
+//	    literal — and builds no LaunchRequest literal without it.
 //
-// Every REMAINING launch site must sit in a package that reaches the slot's reserve
-// API (AST-level: the package contains a call to a reserve-admission symbol). The
-// reverse correspondence — a guard runs both ways — is that every package which
-// RESERVES the slot also confirms-or-releases it, so a slot is never taken and
-// abandoned. The slot store's own package (internal/gatedrive, slotStoreLayer) is
-// excluded from that reverse check: its reserve calls are the store's exported
-// entry points delegating to its internal reserve, and since change 0490 its
-// driver takes no slot. Change 0490 Task 5 rewrites this guard around the
-// worktree lock.
+// Any other argument shape (a variable, a field, a cross-package helper) cannot be
+// proven and is a violation: fail closed.
 //
-// RESIDUAL RISK, recorded not hidden: the launch detector keys on the `.Launch(`
-// selector name rather than the receiver's resolved type (no go/types pass), so an
-// unrelated future `.Launch(` in a non-interior package would be flagged too. That
-// errs safe (it demands admission of a thing that may not need it) and today the
-// only `.Launch(` selectors in the tree are the process launches this guard is
-// about.
+// Today's population: app's raw GateLaunch (form a) and the gate driver's first
+// launch and single relaunch, both through driveRecord.launchRequest (form b).
+//
+// RESIDUAL RISK, recorded not hidden: the detector keys on the `Launch` selector
+// name rather than the receiver's resolved type (no go/types pass), so an unrelated
+// future one-argument `.Launch(` would be flagged too — that errs safe. A helper is
+// resolved by name only, so two same-named helpers in one package (a function and
+// a method) must BOTH carry the lock. The guard proves the lock is handed over, not
+// that the handed file is a held lock; TryWorktreeLock is the only producer of one.
 
 import (
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
 
-var (
-	// Admission symbol SHAPES — keyed on shape, never a spelling list (the spelling
-	// you omit is the one that bites). reserveAdmissionSym matches the reserve family
-	// (ReserveWorktreeExecution, ReserveRawWorktreeExecution, reserveWorktreeExecution);
-	// confirmReleaseSym matches the confirm/release/mark family
-	// (ConfirmWorktreeExecution, ReleaseWorktreeExecution,
-	// MarkWorktreeExecutionUnresolved/Stopping).
-	reserveAdmissionSym = regexp.MustCompile(`^[Rr]eserve[A-Za-z]*WorktreeExecution$`)
-	confirmReleaseSym   = regexp.MustCompile(`^(Confirm|Release|Mark)[A-Za-z]*WorktreeExecution[A-Za-z]*$`)
+// launcherLayer is the launcher's own package, by PATH shape: process.Service.Launch
+// is the primitive that receives the lock, never a site that must hand one over.
+var launcherLayer = regexp.MustCompile(`^internal/process/`)
 
-	// The two sanctioned launch interiors, by PATH shape.
-	sanctionedLaunchLayer = regexp.MustCompile(`^internal/(process|gatedrive)/`)
-
-	// The slot store's own package, by PATH shape: its reserve calls are its own
-	// API's internal delegation, not a consumer taking a slot (change 0490).
-	slotStoreLayer = regexp.MustCompile(`^internal/gatedrive$`)
-)
-
-// launchCallShape reports whether call is a top-level gate launch by syntactic
-// shape: a `.Launch(` selector, a spawnSupervisor(...) call, or an exec.Command
-// that shells docket's own `gate` verb.
-func launchCallShape(call *ast.CallExpr) bool {
-	switch fn := call.Fun.(type) {
-	case *ast.SelectorExpr:
-		// A method/selector call: `x.Launch(` (the process/ProcessSeam launch) or
-		// `s.spawnSupervisor(` (the process package's own re-exec).
-		if fn.Sel.Name == "Launch" || fn.Sel.Name == "spawnSupervisor" {
-			return true
-		}
-		if x, ok := fn.X.(*ast.Ident); ok && x.Name == "exec" && fn.Sel.Name == "Command" {
-			return execCommandDocketGate(call)
-		}
-	case *ast.Ident:
-		// A package-local call: `spawnSupervisor(`.
-		if fn.Name == "spawnSupervisor" {
-			return true
-		}
-	}
-	return false
+// launchSiteShape reports whether call is a process launch by syntactic shape: a
+// `.Launch(` selector with exactly one argument (the LaunchRequest).
+func launchSiteShape(call *ast.CallExpr) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	return ok && sel.Sel.Name == "Launch" && len(call.Args) == 1
 }
 
-// execCommandDocketGate reports whether an exec.Command call names docket's own
-// binary AND a `gate` subcommand across its string-literal arguments — the shape a
-// re-exec'd `docket ... gate ...` launch would take.
-func execCommandDocketGate(call *ast.CallExpr) bool {
-	var docket, gate bool
-	for _, arg := range call.Args {
-		lit, ok := arg.(*ast.BasicLit)
-		if !ok || lit.Kind != token.STRING {
+// launchRequestLiteral reports whether e (parens and & stripped) is a LaunchRequest
+// composite literal, and whether it sets the WorktreeLock key.
+func launchRequestLiteral(e ast.Expr) (isLit, hasLock bool) {
+	for {
+		switch x := e.(type) {
+		case *ast.ParenExpr:
+			e = x.X
+			continue
+		case *ast.UnaryExpr:
+			if x.Op == token.AND {
+				e = x.X
+				continue
+			}
+		}
+		break
+	}
+	lit, ok := e.(*ast.CompositeLit)
+	if !ok {
+		return false, false
+	}
+	switch ty := lit.Type.(type) {
+	case *ast.SelectorExpr:
+		if ty.Sel.Name != "LaunchRequest" {
+			return false, false
+		}
+	case *ast.Ident:
+		if ty.Name != "LaunchRequest" {
+			return false, false
+		}
+	default:
+		return false, false
+	}
+	for _, el := range lit.Elts {
+		if kv, ok := el.(*ast.KeyValueExpr); ok {
+			if k, ok := kv.Key.(*ast.Ident); ok && k.Name == "WorktreeLock" {
+				return true, true
+			}
+		}
+	}
+	return true, false
+}
+
+// helperBuildsLockedRequest reports whether fn's body builds at least one
+// LaunchRequest literal and every such literal sets WorktreeLock.
+func helperBuildsLockedRequest(fn *ast.FuncDecl) bool {
+	if fn.Body == nil {
+		return false
+	}
+	lits, locked := 0, 0
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		e, ok := n.(ast.Expr)
+		if !ok {
+			return true
+		}
+		if isLit, hasLock := launchRequestLiteral(e); isLit {
+			lits++
+			if hasLock {
+				locked++
+			}
+			return false
+		}
+		return true
+	})
+	return lits > 0 && lits == locked
+}
+
+// calleeName returns the bare name a call invokes (`f(` or `x.f(`), or "".
+func calleeName(call *ast.CallExpr) string {
+	switch fn := call.Fun.(type) {
+	case *ast.Ident:
+		return fn.Name
+	case *ast.SelectorExpr:
+		return fn.Sel.Name
+	}
+	return ""
+}
+
+// lockSiteReport is the analysis of one parsed population.
+type lockSiteReport struct {
+	sites, literalSites, helperSites int
+	violations                       []string
+}
+
+// analyzeLaunchLockHandover checks every launch site in files (rel path → parsed
+// file; a file's package is its slash directory) for a WorktreeLock hand-over.
+func analyzeLaunchLockHandover(files map[string]*ast.File) lockSiteReport {
+	funcs := map[string]map[string][]*ast.FuncDecl{} // dir → name → decls
+	rels := make([]string, 0, len(files))
+	for rel, f := range files {
+		rels = append(rels, rel)
+		dir := dirOf(rel)
+		if funcs[dir] == nil {
+			funcs[dir] = map[string][]*ast.FuncDecl{}
+		}
+		for _, d := range f.Decls {
+			if fd, ok := d.(*ast.FuncDecl); ok {
+				funcs[dir][fd.Name.Name] = append(funcs[dir][fd.Name.Name], fd)
+			}
+		}
+	}
+	sort.Strings(rels)
+
+	var rep lockSiteReport
+	for _, rel := range rels {
+		if launcherLayer.MatchString(rel) {
 			continue
 		}
-		v := strings.ToLower(lit.Value)
-		if strings.Contains(v, "docket") {
-			docket = true
-		}
-		if strings.Contains(v, "gate") {
-			gate = true
-		}
+		dir := dirOf(rel)
+		ast.Inspect(files[rel], func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok || !launchSiteShape(call) {
+				return true
+			}
+			rep.sites++
+			arg := call.Args[0]
+			if isLit, hasLock := launchRequestLiteral(arg); isLit {
+				rep.literalSites++
+				if !hasLock {
+					rep.violations = append(rep.violations, "launch site in "+rel+" builds a LaunchRequest literal without a WorktreeLock")
+				}
+				return true
+			}
+			if inner, ok := arg.(*ast.CallExpr); ok {
+				name := calleeName(inner)
+				decls := funcs[dir][name]
+				if name != "" && len(decls) > 0 {
+					rep.helperSites++
+					for _, fd := range decls {
+						if !helperBuildsLockedRequest(fd) {
+							rep.violations = append(rep.violations, "launch site in "+rel+" builds its request through "+name+", which does not set WorktreeLock on every LaunchRequest it builds")
+							break
+						}
+					}
+					return true
+				}
+			}
+			rep.violations = append(rep.violations, "launch site in "+rel+" passes a request whose WorktreeLock hand-over cannot be proven (neither a LaunchRequest literal nor a same-package helper building one)")
+			return true
+		})
 	}
-	return docket && gate
-}
-
-// symCallShape reports whether call invokes an identifier (selector or bare)
-// matching re.
-func symCallShape(call *ast.CallExpr, re *regexp.Regexp) bool {
-	switch fn := call.Fun.(type) {
-	case *ast.SelectorExpr:
-		return re.MatchString(fn.Sel.Name)
-	case *ast.Ident:
-		return re.MatchString(fn.Name)
-	}
-	return false
+	return rep
 }
 
 // dirOf returns the slash-directory of a slash-relative path.
@@ -128,172 +206,89 @@ func dirOf(rel string) string {
 	return "."
 }
 
-type launchSite struct {
-	rel string
-	dir string
-}
-
 func TestGateLaunchAdmissionCoverage(t *testing.T) {
 	root := guardRoot(t)
 	pop := maintainedPop(t, root)
 
-	var (
-		launchSites []launchSite
-		reserveDirs = map[string]bool{}
-		crDirs      = map[string]bool{}
-		reserveN    int
-	)
-
+	files := map[string]*ast.File{}
 	for _, rel := range pop {
 		if !hasExt(rel, ".go") || strings.HasSuffix(rel, "_test.go") || !underDir(rel, "internal") {
 			continue
 		}
 		content := readMaintained(t, root, rel)
-		fset := token.NewFileSet()
-		file, err := parser.ParseFile(fset, rel, content, 0)
+		file, err := parser.ParseFile(token.NewFileSet(), rel, content, 0)
 		if err != nil {
 			// Fail closed: an unparseable maintained Go file is a guard failure, not a
 			// silent clean miss (probe-error-is-not-clean-absence).
 			t.Fatalf("parse %s: %v", rel, err)
 		}
-		dir := dirOf(rel)
-		ast.Inspect(file, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			if launchCallShape(call) {
-				launchSites = append(launchSites, launchSite{rel: rel, dir: dir})
-			}
-			if symCallShape(call, reserveAdmissionSym) {
-				reserveDirs[dir] = true
-				reserveN++
-			}
-			if symCallShape(call, confirmReleaseSym) {
-				crDirs[dir] = true
-			}
-			return true
-		})
+		files[rel] = file
 	}
 
-	// Split launch sites into the two sanctioned interiors vs the remaining sites.
-	interiorDirs := map[string]bool{}
-	var remaining []launchSite
-	for _, s := range launchSites {
-		if sanctionedLaunchLayer.MatchString(s.rel) {
-			interiorDirs[s.dir] = true
-			continue
-		}
-		remaining = append(remaining, s)
-	}
+	rep := analyzeLaunchLockHandover(files)
 
 	// Population floors FIRST — an empty enumeration passes every "no violations"
-	// negative by default. A refactor that renames the launch or admission symbols
-	// drops the population below a floor and reddens here rather than going vacuous.
-	if len(interiorDirs) < 2 {
-		t.Fatalf("population floor: found %d sanctioned launch interiors (want >= 2: internal/process and internal/gatedrive); the launch-shape detector or the interior classification drifted", len(interiorDirs))
+	// negative by default. A refactor that renames Launch or LaunchRequest drops the
+	// population below a floor and reddens here rather than going vacuous.
+	if rep.sites < 3 {
+		t.Fatalf("population floor: found %d launch sites (want >= 3: app GateLaunch and the gate driver's first launch and relaunch); the launch-shape detector drifted", rep.sites)
 	}
-	if reserveN < 1 {
-		t.Fatalf("population floor: found %d worktree-slot reserve calls (want >= 1); the reserve-admission symbol shape drifted from source", reserveN)
+	if rep.literalSites < 1 || rep.helperSites < 1 {
+		t.Fatalf("population floor: found %d literal-form and %d helper-form sites (want >= 1 of each); the request-shape detector drifted", rep.literalSites, rep.helperSites)
 	}
-	if len(remaining) < 1 {
-		t.Fatalf("population floor: found %d non-interior launch sites (want >= 1, e.g. internal/app raw gate.launch); detector D has no live input for the coverage assert", len(remaining))
-	}
-
-	var violations []string
-
-	// Forward: every remaining launch site sits in a package that reaches the reserve
-	// API — admission is composed wherever a top-level launch happens.
-	for _, s := range remaining {
-		if !reserveDirs[s.dir] {
-			violations = append(violations, "launch site "+s.rel+" is not in a package that reserves the worktree execution slot")
-		}
-	}
-
-	// Reverse (both-ways correspondence): every package that reserves the slot also
-	// confirms-or-releases it — a slot is never taken and abandoned. The slot store's
-	// own package is its API, not a consumer; at least one consumer must be checked.
-	consumers := 0
-	for dir := range reserveDirs {
-		if slotStoreLayer.MatchString(dir) {
-			continue
-		}
-		consumers++
-		if !crDirs[dir] {
-			violations = append(violations, "package "+dir+" reserves the worktree execution slot but never confirms or releases it")
-		}
-	}
-	if consumers < 1 {
-		t.Fatalf("population floor: found %d slot-consumer packages for the reverse check (want >= 1, e.g. internal/app raw gate.launch)", consumers)
-	}
-
-	if len(violations) != 0 {
-		t.Errorf("gate-launch admission violations:\n%s", strings.Join(violations, "\n"))
+	if len(rep.violations) != 0 {
+		t.Errorf("gate-launch worktree-lock hand-over violations:\n%s", strings.Join(rep.violations, "\n"))
 	}
 
 	t.Run("detectors_non_vacuity", func(t *testing.T) {
-		// A launch call in a package with no reserve reads as an uncovered site.
-		if !exprIsLaunch(t, "svc.Launch(req)") {
-			t.Errorf("launch detector missed a `.Launch(` selector call")
+		parse := func(src string) map[string]*ast.File {
+			t.Helper()
+			f, err := parser.ParseFile(token.NewFileSet(), "internal/x/x.go", src, 0)
+			if err != nil {
+				t.Fatalf("parse synthetic source: %v", err)
+			}
+			return map[string]*ast.File{"internal/x/x.go": f}
 		}
-		if !exprIsLaunch(t, "spawnSupervisor(req, dir, lock)") {
-			t.Errorf("launch detector missed a bare spawnSupervisor call")
+		cases := []struct {
+			name string
+			src  string
+			ok   bool
+		}{
+			{"literal with WorktreeLock passes", `package x
+func f() { svc.Launch(process.LaunchRequest{Root: r, WorktreeLock: l.TakeFile()}) }`, true},
+			{"literal without WorktreeLock fails", `package x
+func f() { svc.Launch(process.LaunchRequest{Root: r, Cwd: c}) }`, false},
+			{"helper lacking WorktreeLock fails", `package x
+func (r *rec) req(tok string) process.LaunchRequest { return process.LaunchRequest{Root: r.root, ReservationToken: tok} }
+func f() { d.proc.Launch(r.req(tok)) }`, false},
+			{"helper with WorktreeLock passes", `package x
+func (r *rec) req(tok string, l *os.File) process.LaunchRequest { return process.LaunchRequest{Root: r.root, WorktreeLock: l} }
+func f() { d.proc.Launch(r.req(tok, lock.TakeFile())) }`, true},
+			{"unprovable variable argument fails", `package x
+func f(req process.LaunchRequest) { svc.Launch(req) }`, false},
 		}
-		if !exprIsLaunch(t, "s.spawnSupervisor(req, dir, lock)") {
-			t.Errorf("launch detector missed a selector spawnSupervisor call")
-		}
-		if !exprIsLaunch(t, `exec.Command(self, "gate", "launch", "--docket")`) {
-			t.Errorf("launch detector missed an exec.Command docket-gate shell")
-		}
-		if exprIsLaunch(t, "svc.Observe(run)") {
-			t.Errorf("launch detector wrongly flagged an unrelated method call")
-		}
-		if exprIsLaunch(t, `exec.Command("git", "rev-parse")`) {
-			t.Errorf("launch detector wrongly flagged an unrelated exec.Command")
-		}
-		// Reserve-admission shape: the whole family, and nothing adjacent.
-		for _, sym := range []string{"ReserveWorktreeExecution", "ReserveRawWorktreeExecution", "reserveWorktreeExecution"} {
-			if !exprCallMatches(t, "store."+sym+"(rec)", reserveAdmissionSym) {
-				t.Errorf("reserve shape missed %q", sym)
+		for _, tc := range cases {
+			rep := analyzeLaunchLockHandover(parse(tc.src))
+			if rep.sites != 1 {
+				t.Errorf("%s: found %d launch sites, want 1", tc.name, rep.sites)
+				continue
+			}
+			if got := len(rep.violations) == 0; got != tc.ok {
+				t.Errorf("%s: clean=%v, want %v (violations %v)", tc.name, got, tc.ok, rep.violations)
 			}
 		}
-		if exprCallMatches(t, "store.ReleaseWorktreeExecution(w, tok)", reserveAdmissionSym) {
-			t.Errorf("reserve shape wrongly matched a release call")
+		// The launcher's own package is never a site; a non-Launch call is never a site.
+		f, err := parser.ParseFile(token.NewFileSet(), "internal/process/p.go", `package process
+func f() { s.Launch(LaunchRequest{}) }`, 0)
+		if err != nil {
+			t.Fatal(err)
 		}
-		// Confirm/release shape: the whole family, and not a reserve.
-		for _, sym := range []string{"ConfirmWorktreeExecution", "ReleaseWorktreeExecution", "MarkWorktreeExecutionUnresolved", "MarkWorktreeExecutionStopping"} {
-			if !exprCallMatches(t, "store."+sym+"(w, tok)", confirmReleaseSym) {
-				t.Errorf("confirm/release shape missed %q", sym)
-			}
+		if rep := analyzeLaunchLockHandover(map[string]*ast.File{"internal/process/p.go": f}); rep.sites != 0 {
+			t.Errorf("internal/process launch counted as a site")
 		}
-		if exprCallMatches(t, "store.ReserveWorktreeExecution(rec)", confirmReleaseSym) {
-			t.Errorf("confirm/release shape wrongly matched a reserve call")
+		if rep := analyzeLaunchLockHandover(parse(`package x
+func f() { svc.Observe(run) }`)); rep.sites != 0 {
+			t.Errorf("non-Launch call counted as a site")
 		}
 	})
-}
-
-// exprIsLaunch parses a single call expression and reports launchCallShape.
-func exprIsLaunch(t *testing.T, src string) bool {
-	t.Helper()
-	return exprCall(t, src, launchCallShape)
-}
-
-// exprCallMatches parses a single call expression and reports symCallShape against
-// re.
-func exprCallMatches(t *testing.T, src string, re *regexp.Regexp) bool {
-	t.Helper()
-	return exprCall(t, src, func(c *ast.CallExpr) bool { return symCallShape(c, re) })
-}
-
-func exprCall(t *testing.T, src string, pred func(*ast.CallExpr) bool) bool {
-	t.Helper()
-	expr, err := parser.ParseExpr(src)
-	if err != nil {
-		t.Fatalf("parse expr %q: %v", src, err)
-	}
-	call, ok := expr.(*ast.CallExpr)
-	if !ok {
-		t.Fatalf("expr %q is not a call", src)
-	}
-	return pred(call)
 }

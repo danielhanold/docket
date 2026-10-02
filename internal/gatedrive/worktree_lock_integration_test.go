@@ -44,6 +44,7 @@ func TestIntegrationGatedriveWorktreeLockKeyIsCanonical(t *testing.T) {
 		if parent == "" {
 			dir = testsupport.TempDir(t)
 		} else {
+			// tempdir-exempt: /tmp is the mandated parent for the /tmp vs /private/tmp alias case.
 			d, err := os.MkdirTemp(parent, "docketfix-wtlock-*")
 			if err != nil {
 				t.Fatal(err)

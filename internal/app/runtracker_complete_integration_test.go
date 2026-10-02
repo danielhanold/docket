@@ -787,9 +787,6 @@ func TestIntegrationRunCompletionCompleteThenScratchCleanupThenFinalizeAdmits(t 
 	// Finalize's gate admission, composed as GateLaunch composes it.
 	store := gatedrive.OpenStore(fx.common)
 	store.SetRunSettledResolver(runSettledResolver(fx.common))
-	if refusal, refused := rawStaleRunRefusal(store, fx.worktree); refused {
-		t.Fatalf("finalize admission refused at the run fence: %+v", refusal)
-	}
 	token, err := store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
 	if err != nil {
 		t.Fatalf("finalize gate admission on the completed worktree refused: %v", err)

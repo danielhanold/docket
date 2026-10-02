@@ -619,16 +619,12 @@ func TestCLIDoesNotImportProcess(t *testing.T) {
 }
 
 // TestGateLaunchInsideWorktreeSecondRefused proves the CLI `gate launch` leaf
-// carries the worktree-admission refusal shape (change 0375): a first launch whose
-// --cwd sits inside a registered worktree reserves the slot, and a second launch
-// into the same worktree from a DISTINCT --root is refused with result "blocked",
-// reason "worktree-busy", exit 1, and no run_dir.
-//
-// The first run is genuinely LIVE (a long sleep): since change 0446 the admission
-// boundary settles a proven-finished raw incumbent, so a first run that had already
-// completed would rightly be admitted over and could not prove the busy refusal.
-// The finished-incumbent side is pinned by the app layer's integration-tagged
-// TestIntegrationGateLifecycleGateLaunchSettlesFinishedRawIncumbent.
+// carries the worktree-admission refusal shape (change 0490): a first launch whose
+// --cwd sits inside a registered worktree hands the worktree lock to its live
+// supervisor, and a second launch into the same worktree from a DISTINCT --root is
+// refused with result "blocked", reason "worktree-busy", exit 1, and no run_dir —
+// exactly one launched. Once `gate stop` ends the first run, a third launch is
+// admitted with no other step: the supervisor's exit freed the lock.
 func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
 
@@ -665,6 +661,32 @@ func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 	}
 	if rd, _ := doc2["run_dir"].(string); rd != "" {
 		t.Fatalf("refused launch produced a run_dir %q", rd)
+	}
+
+	// Stop the first run; the worktree frees itself when its supervisor exits. The
+	// stop's terminal state can land a moment before the supervisor is gone, so the
+	// third launch is retried only while it is refused worktree-busy.
+	if _, serr, _ := runCLI(t, "--json", "gate", "stop", runDir, "--reason", "test stop"); serr != "" {
+		t.Fatalf("gate stop stderr=%q", serr)
+	}
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		out3, err3, code3 := runCLI(t, "--json", "gate", "launch", "--root", testsupport.TempDir(t), "--cwd", wt, "--", "/bin/echo", "hi")
+		if err3 != "" {
+			t.Fatalf("third launch stderr=%q", err3)
+		}
+		doc3 := decodeOneJSON(t, out3)
+		if rd, _ := doc3["run_dir"].(string); rd != "" {
+			t.Cleanup(func() { runCLI(t, "gate", "stop", rd, "--reason", "test cleanup") })
+			if code3 != 0 {
+				t.Fatalf("third launch exit code=%d doc=%v", code3, doc3)
+			}
+			return
+		}
+		if doc3["reason"] != "worktree-busy" || time.Now().After(deadline) {
+			t.Fatalf("third launch after stop must be admitted, got %v", doc3)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }
 
