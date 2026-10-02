@@ -103,9 +103,8 @@ func (f *fakeScopePrep) deps() RunTrackerScopeDeps {
 		},
 		// A permissive cancellation seam so every resume test that reaches the
 		// RunCancelled/RunSuperseded branches sees a quiescent old run (change
-		// 0435): accounted launches, no worktree slot. Slot-bearing tests override
-		// CancelSeams with a real store. A nil store makes validateResumeQuiescence's
-		// slot leg vacuous, which is correct for fixtures that bind no worktree slot.
+		// 0435): accounted launches. Tests that exercise an unaccounted census
+		// override CancelSeams.
 		CancelSeams: func(string) cancelSeams {
 			return cancelSeams{launches: okLaunchReconciler()}
 		},

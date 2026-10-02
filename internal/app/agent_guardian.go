@@ -24,8 +24,9 @@
 // key and the public run id (locators, not credentials) and NO child capability,
 // so it is fenced out of mutation admission exactly like any non-writer (the
 // run mutation fence keys on the run state the guardian drives, never on the
-// guardian's identity). It reaps the run's registered participants and worktree slot
-// through the SAME accounting run.cancel uses (reconcileRunTeardown), but WITHOUT
+// guardian's identity). It reaps the run's registered participants and its gate
+// drives (the launch census, attributed by the run's context hash) through the SAME
+// accounting run.cancel uses (reconcileRunTeardown), but WITHOUT
 // the authority conditions — the guardian is a trusted re-exec the already-authorized
 // owner spawned, located to exactly one run, which it verifies before fencing.
 package app
@@ -118,7 +119,7 @@ func RunAgentGuardianFromEnv() int {
 
 // guardianFenceAndReap flips the located run active→cancelling (idempotent; a
 // concurrent or prior run.cancel that already fenced it leaves it cancelling) and,
-// only when the fence holds, reaps the run's participants and worktree slot. It
+// only when the fence holds, reaps the run's participants and gate drives. It
 // verifies the run id before writing so a stale guardian cannot fence a successor
 // run, and it never revives a non-active run — cancelled/superseded, or a
 // successful completing/completed closeout (change 0441).

@@ -17,12 +17,11 @@ import (
 
 // These are change 0446's AC5/AC6 flows over PRODUCTION seams (review finding: the
 // earlier acceptance tests used permissive fake accounting — okLaunchReconciler,
-// fakeLaunchObserver{Accounted:true} — and probed finalize admission with a bare
-// ReserveRawWorktreeExecution, so no test ran the shared census or finalize's real
-// admission with unrelated damaged history present). Here:
+// fakeLaunchObserver{Accounted:true} — so no test ran the shared census or
+// finalize's real admission with unrelated damaged history present). Here:
 //
 //   - cancellation, success closeout, and resume quiescence run through
-//     productionCancelSeams: the real admission store, appLaunchReconciler /
+//     productionCancelSeams: the real gatedrive store, appLaunchReconciler /
 //     appLaunchObserver (Driver.ReconcileRunLaunches / ObserveRunLaunches over the
 //     real process service), appGateObserver, and appGateStopper;
 //   - unrelated corrupt, unsupported-schema, obsolete (lost-linkage, rotated-token),
@@ -66,8 +65,8 @@ func writeCensusDriveBytes(t *testing.T, common, id string, buf []byte) {
 // seedUnrelatedDamagedHistory seeds history with no ownership connection to the run
 // under test, including records bound to the SAME worktree path by earlier
 // generations: a corrupt record, an unsupported-schema record, a HALTED drive on this
-// worktree whose run dir is gone, a nonterminal scopeless drive whose admission token
-// the slot no longer holds (rotated), an old nonterminal drive carrying scope_id (a
+// worktree whose run dir is gone, a nonterminal scopeless drive carrying a rotated
+// launch token, an old nonterminal drive carrying scope_id (a
 // pre-0489 task drive naming a missing scope, read as scopeless), a nonterminal drive
 // bound to a removed other worktree, and a corrupt unrelated run record. prefix keeps
 // the ids distinct across calls.
@@ -194,20 +193,13 @@ func startFinalizeGate(t *testing.T, fx cancelFixture) {
 }
 
 // prepareQuiescentRun is the shared arrangement: a real authorized run owning a
-// worktree whose slot is RELEASED (its drives are done), a sorted-first cancelled
+// worktree whose drives are done (seedRunContextDrives), a sorted-first cancelled
 // never-superseded predecessor bound to the same path, and unrelated damaged history
 // seeded before any closeout or cancellation runs.
 func prepareQuiescentRun(t *testing.T) cancelFixture {
 	t.Helper()
 	requireProcessSupervisorHere(t)
-	fx := newCancelFixture(t, true)
-	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
-	if err != nil {
-		t.Fatalf("load slot: %v", err)
-	}
-	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, slot.ReservationToken); err != nil {
-		t.Fatalf("release slot: %v", err)
-	}
+	fx := newCancelFixture(t)
 	seedNamedRun(t, fx.repo, "0000-cancelled-predecessor", fx.worktree, RunCancelled)
 	seedUnrelatedDamagedHistory(t, fx, "a")
 	seedRunContextDrives(t, fx, "a")
@@ -234,9 +226,13 @@ func TestIntegrationRunCompletionProductionCensusCompleteThenFinalize(t *testing
 		RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
 	must(t, RecordRunParticipantTerminal(fx.repo, fx.key, fx.runID,
 		"turn-1", "t1", ParticipantTerminalCompleted))
-	// The released slot's run is also a registered gate-scope participant whose
-	// scratch directory no longer exists: the production observer cannot observe it,
-	// so only the durable released-slot fact accounts it.
+	// The run's gate is also a registered gate-scope participant whose scratch
+	// directory no longer exists: the production observer cannot observe it, so only
+	// the durable fact that its drive PASSED accounts it.
+	seedCensusDrive(t, fx.common, "accccccccccccccccccccccccccccc09", map[string]any{
+		"worktree_path": fx.worktree, "raw_run_dir": fx.runDir,
+		"last_outcome": string(gatedrive.PASSED), "run_context_hash": fx.contextHash,
+	})
 	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
 		RunParticipant{Kind: participantKindGateScope, NativeHandle: fx.runDir}))
 	if _, err := os.Stat(fx.runDir); !os.IsNotExist(err) {
@@ -284,7 +280,7 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 	if err != nil {
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
-	if ok, detail := validateResumeQuiescence(productionCancelSeams(fx.repo), fx.repo, oldEp, fx.worktree); !ok {
+	if ok, detail := validateResumeQuiescence(productionCancelSeams(fx.repo), fx.repo, oldEp); !ok {
 		t.Fatalf("production resume quiescence over unrelated history refused: %s", detail)
 	}
 
@@ -317,4 +313,55 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 	if out := runDriveToTerminal(t, svc, got); out != gatedrive.PASSED {
 		t.Fatalf("replacement drive outcome = %s, want PASSED", out)
 	}
+}
+
+// TestIntegrationRunCompletionProductionCensusHaltedLiveDriveBlocks: the successful
+// closeout's production census is attributed by the run's context hash. With only
+// settled drives of the run (PASSED, plus removed run dirs) it completes; a HALTED
+// drive of the run whose supervisor still runs — a HALT label is never proof of
+// teardown — blocks it completion-unaccounted with run-live:<id>, observing only:
+// the live run is never stopped and the run stays completing.
+func TestIntegrationRunCompletionProductionCensusHaltedLiveDriveBlocks(t *testing.T) {
+	registerDone := func(t *testing.T, fx cancelFixture) {
+		must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+			RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
+		must(t, RecordRunParticipantTerminal(fx.repo, fx.key, fx.runID,
+			"turn-1", "t1", ParticipantTerminalCompleted))
+	}
+	t.Run("settled-drives-complete", func(t *testing.T) {
+		fx := prepareQuiescentRun(t)
+		registerDone(t, fx)
+		if ok, reason, findings := completeSuccessfulRun(productionCancelSeams(fx.repo), fx.repo, fx.key); !ok {
+			t.Fatalf("closeout over settled drives ok=false reason=%q findings=%v", reason, findings)
+		}
+	})
+	t.Run("halted-drive-live-supervisor-blocks", func(t *testing.T) {
+		fx := prepareQuiescentRun(t)
+		registerDone(t, fx)
+		// A live raw run outside any worktree (so it holds no worktree lock), named by
+		// a HALTED drive of the run.
+		liveRoot := testsupport.TempDir(t)
+		reapRunSupervisors(t, liveRoot) // so the cleanup stop proves the group gone promptly
+		live := GateLaunch(liveRoot, testsupport.TempDir(t), []string{"/bin/sleep", "60"})
+		t.Cleanup(func() { GateStop(live.RunDir, "test cleanup") })
+		if live.Result != ResultApplied || live.RunDir == "" {
+			t.Fatalf("launch: result=%s reason=%q", live.Result, live.Reason)
+		}
+		const haltedID = "acccccccccccccccccccccccccccccc8"
+		seedCensusDrive(t, fx.common, haltedID, map[string]any{
+			"worktree_path": fx.worktree, "raw_run_dir": live.RunDir,
+			"last_outcome": string(gatedrive.HALTED), "last_cause": "deadline-expired-stop-unproven",
+			"run_context_hash": fx.contextHash,
+		})
+		ok, reason, findings := completeSuccessfulRun(productionCancelSeams(fx.repo), fx.repo, fx.key)
+		if ok || reason != "completion-unaccounted" || !hasFinding(findings, "run-live:"+haltedID) {
+			t.Fatalf("closeout = ok %v reason %q findings %v, want completion-unaccounted with run-live:%s", ok, reason, findings, haltedID)
+		}
+		if st := loadRunState(t, fx.repo, fx.key); st != RunCompleting {
+			t.Fatalf("run state = %q, want completing (the success fence holds while blocked)", st)
+		}
+		if obs := GateObserve(live.RunDir); obs.State != "running" {
+			t.Fatalf("the observe-only closeout stopped the live run: state %q", obs.State)
+		}
+	})
 }

@@ -415,29 +415,18 @@ func armResumeReplacement(repoDir string, sdeps RunTrackerScopeDeps, oldKey stri
 
 // validateResumeQuiescence re-proves the OLD run's quiescence before resume may
 // reserve a replacement (RunCancelled) or re-authorize a previously reserved one
-// (RunSuperseded) — the same bounded proof terminal repair uses
+// (RunSuperseded) — exactly the bounded proof terminal repair uses
 // (verifyTerminalRunQuiescence; the cancellation command's last reported
-// disposition is not durable authority). The launch census is attributed by the
-// OLD run's own context hash (change 0490), so a superseded run, whose Worktree
-// supersession cleared, is censused without one; the proof still resolves the
-// replacement's worktree for the slot retirement (change 0446 spec §4). When the
-// evidence is accounted it retires, through the shared retirement
-// (retireSlotOwnership), a RELEASED slot that still carries the old run's
-// ownership, so the replacement's own reservation is not refused stale-run-id. It
-// never cancels or alters an already-reserved successor: a successor-held slot is
-// the shared successor outcome, returned as the detail of an ok result. Incomplete
-// or unreadable proof returns ok=false with a bounded, credential-free detail for the
-// run-untracked message; it creates no replacement and yields no dispatch
-// authorization. worktree is the resume request's verified feature worktree — the one
-// armResumeReplacement binds — which resolves a torn replacement chain (a replacement
-// run never minted or never bound) instead of dead-ending every repeat resume.
-func validateResumeQuiescence(seams cancelSeams, repoDir string, ep RunRecord, worktree string) (ok bool, detail string) {
-	slotEp, quiescent, findings := verifyTerminalRunQuiescence(seams, repoDir, ep, worktree)
-	if !quiescent {
-		return false, strings.Join(findings, "; ")
-	}
-	r := retireSlotOwnership(seams, slotEp)
-	return r.detached, r.finding
+// disposition is not durable authority). Its stop-capable launch census is
+// attributed by the OLD run's own context hash (change 0490), so a superseded run,
+// whose Worktree supersession cleared, is censused without one, and an
+// already-reserved successor — which carries its own context hash — is never
+// touched. Incomplete or unreadable proof returns ok=false with a bounded,
+// credential-free detail (the census and journal findings) for the run-untracked
+// message; it creates no replacement and yields no dispatch authorization.
+func validateResumeQuiescence(seams cancelSeams, repoDir string, ep RunRecord) (ok bool, detail string) {
+	quiescent, findings := verifyTerminalRunQuiescence(seams, repoDir, ep)
+	return quiescent, strings.Join(findings, "; ")
 }
 
 // RunStart starts the implement-next run tracker. On a bad target it returns a
@@ -588,10 +577,7 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 					return runUntrackedMsg(ReasonResumeRunRecordUnreadable,
 						"change "+scopeChangeID+" was superseded without a recorded replacement")
 				}
-				// A torn replacement (never minted or never bound) resolves through the
-				// request's own verified worktree, so a repeat start converges on the
-				// reservation instead of dead-ending (resolveTerminalRunSlot).
-				if qok, detail := validateResumeQuiescence(seams, repoDir, oldEp, worktree); !qok {
+				if qok, detail := validateResumeQuiescence(seams, repoDir, oldEp); !qok {
 					return runUntrackedMsg(ReasonRunResumeCancellationPending,
 						"change "+scopeChangeID+" has unresolved cancellation evidence ("+detail+
 							"); the reserved replacement cannot be re-authorized until it is resolved — "+
@@ -601,12 +587,11 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 				}
 				return runTrackerResumeObserve(oldEp.ReplacementReserved)
 			case RunCancelled:
-				// Confirmed cancellation: re-prove the old run's quiescence and retire a
-				// released slot that still carries its ownership (change 0435), then
+				// Confirmed cancellation: re-prove the old run's quiescence, then
 				// atomically supersede and reserve exactly one replacement dispatch (one
 				// winner under a concurrent-resume race). Unresolved evidence refuses on the
 				// existing run-untracked channel rather than reserving over an unquiesced run.
-				if qok, detail := validateResumeQuiescence(seams, repoDir, oldEp, worktree); !qok {
+				if qok, detail := validateResumeQuiescence(seams, repoDir, oldEp); !qok {
 					return runUntrackedMsg(ReasonRunResumeCancellationPending,
 						"change "+scopeChangeID+" has unresolved cancellation evidence ("+detail+
 							"); resume cannot reserve a replacement — resolve it with 'docket run cancel'")
@@ -698,9 +683,9 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 	// (6a) Every started run tracker binds a run beside the just-minted gate record,
 	// keyed by the run key (runtracker_run_record.go). The run is the durable coordinator
 	// fence that a later human cancellation flips and a resume supersedes. Its RunID
-	// travels onto each build-owned start's worktree slot, so an omitted or stale run
-	// cannot detach the worktree. Two starts reach this step: a FRESH start, and a RESUME
-	// whose change has no prior run (a legacy/pre-run-record run, or a first dispatch
+	// is what each build-owned start presents to the run launch gate (runLaunchGate),
+	// so a cancelled or superseded run cannot start a gate. Two starts reach this
+	// step: a FRESH start, and a RESUME whose change has no prior run (a legacy/pre-run-record run, or a first dispatch
 	// that was never started; change 0463). A resume that found a prior run never gets
 	// here, because every found state has already returned above (a refusal, an
 	// observed reservation, or armResumeReplacement, which mints its own).

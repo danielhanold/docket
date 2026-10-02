@@ -182,7 +182,7 @@ func TestIntegrationRunFenceFenceBlocksWorkspacePublishAfterCancel(t *testing.T)
 // are reconciled, and cancelled is not reported while an unresolved effect remains"
 // property.
 func TestIntegrationRunFenceInFlightMutationReconcilesBeforeCancelled(t *testing.T) {
-	fx := newCancelFixture(t, false) // active run + authority, no slot to reconcile
+	fx := newCancelFixture(t) // active run + authority, no gate drive to reconcile
 
 	// A workflow mutation is admitted (in flight) but not yet completed.
 	done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
@@ -638,8 +638,8 @@ func TestIntegrationRunFenceVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm(
 	})
 }
 
-// --- change 0446 Task 7: deterministic worktree owner selection and the
-// slot-named-run rule (spec §§1, 5; AC3, AC6). ---
+// --- change 0446 Task 7: deterministic worktree owner selection (spec §§1, 5;
+// AC3, AC6); owners come from run records only (change 0490). ---
 
 // runRecordPath is the run.json path for key under repo's run-tracker root.
 func runRecordPath(t *testing.T, repo, key string) string {
@@ -788,12 +788,14 @@ func TestIntegrationRunFenceOwnerSelectionCompletedNeverOwns(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunFenceSlotNamedRunRecordUnreadableRefusesLocally (AC3): the worktree's execution slot
-// names run E. When no readable run record carries E — the record is corrupt,
-// I/O-unreadable, or gone — the path fence refuses locally with E and the worktree in
-// the error instead of admitting unfenced. The same damage to a run record NO slot
-// names stays diagnostic, and a companion unrelated worktree keeps admitting.
-func TestIntegrationRunFenceSlotNamedRunRecordUnreadableRefusesLocally(t *testing.T) {
+// TestIntegrationRunFenceUnreadableOwnerRecordAdmitsUnfenced (change 0490): the
+// mutation fence finds a worktree's owner from run records only. When the owning
+// run's record is corrupt, I/O-unreadable, or gone, no readable record owns the
+// worktree and the mutation is admitted UNFENCED — the retired worktree slot no
+// longer names the run as a fallback (an accepted loss the spec records). The same
+// damage to a run bound elsewhere, and a companion worktree with no owner, admit
+// alike.
+func TestIntegrationRunFenceUnreadableOwnerRecordAdmitsUnfenced(t *testing.T) {
 	damage := map[string]func(t *testing.T, path string){
 		"corrupt": func(t *testing.T, path string) {
 			if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
@@ -818,114 +820,42 @@ func TestIntegrationRunFenceSlotNamedRunRecordUnreadableRefusesLocally(t *testin
 	}
 	for name, apply := range damage {
 		t.Run(name, func(t *testing.T) {
-			fx := newCancelFixture(t, true) // active run E bound to fx.worktree; the slot names E
-			canon := mustCanon(t, fx.worktree)
+			fx := newCancelFixture(t) // active run E bound to fx.worktree
 
-			// Control: while E is readable it is the owner and the mutation is admitted.
+			// Control: while E is readable it is the owner and the mutation is admitted
+			// and journaled on E.
 			done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
 			if err != nil {
 				t.Fatalf("control admit on a readable active owner: %v", err)
 			}
 			done(mutationStatusCompleted, false)
+			if ep, _, lerr := LoadRunRecord(fx.repo, fx.key); lerr != nil || len(ep.AdmittedMutations) != 1 {
+				t.Fatalf("control admission must journal on the owning run: %+v err=%v", ep.AdmittedMutations, lerr)
+			}
 
-			// An UNREFERENCED run bound to another worktree (no slot names it),
-			// damaged the same way, and a companion worktree with no owner at all.
-			unref := filepath.Join(fx.repo, "unreferenced-wt")
+			// A run bound to another worktree, damaged the same way, and a companion
+			// worktree with no owner at all.
+			other := filepath.Join(fx.repo, "other-wt")
 			companion := filepath.Join(fx.repo, "companion-wt")
-			for _, d := range []string{unref, companion} {
+			for _, d := range []string{other, companion} {
 				if err := os.MkdirAll(d, 0o755); err != nil {
 					t.Fatalf("mkdir %s: %v", d, err)
 				}
 			}
-			seedNamedRun(t, fx.repo, "unreferenced-run", unref, RunActive)
+			seedNamedRun(t, fx.repo, "other-run", other, RunActive)
 
 			apply(t, runRecordPath(t, fx.repo, fx.key))
-			apply(t, runRecordPath(t, fx.repo, "unreferenced-run"))
+			apply(t, runRecordPath(t, fx.repo, "other-run"))
 
-			_, aerr := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
-			ee, ok := AsRunError(aerr)
-			if !ok || ee.Kind != ErrRunOwnerUnresolved {
-				t.Fatalf("admit on a slot-named %s run = %v, want ErrRunOwnerUnresolved (fail closed, never unfenced)", name, aerr)
-			}
-			if !strings.Contains(aerr.Error(), fx.runID) || !strings.Contains(aerr.Error(), canon) {
-				t.Fatalf("refusal %q must name run %s and worktree %s", aerr, fx.runID, canon)
-			}
-			if reason, _ := fenceRefusalReasonMessage(aerr, "workspace"); reason != string(ErrRunOwnerUnresolved) {
-				t.Fatalf("refusal reason = %q, want %q", reason, ErrRunOwnerUnresolved)
-			}
-			// The remedy must be valid in this state: name where the run records
-			// live and that a human repairs them, and never point at run.cancel
-			// (which cannot resolve a run no readable record carries).
-			if msg := aerr.Error(); !strings.Contains(msg, filepath.Join("docket", runTrackerDirName)) ||
-				!strings.Contains(msg, "human") || !strings.Contains(msg, "run.cancel cannot") {
-				t.Fatalf("refusal %q must name the run-tracker store, human repair, and run.cancel's inapplicability", msg)
-			}
-
-			for _, wt := range []string{unref, companion} {
+			for _, wt := range []string{fx.worktree, other, companion} {
 				d, err := admitWorkflowMutation(wt, OperationPRPublish, nil)
 				if err != nil {
-					t.Fatalf("worktree %s refused by damage to a record no slot of it names: %v", wt, err)
+					t.Fatalf("worktree %s with no readable owning run refused: %v", wt, err)
 				}
 				d(mutationStatusCompleted, false)
 			}
 		})
 	}
-}
-
-// TestIntegrationRunFenceUnreadableSlotRefusesLocally (review fix): with no readable ambient owner, a
-// worktree whose execution slot the store cannot READ (corrupt or I/O-unreadable)
-// is not evidence that the slot names no run — the path fence refuses with
-// ErrRunOwnerUnresolved naming the worktree instead of admitting unfenced. An
-// ABSENT slot still admits unfenced (the standalone contract).
-func TestIntegrationRunFenceUnreadableSlotRefusesLocally(t *testing.T) {
-	damage := map[string]func(t *testing.T, path string){
-		"corrupt": func(t *testing.T, path string) {
-			if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
-				t.Fatalf("corrupt slot: %v", err)
-			}
-		},
-		"io-unreadable": func(t *testing.T, path string) {
-			if err := os.Chmod(path, 0o000); err != nil {
-				t.Fatalf("chmod 000 slot: %v", err)
-			}
-			t.Cleanup(func() { _ = os.Chmod(path, 0o600) })
-			if f, err := os.Open(path); err == nil {
-				f.Close()
-				t.Skip("process can read a mode-000 file (running as root); the I/O case is unobservable")
-			}
-		},
-	}
-	for name, apply := range damage {
-		t.Run(name, func(t *testing.T) {
-			fx := newCancelFixture(t, true) // the slot names run E
-			canon := mustCanon(t, fx.worktree)
-			// Remove E's record so no ambient owner is readable; the slot is then the
-			// only evidence, and it is damaged.
-			if err := os.Remove(runRecordPath(t, fx.repo, fx.key)); err != nil {
-				t.Fatalf("remove run record: %v", err)
-			}
-			apply(t, admissionRecordFile(t, fx.common, fx.worktree))
-
-			_, aerr := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
-			if ee, ok := AsRunError(aerr); !ok || ee.Kind != ErrRunOwnerUnresolved {
-				t.Fatalf("admit over an unreadable %s slot = %v, want ErrRunOwnerUnresolved (never unfenced)", name, aerr)
-			}
-			if !strings.Contains(aerr.Error(), canon) || strings.Contains(aerr.Error(), "run.cancel using") {
-				t.Fatalf("refusal %q must name worktree %s and never suggest run.cancel", aerr, canon)
-			}
-		})
-	}
-	t.Run("absent-slot-admits", func(t *testing.T) {
-		fx := newCancelFixture(t, false)
-		if err := os.Remove(runRecordPath(t, fx.repo, fx.key)); err != nil {
-			t.Fatalf("remove run record: %v", err)
-		}
-		done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
-		if err != nil {
-			t.Fatalf("absent slot must admit unfenced: %v", err)
-		}
-		done(mutationStatusCompleted, false)
-	})
 }
 
 // TestIntegrationRunFenceRunCarryingFencesUnchangedByOwnerSelection (AC6, separate proof): owner
@@ -1167,7 +1097,7 @@ func TestIntegrationRunFenceWorkspacePublishMovedHeadUnderLockIsHeadMismatch(t *
 // move during cancellation) and leaking no title/body bytes into the durable
 // journal or the cancel findings.
 func TestIntegrationRunFenceProductionUncertainThenIdenticalRetryThenCancel(t *testing.T) {
-	fx := newCancelFixture(t, true)
+	fx := newCancelFixture(t)
 	// The fixture run owns fx.worktree (a real directory inside the fixture's git
 	// repository), so PRPublish invoked at that worktree resolves the admission
 	// fence to exactly this run and journals into it.
@@ -1314,7 +1244,7 @@ func TestIntegrationRunFenceProductionUnverifiedPRRetryNeverSettles(t *testing.T
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fx := newCancelFixture(t, true)
+			fx := newCancelFixture(t)
 			deps := workspaceDepsFor(t, prReader(t))
 			req := PRPublishRequest{ID: 7, Head: prHead, Title: "Add widget", Body: "Prose.\n", EvidenceRecord: prEvidenceBytes(t, prHead)}
 			ghFail := &fakeGitHub{repo: prRepo(), ensureErr: &githubcli.Failure{
@@ -1375,7 +1305,7 @@ func TestIntegrationRunFenceProductionUnverifiedWorkspaceRetryNeverSettles(t *te
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fx := newCancelFixture(t, true)
+			fx := newCancelFixture(t)
 			reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")}}
 			deps := workspaceDepsFor(t, reader)
 			req := WorkspacePublishRequest{ID: 7, Head: head}
