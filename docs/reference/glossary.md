@@ -1070,10 +1070,10 @@ owner **claims**).
 **Used for:** the build and finalize suite gates. Build-task workers never start a drive: they run
 their focused tests directly under a fixed `timeout`. The component making these calls is the **gate
 driver**. A forked controller drives the suite with inline, blocking `advance` calls — it must never
-background the suite and yield. The catalog still carries the recovery-scope operations
-(`prepare-scope`, `takeover`, `acknowledge`) that once served build-task workers. No skill invokes
-them directly, but the run tracker still uses a scope internally: `run.start` prepares an outer
-scope, and `run.verdict` can take over a drive through it. Change 0489 decides their fate.
+background the suite and yield. The run tracker keeps one recovery scope per run internally:
+`run.start` prepares it, and `run.verdict` can take over a drive that is still running through it
+when implement-next stopped early. A drive that already finished is never taken over; the run's
+retry re-runs the gate. No operation exposes scopes.
 
 ```sh
 docket gate drive start   --repo-dir . --owner build --run-root <dir> --run-id <run-id>
@@ -1106,7 +1106,7 @@ docket gate cleanup <run-dir>
 The state a gate checked no longer matches the state now in front of it. A gate drive halts
 `worktree-changed` when the worktree fingerprint (HEAD, index, status, live file bytes) moved
 since the drive started. A takeover that finds a drive whose recorded repo, branch, worktree,
-change, task or phase is not the scope's halts `scope-identity-mismatch` instead, because nothing in the
+or change is not the scope's halts `scope-identity-mismatch` instead, because nothing in the
 worktree changed. `evidence.recertify` refuses `certified-input-changed` when the PR
 head or the build command moved after the gate passed. In finalize, a pull request whose pushed
 head no longer equals the branch finalize just rebased and retested is refused `pr-head-mismatch`.

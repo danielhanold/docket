@@ -156,8 +156,8 @@ type RunStartResult struct {
 	// RunID is the fresh run's PUBLIC run id, minted at start time beside the run-tracker
 	// record (runtracker_run_record.go). It authorizes nothing (ADR-0111) but is the locator
 	// the operator threads into `run.cancel --run-id <id>` — the primary human Stop —
-	// and the dispatcher threads into each `--run-id` flag (agent.enter, gate drive
-	// start, gate drive prepare-scope). Without it the documented Stop path names an
+	// and the dispatcher threads into each `--run-id` flag (agent.enter and each
+	// build-owned gate drive start). Without it the documented Stop path names an
 	// run the start never surfaced (change 0375). Never empty on a started result
 	// (change 0463): startedRunResult refuses to start without one, so the positional
 	// `run-started <key> <run-id> <run-context>` line always has three tokens.
@@ -697,7 +697,7 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 	// (6a) Every started run tracker binds a run beside the just-minted gate record,
 	// keyed by the run key (runtracker_run_record.go). The run is the durable coordinator
 	// fence that a later human cancellation flips and a resume supersedes. Its RunID
-	// travels onto each scoped start's worktree slot, so an omitted or stale run
+	// travels onto each build-owned start's worktree slot, so an omitted or stale run
 	// cannot detach the worktree. Two starts reach this step: a FRESH start, and a RESUME
 	// whose change has no prior run (a legacy/pre-run-record run, or a first dispatch
 	// that was never started; change 0463). A resume that found a prior run never gets

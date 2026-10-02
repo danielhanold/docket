@@ -55,8 +55,8 @@ const (
 const suiteBudgetSchemaVersion = 1
 
 // SuiteBudgetKey identifies one owning build phase's full-suite attempt budget.
-// The phase is the literal owning-scope phase (e.g. "build"), not a task-owned
-// focused start, so every build-owned rerun of the same phase shares one budget.
+// The phase is the literal owning phase (e.g. "build"), so every build-owned
+// rerun of the same phase shares one budget.
 type SuiteBudgetKey struct {
 	RepoIdentity string
 	ChangeID     string

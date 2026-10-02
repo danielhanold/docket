@@ -1523,7 +1523,7 @@ func (d *Driver) stopIfOwned(runDir string) bool {
 
 // recordedDoc builds the outcome document from an authoritative persisted record
 // on a path that ran NO slot release (a busy relaunch claim, a crash-window
-// reservation settled HALTED, an acknowledgement). Only PASSED exposes the raw run
+// reservation settled HALTED, a lost relaunch race). Only PASSED exposes the raw run
 // dir. PASSED/FAILED expose the private run root (the supervisor wrote its terminal
 // record, so the process has ended); HALTED withholds it, because nothing on such a
 // path proved the slot's teardown (change 0446). A path that just ran the release

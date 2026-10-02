@@ -26,7 +26,7 @@ package repoguard
 // Residual risk, recorded not hidden (byte-pattern-guard-matches-a-spelling):
 // a retired operation named without its gate.drive / gate drive prefix (a
 // bare `takeover`) is not matched — the bare words are ordinary English, and
-// the Go catalog keeps these operations until change 0489 deletes them.
+// change 0489 deleted these operations from the Go catalog.
 
 import (
 	"fmt"

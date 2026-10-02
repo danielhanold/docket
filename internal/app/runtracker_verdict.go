@@ -69,8 +69,8 @@ import (
 // several future attempts at once. The report TOKENS are unchanged; the used/limit
 // surface is the additive AttemptsUsed/AttemptLimit result fields.
 //
-// CONTINUATION (change 0359). A tracked gate drive left live (or terminal but
-// unconsumed) is a CONTINUATION of the same attempt, not a stop: a RunVerify
+// CONTINUATION (change 0359). A tracked gate drive left live (or handed off
+// cooperatively) is a CONTINUATION of the same attempt, not a stop: a RunVerify
 // run-waiting maps to a nonterminal run-continue directly (runTrackerContinueFromWaiting),
 // and a run-incomplete whose recovery scope still binds a tracked drive is taken
 // over (runTrackerOuterContinuation) BEFORE the retry CAS is reached — so healthy work

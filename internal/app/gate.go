@@ -151,7 +151,7 @@ const rawGateRun = ""
 // state to a protocol result. When cwd sits inside a registered git worktree, the
 // launch first admits through the worktree execution slot (change 0375): one
 // canonical worktree carries at most one reserved-or-running top-level gate
-// run across scoped, scopeless, and raw launches, so a second raw launch
+// run across driven (scopeless) and raw launches, so a second raw launch
 // into a busy worktree is REFUSED (worktree-busy / launch-unconfirmed) with a
 // safe incumbent locator and no process spawned — but only after the reserve's
 // finished-incumbent reconciliation (change 0446 spec §3) could not prove the
@@ -221,7 +221,7 @@ func GateLaunch(root, cwd string, argv []string) GateResult {
 // broken, so a raw gate.launch there keeps its pre-admission contract (no slot, no
 // token). It reaches Git only through gitcli — never internal/process — and returns
 // the CANONICAL containing worktree root (the admission key) and the common dir
-// (the store root), the two dimensions the driver's scoped starts also key on.
+// (the store root), the two dimensions the driver's drive starts also key on.
 func resolveWorktreeAdmission(cwd string) (worktreeRoot, repoIdentity string, store *gatedrive.Store, ok bool) {
 	client, err := gitcli.NewClient()
 	if err != nil {
