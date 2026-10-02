@@ -74,11 +74,6 @@ type driveEngine interface {
 	// execution slot with the engine's own process seam (change 0446 spec §3), so an
 	// advisory busy refusal is final only after reconciliation had its chance.
 	ReconcileFinishedIncumbent(worktree, runID string) (settled bool, finding string, err error)
-	// AdvisoryRunID resolves, read-only, the run Admit would admit a start
-	// under (change 0467): a credentialed scoped start inherits its scope's pinned
-	// run, anything else keeps the presented one. The advisory precheck
-	// reconciles with it so it never refuses a start Admit would admit.
-	AdvisoryRunID(gatedrive.StartRequest) string
 }
 
 // GateDriveService is the in-process seam over the native gate driver. It owns
@@ -96,21 +91,13 @@ type GateDriveService struct {
 	// leaves it empty, and Start (the only operation that reads a command) is never
 	// reached on that path.
 	owner string
-	// taskIntent marks the TASK-INTENT owner (NewTaskGateDriveService): its Start
-	// uses the agent-supplied argv verbatim (no /bin/sh -c wrapping and no config
-	// command to resolve) and forces IdempotentSuiteGate false. argv holds that raw
-	// argv. Both are empty/false for the config-owned (build/finalize) and
-	// commandless services, which keep their existing command-argv and idempotency
-	// behavior.
-	taskIntent bool
-	argv       []string
 	// budgetStore + maxAttempts wire the durable per-phase suite-attempt budget the
 	// BUILD owner reserves against before a change-scoped build drive is created
 	// (change 0421). budgetStore is the SAME store the engine composes; maxAttempts
 	// is the snapshotted build.max_attempts from the SAME authoritative config
 	// resolution that resolved the build-owned command — never a second resolver.
 	// Only the build owner reserves (Start keys on owner=="build"), so a
-	// finalize/task/commandless service never charges an attempt even though a
+	// finalize or commandless service never charges an attempt even though a
 	// finalize service also stores a non-nil budgetStore.
 	budgetStore *gatedrive.Store
 	maxAttempts int
@@ -132,27 +119,15 @@ type GateDriveStartRequest struct {
 	EnvHash             string
 	RunRoot             string
 	IdempotentSuiteGate bool
-	// Scope binding (change 0359): ScopeID + ChildCapability bind the new drive
-	// into a recovery scope the parent prepared, and RunContext is the raw outer
-	// child-context token linking a nested drive to the dispatched run. All optional;
-	// empty means a scopeless drive (pre-0359 behavior). ChildCapability and
-	// RunContext are raw tokens the driver verifies/hashes and persists nowhere in
-	// the clear.
-	ScopeID         string
-	ChildCapability string
-	RunContext      string
+	// RunContext is the raw run-context token from run.start linking this drive to
+	// the dispatched run; the driver persists only its hash, which run.verdict's
+	// outer scan matches a run's drives on. Optional: empty for an untracked run.
+	RunContext string
 	// RunID links this drive to the workflow run (change 0375 Task 9): a
 	// locator, not a credential, recorded on the worktree execution slot so an omitted
 	// or stale run cannot detach a workflow-owned worktree. Empty for a standalone
-	// gate (finalize's local gate, an ad-hoc task drive) that owns no run.
+	// gate (finalize's local gate, an ad-hoc build drive) that owns no run.
 	RunID string
-	// Successor receipt (change 0405): a scoped drive that follows a predecessor in
-	// the same recovery scope names the predecessor it acknowledges — both fields
-	// together, or both empty for a scope's first drive. They are forwarded verbatim
-	// to gatedrive.StartRequest, which retires exactly the named predecessor's
-	// recovery authority as the journaled half of one logical transition.
-	PredecessorDriveID  string
-	PredecessorOwnerGen string
 }
 
 // newGateDriveService is the seam-injecting core constructor: it binds a drive
@@ -273,69 +248,17 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	return newGateDriveService(engine, 0, "", ""), "", ""
 }
 
-// NewTaskGateDriveService composes the gate-drive seam for TASK-INTENT
-// (focused/ad-hoc) drives: the workflow role declares the test intent and
-// supplies the argv EXPLICITLY, so there is no authoritative-config command to
-// resolve (the domain boundary moves to "which constructor", not away — the
-// build/finalize owner constructors still refuse caller argv). Its Start uses the
-// agent-supplied argv verbatim, NEVER sets IdempotentSuiteGate (forced false
-// regardless of the request), and records the fixed provenance
-// "task.argv=agent-supplied". An empty argv fails closed here so no service can
-// ever reach Start with an empty command.
-//
-// The COMMAND is agent-supplied, but the observation BUDGET is not: like the
-// build/finalize owner constructors, this resolves the config-provenanced
-// gate_observation_budget (minutes) from the effective configuration. A zero
-// budget here would fix the deadline at start, so any focused test observed
-// running even once would HALT deadline-expired instead of WAITING for its result
-// — the exact defect Task 12 surfaced. The budget therefore always comes from
-// authoritative config (default 30 minutes), never a hardcoded zero; only the
-// command stays agent-supplied.
-func NewTaskGateDriveService(gitCommonDir, exePath string, eff config.Effective, argv []string) (*GateDriveService, Result, string) {
-	if len(argv) == 0 {
-		return nil, ResultInvalidInput, "missing-argv"
-	}
-	proc, err := process.NewService(exePath)
-	if err != nil {
-		r, reason := mapGateFailure(err)
-		return nil, r, reason
-	}
-	store := gatedrive.OpenStore(gitCommonDir)
-	engine := gatedrive.NewSystemDriver(store, proc)
-	// A parent takeover must not revive a cancelled/superseded run (change 0375
-	// Task 12): wire the run revocation resolver over this repository's registry.
-	// It fires only for a scope carrying a RunID, so standalone/pre-linkage
-	// scopes are unaffected.
-	engine.SetRunRevokedResolver(runRevokedResolver(gitCommonDir))
-	// A revoked/superseded/unbound run must not be admitted or launched (change
-	// 0437): wire the app-side run launch gate over the same registry. It fires only
-	// for a start carrying a RunID, so standalone gates are unaffected.
-	engine.SetRunLaunchGate(runLaunchGate(gitCommonDir))
-	// A released slot whose leftover run is completed or confirmed-cancelled is
-	// settled through exact-token retirement rather than refused stale-run-id
-	// (change 0446): wire the settlement read over the same registry.
-	engine.SetRunSettledResolver(runSettledResolver(gitCommonDir))
-	budget := time.Duration(eff.GateObservation.Value) * time.Minute
-	svc := newGateDriveService(engine, budget, "", "task.argv=agent-supplied")
-	svc.owner = "task"
-	svc.taskIntent = true
-	svc.argv = argv
-	return svc, "", ""
-}
-
 // Start begins a new drive over the resolved suite command and budget. An
 // unresolved suite command (config resolved to unset) fails closed as a command
 // failure before touching the engine — never a fabricated verdict.
 //
 // A build-owned change-scoped start is routed through startBudgetedBuild, which
 // admits BEFORE it charges a full-suite attempt so a refused admission charges
-// nothing (change 0375 Task 8). Every other owner — finalize, task-intent, the
-// commandless resumption service — never charges and composes the driver's thin
-// Start directly.
+// nothing (change 0375 Task 8). Every other owner — finalize, the commandless
+// resumption service — never charges and composes the driver's thin Start
+// directly.
 func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
-	// The task-intent owner supplies its own argv, so the unresolved-command guard
-	// applies only to the config-owned services (which have no argv).
-	if !s.taskIntent && s.command == "" {
+	if s.command == "" {
 		return GateDriveResult{
 			Envelope: NewEnvelope(OperationGateDriveStart, ResultInvalidInput),
 			Reason:   "unresolved-command",
@@ -345,8 +268,8 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 	startReq := s.startRequest(req)
 	// A build-role start that certifies a change (non-empty ChangeID — change 0416
 	// guarantees a scoped start carries the full change/task/phase bundle) is the
-	// only owner that charges the phase suite-attempt budget. The finalize and task
-	// owners never reach this branch (different owner), and a build-owned start with
+	// only owner that charges the phase suite-attempt budget. The finalize owner
+	// never reaches this branch (different owner), and a build-owned start with
 	// NO ChangeID (a scopeless ad-hoc drive) is deliberately unbudgeted — both
 	// boundaries are pinned by tests.
 	if s.owner == "build" && req.ChangeID != "" {
@@ -358,13 +281,7 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 
 // startRequest builds the native StartRequest from a caller request, injecting the
 // authoritative-config command/budget/provenance the caller can never substitute.
-// A task-intent drive is never idempotent-suite-gated: the flag is forced false
-// regardless of what the caller requested.
 func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.StartRequest {
-	idempotent := req.IdempotentSuiteGate
-	if s.taskIntent {
-		idempotent = false
-	}
 	return gatedrive.StartRequest{
 		RepoDir:             req.RepoDir,
 		Worktree:            req.Worktree,
@@ -379,13 +296,9 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 		Budget:              s.budget,
 		EnvHash:             req.EnvHash,
 		RunRoot:             req.RunRoot,
-		IdempotentSuiteGate: idempotent,
-		ScopeID:             req.ScopeID,
-		ChildCapability:     req.ChildCapability,
+		IdempotentSuiteGate: req.IdempotentSuiteGate,
 		RunContext:          req.RunContext,
 		RunID:               req.RunID,
-		PredecessorDriveID:  req.PredecessorDriveID,
-		PredecessorOwnerGen: req.PredecessorOwnerGen,
 	}
 }
 
@@ -416,11 +329,8 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 // change fixes (a worktree-busy refusal must reserve no attempt).
 func (s *GateDriveService) startBudgetedBuild(req GateDriveStartRequest, startReq gatedrive.StartRequest) GateDriveResult {
 	if err := s.budgetStore.WorktreeAdmissionRefusal(req.Worktree); err != nil {
-		// Reconcile under the run Admit would admit this start under — a scoped
-		// start inherits its scope's pinned run (change 0467) — never the raw
-		// presented one, or a no-run-record scoped start is fenced here though Admit
-		// would admit it.
-		runID := s.engine.AdvisoryRunID(startReq)
+		// Reconcile under the run this start presents.
+		runID := startReq.RunID
 		settled, finding, _ := s.engine.ReconcileFinishedIncumbent(req.Worktree, runID)
 		if !settled {
 			if oe, ok := gatedrive.AsOwnershipError(err); ok {
@@ -447,8 +357,8 @@ func (s *GateDriveService) startBudgetedBuild(req GateDriveStartRequest, startRe
 // reserveBuildSuiteAttempt reserves one logical full-suite attempt for a
 // build-owned, change-scoped Start. The budget key's phase is the LITERAL "build",
 // never req.Phase, so the whole owning build phase shares one budget: a repair
-// worker's build-owned rerun in the same phase is charged, while a task-owned
-// focused-test start (a different owner) is never even reached. The limit is the
+// worker's build-owned rerun in the same phase is charged, while a finalize-owned
+// start (a different owner) is never even reached. The limit is the
 // snapshotted build.max_attempts; the store consults it only when creating the
 // record (the phase's first reservation) and enforces the stored snapshot
 // thereafter, so a config edit mid-phase never rewrites an owned budget.
@@ -557,10 +467,6 @@ func (s *GateDriveService) Claim(id, handoffID string) GateDriveResult {
 // (`/bin/sh -c <command>`), so the driver launches the identical process tree. An
 // empty command yields nil argv, but Start guards that before this is reached.
 func (s *GateDriveService) commandArgv() []string {
-	// A task-intent owner runs the agent-supplied argv verbatim — no shell wrapping.
-	if s.taskIntent {
-		return s.argv
-	}
 	if s.command == "" {
 		return nil
 	}
