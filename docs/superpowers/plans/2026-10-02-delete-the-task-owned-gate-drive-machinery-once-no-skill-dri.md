@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0489 — Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md)**
+> ↩ **[Change 0489 — Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-02-0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md)**
 <!-- docket:backlink:end -->
 # Delete the Task-Owned Gate-Drive Machinery Implementation Plan
 
