@@ -6,8 +6,9 @@ handoff a departing caller must perform. It is a **caller contract, not a harnes
 that axis separates it from [`gate-execution.md`](gate-execution.md), which holds the measured
 per-harness capability verdicts and mechanism detail read once, ahead of the act.
 
-Its callers are the build controller's full-suite gate (every counted attempt), implement-next's
-evidence re-mint and re-gates, and finalize's local gate. A build-task worker is never a caller: it
+Its direct callers are the build controller's full-suite gate (every counted attempt) and
+implement-next's evidence re-mint and re-gates. Finalize's local gate reaches the same driver only
+through the `finalize.rebase` operation, never a direct `gate.drive` call. A build-task worker is never a caller: it
 runs its focused tests directly under a fixed time limit. A caller makes **short, slice-bounded,
 synchronous** calls to the native gate **driver**, which composes the raw supervisor,
 persists one deadline and one execution identity, and returns one of four typed dispositions per
@@ -25,7 +26,7 @@ copy):
 
 | Operation | What it does |
 |---|---|
-| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. A caller passes `--repo-dir <worktree> --owner build --change-id <id> --run-root <dir> --json` (`--change-id` charges `build.max_attempts` and lets the run tracker match the drive), plus `--run-context <token>` and `--run-id <id>` when its prompt carried them; `--owner build` resolves the build-owned suite command from config, so the caller passes no suite argv. |
+| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. A build or implement-next caller passes `--repo-dir <worktree> --owner build --change-id <id> --run-root <dir> --json` (`--change-id` charges `build.max_attempts` and lets the run tracker match the drive), plus `--run-context <token>` and `--run-id <id>` when its prompt carried them; `--owner build` resolves the build-owned suite command from config, so the caller passes no suite argv. |
 | `advance` | Resume the current attempt of a drive (by opaque drive id + owner generation) through one more slice. |
 | `handoff` | Prove current ownership, revalidate repository + process identity, invalidate the current owner, and mint a **single-use** handoff token — the only way a departing owner transfers a live drive. |
 | `claim` | Recompute identity, consume a handoff token (conflict-checked), and return a **fresh** owner generation the claimant advances with. |
@@ -73,7 +74,7 @@ Every successful `start` or `advance` returns exactly one of four dispositions. 
 | Disposition | Meaning | Permitted caller action |
 |---|---|---|
 | `WAITING` | The same drive is live and safe to continue, but this slice ended. | The current owner `advance`s again, or `handoff`s before it returns. |
-| `PASSED` | The suite completed green against the recorded execution identity. | Consume the raw run dir the document exposes for evidence, or continue the task phase. |
+| `PASSED` | The suite completed green against the recorded execution identity. | Consume the raw run dir the document exposes for evidence. |
 | `FAILED` | The suite itself completed red and produced a trustworthy terminal record. | Enter the existing repair policy, bounded by the build phase's configured suite-attempt budget (`build.max_attempts`). |
 | `HALTED` | Safe automatic continuation is impossible — a changed worktree, uncertain ownership, deadline expiry, malformed state, or an unadmitted death. | Stop automation, retain diagnostics, surface the typed cause. |
 
@@ -114,10 +115,9 @@ no further work on that drive. `handoff` recomputes the repository fingerprint, 
 phase, invalidates the old owner token, and writes a single-use receipt. A fresh owner calls `claim`
 with the drive id and the handoff token; exact-fingerprint validation and conflict-checked
 consumption make **only one** claimant authoritative. A claimant that loses the race or no longer
-fingerprint-matches acquires **no** partial authority. Dirty pre-commit task work is a supported
-handoff state — staged, unstaged, untracked, mode, rename, deletion, and symlink differences are all
-part of the identity and must match exactly at claim time; **no** WIP commit is created to move
-ownership.
+fingerprint-matches acquires **no** partial authority. Staged, unstaged, untracked, mode, rename,
+deletion, and symlink differences are all part of the identity and must match exactly at claim time;
+**no** WIP commit is created to move ownership.
 
 A departing owner's structured report therefore names the drive id, the workflow phase, and the
 opaque **handoff token** — the continuation the next owner claims. A bare "still waiting" with no
@@ -131,6 +131,6 @@ The raw verbs — `gate.launch`, `gate.observe`, `gate.stop`,
 callable by the **driver implementation, primitive-level tests, diagnostics, recovery, cleanup, and
 operator workflows**. They are **not** high-level workflow APIs. A workflow caller never composes
 them directly and never recreates a shell observe/sleep poll loop — the build controller's
-full-suite gate, implement-next's evidence re-mint and re-gates, and finalize's local gate drive
-the gate through the `gate.drive` operations above instead. The raw verbs are
+full-suite gate and implement-next's evidence re-mint and re-gates drive the gate through the
+`gate.drive` operations above instead, and finalize's local gate goes through `finalize.rebase`. The raw verbs are
 documented as primitives in the operator-facing gate documentation, not here.
