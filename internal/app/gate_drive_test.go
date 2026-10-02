@@ -896,11 +896,7 @@ func TestMapDriveFailureOwnershipKinds(t *testing.T) {
 		gatedrive.ErrScopeIdentityMismatch,
 		gatedrive.ErrScopeCapabilityMismatch,
 		gatedrive.ErrScopeClosed,
-		gatedrive.ErrScopeSecondDrive,
-		gatedrive.ErrScopeBusy,
 		gatedrive.ErrHandoffOutstanding,
-		gatedrive.ErrStalePredecessor,
-		gatedrive.ErrPredecessorNotReusable,
 		gatedrive.ErrUnresolvedLaunchTransition,
 		// change 0375 worktree-admission ownership kinds.
 		gatedrive.ErrWorktreeBusy,
@@ -940,15 +936,8 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 	const secret = "SECRET-TOKEN-deadbeefdeadbeef"
 	seen := map[string]string{}
 	for _, kind := range []gatedrive.OwnershipErrorKind{
-		gatedrive.ErrScopeBusy,
 		gatedrive.ErrHandoffOutstanding,
-		gatedrive.ErrScopeClosed,
-		gatedrive.ErrStalePredecessor,
-		gatedrive.ErrPredecessorNotReusable,
 		gatedrive.ErrUnresolvedLaunchTransition,
-		gatedrive.ErrScopeCapabilityMismatch,
-		gatedrive.ErrScopeIdentityMismatch,
-		gatedrive.ErrScopeSecondDrive,
 		// change 0375 worktree-admission ownership kinds — each MUST carry its own
 		// distinct next-action message.
 		gatedrive.ErrWorktreeBusy,
@@ -979,6 +968,13 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 			t.Fatalf("next-action message %q is shared by kinds %v and %v; each state gets its own action", got.Message, prev, kind)
 		}
 		seen[got.Message] = string(kind)
+		// The scopeless caller has no parent, no identity bundle, and no takeover
+		// path (change 0489): a message may not send it to any of them.
+		for _, retired := range []string{"parent", "identity bundle", "dispatch prompt", "take over", "taking over"} {
+			if strings.Contains(strings.ToLower(got.Message), retired) {
+				t.Fatalf("kind %v next-action message names the retired %q recovery path: %q", kind, retired, got.Message)
+			}
+		}
 		if kind == gatedrive.ErrStaleRunID && !strings.Contains(got.Message, "present that run's run id or cancel it before starting") {
 			t.Fatalf("stale-run-id message must name the run id, got %q", got.Message)
 		}

@@ -63,61 +63,26 @@ const (
 	// longer certify the original bytes, so the boundary is refused (the Task-6
 	// driver maps this to a stop-if-owned HALT, never red).
 	ErrFingerprintMismatch OwnershipErrorKind = "fingerprint-mismatch"
-	// ErrScopeCapabilityMismatch: a scope transition presented a capability whose
-	// hash does not match the scope's stored child (or parent) capability hash —
+	// ErrScopeCapabilityMismatch: an outer takeover presented a capability whose
+	// hash does not match the scope's stored takeover (parent) capability hash —
 	// an empty, wrong, or role-swapped token. It confers no scope authority.
 	ErrScopeCapabilityMismatch OwnershipErrorKind = "scope-capability-mismatch"
-	// ErrScopeSecondDrive: a receipt-less start was attempted on a scope whose slot
-	// already holds a launched drive. A scope carries a SEQUENCE of drives through
-	// one slot, at most one current at a time; a start over an occupied slot must
-	// present the predecessor receipt (a successor start) rather than silently
-	// opening a second drive. A receipt-less start is refused rather than
-	// overwriting the current one.
-	ErrScopeSecondDrive OwnershipErrorKind = "scope-second-live-drive"
-	// ErrScopeClosed: a transition was attempted on a scope already finished by
-	// its own terminal acknowledgement (Closed && FinalAcked). A closed scope is
-	// terminal.
+	// ErrScopeClosed: a transition was attempted on a run's outer recovery scope
+	// that is already closed (its takeover already claimed it). A closed scope is
+	// terminal: it binds no change and authorizes no second takeover.
 	ErrScopeClosed OwnershipErrorKind = "scope-closed"
-	// ErrScopeTransferred: a child-capability transition (an acknowledgement —
-	// including one whose closeScopeFinal lost the race to a claim — or a scoped
-	// start) was attempted on a scope closed by a claim or takeover
-	// (Closed && !FinalAcked) — authority over the scope's drive moved to the
-	// parent, so the scope is no longer the worker's to acknowledge or reuse.
-	// Distinct from ErrScopeClosed so the refusal names the real state instead of
-	// directing a finished worker to report BLOCKED (change 0459). Parent-side
-	// paths (claimScopeForTakeover, bindScopeChange) keep ErrScopeClosed.
-	ErrScopeTransferred OwnershipErrorKind = "scope-transferred"
 	// ErrScopeIdentityMismatch: a scope's identity (its bound change, or an
 	// identity field a takeover re-verifies) no longer matches what the caller
 	// presented — e.g. rebinding a scope to a different change. Fail closed.
 	// Takeover also emits it as a HALTED cause when the resolved drive's recorded
-	// repo, branch, worktree, change, task, or phase is not the scope's: the
-	// pairing drifted, while the worktree itself may be untouched (change 0481).
+	// repo, branch, worktree, or change is not the scope's: the pairing drifted,
+	// while the worktree itself may be untouched (change 0481).
 	ErrScopeIdentityMismatch OwnershipErrorKind = "scope-identity-mismatch"
-	// ErrScopeBusy: a scope transition raced another start or transition that
-	// already owns the scope's single drive slot (a reservation in flight, or a
-	// concurrent successor). The loser retreats rather than launching a second
-	// drive — the slot is not reusable until the current owner resolves it (spec
-	// "at most one current launch reservation or execution per scope").
-	ErrScopeBusy OwnershipErrorKind = "scope-busy"
-	// ErrStalePredecessor: a successor start, acknowledgement, or explicit takeover
-	// target named a predecessor drive that is not the scope's current drive — a
-	// mismatched receipt, a one-field receipt, an already-acknowledged earlier
-	// drive, or an owner a takeover has superseded. It confers no successor
-	// authority (spec "Subsequent tests").
-	ErrStalePredecessor OwnershipErrorKind = "stale-predecessor"
-	// ErrPredecessorNotReusable: the presented predecessor is the scope's current
-	// drive but has no durable PASSED/FAILED result to acknowledge — a live
-	// (WAITING) or HALTED drive. Only a durably terminal predecessor authorizes a
-	// successor or a final acknowledgement (spec "only durably PASSED/FAILED
-	// predecessors permit successors").
-	ErrPredecessorNotReusable OwnershipErrorKind = "predecessor-not-reusable"
-	// ErrUnresolvedLaunchTransition: the scope's slot is mid-transition — a
-	// reservation persisted but not yet launch-confirmed, or a pending-ack journal
-	// entry between reservation and predecessor retirement. The ambiguous state
-	// fails closed with no automatic second launch; recovery is through the parent,
-	// never a blind retry (spec "Ambiguous launch or persistence failures fail
-	// closed").
+	// ErrUnresolvedLaunchTransition: a launch is mid-transition — a reservation
+	// persisted but not yet launch-confirmed, or a launch handle already attached.
+	// The ambiguous state fails closed with no automatic second launch; recovery is
+	// through run.cancel or waiting for the transition, never a blind retry (spec
+	// "Ambiguous launch or persistence failures fail closed").
 	ErrUnresolvedLaunchTransition OwnershipErrorKind = "unresolved-launch-transition"
 	// ErrWorktreeBusy: a worktree execution slot (admission.go) already holds a
 	// reserved, executing, or stopping top-level gate run, so a second

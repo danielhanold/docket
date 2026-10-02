@@ -306,7 +306,7 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 //     before admission, so an exhausted start neither reserves the worktree slot
 //     nor mints a reserved drive it would have to abandon.
 //  3. Authoritative admission (Admit). A refusal here — a worktree-busy /
-//     launch-unconfirmed / scope-busy slot the advisory precheck missed under a
+//     launch-unconfirmed / stale-run-id slot the advisory precheck missed under a
 //     race — charges NO suite attempt: admission precedes charging.
 //  4. Charge exactly one full-suite attempt BETWEEN admission and launch. Once
 //     charged there are NO refunds: a launch/persistence failure in StartAdmitted
@@ -561,32 +561,16 @@ func mapDriveFailure(err error) (Result, string) {
 // yields the empty string, so callers omit the message rather than inventing one.
 func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 	switch kind {
-	case gatedrive.ErrScopeBusy:
-		return "another start or transition owns this scope's slot; do not retry blindly"
 	case gatedrive.ErrHandoffOutstanding:
-		return "claim the outstanding handoff instead of starting or taking over"
-	case gatedrive.ErrScopeClosed:
-		return "this scope was already finished by its terminal acknowledgement; stop and return BLOCKED"
-	case gatedrive.ErrScopeTransferred:
-		return "the parent claimed or took over this scope's drive; this scope is no longer yours — report on the verdict your continuation supplied, and run further tests only under a fresh scope"
-	case gatedrive.ErrStalePredecessor:
-		return "the presented predecessor is not the scope's current drive"
-	case gatedrive.ErrPredecessorNotReusable:
-		return "the predecessor has no durable PASSED/FAILED result to acknowledge"
+		return "claim the outstanding handoff instead of starting another drive"
 	case gatedrive.ErrUnresolvedLaunchTransition:
-		return "a prior launch transition is unresolved; recover via the parent, not a retry"
+		return "a prior launch transition is unresolved; settle it with run.cancel or wait for it, never a blind retry"
 	case gatedrive.ErrWorktreeBusy:
 		return "this worktree's slot is occupied by a gate run admission could not prove finished (a proven-finished occupant is settled automatically); wait for the incumbent or settle its slot through its own stop/cancel route — do not start a second gate in the same worktree"
 	case gatedrive.ErrLaunchUnconfirmed:
-		return "a prior execution in this worktree is unresolved; recover it through the parent or run.cancel, never a blind re-start"
+		return "a prior execution in this worktree is unresolved; recover it through run.cancel, never a blind re-start"
 	case gatedrive.ErrStaleRunID:
 		return "an in-flight run owns this worktree; present that run's run id or cancel it before starting"
-	case gatedrive.ErrScopeCapabilityMismatch:
-		return "use the complete identity bundle from your dispatch prompt"
-	case gatedrive.ErrScopeIdentityMismatch:
-		return "the scope identity does not match; use the complete identity bundle from your dispatch prompt"
-	case gatedrive.ErrScopeSecondDrive:
-		return "the scope already holds a drive; a successor start must present the predecessor receipt"
 	default:
 		return ""
 	}
