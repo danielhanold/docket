@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/delete-the-task-owned-gate-drive-machinery-once-no-skill-dri'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-02T10:11:31Z'
+reconciled: true
+claimed_at: '2026-10-02T10:13:06Z'
 ---
 
 ## Artifacts
@@ -86,3 +86,9 @@ Accepted loss: a gate verdict that finished before implement-next died is not re
 - The run tracker's attribution and retry model, `run.continue`, and the run-context claim binding.
 - The `--task-id`/`--phase` recording flags.
 - Deleting old record files from disk.
+
+## Reconcile log
+
+### 2026-10-02
+
+Reconciled against origin/main 23a2cc370 (change 0488 merged, including 9acf686fa which made build-owned starts carry --change-id). The spec was groomed today against this same tip; the task-owned machinery it targets is still present and unreferenced by any skill, FindScopeDriveIDs still carries the terminal-unconsumed clause, and 0457 is already killed. No scope adjustment needed; depends_on 488 is done.
