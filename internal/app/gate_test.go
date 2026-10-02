@@ -97,18 +97,26 @@ func TestGateResultHumanTextStable(t *testing.T) {
 	}
 }
 
-// TestGateLaunchRefusalCauseFromSnapshot proves the admission-refusal cause is
-// derived from the refusal's own incumbent snapshot, not a post-refusal re-read:
-// a snapshot-bearing error yields its locator; a snapshot-free error yields "".
+// TestGateLaunchRefusalCauseFromSnapshot proves a worktree-busy refusal's cause is
+// derived from the refusal's own holder snapshot (the live holder TryWorktreeLock
+// confirmed), never a post-refusal re-read: a raw holder yields its run locator, a
+// drive holder its drive locator, and a holder-unknown refusal yields "".
 func TestGateLaunchRefusalCauseFromSnapshot(t *testing.T) {
-	withInc := &gatedrive.OwnershipError{Kind: gatedrive.ErrWorktreeBusy, Op: "reserve-worktree-execution",
-		Incumbent: &gatedrive.IncumbentSnapshot{Kind: "raw", RawRunID: "0123456789abcdef0123456789abcdef"}}
-	if got := admissionRefusalCause(withInc); got != "incumbent-run:0123456789abcdef0123456789abcdef" {
-		t.Fatalf("cause = %q", got)
+	raw := &gatedrive.OwnershipError{Kind: gatedrive.ErrWorktreeBusy, Op: "worktree-admission",
+		Incumbent: &gatedrive.IncumbentSnapshot{Kind: "raw", RawRunID: "0123456789abcdef0123456789abcdef",
+			RawRunDir: "/runs/0123456789abcdef0123456789abcdef", Owner: "raw"}}
+	if got := admissionRefusalCause(raw); got != "incumbent-run:0123456789abcdef0123456789abcdef" {
+		t.Fatalf("raw holder cause = %q", got)
 	}
-	bare := &gatedrive.OwnershipError{Kind: gatedrive.ErrWorktreeBusy, Op: "reserve-worktree-execution"}
+	drive := &gatedrive.OwnershipError{Kind: gatedrive.ErrWorktreeBusy, Op: "worktree-admission",
+		Incumbent: &gatedrive.IncumbentSnapshot{Kind: "drive", DriveID: "0490aaaaaaaaaaaaaaaaaaaaaaaaaa01",
+			RawRunID: "fedcba9876543210fedcba9876543210", ChangeID: "490", Owner: "build"}}
+	if got := admissionRefusalCause(drive); got != "incumbent-drive:0490aaaaaaaaaaaaaaaaaaaaaaaaaa01" {
+		t.Fatalf("drive holder cause = %q", got)
+	}
+	bare := &gatedrive.OwnershipError{Kind: gatedrive.ErrWorktreeBusy, Op: "worktree-admission"}
 	if got := admissionRefusalCause(bare); got != "" {
-		t.Fatalf("snapshot-free cause = %q, want empty", got)
+		t.Fatalf("holder-unknown cause = %q, want empty", got)
 	}
 	if got := admissionRefusalCause(errors.New("io")); got != "" {
 		t.Fatalf("non-ownership cause = %q, want empty", got)

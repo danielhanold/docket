@@ -49,10 +49,6 @@ type GateResult struct {
 	StdoutLog string    `json:"stdout_log,omitempty"`
 	StderrLog string    `json:"stderr_log,omitempty"`
 	Reason    string    `json:"reason,omitempty"`
-	// LegacyHistory carries the first-admission legacy inventory summary on an
-	// inventory refusal of a raw launch (change 0446 spec §6), so the raw path
-	// names the matched drive and its worktree instead of a bare refusal.
-	LegacyHistory *gatedrive.LegacyHistorySummary `json:"legacy_history,omitempty"`
 }
 
 // GateRecoverResult is gate.recover's own protocol document. Recovery is a
@@ -140,70 +136,42 @@ func applyState(r *GateResult, st process.State, term *process.Terminal) {
 	}
 }
 
-// rawGateRun is the run a raw app.GateLaunch carries: none. A raw launch
-// never owns an implementation run, so it presents the empty run to the
-// stale-run-id fence. Real runs are threaded into workflow gates by Task 9;
-// until a slot records a non-empty run this fence stays dormant (it compiles and
-// stays green), then rejects a raw launch into a worktree a run owns.
-const rawGateRun = ""
-
 // GateLaunch launches a supervised run and maps its handle and post-launch
 // state to a protocol result. When cwd sits inside a registered git worktree, the
-// launch first admits through the worktree execution slot (change 0375): one
-// canonical worktree carries at most one reserved-or-running top-level gate
-// run across driven (scopeless) and raw launches, so a second raw launch
-// into a busy worktree is REFUSED (worktree-busy / launch-unconfirmed) with a
-// safe incumbent locator and no process spawned — but only after the reserve's
-// finished-incumbent reconciliation (change 0446 spec §3) could not prove the
-// incumbent finished: a completed raw run nobody stopped, or a PASSED/FAILED drive
-// whose release was interrupted, is settled with the process service's teardown
-// proof and this launch admits without a manual stop. Admission composes ONCE, here at
-// the public boundary; the gate driver's own ProcessSeam.Launch holds its ticket
-// from Tasks 3–5 and never re-reserves. A cwd outside any git worktree keeps the
-// pre-admission contract exactly: no slot, no reservation token.
+// launch first TRIES that worktree's lock (change 0490): one canonical worktree
+// admits at most one live top-level gate across driven and raw launches, so a
+// launch into a worktree whose lock a live supervisor holds is REFUSED
+// worktree-busy with a safe holder locator and no process spawned. The lock is
+// handed to the supervisor (process.LaunchRequest.WorktreeLock), which holds it
+// for its whole life: the worktree frees itself when the run's supervisor exits or
+// dies, with no release or recovery step. Launch owns the handed lock on every
+// path, so a launch error frees the worktree in-process. A cwd outside any git
+// worktree keeps the pre-admission contract exactly: no lock.
 func GateLaunch(root, cwd string, argv []string) GateResult {
 	svc, res, reason := gateService()
 	if svc == nil {
 		return GateResult{Envelope: NewEnvelope(OperationGateLaunch, res), Reason: reason}
 	}
 
-	worktreeRoot, repoIdentity, store, admit := resolveWorktreeAdmission(cwd)
-	var token string
+	worktreeRoot, store, admit := resolveWorktreeAdmission(cwd)
+	var lock *gatedrive.WorktreeLock
 	if admit {
-		if refusal, refused := rawStaleRunRefusal(store, worktreeRoot); refused {
-			return refusal
-		}
-		t, aerr := store.ReserveRawWorktreeExecution(repoIdentity, worktreeRoot, svc)
-		if aerr != nil {
-			r, reason := mapAdmissionFailure(aerr)
+		l, lerr := store.TryWorktreeLock(worktreeRoot, svc)
+		if lerr != nil {
+			r, reason := mapAdmissionFailure(lerr)
 			return GateResult{Envelope: NewEnvelope(OperationGateLaunch, r), Reason: reason,
-				Cause: admissionRefusalCause(aerr), LegacyHistory: admissionRefusalLegacy(aerr)}
+				Cause: admissionRefusalCause(lerr)}
 		}
-		token = t
+		lock = l
 	}
 
-	out, err := svc.Launch(process.LaunchRequest{Root: root, Cwd: cwd, Argv: argv, ReservationToken: token})
+	// TakeFile and WriteHolder are nil-safe: a cwd outside git hands no lock.
+	out, err := svc.Launch(process.LaunchRequest{Root: root, Cwd: cwd, Argv: argv, WorktreeLock: lock.TakeFile()})
 	if err != nil {
-		if admit {
-			resolveRawLaunchFailure(svc, store, worktreeRoot, root, token)
-		}
 		res, reason := mapGateFailure(err)
 		return GateResult{Envelope: NewEnvelope(OperationGateLaunch, res), Reason: reason}
 	}
-	if admit {
-		if cerr := store.ConfirmWorktreeExecution(worktreeRoot, token, out.RunID, out.RunDir); cerr != nil {
-			// The run is launched but its slot could not be confirmed: only a
-			// proven teardown lets the slot release, else it fails closed to
-			// unresolved so it never becomes a free slot over a live run.
-			if rawStopIfOwned(svc, out.RunDir) {
-				_ = store.ReleaseWorktreeExecution(worktreeRoot, token)
-			} else {
-				_ = store.MarkWorktreeExecutionUnresolved(worktreeRoot, token)
-			}
-			r, reason := mapAdmissionFailure(cerr)
-			return GateResult{Envelope: NewEnvelope(OperationGateLaunch, r), Reason: reason}
-		}
-	}
+	lock.WriteHolder(gatedrive.HolderNote{Kind: "raw", RunDir: out.RunDir, Owner: "raw"})
 	r := GateResult{
 		Envelope:  NewEnvelope(OperationGateLaunch, mapObservation(out.State)),
 		RunID:     out.RunID,
@@ -216,120 +184,47 @@ func GateLaunch(root, cwd string, argv []string) GateResult {
 }
 
 // resolveWorktreeAdmission resolves the registered worktree that contains cwd and
-// opens the gate-admission store on its repository's Git common directory. ok is
-// false when cwd sits outside any git worktree, or the worktree is unregistered or
-// broken, so a raw gate.launch there keeps its pre-admission contract (no slot, no
-// token). It reaches Git only through gitcli — never internal/process — and returns
-// the CANONICAL containing worktree root (the admission key) and the common dir
-// (the store root), the two dimensions the driver's drive starts also key on.
-func resolveWorktreeAdmission(cwd string) (worktreeRoot, repoIdentity string, store *gatedrive.Store, ok bool) {
+// opens the gatedrive store on its repository's Git common directory, where the
+// worktree locks live. ok is false when cwd sits outside any git worktree, or the
+// worktree is unregistered or broken, so a raw gate.launch there keeps its
+// pre-admission contract (no lock). It reaches Git only through gitcli — never
+// internal/process — and returns the CANONICAL containing worktree root, the lock
+// key the gate driver's drive starts also use.
+func resolveWorktreeAdmission(cwd string) (worktreeRoot string, store *gatedrive.Store, ok bool) {
 	client, err := gitcli.NewClient()
 	if err != nil {
-		return "", "", nil, false
+		return "", nil, false
 	}
 	ctx := context.Background()
 	wt, err := client.DiscoverWorktree(ctx, gitcli.DiscoverOptions{InvocationPath: cwd})
 	if err != nil {
-		return "", "", nil, false
+		return "", nil, false
 	}
 	repo, err := client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: cwd})
 	if err != nil {
-		return "", "", nil, false
+		return "", nil, false
 	}
-	store = gatedrive.OpenStore(repo.CommonDir)
-	// A released slot whose leftover run is completed or confirmed-cancelled
-	// is settled by the reserve through exact-token retirement rather than refused
-	// stale-run-id (change 0446): the raw path wires the same settlement read the
-	// gate-drive constructors do.
-	store.SetRunSettledResolver(runSettledResolver(repo.CommonDir))
-	return wt.Root, repo.CommonDir, store, true
+	return wt.Root, gatedrive.OpenStore(repo.CommonDir), true
 }
 
-// rawStaleRunRefusal enforces the run fence at the raw launch boundary: a
-// worktree slot that links a run this raw launch does not carry is refused
-// stale-run-id (an incumbent workflow owns the worktree). A raw launch carries
-// rawGateRun (none), and until Task 9 records runs into slots this stays
-// dormant. A missing or unreadable slot is not a refusal here: the reserve is the
-// authority that fails closed on an unreadable record.
-//
-// This is a RUN-ownership refusal, not an incumbent-state one, so it precedes the
-// reserve's finished-incumbent reconciliation deliberately (change 0446 spec §3):
-// the run fence refuses a raw launch into a run-owned worktree whether or not
-// the incumbent execution has finished, so reconciling first could not change the
-// outcome — it would only mutate another run's slot on behalf of a refused start.
-//
-// A RELEASED slot is the exception (change 0446 spec §§2, 5): its surviving
-// RunID may name a completed or confirmed-cancelled run, which the reserve
-// settles through exact-token retirement. Refusing it here would pre-empt that
-// settlement, so a released slot defers to ReserveRawWorktreeExecution — the
-// authority that consults the settlement read and still refuses stale-run-id
-// whenever the named run is live, unreadable, or unresolved.
-func rawStaleRunRefusal(store *gatedrive.Store, worktreeRoot string) (GateResult, bool) {
-	slot, _, err := store.LoadWorktreeExecution(worktreeRoot)
-	if err != nil {
-		return GateResult{}, false
-	}
-	if slot.RunID != "" && slot.RunID != rawGateRun && slot.State != "released" {
-		// Decide-and-act on the single LoadWorktreeExecution read above: the
-		// refusal's Cause is projected from the SAME slot record the fence
-		// decided on, never a second re-read that a later-changed slot could
-		// falsify. This mirrors gatedrive's own incumbentSnapshot projector;
-		// that projector is unexported, so the bounded fields are copied here.
-		inc := &gatedrive.IncumbentSnapshot{
-			Kind:      slot.Kind,
-			State:     string(slot.State),
-			DriveID:   slot.DriveID,
-			RawRunID:  slot.RawRunID,
-			RawRunDir: slot.RawRunDir,
-			RunOwned:  slot.RunID != "",
-		}
-		return GateResult{
-			Envelope: NewEnvelope(OperationGateLaunch, ResultBlocked),
-			Reason:   "stale-run-id",
-			Cause:    incumbentRefusalLocator(inc),
-		}, true
-	}
-	return GateResult{}, false
-}
-
-// admissionRefusalCause derives the refusal's safe locator from the ownership
-// error itself. A first-admission legacy-inventory refusal yields its validated
-// inventory locator (legacyInventoryLocator — the matched drive, never an
-// arbitrary name), so a raw refusal names the historical drive bound to its
-// worktree (change 0446 spec §6). Any other refusal derives the incumbent locator
-// from the snapshot the error carries — the exact record the refusal was decided
-// on under the admission lock; it never re-reads the slot, so a later changed slot
-// cannot be represented as this refusal's cause. A snapshot-free or non-ownership
-// error yields "".
+// admissionRefusalCause derives a worktree-busy refusal's safe locator from the
+// holder snapshot the ownership error itself carries — the holder TryWorktreeLock
+// confirmed running when it refused; it never re-reads the holder note, so a later
+// holder cannot be represented as this refusal's cause. A holder-unknown refusal or
+// a non-ownership error yields "".
 func admissionRefusalCause(err error) string {
 	oe, ok := gatedrive.AsOwnershipError(err)
 	if !ok {
 		return ""
 	}
-	if _, locator, isInventory := legacyInventoryLocator(oe.Op); isInventory {
-		return locator
-	}
 	return incumbentRefusalLocator(oe.Incumbent)
-}
-
-// admissionRefusalLegacy returns the legacy inventory summary an inventory
-// refusal carries (its findings name each record's worktree), or nil.
-func admissionRefusalLegacy(err error) *gatedrive.LegacyHistorySummary {
-	oe, ok := gatedrive.AsOwnershipError(err)
-	if !ok {
-		return nil
-	}
-	if _, _, isInventory := legacyInventoryLocator(oe.Op); !isInventory {
-		return nil
-	}
-	return oe.Legacy
 }
 
 // mapAdmissionFailure classifies a worktree-admission rejection into a protocol
 // result and a bounded stable reason token. A typed ownership rejection surfaces
-// its kind verbatim (worktree-busy / launch-unconfirmed) as a blocked refusal; a
-// store error (unknown schema, corrupt record, IO) is an internal error. The kind
-// is the whole reason, so no argv, env, path, or token can leak.
+// its kind verbatim (worktree-busy) as a blocked refusal; a store error (an
+// unopenable lock, IO) is an internal error — never read as a free worktree. The
+// kind is the whole reason, so no argv, env, path, or token can leak.
 func mapAdmissionFailure(err error) (Result, string) {
 	if oe, ok := gatedrive.AsOwnershipError(err); ok {
 		return ResultBlocked, string(oe.Kind)
@@ -340,37 +235,11 @@ func mapAdmissionFailure(err error) (Result, string) {
 	return ResultInternalError, "admission-failed"
 }
 
-// resolveRawLaunchFailure decides the worktree slot's fate after a raw launch
-// returned an error, mirroring the driver's launch-failure leg: only a proven
-// never-launched resolution releases the slot (no process exists); every other
-// outcome (identified, unresolved, or an unprovable census) marks it unresolved so
-// it fails closed until recovery. ResolveReservation is the sole proof that an
-// error response means nothing was launched.
-func resolveRawLaunchFailure(svc *process.Service, store *gatedrive.Store, worktreeRoot, runRoot, token string) {
-	res, err := svc.ResolveReservation(runRoot, token)
-	if err == nil && res != nil && res.Disposition == "never-launched" {
-		_ = store.ReleaseWorktreeExecution(worktreeRoot, token)
-		return
-	}
-	_ = store.MarkWorktreeExecutionUnresolved(worktreeRoot, token)
-}
-
-// rawStopIfOwned drives the ownership-gated stop of a raw run this launch orphaned
-// (a post-launch confirm failure) and reports whether the teardown is PROVEN — a
-// stop this process performed, or a run already terminal-by-teardown. It is the
-// same proof gate the driver's releaseOrUnresolveWorktree uses.
-func rawStopIfOwned(svc *process.Service, runDir string) bool {
-	out, err := svc.Stop(runDir, "gatedrive: raw launch confirmation failed; stopping the orphaned run")
-	if err != nil {
-		return false
-	}
-	return out.Performed || rawTeardownProven(out.State)
-}
-
 // rawTeardownProven reports whether a run state proves its process group is gone,
-// matching the gate driver's own stop-teardown check (stopProvesTeardown): a
-// passed, failed, stopped, or vanished run is proven; a signalled run is NOT (its
-// group may still hold descendants), and a running run is obviously not.
+// as the run tracker's participant stop and closeout observer read it
+// (appGateStopper, appGateObserver): a passed, failed, stopped, or vanished run is
+// proven; a signalled run is NOT (its group may still hold descendants), and a
+// running run is obviously not.
 func rawTeardownProven(st process.State) bool {
 	switch st {
 	case process.StatePassed, process.StateFailed, process.StateStopped, process.StateVanished:
@@ -378,39 +247,6 @@ func rawTeardownProven(st process.State) bool {
 	default:
 		return false
 	}
-}
-
-// releaseRawSlotForStop releases the raw worktree execution slot a stopped run
-// occupied, and ONLY that slot, on PROVEN teardown (change 0375: "GateStop's proven
-// teardown releases a raw slot it owns"). It resolves the worktree from the run's
-// own recorded launch cwd, opens the admission store, and releases only a Kind
-// "raw" slot whose recorded raw run is exactly this run, using the slot's own
-// persisted reservation token. Any mismatch — a driven slot, a different run, an
-// unresolvable worktree, or unproven teardown — leaves the slot untouched, so a
-// stop never wrongly frees a worktree that is still live.
-func releaseRawSlotForStop(svc *process.Service, runDir string, out *process.StopOutcome) {
-	if !(out.Performed || rawTeardownProven(out.State)) {
-		return
-	}
-	obs, err := svc.Observe(runDir)
-	if err != nil || obs.Cwd == "" {
-		return
-	}
-	worktreeRoot, _, store, ok := resolveWorktreeAdmission(obs.Cwd)
-	if !ok {
-		return
-	}
-	slot, _, err := store.LoadWorktreeExecution(worktreeRoot)
-	if err != nil {
-		return
-	}
-	if slot.Kind != "raw" || slot.RawRunDir != runDir {
-		return
-	}
-	if st := string(slot.State); st != "executing" && st != "stopping" {
-		return
-	}
-	_ = store.ReleaseWorktreeExecution(worktreeRoot, slot.ReservationToken)
 }
 
 // GateObserve reports a run's state through the read-only observe decision.
@@ -438,7 +274,8 @@ func GateObserve(runDir string) GateResult {
 
 // GateStop drives the ownership-gated stop and maps its verdict. A performed
 // termination is applied; an already-terminal no-op carries the preserved
-// state (consumers read state; the stop performed nothing).
+// state (consumers read state; the stop performed nothing). It only stops: the
+// worktree lock a raw run held frees itself when the run's supervisor exits.
 func GateStop(runDir, reason string) GateResult {
 	svc, res, freason := gateService()
 	if svc == nil {
@@ -459,10 +296,6 @@ func GateStop(runDir, reason string) GateResult {
 		RunDir:   out.RunDir,
 	}
 	applyState(&r, out.State, out.Terminal)
-	// A proven teardown vacates the raw worktree execution slot this run held, so
-	// the worktree readmits (change 0375). A run outside any worktree, a driven
-	// slot, or an unproven teardown leaves the slot untouched — fail closed.
-	releaseRawSlotForStop(svc, runDir, out)
 	return r
 }
 

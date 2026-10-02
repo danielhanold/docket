@@ -1027,9 +1027,6 @@ func TestIntegrationRunCancelFinalizeGateAdmitsAfterRetirement(t *testing.T) {
 		t.Fatalf("cancel = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
 	// AFTER: the no-run-record finalize gate no longer refuses…
-	if _, refused := rawStaleRunRefusal(fx.store, fx.worktree); refused {
-		t.Fatal("post-retirement: rawStaleRunRefusal must not refuse a no-run-record launch")
-	}
 	// …and a replacement run's build-gate reservation admits.
 	if _, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "replacement-run", nil); err != nil {
 		t.Fatalf("post-retirement replacement reserve: %v", err)
@@ -1214,9 +1211,6 @@ func TestIntegrationRunCancelRawLaunchSettlesSettledRunReleasedSlot(t *testing.T
 			}
 			fx.store.SetRunSettledResolver(runSettledResolver(fx.common))
 
-			if _, refused := rawStaleRunRefusal(fx.store, fx.worktree); refused {
-				t.Fatal("a released slot must defer to the reserve, not be refused by the raw pre-check")
-			}
 			_, err = fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
 			if tc.settled {
 				if err != nil {
@@ -1234,30 +1228,6 @@ func TestIntegrationRunCancelRawLaunchSettlesSettledRunReleasedSlot(t *testing.T
 				t.Fatalf("refused slot changed: state %q run %q", st, epo)
 			}
 		})
-	}
-}
-
-// TestIntegrationRunCancelRawStaleRunRefusalStillFencesBusySlot: the raw pre-check keeps refusing a
-// BUSY slot another run owns — only a released slot defers to the reserve.
-func TestIntegrationRunCancelRawStaleRunRefusalStillFencesBusySlot(t *testing.T) {
-	fx := newCancelFixture(t, true)
-	fx.store.SetRunSettledResolver(runSettledResolver(fx.common))
-	if _, refused := rawStaleRunRefusal(fx.store, fx.worktree); !refused {
-		t.Fatal("an executing run-owned slot must be refused stale-run-id by the raw pre-check")
-	}
-}
-
-// TestIntegrationRunCancelRawAdmissionStoreWiresRunSettledResolver: the raw launch path's admission
-// store carries the production settlement read (change 0446) — without it a raw
-// reserve over a completed run's released slot would refuse stale-run-id.
-func TestIntegrationRunCancelRawAdmissionStoreWiresRunSettledResolver(t *testing.T) {
-	repo := newRunTrackerRepo(t)
-	_, _, store, ok := resolveWorktreeAdmission(repo)
-	if !ok {
-		t.Fatal("resolveWorktreeAdmission: repo not resolved as a worktree")
-	}
-	if !store.RunSettledResolverWired() {
-		t.Fatal("raw admission store: run settlement resolver not wired")
 	}
 }
 
