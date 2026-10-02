@@ -157,7 +157,7 @@ func newVerdictCompletionFixture(t *testing.T) verdictCompletionFixture {
 	}); err != nil {
 		t.Fatalf("runRecordCAS set worktree: %v", err)
 	}
-	// The run's drives are done: the closeout's observe-only census (faked here by
+	// The run's drives are done: the closeout's verdict-mode census (faked here by
 	// launchObserver, accounted) finds nothing live, and no worktree record exists to
 	// retire (change 0490).
 	store := gatedrive.OpenStore(common)

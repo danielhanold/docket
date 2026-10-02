@@ -14,10 +14,11 @@ import (
 )
 
 // These are the successful-run ownership closeout tests (change 0441 Task 7).
-// completeSuccessfulRun is the observation-only counterpart of runCancel: on a
+// completeSuccessfulRun is the stop-free counterpart of runCancel: on a
 // verified keyed run-complete it fences the run completing, proves every registered
 // obligation terminal WITHOUT stopping anything (the run's drives through the
-// observe-only launch census, attributed by its context hash — change 0490), and
+// verdict-mode launch census, attributed by its context hash — change 0490 — which
+// settles only a proven never-launched first launch, change 0491), and
 // CASes completing→completed — failing closed on any unsettled obligation and
 // never relabelling a cancelled/superseded run successful. The tests drive the flow
 // over faked observation seams and a real gatedrive store, reusing the run-cancel
@@ -54,7 +55,7 @@ func newCompletionFixture(t *testing.T) completionFixture {
 }
 
 // TestIntegrationRunCompletionCompleteSuccessfulRunHappyPath: a fully settled run
-// closes out — ok, run RunCompleted, and the observe-only census run once for the
+// closes out — ok, run RunCompleted, and the verdict-mode census run once for the
 // run's context hash.
 func TestIntegrationRunCompletionCompleteSuccessfulRunHappyPath(t *testing.T) {
 	fx := newCompletionFixture(t)
@@ -199,9 +200,10 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObli
 	}
 }
 
-// TestIntegrationRunCompletionCompleteSuccessfulRunSendsNoStops (AC3): closeout observes only — it never calls
-// the stop-capable stopper, native-canceller, or reconcile (stop) seam, on either the
-// happy path or a blocked path.
+// TestIntegrationRunCompletionCompleteSuccessfulRunSendsNoStops (AC3; change 0491):
+// closeout stops nothing — it drives only the stop-free verdict census, never the
+// stopper, native canceller, or cancel-mode reconcile seam, on either the happy path
+// or a blocked path.
 func TestIntegrationRunCompletionCompleteSuccessfulRunSendsNoStops(t *testing.T) {
 	assertNoStops := func(t *testing.T, stopper *fakeCancelStopper, native *fakeNativeCanceller, recon *fakeLaunchReconciler) {
 		t.Helper()
@@ -226,6 +228,9 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunSendsNoStops(t *testing.T)
 		t.Fatalf("happy path ok=false reason=%q findings=%v", reason, findings)
 	}
 	assertNoStops(t, stopper, native, recon)
+	if got := fx.launchObserver.calls; len(got) != 1 {
+		t.Fatalf("the closeout must drive the verdict census exactly once, got %v", got)
+	}
 
 	// Blocked path.
 	fx2 := newCompletionFixture(t)
@@ -239,6 +244,9 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunSendsNoStops(t *testing.T)
 		t.Fatal("blocked path reported success")
 	}
 	assertNoStops(t, stopper2, native2, recon2)
+	if got := fx2.launchObserver.calls; len(got) != 1 {
+		t.Fatalf("the closeout must drive the verdict census exactly once, got %v", got)
+	}
 }
 
 // TestIntegrationRunCompletionCompleteSuccessfulRunLateParticipantBlocks (AC3 "late participant"): a

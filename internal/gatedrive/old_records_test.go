@@ -76,8 +76,8 @@ func TestOldTaskScopeOnDiskChangesNothing(t *testing.T) {
 	// The census attributes by run context (change 0490); even the old scope's own
 	// child context names no drive, because the census never opens a scope.
 	for name, census := range map[string]func(string) (RunLaunchReport, error){
-		"cancel":   d.ReconcileRunLaunches,
-		"closeout": d.ObserveRunLaunches,
+		"cancel":  d.ReconcileRunLaunches,
+		"verdict": d.VerdictRunLaunches,
 	} {
 		rep, err := census(capHash("old-child"))
 		if err != nil {
