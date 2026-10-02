@@ -718,10 +718,10 @@ func TestDistinctWorktreesProgressConcurrently(t *testing.T) {
 // ("cancel") takes the SAME mutex, so it either lands before the liveness read
 // (reserve never runs) or after the gate released the lock (it observes the
 // durable reservation reserve produced). "cancel" = flip the fake to fenced, then
-// run ReconcileRunLaunches (which consults NO gate; the run is already fenced,
-// so cancellation may never hold the run while probing a per-drive claim). Every
-// ordering assertion below is a channel/done-ordering fact — no timing sleep is an
-// oracle anywhere.
+// run ReconcileRunLaunches over the run's context hash (which consults NO gate;
+// the run is already fenced, so cancellation may never hold the run while probing
+// a per-drive claim). Every ordering assertion below is a channel/done-ordering
+// fact — no timing sleep is an oracle anywhere.
 // ---------------------------------------------------------------------------
 
 // errRunFenced is the sentinel a fenced fakeRunRegistry gate refuses with,
@@ -777,6 +777,7 @@ func TestBarrierCancelBeforeAdmit(t *testing.T) {
 
 	req := sampleStart()
 	req.RunID = "e1"
+	req.RunContext = "ctx-e1"
 	ticket, err := d.Admit(req)
 	if !errors.Is(err, errRunFenced) {
 		t.Fatalf("a fence before Admit must refuse, got ticket=%v err=%v", ticket, err)
@@ -794,7 +795,7 @@ func TestBarrierCancelBeforeAdmit(t *testing.T) {
 		t.Fatalf("a fenced Admit must launch nothing, proc.Launch called %d times", proc.launchN)
 	}
 
-	report, err := d.ReconcileRunLaunches(req.Worktree, "e1")
+	report, err := d.ReconcileRunLaunches(capHash(req.RunContext))
 	if err != nil {
 		t.Fatalf("ReconcileRunLaunches: %v", err)
 	}
@@ -804,9 +805,11 @@ func TestBarrierCancelBeforeAdmit(t *testing.T) {
 }
 
 // TestBarrierCancelBetweenAdmitAndStartAdmitted proves the fence that lands after
-// Admit's return refuses the delayed launch: reconcile sees the reserved drive
-// pending (launch-pending) until StartAdmitted's refusal settles the record
-// terminal, then a replay accounts it. No process is ever launched.
+// Admit's return refuses the delayed launch: reconcile resolves the reserved first
+// launch through its launch token, proves it never launched, and settles the drive
+// HALTED run-cancelled under the held claim (change 0490); the delayed
+// StartAdmitted then refuses, and a replay still accounts. No process is ever
+// launched.
 func TestBarrierCancelBetweenAdmitAndStartAdmitted(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
@@ -816,6 +819,7 @@ func TestBarrierCancelBetweenAdmitAndStartAdmitted(t *testing.T) {
 
 	req := sampleStart()
 	req.RunID = "e1"
+	req.RunContext = "ctx-e1"
 	ticket, err := d.Admit(req) // run live: the reservation is durable
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
@@ -825,33 +829,36 @@ func TestBarrierCancelBetweenAdmitAndStartAdmitted(t *testing.T) {
 	// two phases). The durable reservation already exists.
 	reg.fence("e1")
 
-	// Reconcile sees the reserved-but-unlaunched drive pending until the refusal.
-	pending, err := d.ReconcileRunLaunches(req.Worktree, "e1")
+	// Reconcile proves the reserved first launch never launched (the fake resolves
+	// never-launched) and settles it terminal before the delayed launch runs.
+	first, err := d.ReconcileRunLaunches(capHash(req.RunContext))
 	if err != nil {
 		t.Fatalf("ReconcileRunLaunches (pre-refusal): %v", err)
 	}
-	if pending.Accounted || !reconcileFindingPresent(pending.Findings, "launch-pending:"+ticket.id) {
-		t.Fatalf("a fenced-but-unrefused reservation must be pending, got %+v", pending)
-	}
-
-	// StartAdmitted observes the fence: it refuses, launches nothing, and settles
-	// the delayed ticket's drive HALTED run-cancelled with the slot released.
-	if _, serr := d.StartAdmitted(ticket); !errors.Is(serr, errRunFenced) {
-		t.Fatalf("StartAdmitted under a fence must refuse, got %v", serr)
-	}
-	if proc.launchN != 0 {
-		t.Fatalf("a fenced StartAdmitted must launch nothing, proc.Launch called %d times", proc.launchN)
+	if !first.Accounted {
+		t.Fatalf("a proven never-launched first launch must be accounted, got %+v", first)
 	}
 	rec, lerr := store.Load(ticket.id)
 	if lerr != nil {
 		t.Fatalf("Load: %v", lerr)
 	}
 	if rec.LastOutcome != HALTED || rec.LastCause != "run-cancelled" {
-		t.Fatalf("the refusal must settle the drive HALTED run-cancelled, got %v/%q", rec.LastOutcome, rec.LastCause)
+		t.Fatalf("reconcile must settle the drive HALTED run-cancelled, got %v/%q", rec.LastOutcome, rec.LastCause)
 	}
 
-	// A replay now accounts the obligation (the record is terminal).
-	settled, err := d.ReconcileRunLaunches(req.Worktree, "e1")
+	// StartAdmitted observes the fence: it refuses and launches nothing.
+	if _, serr := d.StartAdmitted(ticket); !errors.Is(serr, errRunFenced) {
+		t.Fatalf("StartAdmitted under a fence must refuse, got %v", serr)
+	}
+	if proc.launchN != 0 {
+		t.Fatalf("a fenced StartAdmitted must launch nothing, proc.Launch called %d times", proc.launchN)
+	}
+	if rec, lerr = store.Load(ticket.id); lerr != nil || rec.LastOutcome != HALTED || rec.LastCause != "run-cancelled" {
+		t.Fatalf("the drive must stay HALTED run-cancelled, got %v/%q (err=%v)", rec.LastOutcome, rec.LastCause, lerr)
+	}
+
+	// A replay still accounts the obligation (the record is terminal).
+	settled, err := d.ReconcileRunLaunches(capHash(req.RunContext))
 	if err != nil {
 		t.Fatalf("ReconcileRunLaunches (post-refusal): %v", err)
 	}
@@ -875,6 +882,9 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 	launchEntered := make(chan struct{})
 	releaseLaunch := make(chan struct{})
 	var launchCount int32
+	// The census proves supervisors gone over run dirs that exist on disk, so each
+	// launch's run dir is a real directory.
+	runsRoot := testsupport.TempDir(t)
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
 			if dead && strings.HasSuffix(runDir, "run1") {
@@ -886,17 +896,27 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 	proc.launch = func(process.LaunchRequest) (*process.LaunchOutcome, error) {
 		n := atomic.AddInt32(&launchCount, 1)
 		id := fmt.Sprintf("run%d", n)
+		runDir := filepath.Join(runsRoot, id)
+		if err := os.MkdirAll(runDir, 0o700); err != nil {
+			return nil, err
+		}
 		if n == 2 { // the replacement launch: reserve committed, the claim is HELD
 			close(launchEntered)
 			<-releaseLaunch
 		}
-		return &process.LaunchOutcome{RunID: id, RunDir: "/runs/" + id, State: process.StateRunning}, nil
+		return &process.LaunchOutcome{RunID: id, RunDir: runDir, State: process.StateRunning}, nil
 	}
 	d := storeTestDriver(store, clk, proc, stableGit())
 	d.SetRunLaunchGate(reg.gate())
 
 	// A run-backed first start over live run e1 WAITs (run1 running, slot executing).
-	req, started := startWaitingWithRun(t, d, "e1")
+	req := sampleStart()
+	req.RunID = "e1"
+	req.RunContext = "ctx-e1"
+	started, serr := d.Start(req)
+	if serr != nil || started.Outcome != WAITING {
+		t.Fatalf("run-backed first slice must WAIT, got %+v (err=%v)", started, serr)
+	}
 
 	// The run dies; its single automatic relaunch is authorized under the live gate,
 	// then parks in proc.Launch (reserve committed inside the gate; the claim held).
@@ -923,7 +943,7 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 	recDone := make(chan RunLaunchReport, 1)
 	go func() {
 		dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
-		r, _ := dr.ReconcileRunLaunches(req.Worktree, "e1")
+		r, _ := dr.ReconcileRunLaunches(capHash(req.RunContext))
 		recDone <- r
 	}()
 	select {
@@ -952,27 +972,22 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 		t.Fatalf("the replacement process must have been created after the fence, launches=%d", got)
 	}
 
-	// A replay now identifies and stops the replacement, and only THEN accounts.
-	var stopped []string
-	recProc := &fakeProc{
-		stop: func(runDir, reason string) (*process.StopOutcome, error) {
-			stopped = append(stopped, runDir)
-			return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
-		},
-		resolve: func(root, token string) (*process.ReservationResolution, error) {
-			return &process.ReservationResolution{Disposition: "identified", RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning}, nil
-		},
-	}
-	dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, recProc, stableGit())
-	replay, err := dr.ReconcileRunLaunches(req.Worktree, "e1")
+	// A replay now stops the attached replacement (its supervisor is running), and
+	// only THEN accounts.
+	sup := newSupervisors()
+	replacement := filepath.Join(runsRoot, "run2")
+	sup.state[replacement] = process.StateRunning
+	sup.state[filepath.Join(runsRoot, "run1")] = process.StateSignaled
+	dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, sup.proc(), stableGit())
+	replay, err := dr.ReconcileRunLaunches(capHash(req.RunContext))
 	if err != nil {
 		t.Fatalf("ReconcileRunLaunches (replay): %v", err)
 	}
 	if !replay.Accounted {
-		t.Fatalf("cancellation completes only once the replacement is identified and stopped, got %+v", replay)
+		t.Fatalf("cancellation completes only once the replacement is stopped, got %+v", replay)
 	}
-	if len(stopped) == 0 {
-		t.Fatalf("the replay must stop the identified replacement, stopped nothing")
+	if len(sup.stopped) != 1 || sup.stopped[0] != replacement {
+		t.Fatalf("the replay must stop exactly the replacement %s, stopped %v", replacement, sup.stopped)
 	}
 }
 
@@ -987,18 +1002,23 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 	entered := make(chan struct{})
 	release := make(chan struct{})
 	proc := &fakeProc{}
+	run1 := filepath.Join(testsupport.TempDir(t), "run1")
+	if err := os.MkdirAll(run1, 0o700); err != nil {
+		t.Fatalf("mkdir run dir: %v", err)
+	}
 	// proc.Launch records the run then parks BEFORE returning to the driver — the
 	// process is created but attach has not run, and the claim is held across both.
 	proc.launch = func(process.LaunchRequest) (*process.LaunchOutcome, error) {
 		close(entered)
 		<-release
-		return &process.LaunchOutcome{RunID: "run1", RunDir: "/runs/run1", State: process.StateRunning}, nil
+		return &process.LaunchOutcome{RunID: "run1", RunDir: run1, State: process.StateRunning}, nil
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	d.SetRunLaunchGate(reg.gate())
 
 	req := sampleStart()
 	req.RunID = "e1"
+	req.RunContext = "ctx-e1"
 	ticket, err := d.Admit(req)
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
@@ -1024,7 +1044,7 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 	recDone := make(chan RunLaunchReport, 1)
 	go func() {
 		dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
-		r, _ := dr.ReconcileRunLaunches(req.Worktree, "e1")
+		r, _ := dr.ReconcileRunLaunches(capHash(req.RunContext))
 		recDone <- r
 	}()
 	select {
@@ -1050,24 +1070,19 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 		t.Fatalf("a healthy attached run WAITs, got %s/%s", res.doc.Outcome, res.doc.Cause)
 	}
 
-	// A replay identifies and stops the attached run, then accounts.
-	var stopped []string
-	recProc := &fakeProc{
-		stop: func(runDir, reason string) (*process.StopOutcome, error) {
-			stopped = append(stopped, runDir)
-			return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
-		},
-	}
-	dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, recProc, stableGit())
-	replay, err := dr.ReconcileRunLaunches(req.Worktree, "e1")
+	// A replay stops the attached run (its supervisor is running), then accounts.
+	sup := newSupervisors()
+	sup.state[run1] = process.StateRunning
+	dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, sup.proc(), stableGit())
+	replay, err := dr.ReconcileRunLaunches(capHash(req.RunContext))
 	if err != nil {
 		t.Fatalf("ReconcileRunLaunches (replay): %v", err)
 	}
 	if !replay.Accounted {
 		t.Fatalf("a replay after attach+stop must account, got %+v", replay)
 	}
-	if len(stopped) != 1 || stopped[0] != "/runs/run1" {
-		t.Fatalf("the replay must stop the identified run /runs/run1, stopped %v", stopped)
+	if len(sup.stopped) != 1 || sup.stopped[0] != run1 {
+		t.Fatalf("the replay must stop the attached run %s, stopped %v", run1, sup.stopped)
 	}
 
 	// No launch after an accounted reconcile: a subsequent start on the fenced run

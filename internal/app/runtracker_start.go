@@ -417,9 +417,10 @@ func armResumeReplacement(repoDir string, sdeps RunTrackerScopeDeps, oldKey stri
 // reserve a replacement (RunCancelled) or re-authorize a previously reserved one
 // (RunSuperseded) — the same bounded proof terminal repair uses
 // (verifyTerminalRunQuiescence; the cancellation command's last reported
-// disposition is not durable authority). For a superseded run, whose Worktree
-// supersession cleared, that proof resolves the replacement's worktree and runs the
-// launch census with the old run id against it (change 0446 spec §4). When the
+// disposition is not durable authority). The launch census is attributed by the
+// OLD run's own context hash (change 0490), so a superseded run, whose Worktree
+// supersession cleared, is censused without one; the proof still resolves the
+// replacement's worktree for the slot retirement (change 0446 spec §4). When the
 // evidence is accounted it retires, through the shared retirement
 // (retireSlotOwnership), a RELEASED slot that still carries the old run's
 // ownership, so the replacement's own reservation is not refused stale-run-id. It

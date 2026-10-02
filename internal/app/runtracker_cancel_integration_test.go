@@ -460,8 +460,8 @@ func TestIntegrationRunCancelPendingWhileLaunchObligationUnresolved(t *testing.T
 	if !hasFinding(res.Findings, "launch-pending:d1") {
 		t.Fatalf("findings = %v, want the reconciler's launch-pending:d1 surfaced", res.Findings)
 	}
-	if len(recon.calls) != 1 || recon.calls[0] != fx.worktree+"|"+fx.runID {
-		t.Fatalf("reconciler calls = %v, want [%s]", recon.calls, fx.worktree+"|"+fx.runID)
+	if len(recon.calls) != 1 || recon.calls[0] != fx.contextHash {
+		t.Fatalf("reconciler calls = %v, want [%s] (the run's context hash)", recon.calls, fx.contextHash)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
 		t.Fatalf("run state = %q, want cancelling (durable fence held)", st)
@@ -480,8 +480,8 @@ func TestIntegrationRunCancelCompletesWhenLaunchObligationsSettle(t *testing.T) 
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
-	if len(recon.calls) != 1 || recon.calls[0] != fx.worktree+"|"+fx.runID {
-		t.Fatalf("reconciler calls = %v, want [%s]", recon.calls, fx.worktree+"|"+fx.runID)
+	if len(recon.calls) != 1 || recon.calls[0] != fx.contextHash {
+		t.Fatalf("reconciler calls = %v, want [%s] (the run's context hash)", recon.calls, fx.contextHash)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelled {
 		t.Fatalf("run state = %q, want cancelled", st)
@@ -503,6 +503,45 @@ func TestIntegrationRunCancelReconcilerUnavailableFailsClosed(t *testing.T) {
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
 		t.Fatalf("run state = %q, want cancelling", st)
+	}
+}
+
+// TestIntegrationRunCancelRunContextUnreadableFailsClosed (change 0490): the launch
+// census attributes a run's drives by the context hash its run-tracker record
+// carries, so a record that cannot be read names no hash — never the empty hash
+// that would account vacuously. Both the stop-capable teardown and the
+// observation-only closeout fail closed with run-context-unreadable, without
+// running the census at all.
+func TestIntegrationRunCancelRunContextUnreadableFailsClosed(t *testing.T) {
+	fx := newCancelFixture(t, false)
+	ep, _, err := LoadRunRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadRunRecord: %v", err)
+	}
+	recPath := filepath.Join(fx.common, "docket", runTrackerDirName, fx.key, runTrackerRecordFileName)
+	if err := os.WriteFile(recPath, []byte("{not json"), 0o600); err != nil {
+		t.Fatalf("corrupt run-tracker record: %v", err)
+	}
+
+	recon := okLaunchReconciler()
+	ok, findings, terr := reconcileRunTeardown(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: recon}, fx.repo, fx.key, ep)
+	if terr != nil {
+		t.Fatalf("reconcileRunTeardown: %v", terr)
+	}
+	if ok || !hasFinding(findings, "run-context-unreadable") {
+		t.Fatalf("teardown = (%v, %v), want unaccounted with run-context-unreadable", ok, findings)
+	}
+	if len(recon.calls) != 0 {
+		t.Fatalf("the census must not run without a run context, calls = %q", recon.calls)
+	}
+
+	observer := &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}}
+	blocked, lf := accountCompletionLaunches(cancelSeams{launchObserver: observer}, fx.repo, fx.key)
+	if !blocked || !hasFinding(lf, "run-context-unreadable") {
+		t.Fatalf("closeout launches = (%v, %v), want blocked with run-context-unreadable", blocked, lf)
+	}
+	if len(observer.calls) != 0 {
+		t.Fatalf("the closeout census must not run without a run context, calls = %q", observer.calls)
 	}
 }
 
@@ -1420,7 +1459,7 @@ func supersedeFixtureRun(t *testing.T, fx cancelFixture, replacementWorktree str
 // TestIntegrationRunCancelTerminalRepairSupersededThreadsReplacementWorktree (change 0446 spec §4, AC5):
 // a SUPERSEDED run has an empty Worktree, which is not proof of quiescence. Terminal
 // repair resolves the replacement run's worktree through ReplacementReserved, runs
-// the launch census with the predecessor's run id against THAT worktree, and — when
+// the launch census over the predecessor's own run context, and — when
 // the replacement's slot still carries the predecessor's RunID — retires it.
 func TestIntegrationRunCancelTerminalRepairSupersededThreadsReplacementWorktree(t *testing.T) {
 	t.Run("stale-released-slot-retired", func(t *testing.T) {
@@ -1432,8 +1471,8 @@ func TestIntegrationRunCancelTerminalRepairSupersededThreadsReplacementWorktree(
 		if res.Disposition != CancelDispositionCancelled {
 			t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 		}
-		if len(launches.calls) != 1 || launches.calls[0] != fx.worktree+"|"+fx.runID {
-			t.Fatalf("census calls = %v, want exactly [%s|%s] (the replacement's worktree, the predecessor's run)", launches.calls, fx.worktree, fx.runID)
+		if len(launches.calls) != 1 || launches.calls[0] != fx.contextHash {
+			t.Fatalf("census calls = %v, want exactly [%s] (the predecessor's own run context)", launches.calls, fx.contextHash)
 		}
 		if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
 			t.Fatalf("slot run = %q, want the predecessor's stale ownership retired", epo)
@@ -1507,8 +1546,8 @@ func tornResumeFixture(t *testing.T, fx cancelFixture, neverMinted bool) string 
 // operations"): a torn resume — the predecessor superseded, the replacement run never
 // minted or never bound — is not a permanent dead end. A repeat run.cancel against the
 // predecessor addresses the replacement's STORED worktree identity (the scope
-// armResumeReplacement prepared), runs the census with the predecessor's run id
-// there, retires a stale released slot, and a further repeat is the idempotent no-op.
+// armResumeReplacement prepared), runs the census over the predecessor's own run
+// context, retires a stale released slot, and a further repeat is the idempotent no-op.
 // A genuinely corrupt or cyclic replacement chain still fails closed.
 func TestIntegrationRunCancelTerminalRepairTornResumeConverges(t *testing.T) {
 	for _, tc := range []struct {
@@ -1525,8 +1564,8 @@ func TestIntegrationRunCancelTerminalRepairTornResumeConverges(t *testing.T) {
 			if res.Disposition != CancelDispositionCancelled {
 				t.Fatalf("disposition = %q, want cancelled via the stored replacement identity (findings=%v)", res.Disposition, res.Findings)
 			}
-			if len(launches.calls) != 1 || launches.calls[0] != fx.worktree+"|"+fx.runID {
-				t.Fatalf("census calls = %v, want exactly [%s|%s]", launches.calls, fx.worktree, fx.runID)
+			if len(launches.calls) != 1 || launches.calls[0] != fx.contextHash {
+				t.Fatalf("census calls = %v, want exactly [%s] (the predecessor's own run context)", launches.calls, fx.contextHash)
 			}
 			if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
 				t.Fatalf("slot run = %q, want the predecessor's stale ownership retired", epo)

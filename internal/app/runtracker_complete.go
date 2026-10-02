@@ -53,13 +53,14 @@ type processObserver interface {
 	observeProcessTerminal(runDir string) (bool, error)
 }
 
-// runLaunchObserver accounts, for a completing run, the pending and replacement
-// LAUNCH obligations the durable drive records name — the observation-only
-// counterpart of runLaunchReconciler (which stops identified runs and settles
-// never-launched reservations terminal). Production appLaunchObserver wraps
-// gatedrive.Driver.ObserveRunLaunches; a nil observer proves nothing (fail closed).
+// runLaunchObserver accounts, for a completing run, every gate drive started inside
+// the run (attributed by contextHash, the run-tracker record's child_context_hash)
+// — the observation-only counterpart of runLaunchReconciler (which stops running
+// supervisors and settles never-launched launches terminal). Production
+// appLaunchObserver wraps gatedrive.Driver.ObserveRunLaunches; a nil observer
+// proves nothing (fail closed).
 type runLaunchObserver interface {
-	observe(worktree, runID string) (gatedrive.RunLaunchReport, error)
+	observe(contextHash string) (gatedrive.RunLaunchReport, error)
 }
 
 // appGateObserver is the production processObserver: it observes a run through the
@@ -84,7 +85,7 @@ func (appGateObserver) observeProcessTerminal(runDir string) (bool, error) {
 
 // appLaunchObserver is the production runLaunchObserver: it composes a gatedrive
 // driver over the completion store and the app gate seam's process service, then
-// observes one run's launch obligations through ObserveRunLaunches (observation
+// observes one run's drives through ObserveRunLaunches (observation
 // only — it stops nothing and settles nothing). It resolves the process service per
 // call, exactly as appLaunchReconciler.reconcile does. A nil store or an unresolvable
 // process service proves nothing (fail closed).
@@ -92,7 +93,7 @@ type appLaunchObserver struct {
 	store *gatedrive.Store
 }
 
-func (o appLaunchObserver) observe(worktree, runID string) (gatedrive.RunLaunchReport, error) {
+func (o appLaunchObserver) observe(contextHash string) (gatedrive.RunLaunchReport, error) {
 	if o.store == nil {
 		return gatedrive.RunLaunchReport{}, fmt.Errorf("gate store unavailable")
 	}
@@ -100,7 +101,7 @@ func (o appLaunchObserver) observe(worktree, runID string) (gatedrive.RunLaunchR
 	if svc == nil {
 		return gatedrive.RunLaunchReport{}, fmt.Errorf("gate service unavailable: %s", reason)
 	}
-	return gatedrive.NewSystemDriver(o.store, svc).ObserveRunLaunches(worktree, runID)
+	return gatedrive.NewSystemDriver(o.store, svc).ObserveRunLaunches(contextHash)
 }
 
 // completeSuccessfulRun drives the whole successful-run ownership closeout over the
@@ -161,7 +162,7 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 	// unprovable owned slot, an unaccounted launch, an uncompleted mutation) fails
 	// closed; informational findings (a successor slot) are accounted. The step (1b)
 	// settlement tokens stay ahead of the accounting findings.
-	blocked, afindings := accountCompletionObligations(seams, ep)
+	blocked, afindings := accountCompletionObligations(seams, repoDir, runKey, ep)
 	findings = appendFindings(findings, afindings)
 
 	// (4) RE-ENUMERATE before retirement: an operation admitted pre-fence may have
@@ -231,16 +232,17 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 
 // accountCompletionObligations is step (3)'s full observation-only accounting over
 // the fenced record: native participants, execution participants, the worktree slot,
-// the launch obligations, and the mutation journal. It returns whether the run is
-// blocked (any obligation unproven) and the accumulated bounded findings. It reads
-// the run snapshot in memory and probes every process/slot/launch OUTSIDE any lock.
-func accountCompletionObligations(seams cancelSeams, ep RunRecord) (bool, []string) {
+// the run's drives (attributed by the run context runKey's run-tracker record
+// carries), and the mutation journal. It returns whether the run is blocked (any
+// obligation unproven) and the accumulated bounded findings. It reads the run
+// snapshot in memory and probes every process/slot/launch OUTSIDE any lock.
+func accountCompletionObligations(seams cancelSeams, repoDir, runKey string, ep RunRecord) (bool, []string) {
 	blocked := false
 	var findings []string
 
 	pblocked, pf := accountCompletionParticipants(seams, ep)
 	sblocked, sf := accountCompletionSlot(seams, ep)
-	lblocked, lf := accountCompletionLaunches(seams, ep)
+	lblocked, lf := accountCompletionLaunches(seams, repoDir, runKey)
 	mblocked, mf := accountCompletionMutations(ep)
 
 	if pblocked || sblocked || lblocked || mblocked {
@@ -347,16 +349,22 @@ func accountCompletionMutations(ep RunRecord) (bool, []string) {
 	return blocked, findings
 }
 
-// accountCompletionLaunches observes the run's launch obligations through the
-// observation-only launch seam. A nil observer proves nothing (fail closed,
-// launch-observer-unavailable); an observation error blocks (launch-observe-failed);
-// an unaccounted report blocks and surfaces its findings. An accounted report's
+// accountCompletionLaunches observes the run's drives through the observation-only
+// launch seam, attributed by the run context hash runKey's run-tracker record
+// carries (runContextHash). A nil observer proves nothing (fail closed,
+// launch-observer-unavailable); an unreadable run context blocks
+// (run-context-unreadable); an observation error blocks (launch-observe-failed); an
+// unaccounted report blocks and surfaces its findings. An accounted report's
 // informational findings are surfaced without blocking.
-func accountCompletionLaunches(seams cancelSeams, ep RunRecord) (bool, []string) {
+func accountCompletionLaunches(seams cancelSeams, repoDir, runKey string) (bool, []string) {
 	if seams.launchObserver == nil {
 		return true, []string{"launch-observer-unavailable"}
 	}
-	report, err := seams.launchObserver.observe(ep.Worktree, ep.RunID)
+	contextHash, cerr := runContextHash(repoDir, runKey)
+	if cerr != nil {
+		return true, []string{"run-context-unreadable"}
+	}
+	report, err := seams.launchObserver.observe(contextHash)
 	if err != nil {
 		return true, []string{"launch-observe-failed"}
 	}

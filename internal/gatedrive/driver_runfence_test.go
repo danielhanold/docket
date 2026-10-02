@@ -902,7 +902,8 @@ func TestClaimContentionBounded(t *testing.T) {
 	wt := mkWorktree(t)
 	proc := newClaimWindowProc()
 	// A live worktree slot recording run e1 backs the scopeless drive's admission
-	// token, so resolveDriveRun attributes the drive to e1 and reconcile accounts it.
+	// token (the relaunch's run pass reads it); the drive's run context attributes it
+	// to e1's census.
 	token, _, terr := store.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: "/repo",
 		WorktreeRoot: wt,
@@ -915,6 +916,7 @@ func TestClaimContentionBounded(t *testing.T) {
 	rec := seedRecord(t)
 	rec.WorktreePath = wt
 	rec.AdmissionToken = token
+	rec.RunContextHash = capHash("ctx-e1")
 	id, ownerGen := seedDrive(t, store, rec)
 
 	permissive := &flippableGate{}
@@ -951,7 +953,7 @@ func TestClaimContentionBounded(t *testing.T) {
 	reconcileDone := make(chan RunLaunchReport, reconcilers)
 	for i := 0; i < reconcilers; i++ {
 		go func() {
-			r, _ := mkDriver(&fakeProc{}).ReconcileRunLaunches(wt, "e1")
+			r, _ := mkDriver(&fakeProc{}).ReconcileRunLaunches(capHash("ctx-e1"))
 			reconcileDone <- r
 		}()
 	}

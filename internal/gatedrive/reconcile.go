@@ -1,27 +1,31 @@
-// Cancellation's pending-launch accounting (change 0437 Task 6). Fencing a run
-// (runtracker_run_record.go, run.cancel) stops what the durable participant/slot records
-// already NAME, but a launch admitted just before the fence can still be reserved,
-// in-flight, or attached as a relaunch replacement the worktree slot has not caught
-// up to. ReconcileRunLaunches is the read cancellation consumes to SEE those
-// obligations: it walks the drive registry, attributes each drive to its run
-// through the SAME linkage predicate the launch paths use (resolveDriveRun), and
-// for each nonterminal drive of the fenced run proves — through the per-drive
-// claimant flock and the process seam — whether its launch is settled or still
-// pending. It launches nothing, mutates no drive verdict, and preserves unresolved
-// evidence: it never erases a reservation that may have launched. The run is
-// already fenced, so this path takes NO run lock (the lock order forbids holding
-// the run while probing a per-drive claim).
+// The run launch census (change 0437 Task 6; attribution by run context, change
+// 0490). Fencing a run (runtracker_run_record.go, run.cancel) stops what the run's
+// own records name, but the run's gates live in the drive registry: a drive
+// started inside a dispatched run stores the hash of that run's child context
+// (driveRecord.RunContextHash), equal to the run-tracker record's
+// child_context_hash. ReconcileRunLaunches is the read cancellation consumes to
+// account those drives, and ObserveRunLaunches is its observation-only twin for
+// the successful-run closeout.
 //
-// Attribution, not inheritance (change 0446 spec §4). The census accounts the
-// TARGET run's obligations, never all history: a drive record it cannot read, or
-// whose run linkage is lost, blocks the run only when a CURRENT reference names
-// it — and the only current reference is the target worktree's slot (its
-// reservation token). Any other unreadable or unlinked record is an informational
-// history-unattributed finding that does not clear Accounted. resolveDriveRun
-// itself is untouched: losing a drive's ownership proof still refuses that drive's
-// own launch/relaunch; only the census's attribution of the failure changes. The
-// census reads no recovery scope (change 0489): a task scope a pre-0489 binary
-// left on disk is never listed or opened, so it can neither name nor block a run.
+// Attribution. The census walks the drive registry and accounts every drive whose
+// RunContextHash equals the run's context hash — every such drive, not the one a
+// worktree slot happened to name. A drive without a run context is never
+// attributed (raw launches never were). An unreadable record is informational
+// (history-unattributed), because nothing positively names it; a supported
+// schema-2 record with a terminal outcome is settled history. The census reads no
+// worktree slot and no recovery scope (change 0489).
+//
+// Teardown proof is the lock model's proof: the supervisor is gone. For each run
+// dir a drive records (RawRunDir, PriorRawRunDir) a dir that no longer exists is
+// clean absence; any observed state other than running counts as torn down; a
+// running supervisor is stopped (cancel mode) and must then observe as not
+// running. A probe or stop error is never clean absence: it keeps the run pending.
+// PASSED/FAILED drives are settled by their verdict (the supervisor wrote it before
+// exiting); a HALTED drive can still have a live supervisor, so its run dirs are
+// proven too. A nonterminal drive is probed under its per-drive claimant flock
+// (nonblocking: a busy claim is pending work, never waited on). The census launches
+// nothing and takes NO run lock (the run is already fenced; the lock order forbids
+// holding the run while probing a per-drive claim).
 package gatedrive
 
 import (
@@ -29,98 +33,52 @@ import (
 	"io/fs"
 	"os"
 	"sort"
+
+	"github.com/danielhanold/docket/internal/process"
 )
 
-// RunLaunchReport is the bounded accounting of one run's launch obligations on
-// one canonical worktree. Accounted is true only when every run-linked launch the
-// durable records name is provably settled (never-launched, or an identified run
-// proven stopped); any pending, busy, unresolved, or unreadable obligation makes it
-// false. Findings carry drive ids + disposition tokens only — never a reservation
-// token, argv, or env value — so a caller can surface them safely.
+// RunLaunchReport is the bounded accounting of one run's launch obligations.
+// Accounted is true only when every drive attributed to the run is provably
+// settled (a PASSED/FAILED verdict, a never-launched launch, or every recorded
+// supervisor proven gone); any pending, busy, unresolved, or live obligation makes
+// it false. Findings carry drive ids + disposition tokens only — never a
+// reservation token, argv, or env value — so a caller can surface them safely.
 type RunLaunchReport struct {
 	Accounted bool
 	Findings  []string
 }
 
-// ReconcileRunLaunches reconciles, for an ALREADY-FENCED run, every run-linked
-// launch obligation the durable records name: drives whose AdmissionToken matches
-// a worktree slot recording runID (resolved through resolveDriveRun — the
-// exact-reservation linkage the launch paths use, never restated here). For each nonterminal drive of
-// the run it takes the claimant flock NONBLOCKING — a busy claim is pending work,
-// never waited on — then re-reads the record and resolves the EXACT reservation
-// (AdmissionToken, or RelaunchToken when RelaunchReserved): a proven never-launched
-// accounts it; an identified/attached run is stopped through proc and accounts only
-// on proven teardown; unresolved, a resolution/read/stop error, or a missing/corrupt
-// required record keeps Accounted=false. A merely-reserved drive that never launched
-// is a pending admission (a delayed StartAdmitted the fence still has to refuse), so
-// it too keeps Accounted=false until that refusal settles the record terminal — a
-// later replay then accounts (an obsolete slot RawRunDir is not an inventory, and a
-// released slot alone never settles a launch obligation). It launches nothing and
-// mutates no drive verdict, so it must never erase a reservation that may have
-// launched. It takes NO run lock (the run is already fenced; the lock order
-// forbids holding the run while probing a claim).
-//
-// An empty runID has no run-linked launches to reconcile (a keyless/standalone
-// run), so it accounts vacuously. An empty worktreeRoot is NOT proof of quiescence
-// (a superseded run has an empty Worktree yet its slot-linked drives still resolve
-// to its run through their own worktree slots): the registry walk still runs and
-// only the census's slot-side references are skipped. A superseded run's caller supplies the replacement's
-// worktree (the app's resolveTerminalRunSlot), so the slot side is checked there.
-func (d *Driver) ReconcileRunLaunches(worktreeRoot, runID string) (RunLaunchReport, error) {
-	return d.accountRunLaunches(worktreeRoot, runID, false)
+// ReconcileRunLaunches reconciles, for an ALREADY-FENCED run, every drive whose
+// RunContextHash equals runContextHash (cancellation mode): a running supervisor
+// is stopped and must then observe as not running; a first launch or reserved
+// relaunch that never attached is resolved through its exact reservation token,
+// and a proven never-launched one is settled HALTED "run-cancelled" under the held
+// claim so no later launch can follow the cancel. An empty runContextHash names no
+// drive and accounts vacuously.
+func (d *Driver) ReconcileRunLaunches(runContextHash string) (RunLaunchReport, error) {
+	return d.accountRunLaunches(runContextHash, false)
 }
 
-// ObserveRunLaunches is the SUCCESS-closeout view of one run's launch
-// obligations (change 0441): the SAME walk, run linkage, and claimant probe as
+// ObserveRunLaunches is the SUCCESS-closeout view of one run's launch obligations
+// (change 0441): the same walk, attribution, and claimant probe as
 // ReconcileRunLaunches, but observation-only — it never stops a process, never
-// settles a never-launched reservation terminal, and never mutates a record. Both
-// exported methods share one inventory (accountRunLaunches) rather than copying a
-// second walk. A pending never-launched ticket stays pending (launch-pending) until
-// the completing launch-gate refusal settles it terminal; a replay then accounts.
-func (d *Driver) ObserveRunLaunches(worktreeRoot, runID string) (RunLaunchReport, error) {
-	return d.accountRunLaunches(worktreeRoot, runID, true)
+// settles a never-launched launch terminal, and never mutates a record. A live
+// supervisor is run-live and a never-launched launch stays launch-pending; both
+// keep the report unaccounted.
+func (d *Driver) ObserveRunLaunches(runContextHash string) (RunLaunchReport, error) {
+	return d.accountRunLaunches(runContextHash, true)
 }
 
-// accountRunLaunches is the shared body behind ReconcileRunLaunches (observeOnly
-// false: the cancellation mode that stops identified runs and settles proven
-// never-launched reservations terminal) and ObserveRunLaunches (observeOnly true:
-// the success-closeout mode that stops nothing, settles nothing, and mutates no
-// record). The walk, run linkage, and per-drive claimant probe are identical; only
-// the terminal per-drive disposition differs, threaded through reconcileRunDrive.
-//
-// The walk applies change 0446 spec §4's attribution rules, in order, per record:
-//
-//  1. Terminal before linkage. A readable drive whose outcome is terminal
-//     (isTerminalOutcome: PASSED, FAILED, or HALTED) has a settled LAUNCH axis
-//     whether or not its linkage still resolves. This settles only the drive
-//     record's launch axis, never the execution: HALTED is not slot-release proof
-//     or completion evidence, and teardown stays the slot and participant checks'
-//     job (the "no blanket trust in HALTED" rule).
-//  2. Supported history. A record the executable reader refuses is retried through
-//     loadHistoricalDrive; a supported schema-2 record with a terminal outcome is
-//     settled history.
-//  3. Positive reference decides blocking. A still-unreadable record, or a readable
-//     nonterminal one whose resolveDriveRun linkage is lost, blocks
-//     (record-unreadable:/linkage-unresolved:) only when a current reference names
-//     it (censusRefs.names / censusRefs.namesUnreadable); otherwise it is an
-//     informational history-unattributed:<id>.
-//  4. An empty worktreeRoot skips only the slot-side references (the caller supplies
-//     the replacement worktree for those); it never accounts vacuously.
-//  5. Token rotation. An older nonterminal drive whose AdmissionToken the slot no
-//     longer holds resolves ok=false and, named by no current reference, is
-//     historical: every launch path verifies the current token before launching
-//     (StartAdmitted's verifyAdmittedSlot, authorizeRelaunch's resolveDriveRun,
-//     and the crash-window recovery's recoveryRunRevoked, which settles instead
-//     of relaunching), so it has lost launch authority and the current token holder
-//     carries any live obligation.
-func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool) (RunLaunchReport, error) {
+// accountRunLaunches walks the drive registry in id order and accounts every
+// drive whose RunContextHash equals runContextHash — the hash run.start minted
+// for the run and every tracked gate.drive.start stores. A drive without a run
+// context is never attributed; an unreadable record is informational
+// (history-unattributed), because nothing positively names it.
+func (d *Driver) accountRunLaunches(runContextHash string, observeOnly bool) (RunLaunchReport, error) {
 	report := RunLaunchReport{Accounted: true}
-	if runID == "" {
-		return report, nil
+	if runContextHash == "" {
+		return report, nil // no run context: no drive can be attributed to the run
 	}
-
-	refs := d.censusReferences(worktreeRoot, runID, &report)
-
 	entries, err := os.ReadDir(d.store.root)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -131,19 +89,8 @@ func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool
 		report.Findings = append(report.Findings, "registry-unreadable")
 		return report, nil
 	}
-	// Deterministic id order so the findings are stable across runs (mirrors
-	// inventoryLegacyDrives' sorted walk).
+	// Deterministic id order so the findings are stable across runs.
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
-
-	// First pass: load every record, so whether the slot's current token has a
-	// READABLE holder is known before any unreadable record is attributed.
-	type walked struct {
-		id         string
-		rec        driveRecord
-		unreadable bool
-	}
-	var walk []walked
-	holderFound := false
 	for _, entry := range entries {
 		id := entry.Name()
 		if !entry.IsDir() || validateID(id) != nil {
@@ -153,59 +100,19 @@ func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool
 		if lerr != nil {
 			if storeErrIs(lerr, ErrNotFound) {
 				// A record-less directory (an in-flight or crashed-mid-creation drive)
-				// has launched no process and names no obligation, so it is skipped
-				// exactly as the legacy inventory skips it.
+				// has launched no process and names no obligation.
 				continue
 			}
-			// Rule 2: a supported historical (schema-2) record with a terminal outcome
-			// is settled history, not an unreadable obligation.
 			if h, herr := d.store.loadHistoricalDrive(id); herr == nil && isTerminalOutcome(h.LastOutcome) {
-				continue
+				continue // settled schema-2 history
 			}
-			walk = append(walk, walked{id: id, unreadable: true})
+			report.Findings = append(report.Findings, "history-unattributed:"+id)
 			continue
 		}
-		if refs.slotToken != "" && rec.AdmissionToken == refs.slotToken {
-			holderFound = true
+		if rec.RunContextHash != runContextHash {
+			continue // another run's drive, or one started outside any run
 		}
-		walk = append(walk, walked{id: id, rec: rec})
-	}
-
-	for _, w := range walk {
-		if w.unreadable {
-			// Rule 3 for an unreadable record: the reference comes from the slot side
-			// only — never from reading the record itself.
-			if refs.namesUnreadable(holderFound) {
-				report.Accounted = false
-				report.Findings = append(report.Findings, "record-unreadable:"+w.id)
-			} else {
-				report.Findings = append(report.Findings, "history-unattributed:"+w.id)
-			}
-			continue
-		}
-		// Rule 1: terminal before linkage. The launch axis of a terminal drive is
-		// settled; its teardown is the slot/participant checks' to prove.
-		if isTerminalOutcome(w.rec.LastOutcome) {
-			continue
-		}
-		linked, ok, _ := d.resolveDriveRun(w.rec)
-		if !ok {
-			// The drive's run linkage is LOST (an AdmissionToken the worktree slot no
-			// longer matches, or an absent/unreadable slot). Rule 3: it fails closed
-			// only when a current reference names it; an unlinked record nothing
-			// current names is history (rule 5 covers a rotated token).
-			if refs.names(w.rec) {
-				report.Accounted = false
-				report.Findings = append(report.Findings, "linkage-unresolved:"+w.id)
-			} else {
-				report.Findings = append(report.Findings, "history-unattributed:"+w.id)
-			}
-			continue
-		}
-		if linked != runID {
-			continue // a clean resolution to another run (or no-run-record): not this run's obligation
-		}
-		settled, finding := d.reconcileRunDrive(w.id, w.rec, observeOnly)
+		settled, finding := d.reconcileRunDrive(id, rec, observeOnly)
 		if finding != "" {
 			report.Findings = append(report.Findings, finding)
 		}
@@ -216,74 +123,21 @@ func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool
 	return report, nil
 }
 
-// censusRefs is the CURRENT reference to the target run's drives, built from
-// existing records only (no reverse index): the target worktree slot's
-// reservation token when that slot names the run.
-type censusRefs struct {
-	// slotToken is the target slot's ReservationToken when the slot's RunID is
-	// the target run ("" otherwise, or when no worktree was supplied).
-	slotToken string
-	// slotOccupied reports that the target run's slot still holds an unreleased
-	// driven reservation, whose token some drive record must carry.
-	slotOccupied bool
-}
-
-// names reports whether a current reference names a READABLE drive: it carries
-// the run slot's current token.
-func (r censusRefs) names(rec driveRecord) bool {
-	return r.slotToken != "" && rec.AdmissionToken == r.slotToken
-}
-
-// namesUnreadable reports whether a current reference names an UNREADABLE drive
-// without reading it: the run's occupied slot carries a token no readable drive
-// holds (holderFound false), so every unreadable record is a candidate holder of
-// that current reservation. A released slot is not inferred from: release is proof
-// its latest execution was vacated, and an orphan token (a start whose reserved
-// record was removed) is not an obligation.
-func (r censusRefs) namesUnreadable(holderFound bool) bool {
-	return r.slotOccupied && !holderFound
-}
-
-// censusReferences builds the census's current reference for runID from the
-// target worktree's slot, and records the fail-closed finding when that slot
-// cannot be read. It reads no recovery scope (change 0489).
-func (d *Driver) censusReferences(worktreeRoot, runID string, report *RunLaunchReport) censusRefs {
-	var refs censusRefs
-	if worktreeRoot == "" {
-		return refs // rule 4: the slot-side references are the caller's to supply
-	}
-	slot, _, serr := d.store.LoadWorktreeExecution(worktreeRoot)
-	if serr != nil {
-		if storeErrIs(serr, ErrNotFound) {
-			return refs // no slot: nothing current is named from the slot side
-		}
-		// The target worktree's authoritative slot cannot be read: its references are
-		// unknown, so fail closed rather than infer the slot is empty.
-		report.Accounted = false
-		report.Findings = append(report.Findings, "slot-unreadable")
-		return refs
-	}
-	if slot.RunID != runID {
-		return refs // the slot names another run (or none): its occupant is not this run's
-	}
-	refs.slotToken = slot.ReservationToken
-	refs.slotOccupied = slot.ReservationToken != "" && slot.State != admissionReleased && slot.Kind != "raw"
-	return refs
-}
-
-// reconcileRunDrive accounts one run-linked drive's launch obligation and
-// reports whether it is settled plus a bounded, credential-free finding (drive id +
-// disposition token). It launches nothing and never mutates the drive verdict when
-// observeOnly is set. A terminal drive is already accounted by the slot/participant
-// teardown. A nonterminal drive is probed under its claimant flock: a busy claim is
-// pending launch/attach work (never waited on); a free claim lets it re-read the
-// record and resolve the exact reservation. observeOnly selects the per-drive
-// disposition for an identified/attached run and a proven never-launched reservation:
-// cancellation stops / settles them, closeout only observes (never-launched stays
-// pending as launch-pending, an attached run is observed, not stopped).
+// reconcileRunDrive accounts one attributed drive and reports whether it is
+// settled plus a bounded, credential-free finding (drive id + disposition token).
+//   - PASSED/FAILED: settled by the verdict the supervisor wrote before exiting.
+//   - HALTED: launches nothing more, so no claim is taken; its recorded run dirs
+//     must prove their supervisors gone (proveRunDirsGone).
+//   - Nonterminal: the claimant flock is tried nonblocking (busy → claim-busy), the
+//     record re-read under it, and then a reserved relaunch resolves its RELAUNCH
+//     token, a first launch that never attached resolves its launch (admission)
+//     token, and an attached drive proves its run dirs gone.
 func (d *Driver) reconcileRunDrive(id string, rec driveRecord, observeOnly bool) (settled bool, finding string) {
-	if isTerminalOutcome(rec.LastOutcome) {
-		return true, "" // teardown accounted by the slot/participant reconciliation
+	switch rec.LastOutcome {
+	case PASSED, FAILED:
+		return true, ""
+	case HALTED:
+		return d.proveRunDirsGone(id, rec, observeOnly)
 	}
 	claim, busy, cerr := d.store.tryRelaunchClaim(id)
 	if cerr != nil {
@@ -297,27 +151,22 @@ func (d *Driver) reconcileRunDrive(id string, rec driveRecord, observeOnly bool)
 	}
 	defer claim.close()
 
-	// Re-read under the held claim: the exact durable state may have advanced between
-	// the walk's read and the claim acquisition.
+	// Re-read under the held claim: the durable state may have advanced between the
+	// walk's read and the claim acquisition.
 	cur, lerr := d.store.Load(id)
 	if lerr != nil {
 		return false, "record-unreadable:" + id
 	}
-	if isTerminalOutcome(cur.LastOutcome) {
-		return true, "" // a concurrent settle (the fence's StartAdmitted refusal) accounts it
-	}
-
-	// A drive that never launched and reserved no relaunch is a pending admission: the
-	// ticket's delayed StartAdmitted is still outstanding. The fence refuses it — which
-	// settles the record terminal — but reconcile must report the obligation pending
-	// until then (a released slot alone never settles it). A later replay accounts.
-	if cur.RawRunDir == "" && !cur.RelaunchReserved {
-		return false, "launch-pending:" + id
+	switch cur.LastOutcome {
+	case PASSED, FAILED:
+		return true, ""
+	case HALTED:
+		return d.proveRunDirsGone(id, cur, observeOnly)
 	}
 
 	// A reserved-but-unattached relaunch (the crash window recoverReservedRelaunch
-	// resolves): the replacement may or may not have launched. Resolve the RELAUNCH
-	// token — never the admission token, which names the original run.
+	// resolves): resolve the RELAUNCH token — never the admission token, which names
+	// the original launch.
 	if cur.RelaunchReserved {
 		if cur.RelaunchToken == "" {
 			return false, "resolution-unresolved:" + id
@@ -325,25 +174,26 @@ func (d *Driver) reconcileRunDrive(id string, rec driveRecord, observeOnly bool)
 		return d.reconcileReservation(id, cur.RunRoot, cur.RelaunchToken, cur.OwnerGeneration, observeOnly)
 	}
 
-	// An attached run the DRIVE record names directly (the original, or a relaunch's
-	// replacement the worktree slot still records the predecessor for): cancellation
-	// stops it and accounts only on proven teardown; closeout only OBSERVES it.
-	if observeOnly {
-		return d.observeIdentifiedRun(id, cur.RawRunDir)
+	// A first launch whose run dir was never attached: the launch was handed the
+	// drive's admission token, so resolve exactly that reservation.
+	if cur.RawRunDir == "" {
+		if cur.AdmissionToken == "" {
+			return false, "resolution-unresolved:" + id
+		}
+		return d.reconcileFirstLaunch(id, cur, observeOnly)
 	}
-	return d.stopIdentifiedRun(id, cur.RawRunDir)
+
+	return d.proveRunDirsGone(id, cur, observeOnly)
 }
 
-// reconcileReservation resolves a reserved (but unattached) launch through the
-// process seam and reports whether the obligation is settled. In cancellation mode a
-// proven never-launched is settled by settleNeverLaunchedCancelled (which also
-// forecloses a later recovery launch) and an identified run is stopped through proc;
-// in observeOnly mode a never-launched stays pending (launch-pending — settled later
-// by the completing launch-gate refusal, never here) and an identified run is only
-// observed. An unresolved verdict or a resolve error preserves unresolved evidence:
-// pending. ownerGen is the drive's own owner generation (read from the record under
-// the held claim) — the CAS credential settleNeverLaunchedCancelled needs; it is a
-// locator, not authority.
+// reconcileReservation resolves a reserved (but unattached) relaunch through the
+// process seam. In cancellation mode a proven never-launched is settled by
+// settleNeverLaunchedCancelled (which also forecloses a later recovery launch); in
+// observeOnly mode it stays pending (launch-pending). An identified run must prove
+// its supervisor gone (supervisorGone). An unresolved verdict or a resolve error
+// preserves unresolved evidence: pending. ownerGen is the drive's own owner
+// generation (read under the held claim) — the CAS credential the settle needs; it
+// is a locator, not authority.
 func (d *Driver) reconcileReservation(id, runRoot, token, ownerGen string, observeOnly bool) (bool, string) {
 	res, rerr := d.proc.ResolveReservation(runRoot, token)
 	if rerr != nil || res == nil {
@@ -352,40 +202,38 @@ func (d *Driver) reconcileReservation(id, runRoot, token, ownerGen string, obser
 	switch res.Disposition {
 	case "never-launched":
 		if observeOnly {
-			// Closeout must not foreclose the ticket terminal: it stays pending until
-			// the completing launch-gate refusal settles it, and a replay accounts.
 			return false, "launch-pending:" + id
 		}
 		return d.settleNeverLaunchedCancelled(id, ownerGen)
 	case "identified":
-		if observeOnly {
-			return d.observeIdentifiedRun(id, res.RunDir)
-		}
-		return d.stopIdentifiedRun(id, res.RunDir)
+		return d.supervisorGone(id, res.RunDir, observeOnly)
 	default: // "unresolved" or any unexpected disposition: preserve evidence
 		return false, "resolution-unresolved:" + id
 	}
 }
 
-// observeIdentifiedRun is the observation-only counterpart of stopIdentifiedRun: it
-// reads one identified run's state through the process seam and reports whether
-// teardown is PROVEN, using the same proof rule (stopProvesTeardown) the driver's own
-// stop legs use — but it issues NO stop and mutates no record. An empty run dir or an
-// observation error preserves unresolved evidence (resolution-unresolved); a live or
-// signalled run stays pending (run-live); a proven-terminal run accounts the
-// obligation with an informational run-terminal finding.
-func (d *Driver) observeIdentifiedRun(id, runDir string) (bool, string) {
-	if runDir == "" {
+// reconcileFirstLaunch resolves a first launch whose run dir was never attached the
+// way reconcileReservation resolves a reserved relaunch, through the drive's
+// admission token (the token StartAdmitted hands the launch). A proven
+// never-launched first launch is settled HALTED "run-cancelled" in cancellation
+// mode (settleNeverLaunchedFirstLaunch) and stays launch-pending in observeOnly
+// mode; an identified run must prove its supervisor gone; anything else is pending.
+func (d *Driver) reconcileFirstLaunch(id string, cur driveRecord, observeOnly bool) (bool, string) {
+	res, rerr := d.proc.ResolveReservation(cur.RunRoot, cur.AdmissionToken)
+	if rerr != nil || res == nil {
 		return false, "resolution-unresolved:" + id
 	}
-	observation, err := d.proc.Observe(runDir)
-	if err != nil || observation == nil {
+	switch res.Disposition {
+	case "never-launched":
+		if observeOnly {
+			return false, "launch-pending:" + id
+		}
+		return d.settleNeverLaunchedFirstLaunch(id, cur.OwnerGeneration)
+	case "identified":
+		return d.supervisorGone(id, res.RunDir, observeOnly)
+	default:
 		return false, "resolution-unresolved:" + id
 	}
-	if stopProvesTeardown(observation.State) {
-		return true, "run-terminal:" + id
-	}
-	return false, "run-live:" + id
 }
 
 // settleNeverLaunchedCancelled settles a reserved relaunch that provably never ran,
@@ -406,6 +254,27 @@ func (d *Driver) observeIdentifiedRun(id, runDir string) (bool, string) {
 // fails closed to pending — reconcile never claims an obligation settled while the
 // drive might still recover a launch.
 func (d *Driver) settleNeverLaunchedCancelled(id, ownerGen string) (bool, string) {
+	return d.settleNeverLaunched(id, ownerGen, func(r *driveRecord) bool { return r.RelaunchReserved })
+}
+
+// settleNeverLaunchedFirstLaunch settles a first launch that provably never ran,
+// under the held per-drive claim, HALTED "run-cancelled" — the first-launch
+// counterpart of settleNeverLaunchedCancelled. Its CAS guard is that the drive
+// still has no attached run dir and reserved no relaunch; a record that moved on
+// (errRelaunchRaceLost) or a store fault stays pending, and an already-terminal
+// record is accounted. A delayed StartAdmitted then re-reads a terminal record
+// under the claim and refuses rather than launching.
+func (d *Driver) settleNeverLaunchedFirstLaunch(id, ownerGen string) (bool, string) {
+	return d.settleNeverLaunched(id, ownerGen, func(r *driveRecord) bool {
+		return r.RawRunDir == "" && !r.RelaunchReserved
+	})
+}
+
+// settleNeverLaunched is the shared CAS behind both never-launched settles: it
+// writes HALTED "run-cancelled" only while the owner generation still matches and
+// stillUnlaunched holds, accounting an already-terminal record and keeping any
+// other outcome pending (resolution-unresolved).
+func (d *Driver) settleNeverLaunched(id, ownerGen string, stillUnlaunched func(*driveRecord) bool) (bool, string) {
 	err := d.store.ownerCAS(id, func(r *driveRecord) error {
 		if verr := verifyOwner(r, ownerGen); verr != nil {
 			return verr
@@ -413,7 +282,7 @@ func (d *Driver) settleNeverLaunchedCancelled(id, ownerGen string) (bool, string
 		if isTerminalOutcome(r.LastOutcome) {
 			return errAlreadyTerminal
 		}
-		if !r.RelaunchReserved {
+		if !stillUnlaunched(r) {
 			return errRelaunchRaceLost
 		}
 		r.LastOutcome = HALTED
@@ -421,28 +290,90 @@ func (d *Driver) settleNeverLaunchedCancelled(id, ownerGen string) (bool, string
 		return nil
 	})
 	if err == nil || errors.Is(err, errAlreadyTerminal) {
-		return true, "" // settled terminal: provably idle AND foreclosed from relaunch
+		return true, "" // settled terminal: provably idle AND foreclosed from launch
 	}
 	return false, "resolution-unresolved:" + id
 }
 
-// stopIdentifiedRun stops one identified run through the process seam and reports
-// whether teardown is PROVEN, using the same proof rule the driver's own stop legs
-// use (a performed stop, or a state that proves the group is gone). An empty run dir,
-// a stop error, or an unproven stop preserves unresolved evidence: pending. A proven
-// stop accounts the obligation (an informational replacement-stopped finding records
-// it). It never mutates the drive record — reconcile stops the process but never
-// erases a reservation that may have launched.
-func (d *Driver) stopIdentifiedRun(id, runDir string) (bool, string) {
+// proveRunDirsGone applies the lock model's teardown proof to each of a drive's
+// recorded run dirs (RawRunDir, then PriorRawRunDir): the drive is torn down when
+// every recorded supervisor is gone. The first dir that cannot be proven gone
+// decides a pending result; otherwise the finding is the strongest one seen
+// (replacement-stopped over run-terminal), so a stop this census performed is
+// always reported.
+func (d *Driver) proveRunDirsGone(id string, rec driveRecord, observeOnly bool) (bool, string) {
+	finding := ""
+	for _, dir := range []string{rec.RawRunDir, rec.PriorRawRunDir} {
+		if dir == "" {
+			continue
+		}
+		gone, f := d.supervisorGone(id, dir, observeOnly)
+		if !gone {
+			return false, f
+		}
+		if f != "" && finding != "replacement-stopped:"+id {
+			finding = f
+		}
+	}
+	return true, finding
+}
+
+// supervisorGone proves one run dir's supervisor gone. A run dir that does not
+// exist is clean absence (its run root was removed after the terminal): torn down,
+// with no Observe call. An observed exit (supervisorExited: passed, failed,
+// signaled, stopped, vanished) counts as torn down. A running supervisor is
+// stopped in cancellation mode and must then observe as not running; observeOnly
+// mode reports it run-live without stopping. An empty run dir, an Lstat error other
+// than not-exist, or an observe/stop error is unprovable and keeps the run pending
+// — a probe error is never clean absence.
+func (d *Driver) supervisorGone(id, runDir string, observeOnly bool) (bool, string) {
 	if runDir == "" {
 		return false, "resolution-unresolved:" + id
 	}
-	out, serr := d.proc.Stop(runDir, "gatedrive: reconciling a cancelled run's pending launch")
-	if serr != nil || out == nil {
+	if _, err := os.Lstat(runDir); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return true, ""
+		}
 		return false, "resolution-unresolved:" + id
 	}
-	if out.Performed || stopProvesTeardown(out.State) {
-		return true, "replacement-stopped:" + id
+	o, err := d.proc.Observe(runDir)
+	if err != nil || o == nil {
+		return false, "resolution-unresolved:" + id
 	}
-	return false, "stop-unproven:" + id
+	switch {
+	case supervisorExited(o.State):
+		return true, "run-terminal:" + id
+	case o.State != process.StateRunning:
+		return false, "resolution-unresolved:" + id // an unknown state proves nothing
+	}
+	if observeOnly {
+		return false, "run-live:" + id
+	}
+	if _, serr := d.proc.Stop(runDir, "gatedrive: run.cancel stopping a cancelled run's gate"); serr != nil {
+		return false, "resolution-unresolved:" + id
+	}
+	o, err = d.proc.Observe(runDir)
+	if err != nil || o == nil {
+		return false, "resolution-unresolved:" + id
+	}
+	switch {
+	case supervisorExited(o.State):
+		return true, "replacement-stopped:" + id
+	case o.State == process.StateRunning:
+		return false, "run-live:" + id
+	default:
+		return false, "resolution-unresolved:" + id
+	}
+}
+
+// supervisorExited reports whether an observed state means the run's supervisor
+// has exited: every state the process service reports other than running. An
+// empty or unknown state is not in this set — it proves nothing.
+func supervisorExited(st process.State) bool {
+	switch st {
+	case process.StatePassed, process.StateFailed, process.StateSignaled, process.StateStopped, process.StateVanished:
+		return true
+	default:
+		return false
+	}
 }

@@ -1000,7 +1000,7 @@ func TestQuarantinedHaltedRecordIsNonblockingForUnrelatedWorktree(t *testing.T) 
 		t.Fatalf("raw reservation over the quarantined record: %v", err)
 	}
 
-	report, err := d.ObserveRunLaunches(mkWorktree(t), "run-unrelated")
+	report, err := d.ObserveRunLaunches(capHash("run-unrelated-context"))
 	if err != nil {
 		t.Fatalf("ObserveRunLaunches: %v", err)
 	}
@@ -1247,8 +1247,9 @@ func TestFirstAdmissionMixedHistorySweep(t *testing.T) {
 
 // TestTargetedCorruptionRefusesLocallyCompanionProceeds (spec AC3): corrupting the
 // EXACT drive a current reservation names refuses that worktree — with the
-// incumbent snapshot and the bounded reconciliation locator — and keeps its run
-// census unaccounted, while an unrelated corrupt record and a companion worktree in
+// incumbent snapshot and the bounded reconciliation locator — while its run census
+// reports the unreadable record as history (change 0490 attributes by run context),
+// and an unrelated corrupt record and a companion worktree in
 // the same store are unaffected. Covered in the two windows where the current
 // reference is the only link: reserved-before-launch (between Admit and
 // StartAdmitted) and a reserved relaunch (replacement reserved, not yet attached).
@@ -1260,6 +1261,7 @@ func TestTargetedCorruptionRefusesLocallyCompanionProceeds(t *testing.T) {
 		req := sampleStart()
 		req.Worktree = mkWorktree(t)
 		req.RunID = "e1"
+		req.RunContext = "ctx-e1"
 		return d, store, proc, req
 	}
 	assertLocalRefusal := func(t *testing.T, d *Driver, store *Store, req StartRequest, id, wantState string) {
@@ -1279,12 +1281,14 @@ func TestTargetedCorruptionRefusesLocallyCompanionProceeds(t *testing.T) {
 		if string(readSlotBytes(t, store, req.Worktree)) != string(slotBefore) {
 			t.Fatal("a refused start must leave the corrupt incumbent's slot untouched")
 		}
-		report, err := d.ObserveRunLaunches(req.Worktree, "e1")
+		// The census attributes by run context (change 0490): a record it cannot read
+		// names no run, so it is informational history, never a census veto.
+		report, err := d.ObserveRunLaunches(capHash(req.RunContext))
 		if err != nil {
 			t.Fatalf("ObserveRunLaunches: %v", err)
 		}
-		if report.Accounted || !findingFor(report.Findings, "record-unreadable", id) {
-			t.Fatalf("census must stay unaccounted naming record-unreadable:%s, got %+v", id, report)
+		if !report.Accounted || !findingFor(report.Findings, "history-unattributed", id) {
+			t.Fatalf("census must account the unreadable record as history-unattributed:%s, got %+v", id, report)
 		}
 	}
 	assertCompanionProceeds := func(t *testing.T, d *Driver, proc *fakeProc) {
