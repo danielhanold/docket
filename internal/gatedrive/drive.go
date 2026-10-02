@@ -24,8 +24,8 @@ const ProtocolVersion = 1
 // migrating it, so this is bumped only on a real schema change. Bumped to 2 by
 // change 0359, which adds scope_id + RunContextHash; a v1 record read by a v2
 // store fails closed as ErrUnknownSchema (never migrated). Bumped to 3 by change
-// 0375, which adds AdmissionToken (the worktree execution slot's reservation
-// token threaded into the raw launch). Bumped to 4 by change 0375 Task 5, which
+// 0375, which adds AdmissionToken (the launch token threaded into the raw
+// launch; minted by the driver itself since change 0490). Bumped to 4 by change 0375 Task 5, which
 // adds the journaled RelaunchReserved state and its unique RelaunchToken. They
 // reserve the one automatic replacement before its irreversible launch and
 // make that replacement independently resolvable. A v3 record still LOADS (the

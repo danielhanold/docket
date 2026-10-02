@@ -98,18 +98,18 @@ An owned resolver continuation can succeed in Git — advancing to another confl
 4. Follow the recovery's actual result. A new conflict requires normal reserve-before-dispatch admission; an exhausted budget keeps its existing abort/halt route; a completed rebase still passes the normal gate and publication checks; a `waiting` (`gate-waiting`) resumes via the original identical `finalize.rebase` invocation, never another `rebase-continue` or a direct gate-drive call. A successful reconciliation consumes the reservation — do not replay the old report afterward.
 5. Everything else keeps its verified abort route: stuck or unavailable resolvers, a continuation still stopped on the same commit, foreign or unprovable state, legacy receipts, and exhausted budgets. Establish resolver-child completion before any abort, as ever; this exception never authorizes abort on an unproven state or bypasses an existing refusal. Write failures before Git ran (reserve admission, the continuation-started marker) prove nothing about completion and carry no recovery claim.
 
-## The finalize gate shares the worktree's one execution slot
+## The finalize gate shares the worktree's one lock
 
 Finalize runs its post-rebase suite as a **scopeless** gate in the feature worktree, and that gate
-now admits through the same worktree execution slot every other gate does: one canonical worktree
-carries at most one running gate at a time. So finalize's own gate can be **refused** before it
-launches when the worktree is already busy — reason `worktree-busy` (another gate is live there) or
-`launch-unconfirmed` (nothing proved whether a prior launch happened). This is a **blocking diagnostic,
-not a rebase conflict and not a red suite**: it is in neither the abort-and-report set above nor a
-`contended`/`waiting` continuation. Do not race a second gate. The remedy is operator-side — let the
-incumbent gate finish, or stop it via the `run.cancel` operation (`--key <key> --run-id <id> --reason
-<why>`; a `launch-unconfirmed` slot must be recovered or cancelled, never cleared by a blind
-re-start) — then re-run finalize, which finds the slot free.
+takes the same worktree lock every other gate takes: one canonical worktree carries at most one
+running gate at a time. So finalize's own gate can be **refused** before it launches when another
+gate's supervisor holds the lock — reason `worktree-busy` — and its single automatic relaunch
+halts `worktree-busy` instead of relaunching when another gate took the lock first. This is a
+**blocking diagnostic, not a rebase conflict and not a red suite**: it is in neither the
+abort-and-report set above nor a `contended`/`waiting` continuation. Do not race a second gate.
+The remedy is operator-side — let the holding gate finish, or stop it (the `run.cancel` operation
+with `--key <key> --run-id <id> --reason <why>` for a tracked run, `gate.stop <run-dir>` for a raw
+launch) — then re-run finalize. The worktree frees itself when the holder ends.
 
 **Where the reason surfaces.** The subagent returns its diagnosis in-context; finalize relays it to
 the human (interactive) or the dispatching caller (autonomous), and the `finalize.block` operation records

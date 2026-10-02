@@ -89,24 +89,22 @@ Every successful `start` or `advance` returns exactly one of four dispositions. 
 
 ## Worktree admission — one live gate per worktree, and what `worktree-busy` means
 
-A canonical feature worktree carries **at most one** running (or reserved) gate run at a
-time. Before `gate.drive.start` launches anything, the driver reserves that worktree's execution
-slot; a second start against a worktree whose slot is already taken is **refused** — never queued,
-never silently joined to the running one. Two refusal reasons ride this boundary:
+A canonical feature worktree carries **at most one** running gate at a time. Before
+`gate.drive.start` launches anything, the driver takes that worktree's lock; the gate's
+supervisor holds it for the gate's whole life, and the kernel releases it when the supervisor
+exits — so a finished or killed gate frees the worktree on its own, with no recovery step. A start
+against a worktree whose lock is held is **refused** `worktree-busy`: never queued, never silently
+joined to the running gate, and it never stops that gate. The refusal names the holder (its drive
+and change, or a raw run dir) only after confirming that gate is still running; otherwise it says
+the holder is unknown.
 
-- `worktree-busy` — another gate is already live in this worktree. Wait for it to finish or cancel
-  that run; **never start a second gate in the same worktree**.
-- `launch-unconfirmed` — nothing proved whether a launch happened (a lost launch response,
-  a crash between launch and confirmation). The slot stays closed until that run is recovered
-  through the parent or explicitly cancelled — a blind re-start cannot clear it.
-
-Both are **command failures**, distinct from the four dispositions above: the response carries the
-bounded reason token and a next-action message naming the incumbent drive, and exposes no drive
-document to advance. A caller treats either as a **blocking diagnostic — not a retry trigger and not
-a `FAILED` result** — that reserves no suite attempt and feeds no repair loop. Map it to the
-caller's own halt posture (the build controller halts per its *Halting conditions*); resolving a busy or
-unresolved worktree is the operator's act (finish, recover, or `run.cancel`), never a poll loop on
-`start`.
+`worktree-busy` is a **command failure**, distinct from the four dispositions above: the response
+carries the bounded reason token and a next-action message, and exposes no drive document to
+advance. A caller treats it as a **blocking diagnostic — not a retry trigger and not a `FAILED`
+result** — that reserves no suite attempt and feeds no repair loop. Map it to the caller's own halt
+posture (the build controller halts per its *Halting conditions*). Freeing the worktree is the
+operator's act — wait for the holding gate to finish, or stop it (`run.cancel` for a tracked run,
+`gate.stop <run-dir>` for a raw launch) — never a poll loop on `start`.
 
 ## Handoff — the only ownership transfer
 

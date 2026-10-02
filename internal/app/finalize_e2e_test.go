@@ -427,16 +427,13 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 	}
 	evidenceBytes := []byte(evd.Block)
 
-	// The raw gate.launch above admitted through the worktree execution slot
-	// (change 0375): a raw launch holds the slot until an explicit stop proves the
-	// run torn down. In production the build evidence is minted through the driver,
-	// which releases the slot on its PASSED terminal; this helper takes the raw
-	// shortcut, so it must release the slot itself here — otherwise the later
-	// finalize DRIVEN gate on this same worktree is refused worktree-busy. GateStop
-	// on the already-PASSED run performs no kill but proves teardown and vacates the
-	// raw slot.
-	if st := GateStop(launch.RunDir, "e2e implement: release the raw gate slot after evidence"); st.Result != ResultApplied && st.Result != ResultNoOp {
-		t.Fatalf("gate stop (raw slot release) id %d = %q (reason %q)", id, st.Result, st.Reason)
+	// The raw gate.launch above took the worktree lock, which its supervisor held
+	// until it exited (change 0490), so the later finalize DRIVEN gate on this same
+	// worktree finds the lock free on its own. The explicit stop mirrors a real
+	// run's gate lifecycle: on the already-PASSED run it performs no kill and only
+	// records the teardown.
+	if st := GateStop(launch.RunDir, "e2e implement: stop the raw gate after evidence"); st.Result != ResultApplied && st.Result != ResultNoOp {
+		t.Fatalf("gate stop (raw gate teardown) id %d = %q (reason %q)", id, st.Result, st.Reason)
 	}
 
 	pub := WorkspacePublish(e.ctx, e.node.deps, e.wdeps, e.node.dir, WorkspacePublishRequest{ID: id, Head: head})

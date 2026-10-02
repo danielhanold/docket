@@ -17,7 +17,7 @@ import (
 // 0490). ReconcileRunLaunches / ObserveRunLaunches walk the drive registry,
 // attribute each drive to the run whose context hash it stores, and prove each
 // attributed drive's supervisors gone — under the per-drive claimant flock for a
-// nonterminal drive. No worktree slot is read.
+// nonterminal drive. No worktree lock or holder note is read.
 // ---------------------------------------------------------------------------
 
 const (

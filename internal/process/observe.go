@@ -21,8 +21,7 @@ type Observation struct {
 	// Cwd is the run's recorded launch working directory, copied verbatim from
 	// the manifest. It is a path, no more sensitive than RunDir, and lets a
 	// caller that holds only a run dir resolve the worktree that contained the
-	// launch (change 0375: app.GateStop releases the raw worktree execution slot
-	// a stopped run occupied). Empty only when the manifest recorded no cwd.
+	// launch. Empty only when the manifest recorded no cwd.
 	Cwd string
 }
 

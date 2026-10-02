@@ -672,7 +672,7 @@ var rebaseRecoveryDocContracts = []docSectionContract{
 			"never route this persistence failure to `finalize.rebase-abort`",
 		}},
 	{change: "change_0411_recovery_exception_reference", file: "skills/docket-finalize-change/references/gate-failure.md",
-		section: "## The reconciliation-write exception (recover, not abort)", terminator: "## The finalize gate shares the worktree's one execution slot",
+		section: "## The reconciliation-write exception (recover, not abort)", terminator: "## The finalize gate shares the worktree's one lock",
 		present: []string{
 			"Preserve the workspace, the receipt, and the original resolver report",
 			"Re-run `finalize.rebase-continue` with the same `--id <id> --attempt <attempt> --input <report>`",
