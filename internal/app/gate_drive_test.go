@@ -816,6 +816,82 @@ func TestBudgetedBuildReconcilesBeforeRefusal(t *testing.T) {
 	})
 }
 
+// TestBudgetedBuildAdvisoryReconcilesUnderPresentedRun (review finding F2): the
+// build owner's advisory precheck reconciles a finished incumbent under the run
+// id the start PRESENTS. A start presenting the run E that owns a finished
+// incumbent is admitted and charged once; the same setup presenting a foreign run
+// stays fenced and is refused worktree-busy with nothing charged. The reconcile
+// seam is scripted to settle only for the slot's own run, so reconciling under an
+// empty or substituted run id reddens the first case.
+func TestBudgetedBuildAdvisoryReconcilesUnderPresentedRun(t *testing.T) {
+	const (
+		runID      = "0489ffffffffffffffffffffffffff01"
+		ownerRunID = "run-e1"
+	)
+	var reconciledRuns []string
+	setup := func(t *testing.T) (*GateDriveService, *fakeDriveEngine, string, string) {
+		t.Helper()
+		reconciledRuns = nil
+		svc, eng, dir := newBudgetTestBuildService(t, 4)
+		worktree := testsupport.TempDir(t)
+		store := gatedrive.OpenStore(dir)
+		tok, err := store.ReserveWorktreeExecutionForRun("/repo", worktree, ownerRunID, nil)
+		if err != nil {
+			t.Fatalf("occupy worktree slot for %s: %v", ownerRunID, err)
+		}
+		if err := store.ConfirmWorktreeExecution(worktree, tok, runID, "/runs/"+runID); err != nil {
+			t.Fatalf("confirm incumbent: %v", err)
+		}
+		// Scripted seam: apply the store's run fence (a slot another run owns is
+		// never settled) and otherwise report the finished incumbent settled.
+		eng.reconcile = func(w, e string) (bool, string, error) {
+			reconciledRuns = append(reconciledRuns, e)
+			if e != ownerRunID {
+				return false, "incumbent-run-fenced", nil
+			}
+			return true, "incumbent-settled", nil
+		}
+		return svc, eng, dir, worktree
+	}
+
+	t.Run("own presented run is admitted and charged once", func(t *testing.T) {
+		svc, eng, dir, worktree := setup(t)
+		got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0489", RunID: ownerRunID})
+		if got.Result != ResultApplied {
+			t.Fatalf("a start presenting the incumbent's own run must be admitted: result=%s reason=%q msg=%q", got.Result, got.Reason, got.Message)
+		}
+		if len(reconciledRuns) != 1 || reconciledRuns[0] != ownerRunID {
+			t.Fatalf("the advisory check must reconcile under the presented run %q, got %v", ownerRunID, reconciledRuns)
+		}
+		if eng.reconcileCount != 1 || eng.startCount != 1 || eng.startAdmittedCount != 1 {
+			t.Fatalf("reconcile=%d admit=%d launch=%d, want 1/1/1", eng.reconcileCount, eng.startCount, eng.startAdmittedCount)
+		}
+		if used, limit := suiteUsage(t, dir, "0489"); used != 1 || limit != 4 {
+			t.Fatalf("usage = (%d,%d), want exactly one charged attempt", used, limit)
+		}
+	})
+
+	t.Run("foreign presented run stays fenced", func(t *testing.T) {
+		svc, eng, dir, worktree := setup(t)
+		got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0489", RunID: "run-foreign"})
+		if got.Result == ResultApplied || got.Reason != string(gatedrive.ErrWorktreeBusy) {
+			t.Fatalf("a foreign presented run must refuse worktree-busy, got result=%s reason=%q", got.Result, got.Reason)
+		}
+		if !strings.Contains(got.Message, "incumbent-run-fenced") {
+			t.Fatalf("refusal must name the run fence, got %q", got.Message)
+		}
+		if len(reconciledRuns) != 1 || reconciledRuns[0] != "run-foreign" {
+			t.Fatalf("a foreign run must be reconciled as presented, got %v", reconciledRuns)
+		}
+		if eng.startCount != 0 {
+			t.Fatalf("a fenced start must not reach admission, got %d", eng.startCount)
+		}
+		if used, limit := suiteUsage(t, dir, "0489"); used != 0 || limit != 0 {
+			t.Fatalf("a refused start must charge nothing, got (%d,%d)", used, limit)
+		}
+	})
+}
+
 // TestAdmitRefusalChargesNoSuiteAttempt proves the AUTHORITATIVE half of the
 // ordering fix: when the advisory precheck cannot see the busy slot (it cannot
 // resolve the worktree) but Admit itself refuses — a race the precheck missed — the
