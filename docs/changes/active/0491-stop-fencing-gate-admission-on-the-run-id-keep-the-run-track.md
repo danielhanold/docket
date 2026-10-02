@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [111, 118, 124, 128, 129, 132]
 spec: 'docs/superpowers/specs/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md'
 plan: 'docs/superpowers/plans/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md'
-results:
+results: 'docs/results/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-02T23:06:02Z'
 |---|---|
 | Spec | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md) |
 | Plan | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md](https://github.com/danielhanold/docket/blob/refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track/docs/superpowers/plans/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) |
+| Results | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-results.md](https://github.com/danielhanold/docket/blob/refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track/docs/results/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-results.md) |
 | ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0128](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md), [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
 <!-- docket:artifacts:end -->
 
