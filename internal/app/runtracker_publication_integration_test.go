@@ -206,7 +206,7 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsDurable(t *testing.T
 	if ep.State != RunCancelling {
 		t.Fatalf("run state = %q; settlement must never transition the run", ep.State)
 	}
-	if ep.RunID != before.RunID || ep.ChangeID != before.ChangeID || ep.Worktree != before.Worktree {
+	if ep.RunKey != before.RunKey || ep.ChangeID != before.ChangeID || ep.Worktree != before.Worktree {
 		t.Fatal("settlement must never touch run identity fields")
 	}
 	if len(ep.Participants) != 1 || ep.Participants[0] != participant {

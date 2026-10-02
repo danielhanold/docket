@@ -39,7 +39,7 @@
 // `/private/tmp`, say) canonicalize to one path, so a different spelling cannot
 // dodge the fence.
 //
-// AUTHORITY vs. LOCATOR. The run id is a public locator, never a credential
+// AUTHORITY vs. LOCATOR. The run key is a locator, never a credential
 // (ADR-0111): run-context authority still governs who may run the mutation.
 // The fence only revalidates that the located run has not been cancelled; it
 // never grants or withholds authority.

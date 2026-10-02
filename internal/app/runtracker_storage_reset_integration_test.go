@@ -48,7 +48,7 @@ func TestIntegrationRunStartStorageResetIgnoresRetiredRoots(t *testing.T) {
 			"change_id":      "5",
 			"worktree":       canon,
 			"state":          string(RunActive),
-			"epoch_id":       "retired-run-id",
+			"epoch_id":       "retired-epoch",
 			"created_at":     "2026-09-01T00:00:00Z",
 			"updated_at":     "2026-09-01T00:00:00Z",
 		},
@@ -80,7 +80,9 @@ func TestIntegrationRunStartStorageResetIgnoresRetiredRoots(t *testing.T) {
 	for _, c := range []struct {
 		doc, want, gone string
 	}{
-		{string(runRecord), `"run_id":`, `"epoch_id"`},
+		{string(runRecord), `"state":`, `"epoch_id"`},
+		// change 0491: the run tracker's run id is retired; a fresh run.json has none.
+		{string(runRecord), `"state":`, `"run_id"`},
 		{string(runRecord), `"run_key":`, `"gate_key"`},
 		{string(trackerRecord), `"dispatched_at":`, `"dispatch_epoch"`},
 	} {

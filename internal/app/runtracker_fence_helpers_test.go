@@ -59,10 +59,6 @@ func seedNamedRun(t *testing.T, repo, key, worktree string, state runState) RunR
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir run-key dir: %v", err)
 	}
-	id, err := runToken()
-	if err != nil {
-		t.Fatalf("runToken: %v", err)
-	}
 	gen, err := runToken()
 	if err != nil {
 		t.Fatalf("runToken: %v", err)
@@ -72,7 +68,6 @@ func seedNamedRun(t *testing.T, repo, key, worktree string, state runState) RunR
 		RunKey:        key,
 		ChangeID:      "7",
 		State:         state,
-		RunID:         id,
 		Worktree:      worktree,
 	}
 	if err := writeRunAtomic(dir, storedRun{Generation: gen, Record: rec}); err != nil {

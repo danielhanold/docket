@@ -14,12 +14,12 @@ import (
 
 // TestIntegrationRunStartNoRunRecordResumeEndToEnd0382 reproduces change 0382's resumed run (change 0463).
 // The change was claimed by an UNTRACKED first dispatch, so no run exists. The
-// resume start must print `run-started <key> <run-id> <run-context>`. Parsed
+// resume start must print `run-started <key> <run-context>`. Parsed
 // positionally (as AGENTS.md tells a parent), the <run-context> links a gate start
 // for the resumed worktree, which admission takes under the worktree lock alone:
-// change 0491 deleted the run launch check, so gate drive start carries no run id
-// and the misrouted 0382 call (the run context presented as the run id) has no
-// flag left to misroute through. The resume inspect path uses the raw temp
+// change 0491 deleted the run launch check and retired the run tracker's run id, so
+// the started line is two tokens and the misrouted 0382 call (the run context
+// presented as a third token) has no slot left to misroute through. The resume inspect path uses the raw temp
 // spelling and the start uses the symlink-resolved one (Review Focus 1).
 func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
@@ -46,12 +46,12 @@ func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
 	}
 
 	fields := strings.Fields(strings.SplitN(start.HumanText(), "\n", 2)[0])
-	if len(fields) != 4 || fields[0] != "run-started" {
-		t.Fatalf("started line %q must be `run-started <key> <run-id> <run-context>`", start.HumanText())
+	if len(fields) != 3 || fields[0] != "run-started" {
+		t.Fatalf("started line %q must be `run-started <key> <run-context>`", start.HumanText())
 	}
-	key, runID, runCtx := fields[1], fields[2], fields[3]
-	if key != start.Key || runID != start.RunID || runCtx != start.RunContext {
-		t.Fatalf("positional fields (%q,%q,%q) disagree with the result (%q,%q,%q)", key, runID, runCtx, start.Key, start.RunID, start.RunContext)
+	key, runCtx := fields[1], fields[2]
+	if key != start.Key || runCtx != start.RunContext {
+		t.Fatalf("positional fields (%q,%q) disagree with the result (%q,%q)", key, runCtx, start.Key, start.RunContext)
 	}
 
 	svc, res, reason := NewBuildGateDriveService(common, "/bin/true", buildEffWithMaxAttempts("/bin/echo ok", 4))

@@ -22,3 +22,23 @@ func TestRunStartResultRunContextKey(t *testing.T) {
 		t.Errorf("run.start JSON still carries the retired dispatch_context key: %s", buf)
 	}
 }
+
+// TestRunStartResultCarriesNoRunID (change 0491): the run id is retired; the
+// run.start result names only the key and the run context, and its started line is
+// two tokens.
+func TestRunStartResultCarriesNoRunID(t *testing.T) {
+	res := startedRunResult("k0491", "ctx-token")
+	buf, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(buf), `"run_id"`) {
+		t.Errorf("run.start JSON still carries the retired run_id key: %s", buf)
+	}
+	if got := strings.SplitN(res.HumanText(), "\n", 2)[0]; got != "run-started k0491 ctx-token" {
+		t.Errorf("started line = %q, want %q", got, "run-started k0491 ctx-token")
+	}
+	if r := startedRunResult("", "ctx-token"); r.Started || r.Reason != ReasonRunMintFailed {
+		t.Errorf("a start with no key must fail closed run-untracked mint-failed, got %+v", r)
+	}
+}

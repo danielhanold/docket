@@ -144,14 +144,13 @@ func TestIntegrationRunStartPreparesOuterScope(t *testing.T) {
 	if sp.req.ChangeID != "" || sp.req.Branch != "" || sp.req.Worktree != "" {
 		t.Errorf("fresh scope request carried identity: %+v", sp.req)
 	}
-	// Started line: run-started <key> <run-id> <run-context>, followed by the
-	// honest owner-lifecycle caveat (change 0375 Task 13). The run id is minted
-	// beside the run-tracker record and surfaced so the Stop path is followable.
-	ep, _, err := LoadRunRecord(repo, res.Key)
-	if err != nil {
+	// Started line: run-started <key> <run-context>, followed by the honest
+	// owner-lifecycle caveat (change 0375 Task 13). The run is minted beside the
+	// run-tracker record under the same key, so the Stop path is followable.
+	if _, _, err := LoadRunRecord(repo, res.Key); err != nil {
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
-	if got, want := res.HumanText(), "run-started "+res.Key+" "+ep.RunID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	if got, want := res.HumanText(), "run-started "+res.Key+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 	if res.RunContext != scopeGrantChild {
@@ -186,13 +185,12 @@ func TestIntegrationRunStartPreparesOuterScope(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartFreshStartSurfacesRunID: a fresh (non-resume) start surfaces the
-// minted run's public id in the result (Run) and in the human report line
-// — the documented `run.cancel --run-id <id>` / `--run-id` value the operator and
-// the dispatcher thread through. Without it the primary human-Stop path names an
-// run the start never gave (change 0375). The surfaced id must equal the id the
-// bound run record actually carries — the same value run.cancel cross-checks.
-func TestIntegrationRunStartFreshStartSurfacesRunID(t *testing.T) {
+// TestIntegrationRunStartFreshStartSurfacesKeyAndContext (change 0491): a fresh
+// (non-resume) start surfaces the run key — the documented `run.cancel --key <key>`
+// value the operator threads through — and the run context, in the result and in
+// the human report line. The run id is retired, so the result JSON carries no
+// run_id key.
+func TestIntegrationRunStartFreshStartSurfacesKeyAndContext(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -202,22 +200,25 @@ func TestIntegrationRunStartFreshStartSurfacesRunID(t *testing.T) {
 		t.Fatalf("Started=%v Key=%q, want started", res.Started, res.Key)
 	}
 
-	// The start minted a run beside the run-tracker record; its id is what run.cancel and
-	// every --run-id flag consume, so the start must hand it back.
-	ep, _, err := LoadRunRecord(repo, res.Key)
-	if err != nil {
+	// The start minted a run beside the run-tracker record under the run key that
+	// run.cancel consumes, so the start must hand back the key and the run context.
+	if res.Key == "" || res.RunContext == "" {
+		t.Fatalf("a started result must carry its key and run context, got %+v", res)
+	}
+	if _, _, err := LoadRunRecord(repo, res.Key); err != nil {
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
-	if ep.RunID == "" {
-		t.Fatalf("minted run has no id")
+	blob, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal result: %v", err)
 	}
-	if res.RunID != ep.RunID {
-		t.Errorf("result Run = %q, want the minted run id %q", res.RunID, ep.RunID)
+	if strings.Contains(string(blob), `"run_id"`) {
+		t.Errorf("run.start JSON still carries the retired run_id key: %s", blob)
 	}
 
-	// Human report line: run-started <key> <run-id> <run-context>, then the
-	// owner-lifecycle caveat.
-	if got, want := res.HumanText(), "run-started "+res.Key+" "+ep.RunID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	// Human report line: run-started <key> <run-context>, then the owner-lifecycle
+	// caveat.
+	if got, want := res.HumanText(), "run-started "+res.Key+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 }
@@ -498,12 +499,11 @@ func writeRawRunTrackerRecord(t *testing.T, root, key, tmpl string) {
 	}
 }
 
-// TestIntegrationRunStartStartedLineIsAlwaysThreeTokens (change 0463): every started result a real start
-// produces (fresh, no-run-record resume, cancelled-replacement resume) prints a first
-// line of exactly four space-separated fields. Field 3 is the run and field 4 is
-// the run context, so a positional parser can never read the run context
-// as the run.
-func TestIntegrationRunStartStartedLineIsAlwaysThreeTokens(t *testing.T) {
+// TestIntegrationRunStartStartedLineIsTwoTokens (changes 0463, 0491): every started
+// result a real start produces (fresh, no-run-record resume, cancelled-replacement
+// resume) prints a first line of exactly three space-separated fields: run-started,
+// the key, and the run context. The run id is retired, so there is no third token.
+func TestIntegrationRunStartStartedLineIsTwoTokens(t *testing.T) {
 	check := func(t *testing.T, res RunStartResult) {
 		t.Helper()
 		if !res.Started {
@@ -511,15 +511,12 @@ func TestIntegrationRunStartStartedLineIsAlwaysThreeTokens(t *testing.T) {
 		}
 		first := strings.SplitN(res.HumanText(), "\n", 2)[0]
 		fields := strings.Fields(first)
-		if len(fields) != 4 || fields[0] != "run-started" {
-			t.Fatalf("started line %q: want exactly `run-started <key> <run-id> <run-context>`", first)
+		if len(fields) != 3 || fields[0] != "run-started" {
+			t.Fatalf("started line %q: want exactly `run-started <key> <run-context>`", first)
 		}
-		if fields[1] != res.Key || fields[2] != res.RunID || fields[3] != res.RunContext {
-			t.Fatalf("started line %q: fields (%q,%q,%q), want (key %q, run %q, run context %q)",
-				first, fields[1], fields[2], fields[3], res.Key, res.RunID, res.RunContext)
-		}
-		if res.RunID == "" || res.RunID == res.RunContext {
-			t.Fatalf("run %q must be a distinct non-empty token from the run context %q", res.RunID, res.RunContext)
+		if fields[1] != res.Key || fields[2] != res.RunContext {
+			t.Fatalf("started line %q: fields (%q,%q), want (key %q, run context %q)",
+				first, fields[1], fields[2], res.Key, res.RunContext)
 		}
 	}
 	t.Run("fresh start", func(t *testing.T) {

@@ -67,17 +67,19 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	// run start starts the implement-next run tracker: it re-syncs, records the
 	// before-set + dispatch time in a durable record, and prints `run-started <key>
-	// <run-id> <run-context>` (or `run-untracked <reason>`). The sole positional
+	// <run-context>` (or `run-untracked <reason>`). The sole positional
 	// argument is the gate target; only `implement-next` is accepted, and any other
 	// value is an invalid-input result (non-zero exit) the app layer owns. It
 	// reuses the same read-only planning seams as verify.
 	runStart := &cobra.Command{
 		Use:   "start <target>",
-		Short: "Start a tracked run for a dispatched workflow and print run-started <key> <run-id> <run-context>",
+		Short: "Start a tracked run for a dispatched workflow and print run-started <key> <run-context>",
 		Args:  cobra.ExactArgs(1),
 		// local-write: mints the durable run-tracker record AND the outer recovery-scope
 		// record under the Git common dir; the re-sync is a read-only fetch.
-		Annotations: capability("run.start", EffectLocalWrite),
+		// process-control: a resume over a cancelled or superseded predecessor re-proves
+		// its quiescence with the stop-capable launch census (change 0491).
+		Annotations: capability("run.start", EffectLocalWrite, EffectProcessControl),
 		RunE: func(c *cobra.Command, args []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
