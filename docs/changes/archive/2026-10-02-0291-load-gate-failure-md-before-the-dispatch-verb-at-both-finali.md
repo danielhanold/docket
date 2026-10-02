@@ -2,11 +2,11 @@
 id: 291
 slug: load-gate-failure-md-before-the-dispatch-verb-at-both-finali
 title: 'Load gate-failure.md before the dispatch verb at both finalize gate steps'
-status: proposed
+status: 'killed'
 priority: medium
 type: refactor
 created: 2026-08-11
-updated: 2026-08-11
+updated: '2026-10-02'
 depends_on: []
 related: []
 discovered_from: [260]
@@ -62,3 +62,8 @@ inside a branch scoped to honour it. It also touches a file 0260 otherwise never
 
 - **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target to today's wording: the quoted `read references/gate-failure.md now (blocking)` clauses moved; the resolver loop and repair step now point at the carve-out section and the single read instruction sits at the abort. The ordering gap still holds. `tests/test_finalize_gate.sh` is deleted; any ordering guard belongs in `internal/repoguard/prose_contracts_test.go`.
 
+## Why killed
+
+Low value. The clause order it would change does no harm: when a dispatch fails, the agent reads the posture in `gate-failure.md` immediately afterwards, before acting on the failure. Nothing has gone wrong because of this order since the stub was filed on 2026-08-11.
+
+Killed in the 2026-10-02 backlog review, on Daniel's decision.
