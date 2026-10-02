@@ -1,12 +1,12 @@
 # Backlog
 
-**491 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 333 done · 🗑️ 125 killed
+**491 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 333 done · 🗑️ 125 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0487](active/0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) | Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go | `medium` | `fix` | [spec](../superpowers/specs/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md) | `fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0487](active/0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) | Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go | `medium` | `fix` | [#363](https://github.com/danielhanold/docket/pull/363) | awaiting merge |
 
 ## 🔴 Blocked (1)
 

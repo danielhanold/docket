@@ -2,7 +2,7 @@
 id: 487
 slug: 'bring-test-go-race-rebaserecovery-and-closeout-back-under-bu'
 title: 'Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-01'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/bring-test-go-race-rebaserecovery-and-closeout-back-under-bu'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/363'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-02T05:54:20Z'
