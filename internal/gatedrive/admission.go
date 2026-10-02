@@ -2,8 +2,8 @@
 // reserved-or-running top-level gate run.
 //
 // A worktree execution slot is the outermost admission authority of the gate
-// driver. Before any gate process is launched — a scoped start, a scopeless
-// start, an automatic relaunch, or a raw app.GateLaunch inside a registered
+// driver. Before any gate process is launched — a drive start, an automatic
+// relaunch, or a raw app.GateLaunch inside a registered
 // worktree — the launcher reserves the slot for the launch's CANONICAL worktree
 // root. A second reservation for the same worktree, across any scope, run root,
 // owner, task, or phase, is REFUSED with a typed ErrWorktreeBusy (or
@@ -118,7 +118,7 @@ type admissionRecord struct {
 	RawRunID  string `json:"raw_run_id"`  // attached at confirm
 	RawRunDir string `json:"raw_run_dir"` // attached at confirm
 
-	Kind string `json:"kind"` // "scoped"|"scopeless"|"raw"
+	Kind string `json:"kind"` // "scopeless"|"raw"; "scoped" is a legacy kind only pre-0489 slots carry, still settled by finished-incumbent reconciliation
 
 	// LegacyInventoried records that the pre-admission drive registry was
 	// examined before this first slot reservation. No legacy credential or owner
@@ -267,7 +267,7 @@ func (s *Store) ReserveWorktreeExecution(rec admissionRecord) (token string, err
 // unreachable: it composes a Kind "raw" record (no drive id, no scope id, no run
 // id) and delegates to the same reserveWorktreeExecution the driver uses, so a
 // raw launch admits through exactly one authority and one lock/CAS discipline as
-// every scoped and scopeless start. proc is the caller's process-recovery seam,
+// every drive start. proc is the caller's process-recovery seam,
 // used only for the first-admission legacy inventory; a nil proc fails a HALTED
 // legacy drive closed rather than assessing it. A successful raw launch's result
 // document does not narrate the recovery summary (the spec carries it on
@@ -315,7 +315,7 @@ func (s *Store) ReserveRawWorktreeExecution(repoIdentity, worktreeRoot string, p
 // retirement case (see RetireWorktreeExecutionRun) against a slot that genuinely
 // records its run. It composes a Kind "scopeless" record carrying runID (no
 // drive id, no scope id) and delegates to the same reserveWorktreeExecution every
-// scoped, scopeless, and raw start admits through — one authority, one lock/CAS
+// drive and raw start admits through — one authority, one lock/CAS
 // discipline. An empty runID is refused ErrInvalidID: the raw (no-run-record)
 // entry is ReserveRawWorktreeExecution, and the two must not blur.
 func (s *Store) ReserveWorktreeExecutionForRun(repoIdentity, worktreeRoot, runID string, proc recoverySeam) (token string, err error) {
@@ -401,8 +401,7 @@ func (s *Store) reserveWorktreeExecutionOnce(rec admissionRecord, proc recoveryS
 		// a released (between-drives) slot the run still owns — the exact detach
 		// window. A slot with no recorded run (a standalone gate) fences nothing, and
 		// a same-run reservation falls through to the normal state machine (a released
-		// slot readmits; a busy slot returns ErrWorktreeBusy so a same-scope successor
-		// can reuse it).
+		// slot readmits; a busy slot returns ErrWorktreeBusy).
 		//
 		// Only a RELEASED slot's leftover run is a settlement candidate (change 0446):
 		// the attempt still refuses here, but hands the exact run and token back so
@@ -635,47 +634,6 @@ func (s *Store) ReleaseWorktreeExecution(worktreeRoot, token string) error {
 		rec.UpdatedAt = time.Now().UTC()
 		return nil
 	})
-}
-
-// rotateWorktreeExecutionForSuccessor transitions an EXECUTING slot the same
-// scope+run still owns to a FRESH reservation for the sequence's next drive: it
-// verifies oldToken, requires state executing, bumps ExecutionGen, mints a new
-// ReservationToken, clears RawRunID/RawRunDir (the predecessor's raw-run identity
-// never rides the successor's reservation), preserves RepoIdentity/WorktreeRoot/
-// ScopeID/RunID/Kind, and lands in "reserved". Any other state, a token
-// mismatch, or an unreadable record refuses typed and writes nothing. After
-// rotation the predecessor's oldToken has NO authority: its late release/unresolve/
-// stopping calls fail ErrNotOwner (verifyAdmissionToken), so a stale predecessor
-// cleanup can never free or poison the successor's slot.
-//
-// The fresh token is minted OUTSIDE the CAS body so a physical-generation retry
-// never re-mints it; admissionCAS commits exactly once. It performs no run write
-// (the caller has already validated liveness), leaving every field the mutate does
-// not name byte-for-byte intact.
-func (s *Store) rotateWorktreeExecutionForSuccessor(worktreeRoot, oldToken string) (newToken string, err error) {
-	const op = "rotate-worktree-execution-successor"
-	newToken, err = randomToken(genNBytes)
-	if err != nil {
-		return "", storeErr(ErrIO, op, err)
-	}
-	if cerr := s.admissionCAS(worktreeRoot, func(rec *admissionRecord) error {
-		if verr := verifyAdmissionToken(rec, oldToken, op); verr != nil {
-			return verr
-		}
-		if rec.State != admissionExecuting {
-			return ownershipErr(ErrUnresolvedLaunchTransition, op)
-		}
-		rec.State = admissionReserved
-		rec.ExecutionGen++
-		rec.ReservationToken = newToken
-		rec.RawRunID = ""
-		rec.RawRunDir = ""
-		rec.UpdatedAt = time.Now().UTC()
-		return nil
-	}); cerr != nil {
-		return "", cerr
-	}
-	return newToken, nil
 }
 
 // MarkWorktreeExecutionUnresolved marks the slot unresolved after an ambiguous

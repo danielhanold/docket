@@ -336,34 +336,49 @@ func TestStartAdmittedNoRunRecordUnchanged(t *testing.T) {
 // validates the run (read-only) BEFORE taking the per-drive claim.
 // ---------------------------------------------------------------------------
 
-// startScopedWaitingWithRun prepares a scope carrying runID, Starts a
-// scope-bound drive under a permissive launch gate, and asserts the first slice
-// WAITs. It returns the scoped StartRequest, the WAITING doc, and the launch gate
-// the caller can flip to refuse a later relaunch.
-func startScopedWaitingWithRun(t *testing.T, d *Driver, store *Store, runID string) (StartRequest, DriveDoc) {
+// startWaitingWithRun Starts a scopeless drive carrying runID under a permissive
+// launch gate and asserts the first slice WAITs. The worktree execution slot the
+// start reserves records runID, so resolveDriveRun links the drive to its run
+// through the exact-reservation match. It returns the StartRequest and the
+// WAITING doc; the caller can flip the gate to refuse a later relaunch.
+func startWaitingWithRun(t *testing.T, d *Driver, runID string) (StartRequest, DriveDoc) {
 	t.Helper()
 	req := sampleStart()
-	sreq := scopeReqFor(req, "")
-	sreq.RunID = runID
-	grant, err := store.PrepareScope(sreq)
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	req.ScopeID = grant.ScopeID
-	req.ChildCapability = grant.ChildCapability
 	req.RunID = runID
 	started, err := d.Start(req)
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	if started.Outcome != WAITING {
-		t.Fatalf("scope-bound first slice must WAIT, got %s (%s)", started.Outcome, started.Cause)
+		t.Fatalf("run-backed first slice must WAIT, got %s (%s)", started.Outcome, started.Cause)
 	}
 	return req, started
 }
 
+// seedRunLinkedRecord returns a seedRecord linked to runID through a live
+// worktree execution slot: the slot records runID and the record carries the
+// slot's reservation token, so resolveDriveRun answers runID through the
+// exact-reservation match.
+func seedRunLinkedRecord(t *testing.T, store *Store, runID string) driveRecord {
+	t.Helper()
+	wt := mkWorktree(t)
+	token, _, err := store.reserveWorktreeExecution(admissionRecord{
+		RepoIdentity: "/repo",
+		WorktreeRoot: wt,
+		RunID:        runID,
+		Kind:         "scopeless",
+	}, &fakeProc{})
+	if err != nil {
+		t.Fatalf("reserve worktree slot: %v", err)
+	}
+	rec := seedRecord(t)
+	rec.WorktreePath = wt
+	rec.AdmissionToken = token
+	return rec
+}
+
 // TestRelaunchRefusedWhenRunRevoked proves a death's single automatic relaunch
-// is fenced on run liveness: a scoped drive whose scope carries a run
+// is fenced on run liveness: a drive whose worktree slot records a run
 // dies while the gate refuses (a cancellation fence landed), so the relaunch leg
 // HALTs "run-cancelled", the ORIGINAL launch is the only one (no replacement),
 // and no relaunch was reserved.
@@ -382,7 +397,7 @@ func TestRelaunchRefusedWhenRunRevoked(t *testing.T) {
 	g := &flippableGate{err: errors.New("gatedrive-test: relaunch run fence")}
 	d.SetRunLaunchGate(g.gate())
 
-	req, started := startScopedWaitingWithRun(t, d, store, "e1")
+	req, started := startWaitingWithRun(t, d, "e1")
 
 	// A cancellation fence revokes the run; the run dies on the next slice.
 	dead = true
@@ -466,14 +481,6 @@ func TestRelaunchAuthorizedUnderGateThenLaunchedOutside(t *testing.T) {
 	// Permissive Start (RelaunchReserved never set during Start's admission
 	// reservations, so committedInside stays false until the relaunch reserve).
 	req := sampleStart()
-	sreq := scopeReqFor(req, "")
-	sreq.RunID = "e1"
-	grant, err := store.PrepareScope(sreq)
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	req.ScopeID = grant.ScopeID
-	req.ChildCapability = grant.ChildCapability
 	req.RunID = "e1"
 	started, err := d.Start(req)
 	if err != nil {
@@ -510,21 +517,11 @@ func TestRelaunchAuthorizedUnderGateThenLaunchedOutside(t *testing.T) {
 // "run-cancelled" with no launch, while an identified replacement still attaches
 // and is observed normally (reconcile is teardown, not permission).
 func TestRecoveredRelaunchValidatesRunBeforeClaim(t *testing.T) {
-	// seedReservedRelaunchDrive persists a scoped drive whose scope carries run
-	// e1 and whose record has a reserved-but-unattached relaunch (the crash window
+	// seed persists a drive whose worktree slot records run e1 and whose record has a reserved-but-unattached relaunch (the crash window
 	// recoverReservedRelaunch resolves).
 	seed := func(t *testing.T, store *Store) (id, ownerGen string) {
 		t.Helper()
-		req := sampleStart()
-		sreq := scopeReqFor(req, "")
-		sreq.RunID = "e1"
-		grant, err := store.PrepareScope(sreq)
-		if err != nil {
-			t.Fatalf("PrepareScope: %v", err)
-		}
-		rec := seedRecord(t)
-		rec.ScopeID = grant.ScopeID
-		rec.AdmissionToken = "reservation-token"
+		rec := seedRunLinkedRecord(t, store, "e1")
 		rec.RelaunchToken = "bbbbbbbbbbbbbbbb"
 		id, ownerGen = seedDrive(t, store, rec)
 		if err := store.ownerCAS(id, func(r *driveRecord) error {
@@ -851,16 +848,7 @@ func TestNoRunAcquisitionWhileClaimHeld(t *testing.T) {
 
 	t.Run("reserved-relaunch recovery validates the run before the claim", func(t *testing.T) {
 		store := OpenStore(testsupport.TempDir(t))
-		req := sampleStart()
-		sreq := scopeReqFor(req, "")
-		sreq.RunID = "e1"
-		grant, err := store.PrepareScope(sreq)
-		if err != nil {
-			t.Fatalf("PrepareScope: %v", err)
-		}
-		rec := seedRecord(t)
-		rec.ScopeID = grant.ScopeID
-		rec.AdmissionToken = "reservation-token"
+		rec := seedRunLinkedRecord(t, store, "e1")
 		rec.RelaunchToken = "bbbbbbbbbbbbbbbb"
 		id, ownerGen := seedDrive(t, store, rec)
 		if err := store.ownerCAS(id, func(r *driveRecord) error {

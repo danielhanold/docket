@@ -4,8 +4,6 @@ import (
 	"errors"
 	"os"
 	"testing"
-
-	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // ---------------------------------------------------------------------------
@@ -52,9 +50,9 @@ func driveRecordCount(t *testing.T, store *Store) int {
 	return len(entries)
 }
 
-// TestAdmitConsultsRunLaunchGateWithIDAndWorktree proves a scoped and a scopeless
-// Admit carrying RunID each consult the gate exactly once with the run id
-// and the request's worktree, and admission succeeds under a permissive gate.
+// TestAdmitConsultsRunLaunchGateWithIDAndWorktree proves an Admit carrying RunID
+// consults the gate exactly once with the run id and the request's worktree, and
+// admission succeeds under a permissive gate.
 func TestAdmitConsultsRunLaunchGateWithIDAndWorktree(t *testing.T) {
 	t.Run("scopeless", func(t *testing.T) {
 		clk := &fakeClock{now: startRun()}
@@ -79,41 +77,11 @@ func TestAdmitConsultsRunLaunchGateWithIDAndWorktree(t *testing.T) {
 			t.Fatalf("gate called with (%q,%q), want (%q,%q)", rg.runIDs[0], rg.worktrees[0], "e1", req.Worktree)
 		}
 	})
-
-	t.Run("scoped", func(t *testing.T) {
-		clk := &fakeClock{now: startRun()}
-		proc := &fakeProc{}
-		store := OpenStore(testsupport.TempDir(t))
-		grant, req := prepareScopedStart(t, store)
-		req.RunID = "e1"
-		d := scopedTestDriver(store, clk, proc, stableGit())
-		rg := &recordingGate{}
-		d.SetRunLaunchGate(rg.gate())
-
-		ticket, err := d.Admit(req)
-		if err != nil {
-			t.Fatalf("Admit: %v", err)
-		}
-		if ticket == nil {
-			t.Fatal("Admit must return a ticket on success")
-		}
-		if rg.calls != 1 {
-			t.Fatalf("gate consulted %d times, want exactly 1", rg.calls)
-		}
-		if rg.runIDs[0] != "e1" || rg.worktrees[0] != req.Worktree {
-			t.Fatalf("gate called with (%q,%q), want (%q,%q)", rg.runIDs[0], rg.worktrees[0], "e1", req.Worktree)
-		}
-		// The scope slot was durably reserved inside the gate.
-		if _, err := store.LoadScope(grant.ScopeID); err != nil {
-			t.Fatalf("LoadScope: %v", err)
-		}
-	})
 }
 
 // TestAdmitRunLaunchGateRefusalReservesNothing proves a gate refusal reserves
 // nothing: reserve is never called, Admit returns the gate's exact error, no
-// worktree slot exists, no reserved drive record was minted, and (scoped) the
-// scope slot is untouched.
+// worktree slot exists, and no reserved drive record was minted.
 func TestAdmitRunLaunchGateRefusalReservesNothing(t *testing.T) {
 	sentinel := errors.New("gatedrive-test: run fence refusal")
 
@@ -140,41 +108,6 @@ func TestAdmitRunLaunchGateRefusalReservesNothing(t *testing.T) {
 		}
 		if n := driveRecordCount(t, store); n != 0 {
 			t.Fatalf("a refused admission must mint no reserved drive record, got %d", n)
-		}
-	})
-
-	t.Run("scoped", func(t *testing.T) {
-		clk := &fakeClock{now: startRun()}
-		proc := &fakeProc{}
-		store := OpenStore(testsupport.TempDir(t))
-		grant, req := prepareScopedStart(t, store)
-		req.RunID = "e1"
-		d := scopedTestDriver(store, clk, proc, stableGit())
-		rg := &recordingGate{behave: func(_, _ string, _ func() error) error {
-			return sentinel // reserve is never invoked
-		}}
-		d.SetRunLaunchGate(rg.gate())
-
-		ticket, err := d.Admit(req)
-		if !errors.Is(err, sentinel) {
-			t.Fatalf("Admit error = %v, want the gate's sentinel", err)
-		}
-		if ticket != nil {
-			t.Fatalf("a refused admission must return no ticket, got %+v", ticket)
-		}
-		if _, _, lerr := store.LoadWorktreeExecution(req.Worktree); !storeErrIs(lerr, ErrNotFound) {
-			t.Fatalf("no worktree slot must exist after refusal, LoadWorktreeExecution err = %v", lerr)
-		}
-		if n := driveRecordCount(t, store); n != 0 {
-			t.Fatalf("a refused admission must mint no reserved drive record, got %d", n)
-		}
-		// The scope slot is untouched: no drive reserved into it.
-		scope, err := store.LoadScope(grant.ScopeID)
-		if err != nil {
-			t.Fatalf("LoadScope: %v", err)
-		}
-		if scope.CurrentDriveID != "" {
-			t.Fatalf("a refused admission must not touch the scope slot, got current drive %q", scope.CurrentDriveID)
 		}
 	})
 }

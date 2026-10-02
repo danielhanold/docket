@@ -14,7 +14,7 @@ import (
 )
 
 // TestRaceIntegrationGatedriveConcurrentStartsOverLegacySeededStoreArbitrateAndCleanupSafe is Criterion 5:
-// two concurrent scoped Starts on ONE worktree over a store seeded with nonblocking
+// two concurrent Starts on ONE worktree over a store seeded with nonblocking
 // legacy history admit exactly one launch (the loser refused ErrWorktreeBusy, never
 // a legacy-inventory refusal), and a manual CleanupHistory racing them completes
 // without deadlock and leaves every seeded record byte-identical. Run under -race.
@@ -38,8 +38,11 @@ func TestRaceIntegrationGatedriveConcurrentStartsOverLegacySeededStoreArbitrateA
 	}
 
 	wt := sampleWorktree()
-	_, reqA := prepareScopedStartAt(t, store, wt, "0342")
-	_, reqB := prepareScopedStartAt(t, store, wt, "0343")
+	reqA := sampleStart()
+	reqA.Worktree = wt
+	reqB := sampleStart()
+	reqB.Worktree = wt
+	reqB.ChangeID = "0343"
 	reqs := []StartRequest{reqA, reqB}
 
 	proc := &tornDownProc{countingProc: &countingProc{}}
