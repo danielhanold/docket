@@ -16,6 +16,7 @@
 package gatedrive
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -25,6 +26,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/danielhanold/docket/internal/gitcli"
 )
 
 // GitSeam abstracts the read-only git queries ComputeFingerprint needs, so tests
@@ -49,6 +52,10 @@ type GitSeam interface {
 	// the enumeration ComputeFingerprint walks to hash live worktree bytes,
 	// modes, and symlink values.
 	WorktreePaths(repoDir string) ([]byte, error)
+	// WorktreeRoot returns the canonical (every-symlink-hop-resolved) toplevel
+	// of the working tree containing dir — gitcli.DiscoverWorktree's Root. The
+	// worktree lock is keyed on it (change 0490), never on a caller's spelling.
+	WorktreeRoot(dir string) (string, error)
 }
 
 // Fingerprint is the per-dimension digest of a repository's execution identity.
@@ -251,4 +258,16 @@ func (g realGit) Status(repoDir string) ([]byte, error) {
 
 func (g realGit) WorktreePaths(repoDir string) ([]byte, error) {
 	return g.runGit(repoDir, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
+}
+
+func (realGit) WorktreeRoot(dir string) (string, error) {
+	c, err := gitcli.NewClient()
+	if err != nil {
+		return "", err
+	}
+	wt, err := c.DiscoverWorktree(context.Background(), gitcli.DiscoverOptions{InvocationPath: dir})
+	if err != nil {
+		return "", err
+	}
+	return wt.Root, nil
 }

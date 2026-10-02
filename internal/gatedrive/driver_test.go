@@ -99,12 +99,30 @@ func obs(state process.State, runDir string) *process.Observation {
 type fakeGit struct {
 	head, index, status string
 	err                 error
+	// rootErr, when set, is WorktreeRoot's error (the root-resolution I/O case).
+	rootErr error
 }
 
 func (g *fakeGit) HeadOID(string) (string, error)       { return g.head, g.err }
 func (g *fakeGit) IndexEntries(string) ([]byte, error)  { return []byte(g.index), g.err }
 func (g *fakeGit) Status(string) ([]byte, error)        { return []byte(g.status), g.err }
 func (g *fakeGit) WorktreePaths(string) ([]byte, error) { return nil, g.err }
+func (g *fakeGit) WorktreeRoot(dir string) (string, error) {
+	if g.rootErr != nil {
+		return "", g.rootErr
+	}
+	return fakeWorktreeRoot(dir), nil
+}
+
+// fakeWorktreeRoot stands in for gitcli.DiscoverWorktree's canonical root
+// without starting git: the symlink-resolved dir when it exists, else dir
+// cleaned.
+func fakeWorktreeRoot(dir string) string {
+	if r, err := filepath.EvalSymlinks(dir); err == nil {
+		return r
+	}
+	return filepath.Clean(dir)
+}
 
 func stableGit() *fakeGit { return &fakeGit{head: "HEAD1", index: "IDX1", status: "ST1"} }
 

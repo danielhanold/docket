@@ -553,9 +553,10 @@ func (g *barrierGit) HeadOID(string) (string, error) {
 	g.wg.Wait()
 	return g.head, nil
 }
-func (g *barrierGit) IndexEntries(string) ([]byte, error)  { return []byte("IDX1"), nil }
-func (g *barrierGit) Status(string) ([]byte, error)        { return []byte("ST1"), nil }
-func (g *barrierGit) WorktreePaths(string) ([]byte, error) { return nil, nil }
+func (g *barrierGit) IndexEntries(string) ([]byte, error)     { return []byte("IDX1"), nil }
+func (g *barrierGit) Status(string) ([]byte, error)           { return []byte("ST1"), nil }
+func (g *barrierGit) WorktreePaths(string) ([]byte, error)    { return nil, nil }
+func (g *barrierGit) WorktreeRoot(dir string) (string, error) { return fakeWorktreeRoot(dir), nil }
 
 // countingProc is a minimal thread-safe ProcessSeam that counts launches; every
 // launched run stays running so a winning Start reaches WAITING. It is purpose-
