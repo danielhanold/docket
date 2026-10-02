@@ -118,7 +118,9 @@ const (
 // cause. It carries identity and route facts only — never a reservation token,
 // owner generation, capability, argv, or environment.
 type IncumbentSnapshot struct {
-	Kind      string // "scoped" | "scopeless" | "raw" | "" (unknown)
+	// Kind is "scoped" | "scopeless" | "raw" | "" (unknown) from the slot, or
+	// "drive" | "raw" from a worktree lock's live holder note (change 0490).
+	Kind      string
 	State     string // admission state at refusal: "reserved"|"executing"|"stopping"|"unresolved"
 	DriveID   string // "" for raw launches
 	RawRunID  string // "" until a raw launch was confirmed
@@ -128,6 +130,12 @@ type IncumbentSnapshot struct {
 	// record carries the slot's run (ErrRunRecordUnresolved), so the owning run
 	// cannot be cancelled by key and run id — the remedy must not suggest it.
 	RunUnresolved bool
+	// ChangeID is the holder's change id from the worktree lock's holder note
+	// ("" when unknown or for a raw launch). Change 0490.
+	ChangeID string
+	// Owner is the holder's role from the worktree lock's holder note:
+	// "build" | "finalize" | "raw" | "" (unknown). Change 0490.
+	Owner string
 }
 
 // OwnershipError is the ownership layer's typed failure. Like StoreError it
