@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/run-task-worker-tests-directly-in-the-foreground-not-through'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-02T07:00:41Z'
+reconciled: true
+claimed_at: '2026-10-02T07:02:24Z'
 ---
 
 ## Artifacts
@@ -71,3 +71,11 @@ The incident behind it was a four-minute package run treated as a focused test, 
 - Retiring the run id entirely, along with its gate fence (change 0491, per the human's direction at this groom).
 - Changing the build-owned full-suite gate, evidence, finalize's gate, or the run tracker's attribution and retry model.
 - The controller-side background-and-yield cases in change 0412.
+
+## Reconcile log
+
+### 2026-10-02
+
+### 2026-10-02
+
+Reconciled against origin/main at 97cdefec7 and the metadata branch. Change 0486 was killed as superseded by this change (its mutation-check trap disappears once workers run tests without a drive), so this change also carries 0486's intent. Change 0487 merged; it touched only test sharding and the retired-vocabulary seal scan, not the worker contract. Follow-ups 0489, 0490, and 0491 remain proposed and out of scope as stated. Every file the spec names (the docket-build-task and docket-build skills, gate-caller-loop.md, gate-execution.md, fix-loop.md, and the repoguard tests it retires or narrows) still exists in its described shape. No scope change; relations unchanged.
