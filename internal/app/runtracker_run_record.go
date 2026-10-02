@@ -44,8 +44,6 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
-
-	"github.com/danielhanold/docket/internal/gatedrive"
 )
 
 // runSchemaVersion is the on-disk RunRecord schema this store understands. A
@@ -779,39 +777,6 @@ func findRunDirByID(runTrackerRoot, runID string) (dir string, rec RunRecord, er
 		return matches[0].dir, matches[0].rec, nil
 	default:
 		return "", RunRecord{}, runErr(ErrRunAmbiguous, "find-dir-by-id", nil)
-	}
-}
-
-// runSettledResolver builds the gatedrive.RunSettledFunc the worktree admission
-// fence consults when a RELEASED slot still names another run (change 0446
-// spec §§2, 5). It reads the app-owned run registry under gitCommonDir and
-// reports settled=true only for a run whose readable record is terminal with
-// its accounting done: completed (successful closeout retired — a completed run is
-// never asked to be cancelled), cancelled (cancellation completed with full
-// accounting), or superseded (a resume superseded an already confirmed-cancelled
-// run). Active, cancelling, and completing runs are NOT settled: they still own
-// the worktree between drives until their own closeout completes. A clean "no such
-// run" is (false, gatedrive.ErrRunRecordUnresolved) — a slot-named run with no
-// readable record is an unresolved owner, never settlement — and an ambiguous id or
-// an enumeration/IO fault is returned as an error; the fence fails closed on all.
-func runSettledResolver(gitCommonDir string) func(string) (bool, error) {
-	runTrackerRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
-	return func(runID string) (bool, error) {
-		_, rec, err := findRunDirByID(runTrackerRoot, runID)
-		if err != nil {
-			if ee, ok := AsRunError(err); ok && ee.Kind == ErrRunNotFound {
-				// Unsettled, and typed so the admission refusal's remedy never points
-				// at a run.cancel that cannot resolve this run.
-				return false, gatedrive.ErrRunRecordUnresolved
-			}
-			return false, err
-		}
-		switch rec.State {
-		case RunCompleted, RunCancelled, RunSuperseded:
-			return true, nil
-		default:
-			return false, nil
-		}
 	}
 }
 

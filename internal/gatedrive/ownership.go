@@ -96,49 +96,24 @@ const (
 	// nothing behind: the worktree frees itself when the holder's supervisor
 	// exits or dies, so a later start succeeds with no recovery step.
 	ErrWorktreeBusy OwnershipErrorKind = "worktree-busy"
-	// ErrLaunchUnconfirmed: a worktree execution slot is in the unresolved state —
-	// nothing proved whether a launch happened: a lost launch response, or a crash
-	// between reserving the worktree and attaching the process (or an interrupted
-	// release). The ambiguous state fails closed: the slot blocks a new
-	// admission until recovery resolves it, never a blind re-reservation (spec
-	// "Ambiguous launch or persistence failures fail closed").
-	ErrLaunchUnconfirmed OwnershipErrorKind = "launch-unconfirmed"
-	// ErrStaleRunID: a worktree execution slot is owned by a run (an
-	// in-flight workflow implementation whose id the slot records) that the incoming
-	// reservation does not carry — an omitted run, or a different one. Omission
-	// cannot detach a workflow-owned worktree: the slot admits only that run's own
-	// sequential drives, so a later gate presenting a stale or empty run is refused
-	// rather than launched, even over a released (between-drives) slot the run still
-	// owns (change 0375 Task 9, spec "omission cannot detach"). A slot with no run
-	// (a standalone gate) fences nothing. It confers no admission and never stops the
-	// incumbent.
-	ErrStaleRunID OwnershipErrorKind = "stale-run-id"
 )
 
-// IncumbentSnapshot is a bounded, credential-free projection of the execution
-// that occupied a worktree slot at the moment a reservation was
-// refused. It is captured under the slot's flock from the exact record the
-// refusal was decided on, so a later-changed slot is never represented as the
-// cause. It carries identity and route facts only — never a reservation token,
-// owner generation, capability, argv, or environment.
+// IncumbentSnapshot is a bounded, credential-free projection of the gate that
+// held a worktree's lock when an admission was refused, read from the lock's
+// holder note and shown only while that run is observed running (liveHolder).
+// It carries identity and route facts only — never an owner generation,
+// capability, argv, or environment.
 type IncumbentSnapshot struct {
-	// Kind is "scoped" | "scopeless" | "raw" | "" (unknown) from the slot, or
-	// "drive" | "raw" from a worktree lock's live holder note (change 0490).
+	// Kind is "drive" | "raw" from the worktree lock's holder note.
 	Kind      string
-	State     string // admission state at refusal: "reserved"|"executing"|"stopping"|"unresolved"
 	DriveID   string // "" for raw launches
-	RawRunID  string // "" until a raw launch was confirmed
-	RawRunDir string // "" until a raw launch was confirmed
-	RunOwned  bool   // a run owns the slot (the run id itself is not projected)
-	// RunUnresolved: the settlement seam reported that no readable run
-	// record carries the slot's run (ErrRunRecordUnresolved), so the owning run
-	// cannot be cancelled by key and run id — the remedy must not suggest it.
-	RunUnresolved bool
-	// ChangeID is the holder's change id from the worktree lock's holder note
-	// ("" when unknown or for a raw launch). Change 0490.
+	RawRunID  string // the holder's run id (the base name of RawRunDir)
+	RawRunDir string // the holder's run dir
+	// ChangeID is the holder's change id from the holder note ("" when unknown
+	// or for a raw launch).
 	ChangeID string
-	// Owner is the holder's role from the worktree lock's holder note:
-	// "build" | "finalize" | "raw" | "" (unknown). Change 0490.
+	// Owner is the holder's role from the holder note:
+	// "build" | "finalize" | "raw" | "" (unknown).
 	Owner string
 }
 
@@ -148,28 +123,12 @@ type IncumbentSnapshot struct {
 type OwnershipError struct {
 	Kind OwnershipErrorKind
 	Op   string
-	// Legacy is the first-admission legacy-history summary, populated ONLY on an
-	// inventory refusal so the caller can surface which historical drives were
-	// checked, recovered, and retained. It is nil for every other OwnershipError.
-	// Kind/Op are unchanged by its presence, so every existing consumer that keys
-	// on those compiles and behaves identically. Bounded ids and reasons only.
-	Legacy *LegacyHistorySummary
-	// Incumbent is the credential-free projection of the execution occupying a
-	// worktree, populated ONLY on the worktree-admission refusal legs: the
-	// worktree lock's busy refusal, from its holder note and only while that run
-	// is observed running (change 0490), and the slot's raw-launch refusals
-	// (worktree-busy, launch-unconfirmed, stale-run-id) from the exact record read
-	// under the slot's flock. Nil for every other OwnershipError, and nil on a
-	// busy refusal whose holder is unknown. Kind/Op/Legacy are unchanged by its
-	// presence.
+	// Incumbent is the credential-free projection of the gate holding a
+	// worktree's lock, populated ONLY on the worktree lock's busy refusal, from
+	// its holder note and only while that run is observed running. Nil for every
+	// other OwnershipError, and nil on a busy refusal whose holder is unknown.
+	// Kind/Op are unchanged by its presence.
 	Incumbent *IncumbentSnapshot
-	// Reconciliation is the bounded, credential-free finding the admission-boundary
-	// finished-incumbent reconciliation (reconcileFinishedIncumbent, change 0446 spec
-	// §3) recorded when it could NOT settle the incumbent — the obligation that keeps
-	// this refusal final (e.g. "incumbent-nonterminal", "incumbent-run-unproven",
-	// "release-write-failed"). Empty when reconciliation did not run. Kind/Op and the
-	// other fields are unchanged by its presence.
-	Reconciliation string
 }
 
 func (e *OwnershipError) Error() string {

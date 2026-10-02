@@ -114,6 +114,14 @@ func AsStoreError(err error) (*StoreError, bool) {
 	return nil, false
 }
 
+// storeErrIs reports whether err carries a *StoreError of the given kind. It is
+// the production sibling of the test-only isStoreKind helper; production code
+// keeps its own so a non-test build resolves it.
+func storeErrIs(err error, kind StoreErrorKind) bool {
+	se, ok := AsStoreError(err)
+	return ok && se.Kind == kind
+}
+
 // storedRecord is the on-disk envelope: the store-owned generation token beside
 // the driveRecord it guards. Keeping the generation out of driveRecord leaves
 // the record's own OwnerGeneration/HandoffGeneration fields entirely to the
@@ -128,38 +136,28 @@ type storedRecord struct {
 // v1 gate-drives directory under a repository's Git common dir. It also owns a
 // sibling gate-scopes root for recovery-scope records (scope.go), a sibling
 // gate-suite-budgets root for per-phase full-suite attempt budgets
-// (suitebudget.go), a sibling gate-admission root for worktree execution
-// slots (admission.go), and a sibling worktree-locks root for the per-worktree
-// admission flock (worktree_lock.go). It holds no mutable state after composition, so one Store
-// is safe for concurrent use across goroutines.
+// (suitebudget.go), and a sibling worktree-locks root for the per-worktree
+// admission flock (worktree_lock.go). It holds no mutable state after
+// composition, so one Store is safe for concurrent use across goroutines.
 type Store struct {
 	root            string
 	scopeRoot       string
 	suiteBudgetRoot string
-	admissionRoot   string
 	lockRoot        string
-
-	// runSettled is the optional app-injected run settlement read the
-	// admission fence consults for a RELEASED slot still naming another run
-	// (SetRunSettledResolver, change 0446). Set once at composition.
-	runSettled RunSettledFunc
 }
 
 // OpenStore returns a Store rooted at <gitCommonDir>/docket/gate-drives/v2 with
 // a sibling recovery-scope root at <gitCommonDir>/docket/gate-scopes/v2, a
 // sibling suite-attempt-budget root at
-// <gitCommonDir>/docket/gate-suite-budgets/v1, and a sibling worktree
-// execution-slot root at <gitCommonDir>/docket/gate-admission/v2, and a
-// sibling worktree-lock root at <gitCommonDir>/docket/worktree-locks. It creates
-// nothing; directories are minted lazily by
-// NewDrive/PrepareScope/ReserveSuiteAttempt/ReserveWorktreeExecution/TryWorktreeLock
-// so an unused store leaves no trace.
+// <gitCommonDir>/docket/gate-suite-budgets/v1, and a sibling worktree-lock root
+// at <gitCommonDir>/docket/worktree-locks. It creates nothing; directories are
+// minted lazily by NewDrive/PrepareScope/ReserveSuiteAttempt/TryWorktreeLock so
+// an unused store leaves no trace.
 func OpenStore(gitCommonDir string) *Store {
 	return &Store{
 		root:            filepath.Join(gitCommonDir, "docket", "gate-drives", "v2"),
 		scopeRoot:       filepath.Join(gitCommonDir, "docket", "gate-scopes", "v2"),
 		suiteBudgetRoot: filepath.Join(gitCommonDir, "docket", "gate-suite-budgets", "v1"),
-		admissionRoot:   filepath.Join(gitCommonDir, "docket", "gate-admission", "v2"),
 		lockRoot:        filepath.Join(gitCommonDir, "docket", "worktree-locks"),
 	}
 }

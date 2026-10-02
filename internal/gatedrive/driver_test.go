@@ -90,11 +90,15 @@ func (f *fakeProc) ResolveReservation(root, token string) (*process.ReservationR
 	return f.resolve(root, token)
 }
 
-// ClassifyRun is the legacy-inventory recovery seam. These driver/admission tests
-// exercise fresh worktrees with no HALTED legacy history, so the default never
-// classifies a run dead; a test that needs otherwise scripts through fakeRecovery.
-func (f *fakeProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
-	return process.RecoveryEntry{Disposition: "invalid"}, nil
+// mkWorktree returns a fresh, real directory to stand in for a worktree root
+// (no git: the default corpus never starts git).
+func mkWorktree(t *testing.T) string {
+	t.Helper()
+	dir := filepath.Join(testsupport.TempDir(t), "wt")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("mkWorktree: %v", err)
+	}
+	return dir
 }
 
 // obs builds a running/terminal observation for a run dir.

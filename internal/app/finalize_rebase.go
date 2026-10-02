@@ -459,10 +459,10 @@ type LocalGateResult struct {
 	// caller re-presents to advance the same drive on the next slice.
 	Continuation GateContinuation
 	// TeardownFinding is a bounded, credential-free token set when the gate's
-	// private run root was RETAINED because its release/teardown evidence was not
-	// settled (the drive document carried a ReleaseFinding, or a failed Start left
-	// launch evidence under the root). It never changes Outcome; it tells the human
-	// why a temp dir survived and that the slot may still need reconciliation.
+	// private run root was RETAINED because its teardown evidence was not settled
+	// (a terminal document carried no run root, or a failed Start left launch
+	// evidence under the root). It never changes Outcome; it tells the human why a
+	// temp dir survived.
 	TeardownFinding string
 }
 
@@ -2157,20 +2157,13 @@ func (g *processFinalizeGate) mapDriveOutcome(ctx context.Context, req LocalGate
 	// halt and the raw run dir is the human's only diagnostic, so the root is retained
 	// (removal is gated on evidence actually being minted).
 	//
-	// Removal also waits for settled release evidence (change 0446 spec §5): a
-	// document whose slot release/teardown write failed carries a ReleaseFinding
-	// (and the driver withholds RunRoot for an unsettled HALTED slot). Such a root
-	// is retained — it is the evidence reconciliation needs — and the retention is
-	// surfaced as a bounded TeardownFinding; the outcome mapping is unchanged.
+	// A terminal document that carries no RunRoot (defensive: the driver exposes
+	// it on every terminal) leaves the root this caller's Start minted on disk, so
+	// its retention is surfaced as a bounded TeardownFinding rather than left
+	// silent; the outcome mapping is unchanged.
 	removeRoot := true
 	var teardownFinding string
-	if doc.ReleaseFinding != "" {
-		removeRoot = false
-		teardownFinding = doc.ReleaseFinding
-	} else if doc.RunRoot == "" {
-		// The driver withheld the root (a HALTED drive whose slot teardown was never
-		// proven): the root this caller's Start minted stays on disk, so its
-		// retention is reported rather than left silent.
+	if doc.RunRoot == "" {
 		teardownFinding = teardownFindingRunRootRetainedUnsettled
 	}
 	res := g.mapTerminalDrive(ctx, req, doc, &removeRoot)
@@ -2219,9 +2212,8 @@ func removeGateRunRoot(runRoot string) {
 const teardownFindingStartRootRetained = "start-failed-run-root-retained"
 
 // teardownFindingRunRootRetainedUnsettled is the bounded TeardownFinding a terminal
-// drive reports when its document withholds RunRoot (the driver exposes it only
-// once slot teardown is proven): the root the Start minted stays on disk as the
-// evidence a later reconciliation needs.
+// drive reports when its document carries no RunRoot (a defensive leg: the driver
+// exposes it on every terminal): the root the Start minted stays on disk.
 const teardownFindingRunRootRetainedUnsettled = "run-root-retained-unsettled"
 
 // removeUnlaunchedGateRunRoot removes the run root a failed Start minted ONLY when
