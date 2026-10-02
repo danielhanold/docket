@@ -22,7 +22,7 @@ const ProtocolVersion = 1
 // driveSchemaVersion is the persisted driveRecord schema generation. The store
 // refuses an unknown schema version with a typed error rather than best-effort
 // migrating it, so this is bumped only on a real schema change. Bumped to 2 by
-// change 0359, which adds ScopeID + RunContextHash; a v1 record read by a v2
+// change 0359, which adds scope_id + RunContextHash; a v1 record read by a v2
 // store fails closed as ErrUnknownSchema (never migrated). Bumped to 3 by change
 // 0375, which adds AdmissionToken (the worktree execution slot's reservation
 // token threaded into the raw launch). Bumped to 4 by change 0375 Task 5, which
@@ -105,11 +105,6 @@ const (
 	// ambiguous, so the outer continuation fails closed rather than guessing which
 	// live run to supersede. (change 0359)
 	CauseTakeoverAmbiguous = "takeover-ambiguous"
-	// CauseRunRecordUnreadable: a drive's run linkage could not be resolved —
-	// resolveDriveRun found a scope-linked drive whose scope (and so whose run)
-	// cannot be read. It fails closed: a drive whose run cannot be proven is never
-	// relaunched as if it were standalone. (change 0437 Task 3)
-	CauseRunRecordUnreadable = "run-record-unreadable"
 	// CauseRunLinkLost: a scopeless run-linked drive can no longer prove which run
 	// it belongs to — the worktree slot it was admitted through is absent or
 	// unreadable, or now carries a different reservation token. resolveDriveRun
@@ -264,11 +259,12 @@ type driveRecord struct {
 	OwnerGeneration   string `json:"owner_generation"`
 	HandoffGeneration string `json:"handoff_generation,omitempty"`
 
-	// ScopeID links the drive to the recovery scope its owner was dispatched
-	// under; RunContextHash links every nested drive to the dispatched run
-	// (sha256 of the outer child-context token). Both empty for scopeless
-	// drives (e.g. finalize's local gate). (schema v2, change 0359)
-	ScopeID        string `json:"scope_id,omitempty"`
+	// RunContextHash links a drive started inside a dispatched run to that run
+	// (sha256 of the outer scope's child capability, the run context run.start
+	// prints); the run tracker's outer takeover scan matches on it. Empty for a
+	// drive started without a run context (e.g. finalize's local gate). (schema
+	// v2, change 0359; the scope_id field it was added beside was dropped by change
+	// 0489, and a pre-0489 record still carrying it decodes with it ignored.)
 	RunContextHash string `json:"run_context_hash,omitempty"`
 
 	// AdmissionToken is the worktree execution slot's reservation token this

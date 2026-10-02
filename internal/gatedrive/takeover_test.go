@@ -1,7 +1,7 @@
 // Event-authorized parent takeover and continuation-lookup tests. These exercise
 // the takeover.go transfer (parent capability, single-use scope claim, child
-// owner supersession), Start's scope binding, the cooperative-claim scope close,
-// and the two facade-only read surfaces (FindScopeDriveIDs, ContinuationHandle).
+// owner supersession) under the outer recovery scope run.start prepares, and the
+// two facade-only read surfaces (FindScopeDriveIDs, ContinuationHandle).
 // They reuse the deterministic fake clock/proc/git seams from driver_test.go, so
 // no test launches a real process or sleeps for a production duration.
 package gatedrive
@@ -18,21 +18,6 @@ import (
 	"github.com/danielhanold/docket/internal/process"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
-
-// scopeReqFor builds a task-shaped ScopeRequest from a StartRequest's identity,
-// for fixtures that seed a pre-0489 task scope directly in the store. runContext
-// is the raw outer child-context token (empty for a plain task scope).
-func scopeReqFor(req StartRequest, runContext string) ScopeRequest {
-	return ScopeRequest{
-		RepoIdentity: req.RepoDir,
-		ChangeID:     req.ChangeID,
-		TaskID:       req.TaskID,
-		Phase:        req.Phase,
-		Branch:       req.Branch,
-		Worktree:     req.Worktree,
-		RunContext:   runContext,
-	}
-}
 
 // outerScopeReqFor builds the outer recovery scope run.start prepares for a
 // dispatch whose drives carry req's identity: repo, change, branch, and worktree —
@@ -228,8 +213,8 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 			name: "closed scope",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
 				grant, started := startUnderOuterScope(t, d, store)
-				if err := store.closeScope(grant.ScopeID); err != nil {
-					t.Fatalf("closeScope: %v", err)
+				if err := store.claimScopeForTakeover(grant.ScopeID); err != nil {
+					t.Fatalf("claimScopeForTakeover: %v", err)
 				}
 				return grant.ScopeID, grant.ParentCapability, started.DriveID
 			},

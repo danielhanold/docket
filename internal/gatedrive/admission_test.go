@@ -25,7 +25,6 @@ func sampleAdmission(worktreeRoot string) admissionRecord {
 		RepoIdentity: "repo-x",
 		WorktreeRoot: worktreeRoot,
 		DriveID:      "drive-1",
-		ScopeID:      "scope-1",
 		RunID:        "",
 		Kind:         "scoped",
 	}
@@ -1097,17 +1096,21 @@ func seedMixedHistory(t *testing.T, s *Store, seed int64, other, removed, scratc
 		}
 		seedLegacyDrive(t, s, wt, HALTED, "deadline-expired", "")
 		seedLegacyDrive(t, s, wt, WAITING, "", filepath.Join(scratch, "waiting"))
-		for _, mutate := range []func(*driveRecord){
-			func(r *driveRecord) { r.ScopeID = "0446dddddddddddddddddddddddddd01" },        // missing scope
-			func(r *driveRecord) { r.AdmissionToken = "0446eeeeeeeeeeeeeeeeeeeeeeeeee02" }, // mismatched token
+		for _, linked := range []struct{ legacyScopeID, token string }{
+			{legacyScopeID: "0446dddddddddddddddddddddddddd01"}, // a pre-0489 drive naming a missing scope
+			{token: "0446eeeeeeeeeeeeeeeeeeeeeeeeee02"},         // mismatched token
 		} {
 			rec := seedRecord(t)
 			rec.WorktreePath = wt
 			rec.LastOutcome = WAITING
 			rec.RawRunDir = filepath.Join(scratch, "linked")
-			mutate(&rec)
-			if _, _, err := s.NewDrive(rec); err != nil {
+			rec.AdmissionToken = linked.token
+			id, _, err := s.NewDrive(rec)
+			if err != nil {
 				t.Fatalf("seed linked drive: %v", err)
+			}
+			if linked.legacyScopeID != "" {
+				stampLegacyScopeID(t, s, id, linked.legacyScopeID)
 			}
 		}
 	}

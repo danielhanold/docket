@@ -1296,8 +1296,8 @@ func TestScopelessStartReservesBeforeLaunch(t *testing.T) {
 	if atLaunch.State != admissionReserved {
 		t.Fatalf("at launch the scopeless worktree slot must already be reserved, got %q", atLaunch.State)
 	}
-	if atLaunch.Kind != "scopeless" || atLaunch.ScopeID != "" {
-		t.Fatalf("at launch the slot must be scopeless with no scope, got kind=%q scope=%q", atLaunch.Kind, atLaunch.ScopeID)
+	if atLaunch.Kind != "scopeless" {
+		t.Fatalf("at launch the slot must be scopeless, got kind=%q", atLaunch.Kind)
 	}
 	if atLaunch.ReservationToken == "" {
 		t.Fatalf("at launch the slot must carry a reservation token")

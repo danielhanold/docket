@@ -63,7 +63,6 @@ func TestRetireClearsOnlyRunID(t *testing.T) {
 		after.RawRunID != before.RawRunID ||
 		after.RawRunDir != before.RawRunDir ||
 		after.ExecutionGen != before.ExecutionGen ||
-		after.ScopeID != before.ScopeID ||
 		after.Kind != before.Kind ||
 		after.ReservationToken != before.ReservationToken ||
 		!after.ReservedAt.Equal(before.ReservedAt) ||

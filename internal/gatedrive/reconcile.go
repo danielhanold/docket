@@ -15,12 +15,13 @@
 // Attribution, not inheritance (change 0446 spec §4). The census accounts the
 // TARGET run's obligations, never all history: a drive record it cannot read, or
 // whose run linkage is lost, blocks the run only when a CURRENT reference names
-// it — the target worktree's slot (its reservation token, or the scope it names) or
-// a scope carrying this RunID (its current/pending drive ids). Any other
-// unreadable or unlinked record is an informational history-unattributed finding
-// that does not clear Accounted. resolveDriveRun itself is untouched: losing a
-// drive's ownership proof still refuses that drive's own launch/relaunch; only the
-// census's attribution of the failure changes.
+// it — and the only current reference is the target worktree's slot (its
+// reservation token). Any other unreadable or unlinked record is an informational
+// history-unattributed finding that does not clear Accounted. resolveDriveRun
+// itself is untouched: losing a drive's ownership proof still refuses that drive's
+// own launch/relaunch; only the census's attribution of the failure changes. The
+// census reads no recovery scope (change 0489): a task scope a pre-0489 binary
+// left on disk is never listed or opened, so it can neither name nor block a run.
 package gatedrive
 
 import (
@@ -42,10 +43,9 @@ type RunLaunchReport struct {
 }
 
 // ReconcileRunLaunches reconciles, for an ALREADY-FENCED run, every run-linked
-// launch obligation the durable records name: scoped drives whose scope carries
-// runID, and scopeless drives whose AdmissionToken matches a worktree slot
-// recording runID (both resolved through resolveDriveRun — the exact-reservation
-// linkage the launch paths use, never restated here). For each nonterminal drive of
+// launch obligation the durable records name: drives whose AdmissionToken matches
+// a worktree slot recording runID (resolved through resolveDriveRun — the
+// exact-reservation linkage the launch paths use, never restated here). For each nonterminal drive of
 // the run it takes the claimant flock NONBLOCKING — a busy claim is pending work,
 // never waited on — then re-reads the record and resolves the EXACT reservation
 // (AdmissionToken, or RelaunchToken when RelaunchReserved): a proven never-launched
@@ -62,9 +62,9 @@ type RunLaunchReport struct {
 //
 // An empty runID has no run-linked launches to reconcile (a keyless/standalone
 // run), so it accounts vacuously. An empty worktreeRoot is NOT proof of quiescence
-// (a superseded run has an empty Worktree yet its scope-linked drives are still
-// enumerable by RunID): the registry walk still runs and only the slot-side
-// references are skipped. A superseded run's caller supplies the replacement's
+// (a superseded run has an empty Worktree yet its slot-linked drives still resolve
+// to its run through their own worktree slots): the registry walk still runs and
+// only the census's slot-side references are skipped. A superseded run's caller supplies the replacement's
 // worktree (the app's resolveTerminalRunSlot), so the slot side is checked there.
 func (d *Driver) ReconcileRunLaunches(worktreeRoot, runID string) (RunLaunchReport, error) {
 	return d.accountRunLaunches(worktreeRoot, runID, false)
@@ -104,24 +104,15 @@ func (d *Driver) ObserveRunLaunches(worktreeRoot, runID string) (RunLaunchReport
 //     (record-unreadable:/linkage-unresolved:) only when a current reference names
 //     it (censusRefs.names / censusRefs.namesUnreadable); otherwise it is an
 //     informational history-unattributed:<id>.
-//  4. A scope named by this run's current slot that cannot be read keeps the
-//     run unaccounted (censusReferences).
-//  5. An empty worktreeRoot skips only the slot-side references (the caller supplies
+//  4. An empty worktreeRoot skips only the slot-side references (the caller supplies
 //     the replacement worktree for those); it never accounts vacuously.
-//  6. Token rotation. An older nonterminal scopeless drive whose AdmissionToken the
-//     slot no longer holds resolves ok=false and, named by no current reference, is
+//  5. Token rotation. An older nonterminal drive whose AdmissionToken the slot no
+//     longer holds resolves ok=false and, named by no current reference, is
 //     historical: every launch path verifies the current token before launching
 //     (StartAdmitted's verifyAdmittedSlot, authorizeRelaunch's resolveDriveRun,
 //     and the crash-window recovery's recoveryRunRevoked, which settles instead
 //     of relaunching), so it has lost launch authority and the current token holder
 //     carries any live obligation.
-//  7. Missing named drive. A drive id a current reference names (a scope's
-//     current/pending drive) whose record is absent — no directory, or a
-//     record-less one — blocks as record-missing:<id>, unless the records prove
-//     the named drive was only reserved and its reservation withdrawn before any
-//     launch (censusRefs.withdrawn): then it is an informational
-//     reservation-withdrawn:<id>, so the removeReservedDrive legs never strand
-//     cancellation.
 func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool) (RunLaunchReport, error) {
 	report := RunLaunchReport{Accounted: true}
 	if runID == "" {
@@ -133,10 +124,7 @@ func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool
 	entries, err := os.ReadDir(d.store.root)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			// No drive registry yet: nothing was ever launched — but a current
-			// reference naming a drive is still a missing named drive (rule 7).
-			refs.accountMissing(map[string]bool{}, &report)
-			return report, nil
+			return report, nil // no drive registry yet: nothing was ever launched
 		}
 		// The registry itself is unreadable: fail closed rather than claim accounted.
 		report.Accounted = false
@@ -156,9 +144,6 @@ func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool
 	}
 	var walk []walked
 	holderFound := false
-	// present records every id with a record the census could see (readable,
-	// unreadable, or settled history) — a named id outside it is missing (rule 7).
-	present := map[string]bool{}
 	for _, entry := range entries {
 		id := entry.Name()
 		if !entry.IsDir() || validateID(id) != nil {
@@ -169,11 +154,9 @@ func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool
 			if storeErrIs(lerr, ErrNotFound) {
 				// A record-less directory (an in-flight or crashed-mid-creation drive)
 				// has launched no process and names no obligation, so it is skipped
-				// exactly as the legacy inventory skips it — unless a current reference
-				// names it, which rule 7 reports (it is absent from present).
+				// exactly as the legacy inventory skips it.
 				continue
 			}
-			present[id] = true
 			// Rule 2: a supported historical (schema-2) record with a terminal outcome
 			// is settled history, not an unreadable obligation.
 			if h, herr := d.store.loadHistoricalDrive(id); herr == nil && isTerminalOutcome(h.LastOutcome) {
@@ -185,16 +168,14 @@ func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool
 		if refs.slotToken != "" && rec.AdmissionToken == refs.slotToken {
 			holderFound = true
 		}
-		present[id] = true
 		walk = append(walk, walked{id: id, rec: rec})
 	}
-	refs.accountMissing(present, &report)
 
 	for _, w := range walk {
 		if w.unreadable {
-			// Rule 3 for an unreadable record: the reference comes from the slot/scope
-			// side only — never from reading the record itself.
-			if refs.namesUnreadable(w.id, holderFound) {
+			// Rule 3 for an unreadable record: the reference comes from the slot side
+			// only — never from reading the record itself.
+			if refs.namesUnreadable(holderFound) {
 				report.Accounted = false
 				report.Findings = append(report.Findings, "record-unreadable:"+w.id)
 			} else {
@@ -209,11 +190,11 @@ func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool
 		}
 		linked, ok, _ := d.resolveDriveRun(w.rec)
 		if !ok {
-			// The drive's run linkage is LOST or unreadable (an unreadable scope, or a
-			// scopeless AdmissionToken the worktree slot no longer matches). Rule 3: it
-			// fails closed only when a current reference names it; an unlinked record
-			// nothing current names is history (rule 6 covers a rotated scopeless token).
-			if refs.names(w.id, w.rec) {
+			// The drive's run linkage is LOST (an AdmissionToken the worktree slot no
+			// longer matches, or an absent/unreadable slot). Rule 3: it fails closed
+			// only when a current reference names it; an unlinked record nothing
+			// current names is history (rule 5 covers a rotated token).
+			if refs.names(w.rec) {
 				report.Accounted = false
 				report.Findings = append(report.Findings, "linkage-unresolved:"+w.id)
 			} else {
@@ -235,143 +216,41 @@ func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool
 	return report, nil
 }
 
-// censusRefs is the set of CURRENT references to the target run's drives, built
-// from existing records only (no reverse index): the drive ids scopes carrying the
-// run name as current or pending, and the target worktree slot's reservation token
-// when that slot names the run.
+// censusRefs is the CURRENT reference to the target run's drives, built from
+// existing records only (no reverse index): the target worktree slot's
+// reservation token when that slot names the run.
 type censusRefs struct {
-	ids map[string]bool
 	// slotToken is the target slot's ReservationToken when the slot's RunID is
 	// the target run ("" otherwise, or when no worktree was supplied).
 	slotToken string
 	// slotOccupied reports that the target run's slot still holds an unreleased
-	// scoped/scopeless reservation, whose token some drive record must carry.
+	// driven reservation, whose token some drive record must carry.
 	slotOccupied bool
-	// reservedBy maps a drive id to the scope naming it as a reserved (never
-	// launch-confirmed) current drive; journalOpen marks those whose scope still
-	// carries an open pending-ack journal.
-	reservedBy  map[string]string
-	journalOpen map[string]bool
-	// releasedScope is the scope the target run's scoped slot was released under
-	// ("" when the slot is not a released scoped slot of this run).
-	releasedScope string
 }
 
-// withdrawn reports whether the records positively prove a named drive was only
-// reserved and its reservation withdrawn before any launch, so its missing record
-// is not an obligation. It requires the drive be named as a scope's reserved
-// current drive (never launch-confirmed, since confirmScopeLaunch follows every
-// launch) and one of:
-//
-//   - an open pending-ack journal on that scope: admitScoped launches a successor
-//     only after retirePredecessor and clearPendingAck both succeed, so an open
-//     journal proves the admission half never completed (its failure legs remove
-//     the never-launched record);
-//   - the run's slot released under that scope: the scope's reservation is the
-//     slot's latest (admission reserves or rotates the slot before the record is
-//     minted), release proves that execution vacated, and a missing record can never
-//     pass StartAdmitted's revalidation (AbandonAdmission's leg).
-//
-// Anything else — a launched or pending-ack reference, a reserved drive whose slot
-// moved on or is still held — is not proof, and the missing drive blocks.
-func (r censusRefs) withdrawn(id string) bool {
-	scopeID, reserved := r.reservedBy[id]
-	if !reserved {
-		return false
-	}
-	return r.journalOpen[id] || (r.releasedScope != "" && scopeID == r.releasedScope)
-}
-
-// accountMissing applies rule 7: every id a current reference names that has no
-// record among present is a missing named drive — record-missing:<id> keeps the
-// run unaccounted — unless withdrawn proves it never launched.
-func (r censusRefs) accountMissing(present map[string]bool, report *RunLaunchReport) {
-	ids := make([]string, 0, len(r.ids))
-	for id := range r.ids {
-		if !present[id] {
-			ids = append(ids, id)
-		}
-	}
-	sort.Strings(ids)
-	for _, id := range ids {
-		if r.withdrawn(id) {
-			report.Findings = append(report.Findings, "reservation-withdrawn:"+id)
-			continue
-		}
-		report.Accounted = false
-		report.Findings = append(report.Findings, "record-missing:"+id)
-	}
-}
-
-// names reports whether a current reference names a READABLE drive: its id is a
-// scope's current/pending drive, or it carries the run slot's current token.
-func (r censusRefs) names(id string, rec driveRecord) bool {
-	if r.ids[id] {
-		return true
-	}
+// names reports whether a current reference names a READABLE drive: it carries
+// the run slot's current token.
+func (r censusRefs) names(rec driveRecord) bool {
 	return r.slotToken != "" && rec.AdmissionToken == r.slotToken
 }
 
 // namesUnreadable reports whether a current reference names an UNREADABLE drive
-// without reading it: a scope names its id, or the run's occupied slot carries a
-// token no readable drive holds (holderFound false), so every unreadable record is a
-// candidate holder of that current reservation. A released slot is not inferred from:
-// release is proof its latest execution was vacated, and an orphan token (a start
-// whose reserved record was removed) is not an obligation.
-func (r censusRefs) namesUnreadable(id string, holderFound bool) bool {
-	if r.ids[id] {
-		return true
-	}
+// without reading it: the run's occupied slot carries a token no readable drive
+// holds (holderFound false), so every unreadable record is a candidate holder of
+// that current reservation. A released slot is not inferred from: release is proof
+// its latest execution was vacated, and an orphan token (a start whose reserved
+// record was removed) is not an obligation.
+func (r censusRefs) namesUnreadable(holderFound bool) bool {
 	return r.slotOccupied && !holderFound
 }
 
-// censusReferences builds the census's current-reference set for runID and
-// records the fail-closed findings for a required reference it cannot read: an
-// unreadable scope registry (the run's scopes cannot be enumerated), an unreadable
-// target slot, or an unreadable scope the run's slot names (rule 4). An unreadable
-// scope nothing current names is skipped: it establishes no reference, and any
-// nonterminal drive under it surfaces as history-unattributed in the walk.
+// censusReferences builds the census's current reference for runID from the
+// target worktree's slot, and records the fail-closed finding when that slot
+// cannot be read. It reads no recovery scope (change 0489).
 func (d *Driver) censusReferences(worktreeRoot, runID string, report *RunLaunchReport) censusRefs {
-	refs := censusRefs{
-		ids:         map[string]bool{},
-		reservedBy:  map[string]string{},
-		journalOpen: map[string]bool{},
-	}
-	addScope := func(scopeID string, s scopeRecord) {
-		if s.CurrentDriveID != "" {
-			refs.ids[s.CurrentDriveID] = true
-			if s.CurrentDriveState == scopeStateReserved {
-				refs.reservedBy[s.CurrentDriveID] = scopeID
-				if s.PendingAckDriveID != "" {
-					refs.journalOpen[s.CurrentDriveID] = true
-				}
-			}
-		}
-		if s.PendingAckDriveID != "" {
-			refs.ids[s.PendingAckDriveID] = true
-		}
-	}
-
-	scopes, err := os.ReadDir(d.store.scopeRoot)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		report.Accounted = false
-		report.Findings = append(report.Findings, "scope-registry-unreadable")
-	}
-	for _, entry := range scopes {
-		if !entry.IsDir() || validateID(entry.Name()) != nil {
-			continue
-		}
-		s, lerr := d.store.LoadScope(entry.Name())
-		if lerr != nil {
-			continue
-		}
-		if s.RunID == runID {
-			addScope(entry.Name(), s)
-		}
-	}
-
+	var refs censusRefs
 	if worktreeRoot == "" {
-		return refs // rule 5: the slot-side references are the caller's to supply
+		return refs // rule 4: the slot-side references are the caller's to supply
 	}
 	slot, _, serr := d.store.LoadWorktreeExecution(worktreeRoot)
 	if serr != nil {
@@ -389,20 +268,6 @@ func (d *Driver) censusReferences(worktreeRoot, runID string, report *RunLaunchR
 	}
 	refs.slotToken = slot.ReservationToken
 	refs.slotOccupied = slot.ReservationToken != "" && slot.State != admissionReleased && slot.Kind != "raw"
-	if slot.State == admissionReleased && slot.ScopeID != "" {
-		refs.releasedScope = slot.ScopeID
-	}
-	if slot.ScopeID != "" {
-		s, lerr := d.store.LoadScope(slot.ScopeID)
-		if lerr != nil {
-			// Rule 4: a scope this run's current slot names cannot be read, so its
-			// current/pending drives cannot be followed. Fail closed.
-			report.Accounted = false
-			report.Findings = append(report.Findings, "scope-unreadable:"+slot.ScopeID)
-		} else {
-			addScope(slot.ScopeID, s)
-		}
-	}
 	return refs
 }
 
