@@ -98,7 +98,7 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 	// The drive must be the scope's own work: its identity (repo, branch,
 	// worktree, change — for each field the scope actually pins) must agree with
 	// the scope. A drift is fail-closed, never a transfer.
-	if !scopeIdentityMatch(scope, rec.RepoIdentity, rec.Branch, rec.WorktreePath, rec.ChangeID, rec.TaskID, rec.Phase) {
+	if !scopeIdentityMatch(scope, rec.RepoIdentity, rec.Branch, rec.WorktreePath, rec.ChangeID) {
 		return d.haltDoc(driveID, "", rec, string(ErrScopeIdentityMismatch)), nil
 	}
 	// A drive that already carries an unclaimed handoff must be CLAIMED, not taken
@@ -176,25 +176,20 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 	return d.transferDoc(driveID, freshOwner, cur), nil
 }
 
-// scopeIdentityMatch reports whether a scope's identity agrees with a candidate
-// drive's (or a start request's) identity. It compares only the fields the scope
-// actually PINS: an empty scope field matches anything, so an outer scope that
-// does not fix a task or phase still binds by repo/branch/worktree/change, while a
-// task scope that fixes every field is checked in full. A non-empty scope field
-// that disagrees is a fail-closed mismatch.
-func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change, task, phase string) bool {
+// scopeIdentityMatch reports whether an outer scope's identity agrees with a
+// candidate drive's. It compares only the fields the scope actually PINS: an empty
+// scope field matches anything (a fresh scope's change id binds once later), and a
+// non-empty scope field that disagrees is a fail-closed mismatch.
+func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change string) bool {
 	return (scope.RepoIdentity == "" || scope.RepoIdentity == repo) &&
 		(scope.Branch == "" || scope.Branch == branch) &&
 		(scope.Worktree == "" || scope.Worktree == worktree) &&
-		(scope.ChangeID == "" || changeIDsEqual(scope.ChangeID, change)) &&
-		(scope.TaskID == "" || scope.TaskID == task) &&
-		(scope.Phase == "" || scope.Phase == phase)
+		(scope.ChangeID == "" || changeIDsEqual(scope.ChangeID, change))
 }
 
 // claimScopeForTakeover atomically transitions an open scope to closed, failing
-// closed with ErrScopeClosed if it is already closed. Unlike closeScope (which is
-// idempotent, used by the cooperative claim path where a redundant close is fine),
-// this is the SINGLE-USE takeover gate: under a race exactly one caller wins the
+// closed with ErrScopeClosed if it is already closed. It is the scope's only
+// close and the SINGLE-USE takeover gate: under a race exactly one caller wins the
 // open→closed transition, so exactly one takeover mints a fresh owner.
 //
 // Single-use is per-scope, and a scope is minted once per run START, so the

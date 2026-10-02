@@ -112,7 +112,6 @@ type admissionRecord struct {
 	ReservationToken string `json:"reservation_token"` // random token; also handed to process.Launch (Task 2)
 
 	DriveID string `json:"drive_id"` // "" for raw launches
-	ScopeID string `json:"scope_id"` // "" when scopeless/raw
 	RunID   string `json:"run_id"`   // "" for standalone gates (Task 9 links workflow gates)
 
 	RawRunID  string `json:"raw_run_id"`  // attached at confirm
@@ -264,7 +263,7 @@ func (s *Store) ReserveWorktreeExecution(rec admissionRecord) (token string, err
 // ReserveRawWorktreeExecution reserves the worktree execution slot for a raw
 // app.GateLaunch (change 0375 Task 7). It is the sole reserve entry point callable
 // from OUTSIDE this package, where the unexported admissionRecord literal is
-// unreachable: it composes a Kind "raw" record (no drive id, no scope id, no run
+// unreachable: it composes a Kind "raw" record (no drive id, no run
 // id) and delegates to the same reserveWorktreeExecution the driver uses, so a
 // raw launch admits through exactly one authority and one lock/CAS discipline as
 // every drive start. proc is the caller's process-recovery seam,
@@ -314,7 +313,7 @@ func (s *Store) ReserveRawWorktreeExecution(repoIdentity, worktreeRoot string, p
 // app layer's cancellation fixtures, which must exercise the owning-run
 // retirement case (see RetireWorktreeExecutionRun) against a slot that genuinely
 // records its run. It composes a Kind "scopeless" record carrying runID (no
-// drive id, no scope id) and delegates to the same reserveWorktreeExecution every
+// drive id) and delegates to the same reserveWorktreeExecution every
 // drive and raw start admits through — one authority, one lock/CAS
 // discipline. An empty runID is refused ErrInvalidID: the raw (no-run-record)
 // entry is ReserveRawWorktreeExecution, and the two must not blur.

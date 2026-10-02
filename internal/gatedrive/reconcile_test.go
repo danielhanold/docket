@@ -30,22 +30,23 @@ func reconcileFindingPresent(findings []string, prefix string) bool {
 	return false
 }
 
-// seedScopedRunDrive persists a drive enrolled in a fresh scope carrying runID,
-// so resolveDriveRun answers runID for it, and reserves the scope's slot for it
-// so the scope NAMES the drive as its current one — the positive current reference
-// the census follows (change 0446 spec §4). mutate tweaks the seeded record (its
-// launch identity, relaunch reservation, or outcome) before it is persisted.
-func seedScopedRunDrive(t *testing.T, store *Store, runID string, mutate func(*driveRecord)) (id, ownerGen string) {
+// seedSlotLinkedRunDrive persists a drive linked to runID the way production links
+// a build-owned drive: a worktree execution slot reserved for runID on the drive's
+// worktree, with the drive carrying that slot's reservation token. resolveDriveRun
+// answers runID for it, and the slot's current token is the census's positive
+// current reference to it (change 0446 spec §4). mutate tweaks the record before it
+// is persisted.
+func seedSlotLinkedRunDrive(t *testing.T, store *Store, worktree, runID string, mutate func(*driveRecord)) (id, ownerGen string) {
 	t.Helper()
-	req := sampleStart()
-	sreq := scopeReqFor(req, "")
-	sreq.RunID = runID
-	grant, err := store.PrepareScope(sreq)
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
 	rec := seedRecord(t)
-	rec.ScopeID = grant.ScopeID
+	rec.WorktreePath = worktree
+	token, err := store.ReserveWorktreeExecution(admissionRecord{
+		RepoIdentity: rec.RepoIdentity, WorktreeRoot: worktree, RunID: runID, Kind: "scopeless",
+	})
+	if err != nil {
+		t.Fatalf("ReserveWorktreeExecution: %v", err)
+	}
+	rec.AdmissionToken = token
 	if mutate != nil {
 		mutate(&rec)
 	}
@@ -53,10 +54,23 @@ func seedScopedRunDrive(t *testing.T, store *Store, runID string, mutate func(*d
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)
 	}
-	if err := store.reserveScopeDrive(grant.ScopeID, grant.ChildCapability, id, predecessorReceipt{}); err != nil {
-		t.Fatalf("reserveScopeDrive: %v", err)
-	}
 	return id, rec.OwnerGeneration
+}
+
+// rotateSlotToken loses a slot-linked drive's run linkage the way production
+// does: its worktree slot is released and re-reserved for the same run under a
+// fresh token, so the drive's AdmissionToken no longer matches and resolveDriveRun
+// reports CauseRunLinkLost.
+func rotateSlotToken(t *testing.T, store *Store, rec driveRecord, runID string) {
+	t.Helper()
+	if err := store.ReleaseWorktreeExecution(rec.WorktreePath, rec.AdmissionToken); err != nil {
+		t.Fatalf("ReleaseWorktreeExecution: %v", err)
+	}
+	if _, err := store.ReserveWorktreeExecution(admissionRecord{
+		RepoIdentity: rec.RepoIdentity, WorktreeRoot: rec.WorktreePath, RunID: runID, Kind: "scopeless",
+	}); err != nil {
+		t.Fatalf("ReserveWorktreeExecution (rotate): %v", err)
+	}
 }
 
 // admitRunDrive admits (reserve only, no launch) a REAL drive on the sample
@@ -106,8 +120,9 @@ func findingFor(findings []string, tok, id string) bool {
 
 // TestReconcileSeesPendingReservedDrive proves a drive admitted but never launched
 // (a delayed StartAdmitted the fence still has to refuse) is reported pending —
-// Accounted=false with a launch-pending finding — for both a scopeless slot-linked
-// drive and a scoped drive, even though nothing was ever launched or registered.
+// Accounted=false with a launch-pending finding — for both a drive admitted through
+// Driver.Admit and a hand-seeded slot-linked drive, even though nothing was ever
+// launched or registered.
 func TestReconcileSeesPendingReservedDrive(t *testing.T) {
 	t.Run("scopeless", func(t *testing.T) {
 		clk := &fakeClock{now: startRun()}
@@ -136,11 +151,11 @@ func TestReconcileSeesPendingReservedDrive(t *testing.T) {
 		}
 	})
 
-	t.Run("scoped", func(t *testing.T) {
+	t.Run("seeded-slot-linked", func(t *testing.T) {
 		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 			r.RawRunDir = "" // never launched
 			r.RawOwnership = ""
 		})
@@ -150,7 +165,7 @@ func TestReconcileSeesPendingReservedDrive(t *testing.T) {
 			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if report.Accounted {
-			t.Fatalf("a reserved-but-unlaunched scoped drive must NOT be accounted, findings=%v", report.Findings)
+			t.Fatalf("a reserved-but-unlaunched slot-linked drive must NOT be accounted, findings=%v", report.Findings)
 		}
 		if !reconcileFindingPresent(report.Findings, "launch-pending:"+id) {
 			t.Fatalf("findings = %v, want launch-pending:%s", report.Findings, id)
@@ -165,7 +180,7 @@ func TestReconcileBusyClaimIsPending(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	id, _ := seedScopedRunDrive(t, store, "e1", nil)
+	id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", nil)
 
 	// Hold the drive's claimant flock from the test: a launch is "in flight".
 	claim, busy, err := store.tryRelaunchClaim(id)
@@ -208,7 +223,7 @@ func TestReconcileProvenNeverLaunchedAccounts(t *testing.T) {
 		},
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+	id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 		r.RelaunchReserved = true
 		r.RelaunchToken = "aaaaaaaaaaaaaaaa"
 	})
@@ -257,7 +272,7 @@ func TestReconcileIdentifiedReplacementStopped(t *testing.T) {
 			},
 		}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 			r.RawRunDir = replacement // the drive names the replacement
 			r.RawOwnership = "replacement"
 			r.RelaunchCount = 1
@@ -286,7 +301,7 @@ func TestReconcileIdentifiedReplacementStopped(t *testing.T) {
 			},
 		}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 			r.RawRunDir = replacement
 			r.RawOwnership = "replacement"
 			r.RelaunchCount = 1
@@ -310,7 +325,6 @@ func TestReconcileIdentifiedReplacementStopped(t *testing.T) {
 // resolution: never-launched accounts, identified stops, unresolved stays pending.
 func TestReconcileReservedRelaunchResolved(t *testing.T) {
 	const relaunchToken = "aaaaaaaaaaaaaaaa"
-	const admissionToken = "cccccccccccccccc"
 
 	newProc := func(disp string, stopPerformed bool) (*fakeProc, *string) {
 		seen := new(string)
@@ -325,10 +339,9 @@ func TestReconcileReservedRelaunchResolved(t *testing.T) {
 		}, seen
 	}
 	seed := func(store *Store) string {
-		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 			r.RelaunchReserved = true
-			r.RelaunchToken = relaunchToken
-			r.AdmissionToken = admissionToken
+			r.RelaunchToken = relaunchToken // the AdmissionToken stays the slot's own token
 		})
 		return id
 	}
@@ -401,7 +414,7 @@ func TestReconcileNeverLaunchedSettlesTerminalClosingRecoveryLaunchWindow(t *tes
 		},
 	}
 	recDriver, store := newTestDriver(t, &fakeClock{now: startRun()}, recProc, stableGit())
-	id, ownerGen := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+	id, ownerGen := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 		r.RelaunchReserved = true
 		r.RelaunchToken = "aaaaaaaaaaaaaaaa"
 	})
@@ -471,7 +484,7 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 			},
 		}
 		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
-		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 			r.RelaunchReserved = true
 			r.RelaunchToken = "aaaaaaaaaaaaaaaa"
 		})
@@ -492,7 +505,7 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 	t.Run("unreadable-record", func(t *testing.T) {
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
-		id, _ := seedScopedRunDrive(t, store, "e1", nil)
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", nil)
 		// Corrupt the record so Load fails closed on the walk.
 		if err := os.WriteFile(filepath.Join(store.root, id, recordFileName), []byte("{not-json"), 0o600); err != nil {
 			t.Fatalf("corrupt record: %v", err)
@@ -513,7 +526,7 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 			},
 		}
 		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
-		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 			r.RawRunDir = "/runs/live"
 			r.RawOwnership = "live"
 		})
@@ -533,20 +546,23 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 }
 
 // TestReconcileLostLinkageFailsClosed is change 0437's lost-linkage regression
-// (change 0446 spec §4): a hand-seeded drive whose run linkage is lost (its only
-// naming scope unreadable) that no surviving current reference names (no slot) is
-// informational history, not a repository-wide veto on the run.
+// (change 0446 spec §4): a hand-seeded drive whose run linkage is lost (its worktree
+// slot re-reserved under a fresh token, CauseRunLinkLost) that no surviving current
+// reference names is informational history, not a repository-wide veto on the run.
 func TestReconcileLostLinkageFailsClosed(t *testing.T) {
 	t.Run("hand-seeded-orphan-is-history", func(t *testing.T) {
 		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedRunDrive(t, store, "e1", nil)
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", nil)
 		rec, err := store.Load(id)
 		if err != nil {
 			t.Fatalf("Load: %v", err)
 		}
-		corruptFile(t, filepath.Join(store.scopeRoot, rec.ScopeID, recordFileName))
+		rotateSlotToken(t, store, rec, "e1")
+		if _, ok, cause := d.resolveDriveRun(rec); ok || cause != CauseRunLinkLost {
+			t.Fatalf("fixture must lose the drive's linkage, resolveDriveRun = (ok=%v, cause=%q)", ok, cause)
+		}
 
 		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
@@ -564,18 +580,18 @@ func TestReconcileLostLinkageFailsClosed(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Run launch census attribution (change 0446 Task 5, spec §4). The census
 // accounts the TARGET run's obligations through current references — the target
-// worktree slot and scopes carrying the run — and never inherits all history: an
+// worktree slot's reservation — and never inherits all history: an
 // unreadable or unlinked record nothing current names is an informational
 // history-unattributed finding, while a named one still fails the run closed.
 // ---------------------------------------------------------------------------
 
 // TestCensusTerminalSettledBeforeLinkage proves rule 1: a terminal (here HALTED)
-// drive's launch axis is settled BEFORE its linkage is resolved, so a deleted scope
-// does not turn a finished drive into linkage-unresolved.
+// drive's launch axis is settled BEFORE its linkage is resolved, so a rotated slot
+// token does not turn a finished drive into linkage-unresolved.
 func TestCensusTerminalSettledBeforeLinkage(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	d, store := newTestDriver(t, clk, &fakeProc{}, stableGit())
-	id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+	id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 		r.LastOutcome = HALTED
 		r.LastCause = "stopped-not-initiated"
 	})
@@ -583,9 +599,7 @@ func TestCensusTerminalSettledBeforeLinkage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if err := os.RemoveAll(filepath.Join(store.scopeRoot, rec.ScopeID)); err != nil {
-		t.Fatalf("remove scope: %v", err)
-	}
+	rotateSlotToken(t, store, rec, "e1")
 
 	report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
@@ -702,11 +716,12 @@ func TestCensusSchema2HistoricalTerminalSettles(t *testing.T) {
 
 // TestCensusSupersededRunStillEnumerates proves rule 5 (AC5's superseded branch):
 // an empty worktreeRoot is not proof of quiescence — the census still walks the
-// registry and accounts the run's scope-linked drives, skipping only the slot
-// side (the app layer supplies a superseded run's replacement worktree for it).
+// registry and accounts the run's slot-linked drives (resolveDriveRun reads each
+// drive's own worktree slot), skipping only the census's slot-side references (the
+// app layer supplies a superseded run's replacement worktree for those).
 func TestCensusSupersededRunStillEnumerates(t *testing.T) {
 	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
-	id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+	id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 		r.RawRunDir = "" // reserved, never launched
 		r.RawOwnership = ""
 	})
@@ -720,7 +735,7 @@ func TestCensusSupersededRunStillEnumerates(t *testing.T) {
 			t.Fatalf("%s: %v", mode.name, err)
 		}
 		if report.Accounted {
-			t.Fatalf("%s: a superseded run's unaccounted scope-linked drive must not account vacuously, findings=%v", mode.name, report.Findings)
+			t.Fatalf("%s: a superseded run's unaccounted slot-linked drive must not account vacuously, findings=%v", mode.name, report.Findings)
 		}
 		if !findingFor(report.Findings, "launch-pending", id) {
 			t.Fatalf("%s: findings = %v, want launch-pending:%s", mode.name, report.Findings, id)
@@ -776,7 +791,7 @@ func TestReconcileReplayConverges(t *testing.T) {
 		},
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+	seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 		r.RawRunDir = "/runs/live"
 		r.RawOwnership = "live"
 	})
@@ -822,7 +837,7 @@ func TestObserveRunLaunchesNeverStopsOrSettles(t *testing.T) {
 		},
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+	id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 		r.RawRunDir = "/runs/live"
 		r.RawOwnership = "live"
 	})
@@ -864,7 +879,7 @@ func TestObserveRunLaunchesAccountsProvenTerminalRun(t *testing.T) {
 		},
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+	id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 		r.RawRunDir = "/runs/gone"
 		r.RawOwnership = "gone"
 	})
@@ -898,7 +913,7 @@ func TestObserveRunLaunchesKeepsNeverLaunchedPending(t *testing.T) {
 			},
 		}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 			r.RelaunchReserved = true
 			r.RelaunchToken = "aaaaaaaaaaaaaaaa"
 		})
@@ -930,7 +945,7 @@ func TestObserveRunLaunchesKeepsNeverLaunchedPending(t *testing.T) {
 		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 			r.RawRunDir = ""
 			r.RawOwnership = ""
 		})
@@ -966,7 +981,7 @@ func TestObserveRunLaunchesBusyClaimIsPending(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	id, _ := seedScopedRunDrive(t, store, "e1", nil)
+	id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", nil)
 
 	claim, busy, err := store.tryRelaunchClaim(id)
 	if err != nil || busy {
@@ -1009,7 +1024,7 @@ func TestReconcileRunLaunchesBehaviorUnchanged(t *testing.T) {
 			},
 		}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 			r.RawRunDir = "/runs/replacement"
 			r.RawOwnership = "replacement"
 			r.RelaunchCount = 1
@@ -1035,7 +1050,7 @@ func TestReconcileRunLaunchesBehaviorUnchanged(t *testing.T) {
 			},
 		}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedSlotLinkedRunDrive(t, store, sampleWorktree(), "e1", func(r *driveRecord) {
 			r.RelaunchReserved = true
 			r.RelaunchToken = "aaaaaaaaaaaaaaaa"
 		})
@@ -1086,183 +1101,5 @@ func TestReconcileReleasedSlotWithPendingDriveNotAccounted(t *testing.T) {
 	}
 	if !reconcileFindingPresent(report.Findings, "launch-pending:"+ticket.id) {
 		t.Fatalf("findings = %v, want launch-pending:%s", report.Findings, ticket.id)
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Missing named drives (change 0446 spec §4: "Follow current/pending scope
-// references so a corrupt or missing named drive is still detected"). A drive id a
-// current reference names whose record is absent keeps the run unaccounted
-// (record-missing:<id>) — EXCEPT the scope's reserved current drive whose
-// reservation the existing records positively prove was withdrawn before any
-// launch: an open pending-ack journal (the successor admission's retire/clear half
-// never completed, and launch strictly follows it), or the run slot released
-// under this scope (release proves the latest execution vacated, and a missing
-// record can never pass StartAdmitted's revalidation). Those removeReservedDrive
-// legs stay accounted, so cancellation is never stranded on them.
-// ---------------------------------------------------------------------------
-
-// censusModes runs both census entry points, so a missing-record rule is proven
-// on the cancellation AND the success-closeout view.
-func censusModes(d *Driver) []struct {
-	name string
-	run  func(string, string) (RunLaunchReport, error)
-} {
-	return []struct {
-		name string
-		run  func(string, string) (RunLaunchReport, error)
-	}{{"reconcile", d.ReconcileRunLaunches}, {"observe", d.ObserveRunLaunches}}
-}
-
-// TestCensusScopeNamedMissingDriveBlocks proves a drive a current scope reference
-// names but whose record is gone fails the run closed with record-missing:<id>:
-// a launch-confirmed current drive whose directory was deleted, the same drive
-// reduced to a record-less directory, a reserved current drive with no withdrawal
-// proof (no open pending-ack, no released slot for this scope), a launch-confirmed
-// drive whose slot was released under its scope, and a pending-ack predecessor (a launched drive by construction) whose directory was deleted.
-func TestCensusScopeNamedMissingDriveBlocks(t *testing.T) {
-	launchedMissing := func(t *testing.T, store *Store, recordLess bool) string {
-		t.Helper()
-		id, _ := seedScopedRunDrive(t, store, "e1", nil)
-		rec, err := store.Load(id)
-		if err != nil {
-			t.Fatalf("Load: %v", err)
-		}
-		if err := store.confirmScopeLaunch(rec.ScopeID, id); err != nil {
-			t.Fatalf("confirmScopeLaunch: %v", err)
-		}
-		if recordLess {
-			if err := os.Remove(filepath.Join(store.root, id, recordFileName)); err != nil {
-				t.Fatalf("remove record: %v", err)
-			}
-		} else if err := os.RemoveAll(filepath.Join(store.root, id)); err != nil {
-			t.Fatalf("remove drive: %v", err)
-		}
-		return id
-	}
-
-	cases := []struct {
-		name string
-		seed func(t *testing.T, d *Driver, store *Store) string
-	}{
-		{"launched-deleted", func(t *testing.T, d *Driver, store *Store) string { return launchedMissing(t, store, false) }},
-		{"launched-record-less", func(t *testing.T, d *Driver, store *Store) string { return launchedMissing(t, store, true) }},
-		{"reserved-unproven", func(t *testing.T, d *Driver, store *Store) string {
-			id, _ := seedScopedRunDrive(t, store, "e1", nil) // reserved, no slot, no pending-ack
-			if err := os.RemoveAll(filepath.Join(store.root, id)); err != nil {
-				t.Fatalf("remove drive: %v", err)
-			}
-			return id
-		}},
-		{"pending-ack-predecessor-deleted", func(t *testing.T, d *Driver, store *Store) string {
-			pred, scopeID, childCap := seedLaunchedScopePredecessor(t, store)
-			succ, _, err := store.NewReservedDrive(seedRecord(t))
-			if err != nil {
-				t.Fatalf("NewReservedDrive: %v", err)
-			}
-			if err := store.reserveScopeDrive(scopeID, childCap, succ, predecessorReceipt{DriveID: pred.id, OwnerGen: pred.gen}); err != nil {
-				t.Fatalf("reserveScopeDrive (successor): %v", err)
-			}
-			if err := os.RemoveAll(filepath.Join(store.root, pred.id)); err != nil {
-				t.Fatalf("remove predecessor: %v", err)
-			}
-			return pred.id
-		}},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
-			id := tc.seed(t, d, store)
-			for _, mode := range censusModes(d) {
-				report, err := mode.run(sampleWorktree(), "e1")
-				if err != nil {
-					t.Fatalf("%s: %v", mode.name, err)
-				}
-				if report.Accounted {
-					t.Fatalf("%s: a scope-named missing drive must fail closed, findings=%v", mode.name, report.Findings)
-				}
-				if !findingFor(report.Findings, "record-missing", id) {
-					t.Fatalf("%s: findings = %v, want record-missing:%s", mode.name, report.Findings, id)
-				}
-			}
-		})
-	}
-}
-
-// scopePredecessor is a launched, PASSED scope drive a successor can acknowledge.
-type scopePredecessor struct{ id, gen string }
-
-// seedLaunchedScopePredecessor seeds a launch-confirmed PASSED drive as the current
-// drive of a fresh scope carrying run e1, returning it, the scope id, and the
-// scope's child capability (for a successor reservation).
-func seedLaunchedScopePredecessor(t *testing.T, store *Store) (scopePredecessor, string, string) {
-	t.Helper()
-	sreq := scopeReqFor(sampleStart(), "")
-	sreq.RunID = "e1"
-	grant, err := store.PrepareScope(sreq)
-	if err != nil {
-		t.Fatalf("PrepareScope: %v", err)
-	}
-	rec := seedRecord(t)
-	rec.ScopeID = grant.ScopeID
-	rec.LastOutcome = PASSED
-	id, _, err := store.NewDrive(rec)
-	if err != nil {
-		t.Fatalf("NewDrive: %v", err)
-	}
-	if err := store.reserveScopeDrive(grant.ScopeID, grant.ChildCapability, id, predecessorReceipt{}); err != nil {
-		t.Fatalf("reserveScopeDrive: %v", err)
-	}
-	if err := store.confirmScopeLaunch(grant.ScopeID, id); err != nil {
-		t.Fatalf("confirmScopeLaunch: %v", err)
-	}
-	return scopePredecessor{id: id, gen: rec.OwnerGeneration}, grant.ScopeID, grant.ChildCapability
-}
-
-// TestCensusWithdrawnReservationStaysAccounted proves the legitimate
-// removeReservedDrive legs never strand cancellation: a scope still naming a
-// removed, never-launched reserved drive is accounted (an informational
-// reservation-withdrawn:<id>, never record-missing) when the records prove the
-// withdrawal — the successor admission's retirePredecessor failure leg (open
-// pending-ack journal).
-func TestCensusWithdrawnReservationStaysAccounted(t *testing.T) {
-	cases := []struct {
-		name string
-		seed func(t *testing.T, d *Driver, store *Store) string
-	}{
-		{"retire-predecessor-failure-leg", func(t *testing.T, d *Driver, store *Store) string {
-			pred, scopeID, childCap := seedLaunchedScopePredecessor(t, store)
-			succ, _, err := store.NewReservedDrive(seedRecord(t))
-			if err != nil {
-				t.Fatalf("NewReservedDrive: %v", err)
-			}
-			if err := store.reserveScopeDrive(scopeID, childCap, succ, predecessorReceipt{DriveID: pred.id, OwnerGen: pred.gen}); err != nil {
-				t.Fatalf("reserveScopeDrive (successor): %v", err)
-			}
-			// admitScoped's retirePredecessor failure leg: the won reservation's
-			// never-launched record is removed while the journal stays open.
-			if err := store.removeReservedDrive(succ); err != nil {
-				t.Fatalf("removeReservedDrive: %v", err)
-			}
-			return succ
-		}},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
-			id := tc.seed(t, d, store)
-			for _, mode := range censusModes(d) {
-				report, err := mode.run(sampleWorktree(), "e1")
-				if err != nil {
-					t.Fatalf("%s: %v", mode.name, err)
-				}
-				if !report.Accounted {
-					t.Fatalf("%s: a proven-withdrawn reservation must stay accounted, findings=%v", mode.name, report.Findings)
-				}
-				if findingFor(report.Findings, "record-missing", id) || !findingFor(report.Findings, "reservation-withdrawn", id) {
-					t.Fatalf("%s: findings = %v, want reservation-withdrawn:%s", mode.name, report.Findings, id)
-				}
-			}
-		})
 	}
 }

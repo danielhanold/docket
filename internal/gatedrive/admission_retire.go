@@ -5,7 +5,7 @@
 // again. RetireWorktreeExecutionRun is that one store operation: an admissionCAS
 // mutate closure that clears ONLY RunID on a RELEASED slot the expected run
 // owns, preserving every historical field (DriveID/RawRunID/RawRunDir/ExecutionGen/
-// ScopeID/Kind/ReservationToken and the legacy-inventory facts). Authorized
+// Kind/ReservationToken and the legacy-inventory facts). Authorized
 // cancellation completion — and the matching bounded terminal-repair / resume
 // quiescence check — invokes it after complete launch/participant/mutation
 // accounting. Admission invokes it too, but only for a RELEASED slot whose leftover

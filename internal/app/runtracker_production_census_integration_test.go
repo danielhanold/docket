@@ -64,9 +64,10 @@ func writeCensusDriveBytes(t *testing.T, common, id string, buf []byte) {
 // under test, including records bound to the SAME worktree path by earlier
 // generations: a corrupt record, an unsupported-schema record, a HALTED drive on this
 // worktree whose run dir is gone, a nonterminal scopeless drive whose admission token
-// the slot no longer holds (rotated), a nonterminal scoped drive whose scope record is
-// missing (lost linkage), a nonterminal drive bound to a removed other worktree, and a
-// corrupt unrelated run record. prefix keeps the ids distinct across calls.
+// the slot no longer holds (rotated), an old nonterminal drive carrying scope_id (a
+// pre-0489 task drive naming a missing scope, read as scopeless), a nonterminal drive
+// bound to a removed other worktree, and a corrupt unrelated run record. prefix keeps
+// the ids distinct across calls.
 func seedUnrelatedDamagedHistory(t *testing.T, fx cancelFixture, prefix string) {
 	t.Helper()
 	id := func(n string) string { return prefix + "eeeeeeeeeeeeeeeeeeeeeeeeeeee" + n }

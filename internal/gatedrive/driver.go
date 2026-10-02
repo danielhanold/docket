@@ -777,12 +777,6 @@ func (d *Driver) Claim(id, handoffID string) (DriveDoc, error) {
 		}
 		return DriveDoc{}, cerr
 	}
-	// A normal claim moves the nearest-owner chain up: if the drive was dispatched
-	// under a recovery scope, close it best-effort so a parent never later takes
-	// over a drive that was already handed off and claimed cooperatively.
-	if rec.ScopeID != "" {
-		_ = d.store.closeScope(rec.ScopeID)
-	}
 	cur, err := d.store.Load(id)
 	if err != nil {
 		return DriveDoc{}, err
@@ -1011,25 +1005,16 @@ var errAlreadyTerminal = errors.New("gatedrive: drive already terminal")
 var errRelaunchRaceLost = errors.New("gatedrive: relaunch already consumed by a concurrent advance")
 
 // resolveDriveRun resolves the run a durable drive is linked to, from
-// existing records only. A scoped drive answers from its scope's RunID; a
-// scopeless drive with an AdmissionToken answers from the worktree slot ONLY when
-// the slot's ReservationToken still equals that token (an exact-reservation
-// match). ok=false with cause set means the linkage is LOST or inconsistent — the
-// drive can no longer prove whether it is run-backed, so new execution is
-// refused (never demoted to standalone). A scoped drive whose scope cannot be read
-// reports CauseRunRecordUnreadable; an absent, unreadable, or reassigned worktree
-// slot reports CauseRunLinkLost. ("", true, "") is a genuinely no-run-record
-// drive (a legacy empty token, or a slot recording no run). (change 0437 Task 3)
+// existing records only. A drive with an AdmissionToken answers from the worktree
+// slot ONLY when the slot's ReservationToken still equals that token (an
+// exact-reservation match). ok=false with cause set means the linkage is LOST or
+// inconsistent — the drive can no longer prove whether it is run-backed, so new
+// execution is refused (never demoted to standalone): an absent, unreadable, or
+// reassigned worktree slot reports CauseRunLinkLost. ("", true, "") is a genuinely
+// no-run-record drive (a legacy empty token, or a slot recording no run) — which
+// includes an old task drive a pre-0489 binary left carrying a scope_id the
+// decoder now ignores (change 0489). (change 0437 Task 3)
 func (d *Driver) resolveDriveRun(rec driveRecord) (runID string, ok bool, cause string) {
-	if rec.ScopeID != "" {
-		scope, err := d.store.LoadScope(rec.ScopeID)
-		if err != nil {
-			// The scope's run cannot be read: the drive can no longer prove its
-			// linkage, so refuse rather than treat it as standalone (CauseRunRecordUnreadable).
-			return "", false, CauseRunRecordUnreadable
-		}
-		return scope.RunID, true, ""
-	}
 	if rec.AdmissionToken == "" {
 		return "", true, ""
 	}
