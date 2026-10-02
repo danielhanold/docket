@@ -1,6 +1,6 @@
 # Backlog
 
-**492 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 336 done · 🗑️ 127 killed
+**493 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 336 done · 🗑️ 127 killed
 
 ## 🔵 Built (1)
 
@@ -22,10 +22,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (12)
+## 🟡 Proposed (13)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0493](active/0493-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md) | Cancel misses a replacement supervisor behind a halted, unattached relaunch | `medium` | `fix` | ⏳ waiting on #490 — needs your merge |
 | [0492](active/0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | `medium` | `fix` | ⏳ waiting on #490 — needs your merge |
 | [0491](active/0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Stop fencing gate admission on the run id; keep the run tracker for attribution only | `critical` | `refactor` | ⏳ waiting on #490 — needs your merge |
 | [0483](active/0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | `low` | `feat` | needs-grooming |
@@ -88,6 +89,7 @@ graph TD
   0489 --> 0490
   0490 --> 0491
   0490 --> 0492
+  0490 --> 0493
   0192:::done
   0251:::done
   0370:::done
