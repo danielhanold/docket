@@ -22,7 +22,7 @@ branch: 'refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-02T22:08:20Z'
+claimed_at: '2026-10-02T23:06:02Z'
 ---
 
 ## Artifacts
