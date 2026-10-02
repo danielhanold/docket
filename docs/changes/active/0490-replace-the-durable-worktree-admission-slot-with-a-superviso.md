@@ -2,7 +2,7 @@
 id: 490
 slug: 'replace-the-durable-worktree-admission-slot-with-a-superviso'
 title: 'Replace the durable worktree admission slot with a supervisor-held kernel lock'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'refactor'
 created: '2026-10-02'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/replace-the-durable-worktree-admission-slot-with-a-superviso'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/366'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-02T16:54:10Z'

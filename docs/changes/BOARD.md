@@ -1,12 +1,12 @@
 # Backlog
 
-**492 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 336 done · 🗑️ 127 killed
+**492 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 336 done · 🗑️ 127 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0490](active/0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | `critical` | `refactor` | [spec](../superpowers/specs/2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso-design.md) | `refactor/replace-the-durable-worktree-admission-slot-with-a-superviso` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0490](active/0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | `critical` | `refactor` | [#366](https://github.com/danielhanold/docket/pull/366) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
@@ -26,8 +26,8 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0492](active/0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | `medium` | `fix` | ⏳ waiting on #490 — not yet built |
-| [0491](active/0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Stop fencing gate admission on the run id; keep the run tracker for attribution only | `critical` | `refactor` | ⏳ waiting on #490 — not yet built |
+| [0492](active/0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | `medium` | `fix` | ⏳ waiting on #490 — needs your merge |
+| [0491](active/0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Stop fencing gate admission on the run id; keep the run tracker for attribution only | `critical` | `refactor` | ⏳ waiting on #490 — needs your merge |
 | [0483](active/0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | `low` | `feat` | needs-grooming |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-grooming |
 | [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-grooming |
