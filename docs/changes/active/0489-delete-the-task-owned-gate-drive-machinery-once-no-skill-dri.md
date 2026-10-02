@@ -2,7 +2,7 @@
 id: 489
 slug: 'delete-the-task-owned-gate-drive-machinery-once-no-skill-dri'
 title: 'Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'refactor'
 created: '2026-10-02'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/delete-the-task-owned-gate-drive-machinery-once-no-skill-dri'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-02T10:11:31Z'
 ---
 
 ## Artifacts
