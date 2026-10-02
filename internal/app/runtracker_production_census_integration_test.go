@@ -289,11 +289,11 @@ func TestIntegrationRunCompletionProductionCensusCompleteThenFinalize(t *testing
 // through its real gate-drive Start.
 func TestIntegrationRunCompletionProductionCensusCancelThenFinalize(t *testing.T) {
 	fx := prepareQuiescentRun(t)
-	res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("production cancel over unrelated history = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
-	if again := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop"); again.Disposition != CancelDispositionAlreadyCancelled {
+	if again := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human stop"); again.Disposition != CancelDispositionAlreadyCancelled {
 		t.Fatalf("repeated cancel = %q, want already-cancelled (findings=%v)", again.Disposition, again.Findings)
 	}
 	startFinalizeGate(t, fx)
@@ -305,7 +305,7 @@ func TestIntegrationRunCompletionProductionCensusCancelThenFinalize(t *testing.T
 // build gate — carrying its run — starts through the real service and passes.
 func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGate(t *testing.T) {
 	fx := prepareQuiescentRun(t)
-	if res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop"); res.Disposition != CancelDispositionCancelled {
+	if res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human stop"); res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("production cancel = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
 	seedUnrelatedDamagedHistory(t, fx, "b") // history added between cancellation and resume
@@ -413,7 +413,7 @@ func TestIntegrationRunCompletionProductionCensusMissingRunRoot(t *testing.T) {
 	t.Run("cancel-settles-run-cancelled", func(t *testing.T) {
 		fx := prepareQuiescentRun(t)
 		seed(t, fx)
-		res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop")
+		res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human stop")
 		if res.Disposition != CancelDispositionCancelled {
 			t.Fatalf("cancel = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 		}
@@ -440,7 +440,7 @@ func TestIntegrationRunCompletionProductionCensusMissingRunRoot(t *testing.T) {
 	})
 	t.Run("resume-quiescence-admits", func(t *testing.T) {
 		fx := prepareQuiescentRun(t)
-		if res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop"); res.Disposition != CancelDispositionCancelled {
+		if res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human stop"); res.Disposition != CancelDispositionCancelled {
 			t.Fatalf("cancel = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 		}
 		seed(t, fx) // left behind after the cancel, as a delayed launcher would

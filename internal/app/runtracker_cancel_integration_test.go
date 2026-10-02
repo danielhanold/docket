@@ -33,7 +33,7 @@ func TestIntegrationRunCancelRunCancelHappyPath(t *testing.T) {
 	fx := newCancelFixture(t)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	recon := okLaunchReconciler()
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: recon}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: recon}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
@@ -59,7 +59,7 @@ func TestIntegrationRunCancelRunCancelPendingOnUnprovenStop(t *testing.T) {
 	fx := newCancelFixture(t)
 	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: false}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q, want cancellation-pending", res.Disposition)
@@ -86,7 +86,7 @@ func TestIntegrationRunCancelRunCancelAlreadyCancelled(t *testing.T) {
 	// The terminal path now runs the bounded historical repair, which re-proves
 	// quiescence through the launch reconciler; a nil reconciler is unverifiable and
 	// refused by design, so an authorized terminal repeat injects okLaunchReconciler().
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionAlreadyCancelled {
 		t.Fatalf("disposition = %q, want already-cancelled", res.Disposition)
@@ -96,21 +96,6 @@ func TestIntegrationRunCancelRunCancelAlreadyCancelled(t *testing.T) {
 	}
 	if len(stopper.calls) != 0 {
 		t.Fatalf("already-cancelled must stop nothing, got %v", stopper.calls)
-	}
-}
-
-// TestIntegrationRunCancelRunCancelRefusedWrongRun: a stale run locator is refused with no fence.
-func TestIntegrationRunCancelRunCancelRefusedWrongRun(t *testing.T) {
-	fx := newCancelFixture(t)
-	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}}, fx.repo, fx.key, "not-the-run", "human stop")
-	if res.Disposition != CancelDispositionRefused {
-		t.Fatalf("disposition = %q, want refused", res.Disposition)
-	}
-	if !hasFinding(res.Findings, "run-id-mismatch") {
-		t.Fatalf("findings = %v, want run-id-mismatch", res.Findings)
-	}
-	if st := loadRunState(t, fx.repo, fx.key); st != RunActive {
-		t.Fatalf("a refused cancel must not fence: run state = %q, want active", st)
 	}
 }
 
@@ -127,11 +112,10 @@ func TestIntegrationRunCancelRunCancelRefusedWrongClaim(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
-	ep, err := MintRunRecord(repo, key, "42")
-	if err != nil {
+	if _, err := MintRunRecord(repo, key, "42"); err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
-	res := runCancel(cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}}, repo, key, ep.RunID, "human stop")
+	res := runCancel(cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}}, repo, key, "human stop")
 	if res.Disposition != CancelDispositionRefused {
 		t.Fatalf("disposition = %q, want refused", res.Disposition)
 	}
@@ -149,7 +133,7 @@ func TestIntegrationRunCancelRunCancelRefusedWrongRepo(t *testing.T) {
 	fx := newCancelFixture(t)
 	other := newRunTrackerRepo(t)
 	otherCommon, _ := runTrackerGitCommonDir(other)
-	res := runCancel(cancelSeams{store: gatedrive.OpenStore(otherCommon), stopper: &fakeCancelStopper{}}, other, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: gatedrive.OpenStore(otherCommon), stopper: &fakeCancelStopper{}}, other, fx.key, "human stop")
 	if res.Disposition != CancelDispositionRefused {
 		t.Fatalf("disposition = %q, want refused (findings=%v)", res.Disposition, res.Findings)
 	}
@@ -181,7 +165,7 @@ func TestIntegrationRunCancelFencesBeforeStopping(t *testing.T) {
 			return nil
 		})
 	}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q, want cancellation-pending (the racing P2 must be caught)", res.Disposition)
@@ -202,7 +186,7 @@ func TestIntegrationRunCancelRepeatResumesCleanup(t *testing.T) {
 	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: participantKindRawRun, NativeHandle: fx.runDir}))
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: false}}
 
-	first := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	first := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 	if first.Disposition != CancelDispositionPending {
 		t.Fatalf("first disposition = %q, want cancellation-pending", first.Disposition)
 	}
@@ -212,7 +196,7 @@ func TestIntegrationRunCancelRepeatResumesCleanup(t *testing.T) {
 
 	// The teardown now proves; a repeat resumes cleanup on the cancelling run.
 	stopper.proven[fx.runDir] = true
-	second := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	second := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 	if second.Disposition != CancelDispositionCancelled {
 		t.Fatalf("second disposition = %q, want cancelled (findings=%v)", second.Disposition, second.Findings)
 	}
@@ -233,7 +217,7 @@ func TestIntegrationRunCancelPendingOnUncompletedMutation(t *testing.T) {
 		t.Fatalf("runRecordCAS seed mutation: %v", err)
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q, want cancellation-pending (uncompleted mutation)", res.Disposition)
@@ -270,7 +254,7 @@ func TestIntegrationRunCancelSettlesUncertainPublicationWithIdenticalRetry(t *te
 		t.Fatalf("seed journal: %v", err)
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q (findings %v), want cancelled", res.Disposition, res.Findings)
@@ -314,7 +298,7 @@ func TestIntegrationRunCancelStaysPendingWithoutCompletedIdenticalRetry(t *testi
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
 
-	first := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
+	first := runCancel(seams, fx.repo, fx.key, "human stop")
 	if first.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q, want cancellation-pending (no completed identical retry)", first.Disposition)
 	}
@@ -331,7 +315,7 @@ func TestIntegrationRunCancelStaysPendingWithoutCompletedIdenticalRetry(t *testi
 	}); err != nil {
 		t.Fatalf("append retry: %v", err)
 	}
-	second := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
+	second := runCancel(seams, fx.repo, fx.key, "human stop")
 	if second.Disposition != CancelDispositionCancelled {
 		t.Fatalf("repeat disposition = %q (findings %v), want cancelled", second.Disposition, second.Findings)
 	}
@@ -353,7 +337,7 @@ func TestIntegrationRunCancelNativeAdapterAbsentIsFindingNotSilence(t *testing.T
 		t.Fatalf("RegisterRunParticipant: %v", err)
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, native: nil, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, native: nil, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled", res.Disposition)
@@ -386,7 +370,7 @@ func TestIntegrationRunCancelNeverChargesOrResets(t *testing.T) {
 	}
 
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled", res.Disposition)
 	}
@@ -428,7 +412,7 @@ func TestIntegrationRunCancelPendingWhileLaunchObligationUnresolved(t *testing.T
 		Accounted: false,
 		Findings:  []string{"launch-pending:d1"},
 	}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: recon}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: recon}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q, want cancellation-pending (an unsettled launch obligation)", res.Disposition)
@@ -451,7 +435,7 @@ func TestIntegrationRunCancelCompletesWhenLaunchObligationsSettle(t *testing.T) 
 	fx := newCancelFixture(t)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	recon := okLaunchReconciler()
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: recon}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: recon}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
@@ -469,7 +453,7 @@ func TestIntegrationRunCancelCompletesWhenLaunchObligationsSettle(t *testing.T) 
 func TestIntegrationRunCancelReconcilerUnavailableFailsClosed(t *testing.T) {
 	fx := newCancelFixture(t)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: nil}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: nil}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q, want cancellation-pending (nil reconciler fails closed)", res.Disposition)
@@ -522,11 +506,11 @@ func TestIntegrationRunCancelRunContextUnreadableFailsClosed(t *testing.T) {
 }
 
 // TestIntegrationRunCancelRunCancelPublicEntry: the public RunCancel composes production seams and, over
-// a run with no gate drive and no native adapter, refuses cleanly when authority
-// is wrong (here a wrong run) — proving the public signature is wired.
+// a run with no gate drive and no native adapter, refuses cleanly when the key
+// locates nothing (here a wrong key) — proving the public signature is wired.
 func TestIntegrationRunCancelRunCancelPublicEntry(t *testing.T) {
 	fx := newCancelFixture(t)
-	res := RunCancel(context.Background(), PlanningDeps{}, WorkspaceDeps{}, fx.repo, fx.key, "wrong-run", "human stop")
+	res := RunCancel(context.Background(), PlanningDeps{}, WorkspaceDeps{}, fx.repo, "wrong-key", "human stop")
 	if res.Disposition != CancelDispositionRefused {
 		t.Fatalf("disposition = %q, want refused", res.Disposition)
 	}
@@ -557,7 +541,7 @@ func TestIntegrationRunCancelInterruptedBeforeFinalWriteConverges(t *testing.T) 
 		t.Fatalf("teardown = (%v,%v,%v), want accounted", ok, f, terr)
 	}
 	// Crash happened here: run still cancelling. The retry:
-	res := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(seams, fx.repo, fx.key, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("retry disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
@@ -572,11 +556,11 @@ func TestIntegrationRunCancelConcurrentReplayIsIdempotent(t *testing.T) {
 	fx := newCancelFixture(t)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
-	if res := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop"); res.Disposition != CancelDispositionCancelled {
+	if res := runCancel(seams, fx.repo, fx.key, "human stop"); res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("first = %q, want cancelled", res.Disposition)
 	}
 	for i := 0; i < 2; i++ {
-		res := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
+		res := runCancel(seams, fx.repo, fx.key, "human stop")
 		if res.Disposition != CancelDispositionAlreadyCancelled {
 			t.Fatalf("replay %d = %q, want already-cancelled (findings=%v)", i, res.Disposition, res.Findings)
 		}
@@ -596,7 +580,7 @@ func TestIntegrationRunCancelTerminalRepairSupersededIsAlreadyCancelled(t *testi
 		t.Fatalf("force superseded: %v", err)
 	}
 	recon := okLaunchReconciler()
-	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: recon}, fx.repo, fx.key, fx.runID, "human repair")
+	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: recon}, fx.repo, fx.key, "human repair")
 	if res.Disposition != CancelDispositionAlreadyCancelled || res.Result != ResultNoOp {
 		t.Fatalf("result = (%q,%q), want (already-cancelled,no-op) (findings=%v)", res.Disposition, res.Result, res.Findings)
 	}
@@ -646,7 +630,7 @@ func TestIntegrationRunCancelTerminalRepairRefusesUnsafeHistories(t *testing.T) 
 			if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error { r.State = RunCancelled; return nil }); err != nil {
 				t.Fatalf("force cancelled: %v", err)
 			}
-			res := runCancel(seams, fx.repo, fx.key, fx.runID, "human repair")
+			res := runCancel(seams, fx.repo, fx.key, "human repair")
 			if res.Disposition != CancelDispositionRefused {
 				t.Fatalf("disposition = %q, want refused (findings=%v)", res.Disposition, res.Findings)
 			}
@@ -696,7 +680,7 @@ func TestIntegrationRunCancelGuardianReapsButNeverFinalizes(t *testing.T) {
 		t.Fatalf("run state = %q, want cancelling (guardian never finalizes)", st)
 	}
 	// The authorized completion then finalizes.
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: recon}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: recon}, fx.repo, fx.key, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("authorized completion = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
@@ -731,7 +715,7 @@ func TestIntegrationRunCancelRepairChargesNothing(t *testing.T) {
 		t.Fatalf("force cancelled: %v", err)
 	}
 
-	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human repair")
+	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, "human repair")
 	if res.Disposition != CancelDispositionAlreadyCancelled {
 		t.Fatalf("disposition = %q, want already-cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
@@ -771,7 +755,7 @@ func TestIntegrationRunCancelRunCancelWinsFromCompletingRun(t *testing.T) {
 	fx := newCancelFixture(t)
 	forceRunState(t, fx.repo, fx.key, RunCompleting)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
@@ -790,7 +774,7 @@ func TestIntegrationRunCancelRunCancelRefusesCompletedRun(t *testing.T) {
 	fx := newCancelFixture(t)
 	forceRunState(t, fx.repo, fx.key, RunCompleted)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 
 	if res.Disposition != CancelDispositionRefused {
 		t.Fatalf("disposition = %q, want refused (findings=%v)", res.Disposition, res.Findings)
@@ -821,7 +805,7 @@ func TestIntegrationRunCancelRepairTerminalRunRemovedWorktree(t *testing.T) {
 	recon := okLaunchReconciler()
 	seams := cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: recon}
 	for i := 0; i < 2; i++ {
-		if res := runCancel(seams, fx.repo, fx.key, fx.runID, "human repair"); res.Disposition != CancelDispositionAlreadyCancelled {
+		if res := runCancel(seams, fx.repo, fx.key, "human repair"); res.Disposition != CancelDispositionAlreadyCancelled {
 			t.Fatalf("repair %d = %q, want already-cancelled (findings=%v)", i, res.Disposition, res.Findings)
 		}
 	}
@@ -874,7 +858,7 @@ func TestIntegrationRunCancelTerminalRepairSupersededCensusesOwnContext(t *testi
 		fx := newCancelFixture(t)
 		supersedeFixtureRun(t, fx, fx.worktree, true)
 		launches := okLaunchReconciler()
-		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: launches}, fx.repo, fx.key, fx.runID, "human repair")
+		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: launches}, fx.repo, fx.key, "human repair")
 		if res.Disposition != CancelDispositionAlreadyCancelled {
 			t.Fatalf("disposition = %q, want already-cancelled (findings=%v)", res.Disposition, res.Findings)
 		}
@@ -889,7 +873,7 @@ func TestIntegrationRunCancelTerminalRepairSupersededCensusesOwnContext(t *testi
 		fx := newCancelFixture(t)
 		supersedeFixtureRun(t, fx, "", false) // replacement run never minted: irrelevant now
 		launches := &fakeLaunchReconciler{report: gatedrive.RunLaunchReport{Accounted: false, Findings: []string{"run-live:d1"}}}
-		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: launches}, fx.repo, fx.key, fx.runID, "human repair")
+		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: launches}, fx.repo, fx.key, "human repair")
 		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "run-live:d1") {
 			t.Fatalf("result = %q %v, want refused run-live:d1", res.Disposition, res.Findings)
 		}
@@ -976,7 +960,7 @@ func TestIntegrationRunCancelTerminalRepairTornResumeConverges(t *testing.T) {
 			launches := okLaunchReconciler()
 			seams := cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: launches}
 			for i := 0; i < 2; i++ {
-				if res := runCancel(seams, fx.repo, fx.key, fx.runID, "human repair"); res.Disposition != CancelDispositionAlreadyCancelled {
+				if res := runCancel(seams, fx.repo, fx.key, "human repair"); res.Disposition != CancelDispositionAlreadyCancelled {
 					t.Fatalf("repair %d = %q, want already-cancelled (findings=%v)", i, res.Disposition, res.Findings)
 				}
 			}
@@ -1000,10 +984,10 @@ func TestIntegrationRunCancelRemovedWorktreeRunCancels(t *testing.T) {
 		t.Fatalf("remove worktree: %v", err)
 	}
 	seams := cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
-	if res := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop"); res.Disposition != CancelDispositionCancelled {
+	if res := runCancel(seams, fx.repo, fx.key, "human stop"); res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
-	if again := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop"); again.Disposition != CancelDispositionAlreadyCancelled {
+	if again := runCancel(seams, fx.repo, fx.key, "human stop"); again.Disposition != CancelDispositionAlreadyCancelled {
 		t.Fatalf("repeat = %q, want already-cancelled (findings=%v)", again.Disposition, again.Findings)
 	}
 }
@@ -1118,7 +1102,7 @@ func TestIntegrationRunCancelFreesWorktreeForNextStart(t *testing.T) {
 	}
 	id := onlyDriveID(t, fx)
 
-	res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
@@ -1185,7 +1169,7 @@ func TestIntegrationRunCancelSignaledOrVanishedSupervisorIsCancelled(t *testing.
 			must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
 				RunParticipant{Kind: participantKindGateScope, NativeHandle: runDir}))
 
-			res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop")
+			res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human stop")
 			if res.Disposition != CancelDispositionCancelled {
 				t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 			}
@@ -1212,7 +1196,7 @@ func TestIntegrationRunCancelRepeatOnTerminalRunRerunsCensus(t *testing.T) {
 	})
 	forceRunState(t, fx.repo, fx.key, RunCancelled)
 
-	if res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human repair"); res.Disposition != CancelDispositionAlreadyCancelled {
+	if res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human repair"); res.Disposition != CancelDispositionAlreadyCancelled {
 		t.Fatalf("repeat over settled drives = %q, want already-cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
 
@@ -1227,7 +1211,7 @@ func TestIntegrationRunCancelRepeatOnTerminalRunRerunsCensus(t *testing.T) {
 		"worktree_path": fx.worktree, "raw_run_dir": unproven,
 		"last_outcome": string(gatedrive.WAITING), "run_context_hash": fx.contextHash,
 	})
-	res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human repair")
+	res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human repair")
 	if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "resolution-unresolved:"+liveID) {
 		t.Fatalf("repeat over an unprovable drive = %q %v, want refused resolution-unresolved:%s", res.Disposition, res.Findings, liveID)
 	}

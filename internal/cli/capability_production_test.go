@@ -331,9 +331,9 @@ func TestRepresentativeSignatures(t *testing.T) {
 		// change 0359: run continue redeems a single-use continuation — the two
 		// positionals (key, continuation id) lead, the optional repo dir trails.
 		"run.continue": "<key> <continuation-id> [--repo-dir <dir>]",
-		// change 0375: human Stop — the three required flags sorted, then the optional
-		// repo dir; no positional tail.
-		"run.cancel": "--key <key> --reason <reason> --run-id <id> [--repo-dir <dir>]",
+		// change 0491: human Stop keyed by the run key alone — the two required
+		// flags sorted, then the optional repo dir; no positional tail.
+		"run.cancel": "--key <key> --reason <reason> [--repo-dir <dir>]",
 		// change 0489: the task owner and the scope/receipt flags are gone; every
 		// owner runs its resolved suite command, so there is no `--` argv tail.
 		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--cwd <dir>] [--env-hash <hash>] [--idempotent-suite-gate] [--phase <name>] [--ref <ref>] [--repo-dir <dir>] [--run-context <token>] [--task-id <id>]",

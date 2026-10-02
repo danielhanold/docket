@@ -772,7 +772,7 @@ func TestIntegrationRunStartNoRunRecordResumeRunJoinsCancelCycle(t *testing.T) {
 	}
 
 	// The documented remedy: cancel with the start's own key and run id.
-	cancel := runCancel(seams, repoDir, first.Key, first.RunID, "human stop")
+	cancel := runCancel(seams, repoDir, first.Key, "human stop")
 	if cancel.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancelling the no-run-record resume's run: disposition = %q, want cancelled (findings=%v)", cancel.Disposition, cancel.Findings)
 	}
@@ -797,7 +797,7 @@ func TestIntegrationRunStartNoRunRecordResumeRunJoinsCancelCycle(t *testing.T) {
 	}
 
 	// The replacement's run is started by resume too, so it is cancellable the same way.
-	replCancel := runCancel(seams, repoDir, repl.Key, repl.RunID, "human stop")
+	replCancel := runCancel(seams, repoDir, repl.Key, "human stop")
 	if replCancel.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancelling the replacement run: disposition = %q, want cancelled (findings=%v)", replCancel.Disposition, replCancel.Findings)
 	}
@@ -819,11 +819,11 @@ func TestIntegrationRunCancelRunCancelResumeAuthorityFailsClosed(t *testing.T) {
 		if err != nil {
 			t.Fatalf("MintRunTrackerRecord: %v", err)
 		}
-		ep, err := MintRunRecord(repo, key, "6")
+		_, err = MintRunRecord(repo, key, "6")
 		if err != nil {
 			t.Fatalf("MintRunRecord: %v", err)
 		}
-		res := runCancel(cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, repo, key, ep.RunID, "human stop")
+		res := runCancel(cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, repo, key, "human stop")
 		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "claim-mismatch") {
 			t.Fatalf("got (%q, %v), want refused claim-mismatch", res.Disposition, res.Findings)
 		}
@@ -841,14 +841,14 @@ func TestIntegrationRunCancelRunCancelResumeAuthorityFailsClosed(t *testing.T) {
 		if err != nil {
 			t.Fatalf("MintRunTrackerRecord: %v", err)
 		}
-		ep, err := MintRunRecord(repo, key, "5")
+		_, err = MintRunRecord(repo, key, "5")
 		if err != nil {
 			t.Fatalf("MintRunRecord: %v", err)
 		}
 		if err := ReserveRunTrackerClaim(repo, key, 5, "req-1"); err != nil {
 			t.Fatalf("ReserveRunTrackerClaim: %v", err)
 		}
-		res := runCancel(cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, repo, key, ep.RunID, "human stop")
+		res := runCancel(cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, repo, key, "human stop")
 		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "claim-unconfirmed") {
 			t.Fatalf("got (%q, %v), want refused claim-unconfirmed", res.Disposition, res.Findings)
 		}
@@ -937,10 +937,14 @@ func TestIntegrationRunStartResumeRefusalNamesAbandonedStartRemedy(t *testing.T)
 		resumeActiveLocator("k", RunRecord{ChangeID: "5", RunID: "e"}),
 		resumeWorktreeOwnerLocator("/tmp/wt/epsilon", "k", RunRecord{RunID: "e"}),
 	} {
-		for _, want := range []string{"never dispatched", "run cancel --key k --run-id e", "still running", "run verdict"} {
+		for _, want := range []string{"never dispatched", "run cancel --key k --reason <why>", "still running", "run verdict"} {
 			if !strings.Contains(msg, want) {
 				t.Errorf("refusal must contain %q, got %q", want, msg)
 			}
+		}
+		// change 0491: run.cancel is keyed by the run key alone.
+		if strings.Contains(msg, "--run-id") {
+			t.Errorf("refusal must not name the retired --run-id flag, got %q", msg)
 		}
 	}
 }

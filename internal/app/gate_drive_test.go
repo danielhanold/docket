@@ -1016,8 +1016,8 @@ func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
 	}{
 		{"busy with a build drive holder", ownershipErrWith(gatedrive.ErrWorktreeBusy, buildInc),
 			"worktree-admission", "incumbent-drive:" + driveID,
-			[]string{"change 0490", "drive " + driveID, "run.cancel", "--run-id"},
-			[]string{"gate stop", "holder unknown"}},
+			[]string{"change 0490", "drive " + driveID, "run.cancel", "--key <key> --reason <why>"},
+			[]string{"gate stop", "holder unknown", "--run-id"}},
 		{"busy with a finalize holder", ownershipErrWith(gatedrive.ErrWorktreeBusy, finalizeInc),
 			"worktree-admission", "incumbent-drive:" + driveID,
 			[]string{"finalize", "change 0490", "wait"},

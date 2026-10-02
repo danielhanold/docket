@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -41,7 +42,9 @@ func TestRunTrackerVocabularyHardCut(t *testing.T) {
 		path       []string
 		want, gone string
 	}{
-		{[]string{"run", "cancel"}, "run-id", "epoch"},
+		// change 0491: the run id is retired; run cancel is keyed by --key alone.
+		{[]string{"run", "cancel"}, "key", "run-id"},
+		{[]string{"run", "cancel"}, "key", "epoch"},
 		{[]string{"change", "claim"}, "run-context", "gate-context"},
 		{[]string{"agent", "enter"}, "run-key", "run-gate-key"},
 		{[]string{"agent", "enter"}, "run-id", "run-epoch"},
@@ -66,5 +69,13 @@ func TestRunTrackerVocabularyHardCut(t *testing.T) {
 	}
 	if _, _, code := runCLI(t, "--json", "run", "cancel", "--key", "k", "--epoch", "e", "--reason", "r"); code != 2 {
 		t.Errorf("docket run cancel --epoch exited %d, want 2 (unknown flag)", code)
+	}
+}
+
+// TestRunCancelIsKeyedByTheRunKeyAlone (change 0491): run cancel takes --key and
+// --reason; --run-id is retired with no alias, so passing it exits 2.
+func TestRunCancelIsKeyedByTheRunKeyAlone(t *testing.T) {
+	if _, errS, code := runCLI(t, "run", "cancel", "--key", "k", "--run-id", "x", "--reason", "r"); code != 2 || !strings.Contains(errS, "unknown flag: --run-id") {
+		t.Fatalf("run cancel --run-id: exit %d stderr %q, want exit 2 naming the unknown flag", code, errS)
 	}
 }
