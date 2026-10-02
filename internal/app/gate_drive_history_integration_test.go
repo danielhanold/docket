@@ -78,7 +78,7 @@ func seedLegacyV2Passed(t *testing.T, gitDir, id string) {
 
 // TestIntegrationBuildStartAdmitsOverLegacyPassedHistoryOneLaunch is Criterion 1: over a repo
 // whose gate-drive store carries a completed pre-0375 (schema-2) PASSED drive bound
-// to a REMOVED worktree, one ordinary build-owned scoped Start through the REAL
+// to a REMOVED worktree, one ordinary build-owned Start through the REAL
 // GateDriveService (real driver, real process supervisor, fake-fast /bin/echo suite
 // command) admits normally — it reaches launch with the legacy history recognised
 // nonblocking (Checked 1, none recovered, none retained), launches EXACTLY ONE raw
@@ -104,26 +104,16 @@ func TestIntegrationBuildStartAdmitsOverLegacyPassedHistoryOneLaunch(t *testing.
 		}
 	})
 
-	scope := svc.PrepareScope(gatedrive.ScopeRequest{
-		RepoIdentity: worktree, Worktree: worktree,
-		ChangeID: "0428", TaskID: "task-10", Phase: "build", Branch: "fix/x",
-	})
-	if scope.ScopeID == "" || scope.ChildCapability == "" {
-		t.Fatalf("PrepareScope: %s (%s)", scope.Result, scope.Reason)
-	}
-
 	req := GateDriveStartRequest{
 		RepoDir: worktree, Worktree: worktree,
 		ChangeID: "0428", TaskID: "task-10", Phase: "build",
 		Branch: "fix/x", Ref: "refs/heads/fix/x", Cwd: worktree,
 		RunRoot:             runRoot,
-		ScopeID:             scope.ScopeID,
-		ChildCapability:     scope.ChildCapability,
 		IdempotentSuiteGate: true,
 	}
 	got := svc.Start(req)
 	if got.Result != ResultApplied || got.Drive == nil {
-		t.Fatalf("scoped build start over legacy PASSED history must apply, got result=%s reason=%q drive=%v", got.Result, got.Reason, got.Drive)
+		t.Fatalf("build start over legacy PASSED history must apply, got result=%s reason=%q drive=%v", got.Result, got.Reason, got.Drive)
 	}
 
 	// The completed legacy history was assessed and recognised nonblocking on the

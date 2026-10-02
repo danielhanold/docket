@@ -340,15 +340,6 @@ func TestRepresentativeSignatures(t *testing.T) {
 		// change 0405: gate.drive.start gains the two optional successor-receipt flags,
 		// sorted among the other optionals (after --phase, before --ref).
 		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--child-cap <token>] [--cwd <dir>] [--env-hash <hash>] [--idempotent-suite-gate] [--phase <name>] [--predecessor-drive-id <id>] [--predecessor-owner-gen <gen>] [--ref <ref>] [--repo-dir <dir>] [--run-context <token>] [--run-id <id>] [--scope-id <id>] [--task-id <id>] -- <argv...>",
-		// change 0405: terminal acknowledgement — four required credential flags,
-		// sorted, then the optional repo dir.
-		"gate.drive.acknowledge": "--child-cap <token> --drive-id <id> --owner-gen <gen> --scope-id <id> [--repo-dir <dir>]",
-		// change 0359: recovery-scope preparation (required identity flags) and the
-		// event-authorized parent takeover. change 0375 adds the optional --run-id,
-		// which threads the run onto the scope so the takeover run-revocation
-		// gate is live rather than dead code.
-		"gate.drive.prepare-scope": "--branch <name> --change-id <id> --phase <name> --task-id <id> --worktree <dir> [--repo-dir <dir>] [--run-context <token>] [--run-id <id>]",
-		"gate.drive.takeover":      "--parent-cap <token> --scope-id <id> [--drive-id <id>] [--repo-dir <dir>]",
 		// change 0472 (ADR-0129 rows 40, 40a): the record revision rides on
 		// --revision, and relink's pin on --expect-revision.
 		"change.claim":      "--id <id> --revision <revision> [--repo-dir <dir>] [--run-context <token>]",

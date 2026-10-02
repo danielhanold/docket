@@ -78,13 +78,10 @@ var operationBindings = []OperationBinding{
 	{ID: "finalize.resolver-reserve", Request: nil, Result: FinalizeReserveResult{}},                               // FinalizeResolverReserve
 	{ID: "finalize.retarget-children", Request: RetargetChildrenRequest{}, Result: RetargetChildrenResult{}},       // FinalizeRetargetChildren
 	{ID: "gate.cleanup", Request: nil, Result: CleanupOpResult{}},                                                  // GateCleanup
-	{ID: "gate.drive.acknowledge", Request: nil, Result: GateDriveResult{}},                                        // GateDriveService.Acknowledge (four scalars arrive as flags, no *Request struct)
 	{ID: "gate.drive.advance", Request: nil, Result: GateDriveResult{}},                                            // GateDriveService.Advance
 	{ID: "gate.drive.claim", Request: nil, Result: GateDriveResult{}},                                              // GateDriveService.Claim
 	{ID: "gate.drive.handoff", Request: nil, Result: GateDriveResult{}},                                            // GateDriveService.Handoff
-	{ID: "gate.drive.prepare-scope", Request: nil, Result: GateScopeResult{}},                                      // GateDriveService.PrepareScope (request is gatedrive.ScopeRequest, not an app *Request)
 	{ID: "gate.drive.start", Request: GateDriveStartRequest{}, Result: GateDriveResult{}},                          // GateDriveService.Start
-	{ID: "gate.drive.takeover", Request: nil, Result: GateDriveResult{}},                                           // GateDriveService.Takeover
 	{ID: "gate.history.cleanup", Request: GateHistoryCleanupRequest{}, Result: GateHistoryCleanupResult{}},         // GateHistoryCleanup
 	{ID: "gate.launch", Request: nil, Result: GateResult{}},                                                        // GateLaunch
 	{ID: "gate.observe", Request: nil, Result: GateResult{}},                                                       // GateObserve

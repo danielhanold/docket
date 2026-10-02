@@ -260,13 +260,7 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 	if svc == nil {
 		t.Fatalf("build gate-drive service was nil: %s %s", res, reason)
 	}
-	sdeps := RunTrackerScopeDeps{Prepare: func(req gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
-		g := svc.PrepareScope(req)
-		if g.Result != ResultApplied {
-			t.Fatalf("outer PrepareScope: %s (%s)", g.Result, g.Reason)
-		}
-		return gatedrive.ScopeGrant{ScopeID: g.ScopeID, ChildCapability: g.ChildCapability, ParentCapability: g.ParentCapability}, nil
-	}}
+	sdeps := RunTrackerScopeDeps{Prepare: gatedrive.OpenStore(fx.common).PrepareScope}
 	started := armResumeReplacement(fx.repo, sdeps, fx.key, resumeReplacementParams{
 		attributedID: 42, scopeChangeID: "42", branch: "fix/x", worktree: fx.worktree, attemptLimit: 2,
 	})
@@ -279,18 +273,10 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 
 	runRoot := filepath.Join(testsupport.TempDir(t), "build-runs")
 	t.Cleanup(func() { stopRunsUnder(runRoot) })
-	scope := svc.PrepareScope(gatedrive.ScopeRequest{
-		RepoIdentity: fx.worktree, Worktree: fx.worktree, ChangeID: "42", TaskID: "task-1",
-		Phase: "build", Branch: "fix/x", RunID: started.RunID,
-	})
-	if scope.Result != ResultApplied {
-		t.Fatalf("replacement PrepareScope: %s (%s)", scope.Result, scope.Reason)
-	}
 	got := svc.Start(GateDriveStartRequest{
 		RepoDir: fx.worktree, Worktree: fx.worktree, ChangeID: "42", TaskID: "task-1",
 		Phase: "build", Branch: "fix/x", Ref: "refs/heads/fix/x", Cwd: fx.worktree,
-		RunRoot: runRoot, ScopeID: scope.ScopeID, ChildCapability: scope.ChildCapability,
-		RunID: started.RunID, IdempotentSuiteGate: true,
+		RunRoot: runRoot, RunID: started.RunID, IdempotentSuiteGate: true,
 	})
 	if got.Result != ResultApplied || got.Drive == nil {
 		t.Fatalf("replacement gate Start refused: result=%s reason=%q stage=%q locator=%q message=%q",

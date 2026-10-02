@@ -282,10 +282,10 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			// RepoIdentity and compared by scopeIdentityMatch — it is NOT the
 			// fingerprinted worktree (that is Worktree, below). The repository
 			// identity is the Git common directory, shared across every linked
-			// worktree, which is exactly what `gate drive prepare-scope` pins as the
-			// scope's RepoIdentity (and how the rest of docket records a repo
+			// worktree, which is exactly what a recovery scope pins as its
+			// RepoIdentity (and how the rest of docket records a repo
 			// identity — see finalize's rebase receipt). Passing the worktree path
-			// here instead made a legitimate prepare-scope→scope-bound-start compare
+			// here instead made a legitimate scope→scope-bound-start compare
 			// two different dimensions (common dir vs worktree), so it ALWAYS failed
 			// scope-identity-mismatch. Resolve the common dir so both sides pin the
 			// same dimension; a genuine cross-repo start still has a different common
@@ -375,41 +375,6 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = advance.MarkFlagRequired("drive-id")
 	_ = advance.MarkFlagRequired("owner-gen")
 
-	acknowledge := &cobra.Command{
-		Use:   "acknowledge --scope-id <id> --child-cap <token> --drive-id <id> --owner-gen <gen>",
-		Short: "Consume the scope's final PASSED/FAILED result and close the task scope",
-		Args:  cobra.NoArgs,
-		// local-write: retires the final drive's recovery authority and closes the
-		// scope in the durable drive store; it launches no suite and controls no
-		// process, so it composes the commandless service like advance/handoff/claim.
-		Annotations: capability("gate.drive.acknowledge", EffectLocalWrite),
-		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, err := resolveRepoDir(c)
-			if err != nil {
-				return err
-			}
-			svc, err := buildCommandlessGateDriveService(c.Context(), repoDir)
-			if err != nil {
-				return err
-			}
-			scopeID, _ := c.Flags().GetString("scope-id")
-			childCap, _ := c.Flags().GetString("child-cap")
-			driveID, _ := c.Flags().GetString("drive-id")
-			ownerGen, _ := c.Flags().GetString("owner-gen")
-			setResult(gateDrivePresenter{inner: svc.Acknowledge(scopeID, childCap, driveID, ownerGen)})
-			return nil
-		},
-	}
-	acknowledge.Flags().String("repo-dir", "", "repository `dir` of the drive (default: current directory)")
-	acknowledge.Flags().String("scope-id", "", "recovery scope `id` to close (required)")
-	acknowledge.Flags().String("child-cap", "", "child capability `token` authorizing the acknowledgement (required)")
-	acknowledge.Flags().String("drive-id", "", "opaque final drive `id` to acknowledge (required)")
-	acknowledge.Flags().String("owner-gen", "", "opaque owner `gen`eration proving ownership (required)")
-	_ = acknowledge.MarkFlagRequired("scope-id")
-	_ = acknowledge.MarkFlagRequired("child-cap")
-	_ = acknowledge.MarkFlagRequired("drive-id")
-	_ = acknowledge.MarkFlagRequired("owner-gen")
-
 	handoff := &cobra.Command{
 		Use:   "handoff --drive-id <id> --owner-gen <gen>",
 		Short: "Transfer a live drive to a fresh owner, minting a single-use handoff token",
@@ -466,94 +431,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = claim.MarkFlagRequired("drive-id")
 	_ = claim.MarkFlagRequired("handoff-id")
 
-	prepareScope := &cobra.Command{
-		Use:   "prepare-scope --change-id <id> --task-id <id> --phase <name> --branch <name> --worktree <dir>",
-		Short: "Prepare a recovery scope for one parent/child dispatch boundary",
-		Args:  cobra.NoArgs,
-		// local-write: mints the scope record in the durable drive store; it
-		// launches no suite and controls no process.
-		Annotations: capability("gate.drive.prepare-scope", EffectLocalWrite),
-		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, err := resolveRepoDir(c)
-			if err != nil {
-				return err
-			}
-			// Prepare-scope needs only the durable store; it composes the commandless
-			// service (no config, no suite command) and roots the scope at the same
-			// Git common directory the drives use.
-			commonDir, exe, err := gateDriveRepoContext(c.Context(), repoDir)
-			if err != nil {
-				return err
-			}
-			svc, res, reason := app.NewCommandlessGateDriveService(commonDir, exe)
-			if svc == nil {
-				return fmt.Errorf("gate drive service unavailable: %s (%s)", res, reason)
-			}
-			changeID, _ := c.Flags().GetString("change-id")
-			taskID, _ := c.Flags().GetString("task-id")
-			phase, _ := c.Flags().GetString("phase")
-			branch, _ := c.Flags().GetString("branch")
-			worktree, _ := c.Flags().GetString("worktree")
-			runContext, _ := c.Flags().GetString("run-context")
-			runID, _ := c.Flags().GetString("run-id")
-			setResult(svc.PrepareScope(gatedrive.ScopeRequest{
-				RepoIdentity: commonDir,
-				ChangeID:     changeID,
-				TaskID:       taskID,
-				Phase:        phase,
-				Branch:       branch,
-				Worktree:     worktree,
-				RunContext:   runContext,
-				RunID:        runID,
-			}))
-			return nil
-		},
-	}
-	prepareScope.Flags().String("repo-dir", "", "repository `dir` of the drive store (default: current directory)")
-	prepareScope.Flags().String("change-id", "", "change `id` the scope certifies (required)")
-	prepareScope.Flags().String("task-id", "", "task `id` the scope certifies (required)")
-	prepareScope.Flags().String("phase", "", "workflow phase `name` the scope certifies (required)")
-	prepareScope.Flags().String("branch", "", "branch `name` the scope binds (required)")
-	prepareScope.Flags().String("worktree", "", "worktree `dir` the scope binds (required)")
-	prepareScope.Flags().String("run-context", "", "run-context `token` from run start, linking this scope's nested drives to its started run (optional; omitted for an untracked run)")
-	prepareScope.Flags().String("run-id", "", "workflow run `id` every drive under this scope carries; makes the takeover run-revocation gate live (a locator, not a credential)")
-	_ = prepareScope.MarkFlagRequired("change-id")
-	_ = prepareScope.MarkFlagRequired("task-id")
-	_ = prepareScope.MarkFlagRequired("phase")
-	_ = prepareScope.MarkFlagRequired("branch")
-	_ = prepareScope.MarkFlagRequired("worktree")
-
-	takeover := &cobra.Command{
-		Use:   "takeover --scope-id <id> --parent-cap <token>",
-		Short: "Take over a scope-bound drive whose child returned without handing off",
-		Args:  cobra.NoArgs,
-		// local-write: atomically supersedes the child owner generation in the
-		// durable drive store; it never launches, stops, or duplicates a process.
-		Annotations: capability("gate.drive.takeover", EffectLocalWrite),
-		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, err := resolveRepoDir(c)
-			if err != nil {
-				return err
-			}
-			svc, err := buildCommandlessGateDriveService(c.Context(), repoDir)
-			if err != nil {
-				return err
-			}
-			scopeID, _ := c.Flags().GetString("scope-id")
-			parentCap, _ := c.Flags().GetString("parent-cap")
-			driveID, _ := c.Flags().GetString("drive-id")
-			setResult(gateDrivePresenter{inner: svc.Takeover(scopeID, parentCap, driveID)})
-			return nil
-		},
-	}
-	takeover.Flags().String("repo-dir", "", "repository `dir` of the drive (default: current directory)")
-	takeover.Flags().String("scope-id", "", "recovery scope `id` to take over (required)")
-	takeover.Flags().String("parent-cap", "", "parent capability `token` authorizing the takeover (required)")
-	takeover.Flags().String("drive-id", "", "opaque drive `id` to take over (resolved from the scope when omitted)")
-	_ = takeover.MarkFlagRequired("scope-id")
-	_ = takeover.MarkFlagRequired("parent-cap")
-
-	driveCmd.AddCommand(start, advance, acknowledge, handoff, claim, prepareScope, takeover)
+	driveCmd.AddCommand(start, advance, handoff, claim)
 	return driveCmd
 }
 
