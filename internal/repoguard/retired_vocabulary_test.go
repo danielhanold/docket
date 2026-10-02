@@ -79,6 +79,11 @@ import (
 // spelling. LIMITATION: a composite such as halted-identity-mismatch is not a
 // kindWord hit; the cause literal it would be composed from is sealed.
 //
+// Change 0491 retires the run id (rows 3, 10, 11, 20, 31, 32, 38b, 38d): it
+// re-points the rows whose replacements were run-id spellings and adds
+// kindSchemaPath, the first exact-path kind, because the run.start result's
+// run_id shares its key name with the gate supervisor's run_id.
+//
 // LIMITATION (byte-pattern-guard-matches-a-spelling): a foreign tool's
 // --version whose nearest preceding operation reference in the same block is a
 // change, finalize or workspace operation reads as bound. No maintained surface
@@ -124,6 +129,12 @@ const (
 	// scope-identity-mismatch and row 72's own pr-identity-mismatch are other
 	// words (ADR-0129 "Kept in family (e)").
 	kindWord
+	// kindSchemaPath: an exact "<operation> <REQ|RES> <key path>" that must be
+	// absent from the live schema registry (change 0491, row 38b: the run.start
+	// result's run_id). It is exact, never a suffix, so the gate supervisor's own
+	// run_id keys — gate.launch, gate.observe, gate.recover, and gate.stop results —
+	// can never match.
+	kindSchemaPath
 )
 
 // retiredToken is one row of the retired-vocabulary table.
@@ -141,10 +152,10 @@ var retiredVocabulary = []retiredToken{
 	{Row: "7", Kind: kindToken, Old: "gate-before", New: "run.start / docket run start"},
 	{Row: "8", Kind: kindToken, Old: "gate-verdict", New: "run.verdict / docket run verdict"},
 	{Row: "9", Kind: kindToken, Old: "gate-claim", New: "run.continue / docket run continue"},
-	{Row: "10", Kind: kindToken, Old: "--run-epoch", New: "--run-id"},
-	{Row: "10", Kind: kindGoFlag, Old: "run-epoch", New: "run-id"},
-	{Row: "11", Kind: kindToken, Old: "--epoch", New: "run cancel --run-id"},
-	{Row: "11", Kind: kindGoFlag, Old: "epoch", New: "run-id"},
+	{Row: "10", Kind: kindToken, Old: "--run-epoch", New: "no flag — the run key is the run tracker's only handle (change 0491)"},
+	{Row: "10", Kind: kindGoFlag, Old: "run-epoch", New: "run-key"},
+	{Row: "11", Kind: kindToken, Old: "--epoch", New: "run cancel --key"},
+	{Row: "11", Kind: kindGoFlag, Old: "epoch", New: "key"},
 	{Row: "12, 38e", Kind: kindToken, Old: "--gate-context", New: "--run-context"},
 	{Row: "12, 38e", Kind: kindGoFlag, Old: "gate-context", New: "run-context"},
 	{Row: "13", Kind: kindToken, Old: "gate-armed", New: "run-started"},
@@ -160,7 +171,7 @@ var retiredVocabulary = []retiredToken{
 	{Row: "17", Kind: kindToken, Old: "epoch-corrupt", New: "run-record-corrupt"},
 	{Row: "18", Kind: kindToken, Old: "epoch-exists", New: "run-exists"},
 	{Row: "19", Kind: kindToken, Old: "epoch-not-active", New: "run-not-active"},
-	{Row: "20", Kind: kindToken, Old: "epoch-mismatch", New: "run-id-mismatch"},
+	{Row: "20", Kind: kindToken, Old: "epoch-mismatch", New: "run-record-conflict"},
 	{Row: "21", Kind: kindToken, Old: "epoch-not-cancelled", New: "run-not-cancelled"},
 	{Row: "22", Kind: kindToken, Old: "epoch-ambiguous", New: "run-ambiguous"},
 	{Row: "23", Kind: kindToken, Old: "epoch-owner-ambiguous", New: "run-owner-ambiguous"},
@@ -174,8 +185,8 @@ var retiredVocabulary = []retiredToken{
 	{Row: "28", Kind: kindToken, Old: "epoch-unreadable", New: "run-record-unreadable"},
 	{Row: "29", Kind: kindToken, Old: "incumbent-epoch-fenced", New: "incumbent-run-fenced"},
 	{Row: "30", Kind: kindToken, Old: "resume-epoch-unreadable", New: "resume-run-record-unreadable"},
-	{Row: "31", Kind: kindToken, Old: "stale-run-epoch", New: "stale-run-id"},
-	{Row: "32", Kind: kindToken, Old: "unknown-run-epoch", New: "unknown-run-id"},
+	{Row: "31", Kind: kindToken, Old: "stale-run-epoch", New: "run-superseded"},
+	{Row: "32", Kind: kindToken, Old: "unknown-run-epoch", New: "run-not-found"},
 	{Row: "33", Kind: kindToken, Old: "gate-unavailable", New: "run-tracker-unavailable"},
 	{Row: "34", Kind: kindToken, Old: "gate-context-invalid", New: "run-context-invalid"},
 	{Row: "34", Kind: kindToken, Old: "gate-context-conflict", New: "run-context-conflict"},
@@ -198,9 +209,9 @@ var retiredVocabulary = []retiredToken{
 	{Row: "38", Kind: kindToken, Old: "epoch.lock", New: "run.lock"},
 	{Row: "38a", Kind: kindToken, Old: "--run-gate-key", New: "--run-key"},
 	{Row: "38a", Kind: kindGoFlag, Old: "run-gate-key", New: "run-key"},
-	{Row: "38b", Kind: kindJSONKey, Old: "epoch", New: "run_id"},
+	{Row: "38b", Kind: kindJSONKey, Old: "epoch", New: "none — run.start reports key and run_context (change 0491)"},
 	{Row: "38c", Kind: kindToken, Old: "gate_context", New: "run_context"},
-	{Row: "38d", Kind: kindToken, Old: "DOCKET_AGENT_GUARDIAN_EPOCH", New: "DOCKET_AGENT_GUARDIAN_RUN_ID"},
+	{Row: "38d", Kind: kindToken, Old: "DOCKET_AGENT_GUARDIAN_EPOCH", New: "DOCKET_AGENT_GUARDIAN_RUN_KEY"},
 	// Change 0477 — rows 38e-38h: 38e shares row 12's entries above (the gate
 	// drive's flag now takes the same --run-context as change claim, so no kept
 	// namesake remains); 38h (the `rungate store` error-text prefix) is already
@@ -253,6 +264,18 @@ var retiredVocabulary = []retiredToken{
 	{Row: "71", Kind: kindToken, Old: "repaired-pr", New: "relinked-pr"},
 	{Row: "72", Kind: kindToken, Old: "pr-identity-mismatch", New: "pr-link-mismatch"},
 	{Row: "73", Kind: kindToken, Old: "identity-drift", New: "certified-input-changed"},
+	// Change 0491 — the run id is retired; the run key is the run tracker's only
+	// handle (ADR-0129 rows 3, 10, 11, 20, 31, 32, 38b, 38d amended in place). No row
+	// may match the gate supervisor's own run id (internal/process, gate.* results'
+	// run_id, incumbent-run:<id>): the negative controls pin that.
+	{Row: "10, 11", Kind: kindToken, Old: "--run-id", New: "no flag — the run key is the handle (run cancel --key)"},
+	{Row: "10, 11", Kind: kindGoFlag, Old: "run-id", New: "run-key / key"},
+	{Row: "3", Kind: kindToken, Old: "<run-id>", New: "<key> (the run key)"},
+	{Row: "20", Kind: kindToken, Old: "run-id-mismatch", New: "run-record-conflict"},
+	{Row: "31", Kind: kindToken, Old: "stale-run-id", New: "run-superseded"},
+	{Row: "32", Kind: kindToken, Old: "unknown-run-id", New: "run-not-found"},
+	{Row: "38b", Kind: kindSchemaPath, Old: "run.start RES run_id", New: "none — run.start reports key and run_context"},
+	{Row: "38d", Kind: kindToken, Old: "DOCKET_AGENT_GUARDIAN_RUN_ID", New: "DOCKET_AGENT_GUARDIAN_RUN_KEY (the run id env is retired)"},
 }
 
 // retiredHit is one seal violation.
@@ -701,6 +724,19 @@ func schemaVersionKeyHits(doc app.SchemaResult) (hits []string, revisionKeys int
 	return hits, revisionKeys, seen
 }
 
+// schemaPathHits reports every kindSchemaPath row whose exact path the walked
+// schema carries (seen, from schemaVersionKeyHits), naming the replacement.
+func schemaPathHits(seen map[string]bool) []string {
+	var hits []string
+	for _, r := range retiredVocabulary {
+		if r.Kind == kindSchemaPath && seen[r.Old] {
+			hits = append(hits, fmt.Sprintf("schema %s: ADR-0129 rows %s: retired — use %s", r.Old, r.Row, r.New))
+		}
+	}
+	sort.Strings(hits)
+	return hits
+}
+
 // goSourcePop returns the maintained non-test Go files.
 func goSourcePop(t *testing.T, root string) []string {
 	t.Helper()
@@ -842,6 +878,14 @@ func testRetiredSchemaWalk(t *testing.T) {
 			t.Errorf("kept schema key %q is absent from the live schema: delete it from schemaKeptVersionKeys", k)
 		}
 	}
+	if ph := schemaPathHits(seen); len(ph) != 0 {
+		t.Errorf("retired ADR-0129 schema paths in the live schema (%d):\n%s", len(ph), strings.Join(ph, "\n"))
+	}
+	// Non-vacuity of the path spelling: the scoped row must name a path shape the
+	// walk produces. run.start's kept run_context key proves the scope spelling.
+	if !seen["run.start RES run_context"] {
+		t.Errorf("the schema walk no longer yields %q; the run.start RES scope spelling drifted", "run.start RES run_context")
+	}
 	if len(hits) != 0 {
 		t.Errorf("retired ADR-0129 record-revision keys in the schema (%d):\n%s", len(hits), strings.Join(hits, "\n"))
 	}
@@ -850,7 +894,7 @@ func testRetiredSchemaWalk(t *testing.T) {
 // testRetiredTableIntegrity: a malformed row would seal nothing or name no
 // replacement. The floor stops a truncated table from passing vacuously.
 func testRetiredTableIntegrity(t *testing.T) {
-	const floor = 97
+	const floor = 105
 	if len(retiredVocabulary) < floor {
 		t.Fatalf("retired-vocabulary table has %d rows, expected >= %d", len(retiredVocabulary), floor)
 	}
@@ -915,6 +959,15 @@ func testRetiredNonVacuity(t *testing.T) {
 				t.Errorf("row %s: a planted %q key was not detected naming %q: %v", r.Row, r.Old, r.New, sh)
 			}
 			continue
+		case kindSchemaPath:
+			op, rest, _ := strings.Cut(r.Old, " ")
+			_, key, _ := strings.Cut(rest, " ")
+			doc := app.SchemaResult{Operations: []app.OperationSchema{{ID: op, Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: key}}}}}}
+			_, _, seen := schemaVersionKeyHits(doc)
+			if ph := schemaPathHits(seen); len(ph) != 1 || !strings.Contains(ph[0], r.New) {
+				t.Errorf("row %s: a planted %q was not detected naming %q: %v", r.Row, r.Old, r.New, ph)
+			}
+			continue
 		}
 		own := 0
 		for _, h := range hits {
@@ -936,10 +989,10 @@ func testRetiredNonVacuity(t *testing.T) {
 	// before 0477; each must now hit the plain row.
 	for _, line := range []string{
 		"docket gate drive prepare-scope --gate-context <ctx>",
-		"docket gate drive start --gate-context <ctx> --run-id <id>",
-		"include the run-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`, and the run id",
+		"docket gate drive start --gate-context <ctx>",
+		"include the run-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`",
 		"plus gate-drive `--gate-context <token>` if dispatched with one",
-		"| `prepare-scope` | `gate.drive.prepare-scope --change-id <id> [--gate-context <token>] [--run-id <id>]`: mint",
+		"| `prepare-scope` | `gate.drive.prepare-scope --change-id <id> [--gate-context <token>]`: mint",
 		"pass it into `gate.drive.start` and into the Step-2 claim's `--gate-context`",
 	} {
 		for _, rel := range []string{"skills/x/SKILL.md", "tests/test_x.sh"} {
@@ -1063,7 +1116,7 @@ func testRetiredNegativeControls(t *testing.T) {
 		"run.start then run.verdict then run.continue",
 		// Change 0477's new spellings, and the committed receipt key row 38c must
 		// never reach (Decision 3).
-		"docket gate drive start --run-context <ctx> --run-id <id>",
+		"docket gate drive start --run-context <ctx>",
 		"pass it, always as `--run-context`, into every `gate.drive.prepare-scope` / `gate.drive.start`",
 		"DOCKET_AGENT_GUARDIAN_RUN_KEY is set on the guardian",
 		"the run.start result carries run_context and the gate drive stores run_context_hash",
@@ -1105,6 +1158,13 @@ func testRetiredNegativeControls(t *testing.T) {
 		"finalize refuses `pr-link-mismatch`; recertify refuses `certified-input-changed`",
 		"`results-identity-broken`, `identity-reused`, `identity-mutated`, `fingerprint-mismatch`",
 		"an identity-mismatched repository definition is refused",
+		// Change 0491 — the gate supervisor's own run id is a different identity
+		// and must never match a run-id row.
+		"the `gate.observe` operation reports `run_id: 0790b760e26444866ef2e156ba383326` for the raw run",
+		"a worktree-busy refusal names `incumbent-run:<id>` while that raw run holds the lock",
+		"the gate supervisor's raw run id is the base name of its run dir",
+		"agent.enter --run-key <key>; run cancel --key <key> --reason <why>; run-started <key> <run-context>",
+		"refused `run-superseded`, `run-record-conflict`, or `run-not-found`; DOCKET_AGENT_GUARDIAN_RUN_KEY is set",
 	}
 	for _, line := range cleanText {
 		for _, rel := range []string{"skills/x/SKILL.md", "tests/test_x.sh"} {
@@ -1141,6 +1201,12 @@ func testRetiredNegativeControls(t *testing.T) {
 		{"internal/gatedrive/driver.go", "package p\nvar c = \"worktree-changed\"\n"},
 		{"internal/app/change_relink.go", "package p\nconst o = \"change.relink\"\n"},
 		{"internal/domain/finalize.go", "package p\nconst c = \"pr-link-mismatch\"\n"},
+		// Change 0491 — the gate supervisor's run_id (struct tag and report line)
+		// and the run tracker's surviving key spellings.
+		{"internal/app/gate.go", "package p\ntype R struct {\n\tRunID string `json:\"run_id\"`\n}\n"},
+		{"internal/app/gate.go", "package p\nfunc f() { lines = append(lines, \"run_id: \"+r.RunID) }\n"},
+		{"internal/cli/run.go", "package p\nfunc f(c *C) { c.Flags().String(\"key\", \"\", \"x\"); c.Flags().String(\"run-key\", \"\", \"x\") }\n"},
+		{"internal/app/runtracker_fence.go", "package p\nconst a, b = \"run-superseded\", \"run-record-conflict\"\n"},
 	}
 	for _, c := range cleanGo {
 		hits, err := scanGoSource(c.rel, []byte(c.src))
@@ -1164,6 +1230,18 @@ func testRetiredNegativeControls(t *testing.T) {
 	}
 	if hits, _, _ := schemaVersionKeyHits(kept); len(hits) != 0 {
 		t.Errorf("kept schema keys matched: %v", hits)
+	}
+	// Change 0491: kindSchemaPath is exact, so the gate supervisor's run_id in
+	// every gate.* result, and run.start's kept keys, never match row 38b.
+	sup := app.SchemaResult{Operations: []app.OperationSchema{
+		{ID: "gate.launch", Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "run_id"}}}},
+		{ID: "gate.observe", Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "run_id"}}}},
+		{ID: "gate.recover", Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "entries", Fields: []app.FieldDescriptor{{Key: "run_id"}}}}}},
+		{ID: "gate.stop", Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "run_id"}}}},
+		{ID: "run.start", Request: &app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "run_id"}}}, Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "key"}, {Key: "run_context"}, {Key: "result", Fields: []app.FieldDescriptor{{Key: "run_id"}}}}}},
+	}}
+	if _, _, seen := schemaVersionKeyHits(sup); len(schemaPathHits(seen)) != 0 {
+		t.Errorf("the gate supervisor's run_id (or a non-exact run.start path) matched a schema-path row: %v", schemaPathHits(seen))
 	}
 	moved := app.SchemaResult{Operations: []app.OperationSchema{
 		{ID: "status", Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "binary", Fields: []app.FieldDescriptor{{Key: "version"}}}}}},
