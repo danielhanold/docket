@@ -36,7 +36,13 @@ func TestMain(m *testing.M) {
 //	read-stdin          exit 0 iff stdin is at EOF immediately, else 3
 //	env-check           exit 0 iff both private supervisor env vars are unset
 //	                    and the inherited lock fd 3 is closed (CLOEXEC held)
-//	launch <root>       run svc.Launch(sleep) against <root>, print the run dir,
+//	lock-and-exit <path>
+//	                    take the worktree lock at path and exit WITHOUT closing
+//	                    it — the kernel must release it on process exit
+//	env-check-worktree-lock <path>
+//	                    exit 0 iff the private worktree-lock env var is unset
+//	                    and fd 5 is not the worktree lock at path (CLOEXEC held)
+//	launch <root>      run svc.Launch(sleep) against <root>, print the run dir,
 //	                    then exit — the separate launcher process for the gate
 //	                    survival proof
 func runTestHelper(args []string) int {
@@ -98,6 +104,25 @@ func runTestHelper(args []string) int {
 		}
 		if _, serr := os.NewFile(3, "probe").Stat(); serr == nil {
 			return 5 // the inherited lock fd leaked past CLOEXEC into the child
+		}
+		return 0
+	case "lock-and-exit":
+		f, busy, err := TryExclusiveLock(args[1])
+		if err != nil || busy {
+			return 97
+		}
+		_ = f // exit without closing: the kernel must release it
+		return 0
+	case "env-check-worktree-lock":
+		if os.Getenv("DOCKET_GATE_SUPERVISOR_WORKTREE_LOCK") != "" {
+			return 6
+		}
+		want, err := os.Stat(args[1])
+		if err != nil {
+			return 98
+		}
+		if got, serr := os.NewFile(5, "probe").Stat(); serr == nil && os.SameFile(want, got) {
+			return 7 // the worktree lock fd leaked past CLOEXEC into the child
 		}
 		return 0
 	case "launch":

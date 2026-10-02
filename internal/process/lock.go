@@ -33,6 +33,23 @@ func acquireFlock(path string) (*os.File, error) {
 	return f, nil
 }
 
+// TryExclusiveLock is the exported non-blocking acquire the worktree lock uses
+// (change 0490). It is acquireFlock with the busy case lifted into a typed
+// result: busy is true (and f nil, err nil) exactly when another open file
+// description holds the lock; every other failure is an error and is never
+// read as either "free" or "busy". The returned file owns the lock; only
+// closing it (or the process exiting) releases it — callers never LOCK_UN it.
+func TryExclusiveLock(path string) (f *os.File, busy bool, err error) {
+	f, err = acquireFlock(path)
+	if err == nil {
+		return f, false, nil
+	}
+	if fl, ok := AsFailure(err); ok && fl.Class == FailBlocked {
+		return nil, true, nil
+	}
+	return nil, false, err
+}
+
 // probeFlock reports whether path's advisory lock is currently held by a live
 // holder, plus the three-way answer. It tries LOCK_EX|LOCK_NB on a fresh
 // descriptor: acquiring proves no holder (supervisor gone cleanly), so it
