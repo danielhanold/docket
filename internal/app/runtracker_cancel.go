@@ -12,8 +12,7 @@
 // AUTHORITY. The run key LOCATES the run (the durable gate record + the run that
 // lives beside it); it does not authorize. Authorization is the set of conditions the spec
 // pins: the record's repository must be the current repository (LoadRunTrackerRecord fails
-// closed on wrong-repo), the presented run id must equal the record's public
-// RunID, the record must carry a parent-held authority (a non-empty ParentCap),
+// closed on wrong-repo), the record must carry a parent-held authority (a non-empty ParentCap),
 // and a CONFIRMED claim binding for the run's change must exist (LoadRunTrackerClaimBinding)
 // — or, for a record started by `run start --resume`, the resume-verified attribution
 // (AttributedID set, no claim binding at all), the shape resolveRunTrackerOwnership accepts.
@@ -232,8 +231,8 @@ type cancelSeams struct {
 // reconciliation later tasks wire (Task 11); Task 10 reconciles from the run's own
 // durable journal and needs neither. It composes the production cancellation seams
 // from repoDir and delegates to runCancel, which owns the whole flow.
-func RunCancel(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir, key, expectRunID, reason string) RunCancelResult {
-	return runCancel(productionCancelSeams(repoDir), repoDir, key, expectRunID, reason)
+func RunCancel(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir, key, reason string) RunCancelResult {
+	return runCancel(productionCancelSeams(repoDir), repoDir, key, reason)
 }
 
 // productionCancelSeams composes the real cancellation seams for repoDir: the
@@ -311,7 +310,7 @@ func (appGateStopper) stopProcess(runDir string) (bool, error) {
 
 // runCancel drives the whole cancellation flow in the spec's exact order over the
 // injected seams. See the file header for authority, order, and accounting.
-func runCancel(seams cancelSeams, repoDir, key, expectRunID, reason string) RunCancelResult {
+func runCancel(seams cancelSeams, repoDir, key, reason string) RunCancelResult {
 	// A human reason is required (the CLI enforces it too); an empty reason is a
 	// usage refusal, never a silent cancellation.
 	if strings.TrimSpace(reason) == "" {
@@ -334,13 +333,9 @@ func runCancel(seams cancelSeams, repoDir, key, expectRunID, reason string) RunC
 		return cancelRefused(cancelRunReason(err))
 	}
 
-	// (2) Validate the remaining authority conditions: the presented run id must be
-	// the record's public RunID (a stale locator confers nothing); the record must
-	// carry a parent-held authority; a CONFIRMED claim binding for the run's change
-	// must exist.
-	if expectRunID == "" || ep.RunID != expectRunID {
-		return cancelRefused("run-id-mismatch")
-	}
+	// (2) Validate the remaining authority conditions: the record must carry a
+	// parent-held authority; a CONFIRMED claim binding for the run's change must
+	// exist, or the resume-verified proof (ADR-0128 Decision 1).
 	if rec.ParentCap == "" {
 		return cancelRefused("authority-unavailable")
 	}

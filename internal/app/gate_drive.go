@@ -573,7 +573,7 @@ func incumbentRemedyMessage(inc *gatedrive.IncumbentSnapshot) string {
 		if gatedrive.ValidDriveID(inc.DriveID) {
 			gate += " (drive " + inc.DriveID + ")"
 		}
-		return gate + " holds this worktree; wait for it, or stop the owning run with the run.cancel operation (--key <key> --run-id <id> --reason <why>) — the worktree frees itself when that gate ends"
+		return gate + " holds this worktree; wait for it, or stop the owning run with the run.cancel operation (--key <key> --reason <why>) — the worktree frees itself when that gate ends"
 	}
 }
 

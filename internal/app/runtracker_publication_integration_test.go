@@ -542,7 +542,7 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
-	pre := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
+	pre := runCancel(seams, fx.repo, fx.key, "human stop")
 	if pre.Disposition == CancelDispositionCancelled {
 		t.Fatalf("disposition = cancelled with an unwritable run; findings=%v", pre.Findings)
 	}
@@ -565,7 +565,7 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 			t.Errorf("chmod mid-teardown: %v", err)
 		}
 	}
-	res := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(seams, fx.repo, fx.key, "human stop")
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q with an unpersistable settlement (findings %v), want cancellation-pending", res.Disposition, res.Findings)
 	}
@@ -590,7 +590,7 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 
 	// (c) Writable again: the SAME repeat cancel converges.
 	stopper.onStop = nil
-	res2 := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
+	res2 := runCancel(seams, fx.repo, fx.key, "human stop")
 	if res2.Disposition != CancelDispositionCancelled {
 		t.Fatalf("repeat disposition = %q (findings %v), want cancelled", res2.Disposition, res2.Findings)
 	}

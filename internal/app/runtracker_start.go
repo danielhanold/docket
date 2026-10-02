@@ -258,16 +258,16 @@ func startedRunResult(key, runID, runContext string) RunStartResult {
 // a capability or reservation token.
 func resumeActiveLocator(runKey string, ep RunRecord) string {
 	return "change " + ep.ChangeID + " has an active run (run " + ep.RunID +
-		", run key " + runKey + "); " + resumeIncumbentRemedy(runKey, ep.RunID)
+		", run key " + runKey + "); " + resumeIncumbentRemedy(runKey)
 }
 
 // resumeIncumbentRemedy renders the two remedies for a resume refused over a live
 // incumbent run. A no-run-record resume start binds its run when started (change 0463),
 // so the incumbent may be a start that was never dispatched. Nothing records whether an
 // agent is using the run, so the remedy names both cases rather than guessing.
-func resumeIncumbentRemedy(runKey, runID string) string {
+func resumeIncumbentRemedy(runKey string) string {
 	return "if it was never dispatched or its agent has exited, cancel it with 'docket run cancel --key " +
-		runKey + " --run-id " + runID + " --reason <why>' and resume after confirmed cancellation; " +
+		runKey + " --reason <why>' and resume after confirmed cancellation; " +
 		"if its agent is still running, continue the live run via 'docket run verdict'"
 }
 
@@ -331,7 +331,7 @@ func resumeWorktreeOwnerLocator(worktree, runKey string, ep RunRecord) string {
 		owner = "a live run of change " + ep.ChangeID
 	}
 	return "worktree " + worktree + " is already owned by " + owner + " (state " + string(ep.State) +
-		", run " + ep.RunID + ", run key " + runKey + "); " + resumeIncumbentRemedy(runKey, ep.RunID)
+		", run " + ep.RunID + ", run key " + runKey + "); " + resumeIncumbentRemedy(runKey)
 }
 
 // resumeReplacementParams carries the immutable start facts armResumeReplacement mints
@@ -581,7 +581,7 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 					return runUntrackedMsg(ReasonRunResumeCancellationPending,
 						"change "+scopeChangeID+" has unresolved cancellation evidence ("+detail+
 							"); the reserved replacement cannot be re-authorized until it is resolved — "+
-							"settle it with 'docket run cancel --key "+oldKey+" --run-id "+oldEp.RunID+
+							"settle it with 'docket run cancel --key "+oldKey+
 							" --reason <why>', then re-run this resume (a record named unreadable or "+
 							"cyclic is never inferred safe and must be readable again first)")
 				}

@@ -120,7 +120,7 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 				client.Registrar = runParticipantRegistrar{repoDir: effectiveCWD, runKey: runKey, runID: runID, kind: kind}
 				client.Terminal = runTerminalRecorder{repoDir: effectiveCWD, runKey: runKey, runID: runID}
 				if isRootCoordinator {
-					client.Canceller = runLifecycleCanceller{ctx: c.Context(), repoDir: effectiveCWD, runKey: runKey, runID: runID}
+					client.Canceller = runLifecycleCanceller{ctx: c.Context(), repoDir: effectiveCWD, runKey: runKey}
 					if guardian, gerr := spawnAgentDeathGuardian(effectiveCWD, runKey, runID); gerr == nil {
 						defer guardian.Complete()
 					}
@@ -209,12 +209,12 @@ func (r runTerminalRecorder) RecordTerminal(handle, turnID, status string) error
 // reconciles from the run journal and ignores the planning deps, so zero-value
 // deps are passed rather than requiring a GitHub client at Stop time.
 type runLifecycleCanceller struct {
-	ctx                    context.Context
-	repoDir, runKey, runID string
+	ctx             context.Context
+	repoDir, runKey string
 }
 
 func (c runLifecycleCanceller) CancelRun(reason string) error {
-	res := app.RunCancel(c.ctx, app.PlanningDeps{}, app.WorkspaceDeps{}, c.repoDir, c.runKey, c.runID, reason)
+	res := app.RunCancel(c.ctx, app.PlanningDeps{}, app.WorkspaceDeps{}, c.repoDir, c.runKey, reason)
 	if res.Result == app.ResultBlocked {
 		return fmt.Errorf("run cancel refused: %s", res.Disposition)
 	}

@@ -192,7 +192,7 @@ func TestIntegrationRunFenceInFlightMutationReconcilesBeforeCancelled(t *testing
 
 	seams := cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
 
-	res := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(seams, fx.repo, fx.key, "human stop")
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q, want cancellation-pending while a mutation is in flight", res.Disposition)
 	}
@@ -207,7 +207,7 @@ func TestIntegrationRunFenceInFlightMutationReconcilesBeforeCancelled(t *testing
 	// reaches cancelled.
 	done(mutationStatusCompleted, false)
 
-	res2 := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
+	res2 := runCancel(seams, fx.repo, fx.key, "human stop")
 	if res2.Disposition != CancelDispositionCancelled {
 		t.Fatalf("repeat disposition = %q, want cancelled after reconciliation (findings %v)", res2.Disposition, res2.Findings)
 	}
@@ -418,7 +418,7 @@ func TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsRunWorktreeSoFenceAct
 
 	// A REAL fresh run, minted exactly as a fresh (non-resume) start mints it:
 	// change unbound (""), Worktree "". Nothing below pre-binds either.
-	ep, err := MintRunRecord(repo, key, "")
+	_, err := MintRunRecord(repo, key, "")
 	if err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
@@ -478,7 +478,7 @@ func TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsRunWorktreeSoFenceAct
 	}
 	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
 	reconcilePendingRunMutations(t, repo, key)
-	cres := runCancel(seams, repo, key, ep.RunID, "0427 regression stop")
+	cres := runCancel(seams, repo, key, "0427 regression stop")
 	if cres.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
 	}
@@ -517,7 +517,7 @@ func TestIntegrationRunFenceVerdictSoleProofAdoptionBindsRunWorktreeSoFenceActs(
 		}
 	}
 
-	ep, err := MintRunRecord(repo, key, "")
+	_, err := MintRunRecord(repo, key, "")
 	if err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
@@ -568,7 +568,7 @@ func TestIntegrationRunFenceVerdictSoleProofAdoptionBindsRunWorktreeSoFenceActs(
 	// left (change 0441); the fence must then locate the recovered run by its bound
 	// worktree and refuse the mutation run-cancelled.
 	reconcilePendingRunMutations(t, repo, key)
-	cres := runCancel(seams, repo, key, ep.RunID, "0427 regression stop")
+	cres := runCancel(seams, repo, key, "0427 regression stop")
 	if cres.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
 	}
@@ -1106,7 +1106,7 @@ func TestIntegrationRunFenceProductionUncertainThenIdenticalRetryThenCancel(t *t
 	}
 	before := snapshot()
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q (findings %v), want cancelled via the production-journaled match", res.Disposition, res.Findings)
 	}
@@ -1160,7 +1160,7 @@ func assertUnverifiedRetryLeavesOriginalPending(t *testing.T, fx cancelFixture, 
 		t.Fatalf("descriptors = %+v / %+v, want two identical valid descriptors (else the case is vacuous)", a, b)
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 	if res.Disposition == CancelDispositionCancelled {
 		t.Fatalf("disposition = cancelled (findings %v): an unverified retry settled the uncertain original", res.Findings)
 	}
@@ -1280,7 +1280,7 @@ func TestIntegrationRunFenceProductionUnverifiedWorkspaceRetryNeverSettles(t *te
 				return
 			}
 			stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-			res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
+			res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
 			if res.Disposition != CancelDispositionCancelled {
 				t.Fatalf("disposition = %q (findings %v), want cancelled via a verified identical retry", res.Disposition, res.Findings)
 			}

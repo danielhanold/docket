@@ -196,12 +196,12 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	gateClaim.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 
 	// cancel is the coordinator's explicit human Stop (change 0375): it durably
-	// fences the run located by --key (validated against --run-id and a confirmed
-	// claim), tears down registered tasks and processes, reconciles admitted
-	// mutations, and reports one disposition (cancelled / already-cancelled /
-	// cancellation-pending / refused). It charges no suite attempt and resets no
+	// fences the run located by --key (validated against a confirmed claim), tears
+	// down registered tasks and processes, reconciles admitted mutations, and reports
+	// one disposition (cancelled / already-cancelled / cancellation-pending /
+	// refused). It charges no suite attempt and resets no
 	// deadline/relaunch/budget/retry state — a child failure or ordinary dispatch
-	// return never invokes it. All three flags are required; the deps mirror the other
+	// return never invokes it. Both flags are required; the deps mirror the other
 	// run leaves.
 	cancel := &cobra.Command{
 		Use:   "cancel",
@@ -221,18 +221,15 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			key, _ := c.Flags().GetString("key")
-			runID, _ := c.Flags().GetString("run-id")
 			reason, _ := c.Flags().GetString("reason")
-			setResult(app.RunCancel(c.Context(), deps, wdeps, repoDir, key, runID, reason))
+			setResult(app.RunCancel(c.Context(), deps, wdeps, repoDir, key, reason))
 			return nil
 		},
 	}
 	cancel.Flags().String("key", "", "durable run `key` locating the run to cancel (required)")
-	cancel.Flags().String("run-id", "", "expected run `id` (required)")
 	cancel.Flags().String("reason", "", "human `reason` for the cancellation (required)")
 	cancel.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cancel.MarkFlagRequired("key")
-	_ = cancel.MarkFlagRequired("run-id")
 	_ = cancel.MarkFlagRequired("reason")
 
 	runCmd.AddCommand(verify, runStart, runVerdict, gateClaim, cancel)
