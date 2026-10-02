@@ -53,12 +53,12 @@ func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
 		t.Fatalf("positional fields (%q,%q,%q) disagree with the result (%q,%q,%q)", key, runID, runCtx, start.Key, start.RunID, start.RunContext)
 	}
 
-	svc, res, reason := NewTaskGateDriveService(common, "/bin/true", buildEffWithMaxAttempts("go test ./...", 4), []string{"/bin/echo", "ok"})
+	svc, res, reason := NewBuildGateDriveService(common, "/bin/true", buildEffWithMaxAttempts("/bin/echo ok", 4))
 	if svc == nil {
-		t.Fatalf("task service: %s (%s)", res, reason)
+		t.Fatalf("build service: %s (%s)", res, reason)
 	}
 	req := GateDriveStartRequest{
-		RepoDir: common, Worktree: worktree, ChangeID: "5", TaskID: "task-6", Phase: "build",
+		RepoDir: common, Worktree: worktree, ChangeID: "5", Phase: "build",
 		RunRoot: testsupport.TempDir(t), Cwd: worktree, RunContext: runCtx, RunID: runID,
 	}
 

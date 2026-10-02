@@ -334,12 +334,9 @@ func TestRepresentativeSignatures(t *testing.T) {
 		// change 0375: human Stop — the three required flags sorted, then the optional
 		// repo dir; no positional tail.
 		"run.cancel": "--key <key> --reason <reason> --run-id <id> [--repo-dir <dir>]",
-		// change 0359: the config owners run their resolved suite command; the
-		// task-intent owner (--owner task) alone takes the focused argv after a bare
-		// `--` separator, which lands last.
-		// change 0405: gate.drive.start gains the two optional successor-receipt flags,
-		// sorted among the other optionals (after --phase, before --ref).
-		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--child-cap <token>] [--cwd <dir>] [--env-hash <hash>] [--idempotent-suite-gate] [--phase <name>] [--predecessor-drive-id <id>] [--predecessor-owner-gen <gen>] [--ref <ref>] [--repo-dir <dir>] [--run-context <token>] [--run-id <id>] [--scope-id <id>] [--task-id <id>] -- <argv...>",
+		// change 0489: the task owner and the scope/receipt flags are gone; every
+		// owner runs its resolved suite command, so there is no `--` argv tail.
+		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--cwd <dir>] [--env-hash <hash>] [--idempotent-suite-gate] [--phase <name>] [--ref <ref>] [--repo-dir <dir>] [--run-context <token>] [--run-id <id>] [--task-id <id>]",
 		// change 0472 (ADR-0129 rows 40, 40a): the record revision rides on
 		// --revision, and relink's pin on --expect-revision.
 		"change.claim":      "--id <id> --revision <revision> [--repo-dir <dir>] [--run-context <token>]",

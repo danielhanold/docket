@@ -162,7 +162,7 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			// Resolve the Git common directory (the durable drive-store root) and this
-			// binary's path exactly as the commandless/task drives do; the app
+			// binary's path exactly as the commandless drives do; the app
 			// operation composes the store and process seam over them.
 			commonDir, exe, err := gateDriveRepoContext(c.Context(), repoDir)
 			if err != nil {
@@ -210,65 +210,30 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 
 	start := &cobra.Command{
-		Use:   "start --repo-dir <dir> --run-root <dir> --owner build|finalize|task -- <argv...>",
+		Use:   "start --repo-dir <dir> --run-root <dir> --owner build|finalize",
 		Short: "Start a drive over the named owner's suite command and advance one slice",
 		// process-control + local-write: launches the supervised suite via the
 		// process supervisor and writes the durable drive store.
 		Annotations: capability("gate.drive.start", EffectProcessControl, EffectLocalWrite),
-		// The config owners (build|finalize) accept NO command — it is the resolved
-		// policy of the required --owner, read from authoritative config — so they
-		// reject any `-- <argv>`. The task-intent owner (--owner task) is the sole
-		// exception: it REQUIRES the focused command argv after a `--` separator, the
-		// same ArgsLenAtDash boundary `gate launch` enforces. Args is left arbitrary so
-		// Cobra collects the argv, and RunE enforces the per-owner boundary itself.
+		// No owner takes a command argv: the suite command is the resolved policy of
+		// the required --owner, read from authoritative config, so any positional
+		// word or `-- <argv>` is a usage error. Args is left arbitrary so RunE names
+		// the refusal itself.
 		RunE: func(c *cobra.Command, args []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
 				return err
 			}
-			// ArgsLenAtDash reports the count of positional words before `--`, or -1
-			// when no `--` was present. The child argv must be introduced by `--`
-			// (dash >= 0) with no positional word before it (dash == 0); a positional
-			// word anywhere else is rejected before any owner routing.
-			dash := c.ArgsLenAtDash()
-			var argv []string
-			switch {
-			case dash < 0:
-				if len(args) > 0 {
-					return errors.New("gate drive start takes no positional arguments; a task command argv follows a `--` separator")
-				}
-			case dash == 0:
-				argv = args[dash:]
-			default:
-				return errors.New("gate drive start takes no positional arguments before `--`; the command argv follows `--`")
-			}
-			// The successor receipt is a PAIR: both --predecessor-drive-id and
-			// --predecessor-owner-gen together (a successor start), or neither (a
-			// scope's first start). Validate the pair BEFORE any service construction
-			// or launch, so a malformed successor start never consumes the predecessor.
-			predDriveID, _ := c.Flags().GetString("predecessor-drive-id")
-			predOwnerGen, _ := c.Flags().GetString("predecessor-owner-gen")
-			switch {
-			case predDriveID != "" && predOwnerGen == "":
-				return errors.New("gate drive start --predecessor-drive-id requires --predecessor-owner-gen; the successor receipt is a pair")
-			case predOwnerGen != "" && predDriveID == "":
-				return errors.New("gate drive start --predecessor-owner-gen requires --predecessor-drive-id; the successor receipt is a pair")
+			if len(args) > 0 {
+				return errors.New("gate drive start takes no arguments; it runs the owner's configured suite command")
 			}
 			owner, _ := c.Flags().GetString("owner")
 			var svc *app.GateDriveService
 			switch owner {
 			case "build", "finalize":
-				if len(argv) > 0 {
-					return fmt.Errorf("gate drive start --owner %s takes no command argv after `--`; it runs the owner's configured suite command", owner)
-				}
 				svc, err = buildOwnedGateDriveService(c.Context(), repoDir, owner)
-			case "task":
-				if len(argv) == 0 {
-					return errors.New("gate drive start --owner task requires the command argv after a `--` separator")
-				}
-				svc, err = buildTaskGateDriveService(c.Context(), repoDir, argv)
 			default:
-				return fmt.Errorf("gate drive start --owner must be build, finalize, or task, got %q", owner)
+				return fmt.Errorf("gate drive start --owner must be build or finalize, got %q", owner)
 			}
 			if err != nil {
 				return err
@@ -279,17 +244,14 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 				cwd = repoDir
 			}
 			// The drive's RepoDir is its REPOSITORY IDENTITY, recorded as
-			// RepoIdentity and compared by scopeIdentityMatch — it is NOT the
-			// fingerprinted worktree (that is Worktree, below). The repository
-			// identity is the Git common directory, shared across every linked
-			// worktree, which is exactly what a recovery scope pins as its
-			// RepoIdentity (and how the rest of docket records a repo
-			// identity — see finalize's rebase receipt). Passing the worktree path
-			// here instead made a legitimate scope→scope-bound-start compare
-			// two different dimensions (common dir vs worktree), so it ALWAYS failed
-			// scope-identity-mismatch. Resolve the common dir so both sides pin the
-			// same dimension; a genuine cross-repo start still has a different common
-			// dir and still fails closed. (change 0359)
+			// RepoIdentity — it is NOT the fingerprinted worktree (that is Worktree,
+			// below). The repository identity is the Git common directory, shared
+			// across every linked worktree, which is exactly what run.start's outer
+			// recovery scope pins as its RepoIdentity and what Takeover compares (and
+			// how the rest of docket records a repo identity — see finalize's rebase
+			// receipt). Passing the worktree path instead would compare two different
+			// dimensions (common dir vs worktree); a genuine cross-repo start still has
+			// a different common dir and still fails closed. (change 0359)
 			commonDir, _, err := gateDriveRepoContext(c.Context(), repoDir)
 			if err != nil {
 				return err
@@ -301,8 +263,6 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			branch, _ := c.Flags().GetString("branch")
 			ref, _ := c.Flags().GetString("ref")
 			envHash, _ := c.Flags().GetString("env-hash")
-			scopeID, _ := c.Flags().GetString("scope-id")
-			childCap, _ := c.Flags().GetString("child-cap")
 			runContext, _ := c.Flags().GetString("run-context")
 			runID, _ := c.Flags().GetString("run-id")
 			setResult(gateDrivePresenter{inner: svc.Start(app.GateDriveStartRequest{
@@ -317,19 +277,15 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 				EnvHash:             envHash,
 				RunRoot:             runRoot,
 				IdempotentSuiteGate: idempotent,
-				ScopeID:             scopeID,
-				ChildCapability:     childCap,
 				RunContext:          runContext,
 				RunID:               runID,
-				PredecessorDriveID:  predDriveID,
-				PredecessorOwnerGen: predOwnerGen,
 			})})
 			return nil
 		},
 	}
 	start.Flags().String("repo-dir", "", "repository `dir` to fingerprint and run in (default: current directory)")
 	start.Flags().String("run-root", "", "absolute `dir` that holds raw run slots (required)")
-	start.Flags().String("owner", "", "which policy `role` owns this drive: build, finalize, or task (required)")
+	start.Flags().String("owner", "", "which policy `role` owns this drive: build or finalize (required)")
 	start.Flags().String("cwd", "", "working `dir` for the launched suite command (default: --repo-dir)")
 	start.Flags().String("change-id", "", "change `id` the drive certifies (recorded only)")
 	start.Flags().String("task-id", "", "task `id` the drive certifies (recorded only)")
@@ -337,12 +293,8 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	start.Flags().String("branch", "", "branch `name` recorded alongside the fingerprint")
 	start.Flags().String("ref", "", "`ref` recorded alongside the fingerprint")
 	start.Flags().String("env-hash", "", "canonical launch-environment `hash` (recorded only)")
-	start.Flags().String("scope-id", "", "recovery scope `id` to bind this drive into (from prepare-scope)")
-	start.Flags().String("child-cap", "", "child capability `token` authorizing the scope bind (from prepare-scope)")
 	start.Flags().String("run-context", "", "run-context `token` from run start, linking this drive to its started run (optional; omitted for an untracked run)")
 	start.Flags().String("run-id", "", "workflow run `id` recorded on the worktree slot (a locator, not a credential)")
-	start.Flags().String("predecessor-drive-id", "", "successor receipt: the previous drive's `id` (with --predecessor-owner-gen; forbidden on a scope's first start)")
-	start.Flags().String("predecessor-owner-gen", "", "successor receipt: the previous drive's owner `gen`eration (with --predecessor-drive-id)")
 	start.Flags().Bool("idempotent-suite-gate", false, "mark the gate idempotent, eligible for the single relaunch")
 	_ = start.MarkFlagRequired("run-root")
 	_ = start.MarkFlagRequired("owner")
@@ -504,40 +456,7 @@ func buildCommandlessGateDriveService(ctx context.Context, repoDir string) (*app
 	return svc, nil
 }
 
-// buildTaskGateDriveService composes the seam for a `gate drive start --owner task`
-// invocation: the workflow role declares the test intent and supplies argv
-// EXPLICITLY, so there is no authoritative config COMMAND to resolve. The
-// observation BUDGET, however, is resolved from authoritative config exactly the
-// way buildOwnedGateDriveService does it — the shared status reader's PinContext
-// over the default-branch config blob (never operator input) — so a task-intent
-// drive gets the configured gate_observation_budget (default 30 minutes) rather
-// than the zero budget that would HALT a still-running focused test at its very
-// first observation. It discovers the repository's Git common directory (the
-// durable store root) and this binary's path (the detached supervisor re-exec
-// target), then hands the raw argv and the resolved effective config to the
-// task-intent constructor, which runs the argv verbatim and forces the gate
-// non-idempotent. An empty argv is rejected upstream in RunE.
-func buildTaskGateDriveService(ctx context.Context, repoDir string, argv []string) (*app.GateDriveService, error) {
-	deps, err := newPlanningDeps()
-	if err != nil {
-		return nil, err
-	}
-	pin, err := deps.Reader.PinContext(ctx, repoDir)
-	if err != nil {
-		return nil, err
-	}
-	commonDir, exe, err := gateDriveRepoContext(ctx, repoDir)
-	if err != nil {
-		return nil, err
-	}
-	svc, res, reason := app.NewTaskGateDriveService(commonDir, exe, pin.Config.Effective, argv)
-	if svc == nil {
-		return nil, fmt.Errorf("gate drive service unavailable: %s (%s)", res, reason)
-	}
-	return svc, nil
-}
-
-// gateDriveRepoContext resolves the two inputs every commandless/task drive
+// gateDriveRepoContext resolves the two inputs every commandless drive
 // composition needs from the repository: the Git common directory (the durable
 // drive store root) and this binary's path (the detached supervisor re-exec
 // target). It reaches Git only through gitcli, never internal/process.

@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"go/parser"
 	"go/token"
@@ -487,72 +489,6 @@ func TestGateDriveStartNoCommandLeak(t *testing.T) {
 	}
 }
 
-// TestGateDriveStartPredecessorPairBothOrNeither proves the successor-receipt
-// flags are validated as a pair BEFORE any service construction or launch: one
-// without the other is an invalid-input command failure (exit 2), so a
-// malformed successor start never consumes the predecessor.
-func TestGateDriveStartPredecessorPairBothOrNeither(t *testing.T) {
-	wt := gateDriveRepo(t)
-	root := testsupport.TempDir(t)
-	_, errS, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt,
-		"--run-root", root, "--owner", "task", "--predecessor-drive-id", "prev", "--", "/bin/echo", "hi")
-	if code != 2 {
-		t.Fatalf("predecessor-drive-id without owner-gen: code=%d, want 2", code)
-	}
-	if !strings.Contains(errS, "--predecessor-owner-gen") {
-		t.Fatalf("message must name the missing flag: %q", errS)
-	}
-	_, errS, code = runCLI(t, "gate", "drive", "start", "--repo-dir", wt,
-		"--run-root", root, "--owner", "task", "--predecessor-owner-gen", "gen", "--", "/bin/echo", "hi")
-	if code != 2 {
-		t.Fatalf("predecessor-owner-gen without drive-id: code=%d, want 2", code)
-	}
-	if !strings.Contains(errS, "--predecessor-drive-id") {
-		t.Fatalf("message must name the missing flag: %q", errS)
-	}
-}
-
-// TestGateDriveStartOwnerTaskRunsArgv proves `--owner task` runs the agent-supplied
-// argv verbatim (the COMMAND is not resolved from config), while the observation
-// BUDGET IS resolved from authoritative config (the configured repo below carries
-// the default gate_observation_budget): a fast green command returns a drive doc
-// carrying a drive id and PASSED at exit 0. It is deliberately NOT load-fragile:
-// with the resolved non-zero budget the slice polls the still-running child until
-// it exits (PASSED) instead of the pre-fix zero budget, which fixed the deadline
-// at start and HALTed deadline-expired the first time the child was observed
-// running under load (the Task-12 defect).
-func TestGateDriveStartOwnerTaskRunsArgv(t *testing.T) {
-	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
-	root := testsupport.TempDir(t)
-	out, errS, code := runCLI(t, "--json", "gate", "drive", "start",
-		"--repo-dir", wt, "--run-root", root, "--owner", "task", "--", "/bin/echo", "hi")
-	if code != 0 || errS != "" {
-		t.Fatalf("task start: out=%q err=%q code=%d", out, errS, code)
-	}
-	d := driveDoc(t, decodeOneJSON(t, out))
-	if id, _ := d["drive_id"].(string); id == "" {
-		t.Fatalf("task start produced no drive id: %v", d)
-	}
-	if d["outcome"] != "PASSED" {
-		t.Fatalf("task start outcome=%v, want PASSED", d["outcome"])
-	}
-}
-
-// TestGateDriveStartOwnerTaskRequiresArgv proves `--owner task` without a `--`
-// argv boundary is an invalid-input command failure (exit 2) naming the `--`
-// contract, and never launches a drive.
-func TestGateDriveStartOwnerTaskRequiresArgv(t *testing.T) {
-	wt := gateDriveRepo(t)
-	root := testsupport.TempDir(t)
-	_, errS, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "task")
-	if code != 2 {
-		t.Fatalf("task without argv: code=%d, want 2", code)
-	}
-	if !strings.Contains(errS, "--") {
-		t.Fatalf("task without argv: message does not name the -- contract: %q", errS)
-	}
-}
-
 // TestGateDriveStartBuildRejectsArgv proves `--owner build|finalize` still refuses
 // a `-- <argv>` boundary: the config owners run their resolved suite command, never
 // operator argv. Exit 2, no drive launched.
@@ -570,16 +506,15 @@ func TestGateDriveStartBuildRejectsArgv(t *testing.T) {
 }
 
 // TestGateDriveStartRejectsPositionalBeforeDash proves a positional word with no
-// `--` separator, or before one, is rejected (exit 2) — the argv only ever follows
-// a bare `--`.
+// `--` separator, or before one, is rejected (exit 2) — no owner takes an argv.
 func TestGateDriveStartRejectsPositionalBeforeDash(t *testing.T) {
 	wt := gateDriveRepo(t)
 	root := testsupport.TempDir(t)
-	_, _, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "task", "/bin/echo")
+	_, _, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build", "/bin/echo")
 	if code != 2 {
 		t.Fatalf("positional without dash: code=%d, want 2", code)
 	}
-	_, _, code = runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "task", "before", "--", "/bin/echo")
+	_, _, code = runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build", "before", "--", "/bin/echo")
 	if code != 2 {
 		t.Fatalf("positional before dash: code=%d, want 2", code)
 	}
@@ -739,13 +674,13 @@ func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 // unknown-run-id, never the catch-all invalid-request. The presented value is
 // never echoed.
 func TestGateDriveStartUnknownRunIDIsNamed(t *testing.T) {
-	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /bin/echo hi\n")
 	root := testsupport.TempDir(t)
 	const bogus = "0790b760e26444866ef2e156ba383326"
 	out, _, _ := runCLI(t, "--json", "gate", "drive", "start",
-		"--repo-dir", wt, "--run-root", root, "--owner", "task",
+		"--repo-dir", wt, "--run-root", root, "--owner", "build",
 		"--change-id", "463", "--task-id", "task-3", "--phase", "build", "--branch", "fix/x",
-		"--run-id", bogus, "--", "/bin/echo", "hi")
+		"--run-id", bogus)
 	doc := decodeOneJSON(t, out)
 	if doc["result"] != "invalid-input" || doc["reason"] != "unknown-run-id" {
 		t.Fatalf("unknown --run-id must refuse invalid-input/unknown-run-id, got %v", doc)
@@ -778,5 +713,82 @@ func TestGateDriveRetiredScopeCommandsAreUnknown(t *testing.T) {
 		if strings.Contains(out, `"operation":"gate.drive.`) {
 			t.Errorf("docket gate drive %s emitted a protocol document: %s", sub, out)
 		}
+	}
+}
+
+// TestGateDriveStartRetiredTaskSurfaceIsUsageError (change 0489): a stale caller of
+// the retired task-owned surface gets a usage error and launches nothing — never a
+// silent build-owned run of the configured suite.
+func TestGateDriveStartRetiredTaskSurfaceIsUsageError(t *testing.T) {
+	marker := filepath.Join(testsupport.TempDir(t), "suite-ran")
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: touch "+marker+"\n")
+	root := testsupport.TempDir(t)
+	base := []string{"--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root}
+	cases := map[string][]string{
+		"owner task":            {"--owner", "task", "--", "/bin/echo", "hi"},
+		"argv after dash":       {"--owner", "build", "--", "/bin/echo", "hi"},
+		"scope id":              {"--owner", "build", "--scope-id", "s"},
+		"child cap":             {"--owner", "build", "--child-cap", "c"},
+		"predecessor drive id":  {"--owner", "build", "--predecessor-drive-id", "d"},
+		"predecessor owner gen": {"--owner", "build", "--predecessor-owner-gen", "g"},
+	}
+	for name, extra := range cases {
+		out, _, code := runCLI(t, append(append([]string{}, base...), extra...)...)
+		if code != 2 {
+			t.Errorf("%s: exited %d, want 2 (usage error): %s", name, code, out)
+		}
+		if strings.Contains(out, `"drive"`) {
+			t.Errorf("%s: emitted a drive document: %s", name, out)
+		}
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatalf("a refused start launched the configured suite")
+	}
+}
+
+// gitCommonDirForTest resolves dir's absolute Git common directory, the root the
+// durable drive store lives under.
+func gitCommonDirForTest(t *testing.T, dir string) string {
+	t.Helper()
+	cmd := exec.Command("git", "-C", dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	cmd.Env = append(os.Environ(), testsupport.GitEnv(t)...)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git rev-parse --git-common-dir: %v", err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// TestGateDriveStartBuildOwnedStoresRunContextHash (change 0489): with the task
+// owner gone, this proves a build-owned start's --run-context reaches the drive
+// record as the hash run.verdict's outer scan matches a run's drives on.
+func TestGateDriveStartBuildOwnedStoresRunContextHash(t *testing.T) {
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /bin/echo hi\n")
+	root := testsupport.TempDir(t)
+	out, errS, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root,
+		"--owner", "build", "--change-id", "489", "--run-context", "ctx-0489")
+	if code != 0 || errS != "" {
+		t.Fatalf("start: out=%q err=%q code=%d", out, errS, code)
+	}
+	id, _ := driveDoc(t, decodeOneJSON(t, out))["drive_id"].(string)
+	if id == "" {
+		t.Fatalf("start produced no drive id: %s", out)
+	}
+	common := gitCommonDirForTest(t, wt)
+	buf, err := os.ReadFile(filepath.Join(common, "docket", "gate-drives", "v2", id, "record.json"))
+	if err != nil {
+		t.Fatalf("read drive record: %v", err)
+	}
+	var env struct {
+		Record struct {
+			RunContextHash string `json:"run_context_hash"`
+		} `json:"record"`
+	}
+	if err := json.Unmarshal(buf, &env); err != nil {
+		t.Fatalf("decode drive record: %v", err)
+	}
+	sum := sha256.Sum256([]byte("ctx-0489"))
+	if want := hex.EncodeToString(sum[:]); env.Record.RunContextHash != want {
+		t.Fatalf("drive run_context_hash = %q, want sha256(--run-context) %q", env.Record.RunContextHash, want)
 	}
 }

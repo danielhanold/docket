@@ -42,9 +42,6 @@ type fakeDriveEngine struct {
 	// test can prove a busy advisory refusal reached reconciliation first.
 	reconcile      func(worktree, runID string) (bool, string, error)
 	reconcileCount int
-	// scopeRun, when set, is the run a scoped start's scope pinned
-	// (AdvisoryRunID, change 0467).
-	scopeRun string
 }
 
 func (f *fakeDriveEngine) ReconcileFinishedIncumbent(worktree, runID string) (bool, string, error) {
@@ -53,16 +50,6 @@ func (f *fakeDriveEngine) ReconcileFinishedIncumbent(worktree, runID string) (bo
 		return false, "", nil
 	}
 	return f.reconcile(worktree, runID)
-}
-
-// AdvisoryRunID models the driver's resolution: a scoped start inherits
-// scopeRun when it presents none (or the same one); anything else keeps the
-// presented run.
-func (f *fakeDriveEngine) AdvisoryRunID(r gatedrive.StartRequest) string {
-	if r.ScopeID != "" && f.scopeRun != "" && (r.RunID == "" || r.RunID == f.scopeRun) {
-		return f.scopeRun
-	}
-	return r.RunID
 }
 
 func (f *fakeDriveEngine) recordStart(r gatedrive.StartRequest) {
@@ -507,128 +494,22 @@ func TestMapDriveHaltCauseKeysOnGatedriveConstants(t *testing.T) {
 	}
 }
 
-// --- Task 3: the task-intent owner ------------------------------------------
-
-// TestTaskServiceForcesNonIdempotent proves the task-intent owner forces
-// IdempotentSuiteGate false regardless of the request, passes the agent-supplied
-// argv through VERBATIM (no /bin/sh -c wrapping), and records the fixed task
-// provenance.
-func TestTaskServiceForcesNonIdempotent(t *testing.T) {
-	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
-	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
-	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, argv)
-	if svc == nil {
-		t.Fatalf("task constructor must build a service: %s %s", res, reason)
-	}
-	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
-	svc.engine = eng
-	got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: "/repo", IdempotentSuiteGate: true})
-	if got.Result != ResultApplied {
-		t.Fatalf("a WAITING start is an applied operation, got %s", got.Result)
-	}
-	if eng.lastStart.IdempotentSuiteGate {
-		t.Fatalf("task-intent Start must force IdempotentSuiteGate false")
-	}
-	if len(eng.lastStart.Command) != len(argv) {
-		t.Fatalf("task argv must pass through verbatim, got %v", eng.lastStart.Command)
-	}
-	for i := range argv {
-		if eng.lastStart.Command[i] != argv[i] {
-			t.Fatalf("argv[%d] = %q, want %q", i, eng.lastStart.Command[i], argv[i])
-		}
-	}
-	if eng.lastStart.ConfigProvenance != "task.argv=agent-supplied" {
-		t.Fatalf("task provenance = %q, want task.argv=agent-supplied", eng.lastStart.ConfigProvenance)
-	}
-}
-
-// TestTaskServiceRequiresArgv proves an empty argv fails closed at construction
-// with ResultInvalidInput and the stable missing-argv reason — never a service
-// that could Start an empty command.
-func TestTaskServiceRequiresArgv(t *testing.T) {
-	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
-	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, nil)
-	if svc != nil {
-		t.Fatalf("empty argv must not build a service")
-	}
-	if res != ResultInvalidInput {
-		t.Fatalf("empty argv result = %s, want invalid-input", res)
-	}
-	if reason != "missing-argv" {
-		t.Fatalf("reason = %q, want missing-argv", reason)
-	}
-}
-
-// TestTaskServiceResolvesObservationBudget is the regression for the Task-12
-// defect: the task-intent constructor USED to hardcode a zero observation budget,
-// which fixed the drive's deadline at start so any focused test caught running
-// even once HALTed deadline-expired instead of WAITING for its result. The budget
-// must instead resolve from authoritative config (gate_observation_budget,
-// minutes) exactly as the build/finalize owner constructors do, so a running child
-// stays in-window. A zero budget would still yield an at-start deadline; a resolved
-// 30-minute default yields a deadline strictly after start, and Start must inject
-// that resolved budget into the engine request.
-func TestTaskServiceResolvesObservationBudget(t *testing.T) {
-	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
-	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
-	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, argv)
-	if svc == nil {
-		t.Fatalf("task constructor must build a service: %s %s", res, reason)
-	}
-	if svc.budget != 30*time.Minute {
-		t.Fatalf("task budget must resolve from gate_observation_budget minutes, got %v (a zero budget HALTs a running focused test)", svc.budget)
-	}
-	// The resolved budget must actually reach the engine's Start request — a budget
-	// held on the service but not injected would leave the drive at a zero deadline.
-	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
-	svc.engine = eng
-	if got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: "/repo"}); got.Result != ResultApplied {
-		t.Fatalf("a WAITING start is an applied operation, got %s", got.Result)
-	}
-	if eng.lastStart.Budget != 30*time.Minute {
-		t.Fatalf("task Start must inject the resolved non-zero budget, got %v", eng.lastStart.Budget)
-	}
-}
-
-// TestStartForwardsScopeFields proves Start carries the scope-binding fields
-// (ScopeID, ChildCapability, RunContext) through to the engine unchanged.
-func TestStartForwardsScopeFields(t *testing.T) {
+// TestStartForwardsRunFields proves Start carries the run-linkage fields
+// (RunContext, RunID) through to the engine unchanged.
+func TestStartForwardsRunFields(t *testing.T) {
 	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
 	svc := newGateDriveService(eng, 5*time.Minute, "go test ./...", "prov")
 	got := svc.Start(GateDriveStartRequest{
-		RepoDir:         "/repo",
-		Worktree:        "/repo",
-		ScopeID:         "sc-1",
-		ChildCapability: "childcap",
-		RunContext:      "ctx-token",
+		RepoDir:    "/repo",
+		Worktree:   "/repo",
+		RunContext: "ctx-token",
+		RunID:      "run-1",
 	})
 	if got.Result != ResultApplied {
 		t.Fatalf("result = %s, want applied", got.Result)
 	}
-	if eng.lastStart.ScopeID != "sc-1" || eng.lastStart.ChildCapability != "childcap" || eng.lastStart.RunContext != "ctx-token" {
-		t.Fatalf("Start must forward the scope fields, got %+v", eng.lastStart)
-	}
-}
-
-// TestStartForwardsPredecessorFields proves Start forwards the two successor-
-// receipt fields verbatim into gatedrive.StartRequest, so a successor start
-// acknowledges exactly the predecessor the caller named.
-func TestStartForwardsPredecessorFields(t *testing.T) {
-	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
-	svc := newGateDriveService(eng, 5*time.Minute, "go test ./...", "prov")
-	got := svc.Start(GateDriveStartRequest{
-		RepoDir:             "/repo",
-		Worktree:            "/repo",
-		ScopeID:             "sc-1",
-		ChildCapability:     "childcap",
-		PredecessorDriveID:  "prev-drive",
-		PredecessorOwnerGen: "prev-gen",
-	})
-	if got.Result != ResultApplied {
-		t.Fatalf("result = %s, want applied", got.Result)
-	}
-	if eng.lastStart.PredecessorDriveID != "prev-drive" || eng.lastStart.PredecessorOwnerGen != "prev-gen" {
-		t.Fatalf("Start must forward the predecessor fields, got %+v", eng.lastStart)
+	if eng.lastStart.RunContext != "ctx-token" || eng.lastStart.RunID != "run-1" {
+		t.Fatalf("Start must forward the run fields, got %+v", eng.lastStart)
 	}
 }
 
@@ -742,30 +623,6 @@ func TestBuildStartLimitOne(t *testing.T) {
 	}
 	if eng.startCount != 0 {
 		t.Fatalf("the refused second start must not reach the engine, got %d", eng.startCount)
-	}
-}
-
-// TestTaskOwnedStartNotBudgeted proves a task-owned focused-test start for the same
-// change never charges the build phase budget: usage stays 0 no matter how many
-// task-owned starts run.
-func TestTaskOwnedStartNotBudgeted(t *testing.T) {
-	dir := testsupport.TempDir(t)
-	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
-	eff := buildEffWithMaxAttempts("go test ./...", 4)
-	svc, res, reason := NewTaskGateDriveService(dir, "/bin/true", eff, argv)
-	if svc == nil {
-		t.Fatalf("task constructor must build a service: %s %s", res, reason)
-	}
-	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
-	svc.engine = eng
-
-	for i := 0; i < 3; i++ {
-		if got := svc.Start(buildStartReq("0421")); got.Result != ResultApplied {
-			t.Fatalf("task-owned start %d must be applied, got %s (%s)", i, got.Result, got.Reason)
-		}
-	}
-	if used, limit := suiteUsage(t, dir, "0421"); used != 0 || limit != 0 {
-		t.Fatalf("task-owned starts must never touch the build budget, got usage (%d,%d)", used, limit)
 	}
 }
 
@@ -954,89 +811,6 @@ func TestBudgetedBuildReconcilesBeforeRefusal(t *testing.T) {
 			t.Fatalf("reconcile=%d admit=%d, want reconciliation consulted and no admission", eng.reconcileCount, eng.startCount)
 		}
 		if used, limit := suiteUsage(t, dir, "0446"); used != 0 || limit != 0 {
-			t.Fatalf("a refused start must charge nothing, got (%d,%d)", used, limit)
-		}
-	})
-}
-
-// TestBudgetedBuildAdvisoryReconcilesWithScopeRun (change 0467): a scoped
-// build-owned start presenting NO run, under a scope pinned to run E, over
-// a proven-finished incumbent slot E owns, is admitted — the advisory precheck
-// reconciles with the scope's run, exactly as Admit would, instead of the empty
-// presented one (which the slot's run fence would refuse worktree-busy). A start
-// presenting a foreign run stays fenced and is refused before admission.
-func TestBudgetedBuildAdvisoryReconcilesWithScopeRun(t *testing.T) {
-	const (
-		runID      = "0467eeeeeeeeeeeeeeeeeeeeeeeeee01"
-		ownerRunID = "run-e1"
-	)
-	var reconciledRuns []string
-	setup := func(t *testing.T) (*GateDriveService, *fakeDriveEngine, string, GateDriveStartRequest, *gatedrive.Store) {
-		t.Helper()
-		reconciledRuns = nil
-		svc, eng, dir := newBudgetTestBuildService(t, 4)
-		worktree := testsupport.TempDir(t)
-		store := gatedrive.OpenStore(dir)
-		tok, err := store.ReserveWorktreeExecutionForRun("/repo", worktree, ownerRunID, nil)
-		if err != nil {
-			t.Fatalf("occupy worktree slot for %s: %v", ownerRunID, err)
-		}
-		if err := store.ConfirmWorktreeExecution(worktree, tok, runID, "/runs/"+runID); err != nil {
-			t.Fatalf("confirm incumbent: %v", err)
-		}
-		eng.scopeRun = ownerRunID
-		// The E-owned slot is a scopeless-kind incumbent, which the real store proves
-		// finished only through a drive record this package cannot mint, so the seam
-		// is scripted: it applies the store's run fence (a slot another run owns
-		// is never settled) and otherwise reports the finished incumbent settled.
-		eng.reconcile = func(w, e string) (bool, string, error) {
-			reconciledRuns = append(reconciledRuns, e)
-			if e != ownerRunID {
-				return false, "incumbent-run-fenced", nil
-			}
-			return true, "incumbent-settled", nil
-		}
-		req := GateDriveStartRequest{
-			RepoDir: "/repo", Worktree: worktree, ChangeID: "0467", TaskID: "task-1",
-			Phase: "build", ScopeID: "scope-1", ChildCapability: "child-cap",
-		}
-		return svc, eng, dir, req, store
-	}
-
-	t.Run("no presented run inherits the scope's and admits", func(t *testing.T) {
-		svc, eng, dir, req, _ := setup(t)
-		got := svc.Start(req)
-		if got.Result != ResultApplied {
-			t.Fatalf("a scoped start presenting no run must be admitted over its own run's finished incumbent: result=%s reason=%q msg=%q", got.Result, got.Reason, got.Message)
-		}
-		if eng.reconcileCount != 1 || eng.startCount != 1 || eng.startAdmittedCount != 1 {
-			t.Fatalf("reconcile=%d admit=%d launch=%d, want 1/1/1", eng.reconcileCount, eng.startCount, eng.startAdmittedCount)
-		}
-		if len(reconciledRuns) != 1 || reconciledRuns[0] != ownerRunID {
-			t.Fatalf("the advisory check must reconcile under the scope's run, got %v", reconciledRuns)
-		}
-		if used, _ := suiteUsage(t, dir, "0467"); used != 1 {
-			t.Fatalf("usage = %d, want exactly one charged attempt", used)
-		}
-	})
-
-	t.Run("foreign presented run stays fenced", func(t *testing.T) {
-		svc, eng, dir, req, _ := setup(t)
-		req.RunID = "run-foreign"
-		got := svc.Start(req)
-		if got.Result == ResultApplied || got.Reason != string(gatedrive.ErrWorktreeBusy) {
-			t.Fatalf("a foreign presented run must refuse worktree-busy, got result=%s reason=%q", got.Result, got.Reason)
-		}
-		if !strings.Contains(got.Message, "incumbent-run-fenced") {
-			t.Fatalf("refusal must name the run fence, got %q", got.Message)
-		}
-		if eng.startCount != 0 {
-			t.Fatalf("a fenced start must not reach admission, got %d", eng.startCount)
-		}
-		if len(reconciledRuns) != 1 || reconciledRuns[0] != "run-foreign" {
-			t.Fatalf("a foreign run must be reconciled as presented, got %v", reconciledRuns)
-		}
-		if used, limit := suiteUsage(t, dir, "0467"); used != 0 || limit != 0 {
 			t.Fatalf("a refused start must charge nothing, got (%d,%d)", used, limit)
 		}
 	})
@@ -1419,9 +1193,6 @@ func TestProductionConstructorsWireRunLaunchGate(t *testing.T) {
 
 	f, res, reason := NewFinalizeGateDriveService(dir, "/bin/true", eff)
 	check("finalize", driverOf("finalize", f, res, reason))
-
-	tk, res, reason := NewTaskGateDriveService(dir, "/bin/true", eff, []string{"go", "test"})
-	check("task", driverOf("task", tk, res, reason))
 
 	c, res, reason := NewCommandlessGateDriveService(dir, "/bin/true")
 	check("commandless", driverOf("commandless", c, res, reason))
