@@ -22,7 +22,7 @@ import (
 //
 //   - cancellation, success closeout, and resume quiescence run through
 //     productionCancelSeams: the real gatedrive store, appLaunchReconciler /
-//     appLaunchObserver (Driver.ReconcileRunLaunches / ObserveRunLaunches over the
+//     appLaunchObserver (Driver.ReconcileRunLaunches / VerdictRunLaunches over the
 //     real process service), appGateObserver, and appGateStopper;
 //   - unrelated corrupt, unsupported-schema, obsolete (lost-linkage, rotated-token),
 //     other-worktree, and HALTED drive records plus a corrupt unrelated run record are
@@ -126,6 +126,40 @@ func seedRunContextDrives(t *testing.T, fx cancelFixture, prefix string) {
 		"worktree_path": fx.worktree, "raw_run_dir": foreignRunDir,
 		"last_outcome": string(gatedrive.WAITING), "run_context_hash": runTrackerHashToken("another-run-context"),
 	})
+}
+
+// neverLaunchedToken is the launch token a seeded never-launched drive carries:
+// lowercase hex, as process.ResolveReservation requires.
+const neverLaunchedToken = "0491aaaabbbbccccddddeeeeffff0000"
+
+// seedNeverLaunchedDrive seeds the record a tracked gate.drive.start killed between
+// Admit and StartAdmitted leaves behind (change 0491, spec Problem fact 5): reserved
+// — no outcome, no run dir — carrying its launch token, owner generation, run root,
+// and the run's context hash. extra merges further fields (change_id for the outer
+// scan).
+func seedNeverLaunchedDrive(t *testing.T, common, id, worktree, runRoot, contextHash string, extra map[string]any) {
+	t.Helper()
+	fields := map[string]any{
+		"worktree_path":    worktree,
+		"run_root":         runRoot,
+		"admission_token":  neverLaunchedToken,
+		"owner_generation": "orphan-owner-generation",
+		"run_context_hash": contextHash,
+	}
+	for k, v := range extra {
+		fields[k] = v
+	}
+	seedCensusDrive(t, common, id, fields)
+}
+
+// driveOutcome reads one drive's persisted outcome and cause.
+func driveOutcome(t *testing.T, store *gatedrive.Store, id string) (gatedrive.Outcome, string) {
+	t.Helper()
+	rec, err := store.Load(id)
+	if err != nil {
+		t.Fatalf("load drive %s: %v", id, err)
+	}
+	return rec.LastOutcome, rec.LastCause
 }
 
 // finalizeEffFor is a finalize-owned effective config carrying a resolved
@@ -361,7 +395,61 @@ func TestIntegrationRunCompletionProductionCensusHaltedLiveDriveBlocks(t *testin
 			t.Fatalf("run state = %q, want completing (the success fence holds while blocked)", st)
 		}
 		if obs := GateObserve(live.RunDir); obs.State != "running" {
-			t.Fatalf("the observe-only closeout stopped the live run: state %q", obs.State)
+			t.Fatalf("the stop-free closeout stopped the live run: state %q", obs.State)
+		}
+	})
+}
+
+// TestIntegrationRunCompletionProductionCensusMissingRunRoot (change 0491, spec T3):
+// a never-attached first launch whose run root does not exist used to read
+// resolution-unresolved forever, so cancel stayed cancellation-pending, the closeout
+// blocked, and resume quiescence refused. Each now reads it as never launched.
+func TestIntegrationRunCompletionProductionCensusMissingRunRoot(t *testing.T) {
+	const orphan = "adddddddddddddddddddddddddd00491"
+	seed := func(t *testing.T, fx cancelFixture) {
+		missing := filepath.Join(testsupport.TempDir(t), "never-created-run-root")
+		seedNeverLaunchedDrive(t, fx.common, orphan, fx.worktree, missing, fx.contextHash, nil)
+	}
+	t.Run("cancel-settles-run-cancelled", func(t *testing.T) {
+		fx := prepareQuiescentRun(t)
+		seed(t, fx)
+		res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop")
+		if res.Disposition != CancelDispositionCancelled {
+			t.Fatalf("cancel = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+		}
+		if out, cause := driveOutcome(t, fx.store, orphan); out != gatedrive.HALTED || cause != "run-cancelled" {
+			t.Fatalf("drive = %s/%q, want HALTED run-cancelled", out, cause)
+		}
+	})
+	t.Run("closeout-settles-launch-abandoned", func(t *testing.T) {
+		fx := prepareQuiescentRun(t)
+		must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+			RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
+		must(t, RecordRunParticipantTerminal(fx.repo, fx.key, fx.runID,
+			"turn-1", "t1", ParticipantTerminalCompleted))
+		seed(t, fx)
+		if ok, reason, findings := completeSuccessfulRun(productionCancelSeams(fx.repo), fx.repo, fx.key); !ok {
+			t.Fatalf("closeout ok=false reason=%q findings=%v", reason, findings)
+		}
+		if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
+			t.Fatalf("run state = %q, want completed", st)
+		}
+		if out, cause := driveOutcome(t, fx.store, orphan); out != gatedrive.HALTED || cause != "launch-abandoned" {
+			t.Fatalf("drive = %s/%q, want HALTED launch-abandoned", out, cause)
+		}
+	})
+	t.Run("resume-quiescence-admits", func(t *testing.T) {
+		fx := prepareQuiescentRun(t)
+		if res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop"); res.Disposition != CancelDispositionCancelled {
+			t.Fatalf("cancel = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+		}
+		seed(t, fx) // left behind after the cancel, as a delayed launcher would
+		oldEp, _, err := LoadRunRecord(fx.repo, fx.key)
+		if err != nil {
+			t.Fatalf("LoadRunRecord: %v", err)
+		}
+		if ok, detail := validateResumeQuiescence(productionCancelSeams(fx.repo), fx.repo, oldEp); !ok {
+			t.Fatalf("resume quiescence refused over a missing run root: %s", detail)
 		}
 	})
 }

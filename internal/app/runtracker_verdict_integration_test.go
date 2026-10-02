@@ -1189,7 +1189,7 @@ func TestIntegrationRunVerdictVerdictRunCompleteReportPersistFailureIsReported(t
 
 // TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership: the unattributed observe path over the
 // same run-backed complete fixture leaves the run byte-identical (AC5) — it holds
-// no key, drives no closeout (not even the observe-only census), and renders the
+// no key, drives no closeout (not even the verdict-mode census), and renders the
 // plain observe run-complete line.
 func TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
@@ -1319,5 +1319,39 @@ func markDriveWaiting(t *testing.T, gitDir, id string) {
 	}
 	if err := os.WriteFile(path, raw, 0o600); err != nil {
 		t.Fatalf("write drive record: %v", err)
+	}
+}
+
+// TestIntegrationRunVerdictNeverLaunchedDriveCompletesRun (change 0491, spec T1, the
+// stub's regression — 0490 review finding F3): a tracked gate.drive.start killed
+// between Admit and StartAdmitted leaves a reserved drive record nothing can launch.
+// The keyed run.verdict's verdict-mode census proves it never launched, settles it
+// HALTED launch-abandoned, and the run completes — run-done run-complete, never
+// run-stop … completion-unaccounted.
+func TestIntegrationRunVerdictNeverLaunchedDriveCompletesRun(t *testing.T) {
+	requireProcessSupervisorHere(t)
+	fx := newVerdictCompletionFixture(t)
+	common, err := runTrackerGitCommonDir(fx.repo)
+	if err != nil {
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
+	}
+	// The production verdict census over the real store replaces the fixture's fake.
+	fx.wdeps.CancelSeams = func(string) cancelSeams {
+		return cancelSeams{store: fx.store, observer: fx.observer, launchObserver: appLaunchObserver{store: fx.store}}
+	}
+	const orphan = "adddddddddddddddddddddddddd00492"
+	// An existing, empty run root holds no reservation: ResolveReservation proves
+	// never-launched. "ha" is the fixture run's context hash.
+	seedNeverLaunchedDrive(t, common, orphan, fx.worktree, testsupport.TempDir(t), "ha", nil)
+
+	res := RunVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	if got, want := res.HumanText(), "run-done "+fx.key+" run-complete 3"; got != want {
+		t.Fatalf("HumanText = %q, want %q (findings=%v)", got, want, res.CompletionFindings)
+	}
+	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
+		t.Fatalf("run state = %q, want completed", st)
+	}
+	if out, cause := driveOutcome(t, fx.store, orphan); out != gatedrive.HALTED || cause != "launch-abandoned" {
+		t.Fatalf("drive = %s/%q, want HALTED launch-abandoned", out, cause)
 	}
 }

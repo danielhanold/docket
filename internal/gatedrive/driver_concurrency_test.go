@@ -728,6 +728,9 @@ func TestBarrierCancelBetweenAdmitAndStartAdmitted(t *testing.T) {
 
 	req := sampleStart()
 	req.RunContext = "ctx-e1"
+	// An existing run root, so the census resolves the launch token rather than
+	// reading a missing root as never launched (change 0491).
+	req.RunRoot = testsupport.TempDir(t)
 	ticket, err := d.Admit(req) // the reservation is durable
 	if err != nil {
 		t.Fatalf("Admit: %v", err)

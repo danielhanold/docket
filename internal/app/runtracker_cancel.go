@@ -214,13 +214,15 @@ type cancelSeams struct {
 	stopper  cancelStopper
 	native   nativeTaskCanceller
 	launches runLaunchReconciler
-	// observer and launchObserver are the OBSERVATION-ONLY seams the successful-run
+	// observer and launchObserver are the STOP-FREE seams the successful-run
 	// closeout (completeSuccessfulRun, change 0441) consumes: one shared seam bundle,
-	// two flows — cancellation STOPS (stopper/native/launches), completion only
-	// OBSERVES (observer/launchObserver). observer observes whether an execution's
+	// two flows — cancellation STOPS (stopper/native/launches), completion never
+	// stops (observer/launchObserver). observer observes whether an execution's
 	// process is proven-terminal without stopping it; launchObserver walks a run's
-	// launch obligations without settling any. A nil observer/launchObserver proves
-	// nothing (fail closed), mirroring the nil-stopper/nil-reconciler rule.
+	// launch obligations in verdict mode: it stops nothing and settles only a proven
+	// never-launched first launch (HALTED launch-abandoned, change 0491). A nil
+	// observer/launchObserver proves nothing (fail closed), mirroring the
+	// nil-stopper/nil-reconciler rule.
 	observer       processObserver
 	launchObserver runLaunchObserver
 }

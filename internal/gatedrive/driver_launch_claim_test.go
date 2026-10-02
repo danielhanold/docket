@@ -238,3 +238,50 @@ func TestClaimContentionBounded(t *testing.T) {
 		t.Fatalf("contention must yield EXACTLY ONE relaunch, got RelaunchCount=%d", final.RelaunchCount)
 	}
 }
+
+// TestStartAdmittedRefusesAfterVerdictSettle (change 0491, spec T4): a launcher
+// delayed between Admit and StartAdmitted, still holding its in-memory ticket,
+// finds its reserved record settled HALTED launch-abandoned by the keyed verdict.
+// StartAdmitted re-reads the record under the claim, refuses, launches nothing,
+// and frees the worktree — exactly as after cancel's settle.
+func TestStartAdmittedRefusesAfterVerdictSettle(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
+	proc := &fakeProc{} // a nil resolve answers never-launched
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	req := sampleStart()
+	req.RunContext = "ctx-0491"
+	req.RunRoot = testsupport.TempDir(t) // exists, holds no reservation: never launched
+	ticket, err := d.Admit(req)
+	if err != nil {
+		t.Fatalf("Admit: %v", err)
+	}
+
+	report, err := d.VerdictRunLaunches(capHash(req.RunContext))
+	if err != nil {
+		t.Fatalf("VerdictRunLaunches: %v", err)
+	}
+	if !report.Accounted {
+		t.Fatalf("a proven never-launched admission must be accounted, got %+v", report)
+	}
+	if proc.resolveN != 1 {
+		t.Fatalf("the verdict must resolve the existing root's launch token, ResolveReservation called %d times", proc.resolveN)
+	}
+	rec, err := store.Load(ticket.id)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if rec.LastOutcome != HALTED || rec.LastCause != "launch-abandoned" {
+		t.Fatalf("want HALTED launch-abandoned, got %v/%q", rec.LastOutcome, rec.LastCause)
+	}
+
+	_, serr := d.StartAdmitted(ticket)
+	if oe, ok := AsOwnershipError(serr); !ok || oe.Kind != ErrUnresolvedLaunchTransition {
+		t.Fatalf("StartAdmitted over a settled record must refuse ErrUnresolvedLaunchTransition, got %v", serr)
+	}
+	if proc.launchN != 0 {
+		t.Fatalf("a settled admission must launch nothing, proc.Launch called %d times", proc.launchN)
+	}
+	if !worktreeFree(t, store, req.Cwd) {
+		t.Fatal("a refused launch must free the worktree lock")
+	}
+}

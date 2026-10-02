@@ -6,21 +6,24 @@
 // path on a verified run-complete (Task 8 wires the caller); RunVerify stays
 // read-only and unattributed observe verdicts never reach it.
 //
-// OBSERVATION ONLY. Closeout stops nothing and signals nothing: it never invokes
-// native cancellation, never process.Stop, and never settles a never-launched
-// reservation terminal. Its one journal repair is settleUncertainPublications (change
-// 0444) — an uncertain→completed flip of publication entries a later verified
-// identical retry proves, derived from the durable journal alone with no Git or
-// GitHub call. It reuses cancellation's accounting SHAPES through the two
-// observation seams (processObserver / runLaunchObserver), but every
-// per-participant, per-process, and per-launch decision is a pure observation. The
-// stop-capable cancellation seams (stopper / native / launches) are never touched
-// on this path. Closeout writes no worktree record: a gate's worktree lock is held
-// by its supervisor and frees itself when that supervisor exits (change 0490).
+// STOPS NOTHING. Closeout stops nothing and signals nothing: it never invokes
+// native cancellation and never process.Stop. Its two writes are
+// settleUncertainPublications (change 0444) — an uncertain→completed flip of
+// publication entries a later verified identical retry proves, derived from the
+// durable journal alone with no Git or GitHub call — and the verdict-mode launch
+// census's settle of a proven never-launched first launch, HALTED
+// launch-abandoned (change 0491), so a launcher killed between Admit and
+// StartAdmitted cannot strand a successful run. It reuses cancellation's
+// accounting SHAPES through the two non-stopping seams (processObserver /
+// runLaunchObserver); every per-participant and per-process decision is a pure
+// observation. The stop-capable cancellation seams (stopper / native / launches)
+// are never touched on this path. Closeout writes no worktree record: a gate's
+// worktree lock is held by its supervisor and frees itself when that supervisor
+// exits (change 0490).
 //
 // STEPS. (1) the success fence active→completing; (1b) settle retry-proven
-// uncertain publications; (2) reload; (3) observation-only accounting — native and
-// execution participants, the observe-only launch census for the run's context
+// uncertain publications; (2) reload; (3) stop-free accounting — native and
+// execution participants, the verdict-mode launch census for the run's context
 // hash, and the mutation journal; (4) re-enumerate participants and mutations;
 // (5) any unsettled obligation blocks (completion-unaccounted); (6) CAS
 // completing→completed.
@@ -62,10 +65,11 @@ type processObserver interface {
 
 // runLaunchObserver accounts, for a completing run, every gate drive started inside
 // the run (attributed by contextHash, the run-tracker record's child_context_hash)
-// — the observation-only counterpart of runLaunchReconciler (which stops running
-// supervisors and settles never-launched launches terminal). Production
-// appLaunchObserver wraps gatedrive.Driver.ObserveRunLaunches; a nil observer
-// proves nothing (fail closed).
+// — the verdict-mode counterpart of runLaunchReconciler (which stops running
+// supervisors and settles never-launched launches run-cancelled): it stops nothing,
+// but settles a proven never-launched first launch HALTED launch-abandoned (change
+// 0491). Production appLaunchObserver wraps gatedrive.Driver.VerdictRunLaunches; a
+// nil observer proves nothing (fail closed).
 type runLaunchObserver interface {
 	observe(contextHash string) (gatedrive.RunLaunchReport, error)
 }
@@ -92,10 +96,10 @@ func (appGateObserver) observeProcessTerminal(runDir string) (bool, error) {
 
 // appLaunchObserver is the production runLaunchObserver: it composes a gatedrive
 // driver over the completion store and the app gate seam's process service, then
-// observes one run's drives through ObserveRunLaunches (observation
-// only — it stops nothing and settles nothing). It resolves the process service per
-// call, exactly as appLaunchReconciler.reconcile does. A nil store or an unresolvable
-// process service proves nothing (fail closed).
+// observes one run's drives through VerdictRunLaunches (it stops nothing; it
+// settles only a proven never-launched first launch). It resolves the process
+// service per call, exactly as appLaunchReconciler.reconcile does. A nil store or
+// an unresolvable process service proves nothing (fail closed).
 type appLaunchObserver struct {
 	store *gatedrive.Store
 }
@@ -108,7 +112,7 @@ func (o appLaunchObserver) observe(contextHash string) (gatedrive.RunLaunchRepor
 	if svc == nil {
 		return gatedrive.RunLaunchReport{}, fmt.Errorf("gate service unavailable: %s", reason)
 	}
-	return gatedrive.NewSystemDriver(o.store, svc).ObserveRunLaunches(contextHash)
+	return gatedrive.NewSystemDriver(o.store, svc).VerdictRunLaunches(contextHash)
 }
 
 // completeSuccessfulRun drives the whole successful-run ownership closeout over the
@@ -120,7 +124,7 @@ func (o appLaunchObserver) observe(contextHash string) (gatedrive.RunLaunchRepor
 // The caller (Task 8)
 // has already resolved the confirmed claim binding and the run-complete verdict; this
 // function owns only the run's closeout. See the file header for the
-// observation-only, fail-closed, never-relabel, and lock-ordering contracts.
+// stops-nothing, fail-closed, never-relabel, and lock-ordering contracts.
 func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, reason string, findings []string) {
 	// (1) Durable success fence: CAS active→completing. The observed state under the
 	// lock decides a rejection's bounded reason — a cancelling/cancelled run is never
@@ -149,10 +153,10 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 	// retry (change 0444) — journal-derived evidence only, persisted through the
 	// ordinary run CAS. The attributed keyed closeout is a WRITE path (unlike
 	// RunVerify and unattributed verdicts, which stay read-only), but it still
-	// stops no task, launches no mutation, and settles no never-launched
-	// reservation: the only write is uncertain→completed on matched journal
-	// entries. It runs before the step (2) reload so both the step (3) accounting
-	// read and the step (4) re-enumeration read see the settled journal. A failed
+	// stops no task and launches no mutation: this step's only write is
+	// uncertain→completed on matched journal entries. It runs before the step (2)
+	// reload so both the step (3) accounting read and the step (4) re-enumeration
+	// read see the settled journal. A failed
 	// settlement is a bounded finding; the entry stays uncertain and the
 	// accounting below blocks fail-closed as before.
 	settledTokens, sfindings := settleUncertainPublications(repoDir, runKey)
@@ -223,7 +227,7 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 	return true, "", findings
 }
 
-// accountCompletionObligations is step (3)'s full observation-only accounting over
+// accountCompletionObligations is step (3)'s full stop-free accounting over
 // the fenced record: native participants, execution participants, the run's drives
 // (attributed by the run context runKey's run-tracker record carries), and the
 // mutation journal. It returns whether the run is blocked (any obligation unproven)
@@ -328,13 +332,14 @@ func accountCompletionMutations(ep RunRecord) (bool, []string) {
 	return blocked, findings
 }
 
-// accountCompletionLaunches observes the run's drives through the observation-only
-// launch seam, attributed by the run context hash runKey's run-tracker record
-// carries (runContextHash). A nil observer proves nothing (fail closed,
-// launch-observer-unavailable); an unreadable run context blocks
-// (run-context-unreadable); an observation error blocks (launch-observe-failed); an
-// unaccounted report blocks and surfaces its findings. An accounted report's
-// informational findings are surfaced without blocking.
+// accountCompletionLaunches accounts the run's drives through the verdict-mode
+// launch seam (stop-free; it settles only a proven never-launched first launch
+// HALTED launch-abandoned, change 0491), attributed by the run context hash
+// runKey's run-tracker record carries (runContextHash). A nil observer proves
+// nothing (fail closed, launch-observer-unavailable); an unreadable run context
+// blocks (run-context-unreadable); an observation error blocks
+// (launch-observe-failed); an unaccounted report blocks and surfaces its findings.
+// An accounted report's informational findings are surfaced without blocking.
 func accountCompletionLaunches(seams cancelSeams, repoDir, runKey string) (bool, []string) {
 	if seams.launchObserver == nil {
 		return true, []string{"launch-observer-unavailable"}

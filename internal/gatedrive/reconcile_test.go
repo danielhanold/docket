@@ -14,7 +14,7 @@ import (
 
 // ---------------------------------------------------------------------------
 // The run launch census (change 0437 Task 6; attribution by run context, change
-// 0490). ReconcileRunLaunches / ObserveRunLaunches walk the drive registry,
+// 0490). ReconcileRunLaunches / VerdictRunLaunches walk the drive registry,
 // attribute each drive to the run whose context hash it stores, and prove each
 // attributed drive's supervisors gone — under the per-drive claimant flock for a
 // nonterminal drive. No worktree lock or holder note is read.
@@ -137,7 +137,7 @@ func censusModes(d *Driver) []struct {
 	return []struct {
 		name string
 		run  func(string) (RunLaunchReport, error)
-	}{{"reconcile", d.ReconcileRunLaunches}, {"observe", d.ObserveRunLaunches}}
+	}{{"reconcile", d.ReconcileRunLaunches}, {"verdict", d.VerdictRunLaunches}}
 }
 
 // TestCensusStopsRunningDriveOfTheRun (L9): a nonterminal drive of the run whose
@@ -189,17 +189,22 @@ func TestCensusSupervisorAlreadyGoneIsAccounted(t *testing.T) {
 	}
 }
 
-// TestCensusSettlesNeverAttachedFirstLaunch (L9): a reserved first launch that
-// never attached a run dir resolves its exact launch token; a proven never-launched
-// one is settled HALTED run-cancelled in cancel mode and accounted. In observe mode
-// the same drive is launch-pending and its record is left untouched.
+// TestCensusSettlesNeverAttachedFirstLaunch (L9; verdict mode, change 0491): a
+// reserved first launch that never attached a run dir resolves its exact launch
+// token; a proven never-launched one is settled and accounted in both modes —
+// HALTED run-cancelled in cancel mode, HALTED launch-abandoned in verdict mode —
+// and neither mode launches or stops anything.
 func TestCensusSettlesNeverAttachedFirstLaunch(t *testing.T) {
-	seed := func(t *testing.T, store *Store) string {
-		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
+	// seed gives the drive an existing run root: a missing root short-circuits the
+	// resolve (reconcileFirstLaunch's clean-absence rule, change 0491).
+	seed := func(t *testing.T, store *Store) (id, runRoot string) {
+		runRoot = testsupport.TempDir(t)
+		id, _ = seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
 			r.RawRunDir, r.RawOwnership = "", ""
 			r.AdmissionToken = censusAdmissionToken
+			r.RunRoot = runRoot
 		})
-		return id
+		return id, runRoot
 	}
 	newProc := func(gotRoot, gotToken *string) *fakeProc {
 		return &fakeProc{resolve: func(root, token string) (*process.ReservationResolution, error) {
@@ -212,7 +217,7 @@ func TestCensusSettlesNeverAttachedFirstLaunch(t *testing.T) {
 		var root, token string
 		proc := newProc(&root, &token)
 		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
-		id := seed(t, store)
+		id, runRoot := seed(t, store)
 
 		report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
 		if err != nil {
@@ -221,7 +226,7 @@ func TestCensusSettlesNeverAttachedFirstLaunch(t *testing.T) {
 		if !report.Accounted {
 			t.Fatalf("a proven never-launched first launch must be accounted, got %+v", report)
 		}
-		if token != censusAdmissionToken || root != seedRecord(t).RunRoot {
+		if token != censusAdmissionToken || root != runRoot {
 			t.Fatalf("resolved (%q, %q), want the drive's run root and launch token", root, token)
 		}
 		after, err := store.Load(id)
@@ -236,29 +241,31 @@ func TestCensusSettlesNeverAttachedFirstLaunch(t *testing.T) {
 		}
 	})
 
-	t.Run("observe-pending-unchanged", func(t *testing.T) {
+	t.Run("verdict-settles-launch-abandoned", func(t *testing.T) {
 		var root, token string
-		d, store := newTestDriver(t, &fakeClock{now: startRun()}, newProc(&root, &token), stableGit())
-		id := seed(t, store)
-		recPath := filepath.Join(store.root, id, recordFileName)
-		before, err := os.ReadFile(recPath)
-		if err != nil {
-			t.Fatalf("read record: %v", err)
-		}
+		proc := newProc(&root, &token)
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+		id, runRoot := seed(t, store)
 
-		report, err := d.ObserveRunLaunches(capHash(censusCtxA))
+		report, err := d.VerdictRunLaunches(capHash(censusCtxA))
 		if err != nil {
-			t.Fatalf("ObserveRunLaunches: %v", err)
+			t.Fatalf("VerdictRunLaunches: %v", err)
 		}
-		if report.Accounted || !findingFor(report.Findings, "launch-pending", id) {
-			t.Fatalf("observe must report the never-launched first launch pending, got %+v", report)
+		if !report.Accounted || len(report.Findings) != 0 {
+			t.Fatalf("the keyed verdict must settle a proven never-launched first launch, got %+v", report)
 		}
-		after, err := os.ReadFile(recPath)
+		if token != censusAdmissionToken || root != runRoot {
+			t.Fatalf("resolved (%q, %q), want the drive's run root and launch token", root, token)
+		}
+		after, err := store.Load(id)
 		if err != nil {
-			t.Fatalf("read record: %v", err)
+			t.Fatalf("Load: %v", err)
 		}
-		if string(before) != string(after) {
-			t.Fatal("observe mode must not mutate the drive record")
+		if after.LastOutcome != HALTED || after.LastCause != "launch-abandoned" {
+			t.Fatalf("want HALTED launch-abandoned, got %v/%q", after.LastOutcome, after.LastCause)
+		}
+		if proc.launchN != 0 || proc.stopN != 0 {
+			t.Fatalf("the verdict census launches and stops nothing: launch=%d stop=%d", proc.launchN, proc.stopN)
 		}
 	})
 }
@@ -280,6 +287,7 @@ func TestCensusStopsIdentifiedFirstLaunch(t *testing.T) {
 	id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
 		r.RawRunDir, r.RawOwnership = "", ""
 		r.AdmissionToken = censusAdmissionToken
+		r.RunRoot = testsupport.TempDir(t) // an existing root: the token is resolved
 	})
 
 	report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
@@ -299,7 +307,7 @@ func TestCensusStopsIdentifiedFirstLaunch(t *testing.T) {
 // dir — but the launch may have spawned a supervisor before losing its response.
 // The census must not settle it by its empty run dirs: it resolves the drive's
 // launch token. An identified running run is stopped (cancel) or run-live
-// (observe); a proven never-launched launch is settled in both modes without
+// (verdict); a proven never-launched launch is settled in both modes without
 // rewriting the already-terminal record; an unresolved verdict or a resolve error
 // keeps the run pending; a run root that no longer exists is clean absence.
 func TestCensusResolvesLaunchFailedFirstLaunch(t *testing.T) {
@@ -315,7 +323,7 @@ func TestCensusResolvesLaunchFailedFirstLaunch(t *testing.T) {
 	}
 
 	t.Run("identified-running", func(t *testing.T) {
-		for _, mode := range []string{"reconcile", "observe"} {
+		for _, mode := range []string{"reconcile", "verdict"} {
 			t.Run(mode, func(t *testing.T) {
 				sup := newSupervisors()
 				root := testsupport.TempDir(t)
@@ -342,15 +350,15 @@ func TestCensusResolvesLaunchFailedFirstLaunch(t *testing.T) {
 						t.Fatalf("stopped %v, want exactly [%s]", sup.stopped, dir)
 					}
 				} else {
-					report, err := d.ObserveRunLaunches(capHash(censusCtxA))
+					report, err := d.VerdictRunLaunches(capHash(censusCtxA))
 					if err != nil {
-						t.Fatalf("ObserveRunLaunches: %v", err)
+						t.Fatalf("VerdictRunLaunches: %v", err)
 					}
 					if report.Accounted || !findingFor(report.Findings, "run-live", id) {
-						t.Fatalf("observe must keep a launch-failed drive's live supervisor pending, got %+v", report)
+						t.Fatalf("verdict must keep a launch-failed drive's live supervisor pending, got %+v", report)
 					}
 					if proc.stopN != 0 {
-						t.Fatalf("observe mode must never stop, Stop called %d times", proc.stopN)
+						t.Fatalf("verdict mode must never stop, Stop called %d times", proc.stopN)
 					}
 				}
 				if gotRoot != root || gotToken != censusAdmissionToken {
@@ -477,7 +485,7 @@ func TestCensusPendingOnClaimBusy(t *testing.T) {
 
 // TestCensusStopsLiveSupervisorOfHaltedDrive (Review Focus 1): a HALTED drive
 // whose supervisor is still running (deadline-expired-stop-unproven) is not
-// settled by its label: cancel mode stops it, and observe mode reports run-live
+// settled by its label: cancel mode stops it, and verdict mode reports run-live
 // and keeps the run unaccounted.
 func TestCensusStopsLiveSupervisorOfHaltedDrive(t *testing.T) {
 	seed := func(t *testing.T, store *Store, dir string) string {
@@ -508,7 +516,7 @@ func TestCensusStopsLiveSupervisorOfHaltedDrive(t *testing.T) {
 		}
 	})
 
-	t.Run("observe-live", func(t *testing.T) {
+	t.Run("verdict-live", func(t *testing.T) {
 		sup := newSupervisors()
 		proc := sup.proc()
 		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
@@ -516,15 +524,15 @@ func TestCensusStopsLiveSupervisorOfHaltedDrive(t *testing.T) {
 		sup.state[dir] = process.StateRunning
 		id := seed(t, store, dir)
 
-		report, err := d.ObserveRunLaunches(capHash(censusCtxA))
+		report, err := d.VerdictRunLaunches(capHash(censusCtxA))
 		if err != nil {
-			t.Fatalf("ObserveRunLaunches: %v", err)
+			t.Fatalf("VerdictRunLaunches: %v", err)
 		}
 		if report.Accounted || !findingFor(report.Findings, "run-live", id) {
-			t.Fatalf("observe must keep a HALTED drive's live supervisor pending, got %+v", report)
+			t.Fatalf("verdict must keep a HALTED drive's live supervisor pending, got %+v", report)
 		}
 		if proc.stopN != 0 {
-			t.Fatalf("observe mode must never stop, Stop called %d times", proc.stopN)
+			t.Fatalf("verdict mode must never stop, Stop called %d times", proc.stopN)
 		}
 	})
 
@@ -748,7 +756,8 @@ func TestCensusEmptyContextAccountsVacuously(t *testing.T) {
 // TestCensusReservedRelaunchResolvesRelaunchToken: a reserved-but-unattached
 // relaunch resolves the RELAUNCH token (never the launch token): never-launched
 // settles HALTED run-cancelled preserving the consumed reservation (cancel) or
-// stays launch-pending (observe); identified is stopped; unresolved stays pending.
+// stays launch-pending (verdict; change 0493 retires the relaunch); identified is
+// stopped; unresolved stays pending.
 func TestCensusReservedRelaunchResolvesRelaunchToken(t *testing.T) {
 	const relaunchToken = "aaaaaaaaaaaaaaaa"
 	seed := func(t *testing.T, store *Store) string {
@@ -796,26 +805,26 @@ func TestCensusReservedRelaunchResolvesRelaunchToken(t *testing.T) {
 		}
 	})
 
-	t.Run("never-launched-observe-pending", func(t *testing.T) {
+	t.Run("never-launched-verdict-pending", func(t *testing.T) {
 		var seen string
 		sup := newSupervisors()
 		resolving(sup, "never-launched", "", &seen)
 		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
 		id := seed(t, store)
 
-		report, err := d.ObserveRunLaunches(capHash(censusCtxA))
+		report, err := d.VerdictRunLaunches(capHash(censusCtxA))
 		if err != nil {
-			t.Fatalf("ObserveRunLaunches: %v", err)
+			t.Fatalf("VerdictRunLaunches: %v", err)
 		}
 		if report.Accounted || !findingFor(report.Findings, "launch-pending", id) {
-			t.Fatalf("observe must keep a never-launched relaunch pending, got %+v", report)
+			t.Fatalf("verdict must keep a never-launched relaunch pending, got %+v", report)
 		}
 		after, err := store.Load(id)
 		if err != nil {
 			t.Fatalf("Load: %v", err)
 		}
 		if isTerminalOutcome(after.LastOutcome) {
-			t.Fatalf("observe must never settle the reservation, got %v", after.LastOutcome)
+			t.Fatalf("verdict must never settle a reserved relaunch, got %v", after.LastOutcome)
 		}
 	})
 
@@ -926,6 +935,7 @@ func TestCensusFailuresPreserveEvidence(t *testing.T) {
 		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
 			r.RawRunDir, r.RawOwnership = "", ""
 			r.AdmissionToken = censusAdmissionToken
+			r.RunRoot = testsupport.TempDir(t) // an existing root: the token is resolved
 		})
 		report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
 		if err != nil {
@@ -1029,5 +1039,147 @@ func TestCensusReplayConverges(t *testing.T) {
 	}
 	if proc.launchN != 0 {
 		t.Fatalf("the census must never launch, proc.Launch called %d times", proc.launchN)
+	}
+}
+
+// TestCensusMissingRunRootIsNeverLaunched (change 0491, Decision 4): a first launch
+// whose RunRoot does not exist (the launcher died before process.Launch made it, or
+// a temp dir was cleaned) never resolves its token — ResolveReservation would refuse
+// a missing root forever. Both modes read the clean absence as never launched and
+// settle it: run-cancelled in cancel mode, launch-abandoned in verdict mode.
+func TestCensusMissingRunRootIsNeverLaunched(t *testing.T) {
+	for _, tc := range []struct{ mode, cause string }{
+		{"reconcile", "run-cancelled"},
+		{"verdict", "launch-abandoned"},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			proc := &fakeProc{}
+			d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+			missing := filepath.Join(testsupport.TempDir(t), "never-created")
+			id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
+				r.RawRunDir, r.RawOwnership = "", ""
+				r.AdmissionToken = censusAdmissionToken
+				r.RunRoot = missing
+			})
+			run := d.ReconcileRunLaunches
+			if tc.mode == "verdict" {
+				run = d.VerdictRunLaunches
+			}
+			report, err := run(capHash(censusCtxA))
+			if err != nil {
+				t.Fatalf("%s: %v", tc.mode, err)
+			}
+			if !report.Accounted || len(report.Findings) != 0 {
+				t.Fatalf("%s: a missing run root is never launched and settled, got %+v", tc.mode, report)
+			}
+			if proc.resolveN != 0 {
+				t.Fatalf("%s: a missing root must not be resolved, ResolveReservation called %d times", tc.mode, proc.resolveN)
+			}
+			after, err := store.Load(id)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if after.LastOutcome != HALTED || after.LastCause != tc.cause {
+				t.Fatalf("%s: want HALTED %s, got %v/%q", tc.mode, tc.cause, after.LastOutcome, after.LastCause)
+			}
+		})
+	}
+}
+
+// TestCensusRunRootProbeErrorStaysUnresolved (change 0491, Review Focus 1): a run
+// root whose Lstat fails for a reason other than not-exist is unknown, not absent —
+// it stays resolution-unresolved in both modes and the record is never settled
+// (learning probe-error-is-not-clean-absence).
+func TestCensusRunRootProbeErrorStaysUnresolved(t *testing.T) {
+	file := filepath.Join(testsupport.TempDir(t), "a-file")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	notDir := filepath.Join(file, "root") // Lstat fails ENOTDIR, not ErrNotExist
+	for _, mode := range []string{"reconcile", "verdict"} {
+		t.Run(mode, func(t *testing.T) {
+			d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
+			id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
+				r.RawRunDir, r.RawOwnership = "", ""
+				r.AdmissionToken = censusAdmissionToken
+				r.RunRoot = notDir
+			})
+			run := d.ReconcileRunLaunches
+			if mode == "verdict" {
+				run = d.VerdictRunLaunches
+			}
+			report, err := run(capHash(censusCtxA))
+			if err != nil {
+				t.Fatalf("%s: %v", mode, err)
+			}
+			if report.Accounted || !findingFor(report.Findings, "resolution-unresolved", id) {
+				t.Fatalf("%s: a run-root probe error must stay unresolved, got %+v", mode, report)
+			}
+			after, err := store.Load(id)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if isTerminalOutcome(after.LastOutcome) {
+				t.Fatalf("%s: a probe error must never settle the record, got %v/%q", mode, after.LastOutcome, after.LastCause)
+			}
+		})
+	}
+}
+
+// TestCensusVerdictLeavesBusyClaimPending (change 0491, Review Focus 2): a launcher
+// still alive and holding the drive's claim (StartAdmitted mid-launch) is pending
+// work. The keyed verdict reports claim-busy, settles nothing, and never waits.
+func TestCensusVerdictLeavesBusyClaimPending(t *testing.T) {
+	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
+	id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
+		r.RawRunDir, r.RawOwnership = "", ""
+		r.AdmissionToken = censusAdmissionToken
+		r.RunRoot = testsupport.TempDir(t)
+	})
+	held, busy, err := store.tryRelaunchClaim(id)
+	if err != nil || busy {
+		t.Fatalf("precondition: take the claim: busy=%v err=%v", busy, err)
+	}
+	defer held.close()
+
+	report, err := d.VerdictRunLaunches(capHash(censusCtxA))
+	if err != nil {
+		t.Fatalf("VerdictRunLaunches: %v", err)
+	}
+	if report.Accounted || !findingFor(report.Findings, "claim-busy", id) {
+		t.Fatalf("a held claim must read claim-busy, got %+v", report)
+	}
+	after, err := store.Load(id)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if isTerminalOutcome(after.LastOutcome) {
+		t.Fatalf("the verdict must not settle a drive whose launcher holds the claim, got %v", after.LastOutcome)
+	}
+}
+
+// TestCensusVerdictSettlesOnlyItsOwnRun (change 0491, Review Focus 3): the keyed
+// verdict settles only drives attributed to its own run context; another run's
+// never-launched drive is untouched.
+func TestCensusVerdictSettlesOnlyItsOwnRun(t *testing.T) {
+	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
+	other, _ := seedRunDrive(t, store, censusCtxB, func(r *driveRecord) {
+		r.RawRunDir, r.RawOwnership = "", ""
+		r.AdmissionToken = censusAdmissionToken
+		r.RunRoot = testsupport.TempDir(t)
+	})
+	report, err := d.VerdictRunLaunches(capHash(censusCtxA))
+	if err != nil {
+		t.Fatalf("VerdictRunLaunches: %v", err)
+	}
+	if !report.Accounted || len(report.Findings) != 0 {
+		t.Fatalf("a run with no drives of its own accounts vacuously, got %+v", report)
+	}
+	after, err := store.Load(other)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if isTerminalOutcome(after.LastOutcome) {
+		t.Fatalf("another run's drive must not be settled, got %v/%q", after.LastOutcome, after.LastCause)
 	}
 }
