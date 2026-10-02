@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-02T21:36:27Z'
+reconciled: true
+claimed_at: '2026-10-02T21:38:14Z'
 ---
 
 ## Artifacts
@@ -77,3 +77,8 @@ Accepted loss: an agent left over from a cancelled run could still start a suite
 - Launches that cannot be resolved either way: `resolution-unresolved` stays fail-closed.
 - Deleting the dormant `agent.enter` lifecycle linkage.
 
+## Reconcile log
+
+### 2026-10-02
+
+2026-10-02 — Reconciled against main at 756fea9fe, the exact commit the spec traced (after 0489 and 0490 landed; 0490 is done). No other change is in-progress or implemented, so nothing concurrent touches reconcile.go (0493 is still proposed). 0422 and 0443 were killed in the 2026-10-02 backlog review, as the spec already records. Scope, spec, and relations unchanged.
