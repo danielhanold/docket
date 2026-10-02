@@ -36,8 +36,9 @@ import (
 // existing run-tracker-unavailable channel with the new bounded reason tokens (run-cancelled
 // / run-superseded / completion-unaccounted / completion-unpersisted /
 // report-unpersisted / run-record-unreadable) and never reports success — RunVerify's own
-// verdict is reported as fact through those tokens, never re-derived. The closeout is
-// observation-only, fails closed on missing evidence, and consumes no retry. A
+// verdict is reported as fact through those tokens, never re-derived. The closeout stops
+// nothing and settles only a proven never-launched first launch (HALTED
+// launch-abandoned); it fails closed on missing evidence, and consumes no retry. A
 // keyless/standalone/legacy dispatch (no run beside the record) keeps EXACTLY the
 // prior behavior. Unattributed observe mode is structurally unable to reach any of
 // this.

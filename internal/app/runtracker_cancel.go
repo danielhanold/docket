@@ -253,7 +253,8 @@ func productionCancelSeams(repoDir string) cancelSeams {
 		stopper:  appGateStopper{},
 		native:   nil, // Task 13 wires the native adapter hook.
 		launches: appLaunchReconciler{store: store},
-		// The observation-only seams the successful-run closeout consumes (change 0441):
+		// The seams the successful-run closeout consumes (change 0441) — they stop
+		// nothing and settle only a proven never-launched first launch:
 		// a nil pairing would fail closed, so both are wired for the completion path.
 		observer:       appGateObserver{},
 		launchObserver: appLaunchObserver{store: store},

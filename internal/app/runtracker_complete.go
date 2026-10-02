@@ -168,7 +168,8 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 		return false, "run-record-unreadable", findings
 	}
 
-	// (3) Observation-only accounting over the fenced record. Any blocking obligation
+	// (3) Accounting over the fenced record that stops nothing and settles only a
+	// proven never-launched first launch (HALTED launch-abandoned). Any blocking obligation
 	// (an unobserved native task, a live/unproven execution process, an unaccounted
 	// launch, an uncompleted mutation) fails closed; informational findings (a
 	// settled drive's run-terminal) are accounted. The step (1b) settlement tokens
