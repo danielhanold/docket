@@ -2,7 +2,7 @@
 id: 118
 slug: 'worktree-wide-gate-admission-and-explicit-human-cancellation'
 title: 'Worktree-wide gate admission and explicit human-cancellation authority'
-status: 'Accepted'
+status: 'Superseded by ADR-0132'
 date: '2026-09-14'
 supersedes: []
 reverses: []

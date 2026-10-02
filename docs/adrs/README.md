@@ -102,7 +102,6 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0113](0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md) — Resolver dispatches are admitted by durable pre-dispatch reservation (Accepted) ← change #349 · relates to ADR-0010, ADR-0019, ADR-0105
 - [ADR-0115](0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md) — Outer run gate retry budget is a counted, config-snapshotted allowance (GateRecord schema v4) (Accepted) ← change #421 · relates to ADR-0074, ADR-0075, ADR-0107, ADR-0111
 - [ADR-0116](0116-build-full-suite-repair-bound-is-a-durable-scope-owned-suite.md) — Build full-suite repair bound is a durable scope-owned suite-attempt reservation (Accepted) ← change #421 · relates to ADR-0074, ADR-0102, ADR-0107, ADR-0115
-- [ADR-0118](0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) — Worktree-wide gate admission and explicit human-cancellation authority (Accepted) ← change #375 · relates to ADR-0087, ADR-0095, ADR-0107, ADR-0111, ADR-0117
 - [ADR-0119](0119-native-codex-dispatch-with-explicit-role-aware-feature-bindi.md) — Native Codex dispatch with explicit, role-aware feature binding (Accepted) ← change #425 → supersedes ADR-0114 · relates to ADR-0103, ADR-0083
 - [ADR-0120](0120-historical-gate-drive-schemas-are-assessed-never-executed.md) — Historical gate-drive schemas are assessed, never executed (Accepted) ← change #428 · relates to ADR-0087, ADR-0095, ADR-0118
 - [ADR-0121](0121-version-tree-references-are-derived-from-complete-installed.md) — Version-tree references are derived from complete installed state, and uncertainty always retains (Accepted) ← change #323
@@ -116,6 +115,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0129](0129-collision-free-docket-vocabulary.md) — Collision-free docket vocabulary (Accepted)
 - [ADR-0130](0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md) — Build-task workers run focused tests directly under a fixed time limit; the gate driver serves only full-suite gates (Accepted) ← change #488 → supersedes ADR-0117 · relates to ADR-0107, ADR-0024
 - [ADR-0131](0131-the-run-tracker-s-outer-takeover-recovers-only-a-still-runni.md) — The run tracker's outer takeover recovers only a still-running drive (Accepted) ← change #489 · relates to ADR-0107, ADR-0130
+- [ADR-0132](0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) — Worktree admission is a supervisor-held kernel lock (Accepted) ← change #490 → supersedes ADR-0118 · relates to ADR-0095, ADR-0120, ADR-0124, ADR-0125
 
 ## Superseded / Reversed
 
@@ -134,6 +134,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0103](0103-enter-codex-coordinator-roles-through-app-server-root-thread.md) — Enter Codex coordinator roles through app-server root threads (Superseded by ADR-0114) ← change #393 · relates to ADR-0036, ADR-0059, ADR-0060, ADR-0094
 - [ADR-0114](0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) — Anchor Codex feature-scoped role entry to the owning worktree (Superseded by ADR-0119) ← change #393 → supersedes ADR-0103 · relates to ADR-0083, ADR-0103
 - [ADR-0117](0117-sequential-test-drives-within-one-worker-recovery-scope.md) — Sequential test drives within one worker recovery scope (Superseded by ADR-0130) ← change #405 · relates to ADR-0107
+- [ADR-0118](0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) — Worktree-wide gate admission and explicit human-cancellation authority (Superseded by ADR-0132) ← change #375 · relates to ADR-0087, ADR-0095, ADR-0107, ADR-0111, ADR-0117
 
 ## Deprecated
 
