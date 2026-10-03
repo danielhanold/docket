@@ -532,8 +532,10 @@ func reconcileRunTeardown(seams cancelSeams, repoDir, runKey string, ep RunRecor
 
 	// (5c) Reconcile every gate drive started inside the run — attributed by the run
 	// context hash its run-tracker record carries (change 0490): stop a running
-	// supervisor (teardown proof is "the supervisor is gone"), settle a launch that
-	// provably never launched, and keep a busy claim or an unprovable probe pending. A
+	// supervisor (teardown proof is "the supervisor is gone"), report a dead
+	// supervisor's still-populated group as the informational tree-survives finding
+	// without stopping it (change 0492), settle a launch that provably never
+	// launched, and keep a busy claim or an unprovable probe pending. A
 	// nil reconciler or an unreadable run context is a FINDING and fails closed
 	// (accounted=false), mirroring the nil-stopper rule; a census that reports
 	// unsettled drives keeps the cancellation pending so a completed replacement can

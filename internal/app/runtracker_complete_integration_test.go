@@ -726,3 +726,30 @@ func TestIntegrationRunCompletionReadOnlyPathsNeverSettle(t *testing.T) {
 		t.Fatal("read-only verification paths must not write the run record")
 	}
 }
+
+// TestIntegrationRunCompletionTreeSurvivesNeverBlocksCloseout (change 0492): a
+// census that accounts the run's drives but reports a dead supervisor's
+// surviving group (tree-survives) never blocks the closeout. The keyed verdict is
+// unchanged — run-done run-complete — the run is durably completed, and the
+// finding is surfaced in completion_findings.
+func TestIntegrationRunCompletionTreeSurvivesNeverBlocksCloseout(t *testing.T) {
+	fx := newCompletionFixture(t)
+	const leftover = "tree-survives:d1:4242"
+	fx.launchObserver.report = gatedrive.RunLaunchReport{Accounted: true, Findings: []string{leftover}}
+	rec, err := LoadRunTrackerRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
+	}
+
+	res := runTrackerCompleteRun(fx.repo, fx.key, rec, 42, fx.seams())
+	if res.Decision != RunDecisionDone || res.Outcome != VerdictRunComplete {
+		t.Fatalf("verdict = %s %s (reason %q, findings %v), want run-done run-complete",
+			res.Decision, res.Outcome, res.Reason, res.CompletionFindings)
+	}
+	if !hasFinding(res.CompletionFindings, leftover) {
+		t.Fatalf("completion findings = %v, want %s surfaced", res.CompletionFindings, leftover)
+	}
+	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
+		t.Fatalf("run state = %q, want completed", st)
+	}
+}

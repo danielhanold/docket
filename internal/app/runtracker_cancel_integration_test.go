@@ -1133,7 +1133,9 @@ func TestIntegrationRunCancelFreesWorktreeForNextStart(t *testing.T) {
 // recording its suite's signal death (signaled) — cancel reaches cancelled, never
 // cancellation-pending: teardown proof is "the supervisor is gone", and every
 // state but running proves it, for the census and for a registered execution
-// participant's stop alike.
+// participant's stop alike. A supervisor killed alone leaves its suite running in
+// its group (change 0492): cancel still reports cancelled, adds the informational
+// tree-survives:<drive>:<pgid> finding, and never signals that group.
 func TestIntegrationRunCancelSignaledOrVanishedSupervisorIsCancelled(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
@@ -1147,11 +1149,11 @@ func TestIntegrationRunCancelSignaledOrVanishedSupervisorIsCancelled(t *testing.
 			fx := newCancelFixture(t)
 			runRoot, done := startRunDrive(t, fx, tc.command)
 			var runDir string
+			var m runManifest
 			if tc.kill {
-				dir, m := awaitRunPhase(t, runRoot, "running")
-				runDir = dir
-				// The orphaned suite outlives its killed supervisor (an accepted loss,
-				// change 0492): end its group at cleanup.
+				runDir, m = awaitRunPhase(t, runRoot, "running")
+				// The orphaned suite outlives its killed supervisor; cancel reports it
+				// and never stops it (change 0492). End its group at cleanup.
 				t.Cleanup(func() { _ = syscall.Kill(-m.PGID, syscall.SIGKILL) })
 				if err := syscall.Kill(m.SupervisorPID, syscall.SIGKILL); err != nil {
 					t.Fatalf("kill the supervisor: %v", err)
@@ -1164,10 +1166,22 @@ func TestIntegrationRunCancelSignaledOrVanishedSupervisorIsCancelled(t *testing.
 			if obs := GateObserve(runDir); obs.State == "running" {
 				t.Fatalf("precondition: the supervisor must be gone, observed %q", obs.State)
 			}
+			if tc.kill {
+				// The leftover check needs the leader pid provably gone: wait for the
+				// fixture's reaper to collect the killed supervisor.
+				deadline := time.Now().Add(30 * time.Second)
+				for syscall.Kill(m.SupervisorPID, 0) != syscall.ESRCH {
+					if time.Now().After(deadline) {
+						t.Fatalf("the killed supervisor %d was never reaped", m.SupervisorPID)
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
 			// The run also registered the run as an execution participant, so the
 			// stopper's proof rule (process.State.SupervisorExited) is exercised beside the census's.
 			must(t, RegisterRunParticipant(fx.repo, fx.key,
 				RunParticipant{Kind: participantKindGateScope, NativeHandle: runDir}))
+			id := onlyDriveID(t, fx)
 
 			res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human stop")
 			if res.Disposition != CancelDispositionCancelled {
@@ -1175,6 +1189,16 @@ func TestIntegrationRunCancelSignaledOrVanishedSupervisorIsCancelled(t *testing.
 			}
 			if st := loadRunState(t, fx.repo, fx.key); st != RunCancelled {
 				t.Fatalf("run state = %q, want cancelled", st)
+			}
+			want := "run-terminal:" + id
+			if tc.kill {
+				want = fmt.Sprintf("tree-survives:%s:%d", id, m.PGID)
+			}
+			if !hasFinding(res.Findings, want) {
+				t.Fatalf("findings = %v, want %s", res.Findings, want)
+			}
+			if tc.kill && syscall.Kill(-m.PGID, 0) != nil {
+				t.Fatalf("cancel must never signal the leftover group %d, but it is gone", m.PGID)
 			}
 		})
 	}
