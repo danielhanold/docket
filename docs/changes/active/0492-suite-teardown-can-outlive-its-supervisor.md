@@ -13,7 +13,7 @@ related: [375, 491, 493]
 discovered_from: [490]
 adrs: [95, 132]
 spec: 'docs/superpowers/specs/2026-10-02-suite-teardown-can-outlive-its-supervisor-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-03-suite-teardown-can-outlive-its-supervisor.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-03T06:12:08Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-02-suite-teardown-can-outlive-its-supervisor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-suite-teardown-can-outlive-its-supervisor-design.md) |
+| Plan | [2026-10-03-suite-teardown-can-outlive-its-supervisor.md](https://github.com/danielhanold/docket/blob/fix/suite-teardown-can-outlive-its-supervisor/docs/superpowers/plans/2026-10-03-suite-teardown-can-outlive-its-supervisor.md) |
 | ADRs | [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
 <!-- docket:artifacts:end -->
 
