@@ -2,11 +2,11 @@
 id: 493
 slug: 'cancel-misses-a-replacement-supervisor-behind-a-halted-unatt'
 title: 'Retire the automatic gate relaunch'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-02'
-updated: '2026-10-02'
+updated: '2026-10-03'
 depends_on: [490]
 stacked_on:
 related: [491, 492]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/cancel-misses-a-replacement-supervisor-behind-a-halted-unatt'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-03T08:16:27Z'
 ---
 
 ## Artifacts
