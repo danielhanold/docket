@@ -28,8 +28,10 @@
 // (5) any unsettled obligation blocks (completion-unaccounted); (6) CAS
 // completing→completed.
 //
-// FAIL CLOSED. A live, busy, pending, uncertain, or unreadable obligation blocks
-// completion: missing terminal evidence is UNPROVEN, never implicitly complete. A
+// FAIL CLOSED. A live, busy, pending, or unreadable obligation blocks completion; a
+// publication journal entry blocks only while its publisher may still be running
+// (change 0494), because RunVerify's live probes behind the verified run-complete
+// are the evidence a publication landed: missing terminal evidence is UNPROVEN, never implicitly complete. A
 // blocked closeout leaves the run durably completing (the success fence holds) and
 // returns completion-unaccounted with the bounded findings that name what to settle;
 // the remedy is to settle the named evidence and repeat the same keyed verdict, or to
@@ -120,7 +122,7 @@ func (o appLaunchObserver) observe(contextHash string) (gatedrive.RunLaunchRepor
 // channel when ok is false (one of run-cancelled, run-superseded,
 // completion-unaccounted, completion-unpersisted, run-record-unreadable), and the bounded
 // credential-free findings that name every unsettled obligation; findings may also
-// carry informational mutation-settled:<op> tokens, even on a successful closeout.
+// carry informational mutation-settled:<op> or mutation-abandoned:<op> tokens, even on a successful closeout.
 // The caller (Task 8)
 // has already resolved the confirmed claim binding and the run-complete verdict; this
 // function owns only the run's closeout. See the file header for the
@@ -158,7 +160,7 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 	// reload so both the step (3) accounting read and the step (4) re-enumeration
 	// read see the settled journal. A failed
 	// settlement is a bounded finding; the entry stays uncertain and the
-	// accounting below blocks fail-closed as before.
+	// accounting below reports it as mutation-abandoned:<op> (classifyAdmittedMutation).
 	settledTokens, sfindings := settleUncertainPublications(repoDir, runKey)
 	findings = appendFindings(settledTokens, sfindings)
 

@@ -10,7 +10,9 @@
 // evidence. Everything in this file is a pure function of the durable run
 // record, except settleUncertainPublications, which persists the settlement
 // through the ordinary runRecordCAS (a settled original becomes completed but stays
-// unverified: its own attempt observed nothing).
+// unverified: its own attempt observed nothing). A dead publisher's
+// admitted→uncertain rewrite (change 0494) is bookkeeping, not settlement, and
+// never marks an entry completed.
 package app
 
 import (
@@ -90,7 +92,8 @@ func validPublication(op string, p *MutationPublication) bool {
 // internally failed, or a legacy entry with no verified flag), lower-index,
 // cross-operation, descriptor-less, or malformed candidate never settles —
 // missing evidence never counts as success. Pure over the record: no IO, no Git,
-// no GitHub.
+// no GitHub. A dead publisher's admitted→uncertain rewrite (change 0494) is
+// bookkeeping, not settlement, and never marks an entry completed.
 func publicationRetryMatch(rec RunRecord, i int) bool {
 	if i < 0 || i >= len(rec.AdmittedMutations) {
 		return false
