@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/suite-teardown-can-outlive-its-supervisor'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-03T06:09:05Z'
+reconciled: true
+claimed_at: '2026-10-03T06:10:50Z'
 ---
 
 ## Artifacts
@@ -65,3 +65,8 @@ Failure posture: no new halt and no new block. The finding is information only, 
 - The run id and its fences (0491).
 - Process leaks inside individual tests (`t.Cleanup` hygiene).
 
+## Reconcile log
+
+### 2026-10-03
+
+2026-10-03 — Reconciled against main 710637ff4 (0490 and 0491 landed). 0491 retired the run tracker's run id but the process layer's per-run-directory `run_id` (manifest/dir agreement in `Observe`) remains, so the spec's validation rule still holds. `supervisorGone` / `proveRunDirsGone` in `internal/gatedrive/reconcile.go` and `groupAlive`/`processAlive`/`recoverGroupProbe` in `internal/process` exist as the spec describes. 0493 (relaunch retirement) is still proposed and untouched here; build 0492 apart from it. No scope change.
