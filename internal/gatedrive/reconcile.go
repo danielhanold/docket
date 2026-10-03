@@ -25,6 +25,12 @@
 // running supervisor is stopped (cancel mode) and must then observe as not
 // running, or is reported run-live (verdict mode). A probe or stop error is never
 // clean absence: it keeps the run pending.
+// A dead supervisor's suite can outlive it (change 0492): when the supervisor's
+// recorded process group still has members, the drive still counts as torn down,
+// and its finding is tree-survives:<drive>:<pgid> instead of run-terminal. The
+// census reports that and never signals the group — with the supervisor dead, no
+// lock proves the group is the run's own. An unclear or failed leftover probe
+// keeps run-terminal, exactly as before.
 // PASSED/FAILED drives are settled by their verdict (the supervisor wrote it before
 // exiting); a HALTED drive can still have a live supervisor, so its run dirs are
 // proven too — or, for a first launch that failed before attaching one, its
@@ -43,6 +49,8 @@ import (
 	"io/fs"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/danielhanold/docket/internal/process"
 )
@@ -395,8 +403,9 @@ func (d *Driver) settleNeverLaunched(id, ownerGen, cause string, stillUnlaunched
 // recorded run dirs (RawRunDir, then PriorRawRunDir): the drive is torn down when
 // every recorded supervisor is gone. The first dir that cannot be proven gone
 // decides a pending result; otherwise the finding is the strongest one seen
-// (replacement-stopped over run-terminal), so a stop this census performed is
-// always reported.
+// (tree-survives over replacement-stopped over run-terminal, censusFindingRank),
+// so a surviving group, and otherwise a stop this census performed, is always
+// reported.
 func (d *Driver) proveRunDirsGone(id string, rec driveRecord, mode censusMode) (bool, string) {
 	finding := ""
 	for _, dir := range []string{rec.RawRunDir, rec.PriorRawRunDir} {
@@ -407,17 +416,37 @@ func (d *Driver) proveRunDirsGone(id string, rec driveRecord, mode censusMode) (
 		if !gone {
 			return false, f
 		}
-		if f != "" && finding != "replacement-stopped:"+id {
+		if censusFindingRank(f) > censusFindingRank(finding) {
 			finding = f
 		}
 	}
 	return true, finding
 }
 
+// censusFindingRank orders the findings proveRunDirsGone may report for one
+// drive: tree-survives (a dead supervisor's group still has members) over
+// replacement-stopped (a stop this census performed) over run-terminal. A tie
+// keeps the first dir's finding, so RawRunDir's leftover is the one named.
+func censusFindingRank(f string) int {
+	switch {
+	case strings.HasPrefix(f, "tree-survives:"):
+		return 3
+	case strings.HasPrefix(f, "replacement-stopped:"):
+		return 2
+	case f != "":
+		return 1
+	default:
+		return 0
+	}
+}
+
 // supervisorGone proves one run dir's supervisor gone. A run dir that does not
 // exist is clean absence (its run root was removed after the terminal): torn down,
 // with no Observe call. An observed exit (supervisorExited: passed, failed,
-// signaled, stopped, vanished) counts as torn down. A running supervisor is
+// signaled, stopped, vanished) counts as torn down. Its finding is run-terminal,
+// or tree-survives:<drive>:<pgid> when process.Service.ProbeLeftover proves the
+// dead supervisor's group still has members — still torn down, reported, never
+// signalled (change 0492). A running supervisor is
 // stopped in cancellation mode and must then observe as not running; verdict mode
 // reports it run-live without stopping. An empty run dir, an Lstat error other
 // than not-exist, or an observe/stop error is unprovable and keeps the run pending
@@ -438,6 +467,14 @@ func (d *Driver) supervisorGone(id, runDir string, mode censusMode) (bool, strin
 	}
 	switch {
 	case o.State.SupervisorExited():
+		// The supervisor is gone, so the drive is torn down whatever is left. A
+		// populated group whose leader is gone is reported, never signalled
+		// (change 0492): with its supervisor dead, no lock proves the group is the
+		// run's own. Only a successful leftover answer changes the finding; none,
+		// unclear, and a probe error keep run-terminal.
+		if lo, lerr := d.proc.ProbeLeftover(runDir); lerr == nil && lo.Answer == process.LeftoverPresent {
+			return true, "tree-survives:" + id + ":" + strconv.Itoa(lo.PGID)
+		}
 		return true, "run-terminal:" + id
 	case o.State != process.StateRunning:
 		return false, "resolution-unresolved:" + id // an unknown state proves nothing

@@ -97,10 +97,18 @@ type supervisors struct {
 	observed []string
 	stopped  []string
 	resolve  func(root, token string) (*process.ReservationResolution, error)
+	// leftover[dir] is what ProbeLeftover answers for dir (an unlisted dir is
+	// none); leftoverErr[dir] makes it fail. probed records every probed dir.
+	leftover    map[string]process.Leftover
+	leftoverErr map[string]error
+	probed      []string
 }
 
 func newSupervisors() *supervisors {
-	return &supervisors{state: map[string]process.State{}, stuck: map[string]bool{}}
+	return &supervisors{
+		state: map[string]process.State{}, stuck: map[string]bool{},
+		leftover: map[string]process.Leftover{}, leftoverErr: map[string]error{},
+	}
 }
 
 func (s *supervisors) proc() *fakeProc {
@@ -125,6 +133,14 @@ func (s *supervisors) proc() *fakeProc {
 				return &process.ReservationResolution{Disposition: "never-launched"}, nil
 			}
 			return s.resolve(root, token)
+		},
+		leftover: func(runDir string) (process.Leftover, error) {
+			s.probed = append(s.probed, runDir)
+			lo, ok := s.leftover[runDir]
+			if !ok {
+				lo = process.Leftover{Answer: process.LeftoverNone}
+			}
+			return lo, s.leftoverErr[runDir]
 		},
 	}
 }
@@ -1182,4 +1198,178 @@ func TestCensusVerdictSettlesOnlyItsOwnRun(t *testing.T) {
 	if isTerminalOutcome(after.LastOutcome) {
 		t.Fatalf("another run's drive must not be settled, got %v/%q", after.LastOutcome, after.LastCause)
 	}
+}
+
+// containsString reports whether xs holds s.
+func containsString(xs []string, s string) bool {
+	for _, x := range xs {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
+// TestCensusReportsLeftoverOfDeadSupervisor (change 0492): a dead supervisor
+// whose recorded group still has members is STILL torn down — the drive stays
+// settled in both modes and nothing is stopped — but the finding names the
+// surviving group, tree-survives:<drive>:<pgid>, instead of run-terminal. This
+// holds for a nonterminal drive and for the HALTED drive a killed supervisor's
+// slice actually leaves behind.
+//
+// Mutation check: making supervisorGone return false on a leftover must turn
+// this red (the failure posture: a leftover never changes the outcome).
+func TestCensusReportsLeftoverOfDeadSupervisor(t *testing.T) {
+	for _, st := range []process.State{process.StateVanished, process.StateSignaled, process.StateStopped} {
+		for _, halted := range []bool{false, true} {
+			name := string(st)
+			if halted {
+				name += "/halted"
+			}
+			t.Run(name, func(t *testing.T) {
+				sup := newSupervisors()
+				proc := sup.proc()
+				d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+				dir := liveRunDir(t, "run1")
+				sup.state[dir] = st
+				sup.leftover[dir] = process.Leftover{Answer: process.LeftoverPresent, PGID: 4242}
+				id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
+					r.RawRunDir = dir
+					if halted {
+						r.LastOutcome = HALTED
+						r.LastCause = "relaunch-exhausted"
+					}
+				})
+
+				for _, mode := range censusModes(d) {
+					report, err := mode.run(capHash(censusCtxA))
+					if err != nil {
+						t.Fatalf("%s: %v", mode.name, err)
+					}
+					if !report.Accounted || !findingFor(report.Findings, "tree-survives", id+":4242") {
+						t.Fatalf("%s: a leftover is settled and reported tree-survives:%s:4242, got %+v", mode.name, id, report)
+					}
+					if findingFor(report.Findings, "run-terminal", id) {
+						t.Fatalf("%s: tree-survives replaces run-terminal for the drive, got %+v", mode.name, report)
+					}
+				}
+				if proc.stopN != 0 {
+					t.Fatalf("a leftover is never stopped, Stop called %d times", proc.stopN)
+				}
+			})
+		}
+	}
+}
+
+// TestCensusNoLeftoverKeepsRunTerminal (change 0492): none, unclear, and a probe
+// error all keep today's run-terminal:<drive>. The error row answers leftover
+// WITH an error — the census trusts an answer only when the probe succeeded.
+func TestCensusNoLeftoverKeepsRunTerminal(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		lo   process.Leftover
+		err  error
+	}{
+		{"none", process.Leftover{Answer: process.LeftoverNone, PGID: 4242}, nil},
+		{"unclear", process.Leftover{Answer: process.LeftoverUnclear, PGID: 4242}, nil},
+		{"error", process.Leftover{Answer: process.LeftoverPresent, PGID: 4242}, errors.New("probe failed")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sup := newSupervisors()
+			d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
+			dir := liveRunDir(t, "run1")
+			sup.state[dir] = process.StateVanished
+			sup.leftover[dir] = tc.lo
+			if tc.err != nil {
+				sup.leftoverErr[dir] = tc.err
+			}
+			id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) { r.RawRunDir = dir })
+
+			for _, mode := range censusModes(d) {
+				report, err := mode.run(capHash(censusCtxA))
+				if err != nil {
+					t.Fatalf("%s: %v", mode.name, err)
+				}
+				if !report.Accounted || !findingFor(report.Findings, "run-terminal", id) {
+					t.Fatalf("%s: %s keeps run-terminal:%s, got %+v", mode.name, tc.name, id, report)
+				}
+				if reconcileFindingPresent(report.Findings, "tree-survives:") {
+					t.Fatalf("%s: %s must never report tree-survives, got %+v", mode.name, tc.name, report)
+				}
+			}
+		})
+	}
+}
+
+// TestCensusLeftoverOutranksOtherFindings (change 0492): across a drive's two
+// recorded run dirs, tree-survives outranks replacement-stopped and
+// run-terminal; with two leftovers the first dir's (RawRunDir) group is named.
+// A dir the census itself stopped is never probed: Stop already waited for its
+// group to empty.
+func TestCensusLeftoverOutranksOtherFindings(t *testing.T) {
+	t.Run("prior-leftover", func(t *testing.T) {
+		sup := newSupervisors()
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
+		replacement, prior := liveRunDir(t, "run2"), liveRunDir(t, "run1")
+		sup.state[replacement] = process.StateRunning // stopped by the census
+		sup.state[prior] = process.StateVanished
+		sup.leftover[prior] = process.Leftover{Answer: process.LeftoverPresent, PGID: 4242}
+		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
+			r.RawRunDir, r.PriorRawRunDir = replacement, prior
+			r.RelaunchCount = 1
+		})
+
+		report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
+		if err != nil {
+			t.Fatalf("ReconcileRunLaunches: %v", err)
+		}
+		if !report.Accounted || !findingFor(report.Findings, "tree-survives", id+":4242") {
+			t.Fatalf("tree-survives outranks replacement-stopped, got %+v", report)
+		}
+		if containsString(sup.probed, replacement) {
+			t.Fatalf("the census-stopped dir %s was probed for a leftover; probed %v", replacement, sup.probed)
+		}
+	})
+	t.Run("replacement-leftover", func(t *testing.T) {
+		sup := newSupervisors()
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
+		replacement, prior := liveRunDir(t, "run2"), liveRunDir(t, "run1")
+		sup.state[replacement] = process.StateVanished
+		sup.leftover[replacement] = process.Leftover{Answer: process.LeftoverPresent, PGID: 4242}
+		sup.state[prior] = process.StateRunning // stopped by the census, after the leftover
+		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
+			r.RawRunDir, r.PriorRawRunDir = replacement, prior
+			r.RelaunchCount = 1
+		})
+
+		report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
+		if err != nil {
+			t.Fatalf("ReconcileRunLaunches: %v", err)
+		}
+		if !report.Accounted || !findingFor(report.Findings, "tree-survives", id+":4242") {
+			t.Fatalf("a later replacement-stopped must not displace tree-survives, got %+v", report)
+		}
+	})
+	t.Run("both-leftover", func(t *testing.T) {
+		sup := newSupervisors()
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
+		replacement, prior := liveRunDir(t, "run2"), liveRunDir(t, "run1")
+		sup.state[replacement] = process.StateVanished
+		sup.state[prior] = process.StateVanished
+		sup.leftover[replacement] = process.Leftover{Answer: process.LeftoverPresent, PGID: 4242}
+		sup.leftover[prior] = process.Leftover{Answer: process.LeftoverPresent, PGID: 5353}
+		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
+			r.RawRunDir, r.PriorRawRunDir = replacement, prior
+			r.RelaunchCount = 1
+		})
+
+		report, err := d.VerdictRunLaunches(capHash(censusCtxA))
+		if err != nil {
+			t.Fatalf("VerdictRunLaunches: %v", err)
+		}
+		if !report.Accounted || !findingFor(report.Findings, "tree-survives", id+":4242") ||
+			findingFor(report.Findings, "tree-survives", id+":5353") {
+			t.Fatalf("two leftovers report the first dir's group only, got %+v", report)
+		}
+	})
 }

@@ -91,6 +91,10 @@ func (p *racingProc) ResolveReservation(root, token string) (*process.Reservatio
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
 }
 
+func (p *racingProc) ProbeLeftover(runDir string) (process.Leftover, error) {
+	return process.Leftover{Answer: process.LeftoverNone}, nil
+}
+
 // relaunchStopCount reports how many of the runs THIS proc launched were later
 // passed to Stop — i.e. orphan cleanups, as distinct from the death-probe stops
 // of the original run.
@@ -255,6 +259,10 @@ func (p *terminalSettleProc) ResolveReservation(root, token string) (*process.Re
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
 }
 
+func (p *terminalSettleProc) ProbeLeftover(runDir string) (process.Leftover, error) {
+	return process.Leftover{Answer: process.LeftoverNone}, nil
+}
+
 // gatedLoserSeam wraps the shared core for the LOSER driver only: its first
 // dead-run observation signals `observing` (proving the loser loaded a
 // nonterminal record and entered its slice) and then parks on `gate` until the
@@ -286,6 +294,10 @@ func (s *gatedLoserSeam) Stop(runDir, reason string) (*process.StopOutcome, erro
 
 func (s *gatedLoserSeam) ResolveReservation(root, token string) (*process.ReservationResolution, error) {
 	return s.core.ResolveReservation(root, token)
+}
+
+func (s *gatedLoserSeam) ProbeLeftover(runDir string) (process.Leftover, error) {
+	return s.core.ProbeLeftover(runDir)
 }
 
 // TestLoserAfterTerminalSettleReturnsRecordedState pins the deterministic
@@ -435,6 +447,10 @@ func (p *claimWindowProc) ResolveReservation(root, token string) (*process.Reser
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
 }
 
+func (p *claimWindowProc) ProbeLeftover(runDir string) (process.Leftover, error) {
+	return process.Leftover{Answer: process.LeftoverNone}, nil
+}
+
 func (p *claimWindowProc) counts() (launches, resolutions int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -569,6 +585,10 @@ func (p *countingProc) Stop(runDir, reason string) (*process.StopOutcome, error)
 
 func (p *countingProc) ResolveReservation(root, token string) (*process.ReservationResolution, error) {
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
+}
+
+func (p *countingProc) ProbeLeftover(runDir string) (process.Leftover, error) {
+	return process.Leftover{Answer: process.LeftoverNone}, nil
 }
 
 func (p *countingProc) launches() int {

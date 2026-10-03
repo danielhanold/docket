@@ -37,10 +37,11 @@ func (c *fakeClock) advance(d time.Duration)         { c.now = c.now.Add(d) }
 // fresh running run, a running observation, a performed stop) so a test sets
 // only the behavior it cares about.
 type fakeProc struct {
-	launch  func(process.LaunchRequest) (*process.LaunchOutcome, error)
-	observe func(runDir string) (*process.Observation, error)
-	stop    func(runDir, reason string) (*process.StopOutcome, error)
-	resolve func(root, token string) (*process.ReservationResolution, error)
+	launch   func(process.LaunchRequest) (*process.LaunchOutcome, error)
+	observe  func(runDir string) (*process.Observation, error)
+	stop     func(runDir, reason string) (*process.StopOutcome, error)
+	resolve  func(root, token string) (*process.ReservationResolution, error)
+	leftover func(runDir string) (process.Leftover, error)
 
 	// retainLock, when set, leaves the handed worktree lock to the launch
 	// closure (a test that emulates a supervisor still holding it); by default
@@ -48,7 +49,7 @@ type fakeProc struct {
 	// the caller's copy on every path.
 	retainLock bool
 
-	launchN, observeN, stopN, resolveN int
+	launchN, observeN, stopN, resolveN, leftoverN int
 }
 
 func (f *fakeProc) Launch(r process.LaunchRequest) (*process.LaunchOutcome, error) {
@@ -88,6 +89,17 @@ func (f *fakeProc) ResolveReservation(root, token string) (*process.ReservationR
 		return &process.ReservationResolution{Disposition: "never-launched"}, nil
 	}
 	return f.resolve(root, token)
+}
+
+// ProbeLeftover defaults to none — an exited supervisor whose group is empty —
+// so every existing census test keeps its run-terminal finding. Tests that
+// model a leftover suite inject a closure.
+func (f *fakeProc) ProbeLeftover(runDir string) (process.Leftover, error) {
+	f.leftoverN++
+	if f.leftover == nil {
+		return process.Leftover{Answer: process.LeftoverNone}, nil
+	}
+	return f.leftover(runDir)
 }
 
 // mkWorktree returns a fresh, real directory to stand in for a worktree root

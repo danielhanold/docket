@@ -50,6 +50,11 @@ type ProcessSeam interface {
 	// recovery consult it to attach an identified replacement, and the launch
 	// census consults it to resolve a first launch whose run was never attached.
 	ResolveReservation(root, token string) (*process.ReservationResolution, error)
+	// ProbeLeftover answers, read-only, whether a run whose supervisor has exited
+	// still has members in its recorded process group (change 0492): none,
+	// leftover, or unclear. The launch census reports a leftover as tree-survives
+	// and never signals on it; an unclear answer or an error is today's behavior.
+	ProbeLeftover(runDir string) (process.Leftover, error)
 }
 
 // productionSlice is the slice target: the maximum a single synchronous driver
