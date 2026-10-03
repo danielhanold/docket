@@ -1,19 +1,19 @@
 # Backlog
 
-**496 changes** — 🟢 2 in progress · 🟣 5 groomed · 🟡 5 proposed · ⚪ 12 deferred · ✅ 339 done · 🗑️ 133 killed
+**496 changes** — 🟢 3 in progress · 🟣 4 groomed · 🟡 5 proposed · ⚪ 12 deferred · ✅ 339 done · 🗑️ 133 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
+| [0496](active/0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) | Add `docket repository repair` and stop flagging empty claimed_at | `low` | `fix` | [spec](../superpowers/specs/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-design.md) | `fix/drop-final-claimed-at-is-reported-repairable-but-nothing-can` |  |
 | [0495](active/0495-drop-startedrunresult-s-unreachable-empty-input-check.md) | Drop startedRunResult's unreachable empty-input check | `low` | `refactor` | [spec](../superpowers/specs/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md) | `refactor/drop-startedrunresult-s-unreachable-empty-input-check` |  |
 | [0493](active/0493-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md) | Retire the automatic gate relaunch | `medium` | `fix` | [spec](../superpowers/specs/2026-10-02-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-design.md) | `fix/cancel-misses-a-replacement-supervisor-behind-a-halted-unatt` |  |
 
-## 🟣 Groomed (5)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0496](active/0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) | Add `docket repository repair` and stop flagging empty claimed_at | `low` | `fix` | [spec](../superpowers/specs/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-design.md) |
 | [0494](active/0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md) | A publish killed mid-flight wedges its run's cancel and closeout | `high` | `fix` | [spec](../superpowers/specs/2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
