@@ -2,11 +2,11 @@
 id: 491
 slug: 'stop-fencing-gate-admission-on-the-run-id-keep-the-run-track'
 title: 'Retire the run id; the run key becomes the run tracker''s only handle'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'refactor'
 created: '2026-10-02'
-updated: '2026-10-02'
+updated: '2026-10-03'
 depends_on: [490]
 stacked_on:
 related: [375, 422, 435, 437, 441, 443, 463, 467, 488, 489, 492, 493, 494]
@@ -22,7 +22,7 @@ branch: 'refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track'
 pr: 'https://github.com/danielhanold/docket/pull/367'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-02T23:23:45Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-02T23:23:45Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-design.md) |
-| Plan | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md](https://github.com/danielhanold/docket/blob/refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track/docs/superpowers/plans/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) |
-| Results | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-results.md](https://github.com/danielhanold/docket/blob/refactor/stop-fencing-gate-admission-on-the-run-id-keep-the-run-track/docs/results/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-results.md) |
+| Plan | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) |
+| Results | [2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-02-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track-results.md) |
 | ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0128](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md), [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md), [ADR-0133](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0133-the-run-key-is-the-run-tracker-s-only-handle-gate-starts-car.md) |
 <!-- docket:artifacts:end -->
 

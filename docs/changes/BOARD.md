@@ -1,12 +1,6 @@
 # Backlog
 
-**495 changes** — 🔵 1 built · 🟣 5 groomed · 🟡 7 proposed · ⚪ 12 deferred · ✅ 337 done · 🗑️ 133 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0491](active/0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Retire the run id; the run key becomes the run tracker's only handle | `critical` | `refactor` | [#367](https://github.com/danielhanold/docket/pull/367) | awaiting merge |
+**495 changes** — 🟣 5 groomed · 🟡 7 proposed · ⚪ 12 deferred · ✅ 338 done · 🗑️ 133 killed
 
 ## 🟣 Groomed (5)
 
@@ -22,7 +16,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0495](active/0495-drop-startedrunresult-s-unreachable-empty-input-check.md) | Drop startedRunResult's unreachable empty-input check | `low` | `refactor` | ⏳ waiting on #491 — needs your merge |
+| [0495](active/0495-drop-startedrunresult-s-unreachable-empty-input-check.md) | Drop startedRunResult's unreachable empty-input check | `low` | `refactor` | needs-grooming |
 | [0494](active/0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md) | A publish killed mid-flight wedges its run's cancel and closeout | `high` | `fix` | needs-grooming |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
@@ -70,7 +64,6 @@ graph TD
   0412
   0433
   0464
-  0490 --> 0491
   0490 --> 0492
   0490 --> 0493
   0494
@@ -81,13 +74,15 @@ graph TD
   0393:::done
   0407:::done
   0490:::done
+  0491:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (470)</summary>
+<details><summary>✅🗑️ Archive — done + killed (471)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0491](archive/2026-10-03-0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Retire the run id; the run key becomes the run tracker's only handle | 2026-10-03 |
 | [0490](archive/2026-10-02-0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | 2026-10-02 |
 | [0489](archive/2026-10-02-0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) | Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives | 2026-10-02 |
 | [0488](archive/2026-10-02-0488-run-task-worker-tests-directly-in-the-foreground-not-through.md) | Run task-worker tests directly in the foreground, not through gate drives | 2026-10-02 |
@@ -115,7 +110,6 @@ graph TD
 | [0473](archive/2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) | Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks | 2026-09-30 |
 | [0472](archive/2026-09-30-0472-rename-change-version-to-revision-version-revision.md) | Rename change version to revision (--version → --revision) | 2026-09-30 |
 | [0471](archive/2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) | Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) | 2026-09-29 |
-| [0470](archive/2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md) | Install the no-real-git test guard in internal/gatedrive | 2026-09-29 |
 | [0292](archive/2026-09-29-0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | 2026-09-29 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
@@ -241,7 +235,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 86 done |
+| [2026-09](archive/) | 87 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
