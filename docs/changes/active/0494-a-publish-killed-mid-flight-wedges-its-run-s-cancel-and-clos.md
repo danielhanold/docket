@@ -2,7 +2,7 @@
 id: 494
 slug: 'a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos'
 title: 'A publish killed mid-flight wedges its run''s cancel and closeout'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-10-02'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-03T08:49:19Z'
 ---
 
 ## Artifacts
