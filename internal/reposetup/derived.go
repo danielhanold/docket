@@ -69,7 +69,7 @@ func (df DerivedFinding) Finding() Finding {
 			Severity:   SeverityWarning,
 			Ref:        df.Path,
 			Message:    df.Message,
-			Remedy:     "Run `docket repository migrate` to recompute the canonical " + string(df.View) + " output, or edit the file by hand.",
+			Remedy:     "Run `docket repository repair` to recompute the canonical " + string(df.View) + " output, or edit the file by hand.",
 			Repairable: &repairable,
 		}
 	}
