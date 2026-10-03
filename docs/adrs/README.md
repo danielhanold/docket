@@ -120,6 +120,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0134](0134-a-dead-supervisor-s-suite-counts-as-gone-only-when-its-proce.md) — A dead supervisor's suite counts as gone only when its process group is empty, and docket never signals on that evidence (Accepted) ← change #492 · relates to ADR-0095, ADR-0132
 - [ADR-0135](0135-gate-drives-never-relaunch-automatically.md) — Gate drives never relaunch automatically (Accepted) ← change #493 · relates to ADR-0087, ADR-0098, ADR-0107, ADR-0132
 - [ADR-0136](0136-repair-on-a-migrated-repository-is-docket-repository-repair.md) — Repair on a migrated repository is `docket repository repair`; migrate only migrates (Accepted) ← change #496 · relates to ADR-0099, ADR-0104
+- [ADR-0137](0137-the-publish-journal-blocks-only-on-a-publisher-that-may-stil.md) — The publish journal blocks only on a publisher that may still be running (Accepted) ← change #494 · relates to ADR-0118, ADR-0124, ADR-0132, ADR-0133, ADR-0134
 
 ## Superseded / Reversed
 
