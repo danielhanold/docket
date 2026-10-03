@@ -2,7 +2,7 @@
 id: 495
 slug: 'drop-startedrunresult-s-unreachable-empty-input-check'
 title: 'Drop startedRunResult''s unreachable empty-input check'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-03'
@@ -22,7 +22,7 @@ branch: 'refactor/drop-startedrunresult-s-unreachable-empty-input-check'
 pr: 'https://github.com/danielhanold/docket/pull/369'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-03T08:41:46Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-03T08:41:46Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md) |
-| Plan | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md](https://github.com/danielhanold/docket/blob/refactor/drop-startedrunresult-s-unreachable-empty-input-check/docs/superpowers/plans/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md) |
-| Results | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-results.md](https://github.com/danielhanold/docket/blob/refactor/drop-startedrunresult-s-unreachable-empty-input-check/docs/results/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-results.md) |
+| Plan | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md) |
+| Results | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

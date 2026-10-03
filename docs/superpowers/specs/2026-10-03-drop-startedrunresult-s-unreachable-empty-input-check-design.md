@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0495 — Drop startedRunResult's unreachable empty-input check](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0495-drop-startedrunresult-s-unreachable-empty-input-check.md)**
+> ↩ **[Change 0495 — Drop startedRunResult's unreachable empty-input check](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-03-0495-drop-startedrunresult-s-unreachable-empty-input-check.md)**
 <!-- docket:backlink:end -->
 
 # Drop startedRunResult's unreachable empty-input check — design
