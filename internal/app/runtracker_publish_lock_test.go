@@ -155,6 +155,45 @@ func TestAccountAdmittedMutationsAggregates(t *testing.T) {
 	}
 }
 
+// TestAccountAdmittedMutationsReloadsBeforeAbandoned is the read-then-probe race:
+// the journal was read with the entry admitted, then its publisher wrote completed
+// and released its lock before the probe. The re-read sees completed, so no
+// mutation-abandoned is reported. Every other re-read answer keeps today's finding.
+func TestAccountAdmittedMutationsReloadsBeforeAbandoned(t *testing.T) {
+	const op = OperationPRPublish
+	abandoned := []string{"mutation-abandoned:" + op}
+	dir := testsupport.TempDir(t)
+	tok := strings.Repeat("a7", 16)
+	lockedTempFile(t, dir, tok, false) // the publisher released its lock
+	read := []AdmittedMutation{{OpKey: op, Status: mutationStatusAdmitted, LockToken: tok}}
+	stored := func(status, token string) func() ([]AdmittedMutation, error) {
+		return func() ([]AdmittedMutation, error) {
+			return []AdmittedMutation{{OpKey: op, Status: status, LockToken: token, Verified: status == mutationStatusCompleted}}, nil
+		}
+	}
+	cases := []struct {
+		name   string
+		reload func() ([]AdmittedMutation, error)
+		want   []string
+	}{
+		{"now completed", stored(mutationStatusCompleted, tok), nil},
+		{"now uncertain", stored(mutationStatusUncertain, tok), abandoned},
+		{"still admitted", stored(mutationStatusAdmitted, tok), abandoned},
+		{"completed under another token", stored(mutationStatusCompleted, strings.Repeat("b8", 16)), abandoned},
+		{"entry gone", func() ([]AdmittedMutation, error) { return nil, nil }, abandoned},
+		{"reload error", func() ([]AdmittedMutation, error) { return nil, errors.New("unreadable") }, abandoned},
+		{"no reload", nil, abandoned},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			blocked, findings := accountAdmittedMutationsReloading(dir, read, tc.reload)
+			if blocked || strings.Join(findings, ",") != strings.Join(tc.want, ",") {
+				t.Fatalf("account = (%v, %v), want (false, %v)", blocked, findings, tc.want)
+			}
+		})
+	}
+}
+
 func TestAcquirePublishLock(t *testing.T) {
 	dir := testsupport.TempDir(t)
 	tok := acquirePublishLock(dir)

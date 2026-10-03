@@ -160,10 +160,39 @@ func classifyAdmittedMutation(dir string, m AdmittedMutation) (blocks bool, find
 }
 
 // accountAdmittedMutations applies classifyAdmittedMutation to every entry in order
-// and reports whether any blocks, plus the findings in journal order.
+// and reports whether any blocks, plus the findings in journal order. It never
+// re-reads the journal; accountAdmittedMutationsReloading does.
 func accountAdmittedMutations(dir string, muts []AdmittedMutation) (blocked bool, findings []string) {
-	for _, m := range muts {
+	return accountAdmittedMutationsReloading(dir, muts, nil)
+}
+
+// accountAdmittedMutationsReloading is accountAdmittedMutations with a re-read of
+// the journal for one race. muts was read before the locks are probed, so a
+// publisher may write completed and release its lock in between: its entry reads
+// admitted with a free lock. Before reporting such an entry mutation-abandoned it
+// calls reload (at most once) and re-checks the same entry, matched by index, op
+// key, and lock token. Now completed, it is accounted with no finding. Anything
+// else (still admitted, now uncertain, no match, a nil reload, or a reload error)
+// keeps today's mutation-abandoned. The re-check only drops an informational
+// finding; it never changes blocked.
+func accountAdmittedMutationsReloading(dir string, muts []AdmittedMutation, reload func() ([]AdmittedMutation, error)) (blocked bool, findings []string) {
+	var fresh []AdmittedMutation
+	reloaded := false
+	for i, m := range muts {
 		b, f := classifyAdmittedMutation(dir, m)
+		if f != "" && m.Status == mutationStatusAdmitted && reload != nil {
+			// Only the gone-publisher path yields a finding for an admitted entry.
+			if !reloaded {
+				reloaded = true
+				if r, err := reload(); err == nil {
+					fresh = r
+				}
+			}
+			if i < len(fresh) && fresh[i].OpKey == m.OpKey && fresh[i].LockToken == m.LockToken &&
+				fresh[i].Status == mutationStatusCompleted {
+				f = ""
+			}
+		}
 		if f != "" {
 			findings = append(findings, f)
 		}
@@ -172,6 +201,20 @@ func accountAdmittedMutations(dir string, muts []AdmittedMutation) (blocked bool
 		}
 	}
 	return blocked, findings
+}
+
+// accountRunMutations accounts runKey's journal entries muts (already read from its
+// run record) through accountAdmittedMutationsReloading, re-reading the run record
+// for the read-then-probe race. It is what every run-tracker journal reader calls.
+func accountRunMutations(repoDir, runKey string, muts []AdmittedMutation) (bool, []string) {
+	reload := func() ([]AdmittedMutation, error) {
+		ep, _, err := LoadRunRecord(repoDir, runKey)
+		if err != nil {
+			return nil, err
+		}
+		return ep.AdmittedMutations, nil
+	}
+	return accountAdmittedMutationsReloading(runJournalDir(repoDir, runKey), muts, reload)
 }
 
 // runJournalDir resolves the run-key directory the publish locks of runKey live in.

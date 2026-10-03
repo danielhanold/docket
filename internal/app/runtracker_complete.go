@@ -332,7 +332,7 @@ func durableExecutionProof(seams cancelSeams, handle string) bool {
 // informational mutation-abandoned:<op>. RunVerify's live probes behind the verified
 // run-complete, not the journal, are the evidence that a publication landed.
 func accountCompletionMutations(repoDir, runKey string, ep RunRecord) (bool, []string) {
-	return accountAdmittedMutations(runJournalDir(repoDir, runKey), ep.AdmittedMutations)
+	return accountRunMutations(repoDir, runKey, ep.AdmittedMutations)
 }
 
 // accountCompletionLaunches accounts the run's drives through the verdict-mode
