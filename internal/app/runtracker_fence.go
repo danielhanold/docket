@@ -226,20 +226,16 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 	// (classifyAdmittedMutation). A lock that cannot be taken never refuses the
 	// publish: the entry is journaled without a token and behaves exactly as before.
 	// Metadata transactions (pub == nil) take no lock.
-	var (
-		lockToken string
-		lockFile  *os.File
-	)
+	// The lock is retained process-wide (heldPublishLocks) until releaseLock, so a
+	// dropped done callback keeps it held until the process exits, never until GC.
+	var lockToken string
 	if pub != nil {
 		if dir, derr := runKeyDir(repoDir, runKey, "publish-lock"); derr == nil {
-			lockToken, lockFile = acquirePublishLock(dir)
+			lockToken = acquirePublishLock(dir)
 		}
 	}
 	releaseLock := func() {
-		if lockFile != nil {
-			_ = lockFile.Close() // release by close only, never LOCK_UN (ADR-0132)
-			lockFile = nil
-		}
+		releasePublishLock(lockToken) // release by close only, never LOCK_UN (ADR-0132)
 	}
 
 	// Atomic state gate + `admitted` journal. runRecordCAS serializes on the per-key

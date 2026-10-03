@@ -4,8 +4,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/danielhanold/docket/internal/process"
 	"github.com/danielhanold/docket/internal/testsupport"
@@ -155,40 +157,73 @@ func TestAccountAdmittedMutationsAggregates(t *testing.T) {
 
 func TestAcquirePublishLock(t *testing.T) {
 	dir := testsupport.TempDir(t)
-	tok, f := acquirePublishLock(dir)
-	if f == nil || !validPublishLockToken(tok) {
-		t.Fatalf("acquire = (%q, %v), want a valid token and a held file", tok, f)
+	tok := acquirePublishLock(dir)
+	if !validPublishLockToken(tok) {
+		t.Fatalf("acquire = %q, want a valid token and a held lock", tok)
 	}
 	path, _ := publishLockPath(dir, tok)
 	if got := process.ProbeLock(path); got != process.LockProbeHeld {
 		t.Fatalf("acquired lock probed %v, want held", got)
 	}
-	f.Close()
+	releasePublishLock(tok)
 	if got := process.ProbeLock(path); got != process.LockProbeFree {
-		t.Fatalf("closed lock probed %v, want free (and the file still present)", got)
+		t.Fatalf("released lock probed %v, want free (and the file still present)", got)
 	}
+	releasePublishLock(tok) // idempotent
+	releasePublishLock("")
 
 	t.Run("mint failure", func(t *testing.T) {
 		overrideSeam(t, &publishLockMintToken, func() (string, error) { return "", errors.New("no entropy") })
-		if tok, f := acquirePublishLock(dir); tok != "" || f != nil {
-			t.Fatalf("mint failure = (%q, %v), want (\"\", nil)", tok, f)
+		if tok := acquirePublishLock(dir); tok != "" {
+			t.Fatalf("mint failure = %q, want \"\"", tok)
 		}
 	})
 	t.Run("acquire error", func(t *testing.T) {
 		overrideSeam(t, &publishLockAcquire, func(string) (*os.File, bool, error) { return nil, false, errors.New("EIO") })
-		if tok, f := acquirePublishLock(dir); tok != "" || f != nil {
-			t.Fatalf("acquire error = (%q, %v), want (\"\", nil)", tok, f)
+		if tok := acquirePublishLock(dir); tok != "" {
+			t.Fatalf("acquire error = %q, want \"\"", tok)
 		}
 	})
 	t.Run("busy on a fresh token", func(t *testing.T) {
 		overrideSeam(t, &publishLockAcquire, func(string) (*os.File, bool, error) { return nil, true, nil })
-		if tok, f := acquirePublishLock(dir); tok != "" || f != nil {
-			t.Fatalf("busy = (%q, %v), want (\"\", nil)", tok, f)
+		if tok := acquirePublishLock(dir); tok != "" {
+			t.Fatalf("busy = %q, want \"\"", tok)
 		}
 	})
 	t.Run("empty dir", func(t *testing.T) {
-		if tok, f := acquirePublishLock(""); tok != "" || f != nil {
-			t.Fatalf("empty dir = (%q, %v), want (\"\", nil)", tok, f)
+		if tok := acquirePublishLock(""); tok != "" {
+			t.Fatalf("empty dir = %q, want \"\"", tok)
 		}
 	})
+}
+
+// assertLockSurvivesGC collects garbage repeatedly, giving any finalizer time to
+// run, and fails the moment the lock at path stops probing held. An unreleased
+// publish lock must stay held until the process exits, never until GC.
+func assertLockSurvivesGC(t *testing.T, path string) {
+	t.Helper()
+	for i := 0; i < 20; i++ {
+		runtime.GC()
+		runtime.GC()
+		time.Sleep(5 * time.Millisecond)
+		if got := process.ProbeLock(path); got != process.LockProbeHeld {
+			t.Fatalf("after GC round %d the unreleased lock probed %v, want held (a dropped handle read as a dead publisher)", i, got)
+		}
+	}
+}
+
+// TestAcquirePublishLockSurvivesDroppedHandle: dropping everything acquirePublishLock
+// returned (only the token is kept) never frees the lock; only releasePublishLock does.
+func TestAcquirePublishLockSurvivesDroppedHandle(t *testing.T) {
+	dir := testsupport.TempDir(t)
+	tok := acquirePublishLock(dir)
+	if !validPublishLockToken(tok) {
+		t.Fatalf("acquire token = %q, want a valid token", tok)
+	}
+	path, _ := publishLockPath(dir, tok)
+	assertLockSurvivesGC(t, path)
+	releasePublishLock(tok)
+	if got := process.ProbeLock(path); got != process.LockProbeFree {
+		t.Fatalf("released lock probed %v, want free", got)
+	}
 }

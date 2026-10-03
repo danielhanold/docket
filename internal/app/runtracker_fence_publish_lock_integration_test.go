@@ -251,3 +251,33 @@ func TestIntegrationRunFenceOutcomeWriteLandsBeforePublishLockRelease(t *testing
 		t.Fatalf("lock %v after the callback returned, want free", got)
 	}
 }
+
+// TestIntegrationRunFenceDroppedCallbackKeepsPublishLockHeld: a publisher that drops
+// its done callback without calling it still reads as live. The publish lock stays
+// held until the process exits (or the callback runs), never until GC, so an
+// unclear case keeps today's blocking mutation-pending.
+func TestIntegrationRunFenceDroppedCallbackKeepsPublishLockHeld(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	key := mintFenceRun(t, repoDir, repoDir, RunActive)
+	dir, err := runKeyDir(repoDir, key, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	desc := lockTestWSDesc()
+	func() {
+		done, aerr := admitWorkflowMutation(repoDir, OperationWorkspacePublish, &desc)
+		if aerr != nil || done == nil {
+			t.Fatalf("admit = (%v, %v), want a callback", done != nil, aerr)
+		}
+	}() // the callback is dropped here, never called
+	entry := journalEntry(t, repoDir, key, 0)
+	path, ok := publishLockPath(dir, entry.LockToken)
+	if !ok {
+		t.Fatalf("entry carries no valid lock_token: %+v", entry)
+	}
+	t.Cleanup(func() { releasePublishLock(entry.LockToken) }) // the test process's own descriptor
+	assertLockSurvivesGC(t, path)
+	if blocks, find := classifyAdmittedMutation(dir, entry); !blocks || find != findingMutationPending+OperationWorkspacePublish {
+		t.Fatalf("dropped-callback entry classified (%v, %q), want blocking mutation-pending", blocks, find)
+	}
+}
