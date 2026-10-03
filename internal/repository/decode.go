@@ -55,12 +55,14 @@ type scalar struct {
 	isNull    bool // present with no value ("key:", "key: ~", "key: null")
 	notScalar bool // present, but written as a collection
 	raw       string
+	node      *yaml.Node // the parsed node, for document.EmptyValue
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler. It never returns an error: an
 // unexpected node shape is recorded, not rejected.
 func (s *scalar) UnmarshalYAML(node *yaml.Node) error {
 	s.present = true
+	s.node = node
 	switch {
 	case node.Kind != yaml.ScalarNode:
 		s.notScalar = true
@@ -185,9 +187,10 @@ func (d *decoder) malformedWarning(field, raw string) {
 	d.report(CodeFieldMalformed, field, domain.SeverityWarning, map[string]string{"raw": raw})
 }
 
-// state classifies how a captured scalar appeared. The located frontmatter
-// entry is consulted for the "key present, no value" shape, so a key the YAML
-// tree resolves to null and a key the byte locator sees as valueless agree.
+// state classifies how a captured scalar appeared. FieldEmpty is decided by
+// document.EmptyValue — the one empty-value rule reposetup's claimed_at planner
+// shares — over the located frontmatter entry and the parsed node, so a key the
+// YAML tree resolves to null and a key the byte locator sees as valueless agree.
 //
 // FieldMalformed here means only "written as something other than a scalar";
 // type-level parse failures are decided by each typed converter below.
@@ -198,7 +201,7 @@ func (d *decoder) state(name string, s scalar) domain.FieldState {
 		return domain.FieldAbsent
 	case s.notScalar:
 		return domain.FieldMalformed
-	case s.isNull, ok && located.Shape == document.ShapeEmpty, s.present && s.raw == "":
+	case document.EmptyValue(located, ok, s.node):
 		return domain.FieldEmpty
 	default:
 		return domain.FieldPresent
