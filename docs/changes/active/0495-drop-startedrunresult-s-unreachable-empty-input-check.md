@@ -2,7 +2,7 @@
 id: 495
 slug: 'drop-startedrunresult-s-unreachable-empty-input-check'
 title: 'Drop startedRunResult''s unreachable empty-input check'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-03'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/drop-startedrunresult-s-unreachable-empty-input-check'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-03T08:32:56Z'
 ---
 
 ## Artifacts
