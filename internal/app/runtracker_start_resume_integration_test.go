@@ -1039,15 +1039,12 @@ func TestIntegrationRunStartNoRunRecordResumeRefusesLiveWorktreeOwner(t *testing
 	})
 }
 
-// TestIntegrationRunStartStartedResultRequiresKeyAndContext (changes 0463, 0491): the
-// started constructor refuses to start without a key or a run context. That
-// guarantee is what makes the positional two-token line unambiguous.
-func TestIntegrationRunStartStartedResultRequiresKeyAndContext(t *testing.T) {
-	for _, tc := range [][2]string{{"", "ctx"}, {"k", ""}} {
-		if got := startedRunResult(tc[0], tc[1]); got.Started || got.Reason != ReasonRunMintFailed || got.Key != "" || got.RunContext != "" {
-			t.Fatalf("startedRunResult(%q, %q) must fail closed as run-untracked mint-failed, got %+v", tc[0], tc[1], got)
-		}
-	}
+// TestIntegrationRunStartStartedResultFields (changes 0463, 0491, 0495): a started
+// result carries every field the report and its JSON form need: applied, started,
+// the key, the run context, the stored target, and the owner-lifecycle caveat. The
+// callers refuse an empty run context before minting (TestIntegrationRunStartEmptyRunContextMintsNothing),
+// so the constructor itself has no empty-input branch to test.
+func TestIntegrationRunStartStartedResultFields(t *testing.T) {
 	got := startedRunResult("k", "ctx")
 	if !got.Started || got.Result != ResultApplied || got.Key != "k" || got.RunContext != "ctx" ||
 		got.Target != runStartStoredTarget || got.OwnerLifecycle != ReasonOwnerLifecycleUnavailable {
