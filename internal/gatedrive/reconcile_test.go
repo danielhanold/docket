@@ -570,30 +570,89 @@ func TestCensusStopsLiveSupervisorOfHaltedDrive(t *testing.T) {
 	})
 }
 
-// TestCensusChecksPriorRunDir: a relaunched drive records both its replacement
-// (RawRunDir) and its first attempt (PriorRawRunDir); a live supervisor in either
-// is stopped.
-func TestCensusChecksPriorRunDir(t *testing.T) {
-	sup := newSupervisors()
-	d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
-	replacement, prior := liveRunDir(t, "run2"), liveRunDir(t, "run1")
-	sup.state[replacement] = process.StateRunning
-	sup.state[prior] = process.StateRunning
-	id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
-		r.RawRunDir, r.PriorRawRunDir = replacement, prior
-		r.RelaunchCount = 1
-	})
+// TestCensusProvesOnlyRawRunDir (change 0493): a drive has at most one launch,
+// so the census proves only RawRunDir. A HALTED drive whose recorded run dir is
+// live is stopped by cancel (never probed for a leftover once stopped) and
+// reported run-live by the verdict; a prior_raw_run_dir an old record still
+// carries is never observed. An old nonterminal record still journaling a
+// relaunch reservation is proven through RawRunDir, and its relaunch token is
+// never resolved.
+func TestCensusProvesOnlyRawRunDir(t *testing.T) {
+	seedHalted := func(t *testing.T, store *Store, raw, prior string) string {
+		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
+			r.RawRunDir = raw
+			r.LastOutcome = HALTED
+			r.LastCause = CauseSupervisorDied
+		})
+		stampRecordKeys(t, store, id, map[string]any{"prior_raw_run_dir": prior, "relaunch_count": 1})
+		return id
+	}
+	t.Run("cancel-stops-raw-only", func(t *testing.T) {
+		sup := newSupervisors()
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
+		raw, prior := liveRunDir(t, "run1"), liveRunDir(t, "run0")
+		sup.state[raw], sup.state[prior] = process.StateRunning, process.StateRunning
+		id := seedHalted(t, store, raw, prior)
 
-	report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
-	if err != nil {
-		t.Fatalf("ReconcileRunLaunches: %v", err)
-	}
-	if !report.Accounted || !findingFor(report.Findings, "replacement-stopped", id) {
-		t.Fatalf("both run dirs proven gone must account, got %+v", report)
-	}
-	if len(sup.stopped) != 2 || sup.stopped[0] != replacement || sup.stopped[1] != prior {
-		t.Fatalf("stopped %v, want [%s %s]", sup.stopped, replacement, prior)
-	}
+		report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
+		if err != nil {
+			t.Fatalf("ReconcileRunLaunches: %v", err)
+		}
+		if !report.Accounted || !findingFor(report.Findings, "replacement-stopped", id) {
+			t.Fatalf("the live RawRunDir must be stopped and accounted, got %+v", report)
+		}
+		if len(sup.stopped) != 1 || sup.stopped[0] != raw {
+			t.Fatalf("stopped %v, want exactly [%s]", sup.stopped, raw)
+		}
+		if containsString(sup.observed, prior) {
+			t.Fatalf("an old prior_raw_run_dir must never be probed; observed %v", sup.observed)
+		}
+		if containsString(sup.probed, raw) {
+			t.Fatalf("a dir the census stopped is never probed for a leftover; probed %v", sup.probed)
+		}
+	})
+	t.Run("verdict-run-live", func(t *testing.T) {
+		sup := newSupervisors()
+		proc := sup.proc()
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+		raw, prior := liveRunDir(t, "run1"), liveRunDir(t, "run0")
+		sup.state[raw], sup.state[prior] = process.StateRunning, process.StateRunning
+		id := seedHalted(t, store, raw, prior)
+
+		report, err := d.VerdictRunLaunches(capHash(censusCtxA))
+		if err != nil {
+			t.Fatalf("VerdictRunLaunches: %v", err)
+		}
+		if report.Accounted || !findingFor(report.Findings, "run-live", id) {
+			t.Fatalf("verdict must report the live RawRunDir run-live, got %+v", report)
+		}
+		if proc.stopN != 0 || containsString(sup.observed, prior) {
+			t.Fatalf("verdict stops nothing and never probes prior_raw_run_dir: stops=%d observed=%v", proc.stopN, sup.observed)
+		}
+	})
+	t.Run("old-reserved-relaunch-record", func(t *testing.T) {
+		sup := newSupervisors()
+		proc := sup.proc()
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+		raw := liveRunDir(t, "run1")
+		sup.state[raw] = process.StateRunning
+		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
+			r.RawRunDir = raw
+			r.AdmissionToken = censusAdmissionToken
+		})
+		stampRecordKeys(t, store, id, legacyRelaunchKeys())
+
+		report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
+		if err != nil {
+			t.Fatalf("ReconcileRunLaunches: %v", err)
+		}
+		if !report.Accounted || !findingFor(report.Findings, "replacement-stopped", id) {
+			t.Fatalf("an old reserved record is proven through RawRunDir, got %+v", report)
+		}
+		if proc.resolveN != 0 {
+			t.Fatalf("an old relaunch token is never resolved, ResolveReservation called %d times", proc.resolveN)
+		}
+	})
 }
 
 // TestCensusRunDirAbsentIsTornDownButProbeErrorIsPending (Review Focus 2): a run
@@ -766,177 +825,6 @@ func TestCensusEmptyContextAccountsVacuously(t *testing.T) {
 	}
 	if proc.observeN != 0 || proc.stopN != 0 {
 		t.Fatalf("an empty context probes nothing: observe=%d stop=%d", proc.observeN, proc.stopN)
-	}
-}
-
-// TestCensusReservedRelaunchResolvesRelaunchToken: a reserved-but-unattached
-// relaunch resolves the RELAUNCH token (never the launch token): never-launched
-// settles HALTED run-cancelled preserving the consumed reservation (cancel) or
-// stays launch-pending (verdict; change 0493 retires the relaunch); identified is
-// stopped; unresolved stays pending.
-func TestCensusReservedRelaunchResolvesRelaunchToken(t *testing.T) {
-	const relaunchToken = "aaaaaaaaaaaaaaaa"
-	seed := func(t *testing.T, store *Store) string {
-		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
-			r.AdmissionToken = censusAdmissionToken
-			r.RelaunchReserved = true
-			r.RelaunchToken = relaunchToken
-		})
-		return id
-	}
-	resolving := func(sup *supervisors, disp, runDir string, seen *string) {
-		sup.resolve = func(root, token string) (*process.ReservationResolution, error) {
-			*seen = token
-			return &process.ReservationResolution{Disposition: disp, RunID: "rep", RunDir: runDir}, nil
-		}
-	}
-
-	t.Run("never-launched-settles", func(t *testing.T) {
-		var seen string
-		sup := newSupervisors()
-		resolving(sup, "never-launched", "", &seen)
-		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
-		id := seed(t, store)
-		before, err := store.Load(id)
-		if err != nil {
-			t.Fatalf("Load: %v", err)
-		}
-
-		report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
-		if err != nil {
-			t.Fatalf("ReconcileRunLaunches: %v", err)
-		}
-		if seen != relaunchToken || !report.Accounted {
-			t.Fatalf("resolved %q accounted=%v, want the relaunch token and accounted (findings=%v)", seen, report.Accounted, report.Findings)
-		}
-		after, err := store.Load(id)
-		if err != nil {
-			t.Fatalf("Load: %v", err)
-		}
-		if after.LastOutcome != HALTED || after.LastCause != "run-cancelled" {
-			t.Fatalf("want HALTED run-cancelled, got %v/%q", after.LastOutcome, after.LastCause)
-		}
-		if !after.RelaunchReserved || after.RelaunchToken != before.RelaunchToken || after.RelaunchCount != before.RelaunchCount {
-			t.Fatalf("the settle must preserve the consumed reservation: before=%+v after=%+v", before, after)
-		}
-	})
-
-	t.Run("never-launched-verdict-pending", func(t *testing.T) {
-		var seen string
-		sup := newSupervisors()
-		resolving(sup, "never-launched", "", &seen)
-		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
-		id := seed(t, store)
-
-		report, err := d.VerdictRunLaunches(capHash(censusCtxA))
-		if err != nil {
-			t.Fatalf("VerdictRunLaunches: %v", err)
-		}
-		if report.Accounted || !findingFor(report.Findings, "launch-pending", id) {
-			t.Fatalf("verdict must keep a never-launched relaunch pending, got %+v", report)
-		}
-		after, err := store.Load(id)
-		if err != nil {
-			t.Fatalf("Load: %v", err)
-		}
-		if isTerminalOutcome(after.LastOutcome) {
-			t.Fatalf("verdict must never settle a reserved relaunch, got %v", after.LastOutcome)
-		}
-	})
-
-	t.Run("identified-stops", func(t *testing.T) {
-		var seen string
-		sup := newSupervisors()
-		dir := liveRunDir(t, "rep")
-		sup.state[dir] = process.StateRunning
-		resolving(sup, "identified", dir, &seen)
-		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
-		id := seed(t, store)
-
-		report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
-		if err != nil {
-			t.Fatalf("ReconcileRunLaunches: %v", err)
-		}
-		if seen != relaunchToken || !report.Accounted || !findingFor(report.Findings, "replacement-stopped", id) {
-			t.Fatalf("resolved %q, want an identified relaunch stopped and accounted, got %+v", seen, report)
-		}
-	})
-
-	t.Run("unresolved-pending", func(t *testing.T) {
-		var seen string
-		sup := newSupervisors()
-		resolving(sup, "unresolved", "", &seen)
-		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
-		id := seed(t, store)
-
-		report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
-		if err != nil {
-			t.Fatalf("ReconcileRunLaunches: %v", err)
-		}
-		if report.Accounted || !findingFor(report.Findings, "resolution-unresolved", id) {
-			t.Fatalf("an unresolved relaunch must stay pending, got %+v", report)
-		}
-	})
-}
-
-// TestReconcileNeverLaunchedSettlesTerminalClosingRecoveryLaunchWindow proves the
-// launch-after-cancel window (spec AC4) is closed: when reconcile resolves a
-// reserved relaunch never-launched UNDER THE HELD CLAIM, it settles the drive
-// terminal HALTED "run-cancelled" before releasing the claim, so a SUBSEQUENT
-// Advance recovery on the same drive launches NOTHING — even though that recovery
-// checks no run at all (no gate start or relaunch checks a run since change 0491,
-// so this terminal settle is what closes the window). The oracle is a strict
-// ordering (reconcile fully returns before Advance runs) plus the proc.Launch count
-// — never a timing sleep.
-func TestReconcileNeverLaunchedSettlesTerminalClosingRecoveryLaunchWindow(t *testing.T) {
-	recProc := &fakeProc{
-		resolve: func(root, token string) (*process.ReservationResolution, error) {
-			return &process.ReservationResolution{Disposition: "never-launched"}, nil
-		},
-	}
-	recDriver, store := newTestDriver(t, &fakeClock{now: startRun()}, recProc, stableGit())
-	id, ownerGen := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
-		r.RelaunchReserved = true
-		r.RelaunchToken = "aaaaaaaaaaaaaaaa"
-	})
-
-	report, err := recDriver.ReconcileRunLaunches(capHash(censusCtxA))
-	if err != nil {
-		t.Fatalf("ReconcileRunLaunches: %v", err)
-	}
-	if !report.Accounted {
-		t.Fatalf("a proven never-launched reserved relaunch must be accounted, findings=%v", report.Findings)
-	}
-
-	advProc := &fakeProc{
-		observe: func(runDir string) (*process.Observation, error) {
-			if strings.HasSuffix(runDir, "run1") {
-				return obs(process.StateVanished, runDir), nil
-			}
-			return obs(process.StateRunning, runDir), nil
-		},
-		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
-			return &process.LaunchOutcome{RunID: "replacement", RunDir: "/runs/replacement", State: process.StateRunning}, nil
-		},
-		resolve: func(root, token string) (*process.ReservationResolution, error) {
-			return &process.ReservationResolution{Disposition: "never-launched"}, nil
-		},
-	}
-	advClk := &fakeClock{now: startRun().Add(time.Second)}
-	advDriver := NewDriver(reopenStore(store), advClk, advProc, stableGit())
-	advDriver.slice = 4 * pollTick
-	advDriver.pollInterval = pollTick
-	advDriver.sleep = func(dur time.Duration) { advClk.advance(dur) }
-
-	doc, err := advDriver.Advance(id, ownerGen)
-	if err != nil {
-		t.Fatalf("Advance: %v", err)
-	}
-	if advProc.launchN != 0 {
-		t.Fatalf("a recovery after a completed cancellation must launch NOTHING (AC4), proc.Launch called %d times", advProc.launchN)
-	}
-	if doc.Outcome != HALTED || doc.Cause != "run-cancelled" {
-		t.Fatalf("the terminal settle must resolve the recovery Advance to HALTED run-cancelled, got %s/%q", doc.Outcome, doc.Cause)
 	}
 }
 
@@ -1237,7 +1125,7 @@ func TestCensusReportsLeftoverOfDeadSupervisor(t *testing.T) {
 					r.RawRunDir = dir
 					if halted {
 						r.LastOutcome = HALTED
-						r.LastCause = "relaunch-exhausted"
+						r.LastCause = CauseSupervisorDied
 					}
 				})
 
@@ -1299,77 +1187,4 @@ func TestCensusNoLeftoverKeepsRunTerminal(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestCensusLeftoverOutranksOtherFindings (change 0492): across a drive's two
-// recorded run dirs, tree-survives outranks replacement-stopped and
-// run-terminal; with two leftovers the first dir's (RawRunDir) group is named.
-// A dir the census itself stopped is never probed: Stop already waited for its
-// group to empty.
-func TestCensusLeftoverOutranksOtherFindings(t *testing.T) {
-	t.Run("prior-leftover", func(t *testing.T) {
-		sup := newSupervisors()
-		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
-		replacement, prior := liveRunDir(t, "run2"), liveRunDir(t, "run1")
-		sup.state[replacement] = process.StateRunning // stopped by the census
-		sup.state[prior] = process.StateVanished
-		sup.leftover[prior] = process.Leftover{Answer: process.LeftoverPresent, PGID: 4242}
-		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
-			r.RawRunDir, r.PriorRawRunDir = replacement, prior
-			r.RelaunchCount = 1
-		})
-
-		report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
-		if err != nil {
-			t.Fatalf("ReconcileRunLaunches: %v", err)
-		}
-		if !report.Accounted || !findingFor(report.Findings, "tree-survives", id+":4242") {
-			t.Fatalf("tree-survives outranks replacement-stopped, got %+v", report)
-		}
-		if containsString(sup.probed, replacement) {
-			t.Fatalf("the census-stopped dir %s was probed for a leftover; probed %v", replacement, sup.probed)
-		}
-	})
-	t.Run("replacement-leftover", func(t *testing.T) {
-		sup := newSupervisors()
-		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
-		replacement, prior := liveRunDir(t, "run2"), liveRunDir(t, "run1")
-		sup.state[replacement] = process.StateVanished
-		sup.leftover[replacement] = process.Leftover{Answer: process.LeftoverPresent, PGID: 4242}
-		sup.state[prior] = process.StateRunning // stopped by the census, after the leftover
-		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
-			r.RawRunDir, r.PriorRawRunDir = replacement, prior
-			r.RelaunchCount = 1
-		})
-
-		report, err := d.ReconcileRunLaunches(capHash(censusCtxA))
-		if err != nil {
-			t.Fatalf("ReconcileRunLaunches: %v", err)
-		}
-		if !report.Accounted || !findingFor(report.Findings, "tree-survives", id+":4242") {
-			t.Fatalf("a later replacement-stopped must not displace tree-survives, got %+v", report)
-		}
-	})
-	t.Run("both-leftover", func(t *testing.T) {
-		sup := newSupervisors()
-		d, store := newTestDriver(t, &fakeClock{now: startRun()}, sup.proc(), stableGit())
-		replacement, prior := liveRunDir(t, "run2"), liveRunDir(t, "run1")
-		sup.state[replacement] = process.StateVanished
-		sup.state[prior] = process.StateVanished
-		sup.leftover[replacement] = process.Leftover{Answer: process.LeftoverPresent, PGID: 4242}
-		sup.leftover[prior] = process.Leftover{Answer: process.LeftoverPresent, PGID: 5353}
-		id, _ := seedRunDrive(t, store, censusCtxA, func(r *driveRecord) {
-			r.RawRunDir, r.PriorRawRunDir = replacement, prior
-			r.RelaunchCount = 1
-		})
-
-		report, err := d.VerdictRunLaunches(capHash(censusCtxA))
-		if err != nil {
-			t.Fatalf("VerdictRunLaunches: %v", err)
-		}
-		if !report.Accounted || !findingFor(report.Findings, "tree-survives", id+":4242") ||
-			findingFor(report.Findings, "tree-survives", id+":5353") {
-			t.Fatalf("two leftovers report the first dir's group only, got %+v", report)
-		}
-	})
 }

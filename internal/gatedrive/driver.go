@@ -641,11 +641,6 @@ func (d *Driver) driveAndPersist(id, ownerGen string, rec driveRecord) (DriveDoc
 // state".
 var errAlreadyTerminal = errors.New("gatedrive: drive already terminal")
 
-// errRelaunchRaceLost reports that another same-owner advance has already
-// reserved or consumed the single automatic replacement. The loser reloads the
-// authoritative drive state and never issues a second backend launch.
-var errRelaunchRaceLost = errors.New("gatedrive: relaunch already consumed by a concurrent advance")
-
 // sliceResult is one slice's decision: the outcome/cause to persist. lastClock
 // is the freshly accepted clock value bound to the record.
 type sliceResult struct {

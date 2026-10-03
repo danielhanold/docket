@@ -8,8 +8,7 @@
 // proven never-launched launch HALTED "run-cancelled". Verdict mode
 // (VerdictRunLaunches, the keyed run.verdict's closeout) stops nothing and signals
 // nothing; it settles only a proven never-launched FIRST launch, HALTED
-// "launch-abandoned", and leaves a live supervisor run-live and a reserved
-// relaunch launch-pending.
+// "launch-abandoned", and leaves a live supervisor run-live.
 //
 // Attribution. The census walks the drive registry and accounts every drive whose
 // RunContextHash equals the run's context hash — every such drive, not only the
@@ -19,12 +18,12 @@
 // schema-2 record with a terminal outcome is settled history. The census reads no
 // worktree lock or holder note, and no recovery scope (change 0489).
 //
-// Teardown proof is the lock model's proof: the supervisor is gone. For each run
-// dir a drive records (RawRunDir, PriorRawRunDir) a dir that no longer exists is
-// clean absence; any observed state other than running counts as torn down; a
-// running supervisor is stopped (cancel mode) and must then observe as not
-// running, or is reported run-live (verdict mode). A probe or stop error is never
-// clean absence: it keeps the run pending.
+// Teardown proof is the lock model's proof: the supervisor is gone. For the one
+// run dir a drive records (RawRunDir; a drive never relaunches since change 0493)
+// a dir that no longer exists is clean absence; any observed state other than
+// running counts as torn down; a running supervisor is stopped (cancel mode) and
+// must then observe as not running, or is reported run-live (verdict mode). A
+// probe or stop error is never clean absence: it keeps the run pending.
 // A dead supervisor's suite can outlive it (change 0492): when the supervisor's
 // recorded process group still has members, the drive still counts as torn down,
 // and its finding is tree-survives:<drive>:<pgid> instead of run-terminal. The
@@ -32,7 +31,7 @@
 // lock proves the group is the run's own. An unclear or failed leftover probe
 // keeps run-terminal, exactly as before.
 // PASSED/FAILED drives are settled by their verdict (the supervisor wrote it before
-// exiting); a HALTED drive can still have a live supervisor, so its run dirs are
+// exiting); a HALTED drive can still have a live supervisor, so its run dir is
 // proven too — or, for a first launch that failed before attaching one, its
 // launch token is resolved (reconcileHaltedDrive). A nonterminal first launch
 // whose run root does not exist was never launched (reconcileFirstLaunch). A
@@ -50,7 +49,6 @@ import (
 	"os"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/danielhanold/docket/internal/process"
 )
@@ -63,9 +61,8 @@ const (
 	// proven never-launched launch HALTED run-cancelled.
 	censusCancel censusMode = iota
 	// censusVerdict is the keyed run.verdict's census: it stops nothing and signals
-	// nothing. It settles only a proven never-launched FIRST launch, HALTED
-	// launch-abandoned; a running supervisor is run-live, and a reserved relaunch
-	// stays launch-pending (change 0493 retires finalize's relaunch).
+	// nothing. It settles only a proven never-launched launch, HALTED
+	// launch-abandoned; a running supervisor is run-live.
 	censusVerdict
 )
 
@@ -96,11 +93,11 @@ type RunLaunchReport struct {
 
 // ReconcileRunLaunches reconciles, for an ALREADY-FENCED run, every drive whose
 // RunContextHash equals runContextHash (cancellation mode): a running supervisor
-// is stopped and must then observe as not running; a first launch or reserved
-// relaunch that never attached is resolved through its exact reservation token,
-// and a proven never-launched one is settled HALTED "run-cancelled" under the held
-// claim so no later launch can follow the cancel. An empty runContextHash names no
-// drive and accounts vacuously.
+// is stopped and must then observe as not running; a launch that never attached
+// is resolved through its exact launch token, and a proven never-launched one is
+// settled HALTED "run-cancelled" under the held claim so no later launch can
+// follow the cancel. An empty runContextHash names no drive and accounts
+// vacuously.
 func (d *Driver) ReconcileRunLaunches(runContextHash string) (RunLaunchReport, error) {
 	return d.accountRunLaunches(runContextHash, censusCancel)
 }
@@ -111,8 +108,8 @@ func (d *Driver) ReconcileRunLaunches(runContextHash string) (RunLaunchReport, e
 // ReconcileRunLaunches, but it never stops or signals a process. A proven
 // never-launched FIRST launch is settled HALTED "launch-abandoned" under the held
 // claim, so a successful run is not stranded by a launcher killed between Admit
-// and StartAdmitted; a live supervisor is run-live and a reserved relaunch stays
-// launch-pending, and both keep the report unaccounted.
+// and StartAdmitted; a live supervisor is run-live and keeps the report
+// unaccounted.
 func (d *Driver) VerdictRunLaunches(runContextHash string) (RunLaunchReport, error) {
 	return d.accountRunLaunches(runContextHash, censusVerdict)
 }
@@ -175,12 +172,11 @@ func (d *Driver) accountRunLaunches(runContextHash string, mode censusMode) (Run
 // settled plus a bounded, credential-free finding (drive id + disposition token).
 //   - PASSED/FAILED: settled by the verdict the supervisor wrote before exiting.
 //   - HALTED: launches nothing more, so no claim is taken; its supervisors must
-//     be proven gone (reconcileHaltedDrive) — through its recorded run dirs, or,
+//     be proven gone (reconcileHaltedDrive) — through its recorded run dir, or,
 //     for a first launch that never attached one, through its launch token.
 //   - Nonterminal: the claimant flock is tried nonblocking (busy → claim-busy), the
-//     record re-read under it, and then a reserved relaunch resolves its RELAUNCH
-//     token, a first launch that never attached resolves its launch (admission)
-//     token, and an attached drive proves its run dirs gone.
+//     record re-read under it, and then a launch that never attached resolves its
+//     launch (admission) token, and an attached drive proves its run dir gone.
 func (d *Driver) reconcileRunDrive(id string, rec driveRecord, mode censusMode) (settled bool, finding string) {
 	switch rec.LastOutcome {
 	case PASSED, FAILED:
@@ -193,9 +189,8 @@ func (d *Driver) reconcileRunDrive(id string, rec driveRecord, mode censusMode) 
 		return false, "resolution-unresolved:" + id
 	}
 	if busy {
-		// A held claim is a launch still in flight (StartAdmitted across launch/attach,
-		// or a relaunch reservation resolving): pending work, never proof of a crash and
-		// never waited on.
+		// A held claim is a launch still in flight (StartAdmitted across launch/attach):
+		// pending work, never proof of a crash and never waited on.
 		return false, "claim-busy:" + id
 	}
 	defer claim.close()
@@ -211,16 +206,6 @@ func (d *Driver) reconcileRunDrive(id string, rec driveRecord, mode censusMode) 
 		return true, ""
 	case HALTED:
 		return d.reconcileHaltedDrive(id, cur, mode)
-	}
-
-	// A reserved-but-unattached relaunch (the crash window recoverReservedRelaunch
-	// resolves): resolve the RELAUNCH token — never the admission token, which names
-	// the original launch.
-	if cur.RelaunchReserved {
-		if cur.RelaunchToken == "" {
-			return false, "resolution-unresolved:" + id
-		}
-		return d.reconcileReservation(id, cur.RunRoot, cur.RelaunchToken, cur.OwnerGeneration, mode)
 	}
 
 	// A first launch whose run dir was never attached: the launch was handed the
@@ -241,7 +226,7 @@ func (d *Driver) reconcileRunDrive(id string, rec driveRecord, mode censusMode) 
 // may have spawned a supervisor before its response was lost. Such a drive — no
 // attached run dir, a launch token on record — resolves that exact token
 // (resolveHaltedFirstLaunch); every other HALTED drive proves its recorded run
-// dirs gone.
+// dir gone.
 func (d *Driver) reconcileHaltedDrive(id string, rec driveRecord, mode censusMode) (bool, string) {
 	if rec.RawRunDir == "" && rec.AdmissionToken != "" {
 		return d.resolveHaltedFirstLaunch(id, rec, mode)
@@ -280,39 +265,13 @@ func (d *Driver) resolveHaltedFirstLaunch(id string, rec driveRecord, mode censu
 	}
 }
 
-// reconcileReservation resolves a reserved (but unattached) relaunch through the
-// process seam. In cancellation mode a proven never-launched is settled by
-// settleNeverLaunchedCancelled (which also forecloses a later recovery launch); in
-// verdict mode it stays pending (launch-pending; change 0493 retires the
-// relaunch). An identified run must prove its supervisor gone (supervisorGone). An
-// unresolved verdict or a resolve error preserves unresolved evidence: pending. ownerGen is the drive's own owner
-// generation (read under the held claim) — the CAS credential the settle needs; it
-// is a locator, not authority.
-func (d *Driver) reconcileReservation(id, runRoot, token, ownerGen string, mode censusMode) (bool, string) {
-	res, rerr := d.proc.ResolveReservation(runRoot, token)
-	if rerr != nil || res == nil {
-		return false, "resolution-unresolved:" + id
-	}
-	switch res.Disposition {
-	case "never-launched":
-		if mode == censusVerdict {
-			return false, "launch-pending:" + id
-		}
-		return d.settleNeverLaunchedCancelled(id, ownerGen)
-	case "identified":
-		return d.supervisorGone(id, res.RunDir, mode)
-	default: // "unresolved" or any unexpected disposition: preserve evidence
-		return false, "resolution-unresolved:" + id
-	}
-}
-
-// reconcileFirstLaunch resolves a first launch whose run dir was never attached the
-// way reconcileReservation resolves a reserved relaunch, through the drive's
-// admission token (the token StartAdmitted hands the launch). A run root that does
-// not exist was never created by a launch (or was cleaned), so it holds no
-// reservation: clean absence, settled like a proven never-launched launch, as
-// resolveHaltedFirstLaunch and supervisorGone already treat it (change 0491). Any
-// other Lstat error is unknown, never absence, and stays pending. A proven
+// reconcileFirstLaunch resolves a first launch whose run dir was never attached
+// through the drive's admission token (the token StartAdmitted hands the launch).
+// A run root that does not exist was never created by a launch (or was
+// cleaned), so it holds no reservation: clean absence, settled like a proven
+// never-launched launch, as resolveHaltedFirstLaunch and supervisorGone already
+// treat it (change 0491). Any other Lstat error is unknown, never absence, and
+// stays pending. A proven
 // never-launched first launch is settled HALTED with the mode's cause
 // (run-cancelled / launch-abandoned); an identified run must prove its supervisor
 // gone; anything else is pending.
@@ -339,40 +298,24 @@ func (d *Driver) reconcileFirstLaunch(id string, cur driveRecord, mode censusMod
 	}
 }
 
-// settleNeverLaunchedCancelled settles a reserved relaunch that provably never ran,
-// under the per-drive claim reconcileRunDrive already holds. That held claim
-// excludes any concurrent launcher (Advance's recoverReservedRelaunch, StartAdmitted,
-// and reserveRelaunch all take the SAME flock), so the reservation is genuinely idle
-// AND cannot be launched while the claim is held. Settling the drive terminal HALTED
-// "run-cancelled" here — BEFORE the caller releases the claim — closes the
-// launch-after-cancel window (spec AC4): a later Advance recovery — which checks
-// no run, since no gate start or relaunch checks one (change 0491) — finds a
-// terminal record at isTerminalOutcome and returns the recorded verdict rather
-// than launching the replacement. The CAS preserves the consumed
-// reservation (RelaunchReserved is never cleared, mirroring haltReservedRelaunchCause)
-// so the sole relaunch is never refunded.
-//
-// An already-terminal record (a concurrent settle) is equally accounted. A record
-// that moved out from under the claim (a lost owner or reservation) or a store fault
-// fails closed to pending — reconcile never claims an obligation settled while the
-// drive might still recover a launch.
-func (d *Driver) settleNeverLaunchedCancelled(id, ownerGen string) (bool, string) {
-	return d.settleNeverLaunched(id, ownerGen, causeRunCancelled, func(r *driveRecord) bool { return r.RelaunchReserved })
-}
-
-// settleNeverLaunchedFirstLaunch settles a first launch that provably never ran,
-// under the held per-drive claim, HALTED with the census mode's cause —
-// "run-cancelled" in cancel mode, "launch-abandoned" in verdict mode (change
-// 0491) — the first-launch counterpart of settleNeverLaunchedCancelled. Its CAS
-// guard is that the drive still has no attached run dir and reserved no relaunch;
-// a record that moved on (errRelaunchRaceLost) or a store fault stays pending, and
-// an already-terminal record is accounted. A delayed StartAdmitted then re-reads a terminal record
+// settleNeverLaunchedFirstLaunch settles a launch that provably never ran, under
+// the held per-drive claim, HALTED with the census mode's cause — "run-cancelled"
+// in cancel mode, "launch-abandoned" in verdict mode (change 0491). Its CAS guard
+// is that the drive still has no attached run dir; a record that moved on
+// (errLaunchStateMoved) or a store fault stays pending, and an already-terminal
+// record is accounted. A delayed StartAdmitted then re-reads a terminal record
 // under the claim and refuses rather than launching.
 func (d *Driver) settleNeverLaunchedFirstLaunch(id, ownerGen, cause string) (bool, string) {
 	return d.settleNeverLaunched(id, ownerGen, cause, func(r *driveRecord) bool {
-		return r.RawRunDir == "" && !r.RelaunchReserved
+		return r.RawRunDir == ""
 	})
 }
+
+// errLaunchStateMoved is the census's CAS-lost sentinel: the drive it was about
+// to settle as never launched attached a run dir after the census read it, so
+// the settle is abandoned and the drive stays pending (resolution-unresolved).
+// It never escapes the census.
+var errLaunchStateMoved = errors.New("gatedrive: drive launch state moved under the census")
 
 // settleNeverLaunched is the shared CAS behind every never-launched settle: it
 // writes HALTED cause only while the owner generation still matches and
@@ -387,7 +330,7 @@ func (d *Driver) settleNeverLaunched(id, ownerGen, cause string, stillUnlaunched
 			return errAlreadyTerminal
 		}
 		if !stillUnlaunched(r) {
-			return errRelaunchRaceLost
+			return errLaunchStateMoved
 		}
 		r.LastOutcome = HALTED
 		r.LastCause = cause
@@ -399,45 +342,15 @@ func (d *Driver) settleNeverLaunched(id, ownerGen, cause string, stillUnlaunched
 	return false, "resolution-unresolved:" + id
 }
 
-// proveRunDirsGone applies the lock model's teardown proof to each of a drive's
-// recorded run dirs (RawRunDir, then PriorRawRunDir): the drive is torn down when
-// every recorded supervisor is gone. The first dir that cannot be proven gone
-// decides a pending result; otherwise the finding is the strongest one seen
-// (tree-survives over replacement-stopped over run-terminal, censusFindingRank),
-// so a surviving group, and otherwise a stop this census performed, is always
-// reported.
+// proveRunDirsGone applies the lock model's teardown proof to the drive's one
+// recorded run dir (RawRunDir; a drive never relaunches since change 0493): the
+// drive is torn down when that supervisor is gone. A drive with no recorded run
+// dir names no supervisor and is settled.
 func (d *Driver) proveRunDirsGone(id string, rec driveRecord, mode censusMode) (bool, string) {
-	finding := ""
-	for _, dir := range []string{rec.RawRunDir, rec.PriorRawRunDir} {
-		if dir == "" {
-			continue
-		}
-		gone, f := d.supervisorGone(id, dir, mode)
-		if !gone {
-			return false, f
-		}
-		if censusFindingRank(f) > censusFindingRank(finding) {
-			finding = f
-		}
+	if rec.RawRunDir == "" {
+		return true, ""
 	}
-	return true, finding
-}
-
-// censusFindingRank orders the findings proveRunDirsGone may report for one
-// drive: tree-survives (a dead supervisor's group still has members) over
-// replacement-stopped (a stop this census performed) over run-terminal. A tie
-// keeps the first dir's finding, so RawRunDir's leftover is the one named.
-func censusFindingRank(f string) int {
-	switch {
-	case strings.HasPrefix(f, "tree-survives:"):
-		return 3
-	case strings.HasPrefix(f, "replacement-stopped:"):
-		return 2
-	case f != "":
-		return 1
-	default:
-		return 0
-	}
+	return d.supervisorGone(id, rec.RawRunDir, mode)
 }
 
 // supervisorGone proves one run dir's supervisor gone. A run dir that does not
