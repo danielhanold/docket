@@ -979,7 +979,10 @@ repeat cancel, the resume check, and `run.verdict`'s success closeout. `<op>` is
 the publishing process died mid-flight (Ctrl-C, a crash, or SIGKILL), or the publish returned
 without seeing GitHub's or the remote's answer, and no identical publish later confirmed it. Docket
 knows the publisher is gone because a publish holds a lock file beside the run record for its
-whole remote call, and the kernel frees that lock when the process exits.
+whole remote call, and the kernel frees that lock when the process exits. A free publish lock
+proves the docket publisher process is gone, not its `git` or `gh` child: an orphaned child may
+still land its effect after cancel, which the push lease and the PR create-or-adopt make harmless
+(see ADR-0137).
 
 Cancel still reports `cancelled`, resume still admits its replacement, and the closeout verdict is
 unchanged. The pushed branch or opened PR may or may not exist. A resumed run's publish adopts

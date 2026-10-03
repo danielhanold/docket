@@ -235,7 +235,8 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	// cancelled or superseded run refuses, and gh is never invoked; an active run
 	// journals the admission, then this reconciles it once the ensure resolves —
 	// `uncertain` on an unobserved remote outcome (an EnsureUnknown or transport
-	// failure), so a cancellation stays pending until the effect is reconciled. A
+	// failure); an uncertain entry is reported mutation-abandoned (informational)
+	// unless a later verified identical retry settles it. A
 	// standalone/no-run-record run admits unfenced (the journal callback is a no-op).
 	// The admission journals the immutable publication identity (change 0444):
 	// resolved repo, exact head branch + full requested commit, effective base, and
