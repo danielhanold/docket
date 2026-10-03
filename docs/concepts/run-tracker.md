@@ -93,6 +93,16 @@ gaps stay accepted: a KILL escalation can leave test targets running in
 their own process groups, and after a graceful stop the worktree frees a
 moment before the suite runner finishes stopping its targets.
 
+A publish killed mid-flight no longer wedges a run. `pr.publish` and
+`workspace.publish` journal each remote call in the run record before they
+make it, and hold a lock file beside the record until they have written the
+outcome. If the process dies in between, the lock frees with it. Cancel,
+resume, and the success closeout then read the entry as abandoned: cancel
+reports `cancelled`, resume admits its replacement, and the closeout
+completes, each with a `mutation-abandoned:<op>` finding (see the glossary).
+While the lock is still held, or when docket cannot prove it free, the entry
+blocks as `mutation-pending:<op>`, exactly as before.
+
 ## The invariants
 
 - A completion notification is the worker's claim, never the parent's

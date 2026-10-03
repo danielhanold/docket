@@ -27,7 +27,7 @@
 // run-tracker record carries (change 0490), with teardown proof "the supervisor is
 // gone"; RE-ENUMERATE the run's participants after stopping (a launch admitted before
 // the fence won and can register after the initial snapshot); reconcile
-// AdmittedMutations (any admitted-not-completed entry keeps it pending); all
+// AdmittedMutations (an entry whose publisher may still be running keeps it pending); all
 // accounted → CAS cancelling→cancelled (`cancelled`), else `cancellation-pending`.
 // No worktree record is written: a gate's worktree lock is held by its supervisor
 // and frees itself when that supervisor exits, so stopping the run's gates is all
@@ -63,15 +63,16 @@ const OperationRunCancel = "run.cancel"
 const (
 	// CancelDispositionCancelled: the run was fenced and cancellation completed
 	// with full accounting — every process torn down (proven), every gate drive of
-	// the run settled with its supervisor gone, and no admitted-not-completed
-	// mutation.
+	// the run settled with its supervisor gone, and no journal entry whose publisher
+	// may still be running (classifyAdmittedMutation, change 0494).
 	CancelDispositionCancelled = "cancelled"
 	// CancelDispositionAlreadyCancelled: the run was already cancelled (or
 	// superseded) — idempotent, nothing to do.
 	CancelDispositionAlreadyCancelled = "already-cancelled"
 	// CancelDispositionPending: the run is fenced (durably cancelling) but full
 	// accounting is not yet reached — an unproven stop, an unaccounted racing
-	// participant, or an admitted-not-completed mutation. Repeatable: a later
+	// participant, or a journal entry whose publisher may still be running
+	// (mutation-pending:<op>). Repeatable: a later
 	// run.cancel resumes cleanup without restoring authority.
 	CancelDispositionPending = "cancellation-pending"
 	// CancelDispositionRefused: authority could not be validated — a wrong repo,
@@ -92,8 +93,8 @@ const (
 )
 
 // mutationStatusCompleted is the only AdmittedMutation status that accounts as done.
-// Any other status (admitted, uncertain) is an admitted-not-completed entry that
-// keeps a cancellation pending (spec "reconcile AdmittedMutations").
+// completed is the only status accounted with no finding; classifyAdmittedMutation
+// decides every other status (change 0494).
 const mutationStatusCompleted = "completed"
 
 // RunCancelResult is the protocol-v1 document `run cancel` returns. It renders one

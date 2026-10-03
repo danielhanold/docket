@@ -144,7 +144,7 @@ const (
 	ReasonRunCancelled = "run-cancelled"
 	// ReasonRunSuperseded: a superseded run — a confirmed resume replaced it.
 	ReasonRunSuperseded = "run-superseded"
-	// ReasonRunCompletionUnaccounted: a live/busy/pending/uncertain obligation blocks
+	// ReasonRunCompletionUnaccounted: a live/busy/pending obligation blocks
 	// completion (fail closed). The run stays durably completing; the remedy — named
 	// in the result's CompletionFindings — is to settle the evidence and repeat the same
 	// keyed verdict, or cancel explicitly.

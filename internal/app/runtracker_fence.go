@@ -3,7 +3,8 @@
 // (runtracker_cancel.go flips active→cancelling), no NEW workflow mutation from that
 // run may be admitted, and an operation already in flight is journaled so a
 // cancellation stays PENDING until it is observed/reconciled (it is never reported
-// `cancelled` while an owned writer or unresolved external effect remains). This
+// `cancelled` while an owned writer or a publisher that may still be running
+// remains; change 0494). This
 // file is the admission gate the shared mutation boundaries pass through.
 //
 // DERIVATION RULE (spec "Later-workflow-action fencing": "Derive the covered
@@ -302,8 +303,8 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 // status its admitted-mutation journal entry gets, and whether that completion
 // VERIFIED the operation's postcondition. An UNOBSERVED remote outcome — an
 // external failure (a transport error, or an explicit unknown disposition) or an
-// interruption — is `uncertain`, so a cancellation stays pending until it is
-// reconciled; every other outcome (applied, no-op, contended, or a local refusal or
+// interruption — is `uncertain`, accounted with the informational
+// mutation-abandoned:<op> finding (classifyAdmittedMutation, change 0494); every other outcome (applied, no-op, contended, or a local refusal or
 // internal error that pushed nothing) is `completed` for its OWN accounting. Only
 // applied and no-op are verified: those are the dispositions the adapter reaches
 // after observing the exact postcondition (EnsurePullRequest's post-mutation

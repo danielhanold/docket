@@ -971,6 +971,27 @@ cancel does.
 docket run cancel --key <key> --reason "superseded by 413"
 ```
 
+### Cancel finding `mutation-abandoned`
+
+`mutation-abandoned:<op>` is an informational finding from `run.cancel`, the death guardian, a
+repeat cancel, the resume check, and `run.verdict`'s success closeout. `<op>` is `pr.publish` or
+`workspace.publish`. Docket stopped waiting on that publish because it never saw the outcome. Either
+the publishing process died mid-flight (Ctrl-C, a crash, or SIGKILL), or the publish returned
+without seeing GitHub's or the remote's answer, and no identical publish later confirmed it. Docket
+knows the publisher is gone because a publish holds a lock file beside the run record for its
+whole remote call, and the kernel frees that lock when the process exits.
+
+Cancel still reports `cancelled`, resume still admits its replacement, and the closeout verdict is
+unchanged. The pushed branch or opened PR may or may not exist. A resumed run's publish adopts
+whatever landed, because both publishes converge on a retry. The finding is information, never a
+blocker: no skill or reviewer escalates it into one.
+
+`mutation-pending:<op>` is different. There, the publisher may still be running, or docket cannot
+prove it stopped (an entry with no lock, a missing lock file, an unreadable lock). That finding
+still keeps cancel at `cancellation-pending` and the closeout at `completion-unaccounted`. When a
+later identical publish completes and docket verifies it, the entry is reported
+`mutation-settled:<op>` instead.
+
 ### Cancel finding `tree-survives`
 
 `tree-survives:<drive>:<pgid>` is an informational finding from `run.cancel`, the death guardian,

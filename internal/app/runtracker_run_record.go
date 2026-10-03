@@ -125,8 +125,8 @@ const (
 
 // AdmittedMutation is one journaled workflow-mutation admission at a shared
 // mutation boundary (transaction engine, PR publish, workspace publish). Status is
-// admitted|completed|uncertain; a cancellation stays pending until every admitted
-// entry is completed or uncertain-reconciled (Task 11 wires the journal writes,
+// admitted|completed|uncertain; a cancellation stays pending only while an entry's
+// publisher may still be running (classifyAdmittedMutation, change 0494) (Task 11 wires the journal writes,
 // Task 10 reads them). OpKey is the bounded operation key, never argv/env/content.
 // Publication is the optional immutable publication identity captured at admission
 // (change 0444) — additive schema-v1 field; nil on legacy and non-publication
