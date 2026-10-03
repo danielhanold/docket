@@ -13,7 +13,7 @@ related: [491, 492]
 discovered_from: [490]
 adrs: [98, 107, 132]
 spec: 'docs/superpowers/specs/2026-10-02-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-03-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-03T08:18:33Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-02-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-design.md) |
+| Plan | [2026-10-03-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md](https://github.com/danielhanold/docket/blob/fix/cancel-misses-a-replacement-supervisor-behind-a-halted-unatt/docs/superpowers/plans/2026-10-03-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md) |
 | ADRs | [ADR-0098](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0098-structured-gate-waiting-and-ownership-handoff.md), [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
 <!-- docket:artifacts:end -->
 
