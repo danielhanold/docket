@@ -1075,9 +1075,10 @@ names the holder only while that gate is running.
 
 The four outcomes of a `gate drive start` or `advance` call. `WAITING` means the drive is still live and this slice
 ended. `PASSED` and `FAILED` mean the suite finished green or red. `HALTED` means it cannot continue safely: a changed
-worktree, uncertain ownership, deadline expiry, bad state, or a process death. A drive whose
-launch provably never started is settled HALTED too: `launch-abandoned` when the keyed `run.verdict`
-closes it, `run-cancelled` when `run.cancel` does.
+worktree, uncertain ownership, deadline expiry, bad state, or a process death. A process death halts
+`supervisor-died` (or `uncertain-ownership` when the death cannot be proven) and is never relaunched: a human re-runs
+the workflow, which re-runs the suite. A drive whose launch provably never started is settled HALTED too:
+`launch-abandoned` when the keyed `run.verdict` closes it, `run-cancelled` when `run.cancel` does.
 
 **Used for:** keying the next step on `.outcome`, never on an exit status or log text. Only `FAILED` feeds repair. Only
 `PASSED` exposes the run dir for evidence. `HALTED` stops automation and is never turned into a red suite.
@@ -1192,13 +1193,12 @@ comes from the run's recorded state, not from how the gate found out the run sto
 ### `worktree-busy`
 
 The reason a gate start is refused because another gate's supervisor holds the
-[worktree lock](#worktree-lock). A gate-drive relaunch that finds the worktree lock held by another gate HALTs with
-cause `worktree-busy` instead of relaunching over it.
+[worktree lock](#worktree-lock).
 
 **Used for:** recognising a blocking diagnostic, which is neither a red suite nor a retry trigger. It charges no suite
 attempt. The fix is an operator act: let the holder finish, or stop it (`run.cancel` for a tracked run, `gate stop`
-for a raw launch). `launch-unconfirmed` survives only as a gate-drive HALT cause (a relaunch whose launch could not be
-established), never as an admission refusal.
+for a raw launch). `launch-unconfirmed` is retired: it was the gate-drive HALT cause for a relaunch whose launch could
+not be established, and no driver path emits it since change 0493; it was never an admission refusal.
 
 ---
 

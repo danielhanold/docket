@@ -347,7 +347,7 @@ func TestMapDriveOutcomeRemovesRunRootOnTerminal(t *testing.T) {
 }
 
 // TestMapDriveOutcomeRetainsRunRootWhileWaiting proves a WAITING slice never
-// removes the run root — the run is still live and may relaunch under it. This
+// removes the run root — the run is still live and writes under it. This
 // is the guard that keeps the terminal-only removal from deleting a live drive's
 // root; stripping the outcome check reddens it.
 func TestMapDriveOutcomeRetainsRunRootWhileWaiting(t *testing.T) {

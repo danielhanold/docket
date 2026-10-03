@@ -103,13 +103,14 @@ An owned resolver continuation can succeed in Git — advancing to another confl
 Finalize runs its post-rebase suite as a **scopeless** gate in the feature worktree, and that gate
 takes the same worktree lock every other gate takes: one canonical worktree carries at most one
 running gate at a time. So finalize's own gate can be **refused** before it launches when another
-gate's supervisor holds the lock — reason `worktree-busy` — and its single automatic relaunch
-halts `worktree-busy` instead of relaunching when another gate took the lock first. This is a
-**blocking diagnostic, not a rebase conflict and not a red suite**: it is in neither the
-abort-and-report set above nor a `contended`/`waiting` continuation. Do not race a second gate.
-The remedy is operator-side — let the holding gate finish, or stop it (the `run.cancel` operation
-with `--key <key> --reason <why>` for a tracked run, `gate.stop <run-dir>` for a raw
-launch) — then re-run finalize. The worktree frees itself when the holder ends.
+gate's supervisor holds the lock — reason `worktree-busy`. This is a **blocking diagnostic, not a
+rebase conflict and not a red suite**: it is in neither the abort-and-report set above nor a
+`contended`/`waiting` continuation. Do not race a second gate. The remedy is operator-side — let
+the holding gate finish, or stop it (the `run.cancel` operation with `--key <key> --reason <why>`
+for a tracked run, `gate.stop <run-dir>` for a raw launch) — then re-run finalize. The worktree
+frees itself when the holder ends. A gate whose own supervisor dies mid-run is never relaunched:
+it halts `supervisor-died` (finalize reports `gate-halted`), and the remedy is to re-run
+finalize, which re-runs the suite.
 
 **Where the reason surfaces.** The subagent returns its diagnosis in-context; finalize relays it to
 the human (interactive) or the dispatching caller (autonomous), and the `finalize.block` operation records
