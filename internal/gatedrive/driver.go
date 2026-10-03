@@ -329,15 +329,15 @@ func (d *Driver) StartAdmitted(t *AdmissionTicket) (DriveDoc, error) {
 // file the launch census probes), so a concurrent census that probes
 // the claim reports busy — pending work, never proof of a crashed caller. The
 // returned claim is retained by the caller across the launch.
-func (d *Driver) revalidateAdmittedLaunch(t *AdmissionTicket) (*relaunchClaim, error) {
-	refuse := func(c *relaunchClaim, err error) (*relaunchClaim, error) {
+func (d *Driver) revalidateAdmittedLaunch(t *AdmissionTicket) (*driveClaim, error) {
+	refuse := func(c *driveClaim, err error) (*driveClaim, error) {
 		if c != nil {
 			c.close()
 		}
 		t.lock.Release()
 		return nil, err
 	}
-	c, busy, cerr := d.store.tryRelaunchClaim(t.id)
+	c, busy, cerr := d.store.tryDriveClaim(t.id)
 	if cerr != nil {
 		return refuse(nil, cerr)
 	}
@@ -421,7 +421,7 @@ func (d *Driver) admitScopeless(rec driveRecord, ownerGen, owner string) (*Admis
 // across Launch and attach (so a concurrent cancellation observes pending work),
 // then released before the drive slice; the deferred close is an idempotent
 // safety net for every failure leg.
-func (d *Driver) launchScopeless(t *AdmissionTicket, claim *relaunchClaim) (DriveDoc, error) {
+func (d *Driver) launchScopeless(t *AdmissionTicket, claim *driveClaim) (DriveDoc, error) {
 	defer claim.close()
 	rec := t.rec
 	id := t.id

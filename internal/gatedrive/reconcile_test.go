@@ -473,9 +473,9 @@ func TestCensusPendingOnClaimBusy(t *testing.T) {
 	d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
 	id, _ := seedRunDrive(t, store, censusCtxA, nil)
 
-	claim, busy, err := store.tryRelaunchClaim(id)
+	claim, busy, err := store.tryDriveClaim(id)
 	if err != nil || busy {
-		t.Fatalf("tryRelaunchClaim = (busy=%v, err=%v), want a free claim", busy, err)
+		t.Fatalf("tryDriveClaim = (busy=%v, err=%v), want a free claim", busy, err)
 	}
 	defer claim.close()
 
@@ -1040,7 +1040,7 @@ func TestCensusVerdictLeavesBusyClaimPending(t *testing.T) {
 		r.AdmissionToken = censusAdmissionToken
 		r.RunRoot = testsupport.TempDir(t)
 	})
-	held, busy, err := store.tryRelaunchClaim(id)
+	held, busy, err := store.tryDriveClaim(id)
 	if err != nil || busy {
 		t.Fatalf("precondition: take the claim: busy=%v err=%v", busy, err)
 	}

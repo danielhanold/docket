@@ -45,10 +45,13 @@ const (
 	// lockFileName is the advisory-lock file CAS serializes on. It is separate
 	// from the record so acquiring the lock never races the record's rename.
 	lockFileName = "lock"
-	// relaunchLockFileName is the short-lived liveness fence for the caller that
-	// owns a durable relaunch reservation. It is held only through resolution,
-	// launch, and attachment, never through an observation slice.
-	relaunchLockFileName = "relaunch.lock"
+	// driveClaimLockFileName is the per-drive claim: a short-lived flock that a
+	// launcher (StartAdmitted, across launch and attach) and the launch census take
+	// nonblocking, so neither mistakes the other's in-flight work for a crash. The
+	// file keeps its pre-0493 name, relaunch.lock: a CLI still running an older
+	// binary across the upgrade opens that path, and a renamed file would let an
+	// old and a new process each hold "the" claim (change 0493).
+	driveClaimLockFileName = "relaunch.lock"
 	// idNBytes is the entropy of an opaque drive id: 128 bits, encoded as 32
 	// lowercase hex characters — enough that an agent cannot collide with or
 	// guess a different drive (spec "Location and privacy").
@@ -489,26 +492,25 @@ func tryAcquireExclusiveLock(path string) (lock *os.File, busy bool, err error) 
 	return f, false, nil
 }
 
-type relaunchClaim struct {
-	lock  *os.File
-	token string
+type driveClaim struct {
+	lock *os.File
 }
 
-func (c *relaunchClaim) close() {
+func (c *driveClaim) close() {
 	if c != nil && c.lock != nil {
 		_ = c.lock.Close()
 		c.lock = nil
 	}
 }
 
-func (s *Store) tryRelaunchClaim(id string) (*relaunchClaim, bool, error) {
+func (s *Store) tryDriveClaim(id string) (*driveClaim, bool, error) {
 	dir, err := s.driveDir(id)
 	if err != nil {
 		return nil, false, err
 	}
-	lock, busy, err := tryAcquireExclusiveLock(filepath.Join(dir, relaunchLockFileName))
+	lock, busy, err := tryAcquireExclusiveLock(filepath.Join(dir, driveClaimLockFileName))
 	if err != nil || busy {
 		return nil, busy, err
 	}
-	return &relaunchClaim{lock: lock}, false, nil
+	return &driveClaim{lock: lock}, false, nil
 }
