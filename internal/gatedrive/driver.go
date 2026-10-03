@@ -14,9 +14,9 @@
 // Every successful Start/Advance returns exactly one typed Outcome document
 // (WAITING/PASSED/FAILED/HALTED). The mapping from a raw observation to an
 // outcome is the whole point of the file, and it fails closed: only an exact
-// native running state is retryable; a death earns at most one relaunch under
-// five conjoined conditions; every other uncertainty is HALTED, never coerced
-// into a red suite result (spec "State transitions and recovery", "Typed
+// native running state is retryable; a supervisor death always HALTs (a gate
+// drive never relaunches, change 0493); every other uncertainty is HALTED, never
+// coerced into a red suite result (spec "State transitions and recovery", "Typed
 // outcomes").
 package gatedrive
 
@@ -46,9 +46,8 @@ type ProcessSeam interface {
 	Stop(runDir, reason string) (*process.StopOutcome, error)
 	// ResolveReservation answers what became of a launch handed the caller
 	// reservation token but whose response was lost — never-launched, identified,
-	// or unresolved (Task 2). The relaunch's launch-error leg and crash-window
-	// recovery consult it to attach an identified replacement, and the launch
-	// census consults it to resolve a first launch whose run was never attached.
+	// or unresolved (Task 2). The launch census consults it to resolve a first
+	// launch whose run was never attached.
 	ResolveReservation(root, token string) (*process.ReservationResolution, error)
 	// ProbeLeftover answers, read-only, whether a run whose supervisor has exited
 	// still has members in its recorded process group (change 0492): none,
@@ -172,22 +171,6 @@ func (d *Driver) lockWorktree(cwd string) (*WorktreeLock, error) {
 	}
 	return d.store.TryWorktreeLock(root, d.proc)
 }
-
-// isWorktreeBusy reports whether err is the worktree lock's typed busy refusal.
-func isWorktreeBusy(err error) bool {
-	oe, ok := AsOwnershipError(err)
-	return ok && oe.Kind == ErrWorktreeBusy
-}
-
-// relaunchLockTries bounds how many times the single relaunch tries the
-// worktree lock, and relaunchLockPause spaces the tries (through the
-// injectable sleep): about two seconds for the relaunch's own just-dead
-// supervisor to finish closing its copy (driveSlice). Admission never re-tries:
-// a busy worktree there is refused at once.
-const (
-	relaunchLockTries = 40
-	relaunchLockPause = 50 * time.Millisecond
-)
 
 // NewSystemDriver builds a production Driver over the real monotonic clock and
 // the real git seam, composing the given store and process seam. The application
@@ -349,7 +332,7 @@ func (d *Driver) StartAdmitted(t *AdmissionTicket) (DriveDoc, error) {
 // the ticket's worktree lock, and launches nothing.
 //
 // The claim is taken as the nonblocking per-drive launch claimant (the SAME lock
-// file tryRelaunchClaim/reserveRelaunch use), so a concurrent census that probes
+// file the launch census probes), so a concurrent census that probes
 // the claim reports busy — pending work, never proof of a crashed caller. The
 // returned claim is retained by the caller across the launch.
 func (d *Driver) revalidateAdmittedLaunch(t *AdmissionTicket) (*relaunchClaim, error) {
@@ -442,9 +425,8 @@ func (d *Driver) admitScopeless(rec driveRecord, ownerGen, owner string) (*Admis
 // run, whose supervisor's exit frees the worktree. There is never an automatic
 // second launch. The claimant flock revalidateAdmittedLaunch acquired is HELD
 // across Launch and attach (so a concurrent cancellation observes pending work),
-// then released before the drive slice so a first-slice relaunch can reserve its
-// own claim; the deferred close is an idempotent safety net for every failure
-// leg.
+// then released before the drive slice; the deferred close is an idempotent
+// safety net for every failure leg.
 func (d *Driver) launchScopeless(t *AdmissionTicket, claim *relaunchClaim) (DriveDoc, error) {
 	defer claim.close()
 	rec := t.rec
@@ -475,9 +457,9 @@ func (d *Driver) launchScopeless(t *AdmissionTicket, claim *relaunchClaim) (Driv
 	}
 	t.lock.WriteHolder(HolderNote{Kind: "drive", DriveID: id, RunDir: out.RunDir, ChangeID: rec.ChangeID, Owner: t.owner}, d.proc)
 
-	// Launch and attach are confirmed: release the launch claim so the drive slice
-	// can reserve its own single relaunch (the claim is the SAME lock file
-	// reserveRelaunch takes). close is idempotent with the deferred safety net.
+	// Launch and attach are confirmed: release the launch claim before the drive
+	// slice. Nothing in a slice takes it — a drive never relaunches (change 0493)
+	// — and close is idempotent with the deferred safety net.
 	claim.close()
 
 	rec.RawRunDir = out.RunDir
@@ -518,22 +500,7 @@ func (d *Driver) Advance(id, ownerGen string) (DriveDoc, error) {
 	if isTerminalOutcome(rec.LastOutcome) {
 		return d.recordedDoc(id, ownerGen, rec), nil
 	}
-	var claim *relaunchClaim
-	if rec.RelaunchReserved {
-		// A crash-window reservation: resolve it before driving. A never-launched
-		// replacement returns the held claim, and driveSlice launches it only after
-		// taking the worktree lock again (change 0490).
-		var resolved *DriveDoc
-		rec, claim, resolved, err = d.recoverReservedRelaunch(id, ownerGen, rec)
-		if err != nil {
-			return DriveDoc{}, err
-		}
-		if resolved != nil {
-			return *resolved, nil
-		}
-	}
-
-	return d.driveAndPersistClaim(id, ownerGen, rec, claim)
+	return d.driveAndPersist(id, ownerGen, rec)
 }
 
 // Handoff transfers a live drive to a fresh owner through the single-use handoff
@@ -639,33 +606,15 @@ func (d *Driver) transferDoc(id, generation string, rec driveRecord) DriveDoc {
 
 // driveAndPersist runs one slice over rec, persists the resulting transition
 // atomically under the owner CAS, and returns the outcome document built from
-// the authoritative post-transition record.
+// the authoritative post-transition record. A concurrent same-owner writer that
+// already settled the drive wins: this caller returns that recorded verdict
+// rather than clobbering it.
 func (d *Driver) driveAndPersist(id, ownerGen string, rec driveRecord) (DriveDoc, error) {
-	return d.driveAndPersistClaim(id, ownerGen, rec, nil)
-}
-
-func (d *Driver) driveAndPersistClaim(id, ownerGen string, rec driveRecord, claim *relaunchClaim) (DriveDoc, error) {
-	if claim != nil {
-		defer claim.close()
-	}
-	res := d.driveSlice(id, ownerGen, rec, claim)
-	if res.err != nil {
-		return DriveDoc{}, res.err
-	}
-	if res.relaunchRaceLost {
-		cur, err := d.store.Load(id)
-		if err != nil {
-			return DriveDoc{}, err
-		}
-		return d.recordedDoc(id, ownerGen, cur), nil
-	}
-
+	res := d.driveSlice(rec)
 	err := d.store.ownerCAS(id, func(r *driveRecord) error {
 		if err := verifyOwner(r, ownerGen); err != nil {
 			return err
 		}
-		// A concurrent writer may already have driven this drive to a terminal
-		// state; never clobber a recorded verdict.
 		if isTerminalOutcome(r.LastOutcome) {
 			return errAlreadyTerminal
 		}
@@ -675,20 +624,9 @@ func (d *Driver) driveAndPersistClaim(id, ownerGen string, rec driveRecord, clai
 		r.LastCause = res.cause
 		return nil
 	})
-	if err != nil {
-		if errors.Is(err, errAlreadyTerminal) || errors.Is(err, errRelaunchRaceLost) {
-			// Relaunch attachment is committed before its observation slice, so a
-			// stale outcome writer owns no orphan to stop here. Return the current
-			// authoritative verdict.
-			cur, lerr := d.store.Load(id)
-			if lerr != nil {
-				return DriveDoc{}, lerr
-			}
-			return d.recordedDoc(id, ownerGen, cur), nil
-		}
+	if err != nil && !errors.Is(err, errAlreadyTerminal) {
 		return DriveDoc{}, err
 	}
-
 	cur, err := d.store.Load(id)
 	if err != nil {
 		return DriveDoc{}, err
@@ -696,13 +634,11 @@ func (d *Driver) driveAndPersistClaim(id, ownerGen string, rec driveRecord, clai
 	return d.recordedDoc(id, ownerGen, cur), nil
 }
 
-// errAlreadyTerminal is a sentinel raised inside an owner CAS (the persist CAS
-// and reserveRelaunch's reservation CAS) to abort a write over a drive a
-// concurrent same-owner writer already finished; it never escapes as a workflow
-// error. Every caller — the persist path, the attach-race branch, and the
-// reserveRelaunch branch — treats it as "reload the authoritative recorded
-// state", so a loser that reaches its reservation CAS only after the winner
-// settled the drive terminally returns that verdict rather than the raw sentinel.
+// errAlreadyTerminal is a sentinel raised inside an owner CAS (the persist CAS,
+// the launch-failed CAS, and the launch census's never-launched settle) to abort
+// a write over a drive a concurrent writer already finished; it never escapes as
+// a workflow error. Every caller treats it as "reload the authoritative recorded
+// state".
 var errAlreadyTerminal = errors.New("gatedrive: drive already terminal")
 
 // errRelaunchRaceLost reports that another same-owner advance has already
@@ -710,194 +646,12 @@ var errAlreadyTerminal = errors.New("gatedrive: drive already terminal")
 // authoritative drive state and never issues a second backend launch.
 var errRelaunchRaceLost = errors.New("gatedrive: relaunch already consumed by a concurrent advance")
 
-// reserveRelaunch acquires the short-lived claimant fence before durably
-// consuming the drive's one automatic replacement. The unique process token is
-// written in the same CAS. A competitor cannot mistake the interval between
-// this transition and Launch for a crashed caller because it cannot acquire the
-// claimant flock; a crashed caller releases the flock while leaving the durable
-// token available for exact ResolveReservation recovery.
-func (s *Store) reserveRelaunch(id, ownerGen string) (*relaunchClaim, error) {
-	claim, busy, err := s.tryRelaunchClaim(id)
-	if err != nil {
-		return nil, err
-	}
-	if busy {
-		return nil, errRelaunchRaceLost
-	}
-	token, err := randomToken(genNBytes)
-	if err != nil {
-		claim.close()
-		return nil, storeErr(ErrIO, "reserve-relaunch-token", err)
-	}
-	claim.token = token
-	err = s.ownerCAS(id, func(rec *driveRecord) error {
-		if err := verifyOwner(rec, ownerGen); err != nil {
-			return err
-		}
-		if isTerminalOutcome(rec.LastOutcome) {
-			return errAlreadyTerminal
-		}
-		if rec.RelaunchCount > 0 || rec.RelaunchReserved || rec.RelaunchToken != "" {
-			return errRelaunchRaceLost
-		}
-		rec.RelaunchReserved = true
-		rec.RelaunchToken = token
-		return nil
-	})
-	if err != nil {
-		claim.close()
-		return nil, err
-	}
-	return claim, nil
-}
-
-// recoverReservedRelaunch resolves a crash window after reserveRelaunch and
-// before the replacement was attached. The claimant flock is checked before
-// the census: contention proves the original reserving call is still within
-// launch/attach, so this caller returns authoritative state without resolving
-// or launching. After a crash, the new claimant resolves the replacement's own
-// token, never the launch token used by the original run. A proven
-// never-launched replacement returns the held claim; driveSlice launches it only
-// after taking the worktree lock again, and HALTs worktree-busy instead when
-// another gate holds it (change 0490).
-func (d *Driver) recoverReservedRelaunch(id, ownerGen string, rec driveRecord) (driveRecord, *relaunchClaim, *DriveDoc, error) {
-	claim, busy, err := d.store.tryRelaunchClaim(id)
-	if err != nil {
-		return driveRecord{}, nil, nil, err
-	}
-	if busy {
-		doc := d.recordedDoc(id, ownerGen, rec)
-		return rec, nil, &doc, nil
-	}
-	cur, err := d.store.Load(id)
-	if err != nil {
-		claim.close()
-		return driveRecord{}, nil, nil, err
-	}
-	if err := verifyOwner(&cur, ownerGen); err != nil {
-		claim.close()
-		return driveRecord{}, nil, nil, err
-	}
-	if isTerminalOutcome(cur.LastOutcome) || !cur.RelaunchReserved {
-		claim.close()
-		doc := d.recordedDoc(id, ownerGen, cur)
-		return cur, nil, &doc, nil
-	}
-	if cur.RelaunchToken == "" {
-		claim.close()
-		return d.haltReservedRelaunch(id, ownerGen, cur)
-	}
-	claim.token = cur.RelaunchToken
-	resolution, err := d.proc.ResolveReservation(cur.RunRoot, cur.RelaunchToken)
-	if err != nil || resolution == nil || resolution.Disposition == "unresolved" {
-		claim.close()
-		return d.haltReservedRelaunch(id, ownerGen, cur)
-	}
-	switch resolution.Disposition {
-	case "never-launched":
-		return cur, claim, nil, nil
-	case "identified":
-		if resolution.RunID == "" || resolution.RunDir == "" {
-			claim.close()
-			return d.haltReservedRelaunch(id, ownerGen, cur)
-		}
-		err := d.attachReservedRelaunch(id, ownerGen, claim, resolution.RunDir, resolution.RunID)
-		claim.close()
-		if err != nil {
-			if !errors.Is(err, errRelaunchRaceLost) {
-				return driveRecord{}, nil, nil, err
-			}
-			cur, lerr := d.store.Load(id)
-			if lerr != nil {
-				return driveRecord{}, nil, nil, lerr
-			}
-			doc := d.recordedDoc(id, ownerGen, cur)
-			return cur, nil, &doc, nil
-		}
-		cur, err := d.store.Load(id)
-		if err != nil {
-			return driveRecord{}, nil, nil, err
-		}
-		return cur, nil, nil, nil
-	default:
-		claim.close()
-		return d.haltReservedRelaunch(id, ownerGen, cur)
-	}
-}
-
-func (d *Driver) haltReservedRelaunch(id, ownerGen string, rec driveRecord) (driveRecord, *relaunchClaim, *DriveDoc, error) {
-	return d.haltReservedRelaunchCause(id, ownerGen, rec, "launch-unconfirmed")
-}
-
-// haltReservedRelaunchCause settles a reserved-but-unattached relaunch HALTED with
-// the given cause, preserving the consumed reservation (the CAS never clears
-// RelaunchReserved, so the sole relaunch is never refunded). "launch-unconfirmed"
-// is the crash-window uncertainty cause: a drive HALT cause, never an admission
-// refusal (change 0490).
-func (d *Driver) haltReservedRelaunchCause(id, ownerGen string, rec driveRecord, cause string) (driveRecord, *relaunchClaim, *DriveDoc, error) {
-	err := d.store.ownerCAS(id, func(r *driveRecord) error {
-		if err := verifyOwner(r, ownerGen); err != nil {
-			return err
-		}
-		if isTerminalOutcome(r.LastOutcome) {
-			return errAlreadyTerminal
-		}
-		if !r.RelaunchReserved {
-			return errRelaunchRaceLost
-		}
-		r.LastOutcome = HALTED
-		r.LastCause = cause
-		return nil
-	})
-	if err != nil && !errors.Is(err, errAlreadyTerminal) && !errors.Is(err, errRelaunchRaceLost) {
-		return driveRecord{}, nil, nil, err
-	}
-	cur, lerr := d.store.Load(id)
-	if lerr != nil {
-		return driveRecord{}, nil, nil, lerr
-	}
-	doc := d.recordedDoc(id, ownerGen, cur)
-	return cur, nil, &doc, nil
-}
-
-// attachReservedRelaunch makes the replacement authoritative before any
-// observation slice begins. The claimant token prevents a stale launcher from
-// attaching over a recovered claimant, and clearing RelaunchReserved lets later
-// advances observe the replacement normally after the liveness flock closes.
-func (d *Driver) attachReservedRelaunch(id, ownerGen string, claim *relaunchClaim, runDir, runID string) error {
-	return d.store.ownerCAS(id, func(r *driveRecord) error {
-		if err := verifyOwner(r, ownerGen); err != nil {
-			return err
-		}
-		if r.RelaunchCount > 0 || !r.RelaunchReserved || claim == nil || r.RelaunchToken != claim.token {
-			return errRelaunchRaceLost
-		}
-		r.PriorRawRunDir = r.RawRunDir
-		r.RawRunDir = runDir
-		r.RawOwnership = runID
-		r.Attempt++
-		r.RelaunchCount++
-		r.RelaunchReserved = false
-		return nil
-	})
-}
-
-// sliceResult is one slice's decision: the outcome/cause to persist and, on the
-// single admitted relaunch, the new raw run identity. lastClock is the freshly
-// accepted clock value bound to the record.
+// sliceResult is one slice's decision: the outcome/cause to persist. lastClock
+// is the freshly accepted clock value bound to the record.
 type sliceResult struct {
 	outcome   Outcome
 	cause     string
 	rawRunDir string // PASSED only
-
-	// relaunchRaceLost reports that a same-owner competitor already owns this
-	// drive's single automatic replacement: it either reserved/consumed the
-	// relaunch (errRelaunchRaceLost) or settled the drive terminally before this
-	// caller's reservation CAS (errAlreadyTerminal). The loser reloads the
-	// authoritative record and returns it, issuing no backend launch and mutating
-	// no attempt/relaunch state.
-	relaunchRaceLost bool
-	err              error
 
 	lastClock time.Time
 }
@@ -905,13 +659,12 @@ type sliceResult struct {
 // driveSlice observes the drive's live raw run for at most one slice and maps
 // the native observation to a typed outcome. The mapping fails closed: only an
 // exact running state is retryable, a pass is accepted only after the
-// fingerprint revalidates, a death earns at most one relaunch under the five
-// conjoined conditions, and every other uncertainty HALTs (never red). rec is
-// read-only; the persisted mutations travel back in the sliceResult.
-func (d *Driver) driveSlice(id, ownerGen string, rec driveRecord, claim *relaunchClaim) sliceResult {
+// fingerprint revalidates, a supervisor death always HALTs (never relaunched,
+// change 0493), and every other uncertainty HALTs (never red). rec is
+// read-only; the persisted transition travels back in the sliceResult.
+func (d *Driver) driveSlice(rec driveRecord) sliceResult {
 	sliceStart := d.clock.Now()
 	runDir := rec.RawRunDir
-	relaunchUsed := rec.RelaunchCount > 0
 	res := sliceResult{lastClock: sliceStart}
 
 	for {
@@ -984,105 +737,15 @@ func (d *Driver) driveSlice(id, ownerGen string, rec driveRecord, claim *relaunc
 			return halt(&res, "stopped-not-initiated")
 
 		case process.StateSignaled, process.StateVanished:
-			// A death without a verdict. Prove no owned tree survives, then admit
-			// the single relaunch only if every condition holds.
+			// A death without a verdict. A gate drive never relaunches (change
+			// 0493): a proven death HALTs supervisor-died and a human re-runs the
+			// workflow; a death whose tree cannot be proven gone HALTs
+			// uncertain-ownership.
 			gone, derr := d.proveNoTreeSurvives(runDir, observation)
 			if derr != nil || !gone {
 				return halt(&res, "uncertain-ownership")
 			}
-			if relaunchUsed {
-				return halt(&res, "relaunch-exhausted")
-			}
-			if refusal := d.relaunchRefusal(&rec, now); refusal != "" {
-				return halt(&res, refusal)
-			}
-			if claim == nil {
-				// Reserve the single automatic relaunch under the per-drive claim. The
-				// relaunch checks no run (no gate start does since change 0491),
-				// so the worktree lock below is its admission (change 0490).
-				var err error
-				claim, err = d.store.reserveRelaunch(id, ownerGen)
-				if err != nil {
-					// A same-owner competitor may have consumed the relaunch
-					// (errRelaunchRaceLost) or already settled the drive
-					// terminally before this reservation CAS (errAlreadyTerminal).
-					// Either way the loser reloads and returns the authoritative
-					// recorded state; it never launches, spends no attempt, and
-					// surfaces no error — mirroring the attach-race branch below.
-					if errors.Is(err, errRelaunchRaceLost) || errors.Is(err, errAlreadyTerminal) {
-						res.relaunchRaceLost = true
-						return res
-					}
-					res.err = err
-					return res
-				}
-				rec.RelaunchReserved = true
-				rec.RelaunchToken = claim.token
-			}
-			// The replacement takes the worktree lock again before it launches —
-			// this covers both a fresh relaunch and a never-launched crash-window
-			// replacement recoverReservedRelaunch handed back. If another gate took
-			// the worktree in between, HALT rather than relaunch over it.
-			//
-			// The first run's terminal record becomes visible a few durable writes
-			// before its dying supervisor closes its copy of the lock (live.lock,
-			// then the worktree lock, last), so this relaunch can briefly find its
-			// OWN prior run still holding it. A bounded re-try lets that exit
-			// finish; it never blocks in flock, and a lock still held after the
-			// bound belongs to another gate.
-			lock, kerr := d.lockWorktree(rec.Cwd)
-			for try := 1; try < relaunchLockTries && isWorktreeBusy(kerr); try++ {
-				d.sleep(relaunchLockPause)
-				lock, kerr = d.lockWorktree(rec.Cwd)
-			}
-			if kerr != nil {
-				claim.close()
-				if isWorktreeBusy(kerr) {
-					return halt(&res, CauseWorktreeBusy)
-				}
-				return halt(&res, "relaunch-failed")
-			}
-			prior, _ := lock.PriorHolder()
-			out, lerr := d.proc.Launch(rec.launchRequest(claim.token, lock.TakeFile()))
-			if lerr != nil {
-				// Launch closed the handed lock on every path; an identified
-				// replacement's supervisor holds its own copy.
-				resolution, rerr := d.proc.ResolveReservation(rec.RunRoot, claim.token)
-				if rerr != nil || resolution == nil || resolution.Disposition == "unresolved" {
-					claim.close()
-					return halt(&res, "launch-unconfirmed")
-				}
-				if resolution.Disposition != "identified" || resolution.RunID == "" || resolution.RunDir == "" {
-					claim.close()
-					return halt(&res, "relaunch-failed")
-				}
-				out = &process.LaunchOutcome{RunID: resolution.RunID, RunDir: resolution.RunDir, State: resolution.State}
-			}
-			if err := d.attachReservedRelaunch(id, ownerGen, claim, out.RunDir, out.RunID); err != nil {
-				claim.close()
-				d.stopIfOwned(out.RunDir) // the replacement's supervisor exit frees the worktree
-				if errors.Is(err, errRelaunchRaceLost) || errors.Is(err, errAlreadyTerminal) {
-					res.relaunchRaceLost = true
-					return res
-				}
-				res.err = err
-				return res
-			}
-			lock.WriteHolder(HolderNote{Kind: "drive", DriveID: id, RunDir: out.RunDir, ChangeID: rec.ChangeID, Owner: ownerIf(prior, id)}, d.proc)
-			claim.close()
-			claim = nil
-			cur, err := d.store.Load(id)
-			if err != nil {
-				res.err = err
-				return res
-			}
-			rec = cur
-			// The second raw run belongs to the same drive and deadline. It was
-			// never started alongside the first (proven gone above). Continue the
-			// same slice observing the new run.
-			runDir = out.RunDir
-			relaunchUsed = true
-			continue
+			return halt(&res, CauseSupervisorDied)
 
 		default:
 			// An unrecognized native state fails closed.
@@ -1098,12 +761,13 @@ func halt(res *sliceResult, cause string) sliceResult {
 	return *res
 }
 
-// proveNoTreeSurvives establishes that no owned process tree survives a death
-// before any relaunch is considered (spec "Death and the single relaunch"). A
-// vanished observation already proves the supervisor is gone with no terminal to
-// consume. A signaled run is already terminal: an already-terminal stop no-op
-// confirms it, and a re-observe consumes that terminal state before deciding. A
-// stop that cannot prove ownership (an error) leaves the outcome uncertain.
+// proveNoTreeSurvives decides between the two death HALT causes: it establishes
+// that no owned process tree survives a death (supervisor-died), or reports that
+// it cannot (uncertain-ownership). A vanished observation already proves the
+// supervisor is gone with no terminal to consume. A signaled run is already
+// terminal: an already-terminal stop no-op confirms it, and a re-observe
+// consumes that terminal state before deciding. A stop that cannot prove
+// ownership (an error) leaves the outcome uncertain.
 func (d *Driver) proveNoTreeSurvives(runDir string, observation *process.Observation) (bool, error) {
 	if observation.State == process.StateVanished {
 		return true, nil
@@ -1115,34 +779,6 @@ func (d *Driver) proveNoTreeSurvives(runDir string, observation *process.Observa
 		return false, err
 	}
 	return true, nil
-}
-
-// relaunchRefusal returns the typed reason a second launch is refused, or "" when
-// all admittable conditions hold. It checks conditions 1 (idempotent gate), 5
-// (deadline remains), and 4 (worktree identity still matches, recomputed here).
-// Condition 2 (former tree proven gone) is established by proveNoTreeSurvives and
-// condition 3 (no prior relaunch) by the caller's relaunchUsed. Command,
-// configuration, and environment identity are intrinsic to the immutable record
-// and unchanged within a drive; a live environment re-hash belongs to the
-// application seam that resolves config/env (Task 9).
-func (d *Driver) relaunchRefusal(rec *driveRecord, now time.Time) string {
-	if rec.RelaunchCount > 0 {
-		return "relaunch-exhausted"
-	}
-	if !rec.IdempotentSuiteGate {
-		return "not-idempotent"
-	}
-	if expired, _ := rec.deadlineState(now); expired {
-		return CauseDeadlineExpired
-	}
-	cur, err := ComputeFingerprint(rec.WorktreePath, d.git)
-	if err != nil {
-		return "fingerprint-error"
-	}
-	if !cur.Equal(rec.Fingerprint) {
-		return "worktree-changed"
-	}
-	return ""
 }
 
 // stopIfOwned issues a best-effort stop of a run this drive owns and reports
@@ -1158,8 +794,8 @@ func (d *Driver) stopIfOwned(runDir string) bool {
 // recordedDoc builds the outcome document from an authoritative persisted
 // record. Only PASSED exposes the raw run dir. Every terminal document
 // (PASSED/FAILED/HALTED) exposes the private run root so the owning caller that
-// minted it removes it at the terminal; WAITING retains it — a relaunch may still
-// replay under it. Under the worktree lock (change 0490) nothing about a terminal
+// minted it removes it at the terminal; WAITING retains it — the live run still
+// writes under it. Under the worktree lock (change 0490) nothing about a terminal
 // drive needs its root kept as release evidence: a HALTED drive whose supervisor
 // still runs holds the lock itself, and the launch census proves its teardown
 // from the run dirs the drive record names. A HALTED verdict alone does not prove
@@ -1209,15 +845,13 @@ func isTerminalOutcome(o Outcome) bool {
 	return o == PASSED || o == FAILED || o == HALTED
 }
 
-// launchRequest builds the deterministic raw launch input for both drive launch
-// sites — the first launch and the single relaunch replay the same allocation
-// root, working directory, and argv. token is the drive-minted launch token
-// (AdmissionToken for the first launch, RelaunchToken for the replacement),
-// carried as the manifest's reservation token so a lost launch response is
-// resolvable to this exact run (ResolveReservation). worktreeLock is the held
-// worktree lock handed to the supervisor (change 0490): process.Launch takes
-// ownership of it on every path. This body is the only process.LaunchRequest
-// literal in the package, and it always sets WorktreeLock.
+// launchRequest builds the deterministic raw launch input for the drive's one
+// launch. token is the drive-minted launch token (AdmissionToken), carried as
+// the manifest's reservation token so a lost launch response is resolvable to
+// this exact run (ResolveReservation). worktreeLock is the held worktree lock
+// handed to the supervisor (change 0490): process.Launch takes ownership of it
+// on every path. This body is the only process.LaunchRequest literal in the
+// package, and it always sets WorktreeLock.
 func (rec *driveRecord) launchRequest(token string, worktreeLock *os.File) process.LaunchRequest {
 	return process.LaunchRequest{
 		Root:             rec.RunRoot,
@@ -1226,15 +860,4 @@ func (rec *driveRecord) launchRequest(token string, worktreeLock *os.File) proce
 		ReservationToken: token,
 		WorktreeLock:     worktreeLock,
 	}
-}
-
-// ownerIf keeps the prior holder note's owner across a relaunch: the
-// replacement belongs to the same drive, so when the note the drive's first
-// launch wrote still names this drive its owner carries over; any other note
-// (another gate's, or none) yields "" (unknown). Diagnostic only.
-func ownerIf(prior HolderNote, driveID string) string {
-	if prior.DriveID == driveID {
-		return prior.Owner
-	}
-	return ""
 }

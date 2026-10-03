@@ -153,28 +153,28 @@ func TestBusyRefusalNilObserverIsHolderUnknown(t *testing.T) {
 	}
 }
 
-func TestWorktreeLockPriorHolderRoundTrips(t *testing.T) {
+func TestWorktreeLockHolderNoteRoundTrips(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
 	l, err := store.TryWorktreeLock(testsupport.TempDir(t), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer l.Release()
-	if _, ok := l.PriorHolder(); ok {
+	if _, ok := readHolderNote(l.dir); ok {
 		t.Fatal("a fresh lock has no prior holder")
 	}
 	want := HolderNote{Kind: "drive", DriveID: strings.Repeat("b", 32), RunDir: "/runs/y", ChangeID: "7", Owner: "finalize"}
 	l.writeHolder(want)
-	got, ok := l.PriorHolder()
+	got, ok := readHolderNote(l.dir)
 	if !ok {
-		t.Fatal("PriorHolder after WriteHolder must read the note")
+		t.Fatal("readHolderNote after WriteHolder must read the note")
 	}
 	if got.WrittenAt.IsZero() {
 		t.Fatal("WriteHolder must stamp written_at")
 	}
 	got.WrittenAt = want.WrittenAt
 	if got != want {
-		t.Fatalf("PriorHolder = %+v, want %+v", got, want)
+		t.Fatalf("readHolderNote = %+v, want %+v", got, want)
 	}
 }
 
@@ -269,7 +269,7 @@ func TestWriteHolderSkipsWhenRunNoLongerRunning(t *testing.T) {
 			defer l.Release()
 			l.writeHolder(newer) // the newer holder's note already on disk
 			l.WriteHolder(HolderNote{Kind: "drive", DriveID: strings.Repeat("c", 32), RunDir: runDir, Owner: "build"}, tc.obs)
-			got, ok := l.PriorHolder()
+			got, ok := readHolderNote(l.dir)
 			if !ok {
 				t.Fatal("the holder note must remain readable")
 			}

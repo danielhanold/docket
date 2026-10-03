@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/danielhanold/docket/internal/process"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -373,4 +374,66 @@ func TestLoadMissingDriveErrors(t *testing.T) {
 func isInvalidID(err error) bool {
 	se, ok := AsStoreError(err)
 	return ok && se.Kind == ErrInvalidID
+}
+
+// stampRecordKeys rewrites drive id's persisted record to carry keys verbatim —
+// the shape an older binary left on disk — keeping the envelope's generation so
+// the record stays CAS-able by its current owner.
+func stampRecordKeys(t *testing.T, store *Store, id string, keys map[string]any) {
+	t.Helper()
+	path := filepath.Join(store.root, id, recordFileName)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(raw, &env); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	rec := env["record"].(map[string]any)
+	for k, v := range keys {
+		rec[k] = v
+	}
+	if raw, err = json.Marshal(env); err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+}
+
+// legacyRelaunchKeys is the relaunch state a pre-0493 binary wrote on a drive a
+// crashed CLI left mid-relaunch: a consumed, never-attached reservation.
+func legacyRelaunchKeys() map[string]any {
+	return map[string]any{
+		"idempotent_suite_gate": true,
+		"relaunch_count":        1,
+		"relaunch_reserved":     true,
+		"relaunch_token":        "bbbbbbbbbbbbbbbb",
+		"prior_raw_run_dir":     "/runs/run0",
+	}
+}
+
+// TestOldRelaunchRecordAdvancesToSupervisorDied (change 0493, spec Design §5): a
+// nonterminal record left mid-relaunch is advanced as an ordinary drive — its
+// first run is dead, so it HALTs supervisor-died — and the advance launches,
+// resolves, and stops nothing.
+func TestOldRelaunchRecordAdvancesToSupervisorDied(t *testing.T) {
+	proc := &fakeProc{observe: func(runDir string) (*process.Observation, error) {
+		return obs(process.StateVanished, runDir), nil
+	}}
+	d, store := newTestDriver(t, &fakeClock{now: startRun().Add(time.Second)}, proc, stableGit())
+	id, ownerGen := seedDrive(t, store, seedRecord(t))
+	stampRecordKeys(t, store, id, legacyRelaunchKeys())
+
+	doc, err := d.Advance(id, ownerGen)
+	if err != nil {
+		t.Fatalf("Advance over an old mid-relaunch record: %v", err)
+	}
+	if doc.Outcome != HALTED || doc.Cause != CauseSupervisorDied {
+		t.Fatalf("old mid-relaunch record = %s/%q, want HALTED/%s", doc.Outcome, doc.Cause, CauseSupervisorDied)
+	}
+	if proc.launchN != 0 || proc.resolveN != 0 || proc.stopN != 0 {
+		t.Fatalf("an old reservation is never acted on: launches=%d resolves=%d stops=%d", proc.launchN, proc.resolveN, proc.stopN)
+	}
 }

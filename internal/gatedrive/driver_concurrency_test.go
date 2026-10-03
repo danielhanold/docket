@@ -14,30 +14,24 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// racingProc is a thread-safe ProcessSeam purpose-built to reproduce the
-// concurrent-relaunch race deterministically. Its first dead-run observation
-// rendezvouses two concurrent advances before either may reserve the relaunch.
-// The reservation winner is then the only caller permitted to reach Launch.
-// All bookkeeping is mutex/atomic-guarded so the test is clean under -race.
+// racingProc is a thread-safe ProcessSeam purpose-built to race two same-owner
+// advances over one death deterministically: the seeded original run is dead
+// (signaled), and its first two observations rendezvous both advances before
+// either may persist. Launch only counts — a drive never relaunches (change
+// 0493), so it must never be called. All bookkeeping is mutex-guarded so the
+// test is clean under -race.
 type racingProc struct {
-	barrier     *sync.WaitGroup // trips once both advances observed the dead run
-	newRunState process.State   // the state a relaunched run reports
+	barrier *sync.WaitGroup // trips once both advances observed the dead run
 
 	mu        sync.Mutex
 	launchSeq int
 	deathObs  int
-	launched  map[string]bool // relaunch run dirs handed out
-	stops     []string        // every runDir passed to Stop, in call order
 }
 
-func newRacingProc(newRunState process.State) *racingProc {
+func newRacingProc() *racingProc {
 	var b sync.WaitGroup
 	b.Add(2)
-	return &racingProc{
-		barrier:     &b,
-		newRunState: newRunState,
-		launched:    map[string]bool{},
-	}
+	return &racingProc{barrier: &b}
 }
 
 func (p *racingProc) Launch(req process.LaunchRequest) (*process.LaunchOutcome, error) {
@@ -45,20 +39,12 @@ func (p *racingProc) Launch(req process.LaunchRequest) (*process.LaunchOutcome, 
 	p.mu.Lock()
 	p.launchSeq++
 	id := fmt.Sprintf("relaunch%d", p.launchSeq)
-	dir := "/runs/" + id
-	p.launched[dir] = true
 	p.mu.Unlock()
-
-	return &process.LaunchOutcome{RunID: id, RunDir: dir, State: process.StateRunning}, nil
+	return &process.LaunchOutcome{RunID: id, RunDir: "/runs/" + id, State: process.StateRunning}, nil
 }
 
 func (p *racingProc) Observe(runDir string) (*process.Observation, error) {
-	// The seeded original run is dead (signaled); every relaunched run reports
-	// the scripted new-run state.
 	if strings.HasSuffix(runDir, "run1") {
-		// Both advances must see the vanished original before either can reserve
-		// a replacement. This creates the exact pre-reservation race without
-		// forcing the loser to call Launch.
 		p.mu.Lock()
 		block := p.deathObs < 2
 		if block {
@@ -71,20 +57,13 @@ func (p *racingProc) Observe(runDir string) (*process.Observation, error) {
 		}
 		return &process.Observation{State: process.StateSignaled, RunDir: runDir}, nil
 	}
-	return &process.Observation{State: p.newRunState, RunDir: runDir}, nil
+	return &process.Observation{State: process.StateRunning, RunDir: runDir}, nil
 }
 
 func (p *racingProc) Stop(runDir, reason string) (*process.StopOutcome, error) {
-	p.mu.Lock()
-	p.stops = append(p.stops, runDir)
-	p.mu.Unlock()
-
-	if strings.HasSuffix(runDir, "run1") {
-		// A signaled run is already terminal: an ownership-proven no-op.
-		return &process.StopOutcome{State: process.StateSignaled, RunDir: runDir, Performed: false,
-			Terminal: &process.Terminal{Kind: "signal", Signal: 9}}, nil
-	}
-	return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
+	// The signaled original is already terminal: an ownership-proven no-op.
+	return &process.StopOutcome{State: process.StateSignaled, RunDir: runDir, Performed: false,
+		Terminal: &process.Terminal{Kind: "signal", Signal: 9}}, nil
 }
 
 func (p *racingProc) ResolveReservation(root, token string) (*process.ReservationResolution, error) {
@@ -95,126 +74,62 @@ func (p *racingProc) ProbeLeftover(runDir string) (process.Leftover, error) {
 	return process.Leftover{Answer: process.LeftoverNone}, nil
 }
 
-// relaunchStopCount reports how many of the runs THIS proc launched were later
-// passed to Stop — i.e. orphan cleanups, as distinct from the death-probe stops
-// of the original run.
-func (p *racingProc) relaunchStopCount() (n int, stopped map[string]bool) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	stopped = map[string]bool{}
-	for _, s := range p.stops {
-		if p.launched[s] {
-			stopped[s] = true
-			n++
+// TestConcurrentSameOwnerAdvanceOverDeathHaltsOnce (change 0493): two concurrent
+// Advance calls presenting the SAME valid owner generation over a drive whose run
+// has died both observe the death before either persists (racingProc's barrier),
+// and both return the one recorded HALTED supervisor-died verdict with no error.
+// Neither launches anything.
+func TestConcurrentSameOwnerAdvanceOverDeathHaltsOnce(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	id, ownerGen := seedDrive(t, store, seedRecord(t))
+	proc := newRacingProc()
+
+	mkDriver := func() *Driver {
+		clk := &fakeClock{now: startRun().Add(time.Second)}
+		d := NewDriver(store, clk, proc, stableGit())
+		d.slice = 4 * pollTick
+		d.pollInterval = pollTick
+		d.sleep = func(dur time.Duration) { clk.advance(dur) }
+		return d
+	}
+	drivers := []*Driver{mkDriver(), mkDriver()}
+	docs := make([]DriveDoc, 2)
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	for i := range drivers {
+		go func(i int) {
+			defer wg.Done()
+			docs[i], errs[i] = drivers[i].Advance(id, ownerGen)
+		}(i)
+	}
+	wg.Wait()
+
+	for i := range docs {
+		if errs[i] != nil {
+			t.Fatalf("advance %d returned an error: %v", i, errs[i])
+		}
+		if docs[i].Outcome != HALTED || docs[i].Cause != CauseSupervisorDied {
+			t.Fatalf("advance %d = %s/%q, want HALTED/%s", i, docs[i].Outcome, docs[i].Cause, CauseSupervisorDied)
 		}
 	}
-	return n, stopped
-}
-
-// liveRelaunchDirs returns the relaunch run dirs this proc launched that were
-// never stopped — the still-live owned trees.
-func (p *racingProc) liveRelaunchDirs(stopped map[string]bool) []string {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	var live []string
-	for dir := range p.launched {
-		if !stopped[dir] {
-			live = append(live, dir)
-		}
+	if proc.launchSeq != 0 {
+		t.Fatalf("a death must never launch, got %d launches", proc.launchSeq)
 	}
-	return live
-}
-
-// TestConcurrentSameOwnerAdvanceRelaunchesOnce proves the single relaunch is
-// decided atomically under a relaunch reservation: two concurrent Advance calls that
-// present the SAME valid owner generation over a nonterminal record whose child
-// has died must together yield EXACTLY ONE relaunch (RelaunchCount==1) and
-// exactly one live owned tree. The losing advance reloads the authoritative
-// drive state without issuing a backend launch.
-func TestConcurrentSameOwnerAdvanceRelaunchesOnce(t *testing.T) {
-	cases := []struct {
-		name        string
-		newRunState process.State
-		wantOutcome Outcome
-	}{
-		{name: "healthy relaunch winner waits", newRunState: process.StateRunning, wantOutcome: WAITING},
-		{name: "terminal relaunch winner fails", newRunState: process.StateFailed, wantOutcome: FAILED},
+	rec, err := store.Load(id)
+	if err != nil {
+		t.Fatalf("load: %v", err)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			store := OpenStore(testsupport.TempDir(t))
-			id, ownerGen := seedDrive(t, store, seedRecord(t))
-
-			proc := newRacingProc(tc.newRunState)
-
-			mkDriver := func() *Driver {
-				clk := &fakeClock{now: startRun().Add(time.Second)}
-				d := NewDriver(store, clk, proc, stableGit())
-				d.slice = 4 * pollTick
-				d.pollInterval = pollTick
-				d.sleep = func(dur time.Duration) { clk.advance(dur) }
-				return d
-			}
-			drivers := []*Driver{mkDriver(), mkDriver()}
-
-			docs := make([]DriveDoc, 2)
-			errs := make([]error, 2)
-			var wg sync.WaitGroup
-			wg.Add(2)
-			for i := range drivers {
-				go func(i int) {
-					defer wg.Done()
-					docs[i], errs[i] = drivers[i].Advance(id, ownerGen)
-				}(i)
-			}
-			wg.Wait()
-
-			for i, e := range errs {
-				if e != nil {
-					t.Fatalf("advance %d returned an error: %v", i, e)
-				}
-			}
-
-			if proc.launchSeq != 1 {
-				t.Fatalf("the relaunch reservation must allow exactly one backend launch, got %d", proc.launchSeq)
-			}
-
-			rec, err := store.Load(id)
-			if err != nil {
-				t.Fatalf("load: %v", err)
-			}
-			if rec.RelaunchCount != 1 {
-				t.Fatalf("two concurrent same-owner advances must yield EXACTLY ONE relaunch, got RelaunchCount=%d", rec.RelaunchCount)
-			}
-			if rec.Attempt != 2 {
-				t.Fatalf("exactly one relaunch advances the attempt to 2, got %d", rec.Attempt)
-			}
-			if rec.LastOutcome != tc.wantOutcome {
-				t.Fatalf("settled outcome = %s (%s), want %s", rec.LastOutcome, rec.LastCause, tc.wantOutcome)
-			}
-
-			// The losing advance never launches an orphan. The sole launched
-			// replacement remains the drive's owned run unless its own terminal
-			// outcome already ended it.
-			relaunchStops, stopped := proc.relaunchStopCount()
-			if relaunchStops != 0 {
-				t.Fatalf("a reservation loser must not create an orphan to stop, stopped %d relaunch runs", relaunchStops)
-			}
-			live := proc.liveRelaunchDirs(stopped)
-			if len(live) != 1 {
-				t.Fatalf("exactly one live owned relaunch tree must survive, got %d: %v", len(live), live)
-			}
-			if rec.RawRunDir != live[0] {
-				t.Fatalf("the drive must own the surviving relaunch tree, RawRunDir=%q live=%q", rec.RawRunDir, live[0])
-			}
-		})
+	if rec.LastOutcome != HALTED || rec.LastCause != CauseSupervisorDied || rec.Attempt != 1 || rec.RawRunDir != "/runs/run1" {
+		t.Fatalf("record = %s/%q attempt %d run %q, want HALTED/%s attempt 1 /runs/run1", rec.LastOutcome, rec.LastCause, rec.Attempt, rec.RawRunDir, CauseSupervisorDied)
 	}
 }
 
 // terminalSettleProc is the shared ProcessSeam core for the deterministic
 // loser-after-terminal-settle regression: the seeded original run observes as
-// signaled (dead), and every relaunched run reports StateFailed so the winner
-// settles the drive terminally within its single Advance.
+// signaled (dead), so the winner settles the drive HALTED supervisor-died within
+// its single Advance. Launch only counts — a drive never relaunches (change
+// 0493), so it must never be called.
 type terminalSettleProc struct {
 	mu        sync.Mutex
 	launchSeq int
@@ -268,7 +183,7 @@ func (p *terminalSettleProc) ProbeLeftover(runDir string) (process.Leftover, err
 // nonterminal record and entered its slice) and then parks on `gate` until the
 // test releases it — after the winner's Advance has fully returned with the
 // terminal outcome durably persisted. This forces, deterministically, the
-// interleaving where the loser's reserveRelaunch CAS finds a terminal record.
+// interleaving where the loser's persist CAS finds a terminal record.
 type gatedLoserSeam struct {
 	core      *terminalSettleProc
 	gate      <-chan struct{}
@@ -301,11 +216,11 @@ func (s *gatedLoserSeam) ProbeLeftover(runDir string) (process.Leftover, error) 
 }
 
 // TestLoserAfterTerminalSettleReturnsRecordedState pins the deterministic
-// resolution of the 0411 interleaving: a same-owner advance that loses the
-// relaunch race only AFTER the winner has persisted the replacement's terminal
-// outcome must return the authoritative recorded state — never the raw
-// errAlreadyTerminal sentinel as an Advance error. Exactly one launch, one
-// relaunch, one attempt increment, no orphan.
+// resolution of the 0411 interleaving, as it reads since change 0493: a
+// same-owner advance whose persist CAS finds the winner's terminal HALTED
+// supervisor-died record must return the authoritative recorded state — never
+// the raw errAlreadyTerminal sentinel as an Advance error. Nothing launches and
+// the attempt stays 1.
 func TestLoserAfterTerminalSettleReturnsRecordedState(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
 	seeded := seedRecord(t)
@@ -337,198 +252,47 @@ func TestLoserAfterTerminalSettleReturnsRecordedState(t *testing.T) {
 	// The loser is parked inside its slice holding a stale nonterminal record.
 	<-loserSeam.observing
 
-	// The winner runs to completion: dead original observed, relaunch reserved
-	// and launched, replacement observed StateFailed, FAILED persisted.
+	// The winner runs to completion: dead original observed, its tree proven
+	// gone, HALTED supervisor-died persisted.
 	winnerDoc, winnerErr := mkDriver(core).Advance(id, ownerGen)
 	if winnerErr != nil {
 		t.Fatalf("winner advance: %v", winnerErr)
 	}
-	if winnerDoc.Outcome != FAILED {
-		t.Fatalf("winner outcome = %s, want %s", winnerDoc.Outcome, FAILED)
+	if winnerDoc.Outcome != HALTED || winnerDoc.Cause != CauseSupervisorDied {
+		t.Fatalf("winner = %s/%q, want HALTED/%s", winnerDoc.Outcome, winnerDoc.Cause, CauseSupervisorDied)
 	}
 
-	// Only now may the loser proceed to its reservation attempt.
+	// Only now may the loser proceed to its persist attempt.
 	close(gate)
 	loser := <-loserDone
 	if loser.err != nil {
-		t.Fatalf("the reservation loser must return recorded state, not an error: %v", loser.err)
+		t.Fatalf("the loser must return recorded state, not an error: %v", loser.err)
 	}
-	if loser.doc.Outcome != FAILED {
-		t.Fatalf("loser doc outcome = %s (%s), want %s", loser.doc.Outcome, loser.doc.Cause, FAILED)
+	if loser.doc.Outcome != winnerDoc.Outcome {
+		t.Fatalf("loser doc outcome = %s (%s), want the winner's %s", loser.doc.Outcome, loser.doc.Cause, winnerDoc.Outcome)
 	}
 	if loser.doc.Cause != winnerDoc.Cause {
 		t.Fatalf("loser doc cause = %q, want the winner's recorded cause %q", loser.doc.Cause, winnerDoc.Cause)
 	}
 
-	if core.launchSeq != 1 {
-		t.Fatalf("exactly one backend launch, got %d", core.launchSeq)
+	core.mu.Lock()
+	launches := core.launchSeq
+	core.mu.Unlock()
+	if launches != 0 {
+		t.Fatalf("a death must never launch, got %d launches", launches)
 	}
 	rec, err := store.Load(id)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if rec.RelaunchCount != 1 {
-		t.Fatalf("RelaunchCount = %d, want 1", rec.RelaunchCount)
+	if rec.Attempt != 1 {
+		t.Fatalf("Attempt = %d, want 1", rec.Attempt)
 	}
-	if rec.Attempt != 2 {
-		t.Fatalf("Attempt = %d, want 2", rec.Attempt)
-	}
-	if rec.LastOutcome != FAILED {
-		t.Fatalf("recorded outcome = %s (%s), want %s", rec.LastOutcome, rec.LastCause, FAILED)
+	if rec.LastOutcome != HALTED {
+		t.Fatalf("recorded outcome = %s (%s), want %s", rec.LastOutcome, rec.LastCause, HALTED)
 	}
 	if !rec.Deadline.Equal(seeded.Deadline) {
 		t.Fatalf("the original deadline must be preserved: got %v, seeded %v", rec.Deadline, seeded.Deadline)
-	}
-	core.mu.Lock()
-	var relaunchStops int
-	for _, s := range core.stops {
-		if core.launched[s] {
-			relaunchStops++
-		}
-	}
-	core.mu.Unlock()
-	if relaunchStops != 0 {
-		t.Fatalf("the loser must not create or stop an orphan, stopped %d relaunch runs", relaunchStops)
-	}
-}
-
-// claimWindowProc holds the reservation winner inside Launch so a second
-// same-owner Advance deterministically enters the reserve-to-launch window. A
-// correct claimant fence makes the second caller return authoritative state
-// without resolving the live holder's token or issuing another launch.
-type claimWindowProc struct {
-	launchEntered chan struct{}
-	releaseLaunch chan struct{}
-
-	mu       sync.Mutex
-	launchN  int
-	resolveN int
-}
-
-func newClaimWindowProc() *claimWindowProc {
-	return &claimWindowProc{
-		launchEntered: make(chan struct{}),
-		releaseLaunch: make(chan struct{}),
-	}
-}
-
-func (p *claimWindowProc) Launch(req process.LaunchRequest) (*process.LaunchOutcome, error) {
-	defer releaseHandedLock(req)
-	p.mu.Lock()
-	p.launchN++
-	n := p.launchN
-	p.mu.Unlock()
-	if n == 1 {
-		close(p.launchEntered)
-		<-p.releaseLaunch
-	}
-	return &process.LaunchOutcome{
-		RunID:  fmt.Sprintf("relaunch%d", n),
-		RunDir: fmt.Sprintf("/runs/relaunch%d", n),
-		State:  process.StateRunning,
-	}, nil
-}
-
-func (p *claimWindowProc) Observe(runDir string) (*process.Observation, error) {
-	if strings.HasSuffix(runDir, "run1") {
-		return &process.Observation{State: process.StateVanished, RunDir: runDir}, nil
-	}
-	return &process.Observation{State: process.StateRunning, RunDir: runDir}, nil
-}
-
-func (p *claimWindowProc) Stop(runDir, reason string) (*process.StopOutcome, error) {
-	return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
-}
-
-func (p *claimWindowProc) ResolveReservation(root, token string) (*process.ReservationResolution, error) {
-	p.mu.Lock()
-	p.resolveN++
-	p.mu.Unlock()
-	return &process.ReservationResolution{Disposition: "never-launched"}, nil
-}
-
-func (p *claimWindowProc) ProbeLeftover(runDir string) (process.Leftover, error) {
-	return process.Leftover{Answer: process.LeftoverNone}, nil
-}
-
-func (p *claimWindowProc) counts() (launches, resolutions int) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.launchN, p.resolveN
-}
-
-func TestRelaunchReservationHolderCannotBeStolenBeforeLaunch(t *testing.T) {
-	store := OpenStore(testsupport.TempDir(t))
-	wt := mkWorktree(t)
-	rec := seedRecord(t)
-	rec.WorktreePath = wt
-	id, ownerGen := seedDrive(t, store, rec)
-	proc := newClaimWindowProc()
-
-	mkDriver := func() *Driver {
-		clk := &fakeClock{now: startRun().Add(time.Second)}
-		// Separate Store values model independent CLI processes; ownership is
-		// carried by the persisted record and kernel flock, not Go memory.
-		d := NewDriver(reopenStore(store), clk, proc, stableGit())
-		d.slice = 4 * pollTick
-		d.pollInterval = pollTick
-		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		return d
-	}
-
-	type advanceResult struct {
-		doc DriveDoc
-		err error
-	}
-	winnerResult := make(chan advanceResult, 1)
-	go func() {
-		doc, err := mkDriver().Advance(id, ownerGen)
-		winnerResult <- advanceResult{doc: doc, err: err}
-	}()
-
-	select {
-	case <-proc.launchEntered:
-	case <-time.After(2 * time.Second):
-		t.Fatal("reservation winner did not enter Launch")
-	}
-
-	loserResult := make(chan advanceResult, 1)
-	go func() {
-		doc, err := mkDriver().Advance(id, ownerGen)
-		loserResult <- advanceResult{doc: doc, err: err}
-	}()
-
-	var loser advanceResult
-	select {
-	case loser = <-loserResult:
-	case <-time.After(2 * time.Second):
-		close(proc.releaseLaunch)
-		t.Fatal("competing Advance did not return while the reservation holder was launching")
-	}
-	close(proc.releaseLaunch)
-
-	var winner advanceResult
-	select {
-	case winner = <-winnerResult:
-	case <-time.After(2 * time.Second):
-		t.Fatal("reservation winner did not finish after Launch was released")
-	}
-	if winner.err != nil || loser.err != nil {
-		t.Fatalf("Advance errors: winner=%v loser=%v", winner.err, loser.err)
-	}
-	launches, resolutions := proc.counts()
-	if launches != 1 {
-		t.Fatalf("reserve-to-launch window admitted %d backend launches, want exactly 1", launches)
-	}
-	if resolutions != 0 {
-		t.Fatalf("live reservation holder was treated as crash recovery %d times", resolutions)
-	}
-	recorded, err := store.Load(id)
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if recorded.RelaunchCount != 1 || recorded.Attempt != 2 {
-		t.Fatalf("recorded relaunch/attempt = %d/%d, want 1/2", recorded.RelaunchCount, recorded.Attempt)
 	}
 }
 
@@ -797,31 +561,22 @@ func TestBarrierCancelBetweenAdmitAndStartAdmitted(t *testing.T) {
 	}
 }
 
-// TestBarrierCancelBetweenAuthorizationAndLaunch proves the spec's second race
-// outcome: a cancellation that lands AFTER a relaunch won its authorization
-// (reserve committed, the per-drive claim held) but before proc.Launch cannot
-// complete while the launch is in flight — a concurrent reconcile reports
-// claim-busy pending. The replacement process CAN be created after the
-// cancellation, yet it only completes once a replay identifies and stops it.
-func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
+// TestRunBackedDeathHaltsAndCensusAccountsOneLaunch (change 0493): a drive
+// started inside a run whose supervisor dies halts supervisor-died with its one
+// launch — no replacement exists for a cancellation to race — and run.cancel's
+// census then accounts it from that one recorded run dir, stopping nothing.
+func TestRunBackedDeathHaltsAndCensusAccountsOneLaunch(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
 	clk := &fakeClock{now: startRun()}
-
 	dead := false
-	launchEntered := make(chan struct{})
-	releaseLaunch := make(chan struct{})
+	runsRoot := testsupport.TempDir(t) // the census probes run dirs that exist on disk
 	var launchCount int32
-	// The census proves supervisors gone over run dirs that exist on disk, so each
-	// launch's run dir is a real directory.
-	runsRoot := testsupport.TempDir(t)
-	proc := &fakeProc{
-		observe: func(runDir string) (*process.Observation, error) {
-			if dead && strings.HasSuffix(runDir, "run1") {
-				return obs(process.StateSignaled, runDir), nil
-			}
-			return obs(process.StateRunning, runDir), nil
-		},
-	}
+	proc := &fakeProc{observe: func(runDir string) (*process.Observation, error) {
+		if dead {
+			return obs(process.StateSignaled, runDir), nil
+		}
+		return obs(process.StateRunning, runDir), nil
+	}}
 	proc.launch = func(process.LaunchRequest) (*process.LaunchOutcome, error) {
 		n := atomic.AddInt32(&launchCount, 1)
 		id := fmt.Sprintf("run%d", n)
@@ -829,90 +584,41 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 		if err := os.MkdirAll(runDir, 0o700); err != nil {
 			return nil, err
 		}
-		if n == 2 { // the replacement launch: reserve committed, the claim is HELD
-			close(launchEntered)
-			<-releaseLaunch
-		}
 		return &process.LaunchOutcome{RunID: id, RunDir: runDir, State: process.StateRunning}, nil
 	}
 	d := storeTestDriver(store, clk, proc, stableGit())
 
-	// A first start under run context ctx-e1 WAITs (run1 running).
 	req := sampleStart()
 	req.RunContext = "ctx-e1"
 	started, serr := d.Start(req)
 	if serr != nil || started.Outcome != WAITING {
 		t.Fatalf("run-backed first slice must WAIT, got %+v (err=%v)", started, serr)
 	}
-
-	// The run dies; its single automatic relaunch is reserved under the drive's
-	// claim, then parks in proc.Launch (reserve committed; the claim held).
 	dead = true
-	advance := make(chan struct {
-		doc DriveDoc
-		err error
-	}, 1)
-	go func() {
-		doc, err := d.Advance(started.DriveID, started.Generation)
-		advance <- struct {
-			doc DriveDoc
-			err error
-		}{doc, err}
-	}()
-
-	<-launchEntered // the replacement launch is parked: reserve committed, claim held
-
-	// The cancellation lands NOW — after the reservation, during the parked launch.
-	// A concurrent reconcile (an independent CLI process: its own store handle and
-	// process seam) reports the held claim as pending work, and returns promptly.
-	recDone := make(chan RunLaunchReport, 1)
-	go func() {
-		dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
-		r, _ := dr.ReconcileRunLaunches(capHash(req.RunContext))
-		recDone <- r
-	}()
-	select {
-	case report := <-recDone:
-		if report.Accounted {
-			t.Fatalf("a launch in flight (held claim) must not be accounted, got %+v", report)
-		}
-		if !reconcileFindingPresent(report.Findings, "claim-busy:"+started.DriveID) {
-			t.Fatalf("findings = %v, want claim-busy:%s", report.Findings, started.DriveID)
-		}
-	case <-time.After(5 * time.Second):
-		close(releaseLaunch)
-		t.Fatal("reconcile blocked on a busy claim; it must probe nonblocking and return promptly")
-	}
-
-	// Release the parked launch: the replacement attaches, the claim frees.
-	close(releaseLaunch)
-	res := <-advance
-	if res.err != nil {
-		t.Fatalf("Advance: %v", res.err)
-	}
-	if res.doc.Outcome != WAITING {
-		t.Fatalf("an authorized relaunch's healthy new run must WAIT, got %s/%s", res.doc.Outcome, res.doc.Cause)
-	}
-	if got := atomic.LoadInt32(&launchCount); got != 2 {
-		t.Fatalf("the replacement process must have been created after the cancellation, launches=%d", got)
-	}
-
-	// A replay now stops the attached replacement (its supervisor is running), and
-	// only THEN accounts.
-	sup := newSupervisors()
-	replacement := filepath.Join(runsRoot, "run2")
-	sup.state[replacement] = process.StateRunning
-	sup.state[filepath.Join(runsRoot, "run1")] = process.StateSignaled
-	dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, sup.proc(), stableGit())
-	replay, err := dr.ReconcileRunLaunches(capHash(req.RunContext))
+	doc, err := d.Advance(started.DriveID, started.Generation)
 	if err != nil {
-		t.Fatalf("ReconcileRunLaunches (replay): %v", err)
+		t.Fatalf("Advance: %v", err)
 	}
-	if !replay.Accounted {
-		t.Fatalf("cancellation completes only once the replacement is stopped, got %+v", replay)
+	if doc.Outcome != HALTED || doc.Cause != CauseSupervisorDied {
+		t.Fatalf("a run-backed death = %s/%q, want HALTED/%s", doc.Outcome, doc.Cause, CauseSupervisorDied)
 	}
-	if len(sup.stopped) != 1 || sup.stopped[0] != replacement {
-		t.Fatalf("the replay must stop exactly the replacement %s, stopped %v", replacement, sup.stopped)
+	if got := atomic.LoadInt32(&launchCount); got != 1 {
+		t.Fatalf("a death must never launch again, launches=%d", got)
+	}
+
+	sup := newSupervisors()
+	run1 := filepath.Join(runsRoot, "run1")
+	sup.state[run1] = process.StateSignaled
+	dr := storeTestDriver(reopenStore(store), &fakeClock{now: startRun()}, sup.proc(), stableGit())
+	report, err := dr.ReconcileRunLaunches(capHash(req.RunContext))
+	if err != nil {
+		t.Fatalf("ReconcileRunLaunches: %v", err)
+	}
+	if !report.Accounted || !findingFor(report.Findings, "run-terminal", started.DriveID) {
+		t.Fatalf("the halted drive's one dead run must account run-terminal, got %+v", report)
+	}
+	if len(sup.stopped) != 0 || len(sup.observed) != 1 || sup.observed[0] != run1 {
+		t.Fatalf("the census must observe only %s and stop nothing: observed %v stopped %v", run1, sup.observed, sup.stopped)
 	}
 }
 
