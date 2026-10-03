@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0491 — Retire the run id; the run key becomes the run tracker's only handle](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md)**
+> ↩ **[Change 0491 — Retire the run id; the run key becomes the run tracker's only handle](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-03-0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md)**
 <!-- docket:backlink:end -->
 # Retire the run id; the run key becomes the run tracker's only handle — Implementation Plan
 
