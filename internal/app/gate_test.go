@@ -37,6 +37,11 @@ func TestMain(m *testing.M) {
 	if GuardianRequested() {
 		os.Exit(RunAgentGuardianFromEnv())
 	}
+	// Change 0494: the publish-lock real-process test re-execs THIS binary as a
+	// child that holds a publish lock until it is SIGKILLed.
+	if lockPath := os.Getenv(publishLockHolderEnv); lockPath != "" {
+		os.Exit(runPublishLockHolder(lockPath, os.Getenv(publishLockReadyEnv)))
+	}
 	// Change 0479: the integration-tagged build refuses an unfiltered run at go
 	// test's default 10m timeout (the whole corpus outlasts it) and names the
 	// supported forms; every other build gets testsupport's no-op twin. It sits
