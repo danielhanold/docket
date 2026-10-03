@@ -95,20 +95,19 @@ func seqPassCmd(marker string) []string { return []string{"/bin/sh", "-c", "exit
 // fingerprint is computed over real git bytes and its launch runs a real command.
 func realSeqStart(worktree, branch, runRoot, changeID, taskID string, cmd []string) StartRequest {
 	return StartRequest{
-		RepoDir:             worktree,
-		Worktree:            worktree,
-		ChangeID:            changeID,
-		TaskID:              taskID,
-		Phase:               "build",
-		Branch:              branch,
-		Ref:                 "refs/heads/" + branch,
-		Command:             cmd,
-		Cwd:                 worktree,
-		ConfigProvenance:    "config:build.test_command",
-		Budget:              30 * time.Minute,
-		EnvHash:             "seq-env",
-		RunRoot:             runRoot,
-		IdempotentSuiteGate: true,
+		RepoDir:          worktree,
+		Worktree:         worktree,
+		ChangeID:         changeID,
+		TaskID:           taskID,
+		Phase:            "build",
+		Branch:           branch,
+		Ref:              "refs/heads/" + branch,
+		Command:          cmd,
+		Cwd:              worktree,
+		ConfigProvenance: "config:build.test_command",
+		Budget:           30 * time.Minute,
+		EnvHash:          "seq-env",
+		RunRoot:          runRoot,
 	}
 }
 

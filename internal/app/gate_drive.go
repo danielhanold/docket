@@ -99,17 +99,16 @@ type GateDriveService struct {
 // SERVICE supplies the authoritative-config command, budget, and provenance, so a
 // caller can never substitute the suite command or the observation budget.
 type GateDriveStartRequest struct {
-	RepoDir             string
-	Worktree            string
-	ChangeID            string
-	TaskID              string
-	Phase               string
-	Branch              string
-	Ref                 string
-	Cwd                 string
-	EnvHash             string
-	RunRoot             string
-	IdempotentSuiteGate bool
+	RepoDir  string
+	Worktree string
+	ChangeID string
+	TaskID   string
+	Phase    string
+	Branch   string
+	Ref      string
+	Cwd      string
+	EnvHash  string
+	RunRoot  string
 	// RunContext is the raw run-context token from run.start linking this drive to
 	// the dispatched run; the driver persists only its hash, which run.verdict's
 	// outer scan matches a run's drives on. Optional: empty for an untracked run.
@@ -242,22 +241,21 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 // authoritative-config command/budget/provenance the caller can never substitute.
 func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.StartRequest {
 	return gatedrive.StartRequest{
-		RepoDir:             req.RepoDir,
-		Worktree:            req.Worktree,
-		ChangeID:            req.ChangeID,
-		TaskID:              req.TaskID,
-		Phase:               req.Phase,
-		Branch:              req.Branch,
-		Ref:                 req.Ref,
-		Command:             s.commandArgv(),
-		Cwd:                 req.Cwd,
-		ConfigProvenance:    s.provenance,
-		Budget:              s.budget,
-		EnvHash:             req.EnvHash,
-		RunRoot:             req.RunRoot,
-		IdempotentSuiteGate: req.IdempotentSuiteGate,
-		RunContext:          req.RunContext,
-		Owner:               s.owner,
+		RepoDir:          req.RepoDir,
+		Worktree:         req.Worktree,
+		ChangeID:         req.ChangeID,
+		TaskID:           req.TaskID,
+		Phase:            req.Phase,
+		Branch:           req.Branch,
+		Ref:              req.Ref,
+		Command:          s.commandArgv(),
+		Cwd:              req.Cwd,
+		ConfigProvenance: s.provenance,
+		Budget:           s.budget,
+		EnvHash:          req.EnvHash,
+		RunRoot:          req.RunRoot,
+		RunContext:       req.RunContext,
+		Owner:            s.owner,
 	}
 }
 

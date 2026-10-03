@@ -249,19 +249,18 @@ func intStartRequest(exe, runRoot, cwd, childMode, childArg string) StartRequest
 		// integration start takes change 0490's worktree lock (keyed on the canonical
 		// worktree root the git seam resolves from this directory). The fake git
 		// seam keeps the fingerprint path-independent, so this changes no verdict.
-		Worktree:            cwd,
-		ChangeID:            "0342",
-		TaskID:              "task-7",
-		Phase:               "build",
-		Branch:              "feat/x",
-		Ref:                 "refs/heads/feat/x",
-		Command:             argv,
-		Cwd:                 cwd,
-		ConfigProvenance:    "config:finalize.test_command",
-		Budget:              30 * time.Minute,
-		EnvHash:             "envhash",
-		RunRoot:             runRoot,
-		IdempotentSuiteGate: true,
+		Worktree:         cwd,
+		ChangeID:         "0342",
+		TaskID:           "task-7",
+		Phase:            "build",
+		Branch:           "feat/x",
+		Ref:              "refs/heads/feat/x",
+		Command:          argv,
+		Cwd:              cwd,
+		ConfigProvenance: "config:finalize.test_command",
+		Budget:           30 * time.Minute,
+		EnvHash:          "envhash",
+		RunRoot:          runRoot,
 	}
 }
 

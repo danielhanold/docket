@@ -336,7 +336,8 @@ func TestRepresentativeSignatures(t *testing.T) {
 		"run.cancel": "--key <key> --reason <reason> [--repo-dir <dir>]",
 		// change 0489: the task owner and the scope/receipt flags are gone; every
 		// owner runs its resolved suite command, so there is no `--` argv tail.
-		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--cwd <dir>] [--env-hash <hash>] [--idempotent-suite-gate] [--phase <name>] [--ref <ref>] [--repo-dir <dir>] [--run-context <token>] [--task-id <id>]",
+		// change 0493: --idempotent-suite-gate is gone (no drive relaunches).
+		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--cwd <dir>] [--env-hash <hash>] [--phase <name>] [--ref <ref>] [--repo-dir <dir>] [--run-context <token>] [--task-id <id>]",
 		// change 0472 (ADR-0129 rows 40, 40a): the record revision rides on
 		// --revision, and relink's pin on --expect-revision.
 		"change.claim":      "--id <id> --revision <revision> [--repo-dir <dir>] [--run-context <token>]",

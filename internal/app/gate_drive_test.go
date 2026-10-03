@@ -169,12 +169,11 @@ func TestServiceStartInjectsAuthoritativeConfig(t *testing.T) {
 	svc := newGateDriveService(eng, 42*time.Minute, "go test ./...", "prov-token")
 
 	got := svc.Start(GateDriveStartRequest{
-		RepoDir:             "/repo",
-		Worktree:            "/repo",
-		ChangeID:            "0342",
-		TaskID:              "task-9",
-		Phase:               "build",
-		IdempotentSuiteGate: true,
+		RepoDir:  "/repo",
+		Worktree: "/repo",
+		ChangeID: "0342",
+		TaskID:   "task-9",
+		Phase:    "build",
 	})
 	if got.Result != ResultApplied {
 		t.Fatalf("a WAITING start is an applied operation, got %s", got.Result)
@@ -197,7 +196,7 @@ func TestServiceStartInjectsAuthoritativeConfig(t *testing.T) {
 	if eng.lastStart.ConfigProvenance != "prov-token" {
 		t.Fatalf("Start must inject the config provenance, got %q", eng.lastStart.ConfigProvenance)
 	}
-	if eng.lastStart.ChangeID != "0342" || !eng.lastStart.IdempotentSuiteGate {
+	if eng.lastStart.ChangeID != "0342" {
 		t.Fatalf("Start must carry the caller identity through, got %+v", eng.lastStart)
 	}
 }

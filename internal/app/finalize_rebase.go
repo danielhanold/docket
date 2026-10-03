@@ -2054,13 +2054,12 @@ func (g *processFinalizeGate) RunLocalGate(ctx context.Context, req LocalGateReq
 			phase = recertifyGatePhase
 		}
 		out = svc.Start(GateDriveStartRequest{
-			RepoDir:             req.WorkspaceDir,
-			Worktree:            req.WorkspaceDir,
-			ChangeID:            strconv.Itoa(req.ID),
-			Phase:               phase,
-			Cwd:                 req.WorkspaceDir,
-			RunRoot:             runRoot,
-			IdempotentSuiteGate: true,
+			RepoDir:  req.WorkspaceDir,
+			Worktree: req.WorkspaceDir,
+			ChangeID: strconv.Itoa(req.ID),
+			Phase:    phase,
+			Cwd:      req.WorkspaceDir,
+			RunRoot:  runRoot,
 		})
 		// A Start command failure returns no drive document, so mapDriveOutcome
 		// cannot recover the just-minted run root. A pre-launch refusal left it
@@ -2145,8 +2144,8 @@ func (g *processFinalizeGate) mapDriveOutcome(ctx context.Context, req LocalGate
 	}
 	doc := out.Drive
 	if doc.Outcome == gatedrive.WAITING {
-		// Nonterminal: the run is still live and may relaunch under the run root, so
-		// the root MUST be retained. No cleanup here.
+		// Nonterminal: the run is still live and writes under the run root, so the
+		// root MUST be retained. No cleanup here.
 		return LocalGateResult{
 			Outcome:      FinalizeGateWaiting,
 			Continuation: GateContinuation{DriveID: doc.DriveID, Generation: doc.Generation},

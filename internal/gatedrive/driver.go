@@ -67,9 +67,8 @@ const productionPollInterval = 250 * time.Millisecond
 
 // StartRequest is the validated input to a new drive. It carries the repository
 // and worktree identity, the change/task/phase the drive certifies, the
-// authoritative resolved command + cwd + budget (never agent input), the launch
-// environment/config provenance the record needs, and whether the gate is an
-// idempotent suite gate eligible for the single relaunch. The application seam
+// authoritative resolved command + cwd + budget (never agent input), and the
+// launch environment/config provenance the record needs. The application seam
 // (Task 9) resolves these from authoritative config before calling Start.
 type StartRequest struct {
 	// Worktree is the working tree that is fingerprinted (Start computes the
@@ -105,10 +104,6 @@ type StartRequest struct {
 
 	// RunRoot is the native process-supervisor allocation root (LaunchRequest.Root).
 	RunRoot string
-
-	// IdempotentSuiteGate marks a gate the application contract designates
-	// idempotent; ONLY such a gate may earn the single relaunch.
-	IdempotentSuiteGate bool
 
 	// RunContext is the RAW outer child-context token linking this drive to the
 	// dispatched run whose outer recovery scope run.start prepared; it is stored
@@ -254,29 +249,28 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	}
 
 	rec := driveRecord{
-		RepoIdentity:        req.RepoDir,
-		WorktreePath:        req.Worktree,
-		ChangeID:            req.ChangeID,
-		TaskID:              req.TaskID,
-		Phase:               req.Phase,
-		Branch:              req.Branch,
-		Ref:                 req.Ref,
-		HeadOID:             fp.Head,
-		Fingerprint:         fp,
-		Command:             append([]string(nil), req.Command...),
-		Cwd:                 req.Cwd,
-		ConfigProvenance:    req.ConfigProvenance,
-		Budget:              req.Budget,
-		EnvHash:             req.EnvHash,
-		RunRoot:             req.RunRoot,
-		IdempotentSuiteGate: req.IdempotentSuiteGate,
-		StartedAt:           now,
-		UpdatedAt:           now,
-		Deadline:            computeDeadline(now, req.Budget),
-		LastClock:           now,
-		ProtocolVersion:     ProtocolVersion,
-		Attempt:             1,
-		OwnerGeneration:     ownerGen,
+		RepoIdentity:     req.RepoDir,
+		WorktreePath:     req.Worktree,
+		ChangeID:         req.ChangeID,
+		TaskID:           req.TaskID,
+		Phase:            req.Phase,
+		Branch:           req.Branch,
+		Ref:              req.Ref,
+		HeadOID:          fp.Head,
+		Fingerprint:      fp,
+		Command:          append([]string(nil), req.Command...),
+		Cwd:              req.Cwd,
+		ConfigProvenance: req.ConfigProvenance,
+		Budget:           req.Budget,
+		EnvHash:          req.EnvHash,
+		RunRoot:          req.RunRoot,
+		StartedAt:        now,
+		UpdatedAt:        now,
+		Deadline:         computeDeadline(now, req.Budget),
+		LastClock:        now,
+		ProtocolVersion:  ProtocolVersion,
+		Attempt:          1,
+		OwnerGeneration:  ownerGen,
 	}
 	// RunContextHash links a drive started inside a dispatched run to that run's
 	// outer recovery scope (empty for a drive outside any dispatched run).

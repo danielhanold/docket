@@ -1240,7 +1240,7 @@ func TestIntegrationRunVerdictFinishedBuildDrivesAreNotTakeoverCandidates(t *tes
 		got := svc.Start(GateDriveStartRequest{
 			RepoDir: worktree, Worktree: worktree, ChangeID: "0003", Phase: "build",
 			Branch: "fix/x", Ref: "refs/heads/fix/x", Cwd: worktree, RunRoot: runRoot,
-			RunContext: runContext, IdempotentSuiteGate: true,
+			RunContext: runContext,
 		})
 		if got.Result != ResultApplied || got.Drive == nil {
 			t.Fatalf("build start refused: result=%s reason=%q message=%q", got.Result, got.Reason, got.Message)

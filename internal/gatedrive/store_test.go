@@ -41,7 +41,6 @@ func sampleRecord() driveRecord {
 		RawRunDir:        "/runs/abc",
 		RawOwnership:     "own-1",
 		Attempt:          1,
-		RelaunchCount:    0,
 		OwnerGeneration:  "owner-g0",
 	}
 }
@@ -411,6 +410,48 @@ func legacyRelaunchKeys() map[string]any {
 		"relaunch_reserved":     true,
 		"relaunch_token":        "bbbbbbbbbbbbbbbb",
 		"prior_raw_run_dir":     "/runs/run0",
+	}
+}
+
+// TestOldRelaunchFieldsLoadAndAreDroppedOnWrite (change 0493, spec Design §5): a
+// v4 record still carrying the retired relaunch fields loads without error (the
+// store decodes with plain json.Unmarshal, which ignores unknown keys), and its
+// next write omits every one of them.
+func TestOldRelaunchFieldsLoadAndAreDroppedOnWrite(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	id, gen, err := store.NewDrive(sampleRecord())
+	if err != nil {
+		t.Fatalf("NewDrive: %v", err)
+	}
+	stampRecordKeys(t, store, id, legacyRelaunchKeys())
+
+	got, err := store.Load(id)
+	if err != nil {
+		t.Fatalf("a record carrying the retired relaunch fields must load: %v", err)
+	}
+	if got.RawRunDir != sampleRecord().RawRunDir {
+		t.Fatalf("loaded RawRunDir = %q, want %q", got.RawRunDir, sampleRecord().RawRunDir)
+	}
+	if _, err := store.CAS(id, gen, func(*driveRecord) error { return nil }); err != nil {
+		t.Fatalf("CAS over an old record: %v", err)
+	}
+	raw, err := os.ReadFile(filepath.Join(store.root, id, recordFileName))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	var env struct {
+		Record map[string]any `json:"record"`
+	}
+	if err := json.Unmarshal(raw, &env); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(env.Record) == 0 {
+		t.Fatal("non-vacuity: the rewritten record decoded empty")
+	}
+	for k := range legacyRelaunchKeys() {
+		if _, ok := env.Record[k]; ok {
+			t.Fatalf("the next write must drop the retired key %q, record has it", k)
+		}
 	}
 }
 

@@ -200,23 +200,22 @@ func sampleWorktree() string {
 	return sampleWorktreeDir
 }
 
-// sampleStart is a well-formed StartRequest for an idempotent suite gate.
+// sampleStart is a well-formed StartRequest for a suite gate.
 func sampleStart() StartRequest {
 	return StartRequest{
-		RepoDir:             "/repo",
-		Worktree:            sampleWorktree(),
-		ChangeID:            "0342",
-		TaskID:              "task-6",
-		Phase:               "build",
-		Branch:              "feat/x",
-		Ref:                 "refs/heads/feat/x",
-		Command:             []string{"go test ./..."},
-		Cwd:                 "/repo",
-		ConfigProvenance:    "config:finalize.test_command",
-		Budget:              30 * time.Minute,
-		EnvHash:             "envhash",
-		RunRoot:             "/repo/.git/docket/gate-runs",
-		IdempotentSuiteGate: true,
+		RepoDir:          "/repo",
+		Worktree:         sampleWorktree(),
+		ChangeID:         "0342",
+		TaskID:           "task-6",
+		Phase:            "build",
+		Branch:           "feat/x",
+		Ref:              "refs/heads/feat/x",
+		Command:          []string{"go test ./..."},
+		Cwd:              "/repo",
+		ConfigProvenance: "config:finalize.test_command",
+		Budget:           30 * time.Minute,
+		EnvHash:          "envhash",
+		RunRoot:          "/repo/.git/docket/gate-runs",
 	}
 }
 
@@ -231,31 +230,30 @@ func seedRecord(t *testing.T) driveRecord {
 	}
 	start := startRun()
 	return driveRecord{
-		RepoIdentity:        "/repo",
-		WorktreePath:        "/repo",
-		ChangeID:            "0342",
-		TaskID:              "task-6",
-		Phase:               "build",
-		Branch:              "feat/x",
-		Ref:                 "refs/heads/feat/x",
-		HeadOID:             fp.Head,
-		Fingerprint:         fp,
-		Command:             []string{"go test ./..."},
-		Cwd:                 "/repo",
-		ConfigProvenance:    "config:finalize.test_command",
-		Budget:              30 * time.Minute,
-		EnvHash:             "envhash",
-		RunRoot:             "/repo/.git/docket/gate-runs",
-		IdempotentSuiteGate: true,
-		StartedAt:           start,
-		UpdatedAt:           start,
-		Deadline:            start.Add(30 * time.Minute),
-		LastClock:           start,
-		ProtocolVersion:     ProtocolVersion,
-		RawRunDir:           "/runs/run1",
-		RawOwnership:        "run1",
-		Attempt:             1,
-		OwnerGeneration:     "owner-seed",
+		RepoIdentity:     "/repo",
+		WorktreePath:     "/repo",
+		ChangeID:         "0342",
+		TaskID:           "task-6",
+		Phase:            "build",
+		Branch:           "feat/x",
+		Ref:              "refs/heads/feat/x",
+		HeadOID:          fp.Head,
+		Fingerprint:      fp,
+		Command:          []string{"go test ./..."},
+		Cwd:              "/repo",
+		ConfigProvenance: "config:finalize.test_command",
+		Budget:           30 * time.Minute,
+		EnvHash:          "envhash",
+		RunRoot:          "/repo/.git/docket/gate-runs",
+		StartedAt:        start,
+		UpdatedAt:        start,
+		Deadline:         start.Add(30 * time.Minute),
+		LastClock:        start,
+		ProtocolVersion:  ProtocolVersion,
+		RawRunDir:        "/runs/run1",
+		RawOwnership:     "run1",
+		Attempt:          1,
+		OwnerGeneration:  "owner-seed",
 	}
 }
 
@@ -344,8 +342,8 @@ func TestSeveralWaitingSlicesRetainDriveIdentity(t *testing.T) {
 		t.Fatalf("several WAITING slices must not relaunch: launched %d", proc.launchN)
 	}
 	rec, _ := store.Load(doc.DriveID)
-	if rec.RelaunchCount != 0 || rec.Attempt != 1 {
-		t.Fatalf("identity drifted across slices: attempt=%d relaunch=%d", rec.Attempt, rec.RelaunchCount)
+	if rec.Attempt != 1 {
+		t.Fatalf("identity drifted across slices: attempt=%d", rec.Attempt)
 	}
 }
 
@@ -655,22 +653,20 @@ func deathAfterFirstSlice(t *testing.T, req StartRequest, state process.State) (
 // record keeps its first run.
 func TestDeathHaltsSupervisorDied(t *testing.T) {
 	for _, tc := range []struct {
-		name       string
-		owner      string
-		idempotent bool
-		state      process.State
-		holdOther  bool
+		name      string
+		owner     string
+		state     process.State
+		holdOther bool
 	}{
-		{"finalize signaled", "finalize", true, process.StateSignaled, false},
-		{"finalize vanished", "finalize", true, process.StateVanished, false},
-		{"build signaled", "build", false, process.StateSignaled, false},
-		{"build vanished", "build", false, process.StateVanished, false},
-		{"another gate took the worktree", "finalize", true, process.StateVanished, true},
+		{"finalize signaled", "finalize", process.StateSignaled, false},
+		{"finalize vanished", "finalize", process.StateVanished, false},
+		{"build signaled", "build", process.StateSignaled, false},
+		{"build vanished", "build", process.StateVanished, false},
+		{"another gate took the worktree", "finalize", process.StateVanished, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			req := sampleStart()
 			req.Owner = tc.owner
-			req.IdempotentSuiteGate = tc.idempotent
 			d, store, proc, started, dead := deathAfterFirstSlice(t, req, tc.state)
 			if tc.holdOther {
 				holdWorktree(t, store, req.Cwd)
@@ -759,7 +755,7 @@ func TestDeathUnprovenHaltsUncertainOwnership(t *testing.T) {
 
 // TestVanishedProvenGoneWithoutStop proves a vanished observation already proves
 // the tree is gone: the death path consumes it without issuing a stop (there is
-// no live tree to stop). With relaunch refused it HALTs.
+// no live tree to stop). It HALTs (a drive never relaunches).
 func TestVanishedProvenGoneWithoutStop(t *testing.T) {
 	clk := &fakeClock{now: startRun().Add(time.Second)}
 	proc := &fakeProc{
@@ -769,7 +765,6 @@ func TestVanishedProvenGoneWithoutStop(t *testing.T) {
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	rec := seedRecord(t)
-	rec.IdempotentSuiteGate = false // refuse relaunch so we terminate at HALT
 	id, ownerGen := seedDrive(t, store, rec)
 
 	doc, err := d.Advance(id, ownerGen)
@@ -777,7 +772,7 @@ func TestVanishedProvenGoneWithoutStop(t *testing.T) {
 		t.Fatalf("Advance: %v", err)
 	}
 	if doc.Outcome != HALTED {
-		t.Fatalf("a vanished run with relaunch refused must HALT, got %s", doc.Outcome)
+		t.Fatalf("a vanished run must HALT, got %s", doc.Outcome)
 	}
 	if proc.stopN != 0 {
 		t.Fatalf("a vanished run needs no stop; issued %d", proc.stopN)
@@ -800,7 +795,6 @@ func TestSignaledDeathConsumesTerminalViaStopNoOpAndReObserve(t *testing.T) {
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	rec := seedRecord(t)
-	rec.IdempotentSuiteGate = false
 	id, ownerGen := seedDrive(t, store, rec)
 
 	before := proc.observeN

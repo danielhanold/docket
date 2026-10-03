@@ -206,7 +206,6 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			idempotent, _ := c.Flags().GetBool("idempotent-suite-gate")
 			changeID, _ := c.Flags().GetString("change-id")
 			taskID, _ := c.Flags().GetString("task-id")
 			phase, _ := c.Flags().GetString("phase")
@@ -215,18 +214,17 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			envHash, _ := c.Flags().GetString("env-hash")
 			runContext, _ := c.Flags().GetString("run-context")
 			setResult(gateDrivePresenter{inner: svc.Start(app.GateDriveStartRequest{
-				RepoDir:             commonDir,
-				Worktree:            repoDir,
-				ChangeID:            changeID,
-				TaskID:              taskID,
-				Phase:               phase,
-				Branch:              branch,
-				Ref:                 ref,
-				Cwd:                 cwd,
-				EnvHash:             envHash,
-				RunRoot:             runRoot,
-				IdempotentSuiteGate: idempotent,
-				RunContext:          runContext,
+				RepoDir:    commonDir,
+				Worktree:   repoDir,
+				ChangeID:   changeID,
+				TaskID:     taskID,
+				Phase:      phase,
+				Branch:     branch,
+				Ref:        ref,
+				Cwd:        cwd,
+				EnvHash:    envHash,
+				RunRoot:    runRoot,
+				RunContext: runContext,
 			})})
 			return nil
 		},
@@ -242,7 +240,6 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	start.Flags().String("ref", "", "`ref` recorded alongside the fingerprint")
 	start.Flags().String("env-hash", "", "canonical launch-environment `hash` (recorded only)")
 	start.Flags().String("run-context", "", "run-context `token` from run start, linking this drive to its started run (optional; omitted for an untracked run)")
-	start.Flags().Bool("idempotent-suite-gate", false, "mark the gate idempotent, eligible for the single relaunch")
 	_ = start.MarkFlagRequired("run-root")
 	_ = start.MarkFlagRequired("owner")
 
