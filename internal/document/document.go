@@ -288,6 +288,24 @@ func (d Document) Field(name string) (Field, bool) {
 	return Field{}, false
 }
 
+// EmptyValue is docket's single empty-value rule for a frontmatter entry: the
+// entry holds no value when the byte locator saw no value token (a located
+// ShapeEmpty entry), or when its parsed node is a scalar YAML null (`null`,
+// `~`) or an empty string, single- or double-quoted. A collection is never
+// empty here. node is the caller's own parsed node for the entry, nil when the
+// YAML tree has none; located/locatedOK are Field's results for the same key.
+//
+// The repository decoder's FieldEmpty classification and reposetup's
+// claimed_at planner both decide through this one function, so the planner and
+// the snapshot validator cannot drift apart on what "no stamp" means (0496).
+func EmptyValue(located Field, locatedOK bool, node *yaml.Node) bool {
+	if locatedOK && located.Shape == ShapeEmpty {
+		return true
+	}
+	return node != nil && node.Kind == yaml.ScalarNode &&
+		(node.Tag == "!!null" || node.Value == "")
+}
+
 // Blocks returns the located managed blocks in source order, as a fresh slice:
 // mutating it cannot reach the document's own index.
 func (d Document) Blocks() []Block { return append([]Block(nil), d.blocks...) }

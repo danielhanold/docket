@@ -245,29 +245,24 @@ func planClaimedAt(path string, src []byte, doc document.Document, archived bool
 }
 
 // claimedAtHoldsValue reports whether the located claimed_at entry carries a
-// value, deciding on the PARSED node exactly as the decode layer's
-// (*decoder).state classifies a scalar for optionalTime: a valueless key
-// (document.ShapeEmpty), a YAML null (`null`, `~`), and an empty string,
-// single- or double-quoted, are FieldEmpty — no stamp. Anything else holds a value: a well-formed
-// timestamp (FieldPresent) or a malformed non-empty value, including a
-// collection (FieldMalformed). An undecodable frontmatter block fails toward
+// value. It decides through document.EmptyValue, the same empty-value rule the
+// decode layer's (*decoder).state uses to classify FieldEmpty, so the planner
+// and the snapshot validator cannot drift: a valueless key, a YAML null (`null`,
+// `~`), and an empty string are no stamp; anything else — a timestamp, a
+// malformed non-empty value, a collection — holds a value. An undecodable
+// frontmatter block is judged on the located shape alone, failing toward
 // "holds a value", which keeps the pre-0496 finding rather than hiding one.
 func claimedAtHoldsValue(doc document.Document, f document.Field) bool {
-	if f.Shape == document.ShapeEmpty {
-		return false
-	}
+	var node *yaml.Node
 	var m map[string]yaml.Node
-	if err := doc.DecodeFrontmatter(&m); err != nil {
-		return true
+	if err := doc.DecodeFrontmatter(&m); err == nil {
+		n, ok := m["claimed_at"]
+		if !ok {
+			return false
+		}
+		node = &n
 	}
-	n, ok := m["claimed_at"]
-	if !ok {
-		return false
-	}
-	if n.Kind != yaml.ScalarNode {
-		return true
-	}
-	return n.Tag != "!!null" && n.Value != ""
+	return !document.EmptyValue(f, true, node)
 }
 
 // finalStatus reports whether the record's decoded status is a final end
