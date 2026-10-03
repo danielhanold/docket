@@ -172,7 +172,8 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 	// proven never-launched first launch (HALTED launch-abandoned). Any blocking obligation
 	// (an unobserved native task, a live/unproven execution process, an unaccounted
 	// launch, an uncompleted mutation) fails closed; informational findings (a
-	// settled drive's run-terminal) are accounted. The step (1b) settlement tokens
+	// settled drive's run-terminal or tree-survives) are accounted and never block.
+	// The step (1b) settlement tokens
 	// stay ahead of the accounting findings.
 	blocked, afindings := accountCompletionObligations(seams, repoDir, runKey, ep)
 	findings = appendFindings(findings, afindings)
