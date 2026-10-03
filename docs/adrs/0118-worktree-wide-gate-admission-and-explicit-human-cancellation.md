@@ -29,3 +29,7 @@ Keep admission scoped to the recovery scope alone (change 0405's shape) and rely
 ## Update — 2026-10-03 (change 0494, ADR-0137)
 
 The decision stands, with one narrowing recorded by ADR-0137: cancellation's "unresolved external effect" condition narrows to "a publisher that may still be running". A publication journal entry whose publisher provably exited (its per-entry kernel lock is free) or returned `uncertain` no longer holds cancel at `cancellation-pending`; it is reported as the informational `mutation-abandoned:<op>` finding. A held lock, missing lock file, probe error, missing token, or unknown status still blocks exactly as before.
+
+## Update — 2026-10-03 (change 0494 review)
+
+A publisher's orphaned git/gh child may still land its remote effect after cancellation; see ADR-0137.

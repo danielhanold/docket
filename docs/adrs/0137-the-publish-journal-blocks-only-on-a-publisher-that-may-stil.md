@@ -106,3 +106,7 @@ It never returns an error a caller could turn into a refusal. Every unprovable c
 - Live Git or GitHub re-observation inside cancel, closeout, or resume: rejected; it adds external effects to teardown, and `RunVerify` already proves both publications before the closeout runs.
 - A force-clear command or flag for journal entries: rejected; it relies on a human judgment the lock probe makes mechanically, and invites clearing a live publisher.
 - Treating every `admitted` entry as abandoned after a timeout: rejected; elapsed time does not prove a publisher is dead, a free kernel lock does.
+
+## Update — 2026-10-03 (change 0494 review)
+
+Added consequence: a free publish lock proves the docket publisher process is gone, not that its `git push` or `gh` child is gone. The lock descriptor is close-on-exec and children are not in a kill-on-parent-death group, so an orphaned git/gh child of a killed publisher may still land its effect after cancel reports `cancelled` or the closeout completes. The push lease and PR create-or-adopt make that harmless for a replacement run.
