@@ -107,8 +107,12 @@ const (
 	// live run to supersede. (change 0359)
 	CauseTakeoverAmbiguous = "takeover-ambiguous"
 	// CauseSupervisorDied: the drive's run died without a verdict (signaled or
-	// vanished) and no owned tree survives. A gate drive never relaunches (change
-	// 0493): it HALTs, and a human re-runs the workflow, which re-runs the suite.
+	// vanished) and the supervisor is proven gone — signaled: confirmed by the
+	// stop no-op and a re-observe; vanished: by observation (proveNoTreeSurvives).
+	// It does not rule out a surviving process group: a dead supervisor's suite
+	// can outlive it, which is the census's tree-survives finding (change 0492).
+	// A gate drive never relaunches (change 0493): it HALTs, and a human re-runs
+	// the workflow, which re-runs the suite.
 	CauseSupervisorDied = "supervisor-died"
 )
 
@@ -149,8 +153,9 @@ type DriveDoc struct {
 // HEAD OID, fingerprint, resolved command + cwd, config provenance + budget, env
 // hash, timestamps + fixed deadline + last-accepted clock + protocol version,
 // current raw run dir + raw ownership identity + attempt + terminal receipt,
-// and current owner generation or single-use handoff generation. Later tasks (clock, fingerprint, ownership, state machine) refine
-// the concrete field types they own; this is the foundational schema.
+// and current owner generation or single-use handoff generation. Later tasks
+// (clock, fingerprint, ownership, state machine) refine the concrete field
+// types they own; this is the foundational schema.
 type driveRecord struct {
 	SchemaVersion int `json:"schema_version"`
 
