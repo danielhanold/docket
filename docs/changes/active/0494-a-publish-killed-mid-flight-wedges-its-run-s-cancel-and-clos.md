@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-03T08:49:19Z'
+reconciled: true
+claimed_at: '2026-10-03T08:52:07Z'
 ---
 
 ## Artifacts
@@ -77,3 +77,9 @@ An `uncertain` entry with no successful identical retry wedges the same way. Onc
 - Rewriting existing journal entries, or deleting lock files.
 - Metadata transactions (completed at admission), and `finalize.publish` (not journaled).
 - The never-started test run and the missing run root, both fixed by 0491.
+
+## Reconcile log
+
+### 2026-10-03
+
+2026-10-03 — Reconciled against origin/main 1fc28e872, the same commit the spec was re-checked at; no code drift since grooming. Confirmed the traced symbols still exist (admitWorkflowMutation, settleUncertainPublications, accountCompletionMutations, verifyTerminalRunQuiescence, process.TryExclusiveLock, probeFlock). Related 0444/0491/0492 are done and change nothing in the journal logic. Scope unchanged.
