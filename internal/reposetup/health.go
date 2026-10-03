@@ -325,7 +325,7 @@ func frontmatterFinding(rf RepairFinding) Finding {
 			Severity:   SeverityWarning,
 			Ref:        rf.Path,
 			Message:    rf.Message,
-			Remedy:     "Apply the previewed mechanical repair, or edit the record frontmatter manually.",
+			Remedy:     "Run `docket repository repair` to preview and apply this repair, or edit the record frontmatter by hand.",
 			Repairable: &repairable,
 		}
 	}

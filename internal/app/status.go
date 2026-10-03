@@ -562,14 +562,14 @@ func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, c d
 // adopt-pr-head command with the id, record revision, and PR number filled in
 // (the head branch must be read from the PR itself — status stays offline);
 // otherwise no typed operation edits branch:, so the remedy is the hand edit
-// plus repository migrate to re-render the board. An absent or empty branch:
+// plus `docket repository repair` to re-render the board. An absent or empty branch:
 // is a distinct, benign state here and produces no finding.
 func branchMalformedCheck(c domain.Change, blobByPath map[string]StatusBlob) []StatusFinding {
 	b := c.Branch()
 	if b.State != domain.FieldPresent || b.Value == "" || gitcli.ValidBranchName(b.Value) {
 		return nil
 	}
-	remedy := "correct branch: on the change record on the docket branch (the real feature branch, or clear it if no branch was ever created), then run: docket repository migrate to re-render the board"
+	remedy := "correct branch: on the change record on the docket branch (the real feature branch, or clear it if no branch was ever created), then run: docket repository repair to re-render the board"
 	if pr := c.PR(); pr.State == domain.FieldPresent {
 		if n, ok := parsePRRef(pr.Value); ok {
 			remedy = fmt.Sprintf("run: docket change relink --id %d --expect-revision %s --adopt-pr-head --expect-pr %d --expect-head <the head branch shown on PR #%d>",

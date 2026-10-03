@@ -102,7 +102,7 @@ func TestStatusStillFailsOnUnprobeableWellFormedBranch(t *testing.T) {
 // (printed-remedy-state-validity): a parseable pr: names the typed
 // relink adopt-pr-head command with id, revision, and PR number
 // filled in; no pr: or an unparseable one (Review Focus 2) gets the hand-edit
-// plus repository migrate remedy, never a fabricated PR number.
+// plus `docket repository repair` remedy, never a fabricated PR number.
 func TestStatusBranchMalformedFindings(t *testing.T) {
 	pin := docketPin(t)
 	inner := &fakeReader{pin: pin, corpus: malformedStackCorpus(t), facts: domain.NewBranchFacts(map[string]bool{"feat/ok": true})}
@@ -142,8 +142,8 @@ func TestStatusBranchMalformedFindings(t *testing.T) {
 	}
 	for _, id := range []string{"0002", "0008"} {
 		r := byIdentity[id][0].Remedy
-		if strings.Contains(r, "change relink") || !strings.Contains(r, "repository migrate") {
-			t.Errorf("change %s remedy = %q, want the hand-edit + repository migrate remedy", id, r)
+		if strings.Contains(r, "change relink") || strings.Contains(r, "repository migrate") || !strings.Contains(r, "docket repository repair") {
+			t.Errorf("change %s remedy = %q, want the hand-edit + `docket repository repair` remedy", id, r)
 		}
 	}
 }
