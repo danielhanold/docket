@@ -17,6 +17,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/danielhanold/docket/internal/process"
 )
@@ -64,27 +65,65 @@ func publishLockPath(dir, token string) (string, bool) {
 	return filepath.Join(dir, publishLockPrefix+token+publishLockSuffix), true
 }
 
-// acquirePublishLock mints a fresh token and takes its lock in dir without waiting.
-// Any failure (no token, no dir, an I/O error, or a busy answer on a fresh token)
-// returns ("", nil). The caller then journals the entry without a token and
-// publishes anyway: a lock failure never refuses a publish.
-func acquirePublishLock(dir string) (string, *os.File) {
+// heldPublishLocks retains every live publish lock's file, keyed by its token, so
+// the lock is held until releasePublishLock closes it or the process exits. An
+// *os.File left unreachable is closed by its finalizer, which would free the lock
+// at the next GC and make a live publisher that dropped its done callback read as
+// gone (mutation-abandoned). Retention here fails that case safe: the entry keeps
+// blocking as mutation-pending, exactly as before change 0494. Only
+// releasePublishLock removes an entry.
+var heldPublishLocks = struct {
+	sync.Mutex
+	files map[string]*os.File
+}{files: map[string]*os.File{}}
+
+// acquirePublishLock mints a fresh token and takes its lock in dir without waiting,
+// retaining the lock in heldPublishLocks until releasePublishLock(token). Any
+// failure (no token, no dir, an I/O error, or a busy answer on a fresh token)
+// returns "". The caller then journals the entry without a token and publishes
+// anyway: a lock failure never refuses a publish.
+func acquirePublishLock(dir string) string {
 	tok, err := publishLockMintToken()
 	if err != nil {
-		return "", nil
+		return ""
 	}
 	path, ok := publishLockPath(dir, tok)
 	if !ok {
-		return "", nil
+		return ""
 	}
 	f, busy, err := publishLockAcquire(path)
 	if err != nil || busy || f == nil {
 		if f != nil {
 			_ = f.Close()
 		}
-		return "", nil
+		return ""
 	}
-	return tok, f
+	heldPublishLocks.Lock()
+	defer heldPublishLocks.Unlock()
+	if _, dup := heldPublishLocks.files[tok]; dup {
+		// A token already held in this process cannot be a fresh one; never
+		// overwrite (and so orphan) the retained file.
+		_ = f.Close()
+		return ""
+	}
+	heldPublishLocks.files[tok] = f
+	return tok
+}
+
+// releasePublishLock releases token's publish lock by closing its file (never
+// LOCK_UN, and the lock file is never deleted: ADR-0132). An empty, unknown, or
+// already-released token is a no-op, so release is idempotent.
+func releasePublishLock(token string) {
+	if token == "" {
+		return
+	}
+	heldPublishLocks.Lock()
+	f, ok := heldPublishLocks.files[token]
+	delete(heldPublishLocks.files, token)
+	heldPublishLocks.Unlock()
+	if ok && f != nil {
+		_ = f.Close()
+	}
 }
 
 // publisherGone reports whether m is an admitted entry whose publisher provably
