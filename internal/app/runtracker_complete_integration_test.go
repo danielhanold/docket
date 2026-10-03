@@ -614,11 +614,13 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunSettlesUncertainPublicatio
 	}
 }
 
-// TestIntegrationRunCompletionCompleteSuccessfulRunStillBlocksWithoutRetry (change 0444): an uncertain
-// publication with no completed identical retry keeps the closeout blocked
-// (completion-unaccounted) and the entry uncertain — change 0441's fail-closed
-// accounting is not weakened by settlement.
-func TestIntegrationRunCompletionCompleteSuccessfulRunStillBlocksWithoutRetry(t *testing.T) {
+// TestIntegrationRunCompletionCompleteSuccessfulRunAbandonsUncertainWithoutRetry
+// (change 0444, rewritten by change 0494): an uncertain publication with no
+// completed identical retry once kept the closeout blocked. Change 0494 reversed
+// that premise: the publisher returned without seeing the outcome, so the closeout
+// completes and reports the informational mutation-abandoned:<op>, and the entry
+// stays uncertain (settlement still needs a verified identical retry).
+func TestIntegrationRunCompletionCompleteSuccessfulRunAbandonsUncertainWithoutRetry(t *testing.T) {
 	fx := newCompletionFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
@@ -631,29 +633,32 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunStillBlocksWithoutRetry(t 
 		t.Fatalf("seed journal: %v", err)
 	}
 	ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key)
-	if ok || reason != "completion-unaccounted" {
-		t.Fatalf("ok=%v reason=%q findings=%v, want blocked completion-unaccounted", ok, reason, findings)
+	if !ok {
+		t.Fatalf("ok=%v reason=%q findings=%v, want completed", ok, reason, findings)
 	}
-	if !hasFinding(findings, "mutation-pending:"+OperationWorkspacePublish) {
-		t.Fatalf("findings = %v, want mutation-pending:%s", findings, OperationWorkspacePublish)
+	if countFinding(findings, "mutation-abandoned:"+OperationWorkspacePublish) != 1 || hasFinding(findings, "mutation-pending") {
+		t.Fatalf("findings = %v, want exactly one mutation-abandoned:%s and no mutation-pending", findings, OperationWorkspacePublish)
 	}
 	ep, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
-	if ep.State != RunCompleting {
-		t.Fatalf("state = %q, want completing (the success fence holds while blocked)", ep.State)
+	if ep.State != RunCompleted {
+		t.Fatalf("state = %q, want completed", ep.State)
 	}
 	if ep.AdmittedMutations[0].Status != mutationStatusUncertain {
 		t.Fatalf("unmatched entry status = %q, want still uncertain", ep.AdmittedMutations[0].Status)
 	}
 }
 
-// TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnUnverifiedRetry (change 0444 review blocker):
-// an identical retry that completed WITHOUT verifying its postcondition (contended,
-// refused, internally failed — journaled completed, verified false) is no evidence,
-// so the attributed closeout stays blocked and the original stays uncertain.
-func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnUnverifiedRetry(t *testing.T) {
+// TestIntegrationRunCompletionCompleteSuccessfulRunUnverifiedRetrySettlesNothing
+// (change 0444 review blocker, rewritten by change 0494): an identical retry that
+// completed WITHOUT verifying its postcondition (contended, refused, internally
+// failed — journaled completed, verified false) is still no evidence, so nothing is
+// settled and the original stays uncertain. Change 0494 reversed the blocking
+// premise: the uncertain original no longer blocks the closeout and is reported
+// mutation-abandoned:<op> instead.
+func TestIntegrationRunCompletionCompleteSuccessfulRunUnverifiedRetrySettlesNothing(t *testing.T) {
 	fx := newCompletionFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
@@ -667,11 +672,14 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnUnverifiedRetry(t 
 		t.Fatalf("seed journal: %v", err)
 	}
 	ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key)
-	if ok || reason != "completion-unaccounted" {
-		t.Fatalf("ok=%v reason=%q findings=%v, want blocked completion-unaccounted", ok, reason, findings)
+	if !ok {
+		t.Fatalf("ok=%v reason=%q findings=%v, want completed", ok, reason, findings)
 	}
 	if hasFinding(findings, "mutation-settled") {
 		t.Fatalf("findings = %v; an unverified retry must settle nothing", findings)
+	}
+	if countFinding(findings, "mutation-abandoned:"+OperationWorkspacePublish) != 1 {
+		t.Fatalf("findings = %v, want exactly one mutation-abandoned:%s", findings, OperationWorkspacePublish)
 	}
 	ep, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {

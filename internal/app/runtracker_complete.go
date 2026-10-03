@@ -171,8 +171,9 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 	// (3) Accounting over the fenced record that stops nothing and settles only a
 	// proven never-launched first launch (HALTED launch-abandoned). Any blocking obligation
 	// (an unobserved native task, a live/unproven execution process, an unaccounted
-	// launch, an uncompleted mutation) fails closed; informational findings (a
-	// settled drive's run-terminal or tree-survives) are accounted and never block.
+	// launch, a mutation whose publisher may still be running) fails closed;
+	// informational findings (a settled drive's run-terminal or tree-survives, a
+	// mutation-abandoned) are accounted and never block.
 	// The step (1b) settlement tokens
 	// stay ahead of the accounting findings.
 	blocked, afindings := accountCompletionObligations(seams, repoDir, runKey, ep)
@@ -195,7 +196,7 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 		return false, "run-cancelled", findings // a cancellation won from completing
 	}
 	pblocked, pf := accountCompletionParticipants(seams, reEp)
-	mblocked, mf := accountCompletionMutations(reEp)
+	mblocked, mf := accountCompletionMutations(repoDir, runKey, reEp)
 	if pblocked || mblocked {
 		blocked = true
 	}
@@ -241,7 +242,7 @@ func accountCompletionObligations(seams cancelSeams, repoDir, runKey string, ep 
 
 	pblocked, pf := accountCompletionParticipants(seams, ep)
 	lblocked, lf := accountCompletionLaunches(seams, repoDir, runKey)
-	mblocked, mf := accountCompletionMutations(ep)
+	mblocked, mf := accountCompletionMutations(repoDir, runKey, ep)
 
 	if pblocked || lblocked || mblocked {
 		blocked = true
@@ -320,18 +321,14 @@ func durableExecutionProof(seams cancelSeams, handle string) bool {
 	return found && (outcome == gatedrive.PASSED || outcome == gatedrive.FAILED)
 }
 
-// accountCompletionMutations blocks on any admitted-not-completed mutation
-// (mutation-pending:<op>), mirroring cancellation's mutation reconciliation.
-func accountCompletionMutations(ep RunRecord) (bool, []string) {
-	blocked := false
-	var findings []string
-	for _, m := range ep.AdmittedMutations {
-		if m.Status != mutationStatusCompleted {
-			findings = append(findings, "mutation-pending:"+m.OpKey)
-			blocked = true
-		}
-	}
-	return blocked, findings
+// accountCompletionMutations accounts the journal through the single journal rule
+// (classifyAdmittedMutation, change 0494), mirroring cancellation. A publisher that
+// may still be running, or an unprovable entry, blocks with mutation-pending:<op>.
+// An uncertain entry, or one whose publisher provably exited, is accounted with the
+// informational mutation-abandoned:<op>. RunVerify's live probes behind the verified
+// run-complete, not the journal, are the evidence that a publication landed.
+func accountCompletionMutations(repoDir, runKey string, ep RunRecord) (bool, []string) {
+	return accountAdmittedMutations(runJournalDir(repoDir, runKey), ep.AdmittedMutations)
 }
 
 // accountCompletionLaunches accounts the run's drives through the verdict-mode
