@@ -52,3 +52,13 @@ From the root of each repo that uses docket:
   - a one-word budget change.
 - No test outside the relaunch-asserting, incidental-field and pin groups needed an assertion change.
 - The full suite is certified by the build gate on the branch head. The evidence is in the PR body.
+- A deep whole-branch review found no blockers and no important findings. It raised two minor findings, both fixed in-branch as comment-only changes: the `supervisor-died` and `proveNoTreeSurvives` docs overstated what is proven, and one doc paragraph was mis-wrapped.
+
+## Known issues and follow-ups
+
+### Re-running finalize can start a second suite beside an orphaned one
+
+- **When it happens:** a gate's supervisor dies but its test suite keeps running (change 0492's `tree-survives` case), and someone re-runs finalize right away. The new run takes the free worktree lock and can start a second suite in the same worktree while the orphaned one is still running.
+- **Status:** suspected; spotted in review. Build gates and the old relaunch already carried this risk, so this change adds none.
+- **Workaround:** before re-running, check that no `go test` processes are still running from that worktree.
+- **Next step:** human triage alongside change 0492's remaining items (suite teardown: items 1, 2 and 4).
