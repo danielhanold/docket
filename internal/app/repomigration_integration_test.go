@@ -653,33 +653,6 @@ func keysOf(m map[string]bool) []string {
 // repair, and prove the canonical bytes were recomputed while authored content
 // stayed byte-identical.
 
-// staleRepairRecord is a change record with a spec but an EMPTY managed
-// artifact-links block (so the canonical render drifts) and a distinctive
-// authored sentence the repair must never touch.
-const repairAuthoredSentinel = "AUTHORED-PROSE-SENTINEL-do-not-touch"
-
-func staleRepairRecord() string {
-	return "---\n" +
-		"id: 1\nslug: example\ntitle: Example change\nstatus: proposed\npriority: medium\n" +
-		"type: feature\ncreated: 2026-08-30\nupdated: 2026-08-30\n" +
-		"spec: docs/superpowers/specs/2026-08-30-example-design.md\n" +
-		"---\n\n## Artifacts\n\n" +
-		"<!-- docket:artifacts:start (generated — do not hand-edit) -->\n" +
-		"<!-- docket:artifacts:end -->\n\n## Why\n\n" + repairAuthoredSentinel + "\n"
-}
-
-// publishHealthyDrift publishes a stale board and a stale artifact-links record
-// onto the healthy metadata branch, returning the pinned docket tip afterward.
-func (r *initRepo) publishHealthyDrift(t *testing.T) {
-	t.Helper()
-	dotDocket := filepath.Join(r.invocation, ".docket")
-	writeRepoFile(t, dotDocket, "docs/changes/BOARD.md", "# Backlog\n\nhand-written stale board\n")
-	writeRepoFile(t, dotDocket, "docs/changes/active/0001-example.md", staleRepairRecord())
-	runGit(t, dotDocket, "add", "--", "docs/changes/BOARD.md", "docs/changes/active/0001-example.md")
-	runGit(t, dotDocket, "commit", "-q", "-m", "publish stale derived views")
-	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
-}
-
 // TestIntegrationRepoMigrationHealthyRepairPreview proves migrate on a healthy
 // repository with derived-view drift, WITHOUT --yes, returns confirmation-required
 // naming the pinned metadata revision and the repaired file set — and writes
@@ -743,29 +716,4 @@ func TestIntegrationRepoMigrationHealthyRepairApplies(t *testing.T) {
 	if second.Result != ResultNoOp {
 		t.Errorf("second repair = %q (%s), want no-op (nothing left to repair)", second.Result, second.HumanText())
 	}
-}
-
-// currentDocketTip returns the remote docket branch tip via an independent git
-// oracle.
-func currentDocketTip(t *testing.T, r *initRepo) string {
-	t.Helper()
-	runGit(t, r.invocation, "fetch", "-q", "origin", string(reposetup.MetadataBranchName))
-	return strings.TrimSpace(runGit(t, r.invocation, "rev-parse", "FETCH_HEAD"))
-}
-
-// showDocketFile reads a file from the remote docket branch tip.
-func showDocketFile(t *testing.T, r *initRepo, relPath string) string {
-	t.Helper()
-	runGit(t, r.invocation, "fetch", "-q", "origin", string(reposetup.MetadataBranchName))
-	return runGit(t, r.invocation, "show", "FETCH_HEAD:"+relPath)
-}
-
-// containsPath reports whether s contains p.
-func containsPath(s []string, p string) bool {
-	for _, v := range s {
-		if v == p {
-			return true
-		}
-	}
-	return false
 }
