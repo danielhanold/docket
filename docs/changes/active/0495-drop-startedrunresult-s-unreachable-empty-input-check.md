@@ -2,7 +2,7 @@
 id: 495
 slug: 'drop-startedrunresult-s-unreachable-empty-input-check'
 title: 'Drop startedRunResult''s unreachable empty-input check'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-03'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/drop-startedrunresult-s-unreachable-empty-input-check'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/369'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-03T08:41:46Z'
