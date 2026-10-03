@@ -478,3 +478,30 @@ func TestOldRelaunchRecordAdvancesToSupervisorDied(t *testing.T) {
 		t.Fatalf("an old reservation is never acted on: launches=%d resolves=%d stops=%d", proc.launchN, proc.resolveN, proc.stopN)
 	}
 }
+
+// TestDriveClaimKeepsRelaunchLockFileName (change 0493): the per-drive claim is
+// still the relaunch.lock file on disk, so a pre-0493 CLI still running across
+// the upgrade and a new one contend on the same flock.
+func TestDriveClaimKeepsRelaunchLockFileName(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	id, _, err := store.NewDrive(sampleRecord())
+	if err != nil {
+		t.Fatalf("NewDrive: %v", err)
+	}
+	c, busy, err := store.tryDriveClaim(id)
+	if err != nil || busy {
+		t.Fatalf("tryDriveClaim = busy %v err %v, want a free claim", busy, err)
+	}
+	defer c.close()
+	path := filepath.Join(store.root, id, "relaunch.lock")
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("the per-drive claim must be created at %s: %v", path, err)
+	}
+	f, busy, err := tryAcquireExclusiveLock(path)
+	if f != nil {
+		f.Close()
+	}
+	if err != nil || !busy {
+		t.Fatalf("an independent flock on relaunch.lock must be refused while the claim is held: busy %v err %v", busy, err)
+	}
+}

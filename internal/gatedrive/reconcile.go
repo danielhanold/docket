@@ -184,7 +184,7 @@ func (d *Driver) reconcileRunDrive(id string, rec driveRecord, mode censusMode) 
 	case HALTED:
 		return d.reconcileHaltedDrive(id, rec, mode)
 	}
-	claim, busy, cerr := d.store.tryRelaunchClaim(id)
+	claim, busy, cerr := d.store.tryDriveClaim(id)
 	if cerr != nil {
 		return false, "resolution-unresolved:" + id
 	}

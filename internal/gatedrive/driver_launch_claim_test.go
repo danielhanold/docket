@@ -32,7 +32,7 @@ func blockingLaunch(entered, release chan struct{}) func(process.LaunchRequest) 
 // launch without launching and without waiting: the test holds the drive's claim
 // (a concurrent launch/attach is in flight), so StartAdmitted returns promptly
 // with a typed refusal and frees the ticket's worktree. The done channel — not a timer — is the promptness oracle:
-// tryRelaunchClaim is nonblocking, so StartAdmitted must return without the test
+// tryDriveClaim is nonblocking, so StartAdmitted must return without the test
 // ever releasing the claim.
 func TestStartAdmittedRefusesBusyClaim(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
@@ -45,9 +45,9 @@ func TestStartAdmittedRefusesBusyClaim(t *testing.T) {
 		t.Fatalf("Admit: %v", err)
 	}
 
-	held, busy, cerr := store.tryRelaunchClaim(ticket.id)
+	held, busy, cerr := store.tryDriveClaim(ticket.id)
 	if cerr != nil {
-		t.Fatalf("tryRelaunchClaim: %v", cerr)
+		t.Fatalf("tryDriveClaim: %v", cerr)
 	}
 	if busy {
 		t.Fatal("the drive's claim must be free before the test holds it")
@@ -75,7 +75,7 @@ func TestStartAdmittedRefusesBusyClaim(t *testing.T) {
 
 // TestStartAdmittedHoldsClaimAcrossLaunch proves the drive's claimant flock is
 // HELD across the launch: a launch parked on a barrier makes a concurrent
-// tryRelaunchClaim report busy (pending work, never a crashed caller); once
+// tryDriveClaim report busy (pending work, never a crashed caller); once
 // launch+attach complete the claim is free again before the drive slice.
 func TestStartAdmittedHoldsClaimAcrossLaunch(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
@@ -99,9 +99,9 @@ func TestStartAdmittedHoldsClaimAcrossLaunch(t *testing.T) {
 	}()
 
 	<-entered // launch is parked: the claim is held across it
-	c, busy, cerr := store.tryRelaunchClaim(ticket.id)
+	c, busy, cerr := store.tryDriveClaim(ticket.id)
 	if cerr != nil {
-		t.Fatalf("tryRelaunchClaim during launch: %v", cerr)
+		t.Fatalf("tryDriveClaim during launch: %v", cerr)
 	}
 	if !busy {
 		c.close()
@@ -113,9 +113,9 @@ func TestStartAdmittedHoldsClaimAcrossLaunch(t *testing.T) {
 		t.Fatalf("StartAdmitted: %v", serr)
 	}
 
-	free, busyAfter, cerr := store.tryRelaunchClaim(ticket.id)
+	free, busyAfter, cerr := store.tryDriveClaim(ticket.id)
 	if cerr != nil {
-		t.Fatalf("tryRelaunchClaim after launch: %v", cerr)
+		t.Fatalf("tryDriveClaim after launch: %v", cerr)
 	}
 	if busyAfter {
 		t.Fatal("the claim must be FREE again after launch+attach return")
