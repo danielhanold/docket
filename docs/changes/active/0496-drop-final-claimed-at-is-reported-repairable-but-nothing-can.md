@@ -22,7 +22,7 @@ branch: 'fix/drop-final-claimed-at-is-reported-repairable-but-nothing-can'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-03T09:06:17Z'
+claimed_at: '2026-10-03T09:30:54Z'
 ---
 
 ## Artifacts
