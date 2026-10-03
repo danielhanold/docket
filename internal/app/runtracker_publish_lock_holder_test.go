@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/danielhanold/docket/internal/process"
@@ -26,6 +27,6 @@ func runPublishLockHolder(lockPath, readyPath string) int {
 	}
 	for {
 		time.Sleep(time.Hour)
-		_ = f // keep the descriptor (and so the lock) reachable until death
+		runtime.KeepAlive(f) // keep the descriptor (and so the lock) reachable until death
 	}
 }

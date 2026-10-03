@@ -8,8 +8,9 @@
 //
 // STOPS NOTHING. Closeout stops nothing and signals nothing: it never invokes
 // native cancellation and never process.Stop. Its two writes are
-// settleUncertainPublications (change 0444) — an uncertain→completed flip of
-// publication entries a later verified identical retry proves, derived from the
+// settleUncertainPublications (change 0444) — its two journal transitions,
+// admitted→uncertain for an entry whose publisher is provably dead, then
+// uncertain→completed for an entry a later verified identical retry matches, derived from the
 // durable journal alone with no Git or GitHub call — and the verdict-mode launch
 // census's settle of a proven never-launched first launch, HALTED
 // launch-abandoned (change 0491), so a launcher killed between Admit and
@@ -156,7 +157,8 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, 
 	// ordinary run CAS. The attributed keyed closeout is a WRITE path (unlike
 	// RunVerify and unattributed verdicts, which stay read-only), but it still
 	// stops no task and launches no mutation: this step's only write is
-	// uncertain→completed on matched journal entries. It runs before the step (2)
+	// admitted→uncertain for a dead publisher, then uncertain→completed on a
+	// verified identical retry match. It runs before the step (2)
 	// reload so both the step (3) accounting read and the step (4) re-enumeration
 	// read see the settled journal. A failed
 	// settlement is a bounded finding; the entry stays uncertain and the
