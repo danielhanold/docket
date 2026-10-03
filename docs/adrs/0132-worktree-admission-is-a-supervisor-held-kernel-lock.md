@@ -163,3 +163,7 @@ Costs: the slot's run linkage moves to `run_context_hash` attribution; an old-bi
 ## Update — 2026-10-02 (change 0491, ADR-0133)
 
 The decision stands. The cancellation and resume rules of ADR-0118 that this ADR left standing until change 0491 are replaced by ADR-0133: the run key is the run tracker's only handle, and gate starts carry no run check.
+
+## Update — 2026-10-03 (change 0492, ADR-0134)
+
+The decision stands. ADR-0134 narrows the accepted loss "Process-tree teardown gaps … change 0492 tracks them": gap 1 (a supervisor that dies alone leaves its suite running) is now reported by the launch census as an informational `tree-survives` finding, gap 3 (the relaunch trusts "vanished") goes with change 0493's retirement of the relaunch, and gaps 2 (a KILL escalation leaves test targets running) and 4 (on a graceful stop the worktree frees before teardown ends) remain accepted.
