@@ -62,8 +62,10 @@ import (
 // runtracker_cancel.go). `admitted` is journaled before a mutation is performed;
 // `completed` marks a mutation that finished with an observed outcome; `uncertain`
 // marks one whose remote outcome could not be observed — both keep the durable
-// record so a cancellation reconciles against a real journal, but only `completed`
-// lets a cancellation reach `cancelled`.
+// record so a cancellation reconciles against a real journal. `completed` is
+// accounted; `uncertain`, or `admitted` whose publisher provably exited (a free
+// publish lock, change 0494), is accounted as the informational mutation-abandoned;
+// any other entry keeps a cancellation pending (classifyAdmittedMutation).
 const (
 	mutationStatusAdmitted  = "admitted"
 	mutationStatusUncertain = "uncertain"
@@ -149,7 +151,9 @@ func fenceRefusalReasonMessage(ferr error, subject string) (reason, message stri
 // verified true ONLY when the boundary observed the operation's postcondition
 // (mutationJournalOutcome derives both from the final Result). It is best-effort: a
 // journal-write failure never fails the (already-performed) mutation, and a
-// repeated cancellation re-enumerates the journal to reconcile it.
+// repeated cancellation re-enumerates the journal to reconcile it. For a
+// publication it also releases the publisher's per-entry lock, after the outcome
+// write and on every path (change 0494).
 type mutationJournalDone func(status string, verified bool)
 
 // noopJournalDone is the completion callback for an UNFENCED mutation (no owning
@@ -170,7 +174,9 @@ func noopJournalDone(string, bool) {}
 //     slot — an accepted loss the change's spec records.
 //   - Owning run ACTIVE → journal an `admitted` entry under the run's
 //     conflict-checked write and return (done, nil). `done(completed|uncertain, verified)`
-//     updates exactly that entry after the mutation resolves.
+//     updates exactly that entry after the mutation resolves. A publication
+//     (pub != nil) first takes its per-entry publish lock and journals its token
+//     (change 0494).
 //   - Owning run CANCELLING/CANCELLED → (nil, ErrRunCancelled).
 //   - Owning run SUPERSEDED → (nil, ErrRunSuperseded).
 //   - Owning run COMPLETING/COMPLETED → (nil, ErrRunCompleted). A completed run
@@ -212,6 +218,29 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 		return noopJournalDone, nil
 	}
 
+	// Publisher liveness (change 0494). A publication takes a per-entry kernel lock
+	// BEFORE its admitted entry becomes visible and releases it only AFTER its
+	// outcome is written (the done callback below), so admitted-with-a-free-lock
+	// proves the publisher exited without recording an outcome
+	// (classifyAdmittedMutation). A lock that cannot be taken never refuses the
+	// publish: the entry is journaled without a token and behaves exactly as before.
+	// Metadata transactions (pub == nil) take no lock.
+	var (
+		lockToken string
+		lockFile  *os.File
+	)
+	if pub != nil {
+		if dir, derr := runKeyDir(repoDir, runKey, "publish-lock"); derr == nil {
+			lockToken, lockFile = acquirePublishLock(dir)
+		}
+	}
+	releaseLock := func() {
+		if lockFile != nil {
+			_ = lockFile.Close() // release by close only, never LOCK_UN (ADR-0132)
+			lockFile = nil
+		}
+	}
+
 	// Atomic state gate + `admitted` journal. runRecordCAS serializes on the per-key
 	// run lock, so a concurrent run.cancel either loses the race (this admit wins
 	// and is later reconciled) or wins (this returns the fence refusal) — never both.
@@ -224,6 +253,7 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 				OpKey:       op,
 				Status:      mutationStatusAdmitted,
 				Publication: pub,
+				LockToken:   lockToken,
 			})
 			return nil
 		case RunSuperseded:
@@ -243,10 +273,15 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 		}
 	})
 	if cerr != nil {
+		releaseLock() // a fence refusal leaves no lock held
 		return nil, cerr
 	}
 
 	done := func(status string, verified bool) {
+		// Outcome FIRST, release LAST (change 0494): the publish lock is closed only
+		// after the outcome write returns, even when that write fails, so a reader
+		// never sees admitted-with-a-free-lock for a publisher that is still writing.
+		defer releaseLock()
 		// Best-effort reconciliation: update exactly the entry this admission appended.
 		// No state gate — marking an in-flight mutation completed/uncertain must work
 		// even after the run was fenced, so a cancellation can move from pending to

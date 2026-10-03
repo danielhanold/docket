@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 )
@@ -396,9 +397,16 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 		if aerr != nil {
 			t.Fatalf("round %d: admit retry: %v", round, aerr)
 		}
-		if _, aerr := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &ru); aerr != nil {
+		// inflight keeps every still-in-flight admission's callback reachable (change
+		// 0494): a discarded callback lets the GC finalize its publish lock's *os.File,
+		// which closes the lock and would make an in-flight publisher read as gone.
+		// They are never called: the test asserts these entries stay admitted.
+		var inflight []mutationJournalDone
+		ud, aerr := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &ru)
+		if aerr != nil {
 			t.Fatalf("round %d: admit unrelated: %v", round, aerr)
 		}
+		inflight = append(inflight, ud)
 
 		start := make(chan struct{})
 		var (
@@ -434,11 +442,14 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 				<-start
 				cp := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 					HeadRef: fmt.Sprintf("refs/heads/fix/racer-%d", k), HeadCommit: rd.HeadCommit}
-				if _, err := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &cp); err != nil {
-					mu.Lock()
+				cd, err := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &cp)
+				mu.Lock()
+				if err != nil {
 					admitErrs = append(admitErrs, err)
-					mu.Unlock()
+				} else {
+					inflight = append(inflight, cd)
 				}
+				mu.Unlock()
 			}()
 		}
 		close(start)
@@ -494,6 +505,7 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 		if s := conv.AdmittedMutations[base].Status; s != mutationStatusCompleted {
 			t.Fatalf("round %d: original = %q after convergence, want completed", round, s)
 		}
+		runtime.KeepAlive(inflight)
 	}
 }
 

@@ -30,6 +30,7 @@ type fakeGitHub struct {
 	ensureErr error
 	probePRs  []githubcli.PullRequest
 	probeErr  error
+	onEnsure  func() // called first inside EnsurePullRequest, when set
 
 	discoverCalls int
 	ensureCalls   []githubcli.EnsurePullRequestRequest
@@ -42,6 +43,9 @@ func (f *fakeGitHub) DiscoverRepository(_ context.Context, _ string) (githubcli.
 }
 
 func (f *fakeGitHub) EnsurePullRequest(_ context.Context, req githubcli.EnsurePullRequestRequest) (githubcli.EnsureResult, error) {
+	if f.onEnsure != nil {
+		f.onEnsure()
+	}
 	f.ensureCalls = append(f.ensureCalls, req)
 	return f.ensureRes, f.ensureErr
 }
