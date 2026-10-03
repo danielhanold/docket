@@ -81,10 +81,10 @@ There is no standalone renderer to run by hand: the transactions own the render,
 repository.check  --json   # resolve argv from the capability catalog
 ```
 
-surfaces the drift as a structured finding (`adr-index-stale` when the bytes differ deterministically, `adr-index-malformed` when the markers are broken) — never a false "all clean" on a read error. A deterministic `adr-index-stale` finding is `Repairable`; regenerate the drifted index through the authorized mechanical repair — the `repository.repair` operation, which previews the repair set and writes only when re-run with `--yes`:
+surfaces the drift as a structured finding (`adr-index-stale` when the bytes differ deterministically, `adr-index-malformed` when the markers are broken) — never a false "all clean" on a read error. A deterministic `adr-index-stale` finding is `Repairable`; regenerate the drifted index through the authorized mechanical repair — the `repository.repair` operation, which previews the repair set; a human authorizes its `--yes` apply:
 
 ```
-repository.repair  --yes   # resolve argv from the capability catalog; run it without --yes first to preview
+repository.repair   # resolve argv from the capability catalog; previews only
 ```
 
 Repair re-renders only the canonical derived bytes it owns (marker order and balance validated first — a malformed index refuses and leaves the file untouched) and never edits an authored ADR body. It re-proves the pinned revision before writing and commits on `metadata_branch`. On a git conflict on the index, re-run the repair rather than hand-merging (the regenerate-don't-3-way-merge rule).
