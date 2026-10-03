@@ -13,7 +13,7 @@ related: []
 discovered_from: [491]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-03T08:37:43Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md) |
+| Plan | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md](https://github.com/danielhanold/docket/blob/refactor/drop-startedrunresult-s-unreachable-empty-input-check/docs/superpowers/plans/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
