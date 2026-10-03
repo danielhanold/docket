@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'high'
 type: 'fix'
 created: '2026-10-02'
-updated: '2026-10-02'
+updated: '2026-10-03'
 depends_on: []
 stacked_on:
-related: [444, 491]
+related: [444, 491, 492]
 discovered_from: [491]
-adrs: [124]
-spec:
+adrs: [118, 124, 132, 133, 134]
+spec: 'docs/superpowers/specs/2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos-design.md'
 plan:
 results:
 trivial: false
@@ -29,38 +29,50 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md) |
+| Spec | [2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos-design.md) |
+| ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md), [ADR-0133](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0133-the-run-key-is-the-run-tracker-s-only-handle-gate-starts-car.md), [ADR-0134](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0134-a-dead-supervisor-s-suite-counts-as-gone-only-when-its-proce.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Found while grooming 0491 (2026-10-02). It is confirmed only by reading the code on `main` (756fea9fe); nothing has reproduced it yet.
+Found while grooming 0491 (2026-10-02). Grooming on 2026-10-03 confirmed it by reading the code on main (1fc28e872, after 0491 and 0492 merged). Nothing has reproduced it, and no run record on this machine shows it.
 
-Before `pr.publish` or `workspace.publish` does its remote work for a tracked run, `admitWorkflowMutation` (`internal/app/runtracker_fence.go`) appends an `admitted` entry to the owning run's mutation journal. The same process moves the entry to `completed` or `uncertain` when the remote work returns (`mutationJournalOutcome`). Metadata transactions are not affected: `MutationAdmissionHook` marks their entry `completed` at admission.
+Before `pr.publish` or `workspace.publish` does its remote work for a tracked run, it writes an `admitted` entry in the owning run's mutation journal. The same process rewrites the entry as `completed` or `uncertain` when the work returns. If the process dies in between, the entry stays `admitted` for good. That covers Ctrl-C, a coordinator interrupt, and a crash: the CLI installs no signal handler for these operations.
 
-If the command is killed in between (Ctrl-C, a coordinator interrupt, or a crash during the GitHub call or the push), the entry stays `admitted` for good:
+- **Nothing settles it.** 0444's retry match settles only `uncertain` entries.
+- **The success closeout never finishes.** `run.verdict` prints `completion-unaccounted` on every call, and the run stays `completing`.
+- **Cancel never finishes.** It stays `cancellation-pending`, and `run.start --resume` refuses the change.
 
-- **Nothing settles it.** `settleUncertainPublications` and `publicationRetryMatch` (`internal/app/runtracker_publication.go`, change 0444) settle only `uncertain` entries. Even a later identical publish that completes and is verified leaves the `admitted` entry in place.
-- **The success closeout never finishes.** The keyed closeout counts the entry as outstanding (`accountCompletionMutations` → `mutation-pending:<op>`). `run.verdict` prints `run-stop <key> run-tracker-unavailable completion-unaccounted` on every call, and the run stays `completing`.
-- **Cancel never finishes.** `run.cancel` counts the entry the same way (the journal step of `reconcileRunTeardown`, and `verifyTerminalRunQuiescence` on a repeat cancel). Cancel stays `cancellation-pending` for good, and `run.start --resume` refuses the change.
-
-No docket operation clears the entry. The only remedy is hand-editing the run record under `.git/docket/run-tracker/<key>/`.
-
-A likely real-world path: the coordinator is interrupted during implement-next's final branch push or PR creation. The human re-runs it, and the retry publishes successfully. The run can still neither complete nor be cancelled.
+An `uncertain` entry with no successful identical retry wedges the same way. Once cancel or the closeout fences the run, docket refuses every new publish, so that retry can never happen. 0444 left both cases to "human investigation", but no docket operation clears an entry. The only remedy is hand-editing the run record under `.git/docket/run-tracker/<key>/`.
 
 ## What changes
 
-These are hypotheses for grooming to evaluate, not decisions:
-
-- **Let a later verified identical retry settle a stale `admitted` publication**, the way it already settles an `uncertain` one (`publicationRetryMatch`). This reuses 0444's machinery. The open point is proving that the process which wrote the `admitted` entry is gone, not still mid-publish, before settling it.
-- **Or verify the postcondition directly** for a stale `admitted` entry: the PR exists at the recorded head, or the remote branch is at the recorded head. This adds GitHub and git reads to the closeout or cancel path.
-- **Or have the publish record its entry as `uncertain` at a safe earlier point**, so a crash leaves an entry the existing retry match can settle.
-- Whatever settles it, decide what `run.cancel` does over an entry whose outcome can never be known: stay pending (today), or report it as a finding and finish.
-
-Any new check states its failure posture up front, and prefers making the problem visible over halting a run.
+- **The publisher holds a lock.**
+  - `pr.publish` and `workspace.publish` take a per-entry kernel lock before writing their `admitted` entry, and release it only after writing the outcome.
+  - The operating system frees the lock when the process dies, so a free lock proves the publisher is gone.
+  - A lock failure never refuses the publish; the entry then behaves exactly as today.
+  - This is the pattern `live.lock` and the worktree lock (ADR-0132) already use.
+- **An entry blocks only while its publisher may still be running.** Cancel, the death guardian, resume's check, and the success closeout share one rule:
+  - `completed` is accounted;
+  - `uncertain`, or `admitted` with a free lock, is accounted with a new informational finding, `mutation-abandoned:<op>`;
+  - `admitted` with a held lock, a missing lock file, a probe error, or no lock still blocks as `mutation-pending`, as today.
+- **The journal stays truthful.** Cancel and the keyed closeout rewrite a dead publisher's `admitted` entry as `uncertain`, so a later verified identical retry still settles it (`mutation-settled`).
+- **Why it is safe.** `run-complete` already proves the branch and the PR live, and both publishes converge on a retry, so a resumed run adopts whatever landed.
+- **Failure posture.** No new refusal, no new block, and no new signal or GitHub call. The finding never blocks.
+- **Records and docs.**
+  - A new ADR, with Update notes on ADR-0124 and ADR-0118.
+  - A glossary entry and a run-tracker concept paragraph.
+- **Tests.**
+  - Killed, live, unprovable, retried, and no-retry cases.
+  - A real SIGKILL test on macOS.
+  - Mutation checks.
+  - 0444's no-retry tests are rewritten to the new rule.
 
 ## Out of scope
 
-- The never-started test run that wedges `run.verdict` (0490 review finding F3), and the missing test-run folder. 0491 fixes both.
-- Metadata transactions, whose journal entry is completed at admission.
-- The run id and its retirement (0491).
+- A Ctrl-C handler in the CLI. The lock covers every kind of death.
+- Live Git or GitHub checks inside cancel, closeout, or resume.
+- A force-clear command or flag.
+- Rewriting existing journal entries, or deleting lock files.
+- Metadata transactions (completed at admission), and `finalize.publish` (not journaled).
+- The never-started test run and the missing run root, both fixed by 0491.
