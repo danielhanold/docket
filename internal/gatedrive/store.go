@@ -347,10 +347,9 @@ func (s *Store) readStored(dir string) (storedRecord, error) {
 		return storedRecord{}, storeErr(ErrCorruptRecord, "read", err)
 	}
 	// The current generation and the immediately-prior one both load; every other
-	// version fails closed. A v3 record reads with RelaunchReserved false and an
-	// empty RelaunchToken, then upgrades to v4 on its next write (CAS re-stamps
-	// SchemaVersion), so a live drive survives the reservation-journal bump. v2
-	// and unknown versions are refused rather than best-effort migrated.
+	// version fails closed. A v3 record loads unchanged and upgrades to v4 on its
+	// next write (CAS re-stamps SchemaVersion). v2 and unknown versions are
+	// refused rather than best-effort migrated.
 	if stored.Record.SchemaVersion != driveSchemaVersion && stored.Record.SchemaVersion != driveSchemaVersionLegacy {
 		return storedRecord{}, storeErr(ErrUnknownSchema, "read",
 			fmt.Errorf("schema version %d, want %d or %d", stored.Record.SchemaVersion, driveSchemaVersion, driveSchemaVersionLegacy))

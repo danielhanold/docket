@@ -136,8 +136,8 @@ func TestDriveSchemaV2FailsClosedUnderV4(t *testing.T) {
 }
 
 // TestDriveSchemaV3LoadsAndUpgradesUnderV4 proves the reservation-journal
-// compatibility rule: an in-flight v3 record still LOADS (its missing
-// RelaunchReserved reads false), and the next write stamps it forward to v4.
+// compatibility rule: an in-flight v3 record still LOADS, and the next write
+// stamps it forward to v4.
 func TestDriveSchemaV3LoadsAndUpgradesUnderV4(t *testing.T) {
 	if driveSchemaVersion != 4 || driveSchemaVersionLegacy != 3 {
 		t.Fatalf("this compatibility assertion is pinned to v4 reading v3, got v%d reading v%d", driveSchemaVersion, driveSchemaVersionLegacy)
@@ -147,8 +147,7 @@ func TestDriveSchemaV3LoadsAndUpgradesUnderV4(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)
 	}
-	// Overwrite with an explicit v3 record carrying no relaunch reservation or
-	// token — the shape persisted before the relaunch-reservation journal.
+	// Overwrite with an explicit v3 record — the shape persisted before schema v4.
 	rec := sampleRecord()
 	rec.SchemaVersion = 3
 	buf, err := json.Marshal(storedRecord{Generation: gen, Record: rec})
@@ -158,16 +157,10 @@ func TestDriveSchemaV3LoadsAndUpgradesUnderV4(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(s.root, id, recordFileName), buf, 0o600); err != nil {
 		t.Fatalf("overwrite: %v", err)
 	}
-	// A v3 record loads with RelaunchReserved false (not a fail-closed HALT).
-	got, err := s.Load(id)
+	// A v3 record loads (not a fail-closed HALT).
+	_, err = s.Load(id)
 	if err != nil {
 		t.Fatalf("a v3 record must load under v4, got error %v", err)
-	}
-	if got.RelaunchReserved {
-		t.Fatalf("a v3 record must read RelaunchReserved as false")
-	}
-	if got.RelaunchToken != "" {
-		t.Fatalf("a v3 record must read RelaunchToken as empty, got %q", got.RelaunchToken)
 	}
 	// The next write upgrades it to v4.
 	if _, err := s.CAS(id, gen, func(r *driveRecord) error { return nil }); err != nil {

@@ -93,9 +93,11 @@ func (s *Store) loadHistoricalDrive(id string) (historicalDrive, error) {
 }
 
 // historicalView projects an executable-range driveRecord onto the bounded
-// assessment view, exposing only the fields the census consults.
+// assessment view, exposing only the fields the census consults. An executable
+// record carries no prior run dir (change 0493 retired the relaunch that set
+// it), so PriorRawRunDir stays empty here.
 func historicalView(id string, r driveRecord) historicalDrive {
 	return historicalDrive{ID: id, SchemaVersion: r.SchemaVersion, RepoIdentity: r.RepoIdentity,
 		WorktreePath: r.WorktreePath, LastOutcome: r.LastOutcome, RawRunDir: r.RawRunDir,
-		PriorRawRunDir: r.PriorRawRunDir, RunRoot: r.RunRoot}
+		RunRoot: r.RunRoot}
 }

@@ -736,3 +736,14 @@ func TestGateDriveStartRejectsRunIDFlag(t *testing.T) {
 		t.Fatalf("exit %d stderr %q, want exit 2 naming the unknown --run-id flag", code, errS)
 	}
 }
+
+// TestGateDriveStartRejectsIdempotentSuiteGateFlag (change 0493): gate drive
+// start no longer takes --idempotent-suite-gate — no drive relaunches — so a
+// hand-typed use fails on an unknown flag (exit 2) instead of being accepted.
+func TestGateDriveStartRejectsIdempotentSuiteGateFlag(t *testing.T) {
+	_, errS, code := runCLI(t, "gate", "drive", "start", "--owner", "finalize",
+		"--run-root", "/tmp/docket-0493-run-root", "--idempotent-suite-gate")
+	if code != 2 || !strings.Contains(errS, "unknown flag: --idempotent-suite-gate") {
+		t.Fatalf("exit %d stderr %q, want exit 2 naming the unknown --idempotent-suite-gate flag", code, errS)
+	}
+}

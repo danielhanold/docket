@@ -25,12 +25,14 @@ const ProtocolVersion = 1
 // change 0359, which adds scope_id + RunContextHash; a v1 record read by a v2
 // store fails closed as ErrUnknownSchema (never migrated). Bumped to 3 by change
 // 0375, which adds AdmissionToken (the launch token threaded into the raw
-// launch; minted by the driver itself since change 0490). Bumped to 4 by change 0375 Task 5, which
-// adds the journaled RelaunchReserved state and its unique RelaunchToken. They
-// reserve the one automatic replacement before its irreversible launch and
-// make that replacement independently resolvable. A v3 record still LOADS (the
-// missing fields read false/empty — see driveSchemaVersionLegacy in readStored)
-// and the next write stamps it forward to v4; older records still fail closed.
+// launch; minted by the driver itself since change 0490). Bumped to 4 by change
+// 0375 Task 5, which added a relaunch-reservation journal. Change 0493 retired
+// the relaunch and stopped writing its fields (idempotent_suite_gate,
+// relaunch_count, relaunch_reserved, relaunch_token, prior_raw_run_dir) without
+// a version bump: a record that still carries them loads with them ignored, and
+// its next write drops them. A v3 record still LOADS (see
+// driveSchemaVersionLegacy in readStored) and the next write stamps it forward
+// to v4; older records still fail closed.
 //
 // Upgrade boundary (change 0428): a retired schema below the executable range is
 // still readable by the HISTORICAL reader (loadHistoricalDrive) — but ONLY for
@@ -49,10 +51,9 @@ const ProtocolVersion = 1
 const driveSchemaVersion = 4
 
 // driveSchemaVersionLegacy is the immediately-prior schema generation a v4 store
-// still reads (never writes). A v3 record carries every field a v4 reader needs
-// except RelaunchReserved, which defaults false. Only the immediately-prior
-// generation is tolerated; v2 and any other version still fail closed as
-// ErrUnknownSchema.
+// still reads (never writes). A v3 record carries every field a v4 reader needs.
+// Only the immediately-prior generation is tolerated; v2 and any other version
+// still fail closed as ErrUnknownSchema.
 const driveSchemaVersionLegacy = 3
 
 // Outcome is the four-way typed result of a single slice-bounded driver call.
@@ -128,8 +129,8 @@ type DriveDoc struct {
 	RawRunDir       string    `json:"raw_run_dir,omitempty"`
 	// RunRoot is the drive's private process-supervisor allocation root (the
 	// parent of the raw run dir(s)). It is always exposed on a TERMINAL document
-	// (PASSED/FAILED/HALTED, omitempty) and never on WAITING — a live drive may
-	// still relaunch under it, so a WAITING consumer must retain it. It is exposed
+	// (PASSED/FAILED/HALTED, omitempty) and never on WAITING — a live drive's run
+	// still writes under it, so a WAITING consumer must retain it. It is exposed
 	// for exactly one purpose: the owning caller that minted the root removes it at
 	// the terminal to avoid leaking one temp dir per drive across retries. Like
 	// RawRunDir it is a host path, not a secret; it carries no argv/env/credential.
@@ -147,9 +148,8 @@ type DriveDoc struct {
 // repo identity, worktree path, change/task/phase identity, branch/ref + full
 // HEAD OID, fingerprint, resolved command + cwd, config provenance + budget, env
 // hash, timestamps + fixed deadline + last-accepted clock + protocol version,
-// current raw run dir + raw ownership identity + attempt + relaunch count +
-// terminal receipt, and current owner generation or single-use handoff
-// generation. Later tasks (clock, fingerprint, ownership, state machine) refine
+// current raw run dir + raw ownership identity + attempt + terminal receipt,
+// and current owner generation or single-use handoff generation. Later tasks (clock, fingerprint, ownership, state machine) refine
 // the concrete field types they own; this is the foundational schema.
 type driveRecord struct {
 	SchemaVersion int `json:"schema_version"`
@@ -180,14 +180,9 @@ type driveRecord struct {
 	Cwd     string   `json:"cwd"`
 
 	// RunRoot is the native process-supervisor allocation root (the raw
-	// LaunchRequest.Root). It is the deterministic launch input the one admitted
-	// relaunch replays, so it is persisted with the rest of the launch identity.
+	// LaunchRequest.Root). It is part of the deterministic launch input, so it is
+	// persisted with the rest of the launch identity.
 	RunRoot string `json:"run_root"`
-
-	// IdempotentSuiteGate marks a workflow suite gate the application contract
-	// designates idempotent. It is condition 1 of the single relaunch: only such
-	// a gate may earn a second raw run after a proven death.
-	IdempotentSuiteGate bool `json:"idempotent_suite_gate"`
 
 	// Config provenance + resolved observation budget.
 	ConfigProvenance string        `json:"config_provenance"`
@@ -204,25 +199,13 @@ type driveRecord struct {
 	LastClock       time.Time `json:"last_clock"`
 	ProtocolVersion int       `json:"protocol_version"`
 
-	// Current raw run dir + raw ownership identity + attempt + relaunch count +
-	// terminal receipt. At most one owned raw tree is live per drive.
-	RawRunDir     string `json:"raw_run_dir"`
-	RawOwnership  string `json:"raw_ownership"`
-	Attempt       int    `json:"attempt"`
-	RelaunchCount int    `json:"relaunch_count"`
-	// RelaunchReserved journals the sole automatic replacement before Launch.
-	// RelaunchToken uniquely identifies that replacement in the process registry;
-	// it must not reuse AdmissionToken, which identifies the original launch.
-	// The state remains across a crash or uncertain launch, while relaunch.lock
-	// proves whether the reserving caller is still in the launch/attach window.
-	RelaunchReserved bool   `json:"relaunch_reserved"`
-	RelaunchToken    string `json:"relaunch_token,omitempty"`
-	TerminalReceipt  string `json:"terminal_receipt"`
-
-	// PriorRawRunDir links the dead first attempt after the one admitted
-	// relaunch, so both attempts' diagnostics are preserved (spec: "A relaunch
-	// preserves both attempts").
-	PriorRawRunDir string `json:"prior_raw_run_dir,omitempty"`
+	// Current raw run dir + raw ownership identity + attempt (always 1: a drive
+	// never relaunches, change 0493) + terminal receipt. At most one owned raw
+	// tree is live per drive.
+	RawRunDir       string `json:"raw_run_dir"`
+	RawOwnership    string `json:"raw_ownership"`
+	Attempt         int    `json:"attempt"`
+	TerminalReceipt string `json:"terminal_receipt"`
 
 	// LastOutcome + LastCause record the last transition the driver persisted.
 	// A terminal LastOutcome (PASSED/FAILED/HALTED) makes the drive idempotent:
