@@ -22,7 +22,7 @@ branch: 'fix/drop-final-claimed-at-is-reported-repairable-but-nothing-can'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-03T09:30:54Z'
+claimed_at: '2026-10-03T09:32:48Z'
 ---
 
 ## Artifacts
@@ -63,3 +63,7 @@ The remedy is also wrong on two counts. On an already-migrated repository nothin
 ### 2026-10-03
 
 Reconciled against origin/main 1fc28e872 (post-0492). The cited code is unchanged: `planClaimedAt` (internal/reposetup/repair.go) still keys on key presence, and `migrateHealthyRepair` / `executeDerivedRepair` (internal/app/repository_migrate_repair.go) still own derived-view repair on the migrated path. No intervening change touched this scope; scope and spec stand as groomed.
+
+### 2026-10-03
+
+Recorded ADR-0136 (repair on a migrated repository is `docket repository repair`; `migrate` only migrates) produced by this change.
