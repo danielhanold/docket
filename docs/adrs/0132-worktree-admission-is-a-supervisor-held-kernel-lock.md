@@ -167,3 +167,7 @@ The decision stands. The cancellation and resume rules of ADR-0118 that this ADR
 ## Update — 2026-10-03 (change 0492, ADR-0134)
 
 The decision stands. ADR-0134 narrows the accepted loss "Process-tree teardown gaps … change 0492 tracks them": gap 1 (a supervisor that dies alone leaves its suite running) is now reported by the launch census as an informational `tree-survives` finding, gap 3 (the relaunch trusts "vanished") goes with change 0493's retirement of the relaunch, and gaps 2 (a KILL escalation leaves test targets running) and 4 (on a graceful stop the worktree frees before teardown ends) remain accepted.
+
+## Update — 2026-10-03 (change 0493, ADR-0135)
+
+The decision stands. ADR-0135 retires the automatic gate relaunch: a supervisor death now halts every gate drive and a human re-runs the workflow. The *Relaunch* admission bullet and the holder-note sentence "A relaunch rewrites it" no longer apply, and problem fact 6 (the relaunch run checks are unreachable in production) now holds by construction.
