@@ -1,6 +1,6 @@
 # Backlog
 
-**499 changes** — 🟣 3 groomed · 🟡 8 proposed · ⚪ 12 deferred · ✅ 343 done · 🗑️ 133 killed
+**500 changes** — 🟣 3 groomed · 🟡 9 proposed · ⚪ 12 deferred · ✅ 343 done · 🗑️ 133 killed
 
 ## 🟣 Groomed (3)
 
@@ -10,10 +10,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0500](active/0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid hint for an absent .gitignore names a no-op migrate | `low` | `fix` | needs-grooming |
 | [0499](active/0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | `medium` | `fix` | needs-grooming |
 | [0498](active/0498-results-file-puts-the-whole-branch-review-under-human-action.md) | Results file puts the whole-branch review under Human actions and testing | `low` | `fix` | needs-grooming |
 | [0497](active/0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | `medium` | `fix` | needs-grooming |
@@ -66,6 +67,7 @@ graph TD
   0497
   0498
   0499
+  0500
   0192:::done
   0251:::done
   0370:::done
