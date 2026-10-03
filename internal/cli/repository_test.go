@@ -14,7 +14,7 @@ import (
 // group and an unknown subcommand both fail rather than silently succeeding.
 func TestRepositoryCommandsRegistered(t *testing.T) {
 	root := captureTree(t)
-	for _, sub := range []string{"init", "check", "migrate", "prepare", "configure-tests"} {
+	for _, sub := range []string{"init", "check", "migrate", "prepare", "configure-tests", "repair"} {
 		cmd, _, err := root.Find([]string{"repository", sub})
 		if err != nil || cmd == nil || cmd.Name() != sub {
 			t.Fatalf("repository %s not registered: cmd=%v err=%v", sub, cmd, err)
@@ -384,5 +384,145 @@ func TestRepositoryMigrateRepairFlagFlows(t *testing.T) {
 	_, _, _ = runCLI(t, "repository", "migrate", "--yes", "--repair-frontmatter")
 	if len(calls) != 1 || !calls[0].RepairAuthorized {
 		t.Fatalf("--repair-frontmatter must flow to MigrateOptions: %+v", calls)
+	}
+}
+
+// fakeRepairResult is a stub repair result whose confirmation state is set by the
+// test, so the CLI's prompt decision is exercised without a repository.
+type fakeRepairResult struct {
+	app.Envelope
+	source  string
+	confirm bool
+}
+
+func (r fakeRepairResult) HumanText() string          { return "repair plan @ " + r.source }
+func (r fakeRepairResult) SourceRev() string          { return r.source }
+func (r fakeRepairResult) ConfirmationRequired() bool { return r.confirm }
+
+// TestRepositoryRepairRegisteredWithCapability proves `repository repair` is a
+// registered leaf carrying exactly --repo-dir and --yes, the catalog id
+// repository.repair, and exactly the metadata-write effect.
+func TestRepositoryRepairRegisteredWithCapability(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"repository", "repair"})
+	if err != nil || cmd == nil || cmd.Name() != "repair" {
+		t.Fatalf("repository repair not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"repo-dir", "yes"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("repository repair: missing --%s flag", flag)
+		}
+	}
+	if cmd.Flags().Lookup("repair-frontmatter") != nil {
+		t.Errorf("repository repair must not carry --repair-frontmatter")
+	}
+	if got := cmd.Annotations[capAnnotationID]; got != "repository.repair" {
+		t.Errorf("capability id = %q, want repository.repair", got)
+	}
+	if got := cmd.Annotations[capAnnotationEffects]; got != string(EffectMetadataWrite) {
+		t.Errorf("effects = %q, want exactly %q", got, EffectMetadataWrite)
+	}
+}
+
+// TestRepositoryRepairYesAuthorizesDirectly proves --yes calls the service once,
+// authorized, with no preview pass.
+func TestRepositoryRepairYesAuthorizesDirectly(t *testing.T) {
+	var calls []app.RepairOptions
+	old := repositoryRepairRunner
+	repositoryRepairRunner = func(ctx context.Context, d app.SetupDeps, o app.RepairOptions) app.OperationResult {
+		calls = append(calls, o)
+		return fakeRepairResult{Envelope: app.NewEnvelope("repository.repair", app.ResultApplied), source: "abc123"}
+	}
+	defer func() { repositoryRepairRunner = old }()
+
+	_, _, code := runCLI(t, "repository", "repair", "--yes")
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if len(calls) != 1 || !calls[0].Authorized {
+		t.Fatalf("--yes must call the service exactly once, authorized: %+v", calls)
+	}
+}
+
+// TestRepositoryRepairNonInteractivePreview proves without --yes and without a
+// terminal the service is called once, unauthorized, and never re-invoked.
+func TestRepositoryRepairNonInteractivePreview(t *testing.T) {
+	var calls []app.RepairOptions
+	old := repositoryRepairRunner
+	repositoryRepairRunner = func(ctx context.Context, d app.SetupDeps, o app.RepairOptions) app.OperationResult {
+		calls = append(calls, o)
+		return fakeRepairResult{Envelope: app.NewEnvelope("repository.repair", app.ResultInvalidState), source: "abc123", confirm: true}
+	}
+	oldI := repositoryConfirmInteractive
+	repositoryConfirmInteractive = func() bool { return false }
+	defer func() { repositoryRepairRunner = old; repositoryConfirmInteractive = oldI }()
+
+	_, _, _ = runCLI(t, "repository", "repair")
+	if len(calls) != 1 || calls[0].Authorized {
+		t.Fatalf("want exactly one unauthorized preview call: %+v", calls)
+	}
+}
+
+// TestRepositoryRepairInteractiveConfirmReinvokes proves `y` re-invokes
+// authorized, pinned to the previewed revision.
+func TestRepositoryRepairInteractiveConfirmReinvokes(t *testing.T) {
+	var calls []app.RepairOptions
+	old := repositoryRepairRunner
+	repositoryRepairRunner = func(ctx context.Context, d app.SetupDeps, o app.RepairOptions) app.OperationResult {
+		calls = append(calls, o)
+		return fakeRepairResult{Envelope: app.NewEnvelope("repository.repair", app.ResultInvalidState), source: "pinnedtip", confirm: !o.Authorized}
+	}
+	oldI := repositoryConfirmInteractive
+	repositoryConfirmInteractive = func() bool { return true }
+	defer func() { repositoryRepairRunner = old; repositoryConfirmInteractive = oldI }()
+
+	_, _, _ = runCLIStdin(t, "y\n", "repository", "repair")
+	if len(calls) != 2 {
+		t.Fatalf("runner called %d times, want preview then authorized", len(calls))
+	}
+	if calls[0].Authorized || !calls[1].Authorized || calls[1].ExpectedSource != "pinnedtip" {
+		t.Errorf("calls = %+v, want unauthorized preview then authorized pinned to pinnedtip", calls)
+	}
+}
+
+// TestRepositoryRepairInteractiveDeclineDoesNotAuthorize proves `n` never
+// re-invokes authorized.
+func TestRepositoryRepairInteractiveDeclineDoesNotAuthorize(t *testing.T) {
+	var calls []app.RepairOptions
+	old := repositoryRepairRunner
+	repositoryRepairRunner = func(ctx context.Context, d app.SetupDeps, o app.RepairOptions) app.OperationResult {
+		calls = append(calls, o)
+		return fakeRepairResult{Envelope: app.NewEnvelope("repository.repair", app.ResultInvalidState), source: "pinnedtip", confirm: true}
+	}
+	oldI := repositoryConfirmInteractive
+	repositoryConfirmInteractive = func() bool { return true }
+	defer func() { repositoryRepairRunner = old; repositoryConfirmInteractive = oldI }()
+
+	_, _, _ = runCLIStdin(t, "n\n", "repository", "repair")
+	if len(calls) != 1 || calls[0].Authorized {
+		t.Fatalf("a declined preview must never authorize: %+v", calls)
+	}
+}
+
+// TestRepositoryRepairInteractiveNoPromptWithoutConfirmation proves an
+// interactive run whose preview is NOT a confirmation request (a no-op or a
+// refusal) is presented directly, with no prompt and no re-invoke (Review Focus 4).
+func TestRepositoryRepairInteractiveNoPromptWithoutConfirmation(t *testing.T) {
+	var calls []app.RepairOptions
+	old := repositoryRepairRunner
+	repositoryRepairRunner = func(ctx context.Context, d app.SetupDeps, o app.RepairOptions) app.OperationResult {
+		calls = append(calls, o)
+		return fakeRepairResult{Envelope: app.NewEnvelope("repository.repair", app.ResultNoOp), source: "tip", confirm: false}
+	}
+	oldI := repositoryConfirmInteractive
+	repositoryConfirmInteractive = func() bool { return true }
+	defer func() { repositoryRepairRunner = old; repositoryConfirmInteractive = oldI }()
+
+	out, _, _ := runCLIStdin(t, "y\n", "repository", "repair")
+	if len(calls) != 1 {
+		t.Fatalf("runner called %d times, want one (no prompt, no re-invoke)", len(calls))
+	}
+	if strings.Contains(out, "repair? [y/N]") {
+		t.Errorf("a no-op preview must not prompt; stdout:\n%s", out)
 	}
 }

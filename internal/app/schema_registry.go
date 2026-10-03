@@ -99,6 +99,7 @@ var operationBindings = []OperationBinding{
 	{ID: "repository.init", Request: nil, Result: RepositoryOpResult{}},                                            // RunRepositoryInit
 	{ID: "repository.migrate", Request: nil, Result: RepositoryMigrateResult{}},                                    // RunRepositoryMigrate
 	{ID: "repository.prepare", Request: nil, Result: RepositoryPrepareResult{}},                                    // RunRepositoryPrepare
+	{ID: "repository.repair", Request: nil, Result: RepositoryRepairResult{}},                                      // RunRepositoryRepair
 	{ID: "repository.sync-integration", Request: nil, Result: RepositorySyncResult{}},                              // RunRepositorySyncIntegration
 	{ID: "run.cancel", Request: nil, Result: RunCancelResult{}},                                                    // RunCancel
 	{ID: "run.continue", Request: nil, Result: RunContinueResult{}},                                                // RunContinue
