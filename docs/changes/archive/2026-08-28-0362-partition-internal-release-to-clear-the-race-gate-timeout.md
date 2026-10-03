@@ -30,7 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-28-partition-internal-release-integration-tests-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-partition-internal-release-integration-tests-design.md) |
-| Plan | [2026-08-28-partition-internal-release-integration-tests.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-28-partition-internal-release-integration-tests.md) |
+| Plan | [2026-08-28-partition-internal-release-integration-tests.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-28-partition-internal-release-integration-tests.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

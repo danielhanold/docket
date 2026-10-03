@@ -31,8 +31,8 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-10-artifacts-block-pins-plan-results-links-to-the-docket-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-10-artifacts-block-pins-plan-results-links-to-the-docket-branch-design.md) |
-| Plan | [2026-09-14-artifacts-block-pins-plan-results-links-to-the-docket-branch.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-14-artifacts-block-pins-plan-results-links-to-the-docket-branch.md) |
-| Results | [2026-09-14-artifacts-block-pins-plan-results-links-to-the-docket-branch-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-14-artifacts-block-pins-plan-results-links-to-the-docket-branch-results.md) |
+| Plan | [2026-09-14-artifacts-block-pins-plan-results-links-to-the-docket-branch.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-14-artifacts-block-pins-plan-results-links-to-the-docket-branch.md) |
+| Results | [2026-09-14-artifacts-block-pins-plan-results-links-to-the-docket-branch-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-14-artifacts-block-pins-plan-results-links-to-the-docket-branch-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

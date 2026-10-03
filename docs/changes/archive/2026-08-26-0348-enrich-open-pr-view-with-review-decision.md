@@ -30,7 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-26-enrich-open-pr-view-with-review-decision-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-26-enrich-open-pr-view-with-review-decision-design.md) |
-| Plan | [2026-08-26-enrich-open-pr-view-with-review-decision.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-26-enrich-open-pr-view-with-review-decision.md) |
+| Plan | [2026-08-26-enrich-open-pr-view-with-review-decision.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-26-enrich-open-pr-view-with-review-decision.md) |
 | ADRs | [ADR-0097](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0097-pr-identity-is-verified-by-parsed-pr-number.md) |
 <!-- docket:artifacts:end -->
 

@@ -30,7 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-26-role-skill-invocation-and-nested-agent-topology-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-26-role-skill-invocation-and-nested-agent-topology-design.md) |
-| Plan | [2026-08-26-role-skill-invocation-and-nested-agent-topology.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-26-role-skill-invocation-and-nested-agent-topology.md) |
+| Plan | [2026-08-26-role-skill-invocation-and-nested-agent-topology.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-26-role-skill-invocation-and-nested-agent-topology.md) |
 | ADRs | [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0069](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md) |
 <!-- docket:artifacts:end -->
 

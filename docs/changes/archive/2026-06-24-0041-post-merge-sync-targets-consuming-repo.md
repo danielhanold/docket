@@ -26,7 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-06-23-post-merge-sync-targets-consuming-repo-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-23-post-merge-sync-targets-consuming-repo-design.md) |
-| Plan | [2026-06-23-post-merge-sync-targets-consuming-repo.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-23-post-merge-sync-targets-consuming-repo.md) |
+| Plan | [2026-06-23-post-merge-sync-targets-consuming-repo.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-23-post-merge-sync-targets-consuming-repo.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

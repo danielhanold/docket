@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-06-21-skill-fallback-progressive-disclosure-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-skill-fallback-progressive-disclosure-design.md) |
-| Plan | [2026-06-21-skill-fallback-progressive-disclosure.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-21-skill-fallback-progressive-disclosure.md) |
-| Results | [2026-06-21-skill-fallback-progressive-disclosure-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-06-21-skill-fallback-progressive-disclosure-results.md) |
+| Plan | [2026-06-21-skill-fallback-progressive-disclosure.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-21-skill-fallback-progressive-disclosure.md) |
+| Results | [2026-06-21-skill-fallback-progressive-disclosure-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-21-skill-fallback-progressive-disclosure-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

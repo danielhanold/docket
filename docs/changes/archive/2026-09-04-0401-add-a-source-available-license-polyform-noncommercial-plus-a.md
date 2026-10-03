@@ -31,8 +31,8 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a-design.md) |
-| Plan | [2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a.md) |
-| Results | [2026-09-04-add-a-source-available-license-polyform-noncommercial-plus-a-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-04-add-a-source-available-license-polyform-noncommercial-plus-a-results.md) |
+| Plan | [2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a.md) |
+| Results | [2026-09-04-add-a-source-available-license-polyform-noncommercial-plus-a-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-04-add-a-source-available-license-polyform-noncommercial-plus-a-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

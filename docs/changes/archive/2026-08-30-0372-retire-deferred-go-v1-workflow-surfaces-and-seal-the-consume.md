@@ -31,7 +31,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-30-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consumer-cutover-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-30-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consumer-cutover-design.md) |
-| Plan | [2026-08-30-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consumer-cutover.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-30-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consumer-cutover.md) |
+| Plan | [2026-08-30-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consumer-cutover.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-30-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consumer-cutover.md) |
 | ADRs | [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md), [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md), [ADR-0033](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0033-cursor-auto-run-trust-at-facade.md), [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 

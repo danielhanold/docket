@@ -31,7 +31,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-07-flaky-testintegrationreleasepackagedeterministic-linux-arm64-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-flaky-testintegrationreleasepackagedeterministic-linux-arm64-design.md) |
-| Plan | [2026-09-07-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-07-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md) |
+| Plan | [2026-09-07-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-07-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

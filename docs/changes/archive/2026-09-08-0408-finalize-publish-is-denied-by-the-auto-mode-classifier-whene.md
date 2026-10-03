@@ -31,7 +31,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-07-finalize-publish-is-denied-by-the-auto-mode-classifier-whene-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-finalize-publish-is-denied-by-the-auto-mode-classifier-whene-design.md) |
-| Plan | [2026-09-07-preserve-green-gate-across-denied-finalize-publish.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-07-preserve-green-gate-across-denied-finalize-publish.md) |
+| Plan | [2026-09-07-preserve-green-gate-across-denied-finalize-publish.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-07-preserve-green-gate-across-denied-finalize-publish.md) |
 | ADRs | [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md), [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md), [ADR-0112](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0112-a-completed-gate-publish-checkpoint-is-persisted-in-the-owne.md) |
 <!-- docket:artifacts:end -->
 

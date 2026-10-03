@@ -21,7 +21,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-06-12-groom-next-stub-recap.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-12-groom-next-stub-recap.md) |
+| Plan | [2026-06-12-groom-next-stub-recap.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-12-groom-next-stub-recap.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

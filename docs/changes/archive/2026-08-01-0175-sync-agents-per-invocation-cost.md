@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-31-sync-agents-per-invocation-cost-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-design.md) |
-| Plan | [2026-07-31-sync-agents-per-invocation-cost.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-31-sync-agents-per-invocation-cost.md) |
-| Results | [2026-07-31-sync-agents-per-invocation-cost-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-31-sync-agents-per-invocation-cost-results.md) |
+| Plan | [2026-07-31-sync-agents-per-invocation-cost.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-31-sync-agents-per-invocation-cost.md) |
+| Results | [2026-07-31-sync-agents-per-invocation-cost-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-31-sync-agents-per-invocation-cost-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

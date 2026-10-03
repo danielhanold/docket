@@ -23,7 +23,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-06-20-sync-integration-after-merge-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-20-sync-integration-after-merge-design.md) |
-| Plan | [2026-06-20-sync-integration-after-merge.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-20-sync-integration-after-merge.md) |
+| Plan | [2026-06-20-sync-integration-after-merge.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-20-sync-integration-after-merge.md) |
 | ADRs | [ADR-0007](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0007-github-board-mirror-boundary.md) |
 <!-- docket:artifacts:end -->
 

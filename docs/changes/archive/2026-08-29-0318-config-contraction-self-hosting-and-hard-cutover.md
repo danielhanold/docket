@@ -30,7 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md) |
-| Plan | [2026-08-29-go-native-whole-suite-test-runner.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-29-go-native-whole-suite-test-runner.md) |
+| Plan | [2026-08-29-go-native-whole-suite-test-runner.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-29-go-native-whole-suite-test-runner.md) |
 | ADRs | [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md) |
 <!-- docket:artifacts:end -->
 

@@ -29,7 +29,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-08-26-unquote-cursor-agent-wrapper-names.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-26-unquote-cursor-agent-wrapper-names.md) |
+| Plan | [2026-08-26-unquote-cursor-agent-wrapper-names.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-26-unquote-cursor-agent-wrapper-names.md) |
 | ADRs | [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 

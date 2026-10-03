@@ -30,8 +30,8 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md) |
-| Plan | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) |
-| Results | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-results.md) |
+| Plan | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) |
+| Results | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

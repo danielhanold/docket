@@ -23,8 +23,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-06-19-claude-settings-publish-permission-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-19-claude-settings-publish-permission-design.md) |
-| Plan | [2026-06-19-claude-settings-publish-permission.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-19-claude-settings-publish-permission.md) |
-| Results | [2026-06-19-claude-settings-publish-permission-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-06-19-claude-settings-publish-permission-results.md) |
+| Plan | [2026-06-19-claude-settings-publish-permission.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-19-claude-settings-publish-permission.md) |
+| Results | [2026-06-19-claude-settings-publish-permission-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-19-claude-settings-publish-permission-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

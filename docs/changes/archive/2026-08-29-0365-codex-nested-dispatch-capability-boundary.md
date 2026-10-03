@@ -30,8 +30,8 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-29-codex-nested-dispatch-capability-boundary-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-29-codex-nested-dispatch-capability-boundary-design.md) |
-| Plan | [2026-08-29-codex-nested-dispatch-capability-boundary.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-29-codex-nested-dispatch-capability-boundary.md) |
-| Results | [2026-08-29-codex-nested-dispatch-capability-boundary-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-29-codex-nested-dispatch-capability-boundary-results.md) |
+| Plan | [2026-08-29-codex-nested-dispatch-capability-boundary.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-29-codex-nested-dispatch-capability-boundary.md) |
+| Results | [2026-08-29-codex-nested-dispatch-capability-boundary-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-29-codex-nested-dispatch-capability-boundary-results.md) |
 | ADRs | [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0094](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md) |
 <!-- docket:artifacts:end -->
 

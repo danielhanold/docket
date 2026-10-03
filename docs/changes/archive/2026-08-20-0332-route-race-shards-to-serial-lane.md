@@ -30,7 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-19-route-race-shards-to-serial-lane-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-19-route-race-shards-to-serial-lane-design.md) |
-| Plan | [2026-08-19-route-race-shards-to-serial-lane.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-19-route-race-shards-to-serial-lane.md) |
+| Plan | [2026-08-19-route-race-shards-to-serial-lane.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-19-route-race-shards-to-serial-lane.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

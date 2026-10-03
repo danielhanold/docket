@@ -31,8 +31,8 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md) |
-| Plan | [2026-09-02-harden-integration-race-test-isolation-under-parallel-load.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-02-harden-integration-race-test-isolation-under-parallel-load.md) |
-| Results | [2026-09-02-harden-integration-race-test-isolation-under-parallel-load-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-results.md) |
+| Plan | [2026-09-02-harden-integration-race-test-isolation-under-parallel-load.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-02-harden-integration-race-test-isolation-under-parallel-load.md) |
+| Results | [2026-09-02-harden-integration-race-test-isolation-under-parallel-load-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 

@@ -31,7 +31,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap-design.md) |
-| Plan | [2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) |
+| Plan | [2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) |
 | ADRs | [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) |
 <!-- docket:artifacts:end -->
 

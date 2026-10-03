@@ -22,8 +22,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-06-12-docket-auto-groom-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-12-docket-auto-groom-design.md) |
-| Plan | [2026-06-12-docket-auto-groom.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-12-docket-auto-groom.md) |
-| Results | [2026-06-12-docket-auto-groom-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-06-12-docket-auto-groom-results.md) |
+| Plan | [2026-06-12-docket-auto-groom.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-12-docket-auto-groom.md) |
+| Results | [2026-06-12-docket-auto-groom-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-12-docket-auto-groom-results.md) |
 | ADRs | [ADR-0004](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0004-grooming-takes-no-claim.md), [ADR-0006](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0006-autonomous-grooming-bounds.md) |
 <!-- docket:artifacts:end -->
 

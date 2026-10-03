@@ -31,8 +31,8 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-design.md) |
-| Plan | [2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) |
-| Results | [2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-results.md) |
+| Plan | [2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) |
+| Results | [2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-results.md) |
 | ADRs | [ADR-0098](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0098-structured-gate-waiting-and-ownership-handoff.md), [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md) |
 <!-- docket:artifacts:end -->
 

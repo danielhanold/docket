@@ -30,8 +30,8 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-28-run-gate-gives-up-too-soon-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) |
-| Plan | [2026-09-02-run-gate-gives-up-too-soon.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-02-run-gate-gives-up-too-soon.md) |
-| Results | [2026-09-02-run-gate-gives-up-too-soon-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-02-run-gate-gives-up-too-soon-results.md) |
+| Plan | [2026-09-02-run-gate-gives-up-too-soon.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-02-run-gate-gives-up-too-soon.md) |
+| Results | [2026-09-02-run-gate-gives-up-too-soon-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-02-run-gate-gives-up-too-soon-results.md) |
 | ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0075](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0098](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0098-structured-gate-waiting-and-ownership-handoff.md), [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) |
 <!-- docket:artifacts:end -->
 

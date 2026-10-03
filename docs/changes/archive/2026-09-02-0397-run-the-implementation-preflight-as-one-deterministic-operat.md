@@ -31,7 +31,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-02-run-the-implementation-preflight-as-one-deterministic-operat-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-02-run-the-implementation-preflight-as-one-deterministic-operat-design.md) |
-| Plan | [2026-09-02-run-the-implementation-preflight-as-one-deterministic-operat.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-02-run-the-implementation-preflight-as-one-deterministic-operat.md) |
+| Plan | [2026-09-02-run-the-implementation-preflight-as-one-deterministic-operat.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-02-run-the-implementation-preflight-as-one-deterministic-operat.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0101](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md), [ADR-0047](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0047-digest-only-read-tier-skips-preflight.md), [ADR-0106](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0106-implementation-preflight-is-a-deterministic-operation-not-a.md) |
 <!-- docket:artifacts:end -->
 
