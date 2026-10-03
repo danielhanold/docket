@@ -2,7 +2,7 @@
 id: 493
 slug: 'cancel-misses-a-replacement-supervisor-behind-a-halted-unatt'
 title: 'Retire the automatic gate relaunch'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-02'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/cancel-misses-a-replacement-supervisor-behind-a-halted-unatt'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/370'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-03T09:17:38Z'
