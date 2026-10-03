@@ -74,7 +74,7 @@ const (
 	// converted into FAILED.
 	FAILED Outcome = "FAILED"
 	// HALTED: a fail-closed terminal — a changed worktree, uncertain ownership,
-	// deadline expiry, malformed state, or an unadmitted death. Never red.
+	// deadline expiry, malformed state, or a supervisor death. Never red.
 	HALTED Outcome = "HALTED"
 )
 
@@ -109,10 +109,6 @@ const (
 	// vanished) and no owned tree survives. A gate drive never relaunches (change
 	// 0493): it HALTs, and a human re-runs the workflow, which re-runs the suite.
 	CauseSupervisorDied = "supervisor-died"
-	// CauseWorktreeBusy: the single automatic relaunch found the worktree lock
-	// held by another gate, so the drive HALTs instead of relaunching over it. It
-	// launches nothing; the holder keeps the worktree. (change 0490)
-	CauseWorktreeBusy = "worktree-busy"
 )
 
 // DriveDoc is the protocol-v1 outcome document emitted by every driver

@@ -142,14 +142,6 @@ func (l *WorktreeLock) writeHolder(n HolderNote) {
 	_ = writeAtomicJSON(filepath.Join(l.dir, worktreeHolderFile), n)
 }
 
-// PriorHolder reads the current note, for a relaunch that keeps its owner.
-func (l *WorktreeLock) PriorHolder() (HolderNote, bool) {
-	if l == nil {
-		return HolderNote{}, false
-	}
-	return readHolderNote(l.dir)
-}
-
 func readHolderNote(dir string) (HolderNote, bool) {
 	buf, err := os.ReadFile(filepath.Join(dir, worktreeHolderFile))
 	if err != nil {

@@ -24,8 +24,9 @@ package repoguard
 // Any other argument shape (a variable, a field, a cross-package helper) cannot be
 // proven and is a violation: fail closed.
 //
-// Today's population: app's raw GateLaunch (form a) and the gate driver's first
-// launch and single relaunch, both through driveRecord.launchRequest (form b).
+// Today's population: app's raw GateLaunch (form a) and the gate driver's one
+// launch, through driveRecord.launchRequest (form b); the single relaunch was
+// retired by change 0493.
 //
 // RESIDUAL RISK, recorded not hidden: the detector keys on the `Launch` selector
 // name rather than the receiver's resolved type (no go/types pass), so an unrelated
@@ -230,8 +231,8 @@ func TestGateLaunchAdmissionCoverage(t *testing.T) {
 	// Population floors FIRST — an empty enumeration passes every "no violations"
 	// negative by default. A refactor that renames Launch or LaunchRequest drops the
 	// population below a floor and reddens here rather than going vacuous.
-	if rep.sites < 3 {
-		t.Fatalf("population floor: found %d launch sites (want >= 3: app GateLaunch and the gate driver's first launch and relaunch); the launch-shape detector drifted", rep.sites)
+	if rep.sites < 2 {
+		t.Fatalf("population floor: found %d launch sites (want >= 2: app GateLaunch and the gate driver's launch); the launch-shape detector drifted", rep.sites)
 	}
 	if rep.literalSites < 1 || rep.helperSites < 1 {
 		t.Fatalf("population floor: found %d literal-form and %d helper-form sites (want >= 1 of each); the request-shape detector drifted", rep.literalSites, rep.helperSites)

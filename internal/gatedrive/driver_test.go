@@ -623,159 +623,137 @@ func TestStoppedNotInitiatedHalts(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Death and the single relaunch.
+// Death: a supervisor death always halts (change 0493).
 // ---------------------------------------------------------------------------
 
-// TestSignaledDeathRelaunchAdmittedOnce proves a signaled death under all five
-// relaunch conditions relaunches exactly once: a second raw run under the same
-// drive, deadline, and identity, with attempt and relaunch count advanced. The
-// first run's stop no-op is consumed by a re-observe before the relaunch.
-func TestSignaledDeathRelaunchAdmittedOnce(t *testing.T) {
+// deathAfterFirstSlice starts req with its first run live for the first slice;
+// once *dead is set, that run observes state, so the next Advance reaches the
+// death branch.
+func deathAfterFirstSlice(t *testing.T, req StartRequest, state process.State) (*Driver, *Store, *fakeProc, DriveDoc, *bool) {
+	t.Helper()
 	clk := &fakeClock{now: startRun()}
-	proc := &fakeProc{
-		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
-			// launchN was already incremented by the wrapper.
-			return nil, nil // replaced below
-		},
-	}
-	proc.launch = func(process.LaunchRequest) (*process.LaunchOutcome, error) {
-		id := fmt.Sprintf("run%d", proc.launchN)
-		return &process.LaunchOutcome{RunID: id, RunDir: "/runs/" + id, State: process.StateRunning}, nil
-	}
-	proc.observe = func(runDir string) (*process.Observation, error) {
-		if strings.HasSuffix(runDir, "run1") {
-			return obs(process.StateSignaled, runDir), nil // first tree died
+	dead := false
+	proc := &fakeProc{observe: func(runDir string) (*process.Observation, error) {
+		if dead && strings.HasSuffix(runDir, "run1") {
+			return obs(state, runDir), nil
 		}
-		return obs(process.StateRunning, runDir), nil // relaunched tree is healthy
-	}
-	proc.stop = func(runDir, reason string) (*process.StopOutcome, error) {
-		// signaled run is already terminal: an already-terminal no-op.
-		return &process.StopOutcome{State: process.StateSignaled, RunDir: runDir, Performed: false,
-			Terminal: &process.Terminal{Kind: "signal", Signal: 9}}, nil
-	}
+		return obs(process.StateRunning, runDir), nil
+	}}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-
-	doc, err := d.Start(sampleStart())
-	if err != nil {
-		t.Fatalf("Start: %v", err)
+	started, err := d.Start(req)
+	if err != nil || started.Outcome != WAITING {
+		t.Fatalf("Start = %s (%v), want WAITING", started.Outcome, err)
 	}
-	if doc.Outcome != WAITING {
-		t.Fatalf("after an admitted relaunch the healthy new run must WAIT, got %s (%s)", doc.Outcome, doc.Cause)
-	}
-	if doc.Attempt != 2 {
-		t.Fatalf("an admitted relaunch must advance the attempt to 2, got %d", doc.Attempt)
-	}
-	if proc.launchN != 2 {
-		t.Fatalf("exactly one relaunch (two launches) must occur, got %d", proc.launchN)
-	}
-	rec, _ := store.Load(doc.DriveID)
-	if rec.RelaunchCount != 1 {
-		t.Fatalf("relaunch count must be 1, got %d", rec.RelaunchCount)
-	}
-	if rec.RawRunDir != "/runs/run2" {
-		t.Fatalf("the drive must now own the second run, got %q", rec.RawRunDir)
-	}
-	if rec.PriorRawRunDir != "/runs/run1" {
-		t.Fatalf("the dead first attempt must be preserved, got %q", rec.PriorRawRunDir)
-	}
-	if !rec.Deadline.Equal(startRun().Add(30 * time.Minute)) {
-		t.Fatalf("the relaunch must keep the original deadline, got %v", rec.Deadline)
-	}
+	return d, store, proc, started, &dead
 }
 
-// TestDeathRelaunchRefusals proves every reason a second launch is refused ends
-// in HALTED preserving the dead attempt, and never relaunches.
-func TestDeathRelaunchRefusals(t *testing.T) {
-	cases := []struct {
-		name      string
-		state     process.State
-		mutate    func(rec *driveRecord)
-		driftGit  bool
-		stopErr   bool
-		wantCause string
+// TestDeathHaltsSupervisorDied (change 0493): every drive whose run dies — one
+// started as finalize starts one or as a build drive, signaled or vanished,
+// within or past its deadline, worktree unchanged or drifted, with or without
+// another gate holding the worktree — HALTs supervisor-died with its one
+// launch. Nothing launches again, the worktree lock is never re-taken, and the
+// record keeps its first run.
+func TestDeathHaltsSupervisorDied(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		owner      string
+		idempotent bool
+		state      process.State
+		holdOther  bool
 	}{
-		{
-			name:      "not idempotent",
-			state:     process.StateSignaled,
-			mutate:    func(rec *driveRecord) { rec.IdempotentSuiteGate = false },
-			wantCause: "not-idempotent",
-		},
-		{
-			name:      "already relaunched",
-			state:     process.StateSignaled,
-			mutate:    func(rec *driveRecord) { rec.RelaunchCount = 1; rec.Attempt = 2 },
-			wantCause: "relaunch-exhausted",
-		},
-		{
-			name:      "deadline exhausted",
-			state:     process.StateSignaled,
-			mutate:    func(rec *driveRecord) { rec.Deadline = startRun().Add(-time.Minute) },
-			wantCause: "deadline-expired",
-		},
-		{
-			name:      "worktree changed",
-			state:     process.StateSignaled,
-			driftGit:  true,
-			wantCause: "worktree-changed",
-		},
-		{
-			name:      "former tree not proven gone",
-			state:     process.StateSignaled,
-			stopErr:   true,
-			wantCause: "uncertain",
-		},
-	}
-	for _, tc := range cases {
+		{"finalize signaled", "finalize", true, process.StateSignaled, false},
+		{"finalize vanished", "finalize", true, process.StateVanished, false},
+		{"build signaled", "build", false, process.StateSignaled, false},
+		{"build vanished", "build", false, process.StateVanished, false},
+		{"another gate took the worktree", "finalize", true, process.StateVanished, true},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
-			clk := &fakeClock{now: startRun().Add(time.Second)}
+			req := sampleStart()
+			req.Owner = tc.owner
+			req.IdempotentSuiteGate = tc.idempotent
+			d, store, proc, started, dead := deathAfterFirstSlice(t, req, tc.state)
+			if tc.holdOther {
+				holdWorktree(t, store, req.Cwd)
+			}
+			*dead = true
+
+			doc, err := d.Advance(started.DriveID, started.Generation)
+			if err != nil {
+				t.Fatalf("Advance: %v", err)
+			}
+			if doc.Outcome != HALTED || doc.Cause != CauseSupervisorDied {
+				t.Fatalf("a death = %s/%q, want HALTED/%s", doc.Outcome, doc.Cause, CauseSupervisorDied)
+			}
+			if proc.launchN != 1 {
+				t.Fatalf("a death must never launch again: launches = %d, want 1", proc.launchN)
+			}
+			rec, err := store.Load(started.DriveID)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if rec.Attempt != 1 || rec.RawRunDir != "/runs/run1" || rec.LastCause != CauseSupervisorDied {
+				t.Fatalf("record = attempt %d run %q cause %q, want 1 /runs/run1 %s", rec.Attempt, rec.RawRunDir, rec.LastCause, CauseSupervisorDied)
+			}
+			if !tc.holdOther && !worktreeFree(t, store, req.Cwd) {
+				t.Fatalf("a halted drive must hold no worktree lock")
+			}
+		})
+	}
+	for _, tc := range []struct {
+		name   string
+		mutate func(*driveRecord)
+		drift  bool
+	}{
+		{name: "deadline already past", mutate: func(r *driveRecord) { r.Deadline = startRun().Add(-time.Minute) }},
+		{name: "worktree drifted", drift: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			git := stableGit()
 			proc := &fakeProc{
-				observe: func(runDir string) (*process.Observation, error) {
-					return obs(tc.state, runDir), nil
-				},
-			}
-			if tc.stopErr {
-				proc.stop = func(runDir, reason string) (*process.StopOutcome, error) {
-					return nil, fmt.Errorf("gatedrive-test: stop cannot prove ownership")
-				}
-			} else {
-				proc.stop = func(runDir, reason string) (*process.StopOutcome, error) {
+				observe: func(runDir string) (*process.Observation, error) { return obs(process.StateSignaled, runDir), nil },
+				stop: func(runDir, reason string) (*process.StopOutcome, error) {
 					return &process.StopOutcome{State: process.StateSignaled, RunDir: runDir, Performed: false,
 						Terminal: &process.Terminal{Kind: "signal", Signal: 9}}, nil
-				}
+				},
 			}
-			d, store := newTestDriver(t, clk, proc, git)
+			d, store := newTestDriver(t, &fakeClock{now: startRun().Add(time.Second)}, proc, git)
 			rec := seedRecord(t)
 			if tc.mutate != nil {
 				tc.mutate(&rec)
 			}
 			id, ownerGen := seedDrive(t, store, rec)
-			if tc.driftGit {
+			if tc.drift {
 				git.status = "DRIFTED"
 			}
-
 			doc, err := d.Advance(id, ownerGen)
 			if err != nil {
 				t.Fatalf("Advance: %v", err)
 			}
-			if doc.Outcome != HALTED {
-				t.Fatalf("a refused relaunch must HALT, got %s (%s)", doc.Outcome, doc.Cause)
-			}
-			if doc.Outcome == FAILED {
-				t.Fatalf("a death must never be reported red")
-			}
-			if !strings.Contains(doc.Cause, tc.wantCause) {
-				t.Fatalf("cause must name %q, got %q", tc.wantCause, doc.Cause)
-			}
-			if proc.launchN != 0 {
-				t.Fatalf("a refused relaunch must launch nothing, launched %d", proc.launchN)
-			}
-			// The dead attempt is preserved: the record still names the first run.
-			got, _ := store.Load(id)
-			if got.RawRunDir != "/runs/run1" {
-				t.Fatalf("the dead attempt must be preserved, got %q", got.RawRunDir)
+			if doc.Outcome != HALTED || doc.Cause != CauseSupervisorDied || proc.launchN != 0 {
+				t.Fatalf("a death = %s/%q launches %d, want HALTED/%s and no launch", doc.Outcome, doc.Cause, proc.launchN, CauseSupervisorDied)
 			}
 		})
+	}
+}
+
+// TestDeathUnprovenHaltsUncertainOwnership: a death whose tree cannot be proven
+// gone (the probe stop errors) HALTs uncertain-ownership, as before change 0493,
+// and launches nothing.
+func TestDeathUnprovenHaltsUncertainOwnership(t *testing.T) {
+	proc := &fakeProc{
+		observe: func(runDir string) (*process.Observation, error) { return obs(process.StateSignaled, runDir), nil },
+		stop: func(runDir, reason string) (*process.StopOutcome, error) {
+			return nil, fmt.Errorf("gatedrive-test: stop cannot prove ownership")
+		},
+	}
+	d, store := newTestDriver(t, &fakeClock{now: startRun().Add(time.Second)}, proc, stableGit())
+	id, ownerGen := seedDrive(t, store, seedRecord(t))
+	doc, err := d.Advance(id, ownerGen)
+	if err != nil {
+		t.Fatalf("Advance: %v", err)
+	}
+	if doc.Outcome != HALTED || doc.Cause != "uncertain-ownership" || proc.launchN != 0 {
+		t.Fatalf("an unproven death = %s/%q launches %d, want HALTED/uncertain-ownership and no launch", doc.Outcome, doc.Cause, proc.launchN)
 	}
 }
 
@@ -950,175 +928,6 @@ func TestFreshDriverResumesFromDisk(t *testing.T) {
 	}
 	if resumed.DriveID != doc.DriveID {
 		t.Fatalf("the resumed drive id must match: %q vs %q", resumed.DriveID, doc.DriveID)
-	}
-}
-
-// TestRelaunchCrashBetweenReserveAndLaunchRecovers proves that the durable
-// relaunch reservation survives a process restart. A clean census permits the
-// one reserved replacement to launch, an identified replacement is attached
-// without another launch, and every uncertain census halts the drive closed.
-func TestRelaunchCrashBetweenReserveAndLaunchRecovers(t *testing.T) {
-	for _, tc := range []struct {
-		name          string
-		resolution    *process.ReservationResolution
-		wantOutcome   Outcome
-		wantCause     string
-		wantLaunches  int
-		wantRelaunch  int
-		wantAttempt   int
-		wantReserved  bool
-		identifiedRun string
-	}{
-		{
-			name:         "never launched starts the reserved replacement",
-			resolution:   &process.ReservationResolution{Disposition: "never-launched"},
-			wantOutcome:  WAITING,
-			wantLaunches: 1,
-			wantRelaunch: 1,
-			wantAttempt:  2,
-		},
-		{
-			name: "identified replacement attaches without another launch",
-			resolution: &process.ReservationResolution{
-				Disposition: "identified", RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning,
-			},
-			wantOutcome:   WAITING,
-			wantLaunches:  0,
-			wantRelaunch:  1,
-			wantAttempt:   2,
-			identifiedRun: "/runs/run2",
-		},
-		{
-			name:         "unresolved replacement halts closed",
-			resolution:   &process.ReservationResolution{Disposition: "unresolved"},
-			wantOutcome:  HALTED,
-			wantCause:    "launch-unconfirmed",
-			wantLaunches: 0,
-			wantRelaunch: 0,
-			wantAttempt:  1,
-			wantReserved: true,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			store := OpenStore(testsupport.TempDir(t))
-			rec := seedRecord(t)
-			rec.AdmissionToken = "aaaaaaaaaaaaaaaa"
-			rec.RelaunchToken = "bbbbbbbbbbbbbbbb"
-			id, ownerGen := seedDrive(t, store, rec)
-			if err := store.ownerCAS(id, func(r *driveRecord) error {
-				r.RelaunchReserved = true
-				return nil
-			}); err != nil {
-				t.Fatalf("reserve relaunch: %v", err)
-			}
-
-			proc := &fakeProc{
-				launch: func(req process.LaunchRequest) (*process.LaunchOutcome, error) {
-					if req.ReservationToken != rec.RelaunchToken || req.ReservationToken == rec.AdmissionToken {
-						t.Fatalf("replacement token = %q, want unique relaunch token %q", req.ReservationToken, rec.RelaunchToken)
-					}
-					// A recovered replacement re-takes the worktree lock before it
-					// launches, like any relaunch (change 0490).
-					if req.WorktreeLock == nil {
-						t.Fatalf("a recovered replacement must launch holding the worktree lock")
-					}
-					return &process.LaunchOutcome{RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning}, nil
-				},
-				resolve: func(root, token string) (*process.ReservationResolution, error) {
-					if root != rec.RunRoot || token != rec.RelaunchToken {
-						t.Fatalf("ResolveReservation(%q, %q), want (%q, %q)", root, token, rec.RunRoot, rec.RelaunchToken)
-					}
-					return tc.resolution, nil
-				},
-				observe: func(runDir string) (*process.Observation, error) {
-					if runDir == "/runs/run1" {
-						return obs(process.StateVanished, runDir), nil
-					}
-					return obs(process.StateRunning, runDir), nil
-				},
-			}
-			clk := &fakeClock{now: startRun().Add(time.Second)}
-			d := NewDriver(reopenStore(store), clk, proc, stableGit())
-			d.slice = pollTick
-			d.pollInterval = pollTick
-			d.sleep = func(d time.Duration) { clk.advance(d) }
-
-			doc, err := d.Advance(id, ownerGen)
-			if err != nil {
-				t.Fatalf("Advance after restart: %v", err)
-			}
-			if doc.Outcome != tc.wantOutcome || doc.Cause != tc.wantCause {
-				t.Fatalf("outcome = %s/%q, want %s/%q", doc.Outcome, doc.Cause, tc.wantOutcome, tc.wantCause)
-			}
-			if proc.launchN != tc.wantLaunches {
-				t.Fatalf("launches = %d, want %d", proc.launchN, tc.wantLaunches)
-			}
-			got, err := store.Load(id)
-			if err != nil {
-				t.Fatalf("Load: %v", err)
-			}
-			if got.RelaunchCount != tc.wantRelaunch || got.Attempt != tc.wantAttempt || got.RelaunchReserved != tc.wantReserved {
-				t.Fatalf("record = relaunch=%d attempt=%d reserved=%v, want %d/%d/%v", got.RelaunchCount, got.Attempt, got.RelaunchReserved, tc.wantRelaunch, tc.wantAttempt, tc.wantReserved)
-			}
-			if tc.identifiedRun != "" && got.RawRunDir != tc.identifiedRun {
-				t.Fatalf("identified replacement was not attached: RawRunDir=%q want %q", got.RawRunDir, tc.identifiedRun)
-			}
-		})
-	}
-}
-
-// TestRelaunchReservationNotRefundedOnUncertainty proves an uncertain reserved
-// replacement permanently consumes the drive's sole relaunch. Even if a later
-// probe would report clean absence, the terminal launch-unconfirmed outcome
-// remains authoritative and no new backend launch is permitted.
-func TestRelaunchReservationNotRefundedOnUncertainty(t *testing.T) {
-	store := OpenStore(testsupport.TempDir(t))
-	rec := seedRecord(t)
-	rec.AdmissionToken = "reservation-token"
-	rec.RelaunchToken = "bbbbbbbbbbbbbbbb"
-	id, ownerGen := seedDrive(t, store, rec)
-	if err := store.ownerCAS(id, func(r *driveRecord) error {
-		r.RelaunchReserved = true
-		return nil
-	}); err != nil {
-		t.Fatalf("reserve relaunch: %v", err)
-	}
-
-	resolution := "unresolved"
-	proc := &fakeProc{
-		resolve: func(root, token string) (*process.ReservationResolution, error) {
-			return &process.ReservationResolution{Disposition: resolution}, nil
-		},
-		observe: func(runDir string) (*process.Observation, error) {
-			return obs(process.StateVanished, runDir), nil
-		},
-	}
-	d := NewDriver(reopenStore(store), &fakeClock{now: startRun().Add(time.Second)}, proc, stableGit())
-
-	first, err := d.Advance(id, ownerGen)
-	if err != nil {
-		t.Fatalf("first Advance: %v", err)
-	}
-	if first.Outcome != HALTED || first.Cause != "launch-unconfirmed" {
-		t.Fatalf("uncertain replacement must halt unresolved, got %s/%q", first.Outcome, first.Cause)
-	}
-	resolution = "never-launched"
-	second, err := d.Advance(id, ownerGen)
-	if err != nil {
-		t.Fatalf("second Advance: %v", err)
-	}
-	if second.Outcome != HALTED || second.Cause != "launch-unconfirmed" {
-		t.Fatalf("reservation must not be refunded after uncertainty, got %s/%q", second.Outcome, second.Cause)
-	}
-	if proc.launchN != 0 || proc.resolveN != 1 {
-		t.Fatalf("a consumed uncertain reservation must not launch or re-resolve, launches=%d resolves=%d", proc.launchN, proc.resolveN)
-	}
-	got, err := store.Load(id)
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if !got.RelaunchReserved || got.RelaunchCount != 0 {
-		t.Fatalf("uncertainty must retain the consumed reservation, got reserved=%v relaunch=%d", got.RelaunchReserved, got.RelaunchCount)
 	}
 }
 
@@ -1439,8 +1248,8 @@ func TestScopelessAttachFailureStopsFreshRun(t *testing.T) {
 
 // TestCorruptReservedDriveNeverLaunches: a drive record corrupted in the window
 // between Admit and StartAdmitted refuses the delayed launch typed, launches
-// nothing, and frees the worktree; a corrupt drive's reserved relaunch never
-// launches either.
+// nothing, and frees the worktree; advancing a corrupt live drive never
+// launches again.
 func TestCorruptReservedDriveNeverLaunches(t *testing.T) {
 	t.Run("reserved-before-launch", func(t *testing.T) {
 		proc := &fakeProc{}
@@ -1462,18 +1271,13 @@ func TestCorruptReservedDriveNeverLaunches(t *testing.T) {
 			t.Fatalf("a refused launch must free the worktree")
 		}
 	})
-	t.Run("reserved-relaunch", func(t *testing.T) {
+	t.Run("corrupt-live-drive", func(t *testing.T) {
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
 		doc, err := d.Start(sampleStart())
 		if err != nil || doc.Outcome != WAITING {
 			t.Fatalf("Start: doc=%+v err=%v", doc, err)
 		}
-		claim, err := store.reserveRelaunch(doc.DriveID, doc.Generation)
-		if err != nil {
-			t.Fatalf("reserveRelaunch: %v", err)
-		}
-		claim.close()
 		corruptFile(t, filepath.Join(store.root, doc.DriveID, recordFileName))
 
 		launches := proc.launchN
@@ -1481,162 +1285,7 @@ func TestCorruptReservedDriveNeverLaunches(t *testing.T) {
 			t.Fatalf("advancing a corrupt drive must halt or fail, got %+v", adv)
 		}
 		if proc.launchN != launches {
-			t.Fatal("a corrupt drive's reserved relaunch must never launch")
-		}
-	})
-}
-
-// relaunchAfterDeath starts an idempotent drive whose first run stays live for
-// the first slice, then reports it vanished, so the next Advance reaches the
-// single relaunch.
-func relaunchAfterDeath(t *testing.T, owner string) (*Driver, *Store, *fakeProc, *fakeClock, StartRequest, DriveDoc, *bool) {
-	t.Helper()
-	clk := &fakeClock{now: startRun()}
-	dead := false
-	proc := &fakeProc{observe: func(runDir string) (*process.Observation, error) {
-		if dead && strings.HasSuffix(runDir, "run1") {
-			return obs(process.StateVanished, runDir), nil
-		}
-		return obs(process.StateRunning, runDir), nil
-	}}
-	d, store := newTestDriver(t, clk, proc, stableGit())
-	req := sampleStart()
-	req.Owner = owner
-	started, err := d.Start(req)
-	if err != nil || started.Outcome != WAITING {
-		t.Fatalf("Start = %s (%v), want WAITING", started.Outcome, err)
-	}
-	return d, store, proc, clk, req, started, &dead
-}
-
-// TestRelaunchFindsWorktreeHeldHaltsWorktreeBusy (L4): when another gate holds
-// the worktree by the time the dead first run would be replaced, the drive HALTs
-// worktree-busy, launches nothing more, and releases its relaunch claim.
-func TestRelaunchFindsWorktreeHeldHaltsWorktreeBusy(t *testing.T) {
-	d, store, proc, _, req, started, dead := relaunchAfterDeath(t, "build")
-	holdWorktree(t, store, req.Cwd) // another gate took the worktree
-	*dead = true
-
-	doc, err := d.Advance(started.DriveID, started.Generation)
-	if err != nil {
-		t.Fatalf("Advance: %v", err)
-	}
-	if doc.Outcome != HALTED || doc.Cause != CauseWorktreeBusy {
-		t.Fatalf("relaunch over a held worktree = %s/%q, want HALTED/%s", doc.Outcome, doc.Cause, CauseWorktreeBusy)
-	}
-	if proc.launchN != 1 {
-		t.Fatalf("a busy worktree must never be relaunched over: launches = %d, want 1", proc.launchN)
-	}
-	rec, err := store.Load(started.DriveID)
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if rec.RelaunchCount != 0 || rec.RawRunDir != "/runs/run1" {
-		t.Fatalf("a halted relaunch attaches nothing: count=%d run=%q", rec.RelaunchCount, rec.RawRunDir)
-	}
-	c, busy, err := store.tryRelaunchClaim(started.DriveID)
-	if err != nil || busy {
-		t.Fatalf("the relaunch claim must be released after the halt: busy=%v err=%v", busy, err)
-	}
-	c.close()
-}
-
-// TestRelaunchWaitsOutItsOwnSupervisorsExit: the first run's terminal state is
-// visible a few writes before its dying supervisor closes its copy of the
-// worktree lock. A relaunch that finds the lock still held by that exit keeps
-// trying, within its bound, and relaunches once the lock frees — it never HALTs
-// worktree-busy over its own prior run.
-func TestRelaunchWaitsOutItsOwnSupervisorsExit(t *testing.T) {
-	clk := &fakeClock{now: startRun()}
-	dead := false
-	var firstLock *os.File // the first "supervisor's" copy, held past its death
-	proc := &fakeProc{retainLock: true}
-	proc.launch = func(r process.LaunchRequest) (*process.LaunchOutcome, error) {
-		id := fmt.Sprintf("run%d", proc.launchN)
-		if proc.launchN == 1 {
-			firstLock = r.WorktreeLock
-		} else {
-			releaseHandedLock(r)
-		}
-		return &process.LaunchOutcome{RunID: id, RunDir: "/runs/" + id, State: process.StateRunning}, nil
-	}
-	proc.observe = func(runDir string) (*process.Observation, error) {
-		if dead && strings.HasSuffix(runDir, "run1") {
-			return obs(process.StateVanished, runDir), nil
-		}
-		return obs(process.StateRunning, runDir), nil
-	}
-	d, store := newTestDriver(t, clk, proc, stableGit())
-	t.Cleanup(func() {
-		if firstLock != nil {
-			firstLock.Close()
-		}
-	})
-	retries := 0
-	d.sleep = func(dur time.Duration) {
-		clk.advance(dur)
-		if dead && firstLock != nil {
-			retries++
-			if retries == 3 { // the dying supervisor finally closes its copy
-				firstLock.Close()
-				firstLock = nil
-			}
-		}
-	}
-	started, err := d.Start(sampleStart())
-	if err != nil || started.Outcome != WAITING {
-		t.Fatalf("Start = %s (%v), want WAITING", started.Outcome, err)
-	}
-	if worktreeFree(t, store, sampleStart().Cwd) {
-		t.Fatalf("the first run's supervisor must hold the worktree")
-	}
-	dead = true
-
-	doc, err := d.Advance(started.DriveID, started.Generation)
-	if err != nil {
-		t.Fatalf("Advance: %v", err)
-	}
-	if doc.Outcome != WAITING || doc.Attempt != 2 {
-		t.Fatalf("relaunch after its own supervisor's exit = %s/%q attempt %d, want WAITING attempt 2", doc.Outcome, doc.Cause, doc.Attempt)
-	}
-	if proc.launchN != 2 || retries != 3 {
-		t.Fatalf("launches = %d (want 2), busy retries = %d (want 3)", proc.launchN, retries)
-	}
-}
-
-// TestRelaunchRewritesHolderKeepingOwner: a relaunch rewrites the holder note
-// with the replacement's run dir and keeps the owner the drive's first launch
-// recorded; a note another drive wrote lends its owner to nobody.
-func TestRelaunchRewritesHolderKeepingOwner(t *testing.T) {
-	t.Run("own note keeps its owner", func(t *testing.T) {
-		d, store, proc, _, req, started, dead := relaunchAfterDeath(t, "finalize")
-		*dead = true
-		doc, err := d.Advance(started.DriveID, started.Generation)
-		if err != nil || doc.Outcome != WAITING || doc.Attempt != 2 {
-			t.Fatalf("relaunch = %s/%q attempt %d (%v), want WAITING attempt 2", doc.Outcome, doc.Cause, doc.Attempt, err)
-		}
-		if proc.launchN != 2 {
-			t.Fatalf("launches = %d, want 2", proc.launchN)
-		}
-		note, ok := readHolderNote(worktreeLockDir(store, req.Cwd))
-		if !ok || note.RunDir != "/runs/run2" || note.DriveID != started.DriveID ||
-			note.Owner != "finalize" || note.ChangeID != req.ChangeID || note.Kind != "drive" {
-			t.Fatalf("holder note after relaunch = %+v, want run2 of drive %s owned by finalize", note, started.DriveID)
-		}
-	})
-	t.Run("another drive's note lends no owner", func(t *testing.T) {
-		d, store, _, _, req, started, dead := relaunchAfterDeath(t, "finalize")
-		other := HolderNote{Kind: "drive", DriveID: strings.Repeat("c", 32), RunDir: "/runs/other", Owner: "build"}
-		if err := writeAtomicJSON(filepath.Join(worktreeLockDir(store, req.Cwd), worktreeHolderFile), other); err != nil {
-			t.Fatalf("seed another drive's note: %v", err)
-		}
-		*dead = true
-		if doc, err := d.Advance(started.DriveID, started.Generation); err != nil || doc.Outcome != WAITING {
-			t.Fatalf("relaunch = %s (%v), want WAITING", doc.Outcome, err)
-		}
-		note, ok := readHolderNote(worktreeLockDir(store, req.Cwd))
-		if !ok || note.DriveID != started.DriveID || note.RunDir != "/runs/run2" || note.Owner != "" {
-			t.Fatalf("holder note = %+v, want this drive's run2 with an unknown owner", note)
+			t.Fatal("a corrupt drive must never launch again")
 		}
 	})
 }

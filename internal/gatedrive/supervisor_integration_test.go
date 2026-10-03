@@ -19,7 +19,7 @@
 //   - a FRESH driver process resumes the drive purely from the durable record and
 //     consumes the exact terminal status the child produced while no driver was
 //     watching;
-//   - a process-tree death permits at most one non-overlapping relaunch;
+//   - a process-tree death HALTs supervisor-died and is never relaunched;
 //   - deadline expiry stops the whole owned process tree;
 //   - durable logs and the passed-run raw directory remain usable for evidence.
 //
@@ -95,7 +95,7 @@ const intChildStdout = "GATEDRIVE-INT-CHILD-STDOUT"
 //	                    exit record)
 //	selfkill-after <ms> sleep ms, then SIGKILL only this process — a genuine
 //	                    signaled death (kind=signal) with no stop intent, the
-//	                    input the single-relaunch path keys on
+//	                    input the supervisor-died halt keys on
 //	drive-start <gitCommonDir> <runRoot> <childMs>
 //	                    start a real drive against the real supervisor, print
 //	                    "<driveID> <ownerGen> <runDir>", and exit — the separate
@@ -642,68 +642,87 @@ func TestIntegrationGatedriveDeadlineExpiryStopsOwnedTree(t *testing.T) {
 	}
 }
 
-// TestIntegrationGatedriveProcessDeathPermitsAtMostOneRelaunch drives a child that dies by
-// a signal with no stop intent (a genuine tree death). The single-relaunch policy
-// admits exactly one non-overlapping second raw run under the original deadline;
-// when that one also dies, the driver HALTs with relaunch-exhausted rather than
-// launching a third. Both raw runs' groups are dead, and the two runs are
-// distinct — the first proven gone before the second launched.
-func TestIntegrationGatedriveProcessDeathPermitsAtMostOneRelaunch(t *testing.T) {
-	skipUnlessSupported(t)
-	svc := mustService(t)
-	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
-	store := OpenStore(testsupport.TempDir(t))
-	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
-	reapSupervisors(t, runRoot)
-	d := newIntDriver(store, svc)
+// waitWorktreeFree polls until cwd's worktree lock is free, failing after 30s: a
+// dead run's supervisor closes its copy of the lock a few durable writes after
+// its terminal record becomes visible.
+func waitWorktreeFree(t *testing.T, store *Store, cwd string) {
+	t.Helper()
+	end := time.Now().Add(30 * time.Second)
+	for !worktreeFree(t, store, cwd) {
+		if time.Now().After(end) {
+			t.Fatalf("worktree %s still locked 30s after the drive halted", cwd)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
 
-	// A child that lives long enough to establish "running", then SIGKILLs itself.
-	doc, err := d.Start(intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "selfkill-after", "120"))
-	if err != nil {
-		t.Fatalf("start: %v", err)
-	}
-	if doc.Outcome != WAITING {
-		t.Fatalf("first slice over a live child: outcome %s (cause %q), want WAITING", doc.Outcome, doc.Cause)
-	}
+// TestIntegrationGatedriveProcessDeathHaltsSupervisorDied (change 0493): a real
+// gate whose run dies mid-drive is never relaunched. Whether the suite dies by a
+// genuine signal (the child SIGKILLs itself; the supervisor records a signaled
+// terminal) or the supervisor itself is killed (the run vanishes), the drive
+// HALTs supervisor-died, exactly one raw run dir exists under the run root, and
+// the worktree lock is free once the supervisor is gone.
+func TestIntegrationGatedriveProcessDeathHaltsSupervisorDied(t *testing.T) {
+	t.Run("child-signal-death", func(t *testing.T) {
+		skipUnlessSupported(t)
+		svc := mustService(t)
+		runRoot := filepath.Join(testsupport.TempDir(t), "runs")
+		store := OpenStore(testsupport.TempDir(t))
+		t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
+		reapSupervisors(t, runRoot)
+		d := newIntDriver(store, svc)
+		cwd := testsupport.TempDir(t)
 
-	term, _ := advanceUntilTerminal(t, d, doc.DriveID, doc.Generation)
-	if term.Outcome != HALTED {
-		t.Fatalf("terminal outcome %s (cause %q), want HALTED", term.Outcome, term.Cause)
-	}
-	if term.Cause != "relaunch-exhausted" {
-		t.Fatalf("halt cause %q, want relaunch-exhausted", term.Cause)
-	}
+		doc, err := d.Start(intStartRequest(mustExe(t), runRoot, cwd, "selfkill-after", "120"))
+		if err != nil || doc.Outcome != WAITING {
+			t.Fatalf("first slice over a live child = %s (%v), want WAITING", doc.Outcome, err)
+		}
+		term, _ := advanceUntilTerminal(t, d, doc.DriveID, doc.Generation)
+		if term.Outcome != HALTED || term.Cause != CauseSupervisorDied {
+			t.Fatalf("terminal = %s/%q, want HALTED/%s", term.Outcome, term.Cause, CauseSupervisorDied)
+		}
+		runDir := soleRunDir(t, runRoot) // exactly one run: never relaunched
+		if st := observeState(t, svc, runDir); st != process.StateSignaled {
+			t.Fatalf("the dead run's state = %v, want signaled", st)
+		}
+		waitWorktreeFree(t, store, cwd)
+	})
+	t.Run("supervisor-killed", func(t *testing.T) {
+		skipUnlessSupported(t)
+		svc := mustService(t)
+		runRoot := filepath.Join(testsupport.TempDir(t), "runs")
+		store := OpenStore(testsupport.TempDir(t))
+		// The reaper is registered FIRST so it outlives the cleanup stop.
+		reapSupervisors(t, runRoot)
+		t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
+		d := newIntDriver(store, svc)
+		cwd := testsupport.TempDir(t)
 
-	rec, err := store.Load(doc.DriveID)
-	if err != nil {
-		t.Fatalf("load record: %v", err)
-	}
-	if rec.RelaunchCount != 1 {
-		t.Fatalf("relaunch count %d, want exactly 1 (at most one relaunch)", rec.RelaunchCount)
-	}
-	if rec.Attempt != 2 {
-		t.Fatalf("attempt %d, want 2 after the single relaunch", rec.Attempt)
-	}
-	// Two distinct, non-overlapping raw runs: the first is preserved as the prior
-	// attempt, the second is the current one, and both trees are dead.
-	if rec.PriorRawRunDir == "" || rec.PriorRawRunDir == rec.RawRunDir {
-		t.Fatalf("relaunch did not record a distinct prior run: prior=%q current=%q", rec.PriorRawRunDir, rec.RawRunDir)
-	}
-	first := readManifestIdentity(t, rec.PriorRawRunDir)
-	second := readManifestIdentity(t, rec.RawRunDir)
-	if first.SupervisorPID == second.SupervisorPID {
-		t.Fatalf("two attempts share a supervisor pid %d — not distinct runs", first.SupervisorPID)
-	}
-	// Neither tree is still running: both died a genuine signal death (the child
-	// SIGKILLed itself, no stop intent), which the native receipt records as
-	// StateSignaled (oracle: terminal.json via Observe, never a process name).
-	if st := observeState(t, svc, rec.PriorRawRunDir); st != process.StateSignaled {
-		t.Fatalf("first (relaunched-away) tree state = %v, want signaled", st)
-	}
-	if st := observeState(t, svc, rec.RawRunDir); st != process.StateSignaled {
-		t.Fatalf("second (exhausting) tree state = %v, want signaled", st)
-	}
-	if got := len(runDirsUnder(t, runRoot)); got != 2 {
-		t.Fatalf("want exactly two raw run dirs after one relaunch, got %d", got)
-	}
+		doc, err := d.Start(intStartRequest(mustExe(t), runRoot, cwd, "sleep-forever", ""))
+		if err != nil || doc.Outcome != WAITING {
+			t.Fatalf("first slice over a live child = %s (%v), want WAITING", doc.Outcome, err)
+		}
+		runDir := soleRunDir(t, runRoot)
+		id := readManifestIdentity(t, runDir)
+		// The killed supervisor's suite survives it (change 0492); cleanup ends it.
+		t.Cleanup(func() { _ = syscall.Kill(-id.PGID, syscall.SIGKILL) })
+		if err := syscall.Kill(id.SupervisorPID, syscall.SIGKILL); err != nil {
+			t.Fatalf("kill supervisor: %v", err)
+		}
+		deadline := time.Now().Add(30 * time.Second)
+		for pidAlive(id.SupervisorPID) {
+			if time.Now().After(deadline) {
+				t.Fatalf("the killed supervisor %d never went away", id.SupervisorPID)
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		term, _ := advanceUntilTerminal(t, d, doc.DriveID, doc.Generation)
+		if term.Outcome != HALTED || term.Cause != CauseSupervisorDied {
+			t.Fatalf("terminal = %s/%q, want HALTED/%s", term.Outcome, term.Cause, CauseSupervisorDied)
+		}
+		if got := len(runDirsUnder(t, runRoot)); got != 1 {
+			t.Fatalf("want exactly one raw run dir (never relaunched), got %d", got)
+		}
+		waitWorktreeFree(t, store, cwd)
+	})
 }
