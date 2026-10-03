@@ -29,7 +29,15 @@ Tasks: typed `process.ProbeLock`; publish-lock primitives and classifier with th
 
 - **Optional — kill a real publish and cancel.** Prerequisites: a scratch repository with docket installed and a tracked run that reaches `workspace.publish`. Steps: start the run with `run.start`, interrupt the process (Ctrl-C or `kill -9`) while `workspace.publish` is pushing, then run `run.cancel --key <key> --reason test`. Expected: disposition `cancelled` with finding `mutation-abandoned:workspace.publish`, and `run.start --resume <id>` admits one replacement. Cleanup: delete the scratch branch and repository.
 
+### Whole-branch review (deep tier) and fixes
+
+- Important: a dropped `done` callback let garbage collection close the publish lock, so a live publisher read as dead. Fixed in fa9532dab: live lock files are kept in a registry that only `releasePublishLock` closes, with a GC test.
+- Important: a free lock proves the docket process is gone, not its `git`/`gh` child. Documented in 11034e7cb (glossary) and in dated Update notes on ADR-0137 and ADR-0118.
+- Minor: three stale comments still described the old rule. Fixed in 11034e7cb.
+- Minor: the SIGKILL holder test's `_ = f` did not keep the lock alive. Fixed in 11034e7cb with `runtime.KeepAlive`.
+- Minor: a publisher finishing between the record read and the lock probe was reported `mutation-abandoned`. Fixed in e793bcc4e: the record is re-read before that finding is emitted.
+
 ## Known issues and follow-ups
 
-- **A dropped publish callback reads as a dead publisher.** If code holding a publish's `done` callback lets it become unreachable before calling it, garbage collection closes the lock file and the entry reads as abandoned. Production callers call it immediately after the remote work; two racing tests needed `runtime.KeepAlive`. Confirmed as a test hazard, not seen in production. Suggested action: keep this in mind when adding new journaled publications.
+- **An orphaned `git push` or `gh` child can land after cancel.** If only the docket publisher process is killed, its child may still push the branch or open the PR after cancel reports `cancelled`. Confirmed by code reading. Impact is low: the push lease and PR create-or-adopt let a replacement run adopt whatever landed. A human who abandons the change may find a stray branch or PR. No action needed beyond awareness (ADR-0137 Update note).
 - **Entries written before this change** carry no `lock_token` and still wedge the old way until their publisher writes an outcome. None exist on the build machine.
