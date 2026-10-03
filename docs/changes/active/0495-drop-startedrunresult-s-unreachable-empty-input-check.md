@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/drop-startedrunresult-s-unreachable-empty-input-check'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-03T08:32:56Z'
+reconciled: true
+claimed_at: '2026-10-03T08:34:21Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ Remove the unreachable empty-input branch from `startedRunResult`. Rewrite its c
 ## Out of scope
 
 Any other change to `run.start` behavior, its refusal reasons, or the `run-started` report format. Reworking the run-start refusal ordering that 0491 settled.
+
+## Reconcile log
+
+### 2026-10-03
+
+Re-traced against main 1fc28e872: `startedRunResult`'s empty-input guard, its comment, `HumanText`'s comment, and the two test assertions (`runtracker_start_resume_integration_test.go`, `runtracker_start_result_json_test.go`) are exactly as the spec describes; both production callers still sit behind the pre-mint `scope-failed` refusal. 0491 is done and nothing since touches these files. Scope unchanged.
