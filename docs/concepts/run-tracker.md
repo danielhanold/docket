@@ -66,13 +66,13 @@ verdict, not the worker's report, says what may happen next.
 
 ## The worktree lock
 
-A canonical worktree runs at most one gate at a time. Every gate start
-— a drive's first launch, its single relaunch, and a raw `gate launch` —
-takes that worktree's **lock** without waiting, and hands it to the gate's
-supervisor, which holds it for the gate's whole life. The kernel releases
-the lock when the supervisor exits, so a finished, crashed, or killed gate
-frees the worktree on its own: there is no recovery step and nothing to
-settle afterward.
+A canonical worktree runs at most one gate at a time. Every gate start — a
+drive's one launch and a raw `gate launch` — takes that worktree's
+**lock** without waiting, and hands it to the gate's supervisor, which
+holds it for the gate's whole life. The kernel releases the lock when the
+supervisor exits, so a finished, crashed, or killed gate frees the
+worktree on its own: there is no recovery step and nothing to settle
+afterward.
 
 So a `worktree-busy` refusal means exactly one thing: a live supervisor
 holds the lock. The refusal never queues the start, never joins the

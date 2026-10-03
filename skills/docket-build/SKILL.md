@@ -322,10 +322,9 @@ it; the raw `gate.launch`/`observe`/`stop` operations are primitives, never this
 cannot tell *still running* from a process death, the one moment the wait exists for. `WAITING` is
 the only nonterminal disposition and the only one that advances again. Only `FAILED` — the suite ran
 and went red — feeds repair; a process death, a changed worktree, uncertain ownership, deadline expiry, or
-malformed observation is `HALTED`, **not** a red suite and it **never** mints repair work. The one
-bounded relaunch of a proven-dead **idempotent** suite gate, under the original deadline, is the
-driver's own — the caller never relaunches, stops a raw run, or composes the raw verbs; a
-non-idempotent gate earns no relaunch.
+malformed observation is `HALTED`, **not** a red suite and it **never** mints repair work. The
+caller never relaunches, stops a raw run, or composes the raw verbs; a gate whose supervisor dies
+halts `supervisor-died`, never relaunched.
 
 **Abandoning a live drive.** A caller that must stop while the drive is still `WAITING` — budget
 exhausted, halt, or abort — performs an explicit `gate.drive.handoff` operation **before it reports**,
