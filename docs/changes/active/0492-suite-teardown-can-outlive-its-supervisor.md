@@ -2,7 +2,7 @@
 id: 492
 slug: 'suite-teardown-can-outlive-its-supervisor'
 title: 'Suite teardown can outlive its supervisor'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-02'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/suite-teardown-can-outlive-its-supervisor'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/368'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-03T06:42:54Z'

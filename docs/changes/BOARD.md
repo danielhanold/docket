@@ -1,12 +1,12 @@
 # Backlog
 
-**496 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 8 proposed · ⚪ 12 deferred · ✅ 338 done · 🗑️ 133 killed
+**496 changes** — 🔵 1 built · 🟣 4 groomed · 🟡 8 proposed · ⚪ 12 deferred · ✅ 338 done · 🗑️ 133 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0492](active/0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | `medium` | `fix` | [spec](../superpowers/specs/2026-10-02-suite-teardown-can-outlive-its-supervisor-design.md) | `fix/suite-teardown-can-outlive-its-supervisor` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0492](active/0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | `medium` | `fix` | [#368](https://github.com/danielhanold/docket/pull/368) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
