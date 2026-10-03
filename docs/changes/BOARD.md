@@ -1,14 +1,13 @@
 # Backlog
 
-**497 changes** — 🔵 3 built · 🟣 3 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 340 done · 🗑️ 133 killed
+**497 changes** — 🔵 2 built · 🟣 3 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 341 done · 🗑️ 133 killed
 
-## 🔵 Built (3)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0496](active/0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) | Add `docket repository repair` and stop flagging empty claimed_at | `low` | `fix` | [#371](https://github.com/danielhanold/docket/pull/371) | awaiting merge |
 | [0495](active/0495-drop-startedrunresult-s-unreachable-empty-input-check.md) | Drop startedRunResult's unreachable empty-input check | `low` | `refactor` | [#369](https://github.com/danielhanold/docket/pull/369) | awaiting merge |
-| [0494](active/0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md) | A publish killed mid-flight wedges its run's cancel and closeout | `high` | `fix` | [#372](https://github.com/danielhanold/docket/pull/372) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -69,7 +68,6 @@ graph TD
   0412
   0433
   0464
-  0494
   0491 --> 0495
   0496
   0497
@@ -82,10 +80,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (473)</summary>
+<details><summary>✅🗑️ Archive — done + killed (474)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0494](archive/2026-10-03-0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md) | A publish killed mid-flight wedges its run's cancel and closeout | 2026-10-03 |
 | [0493](archive/2026-10-03-0493-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md) | Retire the automatic gate relaunch | 2026-10-03 |
 | [0492](archive/2026-10-03-0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | 2026-10-03 |
 | [0491](archive/2026-10-03-0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Retire the run id; the run key becomes the run tracker's only handle | 2026-10-03 |
@@ -113,7 +112,6 @@ graph TD
 | [0469](archive/2026-10-01-0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | 2026-10-01 |
 | [0477](archive/2026-09-30-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md) | Finish the run-tracker rename (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY, dispatch_context) | 2026-09-30 |
 | [0474](archive/2026-09-30-0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) | Rename re-arm to re-enable and retire the lifecycle 'terminal' and non-run 'fence' names | 2026-09-30 |
-| [0473](archive/2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) | Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks | 2026-09-30 |
 | [0292](archive/2026-09-29-0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | 2026-09-29 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
@@ -239,7 +237,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 89 done |
+| [2026-09](archive/) | 90 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
