@@ -142,6 +142,13 @@ type AdmittedMutation struct {
 	Status      string               `json:"status"` // admitted|completed|uncertain
 	Publication *MutationPublication `json:"publication,omitempty"`
 	Verified    bool                 `json:"verified,omitempty"`
+	// LockToken names the publisher's per-entry kernel lock,
+	// <run-key-dir>/publish-<token>.lock (change 0494). The publisher holds it from
+	// before this entry is written until after its outcome is written, so a free
+	// lock on an admitted entry proves the publisher is gone. Empty means no lock:
+	// an entry written before change 0494, a metadata transaction, or a publish
+	// whose lock could not be taken. Such an entry keeps blocking while admitted.
+	LockToken string `json:"lock_token,omitempty"`
 }
 
 // RunRecord is the durable run state. RunKey binds it to the starting gate
