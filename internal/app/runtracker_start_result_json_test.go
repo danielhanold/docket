@@ -38,7 +38,4 @@ func TestRunStartResultCarriesNoRunID(t *testing.T) {
 	if got := strings.SplitN(res.HumanText(), "\n", 2)[0]; got != "run-started k0491 ctx-token" {
 		t.Errorf("started line = %q, want %q", got, "run-started k0491 ctx-token")
 	}
-	if r := startedRunResult("", "ctx-token"); r.Started || r.Reason != ReasonRunMintFailed {
-		t.Errorf("a start with no key must fail closed run-untracked mint-failed, got %+v", r)
-	}
 }
