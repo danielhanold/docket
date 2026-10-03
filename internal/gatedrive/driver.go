@@ -751,12 +751,14 @@ func halt(res *sliceResult, cause string) sliceResult {
 }
 
 // proveNoTreeSurvives decides between the two death HALT causes: it establishes
-// that no owned process tree survives a death (supervisor-died), or reports that
-// it cannot (uncertain-ownership). A vanished observation already proves the
-// supervisor is gone with no terminal to consume. A signaled run is already
-// terminal: an already-terminal stop no-op confirms it, and a re-observe
-// consumes that terminal state before deciding. A stop that cannot prove
-// ownership (an error) leaves the outcome uncertain.
+// that the supervisor is gone (supervisor-died), or reports that it cannot
+// (uncertain-ownership). A vanished observation already proves the supervisor
+// is gone with no terminal to consume. A signaled run is already terminal: an
+// already-terminal stop no-op confirms it, and a re-observe consumes that
+// terminal state before deciding. A stop that cannot prove ownership (an error)
+// leaves the outcome uncertain. Despite its name, it does not prove that no
+// process group outlives the supervisor: a dead supervisor's suite can survive
+// it, and that is the launch census's tree-survives finding (change 0492).
 func (d *Driver) proveNoTreeSurvives(runDir string, observation *process.Observation) (bool, error) {
 	if observation.State == process.StateVanished {
 		return true, nil
