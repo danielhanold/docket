@@ -482,9 +482,9 @@ func TestMapDriveHaltCauseKeysOnGatedriveConstants(t *testing.T) {
 		// Change 0481's token is deliberately not distinguished: finalize reads it
 		// as an unavailable gate.
 		string(gatedrive.ErrScopeIdentityMismatch): GateHaltUnavailable,
-		// Change 0490: a relaunch that found the worktree held by another gate is a
-		// halt (a human or the holder must finish first), never repair work.
-		gatedrive.CauseWorktreeBusy: GateHaltUnavailable,
+		// Change 0493: a supervisor death halts the drive (never relaunched);
+		// finalize reads it as an unavailable gate and a human re-runs finalize.
+		gatedrive.CauseSupervisorDied: GateHaltUnavailable,
 		// Any cause the mapping does not distinguish falls through to unavailable.
 		"owner-superseded": GateHaltUnavailable,
 	}
@@ -492,6 +492,23 @@ func TestMapDriveHaltCauseKeysOnGatedriveConstants(t *testing.T) {
 		if got := mapDriveHaltCause(cause); got != want {
 			t.Fatalf("mapDriveHaltCause(%q) = %q, want %q", cause, got, want)
 		}
+	}
+}
+
+// TestMapDriveOutcomeSupervisorDiedIsGateHalted (change 0493): a finalize or
+// recertify drive whose supervisor died is a terminal HALTED gate in the
+// unavailable class (finalize reports it as gate-halted), and its exited run
+// root is removed like any other terminal halt's.
+func TestMapDriveOutcomeSupervisorDiedIsGateHalted(t *testing.T) {
+	g := &processFinalizeGate{}
+	root := runRootFixture(t)
+	doc := gatedrive.DriveDoc{Outcome: gatedrive.HALTED, Cause: gatedrive.CauseSupervisorDied, RunRoot: root}
+	res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc})
+	if res.Outcome != FinalizeGateHalted || res.HaltCause != GateHaltUnavailable {
+		t.Fatalf("supervisor-died = %s/%s, want %s/%s", res.Outcome, res.HaltCause, FinalizeGateHalted, GateHaltUnavailable)
+	}
+	if dirExists(t, root) {
+		t.Fatalf("a supervisor-died terminal must remove its exited run root %q", root)
 	}
 }
 
