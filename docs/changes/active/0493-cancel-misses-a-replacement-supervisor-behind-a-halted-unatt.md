@@ -22,7 +22,7 @@ branch: 'fix/cancel-misses-a-replacement-supervisor-behind-a-halted-unatt'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-03T08:17:12Z'
+claimed_at: '2026-10-03T08:18:33Z'
 ---
 
 ## Artifacts
