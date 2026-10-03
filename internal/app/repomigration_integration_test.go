@@ -645,75 +645,28 @@ func keysOf(m map[string]bool) []string {
 	return out
 }
 
-// --- healthy-repository derived-view repair (change 0377) --------------------
-//
-// migrate's second job is authorized mechanical repair of deterministic
-// derived-view drift on an ALREADY-HEALTHY repository. These exercise it end to
-// end: publish drift onto the healthy metadata branch, preview it, authorize the
-// repair, and prove the canonical bytes were recomputed while authored content
-// stayed byte-identical.
-
-// TestIntegrationRepoMigrationHealthyRepairPreview proves migrate on a healthy
-// repository with derived-view drift, WITHOUT --yes, returns confirmation-required
-// naming the pinned metadata revision and the repaired file set — and writes
-// nothing to the remote docket branch.
-func TestIntegrationRepoMigrationHealthyRepairPreview(t *testing.T) {
+// TestIntegrationRepoMigrationMigratedRepoNeverRepairs pins change 0496: on an
+// already-migrated repository with repairable drift, migrate writes nothing under
+// every flag combination and names `docket repository repair` (Review Focus 5).
+func TestIntegrationRepoMigrationMigratedRepoNeverRepairs(t *testing.T) {
 	r := newHealthyRepo(t)
 	r.publishHealthyDrift(t)
 	before := currentDocketTip(t, r)
-
-	res := r.runMigrate(t, MigrateOptions{RepairAuthorized: true})
-	if res.Result != ResultInvalidState || res.RepositoryState != "confirmation-required" {
-		t.Fatalf("preview = %q/%q (%s), want invalid-state/confirmation-required", res.Result, res.RepositoryState, res.HumanText())
-	}
-	if res.SourceRevision != before {
-		t.Errorf("preview SourceRevision = %q, want the pinned docket tip %q", res.SourceRevision, before)
-	}
-	if !containsPath(res.RepairedViews, "docs/changes/BOARD.md") || !containsPath(res.RepairedViews, "docs/changes/active/0001-example.md") {
-		t.Errorf("RepairedViews = %v, want both the board and the record", res.RepairedViews)
-	}
-	if after := currentDocketTip(t, r); after != before {
-		t.Errorf("preview advanced the docket branch %q -> %q; a preview must not write", before, after)
-	}
-}
-
-// TestIntegrationRepoMigrationHealthyRepairApplies proves an authorized repair
-// recomputes the canonical derived bytes on the metadata branch, leaves the
-// authored prose byte-identical, and is idempotent on a second run.
-func TestIntegrationRepoMigrationHealthyRepairApplies(t *testing.T) {
-	r := newHealthyRepo(t)
-	r.publishHealthyDrift(t)
-	before := currentDocketTip(t, r)
-
-	res := r.runMigrate(t, MigrateOptions{Authorized: true, RepairAuthorized: true})
-	if res.Result != ResultApplied {
-		t.Fatalf("repair = %q (%s), want applied", res.Result, res.HumanText())
-	}
-	if !containsPath(res.RepairedViews, "docs/changes/BOARD.md") {
-		t.Errorf("RepairedViews = %v, want the board", res.RepairedViews)
-	}
-	after := currentDocketTip(t, r)
-	if after == before {
-		t.Fatalf("repair did not advance the docket branch")
-	}
-
-	// The repaired record carries the canonical Spec row AND the untouched authored
-	// prose; the board is no longer the stale bytes.
-	record := showDocketFile(t, r, "docs/changes/active/0001-example.md")
-	if !strings.Contains(record, "| Spec |") {
-		t.Errorf("repaired record missing the canonical Spec row:\n%s", record)
-	}
-	if !strings.Contains(record, repairAuthoredSentinel) {
-		t.Errorf("repair modified authored prose; the sentinel is gone:\n%s", record)
-	}
-	board := showDocketFile(t, r, "docs/changes/BOARD.md")
-	if strings.Contains(board, "hand-written stale board") {
-		t.Errorf("board was not recomputed:\n%s", board)
-	}
-
-	// Idempotent: a second authorized run finds no drift and is a no-op.
-	second := r.runMigrate(t, MigrateOptions{Authorized: true, RepairAuthorized: true})
-	if second.Result != ResultNoOp {
-		t.Errorf("second repair = %q (%s), want no-op (nothing left to repair)", second.Result, second.HumanText())
+	for _, o := range []MigrateOptions{
+		{},
+		{Authorized: true},
+		{RepairAuthorized: true},
+		{Authorized: true, RepairAuthorized: true},
+	} {
+		res := r.runMigrate(t, o)
+		if res.Result != ResultNoOp {
+			t.Errorf("migrate %+v = %q (%s), want no-op", o, res.Result, res.HumanText())
+		}
+		if !strings.Contains(res.HumanText(), "docket repository repair") {
+			t.Errorf("migrate %+v human must name `docket repository repair`: %q", o, res.HumanText())
+		}
+		if after := currentDocketTip(t, r); after != before {
+			t.Fatalf("migrate %+v wrote on a migrated repository: docket %s -> %s", o, before, after)
+		}
 	}
 }

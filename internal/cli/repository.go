@@ -137,6 +137,8 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 // preview, which is either presented as a confirmation-required plan
 // (non-interactive) or printed and confirmed on a terminal, then re-invoked with
 // an explicit authorization pinned to exactly the revision the preview showed.
+// On an already-migrated repository the service is a no-op naming
+// `docket repository repair`.
 func newRepositoryMigrateCommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "migrate",
@@ -194,7 +196,7 @@ func newRepositoryMigrateCommand(setResult func(app.OperationResult)) *cobra.Com
 	}
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	cmd.Flags().Bool("yes", false, "authorize the migration without an interactive confirmation")
-	cmd.Flags().Bool("repair-frontmatter", false, "authorize the mechanical frontmatter repairs the plan lists")
+	cmd.Flags().Bool("repair-frontmatter", false, "authorize the mechanical frontmatter repairs a legacy migration's plan lists")
 	return cmd
 }
 
