@@ -682,20 +682,28 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnUnverifiedRetry(t 
 	}
 }
 
-// TestIntegrationRunCompletionReadOnlyPathsNeverSettle (change 0444): the read-only verification predicates
-// report the pending truth of a settleable pair but write NOTHING — the durable
-// record is byte-identical after they run (RunVerify and unattributed verdicts consume
-// these same predicates). Settlement is a write, and only cancellation and the
-// attributed keyed closeout may write.
+// TestIntegrationRunCompletionReadOnlyPathsNeverSettle (change 0444, rewritten by
+// change 0494): the read-only verification predicates write NOTHING — the durable
+// record is byte-identical after they run (RunVerify and unattributed verdicts
+// consume these same predicates). Settlement is a write, and only cancellation and
+// the attributed keyed closeout may write; recording a dead publisher's abandonment
+// is a write too, so the read-only paths never record it. Change 0494 reversed the
+// blocking premise: the unsettled uncertain entry, and an admitted entry whose
+// publish lock reads free, are each reported mutation-abandoned:<op> from the
+// journal and the lock probe alone, and neither blocks quiescence or resume.
 func TestIntegrationRunCompletionReadOnlyPathsNeverSettle(t *testing.T) {
 	fx := newCancelFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	other := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/other", HeadCommit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+	tok, _ := seedPublishLock(t, fx.repo, fx.key, false)
 	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
 		r.State = RunCancelled
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusAdmitted, Publication: &other, LockToken: tok},
 		}
 		return nil
 	}); err != nil {
@@ -711,19 +719,19 @@ func TestIntegrationRunCompletionReadOnlyPathsNeverSettle(t *testing.T) {
 		t.Fatalf("LoadRunRecord: %v", lerr)
 	}
 	seams := cancelSeams{launches: okLaunchReconciler()}
-	if quiescent, vf := verifyTerminalRunQuiescence(seams, fx.repo, ep); quiescent ||
-		!hasFinding(vf, "mutation-pending:"+OperationWorkspacePublish) {
-		t.Fatalf("verifyTerminalRunQuiescence = %v %v, want the unsettled entry reported pending", quiescent, vf)
+	if quiescent, vf := verifyTerminalRunQuiescence(seams, fx.repo, ep); !quiescent ||
+		countFinding(vf, "mutation-abandoned:"+OperationWorkspacePublish) != 2 || hasFinding(vf, "mutation-pending") {
+		t.Fatalf("verifyTerminalRunQuiescence = %v %v, want quiescent with exactly two mutation-abandoned and no mutation-pending", quiescent, vf)
 	}
-	if rok, detail := validateResumeQuiescence(seams, fx.repo, ep); rok {
-		t.Fatalf("validateResumeQuiescence ok (detail %q), want the unsettled entry to block", detail)
+	if rok, detail := validateResumeQuiescence(seams, fx.repo, ep); !rok {
+		t.Fatalf("validateResumeQuiescence = %q, want ok (abandoned entries never block resume)", detail)
 	}
 	after, err := os.ReadFile(recPath)
 	if err != nil {
 		t.Fatalf("re-read record: %v", err)
 	}
 	if !bytes.Equal(before, after) {
-		t.Fatal("read-only verification paths must not write the run record")
+		t.Fatal("read-only verification paths must not write the run record (the third entry stays admitted)")
 	}
 }
 
