@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0493 — Retire the automatic gate relaunch](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0493-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md)**
+> ↩ **[Change 0493 — Retire the automatic gate relaunch](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-03-0493-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md)**
 <!-- docket:backlink:end -->
 
 # Retire the automatic gate relaunch — design

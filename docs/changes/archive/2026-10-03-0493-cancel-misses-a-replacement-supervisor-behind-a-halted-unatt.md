@@ -2,7 +2,7 @@
 id: 493
 slug: 'cancel-misses-a-replacement-supervisor-behind-a-halted-unatt'
 title: 'Retire the automatic gate relaunch'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-02'
@@ -22,7 +22,7 @@ branch: 'fix/cancel-misses-a-replacement-supervisor-behind-a-halted-unatt'
 pr: 'https://github.com/danielhanold/docket/pull/370'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-03T09:17:38Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-03T09:17:38Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-02-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-design.md) |
-| Plan | [2026-10-03-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md](https://github.com/danielhanold/docket/blob/fix/cancel-misses-a-replacement-supervisor-behind-a-halted-unatt/docs/superpowers/plans/2026-10-03-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md) |
-| Results | [2026-10-03-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-results.md](https://github.com/danielhanold/docket/blob/fix/cancel-misses-a-replacement-supervisor-behind-a-halted-unatt/docs/results/2026-10-03-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-results.md) |
+| Plan | [2026-10-03-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-03-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md) |
+| Results | [2026-10-03-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-03-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt-results.md) |
 | ADRs | [ADR-0098](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0098-structured-gate-waiting-and-ownership-handoff.md), [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md), [ADR-0135](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0135-gate-drives-never-relaunch-automatically.md) |
 <!-- docket:artifacts:end -->
 
