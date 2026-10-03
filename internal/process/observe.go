@@ -31,6 +31,28 @@ type Observation struct {
 // terminal record at exactly that instant, proving the re-read is load-bearing.
 var observePostProbeHook func()
 
+// validatedManifest is Observe's step (1), shared with ProbeLeftover so both
+// read a run through the same whole predicate: the manifest exists and decodes,
+// the run dir resolves inside the manifest's recorded root, and the manifest's
+// run id equals the run directory's name. op names the caller in a failure.
+func validatedManifest(op, runDir string) (*manifestRecord, error) {
+	m, err := readManifest(runDir)
+	if err != nil {
+		return nil, err
+	}
+	if m == nil {
+		return nil, failf(FailInvalidState, op, "run directory has no manifest")
+	}
+	_, dirID, err := resolveRunDir(m.Root, runDir)
+	if err != nil {
+		return nil, err
+	}
+	if m.RunID != dirID {
+		return nil, failf(FailInvalidState, op, "manifest run id disagrees with the run directory")
+	}
+	return m, nil
+}
+
 // Observe reports a run's state through a fixed, read-only, ordered decision.
 // The order is load-bearing (spec: Observation): a valid run always yields a
 // state, never a guessed one, and no unprovable read is ever resolved into
@@ -53,19 +75,9 @@ func (s *Service) Observe(runDir string) (*Observation, error) {
 	// (1) Validate run path + manifest + run-ID agreement. The manifest supplies
 	// the recorded root, so containment is proven against what the run claims
 	// rather than against the run dir's own parent.
-	m, err := readManifest(runDir)
+	m, err := validatedManifest("observe", runDir)
 	if err != nil {
 		return nil, err
-	}
-	if m == nil {
-		return nil, failf(FailInvalidState, "observe", "run directory has no manifest")
-	}
-	_, dirID, err := resolveRunDir(m.Root, runDir)
-	if err != nil {
-		return nil, err
-	}
-	if m.RunID != dirID {
-		return nil, failf(FailInvalidState, "observe", "manifest run id disagrees with the run directory")
 	}
 
 	obs := &Observation{
