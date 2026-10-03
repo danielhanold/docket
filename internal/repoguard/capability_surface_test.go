@@ -79,7 +79,7 @@ import (
 // laundering tripwire, not a number to reconcile (guard-remedy-must-not-teach-the-
 // evasion — the failure message leads with the migration remedy, below).
 var capabilityExemptions = map[string]int{
-	"docket repository migrate":         9,
+	"docket repository migrate":         6,
 	"docket repository init":            3,
 	"docket repository configure-tests": 3,
 	// `docket change create` is exempt ONLY as HUMAN-ACTION prose: the convention/
