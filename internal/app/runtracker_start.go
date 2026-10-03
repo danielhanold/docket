@@ -166,8 +166,9 @@ type RunStartResult struct {
 }
 
 // HumanText renders the one report line. A started run prints `run-started <key>
-// <run-context>`. That is always two tokens, because every started result carries
-// both (startedRunResult). A run-untracked
+// <run-context>`. That is always two tokens, because the callers of startedRunResult
+// refuse an empty run context as scope-failed before minting, and the key comes from
+// a successful mint. A run-untracked
 // report prints `run-untracked <reason-token>`; a usage error (a non-applied
 // result) names its reason instead of a report line. The parent capability
 // never appears here — only the child run context, which is meant for the
@@ -223,16 +224,12 @@ func runTrackerResumeObserve(reservedKey string) RunStartResult {
 	})
 }
 
-// startedRunResult formats the started report for key. Its callers guarantee a
-// non-empty key (a successful mint) and run context (an empty one is refused as
-// scope-failed right after the scope is prepared, before any mint), so the positional
-// `run-started <key> <run-context>` line is always two tokens. The empty-input check
-// below is unreachable defense in depth, never the refusal point: by the time a
-// caller formats, the records are already minted.
+// startedRunResult formats the started report for key. Its callers (RunStart and
+// armResumeReplacement) pass a key from a successful mint and a run context they
+// already checked non-empty before minting: an empty child capability is refused as
+// run-untracked scope-failed right after the scope is prepared. So the positional
+// `run-started <key> <run-context>` line is always two tokens.
 func startedRunResult(key, runContext string) RunStartResult {
-	if key == "" || runContext == "" {
-		return runUntracked(ReasonRunMintFailed)
-	}
 	return newRunStartResult(ResultApplied, RunStartResult{
 		Started:        true,
 		Key:            key,
