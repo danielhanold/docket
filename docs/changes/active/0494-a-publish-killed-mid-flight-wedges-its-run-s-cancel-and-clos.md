@@ -2,7 +2,7 @@
 id: 494
 slug: 'a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos'
 title: 'A publish killed mid-flight wedges its run''s cancel and closeout'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-10-02'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/372'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-03T09:14:48Z'
