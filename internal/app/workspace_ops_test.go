@@ -25,6 +25,7 @@ type fakeWorkspaceService struct {
 	inspectErr error
 	publishRes workspace.PublishResult
 	publishErr error
+	onPublish  func() // called first inside PublishHead, when set
 }
 
 func (f *fakeWorkspaceService) Prepare(_ context.Context, req workspace.PrepareRequest) (workspace.Workspace, error) {
@@ -38,6 +39,9 @@ func (f *fakeWorkspaceService) Inspect(_ context.Context, req workspace.InspectR
 }
 
 func (f *fakeWorkspaceService) PublishHead(_ context.Context, req workspace.PublishRequest) (workspace.PublishResult, error) {
+	if f.onPublish != nil {
+		f.onPublish()
+	}
 	f.publishCalls = append(f.publishCalls, req)
 	return f.publishRes, f.publishErr
 }
