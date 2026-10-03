@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/drop-final-claimed-at-is-reported-repairable-but-nothing-can'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-03T08:49:14Z'
+reconciled: true
+claimed_at: '2026-10-03T08:49:45Z'
 ---
 
 ## Artifacts
@@ -54,3 +54,9 @@ The remedy is also wrong on two counts. On an already-migrated repository nothin
 - Changing closeout's cleared-field form or rewriting the 269 archived records.
 - Changing the agent-autonomy posture for applying repairs; it carries over from today's `migrate --repair-frontmatter`.
 - Broader README / guide alignment beyond the remedy sites (change 0464).
+
+## Reconcile log
+
+### 2026-10-03
+
+Reconciled against origin/main 1fc28e872 (post-0492). The cited code is unchanged: `planClaimedAt` (internal/reposetup/repair.go) still keys on key presence, and `migrateHealthyRepair` / `executeDerivedRepair` (internal/app/repository_migrate_repair.go) still own derived-view repair on the migrated path. No intervening change touched this scope; scope and spec stand as groomed.
