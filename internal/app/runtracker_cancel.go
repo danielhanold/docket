@@ -455,7 +455,7 @@ func runCancel(seams cancelSeams, repoDir, key, reason string) RunCancelResult {
 // deliberately does not re-enumerate.
 func verifyTerminalRunQuiescence(seams cancelSeams, repoDir string, ep RunRecord) (bool, []string) {
 	quiescent, findings := reconcileRunLaunchesFor(seams, repoDir, ep.RunKey)
-	mblocked, mfindings := accountAdmittedMutations(runJournalDir(repoDir, ep.RunKey), ep.AdmittedMutations)
+	mblocked, mfindings := accountRunMutations(repoDir, ep.RunKey, ep.AdmittedMutations)
 	findings = append(findings, mfindings...)
 	if mblocked {
 		quiescent = false
@@ -583,7 +583,7 @@ func reconcileRunTeardown(seams cancelSeams, repoDir, runKey string, ep RunRecor
 	// cannot be proven, keeps cancellation pending (mutation-pending:<op>). An
 	// uncertain entry, or one whose publisher provably exited, is accounted with the
 	// informational mutation-abandoned:<op>.
-	mblocked, mfindings := accountAdmittedMutations(runJournalDir(repoDir, runKey), reEp.AdmittedMutations)
+	mblocked, mfindings := accountRunMutations(repoDir, runKey, reEp.AdmittedMutations)
 	findings = append(findings, mfindings...)
 	if mblocked {
 		accounted = false
