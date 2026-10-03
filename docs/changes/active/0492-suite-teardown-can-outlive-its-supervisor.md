@@ -22,7 +22,7 @@ branch: 'fix/suite-teardown-can-outlive-its-supervisor'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-03T06:27:05Z'
+claimed_at: '2026-10-03T06:42:54Z'
 ---
 
 ## Artifacts
