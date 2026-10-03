@@ -112,6 +112,7 @@ var assetIndependent = map[string]bool{
 	"repository init":             true,
 	"repository check":            true,
 	"repository migrate":          true,
+	"repository repair":           true,
 	"repository prepare":          true,
 	"repository configure-tests":  true,
 	"repository sync-integration": true,

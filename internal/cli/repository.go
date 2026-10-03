@@ -20,10 +20,11 @@ import (
 // dispatch to the matching internal/app service, letting the presenter own the
 // outcome. Every policy decision — classification, refusal, effect sequencing —
 // belongs to internal/app, so no body here branches on repository state. The one
-// exception the design requires is `migrate`'s two-pass confirm flow, which lives
-// here because it is a terminal interaction: the service returns the plan, and the
-// CLI prints it and re-invokes with an explicit authorization keyed on exactly the
-// pinned revision the human saw (learning decide-and-act-on-the-same-copy).
+// exception the design requires is `migrate`'s and `repair`'s two-pass confirm
+// flow, which lives here because it is a terminal interaction: the service
+// returns the plan, and the CLI prints it and re-invokes with an explicit
+// authorization keyed on exactly the pinned revision the human saw (learning
+// decide-and-act-on-the-same-copy).
 
 // repositoryInitRunner, repositoryCheckRunner, and repositoryMigrateRunner are
 // the app entry points the repository subcommands dispatch to. They are package
@@ -37,6 +38,9 @@ var (
 	}
 	repositoryMigrateRunner = func(ctx context.Context, d app.SetupDeps, o app.MigrateOptions) app.OperationResult {
 		return app.RunRepositoryMigrate(ctx, d, o)
+	}
+	repositoryRepairRunner = func(ctx context.Context, d app.SetupDeps, o app.RepairOptions) app.OperationResult {
+		return app.RunRepositoryRepair(ctx, d, o)
 	}
 	repositoryPrepareRunner = func(ctx context.Context, d app.SetupDeps, o app.PrepareOptions) app.OperationResult {
 		return app.RunRepositoryPrepare(ctx, d, o)
@@ -64,7 +68,7 @@ var repositoryConfirmInteractive = func() bool {
 func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 	repositoryCmd := &cobra.Command{
 		Use:   "repository",
-		Short: "Initialize, migrate, and check the docket repository topology",
+		Short: "Initialize, migrate, check, and repair the docket repository topology",
 		// A command group resolves its subcommand before Args runs, so anything
 		// reaching here named no subcommand; NoArgs names an offending token and
 		// the bare `docket repository` falls through to RunE's missing-command
@@ -93,6 +97,7 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 		},
 		EffectRead)
 	migrateCmd := newRepositoryMigrateCommand(setResult)
+	repairCmd := newRepositoryRepairCommand(setResult)
 	prepareCmd := repositorySubcommand("prepare",
 		"Prepare the repository for a workflow: pin topology and attach or fast-forward the .docket worktree (the startup check)",
 		func(c *cobra.Command, deps app.SetupDeps) {
@@ -122,7 +127,7 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 		// the primary checkout; it never pushes and changes no planning metadata.
 		EffectLocalWrite)
 
-	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, prepareCmd, configureTestsCmd, syncIntegrationCmd)
+	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, repairCmd, prepareCmd, configureTestsCmd, syncIntegrationCmd)
 	return repositoryCmd
 }
 
@@ -190,6 +195,64 @@ func newRepositoryMigrateCommand(setResult func(app.OperationResult)) *cobra.Com
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	cmd.Flags().Bool("yes", false, "authorize the migration without an interactive confirmation")
 	cmd.Flags().Bool("repair-frontmatter", false, "authorize the mechanical frontmatter repairs the plan lists")
+	return cmd
+}
+
+// newRepositoryRepairCommand builds `docket repository repair` with its --yes
+// flag and the two-pass confirm flow. --yes performs the authorized repair
+// directly; without it the service returns a preview, presented as-is
+// non-interactively, or — on a terminal, and only when the preview is a
+// confirmation request — printed and confirmed, then re-invoked authorized and
+// pinned to exactly the metadata revision the preview showed. A no-op or a
+// refusal is presented without a prompt.
+func newRepositoryRepairCommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "repair",
+		Short: "Preview and apply the mechanical repairs `repository check` reports on a migrated repository",
+		Args:  cobra.NoArgs,
+		// metadata-write: one repair descendant published to the metadata branch
+		// under an exact lease. It never touches the local .docket worktree (the
+		// result names `docket repository prepare` to sync it).
+		Annotations: capability("repository.repair", EffectMetadataWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			client, err := gitcli.NewClient()
+			if err != nil {
+				return err
+			}
+			deps := app.SetupDeps{Git: client, RepoDir: repoDir}
+			yes, _ := c.Flags().GetBool("yes")
+			if yes {
+				setResult(repositoryRepairRunner(c.Context(), deps, app.RepairOptions{Authorized: true}))
+				return nil
+			}
+
+			preview := repositoryRepairRunner(c.Context(), deps, app.RepairOptions{})
+			jsonMode, _ := c.Flags().GetBool("json")
+			confirmable, ok := preview.(interface{ ConfirmationRequired() bool })
+			if jsonMode || !repositoryConfirmInteractive() || !ok || !confirmable.ConfirmationRequired() {
+				setResult(preview)
+				return nil
+			}
+			fmt.Fprintln(c.OutOrStdout(), preview.HumanText())
+			fmt.Fprint(c.OutOrStdout(), "repair? [y/N] ")
+			if !repositoryReadYes(c.InOrStdin()) {
+				setResult(preview)
+				return nil
+			}
+			expected := ""
+			if p, ok := preview.(interface{ SourceRev() string }); ok {
+				expected = p.SourceRev()
+			}
+			setResult(repositoryRepairRunner(c.Context(), deps, app.RepairOptions{Authorized: true, ExpectedSource: expected}))
+			return nil
+		},
+	}
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	cmd.Flags().Bool("yes", false, "authorize the previewed repairs without an interactive confirmation")
 	return cmd
 }
 
