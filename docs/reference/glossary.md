@@ -971,6 +971,27 @@ cancel does.
 docket run cancel --key <key> --reason "superseded by 413"
 ```
 
+### Cancel finding `tree-survives`
+
+`tree-survives:<drive>:<pgid>` is an informational finding from `run.cancel`, the death guardian,
+and `run.verdict`'s success closeout. The drive's supervisor has exited (killed alone or crashed),
+but its process group `<pgid>` still has members, so part of the suite (usually `go run` and the
+test runner) is still running. Cancel still reports `cancelled`, the closeout verdict is unchanged,
+and the leftover suite finishes on its own. It is information, never a blocker: no skill or
+reviewer escalates it into one.
+
+Docket never signals the group: with the supervisor dead, nothing proves the group is still the
+run's own. To stop it yourself, confirm its members first, then signal the group:
+
+```sh
+pgrep -lg <pgid>
+kill -TERM -<pgid>
+```
+
+The check sees only the supervisor's own group, not test targets that lead their own groups. When
+it cannot tell (for example, the dead supervisor is still an unreaped zombie), the finding is the
+ordinary `run-terminal:<drive>`.
+
 ### Continuation
 
 A single-use id handed out with `run-continue`, redeemed by the resumed controller so the same
