@@ -2,7 +2,7 @@
 id: 496
 slug: 'drop-final-claimed-at-is-reported-repairable-but-nothing-can'
 title: 'Add `docket repository repair` and stop flagging empty claimed_at'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-03'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/drop-final-claimed-at-is-reported-repairable-but-nothing-can'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/371'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-03T09:32:48Z'

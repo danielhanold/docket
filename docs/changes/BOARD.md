@@ -1,18 +1,18 @@
 # Backlog
 
-**496 changes** — 🟢 2 in progress · 🔵 2 built · 🟣 3 groomed · 🟡 5 proposed · ⚪ 12 deferred · ✅ 339 done · 🗑️ 133 killed
+**496 changes** — 🟢 1 in progress · 🔵 3 built · 🟣 3 groomed · 🟡 5 proposed · ⚪ 12 deferred · ✅ 339 done · 🗑️ 133 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0496](active/0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) | Add `docket repository repair` and stop flagging empty claimed_at | `low` | `fix` | [spec](../superpowers/specs/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-design.md) | `fix/drop-final-claimed-at-is-reported-repairable-but-nothing-can` |  |
 | [0494](active/0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md) | A publish killed mid-flight wedges its run's cancel and closeout | `high` | `fix` | [spec](../superpowers/specs/2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos-design.md) | `fix/a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos` |  |
 
-## 🔵 Built (2)
+## 🔵 Built (3)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0496](active/0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) | Add `docket repository repair` and stop flagging empty claimed_at | `low` | `fix` | [#371](https://github.com/danielhanold/docket/pull/371) | awaiting merge |
 | [0495](active/0495-drop-startedrunresult-s-unreachable-empty-input-check.md) | Drop startedRunResult's unreachable empty-input check | `low` | `refactor` | [#369](https://github.com/danielhanold/docket/pull/369) | awaiting merge |
 | [0493](active/0493-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md) | Retire the automatic gate relaunch | `medium` | `fix` | [#370](https://github.com/danielhanold/docket/pull/370) | awaiting merge |
 
