@@ -110,7 +110,8 @@ func TestLaunchHandsWorktreeLockToSupervisor(t *testing.T) {
 }
 
 // L1 (process half): a supervisor killed with SIGKILL frees the worktree. Its
-// suite may survive (accepted gap, change 0492) — the test ends the group itself.
+// suite may survive; the census reports that as tree-survives and never stops it (change 0492) —
+// the test ends the group itself.
 func TestWorktreeLockFreedWhenSupervisorKilled(t *testing.T) {
 	svc := newTestService(t)
 	lockPath := filepath.Join(testsupport.TempDir(t), "busy.lock")

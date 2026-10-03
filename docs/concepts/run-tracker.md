@@ -84,10 +84,14 @@ the operator's act — wait for the holder to finish, or stop it
 <why>` for a raw launch).
 
 `run.cancel` finds a run's drives by the run context those drives record,
-and counts a drive torn down once its supervisor is gone. The known
-process-tree gaps — a supervisor that dies alone while its children keep
-running, a KILL escalation, and TERM ending `go run` while the suite runner
-is still stopping its targets — are tracked by change 0492.
+and counts a drive torn down once its supervisor is gone. When a supervisor
+died alone (SIGKILL or a crash) and its process group still has members,
+cancel still reports `cancelled` and adds a `tree-survives:<drive>:<pgid>`
+finding: the suite is still running and finishes on its own. Docket never
+stops it; the glossary's `tree-survives` entry shows how to. Two smaller
+gaps stay accepted: a KILL escalation can leave test targets running in
+their own process groups, and after a graceful stop the worktree frees a
+moment before the suite runner finishes stopping its targets.
 
 ## The invariants
 

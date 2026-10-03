@@ -19,7 +19,8 @@ import (
 // runs, a second start is refused worktree-busy naming the live holder; once the
 // supervisor is killed and gone, the very next start is admitted with no
 // recovery call in between. The killed supervisor's suite survives it (the
-// accepted teardown gap, change 0492), so cleanup ends its process group.
+// census reports it as tree-survives and never stops it, change 0492), so
+// cleanup ends its process group.
 func TestIntegrationGatedriveKilledSupervisorFreesWorktreeForNextStart(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
