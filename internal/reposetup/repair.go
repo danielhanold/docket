@@ -22,8 +22,9 @@ package reposetup
 //	                      parses as an exact valid sequence of the item type —
 //	                      re-emitted as an UNQUOTED flow sequence, same items,
 //	                      same order.
-//	drop-final-claimed-at      claimed_at removed from an already-final
-//	                      (done/killed) archived change.
+//	drop-final-claimed-at      a NON-EMPTY claimed_at removed from an
+//	                      already-final (done/killed) archived change; an empty
+//	                      claimed_at is the cleared form and is never a finding.
 //
 // Byte edits are produced by internal/document's own PatchSet/serializer, so
 // YAML validity and the reparse gate are construction properties, not hopes.
@@ -203,10 +204,17 @@ func planList(path string, src []byte, doc document.Document, f document.Field) 
 	}, true
 }
 
-// planClaimedAt decides the drop-final-claimed-at roster entry.
+// planClaimedAt decides the drop-final-claimed-at roster entry. An EMPTY
+// claimed_at (the bare null closeout's clearClaimedAt writes, or any other
+// spelling the decode layer reads as FieldEmpty) is not a claim stamp and is
+// never a finding — the snapshot validator raises CodeChangeFinalClaimStamp only
+// for FieldPresent, and this planner agrees (change 0496).
 func planClaimedAt(path string, src []byte, doc document.Document, archived bool) (RepairFinding, bool) {
 	f, ok := doc.Field("claimed_at")
 	if !ok {
+		return RepairFinding{}, false
+	}
+	if !claimedAtHoldsValue(doc, f) {
 		return RepairFinding{}, false
 	}
 	if !archived {
@@ -221,7 +229,6 @@ func planClaimedAt(path string, src []byte, doc document.Document, archived bool
 			Message:    "claimed_at on a non-final archived record; needs manual review",
 		}, true
 	}
-	_ = f
 	candidate, preview, err := buildRepair(doc, src, RepairDropClaimedAt, "claimed_at")
 	if err != nil {
 		return RepairFinding{}, false
@@ -235,6 +242,32 @@ func planClaimedAt(path string, src []byte, doc document.Document, archived bool
 		Message:    "claimed_at on a final archived change; remove the stale claim lease",
 		Patch:      preview,
 	}, true
+}
+
+// claimedAtHoldsValue reports whether the located claimed_at entry carries a
+// value, deciding on the PARSED node exactly as the decode layer's
+// (*decoder).state classifies a scalar for optionalTime: a valueless key
+// (document.ShapeEmpty), a YAML null (`null`, `~`), and an empty string,
+// single- or double-quoted, are FieldEmpty — no stamp. Anything else holds a value: a well-formed
+// timestamp (FieldPresent) or a malformed non-empty value, including a
+// collection (FieldMalformed). An undecodable frontmatter block fails toward
+// "holds a value", which keeps the pre-0496 finding rather than hiding one.
+func claimedAtHoldsValue(doc document.Document, f document.Field) bool {
+	if f.Shape == document.ShapeEmpty {
+		return false
+	}
+	var m map[string]yaml.Node
+	if err := doc.DecodeFrontmatter(&m); err != nil {
+		return true
+	}
+	n, ok := m["claimed_at"]
+	if !ok {
+		return false
+	}
+	if n.Kind != yaml.ScalarNode {
+		return true
+	}
+	return n.Tag != "!!null" && n.Value != ""
 }
 
 // finalStatus reports whether the record's decoded status is a final end
