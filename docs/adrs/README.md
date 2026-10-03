@@ -117,6 +117,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0131](0131-the-run-tracker-s-outer-takeover-recovers-only-a-still-runni.md) — The run tracker's outer takeover recovers only a still-running drive (Accepted) ← change #489 · relates to ADR-0107, ADR-0130
 - [ADR-0132](0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) — Worktree admission is a supervisor-held kernel lock (Accepted) ← change #490 → supersedes ADR-0118 · relates to ADR-0095, ADR-0120, ADR-0124, ADR-0125
 - [ADR-0133](0133-the-run-key-is-the-run-tracker-s-only-handle-gate-starts-car.md) — The run key is the run tracker's only handle; gate starts carry no run check (Accepted) ← change #491 · relates to ADR-0095, ADR-0111, ADR-0118, ADR-0124, ADR-0128, ADR-0129, ADR-0132
+- [ADR-0134](0134-a-dead-supervisor-s-suite-counts-as-gone-only-when-its-proce.md) — A dead supervisor's suite counts as gone only when its process group is empty, and docket never signals on that evidence (Accepted) ← change #492 · relates to ADR-0095, ADR-0132
 
 ## Superseded / Reversed
 
