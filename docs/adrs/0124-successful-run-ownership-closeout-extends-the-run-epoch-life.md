@@ -63,3 +63,7 @@ The decision stands, with three changes in context recorded by ADR-0133:
 - Rule 3 changes: the keyed verdict's census now settles a proven never-launched drive HALTED `launch-abandoned`. It still stops no process and signals nothing.
 - `completing` no longer refuses gate starts, because no run launch check exists any more.
 - Since ADR-0132, finalize's gate no longer depends on the closeout. The closeout still retires the run's worktree ownership for the mutation fence, and makes cancel and resume refuse a completed run.
+
+## Update — 2026-10-03 (change 0494, ADR-0137)
+
+The decision stands, with one narrowing recorded by ADR-0137: rule 3's fail-closed-on-uncertain no longer covers a publication journal entry. An `uncertain` entry, or an `admitted` entry whose publisher's lock is free, is accounted with the informational `mutation-abandoned:<op>` finding instead of blocking; `RunVerify`'s live probes of the remote feature ref and the open PR are the evidence that the publications landed. An entry whose publisher may still be running, or whose state cannot be proven, still blocks as `mutation-pending:<op>`.
