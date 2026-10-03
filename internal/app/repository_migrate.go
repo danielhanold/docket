@@ -44,7 +44,9 @@ const blobMode = gitcli.FileMode("100644")
 
 // MigrateOptions carries the two-pass authorization the CLI resolves. Authorized
 // is true only via --yes or an interactive confirmed preview; RepairAuthorized
-// is --repair-frontmatter; ExpectedSource is the pinned integration OID the
+// is --repair-frontmatter, which authorizes the mechanical frontmatter repairs a
+// LEGACY migration's plan lists; an already-migrated repository is a no-op that
+// names `docket repository repair`; ExpectedSource is the pinned integration OID the
 // preview showed ("" on the first, preview, pass) — the service returns
 // contended if the fresh authoritative integration tip has moved off it.
 type MigrateOptions struct {
@@ -68,7 +70,6 @@ type RepositoryMigrateResult struct {
 	CopyPrefixes    []string                  `json:"copy_prefixes"`
 	RemovedPaths    []string                  `json:"removed_paths"`
 	Repairs         []reposetup.RepairFinding `json:"repairs,omitempty"`
-	RepairedViews   []string                  `json:"repaired_views,omitempty"`
 	PendingLocal    []string                  `json:"pending_local,omitempty"`
 	// Findings carries the diagnosis a refusal lifts from the resolver — one
 	// finding per config diagnostic (change 0403); empty on success.
@@ -140,11 +141,10 @@ func migratePhaseDispatch(ctx context.Context, d SetupDeps, o MigrateOptions, fa
 		return *refusal
 	}
 	if phase == phaseAlreadyMigrated {
-		// The topology is healthy. Migrate's second job is mechanical repair of
-		// deterministic derived-view drift (inline board, artifact-links blocks, ADR
-		// index) even on a healthy repository. When there is nothing repairable this
-		// stays the idempotent no-op.
-		return migrateHealthyRepair(ctx, d, o, sc)
+		// Migrate only migrates (change 0496). An already-migrated repository is
+		// the idempotent no-op under every flag combination; mechanical repair on a
+		// migrated repository is `docket repository repair`, and the no-op names it.
+		return migrateNoOp(sc.metadataTip)
 	}
 	if phase == phaseResumeLocal {
 		// The remote is fully migrated; only the local attachment is incomplete.
@@ -1054,7 +1054,9 @@ func migrateApplied(sc setupContext, metadataTip, integrationTip gitcli.ObjectID
 }
 
 // migrateNoOp is the idempotent already-migrated document, keyed on the remote
-// postconditions (metadata branch present, no live surface on integration).
+// postconditions (metadata branch present, no live surface on integration). It
+// names the repair command, so a migrated-repo run never silently ignores a
+// --repair-frontmatter it no longer honors.
 func migrateNoOp(sourceRevision string) RepositoryMigrateResult {
 	out := newMigrateResult(ResultNoOp, RepositoryMigrateResult{
 		RepositoryState: string(reposetup.StateHealthy),
@@ -1062,7 +1064,7 @@ func migrateNoOp(sourceRevision string) RepositoryMigrateResult {
 		CopyPrefixes:    []string{},
 		RemovedPaths:    []string{},
 	})
-	out.human = "repository already migrated: the metadata branch is published and the legacy planning surface is gone"
+	out.human = "repository already migrated; for mechanical repairs run docket repository repair"
 	return out
 }
 

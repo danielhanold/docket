@@ -7,7 +7,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/danielhanold/docket/internal/document"
+	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -267,6 +270,85 @@ func executeRepositoryRepair(ctx context.Context, git *gitcli.Client, sc setupCo
 		return repairContended(string(rev.Commit), metadataTip)
 	}
 	return repairApplied(string(commit), metadataTip, plan)
+}
+
+// splitDerivedFindings partitions derived-view findings into the mechanically
+// repairable set and the manual-review diagnostics, preserving order.
+func splitDerivedFindings(findings []reposetup.DerivedFinding) (repairable, diagnostics []reposetup.DerivedFinding) {
+	for _, f := range findings {
+		if f.Repairable {
+			repairable = append(repairable, f)
+		} else {
+			diagnostics = append(diagnostics, f)
+		}
+	}
+	return repairable, diagnostics
+}
+
+// derivedRepairFiles is the sorted, de-duplicated repo-relative file set the
+// repairable findings touch.
+func derivedRepairFiles(repairable []reposetup.DerivedFinding) []string {
+	seen := map[string]bool{}
+	var files []string
+	for _, f := range repairable {
+		if seen[f.Path] {
+			continue
+		}
+		seen[f.Path] = true
+		files = append(files, f.Path)
+	}
+	sort.Strings(files)
+	return files
+}
+
+// composeDerivedRepairBytes recomputes the canonical bytes for one repaired file.
+// The board and ADR index are whole-file renders; an artifact-links file is the
+// record with its managed block rewritten (or, when absent, inserted after the
+// frontmatter) — never any other authored byte.
+func composeDerivedRepairBytes(sc setupContext, snap domain.Snapshot, corpus checkCorpus, recByPath map[string]corpusRecord, file string) ([]byte, error) {
+	switch file {
+	case boardCorpusPath(sc.cfg):
+		return renderCanonicalBoard(snap, corpusBoardUnrenderable(sc.cfg, corpus.records), boardPresentation(sc.cfg))
+	case adrIndexCorpusPath(sc.cfg):
+		return renderCanonicalADRIndex(snap, corpusADRIndexUnrenderable(sc.cfg, corpus.records))
+	}
+	// An artifact-links record.
+	rec, ok := recByPath[file]
+	if !ok {
+		return nil, fmt.Errorf("record %s absent from the corpus", file)
+	}
+	doc, err := document.Parse(rec.bytes)
+	if err != nil {
+		return nil, err // a malformed record is never repairable and must not reach here
+	}
+	change, ok := snapshotChangeByPath(snap, file)
+	if !ok {
+		return nil, fmt.Errorf("record %s absent from the snapshot", file)
+	}
+	body, err := render.ArtifactBlockContent(change, snap, corpus.link)
+	if err != nil {
+		return nil, err
+	}
+	var ps document.PatchSet
+	if _, present := doc.Block("artifacts"); present {
+		ps.ReplaceBlock("artifacts", body)
+	} else {
+		// Missing block: insert the managed block at a deterministic location
+		// (immediately after the frontmatter). This adds only managed marker lines
+		// and the generated body; no authored byte is modified.
+		ps.InsertBlock("artifacts", "generated — do not hand-edit", body, document.AfterFrontmatter)
+	}
+	return doc.Apply(ps)
+}
+
+// changeByPath finds the change whose canonical path is p.
+func snapshotChangeByPath(snap domain.Snapshot, p string) (domain.Change, bool) {
+	for _, c := range snap.Changes() {
+		if c.Path() == p {
+			return c, true
+		}
+	}
+	return domain.Change{}, false
 }
 
 // --- result constructors -----------------------------------------------------

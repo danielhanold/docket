@@ -7,7 +7,7 @@ package reposetup
 // block inside each change record, and the ADR index (docs/adrs/README.md).
 // `repository check` renders each view's canonical bytes from the pinned corpus
 // snapshot and byte-compares them against the stored file; a difference is a
-// drift finding here. `repository migrate` repairs exactly the deterministic
+// drift finding here. `repository repair` repairs exactly the deterministic
 // (Repairable) ones by recomputing the canonical bytes — it never edits authored
 // content and never rewrites an unbalanced managed block.
 //

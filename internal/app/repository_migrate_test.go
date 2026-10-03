@@ -219,3 +219,16 @@ func TestMigrateRepairAuthorizationRequiredNamesFlag(t *testing.T) {
 		t.Errorf("human %q must name --repair-frontmatter", out.HumanText())
 	}
 }
+
+// TestMigrateNoOpNamesRepairCommand pins change 0496: migrate only migrates, and
+// its already-migrated no-op names the command that repairs a migrated
+// repository.
+func TestMigrateNoOpNamesRepairCommand(t *testing.T) {
+	out := migrateNoOp("tip")
+	if out.Result != ResultNoOp {
+		t.Fatalf("Result = %q, want no-op", out.Result)
+	}
+	if got, want := out.HumanText(), "repository already migrated; for mechanical repairs run docket repository repair"; got != want {
+		t.Errorf("human = %q, want %q", got, want)
+	}
+}
