@@ -2,11 +2,11 @@
 id: 492
 slug: 'suite-teardown-can-outlive-its-supervisor'
 title: 'Suite teardown can outlive its supervisor'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-02'
-updated: '2026-10-02'
+updated: '2026-10-03'
 depends_on: [490]
 stacked_on:
 related: [375, 491, 493]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/suite-teardown-can-outlive-its-supervisor'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-03T06:09:05Z'
 ---
 
 ## Artifacts
