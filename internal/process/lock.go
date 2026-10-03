@@ -50,32 +50,62 @@ func TryExclusiveLock(path string) (f *os.File, busy bool, err error) {
 	return nil, false, err
 }
 
-// probeFlock reports whether path's advisory lock is currently held by a live
-// holder, plus the three-way answer. It tries LOCK_EX|LOCK_NB on a fresh
-// descriptor: acquiring proves no holder (supervisor gone cleanly), so it
-// immediately unlocks and closes, leaving no lock of its own -> (false,
-// probeAbsent); EWOULDBLOCK proves a live holder -> (true, probeLive); a
-// missing file is clean absence -> (false, probeAbsent); any other error is
-// unknown, never mistaken for absence -> (false, probeUnknown).
-func probeFlock(path string) (held bool, answer probeAnswer) {
-	f, err := os.OpenFile(path, os.O_RDWR, 0o600)
+// LockProbe is ProbeLock's typed answer (change 0494). The zero value is
+// LockProbeUnknown, so an unset or defaulted answer is never read as free.
+type LockProbe int
+
+const (
+	// LockProbeUnknown: the probe could not decide (an open or flock error other
+	// than not-exist / would-block). Never read as free and never as missing.
+	LockProbeUnknown LockProbe = iota
+	// LockProbeHeld: another open file description holds the lock right now.
+	LockProbeHeld
+	// LockProbeFree: the lock file exists and nobody holds it.
+	LockProbeFree
+	// LockProbeMissing: no file exists at the path.
+	LockProbeMissing
+)
+
+// ProbeLock reports, without creating the file and without waiting, whether the
+// advisory lock at path is held. It opens WITHOUT O_CREATE and tries
+// LOCK_EX|LOCK_NB on a fresh descriptor. Acquiring proves no holder; the probe
+// then releases by closing (never LOCK_UN), leaving the lock exactly as it found
+// it. EWOULDBLOCK proves a live holder. A missing file is LockProbeMissing, and
+// any other error is LockProbeUnknown.
+func ProbeLock(path string) LockProbe {
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return false, probeAbsent
+			return LockProbeMissing
 		}
-		return false, probeUnknown
+		return LockProbeUnknown
 	}
 	defer f.Close()
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		if errors.Is(err, syscall.EWOULDBLOCK) {
-			return true, probeLive
+			return LockProbeHeld
 		}
+		return LockProbeUnknown
+	}
+	return LockProbeFree
+}
+
+// probeFlock reports whether path's advisory lock is currently held by a live
+// holder, plus the three-way answer. It tries LOCK_EX|LOCK_NB on a fresh
+// descriptor: acquiring proves no holder (supervisor gone cleanly), so it
+// immediately closes, leaving no lock of its own -> (false,
+// probeAbsent); EWOULDBLOCK proves a live holder -> (true, probeLive); a
+// missing file is clean absence -> (false, probeAbsent); any other error is
+// unknown, never mistaken for absence -> (false, probeUnknown).
+func probeFlock(path string) (held bool, answer probeAnswer) {
+	switch ProbeLock(path) {
+	case LockProbeHeld:
+		return true, probeLive
+	case LockProbeFree, LockProbeMissing:
+		return false, probeAbsent
+	default:
 		return false, probeUnknown
 	}
-	// Acquired it: there is no live holder. Release immediately so this probe
-	// leaves the lock exactly as it found it.
-	syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-	return false, probeAbsent
 }
 
 // identityConditions proves clauses 3-5 of the spec's ownership
