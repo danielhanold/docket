@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0496 — Add `docket repository repair` and stop flagging empty claimed_at](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md)**
+> ↩ **[Change 0496 — Add `docket repository repair` and stop flagging empty claimed_at](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-03-0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md)**
 <!-- docket:backlink:end -->
 # Add `docket repository repair` and stop flagging empty claimed_at — Results
 
