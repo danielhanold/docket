@@ -127,26 +127,45 @@ func settleablePublicationIndexes(rec RunRecord) []int {
 	return idxs
 }
 
-// settleUncertainPublications durably settles every uncertain publication entry
-// proven by a later verified identical retry (change 0444). The whole
-// re-read + match + write runs under one runRecordCAS, so the matches are
-// re-derived from the FRESH record under the lock — an appended unrelated
-// entry can never be cleared by an older snapshot, a raced completion
-// callback or concurrent cancel serializes, and completed is never
-// downgraded (the only transition is uncertain→completed on a matched
-// original; identity, siblings, participants, and run state are untouched).
-// It is invoked ONLY from authorized write paths (cancellation teardown and
-// the attributed keyed successful closeout); read-only verification paths
-// never call it. A persistence/read failure is a bounded finding
-// ("mutation-settle-failed") — the entry stays uncertain, exclusion is
-// retained, and repeating the same cancel/keyed verdict retries the write.
-// A no-match pass writes nothing (errRunFenceNoWrite).
+// settleUncertainPublications durably records abandonment and settles every
+// uncertain publication entry proven by a later verified identical retry. Its
+// only transitions are admitted→uncertain, for an entry whose publisher is
+// provably gone (publisherGone: its publish lock reads free; change 0494), and
+// uncertain→completed, for a retry-matched original (change 0444). The
+// abandonment step runs first, so a dead publisher's entry can still be settled
+// by the 0444 match in the same pass. The whole re-read + mark + match + write
+// runs under one runRecordCAS, so both are re-derived from the FRESH record
+// under the lock — an appended unrelated entry can never be cleared by an older
+// snapshot, a raced completion callback or concurrent cancel serializes, and
+// completed is never downgraded (identity, siblings, participants, and run
+// state are untouched). It is invoked ONLY from authorized write paths
+// (cancellation teardown and the attributed keyed successful closeout);
+// read-only verification paths never call it. A persistence/read failure is a
+// bounded finding ("mutation-settle-failed") and repeating the same cancel/keyed
+// verdict retries the write. The abandonment write is bookkeeping: the lock
+// probe is the evidence, so a failed write still lets classifyAdmittedMutation
+// read the free lock and account the entry abandoned. A pass with nothing to
+// mark or settle writes nothing (errRunFenceNoWrite).
 func settleUncertainPublications(repoDir, runKey string) (settled, findings []string) {
+	dir := runJournalDir(repoDir, runKey) // "" ⇒ no entry can be proven abandoned
 	var tokens []string
 	err := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
 		tokens = nil // the closure's view is the fresh locked record; never carry a stale pass
+		// (change 0494) Record abandonment first: an admitted entry whose publish lock
+		// reads free has no publisher left to write its outcome, so it becomes
+		// uncertain ("outcome unknown", never verified). The probe only tries and never
+		// waits, so holding run.lock here cannot deadlock a publisher that holds its
+		// publish lock while it waits on run.lock for its own outcome write.
+		marked := false
+		for i := range rec.AdmittedMutations {
+			if publisherGone(dir, rec.AdmittedMutations[i]) {
+				rec.AdmittedMutations[i].Status = mutationStatusUncertain
+				rec.AdmittedMutations[i].Verified = false
+				marked = true
+			}
+		}
 		idxs := settleablePublicationIndexes(*rec)
-		if len(idxs) == 0 {
+		if len(idxs) == 0 && !marked {
 			return errRunFenceNoWrite
 		}
 		for _, i := range idxs {
@@ -156,7 +175,7 @@ func settleUncertainPublications(repoDir, runKey string) (settled, findings []st
 		return nil
 	})
 	if errors.Is(err, errRunFenceNoWrite) {
-		return nil, nil // nothing to settle: no write, no finding
+		return nil, nil // nothing to mark or settle: no write, no finding
 	}
 	if err != nil {
 		// The write never landed: discard any tokens the aborted closure

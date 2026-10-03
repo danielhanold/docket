@@ -1140,13 +1140,16 @@ func TestIntegrationRunFenceProductionUncertainThenIdenticalRetryThenCancel(t *t
 	}
 }
 
-// assertUnverifiedRetryLeavesOriginalPending runs the REAL cancel path over a
+// assertUnverifiedRetryLeavesOriginalUnsettled runs the REAL cancel path over a
 // journal the production boundary wrote as [uncertain original, admitted-then-
 // resolved identical retry] and asserts the retry verified NOTHING it could settle
-// with: the original stays uncertain, cancellation stays cancellation-pending with
-// the exclusion finding, and no settlement is reported (change 0444 review
-// blocker: a refused/failed retry must never count as proof).
-func assertUnverifiedRetryLeavesOriginalPending(t *testing.T, fx cancelFixture, op string) {
+// with: the original stays uncertain and no settlement is reported (change 0444
+// review blocker: a refused/failed retry must never count as proof). The unverified
+// retry still settles nothing, but change 0494 reversed the blocking premise: the
+// uncertain original no longer keeps cancellation pending. Its publisher has
+// returned, so the cancel reports cancelled with the informational
+// mutation-abandoned:<op>, never mutation-pending.
+func assertUnverifiedRetryLeavesOriginalUnsettled(t *testing.T, fx cancelFixture, op string) {
 	t.Helper()
 	ep, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
@@ -1161,11 +1164,14 @@ func assertUnverifiedRetryLeavesOriginalPending(t *testing.T, fx cancelFixture, 
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, "human stop")
-	if res.Disposition == CancelDispositionCancelled {
-		t.Fatalf("disposition = cancelled (findings %v): an unverified retry settled the uncertain original", res.Findings)
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q (findings %v), want cancelled (an uncertain original no longer blocks)", res.Disposition, res.Findings)
 	}
-	if !hasFinding(res.Findings, "mutation-pending:"+op) {
-		t.Fatalf("findings = %v, want mutation-pending:%s (exclusion retained)", res.Findings, op)
+	if !hasFinding(res.Findings, "mutation-abandoned:"+op) {
+		t.Fatalf("findings = %v, want mutation-abandoned:%s", res.Findings, op)
+	}
+	if hasFinding(res.Findings, "mutation-pending") {
+		t.Fatalf("findings = %v; an uncertain original must not report mutation-pending", res.Findings)
 	}
 	if hasFinding(res.Findings, "mutation-settled") {
 		t.Fatalf("findings = %v; an unverified retry must settle nothing", res.Findings)
@@ -1214,7 +1220,7 @@ func TestIntegrationRunFenceProductionUnverifiedPRRetryNeverSettles(t *testing.T
 			if len(tc.retry.ensureCalls) != 1 {
 				t.Fatalf("retry ensure calls = %d, want 1 (the retry must be admitted and reach the adapter)", len(tc.retry.ensureCalls))
 			}
-			assertUnverifiedRetryLeavesOriginalPending(t, fx, OperationPRPublish)
+			assertUnverifiedRetryLeavesOriginalUnsettled(t, fx, OperationPRPublish)
 		})
 	}
 }
@@ -1276,7 +1282,7 @@ func TestIntegrationRunFenceProductionUnverifiedWorkspaceRetryNeverSettles(t *te
 				t.Fatalf("retry PublishHead calls = %d, want 1 (the retry must be admitted and reach the adapter)", len(tc.retry.publishCalls))
 			}
 			if !tc.settle {
-				assertUnverifiedRetryLeavesOriginalPending(t, fx, OperationWorkspacePublish)
+				assertUnverifiedRetryLeavesOriginalUnsettled(t, fx, OperationWorkspacePublish)
 				return
 			}
 			stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}

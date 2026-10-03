@@ -278,12 +278,16 @@ func TestIntegrationRunCancelSettlesUncertainPublicationWithIdenticalRetry(t *te
 	}
 }
 
-// TestIntegrationRunCancelStaysPendingWithoutCompletedIdenticalRetry (change 0444 acceptance 2):
-// a workspace publication settles analogously, and an uncertain entry with NO
-// completed identical retry keeps cancellation-pending — then a subsequent
-// identical completed retry lets the SAME pending cancellation finish (acceptance
-// 4 tail).
-func TestIntegrationRunCancelStaysPendingWithoutCompletedIdenticalRetry(t *testing.T) {
+// TestIntegrationRunCancelUncertainWithoutRetryIsAbandoned (change 0444 acceptance 2,
+// rewritten by change 0494, spec test 6 cancel half). Change 0444 held an uncertain
+// entry with no completed identical retry as cancellation-pending; change 0494
+// reversed that premise. An uncertain entry is written only by its publisher's own
+// callback, so its publisher has returned and nothing is left to wait on: the
+// cancel reports cancelled with the informational mutation-abandoned:<op>, the
+// entry stays uncertain (never settled without a verified retry), a repeat cancel
+// is already-cancelled and still carries the finding, and resume admits exactly
+// one replacement.
+func TestIntegrationRunCancelUncertainWithoutRetryIsAbandoned(t *testing.T) {
 	fx := newCancelFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
@@ -299,32 +303,33 @@ func TestIntegrationRunCancelStaysPendingWithoutCompletedIdenticalRetry(t *testi
 	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
 
 	first := runCancel(seams, fx.repo, fx.key, "human stop")
-	if first.Disposition != CancelDispositionPending {
-		t.Fatalf("disposition = %q, want cancellation-pending (no completed identical retry)", first.Disposition)
+	if first.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q (findings %v), want cancelled (an uncertain entry no longer blocks)", first.Disposition, first.Findings)
 	}
-	if !hasFinding(first.Findings, "mutation-pending:"+OperationWorkspacePublish) {
-		t.Fatalf("findings = %v, want mutation-pending:workspace.publish", first.Findings)
+	if countFinding(first.Findings, "mutation-abandoned:"+OperationWorkspacePublish) != 1 || hasFinding(first.Findings, "mutation-pending") {
+		t.Fatalf("findings = %v, want exactly one mutation-abandoned:workspace.publish and no mutation-pending", first.Findings)
+	}
+	if m := journalEntry(t, fx.repo, fx.key, 0); m.Status != mutationStatusUncertain {
+		t.Fatalf("entry status = %q, want still uncertain (no verified retry settles it)", m.Status)
 	}
 
-	// A subsequent identical successful retry lands in the journal; the SAME repeat
-	// cancel now converges.
-	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
-		r.AdmittedMutations = append(r.AdmittedMutations,
-			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc})
-		return nil
-	}); err != nil {
-		t.Fatalf("append retry: %v", err)
-	}
+	// Repeat: terminal and quiescent, still reporting the informational finding.
 	second := runCancel(seams, fx.repo, fx.key, "human stop")
-	if second.Disposition != CancelDispositionCancelled {
-		t.Fatalf("repeat disposition = %q (findings %v), want cancelled", second.Disposition, second.Findings)
+	if second.Disposition != CancelDispositionAlreadyCancelled || !hasFinding(second.Findings, "mutation-abandoned:"+OperationWorkspacePublish) {
+		t.Fatalf("repeat = %q %v, want already-cancelled with mutation-abandoned:workspace.publish", second.Disposition, second.Findings)
+	}
+	if m := journalEntry(t, fx.repo, fx.key, 0); m.Status != mutationStatusUncertain {
+		t.Fatalf("entry status after repeat = %q, want still uncertain", m.Status)
 	}
 	ep, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
-	if ep.AdmittedMutations[0].Status != mutationStatusCompleted {
-		t.Fatal("the ORIGINAL workspace record must be durably completed after the repeat cancel")
+	if ok, detail := validateResumeQuiescence(cancelSeams{store: fx.store, launches: okLaunchReconciler()}, fx.repo, ep); !ok {
+		t.Fatalf("resume quiescence = %q, want quiescent", detail)
+	}
+	if err := SupersedeCancelledRun(fx.repo, fx.key, "replacement-key"); err != nil {
+		t.Fatalf("SupersedeCancelledRun: %v (resume must admit exactly one replacement)", err)
 	}
 }
 

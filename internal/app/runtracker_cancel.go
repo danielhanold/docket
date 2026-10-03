@@ -446,17 +446,18 @@ func runCancel(seams cancelSeams, repoDir, key, reason string) RunCancelResult {
 // run's drives — which carry the replacement's own context hash — are never
 // touched. It fails closed: an absent or erroring reconciler, an unreadable run
 // context, an unaccounted launch obligation (a busy claim, an unresolved launch, a
-// supervisor still running after the stop), or an admitted-not-completed mutation
-// is non-quiescence with a bounded finding. It writes no run record, and it does
-// not re-prove participants, which terminal repair deliberately does not
-// re-enumerate.
+// supervisor still running after the stop), or a journal entry whose publisher may
+// still be running (classifyAdmittedMutation) is non-quiescence with a bounded
+// finding. It never writes: it writes no run record (a dead publisher's admitted
+// entry is reported mutation-abandoned:<op> from the lock probe alone, never
+// rewritten), and it does not re-prove participants, which terminal repair
+// deliberately does not re-enumerate.
 func verifyTerminalRunQuiescence(seams cancelSeams, repoDir string, ep RunRecord) (bool, []string) {
 	quiescent, findings := reconcileRunLaunchesFor(seams, repoDir, ep.RunKey)
-	for _, m := range ep.AdmittedMutations {
-		if m.Status != mutationStatusCompleted {
-			findings = append(findings, "mutation-pending:"+m.OpKey)
-			quiescent = false
-		}
+	mblocked, mfindings := accountAdmittedMutations(runJournalDir(repoDir, ep.RunKey), ep.AdmittedMutations)
+	findings = append(findings, mfindings...)
+	if mblocked {
+		quiescent = false
 	}
 	return quiescent, findings
 }
@@ -484,13 +485,15 @@ func repairTerminalRun(seams cancelSeams, repoDir string, ep RunRecord) RunCance
 // through the launch census, RE-ENUMERATE the participants after stopping (a launch
 // admitted before the fence won and can register after the first snapshot), settle
 // uncertain publications a later verified identical retry proves (change 0444), and
-// reconcile the admitted-mutation journal (an admitted-not-completed entry keeps
-// the run pending). It returns whether the run is fully accounted, the bounded
-// credential-free findings, and a non-nil err only for a run re-read fault.
+// reconcile the admitted-mutation journal (a journal entry whose publisher may still
+// be running (classifyAdmittedMutation) keeps the run pending). It returns whether
+// the run is fully accounted, the bounded credential-free findings, and a non-nil
+// err only for a run re-read fault.
 //
 // It NEVER validates authority and NEVER transitions the run (its only run write
-// is settleUncertainPublications' uncertain→completed flip of retry-proven journal
-// entries, which leaves the run state untouched): the caller fences
+// is settleUncertainPublications, which flips a dead publisher's admitted entry to
+// uncertain (change 0494) and a retry-proven uncertain entry to completed, and
+// leaves the run state untouched): the caller fences
 // first — run.cancel under the authority conditions, or the detached death
 // guardian on abrupt owner death — and finalizes cancelling→cancelled after. Both
 // callers share this one accounting so the two fencing authorities reconcile a run
@@ -551,9 +554,10 @@ func reconcileRunTeardown(seams cancelSeams, repoDir, runKey string, ep RunRecor
 	// GitHub call. Runs before the re-enumeration reload so steps (6)-(7)
 	// evaluate the settled record. Shared by both fencing authorities
 	// (run.cancel and the death guardian): settlement is observation of durable
-	// journal fact, like the completion callback. A failed settlement write is
-	// a bounded finding; the entry stays uncertain and step (7) keeps the
-	// cancellation pending, so exclusion is retained until a repeat converges.
+	// journal fact, like the completion callback. A dead publisher's admitted
+	// entry is first recorded uncertain (change 0494). A failed settlement write
+	// is a bounded finding; step (7) still classifies the entry from the lock
+	// probe, and a repeat retries the write.
 	settledTokens, sfindings := settleUncertainPublications(repoDir, runKey)
 	findings = append(findings, settledTokens...)
 	findings = append(findings, sfindings...)
@@ -573,14 +577,15 @@ func reconcileRunTeardown(seams cancelSeams, repoDir, runKey string, ep RunRecor
 	}
 
 	// (7) Reconcile admitted mutations from the re-enumerated (post-settlement)
-	// journal: any admitted-not-completed entry (in-flight, or uncertain with no
-	// verified identical retry) keeps cancellation pending so a premature
-	// `cancelled` never claims a mutation is done.
-	for _, m := range reEp.AdmittedMutations {
-		if m.Status != mutationStatusCompleted {
-			findings = append(findings, "mutation-pending:"+m.OpKey)
-			accounted = false
-		}
+	// journal through the single journal rule (classifyAdmittedMutation, change
+	// 0494): only an entry whose publisher may still be running, or whose state
+	// cannot be proven, keeps cancellation pending (mutation-pending:<op>). An
+	// uncertain entry, or one whose publisher provably exited, is accounted with the
+	// informational mutation-abandoned:<op>.
+	mblocked, mfindings := accountAdmittedMutations(runJournalDir(repoDir, runKey), reEp.AdmittedMutations)
+	findings = append(findings, mfindings...)
+	if mblocked {
+		accounted = false
 	}
 
 	return accounted, findings, nil

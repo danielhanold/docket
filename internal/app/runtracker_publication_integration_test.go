@@ -378,6 +378,15 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 	// lost or downgraded, no racing admission is dropped by a settlement write,
 	// the unrelated admissions and every earlier entry are untouched, and the
 	// original is only ever uncertain or completed.
+	//
+	// inflight keeps every still-in-flight admission's callback reachable for the
+	// WHOLE test (change 0494), not just its own round: a discarded callback lets the
+	// GC finalize its publish lock's *os.File, which closes the lock and makes that
+	// in-flight publisher read as gone, so a later round's settlement would (rightly)
+	// record its entry abandoned and the "earlier entries untouched" invariant would
+	// no longer describe live publishers. They are never called: the test asserts
+	// these entries stay admitted.
+	var inflight []mutationJournalDone
 	for round := range 12 {
 		rd := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 			HeadRef: "refs/heads/fix/round", HeadCommit: fmt.Sprintf("%040x", round+1)}
@@ -397,11 +406,6 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 		if aerr != nil {
 			t.Fatalf("round %d: admit retry: %v", round, aerr)
 		}
-		// inflight keeps every still-in-flight admission's callback reachable (change
-		// 0494): a discarded callback lets the GC finalize its publish lock's *os.File,
-		// which closes the lock and would make an in-flight publisher read as gone.
-		// They are never called: the test asserts these entries stay admitted.
-		var inflight []mutationJournalDone
 		ud, aerr := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &ru)
 		if aerr != nil {
 			t.Fatalf("round %d: admit unrelated: %v", round, aerr)
@@ -505,16 +509,21 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 		if s := conv.AdmittedMutations[base].Status; s != mutationStatusCompleted {
 			t.Fatalf("round %d: original = %q after convergence, want completed", round, s)
 		}
-		runtime.KeepAlive(inflight)
 	}
+	runtime.KeepAlive(inflight)
 }
 
-// TestIntegrationRunCompletionSettlementInterruptionConverges (change 0444 acceptance 6): a settlement
-// whose durable write cannot land never lets cancellation claim `cancelled` — the
-// entry stays uncertain, exclusion is retained, and the bounded finding names the
-// failure — and once the record is writable again, repeating the SAME cancel
-// converges. (An interruption AFTER a successful write is a harmless idempotent
-// replay, proven by TestIntegrationRunCompletionSettleUncertainPublicationsDurable's replay assert.)
+// TestIntegrationRunCompletionSettlementInterruptionConverges (change 0444 acceptance 6,
+// rewritten by change 0494): a settlement whose durable write cannot land is a
+// bounded finding — the entry stays uncertain, no settlement is reported — and once
+// the record is writable again, repeating the SAME cancel converges. Change 0494
+// reversed the 0444 premise that the journal retains exclusion: the uncertain
+// entry's publisher has returned, so a failed settlement write never blocks on its
+// own (the entry is reported mutation-abandoned:<op>, never mutation-pending). In
+// part (b) the cancel still stays cancellation-pending only because the read-only
+// key dir also fails the final cancelling→cancelled write (finalize-unpersisted).
+// (An interruption AFTER a successful write is a harmless idempotent replay, proven
+// by TestIntegrationRunCompletionSettleUncertainPublicationsDurable's replay assert.)
 func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root ignores directory write permission")
@@ -569,9 +578,11 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	}
 
 	// (b) Interrupted between the fence and the settlement: the fence lands, then
-	// the store turns unwritable during teardown (the participant's process stop), so ONLY the
-	// settlement write fails. Cancellation must stay pending with the bounded
-	// finding, report no settlement, and leave the entry uncertain.
+	// the store turns unwritable during teardown (the participant's process stop), so the
+	// settlement write fails, and so does the final cancelling→cancelled write.
+	// Cancellation stays pending on finalize-unpersisted (never on the journal: the
+	// uncertain entry is reported abandoned), reports no settlement, and leaves the
+	// entry uncertain.
 	stopper.onStop = func(string) {
 		if err := os.Chmod(dir, 0o500); err != nil {
 			t.Errorf("chmod mid-teardown: %v", err)
@@ -584,8 +595,14 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	if !hasFinding(res.Findings, "mutation-settle-failed") {
 		t.Fatalf("findings = %v, want mutation-settle-failed", res.Findings)
 	}
-	if !hasFinding(res.Findings, "mutation-pending:"+OperationWorkspacePublish) {
-		t.Fatalf("findings = %v, want mutation-pending:workspace.publish (exclusion retained)", res.Findings)
+	if !hasFinding(res.Findings, "finalize-unpersisted") {
+		t.Fatalf("findings = %v, want finalize-unpersisted (the pending cause)", res.Findings)
+	}
+	if !hasFinding(res.Findings, "mutation-abandoned:"+OperationWorkspacePublish) {
+		t.Fatalf("findings = %v, want mutation-abandoned:workspace.publish", res.Findings)
+	}
+	if hasFinding(res.Findings, "mutation-pending") {
+		t.Fatalf("findings = %v; an uncertain entry must not report mutation-pending", res.Findings)
 	}
 	if hasFinding(res.Findings, "mutation-settled") {
 		t.Fatalf("findings = %v; a settlement that never landed must not be reported", res.Findings)
