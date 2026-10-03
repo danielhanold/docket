@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0494 — A publish killed mid-flight wedges its run's cancel and closeout](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md)**
+> ↩ **[Change 0494 — A publish killed mid-flight wedges its run's cancel and closeout](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-03-0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md)**
 <!-- docket:backlink:end -->
 # A publish killed mid-flight wedges its run's cancel and closeout — results
 
