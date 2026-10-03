@@ -1,6 +1,6 @@
 # Backlog
 
-**494 changes** — 🔵 1 built · 🟣 5 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 337 done · 🗑️ 133 killed
+**495 changes** — 🔵 1 built · 🟣 5 groomed · 🟡 7 proposed · ⚪ 12 deferred · ✅ 337 done · 🗑️ 133 killed
 
 ## 🔵 Built (1)
 
@@ -18,10 +18,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (6)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0495](active/0495-drop-startedrunresult-s-unreachable-empty-input-check.md) | Drop startedRunResult's unreachable empty-input check | `low` | `refactor` | ⏳ waiting on #491 — needs your merge |
 | [0494](active/0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md) | A publish killed mid-flight wedges its run's cancel and closeout | `high` | `fix` | needs-grooming |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
@@ -73,6 +74,7 @@ graph TD
   0490 --> 0492
   0490 --> 0493
   0494
+  0491 --> 0495
   0192:::done
   0251:::done
   0370:::done
