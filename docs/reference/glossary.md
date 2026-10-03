@@ -215,7 +215,7 @@ never a hand render.
 
 ```sh
 docket repository check
-docket repository migrate --repair-frontmatter   # human-typed: re-renders a stale index
+docket repository repair --yes   # human-typed: re-renders a stale index (run without --yes to preview)
 ```
 
 ### ADR status: Accepted / Superseded by / Reversed by / Deprecated
@@ -1487,11 +1487,14 @@ docket repository check
 ### Repository check / migrate
 
 `repository check` is the read-only topology and consistency check (including board drift).
-`repository migrate` is the human-typed repair and migration path, never run by an agent.
+`repository migrate` is the human-typed migration path for a legacy single-branch repository.
+`repository repair` is the human-authorized repair path on a migrated one: it previews every
+mechanically repairable finding `check` reports, and applies them in one commit with `--yes`.
 
 ```sh
 docket repository check
-docket repository migrate --repair-frontmatter
+docket repository migrate        # legacy repository only
+docket repository repair         # preview; add --yes to apply
 ```
 
 ### Status
