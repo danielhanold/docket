@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/cancel-misses-a-replacement-supervisor-behind-a-halted-unatt'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-03T08:16:27Z'
+reconciled: true
+claimed_at: '2026-10-03T08:17:12Z'
 ---
 
 ## Artifacts
@@ -62,3 +62,12 @@ The 2026-10-02 backlog review chose to **retire the relaunch** rather than harde
 - The worktree lock and its holder model (0490, ADR-0132), apart from deleting the relaunch's lock re-take.
 - Deleting `relaunch.lock` files or the old relaunch fields from records already on disk.
 
+## Reconcile log
+
+### 2026-10-03
+
+### 2026-10-03
+
+- Dependency 0490 is done; related 0491 (run id retired) and 0492 (tree-survives census finding) both merged to `main` after the spec was written against `756fea9`. 22 commits touched `internal/gatedrive` since (driver.go, reconcile.go, test files reshaped; `driver_runfence_test.go`, `run_launch_gate_test.go`, `launch_sites_guard_test.go` deleted).
+- The design still holds: every relaunch site the spec names is still present on `main` (`RelaunchReserved`, `reconcileReservation`, `settleNeverLaunchedCancelled`, `PriorRawRunDir`, `IdempotentSuiteGate`, the CLI flag, `PriorHolder`). Scope unchanged.
+- Fold-in: `settleNeverLaunched` uses `errRelaunchRaceLost` as its CAS-lost sentinel; when that sentinel is deleted the census needs its own neutral sentinel. 0492 shipped without its item 3, consistent with this change. The test-site list must be re-derived from a grep of current `main`, not the spec's `756fea9` list.
