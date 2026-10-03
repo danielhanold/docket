@@ -14,7 +14,7 @@ discovered_from: [491]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md'
 plan: 'docs/superpowers/plans/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md'
-results:
+results: 'docs/results/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-03T08:41:46Z'
 |---|---|
 | Spec | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md) |
 | Plan | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md](https://github.com/danielhanold/docket/blob/refactor/drop-startedrunresult-s-unreachable-empty-input-check/docs/superpowers/plans/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md) |
+| Results | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-results.md](https://github.com/danielhanold/docket/blob/refactor/drop-startedrunresult-s-unreachable-empty-input-check/docs/results/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
