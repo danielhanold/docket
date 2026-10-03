@@ -2,7 +2,7 @@
 id: 492
 slug: 'suite-teardown-can-outlive-its-supervisor'
 title: 'Suite teardown can outlive its supervisor'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-02'
@@ -22,7 +22,7 @@ branch: 'fix/suite-teardown-can-outlive-its-supervisor'
 pr: 'https://github.com/danielhanold/docket/pull/368'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-03T06:42:54Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-03T06:42:54Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-02-suite-teardown-can-outlive-its-supervisor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-suite-teardown-can-outlive-its-supervisor-design.md) |
-| Plan | [2026-10-03-suite-teardown-can-outlive-its-supervisor.md](https://github.com/danielhanold/docket/blob/fix/suite-teardown-can-outlive-its-supervisor/docs/superpowers/plans/2026-10-03-suite-teardown-can-outlive-its-supervisor.md) |
-| Results | [2026-10-03-suite-teardown-can-outlive-its-supervisor-results.md](https://github.com/danielhanold/docket/blob/fix/suite-teardown-can-outlive-its-supervisor/docs/results/2026-10-03-suite-teardown-can-outlive-its-supervisor-results.md) |
+| Plan | [2026-10-03-suite-teardown-can-outlive-its-supervisor.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-03-suite-teardown-can-outlive-its-supervisor.md) |
+| Results | [2026-10-03-suite-teardown-can-outlive-its-supervisor-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-03-suite-teardown-can-outlive-its-supervisor-results.md) |
 | ADRs | [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md), [ADR-0134](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0134-a-dead-supervisor-s-suite-counts-as-gone-only-when-its-proce.md) |
 <!-- docket:artifacts:end -->
 

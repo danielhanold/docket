@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0492 — Suite teardown can outlive its supervisor](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0492-suite-teardown-can-outlive-its-supervisor.md)**
+> ↩ **[Change 0492 — Suite teardown can outlive its supervisor](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-03-0492-suite-teardown-can-outlive-its-supervisor.md)**
 <!-- docket:backlink:end -->
 
 # Suite teardown can outlive its supervisor — design

@@ -1,12 +1,6 @@
 # Backlog
 
-**496 changes** — 🔵 1 built · 🟣 4 groomed · 🟡 8 proposed · ⚪ 12 deferred · ✅ 338 done · 🗑️ 133 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0492](active/0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | `medium` | `fix` | [#368](https://github.com/danielhanold/docket/pull/368) | awaiting merge |
+**496 changes** — 🟣 4 groomed · 🟡 8 proposed · ⚪ 12 deferred · ✅ 339 done · 🗑️ 133 killed
 
 ## 🟣 Groomed (4)
 
@@ -70,7 +64,6 @@ graph TD
   0412
   0433
   0464
-  0490 --> 0492
   0490 --> 0493
   0494
   0491 --> 0495
@@ -85,10 +78,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (471)</summary>
+<details><summary>✅🗑️ Archive — done + killed (472)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0492](archive/2026-10-03-0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | 2026-10-03 |
 | [0491](archive/2026-10-03-0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Retire the run id; the run key becomes the run tracker's only handle | 2026-10-03 |
 | [0490](archive/2026-10-02-0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | 2026-10-02 |
 | [0489](archive/2026-10-02-0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) | Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives | 2026-10-02 |
@@ -116,7 +110,6 @@ graph TD
 | [0474](archive/2026-09-30-0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) | Rename re-arm to re-enable and retire the lifecycle 'terminal' and non-run 'fence' names | 2026-09-30 |
 | [0473](archive/2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) | Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks | 2026-09-30 |
 | [0472](archive/2026-09-30-0472-rename-change-version-to-revision-version-revision.md) | Rename change version to revision (--version → --revision) | 2026-09-30 |
-| [0471](archive/2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) | Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) | 2026-09-29 |
 | [0292](archive/2026-09-29-0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | 2026-09-29 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
@@ -242,7 +235,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 87 done |
+| [2026-09](archive/) | 88 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
