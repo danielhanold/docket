@@ -14,7 +14,7 @@ discovered_from: [491]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-design.md'
 plan: 'docs/superpowers/plans/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md'
-results:
+results: 'docs/results/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-03T09:06:17Z'
 |---|---|
 | Spec | [2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-design.md) |
 | Plan | [2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md](https://github.com/danielhanold/docket/blob/fix/drop-final-claimed-at-is-reported-repairable-but-nothing-can/docs/superpowers/plans/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) |
+| Results | [2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-results.md](https://github.com/danielhanold/docket/blob/fix/drop-final-claimed-at-is-reported-repairable-but-nothing-can/docs/results/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
