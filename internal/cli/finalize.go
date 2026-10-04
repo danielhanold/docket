@@ -85,23 +85,17 @@ func newFinalizeCleanupSubcommand(setResult func(app.OperationResult)) *cobra.Co
 	return cmd
 }
 
-// closeoutInput is the bounded request-file payload for `finalize closeout`:
-// the two optional authored note lists, and nothing else. Omitted arrays and
-// empty arrays are the same no-notes request. DisallowUnknownFields (via
-// decodeInputFlag) rejects any other key; the app layer owns entry validation,
-// bounds, and rendering.
-type closeoutInput struct {
-	VerificationOutcomes []string `json:"verification_outcomes"`
-	LateFindings         []string `json:"late_findings"`
-}
-
 // newFinalizeCloseoutSubcommand builds `finalize closeout`: it reloads the
 // metadata, reprobes the recorded PR and its merge destination, and applies the
 // one verified closeout shape (done-archived, stacked-merged, or root carry). It
 // takes NO done boolean and NO archive date — the UTC archive date is derived
 // from the verified GitHub mergedAt — so the change id and the target directory
 // ride on flags; the optional authored closeout notes ride in --input (never
-// argv), and the no-input form is the unchanged default.
+// argv), and the no-input form is the unchanged default. The --input file is an
+// app.CloseoutNotes, declared and strictly decoded through declareJSONFile: the
+// two optional authored note lists and nothing else. Omitted arrays and empty
+// arrays are the same no-notes request; the app layer owns entry validation,
+// bounds, and rendering.
 func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "closeout",
@@ -111,28 +105,28 @@ func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.C
 		// metadata-branch transactions; the PR/merge reprobes are read-only, and
 		// it pushes no feature ref.
 		Annotations: capability("finalize.closeout", EffectMetadataWrite),
-		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, err := resolveRepoDir(c)
-			if err != nil {
+	}
+	decode := declareJSONFile[app.CloseoutNotes](cmd, "input")
+	cmd.RunE = func(c *cobra.Command, _ []string) error {
+		repoDir, err := resolveRepoDir(c)
+		if err != nil {
+			return err
+		}
+		id, _ := c.Flags().GetInt("id")
+		// --input is optional: no source is the unchanged no-notes path, and the
+		// decoder refuses an empty source, so it runs only when one was given.
+		var notes app.CloseoutNotes
+		if src, _ := c.Flags().GetString("input"); src != "" {
+			if notes, err = decode(c); err != nil {
 				return err
 			}
-			id, _ := c.Flags().GetInt("id")
-			var in closeoutInput
-			if src, _ := c.Flags().GetString("input"); src != "" {
-				if err := decodeInputFlag(c, &in); err != nil {
-					return err
-				}
-			}
-			deps, err := newFinalizeDeps(repoDir)
-			if err != nil {
-				return err
-			}
-			setResult(app.FinalizeCloseout(c.Context(), deps, repoDir, id, app.CloseoutNotes{
-				VerificationOutcomes: in.VerificationOutcomes,
-				LateFindings:         in.LateFindings,
-			}))
-			return nil
-		},
+		}
+		deps, err := newFinalizeDeps(repoDir)
+		if err != nil {
+			return err
+		}
+		setResult(app.FinalizeCloseout(c.Context(), deps, repoDir, id, notes))
+		return nil
 	}
 	cmd.Flags().Int("id", 0, "change `id` to close out (required)")
 	cmd.Flags().String("input", "", "optional JSON request `file` with closeout notes (verification_outcomes, late_findings), or - for stdin")
@@ -141,21 +135,13 @@ func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.C
 	return cmd
 }
 
-// finalizeBlockInput is the bounded request-file payload for `finalize block`:
-// the authored report that crosses to the PR comment and the authored concrete
-// remedy recorded in the marker. The scalar identities (id, revision, pr number,
-// attempt, reason, head) ride on flags — only the authored Markdown travels
-// through the request file (Global Constraints). DisallowUnknownFields (via
-// decodeInputFlag) rejects any other key.
-type finalizeBlockInput struct {
-	Report string `json:"report"`
-	Remedy string `json:"remedy"`
-}
-
 // newFinalizeBlockSubcommand builds `finalize block`: it ensures the owned PR
 // comment first, then upserts the single durable "## Finalize blocked" marker in
-// one exact-revision transaction. The scalar identity rides on flags; the authored
-// report and remedy ride in --input (never argv).
+// one exact-revision transaction. The scalar identities (id, revision, pr number,
+// attempt, reason, head) ride on flags; only the authored Markdown — the report
+// that crosses to the PR comment and the concrete remedy recorded in the marker —
+// rides in --input (never argv), an app.FinalizeBlockInput declared and strictly
+// decoded through declareJSONFile.
 func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "block",
@@ -165,37 +151,38 @@ func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 		// "## Finalize blocked" marker upserted in an exact-revision metadata-
 		// branch transaction — not local state).
 		Annotations: capability("finalize.block", EffectExternalWrite, EffectMetadataWrite),
-		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, err := resolveRepoDir(c)
-			if err != nil {
-				return err
-			}
-			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("revision")
-			prNumber, _ := c.Flags().GetInt("pr-number")
-			attempt, _ := c.Flags().GetString("attempt")
-			reason, _ := c.Flags().GetString("reason")
-			head, _ := c.Flags().GetString("head")
-			var in finalizeBlockInput
-			if err := decodeInputFlag(c, &in); err != nil {
-				return err
-			}
-			deps, err := newFinalizeDeps(repoDir)
-			if err != nil {
-				return err
-			}
-			setResult(app.FinalizeBlock(c.Context(), deps, repoDir, app.BlockRequest{
-				ID:       id,
-				Revision: revision,
-				PRNumber: prNumber,
-				Attempt:  attempt,
-				Reason:   reason,
-				Head:     head,
-				Report:   in.Report,
-				Remedy:   in.Remedy,
-			}))
-			return nil
-		},
+	}
+	decode := declareJSONFile[app.FinalizeBlockInput](cmd, "input")
+	cmd.RunE = func(c *cobra.Command, _ []string) error {
+		repoDir, err := resolveRepoDir(c)
+		if err != nil {
+			return err
+		}
+		id, _ := c.Flags().GetInt("id")
+		revision, _ := c.Flags().GetString("revision")
+		prNumber, _ := c.Flags().GetInt("pr-number")
+		attempt, _ := c.Flags().GetString("attempt")
+		reason, _ := c.Flags().GetString("reason")
+		head, _ := c.Flags().GetString("head")
+		in, err := decode(c)
+		if err != nil {
+			return err
+		}
+		deps, err := newFinalizeDeps(repoDir)
+		if err != nil {
+			return err
+		}
+		setResult(app.FinalizeBlock(c.Context(), deps, repoDir, app.BlockRequest{
+			ID:       id,
+			Revision: revision,
+			PRNumber: prNumber,
+			Attempt:  attempt,
+			Reason:   reason,
+			Head:     head,
+			Report:   in.Report,
+			Remedy:   in.Remedy,
+		}))
+		return nil
 	}
 	cmd.Flags().Int("id", 0, "change `id` whose finalize attempt is blocked (required)")
 	cmd.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
@@ -313,18 +300,11 @@ func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 	return cmd
 }
 
-// retargetChildrenInput is the bounded request-file payload for `finalize
-// retarget-children`: the exact human-authorized child set from context finalize.
-// The scalar identities (parent id, record revision) ride on flags — only the
-// authored authorization set travels through the request file (Global
-// Constraints). DisallowUnknownFields (via decodeInputFlag) rejects any other key.
-type retargetChildrenInput struct {
-	Children []app.AuthorizedChild `json:"children"`
-}
-
 // newFinalizeRetargetChildrenSubcommand builds `finalize retarget-children`: it
 // reads the parent id and pinned record revision from flags, decodes the exact
-// authorized child set from --input, and hands the assembled request to the
+// human-authorized child set from context finalize out of --input (an
+// app.RetargetChildrenInput declared and strictly decoded through
+// declareJSONFile), and hands the assembled request to the
 // operation over the shared finalize seams. No lifecycle, Git, GitHub, or stack
 // policy lives here — the operation owns all of it.
 func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) *cobra.Command {
@@ -335,29 +315,30 @@ func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) 
 		// external-write: moves each authorized open child PR's base on GitHub;
 		// it opens no transaction and changes no metadata.
 		Annotations: capability("finalize.retarget-children", EffectExternalWrite),
-		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, err := resolveRepoDir(c)
-			if err != nil {
-				return err
-			}
-			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("revision")
+	}
+	decode := declareJSONFile[app.RetargetChildrenInput](cmd, "input")
+	cmd.RunE = func(c *cobra.Command, _ []string) error {
+		repoDir, err := resolveRepoDir(c)
+		if err != nil {
+			return err
+		}
+		id, _ := c.Flags().GetInt("id")
+		revision, _ := c.Flags().GetString("revision")
 
-			var input retargetChildrenInput
-			if err := decodeInputFlag(c, &input); err != nil {
-				return err
-			}
-			deps, err := newFinalizeDeps(repoDir)
-			if err != nil {
-				return err
-			}
-			setResult(app.FinalizeRetargetChildren(c.Context(), deps, repoDir, app.RetargetChildrenRequest{
-				ID:       id,
-				Revision: revision,
-				Children: input.Children,
-			}))
-			return nil
-		},
+		in, err := decode(c)
+		if err != nil {
+			return err
+		}
+		deps, err := newFinalizeDeps(repoDir)
+		if err != nil {
+			return err
+		}
+		setResult(app.FinalizeRetargetChildren(c.Context(), deps, repoDir, app.RetargetChildrenRequest{
+			ID:       id,
+			Revision: revision,
+			Children: in.Children,
+		}))
+		return nil
 	}
 	cmd.Flags().Int("id", 0, "parent change `id` whose open children are retargeted (required)")
 	cmd.Flags().String("revision", "", "exact parent record `revision` (the blob object id) from the authoritative context read (required)")
@@ -412,7 +393,8 @@ func newFinalizeRebaseSubcommand(setResult func(app.OperationResult)) *cobra.Com
 // newFinalizeRebaseContinueSubcommand builds `finalize rebase-continue`: it feeds a
 // conflict-resolver's report into the owned rebase, staging exactly the reported
 // (and verified) paths and continuing. The scalar identity (id, attempt token)
-// rides on flags; the authored resolver report rides in --input (never argv).
+// rides on flags; the authored resolver report rides in --input (never argv), an
+// app.ResolverReport declared and strictly decoded through declareJSONFile.
 func newFinalizeRebaseContinueSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rebase-continue",
@@ -422,24 +404,25 @@ func newFinalizeRebaseContinueSubcommand(setResult func(app.OperationResult)) *c
 		// rebase) + process-control (composes the local suite gate on
 		// completion) — the CORRECTED classification: the plan omitted the gate.
 		Annotations: capability("finalize.rebase-continue", EffectLocalWrite, EffectProcessControl),
-		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, err := resolveRepoDir(c)
-			if err != nil {
-				return err
-			}
-			id, _ := c.Flags().GetInt("id")
-			attempt, _ := c.Flags().GetString("attempt")
-			var report app.ResolverReport
-			if err := decodeInputFlag(c, &report); err != nil {
-				return err
-			}
-			deps, err := newFinalizeDeps(repoDir)
-			if err != nil {
-				return err
-			}
-			setResult(app.FinalizeRebaseContinue(c.Context(), deps, repoDir, id, attempt, report))
-			return nil
-		},
+	}
+	decode := declareJSONFile[app.ResolverReport](cmd, "input")
+	cmd.RunE = func(c *cobra.Command, _ []string) error {
+		repoDir, err := resolveRepoDir(c)
+		if err != nil {
+			return err
+		}
+		id, _ := c.Flags().GetInt("id")
+		attempt, _ := c.Flags().GetString("attempt")
+		report, err := decode(c)
+		if err != nil {
+			return err
+		}
+		deps, err := newFinalizeDeps(repoDir)
+		if err != nil {
+			return err
+		}
+		setResult(app.FinalizeRebaseContinue(c.Context(), deps, repoDir, id, attempt, report))
+		return nil
 	}
 	finalizeReportFlags(cmd)
 	return cmd
@@ -448,7 +431,8 @@ func newFinalizeRebaseContinueSubcommand(setResult func(app.OperationResult)) *c
 // newFinalizeRebaseAbortSubcommand builds `finalize rebase-abort`: it proves the
 // owned attempt, aborts the rebase, and verifies the original head was restored.
 // The scalar identity rides on flags; the authored resolver report rides in
-// --input (never argv).
+// --input (never argv), an app.ResolverReport declared and strictly decoded
+// through declareJSONFile.
 func newFinalizeRebaseAbortSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rebase-abort",
@@ -457,24 +441,25 @@ func newFinalizeRebaseAbortSubcommand(setResult func(app.OperationResult)) *cobr
 		// local-write: aborts the local rebase and clears the receipt/owned refs;
 		// it runs no suite and writes no remote or metadata.
 		Annotations: capability("finalize.rebase-abort", EffectLocalWrite),
-		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, err := resolveRepoDir(c)
-			if err != nil {
-				return err
-			}
-			id, _ := c.Flags().GetInt("id")
-			attempt, _ := c.Flags().GetString("attempt")
-			var report app.ResolverReport
-			if err := decodeInputFlag(c, &report); err != nil {
-				return err
-			}
-			deps, err := newFinalizeDeps(repoDir)
-			if err != nil {
-				return err
-			}
-			setResult(app.FinalizeRebaseAbort(c.Context(), deps, repoDir, id, attempt, report))
-			return nil
-		},
+	}
+	decode := declareJSONFile[app.ResolverReport](cmd, "input")
+	cmd.RunE = func(c *cobra.Command, _ []string) error {
+		repoDir, err := resolveRepoDir(c)
+		if err != nil {
+			return err
+		}
+		id, _ := c.Flags().GetInt("id")
+		attempt, _ := c.Flags().GetString("attempt")
+		report, err := decode(c)
+		if err != nil {
+			return err
+		}
+		deps, err := newFinalizeDeps(repoDir)
+		if err != nil {
+			return err
+		}
+		setResult(app.FinalizeRebaseAbort(c.Context(), deps, repoDir, id, attempt, report))
+		return nil
 	}
 	finalizeReportFlags(cmd)
 	return cmd

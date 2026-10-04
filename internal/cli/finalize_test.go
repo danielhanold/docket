@@ -555,7 +555,7 @@ func TestFinalizeCloseoutInputFlag(t *testing.T) {
 
 func TestFinalizeCloseoutInputDecode(t *testing.T) {
 	valid := `{"verification_outcomes":["a"],"late_findings":["b"]}`
-	var in closeoutInput
+	var in app.CloseoutNotes
 	if err := decodeRequest(strings.NewReader(valid), "--input", "-", &in); err != nil {
 		t.Fatalf("valid request rejected: %v", err)
 	}
@@ -569,7 +569,7 @@ func TestFinalizeCloseoutInputDecode(t *testing.T) {
 		"malformed":          `{"late_findings":`,
 		"two documents":      `{}{}`,
 	} {
-		var dst closeoutInput
+		var dst app.CloseoutNotes
 		if err := decodeRequest(strings.NewReader(bad), "--input", "-", &dst); err == nil {
 			t.Errorf("%s accepted", name)
 		}

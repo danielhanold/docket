@@ -418,13 +418,6 @@ func changeInputSubcommand[T any](verb, short string, run func(c *cobra.Command,
 	return cmd
 }
 
-// decodeInputFlag reads the command's --input source and strictly decodes one
-// JSON document into dst, reusing decodeRequest's exactly-one-document rule.
-func decodeInputFlag(c *cobra.Command, dst any) error {
-	source, _ := c.Flags().GetString("input")
-	return decodeRequest(c.InOrStdin(), "--input", source, dst)
-}
-
 // changeIDRevisionSubcommand builds one `change <verb>` command whose input is the
 // (id, revision) pair rather than a JSON request body: the claim transitions
 // carry no authored Markdown, so they take scalar flags (Global Constraints:
