@@ -1,0 +1,1057 @@
+package bashupgrade
+
+// The step registry: one action per `<!-- upgrade-step: <name> -->` block in
+// docs/release/upgrading-from-bash.md. runGuide drives the guide's marked blocks in
+// guide order through these actions against a restored saved case.
+//
+// Three kinds of action keep the guide honest:
+//   - run actions execute only the block's own text (`/bin/sh -e -c <body>`) and
+//     never add a command the guide does not show;
+//   - observe actions run the block's command with --json to read its findings,
+//     and check that the guide's tables explain every one;
+//   - mirror actions do by hand exactly what the block and its prose tell the reader
+//     to do (download, edit a file, delete paths), after asserting the guide text
+//     names the object they act on.
+//
+// Each action also asserts the claims the guide's prose makes about that step, so a
+// change in the binary's behavior turns the test red instead of leaving the guide
+// silently wrong.
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"testing"
+
+	"go.yaml.in/yaml/v3"
+)
+
+// runState carries what earlier steps observed to later ones. InstallAttempts holds
+// every install hand-off in order; Conflicts the paths the first failed attempt
+// named; Observed the finding codes each observe step saw.
+type runState struct {
+	InstallAttempts []cmdResult
+	Conflicts       []string
+	Observed        map[string][]findingRef
+
+	Guide       string   // the full guide text, for prose and table checks
+	Cwd         string   // the reader's terminal directory after the last block
+	DownloadDir string   // where install-binary downloaded install.sh
+	InstallLine string   // install-binary's installer invocation, re-run by takeover-remedy
+	CheckJSON   string   // repo-check's --json stdout
+	Settings    []string // settings-table patterns config-cleanup matched to a finding
+	Removed     []string // settings config-cleanup removed from .docket.yml
+}
+
+type stepAction func(t *testing.T, c *upgradeCase, st *runState, body string)
+
+var stepRegistry = map[string]stepAction{
+	"install-binary":        mirrorInstallBinary,
+	"takeover-remedy":       mirrorTakeoverRemedy,
+	"global-config-cleanup": mirrorGlobalConfigCleanup,
+	"confirm-install":       runConfirmInstall,
+	"repo-prepare":          runRepoPrepare,
+	"repo-check":            observeRepoCheck,
+	"fix-gitignore":         mirrorFixGitignore,
+	"config-cleanup":        mirrorConfigCleanup,
+	"commit-fixes":          runCommitFixes,
+	"configure-tests":       runPlain,
+	"commit-config":         runCommit,
+	"repair-preview":        observeRepairPreview,
+	"repair-apply":          runRepairApply,
+	"repo-confirm":          runRepoConfirm,
+	"leftovers":             mirrorLeftovers,
+}
+
+// Guide headings the table checks anchor on.
+const (
+	findingTableHeading = "## 5. Upgrade each repository"
+	settingTableHeading = "## 6. Settings that changed"
+)
+
+// settingCodes are the finding codes the settings table must explain.
+var settingCodes = map[string]bool{
+	"deferred-capability-requested": true,
+	"obsolete-setting":              true,
+	"inert-setting":                 true,
+}
+
+// guidePath is the guide under test: $DOCKET_BASH_UPGRADE_GUIDE when set (the
+// by-hand mutation-check seam), else the committed guide.
+func guidePath(t *testing.T) string {
+	t.Helper()
+	if p := os.Getenv("DOCKET_BASH_UPGRADE_GUIDE"); p != "" {
+		return p
+	}
+	return filepath.Join(repoRoot(t), "docs", "release", "upgrading-from-bash.md")
+}
+
+func readGuide(t *testing.T) string {
+	t.Helper()
+	b, err := os.ReadFile(guidePath(t))
+	if err != nil {
+		t.Fatalf("read guide: %v", err)
+	}
+	return string(b)
+}
+
+// runGuide runs every marked step of the guide, in guide order, against c.
+func runGuide(t *testing.T, c *upgradeCase) *runState {
+	t.Helper()
+	src := readGuide(t)
+	g, err := parseGuide(src)
+	if err != nil {
+		t.Fatalf("parse guide: %v", err)
+	}
+	st := &runState{Observed: map[string][]findingRef{}, Guide: src, Cwd: c.Home}
+	for _, s := range g.Steps {
+		act, ok := stepRegistry[s.Name]
+		if !ok {
+			t.Fatalf("guide step %q (line %d) has no registry action", s.Name, s.Line)
+		}
+		body, err := substitutePlaceholders(s.Body, map[string]string{"repo": c.Clone})
+		if err != nil {
+			t.Fatalf("guide step %q (line %d): %v", s.Name, s.Line, err)
+		}
+		t.Logf("guide step %s (line %d)", s.Name, s.Line)
+		act(t, c, st, body)
+	}
+	return st
+}
+
+// ---- shared helpers ---------------------------------------------------------------
+
+func blockLines(body string) []string {
+	var out []string
+	for _, l := range strings.Split(body, "\n") {
+		if strings.TrimSpace(l) != "" {
+			out = append(out, strings.TrimRight(l, " \t"))
+		}
+	}
+	return out
+}
+
+// expandHome expands a leading ~ the way the reader's shell does.
+func (c *upgradeCase) expandHome(p string) string {
+	if p == "~" {
+		return c.Home
+	}
+	if strings.HasPrefix(p, "~/") {
+		return filepath.Join(c.Home, p[2:])
+	}
+	return p
+}
+
+// trackCd follows every `cd <dir>` segment of a block so the next block starts where
+// the reader's terminal is.
+func (c *upgradeCase) trackCd(st *runState, body string) {
+	for _, line := range blockLines(body) {
+		for _, seg := range strings.Split(line, "&&") {
+			f := strings.Fields(seg)
+			if len(f) == 2 && f[0] == "cd" {
+				st.Cwd = c.expandHome(f[1])
+			}
+		}
+	}
+}
+
+// runBlock executes the block's own text with /bin/sh -e in the reader's current
+// directory and fails the test on a non-zero exit.
+func runBlock(t *testing.T, c *upgradeCase, st *runState, body string) cmdResult {
+	t.Helper()
+	r := c.run(t, st.Cwd, "/bin/sh", "-e", "-c", body)
+	if r.Code != 0 {
+		t.Fatalf("guide block exited %d (in %s)\nblock:\n%s\nstdout:\n%s\nstderr:\n%s", r.Code, st.Cwd, body, r.Stdout, r.Stderr)
+	}
+	c.trackCd(st, body)
+	return r
+}
+
+func mustContain(t *testing.T, what, text, want string) {
+	t.Helper()
+	if !strings.Contains(text, want) {
+		t.Fatalf("%s does not contain %q:\n%s", what, want, text)
+	}
+}
+
+// findingObjects decodes one JSON document and returns, in document order, every
+// object carrying string code and severity fields (the shape findingCodes reads).
+func findingObjects(t *testing.T, stdout string) []map[string]any {
+	t.Helper()
+	var doc any
+	if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
+		t.Fatalf("decode JSON output: %v\n%s", err, stdout)
+	}
+	var out []map[string]any
+	var walk func(v any)
+	walk = func(v any) {
+		switch x := v.(type) {
+		case map[string]any:
+			_, okCode := x["code"].(string)
+			_, okSev := x["severity"].(string)
+			if okCode && okSev {
+				out = append(out, x)
+			}
+			keys := make([]string, 0, len(x))
+			for k := range x {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				walk(x[k])
+			}
+		case []any:
+			for _, e := range x {
+				walk(e)
+			}
+		}
+	}
+	walk(doc)
+	return out
+}
+
+func str(m map[string]any, k string) string {
+	s, _ := m[k].(string)
+	return s
+}
+
+// guideTable returns the body rows (cells trimmed) of the first table after heading,
+// stopping at the next "## " heading.
+func guideTable(t *testing.T, src, heading string) [][]string {
+	t.Helper()
+	lines := strings.Split(src, "\n")
+	start := -1
+	for i, l := range lines {
+		if strings.TrimSpace(l) == heading {
+			start = i
+			break
+		}
+	}
+	if start < 0 {
+		t.Fatalf("guide has no %q heading", heading)
+	}
+	var rows [][]string
+	inTable := false
+	for _, l := range lines[start+1:] {
+		if strings.HasPrefix(l, "## ") {
+			break
+		}
+		if !strings.HasPrefix(l, "|") {
+			if inTable {
+				break
+			}
+			continue
+		}
+		if !inTable {
+			inTable = true
+			continue // header row
+		}
+		cells := strings.Split(strings.Trim(strings.TrimSpace(l), "|"), "|")
+		for i := range cells {
+			cells[i] = strings.TrimSpace(cells[i])
+		}
+		if strings.HasPrefix(cells[0], "---") {
+			continue
+		}
+		rows = append(rows, cells)
+	}
+	if len(rows) == 0 {
+		t.Fatalf("guide has no table under %q", heading)
+	}
+	return rows
+}
+
+func backticked(s string) []string {
+	var out []string
+	for _, m := range regexp.MustCompile("`([^`]+)`").FindAllStringSubmatch(s, -1) {
+		out = append(out, m[1])
+	}
+	return out
+}
+
+// findingTable maps each finding code in the section-5 table to its row.
+func findingTable(t *testing.T, src string) map[string][]string {
+	t.Helper()
+	out := map[string][]string{}
+	for _, row := range guideTable(t, src, findingTableHeading) {
+		codes := backticked(row[0])
+		if len(codes) != 1 || len(row) != 3 {
+			t.Fatalf("finding table row %q must name exactly one `code` and have 3 cells", strings.Join(row, " | "))
+		}
+		out[codes[0]] = row
+	}
+	return out
+}
+
+type settingRow struct {
+	Patterns       []string
+	Severity       string // error | warning | notice
+	Does, Fix, Raw string
+}
+
+func settingTable(t *testing.T, src string) []settingRow {
+	t.Helper()
+	var out []settingRow
+	for _, row := range guideTable(t, src, settingTableHeading) {
+		if len(row) != 3 {
+			t.Fatalf("settings table row %q must have 3 cells", strings.Join(row, " | "))
+		}
+		pats := backticked(row[0])
+		word := strings.ToLower(strings.TrimRight(strings.Fields(row[1])[0], ":."))
+		if len(pats) == 0 || (word != "error" && word != "warning" && word != "notice") {
+			t.Fatalf("settings table row %q needs `setting` names and a Error/Warning/Notice first word", strings.Join(row, " | "))
+		}
+		out = append(out, settingRow{Patterns: pats, Severity: word, Does: row[1], Fix: row[2], Raw: strings.Join(row, " | ")})
+	}
+	return out
+}
+
+// settingMatches reports whether a dotted setting name matches a table pattern,
+// where a <name> segment stands for any one segment.
+func settingMatches(pattern, field string) bool {
+	p, f := strings.Split(pattern, "."), strings.Split(field, ".")
+	if len(p) != len(f) {
+		return false
+	}
+	for i := range p {
+		if strings.HasPrefix(p[i], "<") && strings.HasSuffix(p[i], ">") {
+			continue
+		}
+		if p[i] != f[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// snapshotTree records every path under dir with its link target or content hash.
+func snapshotTree(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		switch {
+		case d.Type()&fs.ModeSymlink != 0:
+			target, err := os.Readlink(p)
+			if err != nil {
+				return err
+			}
+			out[p] = "link:" + target
+		case d.Type().IsRegular():
+			b, err := os.ReadFile(p)
+			if err != nil {
+				return err
+			}
+			sum := sha256.Sum256(b)
+			out[p] = "file:" + hex.EncodeToString(sum[:])
+		default:
+			out[p] = "dir"
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("snapshot %s: %v", dir, err)
+	}
+	return out
+}
+
+func gitRev(t *testing.T, c *upgradeCase, ref string) string {
+	t.Helper()
+	return strings.TrimSpace(c.mustGit(t, c.Origin, "rev-parse", ref))
+}
+
+// ---- section 3 and 4: the machine install ------------------------------------------
+
+// mirrorInstallBinary mirrors the release download block. The download and the
+// checksum check need the published release, which the release verification proves;
+// here every line must be one of those known shapes, and the installer invocation is
+// mirrored by installHandoff.
+func mirrorInstallBinary(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	var sawInstallSh, sawChecksums, sawVerify bool
+	for _, line := range blockLines(body) {
+		f := strings.Fields(line)
+		switch {
+		case len(f) == 6 && f[0] == "mkdir" && f[1] == "-p" && f[3] == "&&" && f[4] == "cd" && f[2] == f[5]:
+			dir := c.expandHome(f[2])
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			st.Cwd = dir
+			st.DownloadDir = dir
+		case strings.HasPrefix(line, "VERSION="):
+		case f[0] == "curl" && strings.HasSuffix(line, `/install.sh"`):
+			sawInstallSh = true
+		case f[0] == "curl" && strings.HasSuffix(line, `/checksums.txt"`):
+			sawChecksums = true
+		case strings.Contains(line, "checksums.txt") && strings.Contains(line, "shasum -a 256 -c"):
+			sawVerify = true
+		case line == "sh install.sh --harness claude":
+			st.InstallLine = line
+		default:
+			t.Fatalf("install-binary: line %q is not a shape the test mirrors", line)
+		}
+	}
+	if st.DownloadDir == "" || !sawInstallSh || !sawChecksums || !sawVerify || st.InstallLine == "" {
+		t.Fatalf("install-binary block must make a download folder, fetch install.sh and checksums.txt, verify with shasum -a 256 -c, and run `sh install.sh --harness claude`:\n%s", body)
+	}
+	installHandoff(t, c, st)
+}
+
+// installHandoff mirrors internal/release/downloader/install.sh from the point it
+// has a verified binary: stage it beside the destination, run the staged binary's
+// `install --harness claude`, and only on success move it into place, write the
+// ownership record, and run `docket install check`.
+func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
+	t.Helper()
+	dest := filepath.Join(c.BinDir, "docket")
+	if _, err := os.Lstat(dest); err == nil {
+		t.Fatalf("%s already exists; the mirror covers only the downloader's fresh-install path", dest)
+	}
+	if err := os.MkdirAll(c.BinDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stage := filepath.Join(c.BinDir, ".docket-stage")
+	bin, err := os.ReadFile(c.Docket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stage, bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	before := snapshotTree(t, filepath.Join(c.Home, ".claude"))
+	r := c.run(t, st.DownloadDir, stage, "--json", "install", "--harness", "claude")
+	st.InstallAttempts = append(st.InstallAttempts, r)
+	if r.Code != 0 {
+		_ = os.Remove(stage)
+		var conflicts []string
+		var doc struct {
+			Result  string `json:"result"`
+			Actions []struct {
+				Op, Path, Detail string
+			} `json:"actions"`
+		}
+		if err := json.Unmarshal([]byte(r.Stdout), &doc); err != nil {
+			t.Fatalf("install --json output: %v\nstdout:\n%s\nstderr:\n%s", err, r.Stdout, r.Stderr)
+		}
+		for _, a := range doc.Actions {
+			if a.Op == "conflict" {
+				conflicts = append(conflicts, a.Path)
+			}
+		}
+		if len(conflicts) == 0 || doc.Result != "invalid-state" {
+			t.Fatalf("install exited %d with result %q and %d conflict paths\nstdout:\n%s\nstderr:\n%s", r.Code, doc.Result, len(conflicts), r.Stdout, r.Stderr)
+		}
+		if len(st.InstallAttempts) > 1 {
+			t.Fatalf("install still conflicts after the guide's remedy: %v", conflicts)
+		}
+		// Guide: "The run changes nothing and leaves no docket command behind."
+		if _, err := os.Lstat(dest); err == nil {
+			t.Fatalf("a failed install left %s behind", dest)
+		}
+		if after := snapshotTree(t, filepath.Join(c.Home, ".claude")); !mapsEqual(before, after) {
+			t.Fatalf("a failed install changed ~/.claude")
+		}
+		st.Conflicts = conflicts
+		return
+	}
+	mustContain(t, "install output", r.Stdout, `"result":"applied"`)
+	if err := os.Rename(stage, dest); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(bin)
+	recDir := filepath.Join(c.Home, ".local", "state", "docket")
+	if err := os.MkdirAll(recDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rec := "path=" + dest + "\nversion=development\nsha256=" + hex.EncodeToString(sum[:]) + "\n"
+	if err := os.WriteFile(filepath.Join(recDir, "release-binary.record"), []byte(rec), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if chk := c.run(t, st.DownloadDir, dest, "install", "check"); chk.Code != 0 {
+		t.Fatalf("install check after install exited %d\nstdout:\n%s\nstderr:\n%s", chk.Code, chk.Stdout, chk.Stderr)
+	}
+}
+
+func mapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+// mirrorTakeoverRemedy runs the block's delete commands, proves they removed every
+// path the installer named, and re-runs the installer the way the block's last line
+// does.
+func mirrorTakeoverRemedy(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	lines := blockLines(body)
+	if len(lines) < 2 || lines[len(lines)-1] != st.InstallLine {
+		t.Fatalf("takeover-remedy must end by re-running %q:\n%s", st.InstallLine, body)
+	}
+	mustContain(t, "takeover-remedy block", body, "~/.claude/skills/docket-*")
+	for _, l := range lines[:len(lines)-1] {
+		if !strings.HasPrefix(l, "rm ") {
+			t.Fatalf("takeover-remedy line %q is not a delete the test mirrors", l)
+		}
+	}
+	if len(st.Conflicts) == 0 {
+		t.Logf("takeover-remedy: the first install had no conflict; nothing to do")
+		return
+	}
+	// Guide: every docket-* link under ~/.claude/skills/ is a conflict; every agent
+	// file except v0.9.3's docket-plan-writer.md is taken over.
+	conflict := map[string]bool{}
+	for _, p := range st.Conflicts {
+		conflict[p] = true
+	}
+	links, _ := filepath.Glob(filepath.Join(c.Home, ".claude", "skills", "docket-*"))
+	for _, l := range links {
+		if !conflict[l] {
+			t.Errorf("guide says every ~/.claude/skills/docket-* link conflicts, but %s did not", l)
+		}
+	}
+	planWriter := filepath.Join(c.Home, ".claude", "agents", "docket-plan-writer.md")
+	for _, p := range st.Conflicts {
+		if strings.HasPrefix(p, filepath.Join(c.Home, ".claude", "agents")+"/") && p != planWriter {
+			t.Errorf("guide says agent files are taken over, but %s conflicted", p)
+		}
+	}
+	if conflict[planWriter] != (c.Tag == "v0.9.3") {
+		t.Errorf("guide says docket-plan-writer.md conflicts on v0.9.3 only; %s conflict = %v", c.Tag, conflict[planWriter])
+	}
+	r := c.run(t, st.DownloadDir, "/bin/sh", "-e", "-c", strings.Join(lines[:len(lines)-1], "\n"))
+	if r.Code != 0 {
+		t.Fatalf("takeover-remedy deletes exited %d\nstdout:\n%s\nstderr:\n%s", r.Code, r.Stdout, r.Stderr)
+	}
+	for _, p := range st.Conflicts {
+		if _, err := os.Lstat(p); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("takeover-remedy left the conflict path %s in place", p)
+		}
+	}
+	if t.Failed() {
+		t.FailNow()
+	}
+	installHandoff(t, c, st)
+	mustContain(t, "second install output", st.InstallAttempts[len(st.InstallAttempts)-1].Stdout, `"result":"applied"`)
+}
+
+// mirrorGlobalConfigCleanup deletes the marked runtime.bash block from the global
+// config, after checking it is the block the guide shows.
+func mirrorGlobalConfigCleanup(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	want := blockLines(body)
+	if len(want) != 4 || want[0] != "# >>> docket (runtime.bash) >>>" || want[1] != "runtime:" ||
+		!strings.HasPrefix(want[2], "  bash: ") || want[3] != "# <<< docket (runtime.bash) <<<" {
+		t.Fatalf("global-config-cleanup block is not the runtime.bash block:\n%s", body)
+	}
+	mustContain(t, "guide", st.Guide, "`~/.config/docket/config.yml`")
+	path := filepath.Join(c.Home, ".config", "docket", "config.yml")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("guide says Bash docket left runtime.bash in %s: %v", path, err)
+	}
+	lines := strings.Split(string(b), "\n")
+	start, end := -1, -1
+	for i, l := range lines {
+		switch l {
+		case want[0]:
+			start = i
+		case want[3]:
+			end = i
+		}
+	}
+	if start < 0 || end != start+3 || lines[start+1] != want[1] || !strings.HasPrefix(lines[start+2], "  bash: ") {
+		t.Fatalf("%s holds no runtime.bash block shaped like the guide's:\n%s", path, b)
+	}
+	out := append(append([]string{}, lines[:start]...), lines[end+1:]...)
+	if err := os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// runConfirmInstall runs the block; the guide promises both commands succeed and
+// install check prints no warning.
+func runConfirmInstall(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	r := runBlock(t, c, st, body)
+	for _, l := range strings.Split(r.Stdout+r.Stderr, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(l), "warning:") {
+			t.Fatalf("confirm-install printed a warning the guide says it does not:\n%s%s", r.Stdout, r.Stderr)
+		}
+	}
+}
+
+// ---- section 5: each repository ----------------------------------------------------
+
+func runPlain(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	runBlock(t, c, st, body)
+}
+
+func runRepoPrepare(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	r := runBlock(t, c, st, body)
+	if st.Cwd != c.Clone {
+		t.Fatalf("repo-prepare must leave the reader in the repository; cwd %s", st.Cwd)
+	}
+	mustContain(t, "repository prepare output", r.Stdout+r.Stderr, "healthy")
+}
+
+// observeRepoCheck runs the check with --json, records its findings, and requires
+// the guide's finding table to explain each one.
+func observeRepoCheck(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	if strings.TrimSpace(body) != "docket repository check" {
+		t.Fatalf("repo-check block must be exactly `docket repository check`:\n%s", body)
+	}
+	r := c.run(t, st.Cwd, "docket", "--json", "repository", "check")
+	if r.Code == 0 {
+		t.Fatalf("guide says the first repository check exits with an error; it exited 0\n%s", r.Stdout)
+	}
+	st.CheckJSON = r.Stdout
+	st.Observed["repo-check"] = findingCodes(t, r.Stdout)
+	table := findingTable(t, st.Guide)
+	for _, f := range st.Observed["repo-check"] {
+		if _, ok := table[f.Code]; !ok {
+			t.Errorf("repository check reported %s (%s), which the guide's finding table does not explain", f.Code, f.Severity)
+		}
+	}
+}
+
+// mirrorFixGitignore replaces the .gitignore docket block with the guide's lines,
+// after checking they are exactly the lines the check's remedy printed.
+func mirrorFixGitignore(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	want := blockLines(body)
+	var remedy string
+	for _, f := range findingObjects(t, st.CheckJSON) {
+		if str(f, "code") == "committed-ignore-invalid" {
+			remedy = str(f, "remedy")
+		}
+	}
+	if remedy == "" {
+		t.Logf("fix-gitignore: repository check did not report committed-ignore-invalid; nothing to do")
+		return
+	}
+	_, printed, ok := strings.Cut(remedy, ":\n")
+	if !ok || strings.Join(blockLines(printed), "\n") != strings.Join(want, "\n") {
+		t.Fatalf("the guide's .gitignore block differs from the lines the check printed\nguide:\n%s\ncheck:\n%s", strings.Join(want, "\n"), printed)
+	}
+	path := filepath.Join(c.Clone, ".gitignore")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(b), "\n")
+	start, end := -1, -1
+	for i, l := range lines {
+		switch {
+		case strings.HasPrefix(l, "# docket:start"):
+			if start >= 0 {
+				t.Fatalf(".gitignore has two docket:start lines")
+			}
+			start = i
+		case l == "# docket:end":
+			if end >= 0 {
+				t.Fatalf(".gitignore has two docket:end lines")
+			}
+			end = i
+		}
+	}
+	if start < 0 || end <= start {
+		t.Fatalf(".gitignore has no well-formed docket block:\n%s", b)
+	}
+	out := append(append(append([]string{}, lines[:start]...), want...), lines[end+1:]...)
+	if err := os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// mirrorConfigCleanup reads `docket status`, requires the settings table to explain
+// every setting finding with the same severity, and removes each error and warning
+// setting from .docket.yml the way the table's Fix column says.
+func mirrorConfigCleanup(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	if strings.TrimSpace(body) != "docket status" {
+		t.Fatalf("config-cleanup block must be exactly `docket status`:\n%s", body)
+	}
+	rows := settingTable(t, st.Guide)
+	r := c.run(t, st.Cwd, "docket", "--json", "status")
+	var remove []string
+	for _, f := range findingObjects(t, r.Stdout) {
+		if !settingCodes[str(f, "code")] {
+			continue
+		}
+		field := str(f, "field")
+		if field == "" {
+			field = str(f, "path")
+		}
+		var row *settingRow
+		for i := range rows {
+			for _, p := range rows[i].Patterns {
+				if settingMatches(p, field) {
+					row = &rows[i]
+					st.Settings = append(st.Settings, p)
+				}
+			}
+		}
+		if row == nil {
+			t.Errorf("docket status reports %s (%s) for %s, which the guide's settings table does not list", str(f, "code"), str(f, "severity"), field)
+			continue
+		}
+		if row.Severity != str(f, "severity") {
+			t.Errorf("settings table says %s is %s; docket status reports %s", field, row.Severity, str(f, "severity"))
+		}
+		checkSettingFix(t, *row, f, field)
+		if row.Severity == "notice" {
+			continue
+		}
+		if !strings.HasPrefix(str(f, "message"), ".docket.yml:") {
+			t.Errorf("%s is reported outside .docket.yml (%s); the guide only tells the reader to edit .docket.yml here", field, str(f, "message"))
+		}
+		remove = append(remove, field)
+	}
+	if t.Failed() {
+		t.FailNow()
+	}
+	if len(remove) == 0 {
+		t.Logf("config-cleanup: no setting to remove")
+		return
+	}
+	path := filepath.Join(c.Clone, ".docket.yml")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("settings to remove %v but no .docket.yml: %v", remove, err)
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(b, &doc); err != nil || len(doc.Content) != 1 {
+		t.Fatalf("parse .docket.yml: %v", err)
+	}
+	for _, field := range remove {
+		if !removeYAMLKey(doc.Content[0], strings.Split(field, ".")) {
+			t.Fatalf("config-cleanup: %s is reported but not found in .docket.yml", field)
+		}
+	}
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(&doc); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	st.Removed = remove
+	// Guide: status reads the pushed .docket.yml, so the edit alone clears nothing.
+	still := map[string]bool{}
+	for _, f := range findingObjects(t, c.run(t, st.Cwd, "docket", "--json", "status").Stdout) {
+		still[str(f, "field")+str(f, "path")] = true
+	}
+	for _, field := range remove {
+		if !still[field] {
+			t.Errorf("guide says docket status reads the pushed .docket.yml, but the uncommitted edit already cleared %s", field)
+		}
+	}
+}
+
+// runCommitFixes commits and pushes the .gitignore and settings fixes, then checks
+// the guide's claim that the pushed edit clears every setting it removed.
+func runCommitFixes(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	runCommit(t, c, st, body)
+	if len(st.Removed) == 0 {
+		return
+	}
+	after := c.run(t, st.Cwd, "docket", "--json", "status")
+	for _, f := range findingObjects(t, after.Stdout) {
+		code, sev := str(f, "code"), str(f, "severity")
+		if (settingCodes[code] && sev != "notice") || strings.Contains(code, "config") {
+			t.Errorf("after pushing the settings fix, docket status still reports %s (%s): %s", code, sev, str(f, "message"))
+		}
+	}
+}
+
+// checkSettingFix binds the table's Fix and What-docket-does cells to the binary's
+// own words: every alternative value the Fix cell offers appears in the binary's
+// remedy, and each notice's description matches the binary's message.
+func checkSettingFix(t *testing.T, row settingRow, f map[string]any, field string) {
+	t.Helper()
+	remedy, msg := str(f, "remedy"), str(f, "message")
+	if row.Severity != "notice" && !strings.HasPrefix(row.Fix, "Remove it") {
+		t.Errorf("settings row %q: the Fix the test mirrors is removal, so the cell must start with \"Remove it\"", row.Raw)
+	}
+	for _, tok := range backticked(row.Fix) {
+		switch {
+		case tok == "~/.config/docket/config.yml":
+			mustContain(t, "remedy for "+field, remedy, "global docket configuration")
+		case !strings.Contains(tok, "/"):
+			mustContain(t, "remedy for "+field, remedy, tok)
+		}
+	}
+	if strings.Contains(row.Does, "no effect") {
+		mustContain(t, "message for "+field, msg, "no effect")
+	}
+	if strings.Contains(row.Does, "read only once") {
+		mustContain(t, "message for "+field, msg, "read only once")
+	}
+}
+
+// removeYAMLKey deletes path from mapping m, then drops every mapping the deletion
+// left empty. It reports whether the key was found.
+func removeYAMLKey(m *yaml.Node, path []string) bool {
+	if m.Kind != yaml.MappingNode {
+		return false
+	}
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value != path[0] {
+			continue
+		}
+		if len(path) == 1 {
+			m.Content = append(m.Content[:i], m.Content[i+2:]...)
+			return true
+		}
+		child := m.Content[i+1]
+		if !removeYAMLKey(child, path[1:]) {
+			return false
+		}
+		if child.Kind == yaml.MappingNode && len(child.Content) == 0 {
+			m.Content = append(m.Content[:i], m.Content[i+2:]...)
+		}
+		return true
+	}
+	return false
+}
+
+// runCommit runs a commit block, or records a skip when there is nothing to commit.
+func runCommit(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	if strings.TrimSpace(c.mustGit(t, st.Cwd, "status", "--porcelain")) == "" {
+		t.Logf("commit step skipped: nothing to commit")
+		return
+	}
+	before := gitRev(t, c, "main")
+	runBlock(t, c, st, body)
+	if gitRev(t, c, "main") == before {
+		t.Fatalf("commit block did not push a new commit to main")
+	}
+	if left := strings.TrimSpace(c.mustGit(t, st.Cwd, "status", "--porcelain")); left != "" {
+		t.Fatalf("commit block left changes behind:\n%s", left)
+	}
+}
+
+// observeRepairPreview runs the preview with no terminal; the guide says it lists the
+// repairs and asks for confirmation, and answering no (end of input) writes nothing.
+func observeRepairPreview(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	if strings.TrimSpace(body) != "docket repository repair" {
+		t.Fatalf("repair-preview block must be exactly `docket repository repair`:\n%s", body)
+	}
+	before := gitRev(t, c, "docket")
+	r := c.run(t, st.Cwd, "/bin/sh", "-c", body)
+	out := r.Stdout + r.Stderr
+	mustContain(t, "repair preview", out, "preview")
+	mustContain(t, "repair preview", out, "repair? [y/N]")
+	if r.Code != 0 {
+		mustContain(t, "repair preview", out, "confirmation required")
+	}
+	if gitRev(t, c, "docket") != before {
+		t.Fatalf("the repair preview changed the docket branch")
+	}
+}
+
+// runRepairApply runs the block and checks the guide's claims: the repair is pushed
+// to the docket branch, the output asks for `docket repository prepare`, and until
+// then the check reports the two named findings.
+func runRepairApply(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	before := gitRev(t, c, "docket")
+	r := runBlock(t, c, st, body)
+	if gitRev(t, c, "docket") == before {
+		t.Fatalf("guide says repair pushes to the docket branch; origin/docket did not move")
+	}
+	mustContain(t, "repair output", r.Stdout+r.Stderr, "docket repository prepare")
+	chk := c.run(t, st.Cwd, "docket", "--json", "repository", "check")
+	got := map[string]bool{}
+	for _, f := range findingCodes(t, chk.Stdout) {
+		got[f.Code] = true
+	}
+	for _, code := range []string{"metadata-worktree-dirty", "local-metadata-diverged"} {
+		mustContain(t, "guide", st.Guide, "`"+code+"`")
+		if !got[code] {
+			t.Errorf("guide says check reports %s before prepare; it reported %v", code, chk.Stdout)
+		}
+	}
+}
+
+func runRepoConfirm(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	r := runBlock(t, c, st, body)
+	mustContain(t, "repository check output", r.Stdout+r.Stderr, "repository check: no-op (healthy)")
+}
+
+// ---- section 7: leftovers ----------------------------------------------------------
+
+// mirrorLeftovers deletes each leftover the block lists, after proving it exists and
+// that `docket install check` does not mention it. It also checks the guide's claims
+// about the old Bash checkout.
+func mirrorLeftovers(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	chk := c.run(t, c.Home, "docket", "--json", "install", "check")
+	for _, line := range blockLines(body) {
+		path, desc, _ := strings.Cut(line, "  ")
+		desc = strings.TrimSpace(desc)
+		full := c.expandHome(path)
+		if strings.Contains(chk.Stdout+chk.Stderr, full) {
+			t.Errorf("docket install check mentions %s, which the guide calls an unused leftover", path)
+		}
+		switch path {
+		case "~/.claude/settings.json":
+			removeSettingsEnv(t, full, desc)
+		case "~/.zshenv":
+			removeMarkedLines(t, full, desc)
+		default:
+			t.Fatalf("leftovers line %q names a path the test does not mirror", line)
+		}
+	}
+	// Guide: nothing under ~/.claude points into the old checkout; the other tools'
+	// links under ~/.cursor, ~/.codex and ~/.agents still do.
+	mustContain(t, "guide", st.Guide, "`~/dev/docket`")
+	checkout := filepath.Join(c.Home, "dev", "docket")
+	if n := linksInto(t, filepath.Join(c.Home, ".claude"), checkout); n != 0 {
+		t.Errorf("guide says nothing under ~/.claude points into the old checkout; %d links do", n)
+	}
+	for _, d := range []string{".cursor", ".codex", ".agents"} {
+		mustContain(t, "guide", st.Guide, "`~/"+d+"`")
+		if linksInto(t, filepath.Join(c.Home, d), checkout) == 0 {
+			t.Errorf("guide says links under ~/%s still point into the old checkout; none do", d)
+		}
+	}
+}
+
+func removeSettingsEnv(t *testing.T, path, desc string) {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("guide lists %s as a leftover: %v", path, err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(b, &doc); err != nil {
+		t.Fatalf("parse %s: %v", path, err)
+	}
+	env, _ := doc["env"].(map[string]any)
+	names := regexp.MustCompile(`"([A-Z_]+)"`).FindAllStringSubmatch(desc, -1)
+	if len(names) == 0 || !strings.Contains(desc, `under "env"`) {
+		t.Fatalf("leftovers line for %s must name the \"env\" entries to delete: %q", path, desc)
+	}
+	for _, m := range names {
+		if _, ok := env[m[1]]; !ok {
+			t.Fatalf("guide lists %s in %s, but it is not there", m[1], path)
+		}
+		delete(env, m[1])
+	}
+	for k := range env {
+		if strings.HasPrefix(k, "DOCKET_") {
+			t.Errorf("%s still has %s after the guide's deletions", path, k)
+		}
+	}
+	if len(env) == 0 {
+		delete(doc, "env")
+	}
+	out, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, append(out, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func removeMarkedLines(t *testing.T, path, desc string) {
+	t.Helper()
+	m := regexp.MustCompile(`^the lines from "([^"]+)" to "([^"]+)"$`).FindStringSubmatch(desc)
+	if m == nil {
+		t.Fatalf("leftovers line for %s must read `the lines from \"<open>\" to \"<close>\"`: %q", path, desc)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("guide lists %s as a leftover: %v", path, err)
+	}
+	lines := strings.Split(string(b), "\n")
+	start, end := -1, -1
+	for i, l := range lines {
+		if l == m[1] && start < 0 {
+			start = i
+		}
+		if l == m[2] && start >= 0 && end < 0 {
+			end = i
+		}
+	}
+	if start < 0 || end < start {
+		t.Fatalf("%s has no lines from %q to %q:\n%s", path, m[1], m[2], b)
+	}
+	out := append(append([]string{}, lines[:start]...), lines[end+1:]...)
+	if err := os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// linksInto counts the symlinks under dir whose target lies inside root.
+func linksInto(t *testing.T, dir, root string) int {
+	t.Helper()
+	n := 0
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.Type()&fs.ModeSymlink == 0 {
+			return nil
+		}
+		target, err := os.Readlink(p)
+		if err != nil {
+			return err
+		}
+		if target == root || strings.HasPrefix(target, root+"/") {
+			n++
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("walk %s: %v", dir, err)
+	}
+	return n
+}
+
+// changesDir is the case's changes directory: changes_dir from .docket.yml on main
+// when set, else the default.
+func changesDir(t *testing.T, c *upgradeCase) string {
+	t.Helper()
+	dir := "docs/changes"
+	if r := c.run(t, c.Origin, "git", "show", "main:.docket.yml"); r.Code == 0 {
+		var cfg struct {
+			ChangesDir string `yaml:"changes_dir"`
+		}
+		if err := yaml.Unmarshal([]byte(r.Stdout), &cfg); err != nil {
+			t.Fatalf("parse main:.docket.yml: %v", err)
+		}
+		if cfg.ChangesDir != "" {
+			dir = strings.TrimSuffix(cfg.ChangesDir, "/")
+		}
+	}
+	return dir
+}
