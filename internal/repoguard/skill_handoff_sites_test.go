@@ -33,8 +33,11 @@ import (
 // # Classes, each keyed on shape
 //
 //   - an INVOCATION line is one whose invocation verbs ("invoke", "invoked", ...)
-//     outnumber its prohibitions ("do NOT invoke", "never invoked"); it must carry
-//     the marker;
+//     outnumber its negations ("do NOT invoke", "never invoked", "cannot be
+//     invoked", "can't be invoked"); it must carry the marker. A negation is
+//     read by shape (a word ending in "not", "never", or an n't contraction),
+//     not by meaning: a negation outside those shapes ("unable to invoke",
+//     "fails to invoke") is still read as an invocation;
 //   - a MENTION names a role skill without invoking it (or only prohibits
 //     invoking it) and needs no marker;
 //   - docket-finalize-change's human-present close-out is the one exception (today
@@ -69,9 +72,13 @@ var (
 	// invokeRe is the invocation verb the house idiom puts on every genuine
 	// role invocation ("is invoked **DIRECTED to:**", "invokes").
 	invokeRe = regexp.MustCompile(`(?i)\binvok(?:e|ed|es|ing)\b`)
-	// negatedInvokeRe is a prohibition ("do NOT invoke", "never invoked"),
-	// which pre-specifies nothing and needs no marker.
-	negatedInvokeRe = regexp.MustCompile(`(?i)\b(?:not|never)\W+(?:\w+\W+){0,2}invok(?:e|ed|es|ing)\b`)
+	// negatedInvokeRe is a prohibition or inability ("do NOT invoke", "never
+	// invoked", "cannot be invoked", "can't be invoked"), which pre-specifies
+	// nothing and needs no marker. It keys on the negation's shape within two
+	// words of the verb: a word ending in "not" (not, cannot), "never" as a
+	// whole word (so "whenever" is not one), or a word ending in the n't
+	// contraction with a straight or typographic apostrophe.
+	negatedInvokeRe = regexp.MustCompile(`(?i)(?:\b\w*not|\bnever|\w+n['’]t)\W+(?:\w+\W+){0,2}invok(?:e|ed|es|ing)\b`)
 	skillFramedRe   = regexp.MustCompile(`(?i)long [a-z-]+ dispatch`)
 )
 
@@ -216,6 +223,35 @@ func TestSkillHandoffSites(t *testing.T) {
 		}
 		if classifyHandoffSite(prohibited) != handoffMention {
 			t.Errorf("a prohibition was classified as an invocation")
+		}
+		// Negation is read by shape: a word ending in "not" (not, cannot), the
+		// n't contraction (straight or typographic apostrophe), or "never" as a
+		// whole word.
+		for _, neg := range []string{
+			"When `docket-review` cannot be invoked, review the branch inline.",
+			"When `docket-review` can't be invoked, review the branch inline.",
+			"When `docket-review` can’t be invoked, review the branch inline.",
+		} {
+			if classifyHandoffSite(neg) != handoffMention {
+				t.Errorf("a negated invocation was classified as an invocation: %q", neg)
+			}
+		}
+		// A line that invokes AND mentions a negated invocation still invokes
+		// (2 verbs vs 1 negation), so an unmarked one must still be caught.
+		const mixed = "Invoke `docket-build`; when `docket-build` cannot be invoked, run the plan inline."
+		if classifyHandoffSite(mixed) != handoffInvocation || strings.Contains(mixed, skillMarker) {
+			t.Errorf("an unmarked invocation beside a negated clause was not classified as a violating invocation")
+		}
+		// Shape boundaries: "whenever" is not "never", and a word that merely
+		// contains "not" mid-word is not a negation.
+		for _, inv := range []string{
+			"`docket-build` is invoked whenever the plan is ready.",
+			"`docket-build` runs whenever invoked by the controller.",
+			"Annotate the plan, then `docket-build` is invoked to execute it.",
+		} {
+			if classifyHandoffSite(inv) != handoffInvocation {
+				t.Errorf("an invocation was misread as a negation: %q", inv)
+			}
 		}
 		if !roleSkillRe.MatchString(marked) || roleSkillRe.MatchString(tier) {
 			t.Errorf("role-skill discovery must match a backticked role skill and never a tier agent name")
