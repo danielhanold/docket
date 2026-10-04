@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0520 — Make every published request schema match the JSON file the operation reads](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0520-make-the-published-finalize-request-schemas-match-what-input.md)**
+> ↩ **[Change 0520 — Make every published request schema match the JSON file the operation reads](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0520-make-the-published-finalize-request-schemas-match-what-input.md)**
 <!-- docket:backlink:end -->
 # Make every published request schema match the JSON file the operation reads — Results
 
