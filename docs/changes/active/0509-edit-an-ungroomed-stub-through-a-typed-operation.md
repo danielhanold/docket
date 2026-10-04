@@ -13,7 +13,7 @@ related: [445, 461]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T11:49:03Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md) |
+| Plan | [2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation.md](https://github.com/danielhanold/docket/blob/chore/edit-an-ungroomed-stub-through-a-typed-operation/docs/superpowers/plans/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
