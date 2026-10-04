@@ -64,7 +64,7 @@ The first public Go build, `v1.0.0-alpha.1` (change 0366), is aimed at exactly t
   - a table of `.docket.yml` settings that changed;
   - leftovers you can delete;
   - restarting Claude Code;
-  - rolling back to v0.9.2.
+  - one factual line that the Bash tags v0.9.2 and v0.9.3 remain available (no rollback instructions, because rollback is not tested).
   `README.md` and `docs/install/install.md` link to it.
 - **Temporary by design.** The saved cases and the test are retired when stable v1.0.0 ships. The guide then stays as a frozen document.
 - **Code bugs stay out.** If the test exposes something the binary does wrong, as opposed to something the guide can explain, the build halts. That bug gets its own fix change, and this change waits on it.
@@ -76,4 +76,5 @@ The first public Go build, `v1.0.0-alpha.1` (change 0366), is aimed at exactly t
 - Teaching the installer to recognize v0.9.3 installs (widening ADR-0096's frozen floor). The guide's hand remedy covers it.
 - Users who tracked `main` between v0.9.3 and the Go cutover.
 - The alpha.1 release notes, which belong to 0366.
+- Rollback instructions or a rollback test.
 - Any product code change. A defect gets its own change.

@@ -24,7 +24,8 @@ ships. This change blocks `v1.0.0-alpha.1` (change 0366), which depends on it.
 | Proof | **Saved Bash state plus a test** that runs the guide's own commands on copies of it. |
 | v0.9.3 install conflict | A **hand remedy in the guide**: delete the named generated files and re-run. No installer change. |
 | Lifetime | The saved cases and the test are **temporary**: retire them when stable v1.0.0 ships. The guide then stays as a frozen document. A deferred retirement stub tracks this. |
-| Release name | `v1.0.0-alpha.1` (owned by 0366's revise; noted here only for the guide's wording). |
+| Release name | `v1.0.0-alpha.1` (owned by 0366; noted here only for the guide's wording). |
+| Rollback | **No rollback instructions.** Rollback is not rehearsed for alpha.1. The guide states only the fact that the Bash tags `v0.9.2` and `v0.9.3` remain available. |
 
 ## What the code does today (traced at `main` @ `6908393f3`)
 
@@ -212,7 +213,7 @@ docket in a repository*). Neither link spells a refused setting.
 
 1. **Who this is for.** A Bash docket v0.9.2 or v0.9.3 install with repositories on the `docket`
    branch. It says plainly that single-branch repositories are not covered.
-2. **Before you start.** Finish or park (defer) every in-flight change, and know how to roll back.
+2. **Before you start.** Finish or park (defer) every in-flight change.
 3. **Install the Go binary.** The release download is the upgrade route: download `install.sh`
    and `checksums.txt`, verify the checksum before running, then run with `--harness claude`.
    Confirm with `docket version` and `docket install check`. The checkout route
@@ -233,7 +234,9 @@ docket in a repository*). Neither link spells a refused setting.
 7. **Leftovers you can delete.** Per-repository agent files and anything else the test shows Go
    ignores.
 8. **Restart Claude Code.** A new process; clearing a conversation is not enough.
-9. **If something goes wrong.** Roll back with the v0.9.2 tag's `install.sh`.
+9. **If something goes wrong.** Where to report it, plus one factual line: the Bash tags `v0.9.2`
+   and `v0.9.3` remain available. There are no rollback instructions, because rollback is not
+   tested.
 
 **Truth rule.** Every fact the guide states is one the test observed, or one 0366's release
 verification proves: the real download and its checksum step. A step or claim neither exercises is
@@ -258,8 +261,10 @@ not a guide step. The most likely candidate is `verifyMetadataOwnership` refusin
 ### 6. Relationship to 0366
 
 - 0366 depends on this change.
-- 0366's upgrade-probe phase follows this guide against the candidate's packaged bytes, including
-  the real downloader. A guide step that fails there is a release STOP.
+- 0366 has no separate upgrade-probe phase. Its candidate workflow's whole-suite source gate runs
+  `TestBashUpgrade` against the candidate commit, and a missing or skipped run is a release STOP.
+  Its public-install check proves the guide's download-and-checksum step against the real release
+  URL.
 - The alpha.1 release notes link this guide instead of carrying their own upgrade steps.
 
 ## Out of scope
@@ -269,6 +274,7 @@ not a guide step. The most likely candidate is `verifyMetadataOwnership` refusin
 - Widening ADR-0096's frozen floor to recognize v0.9.3.
 - Users who tracked `main` between v0.9.3 and the Go cutover.
 - The alpha.1 release notes (0366).
+- Rollback instructions or a rollback test.
 - Product code changes. A defect gets its own change (section 4).
 
 ## Acceptance
