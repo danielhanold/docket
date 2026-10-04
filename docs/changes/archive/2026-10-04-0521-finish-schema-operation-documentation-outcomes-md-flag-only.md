@@ -2,7 +2,7 @@
 id: 521
 slug: 'finish-schema-operation-documentation-outcomes-md-flag-only'
 title: 'Mark every nested required request field in the schema, and fix the stale schema docs'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'fix/finish-schema-operation-documentation-outcomes-md-flag-only'
 pr: 'https://github.com/danielhanold/docket/pull/387'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T16:51:15Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T16:51:15Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md) |
-| Plan | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only.md](https://github.com/danielhanold/docket/blob/fix/finish-schema-operation-documentation-outcomes-md-flag-only/docs/superpowers/plans/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only.md) |
-| Results | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-results.md](https://github.com/danielhanold/docket/blob/fix/finish-schema-operation-documentation-outcomes-md-flag-only/docs/results/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-results.md) |
+| Plan | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only.md) |
+| Results | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-results.md) |
 | ADRs | [ADR-0138](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0138-a-published-request-schema-is-exactly-the-json-file-an-opera.md) |
 <!-- docket:artifacts:end -->
 

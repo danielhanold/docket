@@ -1,18 +1,12 @@
 # Backlog
 
-**522 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 357 done · 🗑️ 139 killed
+**522 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 358 done · 🗑️ 139 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | `high` | `fix` | [spec](../superpowers/specs/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-design.md) | `fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0521](active/0521-finish-schema-operation-documentation-outcomes-md-flag-only.md) | Mark every nested required request field in the schema, and fix the stale schema docs | `low` | `fix` | [#387](https://github.com/danielhanold/docket/pull/387) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -81,21 +75,20 @@ graph TD
   0512 --> 0513
   0511 --> 0514
   0515
-  0520 --> 0521
   0522
   0192:::done
   0251:::done
   0393:::done
   0407:::done
   0502:::done
-  0520:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (496)</summary>
+<details><summary>✅🗑️ Archive — done + killed (497)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0521](archive/2026-10-04-0521-finish-schema-operation-documentation-outcomes-md-flag-only.md) | Mark every nested required request field in the schema, and fix the stale schema docs | 2026-10-04 |
 | [0520](archive/2026-10-04-0520-make-the-published-finalize-request-schemas-match-what-input.md) | Make every published request schema match the JSON file the operation reads | 2026-10-04 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
@@ -116,7 +109,6 @@ graph TD
 | [0464](archive/2026-10-04-0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align the human-facing docs and example config with the docket binary | 2026-10-04 |
 | [0380](archive/2026-10-04-0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | 2026-10-04 |
 | [0320](archive/2026-10-04-0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | 2026-10-04 |
-| [0496](archive/2026-10-03-0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) | Add `docket repository repair` and stop flagging empty claimed_at | 2026-10-03 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
 | [0483](archive/2026-10-02-0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | 2026-10-02 |
 | [0457](archive/2026-10-02-0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | 2026-10-02 |
@@ -255,7 +247,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 14 done |
+| [2026-10](archive/) | 15 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
