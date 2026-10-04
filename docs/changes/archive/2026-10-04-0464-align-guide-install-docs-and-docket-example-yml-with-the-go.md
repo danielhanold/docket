@@ -2,7 +2,7 @@
 id: 464
 slug: 'align-guide-install-docs-and-docket-example-yml-with-the-go'
 title: 'Align the human-facing docs and example config with the docket binary'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-27'
@@ -22,7 +22,7 @@ branch: 'docs/align-guide-install-docs-and-docket-example-yml-with-the-go'
 pr: 'https://github.com/danielhanold/docket/pull/376'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T08:17:52Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T08:17:52Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md) |
-| Plan | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md](https://github.com/danielhanold/docket/blob/docs/align-guide-install-docs-and-docket-example-yml-with-the-go/docs/superpowers/plans/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md) |
-| Results | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-results.md](https://github.com/danielhanold/docket/blob/docs/align-guide-install-docs-and-docket-example-yml-with-the-go/docs/results/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-results.md) |
+| Plan | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md) |
+| Results | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

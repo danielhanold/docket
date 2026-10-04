@@ -1,18 +1,12 @@
 # Backlog
 
-**506 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 5 proposed · ⚪ 13 deferred · ✅ 346 done · 🗑️ 136 killed
+**506 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 5 proposed · ⚪ 13 deferred · ✅ 347 done · 🗑️ 136 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0504](active/0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | `medium` | `chore` | [spec](../superpowers/specs/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md) | `chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align the human-facing docs and example config with the docket binary | `medium` | `docs` | [#376](https://github.com/danielhanold/docket/pull/376) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
@@ -29,7 +23,7 @@
 |---|-------|----------|------|-----------|
 | [0506](active/0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired .kiro and .windsurf globs from the managed .gitignore block | `low` | `fix` | needs-grooming |
 | [0505](active/0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | `low` | `refactor` | needs-grooming |
-| [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | ⏳ waiting on #464 — needs your merge |
+| [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
@@ -71,7 +65,6 @@ graph TD
   0409
   0412
   0433
-  0464
   0497
   0464 --> 0502
   0503
@@ -83,10 +76,11 @@ graph TD
   0370:::done
   0393:::done
   0407:::done
+  0464:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (482)</summary>
+<details><summary>✅🗑️ Archive — done + killed (483)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -94,6 +88,7 @@ graph TD
 | [0500](archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0498](archive/2026-10-04-0498-results-file-puts-the-whole-branch-review-under-human-action.md) | Results file puts the whole-branch review under Human actions and testing | 2026-10-04 |
+| [0464](archive/2026-10-04-0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align the human-facing docs and example config with the docket binary | 2026-10-04 |
 | [0380](archive/2026-10-04-0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | 2026-10-04 |
 | [0320](archive/2026-10-04-0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | 2026-10-04 |
 | [0496](archive/2026-10-03-0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) | Add `docket repository repair` and stop flagging empty claimed_at | 2026-10-03 |
@@ -117,7 +112,6 @@ graph TD
 | [0485](archive/2026-10-01-0485-test-go-race-hits-its-8-minute-backstop-in-internal-repoguar.md) | test_go_race hits its 8-minute backstop in internal/repoguard under concurrent gate load | 2026-10-01 |
 | [0484](archive/2026-10-01-0484-bring-test-go-race-back-under-its-budget-row-testretiredvoca.md) | Bring test_go_race back under its budget row (TestRetiredVocabularySeal scan cost) | 2026-10-01 |
 | [0482](archive/2026-10-01-0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording | 2026-10-01 |
-| [0481](archive/2026-10-01-0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | 2026-10-01 |
 | [0478](archive/2026-10-01-0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | 2026-10-01 |
 | [0476](archive/2026-10-01-0476-bring-test-go-integration-app-rebaserecovery-back-under-its.md) | Bring test_go_integration_app_rebaserecovery back under its runtime budget | 2026-10-01 |
 | [0475](archive/2026-10-01-0475-bring-test-go-integration-app-closeout-sh-back-under-its-bud.md) | Bring test_go_integration_app_closeout.sh back under its budget row | 2026-10-01 |
@@ -246,7 +240,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 3 done |
+| [2026-10](archive/) | 4 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
