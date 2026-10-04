@@ -1,6 +1,6 @@
 ---
 name: docket-status
-description: Use when you want to see or refresh the docket backlog — what is proposed, in progress, blocked, implemented, or done — by refreshing docket state, sweeping merged changes to done, and running health checks for stale claims, broken spec/plan/results links, and dependency stalls.
+description: Use when you want to see or refresh the docket backlog — what is proposed, in progress, blocked, implemented, or done — by refreshing docket state, sweeping merged changes to done, and reporting configuration, record, and artifact-link findings.
 context: fork
 agent: docket-status
 ---
@@ -9,7 +9,7 @@ agent: docket-status
 
 ## Overview
 
-`docket-status` gives you a queryable, up-to-date view of the backlog and keeps it clean. Four jobs: **report the backlog digest** (the structured `status` payload — a `summary` of counts, one `changes` entry per displayed change, and the ordered `ready` build-ready queue — emitted in *every* configuration, board or no board, and **the channel you write your summary from**), refresh docket state (rendering each enabled board surface), sweep any `implemented` change whose PR merged into the archive, and run health checks (stale claims, broken links, dependency stalls). The change files are the source of truth; any board is generated output, never edited by hand. All of this runs through the native `maintenance.sweep` (the mutation) and `status` (the write-free read) operations — this skill resolves each argv from the capability catalog, invokes them, keys on their typed protocol-v1 dispositions, surfaces their report, and applies the handful of judgment calls the operations deliberately leave in-model. The exact payload shapes are owned by the `schema` operation, not a prose restatement here.
+`docket-status` gives you a queryable, up-to-date view of the backlog and keeps it clean. Four jobs: **report the backlog digest** (the structured `status` payload — a `summary` of counts, one `changes` entry per displayed change, and the ordered `ready` build-ready queue — emitted in *every* configuration, board or no board, and **the channel you write your summary from**), refresh docket state (rendering each enabled board surface), sweep any `implemented` change whose PR merged into the archive, and report the findings the read and the sweep emit (configuration, record, and artifact-link findings). The change files are the source of truth; any board is generated output, never edited by hand. All of this runs through the native `maintenance.sweep` (the mutation) and `status` (the write-free read) operations — this skill resolves each argv from the capability catalog, invokes them, keys on their typed protocol-v1 dispositions, surfaces their report, and applies the handful of judgment calls the operations deliberately leave in-model. The exact payload shapes are owned by the `schema` operation, not a prose restatement here.
 
 ## When to use
 
@@ -24,7 +24,7 @@ Invoke the `docket-convention` skill via the Skill tool first — unless already
 
 - **The user only wants to *see* the backlog** (no explicit refresh requested, nothing merged recently that you know of) ⇒ run the write-free read alone: the `status` operation (resolve argv from the capability catalog) with `--json`. It never merges, archives, reclaims, or renders a board.
 - Implementation scope (`--scope implementation`) is the startup-preflight scope: current merged-work recovery plus reclaim gating, with independent historical cleanup retries deferred and counted in `deferred_historical_cleanups`. It is owned by the `maintenance.preflight` operation, which `docket-implement-next` runs inline at its Step 0 on its selection path (no id or an id set) — not a mode of this skill. This skill's two modes are the see-only read and the explicit `--scope full` refresh/cleanup.
-- **An explicit refresh/cleanup request** — or a post-merge cleanup after a PR merged via the GitHub button ⇒ run the `maintenance.sweep` operation with `--scope full --json` first (merge sweep + historical cleanup retries + health checks + judgment lines + integration sync), then read the refreshed state with the `status` operation and `--json`.
+- **An explicit refresh/cleanup request** — or a post-merge cleanup after a PR merged via the GitHub button ⇒ run the `maintenance.sweep` operation with `--scope full --json` first (merge sweep + historical cleanup retries + eligible reclaims + integration sync), then read the refreshed state with the `status` operation and `--json`.
 
 ## Maintenance sweep — the merged-PR recovery mutation (only when asked)
 
@@ -54,13 +54,13 @@ maintenance.sweep  --scope <full|implementation> --json   # mutation, scope per 
 status             --json                                  # write-free read over the refreshed state
 ```
 
-Validate each protocol-v1 envelope and key on its typed **disposition**, never an exit code. The sweep emits one structured entry per item with a closed disposition (`applied` | `noop` | `contended` | `blocked` | `unknown` | `failed` | `skipped`), and the read returns the structured backlog plus any health findings. A `blocked` / `failed` / `unknown` sweep entry, or a read whose envelope carries an error disposition — a config-resolution failure, a refused bootstrap guard, an unusable metadata worktree, a bad argument — is a hard error: surface the diagnostic and stop rather than improvising a fix.
+Validate each protocol-v1 envelope and key on its typed **disposition**, never an exit code. The sweep emits one structured entry per item with a closed disposition (`applied` | `noop` | `contended` | `blocked` | `unknown` | `failed` | `skipped`), and the read returns the structured backlog plus its `findings`. A `blocked` / `failed` / `unknown` sweep entry, or a read whose envelope carries an error disposition — a config-resolution failure, a refused bootstrap guard, an unusable metadata worktree, a bad argument — is a hard error: surface the diagnostic and stop rather than improvising a fix.
 
 **Scope of this stop:** if you invoked this skill yourself — the convention's `inline` fallback — this
 stop ends only the status role and you continue to your own next step; only an agent whose entire
 assignment is this role ends its turn here.
 
-There is **no** separate board pass to key on: every board-authoritative typed mutation re-renders `BOARD.md` in the same metadata commit as the record it reflects, so the sweep leaves the board current and a plain `status` read writes nothing. The commands own the mechanics of what they sweep and check. Surface the report to the user in human terms (what's on the board, what got swept, what health checks flagged) rather than pasting the raw JSON payload. Health checks stay warn-only — do not auto-fix findings unless the user explicitly asks.
+There is **no** separate board pass to key on: every board-authoritative typed mutation re-renders `BOARD.md` in the same metadata commit as the record it reflects, so the sweep leaves the board current and a plain `status` read writes nothing. The commands own the mechanics of what they sweep and check. Surface the report to the user in human terms (what's on the board, what got swept, what the findings flag) rather than pasting the raw JSON payload. Do not auto-fix findings unless the user explicitly asks.
 
 ## Completion barrier — observe the sweep to its terminal result
 
@@ -76,26 +76,26 @@ When a caller dispatched this skill, the final report must name: the resolved sc
 
 The report is **self-evidencing**: it always states what it did, so you never have to go looking for corroboration.
 
-- **`board off`** — the repo sets `board_surfaces: []` and there is deliberately **no board**. This is a configuration, not a failure. Rendering is disabled, so the pass renders and commits nothing to `BOARD.md`; a pre-existing `BOARD.md` is left untouched — disabled rendering never authorizes deleting a board. Summarize from the structured report, not the file.
+- **no board** — when `board_surfaces` is empty there is deliberately **no board**. This is a configuration, not a failure. Rendering is disabled, so the pass renders and commits nothing to `BOARD.md`; a pre-existing `BOARD.md` is left untouched — disabled rendering never authorizes deleting a board. Summarize from the structured report, not the file.
 - **the backlog digest** — the `status` payload's `summary` counts, its `changes` array (one entry per displayed change, each carrying `id`, `status`, `readiness`, `unmet_dependencies`, and `ready`), and the ordered `ready` id array — present in **every** configuration. **This is your backlog-state channel.** On a full pass the read is taken **after** the sweep, so it already accounts for everything closed out: an archived change drops out of `active_changes` and `changes` (still counted in `total_changes`). Never report a swept change as still awaiting merge. `ready` is the build-ready queue in selection order (priority → created → id), an empty array when nothing is ready.
 - **learnings** — the pass emits no learnings lines; it reads nothing and writes nothing under `learnings/`. See *Learnings* below.
 - **the envelope `result`** — the top-level protocol-v1 disposition (`applied` for the read, or the sweep's terminal disposition) tells you the operation ran to completion. Key on it, never a trailing text line.
 
 Two rules follow, and they are not optional:
 
-- **A thin report is the success case, not a symptom.** An empty sweep, no health findings, and `board off` together mean a healthy, board-less repo. The pass is complete. Do **not** re-run the orchestrator, trace it, or investigate — there is nothing to find.
-- **Never probe `BOARD.md`.** With the board off, disabled rendering writes nothing and never authorizes deleting an existing `BOARD.md`; with the board on, summarize from the digest payload rather than opening the file. This skill stays **read-only** over `BOARD.md` — reading, rendering, hand-writing, or deleting it is never part of its job; the docket app is its only writer, rendering it inside the owning metadata transaction (the convention's *Board refresh on status writes* owns the property).
+- **A thin report is the success case, not a symptom.** An empty sweep, no findings, and no board surface enabled together mean a healthy, board-less repo. The pass is complete. Do **not** re-run the orchestrator, trace it, or investigate — there is nothing to find.
+- **Never probe `BOARD.md`.** With no board surface enabled, disabled rendering writes nothing and never authorizes deleting an existing `BOARD.md`; with the board on, summarize from the digest payload rather than opening the file. This skill stays **read-only** over `BOARD.md` — reading, rendering, hand-writing, or deleting it is never part of its job; the docket app is its only writer, rendering it inside the owning metadata transaction (the convention's *Board refresh on status writes* owns the property).
 
-## Judgment follow-ups (stay in-model — the script does not do these)
+## Judgment follow-ups (stay in-model — the operations do not do these)
 
 Drive these off the entries and findings the `maintenance.sweep` and `status` operations emit; skip a category entirely if no matching entry appeared.
 
-- **`stacked-merged` / `promote-failed` / `stack-carried-failed` entries, or a `check stack-invalid` / `check stack-parent-killed` finding** — **read [`../docket-convention/references/stacked-changes.md`](../docket-convention/references/stacked-changes.md) now (blocking)** before explaining or acting on one: it owns what the state means, why nothing was archived, and which remedies are a human's rather than a retry's.
+- **a `stacked-merged` change, a `stack-base-unresolved` readiness, or a `change-stack-cycle` finding** — **read [`../docket-convention/references/stacked-changes.md`](../docket-convention/references/stacked-changes.md) now (blocking)** before explaining or acting on one: it owns what the state means, why nothing was archived, and which remedies are a human's rather than a retry's.
 - **a change reported with `status: blocked`** — re-examine that change's `blocked_by:` free text; flag to the user if the referenced issue/PR/event appears resolved. This is judgment, not a git probe — never scripted.
 
 ## Final summary
 
-Close with a short human-facing summary: backlog state (counts/highlights, read from the digest payload — never from the board file), what was swept to done (if anything), and any health-check findings or judgment flags raised above. When the `inline` board is enabled, point the user at `BOARD.md` for the full picture rather than reproducing it inline. When the report says `board off`, there is no board to point at — the digest-derived summary **is** the deliverable, and that is the intended, complete outcome.
+Close with a short human-facing summary: backlog state (counts/highlights, read from the digest payload — never from the board file), what was swept to done (if anything), and any findings or judgment flags raised above. When the `inline` board is enabled, point the user at `BOARD.md` for the full picture rather than reproducing it inline. When no board surface is enabled, there is no board to point at — the digest-derived summary **is** the deliverable, and that is the intended, complete outcome.
 
 ## Reference: what the board, sweep, and checks mean
 
@@ -119,8 +119,8 @@ The finalize gate lives in `docket-finalize-change`'s merge step and is **finali
 
 The pass reads nothing and writes nothing under `learnings/`, and nothing refreshes `learnings/README.md`. Findings are written by the `learning.record` and `learning.update` operations, gated on `learnings.enabled`; promotion and consolidation are human acts.
 
-### Health checks
+### Findings
 
-Flag what the pass reports (do not auto-fix unless asked): mechanical, git-only, warn-only checks over stale claims, broken spec/plan/results links, and dependency stalls. This skill never runs the checker directly — it invokes the `maintenance.sweep` / `status` operations, which run it. The closed check-id set and each check's meaning live where they are owned: the checker itself and the `findings` shape in the `status` / `maintenance.sweep` payloads, discoverable through the `schema` operation.
+Flag what the pass reports (do not auto-fix unless asked). This skill never runs a checker directly — it invokes the `maintenance.sweep` / `status` operations and reads their `findings`. The `status` read reports configuration diagnostics, `parse-failed`, record validation findings (such as `change-stack-cycle`), `artifact-missing` for a broken spec/plan/results link, and `branch-malformed`. Derived-view drift (`board-stale`, `adr-index-stale`, `artifact-links-stale`, and their `-malformed` forms) is reported by the `repository.check` operation and repaired through `repository.repair`. A stale claim surfaces as a `maintenance.sweep` reclaim entry, applied only when `reclaim.auto` is true. A stalled dependency surfaces in the backlog digest as a change with `waiting-dependency` readiness and its `unmet_dependencies`. Each finding's code and shape are owned by the `schema` operation.
 
-One judgment check stays in-model, on top of the script: `blocked_by:` re-examination (see *Judgment follow-ups* above) — warn-only, never auto-fix.
+One judgment check stays in-model, on top of the operations: `blocked_by:` re-examination (see *Judgment follow-ups* above) — warn-only, never auto-fix.

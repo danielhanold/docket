@@ -43,7 +43,7 @@ One validated transaction lands atomically, in a single metadata commit: the nex
 
 **Return the number** — read the allocated ADR id from the operation's result envelope so the caller (e.g. `docket-implement-next` step 6) can cite it in the change's `adrs:` field.
 
-**Where an ADR lives** — the ADR and its index live on `metadata_branch` (`docket`); no ADR, change-tied or standalone, is copied to the integration branch. An ADR already published on the integration branch by an earlier tool version stays there as history (the `adr-unpublished` health check keeps the drift visible).
+**Where an ADR lives** — the ADR and its index live on `metadata_branch` (`docket`); no ADR, change-tied or standalone, is copied to the integration branch.
 
 ### Supersede / reverse
 
