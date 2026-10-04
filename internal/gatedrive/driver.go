@@ -51,8 +51,9 @@ type ProcessSeam interface {
 	ResolveReservation(root, token string) (*process.ReservationResolution, error)
 	// ProbeLeftover answers, read-only, whether a run whose supervisor has exited
 	// still has members in its recorded process group (change 0492): none,
-	// leftover, or unclear. The launch census reports a leftover as tree-survives
-	// and never signals on it; an unclear answer or an error is today's behavior.
+	// leftover, or unclear. The launch census and the death HALT report a leftover
+	// as tree-survives and never signal on it; an unclear answer or an error is
+	// today's behavior.
 	ProbeLeftover(runDir string) (process.Leftover, error)
 }
 
@@ -604,7 +605,7 @@ func (d *Driver) transferDoc(id, generation string, rec driveRecord) DriveDoc {
 // already settled the drive wins: this caller returns that recorded verdict
 // rather than clobbering it.
 func (d *Driver) driveAndPersist(id, ownerGen string, rec driveRecord) (DriveDoc, error) {
-	res := d.driveSlice(rec)
+	res := d.driveSlice(id, rec)
 	err := d.store.ownerCAS(id, func(r *driveRecord) error {
 		if err := verifyOwner(r, ownerGen); err != nil {
 			return err
@@ -616,6 +617,7 @@ func (d *Driver) driveAndPersist(id, ownerGen string, rec driveRecord) (DriveDoc
 		r.LastClock = res.lastClock
 		r.LastOutcome = res.outcome
 		r.LastCause = res.cause
+		r.LastFinding = res.finding
 		return nil
 	})
 	if err != nil && !errors.Is(err, errAlreadyTerminal) {
@@ -641,6 +643,7 @@ type sliceResult struct {
 	outcome   Outcome
 	cause     string
 	rawRunDir string // PASSED only
+	finding   string // a death HALT's tree-survives finding only (change 0497)
 
 	lastClock time.Time
 }
@@ -650,8 +653,9 @@ type sliceResult struct {
 // exact running state is retryable, a pass is accepted only after the
 // fingerprint revalidates, a supervisor death always HALTs (never relaunched,
 // change 0493), and every other uncertainty HALTs (never red). rec is
-// read-only; the persisted transition travels back in the sliceResult.
-func (d *Driver) driveSlice(rec driveRecord) sliceResult {
+// read-only; id names the drive in a death HALT's finding; the persisted
+// transition travels back in the sliceResult.
+func (d *Driver) driveSlice(id string, rec driveRecord) sliceResult {
 	sliceStart := d.clock.Now()
 	runDir := rec.RawRunDir
 	res := sliceResult{lastClock: sliceStart}
@@ -730,11 +734,14 @@ func (d *Driver) driveSlice(rec driveRecord) sliceResult {
 			// 0493): a proven death HALTs supervisor-died and a human re-runs the
 			// workflow; a death whose tree cannot be proven gone HALTs
 			// uncertain-ownership.
-			gone, derr := d.proveNoTreeSurvives(runDir, observation)
-			if derr != nil || !gone {
-				return halt(&res, "uncertain-ownership")
+			cause := CauseSupervisorDied
+			if gone, derr := d.proveNoTreeSurvives(runDir, observation); derr != nil || !gone {
+				cause = CauseUncertainOwnership
 			}
-			return halt(&res, CauseSupervisorDied)
+			// The cause is chosen. The leftover check only adds information: it
+			// never changes the outcome or the cause (change 0497).
+			res.finding = d.leftoverFinding(id, runDir)
+			return halt(&res, cause)
 
 		default:
 			// An unrecognized native state fails closed.
@@ -758,7 +765,8 @@ func halt(res *sliceResult, cause string) sliceResult {
 // terminal state before deciding. A stop that cannot prove ownership (an error)
 // leaves the outcome uncertain. Despite its name, it does not prove that no
 // process group outlives the supervisor: a dead supervisor's suite can survive
-// it, and that is the launch census's tree-survives finding (change 0492).
+// it, and that is the tree-survives finding the census (change 0492) and the
+// death HALT's leftoverFinding (change 0497) report.
 func (d *Driver) proveNoTreeSurvives(runDir string, observation *process.Observation) (bool, error) {
 	if observation.State == process.StateVanished {
 		return true, nil
@@ -770,6 +778,19 @@ func (d *Driver) proveNoTreeSurvives(runDir string, observation *process.Observa
 		return false, err
 	}
 	return true, nil
+}
+
+// leftoverFinding asks, read-only, whether the dead supervisor's process group
+// still has members, and returns the tree-survives:<drive>:<pgid> finding only on
+// a clean leftover answer. None, unclear, and a probe error (whatever answer it
+// carries) return "": a probe that cannot prove a leftover never prints a wait
+// instruction (change 0497). It never signals.
+func (d *Driver) leftoverFinding(id, runDir string) string {
+	lo, err := d.proc.ProbeLeftover(runDir)
+	if err != nil || lo.Answer != process.LeftoverPresent {
+		return ""
+	}
+	return treeSurvivesFinding(id, lo.PGID)
 }
 
 // stopIfOwned issues a best-effort stop of a run this drive owns and reports
@@ -807,6 +828,9 @@ func (d *Driver) recordedDoc(id, ownerGen string, rec driveRecord) DriveDoc {
 	}
 	if rec.LastOutcome == PASSED {
 		doc.RawRunDir = rec.RawRunDir
+	}
+	if rec.LastOutcome == HALTED {
+		doc.Finding = rec.LastFinding
 	}
 	if isTerminalOutcome(rec.LastOutcome) {
 		doc.RunRoot = rec.RunRoot

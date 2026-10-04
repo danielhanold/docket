@@ -48,7 +48,6 @@ import (
 	"io/fs"
 	"os"
 	"sort"
-	"strconv"
 
 	"github.com/danielhanold/docket/internal/process"
 )
@@ -386,7 +385,7 @@ func (d *Driver) supervisorGone(id, runDir string, mode censusMode) (bool, strin
 		// run's own. Only a successful leftover answer changes the finding; none,
 		// unclear, and a probe error keep run-terminal.
 		if lo, lerr := d.proc.ProbeLeftover(runDir); lerr == nil && lo.Answer == process.LeftoverPresent {
-			return true, "tree-survives:" + id + ":" + strconv.Itoa(lo.PGID)
+			return true, treeSurvivesFinding(id, lo.PGID)
 		}
 		return true, "run-terminal:" + id
 	case o.State != process.StateRunning:
