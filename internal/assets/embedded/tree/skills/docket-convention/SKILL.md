@@ -150,9 +150,9 @@ docket's workflow steps are **roles**, each done by one fixed skill:
   BOARD.md                # generated board (NEVER hand-edited); spans active + archive
   README.md               # small static blurb linking to BOARD.md (NOT generated)
   LEARNINGS.md            # pointer stub → learnings/ (the pre-0067 single-file ledger)
-  learnings/              # curated build-loop findings; recorded by human curation (see "Learnings ledger")
+  learnings/              # curated build-loop findings; written by learning.record / learning.update (see "Learnings ledger")
     <slug>.md             # one finding per lesson/family — living files, extended on re-hit
-    README.md             # derived index; refresh deferred from Go v1, never hand-edited
+    README.md             # derived index; no operation refreshes it, never hand-edited
 <adrs_dir>/               # default docs/adrs/  — flat; ADRs are NEVER archived
   <NNNN>-<slug>.md        # immutable once Accepted (only its status: line ever changes)
   README.md               # generated ADR index
@@ -205,8 +205,9 @@ and is never copied into `related:` or `depends_on:`.
 
 **Merged plans and results are frozen build records.** Once a change's PR merges, its `plan:` and
 `results:` files are never hand-edited again — not to correct a stale line reference, not to update a
-superseded instruction. The one writer allowed to touch them afterward is the `artifact.backlink` operation,
-re-stamping the generated `docket:backlink` block at terminal publish; authored content never changes.
+superseded instruction. The only writes they receive afterward re-stamp the generated `docket:backlink` block (the
+`artifact.backlink` operation, and `finalize.closeout`'s integration-ref backlink leg); authored
+content never changes.
 They record what a build was *told* to do at the time it ran, which is the
 only thing that makes a completed run auditable; editing one destroys that record while silently
 changing what a re-read of the artifact would say the build was asked for. Corrections go in a new
@@ -225,7 +226,6 @@ change, never in the merged artifact.
 - `## Closeout notes` — final-only, **optional**, and the **final authored body section** of an archived record. Written solely by the `finalize.closeout` operation from its structured request (`verification_outcomes` / `late_findings`, rendered as `### Verification` / `### Late findings` bullet lists); never hand-edited, copied to a stacked descendant, or a link-bearing artifact. The merged `results:` file stays a frozen build record — the freeze rule above is unchanged.
 - `## Reclaim log` — dated entries appended by the `change.reclaim` operation when an expired-lease, no-branch claim self-heals back to `proposed`.
 - `## Auto-groom blocked` — dated abstain record written by `change.groom` `outcome: abstain`; contents and lifecycle (including removal by `outcome: re-enable`) are defined by the *Autonomous grooming* shared definition below.
-- `## Publish deferred` — dated record left by earlier docket versions when a close-out's publish step was expected but deferred or blocked (change 0083). **Read-only historical evidence:** publication-deferral marking is deferred from Go v1 — existing `publish-deferred` markers remain as historical evidence, and the `publish-deferred` health check keeps them visible; no maintained script writes or removes one. Never hand-authored.
 - `## Finalize blocked` — dated record appended by `docket-finalize-change` when a gate failure leaves a change needing a human; presence drives the board's `finalize blocked — needs you` cell and makes later **auto-detect** finalize runs skip the change. A human retries a marked change by **naming its id**, which overrides the skip. The clearing rule is owned by `docket-finalize-change` and not restated here.
 - `## Run halted` — record appended (heading **bare**, never dated — the reader is a whole-line match, so the date belongs inside the body) by an autonomous run that stops needing a human (the `halted` disposition). **Marker-section state**, in the same family as `## Auto-groom blocked` and `## Finalize blocked`: the run clears `verify-run`'s gate by *writing this section and committing it*, which is what makes a `halted` disposition verifiable in git rather than a claim in a completion report. Removal is owned by `docket-implement-next`'s Step 2 claim — the only transition back into a live run — and is stated there, not restated here.
 - `## Why deferred` / `## Why killed` — added when entering those states.
@@ -293,13 +293,13 @@ A change is **build-ready** — eligible for `docket-implement-next` — only wh
 
 ### Autonomous grooming (shared definition)
 
-A change's **effective auto-groomable** value is its `auto_groomable:` override when explicitly set, else the repo's `auto_groom` knob (default `false`). The field is human input with one exception: `docket-auto-groom`'s abstain is the single agent write (`change.groom` `outcome: abstain` flips the override to `false`).
+A change is opted into autonomous grooming only by its own `auto_groomable: true`; unset or `false` means not. The field is human input with one exception: `docket-auto-groom`'s abstain is the single agent write (`change.groom` `outcome: abstain` sets it to `false`).
 
-A stub is **auto-groomable** — selectable by `docket-auto-groom` — when it is needs-grooming (`proposed`, no `spec:`, not `trivial: true`) AND its effective auto-groomable value is `true`. Unsatisfied `depends_on` does NOT exclude it (the same design-ahead rule as interactive grooming; the implementer's reconcile re-validates at build time). Ranking is the same deterministic selection order as build-ready selection.
+A stub is **auto-groomable** — selectable by `docket-auto-groom` — when it is needs-grooming (`proposed`, no `spec:`, not `trivial: true`) AND it carries `auto_groomable: true`. Unsatisfied `depends_on` does NOT exclude it (the same design-ahead rule as interactive grooming; the implementer's reconcile re-validates at build time). Ranking is the same deterministic selection order as build-ready selection.
 
 **Abstain rule.** When autonomous grooming cannot safely default a decision, it emits NO spec; it applies `change.groom` with `outcome: abstain`, which flips `auto_groomable: false`, appends a dated entry to the `## Auto-groom blocked` body section, and re-renders the board in one commit. The stub stays needs-grooming — out of the autonomous queue, still in the interactive one. Re-enable = a human supplies the missing context and applies `change.groom` with `outcome: re-enable` (optionally with owned-section edits carrying that context): it sets the flag back to `true` and removes the `## Auto-groom blocked` section in the same commit — never a hand edit (git history keeps the section; its presence drives the board's needs-you cell, so a stale one would mislabel a re-enabled stub). Kill and defer are never autonomous: they surface inside the blocked section as recommendations.
 
-**Interactive selection bands.** `docket-groom-next` still sees every needs-grooming stub, but its default order prefers stubs that need a human: (1) abstained (`## Auto-groom blocked` present), (2) effective `auto_groomable: false`, (3) effective auto-groomable — flagged "docket-auto-groom will handle it unless you want it now." Within each band, the deterministic selection order applies. The board renders abstained stubs as **auto-groom blocked — needs you**, distinct from plain needs-grooming.
+**Interactive selection bands.** `docket-groom-next` still sees every needs-grooming stub, but its default order prefers stubs that need a human: (1) abstained (`## Auto-groom blocked` present), (2) `auto_groomable` unset or `false`, (3) `auto_groomable: true` — flagged "docket-auto-groom will handle it unless you want it now." Within each band, the deterministic selection order applies. The board renders abstained stubs as **auto-groom blocked — needs you**, distinct from plain needs-grooming.
 
 ### Discovered work
 
@@ -308,15 +308,14 @@ minted or discarded** — a human captures reported work deliberately with `dock
 
 ### Learnings ledger
 
-`<changes_dir>/learnings/` — the project's **build-loop memory** (change 0067): one curated finding
-per file, on `metadata_branch` only, never published to the integration branch.
-`LEARNINGS.md` remains as a pointer stub to the pre-0067 single-file ledger. The finding files are
-written by human curation; the index (`learnings/README.md`)
-is a **derived view** whose recorded bytes are the sole authority readers consult — automated
-learnings-index rendering is deferred from Go v1 (existing bytes are preserved, not refreshed).
+`<changes_dir>/learnings/` — the project's **build-loop memory**: one curated finding per file,
+on `metadata_branch` only, never published to the integration branch. `LEARNINGS.md` remains as a
+pointer stub to the earlier single-file ledger. The finding files are written by the
+`learning.record` and `learning.update` operations; the index (`learnings/README.md`) is a
+**derived view** that no operation refreshes, and its recorded bytes are what readers consult.
 
-**Full mechanics — finding-file frontmatter, recording (create/extend), promotion, capacity, and
-the off-switch — are in [references/learnings.md](references/learnings.md); read it before
+**Full mechanics — finding-file frontmatter, recording (create/extend), promotion, and the
+off-switch — are in [references/learnings.md](references/learnings.md); read it before
 recording, promoting, or curating findings.**
 
 **Read contract — read on demand.** Gated on `learnings.enabled`; when `false`, readers perform
@@ -324,14 +323,12 @@ recording, promoting, or curating findings.**
 1. Load `learnings/README.md` (the index) always — a small, grouped hint surface.
 2. Read only the finding files whose index line (hook + topics) bears on the change at hand.
 
-**Readers:** `docket-implement-next` at plan time and at review; `docket-groom-next` before a brainstorm; `docket-auto-groom` before its self-brainstorm. **Writers:** human curation only — automated learnings harvest is deferred from Go v1, so a finding is created or extended by editing `learnings/` files directly, never merging two distinct ones.
+**Readers:** `docket-implement-next` at plan time and at review; `docket-groom-next` before a brainstorm; `docket-auto-groom` before its self-brainstorm. **Writers:** the `learning.record` operation creates a finding and the `learning.update` operation extends one, both gated on `learnings.enabled`; neither merges two distinct findings.
 
 Compressed rules (detail in the reference): the promotion tiering criterion is
 *"will the agent know to search for this?"* — a rule that must fire unprompted graduates
 (`promotion_state: retained | candidate | promoted`; promotion and consolidation are human acts);
-`learnings.cap` counts **active findings** (`retained` + `candidate`), and past it the ledger is
-over its human-read curation threshold, never auto-merging its own memory; `learnings.enabled: false` is
-a no-op **read/write gate, never a purge** — existing files stay byte-untouched, re-enabling resumes.
+`learnings.enabled: false` is a no-op **read/write gate, never a purge** — existing files stay byte-untouched, re-enabling resumes.
 
 ### Derived views (shared definition)
 
@@ -359,4 +356,4 @@ A change's feature branch is minted at claim as `<type>/<slug>`, or `<branch_pre
 
 The `.docket` metadata worktree has the repo's shared git hooks disabled (worktree-scoped `core.hooksPath` → an empty docket-owned dir, via `disable-worktree-hooks.sh`), so machine-generated bookkeeping commits coexist with a hook framework on the integration branch; feature-branch code commits still run the team's hooks (change 0063).
 
-On a final transition (`done` *or* `killed`), the driving skill runs the shared **close-out** sequence — archive → re-render → cleanup → board. **Terminal publication is deferred from Go v1** — the `finalize.closeout` operation is the complete automated closeout boundary; no archived record is copied onto the integration branch, which gets code, plans, and results via PRs alone. Ordering and per-caller failure postures live in **[`references/close-out.md`](references/close-out.md) — read it before driving any final transition.** **`terminal_publish` is `false` by default** (per-repo-only; changes 0064/0084): the key remains parseable and shared-setting guarded but activates nothing — an enabled value copies nothing onto the integration branch and is not a Bash fallback; existing published records remain as history. The close-out itself still embeds no integration-branch sync. Instead, the `repository.sync-integration` operation runs once at the end of the finalize workflow and once at the end of both maintenance-sweep scopes (full and implementation), fast-forwarding a clean primary checkout that is already on the configured integration branch to the freshly fetched tip and reporting an explicit skip otherwise.
+On a final transition (`done` *or* `killed`), the driving skill runs the shared **close-out** sequence — archive → re-render → cleanup → board. Archived records and ADRs stay on the `docket` branch; the integration branch gets code, plans, and results through PRs alone. Ordering and per-caller failure postures live in **[`references/close-out.md`](references/close-out.md) — read it before driving any final transition.** The close-out embeds no integration-branch sync. Instead, the `repository.sync-integration` operation runs once at the end of the finalize workflow and once at the end of both maintenance-sweep scopes (full and implementation), fast-forwarding a clean primary checkout that is already on the configured integration branch to the freshly fetched tip and reporting an explicit skip otherwise.

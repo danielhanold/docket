@@ -171,8 +171,6 @@ var proseContracts = []proseContract{
 		absent: []string{"checkout origin/docket"}},
 	{sentinel: "test_docket_metadata_branch", file: "skills/docket-adr/SKILL.md",
 		present: []string{"adr-unpublished"}},
-	{sentinel: "test_docket_metadata_branch", file: "skills/docket-new-change/SKILL.md",
-		present: []string{"terminal publication is deferred from Go v1"}},
 	// tests/test_docket_example_yml.sh — key-presence core (full correspondence scan flagged).
 	{sentinel: "test_docket_example_yml", file: ".docket.example.yml",
 		present: []string{"board_surfaces", "agent_harnesses", "finalize:"}},
@@ -1064,6 +1062,17 @@ var alignmentContracts = []proseContract{
 	{sentinel: "align_0502_no_phantom_exports", file: "skills/docket-implement-next/references/fix-pass.md",
 		present: []string{"`diagnostic.config`"},
 		absent:  []string{"REVIEW_MIN_FIX_SEVERITY", "REVIEW_MAX_FIX_TASKS"}},
+	// 0502: no terminal publish, no learnings cap, no repository auto_groom default.
+	{sentinel: "align_0502_publish_learnings_groom", file: "skills/docket-convention/SKILL.md",
+		present: []string{"`learning.record`", "`learning.update`", "### Learnings ledger", "will the agent know to search for this?"},
+		absent:  []string{"human curation only", "terminal publish", "Terminal publication", "learnings.cap", "repo's `auto_groom`"}},
+	{sentinel: "align_0502_publish_learnings_groom", file: "skills/docket-convention/references/close-out.md",
+		absent: []string{"terminal publish", "Terminal publication", "terminal_publish"}},
+	{sentinel: "align_0502_publish_learnings_groom", file: "skills/docket-convention/references/learnings.md",
+		present: []string{"`learning.record`"},
+		absent:  []string{"learnings.cap", "## Capacity", "human curation"}},
+	{sentinel: "align_0502_publish_learnings_groom", file: "skills/docket-adr/SKILL.md",
+		absent: []string{"(deferred)", "terminal publish"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {

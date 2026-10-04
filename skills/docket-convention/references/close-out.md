@@ -1,7 +1,7 @@
 # Close-out — the shared per-change sequence
 
 > Single source for the close-out sequence a final transition (`done` or `killed`) runs:
-> archive → re-render `## Artifacts` → cleanup → board (terminal publication is deferred from Go v1).
+> archive → re-render `## Artifacts` → cleanup → board.
 > All four drivers route
 > through this file: `docket-finalize-change`'s per-change close-out and `docket-status`'s merge
 > sweep (the two `done` drivers), plus the kill callers — `docket-implement-next`'s reconcile-kill
@@ -39,7 +39,7 @@ before the first read; every commit pushes immediately.
    refusal or process failure writes nothing and aborts per the caller's posture, with **no partial
    caller-owned follow-up**. It still relocates the change file in its own step, so concurrent done
    drivers converge tree-identically (see *Determinism invariant*). The frozen step-2 re-render and
-   step-5 board pass below still run for this path — they re-confirm what the transaction already
+   step-4 board pass below still run for this path — they re-confirm what the transaction already
    landed and are idempotent no-ops (a no-diff re-render is success).
 
    **Kill drivers** (`docket-implement-next`'s reconcile-kill, `docket-new-change`'s proposed-kill)
@@ -59,7 +59,7 @@ before the first read; every commit pushes immediately.
    including across a day boundary (it reuses the existing dated filename). This ONE metadata commit
    atomically owns the archive move, the refreshed `updated:` date, the spliced `## Why killed`
    section, the `## Artifacts` re-render, the retargeted spec back-link, and the inline board render
-   — so the step-2 re-render and step-5 board pass below carry **nothing** for the kill path, exactly
+   — so the step-2 re-render and step-4 board pass below carry **nothing** for the kill path, exactly
    as `finalize.closeout` owns them for the done path. A wrong `revision` or an illegal source status
    returns a typed refusal that writes nothing (a lost conflict-checked write is `contended`; see
    *Determinism invariant*).
@@ -80,25 +80,13 @@ before the first read; every commit pushes immediately.
      its one commit.
 
    So **no separate caller re-render or back-link commit runs for either path** — the skill never
-   invokes a facade renderer and never hand-edits a managed block. Terminal publication is deferred
-   from Go v1, so nothing is copied onto the integration branch; in `docket` mode a spec that lives
-   on the metadata ref is restamped in that same step-1 commit. A typed refusal (malformed markers,
+   invokes a facade renderer and never hand-edits a managed block. Nothing is copied onto the
+   integration branch; a spec that lives on the metadata ref is restamped in that same step-1
+   commit. A typed refusal (malformed markers,
    missing artifact) leaves the file untouched and aborts per the caller's posture — surface it,
    never hand-edit the block.
 
-3. **Terminal publication (deferred).**
-   terminal publication is deferred from Go v1 — the `finalize.closeout` operation is the complete automated closeout boundary.
-   publication-deferral marking is deferred from Go v1 — existing `publish-deferred` markers remain as historical evidence.
-   Step 1's supported Go metadata closeout — the `finalize.closeout` operation on the done path,
-   the `change.kill` operation on the kill path — is the whole automated closeout: no archived record is
-   copied onto the integration branch, and the `## Publish deferred` marker is never written. A request
-   that specifically requires *published* archived artifacts on the integration branch stops
-   **before** claiming that outcome, even when the metadata transaction itself succeeded. Existing
-   published records and any existing `## Publish deferred` markers remain untouched historical
-   evidence — the `publish-deferred` health check keeps them visible. An enabled `terminal_publish:`
-   key activates nothing.
-
-4. **Clean up the feature branch + worktree.**
+3. **Clean up the feature branch + worktree.**
 
    ```
    finalize.cleanup  --id <id>   # resolve argv from the capability catalog
@@ -119,7 +107,7 @@ before the first read; every commit pushes immediately.
    the branch is the pre-kill `branch:` value (`<type>/<slug>` by default; the kill clears the
    field) and `git worktree list` finds the worktree (docket change 0483 tracks automatic killed-change cleanup). A `proposed`-kill has none.
 
-5. **Board refresh — owned atomically by step 1, no separate pass.** Both close-out transactions
+4. **Board refresh — owned atomically by step 1, no separate pass.** Both close-out transactions
    render the inline `BOARD.md` **inside their own step-1 metadata commit** — the `finalize.closeout`
    operation on the done path, the `change.kill` operation on the kill path — so **no separate Board pass
    runs**, and no skill ever hand-renders the board or double-commits it. The step-1 transaction is
@@ -129,8 +117,8 @@ before the first read; every commit pushes immediately.
 
 ## Failure posture — per caller
 
-The sequence is shared; the posture on a failed step-1 transaction is the caller's (steps 2 and 5
-are absorbed into step 1 and carry no separate command; step 3 is a deferred no-op that cannot fail):
+The sequence is shared; the posture on a failed step-1 transaction is the caller's (steps 2 and 4
+are absorbed into step 1 and carry no separate command):
 
 | Caller | Posture |
 |---|---|
@@ -141,10 +129,9 @@ are absorbed into step 1 and carry no separate command; step 3 is a deferred no-
 
 **Step-failure propagation:** step 1's atomic transaction owns the archive move, the `## Artifacts`
 re-render, every back-link, and the inline board render **together** — it either commits the complete
-set (fail-closed) or writes nothing, so there is no partial step-2 or step-5 follow-up left to skip.
-Step 3 (terminal publication) is a deferred no-op and never fails. Step 4 (cleanup) follows the
-caller's own skill body: the sweep treats it as best-effort (log and continue; a later pass
-self-heals); other callers keep their own posture (abort-and-report).
+set (fail-closed) or writes nothing, so there is no partial step-2 or step-4 follow-up left to skip.
+Step 3 (cleanup) follows the caller's own skill body: the sweep treats it as best-effort (log and
+continue; a later pass self-heals); other callers keep their own posture (abort-and-report).
 
 ## Determinism invariant
 

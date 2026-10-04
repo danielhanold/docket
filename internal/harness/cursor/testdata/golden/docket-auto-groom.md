@@ -1,6 +1,6 @@
 ---
 name: docket-auto-groom
-description: 'Use when a repo (or individual stubs) opted into autonomous grooming and you want the auto-groomable needs-grooming queue drained with no human — selecting each auto-groomable stub deterministically and designing it via a default-biased self-brainstorm gated by an adversarial critic, exiting each stub with a linked spec, a trivial verdict, or an abstain back to the human queue. Kill and defer are never autonomous. Writes markdown only — never branches, worktrees, or code.'
+description: 'Use when individual stubs opted into autonomous grooming (their `auto_groomable` is `true`) and you want the auto-groomable needs-grooming queue drained with no human — selecting each auto-groomable stub deterministically and designing it via a default-biased self-brainstorm gated by an adversarial critic, exiting each stub with a linked spec, a trivial verdict, or an abstain back to the human queue. Kill and defer are never autonomous. Writes markdown only — never branches, worktrees, or code.'
 ---
 
 You are already running as `docket-auto-groom`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-auto-groom` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
