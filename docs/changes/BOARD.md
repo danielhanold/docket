@@ -1,13 +1,18 @@
 # Backlog
 
-**514 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 352 done · 🗑️ 137 killed
+**514 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 352 done · 🗑️ 137 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0510](active/0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | `medium` | `feat` | [spec](../superpowers/specs/2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan-design.md) | `feat/match-reported-follow-ups-against-proposed-and-deferred-chan` |  |
 | [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md) | `fix/align-the-skills-and-agent-files-with-the-docket-binary` |  |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0510](active/0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | `medium` | `feat` | [#382](https://github.com/danielhanold/docket/pull/382) | awaiting merge |
 
 ## 🟣 Groomed (4)
 

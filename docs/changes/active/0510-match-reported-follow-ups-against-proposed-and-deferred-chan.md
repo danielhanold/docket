@@ -2,7 +2,7 @@
 id: 510
 slug: 'match-reported-follow-ups-against-proposed-and-deferred-chan'
 title: 'Match reported follow-ups against proposed and deferred changes'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/match-reported-follow-ups-against-proposed-and-deferred-chan'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/382'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T12:49:23Z'
