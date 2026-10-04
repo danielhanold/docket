@@ -90,19 +90,13 @@ import (
 //     package's own repoguard_test.go / test_source_hygiene_test.go. None are in
 //     population; none can red this seal.
 //   - Config YAML (.yml): most .yml is out of population, but agents/harness-defaults.yml
-//     IS scanned — it lives under agents/, so AlwaysLoadedSurface includes it. It
-//     stays GREEN not because it is out of population but because its lone
-//     scripts/lib/… reference sits in a stripped `#` header comment. That file is a
+//     IS scanned — it lives under agents/, so AlwaysLoadedSurface includes it. It is a
 //     LIVE shipped program-data file, NOT a mere frozen fixture: the built-in agent
-//     table in internal/config/defaults.go mirrors it (byte-pinned by
-//     TestBuiltinAgentsParityWithFrozenSidecar) and internal/assets/generate.go embeds
-//     it. Its header comment naming the deleted scripts/lib/harness-defaults.sh
-//     enforcer went STALE in this branch, but correcting the comment here reddens two
-//     byte-equality pins (the frozen-sidecar parity (currently v0.9.9) AND the embedded-tree copy,
-//     verified empirically), so the prose fix is deferred to a fixture re-cut and left
-//     as a residual for follow-up. The other residual — root .docket.yml naming
-//     run-tests.sh in a comment — is genuinely out of population (not under agents/, no
-//     exec bit) and stays green trivially.
+//     table in internal/config/defaults.go mirrors it, and it carries no retired
+//     reference, so it stays GREEN on its content. It is byte-pinned twice — by
+//     TestBuiltinAgentsParityWithFrozenSidecar's frozen sidecar (currently v0.9.11)
+//     and by the embedded-tree copy internal/assets/generate.go writes — so any edit
+//     to it re-cuts the sidecar and regenerates the embedded copy.
 //
 // # Markdown — fenced code is executable, prose is descriptive
 //

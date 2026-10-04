@@ -11,11 +11,11 @@ import (
 )
 
 // sidecarPath is the frozen byte-exact copy of agents/harness-defaults.yml, and
-// liveSidecarPath is the original it was cut from — the file sync-agents
-// actually ships. The frozen tree is an immutable input (testdata/README.md):
-// these tests only read both files.
+// liveSidecarPath is the original it was cut from — the file docket ships.
+// The frozen tree is an immutable input (testdata/README.md): these tests only
+// read both files.
 const (
-	sidecarPath     = "../../testdata/repositories/v0.9.9/agents-harness-defaults.yml"
+	sidecarPath     = "../../testdata/repositories/v0.9.11/agents-harness-defaults.yml"
 	liveSidecarPath = "../../agents/harness-defaults.yml"
 )
 
@@ -39,7 +39,7 @@ type pair struct{ Model, Effort string }
 // is deliberately not asserted: that oracle lives outside the repo.
 //
 // The parity is against the FROZEN copy, which pins the Go table to a snapshot
-// rather than to what sync-agents ships today. The byte-equality assert closes
+// rather than to what docket ships today. The byte-equality assert closes
 // that gap: an edit to the live sidecar reddens here instead of silently
 // diverging the built-ins from the shipped defaults.
 func TestBuiltinAgentsParityWithFrozenSidecar(t *testing.T) {

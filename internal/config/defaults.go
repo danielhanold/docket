@@ -7,8 +7,7 @@ package config
 // it is a table rather than a cell. The agent table is frozen against
 // `agents/harness-defaults.yml` at commit a4d72613 (change 0324, which added the
 // seventeenth agent docket-plan-writer), and its byte-exact copy under
-// `testdata/repositories/v0.9.9/` (re-cut comment-only by change 0473) is the
-// parity oracle.
+// `testdata/repositories/v0.9.11/` (re-cut comment-only) is the parity oracle.
 
 // builtinProvenance is the provenance every default carries.
 func builtinProvenance() Provenance {

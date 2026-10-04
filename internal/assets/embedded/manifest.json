@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:e36ba8d29dfa6e896a1db5d3a582ba286d888b78828a600db09ae3650cc8d1c2",
+  "asset_set_id": "sha256:43c75ea2edc93c361f889b4f73142b565f351f5fcd253f652fe1d5861fbe2223",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -133,8 +133,8 @@
       "path": "agents/harness-defaults.yml",
       "role": "harness-defaults",
       "mode": 420,
-      "size": 10454,
-      "sha256": "cf390477e0f5a5e850d7c51321978e66b346efeca90bf3fb53c74af52cec7a6f"
+      "size": 9775,
+      "sha256": "69244d331522aa4d37467d63786d76f086e7a5762125b848cb66a0241b5f7387"
     },
     {
       "path": "cursor-rules/dispatch.head.md",
