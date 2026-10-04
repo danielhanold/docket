@@ -2,7 +2,7 @@
 id: 498
 slug: 'results-file-puts-the-whole-branch-review-under-human-action'
 title: 'Results file puts the whole-branch review under Human actions and testing'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-03'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/results-file-puts-the-whole-branch-review-under-human-action'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/374'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T06:19:05Z'
