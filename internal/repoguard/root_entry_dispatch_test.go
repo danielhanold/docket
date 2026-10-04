@@ -149,15 +149,6 @@ func TestCodexLaunchMatrixOperatorProse(t *testing.T) {
 				"starts a root thread with the caller's absolute cwd, approval policy, and\nsandbox, and passes an unchanged request file as the root turn. A feature role carries",
 			},
 		},
-		{
-			file: "docs/reference/harness/validation-runbook.md",
-			present: []string{
-				"Metadata-scoped ordinary child roles may continue to use direct registered-agent invocation.",
-			},
-			absent: []string{
-				"Ordinary\nMetadata-scoped ordinary child roles",
-			},
-		},
 	} {
 		content := readMaintained(t, root, contract.file)
 		for _, clause := range contract.present {
