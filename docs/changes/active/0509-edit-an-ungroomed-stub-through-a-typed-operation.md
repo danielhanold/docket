@@ -1,0 +1,42 @@
+---
+id: 509
+slug: 'edit-an-ungroomed-stub-through-a-typed-operation'
+title: 'Edit an ungroomed stub through a typed operation'
+status: 'proposed'
+priority: 'medium'
+type: 'chore'
+created: '2026-10-04'
+updated: '2026-10-04'
+depends_on: []
+stacked_on:
+related: [445, 461]
+discovered_from: []
+adrs: []
+spec:
+plan:
+results:
+trivial: false
+auto_groomable:
+branch_prefix:
+branch:
+pr:
+blocked_by:
+reconciled: false
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+A needs-grooming stub has no typed way to change its title, owned sections, or relationship fields without also grooming it. `change.groom` `revise` refuses a stub with `not-revisable`, because it only accepts already-groomed changes. The outcomes that do accept edits on a stub (`spec`, `trivial`, `re-enable`) each change the stub's groom state as a side effect. So sharpening a stub's Why, fixing its title, or adding a `related:` link today means a hand-edit in the `.docket` tree, which skips the writer's quoting guarantee (ADR-0071) and leaves `BOARD.md` stale.
+
+## What changes
+
+Docket can edit a `proposed` stub's title, owned proposal sections, and relationship fields through a typed operation, leaving it needs-grooming. The grooming skills say how to reach that path when a human asks to edit a stub rather than groom it.
+
+## Out of scope
+
+Editing changes past `proposed`. Changing a stub's groom state (spec, trivial, abstain, re-enable keep their current owners). Editing `type`, `priority`, or `auto_groomable` unless the design shows the existing op already covers them.
