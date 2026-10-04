@@ -2,7 +2,7 @@
 id: 516
 slug: 'remove-stale-auto-groom-comments-and-fix-testskillhandoffsit'
 title: 'Remove stale auto_groom comments and fix TestSkillHandoffSites'' ''cannot be invoked'' match'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'chore'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/remove-stale-auto-groom-comments-and-fix-testskillhandoffsit'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T15:01:44Z'
 ---
 
 ## Artifacts
