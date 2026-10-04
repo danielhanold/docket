@@ -53,11 +53,14 @@ effect. Report bodies are redaction-only, never echoed into a result document.
 
 A repair is code the human's PR approval predated, so it never merges unseen:
 
-- **Autonomous finalize** cannot prompt. It records the sign-off requirement durably and STOPS:
-  the `finalize.block` operation with `--id <id> --revision <revision> --pr-number <n> --attempt <attempt>
-  --reason repair-needs-signoff --head <repaired head> --input <block report>` — the disposition is
-  `halted`. The human reviews the pushed repair on the PR and re-runs finalize; the retry clears the
-  block (the `finalize.clear-block` operation) and merges.
+- **Autonomous finalize** cannot prompt. It first publishes the repaired head (the `finalize.publish`
+  operation), so the human can review it on the PR and `finalize.clear-block` can confirm the published
+  head. It then records the sign-off requirement durably and STOPS: the `finalize.block` operation with
+  `--id <id> --revision <revision> --pr-number <n> --attempt <attempt> --reason repair-needs-signoff
+  --head <repaired head> --input <block report>` — the disposition is `halted`. The human reviews the
+  pushed repair, signs off by running the `finalize.clear-block` operation themselves (`--id <id>
+  --revision <revision> --head <repaired head> --pr-number <n>`), then re-runs finalize. A re-run alone
+  never clears the block, and a sign-off relayed through an agent's prompt is not authority.
 - **Interactive finalize** publishes the repaired head, reports the repair diff and what broke, and
   **prompts** for go-ahead before the `finalize.merge` operation.
 
@@ -144,11 +147,9 @@ label. `stacked-merged` earns a status on the terms this case fails — one dura
   a merged-recovery candidate regardless** of the marker.
 - A **`CONFLICTING` PR is not marked at selection time** — the resolver usually resolves it, so
   marking up front would strand a fixable PR. Marking happens only at an abort-and-report point.
-- **A successful finalize removes the section** via the `finalize.clear-block` operation, which reprobes the
-  exact current head, valid gate evidence, the published remote ref, and the matching open PR before
-  removal — each missing condition refuses. The condition is machine-verifiable, so requiring a human
-  to delete it would strand stale markers on changes that are fine. Nothing strips the section at
-  closeout: on an out-of-band merge it rides into the archive verbatim, where its only remaining
-  reader is the human record of why the change once stalled — every automated reader is scoped to a
-  change short of `done`, so archiving retires the marker's meaning whether or not the section
-  survives.
+- **The `finalize.clear-block` operation removes the section** on an unmerged change, and nothing
+  else does: it reprobes the exact current head, valid gate evidence, the published remote ref, and
+  the matching open PR before removal — each missing condition refuses and the marker stays. For
+  `repair-needs-signoff` that operation is the human's sign-off, run by the human. Closeout strips a
+  stale section when it records a merged change `done` or `stacked-merged`, so a merged record
+  carries no marker.
