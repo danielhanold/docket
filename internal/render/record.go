@@ -28,7 +28,7 @@ type NewChangeRecord struct {
 	Related        []domain.ChangeID
 	DiscoveredFrom []domain.ChangeID
 	ADRs           []domain.ADRID
-	AutoGroomable  *bool  // nil ⇒ null (inherit the repo's auto_groom)
+	AutoGroomable  *bool  // nil ⇒ null (not auto-groomable)
 	BranchPrefix   string // already normalized by the app layer; "" ⇒ null
 	Why            string // markdown body, no heading line
 	WhatChanges    string // markdown body, no heading line
@@ -36,9 +36,8 @@ type NewChangeRecord struct {
 }
 
 // ChangeRecord serializes r as a canonical brand-new proposed change record.
-// Field names, order, and defaults mirror
-// skills/docket-new-change/change-template.md (without the template's authoring
-// comments); frontmatter is emitted through document.New, so every text scalar
+// This renderer is the authority for a new record's field names, order, and
+// defaults; frontmatter is emitted through document.New, so every text scalar
 // is single-quoted by construction (ADR-0071) and flow collections stay
 // unquoted integer sequences.
 func ChangeRecord(r NewChangeRecord) ([]byte, error) {
@@ -142,10 +141,10 @@ type NewADRRecord struct {
 	Alternatives string // markdown body, no heading line
 }
 
-// ADRRecord serializes r as a canonical brand-new Accepted ADR. Field names,
-// order, and defaults mirror skills/docket-adr/adr-template.md and the live
-// docs/adrs/*.md, with the canonical v1 body carrying ## Alternatives
-// considered.
+// ADRRecord serializes r as a canonical brand-new Accepted ADR. This renderer
+// is the authority for a new ADR's field names, order, defaults, and body
+// sections (## Context, ## Decision, ## Consequences, ## Alternatives
+// considered).
 func ADRRecord(r NewADRRecord) ([]byte, error) {
 	fields := []document.FieldSpec{
 		{Name: "id", Value: document.Int(int64(r.ID))},

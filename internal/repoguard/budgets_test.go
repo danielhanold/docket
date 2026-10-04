@@ -187,7 +187,6 @@ type skillBudget struct {
 // exact new counts.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
-	{"docket-adr/adr-template.md", 26, 90},
 	{"docket-auto-groom/SKILL.md", 64, 1582}, // 0502: the dummy-mode pointer is deleted (66/1625 -> 64/1582); 0382: typed change.groom abstain replaces the plain-git abstain commit prose (word ceiling 1750 -> 1627)
 	{"docket-brainstorm/SKILL.md", 84, 692},
 	{"docket-build/SKILL.md", 398, 3974}, // 0502: the gate-execution pointer paragraph is deleted with the reference (403/4007 -> 398/3974); 0493: the gate relaunch is retired (404/4023 -> 403/4007); 0491: the run id is retired (406/4037 -> 404/4023); 0488 review fix: +the dispatch payload names the branch (406/4034 -> 406/4037); 0488 review: build-owned starts carry --change-id/--run-context (404/4018 -> 406/4034); 0488: workers run tests directly; the dispatch payload carries no worker scope identity, the task-level WAITING/takeover section is gone, the controller runs every post-repair attempt, +time-limit audit (439/4479 -> 404/4018); 0467 review fix: +the repair dispatch payload carries the run id for the build-owned post-fix re-run (436/4443 -> 439/4479); 0467: +run-id threading on prepare-scope and the build-owned start; the bundle carries no run id (432/4391 -> 436/4443); 0459: +continuation carries the claimed verdict, closed-scope statement, and fresh prepare-scope bundle (424/4284 -> 432/4391); 0405: sequential-drive contract; 0420: shell-safe capture; 0421: budgeted repair cycle (see note above)
@@ -197,7 +196,7 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/gate-driver.md", 136, 1523}, // 0502: the gate-execution intro reference is deleted (138/1555 -> 136/1523); 0502: renamed from gate-caller-loop.md; 0497: +halted-gate tree-survives finding relay (134/1510 -> 138/1555); 0491: the run id is retired (134/1513 -> 134/1510); 0490: the admission section describes the supervisor-held worktree lock; launch-unconfirmed is no longer a refusal (136/1511 -> 134/1513); 0488 review fix: finalize reaches the driver only through finalize.rebase; task-era handoff clauses dropped (word ceiling 1504 -> 1511); 0488 review: start row carries --change-id (word ceiling 1491 -> 1504); 0488: worker-scope/takeover/acknowledge rows and the parent-takeover section removed; callers are the full-suite gates (175/1872 -> 136/1491); 0467: +prepare-scope --run-id and scope-inherited start run id (word ceiling 1826 -> 1872); 0375: +worktree-admission section (word ceiling 1750 -> 1826)
 	{"docket-build/references/task-routing.md", 50, 500},
 	{"docket-build-task/SKILL.md", 168, 1637}, // 0488: scoped drive protocol replaced by direct foreground tests under timeout; three outcomes (211/2235 -> 168/1637); 0467 review fix: +the repair re-run run-id exception (206/2183 -> 211/2235); 0467: +the run id rides on the scope, never the bundle (204/2151 -> 206/2183); 0459: +post-handoff continuation never acknowledges or reuses the transferred scope (188/1964 -> 204/2151); 0405: sequential-drive receipt and acknowledgement; 0420: shell-safe capture; 0375: worktree-busy-not-a-retry rule (179/1842 -> 188/1964)
-	{"docket-convention/SKILL.md", 367, 7619}, // 0502: the dummy-mode shared definition is deleted (390/7848 -> 367/7619); 0410: +required-results lifecycle prose; 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
+	{"docket-convention/SKILL.md", 372, 7660}, // 0502: record blocks mirror the renderers (367/7619 -> 372/7660); 0502: the dummy-mode shared definition is deleted (390/7848 -> 367/7619); 0410: +required-results lifecycle prose; 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
 	// 0154: docket-convention/github-board-mirror.md removed — the GitHub mirror is
 	// retired (unsupported, mutation-blocking); its budget row is deleted with it.
 	{"docket-convention/references/agent-layer.md", 205, 2350},
@@ -213,8 +212,7 @@ var skillBudgets = []skillBudget{
 	{"docket-implement-next/results-template.md", 70, 550},           // 0510: +backlog verdict and state-matched next action in the Known issues placeholder (68/511 -> 70/550); 0498: +whole-branch review summary line in Verification performed (64/446 -> 68/511); 0440: reader-first template — action statement + merged Known issues (see note above)
 	{"docket-review/SKILL.md", 110, 913},                             // 0410: +findings-return capture contract (see note above)
 	{"docket-new-change/SKILL.md", 57, 1636},                         // 0502: the dummy-mode pointer is deleted (59/1674 -> 57/1636); 0445: +pointer to the docket-groom-next revise path after landing (word ceiling 1700 -> 1706); 0382: draft-time scalars moved into change.create (ceiling 1706 -> 1675)
-	{"docket-new-change/change-template.md", 51, 250},
-	{"docket-status/SKILL.md", 127, 2956}, // 0502: the dummy-mode pointer is deleted (129/2985 -> 127/2956); 0388: +sync-integration prose (see note above)
+	{"docket-status/SKILL.md", 127, 2956},                            // 0502: the dummy-mode pointer is deleted (129/2985 -> 127/2956); 0388: +sync-integration prose (see note above)
 }
 
 // wcLines counts lines the way `wc -l` does: the number of newline bytes.
