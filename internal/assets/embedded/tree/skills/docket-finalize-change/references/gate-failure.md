@@ -45,8 +45,9 @@ effect. Report bodies are redaction-only, never echoed into a result document.
    `gate.drive.advance` operation with `--drive-id <id> --owner-gen <gen>` one slice per call until
    a terminal disposition, under `docket-build`'s gate-run posture. The `--owner finalize` drive
    runs `finalize.test_command` and charges no build attempt. A `PASSED` drive whose head equals
-   the repaired head feeds the `evidence.record` operation with `--id <id> --run <raw run dir from
-   the PASSED document> --head <repaired head>`; `FAILED` returns to repair within that budget;
+   the repaired head feeds the `evidence.record` operation with `--owner finalize --id <id> --run
+   <raw run dir from the PASSED document> --head <repaired head>`, which records
+   `finalize.test_command`; `FAILED` returns to repair within that budget;
    `HALTED`, a `stuck` repair, or a repair that cannot reach green within that budget is `halted`.
 
 ## Sign-off on auto-authored repairs
