@@ -1043,6 +1043,15 @@ var alignmentContracts = []proseContract{
 		absent: []string{"skills.brainstorm"}},
 	{sentinel: "align_0502_fixed_roles", file: "skills/docket-implement-next/references/fix-pass.md",
 		absent: []string{"skills.build: auto"}},
+	// 0502: the convention's configuration contract matches the schema.
+	{sentinel: "align_0502_config_contract", file: "skills/docket-convention/SKILL.md",
+		present: []string{"never from `origin/HEAD`", "# local | off", "max_attempts: 4"},
+		absent: []string{"fallback main", "repair `origin/HEAD`", "`ci` polls GitHub checks",
+			"skip_results_only_delta", "agents.yaml", "terminal_publish:", "auto_capture:", "auto_groom:"}},
+	{sentinel: "align_0502_config_contract", file: "skills/docket-implement-next/references/edge-paths.md",
+		absent: []string{"skip_results_only_delta"}},
+	{sentinel: "align_0502_config_contract", file: "skills/docket-convention/references/agent-layer.md",
+		absent: []string{"agents.yaml"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {

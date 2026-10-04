@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:012d6932c1db390d16085bd4c6fdc7d522c146fc288e4ce2b86412ebdad3fa14",
+  "asset_set_id": "sha256:977c346b47f442c7f995412c018856241c0dfeaddd76fbda341d7ab48fce016b",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -322,15 +322,15 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 54690,
-      "sha256": "5a79439ef7a438465777bda345077dd427a0879e91d0ad0a0d1582178dd62c20"
+      "size": 53402,
+      "sha256": "c2767bbca23a9c5bf4e0611d1c7eba3c8c3b98076d9ecf60e9221916a639b76b"
     },
     {
       "path": "skills/docket-convention/references/agent-layer.md",
       "role": "skill",
       "mode": 420,
-      "size": 17067,
-      "sha256": "63491fc939532feafe8aeddb3bc7a7b8feac1a164fd5af693915393104ffd6e1"
+      "size": 17031,
+      "sha256": "4310060edde1eecded459738f9021c9e07511fc7bc134dabd328706528524dda"
     },
     {
       "path": "skills/docket-convention/references/close-out.md",
@@ -385,8 +385,8 @@
       "path": "skills/docket-implement-next/references/edge-paths.md",
       "role": "skill",
       "mode": 420,
-      "size": 10444,
-      "sha256": "1dcf855ff00e63a084b719c514101a13e1a37c6d2d592866ce07caf50f6b35a7"
+      "size": 10222,
+      "sha256": "0f23ff6ce31baca4ba159e2f7f4fd1a1e2101c57c85ac96993faf589988c92aa"
     },
     {
       "path": "skills/docket-implement-next/references/fix-pass.md",
