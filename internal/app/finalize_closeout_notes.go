@@ -18,10 +18,11 @@ import (
 // CloseoutNotes is the normalized optional payload `finalize closeout`
 // accepts: exactly two ordered lists. Nil and empty lists are canonically
 // identical (both normalize to nil), so "no input" and "explicitly empty
-// input" key the same promise.
+// input" key the same promise. It is also the JSON file `finalize closeout
+// --input` reads, and that operation's published request.
 type CloseoutNotes struct {
-	VerificationOutcomes []string
-	LateFindings         []string
+	VerificationOutcomes []string `json:"verification_outcomes"`
+	LateFindings         []string `json:"late_findings"`
 }
 
 // Empty reports whether the notes carry no entries.

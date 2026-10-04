@@ -115,6 +115,14 @@ type RetargetChildrenRequest struct {
 	Children []AuthorizedChild `json:"children"`
 }
 
+// RetargetChildrenInput is the JSON file `finalize retarget-children --input`
+// reads: the exact human-authorized child set from context finalize. The parent
+// id and record revision ride on flags; the CLI assembles both into
+// RetargetChildrenRequest. This type is the operation's published request.
+type RetargetChildrenInput struct {
+	Children []AuthorizedChild `json:"children"`
+}
+
 // ChildRetargetOutcome is one live child's disposition: its id, the PR number
 // acted on (when one was), the base it now targets (on a retarget), and the closed
 // outcome token.

@@ -121,6 +121,14 @@ type HaltRequest struct {
 	Report   string `json:"report" docket:"required"`
 }
 
+// ChangeHaltInput is the JSON file `change halt --input` reads: the authored
+// run-halted report, section body only (the operation owns the "## Run halted"
+// heading and dated sub-heading). The id and revision ride on flags; the CLI
+// assembles both into HaltRequest. This type is the operation's published request.
+type ChangeHaltInput struct {
+	Report string `json:"report" docket:"required"`
+}
+
 // ResumeRequest is the closed request for `change resume-halted`. ID and Revision
 // pin the exact marked record; AcknowledgeQuiescent is the explicit human
 // acknowledgement that the prior worker is quiescent — without it the operation

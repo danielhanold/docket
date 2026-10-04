@@ -42,6 +42,19 @@ func TestRequiredTagMatchesValidator(t *testing.T) {
 		{"change.reconcile", ChangeReconcileRequest{}, func() []StatusFinding {
 			return validateChangeReconcileShape(ChangeReconcileRequest{})
 		}},
+		{"finalize.block --input", FinalizeBlockInput{}, func() []StatusFinding {
+			return validateBlockShape(BlockRequest{ID: 1, Revision: "r", PRNumber: 1, Attempt: "a", Reason: "x", Head: "h"})
+		}},
+		{"change.halt --input", ChangeHaltInput{}, func() []StatusFinding {
+			return validateHaltShape(HaltRequest{ID: 1, Revision: "r"})
+		}},
+		{"finalize.retarget-children --input", RetargetChildrenInput{}, func() []StatusFinding {
+			return validateRetargetShape(RetargetChildrenRequest{ID: 1, Revision: "r"})
+		}},
+		{"finalize.closeout --input", CloseoutNotes{}, func() []StatusFinding {
+			_, findings := normalizeCloseoutNotes(CloseoutNotes{})
+			return findings
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.op, func(t *testing.T) {
@@ -53,6 +66,9 @@ func TestRequiredTagMatchesValidator(t *testing.T) {
 				}
 			}
 			sort.Strings(got)
+			if got == nil {
+				got = []string{}
+			}
 			want := requiredJSONKeys(tc.prototype)
 			if !reflect.DeepEqual(got, want) {
 				t.Errorf("op %s: empty-request findings name %v; docket:\"required\" tags mark %v", tc.op, got, want)

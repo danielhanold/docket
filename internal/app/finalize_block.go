@@ -152,6 +152,16 @@ type BlockRequest struct {
 	Remedy   string `json:"remedy"`
 }
 
+// FinalizeBlockInput is the JSON file `finalize block --input` reads: the
+// authored report that crosses to the PR comment and the authored remedy
+// recorded in the marker. The scalar identities (id, revision, pr number,
+// attempt, reason, head) ride on flags; the CLI assembles both into
+// BlockRequest. This type is the operation's published request.
+type FinalizeBlockInput struct {
+	Report string `json:"report" docket:"required"`
+	Remedy string `json:"remedy"`
+}
+
 // ClearBlockRequest is the closed request for `finalize clear-block`. ID and
 // Revision pin the exact submitted record; Head is the exact current feature head
 // the reprobe must confirm; PRNumber is the canonical PR whose open state is
