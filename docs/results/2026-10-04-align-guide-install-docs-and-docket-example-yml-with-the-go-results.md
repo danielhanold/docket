@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0464 — Align the human-facing docs and example config with the docket binary](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md)**
+> ↩ **[Change 0464 — Align the human-facing docs and example config with the docket binary](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md)**
 <!-- docket:backlink:end -->
 # Align the human-facing docs and example config with the docket binary — Results
 
