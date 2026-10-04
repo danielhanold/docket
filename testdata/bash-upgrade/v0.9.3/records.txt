@@ -1,0 +1,14 @@
+docket:docs/adrs/0001-greeting-script-is-posix-sh.md
+docket:docs/changes/active/0003-add-a-farewell-script.md
+docket:docs/changes/active/0004-add-a-license-file.md
+docket:docs/changes/active/0005-read-the-default-greeting-name-from-the-environment.md
+docket:docs/changes/archive/2026-10-04-0001-add-a-greeting-script.md
+docket:docs/changes/archive/2026-10-04-0002-document-the-greeting-script.md
+docket:docs/changes/learnings/posix-sh-means-no-arrays.md
+docket:docs/superpowers/specs/2026-10-04-add-a-farewell-script-design.md
+docket:docs/superpowers/specs/2026-10-04-add-a-greeting-script-design.md
+main:docs/adrs/0001-greeting-script-is-posix-sh.md
+main:docs/changes/archive/2026-10-04-0001-add-a-greeting-script.md
+main:docs/changes/learnings/posix-sh-means-no-arrays.md
+main:docs/superpowers/specs/2026-10-04-add-a-farewell-script-design.md
+main:docs/superpowers/specs/2026-10-04-add-a-greeting-script-design.md

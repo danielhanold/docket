@@ -1,0 +1,17 @@
+# clone-config.txt — actions the restore replays, in order, on a fresh clone of origin.bundle.
+# Grammar: `config <key> <value>` (git config --local) | `worktree <path> <branch>` (git worktree
+# add, path relative to the clone root) | `hooks-off <path>` (what disable-worktree-hooks.sh does to
+# that worktree: create <git-common-dir>/docket/empty-hooks and set the WORKTREE-scoped
+# core.hooksPath to it). Recorded from the v0.9.3 sandbox clone; see PROVENANCE.md.
+#
+# migrate-to-docket.sh made the local `docket` branch (`git worktree add --orphan -b docket` in a
+# temp worktree, then `git push -u origin docket`, which set branch.docket.remote/merge). The tag's
+# `docket.sh preflight` later ran `git worktree add .docket docket` on that branch. On a fresh
+# clone, git's DWIM creates the same local `docket` tracking `origin/docket`.
+worktree .docket docket
+# disable-worktree-hooks.sh (first run by migrate-to-docket.sh on its temp worktree, then by
+# preflight on .docket) turned on per-worktree config ...
+config extensions.worktreeConfig true
+# ... and set the worktree-scoped key on .docket:
+# `git -C .docket config --worktree core.hooksPath <clone>/.git/docket/empty-hooks`.
+hooks-off .docket
