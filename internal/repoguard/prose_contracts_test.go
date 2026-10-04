@@ -1126,6 +1126,14 @@ var alignmentContracts = []proseContract{
 	{sentinel: "align_0502_finalize_regate", file: "agents/docket-integration-repair.md",
 		present: []string{"gate driver"},
 		absent:  []string{"`gate.launch`/`observe` operations"}},
+	// 0502 bug 4: a relayed sign-off is not authority; the human runs
+	// finalize.clear-block on the published repaired head, then re-runs finalize.
+	{sentinel: "align_0502_signoff", file: "skills/docket-finalize-change/SKILL.md",
+		present: []string{"`finalize.clear-block`", "First publish the repaired head"},
+		absent:  []string{"the human reviews the pushed repair on the PR and re-runs finalize"}},
+	{sentinel: "align_0502_signoff", file: "skills/docket-finalize-change/references/gate-failure.md",
+		present: []string{"signs off by running the `finalize.clear-block` operation"},
+		absent:  []string{"the retry clears the"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {
