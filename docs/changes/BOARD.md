@@ -1,18 +1,13 @@
 # Backlog
 
-**521 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 355 done · 🗑️ 139 killed
+**521 changes** — 🔵 2 built · 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 355 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md) | `fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin` |  |
-
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0520](active/0520-make-the-published-finalize-request-schemas-match-what-input.md) | Make every published request schema match the JSON file the operation reads | `low` | `fix` | [#385](https://github.com/danielhanold/docket/pull/385) | awaiting merge |
+| [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | [#386](https://github.com/danielhanold/docket/pull/386) | awaiting merge |
 
 ## 🟣 Groomed (3)
 

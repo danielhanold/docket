@@ -2,7 +2,7 @@
 id: 517
 slug: 'make-evidence-record-certify-a-finalize-re-test-with-the-fin'
 title: 'Make evidence.record certify a finalize re-test with the finalize gate settings'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/386'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T16:11:40Z'
