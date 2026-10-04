@@ -35,6 +35,7 @@ reconciled: false
 
 ## Why
 
+
 The Go-only source cutover is complete and many changes have merged since, but no Go binary has ever been published. The latest tag is still `v0.9.3`, a Bash-era release with no assets.
 
 This change takes one reviewed commit of `main` to the first public pre-release, **`v1.0.0-alpha.1`**, with a human present at each irreversible step. It is aimed at the few known Bash-era users, and they upgrade with change 0511's guide.
@@ -44,7 +45,7 @@ On 2026-10-04 the human re-scoped the release:
 - Claude Code is the only human-tested harness. Cursor follows in alpha.2 (0512) and OpenCode in alpha.3 (0513); Codex stays paused.
 - The fresh macOS user, the rollback rehearsal, the recorded smoke evidence, the separate upgrade probes, and the backlog audit are dropped.
 
-The linked spec was rewritten to match. The three older protocol sections below `## Out of scope` (*Human-attended protocol to preserve*, *Required evidence*, *Failure and retry boundary*) predate both grooms. **The linked spec supersedes them.**
+The linked spec was rewritten to match and is the authoritative release protocol.
 
 ## What changes
 
