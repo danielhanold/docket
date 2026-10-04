@@ -2,7 +2,7 @@
 id: 497
 slug: 're-running-finalize-can-start-a-second-suite-beside-an-orpha'
 title: 'Re-running finalize can start a second suite beside an orphaned one'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-03'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/re-running-finalize-can-start-a-second-suite-beside-an-orpha'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T09:00:39Z'
 ---
 
 ## Artifacts
