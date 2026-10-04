@@ -20,12 +20,12 @@ func appPkgPath(t *testing.T) string {
 	return p
 }
 
-// astRequestResultTypeNames parses every non-test .go file in package app and
-// returns the names of every exported struct type whose name ends in "Request" or
-// "Result". This is the population the registry must account for — it is derived
-// from the source AST by shape, never an enumerated list, so a newly declared
-// *Request/*Result type is discovered here automatically.
-func astRequestResultTypeNames(t *testing.T) map[string]bool {
+// astResultTypeNames parses every non-test .go file in package app and returns
+// the names of every exported struct type whose name ends in "Result". This is
+// the result population the registry must account for — it is derived from the
+// source AST by shape, never an enumerated list, so a newly declared *Result type
+// is discovered here automatically.
+func astResultTypeNames(t *testing.T) map[string]bool {
 	t.Helper()
 	dir := appPackageDir(t)
 	fset := token.NewFileSet()
@@ -55,7 +55,7 @@ func astRequestResultTypeNames(t *testing.T) map[string]bool {
 					if !ts.Name.IsExported() {
 						continue
 					}
-					if hasSuffix(name, "Request") || hasSuffix(name, "Result") {
+					if hasSuffix(name, "Result") {
 						out[name] = true
 					}
 				}
@@ -63,7 +63,7 @@ func astRequestResultTypeNames(t *testing.T) map[string]bool {
 		}
 	}
 	if len(out) == 0 {
-		t.Fatal("astRequestResultTypeNames found no *Request/*Result types; the AST walk is broken")
+		t.Fatal("astResultTypeNames found no *Result types; the AST walk is broken")
 	}
 	return out
 }
@@ -99,15 +99,11 @@ func collectReachableAppStructs(t reflect.Type, appPkg string, seen map[reflect.
 	}
 }
 
-// excludedRequestTypes and excludedResultTypes are the *Request/*Result types the
-// registry deliberately does not account for, each with a stated reason. Every
-// exclusion is checked to be a REAL AST type and to be genuinely unreachable, so a
-// stale exclusion (its type deleted, or the type later wired into an op) reddens
-// here rather than silently hiding a real gap.
-var excludedRequestTypes = map[string]string{
-	"LocalGateRequest": "internal finalize gate seam input (RunLocalGate); no catalog op decodes or assembles it",
-}
-
+// excludedResultTypes are the *Result types the registry deliberately does not
+// account for, each with a stated reason. Every exclusion is checked to be a REAL
+// AST type and to be genuinely unreachable, so a stale exclusion (its type
+// deleted, or the type later wired into an op) reddens here rather than silently
+// hiding a real gap.
 var excludedResultTypes = map[string]string{
 	"CLIErrorResult":          "pre-dispatch cli parse/usage failure result (CLIError); not tied to a catalog operation id",
 	"LocalGateResult":         "internal finalize gate seam return (RunLocalGate); carries no Envelope, is not an op document",
@@ -116,15 +112,20 @@ var excludedResultTypes = map[string]string{
 	"SchemaResult":            "the schema document's own container; self-referential (FieldDescriptor nests []FieldDescriptor) and carries map[string]Vocabulary, so it is unreflectable and deliberately unbound — the wired `schema` op is the cli-side selfReferentialSchemaOps exception",
 }
 
-// TestEveryRequestAndResultStructIsBound is the two-direction registry-accounting
-// guard. Forward: every exported *Request/*Result struct in package app is
-// reachable from OperationBindings() — bound directly or nested inside a bound
-// prototype (walked by reflection) — or is in a documented exclusion set. A new
-// op's structs without a binding redden here. Reverse: every binding's prototypes
-// ARE package-app types named *Request/*Result (and every Result embeds Envelope),
-// so a binding pointing at a helper struct reddens. Counts are logged so a gross
-// population collapse is visible.
-func TestEveryRequestAndResultStructIsBound(t *testing.T) {
+// TestEveryResultStructIsBound is the two-direction registry-accounting guard.
+// Forward: every exported *Result struct in package app is reachable from
+// OperationBindings() — bound directly or nested inside a bound prototype (walked
+// by reflection) — or is in the documented exclusion set. A new op's result
+// without a binding reddens here. Reverse: every binding's Result is a
+// package-app *Result struct that embeds Envelope, and every non-nil Request is a
+// struct declared in package app, so a binding pointing elsewhere reddens. Counts
+// are logged so a gross population collapse is visible.
+//
+// Request accounting lives in TestPublishedRequestIsTheDecodedJSONFile
+// (internal/cli), which proves each bound Request is exactly the JSON file type
+// its command decodes. A flag-assembled *Request struct is deliberately unbound,
+// so no *Request name suffix is required or accounted for here.
+func TestEveryResultStructIsBound(t *testing.T) {
 	appPkg := appPkgPath(t)
 	bindings := OperationBindings()
 
@@ -138,49 +139,40 @@ func TestEveryRequestAndResultStructIsBound(t *testing.T) {
 		collectReachableAppStructs(reflect.TypeOf(b.Result), appPkg, seen, reachable)
 	}
 
-	astNames := astRequestResultTypeNames(t)
-	t.Logf("accounting: %d bindings, %d AST *Request/*Result types, %d reachable app structs, %d excluded",
-		len(bindings), len(astNames), len(reachable), len(excludedRequestTypes)+len(excludedResultTypes))
+	astNames := astResultTypeNames(t)
+	t.Logf("accounting: %d bindings, %d AST *Result types, %d reachable app structs, %d excluded",
+		len(bindings), len(astNames), len(reachable), len(excludedResultTypes))
 
-	// Forward: every AST *Request/*Result type is reachable or excluded.
+	// Forward: every AST *Result type is reachable or excluded.
 	for name := range astNames {
 		if reachable[name] {
 			continue
 		}
-		_, reqExcluded := excludedRequestTypes[name]
-		_, resExcluded := excludedResultTypes[name]
-		if reqExcluded || resExcluded {
+		if _, excluded := excludedResultTypes[name]; excluded {
 			continue
 		}
-		t.Errorf("type %q is an exported *Request/*Result but is neither bound, nested in a bound prototype, nor a documented exclusion", name)
+		t.Errorf("type %q is an exported *Result but is neither bound, nested in a bound prototype, nor a documented exclusion", name)
 	}
 
 	// Exclusions stay honest: each names a real AST type and is genuinely
 	// unreachable (a type later wired into a binding must drop out of the set).
-	for name := range excludedRequestTypes {
-		if !astNames[name] {
-			t.Errorf("excludedRequestTypes names %q, which is not an exported *Request/*Result type in package app — stale exclusion", name)
-		}
-		if reachable[name] {
-			t.Errorf("excludedRequestTypes names %q, but it IS reachable from a binding — remove the exclusion", name)
-		}
-	}
 	for name := range excludedResultTypes {
 		if !astNames[name] {
-			t.Errorf("excludedResultTypes names %q, which is not an exported *Request/*Result type in package app — stale exclusion", name)
+			t.Errorf("excludedResultTypes names %q, which is not an exported *Result type in package app — stale exclusion", name)
 		}
 		if reachable[name] {
 			t.Errorf("excludedResultTypes names %q, but it IS reachable from a binding — remove the exclusion", name)
 		}
 	}
 
-	// Reverse: every binding's prototypes are package-app *Request/*Result types,
-	// and every Result embeds Envelope.
+	// Reverse: every non-nil Request is a package-app struct (no name suffix is
+	// required: the bound type is the decoded JSON file type), every Result is a
+	// package-app *Result type, and every Result embeds Envelope.
 	for _, b := range bindings {
 		if b.Request != nil {
 			rt := reflect.TypeOf(b.Request)
-			if rt.Kind() != reflect.Struct || rt.PkgPath() != appPkg || !hasSuffix(rt.Name(), "Request") {
-				t.Errorf("binding %q Request is %v, want a package-app *Request struct", b.ID, rt)
+			if rt.Kind() != reflect.Struct || rt.PkgPath() != appPkg {
+				t.Errorf("binding %q Request is %v, want a struct declared in package app", b.ID, rt)
 			}
 		}
 		rt := reflect.TypeOf(b.Result)

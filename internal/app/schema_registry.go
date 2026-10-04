@@ -7,10 +7,13 @@ import (
 )
 
 // OperationBinding joins one capabilities operation id to the live Go types its
-// handler decodes and returns. Request is nil for leaves that take no JSON body
-// (a pure read, or an op whose scalar flags assemble no *Request struct). The id
-// is the SAME stable id the capability catalog uses — the join key across the two
-// surfaces.
+// handler decodes and returns. Request is exactly the JSON document the
+// operation strictly decodes from a file (`--request`, `--input`, or `--body`),
+// or nil when it decodes none. Scalar flags are described only by the
+// capability catalog's `signature`, and non-JSON file inputs (the canonical
+// build-evidence record, `agent.enter`'s plain-text request) are not requests.
+// The id is the SAME stable id the capability catalog uses — the join key across
+// the two surfaces.
 type OperationBinding struct {
 	ID      string
 	Request any // prototype struct value, e.g. ChangeBlockRequest{}
@@ -20,11 +23,15 @@ type OperationBinding struct {
 // operationBindings is the authoritative registry, one entry per capabilities
 // catalog operation that emits a protocol-v1 document. It is DERIVED from the
 // live catalog (`docket capabilities --json`) and each cli command's RunE, never
-// hand-guessed: every entry's Request is the *Request struct that handler decodes
-// or assembles (nil when it assembles none), and every Result is the
-// Envelope-embedding document its app function returns. Each derivation names the
-// app function symbol it was read from — a symbol name, greppable and drift-
-// visible, never a line number (AGENTS.md, ADR-0054).
+// hand-guessed: every entry's Request is exactly the JSON document the operation
+// strictly decodes from a file (`--request`, `--input`, or `--body`), or nil when
+// it decodes none, and every Result is the Envelope-embedding document its app
+// function returns. A flag-assembled *Request struct is an internal app input and
+// is never bound. TestPublishedRequestIsTheDecodedJSONFile (internal/cli) proves
+// each binding's Request is the type the command declares through
+// declareJSONFile. Each derivation names the app function symbol it was read
+// from — a symbol name, greppable and drift-visible, never a line number
+// (AGENTS.md, ADR-0054).
 //
 // One catalog operation is deliberately absent: `development.test` emits NO
 // protocol document — its RunE (runDevelopmentTest) streams the suite report and
@@ -35,83 +42,83 @@ type OperationBinding struct {
 // The list is declared sorted by id; TestOperationBindingsSortedUniqueAndDescribable
 // holds that invariant.
 var operationBindings = []OperationBinding{
-	{ID: "adr.record", Request: ADRRecordRequest{}, Result: ADRResult{}},                                           // ADRRecordOp
-	{ID: "adr.reverse", Request: ADRReplaceRequest{}, Result: ADRResult{}},                                         // ADRReverse
-	{ID: "adr.supersede", Request: ADRReplaceRequest{}, Result: ADRResult{}},                                       // ADRSupersede
-	{ID: "agent.enter", Request: nil, Result: AgentEnterResult{}},                                                  // AgentEnter
-	{ID: "artifact.backlink", Request: ArtifactBacklinkRequest{}, Result: ArtifactBacklinkResult{}},                // ArtifactBacklink
-	{ID: "capabilities", Request: nil, Result: CapabilitiesResult{}},                                               // Capabilities
-	{ID: "change.attach-plan", Request: ChangeAttachRequest{}, Result: ChangeAttachResult{}},                       // ChangeAttachPlan
-	{ID: "change.attach-results", Request: ChangeAttachRequest{}, Result: ChangeAttachResult{}},                    // ChangeAttachResults
-	{ID: "change.block", Request: ChangeBlockRequest{}, Result: ChangeLifecycleResult{}},                           // ChangeBlock
-	{ID: "change.claim", Request: ChangeClaimRequest{}, Result: ChangeClaimResult{}},                               // ChangeClaim
-	{ID: "change.create", Request: ChangeCreateRequest{}, Result: ChangeCreateResult{}},                            // ChangeCreate
-	{ID: "change.defer", Request: ChangeDeferRequest{}, Result: ChangeLifecycleResult{}},                           // ChangeDefer
-	{ID: "change.groom", Request: ChangeGroomRequest{}, Result: ChangeGroomResult{}},                               // ChangeGroom
-	{ID: "change.halt", Request: HaltRequest{}, Result: HaltResult{}},                                              // ChangeHalt
-	{ID: "change.kill", Request: ChangeKillRequest{}, Result: ChangeKillResult{}},                                  // ChangeKill
-	{ID: "change.mark-implemented", Request: MarkImplementedRequest{}, Result: ChangeLifecycleResult{}},            // ChangeMarkImplemented
-	{ID: "change.reclaim", Request: ChangeReclaimRequest{}, Result: ChangeReclaimResult{}},                         // ChangeReclaim
-	{ID: "change.reconcile", Request: ChangeReconcileRequest{}, Result: ChangeReconcileResult{}},                   // ChangeReconcile
-	{ID: "change.refresh-claim", Request: ChangeClaimRequest{}, Result: ChangeClaimResult{}},                       // ChangeRefreshClaim
-	{ID: "change.relink", Request: RelinkRequest{}, Result: RelinkResult{}},                                        // Relink
-	{ID: "change.resume-halted", Request: ResumeRequest{}, Result: HaltResult{}},                                   // ChangeResumeHalted
-	{ID: "change.revive", Request: ChangeReviveRequest{}, Result: ChangeLifecycleResult{}},                         // ChangeRevive
-	{ID: "change.unblock", Request: ChangeUnblockRequest{}, Result: ChangeLifecycleResult{}},                       // ChangeUnblock
-	{ID: "context.finalize", Request: FinalizeContextRequest{}, Result: FinalizeContextResult{}},                   // ContextFinalize
-	{ID: "context.implementation", Request: ImplementationContextRequest{}, Result: ImplementationContextResult{}}, // ContextImplementation
-	{ID: "development.install", Request: nil, Result: InstallResult{}},                                             // RunDevelopmentInstall
-	{ID: "diagnostic.config", Request: nil, Result: ConfigInspectionResult{}},                                      // DiagnosticConfig
-	{ID: "diagnostic.runtime", Request: nil, Result: RuntimeResult{}},                                              // DiagnosticRuntime
-	{ID: "evidence.recertify", Request: EvidenceRecertifyRequest{}, Result: EvidenceRecertifyResult{}},             // EvidenceRecertify
-	{ID: "evidence.record", Request: EvidenceRecordRequest{}, Result: EvidenceOpResult{}},                          // EvidenceRecord
-	{ID: "evidence.verify", Request: EvidenceVerifyRequest{}, Result: EvidenceOpResult{}},                          // EvidenceVerify
-	{ID: "finalize.block", Request: BlockRequest{}, Result: BlockResult{}},                                         // FinalizeBlock
-	{ID: "finalize.cleanup", Request: nil, Result: CleanupOpResult{}},                                              // FinalizeCleanup
-	{ID: "finalize.clear-block", Request: ClearBlockRequest{}, Result: BlockResult{}},                              // FinalizeClearBlock
-	{ID: "finalize.closeout", Request: nil, Result: CloseoutResult{}},                                              // FinalizeCloseout
-	{ID: "finalize.merge", Request: FinalizeMergeRequest{}, Result: FinalizeMergeResult{}},                         // FinalizeMerge
-	{ID: "finalize.publish", Request: FinalizePublishRequest{}, Result: FinalizePublishResult{}},                   // FinalizePublish
-	{ID: "finalize.rebase", Request: FinalizeRebaseRequest{}, Result: FinalizeRebaseResult{}},                      // FinalizeRebase
-	{ID: "finalize.rebase-abort", Request: nil, Result: FinalizeRebaseResult{}},                                    // FinalizeRebaseAbort
-	{ID: "finalize.rebase-continue", Request: nil, Result: FinalizeRebaseResult{}},                                 // FinalizeRebaseContinue
-	{ID: "finalize.resolver-reserve", Request: nil, Result: FinalizeReserveResult{}},                               // FinalizeResolverReserve
-	{ID: "finalize.retarget-children", Request: RetargetChildrenRequest{}, Result: RetargetChildrenResult{}},       // FinalizeRetargetChildren
-	{ID: "gate.cleanup", Request: nil, Result: CleanupOpResult{}},                                                  // GateCleanup
-	{ID: "gate.drive.advance", Request: nil, Result: GateDriveResult{}},                                            // GateDriveService.Advance
-	{ID: "gate.drive.claim", Request: nil, Result: GateDriveResult{}},                                              // GateDriveService.Claim
-	{ID: "gate.drive.handoff", Request: nil, Result: GateDriveResult{}},                                            // GateDriveService.Handoff
-	{ID: "gate.drive.start", Request: GateDriveStartRequest{}, Result: GateDriveResult{}},                          // GateDriveService.Start
-	{ID: "gate.launch", Request: nil, Result: GateResult{}},                                                        // GateLaunch
-	{ID: "gate.observe", Request: nil, Result: GateResult{}},                                                       // GateObserve
-	{ID: "gate.recover", Request: nil, Result: GateRecoverResult{}},                                                // GateRecover
-	{ID: "gate.stop", Request: nil, Result: GateResult{}},                                                          // GateStop
-	{ID: "install", Request: nil, Result: InstallResult{}},                                                         // RunInstall
-	{ID: "install.check", Request: nil, Result: InstallResult{}},                                                   // RunInstallCheck
-	{ID: "install.collect", Request: nil, Result: InstallResult{}},                                                 // RunInstallCollect
-	{ID: "learning.record", Request: LearningRecordRequest{}, Result: LearningResult{}},                            // LearningRecordOp
-	{ID: "learning.update", Request: LearningUpdateRequest{}, Result: LearningResult{}},                            // LearningUpdate
-	{ID: "maintenance.preflight", Request: nil, Result: MaintenancePreflightResult{}},                              // MaintenancePreflight
-	{ID: "maintenance.sweep", Request: nil, Result: MaintenanceResult{}},                                           // MaintenanceSweep
-	{ID: "pr.publish", Request: PRPublishRequest{}, Result: PRPublishResult{}},                                     // PRPublish
-	{ID: "repository.check", Request: nil, Result: RepositoryCheckResult{}},                                        // RunRepositoryCheck
-	{ID: "repository.configure-tests", Request: nil, Result: RepositoryOpResult{}},                                 // RunRepositoryConfigureTests
-	{ID: "repository.init", Request: nil, Result: RepositoryOpResult{}},                                            // RunRepositoryInit
-	{ID: "repository.migrate", Request: nil, Result: RepositoryMigrateResult{}},                                    // RunRepositoryMigrate
-	{ID: "repository.prepare", Request: nil, Result: RepositoryPrepareResult{}},                                    // RunRepositoryPrepare
-	{ID: "repository.repair", Request: nil, Result: RepositoryRepairResult{}},                                      // RunRepositoryRepair
-	{ID: "repository.sync-integration", Request: nil, Result: RepositorySyncResult{}},                              // RunRepositorySyncIntegration
-	{ID: "run.cancel", Request: nil, Result: RunCancelResult{}},                                                    // RunCancel
-	{ID: "run.continue", Request: nil, Result: RunContinueResult{}},                                                // RunContinue
-	{ID: "run.start", Request: nil, Result: RunStartResult{}},                                                      // RunStart
-	{ID: "run.verdict", Request: nil, Result: RunVerdictResult{}},                                                  // RunVerdict (observe mode returns RunVerdictObserveResult)
-	{ID: "run.verify", Request: RunVerifyRequest{}, Result: RunVerifyResult{}},                                     // RunVerify
-	{ID: "status", Request: nil, Result: StatusResult{}},                                                           // Status
-	{ID: "uninstall", Request: nil, Result: InstallResult{}},                                                       // RunUninstall
-	{ID: "version", Request: nil, Result: VersionResult{}},                                                         // Version
-	{ID: "workspace.inspect", Request: WorkspaceIDRequest{}, Result: WorkspaceOpResult{}},                          // WorkspaceInspect
-	{ID: "workspace.prepare", Request: WorkspaceIDRequest{}, Result: WorkspaceOpResult{}},                          // WorkspacePrepare
-	{ID: "workspace.publish", Request: WorkspacePublishRequest{}, Result: WorkspaceOpResult{}},                     // WorkspacePublish
+	{ID: "adr.record", Request: ADRRecordRequest{}, Result: ADRResult{}},                                   // ADRRecordOp
+	{ID: "adr.reverse", Request: ADRReplaceRequest{}, Result: ADRResult{}},                                 // ADRReverse
+	{ID: "adr.supersede", Request: ADRReplaceRequest{}, Result: ADRResult{}},                               // ADRSupersede
+	{ID: "agent.enter", Request: nil, Result: AgentEnterResult{}},                                          // AgentEnter
+	{ID: "artifact.backlink", Request: nil, Result: ArtifactBacklinkResult{}},                              // ArtifactBacklink
+	{ID: "capabilities", Request: nil, Result: CapabilitiesResult{}},                                       // Capabilities
+	{ID: "change.attach-plan", Request: nil, Result: ChangeAttachResult{}},                                 // ChangeAttachPlan
+	{ID: "change.attach-results", Request: nil, Result: ChangeAttachResult{}},                              // ChangeAttachResults
+	{ID: "change.block", Request: ChangeBlockRequest{}, Result: ChangeLifecycleResult{}},                   // ChangeBlock
+	{ID: "change.claim", Request: nil, Result: ChangeClaimResult{}},                                        // ChangeClaim
+	{ID: "change.create", Request: ChangeCreateRequest{}, Result: ChangeCreateResult{}},                    // ChangeCreate
+	{ID: "change.defer", Request: ChangeDeferRequest{}, Result: ChangeLifecycleResult{}},                   // ChangeDefer
+	{ID: "change.groom", Request: ChangeGroomRequest{}, Result: ChangeGroomResult{}},                       // ChangeGroom
+	{ID: "change.halt", Request: ChangeHaltInput{}, Result: HaltResult{}},                                  // ChangeHalt
+	{ID: "change.kill", Request: ChangeKillRequest{}, Result: ChangeKillResult{}},                          // ChangeKill
+	{ID: "change.mark-implemented", Request: nil, Result: ChangeLifecycleResult{}},                         // ChangeMarkImplemented
+	{ID: "change.reclaim", Request: nil, Result: ChangeReclaimResult{}},                                    // ChangeReclaim
+	{ID: "change.reconcile", Request: ChangeReconcileRequest{}, Result: ChangeReconcileResult{}},           // ChangeReconcile
+	{ID: "change.refresh-claim", Request: nil, Result: ChangeClaimResult{}},                                // ChangeRefreshClaim
+	{ID: "change.relink", Request: nil, Result: RelinkResult{}},                                            // Relink
+	{ID: "change.resume-halted", Request: nil, Result: HaltResult{}},                                       // ChangeResumeHalted
+	{ID: "change.revive", Request: ChangeReviveRequest{}, Result: ChangeLifecycleResult{}},                 // ChangeRevive
+	{ID: "change.unblock", Request: ChangeUnblockRequest{}, Result: ChangeLifecycleResult{}},               // ChangeUnblock
+	{ID: "context.finalize", Request: nil, Result: FinalizeContextResult{}},                                // ContextFinalize
+	{ID: "context.implementation", Request: nil, Result: ImplementationContextResult{}},                    // ContextImplementation
+	{ID: "development.install", Request: nil, Result: InstallResult{}},                                     // RunDevelopmentInstall
+	{ID: "diagnostic.config", Request: nil, Result: ConfigInspectionResult{}},                              // DiagnosticConfig
+	{ID: "diagnostic.runtime", Request: nil, Result: RuntimeResult{}},                                      // DiagnosticRuntime
+	{ID: "evidence.recertify", Request: nil, Result: EvidenceRecertifyResult{}},                            // EvidenceRecertify
+	{ID: "evidence.record", Request: nil, Result: EvidenceOpResult{}},                                      // EvidenceRecord
+	{ID: "evidence.verify", Request: nil, Result: EvidenceOpResult{}},                                      // EvidenceVerify
+	{ID: "finalize.block", Request: FinalizeBlockInput{}, Result: BlockResult{}},                           // FinalizeBlock
+	{ID: "finalize.cleanup", Request: nil, Result: CleanupOpResult{}},                                      // FinalizeCleanup
+	{ID: "finalize.clear-block", Request: nil, Result: BlockResult{}},                                      // FinalizeClearBlock
+	{ID: "finalize.closeout", Request: CloseoutNotes{}, Result: CloseoutResult{}},                          // FinalizeCloseout
+	{ID: "finalize.merge", Request: nil, Result: FinalizeMergeResult{}},                                    // FinalizeMerge
+	{ID: "finalize.publish", Request: nil, Result: FinalizePublishResult{}},                                // FinalizePublish
+	{ID: "finalize.rebase", Request: nil, Result: FinalizeRebaseResult{}},                                  // FinalizeRebase
+	{ID: "finalize.rebase-abort", Request: ResolverReport{}, Result: FinalizeRebaseResult{}},               // FinalizeRebaseAbort
+	{ID: "finalize.rebase-continue", Request: ResolverReport{}, Result: FinalizeRebaseResult{}},            // FinalizeRebaseContinue
+	{ID: "finalize.resolver-reserve", Request: nil, Result: FinalizeReserveResult{}},                       // FinalizeResolverReserve
+	{ID: "finalize.retarget-children", Request: RetargetChildrenInput{}, Result: RetargetChildrenResult{}}, // FinalizeRetargetChildren
+	{ID: "gate.cleanup", Request: nil, Result: CleanupOpResult{}},                                          // GateCleanup
+	{ID: "gate.drive.advance", Request: nil, Result: GateDriveResult{}},                                    // GateDriveService.Advance
+	{ID: "gate.drive.claim", Request: nil, Result: GateDriveResult{}},                                      // GateDriveService.Claim
+	{ID: "gate.drive.handoff", Request: nil, Result: GateDriveResult{}},                                    // GateDriveService.Handoff
+	{ID: "gate.drive.start", Request: nil, Result: GateDriveResult{}},                                      // GateDriveService.Start
+	{ID: "gate.launch", Request: nil, Result: GateResult{}},                                                // GateLaunch
+	{ID: "gate.observe", Request: nil, Result: GateResult{}},                                               // GateObserve
+	{ID: "gate.recover", Request: nil, Result: GateRecoverResult{}},                                        // GateRecover
+	{ID: "gate.stop", Request: nil, Result: GateResult{}},                                                  // GateStop
+	{ID: "install", Request: nil, Result: InstallResult{}},                                                 // RunInstall
+	{ID: "install.check", Request: nil, Result: InstallResult{}},                                           // RunInstallCheck
+	{ID: "install.collect", Request: nil, Result: InstallResult{}},                                         // RunInstallCollect
+	{ID: "learning.record", Request: LearningRecordRequest{}, Result: LearningResult{}},                    // LearningRecordOp
+	{ID: "learning.update", Request: LearningUpdateRequest{}, Result: LearningResult{}},                    // LearningUpdate
+	{ID: "maintenance.preflight", Request: nil, Result: MaintenancePreflightResult{}},                      // MaintenancePreflight
+	{ID: "maintenance.sweep", Request: nil, Result: MaintenanceResult{}},                                   // MaintenanceSweep
+	{ID: "pr.publish", Request: PRPublishInput{}, Result: PRPublishResult{}},                               // PRPublish
+	{ID: "repository.check", Request: nil, Result: RepositoryCheckResult{}},                                // RunRepositoryCheck
+	{ID: "repository.configure-tests", Request: nil, Result: RepositoryOpResult{}},                         // RunRepositoryConfigureTests
+	{ID: "repository.init", Request: nil, Result: RepositoryOpResult{}},                                    // RunRepositoryInit
+	{ID: "repository.migrate", Request: nil, Result: RepositoryMigrateResult{}},                            // RunRepositoryMigrate
+	{ID: "repository.prepare", Request: nil, Result: RepositoryPrepareResult{}},                            // RunRepositoryPrepare
+	{ID: "repository.repair", Request: nil, Result: RepositoryRepairResult{}},                              // RunRepositoryRepair
+	{ID: "repository.sync-integration", Request: nil, Result: RepositorySyncResult{}},                      // RunRepositorySyncIntegration
+	{ID: "run.cancel", Request: nil, Result: RunCancelResult{}},                                            // RunCancel
+	{ID: "run.continue", Request: nil, Result: RunContinueResult{}},                                        // RunContinue
+	{ID: "run.start", Request: nil, Result: RunStartResult{}},                                              // RunStart
+	{ID: "run.verdict", Request: nil, Result: RunVerdictResult{}},                                          // RunVerdict (observe mode returns RunVerdictObserveResult)
+	{ID: "run.verify", Request: nil, Result: RunVerifyResult{}},                                            // RunVerify
+	{ID: "status", Request: nil, Result: StatusResult{}},                                                   // Status
+	{ID: "uninstall", Request: nil, Result: InstallResult{}},                                               // RunUninstall
+	{ID: "version", Request: nil, Result: VersionResult{}},                                                 // Version
+	{ID: "workspace.inspect", Request: nil, Result: WorkspaceOpResult{}},                                   // WorkspaceInspect
+	{ID: "workspace.prepare", Request: nil, Result: WorkspaceOpResult{}},                                   // WorkspacePrepare
+	{ID: "workspace.publish", Request: nil, Result: WorkspaceOpResult{}},                                   // WorkspacePublish
 }
 
 // OperationBindings returns the complete registry sorted by id. The returned
