@@ -59,3 +59,16 @@ Change 0374 meant finalize's gate to validate against the finalize settings; the
 ### 2026-10-04
 
 Reconciled against origin/main fc719ac6d (0502 merged). `EvidenceRecord` still reads only `build.gate`/`build.test_command`, and `processFinalizeGate.mapTerminalDrive` still calls it with no owner; the seam already carries `owner` (finalize/build). Scope stands unchanged. #520 (in-progress) edits published request schemas and may touch `EvidenceRecordRequest`'s schema descriptor; this change adds an `owner` field, so whichever lands second rebases onto it.
+
+## Run halted
+
+### 2026-10-04
+
+The run stopped at the final certification gate because the machine ran out of disk space. The code is not at fault.
+
+- The build is done: all 4 plan tasks are committed on `fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin`. The full suite passed at f19569cd8d580f25a83563644a04de4c20eda718, and the standard-tier whole-branch review found nothing.
+- The results file was then committed at f5a334f01822627b7d94bf8cccb1a388d1978f57. It is local only: not pushed and not yet attached.
+- The re-gate of that head (drive d1ec29ae055c608a58d9f63db8e53d24, attempt 1) returned FAILED. Only `test_go_race` failed: `TestCrossCompileApprovedTargets` hit `link: mapping output file failed: no space left on device`. The data volume had 703 MiB free.
+- This is not a red suite, so no repair task was started.
+
+To resume: free disk space (for example with `go clean -cache`, once no other suite is running), then resume this change with `change.resume-halted --acknowledge-quiescent`. After that, re-gate the head at f5a334f0, record the evidence, publish the branch, attach the results, publish the PR, and mark it implemented.
