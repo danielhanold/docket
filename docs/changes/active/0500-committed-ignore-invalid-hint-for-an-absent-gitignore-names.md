@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/committed-ignore-invalid-hint-for-an-absent-gitignore-names'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T06:03:11Z'
+reconciled: true
+claimed_at: '2026-10-04T06:04:56Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ A guard covers every variant. Each remedy carries the canonical block on its own
 Teaching `repository repair` or `repository init` to write `.gitignore`. Neither can write the integration working tree on a migrated repository, and printing the block is the cheapest remedy that works in every state.
 
 The other `migrate` remedies in health.go (`local-metadata-missing`, `docket-worktree-missing`, the legacy and half-migrated findings) stay, because they remain valid. Also unchanged: `committed-ignore-unverified` (an unreadable blob), `status`'s indented rendering of findings on the legacy refusal path, and documenting the block in user-facing docs.
+
+## Reconcile log
+
+### 2026-10-04
+
+Traced against main 20bc0a36a: `committedIgnoreFinding` in internal/reposetup/health.go still carries the seven remedies the spec describes, the FileAbsent one still names `docket repository migrate`, and `IgnoreDefect` still ends at `IgnoreDefectUnreadable`. `GitignoreBlock()` is unchanged. No related change altered this surface since grooming; scope stands as specified.
