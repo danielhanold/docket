@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/re-running-finalize-can-start-a-second-suite-beside-an-orpha'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T09:00:39Z'
+reconciled: true
+claimed_at: '2026-10-04T09:01:34Z'
 ---
 
 ## Artifacts
@@ -62,3 +62,9 @@ Failure posture: no new halt, block, refusal, or signal. A pinned, mutation-chec
 - `evidence.recertify`'s reporting (it drives every slice in one process, so a dead supervisor always reads unclear).
 - Raw `gate.launch` runs, and 0492's accepted gaps 2 and 4.
 - Process leaks inside individual tests (`t.Cleanup` hygiene).
+
+## Reconcile log
+
+### 2026-10-04
+
+2026-10-04: Reconciled against origin/main ecbb32f19. The spec (groomed today) still matches current code: `ProbeLeftover` exists with the launch census as its only caller (`internal/gatedrive/reconcile.go`), `driveSlice`'s death branch calls `proveNoTreeSurvives` without probing the group, finalize removes the halted run root unless `haltedRunRootHoldsUnexitedRun`, and `mapDriveHaltCause` maps `supervisor-died` to `unavailable`. No intervening change touched this area. Scope unchanged.
