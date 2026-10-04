@@ -53,11 +53,13 @@ effect. Report bodies are redaction-only, never echoed into a result document.
 
 A repair is code the human's PR approval predated, so it never merges unseen:
 
-- **Autonomous finalize** cannot prompt. It first publishes the repaired head (the `finalize.publish`
+- **Autonomous finalize** cannot prompt. It first records the sign-off requirement durably: the
+  `finalize.block` operation with `--id <id> --revision <revision> --pr-number <n> --attempt <attempt>
+  --reason repair-needs-signoff --head <repaired head> --input <block report>`. If that does not apply,
+  it publishes nothing and stops `halted`. It then publishes the repaired head (the `finalize.publish`
   operation), so the human can review it on the PR and `finalize.clear-block` can confirm the published
-  head. It then records the sign-off requirement durably and STOPS: the `finalize.block` operation with
-  `--id <id> --revision <revision> --pr-number <n> --attempt <attempt> --reason repair-needs-signoff
-  --head <repaired head> --input <block report>` — the disposition is `halted`. The human reviews the
+  head, and STOPS — the disposition is `halted`. The marker lands before the repair reaches the PR, so a
+  published repair is never left unmarked for a later finalize to merge. The human reviews the
   pushed repair, signs off by running the `finalize.clear-block` operation themselves (`--id <id>
   --revision <revision> --head <repaired head> --pr-number <n>`), then re-runs finalize. A re-run alone
   never clears the block, and a sign-off relayed through an agent's prompt is not authority.

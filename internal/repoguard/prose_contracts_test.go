@@ -1133,11 +1133,14 @@ var alignmentContracts = []proseContract{
 	// 0502 bug 4: a relayed sign-off is not authority; the human runs
 	// finalize.clear-block on the published repaired head, then re-runs finalize.
 	{sentinel: "align_0502_signoff", file: "skills/docket-finalize-change/SKILL.md",
-		present: []string{"`finalize.clear-block`", "First publish the repaired head"},
-		absent:  []string{"the human reviews the pushed repair on the PR and re-runs finalize"}},
+		present: []string{"`finalize.clear-block`", "First record the sign-off requirement durably",
+			"Then publish the repaired head"},
+		absent: []string{"the human reviews the pushed repair on the PR and re-runs finalize",
+			"First publish the repaired head"}},
 	{sentinel: "align_0502_signoff", file: "skills/docket-finalize-change/references/gate-failure.md",
-		present: []string{"signs off by running the `finalize.clear-block` operation"},
-		absent:  []string{"the retry clears the"}},
+		present: []string{"signs off by running the `finalize.clear-block` operation",
+			"It first records the sign-off requirement durably", "It then publishes the repaired head"},
+		absent: []string{"the retry clears the", "It first publishes the repaired head"}},
 	// 0502: one metadata layout — the docket branch and the .docket/ worktree;
 	// no metadata_branch key, no docket-mode / repo-mode split.
 	{sentinel: "align_0502_one_layout", file: "skills/docket-adr/SKILL.md",
