@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T15:13:21Z'
+reconciled: true
+claimed_at: '2026-10-04T15:16:23Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ Change 0374 meant finalize's gate to validate against the finalize settings; the
 - `finalize.gate: off` behavior.
 - How `docket schema` publishes the `evidence.*` flags (#520).
 - The wider coordination-tax and evidence items bundled in #360 (session-scoped sync, accepting results-only deltas at `pr publish`, honoring the primary tree's `.docket.local.yml` from a feature worktree, auto-detecting test commands).
+
+## Reconcile log
+
+### 2026-10-04
+
+Reconciled against origin/main fc719ac6d (0502 merged). `EvidenceRecord` still reads only `build.gate`/`build.test_command`, and `processFinalizeGate.mapTerminalDrive` still calls it with no owner; the seam already carries `owner` (finalize/build). Scope stands unchanged. #520 (in-progress) edits published request schemas and may touch `EvidenceRecordRequest`'s schema descriptor; this change adds an `owner` field, so whichever lands second rebases onto it.
