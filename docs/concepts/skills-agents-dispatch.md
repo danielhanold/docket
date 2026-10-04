@@ -13,7 +13,7 @@ Docket splits the problem three ways. A **skill** — a named, reusable instruct
 set an agent loads for one job — holds the instructions. An **agent** — a
 separately launched worker with its own context, pinned to a model and effort —
 is the worker that runs them. A **harness** — the tool that runs the agent:
-Claude Code, Cursor, Codex, or opencode — is the vendor tool underneath. And
+Claude Code, Cursor, Codex, or OpenCode — is the vendor tool underneath. And
 **dispatch** — launching a named agent to do a step and waiting for it to return
 — is how one step hands work to a named agent and reads back its result.
 
@@ -24,8 +24,12 @@ step to the right worker without rewriting a line of the instructions.
 ## The moving parts
 
 ```
-  layered config (repo → user → machine-local)
-        │  generates, per harness
+  built-in model/effort table (compiled into docket, indexed by harness)
+        │
+        ▼  overridden per field by
+  global config: agents.<harness>.<agent>.model / effort
+        │
+        │  docket install writes, per harness, into your user directory
         ▼
   agent wrappers  ───────────────►  harness registry
   (name + model + effort + skill)    (one row per supported harness)
@@ -34,40 +38,58 @@ step to the right worker without rewriting a line of the instructions.
         ▼                                    ▼
    named agent  ── loads ──►  skill (the instruction set for one job)
         │
-        └── returns its result on one channel: the dispatch return
+        ├── most results come back as the dispatch return
+        └── ADR, status, and plan-writer results land as git state
 ```
 
-Agent wrappers are generated from layered configuration and are machine-local:
-regenerated per machine, never committed. Each wrapper names an agent, pins its
-model and effort, and points at the skill it loads. The model and effort defaults
-ship in a harness-indexed sidecar, so the wrapper template itself carries no model
-floor to drift out of date.
+Agent wrappers are user-level files that `docket install` writes for each harness
+it installs into — `~/.claude/agents/`, `~/.codex/agents/`, `~/.cursor/agents/`,
+and `${XDG_CONFIG_HOME:-~/.config}/opencode/agents/` — 17 agents per harness. No
+repository holds wrapper files. Each wrapper names an agent, pins its model and
+effort, and names the skill it preloads in its `skills` frontmatter field. The
+model and effort come from a built-in table compiled into the binary, indexed by
+harness (`agents/harness-defaults.yml` is its shipped mirror), overridden field
+by field from your global config. A repository's `.docket.yml` cannot change an
+agent's model or effort.
 
-A workflow step names the agent it wants and dispatches it. Whether that dispatch
-capability actually exists is resolved from the machine's registry, never guessed
-from a tool name; where it is unavailable the workflow falls back by kind instead
-of crashing. On the harness that supports it, an inline skill dispatch rides a
-fork of the current context — the worker runs as a forked child rather than a
-fresh launch — and that fork has two documented invocation paths rather than one
-tool call.
+Docket's workflow steps use fixed default roles: superpowers for brainstorm,
+plan, and finish (`superpowers:brainstorming`, `superpowers:writing-plans`,
+`superpowers:finishing-a-development-branch`), and docket's own skills for build
+and review (`docket-build`, `docket-review`). The roles are fixed.
 
-Which skill a workflow uses is itself pluggable: a skill name is passed through
-unvalidated, and a missing skill degrades to the built-in default instead of
-aborting the run. Where autonomy matters — whether a step may run unattended — the
-precedence is pinned at the call site, not left for the dispatched agent to infer.
+A workflow step names the agent it wants and dispatches it. Most dispatches hand
+their result back in the dispatch return. Three do not: the ADR, status, and
+plan-writer agents record their result in git — an ADR or a board refresh on the
+`docket` branch, a plan committed on the feature branch — and the caller reads
+it from there.
+
+Whether a dispatch capability actually exists is resolved on the machine,
+by trying it, never guessed from a tool name. Where dispatch is genuinely
+unavailable, the workflow falls back by kind instead of crashing: the status and
+ADR dispatches run the same work inline, since their result is git state either
+way; the auto-groom critic abstains, because a draft cannot critique itself; and
+the plan-writer, build, and review dispatches stop the run for a human. The
+finalize rebase resolver and integration repair have no fallback: finalize stops
+with the pull request still open. On the harness that supports it, an inline
+skill invocation rides a fork of the current context — the worker runs as a
+forked child rather than a fresh launch — and that fork has two documented
+invocation paths rather than one tool call.
+
+Where autonomy matters — whether a step may run unattended — the precedence is
+pinned at the call site, not left for the dispatched agent to infer.
 
 ## The invariants
 
 - Skills, agents, and harnesses are independent: one skill runs unchanged across
   every supported harness.
-- Agent wrappers are generated from layered config and are machine-local —
-  regenerated per machine, never committed.
-- An agent's model and effort come from a harness-indexed defaults sidecar; the
-  wrapper template carries no model floor of its own.
-- Dispatch capability is resolved from the machine's registry, never inferred
-  from a tool name, and unavailability falls back by kind.
-- A named skill is passed through unvalidated, and a missing one degrades to the
-  built-in default rather than aborting the workflow.
+- Agent wrappers are user-level and machine-local — written by `docket install`
+  per machine, never committed to a repository.
+- An agent's model and effort come from the built-in harness-indexed table,
+  overridden only from the global config; the wrapper template carries no model
+  floor of its own.
+- Workflow roles are fixed defaults, the same in every repository.
+- Dispatch capability is resolved on the machine, never inferred from a tool
+  name, and unavailability falls back by kind.
 - Autonomy precedence is fixed by pre-specification at the call site, not decided
   by the dispatched agent.
 - A generated wrapper conforms to its target harness's own documented contract.
@@ -75,16 +97,13 @@ precedence is pinned at the call site, not left for the dispatched agent to infe
 ## Decided in
 
 - [ADR-0008](../adrs/0008-agent-layer-generated-subagents.md) — established the
-  agent layer as generated subagent wrappers built from layered config.
+  agent layer: thin generated wrappers that pin model and effort and preload
+  the skill, which stays the single source of instructions.
 - [ADR-0015](../adrs/0015-harness-portable-agent-config.md) — made agent model
-  config harness-portable with direct model IDs generated per repo to an explicit
-  harness list.
-- [ADR-0016](../adrs/0016-harness-first-agent-config.md) — organized the `agents:`
-  config harness-first, with per-harness model and effort and field-level default
-  fallback.
-- [ADR-0018](../adrs/0018-pluggable-skills-passthrough-degrade.md) — made workflow
-  skills pluggable with unvalidated name passthrough and degrade-to-auto on a
-  missing skill.
+  values direct model IDs, passed to the harness verbatim with no tier layer.
+- [ADR-0016](../adrs/0016-harness-first-agent-config.md) — organized agent
+  configuration harness-first, with per-harness model and effort and field-level
+  default fallback.
 - [ADR-0024](../adrs/0024-claude-context-fork-skill-dispatch.md) — chose
   context-fork frontmatter as one harness's inline-skill dispatch mechanism,
   forking only human-non-interactive skills.
@@ -100,5 +119,5 @@ precedence is pinned at the call site, not left for the dispatched agent to infe
   — required a generated wrapper to conform to its target harness's own documented
   contract.
 - [ADR-0064](../adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md)
-  — moved shipped agent model and effort defaults into a harness-indexed sidecar
+  — kept the shipped agent model and effort defaults in a harness-indexed table,
   so wrapper templates carry no model floor.

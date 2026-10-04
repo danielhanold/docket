@@ -3,82 +3,114 @@
 ## The problem it solves
 
 Landing a finished branch is not one action; it is a sequence, and every step in
-it can fail in a way that must stop the rest. The branch was written against the
-integration branch — the branch code lands on, usually `main` — as it stood days
-ago, and other work has landed since, so it has to be rebased and retested before
-anyone can trust it. The merge itself may be gated on an approval. After the
-merge the work has to be archived and its branch torn down. Do these by hand, out
-of order or half-way, and you get a branch that merged without retesting, or a
-torn-down worktree whose **change** — one unit of planned work, roughly one pull
-request, tracked as one markdown file — was never archived.
+it can fail in a way that must stop the rest. The branch was written against its
+base as it stood days ago, and other work has landed since, so it has to be
+rebased and retested before anyone can trust it. The merge itself may be gated
+on an approval. After the merge the work has to be closed out and its branch
+torn down. Do these by hand, out of order or half-way, and you get a branch that
+merged without retesting, or a torn-down worktree whose **change** — one unit of
+planned work, roughly one pull request, tracked as one markdown file — was never
+closed out.
 
 The steps are also not alike in kind. Resolving a rebase conflict is a different
 job from repairing a test the rebase broke, and asking whether a human approval
 is required is a policy question, not a mechanical one. Run them as one
 undifferentiated blob and you have a single worker doing jobs it is bad at.
 
-Docket runs close-out as **finalize** — the close-out sequence: rebase onto the
-integration branch, retest, merge, archive — a fixed chain in which each step
-gates the next and each specialized job is split out to the worker suited to it.
+Docket runs close-out as **finalize**, a fixed chain of `docket finalize`
+operations — rebase, retest, publish, merge, close out, clean up — in which each
+step gates the next and each specialized job is split out to the worker suited
+to it.
 
 ## The moving parts
 
 ```
-  approved / merged PR
+  approved PR
         │
         ▼
-  rebase onto the integration branch
+  finalize retarget-children: open child PRs move to the parent's base
+        │            (only when open children exist)
+        ▼
+  finalize rebase: onto the change's effective base
         │            └─(conflicts)─► resolver reconciles each hunk by intent
         ▼
   retest the rebased branch
-        │            └─(red)─► integration repair: minimal fix, then re-gate
+        │            └─(red)─► integration repair: minimal fix, then retest
+        │                       (at most finalize.repair_max_attempts)
         ▼
-  merge  ──(policy gate: branch protection, zero required approvals)
+  finalize publish: push the rebased head, update the PR's build evidence
         │
         ▼
-  archive the change + refresh the board
-        │            └─(publish fails)─► marked "## Publish deferred", not lost
+  finalize merge: rebase, merge commit, or squash
+        │            (the first method the repository permits)
         ▼
-  tear down the branch and worktree (fail-closed)
+  finalize closeout: archive the change on the docket branch,
+        │            retarget backlinks
+        ▼
+  finalize cleanup: tear down the branch and worktree (fail-closed)
 ```
 
-- The rebase is the first gate: the branch is replayed onto the current
-  integration branch, and only a clean replay proceeds. A conflict is handed to a
-  resolver that reconciles each hunk by merge intent, rather than being patched
-  inline by the sequencer.
+- Stacked children whose pull requests target this branch are retargeted onto
+  the parent's effective base first, so none points at a branch about to be
+  merged and deleted; the merge refuses while a child is still open against it.
+- The rebase is the first gate: the branch is replayed onto the change's
+  **effective base** — the integration branch (the branch code lands on, usually
+  `main`), or for a stacked change its parent's branch while the parent is still
+  live. Only a clean replay proceeds. A conflict is handed to a resolver that
+  reconciles each hunk by merge intent, rather than being patched inline by the
+  sequencer.
 - Retest is the second gate: a rebase that applied cleanly can still have broken a
   test by combining two correct changes. A red suite here goes to a bounded
-  integration-repair step — a minimal fix, at most a couple of attempts, never a
-  weakened test — and the suite is re-run before the sequence continues.
+  integration-repair step — a minimal fix, never a weakened test — and the suite
+  is re-run, at most `finalize.repair_max_attempts` times, before the sequence
+  continues. When the rebase was a no-op and the branch already carries green
+  build evidence for that exact head, produced by the same test command, the
+  suite is not run again.
+- A repair that an agent authored during an unattended finalize is not merged on
+  its own say-so: the run records a block with
+  `docket finalize block --reason repair-needs-signoff` and stops. A human reviews
+  the pushed repair on the pull request, then clears the block with
+  `docket finalize clear-block` and runs finalize again.
+- `finalize.gate: off` skips the rebase and the retest entirely; the remaining
+  steps still run in order.
+- Publish pushes the rebased head and updates the build-evidence block in the
+  pull request body, so the evidence names the exact commit that will merge.
 - The merge is a policy gate, kept separate from the mechanical ones: whether a
-  human approval is required is configured ahead of time, and the
-  single-maintainer path is branch protection that requires a pull request but
-  zero approvals.
-- Archiving copies the archived record onto the integration branch and refreshes
-  the **board** — the generated overview of every change and its state, never
-  edited by hand. If that publish cannot complete, the failure is marked as
-  deferred rather than dropped, so a human can finish it later.
-- Teardown removes the feature branch and its worktree, and is fail-closed: it
+  human approval is required is configured ahead of time
+  (`finalize.require_pr_approval`), and the single-maintainer path is branch
+  protection that requires a pull request but zero approvals. Finalize merges
+  with the first method the repository permits: rebase, then merge commit, then
+  squash.
+- Closeout proves the merge landed, then marks the change `done` and archives it
+  on the `docket` branch (a stacked change merged into its parent is marked
+  `stacked-merged` instead), and retargets the backlinks in the change's spec, plan,
+  and results files to the archived record. Nothing is copied to the
+  integration branch. A backlink retarget that fails leaves the change
+  `final-backlink-pending`, and `docket finalize cleanup` repairs it.
+- Cleanup removes the feature branch and its worktree, and is fail-closed: it
   never leaves the repository half-destroyed, so an interrupted close-out is
-  recoverable rather than a worktree gone with its change unarchived.
+  recoverable rather than a worktree gone with its change not closed out.
 
 ## The invariants
 
 - Finalize is an ordered sequence; each step gates the next, and a failed step
   stops the ones after it rather than pressing on.
-- The branch is rebased onto the current integration branch and retested before
-  any merge; a stale branch never merges untested.
+- The branch is rebased onto its current effective base and retested before any
+  merge; a stale branch never merges untested, unless `finalize.gate: off` says
+  so explicitly.
 - Conflict resolution and semantic repair are split at the rebase-completion
   boundary — resolving a conflict and repairing a rebase-broken test are
   different jobs given to different workers.
-- Integration repair is bounded and never weakens a test to go green; if it
-  cannot re-green the suite, the sequence stops for a human.
+- Integration repair is bounded by `finalize.repair_max_attempts` and never
+  weakens a test to go green; if it cannot re-green the suite, the sequence stops
+  for a human. An autonomously authored repair always waits for a human's
+  sign-off before it merges.
 - Whether the merge needs a human approval is a configured policy gate, settled
   before finalize runs, not decided by the sequencer mid-flight.
+- A change is marked `done` only after closeout has proved its pull request
+  merged.
 - Branch and worktree teardown is fail-closed — never half-destructive — so an
   interrupted finalize is recoverable.
-- A handled post-archive publish failure is marked as deferred, not dropped, so
-  an expected archived record is never lost silently.
 
 ## Decided in
 
@@ -92,6 +124,3 @@ gates the next and each specialized job is split out to the worker suited to it.
 - [ADR-0043](../adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md)
   — retired bot auto-approval, making zero-approvals branch protection the
   single-maintainer merge path (reverses ADR-0042's auto-approve consent model).
-- [ADR-0090](../adrs/0090-publish-deferred-covers-any-handled-post-archive-failure.md)
-  — had a `## Publish deferred` note mark any handled post-archive failure that
-  abandons an expected publish.
