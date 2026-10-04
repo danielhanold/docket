@@ -14,7 +14,7 @@ discovered_from: [502]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md'
 plan: 'docs/superpowers/plans/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md'
-results:
+results: 'docs/results/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-04T15:10:27Z'
 |---|---|
 | Spec | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md) |
 | Plan | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md](https://github.com/danielhanold/docket/blob/chore/remove-stale-auto-groom-comments-and-fix-testskillhandoffsit/docs/superpowers/plans/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) |
+| Results | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-results.md](https://github.com/danielhanold/docket/blob/chore/remove-stale-auto-groom-comments-and-fix-testskillhandoffsit/docs/results/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
