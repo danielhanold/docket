@@ -88,11 +88,6 @@ var proseContracts = []proseContract{
 	// tests/test_critic_return_channel.sh — the critic's return-channel contract.
 	{sentinel: "test_critic_return_channel", file: "agents/docket-auto-groom-critic.md",
 		present: []string{"adversarial critic", "not registered under its skill name"}},
-	// tests/test_dummy_mode.sh — the shared dummy-mode definition + its reference.
-	{sentinel: "test_dummy_mode", file: "skills/docket-convention/SKILL.md",
-		present: []string{"### Dummy mode (shared definition)"}},
-	{sentinel: "test_dummy_mode", file: "skills/docket-convention/references/dummy-mode.md",
-		present: []string{"In plain terms"}},
 	// tests/test_finalize_closeout_notes.sh — the closeout-notes handoff contract.
 	{sentinel: "test_finalize_closeout_notes", file: "skills/docket-convention/SKILL.md",
 		present: []string{"Written solely by the `finalize.closeout` operation"}},
@@ -1027,6 +1022,49 @@ func TestTaskTestTimeLimitContract(t *testing.T) {
 			if c.re.MatchString(timeLimitHaystack(bad[c.name])) {
 				t.Errorf("%s: a wording that drops the claim still matched", c.name)
 			}
+		}
+	})
+}
+
+// alignmentContracts are the agent-facing alignment rows: each phrase is bound
+// to one skill or agent file and matched whitespace-collapsed (collapseWS) on
+// both sides, so a re-flow never reddens a present phrase and a wrapped retired
+// phrase is still caught (phrase-grep-over-wrapped-prose).
+var alignmentContracts = []proseContract{
+	// Dummy mode is not a docket feature; no skill describes it.
+	{sentinel: "align_0502_no_dummy_mode", file: "skills/docket-convention/SKILL.md",
+		absent: []string{"Dummy mode", "DUMMY_MODE", "In plain terms"}},
+}
+
+func TestAlignmentContracts(t *testing.T) {
+	root := guardRoot(t)
+	if len(alignmentContracts) == 0 {
+		t.Fatalf("population floor: no alignment rows")
+	}
+	for _, c := range alignmentContracts {
+		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(c.file)))
+		if err != nil {
+			t.Fatalf("read %s (sentinel %s): %v (fail closed)", c.file, c.sentinel, err)
+		}
+		present := make([]string, len(c.present))
+		for i, p := range c.present {
+			present[i] = collapseWS(p)
+		}
+		absent := make([]string, len(c.absent))
+		for i, a := range c.absent {
+			absent[i] = collapseWS(a)
+		}
+		for _, msg := range scanProse(c.file, collapseWS(string(b)), present, absent) {
+			t.Errorf("[%s] %s", c.sentinel, msg)
+		}
+	}
+	t.Run("non_vacuity", func(t *testing.T) {
+		doc := collapseWS("a wrapped\n    clause here")
+		if got := scanProse("x.md", doc, nil, []string{collapseWS("wrapped clause")}); len(got) != 1 {
+			t.Errorf("a wrapped absent phrase was not caught: %v", got)
+		}
+		if got := scanProse("x.md", doc, []string{collapseWS("wrapped\nclause")}, nil); len(got) != 0 {
+			t.Errorf("a wrapped present phrase was not matched: %v", got)
 		}
 	})
 }

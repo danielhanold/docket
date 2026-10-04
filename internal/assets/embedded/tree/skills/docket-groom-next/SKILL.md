@@ -48,8 +48,6 @@ Open with a **recap of the selected stub**, written for a reader with no prior c
 - Each `depends_on` entry and its current status (the statement Step 1 requires).
 - The stub's `## Open questions`, framed as the agenda the brainstorm will work through.
 
-**Dummy mode:** when `DUMMY_MODE_ENABLED` is `true` (startup-check export) — or the human asks for it in-session — write this step's `dialogue` (recap, questions, and design presentation) calibrated to `DUMMY_MODE_PERSONA`, per the convention's *Dummy mode* shared definition. The spec file itself is never simplified.
-
 When the design settles on building this stub atop another change's **unmerged** branch, set `stacked_on: <parent id>` at the spec exit and **read [`../docket-convention/references/stacked-changes.md`](../docket-convention/references/stacked-changes.md) now (blocking)** first — stacking changes how the change is built, merged, and closed out.
 
 The recap is an introduction, not a confirmation gate — flow directly into the brainstorm; the human redirects there, not at a pre-brainstorm prompt.
