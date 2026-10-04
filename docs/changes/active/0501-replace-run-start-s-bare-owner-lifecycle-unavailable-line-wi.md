@@ -13,7 +13,7 @@ related: [375]
 discovered_from: []
 adrs: [118]
 spec: 'docs/superpowers/specs/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T06:30:17Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-design.md) |
+| Plan | [2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md](https://github.com/danielhanold/docket/blob/fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi/docs/superpowers/plans/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) |
 | ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
