@@ -17,5 +17,11 @@ The function lives in non-test code, so about 50 lines of matcher code are now c
 
 - New unit test `TestUnsupportedKeyShapes` covers every unsupported key in the schema registry, nested-comment cases, and supported-key and prose-heading negatives. Mutation checks confirmed that reverting the nested-comment fix, or deleting a family of matchers, turns it red.
 - Each guard gained one nested-comment case, and each was confirmed red against the old single-marker pattern.
-- Whole-branch review (standard tier): 1 minor finding, fixed in-branch. A nested-comment probe matched through an older code path and would not have caught a revert, so a probe that only the new pattern matches was added. Full table in the PR body.
+- Whole-branch review (standard tier): 1 minor finding. A fix was written, but its commit failed the suite's gofmt check, so it was reverted and the finding stands (see Known issues). Full table in the PR body.
 - The full suite (`go run ./cmd/docket development test`) passed at the build gate. Certification of the final head is in the PR's build-evidence block.
+
+## Known issues and follow-ups
+
+### One nested-comment probe does not test what its name says
+
+In `TestUnsupportedKeyShapes`, the probe `#   #     adr: { model: x, runner: codex }` is meant to prove the matcher catches a flow-mapping key inside a nested comment. It actually matches through the `{`/`,` branch, which worked before this change too, so it would stay green if the nested-comment fix were reverted for leaf keys. Impact is small and confirmed: the neighbouring `#   #   cap: 5` probe does go red under that revert, so the fix is still guarded. The in-branch fix (adding a `#   #     runner: codex` probe) was correct but was left unformatted, failed the suite's gofmt check, and was reverted under the fix-loop rule. Suggested next action: re-apply that one-line probe, run `gofmt -w internal/config/unsupported_key_shapes_test.go`, and commit, either in this PR before merge or as a small follow-up.
