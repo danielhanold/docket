@@ -1099,3 +1099,121 @@ func TestQuoteOperand(t *testing.T) {
 		t.Fatalf("quoteOperand = %q", got)
 	}
 }
+
+// --- change 0497: a supervisor-death halt's leftover finding ---------------
+
+const testLeftover = "tree-survives:0123456789abcdef0123456789abcdef:4242"
+
+const testWait = "part of the suite is still running as process group 4242 — wait until pgrep -lg 4242 prints nothing, then re-run finalize"
+
+// TestFinalizeGateHaltMessage pins finalize.rebase's halt message: a supervisor
+// death says so, a leftover adds the wait clause, a typed refusal keeps its own
+// message, and every other halt keeps the generic message byte for byte. A
+// malformed finding never produces a garbled wait clause.
+func TestFinalizeGateHaltMessage(t *testing.T) {
+	const died = "the local gate's supervisor died before the suite finished; "
+	for _, tc := range []struct {
+		name string
+		gres LocalGateResult
+		want string
+	}{
+		{"died", LocalGateResult{HaltDriveCause: gatedrive.CauseSupervisorDied},
+			died + "re-run finalize to re-run the suite"},
+		{"died-leftover", LocalGateResult{HaltDriveCause: gatedrive.CauseSupervisorDied, HaltLeftover: testLeftover},
+			died + testWait},
+		{"uncertain-leftover", LocalGateResult{HaltDriveCause: gatedrive.CauseUncertainOwnership, HaltLeftover: testLeftover},
+			finalizeGateHaltGeneric + "; " + testWait},
+		{"uncertain", LocalGateResult{HaltDriveCause: gatedrive.CauseUncertainOwnership}, finalizeGateHaltGeneric},
+		{"deadline-leftover", LocalGateResult{HaltDriveCause: gatedrive.CauseDeadlineExpired, HaltLeftover: testLeftover}, finalizeGateHaltGeneric},
+		{"unknown-observation", LocalGateResult{HaltDriveCause: gatedrive.CauseUnknownObservation}, finalizeGateHaltGeneric},
+		{"no-drive", LocalGateResult{}, finalizeGateHaltGeneric},
+		{"refusal-wins", LocalGateResult{HaltReason: "worktree-busy", HaltMessage: "wait for it",
+			HaltDriveCause: gatedrive.CauseSupervisorDied, HaltLeftover: testLeftover},
+			"the local gate could not start: worktree-busy — wait for it"},
+		{"refusal-no-message", LocalGateResult{HaltReason: "worktree-busy"}, "the local gate could not start: worktree-busy"},
+		{"malformed-empty-pgid", LocalGateResult{HaltDriveCause: gatedrive.CauseSupervisorDied, HaltLeftover: "tree-survives:d1:"},
+			died + "re-run finalize to re-run the suite"},
+		{"malformed-no-drive", LocalGateResult{HaltDriveCause: gatedrive.CauseSupervisorDied, HaltLeftover: "tree-survives::4242"},
+			died + "re-run finalize to re-run the suite"},
+		{"malformed-pgid-1", LocalGateResult{HaltDriveCause: gatedrive.CauseSupervisorDied, HaltLeftover: "tree-survives:d1:1"},
+			died + "re-run finalize to re-run the suite"},
+		{"malformed-not-numeric", LocalGateResult{HaltDriveCause: gatedrive.CauseSupervisorDied, HaltLeftover: "tree-survives:d1:abc"},
+			died + "re-run finalize to re-run the suite"},
+		{"other-finding", LocalGateResult{HaltDriveCause: gatedrive.CauseSupervisorDied, HaltLeftover: "run-terminal:d1"},
+			died + "re-run finalize to re-run the suite"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := finalizeGateHaltMessage(tc.gres); got != tc.want {
+				t.Fatalf("message = %q\nwant      %q", got, tc.want)
+			}
+		})
+	}
+	if finalizeGateHaltGeneric != "the local gate did not reach a decidable pass/fail; retained, no red fabricated" {
+		t.Fatalf("the generic halt message changed: %q", finalizeGateHaltGeneric)
+	}
+}
+
+// TestMapDriveOutcomeCarriesLeftoverFinding: a HALTED drive document's cause and
+// finding travel up as HaltDriveCause/HaltLeftover, the finding fills
+// TeardownFinding unless a retention token claims it, and the outcome and halt
+// cause are the same with or without a finding.
+func TestMapDriveOutcomeCarriesLeftoverFinding(t *testing.T) {
+	for _, cause := range []string{gatedrive.CauseSupervisorDied, gatedrive.CauseUncertainOwnership} {
+		for _, finding := range []string{"", testLeftover} {
+			t.Run(cause+"/"+finding, func(t *testing.T) {
+				g := &processFinalizeGate{}
+				root := runRootFixture(t)
+				doc := gatedrive.DriveDoc{Outcome: gatedrive.HALTED, Cause: cause, Finding: finding, RunRoot: root}
+				res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc})
+				if res.Outcome != FinalizeGateHalted || res.HaltCause != GateHaltUnavailable {
+					t.Fatalf("outcome/cause = %s/%s, want %s/%s whatever the finding", res.Outcome, res.HaltCause, FinalizeGateHalted, GateHaltUnavailable)
+				}
+				if res.HaltDriveCause != cause || res.HaltLeftover != finding || res.TeardownFinding != finding {
+					t.Fatalf("drive cause/leftover/teardown = %q/%q/%q, want %q/%q/%q",
+						res.HaltDriveCause, res.HaltLeftover, res.TeardownFinding, cause, finding, finding)
+				}
+				if dirExists(t, root) {
+					t.Fatalf("an exited halted run root must still be removed")
+				}
+			})
+		}
+	}
+	t.Run("retained", func(t *testing.T) {
+		root := runRootFixture(t)
+		runDir := filepath.Join(root, "0123456789abcdef0123456789abcdef")
+		if err := os.MkdirAll(runDir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		g := &processFinalizeGate{observer: runRootObserver{runDir: process.StateRunning}}
+		doc := gatedrive.DriveDoc{Outcome: gatedrive.HALTED, Cause: gatedrive.CauseSupervisorDied, Finding: testLeftover, RunRoot: root}
+		res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc})
+		if res.TeardownFinding != teardownFindingRunRootRetainedUnsettled || res.HaltLeftover != testLeftover {
+			t.Fatalf("teardown/leftover = %q/%q, want the retention token and the leftover kept for the message",
+				res.TeardownFinding, res.HaltLeftover)
+		}
+		if got := finalizeGateHaltMessage(res); !strings.HasSuffix(got, testWait) {
+			t.Fatalf("a retained root must not drop the wait clause: %q", got)
+		}
+	})
+	t.Run("failed", func(t *testing.T) {
+		g := &processFinalizeGate{}
+		doc := gatedrive.DriveDoc{Outcome: gatedrive.FAILED, RunRoot: runRootFixture(t)}
+		res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc})
+		if res.HaltDriveCause != "" || res.HaltLeftover != "" || res.TeardownFinding != "" {
+			t.Fatalf("a FAILED drive grew halt detail: %+v", res)
+		}
+	})
+}
+
+// TestGateDriveHumanTextPrintsFinding: the gate-drive human text prints a
+// finding: line exactly when the document carries one.
+func TestGateDriveHumanTextPrintsFinding(t *testing.T) {
+	with := GateDriveResult{Drive: &gatedrive.DriveDoc{Outcome: gatedrive.HALTED, Cause: gatedrive.CauseSupervisorDied, Finding: testLeftover}}
+	if got := with.HumanText(); !strings.Contains(got, "\nfinding: "+testLeftover) {
+		t.Fatalf("human text lacks the finding line: %q", got)
+	}
+	without := GateDriveResult{Drive: &gatedrive.DriveDoc{Outcome: gatedrive.HALTED, Cause: gatedrive.CauseSupervisorDied}}
+	if got := without.HumanText(); strings.Contains(got, "finding:") {
+		t.Fatalf("human text printed a finding line with no finding: %q", got)
+	}
+}

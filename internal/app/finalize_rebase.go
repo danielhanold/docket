@@ -196,8 +196,8 @@ type GateReport struct {
 	Locator      string            `json:"locator,omitempty"`
 	Evidence     string            `json:"evidence,omitempty"`
 	Continuation *GateContinuation `json:"continuation,omitempty"`
-	// TeardownFinding mirrors LocalGateResult.TeardownFinding: set only when the
-	// gate's run root was retained because release/teardown evidence was unsettled.
+	// TeardownFinding mirrors LocalGateResult.TeardownFinding: a run-root
+	// retention token, or a halted drive's tree-survives finding (change 0497).
 	TeardownFinding string `json:"teardown_finding,omitempty"`
 }
 
@@ -456,14 +456,22 @@ type LocalGateResult struct {
 	HaltMessage string
 	HaltStage   string
 	HaltLocator string
+	// HaltDriveCause is the driver's own HALTED cause token behind the coarse
+	// HaltCause (e.g. gatedrive.CauseSupervisorDied), and HaltLeftover the
+	// driver document's tree-survives:<drive>:<pgid> finding (change 0497). Both
+	// are set on a Halted outcome mapped from a drive document only. They choose
+	// the halt message and never change Outcome or HaltCause.
+	HaltDriveCause string
+	HaltLeftover   string
 	// Continuation is populated on a WAITING outcome only: the opaque handle the
 	// caller re-presents to advance the same drive on the next slice.
 	Continuation GateContinuation
-	// TeardownFinding is a bounded, credential-free token set when the gate's
-	// private run root was RETAINED because its teardown evidence was not settled
-	// (a terminal document carried no run root, or a failed Start left launch
-	// evidence under the root). It never changes Outcome; it tells the human why a
-	// temp dir survived.
+	// TeardownFinding is a bounded, credential-free token. It names why the
+	// gate's private run root was RETAINED when its teardown evidence was not
+	// settled (a terminal document carried no run root, or a failed Start left
+	// launch evidence under the root); otherwise, for a halted drive whose dead
+	// supervisor's process group still has members, it is that drive's
+	// tree-survives finding (HaltLeftover, change 0497). It never changes Outcome.
 	TeardownFinding string
 }
 
@@ -1756,15 +1764,7 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 		base.Gate.Stage = gres.HaltStage
 		base.Gate.Locator = gres.HaltLocator
 		base.Reason = ReasonRebaseGateHalted
-		base.Message = "the local gate did not reach a decidable pass/fail; retained, no red fabricated"
-		// Upgrade the coarse message ONLY when a typed refusal supplied detail; a
-		// genuinely detail-less halt keeps today's exact generic message.
-		if gres.HaltReason != "" {
-			base.Message = "the local gate could not start: " + gres.HaltReason
-			if gres.HaltMessage != "" {
-				base.Message += " — " + gres.HaltMessage
-			}
-		}
+		base.Message = finalizeGateHaltMessage(gres)
 		out := newRebaseResult(op, ResultBlocked, base)
 		clearGateContinuation(ctx, deps, rc, rec, &out)
 		return out
@@ -2184,6 +2184,12 @@ func (g *processFinalizeGate) mapDriveOutcome(ctx context.Context, req LocalGate
 		removeGateRunRoot(doc.RunRoot)
 	}
 	res.TeardownFinding = teardownFinding
+	if res.TeardownFinding == "" {
+		// Nothing was retained, so a halted drive's leftover finding is the
+		// teardown news (change 0497). A retention token wins when both apply; the
+		// leftover still reaches the halt message through HaltLeftover.
+		res.TeardownFinding = res.HaltLeftover
+	}
 	return res
 }
 
@@ -2204,7 +2210,8 @@ func (g *processFinalizeGate) mapTerminalDrive(ctx context.Context, req LocalGat
 	case gatedrive.FAILED:
 		return LocalGateResult{Outcome: FinalizeGateFailed, RunDir: doc.RawRunDir}
 	default: // gatedrive.HALTED or an unrecognized outcome — fail closed, never red.
-		return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: mapDriveHaltCause(doc.Cause)}
+		return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: mapDriveHaltCause(doc.Cause),
+			HaltDriveCause: doc.Cause, HaltLeftover: doc.Finding}
 	}
 }
 
@@ -2275,12 +2282,67 @@ func removeUnlaunchedGateRunRoot(runRoot string) (retained bool) {
 	return false
 }
 
+// finalizeGateHaltGeneric is finalize.rebase's message for a halted local gate
+// with nothing more specific to say.
+const finalizeGateHaltGeneric = "the local gate did not reach a decidable pass/fail; retained, no red fabricated"
+
+// finalizeGateHaltMessage composes finalize.rebase's message for a halted local
+// gate. A typed refusal (HaltReason) keeps its "could not start" message. A drive
+// whose supervisor died says so, and when the driver found part of the suite
+// still running it tells the human to wait for that process group before
+// re-running finalize (change 0497). Every other halt keeps the generic message
+// byte for byte. Only the message varies: the caller sets the disposition,
+// reason, result, and halt cause the same way for every halt.
+func finalizeGateHaltMessage(gres LocalGateResult) string {
+	if gres.HaltReason != "" {
+		msg := "the local gate could not start: " + gres.HaltReason
+		if gres.HaltMessage != "" {
+			msg += " — " + gres.HaltMessage
+		}
+		return msg
+	}
+	pgid, leftover := leftoverPGID(gres.HaltLeftover)
+	wait := "part of the suite is still running as process group " + pgid +
+		" — wait until pgrep -lg " + pgid + " prints nothing, then re-run finalize"
+	switch {
+	case gres.HaltDriveCause == gatedrive.CauseSupervisorDied && leftover:
+		return "the local gate's supervisor died before the suite finished; " + wait
+	case gres.HaltDriveCause == gatedrive.CauseSupervisorDied:
+		return "the local gate's supervisor died before the suite finished; re-run finalize to re-run the suite"
+	case gres.HaltDriveCause == gatedrive.CauseUncertainOwnership && leftover:
+		return finalizeGateHaltGeneric + "; " + wait
+	default:
+		return finalizeGateHaltGeneric
+	}
+}
+
+// leftoverPGID extracts the process group from a tree-survives:<drive>:<pgid>
+// finding. Anything else — empty, another finding, a missing drive, or a group
+// id that is not a real group (<= 1) — reads as no leftover, so a malformed
+// finding falls back to the message without the wait clause, never a garbled one.
+func leftoverPGID(finding string) (string, bool) {
+	rest, ok := strings.CutPrefix(finding, gatedrive.FindingTreeSurvivesPrefix)
+	if !ok {
+		return "", false
+	}
+	drive, pgid, ok := strings.Cut(rest, ":")
+	if !ok || drive == "" {
+		return "", false
+	}
+	n, err := strconv.Atoi(pgid)
+	if err != nil || n <= 1 {
+		return "", false
+	}
+	return strconv.Itoa(n), true
+}
+
 // mapDriveHaltCause maps a driver HALTED cause token onto the closed finalize
 // halt vocabulary. A deadline expiry is the running-at-budget analog; every other
 // fail-closed cause (a changed worktree, uncertain ownership, malformed/unreadable
 // state, a supervisor death — gatedrive.CauseSupervisorDied, never relaunched
 // since change 0493) is reported as unavailable — a human is needed, never repair
-// work. It never fabricates a decidable pass/fail.
+// work. finalizeGateHaltMessage, not this mapping, distinguishes a supervisor
+// death in the message (change 0497). It never fabricates a decidable pass/fail.
 func mapDriveHaltCause(cause string) string {
 	switch {
 	case strings.HasPrefix(cause, gatedrive.CauseDeadlineExpired):
