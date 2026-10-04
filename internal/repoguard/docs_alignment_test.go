@@ -50,6 +50,12 @@ func TestLivingDocsAlignment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v (fail closed)", err)
 	}
+	// Population floor: a renamed or emptied root must not let the guard pass
+	// over a shrunken surface.
+	const livingDocFloor = 42
+	if len(files) < livingDocFloor {
+		t.Fatalf("population floor: only %d living doc files scanned (expected >= %d)", len(files), livingDocFloor)
+	}
 	shapes := unsupportedKeyShapes(config.SettingPaths())
 	if len(shapes) == 0 {
 		t.Fatalf("no unsupported-key shapes derived from the schema registry")
@@ -150,14 +156,14 @@ func TestLivingDocsAlignment(t *testing.T) {
 }
 
 // livingDocRoots lists the living documentation the guard covers: files or
-// directories, slash paths relative to the repo root. Doc tasks add their
-// pages as they align them.
+// directories, slash paths relative to the repo root. `docs/release/` is
+// deliberately excluded (dated release evidence).
 var livingDocRoots = []string{
 	"README.md",
 	"docs/README.md",
-	"docs/concepts",
 	"docs/guide",
 	"docs/install",
+	"docs/concepts",
 	"docs/reference",
 }
 
