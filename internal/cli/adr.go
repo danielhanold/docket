@@ -12,8 +12,8 @@ import (
 // closed JSON request from a file or stdin and hand it to the matching
 // internal/app ADR operation over the real Git-backed seams, letting the
 // presenter own the outcome. It reuses the shared request-file and dependency
-// plumbing (changeSubcommand, newPlanningDeps, decodeRequestFlag) in change.go
-// — the request-file conventions are identical across the whole planning
+// plumbing (changeSubcommand and newPlanningDeps in change.go, declareJSONFile
+// in jsonfile.go) — the request-file conventions are identical across the whole planning
 // command surface. Every policy question — id allocation, Accepted-target
 // gating, index rendering — belongs to internal/app, so no body here branches
 // on request content.
@@ -36,35 +36,20 @@ func newADRCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	record := changeSubcommand("adr", "record",
 		"Record a new Accepted ADR from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.ADRRecordRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ADRRecordRequest) {
 			setResult(app.ADRRecordOp(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	supersede := changeSubcommand("adr", "supersede",
 		"Supersede an Accepted ADR with a new one from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.ADRReplaceRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ADRReplaceRequest) {
 			setResult(app.ADRSupersede(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	reverse := changeSubcommand("adr", "reverse",
 		"Reverse an Accepted ADR with a new one from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.ADRReplaceRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ADRReplaceRequest) {
 			setResult(app.ADRReverse(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	adrCmd.AddCommand(record, supersede, reverse)

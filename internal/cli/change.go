@@ -50,79 +50,44 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	create := changeSubcommand("change", "create",
 		"Create a new proposed change from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.ChangeCreateRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeCreateRequest) {
 			setResult(app.ChangeCreate(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	groom := changeSubcommand("change", "groom",
 		"Groom a proposed change to build-ready (spec or trivial), record or clear an auto-groom abstain (abstain, re-enable), or revise any proposed change without changing its groom state, from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.ChangeGroomRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeGroomRequest) {
 			setResult(app.ChangeGroom(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	block := changeSubcommand("change", "block",
 		"Block a change, recording the reason, from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.ChangeBlockRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeBlockRequest) {
 			setResult(app.ChangeBlock(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	deferCmd := changeSubcommand("change", "defer",
 		"Defer a change, recording why, from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.ChangeDeferRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeDeferRequest) {
 			setResult(app.ChangeDefer(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	unblock := changeSubcommand("change", "unblock",
 		"Unblock a blocked change back to in-progress, clearing blocked_by, from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.ChangeUnblockRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeUnblockRequest) {
 			setResult(app.ChangeUnblock(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	revive := changeSubcommand("change", "revive",
 		"Revive a deferred change back to proposed, from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.ChangeReviveRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeReviveRequest) {
 			setResult(app.ChangeRevive(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	kill := changeSubcommand("change", "kill",
 		"Kill a change, archiving it, from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.ChangeKillRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeKillRequest) {
 			setResult(app.ChangeKill(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	claim := changeIDRevisionSubcommand("claim",
@@ -141,13 +106,8 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	reconcile := changeInputSubcommand("reconcile",
 		"Reconcile an in-progress change against current reality from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.ChangeReconcileRequest
-			if err := decodeInputFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeReconcileRequest) {
 			setResult(app.ChangeReconcile(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	attachPlan := changeAttachSubcommand("attach-plan",
@@ -164,15 +124,10 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	halt := changeInputSubcommand("halt",
 		"Record a bounded run-halted report on an in-progress change from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, in app.ChangeHaltInput) {
 			id, _ := c.Flags().GetInt("id")
 			revision, _ := c.Flags().GetString("revision")
-			var in changeHaltInput
-			if err := decodeInputFlag(c, &in); err != nil {
-				return err
-			}
 			setResult(app.ChangeHalt(c.Context(), deps, repoDir, app.HaltRequest{ID: id, Revision: revision, Report: in.Report}))
-			return nil
 		}, EffectMetadataWrite)
 	halt.Flags().Int("id", 0, "in-progress change `id` to halt (required)")
 	halt.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
@@ -248,16 +203,6 @@ func newRelinkSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("expect-revision")
 	return cmd
-}
-
-// changeHaltInput is the bounded request-file payload for `change halt`: the
-// authored run-halted report — the section body only (the operation owns the
-// "## Run halted" heading and dated sub-heading; a body with its own
-// column-zero "## " heading or an open code fence is refused). The scalar
-// identity (id, revision) rides on flags — only the authored Markdown travels
-// through the request file (Global Constraints).
-type changeHaltInput struct {
-	Report string `json:"report"`
 }
 
 // newResumeHaltedSubcommand builds `change resume-halted`: human-authorized
@@ -440,29 +385,36 @@ func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps 
 // changeInputSubcommand builds one `change <verb>` command whose authored-
 // Markdown request rides in a JSON body read from `--input <request-file>` (or
 // `-` for stdin). It mirrors changeSubcommand but names the flag --input, the
-// spelling the reconcile CLI uses; the decode goes through the same
-// exactly-one-document strict decoder.
-func changeInputSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error, effects ...Effect) *cobra.Command {
+// spelling the reconcile CLI uses. The builder declares and decodes the request
+// of type T through declareJSONFile, after resolving the repo directory and
+// dependencies, and run receives the decoded request.
+func changeInputSubcommand[T any](verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req T), effects ...Effect) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         verb,
 		Short:       short,
 		Args:        cobra.NoArgs,
 		Annotations: capability("change."+verb, effects...),
-		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, err := resolveRepoDir(c)
-			if err != nil {
-				return err
-			}
-			deps, err := newPlanningDeps(repoDir)
-			if err != nil {
-				return err
-			}
-			return run(c, deps, repoDir)
-		},
 	}
 	cmd.Flags().String("input", "", "JSON request `file`, or - to read the request from stdin (required)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("input")
+	decode := declareJSONFile[T](cmd, "input")
+	cmd.RunE = func(c *cobra.Command, _ []string) error {
+		repoDir, err := resolveRepoDir(c)
+		if err != nil {
+			return err
+		}
+		deps, err := newPlanningDeps(repoDir)
+		if err != nil {
+			return err
+		}
+		req, err := decode(c)
+		if err != nil {
+			return err
+		}
+		run(c, deps, repoDir, req)
+		return nil
+	}
 	return cmd
 }
 
@@ -508,35 +460,43 @@ func changeIDRevisionSubcommand(verb, short string, run func(c *cobra.Command, d
 }
 
 // changeSubcommand builds one `change <verb>` command with the shared --request
-// / --repo-dir flags. run receives the resolved dependencies and repo directory;
-// it decodes the request and invokes the operation. Constructing PlanningDeps
-// here — after flag parsing, before decoding — keeps a Git-client failure
-// classified as an argument error, exactly like the request-decode failures.
+// / --repo-dir flags. The builder declares and decodes the request of type T
+// through declareJSONFile, and run receives the resolved dependencies, repo
+// directory, and decoded request, then invokes the operation. Constructing
+// PlanningDeps here — after flag parsing, before decoding — keeps a Git-client
+// failure classified as an argument error, exactly like the request-decode
+// failures.
 //
 // group is the command's parent group ("change", "learning", or "adr"); the
 // capability id is the dotted command path group+"."+verb, and the effects are
 // declared by the caller — never a name→effects lookup inside the helper.
-func changeSubcommand(group, verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error, effects ...Effect) *cobra.Command {
+func changeSubcommand[T any](group, verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req T), effects ...Effect) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         verb,
 		Short:       short,
 		Args:        cobra.NoArgs,
 		Annotations: capability(group+"."+verb, effects...),
-		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, err := resolveRepoDir(c)
-			if err != nil {
-				return err
-			}
-			deps, err := newPlanningDeps(repoDir)
-			if err != nil {
-				return err
-			}
-			return run(c, deps, repoDir)
-		},
 	}
 	cmd.Flags().String("request", "", "JSON request `file`, or - to read the request from stdin (required)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("request")
+	decode := declareJSONFile[T](cmd, "request")
+	cmd.RunE = func(c *cobra.Command, _ []string) error {
+		repoDir, err := resolveRepoDir(c)
+		if err != nil {
+			return err
+		}
+		deps, err := newPlanningDeps(repoDir)
+		if err != nil {
+			return err
+		}
+		req, err := decode(c)
+		if err != nil {
+			return err
+		}
+		run(c, deps, repoDir, req)
+		return nil
+	}
 	return cmd
 }
 
@@ -588,13 +548,6 @@ func optionalRepoDir(repoDir []string) string {
 		return repoDir[0]
 	}
 	return ""
-}
-
-// decodeRequestFlag reads the command's --request source and strictly decodes
-// one JSON document into dst.
-func decodeRequestFlag(c *cobra.Command, dst any) error {
-	source, _ := c.Flags().GetString("request")
-	return decodeRequest(c.InOrStdin(), "--request", source, dst)
 }
 
 // decodeRequest reads a closed JSON request from source — "-" for stdin, any
