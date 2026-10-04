@@ -1,7 +1,7 @@
 ---
 id: 520
 slug: 'make-the-published-finalize-request-schemas-match-what-input'
-title: 'Make the published finalize request schemas match what --input accepts'
+title: 'Make every published request schema match the JSON file the operation reads'
 status: 'proposed'
 priority: 'low'
 type: 'fix'
@@ -11,8 +11,8 @@ depends_on: []
 stacked_on:
 related: [360, 502]
 discovered_from: [518, 519]
-adrs: []
-spec:
+adrs: [109]
+spec: 'docs/superpowers/specs/2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md) |
+| ADRs | [ADR-0109](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -38,11 +42,12 @@ Consolidates #518 and #519. Both are the same bug: `docket schema` tells an agen
 
 ## What changes
 
-- Register the resolver report's request type for `finalize.rebase-continue` so `docket schema --operation finalize.rebase-continue` prints the accepted keys.
-- Make the published schema for `finalize.block` list only the keys its `--input` accepts (for example, register an input-only type with `report` and `remedy`).
-- Add one guard test: for each operation that reads `--input`, the schema's request keys must equal the keys its input decoder accepts. Derive that operation set from the code instead of hand-listing it, so the guard also covers sibling flag/input splits such as `finalize.clear-block`. Mutation-test it. Fix any other mismatch it finds.
-- Grooming decides whether `rebase-continue` should accept an envelope-level `schema_version` or name it in its refusal, and whether the resolver agent text should point at the schema.
+- State one rule for `docket schema`: an operation's published request is exactly the JSON file it reads (`--request`, `--input` or `--body`), or nothing when it reads none. Flags are described only by the capability catalog's `signature`.
+- Fix the seven operations that publish the wrong request today: `finalize.block`, `finalize.rebase-continue`, `finalize.rebase-abort`, `finalize.closeout`, `finalize.retarget-children`, `change.halt` and `pr.publish`. Each now publishes the one `internal/app` type its decoder reads.
+- Stop publishing a request for the roughly twenty flag-only operations (for example `finalize.rebase`, `change.claim`, `finalize.merge`).
+- Route every JSON-file decode through one helper that records the decoded type on the command. Add a mutation-tested guard that each operation's published request equals that recorded type, plus a shape-keyed scan that no decode bypasses the helper.
+- Adjust the registry-accounting tests to the new rule, and record the rule in a new ADR that relates to ADR-0109.
 
 ## Out of scope
 
-Changing which values are passed as flags versus input. The resolver attempt budget (`finalize.resolver_max_attempts`) and how the rebase replays commits. The broader CLI schema items bundled in change 0360. The other finalize fixes found during 0502 stay separate on purpose: #515 (a named-id merge skips the repair sign-off block) and #517 (evidence for a finalize re-test).
+Changing which values are passed as flags versus in the JSON file. Renaming the flag-assembled `*Request` structs. Accepting or special-casing an envelope-level `schema_version` (the refusal already lists the accepted keys). Editing the `docket-rebase-resolver` agent text. Bumping `schema_version`. The resolver attempt budget (`finalize.resolver_max_attempts`) and how the rebase replays commits. The broader CLI schema items bundled in change 0360. The other finalize fixes found during 0502 stay separate on purpose: #515 (a named-id merge skips the repair sign-off block) and #517 (evidence for a finalize re-test).
