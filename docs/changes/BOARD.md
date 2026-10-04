@@ -1,6 +1,12 @@
 # Backlog
 
-**509 changes** — 🔵 1 built · 🟣 5 groomed · 🟡 3 proposed · ⚪ 13 deferred · ✅ 350 done · 🗑️ 137 killed
+**509 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 3 proposed · ⚪ 13 deferred · ✅ 350 done · 🗑️ 137 killed
+
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0509](active/0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | `medium` | `chore` | [spec](../superpowers/specs/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md) | `chore/edit-an-ungroomed-stub-through-a-typed-operation` |  |
 
 ## 🔵 Built (1)
 
@@ -8,11 +14,10 @@
 |---|-------|----------|------|----|-------|
 | [0505](active/0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | `low` | `refactor` | [#380](https://github.com/danielhanold/docket/pull/380) | awaiting merge |
 
-## 🟣 Groomed (5)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0509](active/0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | `medium` | `chore` | [spec](../superpowers/specs/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md) |
 | [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |

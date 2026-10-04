@@ -2,7 +2,7 @@
 id: 509
 slug: 'edit-an-ungroomed-stub-through-a-typed-operation'
 title: 'Edit an ungroomed stub through a typed operation'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/edit-an-ungroomed-stub-through-a-typed-operation'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T11:39:48Z'
 ---
 
 ## Artifacts
