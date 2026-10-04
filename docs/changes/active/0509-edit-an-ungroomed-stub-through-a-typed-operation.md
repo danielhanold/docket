@@ -14,7 +14,7 @@ discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md'
 plan: 'docs/superpowers/plans/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation.md'
-results:
+results: 'docs/results/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-04T11:57:41Z'
 |---|---|
 | Spec | [2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md) |
 | Plan | [2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation.md](https://github.com/danielhanold/docket/blob/chore/edit-an-ungroomed-stub-through-a-typed-operation/docs/superpowers/plans/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation.md) |
+| Results | [2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-results.md](https://github.com/danielhanold/docket/blob/chore/edit-an-ungroomed-stub-through-a-typed-operation/docs/results/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
