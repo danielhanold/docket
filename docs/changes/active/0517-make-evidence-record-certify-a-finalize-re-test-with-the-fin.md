@@ -2,7 +2,7 @@
 id: 517
 slug: 'make-evidence-record-certify-a-finalize-re-test-with-the-fin'
 title: 'Make evidence.record certify a finalize re-test with the finalize gate settings'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T15:13:21Z'
 ---
 
 ## Artifacts

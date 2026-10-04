@@ -1,19 +1,19 @@
 # Backlog
 
-**520 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 139 killed
+**520 changes** — 🟢 3 in progress · 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 139 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0520](active/0520-make-the-published-finalize-request-schemas-match-what-input.md) | Make every published request schema match the JSON file the operation reads | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md) | `fix/make-the-published-finalize-request-schemas-match-what-input` |  |
+| [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md) | `fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin` |  |
 | [0516](active/0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) | Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match | `low` | `chore` | [spec](../superpowers/specs/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md) | `chore/remove-stale-auto-groom-comments-and-fix-testskillhandoffsit` |  |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md) |
 | [0511](active/0511-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa.md) | Upgrade guide from Bash docket to the Go binary, proven on saved v0.9.2 and v0.9.3 installs | `critical` | `docs` | [spec](../superpowers/specs/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
