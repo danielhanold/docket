@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0510 — Match reported follow-ups against proposed and deferred changes](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md)**
+> ↩ **[Change 0510 — Match reported follow-ups against proposed and deferred changes](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md)**
 <!-- docket:backlink:end -->
 # Match reported follow-ups against proposed and deferred changes — Results
 
