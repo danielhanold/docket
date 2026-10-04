@@ -48,10 +48,15 @@ A read-only audit (main @ `20bc0a36a`) found the skills still describing behavio
   - `## Run halted` is written by `change.halt`, and `change.resume-halted` also clears it.
   - Agent wrappers are user-level only, and no per-repository wrapper is generated.
   - `docket install check` is machine-only.
-- **Three real bugs caused by the prose:**
+- **Four real bugs caused by the prose:**
   1. **auto-groom dirties `.docket/`.** It drafts its spec under `.docket/docs/superpowers/specs/`, so the next `repository prepare` refuses with `metadata-worktree-dirty`. The draft belongs in the request file, as in groom-next.
   2. **docket-review raises a false blocker.** It demands `result: green` evidence, so under the supported `build.gate: off` it reports `unverified-build-state` against implement-next's accepted `skipped` / `build-gate-off` evidence.
   3. **Finalize contradicts itself.** Finalize step 5, `gate-failure.md`, and the integration-repair wrapper re-gate a repaired head with raw `gate.launch` + `gate.observe` + `evidence.record --run`. `gate-caller-loop.md` and docket-build say no workflow caller composes raw gate verbs.
+  4. **Finalize's sign-off advice is wrong.** `docket-finalize-change/references/gate-failure.md` (*Sign-off on auto-authored repairs*) says the human re-runs finalize and the retry clears a `repair-needs-signoff` block. The SKILL.md says the block needs an explicit human `finalize.clear-block` first, and a plain re-run does not clear it.
+- **Retired behaviour found while building #464** (not in the original audit):
+  - docket-status describes stale-claim and dependency-stall health checks the binary no longer runs.
+  - The convention still documents `learnings.cap` and an active-findings cap on the ledger.
+  - The convention and `agent-layer.md` describe merging `skills:` across config layers, and a legacy `agents.yaml` auto-migration.
 - **About 85 citations of individual changes** (implement-next 10, convention about 45, edge-paths 5, fix-loop 5, docket-brainstorm 5, and others) plus "deferred from Go v1" history narration.
 
 ## What changes
