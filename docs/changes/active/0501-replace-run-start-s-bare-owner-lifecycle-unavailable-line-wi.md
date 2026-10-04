@@ -2,7 +2,7 @@
 id: 501
 slug: 'replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi'
 title: 'Replace run.start''s bare owner-lifecycle-unavailable line with a plain stop note'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T06:26:31Z'
 ---
 
 ## Artifacts
