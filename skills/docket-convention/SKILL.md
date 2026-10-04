@@ -170,6 +170,8 @@ In `docket`-mode all of the above lives on the `docket` branch, written through 
 
 ### Change manifest (frontmatter at the top of each change file)
 
+`change.create` renders a new change with these fields, in this order:
+
 ```yaml
 ---
 id: 7                     # integer; zero-padded to 4 digits in the filename
@@ -185,17 +187,17 @@ stacked_on:               # optional: parent change id whose branch this one is 
 related: [4, 6]           # cross-links the reconcile pass reads
 discovered_from: [62]     # change id(s) whose work surfaced this one; informational like related:, never a readiness gate
 adrs: [24]                # ADRs this change cites or produces
-spec:                     # superpowers design doc path; set at brainstorm (propose) time, on metadata_branch
+spec:                     # superpowers design doc path; set at brainstorm (propose) time, on the `docket` branch
 plan:                     # plan FILE lives on the feature branch; this FIELD is set in the main tree at build time
-results:                  # results FILE on the feature branch; this FIELD set in the main tree by change.attach-results at the first checkpoint, required before the implemented transition (0410)
+results:                  # results FILE on the feature branch; this FIELD set by change.attach-results at the first checkpoint, required before the implemented transition
 trivial: false            # true = no spec needed (small mechanical change); still build-ready
-auto_groomable:           # tri-state: unset ⇒ inherit the repo's auto_groom; true/false ⇒ explicit override
-branch:                   # minted <type>/<slug> (or <branch_prefix>/<slug>) name, set on claim; sole feature-head source of truth after, never reconstructed; branch itself created at build (step 4)
+auto_groomable:           # `true` makes a stub auto-groomable; unset or `false` means not
 branch_prefix:            # optional one unqualified branch-path component; overrides <type> at mint, consumed only at claim, inert once branch: is populated, survives reclaim
-claimed_at:               # UTC ISO-8601 claim lease (YYYY-MM-DDTHH:MM:SSZ); stamped at claim, refreshed at phase boundaries, cleared on leaving in-progress
+branch:                   # minted <type>/<slug> (or <branch_prefix>/<slug>) name, set on claim; sole feature-head source of truth after, never reconstructed; branch itself created at build (step 4)
 pr:                       # set when the PR is opened
 blocked_by:               # free text; set only when status: blocked
 reconciled: false         # set true after the just-in-time reconcile pass
+claimed_at:               # UTC ISO-8601 claim lease (YYYY-MM-DDTHH:MM:SSZ); stamped at claim; refreshed at phase boundaries; cleared on leaving in-progress
 ---
 ```
 
@@ -214,7 +216,9 @@ change, never in the merged artifact.
 
 ### Change body sections
 
-- `## Artifacts` — **first body section** (immediately after the frontmatter closing `---`, above `## Why`). Marker-bounded (`<!-- docket:artifacts:start (generated — do not hand-edit) -->` / `<!-- docket:artifacts:end -->`); rendered from frontmatter by the Go app-layer link-block renderer inside the owning metadata transaction; **never hand-edited** — the renderer is the sole writer. Seeded empty by the template; regenerated after every frontmatter field write. Its **reciprocal** is the `docket:backlink` block (markers `<!-- docket:backlink:start … -->` / `<!-- docket:backlink:end -->`) stamped at the TOP of each artifact (spec, plan, results, PR body) pointing home to the change on `metadata_branch`, written solely by the `artifact.backlink` operation (change 0136; ADRs excluded, back-referenced by `change:`).
+`change.create` writes `## Artifacts`, `## Why`, `## What changes`, and `## Out of scope`; `## Open questions` and every later section are added by later operations.
+
+- `## Artifacts` — **first body section** (immediately after the frontmatter closing `---`, above `## Why`). Marker-bounded (`<!-- docket:artifacts:start (generated — do not hand-edit) -->` / `<!-- docket:artifacts:end -->`); rendered from frontmatter by the Go app-layer link-block renderer inside the owning metadata transaction; **never hand-edited** — the renderer is the sole writer. Seeded empty by `change.create`; regenerated after every frontmatter field write. Its **reciprocal** is the `docket:backlink` block (markers `<!-- docket:backlink:start … -->` / `<!-- docket:backlink:end -->`) stamped at the TOP of each artifact (spec, plan, results, PR body) pointing home to the change on `metadata_branch`, written solely by the `artifact.backlink` operation (change 0136; ADRs excluded, back-referenced by `change:`).
 - `## Why` — the motivation, as detailed as warranted (no length limit).
 - `## What changes` — scope of the work.
 - `## Out of scope` — explicit non-goals.
@@ -248,6 +252,7 @@ change: 4                 # back-link: the change that produced this decision, i
 ## Context       — the forces / problem that prompted the decision
 ## Decision      — what was chosen, and the rule a reader needs to know
 ## Consequences  — what it enables, what it costs, what is given up
+## Alternatives considered — the options rejected, and why
 ```
 
 An `Accepted` ADR is immutable except its `status:` line; a non-reversing context change is appended as a dated `## Update` note, never an edit to the decision. A reversal/supersession is always a **new** ADR.

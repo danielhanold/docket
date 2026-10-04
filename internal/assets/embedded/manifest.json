@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:9bacc315b22a675860203d496ada280be2374e9a0beceb5df972caf8ce5899a9",
+  "asset_set_id": "sha256:de462913b11a1172a386646f7a82ff6a2f34f52dbfa9410b1749f74c562d490d",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -277,13 +277,6 @@
       "sha256": "5b83723177bd19cee4197e7a0e26d80f326e65627afca51f956d7cbe38c22102"
     },
     {
-      "path": "skills/docket-adr/adr-template.md",
-      "role": "skill",
-      "mode": 420,
-      "size": 514,
-      "sha256": "014d0fc8cfad6d99450b3fe40bb3d7d5654e8946bc3d24dd554d5f587fe15eca"
-    },
-    {
       "path": "skills/docket-auto-groom/SKILL.md",
       "role": "skill",
       "mode": 420,
@@ -329,8 +322,8 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 55812,
-      "sha256": "cdb198acb2c653260577fbac23a2665aa99ed91c23db42a312f58784dd1387ac"
+      "size": 56073,
+      "sha256": "197c0d9c7395ce1768a4b3ea52102881c92f3c4978c2eaa438e24f3a9ab13686"
     },
     {
       "path": "skills/docket-convention/references/agent-layer.md",
@@ -415,13 +408,6 @@
       "mode": 420,
       "size": 11334,
       "sha256": "eb0c9628864c4fec28e8c74f6bcb6f84cd114f80e3b2fb6ef40eab45cadfe801"
-    },
-    {
-      "path": "skills/docket-new-change/change-template.md",
-      "role": "skill",
-      "mode": 420,
-      "size": 1649,
-      "sha256": "d94c3d3d82dc85ff2051e64ca4e316cff9a3cc05b6caea30c02f7f95254d55bd"
     },
     {
       "path": "skills/docket-review/SKILL.md",

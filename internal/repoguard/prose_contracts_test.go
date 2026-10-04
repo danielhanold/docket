@@ -180,9 +180,6 @@ var proseContracts = []proseContract{
 	// tests/test_docket_example_yml.sh — key-presence core (full correspondence scan flagged).
 	{sentinel: "test_docket_example_yml", file: ".docket.example.yml",
 		present: []string{"board_surfaces", "agent_harnesses", "finalize:"}},
-	// tests/test_change_types.sh — the change template still ships a type placeholder.
-	{sentinel: "test_change_types", file: "skills/docket-new-change/change-template.md",
-		present: []string{"type:"}},
 	// change 0400 — the goal-first landing page cannot silently lose its two
 	// load-bearing map links (the docs index — retargeted from the relocated
 	// guide by change 0402 — and the comparison page).
@@ -1034,6 +1031,10 @@ var alignmentContracts = []proseContract{
 	// Dummy mode is not a docket feature; no skill describes it.
 	{sentinel: "align_0502_no_dummy_mode", file: "skills/docket-convention/SKILL.md",
 		absent: []string{"Dummy mode", "DUMMY_MODE", "In plain terms"}},
+	// 0502: the convention's record blocks mirror render.ChangeRecord / render.ADRRecord.
+	{sentinel: "align_0502_record_blocks", file: "skills/docket-convention/SKILL.md",
+		present: []string{"branch_prefix:", "## Alternatives considered"},
+		absent:  []string{"Seeded empty by the template"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {
