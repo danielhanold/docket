@@ -21,7 +21,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0521](active/0521-finish-schema-operation-documentation-outcomes-md-flag-only.md) | Finish schema operation documentation: outcomes.md flag-only operations and ADRReplaceRequest required fields | `low` | `fix` | needs-grooming |
+| [0521](active/0521-finish-schema-operation-documentation-outcomes-md-flag-only.md) | Mark every nested required request field in the schema, and fix the stale schema docs | `low` | `fix` | ⏳ waiting on #520 — needs your merge |
 | [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Make finalize.merge honor the repair sign-off block when an id is named | `high` | `fix` | needs-grooming |
 | [0513](active/0513-release-v1-0-0-alpha-3-prove-and-publish-opencode-support.md) | Release v1.0.0-alpha.3: prove and publish OpenCode support | `high` | `chore` | ⏳ waiting on #512 — not yet built |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | ⏳ waiting on #366 — not yet built |
@@ -79,7 +79,7 @@ graph TD
   0515
   0517
   0520
-  0521
+  0520 --> 0521
   0192:::done
   0251:::done
   0393:::done

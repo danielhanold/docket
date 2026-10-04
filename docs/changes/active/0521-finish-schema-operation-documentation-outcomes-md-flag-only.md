@@ -1,18 +1,18 @@
 ---
 id: 521
 slug: 'finish-schema-operation-documentation-outcomes-md-flag-only'
-title: 'Finish schema operation documentation: outcomes.md flag-only operations and ADRReplaceRequest required fields'
+title: 'Mark every nested required request field in the schema, and fix the stale schema docs'
 status: 'proposed'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
 updated: '2026-10-04'
-depends_on: []
+depends_on: [520]
 stacked_on:
 related: [360, 520]
 discovered_from: [520]
-adrs: []
-spec:
+adrs: [138]
+spec: 'docs/superpowers/specs/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md'
 plan:
 results:
 trivial: false
@@ -27,16 +27,27 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md) |
+| ADRs | [ADR-0138](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0138-a-published-request-schema-is-exactly-the-json-file-an-opera.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Change 0520 made `docket schema --operation` publish exactly the JSON file each operation reads, and flag-only operations no longer publish a request. Two loose ends were found and left out of that change's scope. First, `docs/reference/outcomes.md` still says `docket schema --operation` shows a request shape for every operation, which is now false for the 23 flag-only operations. Second, in `ADRReplaceRequest` the nested `target` and `successor` fields are refused when empty but are not marked required, so the published schema does not tell a caller they are mandatory.
+Change 0520 made `docket schema --operation` publish exactly the JSON file each operation reads. Flag-only operations no longer publish a request. It left two loose ends.
+
+First, two docs still say every operation shows a request shape: `docs/reference/outcomes.md` and the docket-convention `close-out.md` reference. That is now false for about 23 flag-only operations.
+
+Second, no nested request field is marked required, even though the validator refuses several of them when empty. Examples: the ADR `target` (id, path, revision) on supersede/reverse, the producing `change` pins on ADR requests, `sections[].heading`/`intent` on groom and learning updates, and `children[]` pins on retarget. An agent reading the schema cannot tell these are mandatory, so it learns only from a refusal.
 
 ## What changes
 
-(1) Update `docs/reference/outcomes.md` so it describes only current behavior: operations that read a JSON file show its request shape, and flag-only operations show no request. (2) Mark the nested `target` and `successor` fields of `ADRReplaceRequest` as required in the published schema, matching what the validator already refuses, using the same declaration helper (`declareJSONFile`) and required-field test conventions 0520 established (ADR-0138).
+- One rule: a request field at any depth is marked required exactly when the validator always refuses it if empty. A required field inside an optional object is required only when that object is sent.
+- Add the missing `docket:"required"` tags on the nested ADR target and producing-change pins, the ADR `target`/`successor` objects, section `heading`/`intent`, and retarget child pins. No validator behavior changes.
+- Extend the required-tag test so it checks nested fields. It starts from a known-valid request and blanks each nested field in turn: a tagged field must be refused and an untagged one accepted. The test is mutation-checked.
+- Fix the stale wording in `outcomes.md` and `close-out.md` (and its embedded copy).
 
 ## Out of scope
 
-Changing validator behavior, adding new schema vocabulary, or auditing other request types beyond the two items listed.
+Changing validator behavior or finding codes. New schema vocabulary (conditional-required). Bumping `schema_version`. Fixing `successor.request_id`, which is published as required but ignored by supersede/reverse. That mismatch is harmless and is recorded, not fixed.
