@@ -1,7 +1,7 @@
 # v0.9.11 agent-defaults sidecar
 
 - **Source repo:** `danielhanold/docket`
-- **Commit:** this change's feature commit (the tree equals `agents/harness-defaults.yml` at that commit)
+- **Commit:** aa0cdb5b38f255ac63ae2411ec02affc1a7ed14b (the tree equals `agents/harness-defaults.yml` at that commit)
 - **Date:** 2026-10-04
 - **Redaction:** none
 

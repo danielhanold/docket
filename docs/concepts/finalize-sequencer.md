@@ -85,8 +85,9 @@ to it.
   on the `docket` branch (a stacked change merged into its parent is marked
   `stacked-merged` instead), and retargets the backlinks in the change's spec, plan,
   and results files to the archived record. Nothing is copied to the
-  integration branch. A backlink retarget that fails leaves the change
-  `final-backlink-pending`, and `docket finalize cleanup` repairs it.
+  integration branch. A backlink retarget that fails leaves a
+  `final-backlink-pending` finding (the change stays `done`), which
+  `docket finalize cleanup` repairs.
 - Cleanup removes the feature branch and its worktree, and is fail-closed: it
   never leaves the repository half-destroyed, so an interrupted close-out is
   recoverable rather than a worktree gone with its change not closed out.

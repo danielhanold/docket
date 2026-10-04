@@ -16,5 +16,5 @@ skills you actually have.
   codes, each with its owning surface.
 - [`skills-and-agents.md`](skills-and-agents.md) — the skills and agents inventory, derived from the
   `skills/` and `agents/` directories.
-- [`harness/README.md`](harness/README.md) — the harness runbooks and example files: the live
-  validation checklists and permission/sandbox examples behind the harness setup prose.
+- [`harness/README.md`](harness/README.md) — harness validation: the live Cursor validation
+  checklist behind the harness setup prose.
