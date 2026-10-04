@@ -2,7 +2,7 @@
 id: 502
 slug: 'align-the-skills-and-agent-files-with-the-docket-binary'
 title: 'Align the skills and agent files with the docket binary'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/align-the-skills-and-agent-files-with-the-docket-binary'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T11:48:59Z'
 ---
 
 ## Artifacts
