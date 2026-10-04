@@ -14,7 +14,7 @@ discovered_from: [502]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md'
 plan: 'docs/superpowers/plans/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md'
-results:
+results: 'docs/results/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-04T16:11:40Z'
 |---|---|
 | Spec | [2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md) |
 | Plan | [2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md](https://github.com/danielhanold/docket/blob/fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin/docs/superpowers/plans/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) |
+| Results | [2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-results.md](https://github.com/danielhanold/docket/blob/fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin/docs/results/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
