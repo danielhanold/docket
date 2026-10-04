@@ -1,18 +1,18 @@
 ---
 id: 500
 slug: 'committed-ignore-invalid-hint-for-an-absent-gitignore-names'
-title: 'committed-ignore-invalid hint for an absent .gitignore names a no-op migrate'
+title: 'committed-ignore-invalid remedies print the paste-ready managed block'
 status: 'proposed'
 priority: 'low'
 type: 'fix'
 created: '2026-10-03'
-updated: '2026-10-03'
+updated: '2026-10-04'
 depends_on: []
 stacked_on:
-related: []
-discovered_from: []
+related: [418, 352, 57]
+discovered_from: [496]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md'
 plan:
 results:
 trivial: false
@@ -27,20 +27,27 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-`docket repository check` reports `committed-ignore-invalid` when the committed integration tree has no `.gitignore` file at all (the `IgnoreDefectFileAbsent` case in `committedIgnoreFinding`, internal/reposetup/health.go). Its remedy still says "Restore the managed block (e.g. re-run `docket repository migrate`, or add it by hand from the canonical block)".
+`docket repository check` reports `committed-ignore-invalid` when the committed `.gitignore` on the integration branch lacks docket's managed ignore block. When the file is missing entirely, the remedy says to re-run `docket repository migrate`. Since change 0496, `migrate` is a no-op on a migrated repository and points at `docket repository repair`, which does not write `.gitignore` either. A human following the hint runs two commands that do nothing. No command writes the block on a migrated repository, so the remedy that works is the by-hand one.
 
-Since change 0496, `migrate` only migrates: on an already-migrated repository it is a no-op under every flag and points to `docket repository repair`. But `repository repair` does not restore the managed `.gitignore` block either. A human following the hint on a migrated repo runs a command that does nothing, then gets sent to a second command that also does nothing. The hint names a remedy that cannot work.
+The by-hand remedies share a second gap. Every `committed-ignore-invalid` variant tells the human to write "the managed block" or "the canonical representation", but none shows it. The marker lines have an exact spelling nobody can guess, and the block is documented only in docket's own source and ADR-0020.
 
-Surfaced by the 0496 build, which retargeted every other repair remedy to `repository repair` but left this one alone.
+The 0496 build surfaced this. It retargeted every mechanically-repairable remedy to `repository repair`, but its guard only covers repairable findings, so this remedy was never checked.
 
 ## What changes
 
-Give the absent-`.gitignore` finding a remedy that actually works on a migrated repository: either reword it to the hand-restore path (the canonical block, then review/commit/push, matching the sibling `committed-ignore-invalid` remedies), or name a command that really writes the block. Keep the 0496 guard that stops repair remedies naming `migrate` consistent with whatever is chosen.
+Every `committed-ignore-invalid` remedy ends with the exact managed block, ready to paste: markers and all entries, taken from the same canonical source that `init` writes and `check` validates. Each case keeps its own instruction (add the file, append, replace the legacy block, fix the markers first, restore missing entries, rewrite). The missing-file remedy stops naming `migrate`.
+
+A guard covers every variant. Each remedy carries the canonical block on its own lines, and none names `repository migrate`. `repository check`'s text output prints the block flush left so it pastes cleanly.
 
 ## Out of scope
 
-The other `migrate` remedies in health.go (`local-metadata-missing`, `docket-worktree-missing`, the legacy and half-migrated findings). They remain valid: on a migrated repo with an incomplete local attachment, `migrate` still runs its resume-local phase. Teaching `repository repair` to write `.gitignore` is out of scope unless grooming finds it is the YAGNI-cheapest working remedy.
+Teaching `repository repair` or `repository init` to write `.gitignore`. Neither can write the integration working tree on a migrated repository, and printing the block is the cheapest remedy that works in every state.
+
+The other `migrate` remedies in health.go (`local-metadata-missing`, `docket-worktree-missing`, the legacy and half-migrated findings) stay, because they remain valid. Also unchanged: `committed-ignore-unverified` (an unreadable blob), `status`'s indented rendering of findings on the legacy refusal path, and documenting the block in user-facing docs.
