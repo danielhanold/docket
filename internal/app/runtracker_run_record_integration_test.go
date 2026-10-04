@@ -182,6 +182,7 @@ func TestIntegrationRunRecordRunStartMintsRun(t *testing.T) {
 // owner-lifecycle limitation (change 0375 Task 13): the default dispatch route has
 // no automatic Stop/owner-death cancellation, so a Stop is the explicit run.cancel
 // operation. The field is a standing caveat, never a refusal — the run tracker still starts.
+// The text report prints it as the stop note naming this run's key (change 0501).
 func TestIntegrationRunRecordNoAdapterReportsLifecycleUnavailable(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
@@ -194,8 +195,8 @@ func TestIntegrationRunRecordNoAdapterReportsLifecycleUnavailable(t *testing.T) 
 	if res.OwnerLifecycle != ReasonOwnerLifecycleUnavailable {
 		t.Fatalf("OwnerLifecycle = %q, want %q", res.OwnerLifecycle, ReasonOwnerLifecycleUnavailable)
 	}
-	if !strings.Contains(res.HumanText(), ReasonOwnerLifecycleUnavailable) {
-		t.Fatalf("human text omits the owner-lifecycle caveat: %q", res.HumanText())
+	if !strings.Contains(res.HumanText(), "docket run cancel --key "+res.Key+" --reason <why>") {
+		t.Fatalf("human text omits the stop note naming this run's key: %q", res.HumanText())
 	}
 }
 

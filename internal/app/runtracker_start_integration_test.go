@@ -144,13 +144,13 @@ func TestIntegrationRunStartPreparesOuterScope(t *testing.T) {
 	if sp.req.ChangeID != "" || sp.req.Branch != "" || sp.req.Worktree != "" {
 		t.Errorf("fresh scope request carried identity: %+v", sp.req)
 	}
-	// Started line: run-started <key> <run-context>, followed by the honest
-	// owner-lifecycle caveat (change 0375 Task 13). The run is minted beside the
-	// run-tracker record under the same key, so the Stop path is followable.
+	// Started report: run-started <key> <run-context>, then the stop note naming
+	// this run's own key (changes 0375 Task 13, 0501). The run is minted beside the
+	// run-tracker record under the same key, so the printed cancel command is followable.
 	if _, _, err := LoadRunRecord(repo, res.Key); err != nil {
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
-	if got, want := res.HumanText(), "run-started "+res.Key+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	if got, want := res.HumanText(), runStartedWant(res.Key, scopeGrantChild); got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 	if res.RunContext != scopeGrantChild {
@@ -216,9 +216,9 @@ func TestIntegrationRunStartFreshStartSurfacesKeyAndContext(t *testing.T) {
 		t.Errorf("run.start JSON still carries the retired run_id key: %s", blob)
 	}
 
-	// Human report line: run-started <key> <run-context>, then the owner-lifecycle
-	// caveat.
-	if got, want := res.HumanText(), "run-started "+res.Key+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	// Human report: run-started <key> <run-context>, then the stop note naming this
+	// run's own key (change 0501).
+	if got, want := res.HumanText(), runStartedWant(res.Key, scopeGrantChild); got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 }

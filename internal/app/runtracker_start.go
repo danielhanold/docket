@@ -105,13 +105,15 @@ const (
 	// is nothing to resume: the remedy is 'docket run verify' and finalize. Never
 	// quiescence-checked into a supersede, never a replacement reservation.
 	ReasonRunResumeRunCompleted = "resume-run-completed"
-	// ReasonOwnerLifecycleUnavailable is the honest limitation a started run reports
-	// (change 0375 Task 13): the default dispatch route has NO owner-death or Stop
-	// lifecycle event that would cancel the run automatically, so a Stop is the
-	// explicit `run.cancel` operation. Only the Codex `agent.enter` route carries a
-	// signal-connected cancellation and a death guardian; every other route relies on
-	// the human running `run.cancel` (named in the skills prose). It is a standing
-	// caveat, never a refusal — a started run still starts.
+	// ReasonOwnerLifecycleUnavailable is the honest limitation a started run carries
+	// in its JSON owner_lifecycle field (change 0375 Task 13): the default dispatch
+	// route has NO owner-death or Stop lifecycle event that would cancel the run
+	// automatically, so a Stop is the explicit `run.cancel` operation. Only the Codex
+	// `agent.enter` route carries a signal-connected cancellation and a death
+	// guardian; every other route relies on the human running `run.cancel`. It is a
+	// standing caveat, never a refusal — a started run still starts. The text report
+	// never prints this token: HumanText prints the stop note (runStartStopNote)
+	// instead (change 0501).
 	ReasonOwnerLifecycleUnavailable = "owner-lifecycle-unavailable"
 )
 
@@ -161,26 +163,28 @@ type RunStartResult struct {
 	// route (change 0375 Task 13). On a started run it carries
 	// `owner-lifecycle-unavailable`: the default dispatch route has no automatic
 	// Stop/owner-death cancellation, so a Stop is the explicit `run.cancel`
-	// operation. Empty when no gate is started.
+	// operation. Empty when no run is started. HumanText prints it as the stop note
+	// (runStartStopNote), never as the bare token, and only when this field is set,
+	// so the text and JSON forms cannot drift apart (change 0501).
 	OwnerLifecycle string `json:"owner_lifecycle,omitempty"`
 }
 
-// HumanText renders the one report line. A started run prints `run-started <key>
-// <run-context>`. That is always two tokens, because the callers of startedRunResult
-// refuse an empty run context as scope-failed before minting, and the key comes from
-// a successful mint. A run-untracked
-// report prints `run-untracked <reason-token>`; a usage error (a non-applied
-// result) names its reason instead of a report line. The parent capability
-// never appears here — only the child run context, which is meant for the
-// child.
+// HumanText renders the report. A started run prints `run-started <key>
+// <run-context>`. That first line is always two tokens, because the callers of
+// startedRunResult refuse an empty run context as scope-failed before minting, and
+// the key comes from a successful mint. When OwnerLifecycle is set, a second line
+// follows: the stop note (runStartStopNote) naming this run's own key. A
+// run-untracked report prints `run-untracked <reason-token>`; a usage error (a
+// non-applied result) names its reason instead of a report line. The parent
+// capability never appears here — only the child run context, which is meant for
+// the child.
 func (r RunStartResult) HumanText() string {
 	if r.Result == ResultApplied {
 		if r.Started {
 			line := "run-started " + r.Key + " " + r.RunContext
 			if r.OwnerLifecycle != "" {
-				// Honest standing caveat: the dispatched route cancels no run on owner
-				// death; a Stop is the explicit `run.cancel` operation.
-				line += "\n" + r.OwnerLifecycle
+				// The standing caveat, printed as a note a human can act on.
+				line += "\n" + runStartStopNote(r.Key)
 			}
 			return line
 		}
@@ -190,6 +194,17 @@ func (r RunStartResult) HumanText() string {
 		return fmt.Sprintf("%s: %s (%s)", r.Operation, r.Result, r.Reason)
 	}
 	return fmt.Sprintf("%s: %s", r.Operation, r.Result)
+}
+
+// runStartStopNote renders the second line of a started report (change 0501): the
+// owner-lifecycle caveat as a plain note, with this run's own key filled into a
+// ready-to-run cancel command. "May not" rather than "won't" keeps it true on every
+// route: on the Codex route agent.enter, which runs after run.start, sets up a
+// death guardian that run.start cannot see. <why> stays a literal placeholder for
+// the human's reason.
+func runStartStopNote(key string) string {
+	return "note: closing this session may not stop this run. To stop it: docket run cancel --key " +
+		key + " --reason <why>"
 }
 
 // newRunStartResult stamps the envelope for the operation.
@@ -708,9 +723,9 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 	}
 
 	// (7) Report the started run with its key, its run context, and the honest
-	// owner-lifecycle caveat: the dispatched route has no automatic Stop, so a Stop is
-	// the explicit `run.cancel` operation keyed by this run's key (change 0375 Task 13).
-	// The key and run context are both non-empty here (the empty-capability refusal
-	// at step 5), so the line is always two tokens.
+	// owner-lifecycle caveat (change 0375 Task 13), which HumanText prints as a stop
+	// note naming this run's `docket run cancel --key` command (change 0501). The key
+	// and run context are both non-empty here (the empty-capability refusal at step
+	// 5), so the first line is always two tokens.
 	return startedRunResult(key, grant.ChildCapability)
 }

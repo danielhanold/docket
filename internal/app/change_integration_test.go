@@ -3539,7 +3539,7 @@ func TestIntegrationChangeRuntimeRunStartMintsLoadableKey(t *testing.T) {
 	if _, _, err := LoadRunRecord(repo, res.Key); err != nil {
 		t.Fatalf("LoadRunRecord(%q): %v", res.Key, err)
 	}
-	if got, want := res.HumanText(), "run-started "+res.Key+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	if got, want := res.HumanText(), runStartedWant(res.Key, scopeGrantChild); got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 
