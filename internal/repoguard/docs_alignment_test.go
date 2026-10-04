@@ -158,13 +158,7 @@ var livingDocRoots = []string{
 	"docs/concepts",
 	"docs/guide",
 	"docs/install",
-	"docs/reference/README.md",
-	"docs/reference/cli.md",
-	"docs/reference/config-keys.md",
-	"docs/reference/outcomes.md",
-	"docs/reference/skills-and-agents.md",
-	"docs/reference/fields.md",
-	"docs/reference/harness",
+	"docs/reference",
 }
 
 // livingDocFiles returns every .md file under roots (a root may be a file),
