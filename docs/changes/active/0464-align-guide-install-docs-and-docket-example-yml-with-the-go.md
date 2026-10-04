@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'docs/align-guide-install-docs-and-docket-example-yml-with-the-go'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T07:01:00Z'
+reconciled: true
+claimed_at: '2026-10-04T07:02:34Z'
 ---
 
 ## Artifacts
@@ -88,3 +88,9 @@ Bring every living human-facing doc in line with the binary as it is today. The 
 - Rewriting the Codex validation runbook. It is deleted; a fresh one is written against the real commands when Codex work resumes.
 - Catching refused *values* of supported keys (for example `finalize.gate: ci`) in the new guard — left to review.
 - A guard that keeps doc command snippets in sync with the capability catalog.
+
+## Reconcile log
+
+### 2026-10-04
+
+2026-10-04 — Reconciled against main @ de278cd62. The spec was groomed today against main @ 20bc0a36a; the 13 commits since touch only skill files (change 0498: docket-implement-next SKILL.md, fix-loop.md, results-template.md) and repoguard tests, none of the in-scope docs, the example config, harness-defaults, or scripts/runners. Scope, relations, and worklist unchanged; #502 (skills) remains the follow-on that depends on this change. Worklist items are still hypotheses to verify at build time per the spec.
