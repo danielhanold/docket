@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"reflect"
-	"strings"
 )
 
 // SchemaVersion identifies the schema-surface contract, versioned separately
@@ -78,12 +77,9 @@ func reflectFields(t reflect.Type) ([]FieldDescriptor, error) {
 			out = append(out, promoted...)
 			continue
 		}
-		key := strings.Split(f.Tag.Get("json"), ",")[0]
-		if key == "-" || (key == "" && !f.IsExported()) {
+		key, ok := jsonFieldKey(f)
+		if !ok {
 			continue
-		}
-		if key == "" {
-			key = f.Name
 		}
 		fd, err := describeField(f.Type)
 		if err != nil {

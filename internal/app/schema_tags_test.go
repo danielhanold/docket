@@ -371,10 +371,8 @@ func zeroJSONPath(v reflect.Value, path []string) error {
 	return zeroJSONPath(f, path[1:])
 }
 
-// jsonFieldByKey finds a struct field by its JSON key, with the key rules
-// reflectFields uses: an embedded struct promotes its fields, `json:"-"` and an
-// untagged unexported field contribute nothing, and an untagged exported field
-// falls back to its Go name.
+// jsonFieldByKey finds a struct field by its JSON key: an embedded struct
+// promotes its fields, and every other field's key comes from jsonFieldKey.
 func jsonFieldByKey(v reflect.Value, key string) (reflect.Value, bool) {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
@@ -385,14 +383,7 @@ func jsonFieldByKey(v reflect.Value, key string) (reflect.Value, bool) {
 			}
 			continue
 		}
-		k := strings.Split(f.Tag.Get("json"), ",")[0]
-		if k == "-" || (k == "" && !f.IsExported()) {
-			continue
-		}
-		if k == "" {
-			k = f.Name
-		}
-		if k == key {
+		if k, ok := jsonFieldKey(f); ok && k == key {
 			return v.Field(i), true
 		}
 	}

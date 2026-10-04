@@ -55,6 +55,22 @@ func docketEnumRef(tag reflect.StructTag) string {
 	return ""
 }
 
+// jsonFieldKey derives the JSON key of one non-embedded struct field, the
+// single copy of the key rules reflectFields, requiredJSONKeys, and the tests'
+// field lookup share: a `json:"-"` field and an untagged unexported field
+// contribute nothing (ok is false), and an untagged exported field falls back to
+// its Go field name. Promoting an embedded struct's fields is the caller's walk.
+func jsonFieldKey(f reflect.StructField) (key string, ok bool) {
+	key = strings.Split(f.Tag.Get("json"), ",")[0]
+	if key == "-" || (key == "" && !f.IsExported()) {
+		return "", false
+	}
+	if key == "" {
+		key = f.Name
+	}
+	return key, true
+}
+
 // requiredJSONKeys returns the sorted top-level JSON keys of prototype whose
 // field carries docket:"required". It walks the same shape as the CLI's
 // requestJSONKeys — embedded structs promote their fields; `json:"-"` and
@@ -74,15 +90,12 @@ func requiredJSONKeys(prototype any) []string {
 				walk(f.Type)
 				continue
 			}
-			tag := strings.Split(f.Tag.Get("json"), ",")[0]
-			if tag == "-" || tag == "" && !f.IsExported() {
+			key, ok := jsonFieldKey(f)
+			if !ok {
 				continue
 			}
-			if tag == "" {
-				tag = f.Name
-			}
 			if hasDocketOption(f.Tag, "required") {
-				seen[tag] = true
+				seen[key] = true
 			}
 		}
 	}
