@@ -2,7 +2,7 @@
 id: 503
 slug: 'auto-name-claude-code-sessions-from-docket-workflow-prompts'
 title: 'Auto-name Claude Code sessions from docket workflow prompts'
-status: 'proposed'
+status: 'deferred'
 priority: 'low'
 type: 'feat'
 created: '2026-10-04'
@@ -115,3 +115,7 @@ The verb vocabulary is exactly groom / implement / finalize; Daniel confirmed he
 - `/docket-*` slash commands and the `UserPromptExpansion` event; revisit if 0345 makes slash commands work.
 - Naming dispatched subagents or other sessions; renaming by writing transcript files directly or through the Agent SDK.
 - A terminal launcher shortcut (`claude --name …`): a personal alias if wanted, not part of this change.
+
+## Why deferred
+
+A hook is too much overhead for the convenience this change would bring.
