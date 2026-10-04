@@ -12,7 +12,7 @@ description: Use when a change's PR is approved or merged and you want to close 
 **Closeout notes ride the invocation, not a pause.** The finalize request may carry already-known
 verification outcomes or late findings; step 9 routes them into the closeout operation's structured
 request. The skill never pauses after merge and never asks a mid-run question — it records only the
-context supplied at invocation. Post-merge observations belong in the archived record's `## Closeout
+context supplied at invocation and the facts of a repair this run authored (step 6). Post-merge observations belong in the archived record's `## Closeout
 notes` section, never the frozen merged `results:` file.
 
 ## When to use
@@ -31,7 +31,7 @@ Each effect is one named operation — argv resolved from the capability catalog
 
 Read the candidate set once with the `context.finalize` operation (read-only; no metadata write, no Git mutation):
 
-- **Explicit id** — the `context.finalize` operation with `--id <id>`. Inspects exactly that record even when it carries a skip reason, reporting it as a candidate with an `override_note`. A named id **is** the human authorization: it overrides the `approval-required` and `finalize-blocked` skip reasons (the "I looked at it, merge/retry" signal). It never overrides a real blocker — `malformed`, `pr-closed`, `dependency-unmerged`, `not-implemented`, `pr-unknown`, `draft` — each of which surfaces as its own closed skip-reason token and yields `halted`, never a forced merge.
+- **Explicit id** — the `context.finalize` operation with `--id <id>`. Inspects exactly that record even when it carries a skip reason, reporting it as a candidate with an `override_note`. A named id **is** the human authorization: it overrides the `approval-required` skip reason (the "I looked at it, merge" signal). It never overrides a real blocker — `malformed`, `pr-closed`, `dependency-unmerged`, `not-implemented`, `pr-unknown`, `draft` — each of which surfaces as its own closed skip-reason token and yields `halted`, never a forced merge.
 - **Id allowlist** — the `context.finalize` operation with `--allowlist <ids>` bounds membership without reordering the survivors; naming the ids is the same authorization a single explicit id carries. A scoped id that is not eligible is surfaced with its skip reason, never force-merged.
 - **Auto-detect** — the `context.finalize` operation with neither flag applies the selection policy, returning candidates already ordered by `SelectFinalizeQueue` — merged-recovery first (closeout work with no merge to perform), then dependency-eligible open PRs, `MERGEABLE` before `CONFLICTING`/`UNKNOWN`, then smaller changed-files and diff lines, then priority/created/id. Take the head. Every skipped candidate is surfaced with its closed skip-reason token — nothing is omitted or guessed.
 
@@ -54,7 +54,7 @@ The driver's decision is binary: **continue on `advanced`/`contended`, stop on `
 
 **One merge per invocation.** A run merges **exactly one** change through the `finalize.merge` operation and exits `advanced`; it **never batches**. Consecutive close-outs come from the driver re-invoking, not a repeat within one run. Archiving several already-merged changes (merged-recovery candidates with no merge to perform) does not violate this: no merge occurred, so there is no blast radius to bound.
 
-**A blocked-but-non-empty set is `halted`, never `drained`.** There is work; it just needs a human. A candidate in scope but skipped for any human-requiring reason — a real skip-reason token, or a `## Finalize blocked` marker on the auto-detect path (a named id overrides that skip) — counts toward the non-empty set and yields `halted`. `drained` requires that `context.finalize` surfaced no `implemented` candidate at all.
+**A blocked-but-non-empty set is `halted`, never `drained`.** There is work; it just needs a human. A candidate in scope but skipped for a human-requiring skip-reason token counts toward the non-empty set and yields `halted`. `drained` requires that `context.finalize` surfaced no `implemented` candidate at all.
 
 The final report enumerates the change merged (if any), each change skipped with its closed reason, and the disposition that ended the run.
 
@@ -64,7 +64,7 @@ The steps below run for the one selected change. Each is one operation; read its
 
 ### 1. Authoritative context
 
-The `context.finalize` operation with `[--id <id> | --allowlist <ids>]`. Read-only. Select per *Selection* above. A candidate whose only skip reason is `approval-required` or `finalize-blocked` on an explicitly named or allowlisted run carries an `override_note` and proceeds; any other skip reason on the selected candidate is `halted`.
+The `context.finalize` operation with `[--id <id> | --allowlist <ids>]`. Read-only. Select per *Selection* above. A candidate whose only skip reason is `approval-required` on an explicitly named or allowlisted run carries an `override_note` and proceeds; any other skip reason on the selected candidate is `halted`.
 
 ### 2. Retarget authorized children (only when open children exist)
 
@@ -125,24 +125,21 @@ Red-test root cause, feature-branch fix bounded to the dispatched repair-attempt
 
 Then re-gate the repaired head through the gate driver — a drive you start yourself, separate from the gate `finalize.rebase` composes: the `gate.drive.start` operation with `--repo-dir <feature worktree> --owner finalize --change-id <id> --run-root <dir> --json`. Capture that first JSON response into `gate_reply` and read the drive id and owner generation from it — never into a zsh read-only special parameter such as `status`. Then run the `gate.drive.advance` operation with `--drive-id <id> --owner-gen <gen>`, one slice per call, until a terminal disposition, under `docket-build`'s gate-run posture (a dispatched agent never yields). The `--owner finalize` drive runs `finalize.test_command` and charges no build attempt. A `PASSED` drive whose head equals the repaired head feeds the `evidence.record` operation with `--owner finalize --id <id> --run <raw run dir from the PASSED document> --head <repaired head>`, which records `finalize.test_command` (the command that ran) and returns the immutable block — no agent-supplied `passed` boolean. `FAILED` returns to repair within the configured `finalize.repair_max_attempts` budget; `HALTED`, a repair that cannot reach green within that budget, or unavailable repair dispatch is `halted`. The raw `gate.launch`/`gate.observe` operations are operator primitives, never this re-gate.
 
-### 6. Sign-off on an authored repair
+### 6. A green repair merges
 
-A repair is code the human's PR review never saw, so it never merges unseen:
+A repair that turns the rebased suite green publishes and merges like any other green change, on autonomous and attended runs alike: continue to step 7 and step 8 with the repaired head and its recorded evidence. Finalize adds no stop of its own here — no `finalize.block`, no prompt, no `finalize.clear-block`. Approval stays the repository's policy: when branch protection requires approvals and dismisses stale approvals on new commits, publishing the repair removes the PR's approval and the merge waits for a fresh one (`references/gate-failure.md`). The repair stays visible: the run's final report names what broke, the claimed repair commits, and the attempts used, and step 9 records the same facts in the archived record's `## Closeout notes`.
 
-- **Autonomous run:** cannot prompt. First record the sign-off requirement durably: the `finalize.block` operation with `--id <id> --revision <revision> --pr-number <n> --attempt <attempt> --reason repair-needs-signoff --head <repaired head> --input <block report>`. This ensures the owned PR comment (idempotent by the attempt marker), then upserts the single `## Finalize blocked` section naming the reason. If it does not apply, do not publish; stop `halted` with the repair unpublished. Then publish the repaired head (step 7's `finalize.publish`), so the human can review it on the PR and `finalize.clear-block` can confirm the published head, and **stop**. Disposition `halted`. The marker goes down before the repair reaches the PR, so a published repair is never left unmarked for a later finalize to merge. The human reviews the pushed repair, signs off by running the `finalize.clear-block` operation themselves (`--id <id> --revision <revision> --head <repaired head> --pr-number <n>`, with `<revision>` re-read from the `context.finalize` operation or `status --json` after the block lands, since `finalize.block` rewrote the record), then re-runs finalize. A re-run alone never clears the block, and a sign-off relayed through an agent's prompt is not authority.
-- **Attended run:** publish the repaired head (step 7), then **prompt** the human with the repair diff and what broke before merging. On go-ahead, clear the block and merge.
-
-A pass with **no** authored repair (an exact-head-evidence skip, or a clean first-try rebase) skips this step.
+A pass with **no** authored repair (an exact-head-evidence skip, or a clean first-try rebase) has nothing to record here.
 
 ### 7. Publish the rebased head
 
-The `finalize.publish` operation with `--id <id> --attempt <attempt> --head <head> --evidence <evidence file>`. It probes the remote first (a no-op when already at `head`), pushes exactly `head` under the receipt's exact old-value lease, then converges the PR build-evidence block onto that head — authored prose, title, and every other body byte stay byte-identical. It never creates a second PR. A reprobe `unknown` returns `rewrite-unknown`/`pr-probe-failed` and stops with no second mutation (`halted`); a moved remote returns `rewrite-contended` (re-read context, `contended`); an attempt token not matching the receipt is refused before any push. On the attended repair path, after the human's go-ahead (step 6), follow publish with the `finalize.clear-block` operation with `--id <id> --revision <revision> --head <repaired head> --pr-number <n>`, which removes the marker only after reprobing the exact current head, valid gate evidence, the published remote ref, and the matching open PR.
+The `finalize.publish` operation with `--id <id> --attempt <attempt> --head <head> --evidence <evidence file>`. It probes the remote first (a no-op when already at `head`), pushes exactly `head` under the receipt's exact old-value lease, then converges the PR build-evidence block onto that head — authored prose, title, and every other body byte stay byte-identical. It never creates a second PR. A reprobe `unknown` returns `rewrite-unknown`/`pr-probe-failed` and stops with no second mutation (`halted`); a moved remote returns `rewrite-contended` (re-read context, `contended`); an attempt token not matching the receipt is refused before any push.
 
 ### 8. Merge exactly once
 
 The `finalize.merge` operation with `--id <id> --revision <revision> --head <head>`. It reloads fresh authority and rechecks every merge condition immediately before the effect — implemented, PR link, heads agree, base is the effective base, gate satisfied, approval satisfied, no open children, not superseded — refusing with that condition's token (`not-mergeable`, `pr-not-open`, `unresolved-base`, a child condition, …) and issuing **no** merge call when any fails. It then selects the best merge method the repository settings and the base branch's active rules permit, in the fixed order rebase → merge commit → squash, and attempts exactly that one; the document's `method` field reports it (absent on already-merged recovery). A cleanly observed empty permitted set refuses `blocked` with reason `merge-method-unavailable` before any merge — fix the repository or branch-rule merge settings; it is not `merge-denied` and is never retried with another method. Before any GitHub call it also validates the change and the records it structurally requires — its `depends_on` targets and stack ancestors (and any other record carrying its id), never `related`, `discovered_from`, or ADR links — and refuses `invalid-state`/`blocked` with reason `record-invalid` (the run is `halted`) when any carries a validation error; the result's `findings` name each bad record's code and path. No merge call was made: repair exactly the records `findings` name — never guess, never edit an unnamed record; no override exists — then re-run finalize. Because this check precedes already-merged recovery, a PR merged outside docket whose scope holds a defective record reports `record-invalid`, not `already-merged`; that is expected (closeout would refuse the same defect), and once repaired the re-run takes the merged-recovery path. It merges at the exact expected head, never requests a branch delete, and verifies the merge authoritatively: a reprobe returns the exact `mergedAt`/merge-commit facts and a Git fetch proves the merge commit reachable from the destination tip. An open PR on reprobe is not merged; a different head/base is `contended`; an unobservable result is `unknown` — none permits closeout. An already-merged exact PR is a verified no-op regardless of who merged it, never a second merge.
 
-`--admin` is honored **only** on an attended, explicitly-named run where a sole maintainer forces past an otherwise-unsatisfiable required review; it is never inferred from an approval absence or a permission error, and a `merge-denied` stays `denied` (`halted`). A named id overrides the `approval-required` and `finalize-blocked` skips (step 1); it never overrides malformed state, a wrong PR identity, an unsafe stack, or the repair sign-off.
+`--admin` is honored **only** on an attended, explicitly-named run where a sole maintainer forces past an otherwise-unsatisfiable required review; it is never inferred from an approval absence or a permission error, and a `merge-denied` stays `denied` (`halted`). A named id overrides the `approval-required` skip (step 1); it never overrides malformed state, a wrong PR identity, or an unsafe stack.
 
 ### 9. Closeout — archive the records
 
@@ -153,7 +150,10 @@ verification outcomes or late findings, translate that prose into two structured
 and `late_findings`, each an array of strings — in a bounded JSON request file passed via `--input`; closeout
 renders them under `## Closeout notes` in the same transaction that archives the record, an identical-notes retry
 replays as `already`, and different notes against an archived record are refused (`final-notes-frozen`). With no
-notes, call the unchanged no-input form and archive immediately — no post-merge pause or second user step. No
+notes, call the unchanged no-input form and archive immediately — no post-merge pause or second user step.
+A run that authored a repair (step 6) always sends notes: one `late_findings` entry naming what broke, the claimed
+repair commits, and the attempts used, alongside any notes from the invocation. If closeout refuses that notes request
+for any reason, re-run it once without `--input` and route on that result — a lost note never stops the closeout. No
 caller-supplied done boolean or archive date: it reloads metadata, reprobes the PR and its destination, derives the
 UTC archive date from the verified `mergedAt`, and applies one atomic transaction. Route on `disposition`:
 
@@ -229,9 +229,9 @@ After a successful relink, **reload and re-probe from scratch** — run the `con
 
 **Non-interactive callers** (implement-next's finalize sweep) never relink autonomously: they `halt` with the structured evidence for a human.
 
-## Sign-off, abort, and the blocked marker
+## Abort and the blocked marker
 
-The full abort-and-report set, the two-agent split, the sign-off rule, and the `## Finalize blocked` marker's write shape and lifecycle live in **`references/gate-failure.md`** — **read it at any abort** (a conflict, a red gate, an unavailable dispatch, a denied merge) before recording or reporting. Every abort-and-report point maps to `halted`, leaves the PR open and the change `implemented`, and records the `## Finalize blocked` marker via the `finalize.block` operation (comment first, then the single upserted section); the `finalize.clear-block` operation removes it after a successful reprobe.
+The full abort-and-report set, the two-agent split, the green-repair rule, and the `## Finalize blocked` marker's write shape and lifecycle live in **`references/gate-failure.md`** — **read it at any abort** (a conflict, a red gate, an unavailable dispatch, a denied merge) before recording or reporting. Every abort-and-report point maps to `halted`, leaves the PR open and the change `implemented`, and records the `## Finalize blocked` marker via the `finalize.block` operation (comment first, then the single upserted section); the `finalize.clear-block` operation removes it after a successful reprobe. The marker is a visible note: it never stops selection or merge, so the next run retries the change.
 
 ## Dispatch unavailability — no fallback
 
