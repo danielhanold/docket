@@ -39,3 +39,66 @@ func TestRunStartResultCarriesNoRunID(t *testing.T) {
 		t.Errorf("started line = %q, want %q", got, "run-started k0491 ctx-token")
 	}
 }
+
+// runStartedWant is the exact text report of a started run: the two-token
+// `run-started <key> <run-context>` line, then the stop note naming the run's own
+// key (change 0501). It spells the note out literally rather than calling
+// runStartStopNote, so a wrong note fails every assert that uses it.
+func runStartedWant(key, runContext string) string {
+	return "run-started " + key + " " + runContext + "\n" +
+		"note: closing this session may not stop this run. To stop it: docket run cancel --key " +
+		key + " --reason <why>"
+}
+
+// TestRunStartStopNoteNamesTheRunsOwnKey (change 0501): a started report's second
+// line is the stop note, and its cancel command carries this run's own key, so a
+// human can run it as printed. The report stays exactly two lines.
+func TestRunStartStopNoteNamesTheRunsOwnKey(t *testing.T) {
+	res := startedRunResult("k0501-own", "ctx-token")
+	got := res.HumanText()
+	if want := runStartedWant("k0501-own", "ctx-token"); got != want {
+		t.Errorf("HumanText = %q, want %q", got, want)
+	}
+	if !strings.Contains(got, "docket run cancel --key k0501-own --reason <why>") {
+		t.Errorf("stop note does not name the run's own key: %q", got)
+	}
+	if n := strings.Count(got, "\n"); n != 1 {
+		t.Errorf("started report has %d newlines, want exactly 1 (two lines): %q", n, got)
+	}
+}
+
+// TestRunStartTextOmitsBareTokenJSONKeepsIt (change 0501): the bare
+// owner-lifecycle-unavailable token no longer appears in the text report, while
+// the JSON owner_lifecycle field still carries it for machine readers. The JSON
+// half is also the absence assert's non-vacuity companion: the same result still
+// holds the token.
+func TestRunStartTextOmitsBareTokenJSONKeepsIt(t *testing.T) {
+	if ReasonOwnerLifecycleUnavailable != "owner-lifecycle-unavailable" {
+		t.Fatalf("ReasonOwnerLifecycleUnavailable = %q, must stay %q", ReasonOwnerLifecycleUnavailable, "owner-lifecycle-unavailable")
+	}
+	res := startedRunResult("k0501", "ctx-token")
+	if strings.Contains(res.HumanText(), ReasonOwnerLifecycleUnavailable) {
+		t.Errorf("text report still prints the bare %q token: %q", ReasonOwnerLifecycleUnavailable, res.HumanText())
+	}
+	buf, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(buf), `"owner_lifecycle":"owner-lifecycle-unavailable"`) {
+		t.Errorf("run.start JSON lost owner_lifecycle=owner-lifecycle-unavailable: %s", buf)
+	}
+}
+
+// TestRunStartStopNoteGatedOnOwnerLifecycle (change 0501): the note is printed only
+// when OwnerLifecycle is set, so text and JSON cannot drift apart. A run-untracked
+// report never carries it.
+func TestRunStartStopNoteGatedOnOwnerLifecycle(t *testing.T) {
+	res := startedRunResult("k", "ctx")
+	res.OwnerLifecycle = ""
+	if got := res.HumanText(); got != "run-started k ctx" {
+		t.Errorf("HumanText without OwnerLifecycle = %q, want %q", got, "run-started k ctx")
+	}
+	if got := runUntracked(ReasonRunMintFailed).HumanText(); strings.Contains(got, "note:") {
+		t.Errorf("run-untracked report carries the stop note: %q", got)
+	}
+}
