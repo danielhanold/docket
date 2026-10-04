@@ -2,9 +2,7 @@
 
 This reference is the **caller-side contract for driving the native gate**: the typed driver
 operations a caller invokes, the disposition vocabulary those operations return, and the ownership
-handoff a departing caller must perform. It is a **caller contract, not a harness quarantine** —
-that axis separates it from [`gate-execution.md`](gate-execution.md), which holds the measured
-per-harness capability verdicts and mechanism detail read once, ahead of the act.
+handoff a departing caller must perform.
 
 Its direct callers are the build controller's full-suite gate (every counted attempt) and
 implement-next's evidence re-mint and re-gates. Finalize's local gate reaches the same driver only

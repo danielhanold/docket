@@ -172,9 +172,6 @@ var proseContracts = []proseContract{
 	// tests/test_gate_caller_loop.sh — the gate driver caller-loop reference.
 	{sentinel: "test_gate_caller_loop", file: "skills/docket-build/references/gate-driver.md",
 		present: []string{"## The disposition vocabulary", "## Handoff"}},
-	// tests/test_gate_execution_posture.sh — gate-execution reference points at the caller loop.
-	{sentinel: "test_gate_execution_posture", file: "skills/docket-build/references/gate-execution.md",
-		present: []string{"gate-driver"}},
 	// tests/test_dispatch_capability.sh — the convention's dispatch-capability rule.
 	{sentinel: "test_dispatch_capability", file: "skills/docket-convention/SKILL.md",
 		present: []string{"Dispatch-capability resolution", "never from a tool name"}},

@@ -178,6 +178,45 @@ mode; it does **not** widen the release into a compatibility wrapper or a harnes
 
 ---
 
+## Run-boundary continuation acceptance
+
+The run-boundary continuation is the implement-next controller returning to its top parent while
+the build-owned suite gate keeps running, and the top parent continuing the same run. No in-repo
+test can observe it: it needs four separately installed harnesses, driven by a human. Run these
+probes against each harness and record what you observe in the release's results record. Never
+record probe evidence that was not observed.
+
+### Pending rows
+
+Each row stays pending until a human probes that harness at that version.
+
+| Harness | Version | Paths to probe | Verdict |
+| --- | --- | --- | --- |
+| Claude Code | `2.1.251` | interactive AND forked/dispatched implement-next path | `unverified — run-boundary probe pending (human)` |
+| Cursor | `3.17.21` | registered named-agent + continuation dispatch | `unverified — run-boundary probe pending (human)` |
+| Codex | `0.150.1` | named dispatch, same-agent resume when available, fresh continuation fallback | `unverified — run-boundary probe pending (human)` |
+| OpenCode | `1.18.23` | named dispatch + continuation dispatch | `unverified — run-boundary probe pending (human)` |
+
+### The probe scenarios
+
+Observe each harness against all five:
+
+1. a fast build-owned suite gate that returns before 30 seconds;
+2. an implement-next controller that returns, followed by top-parent continuation of the same
+   process and same run key;
+3. no duplicate process, no new task, and no retry consumption while the drive is active;
+4. terminal pass and terminal failure consumed by the correct resumed role;
+5. explicit resume of an already-in-progress change remaining attributable.
+
+### Standing rules
+
+- A verdict is version-scoped: probe again when the version moves; never inherit a row on faith.
+- An interactive-only observation cannot stand in for a dispatched path.
+- A harness that cannot supply the direct-child return event or an explicit continuation is
+  unsupported on that path, and the gap is reported, never bridged with a timer.
+
+---
+
 ## What merely running `docket version` in the parent does NOT prove
 
 Running `docket version` in the parent session, opening a generated file, or comparing a golden
