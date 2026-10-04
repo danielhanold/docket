@@ -283,7 +283,7 @@ func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 				Head:     head,
 				Admin:    admin,
 				// The attended `finalize merge --id` invocation IS the explicit human
-				// authorization the approval and finalize-blocked overrides read.
+				// authorization the approval override reads.
 				ExplicitID: true,
 			}))
 			return nil
