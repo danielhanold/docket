@@ -147,7 +147,9 @@ deliberately.
   would any other idea. The skill writes the change through `docket change create`, which takes
   the new change as a JSON request (`--request <file>`, or `-` for stdin). The new change shows up
   on the board as ordinary `needs-grooming` work and flows into the grooming queue like anything
-  else you filed.
+  else you filed. Each reported follow-up carries a backlog verdict: one that fits an existing
+  proposed or deferred change is folded into that change (revised through `docket-groom-next`, or
+  revived first if deferred) instead of captured new.
 - **The taxonomy governs creation.** Every change you file draws its `type:` from `change_types`
   (below).
 
@@ -177,7 +179,9 @@ narrow only what `docket status` displays — never the board itself or any writ
 ## Where discovered work lands
 
 To bring the thread together: the follow-up work an unattended run notices is never filed
-silently. It is written into the run's final report, and you decide what becomes a change. That
+silently. It is written into the run's final report, each item matched against the proposed and
+deferred backlog, and you decide what becomes a change — folding a fit into its existing change,
+capturing the rest new. That
 keeps the backlog something you own — nothing appears in it that a human did not choose to put
 there — while still making sure no genuine finding is lost between sessions. The next step for
 anything you do capture is to design it: [Designing before
