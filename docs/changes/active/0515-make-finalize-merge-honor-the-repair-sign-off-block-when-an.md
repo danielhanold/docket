@@ -2,7 +2,7 @@
 id: 515
 slug: 'make-finalize-merge-honor-the-repair-sign-off-block-when-an'
 title: 'Retire the finalize repair sign-off so a green repair merges'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/388'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T17:00:04Z'

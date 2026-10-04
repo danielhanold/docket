@@ -1,12 +1,12 @@
 # Backlog
 
-**522 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 358 done · 🗑️ 139 killed
+**522 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 358 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | `high` | `fix` | [spec](../superpowers/specs/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-design.md) | `fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | `high` | `fix` | [#388](https://github.com/danielhanold/docket/pull/388) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
