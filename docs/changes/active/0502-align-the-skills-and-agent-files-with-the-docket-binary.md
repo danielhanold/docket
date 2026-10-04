@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/align-the-skills-and-agent-files-with-the-docket-binary'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T11:48:59Z'
+reconciled: true
+claimed_at: '2026-10-04T11:50:41Z'
 ---
 
 ## Artifacts
@@ -102,3 +102,9 @@ The linked spec carries the verified facts and the full worklist.
 - Generated `CLAUDE.md` / `AGENTS.md` dispatch blocks, beyond what their generators already produce.
 - Adding new retired-vocabulary rows. The extended living-docs guard is the drift guard here.
 - Sharing the unsupported-key matcher between the two guards. That is #505.
+
+## Reconcile log
+
+### 2026-10-04
+
+2026-10-04 — Reconciled at main @ fc0e2e440. #464 is done (dependency satisfied). #505 is done: the living-docs guard's key matcher now lives in internal/config (UnsupportedKeyShapes over SettingPaths), so the guard extension builds on that shared matcher. No scope change; the spec's worklist stays a set of hypotheses verified at build time.
