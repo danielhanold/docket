@@ -2,7 +2,7 @@
 id: 515
 slug: 'make-finalize-merge-honor-the-repair-sign-off-block-when-an'
 title: 'Retire the finalize repair sign-off so a green repair merges'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T16:43:52Z'
 ---
 
 ## Artifacts

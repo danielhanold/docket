@@ -1,18 +1,18 @@
 # Backlog
 
-**521 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 357 done · 🗑️ 139 killed
+**521 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 357 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0521](active/0521-finish-schema-operation-documentation-outcomes-md-flag-only.md) | Mark every nested required request field in the schema, and fix the stale schema docs | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md) | `fix/finish-schema-operation-documentation-outcomes-md-flag-only` |  |
+| [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | `high` | `fix` | [spec](../superpowers/specs/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-design.md) | `fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an` |  |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | `high` | `fix` | [spec](../superpowers/specs/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-design.md) |
 | [0511](active/0511-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa.md) | Upgrade guide from Bash docket to the Go binary, proven on saved v0.9.2 and v0.9.3 installs | `critical` | `docs` | [spec](../superpowers/specs/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
