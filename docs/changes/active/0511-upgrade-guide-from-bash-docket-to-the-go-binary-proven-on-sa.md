@@ -14,7 +14,7 @@ discovered_from: [366]
 adrs: [96, 99]
 spec: 'docs/superpowers/specs/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-design.md'
 plan: 'docs/superpowers/plans/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary.md'
-results:
+results: 'docs/results/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-results.md'
 trivial: false
 auto_groomable: false
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-04T18:09:18Z'
 |---|---|
 | Spec | [2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-design.md) |
 | Plan | [2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary.md](https://github.com/danielhanold/docket/blob/docs/upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa/docs/superpowers/plans/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary.md) |
+| Results | [2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-results.md](https://github.com/danielhanold/docket/blob/docs/upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa/docs/results/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-results.md) |
 | ADRs | [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
