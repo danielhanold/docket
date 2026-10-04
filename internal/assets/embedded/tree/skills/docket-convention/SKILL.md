@@ -11,50 +11,49 @@ This skill defines the docket convention and does nothing else: no procedure, no
 
 docket tracks planned work as **changes** — one markdown file each, roughly one PR — and records architecture decisions as **ADRs**. This skill is the single source of the convention; the operating skills load it in their blocking startup check, use its vocabulary, and never restate it.
 
-### Configuration — `.docket.yml` (optional, committed on the default branch)
+### Configuration — `.docket.yml` (optional, committed in the primary worktree)
 
 Read at startup by every docket skill. Absent ⇒ all defaults. It is **committed** (never gitignored), because it governs cross-agent coordination and must be identical for every clone, agent, and device.
 
 ```yaml
-# .docket.yml — committed on the repo's DEFAULT branch (origin/HEAD); read by every docket skill at startup
-integration_branch: auto     # auto (→origin/HEAD, fallback main) | main | develop  — where code lands; feature branches cut from origin/<this>
-changes_dir: docs/changes    # default
-adrs_dir: docs/adrs          # default
-results_dir: docs/results    # default  — close-out 'results' artifacts (build-time files, like plans)
-auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
-change_types: [chore, docs, feat, fix, refactor, perf]  # a higher layer REPLACES this list, never merges
-auto_capture:                # parseable; capture itself is deferred from Go v1 (activates nothing)
-  enabled: false             # bare scalar `auto_capture: true` is a hard error
-  types: all                 # `all` or a change_types subset; leaves resolve independently
-board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md); [] = none
-terminal_publish: false      # parseable; publication itself is deferred from Go v1 (activates nothing)
-                             # archived records stay on the metadata branch. Per-repo-only (shared-setting guarded)
-build:                       # build's OWN gate pair, independent of finalize
-  gate: local                # local (default) | off
+# .docket.yml — committed in the primary worktree; every key is optional
+integration_branch: auto     # auto (origin's HEAD branch) | main | develop — where code lands
+changes_dir: docs/changes
+adrs_dir: docs/adrs
+results_dir: docs/results
+change_types: [chore, docs, feat, fix, refactor, perf]  # a higher layer replaces this list
+board_surfaces: [inline]     # inline (BOARD.md); [] = no board
+build:                       # the build role's own gate
+  gate: local                # local | off
   test_command: ""           # "" = unconfigured; `docket repository configure-tests`
-finalize:                    # finalize gate: rebase onto base + re-test before merge
-  gate: local                # local (default, on) | ci | both | off  — off = trust the PR's CI
-  test_command: ""           # "" = unconfigured; ditto
-  skip_results_only_delta: false  # arms the gate's docs-only post-gate skip. Per-repo-only (guarded)
-learnings:                   # the build-loop memory subsystem (change 0067)
-  enabled: true              # default. false = whole subsystem off (read/write gate, never a purge)
-  cap: 300                   # default. active-finding count past the human-read curation threshold
-agent_harnesses: [claude]    # harnesses the per-repo agent pass generates wrapper files for;
-                             # default [claude], e.g. [claude, cursor] for a Cursor repo.
-agents:                      # harness-first per-skill subagent model/effort — write values unquoted and space-free, no `#` inside the `{…}` flow map; see "Agent layer" below
-skills:                      # pluggable workflow skills; unset key = the default shown (superpowers for brainstorm/plan/finish, docket's own for build/review — change 0193)
-  brainstorm: superpowers:brainstorming
-  plan:       superpowers:writing-plans
-  build:      docket-build   # e.g. `auto` to build inline with no fan-out
-  review:     docket-review
-  finish:     superpowers:finishing-a-development-branch
+  max_attempts: 4
+finalize:                    # rebase onto the base and re-test before merge
+  gate: local                # local | off
+  test_command: ""
+  require_pr_approval: false
+  resolver_max_attempts: 10
+  repair_max_attempts: 6
+run:
+  max_attempts: 2
+review:
+  min_fix_severity: minor
+  max_fix_tasks: 10
+reclaim:
+  lease_ttl: 72
+  auto: false
+learnings:
+  enabled: true              # false = read/write gate, never a purge
+gate_observation_budget: 30  # minutes; enforced by the gate driver
+agent_harnesses: [claude]    # no default; absent = install writes no repository dispatch surface
 ```
 
-`.docket.yml` lives on the repo's **default branch (`origin/HEAD`)**, NOT on the integration branch — `integration_branch` is a value *read from* the file, so the file cannot be located *by* it. `metadata_branch` resolves where PM commits land; `integration_branch` (default `auto` → `origin/HEAD`, fallback `main`; explicit values verbatim) resolves where code lands. A genuinely absent file ⇒ defaults apply; an unreachable `origin` is never silently treated as "file absent."
+The board's presentation is configurable too: `board.section_order` (a permutation of the board sections) and, per section, `board.sorting.<section>.by` (`id` | `updated` | `created`) and `board.sorting.<section>.direction` (`asc` | `desc`) — all optional.
 
-**Config layers.** Two more optional layers: a **user-level** `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` (full `.docket.yml` schema; every repo on this machine) and a **machine-local** `<repo>/.docket.local.yml` (gitignored; this repo, this machine only). Every key resolves **per-field**: **repo-local > repo-committed > global > built-in** (map-valued `skills:`/`agents:` merge field-by-field). **Shared-setting guard:** a key whose effect writes shared, non-re-derivable state is per-repo-only — set in either machine-scoped file it is loudly warned-and-ignored, never honored, never fatal (ADR-0019). Everything else is global-able. Which keys are guarded (the per-key classification table) and the misplaced/malformed-file postures are authoritative in docket's config schema (`internal/config`) and discoverable via the `diagnostic.config` / schema operations — not restated here; the legacy `agents.yaml` auto-migration is owned by the Go install.
+Configuration is read from the primary worktree's `.docket.yml` and `.docket.local.yml` plus the global `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` — never from `origin/HEAD`. `integration_branch` resolves where code lands: `auto` (the default) resolves origin's HEAD branch, and an unresolvable remote HEAD is an error, not a fallback to `main`; an explicit value is used verbatim. A genuinely absent file ⇒ defaults apply.
 
-This resolution — repair `origin/HEAD`, read `.docket.yml`, apply defaults, resolve `integration_branch` — runs deterministically inside the **`repository.prepare`** operation (the *startup check*), exporting the resolved values to skill runtime.
+**Config layers.** Two more optional layers: a **user-level** `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` (every repo on this machine) and a **machine-local** `<repo>/.docket.local.yml` (gitignored; this repo, this machine only). Every key resolves **per-field**: **repo-local > repo-committed > global > built-in**. Agent model/effort pins (`agents.<harness>.<agent>.model|effort`) are honoured **from the global config only**; an agent pin in `.docket.yml` or `.docket.local.yml` blocks writes. Any explicit role-skill value blocks writes — the workflow role skills are fixed (see *Skill layer*). **Shared-setting guard:** the repository-identity keys (`integration_branch`, `changes_dir`, `adrs_dir`, `results_dir`) are per-repo-only — set in either machine-scoped file they are warned-and-ignored, never honored, never fatal (ADR-0019). An unknown key is an error on every read except the `install` operation, which downgrades it to a warning. The per-key classification and the malformed-file postures are authoritative in docket's config schema and discoverable via the `diagnostic.config` / schema operations — not restated here.
+
+This resolution — read configuration, apply defaults, resolve `integration_branch` — runs inside the **`repository.prepare`** operation (the *startup check*), which returns the resolved values in its typed context.
 
 **Reaching docket's operations.** Maintained skills reach every docket operation through the native `docket` binary on `PATH`, but never by hard-coding its argv: each skill resolves the executable spelling from the capability catalog (`docket capabilities --json` — the one spelling this convention permits a skill to hard-code) and constructs the invocation from the entry for the semantic operation it names (`repository.prepare`, `maintenance.sweep`, `status`, `change.*`, `context.*`, `adr.*`, `artifact.backlink`, …) — never a shell facade, and never a `DOCKET_*` transport variable resolved into a command. An operation's **request/result payload shape** resolves the same way — per-operation, from the catalog-resolved **`schema`** operation, validated fail-closed as the capability bootstrap is (refuse `protocol_version` ≠ 1 or an unsupported `schema_version`, a malformed envelope, or an id the surface does not carry) — building the body from the descriptor's real JSON keys, required markers, and named vocabularies, **never** from `--help`, `strings`, the source tree, or a probe. The two bootstrap remedies a **human** types — `docket repository migrate` and `docket repository init` — are the deliberate exception: they run before any catalog exists to resolve against, are human-initiated, and are never an agent runtime invocation. The deterministic helper scripts this convention still names (for their frozen Bash contracts) live in the docket clone's `scripts/` directory, NOT in the consuming repo; read a script's co-located `scripts/<name>.md` contract for its internals. If the `docket` binary is missing from `PATH`, the install is broken — stop and fix it, never silently degrade to hand-worked operations. Every env var docket introduces is **DOCKET_-namespaced**.
 
@@ -64,9 +63,9 @@ This resolution — repair `origin/HEAD`, read `.docket.yml`, apply defaults, re
 
 **`finalize` — the finalize gate.** `finalize.gate` governs `docket-finalize-change`'s
 merge step — rebase onto `origin/<integration_branch>`, re-validate, merge only if green: `local`
-(default) runs the repo's suite locally, `ci` polls GitHub checks, `both` requires both, **`off`**
-merges trusting the PR's own CI. **Finalize-only** — the `docket-status` sweep never merges. The
-gate flow and its agents live in `docket-finalize-change`.
+(default) runs the repo's suite locally; **`off`** merges trusting the PR's own CI.
+**Finalize-only** — the `docket-status` sweep never merges. The gate flow and its agents live in
+`docket-finalize-change`.
 
 ### Startup check (every operating skill)
 
@@ -77,7 +76,7 @@ Every operating skill starts identically; skill bodies compress to a pointer her
    - the `capabilities` verb is unknown to the binary → the installed binary predates the capability contract: **stop** and instruct the human to update or reinstall Docket. Never fall back to `--help`, guessed verbs, or probe invocations.
    - **refuse** (stop and surface the diagnostic) on any of: `protocol_version` ≠ 1 or an unsupported `capability_version`; a malformed envelope; duplicate `id`s; an effect outside the allowed values (`read` | `local-write` | `metadata-write` | `external-write` | `process-control`); an entry with a missing/empty `argv`; an absent or empty `commands` array.
    - a validated catalog **may be reused** by later skills in the **same** agent context; a **separately dispatched** agent fetches its own. No cache file, no repository metadata, no environment transport.
-3. **Prepare.** Resolve the `repository.prepare` entry from the catalog and run its argv with `--repo-dir <dir> --json` **as its own Bash call** — never compounded with other commands — then validate the protocol-v1 envelope and carry its typed context values forward as literals in later commands (no `eval`, no `source`). `repository.prepare` resolves config, enforces the bootstrap guard **fail-closed**, and ensures + syncs the metadata working tree (the persistent `.docket/` worktree, parked on `docket`, shared hooks disabled), returning a **closed typed context** (repo root, origin, the default/integration/metadata branches with pinned revisions, the `.docket` worktree path, the changes/ADR/results dirs, and the finalize configuration — no `DOCKET_*` names, no shell quoting). Its **disposition** takes the allowed values `applied` | `no-op` | `refused` | `error`: an `applied`/`no-op` carries the context; a `refused`/`error` carries a structured finding whose remedy names the exact next command instead.
+3. **Prepare.** Resolve the `repository.prepare` entry from the catalog and run its argv with `--repo-dir <dir> --json` **as its own Bash call** — never compounded with other commands — then validate the protocol-v1 envelope and carry its typed context values forward as literals in later commands (no `eval`, no `source`). `repository.prepare` resolves config, enforces the bootstrap guard **fail-closed**, and ensures + syncs the metadata working tree (the persistent `.docket/` worktree, parked on `docket`, shared hooks disabled), returning a **closed typed context** (repo root, origin, the default/integration/metadata branches with pinned revisions, the `.docket` worktree path, the changes/ADR/results dirs, the `build` configuration (`gate`, `test_command`, `max_attempts`), and the finalize configuration — no `DOCKET_*` names, no shell quoting). Its **disposition** takes the allowed values `applied` | `no-op` | `refused` | `error`: an `applied`/`no-op` carries the context; a `refused`/`error` carries a structured finding whose remedy names the exact next command instead.
 4. Act on the disposition: `applied`/`no-op` → continue. A `refused` on a **legacy single-branch** layout → refuse and point the human at `docket repository migrate` (human-typed remedy, human-initiated, never an agent runtime invocation). A `refused` on a **fresh repository** (once, human-attended) → the human runs `docket repository init` (human-typed remedy), then re-run `repository.prepare`. Any other `refused`/`error` (dirty, ahead, diverged, foreign, ambiguous, or an unresolved probe) → surface the finding's remedy and stop; it is a human's to resolve.
 
 **Mid-run posture.** Construct every subsequent docket invocation from the fetched catalog entry for the semantic operation the skill names. An operation the workflow needs that is **absent** from the catalog → the workflow's existing hard-error posture; never guess a spelling. An invocation resolved from a validated catalog that returns **unknown-command mid-run** → the binary was replaced or is inconsistent: **stop**; do not silently refetch and switch interfaces mid-workflow. An operation whose cataloged `effects` **exceed the workflow's authorized boundary** → stop with a capability-mismatch diagnostic. A `--request`/`--input` body is built from that operation's `schema` descriptor (per *Reaching docket's operations*), never guessed, probed, or read from source.
