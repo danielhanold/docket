@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/evidence"
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -183,6 +184,39 @@ func TestIntegrationEvidenceRecordBuildOwnerAndOmittedStayBuild(t *testing.T) {
 			}
 			if off.Command != "" || !strings.Contains(off.Block, evidence.ReasonBuildGateOff) {
 				t.Errorf("gate-off command/block = %q/%q, want empty/%s", off.Command, off.Block, evidence.ReasonBuildGateOff)
+			}
+		})
+	}
+}
+
+// TestIntegrationEvidenceFinalizeGatePassCertifiesWithSeamOwner (change 0517):
+// a PASSED drive in the finalize.rebase built-in gate certifies with the
+// seam's own owner. The finalize seam — and the zero-value seam, which the
+// seam treats as finalize — records finalize-cmd, green even under
+// build.gate: off; the build-owned recertify seam still records build-cmd.
+func TestIntegrationEvidenceFinalizeGatePassCertifiesWithSeamOwner(t *testing.T) {
+	for _, tc := range []struct{ name, owner, yaml, want string }{
+		{"finalize-seam", gateOwnerFinalize, ownerMixedLocal, ownerFinalizeCmd},
+		{"zero-value-seam-is-finalize", "", ownerMixedLocal, ownerFinalizeCmd},
+		{"finalize-seam-build-gate-off", gateOwnerFinalize, ownerBuildOff, ownerFinalizeCmd},
+		{"recertify-build-seam", gateOwnerBuild, ownerMixedLocal, ownerBuildCmd},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			deps, wdeps, repoDir := evidenceDepsWithConfig(t, readyWorkspace(), tc.yaml)
+			g := &processFinalizeGate{planning: deps, wdeps: wdeps, owner: tc.owner}
+			removeRoot := true
+			doc := &gatedrive.DriveDoc{Outcome: gatedrive.PASSED, RawRunDir: passedRunDir(t)}
+			res := g.mapTerminalDrive(context.Background(),
+				LocalGateRequest{RepoDir: repoDir, ID: 7, Head: evidenceHead}, doc, &removeRoot)
+			if res.Outcome != FinalizeGatePassed {
+				t.Fatalf("outcome = %s (halt %s), want passed", res.Outcome, res.HaltCause)
+			}
+			rec, err := evidence.Extract([]byte(res.Evidence))
+			if err != nil {
+				t.Fatalf("evidence block does not parse: %v\n%s", err, res.Evidence)
+			}
+			if rec.Result != evidence.ResultGreen || rec.Command != tc.want {
+				t.Fatalf("evidence = %s/%q, want green/%q", rec.Result, rec.Command, tc.want)
 			}
 		})
 	}
