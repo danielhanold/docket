@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T08:43:41Z'
+reconciled: true
+claimed_at: '2026-10-04T08:45:22Z'
 ---
 
 ## Artifacts
@@ -56,3 +56,9 @@ Detailed design, groom-time evidence, and acceptance are in the linked spec.
 - Changing the ownership verifier's behaviour, the ignore layout, the managed gitignore block, or the fixtures under `testdata/repositories/` — all correct today; this is test coverage only.
 - The F4 `verifyLegacyEquivalence` refactor that shared commit `9c5ced015` with the fixtures, and the other 0378 follow-ups (SHA-256 width fix; internal/process flake).
 - Probing untracked files or synthetic paths (the original #320 single-folder probe) — superseded by the repo-wide guard; a never-added new file is an undetectable residual.
+
+## Reconcile log
+
+### 2026-10-04
+
+Reconciled against main at 2587e6dc7 (same base as groom). testdata/repositories/.gitignore negation still present; verifyMetadataOwnership still scans from own.Root and keeps only s.Commit == own.Root; internal/repoguard exists with default build tag; commit 9c5ced015 is reachable. No scope change.
