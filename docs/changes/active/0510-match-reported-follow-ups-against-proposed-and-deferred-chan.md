@@ -2,7 +2,7 @@
 id: 510
 slug: 'match-reported-follow-ups-against-proposed-and-deferred-chan'
 title: 'Match reported follow-ups against proposed and deferred changes'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/match-reported-follow-ups-against-proposed-and-deferred-chan'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T12:39:48Z'
 ---
 
 ## Artifacts
