@@ -52,7 +52,7 @@ to run without reconstructing missing commands or knowing Docket internals.>
 accessible evidence. Identify skipped, failed, or incomplete verification explicitly.
 No test logs, per-test inventories, or chronological build diary — and never imply the
 human checks proposed above were already performed. Give the whole-branch review one
-line: which review ran (the tier, or the custom review skill) and how its findings
+line: which review ran (the tier, or an inline review) and how its findings
 ended — e.g. Whole-branch review (deep tier): 5 findings, all fixed in-branch; full
 table in the PR body. Name no PR number: the results are final before the PR opens. A
 fixed finding with no remaining risk appears in the results only through this line.>

@@ -8,13 +8,13 @@ import (
 	"testing"
 )
 
-// Ports the SITE-SCAN half of tests/test_skill_handoff_precedence.sh (change
-// 0096/0355). The autonomy-precedence contract: an invoked role skill's interactive
-// hand-off must never halt an autonomous run, so every AUTONOMOUS invocation of a
-// resolved role skill pre-specifies its outcome with the house marker `DIRECTED
-// to:`. What demonstrably lost at the moment of invocation (run 40) was exactly a
-// standing instruction; only a call-site direction beats a specific sub-skill
-// instruction read at that same moment.
+// Ports the SITE-SCAN half of tests/test_skill_handoff_precedence.sh. The
+// autonomy-precedence contract: an invoked role skill's interactive hand-off must
+// never halt an autonomous run, so every AUTONOMOUS invocation of a role skill
+// pre-specifies its outcome with the house marker `DIRECTED to:`. What
+// demonstrably lost at the moment of invocation was exactly a standing
+// instruction; only a call-site direction beats a specific sub-skill instruction
+// read at that same moment.
 //
 // The CONVENTION-clause half ("never outranks" / "DIRECTED to:" stated in the
 // convention's *Skill layer*) is ported as a prose-contract row (see
@@ -23,30 +23,56 @@ import (
 //
 // # Sites are DERIVED from a whole-tree scan, never hand-listed
 //
-// AGENTS.md's enumerated floor: the sites are every `$SKILL_X` / `${SKILL_X}` sigil
-// line across skills/ (both spellings — keying on the bare sigil alone would let a
-// braced rewrite slip past discovery). A skill is AUTONOMOUS iff a wrapper exists at
-// agents/<skill>.md — the same wrapper that carries the abort-and-report rule.
-// Interactive skills have no wrapper and are skipped by construction, never by name.
+// The sites are every line in skills/ markdown that names one of docket's fixed
+// role skills (roleSkillNames) as a whole backticked token — so a tier agent such
+// as `docket-build-economy` never counts. A skill is AUTONOMOUS iff a wrapper
+// exists at agents/<skill>.md — the same wrapper that carries the
+// abort-and-report rule. Interactive skills have no wrapper and are skipped by
+// construction, never by name.
 //
-// # Two classes are exempt from the marker, each keyed on shape
+// # Classes, each keyed on shape
 //
-//   - a role-variable MENTION names the sigil as resolved config WITHOUT invoking a
-//     role skill (the discriminator is the lowercase invocation noun "skill", which
-//     the house idiom puts on every genuine invocation line and which is absent from
-//     a bare-sigil enumeration — case-sensitive, so the SKILL inside the sigil does
-//     not count);
+//   - an INVOCATION line is one whose invocation verbs ("invoke", "invoked", ...)
+//     outnumber its prohibitions ("do NOT invoke", "never invoked"); it must carry
+//     the marker;
+//   - a MENTION names a role skill without invoking it (or only prohibits
+//     invoking it) and needs no marker;
 //   - docket-finalize-change's human-present close-out is the one exception (today
 //     retired: zero human-present exceptions remain, and a NEW one in any skill
 //     reddens).
 //
 // A genuine invocation line must ALSO not frame the role invocation itself as a
-// dispatch ("this long build dispatch" — the observed 0351 misfire bait); the ban
+// dispatch ("this long build dispatch" — the observed misfire bait); the ban
 // keys on that removed framing shape, not on the word dispatch.
 
+// roleSkillNames are docket's fixed role skills (convention, *Skill layer*).
+var roleSkillNames = []string{
+	"superpowers:brainstorming",
+	"superpowers:writing-plans",
+	"docket-build",
+	"docket-review",
+	"superpowers:finishing-a-development-branch",
+}
+
+// roleSkillRe matches a role-skill name as a whole backticked token, so a
+// tier agent such as `docket-build-economy` or `docket-review-lean` never
+// matches.
+var roleSkillRe = func() *regexp.Regexp {
+	q := make([]string, len(roleSkillNames))
+	for i, n := range roleSkillNames {
+		q[i] = regexp.QuoteMeta(n)
+	}
+	return regexp.MustCompile("`(?:" + strings.Join(q, "|") + ")`")
+}()
+
 var (
-	skillSigilRe  = regexp.MustCompile(`\$\{?SKILL_[A-Z]{4,}`)
-	skillFramedRe = regexp.MustCompile(`(?i)long [a-z-]+ dispatch`)
+	// invokeRe is the invocation verb the house idiom puts on every genuine
+	// role invocation ("is invoked **DIRECTED to:**", "invokes").
+	invokeRe = regexp.MustCompile(`(?i)\binvok(?:e|ed|es|ing)\b`)
+	// negatedInvokeRe is a prohibition ("do NOT invoke", "never invoked"),
+	// which pre-specifies nothing and needs no marker.
+	negatedInvokeRe = regexp.MustCompile(`(?i)\b(?:not|never)\W+(?:\w+\W+){0,2}invok(?:e|ed|es|ing)\b`)
+	skillFramedRe   = regexp.MustCompile(`(?i)long [a-z-]+ dispatch`)
 )
 
 const skillMarker = "DIRECTED to:"
@@ -65,7 +91,7 @@ func wrapperNames(t *testing.T, root string) map[string]bool {
 	return names
 }
 
-// handoffSite is one discovered sigil line.
+// handoffSite is one discovered role-skill line.
 type handoffSite struct {
 	rel   string
 	line  int
@@ -73,7 +99,7 @@ type handoffSite struct {
 	skill string // basename(dirname(rel)) — the owning skill dir
 }
 
-// discoverHandoffSites scans skills/ markdown for every sigil line.
+// discoverHandoffSites scans skills/ markdown for every line naming a role skill.
 func discoverHandoffSites(t *testing.T, root string) []handoffSite {
 	t.Helper()
 	var sites []handoffSite
@@ -83,7 +109,7 @@ func discoverHandoffSites(t *testing.T, root string) []handoffSite {
 		}
 		content := readMaintained(t, root, rel)
 		for i, ln := range strings.Split(content, "\n") {
-			if skillSigilRe.MatchString(ln) {
+			if roleSkillRe.MatchString(ln) {
 				sites = append(sites, handoffSite{
 					rel:   rel,
 					line:  i + 1,
@@ -96,12 +122,12 @@ func discoverHandoffSites(t *testing.T, root string) []handoffSite {
 	return sites
 }
 
-// classifyHandoffSite reports the shape of one wrapper-backed sigil line.
+// classifyHandoffSite reports the shape of one wrapper-backed role-skill line.
 type handoffClass int
 
 const (
 	handoffException  handoffClass = iota // human-present close-out
-	handoffMention                        // bare-sigil resolution, no invocation noun
+	handoffMention                        // names a role skill without invoking it
 	handoffInvocation                     // a role skill is invoked here
 )
 
@@ -109,13 +135,10 @@ func classifyHandoffSite(text string) handoffClass {
 	if strings.Contains(strings.ToLower(text), "human is present") {
 		return handoffException
 	}
-	// Case-SENSITIVE lowercase invocation noun: a case-insensitive test would match
-	// the SKILL inside the `$SKILL_X` sigil and classify every line as an
-	// invocation.
-	if !strings.Contains(text, "skill") {
-		return handoffMention
+	if len(invokeRe.FindAllStringIndex(text, -1)) > len(negatedInvokeRe.FindAllStringIndex(text, -1)) {
+		return handoffInvocation
 	}
-	return handoffInvocation
+	return handoffMention
 }
 
 func TestSkillHandoffSites(t *testing.T) {
@@ -157,10 +180,10 @@ func TestSkillHandoffSites(t *testing.T) {
 	}
 
 	// Floors: the classifier must not go vacuous. `checked` counts every
-	// wrapper-backed sigil line; the marker-bearing invocation population is floored
+	// wrapper-backed role-skill line; the marker-bearing invocation population is floored
 	// separately so the mention branch cannot silently swallow every invocation.
 	if checked < 4 {
-		t.Fatalf("population floor: only %d wrapper-backed sigil lines checked (expected >= 4)", checked)
+		t.Fatalf("population floor: only %d wrapper-backed role-skill lines checked (expected >= 4)", checked)
 	}
 	if invocations < 3 {
 		t.Fatalf("population floor: only %d marker-checked invocation lines (expected >= 3)", invocations)
@@ -176,34 +199,29 @@ func TestSkillHandoffSites(t *testing.T) {
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
-		const unmarked = "Run the **resolved plan skill** — `$SKILL_PLAN` from the startup-check config export."
-		const mention = "Resolve nothing new: `$SKILL_PLAN`, `$SKILL_BUILD`, learnings enablement come from the startup-check export."
-		const braced = "Run the **resolved plan skill** — `${SKILL_PLAN}` from the startup-check config export."
-		const framed = "Refresh the claim immediately before this long build dispatch — the resolved build skill `$SKILL_BUILD` is invoked **DIRECTED to:** execute the plan."
-
-		// The marker check is non-vacuous: an unmarked invocation is caught.
-		if strings.Contains(unmarked, skillMarker) {
-			t.Errorf("fixture error: unmarked line unexpectedly carries the marker")
+		const unmarked = "The build role `docket-build` is invoked to execute the plan."
+		const marked = "`docket-build` is invoked **DIRECTED to:** execute the plan task-by-task and stop."
+		const mention = "For the `docket-review` role, select the review tier from the build record."
+		const prohibited = "do NOT invoke `superpowers:brainstorming` with a simulated human answerer"
+		const tier = "Dispatch `docket-build-economy` by name, foreground."
+		const framed = "Refresh the claim before this long build dispatch — `docket-build` is invoked **DIRECTED to:** execute the plan."
+		if classifyHandoffSite(unmarked) != handoffInvocation || strings.Contains(unmarked, skillMarker) {
+			t.Errorf("an unmarked invocation was not classified as a violating invocation")
 		}
-		if classifyHandoffSite(unmarked) != handoffInvocation {
-			t.Errorf("an invocation line was not classified as an invocation")
+		if classifyHandoffSite(marked) != handoffInvocation || !strings.Contains(marked, skillMarker) {
+			t.Errorf("a marked invocation was not classified as an invocation carrying the marker")
 		}
-		// A bare-sigil resolution is a mention (marker-exempt).
 		if classifyHandoffSite(mention) != handoffMention {
-			t.Errorf("a bare-sigil resolution mention was not classified as a mention")
+			t.Errorf("a role mention was classified as an invocation")
 		}
-		// The exception classifier does not match an ordinary invocation line.
-		if classifyHandoffSite(unmarked) == handoffException {
-			t.Errorf("a plain line was wrongly classified as a human-present exception")
+		if classifyHandoffSite(prohibited) != handoffMention {
+			t.Errorf("a prohibition was classified as an invocation")
 		}
-		// Site discovery catches both spellings.
-		if !skillSigilRe.MatchString(braced) || !skillSigilRe.MatchString(unmarked) {
-			t.Errorf("site discovery missed the braced or bare sigil spelling")
+		if !roleSkillRe.MatchString(marked) || roleSkillRe.MatchString(tier) {
+			t.Errorf("role-skill discovery must match a backticked role skill and never a tier agent name")
 		}
-		// The framing ban catches the observed defect shape and permits genuine
-		// nested-dispatch prose.
 		if !skillFramedRe.MatchString(framed) {
-			t.Errorf("framing ban missed the 0351 defect line")
+			t.Errorf("framing ban missed the framed-as-dispatch shape")
 		}
 		if skillFramedRe.MatchString("Dispatch the selected tier wrapper by name, foreground") {
 			t.Errorf("framing ban wrongly caught genuine nested-dispatch prose")

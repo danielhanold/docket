@@ -720,7 +720,7 @@ var resultsReviewPlacementDocContracts = []docSectionContract{
 	{change: "change_0498_template_review_summary", file: "skills/docket-implement-next/results-template.md",
 		section: "## Verification performed", terminator: "## Known issues and follow-ups",
 		present: []string{
-			"Give the whole-branch review one line: which review ran (the tier, or the custom review skill) and how its findings ended",
+			"Give the whole-branch review one line: which review ran (the tier, or an inline review) and how its findings ended",
 			"full table in the PR body",
 			"A fixed finding with no remaining risk appears in the results only through this line",
 		}},
