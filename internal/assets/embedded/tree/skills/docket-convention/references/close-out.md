@@ -7,7 +7,7 @@
 > sweep (the two `done` drivers), plus the kill callers — `docket-implement-next`'s reconcile-kill
 > and `docket-new-change`'s proposed-kill (changes 0054/0055). The sequence is one; only the
 > failure posture differs per caller (table below). This file owns ordering and posture; each
-> script's mechanics live in its co-located contract (`scripts/<name>.md`).
+> operation's request and result shape comes from the `schema` operation.
 
 Contents: [The sequence](#the-sequence-docket-mode) · [Failure posture](#failure-posture--per-caller) · [Determinism invariant](#determinism-invariant)
 
