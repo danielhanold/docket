@@ -9,9 +9,9 @@
 > failure posture differs per caller (table below). This file owns ordering and posture; each
 > operation's request and result shape comes from the `schema` operation.
 
-Contents: [The sequence](#the-sequence-docket-mode) · [Failure posture](#failure-posture--per-caller) · [Determinism invariant](#determinism-invariant)
+Contents: [The sequence](#the-sequence) · [Failure posture](#failure-posture--per-caller) · [Determinism invariant](#determinism-invariant)
 
-## The sequence (docket-mode)
+## The sequence
 
 All metadata writes happen in the metadata working tree (`.docket/`), synced to `origin/docket`
 before the first read; every commit pushes immediately.

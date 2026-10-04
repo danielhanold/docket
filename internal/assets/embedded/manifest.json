@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:5d3b3a183cd88a39be30fa52f1c372c8c98d73abf2b9f6a66edbfb954937b26c",
+  "asset_set_id": "sha256:3166850e2e6d27b6716eb3055ebf0e3c0c9c77aa2df0c53a1ed46eb66a983862",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -273,15 +273,15 @@
       "path": "skills/docket-adr/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 7617,
-      "sha256": "7c789b84fa78a79e59e658ce2f6f2053fed63f57057cfef4b039a6926c55907d"
+      "size": 7612,
+      "sha256": "32b59558f2705c12102884df0bfab4e70caed18bd24c6df3590524baa4c598d7"
     },
     {
       "path": "skills/docket-auto-groom/SKILL.md",
       "role": "skill",
       "mode": 420,
       "size": 10988,
-      "sha256": "312afbbe40b1032bfdc2839d882810eef63818311d67fd5cbff98d1f8ac1cb2e"
+      "sha256": "e305528776b3e7b18278000d579cc8048576d7278ec9ea35e1ff69b65b72d415"
     },
     {
       "path": "skills/docket-brainstorm/SKILL.md",
@@ -322,8 +322,8 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 51199,
-      "sha256": "50909c043f7dfe45f45141a26a055f9e68772c7bb99bf69bd697f8b1ee49a61f"
+      "size": 51098,
+      "sha256": "382591aeebff6c09512cae560339fd7f3bb4e6052fa2e23b1e3f5c42ea7357ec"
     },
     {
       "path": "skills/docket-convention/references/agent-layer.md",
@@ -336,15 +336,15 @@
       "path": "skills/docket-convention/references/close-out.md",
       "role": "skill",
       "mode": 420,
-      "size": 9942,
-      "sha256": "d4f0034c5f0243c1bedf7921baeff46d3142a18e5d614dd535bc6677167e6046"
+      "size": 9916,
+      "sha256": "0e92988810291b64b5f897b8c67d991082c58304d1e29dd4ddc4b80e8fecb359"
     },
     {
       "path": "skills/docket-convention/references/learnings.md",
       "role": "skill",
       "mode": 420,
-      "size": 3329,
-      "sha256": "c39d1becde1429933c3877fa21eba2508d2f1d683aa401df02c0d147ec4a756d"
+      "size": 3331,
+      "sha256": "f0eaa4684470f5c3624f3cebbd3b42b0cb98cbe63ad0c4c29835159a74e36ff2"
     },
     {
       "path": "skills/docket-convention/references/stacked-changes.md",
@@ -357,8 +357,8 @@
       "path": "skills/docket-finalize-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 39946,
-      "sha256": "1d808f2066f040ffbd82d3133fe4c0c10ae95e27d927bbad2069ba6731e38ffe"
+      "size": 39936,
+      "sha256": "d93341d983bfde265b8061de60d5c4a3a2a0b14143753c2b4b0a7b48717b040c"
     },
     {
       "path": "skills/docket-finalize-change/references/gate-failure.md",
@@ -372,21 +372,21 @@
       "role": "skill",
       "mode": 420,
       "size": 14319,
-      "sha256": "c02e96faf7f9c402a520d7ee3672a3a39db902776f37fd39803c93634853304b"
+      "sha256": "cb558b8a7b3622450e773b2f8744ccc38a381920e4788b2aedfa769935f305bc"
     },
     {
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 58312,
-      "sha256": "1a807a169eed6d4e8da2d741a48b549728a6e5e2758fb5470ef6c507bc76c74d"
+      "size": 58267,
+      "sha256": "438fda5827d34ad08a1a61cdc5e7ea9a132788c872f58521f4882e9b56124f34"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",
       "role": "skill",
       "mode": 420,
-      "size": 10188,
-      "sha256": "e5b89d8dd87c8fbee7a23c634bd61588dc17ceb094bbee3e4a54ca95bd2adda4"
+      "size": 10190,
+      "sha256": "a42d105bdf39ce67f2f317ee68730233227b9b1642dd0f8d0c6a5d640a7c9795"
     },
     {
       "path": "skills/docket-implement-next/references/fix-pass.md",
@@ -406,8 +406,8 @@
       "path": "skills/docket-new-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 11026,
-      "sha256": "dc1dfb66dfa3f049396720ae16049230da88f0425fd72b536a67f8e4a213dabb"
+      "size": 11028,
+      "sha256": "1e5f30b6042048c7344beda6b591b1bc07de6b76b8d0dba759b368ac9f62ceb3"
     },
     {
       "path": "skills/docket-review/SKILL.md",
@@ -420,8 +420,8 @@
       "path": "skills/docket-status/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 19527,
-      "sha256": "3abe9e2f13cd25c24a4f6b526525341cab81725d7926d121840c5ee4ef7d04bc"
+      "size": 19531,
+      "sha256": "88c25d73c413dbd218e083b4bf4453083d79b5ad1324554af209451c64f401c7"
     }
   ]
 }

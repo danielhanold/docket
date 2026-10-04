@@ -37,7 +37,7 @@ Read the candidate set once with the `context.finalize` operation (read-only; no
 
 **Re-selection replaces sequencing.** Each invocation re-reads `context.finalize` against the current integration tip, so no precomputed order goes stale — every merge moves the base.
 
-From the chosen candidate, carry forward: the exact `revision`, the verified feature `head`, the resolved effective base, the canonical PR number, the descendant relations with each child's lifecycle and PR destination, the open-child PR set, and the resolved gate/approval/repo-mode policy. No later step re-reads the change file; the context bundle is the authority every operation keys on.
+From the chosen candidate, carry forward: the exact `revision`, the verified feature `head`, the resolved effective base, the canonical PR number, the descendant relations with each child's lifecycle and PR destination, the open-child PR set, and the resolved gate/approval policy. No later step re-reads the change file; the context bundle is the authority every operation keys on.
 
 ## Terminal disposition (driver contract)
 
