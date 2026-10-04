@@ -12,7 +12,10 @@
 // insignificant whitespace. No custom MarshalJSON is needed or wanted.
 package gatedrive
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 // ProtocolVersion is the gate-drive protocol generation. It matches
 // internal/app.ProtocolVersion (1) for this generation; a later generation that
@@ -86,9 +89,9 @@ const (
 // consumer rather than a silent reclassification (repo rule: key a guard on a
 // typed identity, never an enumerated list of spellings). These are the single
 // source for the tokens; the driver's emission sites reference them too. Other
-// emitted causes (owner-superseded, fingerprint-error, uncertain-ownership, …)
-// are not distinguished by any consumer — they fall through a consumer's default
-// — so they need no exported identity here.
+// emitted causes (owner-superseded, fingerprint-error, …) are not distinguished
+// by any consumer — they fall through a consumer's default — so they need no
+// exported identity here.
 const (
 	// CauseSchemaMismatch: the persisted record's schema version is unknown or the
 	// record is corrupt — a fail-closed halt on an unusable record.
@@ -110,11 +113,30 @@ const (
 	// vanished) and the supervisor is proven gone — signaled: confirmed by the
 	// stop no-op and a re-observe; vanished: by observation (proveNoTreeSurvives).
 	// It does not rule out a surviving process group: a dead supervisor's suite
-	// can outlive it, which is the census's tree-survives finding (change 0492).
+	// can outlive it, which the census (change 0492) and the death HALT itself
+	// (change 0497) report as the tree-survives finding.
 	// A gate drive never relaunches (change 0493): it HALTs, and a human re-runs
 	// the workflow, which re-runs the suite.
 	CauseSupervisorDied = "supervisor-died"
+	// CauseUncertainOwnership: the drive's run died without a verdict but the
+	// supervisor could not be proven gone (the death probe's stop failed). Like
+	// CauseSupervisorDied it HALTs and never relaunches. Finalize names it in its
+	// halt message (change 0497), so it has an exported identity.
+	CauseUncertainOwnership = "uncertain-ownership"
 )
+
+// FindingTreeSurvivesPrefix starts the informational tree-survives:<drive>:<pgid>
+// finding: a dead supervisor's process group still has members
+// (process.LeftoverPresent), so part of the suite is still running. The launch
+// census reports it (change 0492) and a death HALT carries it (change 0497);
+// neither signals the group or changes an outcome. A consumer keys on this
+// constant, never on the literal spelling.
+const FindingTreeSurvivesPrefix = "tree-survives:"
+
+// treeSurvivesFinding is the one spelling of the finding both reporters emit.
+func treeSurvivesFinding(driveID string, pgid int) string {
+	return FindingTreeSurvivesPrefix + driveID + ":" + strconv.Itoa(pgid)
+}
 
 // DriveDoc is the protocol-v1 outcome document emitted by every driver
 // operation, shared verbatim by the CLI, the app service seam, and tests. It is
@@ -139,6 +161,11 @@ type DriveDoc struct {
 	// the terminal to avoid leaking one temp dir per drive across retries. Like
 	// RawRunDir it is a host path, not a secret; it carries no argv/env/credential.
 	RunRoot string `json:"run_root,omitempty"`
+	// Finding is the informational tree-survives:<drive>:<pgid> finding a death
+	// HALT stamps when the dead supervisor's process group still has members
+	// (change 0497). It is set on a HALTED document only (omitempty) and never
+	// changes Outcome or Cause. Like RunRoot it carries no credential.
+	Finding string `json:"finding,omitempty"`
 }
 
 // driveRecord is the durable, owner-private persisted schema of one drive. It is
@@ -219,6 +246,11 @@ type driveRecord struct {
 	// never change frontmatter.
 	LastOutcome Outcome `json:"last_outcome,omitempty"`
 	LastCause   string  `json:"last_cause,omitempty"`
+	// LastFinding is the informational finding persisted with a death HALT
+	// (tree-survives:<drive>:<pgid>, change 0497); empty otherwise. A record an
+	// older binary wrote has no last_finding key and decodes with it empty, so
+	// there is no schema bump.
+	LastFinding string `json:"last_finding,omitempty"`
 
 	// Current owner generation, or the single-use handoff generation when the
 	// drive is offered for claim (Task 5). Exactly one owner at a time.

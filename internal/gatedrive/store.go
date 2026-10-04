@@ -185,6 +185,7 @@ func (s *Store) NewReservedDrive(rec driveRecord) (id string, gen string, err er
 	rec.RawOwnership = ""
 	rec.LastOutcome = ""
 	rec.LastCause = ""
+	rec.LastFinding = ""
 	return s.writeNewDrive(rec)
 }
 
