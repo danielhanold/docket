@@ -2,7 +2,7 @@
 id: 521
 slug: 'finish-schema-operation-documentation-outcomes-md-flag-only'
 title: 'Mark every nested required request field in the schema, and fix the stale schema docs'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/finish-schema-operation-documentation-outcomes-md-flag-only'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T16:30:45Z'
 ---
 
 ## Artifacts
