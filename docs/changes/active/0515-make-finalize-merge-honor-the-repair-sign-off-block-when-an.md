@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T16:43:52Z'
+reconciled: true
+claimed_at: '2026-10-04T16:45:36Z'
 ---
 
 ## Artifacts
@@ -55,3 +55,9 @@ The rule also lives only in the skill text. The binary never refuses: the CLI al
 - The integration-repair ladder and its budget.
 - Approval semantics (`require_pr_approval`, explicit id, `--admin`), and the separate gap where allowlist members get no override note.
 - The board's "finalize blocked — needs you" wording.
+
+## Reconcile log
+
+### 2026-10-04
+
+2026-10-04 — Re-checked against main at 84761645a. `finalizeBlockedMap`, `skipFinalizeBlocked`, the merge's `in.explicitID || !in.finalizeBlocked` term, and every `repair-needs-signoff` site in skills, agents, docs, goldens, the embedded tree, and tests are still present as the spec describes. 0517 and 0520 are now done, so the related-work note is updated. Merged plans under `docs/superpowers/plans/` that mention the token are frozen build records and stay untouched. Scope unchanged.

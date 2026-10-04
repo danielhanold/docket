@@ -199,6 +199,4 @@ restart running sessions before the next finalize, so that no run mixes the old 
 
 ## Related work
 
-0517 (finalize re-test evidence) and 0520 (finalize request schemas) are in progress and edit
-`skills/docket-finalize-change/SKILL.md` and nearby `internal/app/finalize_*` files, in different
-paragraphs and functions. Expect text conflicts at rebase, not design conflicts.
+0517 (finalize re-test evidence) and 0520 (finalize request schemas) have since merged; their edits to `skills/docket-finalize-change/SKILL.md` and `internal/app/finalize_*` are now on the base, so there is no rebase conflict to expect.
