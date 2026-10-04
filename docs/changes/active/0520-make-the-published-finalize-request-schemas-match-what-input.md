@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/make-the-published-finalize-request-schemas-match-what-input'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T15:08:20Z'
+reconciled: true
+claimed_at: '2026-10-04T15:10:04Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ Consolidates #518 and #519. Both are the same bug: `docket schema` tells an agen
 ## Out of scope
 
 Changing which values are passed as flags versus in the JSON file. Renaming the flag-assembled `*Request` structs. Accepting or special-casing an envelope-level `schema_version` (the refusal already lists the accepted keys). Editing the `docket-rebase-resolver` agent text. Bumping `schema_version`. The resolver attempt budget (`finalize.resolver_max_attempts`) and how the rebase replays commits. The broader CLI schema items bundled in change 0360. The other finalize fixes found during 0502 stay separate on purpose: #515 (a named-id merge skips the repair sign-off block) and #517 (evidence for a finalize re-test).
+
+## Reconcile log
+
+### 2026-10-04
+
+Re-traced against main fc719ac6d (0502 merged). The registry in internal/app/schema_registry.go still binds the seven mismatched operations exactly as the spec's table records, and every strict JSON decode in internal/cli still converges on decodeRequest (decodeRequestFlag, decodeInputFlag, pr.publish's direct call). No scope change.
