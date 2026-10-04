@@ -10,7 +10,8 @@ import (
 // The JSON-file declaration annotations. declareJSONFile writes them when a
 // command is built; TestPublishedRequestIsTheDecodedJSONFile reads them to
 // prove each operation's published request (internal/app operationBindings)
-// is exactly the type its decoder reads (ADR-0109's request surface).
+// is exactly the type its decoder reads (ADR-0138, refining ADR-0109's
+// request surface).
 const (
 	jsonFileAnnotationFlag = "docket.jsonfile.flag"
 	jsonFileAnnotationType = "docket.jsonfile.type"
@@ -29,7 +30,8 @@ func jsonFileTypeName(t reflect.Type) string {
 // JSON document of type T from --flag". It records T and the flag as
 // annotations on cmd at construction time and returns the only decoder the
 // command's RunE may use. The declaration and the decode share the type
-// parameter T, so they cannot diverge. Every strict JSON decode in this
+// parameter T, so they cannot diverge: the published request schema is
+// exactly the JSON file the operation decodes (ADR-0138; ADR-0109). Every strict JSON decode in this
 // package goes through here; TestJSONFileDecodesGoThroughTheRegisteringHelper
 // fails on any other reference to decodeRequest.
 //

@@ -128,6 +128,11 @@ func SchemaVocabularies(effects []string) map[string]Vocabulary {
 		CancelDispositionCancelled, CancelDispositionAlreadyCancelled,
 		CancelDispositionPending, CancelDispositionRefused,
 	}}
+	// The conflict-resolver report's closed disposition set (ResolverReport,
+	// the request finalize.rebase-continue and finalize.rebase-abort decode).
+	v["resolver_dispositions"] = Vocabulary{Members: []string{
+		ResolverResolved, ResolverStuck,
+	}}
 
 	return v
 }
