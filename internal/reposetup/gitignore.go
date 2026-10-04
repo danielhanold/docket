@@ -197,7 +197,7 @@ func splitLines(fileBytes []byte) [][]byte {
 	return lines
 }
 
-// joinLines re-joins whole lines each terminated by LF (each line LF-terminated),
+// joinLines re-joins whole lines each terminated by LF,
 // so an empty result is empty bytes, not a lone LF.
 func joinLines(lines [][]byte) []byte {
 	if len(lines) == 0 {
