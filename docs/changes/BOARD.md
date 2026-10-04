@@ -1,18 +1,12 @@
 # Backlog
 
-**510 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 350 done · 🗑️ 137 killed
+**510 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 351 done · 🗑️ 137 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0509](active/0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | `medium` | `chore` | [spec](../superpowers/specs/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md) | `chore/edit-an-ungroomed-stub-through-a-typed-operation` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0505](active/0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | `low` | `refactor` | [#380](https://github.com/danielhanold/docket/pull/380) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
@@ -72,7 +66,6 @@ graph TD
   0433
   0464 --> 0502
   0503
-  0505
   0507
   0509
   0509 --> 0510
@@ -85,12 +78,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (487)</summary>
+<details><summary>✅🗑️ Archive — done + killed (488)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
 | [0506](archive/2026-10-04-0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | 2026-10-04 |
+| [0505](archive/2026-10-04-0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | 2026-10-04 |
 | [0504](archive/2026-10-04-0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | 2026-10-04 |
 | [0501](archive/2026-10-04-0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) | Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note | 2026-10-04 |
 | [0500](archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | 2026-10-04 |
@@ -107,7 +101,6 @@ graph TD
 | [0492](archive/2026-10-03-0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | 2026-10-03 |
 | [0491](archive/2026-10-03-0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Retire the run id; the run key becomes the run tracker's only handle | 2026-10-03 |
 | [0490](archive/2026-10-02-0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | 2026-10-02 |
-| [0489](archive/2026-10-02-0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) | Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives | 2026-10-02 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
 | [0483](archive/2026-10-02-0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | 2026-10-02 |
 | [0457](archive/2026-10-02-0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | 2026-10-02 |
@@ -246,7 +239,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 7 done |
+| [2026-10](archive/) | 8 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

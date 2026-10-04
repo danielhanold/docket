@@ -2,7 +2,7 @@
 id: 505
 slug: 'share-one-unsupported-key-matcher-between-the-example-config'
 title: 'Share one unsupported-key matcher between the example-config test and the docs guard'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'refactor/share-one-unsupported-key-matcher-between-the-example-config'
 pr: 'https://github.com/danielhanold/docket/pull/380'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T10:54:14Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T10:54:14Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) |
-| Plan | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md](https://github.com/danielhanold/docket/blob/refactor/share-one-unsupported-key-matcher-between-the-example-config/docs/superpowers/plans/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md) |
-| Results | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-results.md](https://github.com/danielhanold/docket/blob/refactor/share-one-unsupported-key-matcher-between-the-example-config/docs/results/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-results.md) |
+| Plan | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md) |
+| Results | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
