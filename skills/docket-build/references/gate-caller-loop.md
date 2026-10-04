@@ -86,6 +86,10 @@ Every successful `start` or `advance` returns exactly one of four dispositions. 
   expiry, identity uncertainty, and handoff mismatch are HALTED — never converted into `FAILED`, so
   an unfinished or ambiguous run never manufactures repair work.
 - **Only `PASSED` exposes the raw run dir**, so only a trusted pass can feed the evidence operation.
+- **A `HALTED` document's `finding`, when present, is copied verbatim into the halt report** with
+  the glossary's `tree-survives` remedy (wait until `pgrep -lg <pgid>` prints nothing before
+  re-running); it is information only — it never changes the halt, never adds one, and never
+  feeds repair.
 
 ## Worktree admission — one live gate per worktree, and what `worktree-busy` means
 

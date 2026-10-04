@@ -986,14 +986,20 @@ still keeps cancel at `cancellation-pending` and the closeout at `completion-una
 later identical publish completes and docket verifies it, the entry is reported
 `mutation-settled:<op>` instead.
 
-### Cancel finding `tree-survives`
+### Leftover-suite finding `tree-survives`
 
 `tree-survives:<drive>:<pgid>` is an informational finding from `run.cancel`, the death guardian,
-and `run.verdict`'s success closeout. The drive's supervisor has exited (killed alone or crashed),
-but its process group `<pgid>` still has members, so part of the suite (usually `go run` and the
-test runner) is still running. Cancel still reports `cancelled`, the closeout verdict is unchanged,
-and the leftover suite finishes on its own. It is information, never a blocker: no skill or
-reviewer escalates it into one.
+`run.verdict`'s success closeout, and a halted gate (build or finalize) whose supervisor died. The
+drive's supervisor has exited (killed alone or crashed), but its process group `<pgid>` still has
+members, so part of the suite (usually `go run` and the test runner) is still running. Cancel still
+reports `cancelled`, the closeout verdict is unchanged, a halted gate keeps its halt and cause, and
+the leftover suite finishes on its own. It is information, never a blocker: no skill or reviewer
+escalates it into one.
+
+A halted gate carries it in the drive document's `finding` and, for finalize, in the gate report's
+`teardown_finding`; finalize's halt message names the process group. Before re-running the
+workflow, wait until `pgrep -lg <pgid>` prints nothing, or the new gate starts a second suite
+beside the leftover one.
 
 Docket never signals the group: with the supervisor dead, nothing proves the group is still the
 run's own. To stop it yourself, confirm its members first, then signal the group:
@@ -1004,8 +1010,8 @@ kill -TERM -<pgid>
 ```
 
 The check sees only the supervisor's own group, not test targets that lead their own groups. When
-it cannot tell (for example, the dead supervisor is still an unreaped zombie), the finding is the
-ordinary `run-terminal:<drive>`.
+it cannot tell (for example, the dead supervisor is still an unreaped zombie), cancel and the
+closeout report the ordinary `run-terminal:<drive>`, and a halted gate reports no finding.
 
 ### Continuation
 

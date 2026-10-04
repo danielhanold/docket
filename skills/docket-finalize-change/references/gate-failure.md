@@ -110,7 +110,9 @@ the holding gate finish, or stop it (the `run.cancel` operation with `--key <key
 for a tracked run, `gate.stop <run-dir>` for a raw launch) — then re-run finalize. The worktree
 frees itself when the holder ends. A gate whose own supervisor dies mid-run is never relaunched:
 it halts `supervisor-died` (finalize reports `gate-halted`), and the remedy is to re-run
-finalize, which re-runs the suite.
+finalize, which re-runs the suite. When the halt message says part of the suite is still running
+as a process group, wait until `pgrep -lg <pgid>` prints nothing before re-running finalize; that
+`tree-survives` finding is information only and never a blocker.
 
 **Where the reason surfaces.** The subagent returns its diagnosis in-context; finalize relays it to
 the human (interactive) or the dispatching caller (autonomous), and the `finalize.block` operation records
