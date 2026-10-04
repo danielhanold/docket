@@ -27,7 +27,7 @@ import (
 func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	runCmd := &cobra.Command{
 		Use:   "run",
-		Short: "Report on a change's claim-to-implemented run (read-only)",
+		Short: "Track dispatched runs and verify a change's claim-to-implemented run",
 		// A command group resolves its subcommand before Args runs, so anything
 		// reaching here named no subcommand; NoArgs names an offending token and
 		// the bare `docket run` falls through to RunE's missing-command error.
