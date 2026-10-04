@@ -835,7 +835,7 @@ var followUpBacklogMatchDocContracts = []docSectionContract{
 	{change: "change_0510_step3_verdict_pointer", file: "skills/docket-implement-next/SKILL.md",
 		section: "### Step 3 — Reconcile ⭐", terminator: "### Step 4 — Worktree + plan",
 		present: []string{
-			"so nothing is minted",
+			"nothing is minted automatically",
 			"guided by the backlog verdict final consolidation attaches (Step 6.5 *Backlog match*)",
 		}},
 	{change: "change_0510_step6_verdict_pointer", file: "skills/docket-implement-next/SKILL.md",
@@ -867,9 +867,9 @@ type docFileClauseContract struct {
 }
 
 var followUpBacklogMatchFileClauses = []docFileClauseContract{
-	{change: "change_0510_fix_loop_verdict_pointer", file: "skills/docket-implement-next/references/fix-loop.md",
+	{change: "change_0510_fix_loop_verdict_pointer", file: "skills/docket-implement-next/references/fix-pass.md",
 		present: []string{
-			"never minted: automatic change capture is deferred from Go v1",
+			"never minted: a human captures reported work deliberately with `docket change create`.",
 			"The report carries the backlog verdict final consolidation attaches (SKILL.md Step 6.5 *Backlog match*)",
 		}},
 	{change: "change_0510_template_verdict", file: "skills/docket-implement-next/results-template.md",
