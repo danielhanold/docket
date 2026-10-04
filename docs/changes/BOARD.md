@@ -1,14 +1,19 @@
 # Backlog
 
-**501 changes** — 🟢 3 in progress · 🟣 3 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 343 done · 🗑️ 134 killed
+**501 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 343 done · 🗑️ 134 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0501](active/0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) | Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-design.md) | `fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi` |  |
-| [0500](active/0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md) | `fix/committed-ignore-invalid-hint-for-an-absent-gitignore-names` |  |
 | [0498](active/0498-results-file-puts-the-whole-branch-review-under-human-action.md) | Results file puts the whole-branch review under Human actions and testing | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-design.md) | `fix/results-file-puts-the-whole-branch-review-under-human-action` |  |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0500](active/0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | `low` | `fix` | [#373](https://github.com/danielhanold/docket/pull/373) | awaiting merge |
 
 ## 🟣 Groomed (3)
 

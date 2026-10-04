@@ -2,7 +2,7 @@
 id: 500
 slug: 'committed-ignore-invalid-hint-for-an-absent-gitignore-names'
 title: 'committed-ignore-invalid remedies print the paste-ready managed block'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-03'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/committed-ignore-invalid-hint-for-an-absent-gitignore-names'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/373'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T06:13:02Z'
