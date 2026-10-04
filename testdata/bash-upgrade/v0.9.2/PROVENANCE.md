@@ -25,7 +25,7 @@ scratch helpers used are reproduced verbatim below.
 |---|---|
 | `origin.bundle` | `git bundle create … --all` of the sandbox bare `origin`: `refs/heads/main` (`aea93f28d201f2e49289c3a605de1bd85739a923`), `refs/heads/docket` (`d0ea17ba29702c438b21fe17b559187e8466fc98`) and `HEAD` → `main`, complete history |
 | `home.tar` | USTAR tar rooted at the sandbox `HOME`; 197 members, 48 symlinks; mtimes 0, uid/gid 0; `@@SANDBOX_HOME@@` stands for the home path in link targets and file bodies |
-| `clone-config.txt` | the clone actions the restore replays (one `worktree`, one `config`) |
+| `clone-config.txt` | the clone actions the restore replays (one `worktree`, one `config`, one `hooks-off`) |
 | `records.txt` | the 9 records (changes, ADR, specs, learning) the case holds, all on `docket` |
 
 ## Sandbox
@@ -740,8 +740,11 @@ tar -tvf "$OUT/home.tar" | grep -c -e '^l'                               # 48
 
 `clone-config.txt` keeps `worktree .docket docket` and `config extensions.worktreeConfig true`, in
 the order the tag made them. `branch.docket.*` comes from the worktree add itself. The
-worktree-scoped `core.hooksPath` cannot be written in that file's grammar (`config` is
-`git config --local`), so it is recorded there as a comment and is not replayed.
+worktree-scoped `core.hooksPath` cannot be written as a `config` line (that is
+`git config --local`), so it is the third line, `hooks-off .docket`: the restore creates
+`<git-common-dir>/docket/empty-hooks` and sets the `.docket` worktree's `core.hooksPath` to it, as
+the tag's `disable-worktree-hooks.sh` did. (This line was added with the restore harness; without
+it the restored `.docket` worktree had hooks enabled, a state the tag never leaves.)
 
 `$SCRATCH/make-home-tar.py`, verbatim:
 
@@ -907,5 +910,5 @@ no `.docket.local.yml`; no per-repository agent wrappers (the repo never opted i
   as the tag does". This keeps the bootstrap's config, the common path.
 - **The tag's merge-date command** in `terminal-close-out.md` step 1 needs `--format=%ad` to print
   only the date (run 1 above).
-- **The worktree-scoped `core.hooksPath`** is not replayable through `clone-config.txt` (see
-  Step 7).
+- **The worktree-scoped `core.hooksPath`** is not a `git config --local` setting, so
+  `clone-config.txt` replays it through its `hooks-off` line (see Step 7).
