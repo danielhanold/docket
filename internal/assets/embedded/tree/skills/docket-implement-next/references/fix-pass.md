@@ -1,4 +1,4 @@
-# fix-loop — repairing review findings in-branch
+# fix-pass — repairing review findings in-branch
 
 The mechanics behind `docket-implement-next` Step 6's bounded fix loop. **Read this before
 dispatching the first fix task.** Loaded on demand from Step 6; sibling files are not auto-loaded

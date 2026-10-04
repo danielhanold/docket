@@ -4,7 +4,7 @@ package repoguard
 // gate.drive.start JSON response; in zsh `status` is a read-only special
 // parameter, so the shell aborted before the drive id and owner generation
 // were parsed. Two prongs:
-//   (1) the shared caller contract (gate-caller-loop.md) names the shell-safe
+//   (1) the shared caller contract (gate-driver.md) names the shell-safe
 //       capture variables (`gate_reply` for the response, `gate_rc` for the
 //       exit code), requires them to work in both zsh and bash, and forbids
 //       assigning zsh read-only special parameters — phrase bound to claim,

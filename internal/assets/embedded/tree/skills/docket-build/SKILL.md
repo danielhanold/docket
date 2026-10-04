@@ -310,7 +310,7 @@ define the maximum duration of the build gate.
 
 **The shipped implementation of clauses 1–6** is the native gate **driver** — the `gate.drive`
 operations (`start`, `advance`, `handoff`, `claim`), whose caller-side contract and disposition
-vocabulary live in `references/gate-caller-loop.md` (**read it now, blocking, before the gate**).
+vocabulary live in `references/gate-driver.md` (**read it now, blocking, before the gate**).
 Drive the suite through short synchronous `gate.drive.start` then `gate.drive.advance` calls; the
 driver composes the raw supervisor and owns the detached run, durable drive record, artifact-based
 completion, and fail-closed budget. **Reuse the driver, never a shell observe loop** — a hand-rolled
