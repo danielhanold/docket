@@ -2,7 +2,7 @@
 id: 502
 slug: 'align-the-skills-and-agent-files-with-the-docket-binary'
 title: 'Align the skills and agent files with the docket binary'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/align-the-skills-and-agent-files-with-the-docket-binary'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/383'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T13:16:38Z'
