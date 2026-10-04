@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/process"
@@ -20,15 +21,22 @@ import (
 //     vanished run produces no record, and a probe error — a run dir the process
 //     layer cannot read or parse — is its own typed failure, NEVER folded into
 //     the clean "vanished" absence (learning probe-error-is-not-clean-absence).
-//   - The recorded command is the OBSERVED gate command: the resolved
-//     build.test_command, read from authoritative config. There is no
-//     agent-supplied command and no agent-supplied `passed` boolean in the
-//     request shapes — the terminal record and the config are the only inputs.
+//   - The recorded command is the OBSERVED gate command: the owner's resolved
+//     test_command (build.test_command or finalize.test_command), read from
+//     authoritative config. There is no agent-supplied command and no
+//     agent-supplied `passed` boolean in the request shapes — the terminal
+//     record and the config are the only inputs.
 //
-// EvidenceRecord is BUILD-owned (change 0374): it "validates against build
-// configuration" and "no longer re-resolves finalize.test_command". An explicit
-// build.gate: off mints truthful skipped evidence with no run observed; a local
-// build gate with no build.test_command is a typed setup refusal.
+// EvidenceRecord is owned per request (change 0517), with the same split
+// `gate drive start --owner` uses: each owner reads ONLY its own test_command.
+// Owner build — the default when the request names none — validates against
+// build configuration (change 0374): an explicit build.gate: off mints truthful
+// skipped evidence with no run observed, and a local build gate with no
+// build.test_command is a typed setup refusal. Owner finalize reads ONLY
+// finalize.test_command: it never mints skipped evidence (its only reason,
+// build-gate-off, would be false) and never consults finalize.gate — the gate
+// setting decides whether finalize runs its suite, and once that run passed,
+// the record states what ran.
 
 // Operation names the two evidence operations record in their envelopes.
 const (
@@ -58,11 +66,16 @@ const (
 	// ReasonEvidenceHeadMismatch: the run passed, but the request head is not the
 	// current feature head, so recording it would certify the wrong commit.
 	ReasonEvidenceHeadMismatch = "head-mismatch"
-	// ReasonEvidenceUnconfiguredGate: build.gate is local but build.test_command
-	// is unconfigured, so there is no gate command to run or record.
+	// ReasonEvidenceUnconfiguredGate: the owner's test_command is unconfigured
+	// (build.test_command under a local build gate, or finalize.test_command),
+	// so there is no gate command to record.
 	ReasonEvidenceUnconfiguredGate = "unconfigured-gate-command"
-	// ReasonEvidenceMissingRunDir: build.gate is local but the request named no
-	// run dir to observe. Only the local-gate path needs one; gate-off skips it.
+	// ReasonEvidenceInvalidOwner: the request named an owner other than build or
+	// finalize. It is refused before config is read.
+	ReasonEvidenceInvalidOwner = "invalid-owner"
+	// ReasonEvidenceMissingRunDir: the request named no run dir to observe on a
+	// path that records a run (a local build gate, or owner finalize); only
+	// build-owned gate-off skips it.
 	ReasonEvidenceMissingRunDir = "missing-run-dir"
 	// ReasonEvidenceInvalidRecord: NewRecord rejected the assembled command/head
 	// — a defensive internal guard, not a caller-reachable path.
@@ -73,13 +86,23 @@ const (
 	ReasonEvidenceMalformed = "malformed-evidence"
 )
 
+// Evidence record owners: whose gate settings certify the run. An empty
+// request owner means EvidenceOwnerBuild, so every pre-0517 caller is unchanged.
+const (
+	EvidenceOwnerBuild    = "build"
+	EvidenceOwnerFinalize = "finalize"
+)
+
 // EvidenceRecordRequest is the closed request for `evidence record`. There is
 // deliberately no command field (the gate command is observed from config) and
-// no `passed` boolean (the terminal record decides). RunDir is absolute.
+// no `passed` boolean (the terminal record decides). RunDir is absolute. Owner
+// selects whose settings certify the run: EvidenceOwnerBuild (or empty) or
+// EvidenceOwnerFinalize.
 type EvidenceRecordRequest struct {
 	ID     int    `json:"id"`
 	RunDir string `json:"run_dir"`
 	Head   string `json:"head"`
+	Owner  string `json:"owner"`
 }
 
 // EvidenceVerifyRequest is the closed request for `evidence verify`: the raw
@@ -134,55 +157,78 @@ func newEvidenceRefusal(opKey string, result Result, reason, message string, id 
 	return EvidenceOpResult{Envelope: NewEnvelope(opKey, result), ID: id, Reason: reason, Message: message}
 }
 
-// EvidenceRecord resolves the BUILD gate policy, then either mints truthful
-// skipped evidence (build.gate: off) or, for a local gate, requires a `passed`
-// terminal at the current feature head and records build.test_command. It
-// returns the immutable typed record plus its canonical rendered block. It
-// writes no second evidence store: the block travels as bytes and becomes the
-// durable record only after `pr publish`.
+// EvidenceRecord validates the request owner, then resolves that owner's gate
+// policy. Owner build (or empty) either mints truthful skipped evidence
+// (build.gate: off) or, for a local gate, records build.test_command; owner
+// finalize always records finalize.test_command. Either recording requires a
+// `passed` terminal at the current feature head. It returns the immutable
+// typed record plus its canonical rendered block. It writes no second evidence
+// store: the block travels as bytes and becomes the durable record only after
+// `pr publish`.
 func EvidenceRecord(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req EvidenceRecordRequest) EvidenceOpResult {
-	// (1) Pin authoritative config FIRST — the build gate policy decides
-	// everything downstream, including whether a run is observed at all.
+	// (0) The owner is validated BEFORE config is read: an unknown owner names
+	// no settings to read, and near-miss spellings are never folded into build.
+	owner := req.Owner
+	if owner == "" {
+		owner = EvidenceOwnerBuild
+	}
+	if owner != EvidenceOwnerBuild && owner != EvidenceOwnerFinalize {
+		return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidInput, ReasonEvidenceInvalidOwner,
+			"--owner must be build or finalize, got "+strconv.Quote(req.Owner), req.ID)
+	}
+
+	// (1) Pin authoritative config — the owner's gate policy decides everything
+	// downstream, including whether a run is observed at all.
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, r := classifyStatusError(ctx, err)
 		return newEvidenceRefusal(OperationEvidenceRecord, result, r, err.Error(), req.ID)
 	}
-	build := pin.Config.Effective.Build
+	eff := pin.Config.Effective
 
-	// (2) build.gate: off — an explicit no-gate policy. Mint truthful skipped
-	// evidence at the verified current feature head; observe no run.
-	if build.Gate.Value == "off" {
-		if refusal, ok := verifyFeatureHead(ctx, deps, wdeps, repoDir, req); !ok {
-			return refusal
+	// (2)+(3) Resolve the owner's command. Each owner reads ONLY its own key
+	// (the gate-drive split, ADR-0102).
+	var command, unconfigured, missingRun string
+	if owner == EvidenceOwnerFinalize {
+		// Finalize: no skipped path and no finalize.gate read — a finalize run
+		// that passed has already run, and the record states what ran.
+		command = eff.Finalize.TestCommand.Value
+		unconfigured = "finalize.test_command is unconfigured, so a finalize run has no command to record; run `docket repository configure-tests` and review the pending edit"
+		missingRun = "--owner finalize records a finalize run; --run must name the gate run directory to observe"
+	} else {
+		build := eff.Build
+		// build.gate: off — an explicit no-gate policy. Mint truthful skipped
+		// evidence at the verified current feature head; observe no run.
+		if build.Gate.Value == "off" {
+			if refusal, ok := verifyFeatureHead(ctx, deps, wdeps, repoDir, req); !ok {
+				return refusal
+			}
+			rec, err := evidence.NewSkippedRecord(req.Head, deps.Clock.Now())
+			if err != nil {
+				return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidInput, ReasonEvidenceInvalidRecord, err.Error(), req.ID)
+			}
+			return EvidenceOpResult{
+				Envelope: NewEnvelope(OperationEvidenceRecord, ResultApplied),
+				ID:       req.ID,
+				Head:     rec.Head,
+				RanAt:    rec.RanAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+				Outcome:  string(rec.Result),
+				Reason:   rec.Reason,
+				Block:    evidence.Render(rec),
+			}
 		}
-		rec, err := evidence.NewSkippedRecord(req.Head, deps.Clock.Now())
-		if err != nil {
-			return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidInput, ReasonEvidenceInvalidRecord, err.Error(), req.ID)
-		}
-		return EvidenceOpResult{
-			Envelope: NewEnvelope(OperationEvidenceRecord, ResultApplied),
-			ID:       req.ID,
-			Head:     rec.Head,
-			RanAt:    rec.RanAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			Outcome:  string(rec.Result),
-			Reason:   rec.Reason,
-			Block:    evidence.Render(rec),
-		}
+		// A local build gate records build.test_command — never finalize's.
+		command = build.TestCommand.Value
+		unconfigured = "build.gate is local but build.test_command is unconfigured; run `docket repository configure-tests` and review the pending edit"
+		missingRun = "build.gate is local; --run must name the gate run directory to observe"
 	}
-
-	// (3) A local build gate records build.test_command — read from
-	// authoritative config, never the request, never finalize.test_command.
-	command := build.TestCommand.Value
 	if command == "" {
-		return newEvidenceRefusal(OperationEvidenceRecord, ResultUnsupportedConfig, ReasonEvidenceUnconfiguredGate,
-			"build.gate is local but build.test_command is unconfigured; run `docket repository configure-tests` and review the pending edit", req.ID)
+		return newEvidenceRefusal(OperationEvidenceRecord, ResultUnsupportedConfig, ReasonEvidenceUnconfiguredGate, unconfigured, req.ID)
 	}
 
-	// (4) A local gate must observe a real run dir.
+	// (4) A recorded run must be a real run dir.
 	if req.RunDir == "" {
-		return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidInput, ReasonEvidenceMissingRunDir,
-			"build.gate is local; --run must name the gate run directory to observe", req.ID)
+		return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidInput, ReasonEvidenceMissingRunDir, missingRun, req.ID)
 	}
 
 	// (5) Observe the run. A probe error is a distinct typed failure, never a
