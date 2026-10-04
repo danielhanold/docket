@@ -2,7 +2,7 @@
 id: 497
 slug: 're-running-finalize-can-start-a-second-suite-beside-an-orpha'
 title: 'Re-running finalize can start a second suite beside an orphaned one'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-03'
@@ -22,7 +22,7 @@ branch: 'fix/re-running-finalize-can-start-a-second-suite-beside-an-orpha'
 pr: 'https://github.com/danielhanold/docket/pull/379'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T09:15:11Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T09:15:11Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-design.md) |
-| Plan | [2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md](https://github.com/danielhanold/docket/blob/fix/re-running-finalize-can-start-a-second-suite-beside-an-orpha/docs/superpowers/plans/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) |
-| Results | [2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-results.md](https://github.com/danielhanold/docket/blob/fix/re-running-finalize-can-start-a-second-suite-beside-an-orpha/docs/results/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-results.md) |
+| Plan | [2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) |
+| Results | [2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-results.md) |
 | ADRs | [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md), [ADR-0134](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0134-a-dead-supervisor-s-suite-counts-as-gone-only-when-its-proce.md), [ADR-0135](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0135-gate-drives-never-relaunch-automatically.md) |
 <!-- docket:artifacts:end -->
 

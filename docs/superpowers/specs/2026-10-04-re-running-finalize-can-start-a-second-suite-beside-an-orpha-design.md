@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0497 — Re-running finalize can start a second suite beside an orphaned one](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md)**
+> ↩ **[Change 0497 — Re-running finalize can start a second suite beside an orphaned one](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md)**
 <!-- docket:backlink:end -->
 
 # Re-running finalize can start a second suite beside an orphaned one — design

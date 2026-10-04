@@ -1,18 +1,12 @@
 # Backlog
 
-**508 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 349 done · 🗑️ 137 killed
+**508 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 350 done · 🗑️ 137 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0505](active/0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | `low` | `refactor` | [spec](../superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) | `refactor/share-one-unsupported-key-matcher-between-the-example-config` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0497](active/0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | `medium` | `fix` | [#379](https://github.com/danielhanold/docket/pull/379) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -69,7 +63,6 @@ graph TD
   0409
   0412
   0433
-  0497
   0464 --> 0502
   0503
   0505
@@ -83,7 +76,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (486)</summary>
+<details><summary>✅🗑️ Archive — done + killed (487)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -94,6 +87,7 @@ graph TD
 | [0500](archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0498](archive/2026-10-04-0498-results-file-puts-the-whole-branch-review-under-human-action.md) | Results file puts the whole-branch review under Human actions and testing | 2026-10-04 |
+| [0497](archive/2026-10-04-0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | 2026-10-04 |
 | [0464](archive/2026-10-04-0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align the human-facing docs and example config with the docket binary | 2026-10-04 |
 | [0380](archive/2026-10-04-0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | 2026-10-04 |
 | [0320](archive/2026-10-04-0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | 2026-10-04 |
@@ -105,7 +99,6 @@ graph TD
 | [0491](archive/2026-10-03-0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Retire the run id; the run key becomes the run tracker's only handle | 2026-10-03 |
 | [0490](archive/2026-10-02-0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | 2026-10-02 |
 | [0489](archive/2026-10-02-0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) | Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives | 2026-10-02 |
-| [0488](archive/2026-10-02-0488-run-task-worker-tests-directly-in-the-foreground-not-through.md) | Run task-worker tests directly in the foreground, not through gate drives | 2026-10-02 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
 | [0483](archive/2026-10-02-0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | 2026-10-02 |
 | [0457](archive/2026-10-02-0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | 2026-10-02 |
@@ -244,7 +237,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 6 done |
+| [2026-10](archive/) | 7 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
