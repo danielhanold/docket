@@ -9,8 +9,9 @@ actually have installed.
 - **The noun list** — every top-level command — is owned by `docket --help`. Run it to see what
   ships in your build.
 - **The verbs and flags under a noun** are owned by `docket <noun> --help` (for example,
-  `docket change --help`). This page never lists flags: they change with the binary, and the help
-  output is the one place that is always right.
+  `docket change --help`). This page names verbs where they help you find your way, but never
+  lists flags: they change with the binary, and the help output is the one place that is always
+  right.
 - **The capability catalog** — the machine-readable list of every operation the `docket` binary
   offers, which skills read instead of hard-coding commands (a skill is a named, reusable
   instruction set an agent loads for one job) — is owned by `docket capabilities --json`. That JSON,
@@ -21,35 +22,42 @@ actually have installed.
 Each line is a pointer: the command, what its verbs govern, and where to read the verbs.
 
 - **`docket adr`** — record, supersede, and reverse architecture decisions. Verbs: `docket adr --help`.
+- **`docket agent`** — enter harness agent roles (`docket agent enter` starts a Codex role as a
+  foreground root thread). Verbs: `docket agent --help`.
 - **`docket artifact`** — render docket-managed blocks into workflow artifacts. Verbs: `docket artifact --help`.
 - **`docket capabilities`** — emit the binary's complete executable command catalog (read-only,
   repository-independent). Verbs: `docket capabilities --help`.
 - **`docket change`** — create and transition changes in the backlog. Verbs: `docket change --help`.
 - **`docket context`** — assemble read-only context bundles for the implementation workflow. Verbs: `docket context --help`.
-- **`docket development`** — contributor operations against a docket checkout, including the test
-  suite gate. Verbs: `docket development --help`.
-- **`docket diagnostic`** — read-only diagnostics. Verbs: `docket diagnostic --help`.
+- **`docket development`** — contributor operations against a docket checkout: install from a
+  checkout and run the complete test suite. Verbs: `docket development --help`.
+- **`docket diagnostic`** — read-only diagnostics, including the resolved configuration
+  (`docket diagnostic config`). Verbs: `docket diagnostic --help`.
 - **`docket evidence`** — record and verify the build evidence that certifies an exact tested
   commit. Verbs: `docket evidence --help`.
 - **`docket finalize`** — sequence a change's closing half: rebase, publish, merge, and closeout. Verbs: `docket finalize --help`.
 - **`docket gate`** — launch, observe, stop, and recover supervised local gate runs. Verbs: `docket gate --help`.
 - **`docket install`** — install docket's skills, agents, and dispatch material into your
-  harnesses. Its verbs include `docket install check` (report installation status, read-only) and
-  the operation `install.collect` — `docket install collect [--dry-run]`, which reclaims verified
-  unreferenced version trees. Verbs: `docket install --help`.
-- **`docket learning`** — record and update manual learning findings. Verbs: `docket learning --help`.
-- **`docket maintenance`** — reclaim docket's closing half in batch (status stays read-only). Verbs: `docket maintenance --help`.
+  harnesses. Its verbs are `docket install check`, which reports whether this machine's
+  installation is current and writes nothing, and `docket install collect`, which reclaims
+  verified unreferenced installed version trees. Verbs: `docket install --help`.
+- **`docket learning`** — record and update learning findings. Verbs: `docket learning --help`.
+- **`docket maintenance`** — close out merged changes, retry close-out cleanup, and reclaim
+  expired claims in one pass (`docket status` stays read-only). Verbs: `docket maintenance --help`.
 - **`docket pr`** — publish the ready-for-review pull request for an in-progress change's tested
   head. Verbs: `docket pr --help`.
-- **`docket repository`** — initialize, migrate, and check the docket repository topology. Verbs: `docket repository --help`.
-- **`docket run`** — report on a change's claim-to-implemented run (read-only). Verbs: `docket run --help`.
+- **`docket repository`** — initialize, migrate, check, and repair the docket repository
+  topology; also prepare a repository for a workflow (the startup check), configure its test
+  commands, and fast-forward the primary checkout to the integration branch. Verbs:
+  `docket repository --help`.
+- **`docket run`** — track dispatched runs and verify a change's claim-to-implemented run.
+  Verbs: `docket run --help`.
 - **`docket schema`** — emit request/result payload schemas and allowed values (read-only,
   repository-independent). Verbs: `docket schema --help`.
 - **`docket status`** — report backlog status, readiness, selection, and repository health
   (read-only). Verbs: `docket status --help`.
-- **`docket uninstall`** — the operation `uninstall`: remove recorded harness integrations while
-  retaining the CLI, configuration, source checkouts, and repository setup. Flags: repeatable
-  `--harness <name>` (default: every recorded harness) and `--dry-run`. Verbs: `docket uninstall --help`.
+- **`docket uninstall`** — remove recorded harness integrations while retaining the CLI and
+  repository setup. Verbs: `docket uninstall --help`.
 - **`docket version`** — report the binary's build identity. Verbs: `docket version --help`.
 - **`docket workspace`** — prepare, inspect, and publish feature workspaces for in-progress
   changes. Verbs: `docket workspace --help`.

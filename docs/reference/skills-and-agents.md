@@ -43,7 +43,8 @@ prominent warning.
 
 ## Agents
 
-Each line names one agent file under `agents/` and its job.
+Each line names one of the seventeen agent files under `agents/` and its job. Every harness gets all
+seventeen, installed for your user only.
 
 - **docket-adr** — dispatch wrapper for the ADR-recording workflow.
 - **docket-auto-groom-critic** — adversarially review an auto-groom draft and return one verdict.

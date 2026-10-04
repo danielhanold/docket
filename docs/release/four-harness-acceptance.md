@@ -1,10 +1,10 @@
-# Four-harness fresh-session acceptance — the PR-handoff procedure
+# Four-harness fresh-session acceptance — the release procedure
 
-This is the PR-handoff checklist for change 0317. The fresh-session live acceptance is
-external truth: vendor behavior and process-start loading of agent/skill registries cannot be
-promoted to a pass by any in-repo test. This document is the procedure a human runs by hand against
-a candidate bundle; it is **not** run by this task, and the pass/fail evidence it produces is
-recorded in the change's results record (a metadata-branch artifact), not here.
+This is the release acceptance checklist. The fresh-session live acceptance is external truth:
+vendor behavior and process-start loading of agent/skill registries cannot be promoted to a pass by
+any in-repo test. This document is the procedure a human runs by hand against a candidate build; no
+automated test runs it, and the pass/fail evidence it produces is recorded in the release's results
+record (a metadata-branch artifact), not here.
 
 Each harness section below is a **state to reproduce**, not a conclusion to confirm. Perform the
 steps, observe the actual output, and record what you saw. Do not pre-fill a row and then look for
@@ -57,7 +57,7 @@ Record, for reuse across all four harness sections:
 The scenario is deliberately read-only status. It crosses every release-specific boundary —
 downloaded binary, embedded assets, installed native definition, process-start loading, direct
 dispatch, PATH resolution, authoritative Git read, and protocol output — **without** mutating
-lifecycle state or re-exercising behavior owned by changes 0312–0316.
+lifecycle state or re-exercising behavior the in-repo test suite already covers.
 
 ---
 
@@ -90,14 +90,15 @@ shortcut.
 
 ### Claude
 
-1. **Install** the candidate binary and Claude's native assets via the bundle downloader —
-   `install.sh --harness claude` from the candidate bundle (which installs the candidate `docket`
-   binary and then runs the landed `docket install claude` embedded-asset transaction).
+1. **Install** the candidate binary and Claude's native assets via the bootstrapper —
+   `install.sh --harness claude` from the candidate checkout (which builds the candidate `docket`
+   binary and links Claude's assets at the checkout; with the candidate already on `PATH`,
+   `docket install --harness claude` installs Claude's assets on its own).
 2. **Fresh session.** Terminate any process that could have loaded the old agent/skill registry,
    then start a genuinely fresh native Claude session so the newly installed `docket-status`
    definition is loaded at process start.
 3. **Direct native dispatch.** Directly invoke the installed `docket-status` named agent through
-   Claude's own dispatch surface — never through another harness and never through a runner shim.
+   Claude's own dispatch surface — never through another harness.
 4. **Child-run reads.** Have that native child run the PATH-resolved `docket version --json` and the
    read-only `docket status --repo-dir "$WORK" --json`, with **no maintenance sweep**.
 5. **Record the evidence row** (into the results record):
@@ -113,36 +114,36 @@ shortcut.
 
 ### Codex
 
-1. **Install** the candidate binary and Codex's native assets via the bundle downloader
+1. **Install** the candidate binary and Codex's native assets via the bootstrapper
    (`install.sh --harness codex`).
 2. **Fresh session.** Terminate any process holding the old registry, then start a genuinely fresh
    native Codex session.
 3. **Direct native dispatch.** Directly invoke the installed `docket-status` named agent through
-   Codex's own dispatch surface — never another harness, never a runner shim.
+   Codex's own dispatch surface — never another harness.
 4. **Child-run reads.** Have the child run the PATH-resolved `docket version --json` and read-only
    `docket status --repo-dir "$WORK" --json`, with no maintenance sweep.
 5. **Record the evidence row** — same fields as above, harness name **Codex**.
 
 ### Cursor
 
-1. **Install** the candidate binary and Cursor's native assets via the bundle downloader
+1. **Install** the candidate binary and Cursor's native assets via the bootstrapper
    (`install.sh --harness cursor`).
 2. **Fresh session.** Terminate any process holding the old registry, then start a genuinely fresh
    native Cursor session. **Cursor acceptance runs in the IDE, never a feature-lagging CLI proxy.**
 3. **Direct native dispatch.** Directly invoke the installed `docket-status` named agent through
-   Cursor's own (IDE) dispatch surface — never another harness, never a runner shim.
+   Cursor's own (IDE) dispatch surface — never another harness.
 4. **Child-run reads.** Have the child run the PATH-resolved `docket version --json` and read-only
    `docket status --repo-dir "$WORK" --json`, with no maintenance sweep.
 5. **Record the evidence row** — same fields as above, harness name **Cursor**, mode **IDE**.
 
 ### OpenCode
 
-1. **Install** the candidate binary and OpenCode's native assets via the bundle downloader
+1. **Install** the candidate binary and OpenCode's native assets via the bootstrapper
    (`install.sh --harness opencode`).
 2. **Fresh session.** Terminate any process holding the old registry, then start a genuinely fresh
    native OpenCode session.
 3. **Direct native dispatch.** Directly invoke the installed `docket-status` named agent through
-   OpenCode's own dispatch surface — never another harness, never a runner shim.
+   OpenCode's own dispatch surface — never another harness.
 4. **Child-run reads.** Have the child run the PATH-resolved `docket version --json` and read-only
    `docket status --repo-dir "$WORK" --json`, with no maintenance sweep.
 5. **Record the evidence row** — same fields as above, harness name **OpenCode**.
@@ -151,7 +152,7 @@ shortcut.
 
 ## Evidence row (recorded once per harness)
 
-Each harness row in change 0317's results record carries:
+Each harness row in the release's results record carries:
 
 - harness name, exact vendor version, and interactive/headless/IDE mode;
 - host OS/architecture;
@@ -173,8 +174,7 @@ through that harness's own surface, ran the named child and produced the expecte
 and ready ID against an unchanged fixture.
 
 A failure **blocks acceptance**. It is diagnosed against the exact recorded harness version and
-mode; it does **not** widen change 0317 into a compatibility wrapper, a runner fallback, or a
-harness redesign.
+mode; it does **not** widen the release into a compatibility wrapper or a harness redesign.
 
 ---
 
@@ -188,7 +188,7 @@ Running `docket version` in the parent session, opening a generated file, or com
 - it does not prove a **genuinely fresh** vendor process loaded the newly installed agent/skill
   registry at process start (a stale session may still be serving the old definitions);
 - it does not prove the installed `docket-status` named agent was dispatched through **that
-  harness's own** dispatch surface, rather than another harness or a runner shim;
+  harness's own** dispatch surface, rather than another harness;
 - it does not prove the read-only `status` operation observed the authoritative Git state and
   returned the expected ready ID; and
 - it does not prove the fixture's refs and repository bytes were **unchanged** by the run.
