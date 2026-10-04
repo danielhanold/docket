@@ -9,10 +9,10 @@ created: '2026-10-04'
 updated: '2026-10-04'
 depends_on: []
 stacked_on:
-related: [502, 360]
+related: [502, 360, 520]
 discovered_from: [502]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md'
 plan:
 results:
 trivial: false
@@ -27,16 +27,27 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-After an integration repair, finalize re-tests the repaired head through the gate driver (`--owner finalize`) using `finalize.test_command`. But `EvidenceRecord` in `internal/app/evidence_ops.go` reads only `build.*` settings: its comment says it records `build.test_command`, "never finalize.test_command". So after a passing finalize re-test it can (a) mint skipped evidence when `build.gate` is `off`, even though a real run passed; (b) name `build.test_command` instead of the command that actually ran; or (c) refuse with `unconfigured-gate-command` when `build.gate` is local and `build.test_command` is unset. The evidence then misstates what certified the repaired head. Found while building change 0502.
+After an integration repair, finalize re-tests the repaired head with `finalize.test_command`, and `finalize.rebase`'s built-in gate does the same after every rebase. Both turn the passing run into evidence through `evidence.record`, which reads only the `build.*` settings. So a passing finalize run can (a) produce *skipped* evidence when `build.gate` is `off`; (b) name `build.test_command` instead of the command that ran; or (c) be refused with `unconfigured-gate-command` when `build.gate` is local and `build.test_command` is unset, which the built-in gate turns into a halt after a green suite. The evidence then misstates what certified the head.
+
+Change 0374 meant finalize's gate to validate against the finalize settings; the code never did. It went unseen because docket sets both commands to the same value. Found while building change 0502 (the re-test path); grooming found the built-in gate path.
 
 ## What changes
 
-Let `evidence.record` know it is certifying a finalize re-test and, in that case, read the finalize gate settings and record the command that actually ran. The build-gate path keeps its current behavior. Grooming decides how the caller signals the finalize case (for example an owner flag that matches the gate driver's `--owner finalize`) and updates the finalize skill text to pass it. Cover each of the three failure modes (a)-(c) with a test, and mutation-test them.
+- `evidence.record` takes an optional `--owner build|finalize`. Omitted means build, exactly as today. With `finalize` it reads only `finalize.test_command`, never mints skipped evidence, and records the finalize command: the same owner split `gate drive start --owner` already uses.
+- `finalize.rebase`'s built-in gate passes its own owner, so finalize gate passes are certified with the finalize settings and `evidence.recertify` stays build.
+- The finalize skill's repaired-head re-test passes `--owner finalize`, and implement-next's description of what `evidence.record` reads is corrected.
+- Tests use different build and finalize settings and cover (a)–(c) at both call sites, each mutation-tested.
 
 ## Out of scope
 
-The wider coordination-tax and evidence items bundled in change 0360 (session-scoped sync, accepting results-only deltas at `pr publish`, honoring the primary tree's `.docket.local.yml` from a feature worktree, auto-detecting test commands). This change touches only the finalize re-test evidence path.
+- Changing the evidence record format (no owner field in the record).
+- `finalize.gate: off` behavior.
+- How `docket schema` publishes the `evidence.*` flags (#520).
+- The wider coordination-tax and evidence items bundled in #360 (session-scoped sync, accepting results-only deltas at `pr publish`, honoring the primary tree's `.docket.local.yml` from a feature worktree, auto-detecting test commands).

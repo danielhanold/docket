@@ -1,6 +1,6 @@
 # Backlog
 
-**520 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 139 killed
+**520 changes** — 🟢 1 in progress · 🟣 5 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 139 killed
 
 ## 🟢 In progress (1)
 
@@ -8,20 +8,20 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0516](active/0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) | Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match | `low` | `chore` | [spec](../superpowers/specs/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md) | `chore/remove-stale-auto-groom-comments-and-fix-testskillhandoffsit` |  |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (5)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0520](active/0520-make-the-published-finalize-request-schemas-match-what-input.md) | Make every published request schema match the JSON file the operation reads | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md) |
+| [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md) |
 | [0511](active/0511-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa.md) | Upgrade guide from Bash docket to the Go binary, proven on saved v0.9.2 and v0.9.3 installs | `critical` | `docs` | [spec](../superpowers/specs/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | needs-grooming |
 | [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Make finalize.merge honor the repair sign-off block when an id is named | `high` | `fix` | needs-grooming |
 | [0513](active/0513-release-v1-0-0-alpha-3-prove-and-publish-opencode-support.md) | Release v1.0.0-alpha.3: prove and publish OpenCode support | `high` | `chore` | ⏳ waiting on #512 — not yet built |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | ⏳ waiting on #366 — not yet built |
