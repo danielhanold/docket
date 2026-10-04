@@ -2,7 +2,7 @@
 id: 514
 slug: 'retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0'
 title: 'Retire the saved Bash upgrade test cases when stable v1.0.0 ships'
-status: 'proposed'
+status: 'deferred'
 priority: 'low'
 type: 'chore'
 created: '2026-10-04'
@@ -42,3 +42,7 @@ Change 0511 adds saved v0.9.2 and v0.9.3 Bash state under `testdata/bash-upgrade
 
 - Deleting or rewriting the guide itself.
 - Any change to the installer's v0.9.2 takeover (ADR-0096).
+
+## Why deferred
+
+Parked on purpose until stable v1.0.0 ships (human decision, 2026-10-04). Until then the saved Bash cases and their test keep the upgrade guide (0511) honest through alpha.2 and alpha.3. Revive this once v1.0.0 is published.
