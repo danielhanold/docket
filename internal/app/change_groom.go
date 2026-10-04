@@ -22,11 +22,12 @@ import (
 
 // This file is the `change groom` planning operation: it grooms a proposed,
 // needs-design change to build-ready by one of two authored outcomes — a full
-// spec, or a trivial verdict — or, by the third outcome (revise), adjusts an
-// already-groomed proposed change in place: a whole-body replace of its existing
-// linked spec and/or owned proposal-section edits, never touching spec: or
-// trivial:. The abstain outcome records an autonomous groom's abstain on a
-// needs-design change — auto_groomable: false plus one dated
+// spec, or a trivial verdict — or, by the third outcome (revise), edits any
+// proposed change in place without changing its groom state: a whole-body
+// replace of its existing linked spec and/or owned proposal-section edits,
+// never touching spec:, trivial:, or auto_groomable:. The abstain outcome
+// records an autonomous groom's abstain on a needs-design change —
+// auto_groomable: false plus one dated
 // "## Auto-groom blocked" entry — under the same groom gate; the re-enable outcome
 // clears it — auto_groomable: true, the section removed — under that gate too,
 // optionally with owned-section edits in the same commit. Every outcome
@@ -39,7 +40,7 @@ import (
 // (a spec-body revise also checks the linked spec file's blob id in Plan), and
 // it never touches claim metadata. It decides no lifecycle policy beyond the
 // groom gate the spec fixes here (proposed, needs-design, not yet trivial) and
-// its exact complement, the revise gate (proposed, already spec'd or trivial).
+// the revise gate (any proposed change).
 
 // OperationChangeGroom is the operation key `change groom` records in its result
 // envelope and its transaction trailer.
@@ -54,10 +55,12 @@ const (
 	// GroomTrivial marks the change trivial with an authored rationale, writing
 	// no spec file.
 	GroomTrivial GroomOutcome = "trivial"
-	// GroomRevise adjusts an already-groomed proposed change: a whole-body
-	// replace of its existing linked spec, owned proposal-section edits, or
-	// both. It never writes spec: or trivial:, so a change can never flip
-	// between spec'd and trivial through this outcome.
+	// GroomRevise edits any proposed change without changing its groom state:
+	// a whole-body replace of its existing linked spec, owned proposal-section
+	// edits, a retitle, relationship-field updates, or a combination. It never
+	// writes spec:, trivial:, or auto_groomable:, so a change can never flip
+	// between needs-grooming, spec'd, and trivial through this outcome, and it
+	// never edits the ## Auto-groom blocked section (abstain and re-enable own it).
 	GroomRevise GroomOutcome = "revise"
 	// GroomAbstain records an autonomous groom's abstain on a needs-grooming
 	// change: it sets auto_groomable: false and appends one dated entry to the
@@ -548,15 +551,15 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	if out != domain.LookupFound {
 		return refuseGroom("not-found", fmt.Sprintf("change %04d is not present in the current corpus", o.req.ChangeID))
 	}
-	// Groom/revise gate. A proposed change is either needs-design (groomable)
-	// or already-groomed (revisable) — the two gates are exact complements, so
-	// no proposed change satisfies both and none satisfies neither. Neither
-	// gate inspects or sets claim metadata.
+	// Groom/revise gate. The groom gate admits only a proposed, needs-design
+	// change. The revise gate admits any proposed change, needs-design or
+	// already groomed: revise never writes spec:, trivial:, or auto_groomable:,
+	// so it cannot change a change's groom state, and a needs-design change
+	// satisfies both gates. Neither gate inspects or sets claim metadata.
 	if o.req.Outcome == GroomRevise {
-		if c.Status() != domain.StatusProposed || (c.Spec().Value == "" && !c.Trivial()) {
+		if c.Status() != domain.StatusProposed {
 			return refuseGroom("not-revisable",
-				fmt.Sprintf("change %04d is not an already-groomed proposed change (status %q, spec %q, trivial %v)",
-					o.req.ChangeID, c.Status(), c.Spec().Value, c.Trivial()))
+				fmt.Sprintf("change %04d is not a proposed change (status %q)", o.req.ChangeID, c.Status()))
 		}
 	} else if c.Status() != domain.StatusProposed || c.Spec().Value != "" || c.Trivial() {
 		return refuseGroom("not-groomable",
@@ -585,7 +588,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	if reviseSpec {
 		if c.Spec().Value == "" {
 			return refuseGroom("spec-not-linked",
-				fmt.Sprintf("change %04d has no linked spec to revise (spec_markdown was submitted against a trivial-only change)", o.req.ChangeID))
+				fmt.Sprintf("change %04d has no linked spec to revise", o.req.ChangeID))
 		}
 		blob, blobID, exists, err := treeBlob(ctx, st.Tree, c.Spec().Value)
 		if err != nil {
