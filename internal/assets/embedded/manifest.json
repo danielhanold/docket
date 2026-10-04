@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:1f1e2b2e030b29921f23413dfffea1a82c9a181190d53a98ded0e43110b500c2",
+  "asset_set_id": "sha256:5bb19758b55521035b94a0d7f949ce369ceb6013cb23a8a5455e74585172c0e3",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -287,8 +287,8 @@
       "path": "skills/docket-brainstorm/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 4515,
-      "sha256": "1dca9ec8376b43b21354e9316cd75a3f62a00cf38171c361dd76cd01f77c2637"
+      "size": 4537,
+      "sha256": "fbe03cf3b045913fe237a9ecf959035c5b68a640aeac056c854e1bfd97a983c4"
     },
     {
       "path": "skills/docket-build-task/SKILL.md",
