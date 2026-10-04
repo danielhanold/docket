@@ -2,7 +2,7 @@
 id: 504
 slug: 'guard-two-unproven-invariants-the-testdata-ignore-negation-a'
 title: 'Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a'
 pr: 'https://github.com/danielhanold/docket/pull/377'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T08:53:27Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T08:53:27Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md) |
-| Plan | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md](https://github.com/danielhanold/docket/blob/chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a/docs/superpowers/plans/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) |
-| Results | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-results.md](https://github.com/danielhanold/docket/blob/chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a/docs/results/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-results.md) |
+| Plan | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) |
+| Results | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

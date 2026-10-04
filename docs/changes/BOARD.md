@@ -1,6 +1,6 @@
 # Backlog
 
-**506 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 3 proposed · ⚪ 13 deferred · ✅ 347 done · 🗑️ 136 killed
+**506 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 3 proposed · ⚪ 13 deferred · ✅ 348 done · 🗑️ 136 killed
 
 ## 🟢 In progress (2)
 
@@ -8,12 +8,6 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0506](active/0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-design.md) | `fix/drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi` |  |
 | [0497](active/0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-design.md) | `fix/re-running-finalize-can-start-a-second-suite-beside-an-orpha` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0504](active/0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | `medium` | `chore` | [#377](https://github.com/danielhanold/docket/pull/377) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
@@ -73,7 +67,6 @@ graph TD
   0497
   0464 --> 0502
   0503
-  0504
   0505
   0506
   0192:::done
@@ -85,10 +78,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (483)</summary>
+<details><summary>✅🗑️ Archive — done + killed (484)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0504](archive/2026-10-04-0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | 2026-10-04 |
 | [0501](archive/2026-10-04-0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) | Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note | 2026-10-04 |
 | [0500](archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
@@ -116,7 +110,6 @@ graph TD
 | [0291](archive/2026-10-02-0291-load-gate-failure-md-before-the-dispatch-verb-at-both-finali.md) | Load gate-failure.md before the dispatch verb at both finalize gate steps | 2026-10-02 |
 | [0485](archive/2026-10-01-0485-test-go-race-hits-its-8-minute-backstop-in-internal-repoguar.md) | test_go_race hits its 8-minute backstop in internal/repoguard under concurrent gate load | 2026-10-01 |
 | [0484](archive/2026-10-01-0484-bring-test-go-race-back-under-its-budget-row-testretiredvoca.md) | Bring test_go_race back under its budget row (TestRetiredVocabularySeal scan cost) | 2026-10-01 |
-| [0482](archive/2026-10-01-0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording | 2026-10-01 |
 | [0478](archive/2026-10-01-0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | 2026-10-01 |
 | [0476](archive/2026-10-01-0476-bring-test-go-integration-app-rebaserecovery-back-under-its.md) | Bring test_go_integration_app_rebaserecovery back under its runtime budget | 2026-10-01 |
 | [0475](archive/2026-10-01-0475-bring-test-go-integration-app-closeout-sh-back-under-its-bud.md) | Bring test_go_integration_app_closeout.sh back under its budget row | 2026-10-01 |
@@ -245,7 +238,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 4 done |
+| [2026-10](archive/) | 5 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
