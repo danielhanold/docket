@@ -1,6 +1,6 @@
 # Backlog
 
-**519 changes** — 🟣 3 groomed · 🟡 11 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 137 killed
+**520 changes** — 🟣 3 groomed · 🟡 12 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 137 killed
 
 ## 🟣 Groomed (3)
 
@@ -10,10 +10,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (11)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0520](active/0520-make-the-published-finalize-request-schemas-match-what-input.md) | Make the published finalize request schemas match what --input accepts | `low` | `fix` | needs-grooming |
 | [0519](active/0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | `low` | `fix` | needs-grooming |
 | [0518](active/0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | `low` | `fix` | needs-grooming |
 | [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | needs-grooming |
@@ -77,6 +78,7 @@ graph TD
   0517
   0518
   0519
+  0520
   0192:::done
   0251:::done
   0393:::done
