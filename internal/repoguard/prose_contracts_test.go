@@ -1093,6 +1093,14 @@ var alignmentContracts = []proseContract{
 		absent: []string{"adr-unpublished", "publish-deferred"}},
 	{sentinel: "align_0502_real_findings", file: "agents/docket-status.md",
 		absent: []string{"dependency stalls"}},
+	// 0502: wrappers are user-level; pins are global-only.
+	{sentinel: "align_0502_agent_layer", file: "skills/docket-convention/references/agent-layer.md",
+		present: []string{"from the global configuration only", "installed at user level"},
+		absent:  []string{"agents.yaml", "drift-check gate", "per-repo agent pass", "change 0"}},
+	{sentinel: "align_0502_agent_layer", file: "skills/docket-convention/SKILL.md",
+		absent: []string{"per-repo agent pass", "generates wrapper files for", "(change 0016)", "skills: [<skill>, docket-convention]"}},
+	{sentinel: "align_0502_agent_layer", file: "skills/docket-build/SKILL.md",
+		absent: []string{"install.sh", "`skills:` frontmatter"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {

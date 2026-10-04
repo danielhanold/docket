@@ -83,7 +83,7 @@ tier and routing reason, and the return schema. No run context or capability goe
 worker prompt: the worker runs its tests directly and calls no gate operation. Never dispatch a task reviewer, and
 never dispatch two workers concurrently — that binds a controller who *believes the first worker
 is gone* exactly as it binds one dispatching deliberately. Never preload a review skill either —
-for a **named** agent the wrapper's own `skills:` frontmatter is the operative protection, so what it
+for a **named** agent the wrapper's own skills list is the operative protection, so what it
 forbids is bolting a review skill or instruction onto the dispatch prompt.
 <!-- docket:feature-dispatch:end -->
 
@@ -94,8 +94,8 @@ A tier agent that cannot be dispatched — established only per the convention's
 A tier agent **not registered on this machine** is the same `halt` condition reached
 differently: the harness rejected a dispatch naming `docket-build-economy` — a concrete rejection of a
 named agent, never an inference from a missing tool name, so the rule above stands. The cause is a
-stale install (`install.sh` generates the wrappers; a harness registers them only at session start):
-halt, naming a re-run of `install.sh` plus a fresh session as the remedy.
+stale install (the `install` operation installs the wrappers; a harness registers them only at session start):
+halt, naming a re-run of the `install` operation plus a fresh session as the remedy.
 
 ## Reading a worker's return
 
@@ -171,7 +171,7 @@ disposition.
 - **Tier routing is un-dispatchable**, established per the convention's *Dispatch-capability
   resolution* and never from a tool name.
 - **A tier agent is not registered on this machine** — the harness rejected a dispatch naming
-  it. Remedy: re-run `install.sh`, then start a fresh session.
+  it. Remedy: re-run the `install` operation, then start a fresh session.
 - **An explicit plan `Build tier:` value is invalid** — a plan contract error; never fall back
   to a default.
 - **A worker return is malformed or unverifiable** — a missing, unparsable, or unknown outcome, a `COMPLETE`
