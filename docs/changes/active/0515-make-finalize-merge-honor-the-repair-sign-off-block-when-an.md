@@ -13,7 +13,7 @@ related: [502, 517, 520]
 discovered_from: [502]
 adrs: [8, 10, 11, 43]
 spec: 'docs/superpowers/specs/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T16:47:14Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-design.md) |
+| Plan | [2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md](https://github.com/danielhanold/docket/blob/fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an/docs/superpowers/plans/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0011](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0011-finalize-consent-model.md), [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) |
 <!-- docket:artifacts:end -->
 
