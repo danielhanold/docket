@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0515 — Retire the finalize repair sign-off so a green repair merges](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md)**
+> ↩ **[Change 0515 — Retire the finalize repair sign-off so a green repair merges](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md)**
 <!-- docket:backlink:end -->
 # Retire the Finalize Repair Sign-off Implementation Plan
 
