@@ -7,7 +7,7 @@
 > sweep (the two `done` drivers), plus the kill callers — `docket-implement-next`'s reconcile-kill
 > and `docket-new-change`'s proposed-kill. The sequence is one; only the
 > failure posture differs per caller (table below). This file owns ordering and posture.
-> `schema` gives request-file and result shapes, the capability catalog gives flags.
+> `schema` gives request-file and result shapes; the capability catalog gives flags.
 
 Contents: [The sequence](#the-sequence) · [Failure posture](#failure-posture--per-caller) · [Determinism invariant](#determinism-invariant)
 
