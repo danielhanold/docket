@@ -665,10 +665,22 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 	return nil
 }
 
+// withCanonicalBlock appends the paste-ready canonical managed block to a
+// remedy instruction: the instruction, a newline, then GitignoreBlock() with
+// its trailing newline trimmed. The bytes come only from GitignoreBlock() —
+// the block init writes and check validates — never a second literal. The
+// block starts on its own line so a renderer that prints the remedy verbatim
+// (repository check's appendFindingBlock) puts every line at column 0, which a
+// .gitignore needs: leading whitespace is part of the pattern (change 0500).
+func withCanonicalBlock(instruction string) string {
+	return instruction + "\n" + strings.TrimSuffix(string(GitignoreBlock()), "\n")
+}
+
 // committedIgnoreFinding renders the preserved ignore detail into the one
 // committed-ignore defect finding. The defect is explicitly located in the
 // committed integration tree: an uncommitted local fix does not establish
-// the guarantee (learning gitignore-guarantee-must-be-committed).
+// the guarantee (learning gitignore-guarantee-must-be-committed). Every
+// remedy ends with the paste-ready canonical block via withCanonicalBlock.
 func committedIgnoreFinding(d IgnoreDetail) *Finding {
 	fnd := &Finding{
 		Code:     "committed-ignore-invalid",
@@ -678,27 +690,27 @@ func committedIgnoreFinding(d IgnoreDetail) *Finding {
 	switch d.Defect {
 	case IgnoreDefectFileAbsent:
 		fnd.Message = "The committed integration tree has no .gitignore file, so the managed docket ignore block is absent."
-		fnd.Remedy = "Restore the managed block (e.g. re-run `docket repository migrate`, or add it by hand from the canonical block), review, commit, and push the corrected .gitignore."
+		fnd.Remedy = withCanonicalBlock("Add a .gitignore containing exactly these lines, then review, commit, and push it:")
 	case IgnoreDefectBlockAbsent:
 		fnd.Message = "The committed .gitignore does not contain the managed docket ignore block."
-		fnd.Remedy = "Restore the managed block, then review, commit, and push the corrected .gitignore."
+		fnd.Remedy = withCanonicalBlock("Append exactly these lines to the .gitignore, then review, commit, and push it:")
 	case IgnoreDefectLegacyOnly:
 		fnd.Message = "The committed .gitignore carries only the legacy managed-block markers; the current-generation block is absent."
-		fnd.Remedy = "Upgrade the managed block to the current markers, then review, commit, and push the corrected .gitignore."
+		fnd.Remedy = withCanonicalBlock("Replace the legacy managed block with exactly these lines, then review, commit, and push the corrected .gitignore:")
 	case IgnoreDefectMalformedMarkers:
 		fnd.Message = "The committed .gitignore's managed-block markers are malformed (" + d.Generation + " generation): dangling, out-of-order, or nested start/end."
-		fnd.Remedy = "Inspect and correct the reported marker structure by hand first, then review, commit, and push the corrected .gitignore."
+		fnd.Remedy = withCanonicalBlock("Inspect and correct the reported marker structure by hand first; the finished managed block must be exactly these lines. Then review, commit, and push the corrected .gitignore:")
 	case IgnoreDefectMissingEntries:
 		fnd.Message = "The committed .gitignore's managed docket block is missing required entries: " + strings.Join(d.MissingEntries, ", ") + "."
-		fnd.Remedy = "Restore the missing entries (" + strings.Join(d.MissingEntries, ", ") + ") to the managed block, then review, commit, and push the corrected .gitignore."
+		fnd.Remedy = withCanonicalBlock("Restore the missing entries (" + strings.Join(d.MissingEntries, ", ") + ") so the managed block is exactly these lines, then review, commit, and push the corrected .gitignore:")
 	case IgnoreDefectNonCanonical:
 		fnd.Message = "The committed .gitignore's managed docket block contains all required entries but differs from the canonical block representation (reordered, extra, or differently-terminated lines)."
-		fnd.Remedy = "Rewrite the managed block to the canonical representation, then review, commit, and push the corrected .gitignore."
+		fnd.Remedy = withCanonicalBlock("Rewrite the managed block to exactly these lines, then review, commit, and push the corrected .gitignore:")
 	default:
 		// Absent presence with no preserved detail (an older caller):
 		// still a concrete committed-block failure, without invented detail.
 		fnd.Message = "The committed .gitignore's managed docket block failed validation in the committed integration tree."
-		fnd.Remedy = "Restore the canonical managed block, then review, commit, and push the corrected .gitignore."
+		fnd.Remedy = withCanonicalBlock("Restore the managed block as exactly these lines, then review, commit, and push the corrected .gitignore:")
 	}
 	return fnd
 }
