@@ -22,7 +22,7 @@ branch: 'feat/match-reported-follow-ups-against-proposed-and-deferred-chan'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T12:42:37Z'
+claimed_at: '2026-10-04T12:49:23Z'
 ---
 
 ## Artifacts
