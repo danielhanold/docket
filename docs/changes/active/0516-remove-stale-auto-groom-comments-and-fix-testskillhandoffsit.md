@@ -13,7 +13,7 @@ related: [502]
 discovered_from: [502]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T15:04:42Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md) |
+| Plan | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md](https://github.com/danielhanold/docket/blob/chore/remove-stale-auto-groom-comments-and-fix-testskillhandoffsit/docs/superpowers/plans/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
