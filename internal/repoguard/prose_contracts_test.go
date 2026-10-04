@@ -763,7 +763,7 @@ var resultsReviewPlacementDocContracts = []docSectionContract{
 			"The section holds only what a human should do or check — never a record of what the run already checked, which belongs under Verification performed",
 			"a checkpoint updates it, never truncates it — except final consolidation, which condenses the review findings",
 			"**Review findings.** The PR body is the full review disposition table's home",
-			"Checkpoint (ii) MAY persist the full returned findings so they survive a halt before the PR exists; final consolidation condenses them",
+			"Checkpoint (ii) persists the returned findings — in full detail if useful — so they survive a halt before the PR exists; final consolidation condenses them",
 			"`## Verification performed` then carries one line naming which review ran",
 			"an entry for every finding not fixed (`deferred`, `reverted`, or `recorded`) and every `reported` beyond-the-branch finding",
 			"A fixed finding with no remaining risk appears in final results only through that summary line",
