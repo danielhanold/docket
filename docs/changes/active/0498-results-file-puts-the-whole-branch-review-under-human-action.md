@@ -2,7 +2,7 @@
 id: 498
 slug: 'results-file-puts-the-whole-branch-review-under-human-action'
 title: 'Results file puts the whole-branch review under Human actions and testing'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-03'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/results-file-puts-the-whole-branch-review-under-human-action'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T06:07:38Z'
 ---
 
 ## Artifacts
