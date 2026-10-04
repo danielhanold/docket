@@ -19,18 +19,10 @@ never checks out another branch, never launches a sub-worker, and never runs the
 one shot at the tier it was dispatched at (dispatch being the act of launching a named agent to do a
 step and waiting for it to return) — there is no reviewer escalation ladder.
 
-`docket-review` is the shipped default. To opt back out to the general-purpose reviewer, set the role
-in any config layer:
-
-```yaml
-skills:
-  review: superpowers:requesting-code-review
-```
-
 ## Choosing the review tier
 
-The review tier is chosen **deterministically as one above the build** — not by the model's own judgment. The
-drainer takes the highest **build tier** (one of four workers — economy, standard, premium,
+The review tier is chosen **deterministically from the build, at the same level** — not by the model's
+own judgment. The drainer takes the highest **build tier** (one of four workers — economy, standard, premium,
 max — a plan task is routed to by risk) that any task routed or escalated to, and maps `economy` to
 lean, `standard` to standard, and `premium` or `max` to deep. A whole-branch diff of more than 1500
 changed lines bumps the tier one step, capped at deep.
@@ -42,7 +34,7 @@ hard the work was; the diff-size bump is the one signal independent of that self
 
 Findings come back **severity-ranked**, and they are fixed on the branch rather than recorded and left
 for you. After review returns and before the pull request opens, the drainer runs a bounded **fix
-loop**: each finding becomes a task through the same worker contract that wrote the code, committed
+pass**: each finding becomes a task through the same worker contract that wrote the code, committed
 into the same diff you were going to read anyway, so the PR handoff does not move. The reviewer itself
 is unchanged — it returns the finding list and a one-line verdict, and never fixes anything.
 
@@ -56,19 +48,19 @@ Two axes are kept deliberately apart:
   **never reaches the `max` tier** at any severity — `max` means irreversible, and an irreversible act
   must not happen to a branch as an unplanned side-quest discovered at review time.
 
-## The loop is bounded
+## The fix pass is bounded
 
 One full-suite run happens after the fixes land. If it goes red, the non-blocker fix commits are
 reverted and the suite runs once more — green proceeds with those findings recorded unfixed, still-red
 halts. That is two suite runs at most, no second repair chain, and no re-review round, so the branch
-can never end worse than the green build that entered the loop. Every finding's outcome reaches the
+can never end worse than the green build that entered the fix pass. Every finding's outcome reaches the
 pull request body as a table: fixed (with its commit SHA), deferred, reverted, or recorded.
 
-Two config knobs shape the loop, both settable in any layer:
+Two config knobs shape the fix pass, both settable in any layer:
 
-- `review.min_fix_severity` (default `minor`) is the lowest severity that enters the loop. `important`
-  records minors instead of fixing them; `blocker` restores the older record-only behavior as a
-  compatibility escape hatch.
+- `review.min_fix_severity` (default `minor`) is the lowest severity that enters the fix pass.
+  `important` records minors instead of fixing them; `blocker` fixes only blockers and records
+  everything else.
 - `review.max_fix_tasks` (default `10`) caps how many non-blocker fix **tasks** one run dispatches —
   the task, not the finding, so a batch of minors sharing one routed tier spends a single slot.
   Overflow findings are deferred with the cap named as the reason, and `0` is legal, meaning "fix
@@ -76,8 +68,9 @@ Two config knobs shape the loop, both settable in any layer:
 
 **Blockers are fixed regardless of both knobs** — neither can disarm the one gate that must not be
 disarmed, so blockers never count against the cap either. One consequence worth stating: a review
-finding about the branch's own diff is no longer captured as a separate backlog stub at all. It is
-fixed or it is recorded; only genuinely distinct, beyond-the-branch work still mints one.
+finding about the branch's own diff is never turned into a separate backlog item. It is fixed or it
+is recorded. Genuinely distinct work beyond the branch is listed as follow-up work in the run's final
+report, and a human decides whether to capture it as a change.
 
 ## Why the suite already ran
 
@@ -89,7 +82,7 @@ that split deliberate, and they compound:
   review asks a different one: "is this good?" Putting the first inside the second confuses two jobs.
 - The repair machinery already lives on the build side. A suite inside a reviewer forbidden to fix
   anything would have to hand its failures back out and re-enter build machinery, recreating exactly
-  the build → review → build loop this design exists to kill.
+  the build → review → build cycle this design exists to kill.
 - Gate-first ordering is cheaper on failure. A red suite discovered *after* an expensive whole-branch
   read has wasted the read; discovered before, it costs one build task.
 - The evidence chain then follows naturally, because the thing that last changed the branch is the
@@ -100,8 +93,8 @@ can fix a failure. It works like a continuous-integration status check on a pull
 runs on the branch as it lands, and the reviewer is the human-style reader who trusts the green check
 instead of re-running it.
 
-That boundary is made durable by the **build evidence** (the committed record of that gate run, read
-by the reviewer). On green, the gate emits the command it ran, the result, the exact branch head, and
+That boundary is made durable by the **build evidence** (the immutable record of that gate run,
+carried in the pull request body and read by the reviewer). On green, the gate emits the command it ran, the result, the exact branch head, and
 a timestamp; the reviewer verifies the record is present, green, and pinned to the exact head it is
 reviewing, and returns an `unverified-build-state` blocker if it is missing, malformed, or stale —
 running the suite itself is never the remedy. When a review-feedback follow-up commit has already

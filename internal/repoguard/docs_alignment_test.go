@@ -152,7 +152,16 @@ func TestLivingDocsAlignment(t *testing.T) {
 // directories, slash paths relative to the repo root. Doc tasks add their
 // pages as they align them.
 var livingDocRoots = []string{
+	"README.md",
+	"docs/README.md",
 	"docs/concepts",
+	"docs/guide/README.md",
+	"docs/guide/building-without-supervision.md",
+	"docs/guide/capturing-work.md",
+	"docs/guide/designing-before-building.md",
+	"docs/guide/five-steps.md",
+	"docs/guide/proving-the-build.md",
+	"docs/guide/reviewing-before-the-human.md",
 }
 
 // livingDocFiles returns every .md file under roots (a root may be a file),

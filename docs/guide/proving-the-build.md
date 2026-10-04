@@ -20,9 +20,12 @@ The outcome forks two ways:
   green status check on a pull request instead of re-running the suite themselves.
 - **Red** does not reach review. Instead it becomes one synthetic repair task, routed on the
   `premium → max → halt` ladder — meaning it is handed to a strong worker (a **build tier** being
-  one of four workers — economy, standard, premium, max — a plan task is routed to by risk),
-  escalated once to the strongest, and if that still cannot green the suite, the build halts for a
-  human rather than merging a broken integration.
+  one of four workers — economy, standard, premium, max — a plan task is routed to by risk) and
+  escalated once to the strongest. After a repair commits, the build runs the suite again; a
+  still-red run becomes the next repair task. `build.max_attempts` (default `4`) caps the full-suite
+  runs, counting the first one, so `1` means a red first run halts with no repair at all. When the
+  attempts are spent and the suite is still red, the build halts for a human rather than merging a
+  broken integration.
 
 Running the suite here — on the build side, owned by the build controller, the side that can route a failure to a repair worker — rather than
 inside the reviewer is deliberate: the suite is the boundary between building and reviewing, and it
@@ -32,18 +35,16 @@ belongs to the side that can act on a failure. The reasoning behind that split i
 Two `build:` config keys shape this step, both settable in any config layer:
 
 - `build.gate` — `local` (the default) runs the suite once after all tasks and mints exact-head
-  evidence on green; `off` declares that this repository has no build gate, and truthful
-  `skipped` evidence is recorded instead of running anything (quote the value `off`).
-- `build.checkpoint` — `false` (the default) keeps only the per-task code commits as the durable
-  record of progress, so a resumed run reconstructs where it was from the plan, commits, code, and
-  tests. `true` additionally writes a compact resume ledger recording each task's tier,
-  escalation, and commit, so a resumed run can skip work already proven complete. Anything other
-  than `true`/`false` is a config error, not a silent fallback.
+  evidence on green; `off` declares that this repository has no build gate, so nothing runs and
+  truthful `skipped` evidence (reason `build-gate-off`) is recorded instead (quote the value `off`).
+- `build.max_attempts` — how many full-suite runs one build may spend, as described above.
 
 ## Build evidence
 
-A green gate does not just pass silently — it leaves **build evidence** (the committed record of that
-gate run, read by the reviewer). The record captures the command that ran, its result, the exact
+A green gate does not just pass silently — it leaves **build evidence** (the immutable record of
+that gate run, read by the reviewer). `docket evidence record` mints it from the passed run, and
+`docket evidence verify` checks it against the branch head. It lives in the pull request body's
+build-evidence block and is never committed to the repository. The record captures the command that ran, its result, the exact
 branch head it ran against, and a timestamp. The reviewer verifies that this record is present,
 green, and pinned to the exact head it is reviewing; if it is missing, malformed, or stale, the
 reviewer returns a blocker and refuses to certify — running the suite itself is never the reviewer's
@@ -79,7 +80,7 @@ during the run flips the recheck to `workspace-dirty` and refuses to publish an 
 Gitignored build artifacts are fine — only tracked-or-untracked-and-unignored paths trip it. If your
 suite writes scratch output, ignore it or have the command clean up after itself.
 
-## The gate driver and wall-clock budgets
+## The gate driver and the observation budget
 
 The gate does not assume the whole suite finishes inside one command call. It executes *durably*: the
 run records its outcome where a later look can read it, and the agent establishes completion from
@@ -88,29 +89,19 @@ gate run can go quiet for a while, and why a stale "still running" report is not
 crashed. A gate driver advances the run in bounded slices and reads the durable record for the
 verdict; it never simply launches the suite in the background and walks away.
 
-Two things bound and shape that run:
-
-- **The observation budget.** `gate_observation_budget` (default `30`, in minutes, settable in any
-  layer) caps how long docket will keep watching for a terminal result. Exhausting it with no result
-  **fails closed**: the build halts for a human rather than guessing either success or a red suite,
-  because a run that has not finished is not a run that has failed. This is docket's own policy value,
-  deliberately independent of whatever single-call timeout your harness imposes.
-- **Wall-clock budgets per test file.** The suite runs its files in parallel with per-job isolation
-  and measures each file against its own wall-clock budget. Because a parallel wall-clock number
-  depends on the machine and the load around it, a budget line is a *screening* signal, not an
-  automatic failure. A `BUDGET WATCH:` (or `PARALLEL-SENSITIVE:`) line is exactly that screening
-  finding — a heads-up to record and look at, nothing that reds the run. A
-  `SERIAL CONFIRMED OVER BUDGET:` line is different: it is an authoritative breach, confirmed by
-  re-running that file on its own away from the parallel load, and it is the one you act on. Neither
-  line fails the run by default, so nothing else will catch a real breach for you — reading them is
-  part of reading the gate result.
+**The observation budget** bounds that run. `gate_observation_budget` (default `30`, in minutes,
+settable in any layer) caps how long docket will keep watching for a terminal result. Exhausting it
+with no result **fails closed**: the build halts for a human rather than guessing either success or a
+red suite, because a run that has not finished is not a run that has failed. This is docket's own
+policy value, deliberately independent of whatever single-call timeout your harness imposes.
 
 ## Re-greening after a rebase
 
 The build gate certifies the branch as it stood when the build finished. Closing the change out
-re-checks it against the *current* integration branch. **Finalize** (the close-out sequence: rebase
-onto the integration branch, retest, merge, archive) rebases the feature branch onto the
-**integration branch** (the branch code lands on, usually `main`) and re-runs the suite, so a branch
+re-checks it against the *current* integration branch. **Finalize** (the close-out sequence: rebase,
+retest, merge, archive) rebases the feature branch onto its base — the **integration branch** (the
+branch code lands on, usually `main`), or a stacked change's parent branch while that parent is still
+live — and re-runs the suite, so a branch
 that was green in isolation but conflicts with work merged since cannot land a broken integration.
 
 If that post-rebase run reds, the rebase surfaced a real integration failure, and an integration-
@@ -131,12 +122,10 @@ Two keys name the suite, one per gate, and they are **read from config, never fr
 Both default to the empty string, which means *unconfigured*: a `local` gate with no command halts
 with a typed remedy pointing you at `docket repository configure-tests` rather than trying to guess a
 command at runtime. They are **independent** — the two may diverge if a repo wants a lighter suite at
-build time than at merge time — but in this repository both resolve to the same command today. The
-one rule that matters whichever they resolve to: each gate reads its own key from config, so there is
+build time than at merge time. The one rule that matters whichever they resolve to: each gate reads its own key from config, so there is
 exactly one source for each and no drifting duplicate to keep in sync. `finalize.gate` is the
-matching on/off switch for the finalize gate — `local` (the default), `ci`, `both`, or `off`, where
-`off` merges trusting the pull request's own continuous-integration checks with no local
-rebase-and-retest.
+matching on/off switch for the finalize gate — `local` (the default) or `off`, where `off` skips the
+local rebase and retest before the merge.
 
 For the exact shape of every one of these keys and the layers each may be set in, the reference is
 the shipped `.docket.example.yml` — see [Config keys](../reference/config-keys.md) for where that
