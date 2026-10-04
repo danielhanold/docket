@@ -22,7 +22,7 @@ branch: 'fix/finish-schema-operation-documentation-outcomes-md-flag-only'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T16:35:51Z'
+claimed_at: '2026-10-04T16:43:46Z'
 ---
 
 ## Artifacts
