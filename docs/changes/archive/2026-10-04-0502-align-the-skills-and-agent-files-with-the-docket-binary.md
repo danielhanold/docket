@@ -2,7 +2,7 @@
 id: 502
 slug: 'align-the-skills-and-agent-files-with-the-docket-binary'
 title: 'Align the skills and agent files with the docket binary'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'fix/align-the-skills-and-agent-files-with-the-docket-binary'
 pr: 'https://github.com/danielhanold/docket/pull/383'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T13:16:38Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T13:16:38Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md) |
-| Plan | [2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary.md](https://github.com/danielhanold/docket/blob/fix/align-the-skills-and-agent-files-with-the-docket-binary/docs/superpowers/plans/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary.md) |
-| Results | [2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-results.md](https://github.com/danielhanold/docket/blob/fix/align-the-skills-and-agent-files-with-the-docket-binary/docs/results/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-results.md) |
+| Plan | [2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary.md) |
+| Results | [2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-results.md) |
 | ADRs | [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0022](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0022-consultant-authored-brainstorm.md), [ADR-0081](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0130](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md) |
 <!-- docket:artifacts:end -->
 
@@ -111,15 +111,3 @@ The linked spec carries the verified facts and the full worklist.
 
 2026-10-04 — Reconciled at main @ fc0e2e440. #464 is done (dependency satisfied). #505 is done: the living-docs guard's key matcher now lives in internal/config (UnsupportedKeyShapes over SettingPaths), so the guard extension builds on that shared matcher. No scope change; the spec's worklist stays a set of hypotheses verified at build time.
 
-## Finalize blocked
-
-### 2026-10-04 — attempt 20261004T135348Z-c499de79a799
-
-<!-- attempt:20261004T135348Z-c499de79a799 -->
-
-- Reason: resolver-budget-exhausted
-- Head: c053e48ac51c684619942baaf5cd533cc070a28e
-- PR: #383
-- Comment: https://github.com/danielhanold/docket/pull/383#issuecomment-5980899875
-
-Remedy: Rebase/squash the feature branch onto main by hand (or squash it so budgets_test.go conflicts once), force-push, then re-run finalize by naming id 502; alternatively raise finalize.resolver_max_attempts for the next attempt.

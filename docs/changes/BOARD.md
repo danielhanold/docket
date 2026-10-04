@@ -1,12 +1,6 @@
 # Backlog
 
-**519 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 11 proposed · ⚪ 14 deferred · ✅ 353 done · 🗑️ 137 killed
-
-## 🔴 Blocked (1)
-
-| # | Title | Priority | Type | PR | Reason |
-|---|-------|----------|------|----|--------|
-| [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | [#383](https://github.com/danielhanold/docket/pull/383) | finalize blocked — needs you |
+**519 changes** — 🟣 3 groomed · 🟡 11 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 137 killed
 
 ## 🟣 Groomed (3)
 
@@ -28,7 +22,7 @@
 | [0513](active/0513-release-v1-0-0-alpha-3-prove-and-publish-opencode-support.md) | Release v1.0.0-alpha.3: prove and publish OpenCode support | `high` | `chore` | ⏳ waiting on #512 — not yet built |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | ⏳ waiting on #366 — not yet built |
 | [0507](active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Flaky tests: track and stabilize intermittent suite failures | `low` | `fix` | needs-grooming |
-| [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | v1.0.0-alpha.1 acceptance and publication (Claude Code) | `critical` | `chore` | ⏳ waiting on #502 — needs your merge |
+| [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | v1.0.0-alpha.1 acceptance and publication (Claude Code) | `critical` | `chore` | ⏳ waiting on #511 — not yet built |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
@@ -72,7 +66,6 @@ graph TD
   0409
   0412
   0433
-  0464 --> 0502
   0503
   0507
   0511
@@ -88,11 +81,11 @@ graph TD
   0251:::done
   0393:::done
   0407:::done
-  0464:::done
+  0502:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (490)</summary>
+<details><summary>✅🗑️ Archive — done + killed (491)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -102,6 +95,7 @@ graph TD
 | [0506](archive/2026-10-04-0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | 2026-10-04 |
 | [0505](archive/2026-10-04-0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | 2026-10-04 |
 | [0504](archive/2026-10-04-0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | 2026-10-04 |
+| [0502](archive/2026-10-04-0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | 2026-10-04 |
 | [0501](archive/2026-10-04-0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) | Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note | 2026-10-04 |
 | [0500](archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
@@ -114,7 +108,6 @@ graph TD
 | [0495](archive/2026-10-03-0495-drop-startedrunresult-s-unreachable-empty-input-check.md) | Drop startedRunResult's unreachable empty-input check | 2026-10-03 |
 | [0494](archive/2026-10-03-0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md) | A publish killed mid-flight wedges its run's cancel and closeout | 2026-10-03 |
 | [0493](archive/2026-10-03-0493-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md) | Retire the automatic gate relaunch | 2026-10-03 |
-| [0492](archive/2026-10-03-0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | 2026-10-03 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
 | [0483](archive/2026-10-02-0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | 2026-10-02 |
 | [0457](archive/2026-10-02-0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | 2026-10-02 |
@@ -253,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 10 done |
+| [2026-10](archive/) | 11 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

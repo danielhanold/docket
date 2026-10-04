@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0502 — Align the skills and agent files with the docket binary](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md)**
+> ↩ **[Change 0502 — Align the skills and agent files with the docket binary](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0502-align-the-skills-and-agent-files-with-the-docket-binary.md)**
 <!-- docket:backlink:end -->
 
 # Align the skills and agent files with the docket binary — design
