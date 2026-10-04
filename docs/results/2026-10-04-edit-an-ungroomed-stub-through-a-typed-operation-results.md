@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0509 — Edit an ungroomed stub through a typed operation](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0509-edit-an-ungroomed-stub-through-a-typed-operation.md)**
+> ↩ **[Change 0509 — Edit an ungroomed stub through a typed operation](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0509-edit-an-ungroomed-stub-through-a-typed-operation.md)**
 <!-- docket:backlink:end -->
 # Edit an ungroomed stub through a typed operation — results
 
