@@ -194,76 +194,13 @@ func documentedUnsupported(documented map[string]bool) []string {
 // that does not sit directly under its scope tag.
 func directionCViolations(content string) []string {
 	out := documentedUnsupported(exampleDocumentedKeys(content))
-	for _, s := range exampleUnsupportedKeyShapes() {
-		for _, m := range s.re.FindAllStringIndex(content, -1) {
+	for _, s := range UnsupportedKeyShapes(SettingPaths()) {
+		for _, m := range s.Re.FindAllStringIndex(content, -1) {
 			line := strings.Count(content[:m[0]], "\n") + 1
-			out = append(out, fmt.Sprintf("line %d: unsupported key %s (%q)", line, s.name, strings.TrimSpace(content[m[0]:m[1]])))
+			out = append(out, fmt.Sprintf("line %d: unsupported key %s (%q)", line, s.Name, strings.TrimSpace(content[m[0]:m[1]])))
 		}
 	}
 	return out
-}
-
-type exampleKeyShape struct {
-	name string
-	re   *regexp.Regexp
-}
-
-const exampleKeySegClass = `[A-Za-z0-9_<>*-]+`
-
-// exampleUnsupportedKeyShapes derives, from the schema registry, the spellings
-// of unsupported keys. It mirrors repoguard's unsupportedKeyShapes (the living
-// docs guard, which cannot be imported here without an import cycle): each
-// unsupported dotted path; for a top-level segment with no supported path
-// beneath it, its YAML-key form (commented or not) and any dotted child; and,
-// inside a block that also holds supported keys, an unsupported leaf's
-// YAML-key form at a line start or inside a flow mapping, when that leaf name
-// is no segment of any supported path.
-func exampleUnsupportedKeyShapes() []exampleKeyShape {
-	paths := SettingPaths()
-	supportedTop, supportedSeg := map[string]bool{}, map[string]bool{}
-	for _, p := range paths {
-		if p.Supported {
-			segs := strings.Split(p.Path, ".")
-			supportedTop[segs[0]] = true
-			for _, s := range segs {
-				supportedSeg[s] = true
-			}
-		}
-	}
-	var shapes []exampleKeyShape
-	seenTop, seenLeaf := map[string]bool{}, map[string]bool{}
-	for _, p := range paths {
-		if p.Supported {
-			continue
-		}
-		segs := strings.Split(p.Path, ".")
-		if len(segs) > 1 {
-			parts := make([]string, len(segs))
-			for i, s := range segs {
-				if s == "*" {
-					parts[i] = exampleKeySegClass
-				} else {
-					parts[i] = regexp.QuoteMeta(s)
-				}
-			}
-			shapes = append(shapes, exampleKeyShape{p.Path, regexp.MustCompile(`(?:^|[^\w.-])` + strings.Join(parts, `\.`) + `(?:[^\w-]|$)`)})
-		}
-		top := segs[0]
-		if !supportedTop[top] && !seenTop[top] {
-			seenTop[top] = true
-			q := regexp.QuoteMeta(top)
-			shapes = append(shapes, exampleKeyShape{top + ":", regexp.MustCompile("(?m)(?:^[ \\t]*(?:#[ \\t]*)?(?:-[ \\t]+)?|`)" + q + ":")})
-			if len(segs) > 1 {
-				shapes = append(shapes, exampleKeyShape{top + ".<child>", regexp.MustCompile(`(?:^|[^\w.-])` + q + `\.` + exampleKeySegClass)})
-			}
-		}
-		leaf := segs[len(segs)-1]
-		if len(segs) > 1 && supportedTop[top] && leaf != "*" && !supportedSeg[leaf] && !seenLeaf[leaf] {
-			seenLeaf[leaf] = true
-			shapes = append(shapes, exampleKeyShape{leaf + ":", regexp.MustCompile(`(?m)(?:^[ \t]*(?:#[ \t]*)?|[{,][ \t]*)` + regexp.QuoteMeta(leaf) + `:`)})
-		}
-	}
-	return shapes
 }
 
 // The commented `# agents:` table is parsed by shape: a harness row is
@@ -531,12 +468,14 @@ func TestExampleSchemaCorrespondence(t *testing.T) {
 			}
 		}
 		// Direction C reaches past the structural extractor: an unsupported leaf
-		// inside the commented agents table, and a commented unsupported key that
-		// follows an explanatory line instead of its scope tag.
+		// inside the commented agents table, a commented unsupported key that
+		// follows an explanatory line instead of its scope tag, and a key
+		// commented out inside an already-commented block.
 		content := string(b)
 		for name, planted := range map[string]string{
 			"runner in commented agents table": strings.Replace(content, "#   claude:\n", "#   claude:\n#     adr: { model: x, runner: codex }\n", 1),
 			"commented key after a prose line": content + "\n# scope: any layer\n# An explanatory line about the next key.\n# terminal_publish: true\n",
+			"nested-comment key":               content + "\n#   # terminal_publish: true\n",
 		} {
 			if planted == content {
 				t.Fatalf("plant %q did not change the example", name)
@@ -547,7 +486,7 @@ func TestExampleSchemaCorrespondence(t *testing.T) {
 		}
 		// The lexical shapes are registry-derived: every unsupported path,
 		// spelled as a config key, is caught.
-		if len(exampleUnsupportedKeyShapes()) == 0 {
+		if len(UnsupportedKeyShapes(SettingPaths())) == 0 {
 			t.Fatalf("no unsupported-key shapes derived from the schema registry")
 		}
 		for _, p := range SettingPaths() {
