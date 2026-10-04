@@ -2,7 +2,7 @@
 id: 520
 slug: 'make-the-published-finalize-request-schemas-match-what-input'
 title: 'Make every published request schema match the JSON file the operation reads'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/make-the-published-finalize-request-schemas-match-what-input'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/385'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T16:04:17Z'
