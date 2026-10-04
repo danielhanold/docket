@@ -2,7 +2,7 @@
 id: 518
 slug: 'publish-a-request-schema-for-finalize-rebase-continue-so-res'
 title: 'Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version'
-status: 'proposed'
+status: 'killed'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -40,3 +40,7 @@ Register the resolver report's request type for `finalize.rebase-continue` so `d
 ## Out of scope
 
 The resolver attempt budget (`finalize.resolver_max_attempts`) and how the rebase replays commits. The broader CLI schema items bundled in change 0360.
+
+## Why killed
+
+Consolidated into #520 (with #519), which fixes both finalize schema mismatches together under one --input/schema guard test.

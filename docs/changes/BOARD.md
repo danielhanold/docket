@@ -1,6 +1,6 @@
 # Backlog
 
-**520 changes** — 🟣 3 groomed · 🟡 12 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 137 killed
+**520 changes** — 🟣 3 groomed · 🟡 11 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 138 killed
 
 ## 🟣 Groomed (3)
 
@@ -10,13 +10,12 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (12)
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0520](active/0520-make-the-published-finalize-request-schemas-match-what-input.md) | Make the published finalize request schemas match what --input accepts | `low` | `fix` | needs-grooming |
 | [0519](active/0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | `low` | `fix` | needs-grooming |
-| [0518](active/0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | `low` | `fix` | needs-grooming |
 | [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | needs-grooming |
 | [0516](active/0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) | Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match | `low` | `chore` | needs-grooming |
 | [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Make finalize.merge honor the repair sign-off block when an id is named | `high` | `fix` | needs-grooming |
@@ -76,7 +75,6 @@ graph TD
   0515
   0516
   0517
-  0518
   0519
   0520
   0192:::done
@@ -87,10 +85,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (491)</summary>
+<details><summary>✅🗑️ Archive — done + killed (492)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0510](archive/2026-10-04-0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | 2026-10-04 |
 | [0509](archive/2026-10-04-0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
