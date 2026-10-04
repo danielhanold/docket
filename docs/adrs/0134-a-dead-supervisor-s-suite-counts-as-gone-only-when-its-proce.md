@@ -85,3 +85,9 @@ No new halt and no new block. The check is read-only, and its only effect is an 
 - Make the supervisor wait for its whole tree before it records a terminal (a stdout pipe the runner holds, or the child in its own recorded group). Rejected: it fixes only gap 4, the smallest, and reopens 0490's rejected tree-held lock, where a leaked descendant pins the worktree.
 - Have finalize's relaunch wait out a leftover. Dropped: 0493 retires the relaunch.
 - Defer. Rejected: cancel reports `cancelled` with no sign of a suite that is still running.
+
+## Update (2026-10-04)
+
+Change 0497 extends where this rule reports, not what it decides. The supervisor-death halt now also reports the informational `tree-survives:<drive>:<pgid>` finding, computed through the existing `ProbeLeftover`, and only when the probe answers a clear `leftover`. The halt needs its own report because finalize removes a halted run's root in the same call that reports the halt, and the launch census never attributes finalize drives, so no later reader would see the surviving group. The rule is unchanged: report, never signal. An `unclear` answer keeps today's behavior and adds no finding.
+
+Refusing the next gate start while a leftover still runs was considered and rejected, for the same reason this ADR rejected making cancel wait: it would add a new block path that holds a resume for the length of a suite run.
