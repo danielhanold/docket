@@ -43,7 +43,7 @@ One validated transaction lands atomically, in a single metadata commit: the nex
 
 **Return the number** — read the allocated ADR id from the operation's result envelope so the caller (e.g. `docket-implement-next` step 6) can cite it in the change's `adrs:` field.
 
-**Publish on acceptance (deferred)** — the ADR and its index live on `metadata_branch` (`docket`). terminal publication is deferred from Go v1 — integration-branch publication of ADR bytes is not performed, so neither a change-tied nor a standalone `Accepted` ADR is copied to the integration branch; the decision ledger lives on `docket`. An ADR already published on the integration branch by an earlier tool version stays there as history (the `adr-unpublished` health check keeps the drift visible). See *How an ADR reaches the integration branch* below.
+**Where an ADR lives** — the ADR and its index live on `metadata_branch` (`docket`); no ADR, change-tied or standalone, is copied to the integration branch. An ADR already published on the integration branch by an earlier tool version stays there as history (the `adr-unpublished` health check keeps the drift visible).
 
 ### Supersede / reverse
 
@@ -59,17 +59,11 @@ adr.supersede  --request -   # resolve argv from the capability catalog
 - `target` — the ADR being replaced, as `{id, path, revision}`. The target must be `Accepted`, else the transaction refuses.
 - `successor` — the new ADR, as a full record request (the same fields as *Create*'s `ADRRecordRequest`; give it its own producing `change` if one exists).
 
-One transaction lands atomically: the new ADR (carrying its `supersedes:`/`reverses:` edge to the old one), the old ADR's `status:` line flipped to `"Superseded by ADR-NN"` / `"Reversed by ADR-NN"` (its frozen body otherwise byte-for-byte unchanged — that status value is the **only** change to the old file), and the re-rendered index. There is no separate index commit. In the index the old ADR's row shows its `Superseded by ADR-NN` / `Reversed by ADR-NN` status, and the new ADR's row (in the Active group) shows `→ supersedes ADR-NN` / `→ reverses ADR-NN`. A typed conflict or refusal returns without writing — re-read and retry rather than hand-editing. The status flip lands on `metadata_branch` with the re-rendered index; terminal publication is deferred from Go v1, so the flipped ADR is **not** re-published to the integration branch. A previously published copy of the old ADR remains as history — the `adr-unpublished` health check keeps that drift visible.
+One transaction lands atomically: the new ADR (carrying its `supersedes:`/`reverses:` edge to the old one), the old ADR's `status:` line flipped to `"Superseded by ADR-NN"` / `"Reversed by ADR-NN"` (its frozen body otherwise byte-for-byte unchanged — that status value is the **only** change to the old file), and the re-rendered index. There is no separate index commit. In the index the old ADR's row shows its `Superseded by ADR-NN` / `Reversed by ADR-NN` status, and the new ADR's row (in the Active group) shows `→ supersedes ADR-NN` / `→ reverses ADR-NN`. A typed conflict or refusal returns without writing — re-read and retry rather than hand-editing. The status flip lands on `metadata_branch` with the re-rendered index.
 
 ### Update note
 
-For a non-reversing material change in context — where the decision still stands but important surrounding information has changed — append a dated `## Update` section to the ADR body. The `## Decision` section itself is never edited. Commit the updated ADR file in `.docket/` and push `origin/docket`; regenerate the index only if the update changes how the entry reads in the index. terminal publication is deferred from Go v1, so an already-published ADR is not re-published; its integration-branch copy stays as history (the `adr-unpublished` health check surfaces the drift).
-
-## How an ADR reaches the integration branch (deferred)
-
-ADRs and their index are authored and live on `metadata_branch` (`docket`). terminal publication is deferred from Go v1 — integration-branch publication of ADR bytes is not performed: none of the three historical cases — a change-tied ADR on its change's final transition, a standalone ADR on acceptance, or a status flip to an already-published ADR — copies ADR bytes onto the integration branch. The `Accepted` decision ledger lives on `docket` only.
-
-Records already published onto the integration branch by an earlier tool version are left untouched as history: a status flip to such an ADR leaves the previously published copy in place, and the `adr-unpublished` health check keeps that drift visible (the marker is *read*; acting on it is deferred). An enabled `terminal_publish:` key activates nothing.
+For a non-reversing material change in context — where the decision still stands but important surrounding information has changed — append a dated `## Update` section to the ADR body. The `## Decision` section itself is never edited. Commit the updated ADR file in `.docket/` and push `origin/docket`; regenerate the index only if the update changes how the entry reads in the index.
 
 ### Index / validate
 

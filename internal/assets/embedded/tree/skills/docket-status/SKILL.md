@@ -9,7 +9,7 @@ agent: docket-status
 
 ## Overview
 
-`docket-status` gives you a queryable, up-to-date view of the backlog and keeps it clean. Four jobs: **report the backlog digest** (the structured `status` payload — a `summary` of counts, one `changes` entry per displayed change, and the ordered `ready` build-ready queue — emitted in *every* configuration, board or no board, and **the channel you write your summary from**), refresh docket state (rendering each enabled board surface), sweep any `implemented` change whose PR merged into the archive, and run health checks (stale claims, broken links, dependency stalls). Automated learnings self-heal is deferred from Go v1 — see *Learnings* below. The change files are the source of truth; any board is generated output, never edited by hand. All of this runs through the native `maintenance.sweep` (the mutation) and `status` (the write-free read) operations — this skill resolves each argv from the capability catalog, invokes them, keys on their typed protocol-v1 dispositions, surfaces their report, and applies the handful of judgment calls the operations deliberately leave in-model. The exact payload shapes are owned by the `schema` operation, not a prose restatement here.
+`docket-status` gives you a queryable, up-to-date view of the backlog and keeps it clean. Four jobs: **report the backlog digest** (the structured `status` payload — a `summary` of counts, one `changes` entry per displayed change, and the ordered `ready` build-ready queue — emitted in *every* configuration, board or no board, and **the channel you write your summary from**), refresh docket state (rendering each enabled board surface), sweep any `implemented` change whose PR merged into the archive, and run health checks (stale claims, broken links, dependency stalls). The change files are the source of truth; any board is generated output, never edited by hand. All of this runs through the native `maintenance.sweep` (the mutation) and `status` (the write-free read) operations — this skill resolves each argv from the capability catalog, invokes them, keys on their typed protocol-v1 dispositions, surfaces their report, and applies the handful of judgment calls the operations deliberately leave in-model. The exact payload shapes are owned by the `schema` operation, not a prose restatement here.
 
 ## When to use
 
@@ -78,7 +78,7 @@ The report is **self-evidencing**: it always states what it did, so you never ha
 
 - **`board off`** — the repo sets `board_surfaces: []` and there is deliberately **no board**. This is a configuration, not a failure. Rendering is disabled, so the pass renders and commits nothing to `BOARD.md`; a pre-existing `BOARD.md` is left untouched — disabled rendering never authorizes deleting a board. Summarize from the structured report, not the file.
 - **the backlog digest** — the `status` payload's `summary` counts, its `changes` array (one entry per displayed change, each carrying `id`, `status`, `readiness`, `unmet_dependencies`, and `ready`), and the ordered `ready` id array — present in **every** configuration. **This is your backlog-state channel.** On a full pass the read is taken **after** the sweep, so it already accounts for everything closed out: an archived change drops out of `active_changes` and `changes` (still counted in `total_changes`). Never report a swept change as still awaiting merge. `ready` is the build-ready queue in selection order (priority → created → id), an empty array when nothing is ready.
-- **learnings (deferred)** — the pass emits no learnings self-heal or advisory lines. automated learnings-index rendering, capacity, and promotion are deferred from Go v1, so the pass reads nothing and writes nothing under `learnings/` and every existing `learnings/` file stays byte-untouched. See *Learnings* below.
+- **learnings** — the pass emits no learnings lines; it reads nothing and writes nothing under `learnings/`. See *Learnings* below.
 - **the envelope `result`** — the top-level protocol-v1 disposition (`applied` for the read, or the sweep's terminal disposition) tells you the operation ran to completion. Key on it, never a trailing text line.
 
 Two rules follow, and they are not optional:
@@ -90,7 +90,6 @@ Two rules follow, and they are not optional:
 
 Drive these off the entries and findings the `maintenance.sweep` and `status` operations emit; skip a category entirely if no matching entry appeared.
 
-- **learnings harvest is deferred from Go v1** — the pass emits no harvest entries and fabricates no empty harvest result; its absence is never a sweep failure. Record or update findings by editing `learnings/` files directly.
 - **`stacked-merged` / `promote-failed` / `stack-carried-failed` entries, or a `check stack-invalid` / `check stack-parent-killed` finding** — **read [`../docket-convention/references/stacked-changes.md`](../docket-convention/references/stacked-changes.md) now (blocking)** before explaining or acting on one: it owns what the state means, why nothing was archived, and which remedies are a human's rather than a retry's.
 - **a change reported with `status: blocked`** — re-examine that change's `blocked_by:` free text; flag to the user if the referenced issue/PR/event appears resolved. This is judgment, not a git probe — never scripted.
 
@@ -110,7 +109,7 @@ When `board_surfaces` includes `inline`, the docket app is the single gated writ
 
 ### Merge sweep
 
-The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch` and its branch cleaned up, chaining the same close-out sequence (`close-out.md`) `docket-finalize-change` uses. terminal publication is deferred from Go v1, so no archived record is copied onto the `integration_branch`. Runs inside the `maintenance.preflight` operation at implementation scope (`docket-implement-next` Step 0 runs that operation inline on its selection path — no id or an id set), and in full scope on any explicit refresh/cleanup invocation.
+The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch` and its branch cleaned up, chaining the same close-out sequence (`close-out.md`) `docket-finalize-change` uses. No archived record is copied onto the `integration_branch`. Runs inside the `maintenance.preflight` operation at implementation scope (`docket-implement-next` Step 0 runs that operation inline on its selection path — no id or an id set), and in full scope on any explicit refresh/cleanup invocation.
 
 The finalize gate lives in `docket-finalize-change`'s merge step and is **finalize-only** — the sweep only archives PRs that are already merged, it never merges, so the gate has nothing to act on here.
 
@@ -118,7 +117,7 @@ The finalize gate lives in `docket-finalize-change`'s merge step and is **finali
 
 ### Learnings
 
-**Learnings (deferred).** automated learnings-index rendering is deferred from Go v1 — existing `learnings/README.md` bytes are preserved, not refreshed; automated learnings capacity and promotion are deferred from Go v1 — ledger curation is human-directed. The pass reads nothing and writes nothing under `learnings/`; an enabled `learnings.enabled` key gates *reads* elsewhere and activates no automation here.
+The pass reads nothing and writes nothing under `learnings/`, and nothing refreshes `learnings/README.md`. Findings are written by the `learning.record` and `learning.update` operations, gated on `learnings.enabled`; promotion and consolidation are human acts.
 
 ### Health checks
 

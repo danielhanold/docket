@@ -1,6 +1,6 @@
 ---
 name: docket-auto-groom
-description: Use when a repo (or individual stubs) opted into autonomous grooming and you want the auto-groomable needs-grooming queue drained with no human — selecting each auto-groomable stub deterministically and designing it via a default-biased self-brainstorm gated by an adversarial critic, exiting each stub with a linked spec, a trivial verdict, or an abstain back to the human queue. Kill and defer are never autonomous. Writes markdown only — never branches, worktrees, or code.
+description: Use when individual stubs opted into autonomous grooming (their `auto_groomable` is `true`) and you want the auto-groomable needs-grooming queue drained with no human — selecting each auto-groomable stub deterministically and designing it via a default-biased self-brainstorm gated by an adversarial critic, exiting each stub with a linked spec, a trivial verdict, or an abstain back to the human queue. Kill and defer are never autonomous. Writes markdown only — never branches, worktrees, or code.
 context: fork
 agent: docket-auto-groom
 ---
@@ -13,14 +13,14 @@ agent: docket-auto-groom
 
 ## When to use
 
-- The repo sets `auto_groom: true` (or stubs carry `auto_groomable: true`) and needs-grooming stubs are piling up.
+- Needs-grooming stubs carrying `auto_groomable: true` are piling up.
 - You want the backlog groomed to build-ready overnight / from a routine, with abstains waiting for you in the morning.
 - Do NOT use for interactive design — that is `docket-groom-next`; the human there is the point.
 - Do NOT use to capture new ideas (`docket-new-change` mints ids) or to re-groom a change that already has a spec (build-time reconcile owns drift).
 
 ## Convention (load first — blocking)
 
-Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check* (load the convention; run the capability bootstrap; run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context values forward as literals; act on the disposition). Everything below uses its vocabulary (needs-grooming, effective auto-groomable, the abstain rule, …) without redefinition. All reads and writes land in the metadata working tree on `metadata_branch`, pushed to its remote immediately.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check* (load the convention; run the capability bootstrap; run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context values forward as literals; act on the disposition). Everything below uses its vocabulary (needs-grooming, auto-groomable, the abstain rule, …) without redefinition. All reads and writes land in the metadata working tree on `metadata_branch`, pushed to its remote immediately.
 
 ## Procedure — the drain loop
 
@@ -28,7 +28,7 @@ Repeat steps 1–5 until no auto-groomable stub remains; then step 6.
 
 ### Step 1 — Select
 
-Sync the metadata working tree (the startup-check `repository.prepare` operation). Rank every **auto-groomable** stub (per the convention: needs-grooming AND effective `auto_groomable: true`; unsatisfied `depends_on` does NOT exclude — design ahead, note the dependency state in the assumptions) by the deterministic selection order. Pick the top. None left → step 6. Read the selected stub's exact record `path` + `revision` (blob object id) from the `status` operation (with `--json`) — the Step-4 groom transaction pins the record with those.
+Sync the metadata working tree (the startup-check `repository.prepare` operation). Rank every **auto-groomable** stub (per the convention: needs-grooming AND `auto_groomable: true`; unsatisfied `depends_on` does NOT exclude — design ahead, note the dependency state in the assumptions) by the deterministic selection order. Pick the top. None left → step 6. Read the selected stub's exact record `path` + `revision` (blob object id) from the `status` operation (with `--json`) — the Step-4 groom transaction pins the record with those.
 
 ### Step 2 — Designer pass
 
@@ -61,4 +61,4 @@ Summarize the drain: groomed N (specs), trivial M, abstained K — each abstain 
 
 ## Termination & concurrency
 
-Every exit shrinks the queue (spec/trivial ⇒ no longer needs-grooming; abstain ⇒ no longer effective auto-groomable), so the drain visits each stub at most once and provably terminates. No claim is taken — ADR-0004's conflict-checked final-push stance, adopted for the autonomous case: its human-attended rationale does not apply here, but the load-bearing half does — each stub's writes land in a single final commit, so a late collision wastes minutes, not hours, and the post-rebase re-read is the arbiter.
+Every exit shrinks the queue (spec/trivial ⇒ no longer needs-grooming; abstain ⇒ no longer auto-groomable), so the drain visits each stub at most once and provably terminates. No claim is taken — ADR-0004's conflict-checked final-push stance, adopted for the autonomous case: its human-attended rationale does not apply here, but the load-bearing half does — each stub's writes land in a single final commit, so a late collision wastes minutes, not hours, and the post-rebase re-read is the arbiter.

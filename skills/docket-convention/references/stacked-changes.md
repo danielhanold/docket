@@ -204,8 +204,7 @@ permanently. The transaction gates on the root actually carrying descendants, so
 pays nothing.
 
 The archive date is the root's `mergedAt` in **UTC**, derived inside the transaction, never `now()`,
-so a re-run reuses the same descendant filenames. Terminal publication of stacked descendants is
-deferred from Go v1. Route on the typed `disposition`: `root-archived` (every descendant proven),
+so a re-run reuses the same descendant filenames. Route on the typed `disposition`: `root-archived` (every descendant proven),
 `children-retarget-required` (one is not yet `stacked-merged`), or `contended`/`blocked`.
 
 Re-running it is the designed recovery from a partial pass: an `already` disposition replays a
