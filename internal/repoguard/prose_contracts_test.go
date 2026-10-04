@@ -757,6 +757,17 @@ var resultsReviewPlacementDocContracts = []docSectionContract{
 		absent: []string{
 			"The results file preserves the findings, their evidence, and their impact for the human",
 		}},
+	{change: "change_0498_step65_review_homes", file: "skills/docket-implement-next/SKILL.md",
+		section: "### Step 6.5 — Results (required)", terminator: "### Step 7 — PR + stop",
+		present: []string{
+			"The section holds only what a human should do or check — never a record of what the run already checked, which belongs under Verification performed",
+			"a checkpoint updates it, never truncates it — except final consolidation, which condenses the review findings",
+			"**Review findings.** The PR body is the full review disposition table's home",
+			"Checkpoint (ii) MAY persist the full returned findings so they survive a halt before the PR exists; final consolidation condenses them",
+			"`## Verification performed` then carries one line naming which review ran",
+			"an entry for every finding not fixed (`deferred`, `reverted`, or `recorded`) and every `reported` beyond-the-branch finding",
+			"A fixed finding with no remaining risk appears in final results only through that summary line",
+		}},
 }
 
 // TestResultsReviewPlacementDocContracts binds the change 0498 review-placement
@@ -771,8 +782,8 @@ func TestResultsReviewPlacementDocContracts(t *testing.T) {
 	for _, c := range resultsReviewPlacementDocContracts {
 		checks += len(c.present) + len(c.absent)
 	}
-	if checks < 7 {
-		t.Fatalf("population floor: only %d review-placement doc clauses (expected >= 7)", checks)
+	if checks < 14 {
+		t.Fatalf("population floor: only %d review-placement doc clauses (expected >= 14)", checks)
 	}
 
 	var violations []string
