@@ -16,14 +16,12 @@ import (
 // presenter own the outcome. Every policy question — identity agreement, body
 // assembly, disposition mapping, redaction — belongs to internal/app, so no body
 // here branches on repository or GitHub content.
-
-// prBodyRequest is the authored title+body request the `--body` file carries.
-// Authored prose rides in a request file, never a shell-escaped flag (Global
-// Constraints); the strict decoder rejects any unknown field.
-type prBodyRequest struct {
-	Title string `json:"title"`
-	Body  string `json:"body"`
-}
+//
+// The `--body` file is an app.PRPublishInput (the authored title and body),
+// declared and strictly decoded through declareJSONFile: authored prose rides in
+// a request file, never a shell-escaped flag, and any unknown key is refused.
+// The `--evidence` file is the canonical build-evidence record, read raw by
+// readRecordSource; it is not a JSON request.
 
 // newPRCommand builds the `pr` command group. setResult is the closure that hands
 // a computed operation result back to Run's single presentation point, mirroring
@@ -49,37 +47,37 @@ func newPRCommand(setResult func(app.OperationResult)) *cobra.Command {
 		// the PR body on GitHub; the change record's own `pr:` field is stamped
 		// later by `change mark-implemented`, not here.
 		Annotations: capability("pr.publish", EffectExternalWrite),
-		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, err := resolveRepoDir(c)
-			if err != nil {
-				return err
-			}
-			id, _ := c.Flags().GetInt("id")
-			head, _ := c.Flags().GetString("head")
-			bodySource, _ := c.Flags().GetString("body")
-			evSource, _ := c.Flags().GetString("evidence")
+	}
+	decodeBody := declareJSONFile[app.PRPublishInput](publish, "body")
+	publish.RunE = func(c *cobra.Command, _ []string) error {
+		repoDir, err := resolveRepoDir(c)
+		if err != nil {
+			return err
+		}
+		id, _ := c.Flags().GetInt("id")
+		head, _ := c.Flags().GetString("head")
+		evSource, _ := c.Flags().GetString("evidence")
 
-			var body prBodyRequest
-			if err := decodeRequest(c.InOrStdin(), "--body", bodySource, &body); err != nil {
-				return err
-			}
-			evidence, err := readRecordSource(c.InOrStdin(), evSource)
-			if err != nil {
-				return err
-			}
-			deps, wdeps, gdeps, err := newPRDeps(repoDir)
-			if err != nil {
-				return err
-			}
-			setResult(app.PRPublish(c.Context(), deps, wdeps, gdeps, repoDir, app.PRPublishRequest{
-				ID:             id,
-				Head:           head,
-				Title:          body.Title,
-				Body:           body.Body,
-				EvidenceRecord: evidence,
-			}))
-			return nil
-		},
+		body, err := decodeBody(c)
+		if err != nil {
+			return err
+		}
+		evidence, err := readRecordSource(c.InOrStdin(), evSource)
+		if err != nil {
+			return err
+		}
+		deps, wdeps, gdeps, err := newPRDeps(repoDir)
+		if err != nil {
+			return err
+		}
+		setResult(app.PRPublish(c.Context(), deps, wdeps, gdeps, repoDir, app.PRPublishRequest{
+			ID:             id,
+			Head:           head,
+			Title:          body.Title,
+			Body:           body.Body,
+			EvidenceRecord: evidence,
+		}))
+		return nil
 	}
 	publish.Flags().Int("id", 0, "change `id` whose pull request to publish (required)")
 	publish.Flags().String("head", "", "exact published feature head `ref` the PR must certify (required)")
