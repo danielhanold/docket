@@ -71,10 +71,7 @@ before the first read; every commit pushes immediately.
    now-**archived** change path, **in the same step-1 metadata commit** as the archive:
 
    - On the **done** path the step-1 `finalize.closeout` operation transaction owns this restamp
-     atomically (proven by `internal/app/finalize_closeout_test.go`'s
-     `TestCloseoutBacklinkLegDocketMode` and
-     `internal/app/finalize_closeout_integration_test.go`'s
-     `TestIntegrationFinalizeCloseoutBacklinkLegDocketMode`).
+     atomically.
    - On the **kill** path the step-1 `change.kill` operation transaction owns it identically — it
      re-renders the `## Artifacts` block and retargets the linked spec's `docket:backlink` block in
      its one commit.

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -14,9 +15,11 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// TestLivingDocsAlignment keeps two kinds of drift out of docket's living,
-// human-facing documentation (the roots in livingDocRoots; docs/release/ is
-// deliberately excluded because dated release evidence lands there):
+// TestLivingDocsAlignment keeps two kinds of drift out of docket's living
+// documentation — the human-facing docs and the agent-facing files (skill
+// bodies and references, agent wrappers, AGENTS.md); the roots are in
+// livingDocRoots, and docs/release/ is deliberately excluded because dated
+// release evidence lands there:
 //
 //  1. Citations of individual changes or PRs ("change 0363", "changes 0064/0084",
 //     "change-0365", "pre-0051", "since 0392", "PR #344", "#0471"). ADR citations
@@ -45,6 +48,9 @@ import (
 //     matched, and a wrapper's own `skills` frontmatter field must be described
 //     without the `skills:` spelling. A markdown heading spelled
 //     `## <unsupported-key>:` is matched too.
+//   - The key check skips a leading YAML frontmatter block only (blankFrontmatter):
+//     agent wrappers and skills carry a real skills list there. Citations are
+//     still checked in frontmatter.
 //   - Refused VALUES of supported keys (`finalize.gate: ci`, the `github` board
 //     token) are out of reach; review catches those.
 //   - An unterminated code fence is reported, so it cannot mask the rest of a file.
@@ -56,7 +62,7 @@ func TestLivingDocsAlignment(t *testing.T) {
 	}
 	// Population floor: a renamed or emptied root must not let the guard pass
 	// over a shrunken surface.
-	const livingDocFloor = 42
+	const livingDocFloor = 82
 	if len(files) < livingDocFloor {
 		t.Fatalf("population floor: only %d living doc files scanned (expected >= %d)", len(files), livingDocFloor)
 	}
@@ -69,7 +75,7 @@ func TestLivingDocsAlignment(t *testing.T) {
 		for _, v := range scanCitations(rel, content) {
 			t.Error(v)
 		}
-		for _, v := range scanUnsupportedKeys(rel, content, shapes) {
+		for _, v := range scanUnsupportedKeys(rel, blankFrontmatter(content), shapes) {
 			t.Error(v)
 		}
 	}
@@ -92,6 +98,29 @@ func TestLivingDocsAlignment(t *testing.T) {
 		} {
 			if got := scanCitations("x.md", s); len(got) != 0 {
 				t.Errorf("non-citation flagged: %q -> %v", s, got)
+			}
+		}
+		if got := scanUnsupportedKeys("agents/x.md", blankFrontmatter("---\nname: x\nskills: [docket-review]\n---\nbody\n"), shapes); len(got) != 0 {
+			t.Errorf("a wrapper's frontmatter skills list was flagged: %v", got)
+		}
+		if len(scanUnsupportedKeys("agents/x.md", blankFrontmatter("---\nname: x\n---\nbind `skills.build` to it\n"), shapes)) == 0 {
+			t.Errorf("an unsupported key in a wrapper body was not flagged")
+		}
+		if len(scanUnsupportedKeys("x.md", blankFrontmatter("intro\n---\nskills:\n  build: x\n---\n"), shapes)) == 0 {
+			t.Errorf("a frontmatter-shaped block that does not open the file was skipped")
+		}
+		if len(scanUnsupportedKeys("x.md", blankFrontmatter("---\nskills:\n  build: x\n"), shapes)) == 0 {
+			t.Errorf("an unclosed leading block was skipped")
+		}
+		if got := scanUnsupportedKeys("x.md", blankFrontmatter("---\na: 1\n---\nset `skills.build` here\n"), shapes); len(got) == 0 || slices.ContainsFunc(got, func(v string) bool { return !strings.Contains(v, "x.md:4:") }) {
+			t.Errorf("blanking moved line numbers: %v", got)
+		}
+		if len(scanCitations("x.md", "---\ndescription: see change 0363\n---\n")) == 0 {
+			t.Errorf("a citation in frontmatter was not flagged")
+		}
+		for _, r := range []string{"skills", "agents", "AGENTS.md"} {
+			if !slices.Contains(livingDocRoots, r) {
+				t.Errorf("living doc roots lost the agent-facing root %q", r)
 			}
 		}
 		if len(scanCitations("x.md", "intro\n```yaml\nkey: 1\n")) == 0 {
@@ -170,6 +199,32 @@ var livingDocRoots = []string{
 	"docs/install",
 	"docs/concepts",
 	"docs/reference",
+	// Agent-facing: skill bodies and references, agent wrappers, and the
+	// always-loaded AGENTS.md (its generated dispatch block included).
+	"skills",
+	"agents",
+	"AGENTS.md",
+}
+
+// blankFrontmatter blanks a leading YAML frontmatter block — the first line
+// is exactly "---" and a later line is exactly "---" — keeping every newline
+// so reported line numbers stay true. Agent wrappers and skills carry a real
+// skills list there; nothing else is skipped. A file without a closed leading
+// block is returned unchanged and scanned in full (fail-safe).
+func blankFrontmatter(content string) string {
+	lines := strings.Split(content, "\n")
+	if strings.TrimRight(lines[0], "\r") != "---" {
+		return content
+	}
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimRight(lines[i], "\r") == "---" {
+			for j := 0; j <= i; j++ {
+				lines[j] = ""
+			}
+			return strings.Join(lines, "\n")
+		}
+	}
+	return content
 }
 
 // livingDocFiles returns every .md file under roots (a root may be a file),

@@ -101,7 +101,7 @@ When dispatch is genuinely unavailable the kinds are **not** equivalent, so the 
 
 The *Skill layer*'s **missing-skill rule** and `halt` are two conditions with two postures: a role skill that cannot be **invoked** is done inline by the running agent, with a prominent warning, while an invoked role skill whose required nested **dispatch** cannot run is `halt`. One symptom in the run log, two causes.
 
-**Three-boundary separation.** A dispatch spans **three non-overlapping places**: the **workflow edge** (child, posture, payload, receipt) in the **caller skill**; the **role behavior** in `agents/docket-*.md`; the **harness launch mechanics** only in the harness adapter (`internal/harness/<harness>`) and its generated surfaces. The first two stay **harness-neutral**: *dispatch the named agent*, never product syntax.
+**Three-boundary separation.** A dispatch spans **three non-overlapping places**: the **workflow edge** (child, posture, payload, receipt) in the **caller skill**; the **role behavior** in `agents/docket-*.md`; the **harness launch mechanics** only in the docket binary's harness adapter and its generated surfaces. The first two stay **harness-neutral**: *dispatch the named agent*, never product syntax.
 
 ### Agent layer — model/effort-pinned subagents
 
