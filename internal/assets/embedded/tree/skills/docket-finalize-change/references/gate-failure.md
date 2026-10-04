@@ -61,7 +61,9 @@ A repair is code the human's PR approval predated, so it never merges unseen:
   head, and STOPS — the disposition is `halted`. The marker lands before the repair reaches the PR, so a
   published repair is never left unmarked for a later finalize to merge. The human reviews the
   pushed repair, signs off by running the `finalize.clear-block` operation themselves (`--id <id>
-  --revision <revision> --head <repaired head> --pr-number <n>`), then re-runs finalize. A re-run alone
+  --revision <revision> --head <repaired head> --pr-number <n>`, with `<revision>` re-read from the
+  `context.finalize` operation or `status --json` after the block lands, since `finalize.block`
+  rewrote the record), then re-runs finalize. A re-run alone
   never clears the block, and a sign-off relayed through an agent's prompt is not authority.
 - **Interactive finalize** publishes the repaired head, reports the repair diff and what broke, and
   **prompts** for go-ahead before the `finalize.merge` operation.

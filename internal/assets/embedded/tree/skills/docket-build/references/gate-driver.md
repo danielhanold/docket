@@ -132,6 +132,7 @@ The raw verbs — `gate.launch`, `gate.observe`, `gate.stop`,
 callable by the **driver implementation, primitive-level tests, diagnostics, recovery, cleanup, and
 operator workflows**. They are **not** high-level workflow APIs. A workflow caller never composes
 them directly and never recreates shell observe/sleep polling — the build controller's
-full-suite gate and implement-next's evidence re-mint and re-gates drive the gate through the
+full-suite gate, implement-next's evidence re-mint and re-gates, and finalize's re-gate of a
+repaired head drive the gate through the
 `gate.drive` operations above instead, and finalize's local gate goes through `finalize.rebase`. The raw verbs are
 documented as primitives in the operator-facing gate documentation, not here.
