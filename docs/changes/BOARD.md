@@ -1,18 +1,12 @@
 # Backlog
 
-**514 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 352 done · 🗑️ 137 killed
+**514 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 353 done · 🗑️ 137 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md) | `fix/align-the-skills-and-agent-files-with-the-docket-binary` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0510](active/0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | `medium` | `feat` | [#382](https://github.com/danielhanold/docket/pull/382) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
@@ -75,7 +69,6 @@ graph TD
   0464 --> 0502
   0503
   0507
-  0509 --> 0510
   0511
   0366 --> 0512
   0512 --> 0513
@@ -86,14 +79,14 @@ graph TD
   0393:::done
   0407:::done
   0464:::done
-  0509:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (489)</summary>
+<details><summary>✅🗑️ Archive — done + killed (490)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0510](archive/2026-10-04-0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | 2026-10-04 |
 | [0509](archive/2026-10-04-0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
 | [0506](archive/2026-10-04-0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | 2026-10-04 |
@@ -112,7 +105,6 @@ graph TD
 | [0494](archive/2026-10-03-0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md) | A publish killed mid-flight wedges its run's cancel and closeout | 2026-10-03 |
 | [0493](archive/2026-10-03-0493-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md) | Retire the automatic gate relaunch | 2026-10-03 |
 | [0492](archive/2026-10-03-0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | 2026-10-03 |
-| [0491](archive/2026-10-03-0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Retire the run id; the run key becomes the run tracker's only handle | 2026-10-03 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
 | [0483](archive/2026-10-02-0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | 2026-10-02 |
 | [0457](archive/2026-10-02-0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | 2026-10-02 |
@@ -251,7 +243,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 9 done |
+| [2026-10](archive/) | 10 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

@@ -2,7 +2,7 @@
 id: 510
 slug: 'match-reported-follow-ups-against-proposed-and-deferred-chan'
 title: 'Match reported follow-ups against proposed and deferred changes'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'feat/match-reported-follow-ups-against-proposed-and-deferred-chan'
 pr: 'https://github.com/danielhanold/docket/pull/382'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T12:49:23Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T12:49:23Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan-design.md) |
-| Plan | [2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan.md](https://github.com/danielhanold/docket/blob/feat/match-reported-follow-ups-against-proposed-and-deferred-chan/docs/superpowers/plans/2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan.md) |
-| Results | [2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan-results.md](https://github.com/danielhanold/docket/blob/feat/match-reported-follow-ups-against-proposed-and-deferred-chan/docs/results/2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan-results.md) |
+| Plan | [2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan.md) |
+| Results | [2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
