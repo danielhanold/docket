@@ -1,6 +1,12 @@
 # Backlog
 
-**508 changes** — 🔵 2 built · 🟣 4 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 348 done · 🗑️ 137 killed
+**508 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 3 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 348 done · 🗑️ 137 killed
+
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0505](active/0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | `low` | `refactor` | [spec](../superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) | `refactor/share-one-unsupported-key-matcher-between-the-example-config` |  |
 
 ## 🔵 Built (2)
 
@@ -9,11 +15,10 @@
 | [0506](active/0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | `low` | `fix` | [#378](https://github.com/danielhanold/docket/pull/378) | awaiting merge |
 | [0497](active/0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | `medium` | `fix` | [#379](https://github.com/danielhanold/docket/pull/379) | awaiting merge |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0505](active/0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | `low` | `refactor` | [spec](../superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |

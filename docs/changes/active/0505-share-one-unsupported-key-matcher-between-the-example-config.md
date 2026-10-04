@@ -2,7 +2,7 @@
 id: 505
 slug: 'share-one-unsupported-key-matcher-between-the-example-config'
 title: 'Share one unsupported-key matcher between the example-config test and the docs guard'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/share-one-unsupported-key-matcher-between-the-example-config'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T10:44:18Z'
 ---
 
 ## Artifacts
