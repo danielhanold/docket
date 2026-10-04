@@ -262,10 +262,26 @@ Your old Bash checkout, usually `~/dev/docket`, is no longer used by Claude Code
 docket from Cursor or OpenCode on an upgraded repository is not supported until their sections
 arrive, and Codex is not supported at all (see section 1).
 
-This guide does not cover agent files under `.claude/agents/docket-*.md` or a
-`.claude/settings.local.json` inside a repository, which older Bash versions wrote. The saved
-installs have none, so the test does not cover them. The new `.gitignore` block keeps both out of
-commits.
+Bash docket also wrote agent files into a repository when its `.docket.yml` has an `agents:`
+setting: one `docket-*.md` file per agent under the repository's `.claude/agents/` folder. Claude
+Code uses an agent file in the repository instead of the one with the same name in
+`~/.claude/agents/`, so these old files hide the agents the installer just wrote. Delete them in
+every repository. If a repository has none, the command does nothing.
+
+<!-- upgrade-step: repo-agent-files -->
+```sh
+cd <repo>
+rm -f .claude/agents/docket-*.md
+```
+
+The `.gitignore` block from section 5 keeps these files out of commits, so there is nothing to
+commit.
+
+In each repository it converted, Bash docket's `migrate-to-docket.sh` also wrote
+`.claude/settings.local.json`. It holds a Claude Code permission rule for Bash docket's push to your
+default branch, such as `Bash(git -C * push origin HEAD:main)`, and it can also hold settings of
+your own. This guide does not cover that file: the test leaves it in place and does not show
+whether deleting it is safe.
 
 ## 8. Restart Claude Code
 

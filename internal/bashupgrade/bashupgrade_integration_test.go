@@ -90,6 +90,7 @@ func TestIntegrationBashUpgradeGuide(t *testing.T) {
 	seenFindings := map[string]bool{}
 	seenSettings := map[string]bool{}
 	dispatchRemoved := false
+	repoAgentShadow, repoSettingsSeen := false, false
 	for _, tag := range savedTags(t) {
 		t.Run(tag, func(t *testing.T) {
 			c := restoreCase(t, tag)
@@ -110,6 +111,8 @@ func TestIntegrationBashUpgradeGuide(t *testing.T) {
 				t.Errorf("the repository CLAUDE.md still carries the Bash dispatch block after the guide")
 			}
 			dispatchRemoved = dispatchRemoved || st.DispatchBlockRemoved
+			repoAgentShadow = repoAgentShadow || st.RepoAgentFilesShadow > 0
+			repoSettingsSeen = repoSettingsSeen || st.RepoSettingsSeen
 			assertWritable(t, c)
 			for _, f := range st.Observed["repo-check"] {
 				seenFindings[f.Code] = true
@@ -124,6 +127,12 @@ func TestIntegrationBashUpgradeGuide(t *testing.T) {
 	}
 	if !dispatchRemoved {
 		t.Errorf("the guide's dispatch-block step removed no block on any saved case")
+	}
+	if !repoAgentShadow {
+		t.Errorf("the guide's repo-agent-files step found no repository agent file hiding an installed agent on any saved case")
+	}
+	if !repoSettingsSeen {
+		t.Errorf("the guide names the repository's .claude/settings.local.json, which no saved case carries")
 	}
 	for code := range findingTable(t, src) {
 		if !seenFindings[code] {

@@ -35,6 +35,7 @@ Cursor dispatch rule, plus skill text in `docket-convention` and `docket-impleme
 | `home.tar` | USTAR tar rooted at the sandbox `HOME`; 202 members, 48 symlinks; mtimes 0, uid/gid 0; `@@SANDBOX_HOME@@` stands for the home path in link targets and file bodies |
 | `clone-config.txt` | the clone actions the restore replays (one `worktree`, one `config`, one `hooks-off`) |
 | `records.txt` | the 14 record paths (9 on `docket`, 5 on `main`) the case holds |
+| `clone-files.tar` | USTAR tar rooted at the sample clone: its ignored `.claude/` folder, 20 members (`.claude/`, `.claude/agents/`, the 17 per-repository `agents/docket-*.md` wrappers, `settings.local.json`); same normalization and `@@SANDBOX_HOME@@` rule as `home.tar` (no member needed it). Regenerated afterwards from the tag; see Step 10 |
 
 ## The seeded root (what this case exists to prove)
 
@@ -944,6 +945,152 @@ refusal), so the binary proved the receiptless non-empty root through the legacy
 `.docket.yml`), `board-stale` (warning), `artifact-links-stale` (warning, both archived changes) and
 `test-config-missing` (warning).
 
+### Step 10 — the per-clone ignored files (`clone-files.tar`, regenerated)
+
+Made the same day (sandbox work began 2026-10-04T19:25:55Z), on the same host and tools, after the
+case above was exported. The Step 1 sandbox was gone, so a new one was built the same way, under
+the same session scratchpad: `$SB2` was
+`$SCRATCH/bash-upgrade-v093-clone.6we20K`. Its `sbx` wrapper is the Step 1 wrapper with `$SB2` for
+`$SB`. Tag scripts run only as subprocesses; none is sourced.
+
+```bash
+/opt/homebrew/bin/bash "$SCRATCH/regen-clone-files.sh"   # exit 0
+```
+
+`$SCRATCH/regen-clone-files.sh`, verbatim (SHA-256
+`a509dbbe0e62f20f6642acbd69d36f71e38346a9c65be546001dec0b5ef1d2e0`):
+
+```bash
+#!/opt/homebrew/bin/bash
+# regen-clone-files.sh — scratch driver (never committed). Regenerates the per-clone ignored
+# files of the saved v0.9.3 case in a throwaway sandbox. Tag scripts run only as subprocesses.
+set -euo pipefail
+SCRATCH="/private/tmp/claude-501/-Users-homer-dev-docket/9cbfa2e1-e5f8-4f8a-9555-3ec1f4e089eb/scratchpad"
+CASE="/Users/homer/dev/docket/.worktrees/upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa/testdata/bash-upgrade/v0.9.3"
+SB="$(mktemp -d "$SCRATCH/bash-upgrade-v093-clone.XXXXXX")"
+echo "SB=$SB"
+mkdir -p "$SB/home" "$SB/stub-bin" "$SB/home/.config" "$SB/home/.local/share" "$SB/home/.cache" "$SB/home/.local/state" "$SB/tmp"
+printf '#!/bin/sh\necho "gh stub: network is forbidden in the sandbox: $*" >&2\necho "$*" >> "%s/gh-calls.log"\nexit 97\n' "$SB" > "$SB/stub-bin/gh"
+chmod +x "$SB/stub-bin/gh"
+printf '[user]\n\tname = Bash Upgrade Fixture\n\temail = fixture@docket.invalid\n[init]\n\tdefaultBranch = main\n' > "$SB/gitconfig"
+cat > "$SB/sbx" <<EOF
+#!/bin/sh
+exec env -i HOME="$SB/home" USER=fixture LOGNAME=fixture SHELL=/bin/zsh TERM=dumb LANG=en_US.UTF-8 \\
+  XDG_CONFIG_HOME="$SB/home/.config" XDG_DATA_HOME="$SB/home/.local/share" \\
+  XDG_CACHE_HOME="$SB/home/.cache" XDG_STATE_HOME="$SB/home/.local/state" \\
+  XDG_BIN_HOME="$SB/home/.local/bin" TMPDIR="$SB/tmp" \\
+  GIT_CONFIG_GLOBAL="$SB/gitconfig" GIT_CONFIG_NOSYSTEM=1 \\
+  PATH="$SB/stub-bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" "\$@"
+EOF
+chmod +x "$SB/sbx"
+X="$SB/sbx"
+date -u +%Y-%m-%dT%H:%M:%SZ > "$SB/task-start.txt"
+cat "$SB/task-start.txt"
+
+# Step A — the tag and its installer, exactly as PROVENANCE.md Steps 2-3.
+"$X" git clone --quiet --branch v0.9.3 --depth 1 file:///Users/homer/dev/docket "$SB/home/dev/docket"
+"$X" git -C "$SB/home/dev/docket" remote remove origin
+"$X" git -C "$SB/home/dev/docket" rev-parse HEAD
+mkdir -p "$SB/home/.claude" "$SB/home/.cursor" "$SB/home/.codex" "$SB/home/.opencode" "$SB/home/.agents"
+( cd "$SB/home/dev/docket" && "$X" /opt/homebrew/bin/bash ./install.sh ) > "$SB/install.log" 2>&1
+tail -n 3 "$SB/install.log"
+
+# Step B — the saved repository, restored the way the harness restores it.
+"$X" git init --quiet --bare -b main "$SB/origin.git"
+"$X" git -C "$SB/origin.git" fetch --quiet "$CASE/origin.bundle" 'refs/heads/*:refs/heads/*'
+"$X" git clone --quiet "$SB/origin.git" "$SB/home/dev/sample"
+cd "$SB/home/dev/sample"
+"$X" git remote set-head origin main
+"$X" git worktree add --quiet .docket docket
+"$X" git config --local extensions.worktreeConfig true
+mkdir -p "$SB/home/dev/sample/.git/docket/empty-hooks"
+"$X" git -C .docket config --worktree core.hooksPath "$SB/home/dev/sample/.git/docket/empty-hooks"
+
+# Step C — migrate-to-docket.sh's step 5b, verbatim invocation shape (cwd = the repo).
+"$X" env DOCKET_INTEGRATION_BRANCH=main DOCKET_BASH_PATH=/opt/homebrew/bin/bash \
+  /opt/homebrew/bin/bash "$SB/home/dev/docket/scripts/ensure-claude-settings.sh" > "$SB/ensure-claude-settings.out" 2>&1
+cat "$SB/ensure-claude-settings.out"
+
+# Step D — PROVENANCE.md Step 7's real sync-agents.sh run on the committed configuration.
+"$X" env DOCKET_BASH_PATH=/opt/homebrew/bin/bash /opt/homebrew/bin/bash "$SB/home/dev/docket/sync-agents.sh" \
+  > "$SB/sync-agents-repo.out" 2> "$SB/sync-agents-repo.err"
+grep -v -e 'no harness-specific model' "$SB/sync-agents-repo.err" || true
+"$X" env DOCKET_BASH_PATH=/opt/homebrew/bin/bash /opt/homebrew/bin/bash "$SB/home/dev/docket/sync-agents.sh" --check \
+  > "$SB/sync-check.out" 2> "$SB/sync-check.err"; echo "sync --check exit $?"
+echo "--- git status (tracked changes must be none)"
+"$X" git status --porcelain
+echo "--- ignored"
+"$X" git status --porcelain --ignored
+[ -e "$SB/gh-calls.log" ] && { echo "FATAL gh called"; exit 97; }
+echo "SB=$SB"
+```
+
+One run, exit 0. Results:
+
+- Step A repeats Steps 2–3: `rev-parse HEAD` printed `dd742abd5e9fcdf8ffe78eb6f36a293410873bbf`
+  and the install ended `docket: install complete`. `make-home-tar.py` (SHA-256 `de52b56e…11458`,
+  as above) run on `$SB2/home` wrote a tar **byte-identical** to the saved `home.tar` (`cmp`
+  silent), so this sandbox's home, including the global `config.yml` that `sync-agents.sh` reads
+  as a layer, equals the original's.
+- Step B restores the bundle and replays `clone-config.txt` exactly as the test's `restoreCase`
+  does.
+- Step C printed `ensure-claude-settings: created .claude/settings.local.json and granted:
+  Bash(git -C * push origin HEAD:main)`, the line the migration printed in Step 5.
+- Step D's `sync-agents.sh` printed the 17 unpinned-agent warnings for the `agents` harness, the
+  no-named-emitter warning and `done`, and nothing about `CLAUDE.md` or `.gitignore`: the committed
+  dispatch block and ignore block were already what the tag writes. `sync-agents.sh --check` exited
+  0. `git status --porcelain` was empty; `git status --porcelain --ignored` listed only `!! .claude/`
+  and `!! .docket/`.
+- The 17 wrappers: `docket-implement-next.md` is pinned `model: claude-opus-5` / `effort: high`;
+  `docket-rebase-resolver.md` is the delegated wrapper (`model: inherit`, `docket.sh
+  runner-dispatch … --runner codex --agent rebase-resolver --model gpt-5.6-sol --effort high`).
+  No file holds a sandbox path.
+- No `gh` call (`$SB2/gh-calls.log` never existed). `find ~/.claude/agents ~/.claude/skills
+  ~/.claude/settings.json ~/.claude/CLAUDE.md ~/.zshenv ~/.config/docket -newer
+  "$SB2/task-start.txt"` printed nothing.
+
+Export:
+
+```bash
+OUT=<worktree>/testdata/bash-upgrade/v0.9.3
+python3 "$SCRATCH/make-clone-tar.py" "$SB2/home" "$OUT/clone-files.tar"   # members: 20
+tar -xOf "$OUT/clone-files.tar" | grep -c -e "$SB2" -e /tmp/claude-501 -e @@SANDBOX_HOME@@   # 0
+python3 "$SCRATCH/make-clone-tar.py" "$SB2/home" "$SB2/again.tar" && cmp "$SB2/again.tar" "$OUT/clone-files.tar"   # identical
+shasum -a 256 "$OUT/clone-files.tar"   # 02c9e32ac2ccfa3809629a47fbe816555c00c450dfafecdc66971d69cb914c4c
+```
+
+`$SCRATCH/make-clone-tar.py` (SHA-256
+`d3aa64a8a65e7cb6d6972ffaf9924dabc17930361aa2f490d0271935763fa122`) is `make-home-tar.py` with its
+root moved to the clone and its include list narrowed to `.claude`; the token rewrite still keys on
+the sandbox home. Its full difference from `make-home-tar.py`:
+
+```diff
+2c2,3
+< """make-home-tar.py SANDBOX_HOME OUT_TAR — scratch helper (never committed).
+---
+> """make-clone-tar.py SANDBOX_HOME OUT_TAR — scratch helper (never committed); make-home-tar.py with
+> the root moved to the sample clone and INCLUDE narrowed to its ignored .claude/ folder.
+14a16
+> clone = os.path.join(home, "dev", "sample")
+18,19c20
+< INCLUDE = [".claude", ".cursor", ".codex", ".agents", ".opencode", ".config/docket",
+<            "dev/docket/skills", ".zshenv"]
+---
+> INCLUDE = [".claude"]
+45c46
+<     p = os.path.join(home, top)
+---
+>     p = os.path.join(clone, top)
+69c70
+<         ti = norm(tf.gettarinfo(os.path.join(home, rel), arcname=rel))
+---
+>         ti = norm(tf.gettarinfo(os.path.join(clone, rel), arcname=rel))
+72c73
+<         rel = os.path.relpath(path, home)
+---
+>         rel = os.path.relpath(path, clone)
+```
+
 ## What `home.tar` holds
 
 | Folder | Written by | Contents |
@@ -957,7 +1104,7 @@ refusal), so the binary proved the receiptless non-empty root through the legacy
 | `dev/docket/skills/` | the tag checkout | the tree every skill symlink points at |
 | `.zshenv` | `ensure-docket-env.sh` | the managed `DOCKET_SCRIPTS_DIR` / `DOCKET_BASH_PATH` export block |
 
-Not saved: `dev/sample` (it is the bundle plus `clone-config.txt`), `.cache`, `.local`, and the rest
+Not saved: `dev/sample` (it is the bundle plus `clone-config.txt` and `clone-files.tar`), `.cache`, `.local`, and the rest
 of `dev/docket`. So after a restore, `DOCKET_SCRIPTS_DIR` in `.zshenv` and `settings.json` points at
 `@@SANDBOX_HOME@@/dev/docket/scripts`, which does not exist.
 
@@ -1014,11 +1161,18 @@ blocked or killed change; no superseded or reversed ADR; no stacked change; no
   `terminal-publish.sh` published nothing. It is `true` only in the final configuration.
 - **The tag's merge-date command** in `terminal-close-out.md` step 1 needs `--format=%ad` (see the
   v0.9.2 note); the driver uses that form from the start.
-- **Untracked, per-clone files are not saved.** The bundle carries commits and `clone-config.txt`
-  carries git config, so two ignored paths in the sandbox clone are not part of the case:
-  `.claude/settings.local.json` (the allow-rule written by `migrate-to-docket.sh` through
+- **The per-clone ignored files were regenerated, not copied.** The first export (Step 8) left out
+  the two ignored paths in the sandbox clone, and that sandbox was gone by the time they were
+  needed: `.claude/settings.local.json` (the allow-rule written by `migrate-to-docket.sh` through
   `ensure-claude-settings.sh`) and `.claude/agents/docket-*.md` (the 17 per-repository wrappers
   `sync-agents.sh` generated because of the `agents:` opt-in, including the delegated
-  `docket-rebase-resolver.md`). A restored clone has neither.
+  `docket-rebase-resolver.md`). Step 10 rebuilt them from the tag in a new sandbox, against the
+  saved bundle, by the same two tag commands. That sandbox's install reproduced `home.tar` byte for
+  byte, and its `sync-agents.sh` run left every tracked file unchanged, so the inputs matched the
+  original's. One difference remains: the clone the files sit in was restored from the bundle (as
+  the test restores it), not carried through the original's history, and `settings.local.json`
+  was written after the configuration commit rather than during the migration. Neither script
+  reads the history; `ensure-claude-settings.sh` reads only the integration branch, passed
+  explicitly as `main` exactly as `migrate-to-docket.sh` passes it.
 - **The worktree-scoped `core.hooksPath`** is replayed through the `hooks-off` line, as in the
   v0.9.2 case.
