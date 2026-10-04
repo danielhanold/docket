@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'low'
 type: 'fix'
 created: '2026-10-03'
-updated: '2026-10-03'
+updated: '2026-10-04'
 depends_on: []
 stacked_on:
-related: []
+related: [410, 440]
 discovered_from: [494]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-design.md'
 plan:
 results:
 trivial: false
@@ -27,16 +27,31 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Change 0494's results file put its `### Whole-branch review` subsection inside `## Human actions and testing`. That section is meant for things a human should do or check (Important/Optional items). Review outcomes are a record of verification the run performed, so filing them there makes the human-action section look heavier than it is and hides the review where a reader won't look for it. If the results-authoring guidance or template allows this, every future run can repeat it.
+Change 0494's results file put its `### Whole-branch review` subsection inside `## Human actions and testing`. That section is for things a human should do or check, so filing review outcomes there made it look heavier than it was and hid the review where a reader won't look for it.
+
+The cause is a guidance gap, not a one-off: implement-next's Step 6.5 and `references/fix-loop.md` tell the run to write review findings into the results file but never name a section, and the template only says where fixed findings should *not* go. Runs improvise in both directions — 0494 used Human actions; three other recent results files filed "Fixed after review" entries under Known issues. Meanwhile the PR body already carries the full review disposition table, so the full per-finding list in the final results file is a second copy of code-level detail.
 
 ## What changes
 
-Find out why implement-next's results authoring (the Step 6.5 checkpoints and the results template) let the review subsection land under `## Human actions and testing`. Then make the guidance say where whole-branch review outcomes belong (most likely `## Verification performed`), so later runs file them there.
+Make the PR body the only home for the full review table, and give the final results file a one-line review summary:
+
+- **Verification performed** gets one line saying which review ran and how its findings ended (e.g. "5 findings, all fixed in-branch; full table in the PR body").
+- **Known issues and follow-ups** gets an entry for every finding left unfixed or reported as follow-up work, plus any fixed finding that still leaves a real risk (the existing rule).
+- During the build, the full findings may still sit in the results file so they survive a halt before the PR exists; the final write condenses them to the summary line.
+- **Human actions and testing** is stated to hold only what a human should do or check, never a record of what the run already checked.
+
+The wording lands in the results template, Step 6.5, and `fix-loop.md` (plus the regenerated embedded copies), pinned by a mutation-tested prose-contract row.
 
 ## Out of scope
 
-Editing the archived 0494 results file. Merged plans and results are frozen build records, so the misplaced subsection stays as it is. No change to the results template's required or conditional section set beyond saying where review outcomes go.
+- Any validator, health check, or merge-boundary refusal on which section holds what — guidance only, no new blocking gate.
+- Editing 0494's or any other merged results file — merged plans and results are frozen build records.
+- Adding, removing, or reordering results sections, or changing the PR-body disposition table.
+- An ADR — this is a placement rule inside the existing 0410/0440 results design.
