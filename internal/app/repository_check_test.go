@@ -176,3 +176,35 @@ func TestRepositoryCheckSupplementalFindingsSerialize(t *testing.T) {
 		t.Fatalf("exit = %d, want 1", res.CheckExitCode())
 	}
 }
+
+// TestRepositoryCheckPrintsCommittedIgnoreBlockFlushLeft pins that `repository
+// check`'s human text prints the committed-ignore-invalid remedy's canonical
+// block with every line at column 0 — paste-ready, since leading whitespace is
+// part of a .gitignore pattern (change 0500). The finding comes from the real
+// EvaluateHealth pipeline over facts carrying an IgnoreDefectFileAbsent detail,
+// not a hand-built Finding.
+//
+// Mutation probes (each must redden this test): make reposetup's
+// withCanonicalBlock indent the block lines, or join instruction and block with
+// a space; make appendFindingBlock indent remedy continuation lines.
+func TestRepositoryCheckPrintsCommittedIgnoreBlockFlushLeft(t *testing.T) {
+	facts := healthyConfigureFacts()
+	facts.CommittedIgnoreBlock = reposetup.PresenceAbsent
+	facts.CommittedIgnoreDetail = reposetup.IgnoreDetail{Defect: reposetup.IgnoreDefectFileAbsent}
+	cls := reposetup.Classify(facts)
+	findings := reposetup.EvaluateHealth(cls, facts, nil)
+	found := false
+	for _, f := range findings {
+		if f.Code == "committed-ignore-invalid" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("fixture produced no committed-ignore-invalid finding (state %q, codes %v)", cls.State, findings)
+	}
+	block := strings.TrimSuffix(string(reposetup.GitignoreBlock()), "\n")
+	text := newCheckResult(cls, facts, findings).HumanText()
+	if !strings.Contains(text, "\n"+block) {
+		t.Fatalf("check text must carry the canonical block flush left (newline, then the block verbatim):\n%s", text)
+	}
+}
