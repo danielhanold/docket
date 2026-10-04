@@ -12,7 +12,7 @@ stacked_on:
 related: [464]
 discovered_from: [464]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,8 +38,12 @@ Change 0464 added two guards that each detect unsupported configuration keys: `i
 
 ## What changes
 
-Stub, a hypothesis for grooming: move the matcher into a package both tests can import without the cycle, keep one copy, and decide whether the nested-comment case matters. Trace the import cycle first.
+Move the duplicated unsupported-key matcher into one exported function in `internal/config`, next to the key registry it reads, and point both guards at it. No new package. A separate package would hit the same import cycle, because config's own test cannot import a package that imports config.
+
+While there, close the shared gap: a key commented out inside an already-commented block (`#   # terminal_publish: true`) is matched from now on. No file in the example config or living docs newly fails today.
+
+Design: the linked spec.
 
 ## Out of scope
 
-Changing which keys count as unsupported, or what the two guards check.
+Changing which keys count as unsupported, what else the two guards check (citations, the structural extractor, refused values of supported keys), or the schema registry.

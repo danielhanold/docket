@@ -1,6 +1,6 @@
 # Backlog
 
-**506 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 347 done · 🗑️ 136 killed
+**506 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 5 groomed · 🟡 3 proposed · ⚪ 13 deferred · ✅ 347 done · 🗑️ 136 killed
 
 ## 🟢 In progress (1)
 
@@ -14,20 +14,20 @@
 |---|-------|----------|------|----|-------|
 | [0504](active/0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | `medium` | `chore` | [#377](https://github.com/danielhanold/docket/pull/377) | awaiting merge |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (5)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0506](active/0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-design.md) |
+| [0505](active/0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | `low` | `refactor` | [spec](../superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (4)
+## 🟡 Proposed (3)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0505](active/0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | `low` | `refactor` | needs-grooming |
 | [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
