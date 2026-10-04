@@ -1,6 +1,6 @@
 # Backlog
 
-**513 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 5 proposed · ⚪ 13 deferred · ✅ 352 done · 🗑️ 137 killed
+**514 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 6 proposed · ⚪ 13 deferred · ✅ 352 done · 🗑️ 137 killed
 
 ## 🟢 In progress (2)
 
@@ -18,10 +18,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (5)
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0514](active/0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) | Retire the saved Bash upgrade test cases when stable v1.0.0 ships | `low` | `chore` | ⏳ waiting on #511 — not yet built |
 | [0513](active/0513-release-v1-0-0-alpha-3-prove-and-publish-opencode-support.md) | Release v1.0.0-alpha.3: prove and publish OpenCode support | `high` | `chore` | ⏳ waiting on #512 — not yet built |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | ⏳ waiting on #366 — not yet built |
 | [0507](active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Flaky tests: track and stabilize intermittent suite failures | `low` | `fix` | needs-grooming |
@@ -73,6 +74,7 @@ graph TD
   0511
   0366 --> 0512
   0512 --> 0513
+  0511 --> 0514
   0192:::done
   0251:::done
   0370:::done
