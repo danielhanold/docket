@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/finish-schema-operation-documentation-outcomes-md-flag-only'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T16:30:45Z'
+reconciled: true
+claimed_at: '2026-10-04T16:33:35Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ Second, no nested request field is marked required, even though the validator re
 ## Out of scope
 
 Changing validator behavior or finding codes. New schema vocabulary (conditional-required). Bumping `schema_version`. Fixing `successor.request_id`, which is published as required but ignored by supersede/reverse. That mismatch is harmless and is recorded, not fixed.
+
+## Reconcile log
+
+### 2026-10-04
+
+Reconciled against main at 62d67286d. Dependency #520 is done and merged: `declareJSONFile`, the registry bindings, and `TestRequiredTagMatchesValidator` exist on main. The nested request types (`ADRTarget`, `ADRProducingChange`, `ADRReplaceRequest`, `SectionEditRequest`, `AuthorizedChild`) still carry no nested `docket:"required"` tags, and `outcomes.md` plus both copies of `close-out.md` still carry the stale wording. Scope unchanged.
