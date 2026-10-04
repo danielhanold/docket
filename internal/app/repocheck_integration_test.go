@@ -351,9 +351,15 @@ func TestIntegrationRepoCheckMissingIgnoreEntryNamed(t *testing.T) {
 	if ignore == nil {
 		t.Fatalf("no committed-ignore-invalid finding; codes: %+v", res.Findings)
 	}
+	// Every remedy ends with the canonical block, which already contains the
+	// entry; check only the instruction part so the assert can fail.
+	instr := strings.TrimSuffix(ignore.Remedy, "\n"+strings.TrimSuffix(string(reposetup.GitignoreBlock()), "\n"))
+	if instr == ignore.Remedy {
+		t.Fatalf("remedy does not end with the canonical block: %q", ignore.Remedy)
+	}
 	if ignore.Ref != ".gitignore" ||
 		!strings.Contains(ignore.Message, entry) ||
-		!strings.Contains(ignore.Remedy, entry) {
+		!strings.Contains(instr, entry) {
 		t.Fatalf("finding does not name path+entry+remedy: %+v", ignore)
 	}
 	human := res.HumanText()
