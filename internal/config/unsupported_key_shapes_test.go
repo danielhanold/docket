@@ -47,7 +47,8 @@ func TestUnsupportedKeyShapes(t *testing.T) {
 		"#   # terminal_publish: true",
 		"# # skills:",
 		"#   #   cap: 5",
-		"#   #     adr: { model: x, runner: codex }",
+		"#   #     runner: codex", // line-start leaf: only the widened leaf comment marker matches
+		"#   #     adr: { model: x, runner: codex }", // regression: flow-mapping branch
 		"#   # - skills: x",
 		"#\t#\tterminal_publish: true",
 	} {
