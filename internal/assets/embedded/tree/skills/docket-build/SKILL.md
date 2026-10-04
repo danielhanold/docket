@@ -347,11 +347,6 @@ session agent** only, and docket's default path has none: this role runs inside
 `docket-implement-next` Step 5, itself dispatched. Not hypothetical — dispatched build workers here
 have yielded to await a gate completion event and gone unresumed.
 
-Which capabilities a harness must have to host such a gate, and the measured verdict for each
-harness docket ships, are quarantined in
-[`references/gate-execution.md`](references/gate-execution.md) — **read it now (blocking) before
-starting the gate.**
-
 ### Build-findings checkpoint
 
 When docket-build runs as the invoked build role for a coordinator that owns a results artifact,
