@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:2eaf608b85db77ea4245aa324272d83a612101d15f25c5b579e11c2b9e5fc366",
+  "asset_set_id": "sha256:012d6932c1db390d16085bd4c6fdc7d522c146fc288e4ce2b86412ebdad3fa14",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -91,8 +91,8 @@
       "path": "agents/docket-plan-writer.md",
       "role": "agent-source",
       "mode": 420,
-      "size": 3366,
-      "sha256": "543c2f78a32c0be8349df35c330d7f1787eeac9467efbadd1b772f82236ad108"
+      "size": 3164,
+      "sha256": "689917c0c0cd6b905fe4570b33853f89278b38da2bc108acddd02b28d7740fe1"
     },
     {
       "path": "agents/docket-rebase-resolver.md",
@@ -371,22 +371,22 @@
       "path": "skills/docket-groom-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 14526,
-      "sha256": "904b9c865cd674fecd6225ee5832c598652257ebcf8a94c6d1afb01275b99a2d"
+      "size": 14321,
+      "sha256": "98b373138b1ed04fc77191dbf3585e70467c15216958c72da9bafd04717dfd45"
     },
     {
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 59938,
-      "sha256": "87333430e5d5506fe3bae5683899cddecbbff59ab9e1a1db79beb5741da94d87"
+      "size": 58238,
+      "sha256": "022c14416b6650e00b12599db831cc0f840865a1c10576e0ba692bdc32c8b4d0"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",
       "role": "skill",
       "mode": 420,
-      "size": 10451,
-      "sha256": "a5c9f43c3b9f40d9cbbab196d6c8ae11ed99c0ad5f90e5f006c17abd306789fc"
+      "size": 10444,
+      "sha256": "1dcf855ff00e63a084b719c514101a13e1a37c6d2d592866ce07caf50f6b35a7"
     },
     {
       "path": "skills/docket-implement-next/references/fix-pass.md",
@@ -399,15 +399,15 @@
       "path": "skills/docket-implement-next/results-template.md",
       "role": "skill",
       "mode": 420,
-      "size": 3782,
-      "sha256": "f8f063553403412e28a816ded21da8c09615d6ccb4071ea9928e49582f93a63d"
+      "size": 3775,
+      "sha256": "7f6712720f6f531d72bd2d92e2cc0d4adb9502b9bf7323ac860e206310078b38"
     },
     {
       "path": "skills/docket-new-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 11334,
-      "sha256": "eb0c9628864c4fec28e8c74f6bcb6f84cd114f80e3b2fb6ef40eab45cadfe801"
+      "size": 11141,
+      "sha256": "1dc4d2929b6786faeeffebc9e35ac28275bb580df1f3a63dbb48da901bce837b"
     },
     {
       "path": "skills/docket-review/SKILL.md",

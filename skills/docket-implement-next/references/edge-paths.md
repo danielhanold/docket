@@ -81,7 +81,7 @@ before-set/dispatch attribution is what distinguishes a resume from claim theft)
    `Docket-Plan-Path:` trailer and backlink agree → recover that path, land it under the normal
    field-write rule, and continue at Step 5.
 3. The persisted path, commit delta, backlink, and manifest disagree or are ambiguous → halt with
-   the exact mismatch. **Never guess a custom plan location and never re-plan** merely because the
+   the exact mismatch. **Never guess a plan location and never re-plan** merely because the
    parent stopped after the child returned. The trailer is evidence only — subject it to the same
    git and backlink verification as a live return.
 
