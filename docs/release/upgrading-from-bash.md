@@ -244,8 +244,9 @@ startup file, which the test does not cover.
 
 Your old Bash checkout, usually `~/dev/docket`, is no longer used by Claude Code: nothing under
 `~/.claude` points into it after the upgrade. The links Bash docket made for other tools, under
-`~/.cursor`, `~/.codex` and `~/.agents`, still do. Keep the checkout while you use those tools with
-Bash docket.
+`~/.cursor`, `~/.codex` and `~/.agents`, still do. The guide does not cover those tools. Using
+docket from Cursor or OpenCode on an upgraded repository is not supported until their sections
+arrive, and Codex is not supported at all (see section 1).
 
 This guide does not cover two more things:
 
