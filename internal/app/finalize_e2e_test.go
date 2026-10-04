@@ -676,8 +676,9 @@ func rebaseAndPublish(t *testing.T, s *e2eState) (head, revision string) {
 // TestE2EConflictAndRepair drives the full conflict/repair closing path through
 // CLI argv: a base-conflicting rebase stops CONFLICTED; a verified resolver
 // report continues it; the local suite is RED at the rebased head (repair work);
-// the operator records a durable repair-needs-signoff halt; and after the repair
-// makes the suite green, the retry re-gates, publishes, merges, and closes out.
+// the repair makes the suite green, and the run re-gates, records evidence,
+// publishes, merges, and closes out with the repair named in the archived
+// record's closeout notes — no finalize block and no clear-block on the path.
 func TestE2EConflictAndRepair(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
@@ -737,25 +738,10 @@ func TestE2EConflictAndRepair(t *testing.T) {
 		t.Fatalf("continue reason = %q, want gate-failed\n%s", cont.str("reason"), cont.stdout)
 	}
 
-	// (3) The operator records the authored repair behind a durable finalize-
-	// blocked marker whose reason is repair-needs-signoff: an autonomous run stops
-	// here for a human sign-off. The marker names the reason on the record.
-	headAfterContinue := runGit(t, s.wp, "rev-parse", "HEAD")
-	blockPath := s.writeInput(t, "block.json", `{"report":"the local suite is red at the rebased head; an authored repair awaits a human sign-off","remedy":"review the repair, then clear the block and merge"}`)
-	blk := s.dk(t, "", "finalize", "block", "--id", strconv.Itoa(s.id), "--revision", s.ver(t),
-		"--pr-number", strconv.Itoa(s.prNumber), "--attempt", attempt, "--reason", "repair-needs-signoff",
-		"--head", headAfterContinue, "--input", blockPath)
-	if blk.result() != "applied" {
-		t.Fatalf("repair sign-off block = %q\n%s", blk.result(), blk.stdout)
-	}
-	if rec, _ := originFile(t, s.repo.origin, s.mode.branch, s.recPath); !strings.Contains(rec, "repair-needs-signoff") {
-		t.Errorf("the finalize-blocked marker did not record repair-needs-signoff:\n%s", rec)
-	}
-
-	// (4) Retry: the human signs off. The repair lands `.repaired` (making the
-	// suite green) on the already-rebased head, then the local gate is re-run and
-	// its exact-head green evidence recorded through the landed gate/evidence
-	// seams (the skill's "gate -> evidence record" step).
+	// (3) The repair lands `.repaired` (making the suite green) on the
+	// already-rebased head, then the local gate is re-run and its exact-head green
+	// evidence recorded through the landed gate/evidence seams (the skill's
+	// "gate -> evidence record" step).
 	writeRepoFile(t, s.wp, ".repaired", "green\n")
 	runGit(t, s.wp, "add", "-A")
 	runGit(t, s.wp, "commit", "-q", "-m", "repair: make the suite green")
@@ -773,24 +759,32 @@ func TestE2EConflictAndRepair(t *testing.T) {
 		t.Fatalf("repair evidence record = %q (reason %q)", evd.Result, evd.Reason)
 	}
 
-	// (5) Publish the repaired head under the owned receipt, clear the block (the
-	// sign-off), merge, and close out.
+	// (4) Publish the repaired head under the owned receipt and merge — a green
+	// repair merges like any other green change; there is no block to clear.
 	evPath := s.writeInput(t, "repaired-ev.txt", evd.Block)
 	pub := s.dk(t, "", "finalize", "publish", "--id", strconv.Itoa(s.id), "--attempt", attempt, "--head", repairHead, "--evidence", evPath)
 	if pub.result() != "applied" && pub.result() != "no-op" {
 		t.Fatalf("repair publish = %q\n%s", pub.result(), pub.stdout)
 	}
-	cb := s.dk(t, "", "finalize", "clear-block", "--id", strconv.Itoa(s.id), "--revision", s.ver(t), "--head", repairHead, "--pr-number", strconv.Itoa(s.prNumber))
-	if cb.result() != "applied" {
-		t.Fatalf("clear-block after sign-off = %q\n%s", cb.result(), cb.stdout)
-	}
 	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", s.ver(t), "--head", repairHead)
 	if mg.result() != "applied" {
 		t.Fatalf("post-repair merge = %q\n%s", mg.result(), mg.stdout)
 	}
-	co := s.dk(t, "", "finalize", "closeout", "--id", strconv.Itoa(s.id))
+
+	// (5) Close out with the repair named in the closeout notes, so the archived
+	// record keeps what broke and the repair commit.
+	finding := "integration repair: the rebased suite was red (missing .repaired); repair commit " + repairHead + "; 1 attempt"
+	notesPath := s.writeInput(t, "closeout-notes.json", `{"late_findings":["`+finding+`"]}`)
+	co := s.dk(t, "", "finalize", "closeout", "--id", strconv.Itoa(s.id), "--input", notesPath)
 	if co.str("disposition") != "done-archived" {
 		t.Fatalf("post-repair closeout = %q\n%s", co.str("disposition"), co.stdout)
+	}
+	archived, ok := originFile(t, s.repo.origin, s.mode.branch, co.str("archive_path"))
+	if !ok {
+		t.Fatalf("archived record %q not on %s\n%s", co.str("archive_path"), s.mode.branch, co.stdout)
+	}
+	if !strings.Contains(archived, "## Closeout notes") || !strings.Contains(archived, repairHead) {
+		t.Errorf("archived record does not name the repair in its closeout notes:\n%s", archived)
 	}
 }
 
