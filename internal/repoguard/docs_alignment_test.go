@@ -34,13 +34,17 @@ import (
 //     (0NNN), so years ("since 2024") pass.
 //   - A key is matched as a dotted path (`skills.build`, `learnings.cap`,
 //     `agents.<h>.<a>.runner`), a dotted child of an all-unsupported block
-//     (`skills.<role>`), a YAML key at a line start or opening a code span
-//     (`skills:`, `terminal_publish:`), or — inside a block that also holds
-//     supported keys — an unsupported leaf key at a line start or inside a flow
-//     mapping (`checkpoint:`, `cap:`, `{ …, runner: … }`). A bare
+//     (`skills.<role>`), a YAML key at a line start — commented, or commented
+//     inside an already-commented block — or opening a code span (`skills:`,
+//     `# terminal_publish:`, `#   # terminal_publish:`), or — inside a block
+//     that also holds supported keys — an unsupported leaf key at a line start
+//     (commented or nested-commented) or inside a flow mapping (`checkpoint:`,
+//     `cap:`, `{ …, runner: … }`). The shapes come from
+//     config.UnsupportedKeyShapes, shared with the example-config guard. A bare
 //     mention without the dot or colon (`terminal_publish` in prose) is not
 //     matched, and a wrapper's own `skills` frontmatter field must be described
-//     without the `skills:` spelling.
+//     without the `skills:` spelling. A markdown heading spelled
+//     `## <unsupported-key>:` is matched too.
 //   - Refused VALUES of supported keys (`finalize.gate: ci`, the `github` board
 //     token) are out of reach; review catches those.
 //   - An unterminated code fence is reported, so it cannot mask the rest of a file.
@@ -56,7 +60,7 @@ func TestLivingDocsAlignment(t *testing.T) {
 	if len(files) < livingDocFloor {
 		t.Fatalf("population floor: only %d living doc files scanned (expected >= %d)", len(files), livingDocFloor)
 	}
-	shapes := unsupportedKeyShapes(config.SettingPaths())
+	shapes := config.UnsupportedKeyShapes(config.SettingPaths())
 	if len(shapes) == 0 {
 		t.Fatalf("no unsupported-key shapes derived from the schema registry")
 	}
@@ -97,6 +101,7 @@ func TestLivingDocsAlignment(t *testing.T) {
 		for _, s := range []string{
 			"bind `skills.build` to", "raise learnings.cap", "set `skills:` to",
 			"skills:\n  build: x\n", "  terminal_publish: true", "# auto_groom: false",
+			"#   # terminal_publish: true",
 			"agents.claude.build-max.runner", "{ model: x, runner: codex }",
 			"runners.codex.shim_model", "`dummy_mode.persona`", "build:\n  checkpoint: true\n",
 			"the skills.<role> map",
@@ -269,74 +274,13 @@ func scanCitations(rel, content string) []string {
 	return v
 }
 
-type keyShape struct {
-	name string
-	re   *regexp.Regexp
-}
-
-const keySegClass = `[A-Za-z0-9_<>*-]+`
-
-// unsupportedKeyShapes derives the key spellings to ban from the registry:
-// each unsupported dotted path; for a top-level segment with no supported
-// path beneath it, its YAML-key form and any dotted child; and, inside a
-// block that also holds supported keys (finalize, learnings, build, agents),
-// an unsupported leaf's YAML-key form when that leaf name is no segment of any
-// supported path. The last restriction keeps `build:`, `review:`, and the
-// change-frontmatter `plan:` (also leaf names under skills.*) from matching.
-func unsupportedKeyShapes(paths []config.SettingPath) []keyShape {
-	supportedTop, supportedSeg := map[string]bool{}, map[string]bool{}
-	for _, p := range paths {
-		if p.Supported {
-			segs := strings.Split(p.Path, ".")
-			supportedTop[segs[0]] = true
-			for _, s := range segs {
-				supportedSeg[s] = true
-			}
-		}
-	}
-	var shapes []keyShape
-	seenTop, seenLeaf := map[string]bool{}, map[string]bool{}
-	for _, p := range paths {
-		if p.Supported {
-			continue
-		}
-		segs := strings.Split(p.Path, ".")
-		if len(segs) > 1 {
-			parts := make([]string, len(segs))
-			for i, s := range segs {
-				if s == "*" {
-					parts[i] = keySegClass
-				} else {
-					parts[i] = regexp.QuoteMeta(s)
-				}
-			}
-			shapes = append(shapes, keyShape{p.Path, regexp.MustCompile(`(?:^|[^\w.-])` + strings.Join(parts, `\.`) + `(?:[^\w-]|$)`)})
-		}
-		top := segs[0]
-		if !supportedTop[top] && !seenTop[top] {
-			seenTop[top] = true
-			q := regexp.QuoteMeta(top)
-			shapes = append(shapes, keyShape{top + ":", regexp.MustCompile("(?m)(?:^[ \\t]*(?:#[ \\t]*)?(?:-[ \\t]+)?|`)" + q + ":")})
-			if len(segs) > 1 {
-				shapes = append(shapes, keyShape{top + ".<child>", regexp.MustCompile(`(?:^|[^\w.-])` + q + `\.` + keySegClass)})
-			}
-		}
-		leaf := segs[len(segs)-1]
-		if len(segs) > 1 && supportedTop[top] && leaf != "*" && !supportedSeg[leaf] && !seenLeaf[leaf] {
-			seenLeaf[leaf] = true
-			shapes = append(shapes, keyShape{leaf + ":", regexp.MustCompile(`(?m)(?:^[ \t]*(?:#[ \t]*)?|[{,][ \t]*)` + regexp.QuoteMeta(leaf) + `:`)})
-		}
-	}
-	return shapes
-}
-
 // scanUnsupportedKeys reports every unsupported config key spelled in content
 // (code included: config examples live in code).
-func scanUnsupportedKeys(rel, content string, shapes []keyShape) []string {
+func scanUnsupportedKeys(rel, content string, shapes []config.UnsupportedKeyShape) []string {
 	var v []string
 	for _, s := range shapes {
-		for _, m := range s.re.FindAllStringIndex(content, -1) {
-			v = append(v, fmt.Sprintf("%s:%d: unsupported config key %s (%q) — describe only supported settings", rel, lineOf(content, m[0]), s.name, strings.TrimSpace(content[m[0]:m[1]])))
+		for _, m := range s.Re.FindAllStringIndex(content, -1) {
+			v = append(v, fmt.Sprintf("%s:%d: unsupported config key %s (%q) — describe only supported settings", rel, lineOf(content, m[0]), s.Name, strings.TrimSpace(content[m[0]:m[1]])))
 		}
 	}
 	return v
