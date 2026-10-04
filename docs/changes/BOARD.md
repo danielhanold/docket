@@ -1,6 +1,12 @@
 # Backlog
 
-**506 changes** — 🔵 1 built · 🟣 5 groomed · 🟡 5 proposed · ⚪ 13 deferred · ✅ 346 done · 🗑️ 136 killed
+**506 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 5 proposed · ⚪ 13 deferred · ✅ 346 done · 🗑️ 136 killed
+
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0504](active/0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | `medium` | `chore` | [spec](../superpowers/specs/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md) | `chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a` |  |
 
 ## 🔵 Built (1)
 
@@ -8,11 +14,10 @@
 |---|-------|----------|------|----|-------|
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align the human-facing docs and example config with the docket binary | `medium` | `docs` | [#376](https://github.com/danielhanold/docket/pull/376) | awaiting merge |
 
-## 🟣 Groomed (5)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0504](active/0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | `medium` | `chore` | [spec](../superpowers/specs/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md) |
 | [0497](active/0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |

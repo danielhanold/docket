@@ -2,7 +2,7 @@
 id: 504
 slug: 'guard-two-unproven-invariants-the-testdata-ignore-negation-a'
 title: 'Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T08:43:41Z'
 ---
 
 ## Artifacts
