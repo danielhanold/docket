@@ -49,6 +49,44 @@ func TestDocketCommandLines(t *testing.T) {
 	}
 }
 
+// TestDocketCommandLinesShapes: docket counts as a command wherever a shell command
+// word can stand, and never as an argument, a value, or part of a longer word.
+func TestDocketCommandLinesShapes(t *testing.T) {
+	for name, line := range map[string]string{
+		"line start":            "docket version",
+		"prompt":                "$ docket version",
+		"after &&":              "cd <repo> && docket repository check",
+		"after ||":              "false || docket repository check",
+		"after ;":               "cd <repo>; docket repository check",
+		"after |":               "yes | docket repository repair",
+		"inside $(":             "echo \"$(docket version)\"",
+		"after sudo":            "sudo docket install check",
+		"after VAR=value":       "DOCKET_HOME=/x docket install check",
+		"after quoted VAR":      "A='x y' B=\"z\" docket version",
+		"assignment then sudo":  "A=1 sudo docket version",
+		"path to the binary":    "~/.local/bin/docket version",
+		"after && with no gaps": "cd x&&docket version",
+	} {
+		if got := docketCommandLines(line + "\n"); len(got) != 1 {
+			t.Errorf("%s: %q was not recognised as a docket command (got %q)", name, line, got)
+		}
+	}
+	for name, line := range map[string]string{
+		"argument":          "echo docket",
+		"assignment value":  "VERSION=docket",
+		"longer word":       "docketx run",
+		"comment":           "# docket version",
+		"url path segment":  "curl https://x/docket/install.sh",
+		"quoted in echo":    "echo 'run docket version'",
+		"sudo other":        "sudo rm -f docket",
+		"assignment, other": "A=1 rm docket",
+	} {
+		if got := docketCommandLines(line + "\n"); len(got) != 0 {
+			t.Errorf("%s: %q was taken for a docket command", name, line)
+		}
+	}
+}
+
 func TestSubstitutePlaceholders(t *testing.T) {
 	out, err := substitutePlaceholders("cd <repo>\n", map[string]string{"repo": "/r"})
 	if err != nil || out != "cd /r\n" {

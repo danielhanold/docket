@@ -3,7 +3,8 @@
 This guide moves a Bash docket install, and the repositories it manages, to the docket binary.
 
 An automated test runs every marked step below against saved copies of real `v0.9.2` and `v0.9.3`
-installs. When something is outside that test, the guide says so.
+installs. The exception is the download and checksum lines in section 3, which need the published
+release. When something is outside that test, the guide says so.
 
 ## 1. Who this is for
 
@@ -40,7 +41,8 @@ sh install.sh --harness claude
 ```
 
 The `shasum` line must print `install.sh: OK`. If it prints anything else, stop and do not run
-`install.sh`.
+`install.sh`. The download and checksum lines are checked by the release's own verification, not by
+this guide's test.
 
 The installer puts `docket` in `~/.local/bin`. Make sure that folder is on your `PATH`.
 
@@ -210,8 +212,8 @@ docket, the repository's `CLAUDE.md` has a docket block. It starts at a line beg
 `<!-- docket:dispatch:start` and ends at the `<!-- docket:dispatch:end -->` line. That block tells
 Claude to run Bash docket's `docket.sh`, which the upgraded repository no longer uses. Delete
 everything from the start line through the end line. If that leaves `CLAUDE.md` empty, delete the
-file. Then commit and push the change. If there is no such block, there is nothing to commit, so
-skip this.
+file. Then commit and push the change. If there is no such block, skip this step.
+There is nothing to commit, and `git commit` stops with an error.
 
 <!-- upgrade-step: dispatch-block -->
 ```sh
@@ -234,7 +236,7 @@ These are the Bash-era settings docket reports, in `.docket.yml` or in
 | `finalize.skip_results_only_delta` | Error when set to `true`. | Remove it, or set it to `false`. |
 | `auto_capture.enabled` | Error when set to `true`. | Remove it, or set it to `false`. |
 | `dummy_mode.enabled` | Error when set to `true`. | Remove it, or set it to `false`. |
-| `finalize.gate` | Error when set to `ci`. | Remove it, or set it to `local` or `off`. |
+| `finalize.gate` | Error when set to `ci` or `both`. The saved installs cover `ci` only. | Remove it, or set it to `local` or `off`. |
 | `board_surfaces` | Error when the list holds `github`. | Remove it, or remove `github` from the list. |
 | `skills.<role>` | Error. | Remove it. |
 | `agents.<harness>.<agent>.runner` | Error. | Remove it. |
