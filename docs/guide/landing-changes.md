@@ -67,7 +67,7 @@ id as the tiebreak — so each drain lands as many changes as it can before anyt
 A change whose finalize run stops for a human is marked with a `## Finalize blocked` section (dated in
 its body) and shows on the board as **finalize blocked — needs you**. The section is a note, not a
 lock: later runs still select the change and retry it, so a transient failure (a flaky test, a busy
-worktree, a moved base) heals on its own, and closeout removes the section once the change merges.
+worktree, a moved base) heals on its own, and closeout removes the section once the change merges. A block that needs a human halts each unscoped finalize run at that change, so fix it, or finalize other changes by naming their ids.
 To retry one change specifically, name its id: `/loop docket-finalize-change <id>`.
 
 Some blocks need a human hand before the retry will take. A rebase that conflicts, or a pull request

@@ -31,7 +31,7 @@ import (
 // through CLI argv against disposable bare-remote repositories with hermetically
 // isolated configuration. They prove the spec's "End-to-end and mutation tests"
 // section bullet-for-bullet: ordinary finalize to archive+cleanup in both
-// repository modes, conflict/repair/sign-off, response-loss convergence, the
+// repository modes, conflict/repair, response-loss convergence, the
 // stack outcomes, out-of-band merge recovery, halt/resume plus reclaim, the
 // deferred-capability refusal, and no dependence on a PATH `docket`.
 //
