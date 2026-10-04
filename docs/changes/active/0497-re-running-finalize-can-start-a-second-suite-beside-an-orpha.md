@@ -13,7 +13,7 @@ related: [490, 492, 493]
 discovered_from: [493]
 adrs: [132, 134, 135]
 spec: 'docs/superpowers/specs/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T09:02:58Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-design.md) |
+| Plan | [2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md](https://github.com/danielhanold/docket/blob/fix/re-running-finalize-can-start-a-second-suite-beside-an-orpha/docs/superpowers/plans/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) |
 | ADRs | [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md), [ADR-0134](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0134-a-dead-supervisor-s-suite-counts-as-gone-only-when-its-proce.md), [ADR-0135](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0135-gate-drives-never-relaunch-automatically.md) |
 <!-- docket:artifacts:end -->
 
