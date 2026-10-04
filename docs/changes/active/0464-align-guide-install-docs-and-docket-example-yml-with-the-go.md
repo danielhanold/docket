@@ -22,7 +22,7 @@ branch: 'docs/align-guide-install-docs-and-docket-example-yml-with-the-go'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T07:02:34Z'
+claimed_at: '2026-10-04T07:03:47Z'
 ---
 
 ## Artifacts
