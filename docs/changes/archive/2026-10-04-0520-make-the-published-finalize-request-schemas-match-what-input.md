@@ -2,7 +2,7 @@
 id: 520
 slug: 'make-the-published-finalize-request-schemas-match-what-input'
 title: 'Make every published request schema match the JSON file the operation reads'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'fix/make-the-published-finalize-request-schemas-match-what-input'
 pr: 'https://github.com/danielhanold/docket/pull/385'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T16:04:17Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T16:04:17Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md) |
-| Plan | [2026-10-04-make-the-published-finalize-request-schemas-match-what-input.md](https://github.com/danielhanold/docket/blob/fix/make-the-published-finalize-request-schemas-match-what-input/docs/superpowers/plans/2026-10-04-make-the-published-finalize-request-schemas-match-what-input.md) |
-| Results | [2026-10-04-make-the-published-finalize-request-schemas-match-what-input-results.md](https://github.com/danielhanold/docket/blob/fix/make-the-published-finalize-request-schemas-match-what-input/docs/results/2026-10-04-make-the-published-finalize-request-schemas-match-what-input-results.md) |
+| Plan | [2026-10-04-make-the-published-finalize-request-schemas-match-what-input.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-make-the-published-finalize-request-schemas-match-what-input.md) |
+| Results | [2026-10-04-make-the-published-finalize-request-schemas-match-what-input-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-make-the-published-finalize-request-schemas-match-what-input-results.md) |
 | ADRs | [ADR-0109](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md), [ADR-0138](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0138-a-published-request-schema-is-exactly-the-json-file-an-opera.md) |
 <!-- docket:artifacts:end -->
 
