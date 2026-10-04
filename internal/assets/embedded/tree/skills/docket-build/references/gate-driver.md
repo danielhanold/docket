@@ -4,9 +4,10 @@ This reference is the **caller-side contract for driving the native gate**: the 
 operations a caller invokes, the disposition vocabulary those operations return, and the ownership
 handoff a departing caller must perform.
 
-Its direct callers are the build controller's full-suite gate (every counted attempt) and
-implement-next's evidence re-mint and re-gates. Finalize's local gate reaches the same driver only
-through the `finalize.rebase` operation, never a direct `gate.drive` call. A build-task worker is never a caller: it
+Its direct callers are the build controller's full-suite gate (every counted attempt),
+implement-next's evidence re-mint and re-gates, and finalize's re-gate of a repaired head.
+Finalize's post-rebase gate reaches the same driver only through the `finalize.rebase` operation,
+never a direct `gate.drive` call. A build-task worker is never a caller: it
 runs its focused tests directly under a fixed time limit. A caller makes **short, slice-bounded,
 synchronous** calls to the native gate **driver**, which composes the raw supervisor,
 persists one deadline and one execution identity, and returns one of four typed dispositions per
@@ -24,7 +25,7 @@ copy):
 
 | Operation | What it does |
 |---|---|
-| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. A build or implement-next caller passes `--repo-dir <worktree> --owner build --change-id <id> --run-root <dir> --json` (`--change-id` charges `build.max_attempts` and lets the run tracker match the drive), plus `--run-context <token>` when its prompt carried it; `--owner build` resolves the build-owned suite command from config, so the caller passes no suite argv. |
+| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. A build or implement-next caller passes `--repo-dir <worktree> --owner build --change-id <id> --run-root <dir> --json` (`--change-id` charges `build.max_attempts` and lets the run tracker match the drive), plus `--run-context <token>` when its prompt carried it; `--owner build` resolves the build-owned suite command from config, so the caller passes no suite argv. Finalize's repaired-head re-gate passes `--owner finalize` instead, which resolves `finalize.test_command` and charges no build attempt. |
 | `advance` | Resume the current attempt of a drive (by opaque drive id + owner generation) through one more slice. |
 | `handoff` | Prove current ownership, revalidate repository + process identity, invalidate the current owner, and mint a **single-use** handoff token — the only way a departing owner transfers a live drive. |
 | `claim` | Recompute identity, consume a handoff token (conflict-checked), and return a **fresh** owner generation the claimant advances with. |
@@ -73,7 +74,7 @@ Every successful `start` or `advance` returns exactly one of four dispositions. 
 |---|---|---|
 | `WAITING` | The same drive is live and safe to continue, but this slice ended. | The current owner `advance`s again, or `handoff`s before it returns. |
 | `PASSED` | The suite completed green against the recorded execution identity. | Consume the raw run dir the document exposes for evidence. |
-| `FAILED` | The suite itself completed red and produced a trustworthy terminal record. | Enter the existing repair policy, bounded by the build phase's configured suite-attempt budget (`build.max_attempts`). |
+| `FAILED` | The suite itself completed red and produced a trustworthy terminal record. | Enter the existing repair policy, bounded by the build phase's configured suite-attempt budget (`build.max_attempts`), or for finalize's re-gate by `finalize.repair_max_attempts`. |
 | `HALTED` | Safe automatic continuation is impossible — a changed worktree, uncertain ownership, deadline expiry, malformed state, or an unadmitted death. | Stop automation, retain diagnostics, surface the typed cause. |
 
 - **`WAITING` is the only nonterminal disposition, and it is not permission to replace an agent.** A

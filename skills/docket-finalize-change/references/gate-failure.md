@@ -39,9 +39,15 @@ effect. Report bodies are redaction-only, never echoed into a result document.
 2. **The repair agent** root-causes the red rebased suite, authors a **bounded** minimal fix within
    the configured `finalize.repair_max_attempts` budget (default 6, the initial attempt included), commits it on the feature branch, and returns a report naming its **claimed
    commits** and `repaired` | `stuck`; it never weakens a test, runs the rebase, or merges or
-   transitions metadata. The controller re-runs the gate on the repaired head via
-   `gate.launch`/`observe` and records the exact-head evidence via `evidence.record` — a `stuck`
-   repair, or a repair that cannot reach green within that budget, is `halted`.
+   transitions metadata. The controller re-gates the repaired head through the gate driver: the
+   `gate.drive.start` operation with `--repo-dir <feature worktree> --owner finalize --change-id
+   <id> --run-root <dir> --json` (response captured into `gate_reply`), then the
+   `gate.drive.advance` operation with `--drive-id <id> --owner-gen <gen>` one slice per call until
+   a terminal disposition, under `docket-build`'s gate-run posture. The `--owner finalize` drive
+   runs `finalize.test_command` and charges no build attempt. A `PASSED` drive whose head equals
+   the repaired head feeds the `evidence.record` operation with `--id <id> --run <raw run dir from
+   the PASSED document> --head <repaired head>`; `FAILED` returns to repair within that budget;
+   `HALTED`, a `stuck` repair, or a repair that cannot reach green within that budget is `halted`.
 
 ## Sign-off on auto-authored repairs
 
