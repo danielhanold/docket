@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/remove-stale-auto-groom-comments-and-fix-testskillhandoffsit'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T15:01:44Z'
+reconciled: true
+claimed_at: '2026-10-04T15:03:28Z'
 ---
 
 ## Artifacts
@@ -46,3 +46,9 @@ Make `TestSkillHandoffSites` read a negation by its shape instead of requiring a
 ## Out of scope
 
 Any behavior change to auto-groom selection. The `auto_groom` row in the config schema (a deferred setting) stays as it is. 0502's skill wording ("when the `docket-review` skill is missing") stays as written. The frozen fixture `internal/render/testdata/records/PROVENANCE.md`, which names deleted templates, stays as written.
+
+## Reconcile log
+
+### 2026-10-04
+
+Reconciled against origin/main fc719ac6d. The three stale `auto_groom` comments are still present exactly as the spec names them (`internal/domain/entities.go` field comment and `AutoGroomable()` doc comment, `internal/app/change_create.go` request-field comment); a whole-repo grep found no other maintained site (remaining hits are frozen plans/results). `negatedInvokeRe` in `internal/repoguard/skill_handoff_sites_test.go` is unchanged from the spec's quoted pattern. Scope stands as written; no relation changes.
