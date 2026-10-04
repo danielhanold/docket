@@ -21,12 +21,11 @@ import (
 // tests (change 0370, Task 6); this guard owns the population correspondence.
 
 // ---------------------------------------------------------------------------
-// scripts/<name>.sh <-> scripts/<name>.md coverage (top level and runners/)
+// scripts/<name>.sh <-> scripts/<name>.md coverage (top level)
 // ---------------------------------------------------------------------------
 
 var (
-	scriptTop     = regexp.MustCompile(`^scripts/([^/]+)\.(sh|md)$`)
-	scriptRunners = regexp.MustCompile(`^scripts/runners/([^/]+)\.(sh|md)$`)
+	scriptTop = regexp.MustCompile(`^scripts/([^/]+)\.(sh|md)$`)
 )
 
 // pairCoverage returns the orphans in a name->{sh,md} presence map: a base with
@@ -53,7 +52,6 @@ func pairCoverage(dir string, present map[string]map[string]bool) []string {
 func TestScriptContractsCoverage(t *testing.T) {
 	root := guardRoot(t)
 	top := map[string]map[string]bool{}
-	runners := map[string]map[string]bool{}
 	scanned := 0
 	for _, rel := range maintainedPop(t, root) {
 		if m := scriptTop.FindStringSubmatch(rel); m != nil {
@@ -62,25 +60,15 @@ func TestScriptContractsCoverage(t *testing.T) {
 			}
 			top[m[1]][m[2]] = true
 			scanned++
-			continue
-		}
-		if m := scriptRunners.FindStringSubmatch(rel); m != nil {
-			if runners[m[1]] == nil {
-				runners[m[1]] = map[string]bool{}
-			}
-			runners[m[1]][m[2]] = true
-			scanned++
 		}
 	}
-	// Population floor: the runners generator products survive change 0370, so at
-	// least a few pairs are always present; a collapse to near-zero means the scan
-	// stopped reaching scripts/.
-	if scanned < 4 {
-		t.Fatalf("population floor: only %d scripts/*.{sh,md} scanned (expected >= 4)", scanned)
+	// Population floor: scripts/release-smoke.{sh,md} is the surviving pair; a
+	// collapse below it means the scan stopped reaching scripts/.
+	if scanned < 2 {
+		t.Fatalf("population floor: only %d scripts/*.{sh,md} scanned (expected >= 2)", scanned)
 	}
 	var orphans []string
 	orphans = append(orphans, pairCoverage("scripts", top)...)
-	orphans = append(orphans, pairCoverage("scripts/runners", runners)...)
 	if len(orphans) != 0 {
 		t.Errorf("script<->contract coverage gaps:\n%s", strings.Join(orphans, "\n"))
 	}
