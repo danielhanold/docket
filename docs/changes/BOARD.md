@@ -1,6 +1,6 @@
 # Backlog
 
-**501 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 345 done · 🗑️ 134 killed
+**502 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 7 proposed · ⚪ 12 deferred · ✅ 345 done · 🗑️ 134 killed
 
 ## 🟢 In progress (1)
 
@@ -16,10 +16,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (6)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | ⏳ waiting on #464 — not yet built |
 | [0497](active/0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | `medium` | `fix` | needs-grooming |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
@@ -69,6 +70,7 @@ graph TD
   0464
   0497
   0501
+  0464 --> 0502
   0192:::done
   0251:::done
   0370:::done
