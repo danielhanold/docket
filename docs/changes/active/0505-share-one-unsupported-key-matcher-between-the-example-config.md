@@ -13,7 +13,7 @@ related: [464]
 discovered_from: [464]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T10:47:21Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) |
+| Plan | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md](https://github.com/danielhanold/docket/blob/refactor/share-one-unsupported-key-matcher-between-the-example-config/docs/superpowers/plans/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
