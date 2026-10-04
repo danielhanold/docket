@@ -1116,6 +1116,16 @@ var alignmentContracts = []proseContract{
 	{sentinel: "align_0502_review_gate_off", file: "skills/docket-implement-next/SKILL.md",
 		present: []string{"the resolved `build.gate` value"},
 		absent:  []string{"build_gate: off"}},
+	// 0502 bug 3: a repaired head is re-gated through the driver, never raw verbs.
+	{sentinel: "align_0502_finalize_regate", file: "skills/docket-finalize-change/SKILL.md",
+		present: []string{"`--owner finalize`", "`gate.drive.advance`"},
+		absent:  []string{"`gate.launch` with `--root"}},
+	{sentinel: "align_0502_finalize_regate", file: "skills/docket-finalize-change/references/gate-failure.md",
+		present: []string{"`--owner finalize`"},
+		absent:  []string{"`gate.launch`/`observe` and records"}},
+	{sentinel: "align_0502_finalize_regate", file: "agents/docket-integration-repair.md",
+		present: []string{"gate driver"},
+		absent:  []string{"`gate.launch`/`observe` operations"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {
