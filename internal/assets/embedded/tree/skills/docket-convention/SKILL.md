@@ -301,18 +301,10 @@ A stub is **auto-groomable** — selectable by `docket-auto-groom` — when it i
 
 **Interactive selection bands.** `docket-groom-next` still sees every needs-grooming stub, but its default order prefers stubs that need a human: (1) abstained (`## Auto-groom blocked` present), (2) effective `auto_groomable: false`, (3) effective auto-groomable — flagged "docket-auto-groom will handle it unless you want it now." Within each band, the deterministic selection order applies. The board renders abstained stubs as **auto-groom blocked — needs you**, distinct from plain needs-grooming.
 
-### Discovered work (auto-capture deferred)
-
-`auto_capture` (a map: `enabled` default `false`, `types` default `all`; global-able — resolved as
-`AUTO_CAPTURE_ENABLED` / `AUTO_CAPTURE_TYPES`) remains a **parseable configuration key and activates
-nothing**. automatic change capture is deferred from Go v1 — capture work deliberately with
-`docket change create`.
+### Discovered work
 
 Work an autonomous skill discovers mid-run is **reported in the run's final report, never silently
-minted or discarded** — a human captures reported work deliberately with `docket change create`. An
-explicit request to capture, or an enabled `auto_capture` key, must be answered with this diagnostic
-**before any mutation** — never by invoking the frozen Bash scripts, and reinstalling will not make a
-missing verb appear.
+minted or discarded** — a human captures reported work deliberately with `docket change create`.
 
 ### Learnings ledger
 

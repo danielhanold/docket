@@ -186,8 +186,8 @@ disposition.
 - **The build gate has no command** — `build_gate` is `local` but `build_test_command` is empty. A
   configuration gap, not a red suite. Remedy: `docket repository configure-tests`. Never convert this
   into a repair task.
-- **The observation budget is exhausted with no terminal gate result** — `GATE_OBSERVATION_BUDGET`
-  ran out and no durable result artifact reports a terminal state. Fail closed: an unfinished run is
+- **The driver's observation budget is exhausted with no terminal gate result** — the gate driver
+  spent its budget and no durable result artifact reports a terminal state. Fail closed: an unfinished run is
   not a failing suite, so never convert this into a repair task and never infer success.
 - **The suite-attempt budget is exhausted and the suite is still red** — the last permitted
   full-suite run failed, or `gate.drive.start` refuses with `suite-attempts-exhausted`; there is no
@@ -293,8 +293,8 @@ define the maximum duration of the build gate.
    then make short observations of that artifact. A build role running as a **dispatched or forked
    child** has no such channel, so it may **never** yield: it observes by *blocking* instead —
    repeated short foreground reads of the artifact, control never handed back to its caller mid-gate.
-5. Observation is **bounded** by a finite budget — never wait indefinitely. That budget is
-   `GATE_OBSERVATION_BUDGET` (default 30, in minutes) from the startup-check config export: docket
+5. Observation is **bounded** by a finite budget — never wait indefinitely. The gate driver enforces
+   that budget itself and fails closed when it is spent; no skill reads or passes it. It is docket
    execution policy, distinct from any foreground-call timeout a particular harness imposes. The
    observation interval is an implementation detail; what the contract requires is that each
    observation is short-lived and the whole period finite. A budget of `0` is legal and is not a
@@ -366,30 +366,20 @@ single independent whole-branch review remains `docket-implement-next` Step 6's 
 
 ## Checkpointing
 
-Read `BUILD_CHECKPOINT` from the startup-check config export.
-
-**`false` (default)** — persist nothing. Completed work is durable through the per-task code
-commits; keep only the compact in-context worker returns; write no `.superpowers/docket-build/`
-files. A resumed run reconstructs progress conservatively from the plan, commits, code, and tests.
+Persist nothing. Completed work is durable through the per-task code commits; keep only the compact
+in-context worker returns. A resumed run reconstructs progress conservatively from the plan,
+commits, code, and tests.
 
 **Plan checkboxes are not progress state.** Nobody ticks a plan's `- [ ]` boxes — not you, not a
 worker — so a half-ticked plan means nothing; a resumed run reads commits, code, and tests, never
 checkbox marks. Treating a checkbox as evidence of a finished task is a misread docket has been
 burned by.
 
-**`true`** — write a compact ledger to `.superpowers/docket-build/<change-id>/progress.md` (covered
-by the committed `.superpowers/` ignore rule) recording branch, plan path and blob hash, task
-identity and status, tier and reason, escalation, TDD evidence or exception, verification, and
-commit SHA. It is a state ledger, not a prose task report. On resume, skip a task **only** when its
-ledger entry is `COMPLETE`, the plan hash still matches, and its commit is an **ancestor** of the
-current branch — missing, stale, malformed, or contradictory state never marks a task complete.
-
 ## Output
 
 Emit concise, stable lines and nothing more: task-to-tier selection and reason; escalation and
 reason; worker outcome and commit; focused verification; full-suite command and result; the
 build-evidence record on green; the terminal build disposition (**role-scoped** — a build
-disposition, never a run disposition). Write no verbose task artifact unless `BUILD_CHECKPOINT` is
-`true`; material TDD exceptions, residual risks, and worker-surfaced findings flow to the
-coordinator's results artifact (and the PR description where evidence belongs), not into per-task
+disposition, never a run disposition). Write no verbose task artifact; material TDD exceptions,
+residual risks, and worker-surfaced findings flow to the coordinator's results artifact (and the PR description where evidence belongs), not into per-task
 files.

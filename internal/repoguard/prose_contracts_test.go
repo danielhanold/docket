@@ -1052,6 +1052,18 @@ var alignmentContracts = []proseContract{
 		absent: []string{"skip_results_only_delta"}},
 	{sentinel: "align_0502_config_contract", file: "skills/docket-convention/references/agent-layer.md",
 		absent: []string{"agents.yaml"}},
+	// 0502: no skill reads a value the prepared context does not carry.
+	{sentinel: "align_0502_no_phantom_exports", file: "skills/docket-convention/SKILL.md",
+		present: []string{"reported in the run's final report"},
+		absent:  []string{"AUTO_CAPTURE", "auto-capture deferred"}},
+	{sentinel: "align_0502_no_phantom_exports", file: "skills/docket-build/SKILL.md",
+		absent: []string{"GATE_OBSERVATION_BUDGET", "BUILD_CHECKPOINT"}},
+	{sentinel: "align_0502_no_phantom_exports", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{"`review.min_fix_severity`"},
+		absent:  []string{"REVIEW_MIN_FIX_SEVERITY", "REVIEW_MAX_FIX_TASKS"}},
+	{sentinel: "align_0502_no_phantom_exports", file: "skills/docket-implement-next/references/fix-pass.md",
+		present: []string{"`diagnostic.config`"},
+		absent:  []string{"REVIEW_MIN_FIX_SEVERITY", "REVIEW_MAX_FIX_TASKS"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {

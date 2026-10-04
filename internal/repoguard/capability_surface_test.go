@@ -89,7 +89,7 @@ var capabilityExemptions = map[string]int{
 	// in docket-new-change were migrated to the `change.create` catalog operation, so
 	// this pin certifies human prose only — a rise here means an executable spelling
 	// was laundered back in, not that the number is stale.
-	"docket change create": 5,
+	"docket change create": 4, // 0502: the convention's auto-capture paragraph is deleted
 }
 
 // capabilitySurfaceRemedy is the substantive check the guard's failures lead with,
