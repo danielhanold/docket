@@ -2,7 +2,7 @@
 id: 498
 slug: 'results-file-puts-the-whole-branch-review-under-human-action'
 title: 'Results file puts the whole-branch review under Human actions and testing'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-03'
@@ -22,7 +22,7 @@ branch: 'fix/results-file-puts-the-whole-branch-review-under-human-action'
 pr: 'https://github.com/danielhanold/docket/pull/374'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T06:19:05Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T06:19:05Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-design.md) |
-| Plan | [2026-10-04-results-file-puts-the-whole-branch-review-under-human-action.md](https://github.com/danielhanold/docket/blob/fix/results-file-puts-the-whole-branch-review-under-human-action/docs/superpowers/plans/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action.md) |
-| Results | [2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-results.md](https://github.com/danielhanold/docket/blob/fix/results-file-puts-the-whole-branch-review-under-human-action/docs/results/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-results.md) |
+| Plan | [2026-10-04-results-file-puts-the-whole-branch-review-under-human-action.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action.md) |
+| Results | [2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
