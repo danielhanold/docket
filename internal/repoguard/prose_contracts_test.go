@@ -822,6 +822,117 @@ func TestResultsReviewPlacementDocContracts(t *testing.T) {
 	})
 }
 
+// change 0510 — at final consolidation implement-next matches every reported
+// out-of-scope follow-up against the backlog's proposed and deferred changes
+// and records one verdict plus a state-matched next action, in the results file
+// and the final report. Present clauses bind each claim inside its section and
+// are matched whitespace-collapsed (phrase-grep-over-wrapped-prose,
+// prose-guard-binds-phrase-to-claim). Absent clauses are the retired
+// "link an existing change when one is known" family, so restoring the old
+// wording reddens (assert-detects-removal-not-replacement). Mutation-tested at
+// introduction.
+var followUpBacklogMatchDocContracts = []docSectionContract{
+	{change: "change_0510_step65_backlog_match", file: "skills/docket-implement-next/SKILL.md",
+		section: "### Step 6.5 — Results (required)", terminator: "### Step 7 — PR + stop",
+		present: []string{
+			"final consolidation checks each against the backlog and names any match",
+			"**Backlog match.** Once, at checkpoint (iv) final consolidation",
+			"an in-scope limitation or a verification-coverage note gets no verdict",
+			"keep the changes whose `status` is `proposed` or `deferred`, excluding this change",
+			"For **every** candidate, not only those with similar titles, read the `## Why` and `## What changes` sections",
+			"**Fits #N**",
+			"**Related to #N**",
+			"**No existing change fits (checked K)**",
+			"The final report's follow-up list carries the same verdict per item",
+			"The match only recommends: it never edits, creates, revives, defers, or kills any change",
+			"never halt, retry in a loop, or block the implemented transition on it",
+		},
+		absent: []string{"link an existing change when one is known"}},
+	{change: "change_0510_step3_verdict_pointer", file: "skills/docket-implement-next/SKILL.md",
+		section: "### Step 3 — Reconcile ⭐", terminator: "### Step 4 — Worktree + plan",
+		present: []string{
+			"so nothing is minted",
+			"guided by the backlog verdict final consolidation attaches (Step 6.5 *Backlog match*)",
+		}},
+	{change: "change_0510_step6_verdict_pointer", file: "skills/docket-implement-next/SKILL.md",
+		section: "### Step 6 — Review + ADRs", terminator: "### Step 6.5 — Results (required)",
+		present: []string{
+			"reported as follow-up work in the final report, carrying the backlog verdict final consolidation attaches",
+		}},
+	{change: "change_0510_final_report_verdict", file: "skills/docket-implement-next/SKILL.md",
+		section: "### Terminal disposition (driver contract)", terminator: "### Atomic board rendering",
+		present: []string{
+			"any follow-up work **reported for deliberate capture**, each with its backlog verdict (Step 6.5 *Backlog match*)",
+		}},
+}
+
+// docFileClauseContract pins clauses that live in a file's LAST section, which
+// has no closing heading for scanDocSection to key on. The file itself is the
+// section, so present and absent are both matched file-wide, whitespace-collapsed.
+type docFileClauseContract struct {
+	change  string
+	file    string   // slash path relative to repo root
+	present []string // clauses required anywhere in the file
+	absent  []string // retired clauses that must appear nowhere in the file
+}
+
+var followUpBacklogMatchFileClauses = []docFileClauseContract{}
+
+// followUpBacklogMatchFloor is the population floor over both tables: a
+// collapse means rows were lost or the tables were gutted.
+const followUpBacklogMatchFloor = 14
+
+func TestFollowUpBacklogMatchDocContracts(t *testing.T) {
+	root := guardRoot(t)
+
+	checks := 0
+	for _, c := range followUpBacklogMatchDocContracts {
+		checks += len(c.present) + len(c.absent)
+	}
+	for _, c := range followUpBacklogMatchFileClauses {
+		checks += len(c.present) + len(c.absent)
+	}
+	if checks < followUpBacklogMatchFloor {
+		t.Fatalf("population floor: only %d backlog-match doc clauses (expected >= %d)", checks, followUpBacklogMatchFloor)
+	}
+
+	cache := map[string]string{}
+	read := func(rel, change string) string {
+		if s, ok := cache[rel]; ok {
+			return s
+		}
+		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatalf("read contract file %s (%s): %v (fail closed)", rel, change, err)
+		}
+		cache[rel] = string(b)
+		return cache[rel]
+	}
+
+	var violations []string
+	for _, c := range followUpBacklogMatchDocContracts {
+		for _, msg := range scanDocSection(read(c.file, c.change), c) {
+			violations = append(violations, fmt.Sprintf("[%s] %s", c.change, msg))
+		}
+	}
+	for _, c := range followUpBacklogMatchFileClauses {
+		whole := collapseWS(read(c.file, c.change))
+		for _, p := range c.present {
+			if !strings.Contains(whole, collapseWS(p)) {
+				violations = append(violations, fmt.Sprintf("[%s] %s: missing required clause %q", c.change, c.file, p))
+			}
+		}
+		for _, a := range c.absent {
+			if strings.Contains(whole, collapseWS(a)) {
+				violations = append(violations, fmt.Sprintf("[%s] %s: retired clause is present: %q", c.change, c.file, a))
+			}
+		}
+	}
+	if len(violations) != 0 {
+		t.Errorf("backlog-match doc-contract violations (%d):\n%s", len(violations), strings.Join(violations, "\n"))
+	}
+}
+
 // change 0488 — build-task workers run every test directly under a fixed
 // 10-minute GNU timeout, read the result from the exit status, and report each
 // command exactly as run; the build controller's time-limit audit reports a
