@@ -2,7 +2,7 @@
 id: 504
 slug: 'guard-two-unproven-invariants-the-testdata-ignore-negation-a'
 title: 'Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/377'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T08:53:27Z'

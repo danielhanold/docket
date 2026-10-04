@@ -1,13 +1,18 @@
 # Backlog
 
-**506 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 347 done · 🗑️ 136 killed
+**506 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 347 done · 🗑️ 136 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0504](active/0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | `medium` | `chore` | [spec](../superpowers/specs/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md) | `chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a` |  |
 | [0497](active/0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-design.md) | `fix/re-running-finalize-can-start-a-second-suite-beside-an-orpha` |  |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0504](active/0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | `medium` | `chore` | [#377](https://github.com/danielhanold/docket/pull/377) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
