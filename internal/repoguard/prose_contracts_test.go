@@ -1134,7 +1134,34 @@ var alignmentContracts = []proseContract{
 	{sentinel: "align_0502_signoff", file: "skills/docket-finalize-change/references/gate-failure.md",
 		present: []string{"signs off by running the `finalize.clear-block` operation"},
 		absent:  []string{"the retry clears the"}},
+	// 0502: one metadata layout — the docket branch and the .docket/ worktree;
+	// no metadata_branch key, no docket-mode / repo-mode split.
+	{sentinel: "align_0502_one_layout", file: "skills/docket-adr/SKILL.md",
+		absent: oneLayoutAbsent},
+	{sentinel: "align_0502_one_layout", file: "skills/docket-auto-groom/SKILL.md",
+		absent: oneLayoutAbsent},
+	{sentinel: "align_0502_one_layout", file: "skills/docket-convention/SKILL.md",
+		absent: oneLayoutAbsent},
+	{sentinel: "align_0502_one_layout", file: "skills/docket-convention/references/close-out.md",
+		absent: oneLayoutAbsent},
+	{sentinel: "align_0502_one_layout", file: "skills/docket-convention/references/learnings.md",
+		absent: oneLayoutAbsent},
+	{sentinel: "align_0502_one_layout", file: "skills/docket-finalize-change/SKILL.md",
+		absent: oneLayoutAbsent},
+	{sentinel: "align_0502_one_layout", file: "skills/docket-groom-next/SKILL.md",
+		absent: oneLayoutAbsent},
+	{sentinel: "align_0502_one_layout", file: "skills/docket-implement-next/SKILL.md",
+		absent: oneLayoutAbsent},
+	{sentinel: "align_0502_one_layout", file: "skills/docket-implement-next/references/edge-paths.md",
+		absent: oneLayoutAbsent},
+	{sentinel: "align_0502_one_layout", file: "skills/docket-new-change/SKILL.md",
+		absent: oneLayoutAbsent},
+	{sentinel: "align_0502_one_layout", file: "skills/docket-status/SKILL.md",
+		absent: oneLayoutAbsent},
 }
+
+// oneLayoutAbsent are the retired metadata-layout spellings.
+var oneLayoutAbsent = []string{"metadata_branch", "docket-mode", "repo-mode", "`docket`-mode"}
 
 func TestAlignmentContracts(t *testing.T) {
 	root := guardRoot(t)

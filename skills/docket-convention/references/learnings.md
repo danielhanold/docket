@@ -52,7 +52,7 @@ act. Zero findings is normal; kills are not recorded.
 
 Tiering criterion: *"will the agent know to search for this?"* A rule that must fire
 **unprompted** graduates; a war story stays in retrieval. A candidate carries
-`promotion_state: candidate` on `metadata_branch` and **never touches the integration branch**
+`promotion_state: candidate` on the `docket` branch and **never touches the integration branch**
 (ADR-0005). A human lands the graduation in the integration-branch agent-instructions file
 (`AGENTS.md`/`CLAUDE.md`, symlink-aware; `AGENTS.md` is the neutral spelling when neither
 exists) and flips `promoted` + `promoted_to:`. A promoted finding leaves the topic groups for a
