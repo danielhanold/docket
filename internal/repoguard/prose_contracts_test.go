@@ -1152,17 +1152,28 @@ var alignmentContracts = []proseContract{
 	{sentinel: "align_0517_finalize_evidence_owner", file: "skills/docket-implement-next/SKILL.md",
 		present: []string{"the gate command from the build configuration"},
 		absent:  []string{"reads the observed gate command and outcome from the run directory"}},
-	// 0502 bug 4: a relayed sign-off is not authority; the human runs
-	// finalize.clear-block on the published repaired head, then re-runs finalize.
-	{sentinel: "align_0502_signoff", file: "skills/docket-finalize-change/SKILL.md",
-		present: []string{"`finalize.clear-block`", "First record the sign-off requirement durably",
-			"Then publish the repaired head"},
-		absent: []string{"the human reviews the pushed repair on the PR and re-runs finalize",
-			"First publish the repaired head"}},
-	{sentinel: "align_0502_signoff", file: "skills/docket-finalize-change/references/gate-failure.md",
-		present: []string{"signs off by running the `finalize.clear-block` operation",
-			"It first records the sign-off requirement durably", "It then publishes the repaired head"},
-		absent: []string{"the retry clears the", "It first publishes the repaired head"}},
+	// 0515: finalize adds no human gate of its own — a repair that turns the
+	// rebased suite green publishes and merges, named in the run report and the
+	// closeout notes; the retired sign-off token, its block/clear-block ritual,
+	// and the never-wired finalize-blocked skip are gone from the agent surfaces.
+	{sentinel: "align_0515_green_repair_merges", file: "skills/docket-finalize-change/SKILL.md",
+		present: []string{"A repair that turns the rebased suite green publishes and merges like any other green change",
+			"one `late_findings` entry naming what broke"},
+		absent: []string{"repair-needs-signoff", "First record the sign-off requirement durably",
+			"`finalize-blocked`"}},
+	{sentinel: "align_0515_green_repair_merges", file: "skills/docket-finalize-change/references/gate-failure.md",
+		present: []string{"A repair that turns the rebased suite green publishes and merges like any other green change",
+			"Dismiss stale pull request approvals when new commits are pushed"},
+		absent: []string{"repair-needs-signoff", "It first records the sign-off requirement durably",
+			"Auto-detect selection skips"}},
+	{sentinel: "align_0515_green_repair_merges", file: "agents/docket-integration-repair.md",
+		present: []string{"when the suite is green, publishes and merges it"},
+		absent:  []string{"repair-needs-signoff", "must never merge unseen"}},
+	{sentinel: "align_0515_green_repair_merges", file: "agents/docket-rebase-resolver.md",
+		absent: []string{"repair sign-off"}},
+	{sentinel: "align_0515_green_repair_merges", file: "skills/docket-convention/SKILL.md",
+		present: []string{"never stops finalize selection or merge"},
+		absent:  []string{"makes later **auto-detect** finalize runs skip the change"}},
 	// 0502: one metadata layout — the docket branch and the .docket/ worktree;
 	// no metadata_branch key, no docket-mode / repo-mode split.
 	{sentinel: "align_0502_one_layout", file: "skills/docket-adr/SKILL.md",

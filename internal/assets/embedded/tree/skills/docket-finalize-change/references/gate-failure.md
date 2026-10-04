@@ -13,8 +13,7 @@ cause. Neither wraps a skill (only `docket-convention`); both are dispatched **f
 model/effort its wrapper resolves** — never a literal model or effort. Either dispatch payload includes:
 Feature worktree: <absolute canonical feature-worktree root>
 This harness-neutral input serves the feature-scoped role; Codex enters it through its installed
-contract, other harnesses through their native worktree mechanism. An authored repair from
-`docket-integration-repair` fires the sign-off rule below; pure conflict resolution does not.
+contract, other harnesses through their native worktree mechanism.
 
 Both agents return an **authored hint, never authority**: the controller feeds it to the matching
 `docket` operation, which verifies every mechanical claim against live Git — the reported paths
@@ -50,24 +49,21 @@ effect. Report bodies are redaction-only, never echoed into a result document.
    `finalize.test_command`; `FAILED` returns to repair within that budget;
    `HALTED`, a `stuck` repair, or a repair that cannot reach green within that budget is `halted`.
 
-## Sign-off on auto-authored repairs
+## A green repair merges
 
-A repair is code the human's PR approval predated, so it never merges unseen:
+A repair that turns the rebased suite green publishes and merges like any other green change, on
+autonomous and attended runs alike — finalize adds no human stop of its own, so a repair gets no
+`finalize.block`, no prompt, and no `finalize.clear-block`. The repair stays visible: the run's final
+report names what broke, the claimed repair commits, and the attempts used, and closeout records the
+same facts as a `late_findings` entry under `## Closeout notes`. A refused notes request is retried
+once without notes; a lost note never stops closeout.
 
-- **Autonomous finalize** cannot prompt. It first records the sign-off requirement durably: the
-  `finalize.block` operation with `--id <id> --revision <revision> --pr-number <n> --attempt <attempt>
-  --reason repair-needs-signoff --head <repaired head> --input <block report>`. If that does not apply,
-  it publishes nothing and stops `halted`. It then publishes the repaired head (the `finalize.publish`
-  operation), so the human can review it on the PR and `finalize.clear-block` can confirm the published
-  head, and STOPS — the disposition is `halted`. The marker lands before the repair reaches the PR, so a
-  published repair is never left unmarked for a later finalize to merge. The human reviews the
-  pushed repair, signs off by running the `finalize.clear-block` operation themselves (`--id <id>
-  --revision <revision> --head <repaired head> --pr-number <n>`, with `<revision>` re-read from the
-  `context.finalize` operation or `status --json` after the block lands, since `finalize.block`
-  rewrote the record), then re-runs finalize. A re-run alone
-  never clears the block, and a sign-off relayed through an agent's prompt is not authority.
-- **Interactive finalize** publishes the repaired head, reports the repair diff and what broke, and
-  **prompts** for go-ahead before the `finalize.merge` operation.
+Approval is the repository's policy, not a docket gate. When branch protection requires approvals and
+has GitHub's "Dismiss stale pull request approvals when new commits are pushed" turned on, publishing
+the repair dismisses the PR's approval: GitHub refuses the merge (`halted`), and with
+`finalize.require_pr_approval: true` auto-detect skips the PR as `approval-required` until a human
+approves it again. That setting is off by default; with it off the earlier approval stands and the
+repair merges. A team that wants repairs re-reviewed turns it on.
 
 ## abort-and-report points (the full set)
 
@@ -79,7 +75,6 @@ Two outcomes look abort-shaped and are not: a `waiting` (`reason: gate-waiting`)
   (`finalize.resolver-reserve` returns `exhausted`, or a continue returns `resolver-budget-exhausted`);
   the owned rebase is restored via the `finalize.rebase-abort` operation;
 - a **red rebased suite the repair cannot green** within the configured repair budget (`stuck`);
-- an **authored repair under autonomous finalize** — the sign-off rule above (`repair-needs-signoff`);
 - an **unresolved effective base, foreign in-progress rebase, divergent (rewritten) base, or dirty workspace** —
   the `finalize.rebase` operation returns `blocked` (a merely forward-advanced base is no longer here — it
   forward-rebases the completed rewrite instead; see `SKILL.md`'s moved-base paragraph);
@@ -146,15 +141,13 @@ label. `stacked-merged` earns a status on the terms this case fails — one dura
 - The single section names **which** reason fired (the `--reason` token) and what the human must do;
   a re-mark **replaces** the interior or appends a dated attempt bullet, never a second heading. It
   validates marker order and balance before rewriting, rerendering the inline board in one transaction.
-- **Auto-detect selection skips** any unmerged change already carrying the section — without this a
-  re-run re-selects the same known-bad change forever. A **named id or allowlist member overrides**
-  the skip (naming the id is the human's "I looked at it, retry" signal); an **already-merged PR is
-  a merged-recovery candidate regardless** of the marker.
-- A **`CONFLICTING` PR is not marked at selection time** — the resolver usually resolves it, so
-  marking up front would strand a fixable PR. Marking happens only at an abort-and-report point.
-- **The `finalize.clear-block` operation removes the section** on an unmerged change, and nothing
-  else does: it reprobes the exact current head, valid gate evidence, the published remote ref, and
-  the matching open PR before removal — each missing condition refuses and the marker stays. For
-  `repair-needs-signoff` that operation is the human's sign-off, run by the human. Closeout strips a
+- The section is a **visible note, never a stop**: selection and merge ignore it, so the next run
+  retries the change and a transient failure (a flaky test, a busy worktree, a moved base) heals on
+  its own. An **already-merged PR is a merged-recovery candidate** as always.
+- A **`CONFLICTING` PR is not marked at selection time** — the resolver usually resolves it.
+  Marking happens only at an abort-and-report point.
+- **The `finalize.clear-block` operation removes the section** on an unmerged change by hand: it
+  reprobes the exact current head, valid gate evidence, the published remote ref, and the matching
+  open PR before removal — each missing condition refuses and the marker stays. Closeout strips a
   stale section when it records a merged change `done` or `stacked-merged`, so a merged record
   carries no marker.
