@@ -66,9 +66,10 @@ halts, an important or minor becomes a PR-body record naming the failure as the 
 
 ## The severity threshold
 
-`REVIEW_MIN_FIX_SEVERITY` (from the startup-check config export; `minor` by default) is the lowest
-severity that enters this loop. `important` records minors instead of fixing them; `blocker` is the
-pre-0218 record-everything behavior, kept as a compat escape hatch.
+`review.min_fix_severity` (`minor` by default) is the lowest severity that enters this pass, and
+`review.max_fix_tasks` (`10` by default) caps the non-blocker fix tasks below; read both through
+the `diagnostic.config` operation. `important` records minors instead of fixing them; `blocker`
+records every non-blocker finding.
 
 **Blockers are fixed regardless of the threshold** — a run cannot proceed past an unfixed blocker,
 so the knob can never disarm the one gate that must not be disarmed. A finding below the threshold
@@ -112,8 +113,7 @@ fallback — that fails the loop open silently, and a blocker would ride out to 
   it is homogeneous by construction. One commit enumerating the findings it fixed; a failed batch
   falls back to recording its members.
 
-**The cap — at most `REVIEW_MAX_FIX_TASKS` non-blocker fix tasks per run** (from the startup-check config
-export; `10` by default). Blockers are never counted against it: the run cannot proceed past an
+**The cap — at most `review.max_fix_tasks` non-blocker fix tasks per run** (`10` by default). Blockers are never counted against it: the run cannot proceed past an
 unfixed blocker, so a cap that counted them would disarm the gate the floor above exists to
 protect. The unit is the **task**, not the finding — a minor batch spends one slot. Fill the slots
 deterministically in the dispatch order above: importants in the reviewer's returned order, then
@@ -162,7 +162,7 @@ about each one:
 | State | Meaning |
 |---|---|
 | **fixed** | repaired in-branch; cite the commit SHA |
-| **deferred** | below `REVIEW_MIN_FIX_SEVERITY`, a max-character non-blocker, or fix-task cap overflow; recorded for merge-time judgment |
+| **deferred** | below `review.min_fix_severity`, a max-character non-blocker, or fix-task cap overflow; recorded for merge-time judgment |
 | **reverted** | fixed, then rolled back by the suite gate; the finding stands |
 | **recorded** | the fix was attempted and its escalation allowance was exhausted; name the failure |
 | **reported** | genuinely distinct, beyond-the-branch work reported for deliberate capture |
