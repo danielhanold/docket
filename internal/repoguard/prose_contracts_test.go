@@ -169,8 +169,6 @@ var proseContracts = []proseContract{
 	// tests/test_docket_metadata_branch.sh — deferred-publish prose + retired-route absence.
 	{sentinel: "test_docket_metadata_branch", file: "skills/docket-finalize-change/SKILL.md",
 		absent: []string{"checkout origin/docket"}},
-	{sentinel: "test_docket_metadata_branch", file: "skills/docket-adr/SKILL.md",
-		present: []string{"adr-unpublished"}},
 	// tests/test_docket_example_yml.sh — key-presence core (full correspondence scan flagged).
 	{sentinel: "test_docket_example_yml", file: ".docket.example.yml",
 		present: []string{"board_surfaces", "agent_harnesses", "finalize:"}},
@@ -1086,6 +1084,15 @@ var alignmentContracts = []proseContract{
 		absent: []string{"reclaim-claims", "does not clear an interrupted run's marker"}},
 	{sentinel: "align_0502_typed_ops", file: "skills/docket-implement-next/references/edge-paths.md",
 		absent: []string{"verify-run"}},
+	// 0502: status and adr name only findings the binary emits.
+	{sentinel: "align_0502_real_findings", file: "skills/docket-status/SKILL.md",
+		present: []string{"`waiting-dependency`", "`artifact-missing`"},
+		absent: []string{"publish-deferred", "adr-unpublished", "dependency stalls", "stale claims,",
+			"board off", "stack-invalid", "stack-parent-killed", "promote-failed", "stack-carried-failed"}},
+	{sentinel: "align_0502_real_findings", file: "skills/docket-adr/SKILL.md",
+		absent: []string{"adr-unpublished", "publish-deferred"}},
+	{sentinel: "align_0502_real_findings", file: "agents/docket-status.md",
+		absent: []string{"dependency stalls"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {
