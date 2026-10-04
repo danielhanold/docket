@@ -1,6 +1,6 @@
 # Backlog
 
-**516 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 353 done · 🗑️ 137 killed
+**517 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 353 done · 🗑️ 137 killed
 
 ## 🔵 Built (1)
 
@@ -16,10 +16,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | needs-grooming |
 | [0516](active/0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) | Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match | `low` | `chore` | needs-grooming |
 | [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Make finalize.merge honor the repair sign-off block when an id is named | `high` | `fix` | needs-grooming |
 | [0513](active/0513-release-v1-0-0-alpha-3-prove-and-publish-opencode-support.md) | Release v1.0.0-alpha.3: prove and publish OpenCode support | `high` | `chore` | ⏳ waiting on #512 — not yet built |
@@ -78,6 +79,7 @@ graph TD
   0511 --> 0514
   0515
   0516
+  0517
   0192:::done
   0251:::done
   0393:::done
