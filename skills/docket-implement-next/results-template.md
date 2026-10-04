@@ -62,7 +62,9 @@ fixed finding with no remaining risk appears in the results only through this li
 ### <Problem or follow-up>
 
 <When it occurs and what the person experiences; its practical impact; whether it is
-confirmed or suspected; any available workaround; and the suggested next action, linking
-an existing change when available. Keep each entry understandable without following its
-technical links. A fixed finding belongs here only when it explains a remaining risk or
-a consequential design decision.>
+confirmed or suspected; any available workaround; and the suggested next action. For
+out-of-scope follow-up work, end that action with the backlog verdict — Fits #N, Related
+to #N, or No existing change fits (checked K) — and the next step for #N's state: edit
+#N, revise its spec, revive it first, or capture a new change. Keep each entry
+understandable without following its technical links. A fixed finding belongs here only
+when it explains a remaining risk or a consequential design decision.>

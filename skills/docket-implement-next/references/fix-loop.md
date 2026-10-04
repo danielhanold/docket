@@ -189,4 +189,5 @@ the machine build-evidence block.
 **A finding about this branch's own diff is fixed or recorded** — never captured as separate work.
 A genuinely distinct, beyond-the-branch finding is **reported as follow-up work in the final
 report**, never minted: automatic change capture is deferred from Go v1, so a human captures
-reported work deliberately with `docket change create`.
+reported work deliberately with `docket change create`. The report carries the backlog verdict
+final consolidation attaches (SKILL.md Step 6.5 *Backlog match*).

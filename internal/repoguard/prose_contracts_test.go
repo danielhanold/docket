@@ -864,6 +864,12 @@ var followUpBacklogMatchDocContracts = []docSectionContract{
 		present: []string{
 			"any follow-up work **reported for deliberate capture**, each with its backlog verdict (Step 6.5 *Backlog match*)",
 		}},
+	{change: "change_0510_convention_backlog_match", file: "skills/docket-convention/SKILL.md",
+		section: "### Directory layout (paths relative to the configured knobs)", terminator: "### Change manifest (frontmatter at the top of each change file)",
+		present: []string{
+			"the run checks proposed and deferred changes and names any match, but never mints a change, issue, ADR, or learning automatically",
+		},
+		absent: []string{"link an existing change when one is known"}},
 }
 
 // docFileClauseContract pins clauses that live in a file's LAST section, which
@@ -876,11 +882,22 @@ type docFileClauseContract struct {
 	absent  []string // retired clauses that must appear nowhere in the file
 }
 
-var followUpBacklogMatchFileClauses = []docFileClauseContract{}
+var followUpBacklogMatchFileClauses = []docFileClauseContract{
+	{change: "change_0510_fix_loop_verdict_pointer", file: "skills/docket-implement-next/references/fix-loop.md",
+		present: []string{
+			"never minted: automatic change capture is deferred from Go v1",
+			"The report carries the backlog verdict final consolidation attaches (SKILL.md Step 6.5 *Backlog match*)",
+		}},
+	{change: "change_0510_template_verdict", file: "skills/docket-implement-next/results-template.md",
+		present: []string{
+			"end that action with the backlog verdict — Fits #N, Related to #N, or No existing change fits (checked K) — and the next step for #N's state",
+		},
+		absent: []string{"linking an existing change when available"}},
+}
 
 // followUpBacklogMatchFloor is the population floor over both tables: a
 // collapse means rows were lost or the tables were gutted.
-const followUpBacklogMatchFloor = 14
+const followUpBacklogMatchFloor = 20
 
 func TestFollowUpBacklogMatchDocContracts(t *testing.T) {
 	root := guardRoot(t)
