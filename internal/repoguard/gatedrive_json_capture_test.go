@@ -24,7 +24,7 @@ import (
 	"testing"
 )
 
-const sharedContractRel = "skills/docket-build/references/gate-caller-loop.md"
+const sharedContractRel = "skills/docket-build/references/gate-driver.md"
 
 var (
 	credOpRe   = regexp.MustCompile(`gate\.drive\.(start|handoff|claim|takeover|prepare-scope)`)
@@ -84,7 +84,7 @@ func TestGateDriveJSONCapture(t *testing.T) {
 	var sites, violations []string
 	perFile := map[string]int{}
 	for _, rel := range maintainedPop(t, root) {
-		if !isWorkflowMD(rel) || strings.HasSuffix(rel, "docket-build/references/gate-caller-loop.md") {
+		if !isWorkflowMD(rel) || strings.HasSuffix(rel, "docket-build/references/gate-driver.md") {
 			continue
 		}
 		for _, p := range paragraphs(readMaintained(t, root, rel)) {

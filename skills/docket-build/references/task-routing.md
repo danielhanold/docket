@@ -5,7 +5,7 @@ file**, and it is written for both:
 
 - **`docket-build`** routes each plan task to a tier agent (`## Routing` in its `SKILL.md`).
 - **`docket-implement-next`** routes each review finding in its Step 6 fix loop
-  (`references/fix-loop.md`).
+  (`references/fix-pass.md`).
 
 Neither restates it. What is classified differs — a plan task, a review finding — but the question
 is identical: *how much reasoning investment does this piece of work need, and what happens if it

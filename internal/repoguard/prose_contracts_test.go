@@ -170,11 +170,11 @@ var proseContracts = []proseContract{
 	{sentinel: "test_docket_review", file: "skills/docket-review/SKILL.md",
 		present: []string{"build-evidence", "abort-and-report"}},
 	// tests/test_gate_caller_loop.sh — the gate driver caller-loop reference.
-	{sentinel: "test_gate_caller_loop", file: "skills/docket-build/references/gate-caller-loop.md",
+	{sentinel: "test_gate_caller_loop", file: "skills/docket-build/references/gate-driver.md",
 		present: []string{"## The disposition vocabulary", "## Handoff"}},
 	// tests/test_gate_execution_posture.sh — gate-execution reference points at the caller loop.
 	{sentinel: "test_gate_execution_posture", file: "skills/docket-build/references/gate-execution.md",
-		present: []string{"gate-caller-loop"}},
+		present: []string{"gate-driver"}},
 	// tests/test_dispatch_capability.sh — the convention's dispatch-capability rule.
 	{sentinel: "test_dispatch_capability", file: "skills/docket-convention/SKILL.md",
 		present: []string{"Dispatch-capability resolution", "never from a tool name"}},
@@ -739,7 +739,7 @@ var resultsReviewPlacementDocContracts = []docSectionContract{
 			"full table in the PR body",
 			"A fixed finding with no remaining risk appears in the results only through this line",
 		}},
-	{change: "change_0498_fix_loop_condensation", file: "skills/docket-implement-next/references/fix-loop.md",
+	{change: "change_0498_fix_loop_condensation", file: "skills/docket-implement-next/references/fix-pass.md",
 		section: "## Recording — the PR-body disposition table", terminator: "## Beyond-the-branch findings are reported",
 		present: []string{
 			"the **PR body remains the disposition table's durable home**",

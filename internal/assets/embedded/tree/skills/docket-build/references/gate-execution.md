@@ -27,7 +27,7 @@ differently.
 5. **Distinguish *still running* from *completed successfully*, *completed unsuccessfully*, and
    *result unavailable*.** Four states, not two. This capability is mechanized
    **harness-independently**: the state vocabulary a caller keys on — and which of those states is
-   retryable — is defined once in [`gate-caller-loop.md`](gate-caller-loop.md), which is
+   retryable — is defined once in [`gate-driver.md`](gate-driver.md), which is
    why a per-harness capability list is the wrong owner for it. What a harness must supply is the
    ability to make the observations at all; it never defines states of its own.
 6. **Enforce the observation budget without depending on a single long-lived foreground call.**
