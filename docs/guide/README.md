@@ -24,10 +24,11 @@ for whatever step you are on. Installing docket and configuring it is its own se
 - [Finalize: Landing changes safely](landing-changes.md) — how an approved change gets from an open
   pull request into your mainline and out of your backlog, hands-off across a whole set of changes.
 - [Status: Keeping the backlog honest](keeping-the-backlog-honest.md) — tell whether your backlog
-  still reflects reality, and fix it when it does not: the routine sweep versus the checks that flag
-  a human.
+  still reflects reality, and fix it when it does not: the read-only status report, the maintenance
+  sweep, reclaiming expired claims, and recovering a halted run.
 - [ADRs and learnings: Remembering why](remembering-why.md) — where docket keeps the decisions it
-  made and the lessons it learned, why they are kept apart, and how a lesson becomes a rule the tools
-  always follow.
+  made and the lessons it learned, how you record a finding, and when a lesson belongs in your
+  always-in-context instructions instead.
 - [Metadata branch: Where the metadata lives](where-the-metadata-lives.md) — where docket keeps its
-  planning records and why they sit apart from your code, across the two branches it uses.
+  planning records and why they sit apart from your code, and the commands that set a repository
+  up, check it, and repair it.
