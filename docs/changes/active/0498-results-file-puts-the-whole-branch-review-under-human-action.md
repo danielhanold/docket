@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/results-file-puts-the-whole-branch-review-under-human-action'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T06:07:38Z'
+reconciled: true
+claimed_at: '2026-10-04T06:09:12Z'
 ---
 
 ## Artifacts
@@ -56,3 +56,9 @@ The wording lands in the results template, Step 6.5, and `fix-loop.md` (plus the
 - Editing 0494's or any other merged results file — merged plans and results are frozen build records.
 - Adding, removing, or reordering results sections, or changing the PR-body disposition table.
 - An ADR — this is a placement rule inside the existing 0410/0440 results design.
+
+## Reconcile log
+
+### 2026-10-04
+
+Reconciled against main 20bc0a36a. The anchors the spec cites are unchanged: fix-loop.md still carries the retired sentence (results-checkpoint linkage), results-template.md still has the `## Verification performed` guidance, and the `change_0440_*` prose-contract rows remain the house pattern. Related 0410/0440 are done; no recent change (0494-0496) touched these files' placement guidance. Scope unchanged; no ADR.
