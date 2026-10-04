@@ -12,7 +12,7 @@ stacked_on:
 related: [502]
 discovered_from: [502]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,8 +38,10 @@ Two small leftovers found while building change 0502. (1) Code comments still sa
 
 ## What changes
 
-Rewrite the stale comments to state what an unset `auto_groomable` means today. Make `TestSkillHandoffSites` stop counting negated phrasing such as "cannot be invoked" as an invocation, keyed on syntactic shape rather than a list of spellings, and mutation-test the guard both ways (a real invocation still reddens it; a negated mention does not).
+Rewrite the three stale comments (`internal/domain/entities.go` ×2, `internal/app/change_create.go`) to say what is true today: an unset or `false` `auto_groomable` means not auto-groomable, and only an explicit `true` opts a stub in.
+
+Make `TestSkillHandoffSites` read a negation by its shape instead of requiring a bare `not`: a word ending in `not` (`not`, `cannot`), the `n't` contraction (`can't`, `won't`), or `never`. A line such as "when `docket-review` cannot be invoked" then counts as a mention, not an invocation. Extend the guard's self-check with these cases and mutation-test it both ways. Design detail is in the linked spec.
 
 ## Out of scope
 
-Any behavior change to auto-groom selection. The frozen fixture `internal/render/testdata/records/PROVENANCE.md`, which names deleted templates and stays as written.
+Any behavior change to auto-groom selection. The `auto_groom` row in the config schema (a deferred setting) stays as it is. 0502's skill wording ("when the `docket-review` skill is missing") stays as written. The frozen fixture `internal/render/testdata/records/PROVENANCE.md`, which names deleted templates, stays as written.
