@@ -258,7 +258,7 @@ func restoreCase(t *testing.T, tag string) *upgradeCase {
 	}
 	saved := filepath.Join(repoRoot(t), "testdata", "bash-upgrade", tag)
 
-	extractHome(t, filepath.Join(saved, "home.tar"), home)
+	extractTar(t, filepath.Join(saved, "home.tar"), home, home)
 	assertNoHomeToken(t, home)
 
 	xdg := map[string]string{
@@ -320,38 +320,63 @@ func restoreCase(t *testing.T, tag string) *upgradeCase {
 			c.mustGit(t, wt, "config", "--worktree", "core.hooksPath", empty)
 		}
 	}
+
+	// clone-files.tar (optional) holds the ignored, per-clone files the Bash tag
+	// wrote into the repository's working tree, which neither the bundle nor
+	// clone-config.txt can carry.
+	if cf := filepath.Join(saved, "clone-files.tar"); fileExists(cf) {
+		tops := extractTar(t, cf, c.Clone, home)
+		if r := c.run(t, c.Clone, "git", "status", "--porcelain"); r.Code != 0 || strings.TrimSpace(r.Stdout) != "" {
+			t.Fatalf("clone-files.tar must hold only ignored files; git status shows:\n%s%s", r.Stdout, r.Stderr)
+		}
+		if files, _ := assertNoToken(t, tops...); files == 0 {
+			t.Fatalf("clone-files.tar restored no file")
+		}
+	}
 	return c
 }
 
-// extractHome unpacks home.tar under home, substituting homeToken in symlink
-// targets and regular-file bodies. A member name that is absolute, escapes with
-// .., or would be written through an already-restored symlink is refused.
-func extractHome(t *testing.T, tarPath, home string) {
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
+// extractTar unpacks a saved tar under dest, substituting homeToken with home in
+// symlink targets and regular-file bodies. A member name that is absolute, escapes
+// with .., enters .git, or would be written through an already-restored symlink is
+// refused. It returns the restored top-level paths under dest.
+func extractTar(t *testing.T, tarPath, dest, home string) []string {
 	t.Helper()
 	f, err := os.Open(tarPath)
 	if err != nil {
-		t.Fatalf("open home.tar: %v", err)
+		t.Fatalf("open %s: %v", filepath.Base(tarPath), err)
 	}
 	defer f.Close()
-	if err := os.MkdirAll(home, 0o755); err != nil {
+	if err := os.MkdirAll(dest, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	tr := tar.NewReader(f)
-	members := 0
+	tops := map[string]bool{}
+	base := filepath.Base(tarPath)
 	for {
 		h, err := tr.Next()
 		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
-			t.Fatalf("read home.tar: %v", err)
+			t.Fatalf("read %s: %v", base, err)
 		}
 		name := strings.TrimSuffix(h.Name, "/")
 		if !localRelPath(name) || name == "." {
-			t.Fatalf("home.tar member %q is absolute or escapes the home", h.Name)
+			t.Fatalf("%s member %q is absolute or escapes its root", base, h.Name)
 		}
-		dst := filepath.Join(home, filepath.FromSlash(name))
-		mustNotTraverseSymlink(t, home, path.Dir(name))
+		top, _, _ := strings.Cut(name, "/")
+		if top == ".git" {
+			t.Fatalf("%s member %q writes into .git", base, h.Name)
+		}
+		tops[top] = true
+		dst := filepath.Join(dest, filepath.FromSlash(name))
+		mustNotTraverseSymlink(t, dest, path.Dir(name))
 		mode := fs.FileMode(h.Mode).Perm()
 		switch h.Typeflag {
 		case tar.TypeDir:
@@ -380,23 +405,28 @@ func extractHome(t *testing.T, tarPath, home string) {
 				t.Fatalf("restore symlink %s: %v", name, err)
 			}
 		default:
-			t.Fatalf("home.tar member %q has unsupported type %q", h.Name, h.Typeflag)
+			t.Fatalf("%s member %q has unsupported type %q", base, h.Name, h.Typeflag)
 		}
-		members++
 	}
-	if members == 0 {
-		t.Fatalf("home.tar %s is empty", tarPath)
+	if len(tops) == 0 {
+		t.Fatalf("%s is empty", tarPath)
 	}
+	var out []string
+	for top := range tops {
+		out = append(out, filepath.Join(dest, top))
+	}
+	sort.Strings(out)
+	return out
 }
 
-// mustNotTraverseSymlink fails when any existing component of rel (under home) is
-// a symlink, so no member is written outside the home through a restored link.
-func mustNotTraverseSymlink(t *testing.T, home, rel string) {
+// mustNotTraverseSymlink fails when any existing component of rel (under root) is
+// a symlink, so no member is written outside root through a restored link.
+func mustNotTraverseSymlink(t *testing.T, root, rel string) {
 	t.Helper()
 	if rel == "." || rel == "" {
 		return
 	}
-	cur := home
+	cur := root
 	for _, el := range strings.Split(rel, "/") {
 		cur = filepath.Join(cur, el)
 		fi, err := os.Lstat(cur)
@@ -404,53 +434,62 @@ func mustNotTraverseSymlink(t *testing.T, home, rel string) {
 			return // not created yet; MkdirAll makes a real directory
 		}
 		if fi.Mode()&fs.ModeSymlink != 0 {
-			t.Fatalf("home.tar writes through the restored symlink %s", cur)
+			t.Fatalf("a saved tar writes through the restored symlink %s", cur)
 		}
 	}
 }
 
 // assertNoHomeToken fails when any regular file body or symlink target under home
 // still holds homeToken: a surviving placeholder makes every later assert a test
-// of a broken home.
+// of a broken home. The restored home must hold both files and symlinks, or the
+// check would be vacuous.
 func assertNoHomeToken(t *testing.T, home string) {
 	t.Helper()
-	var left []string
-	files, links := 0, 0
-	err := filepath.WalkDir(home, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		switch {
-		case d.Type()&fs.ModeSymlink != 0:
-			links++
-			target, err := os.Readlink(p)
-			if err != nil {
-				return err
-			}
-			if strings.Contains(target, homeToken) {
-				left = append(left, p+" -> "+target)
-			}
-		case d.Type().IsRegular():
-			files++
-			b, err := os.ReadFile(p)
-			if err != nil {
-				return err
-			}
-			if bytes.Contains(b, []byte(homeToken)) {
-				left = append(left, p)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walk restored home: %v", err)
-	}
-	if files == 0 || links == 0 {
+	if files, links := assertNoToken(t, home); files == 0 || links == 0 {
 		t.Fatalf("restored home has %d files and %d symlinks; the placeholder check would be vacuous", files, links)
+	}
+}
+
+// assertNoToken fails when any regular file body or symlink target under each root
+// still holds homeToken, and returns how many files and symlinks it read.
+func assertNoToken(t *testing.T, roots ...string) (files, links int) {
+	t.Helper()
+	var left []string
+	for _, root := range roots {
+		err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			switch {
+			case d.Type()&fs.ModeSymlink != 0:
+				links++
+				target, err := os.Readlink(p)
+				if err != nil {
+					return err
+				}
+				if strings.Contains(target, homeToken) {
+					left = append(left, p+" -> "+target)
+				}
+			case d.Type().IsRegular():
+				files++
+				b, err := os.ReadFile(p)
+				if err != nil {
+					return err
+				}
+				if bytes.Contains(b, []byte(homeToken)) {
+					left = append(left, p)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("walk restored %s: %v", root, err)
+		}
 	}
 	if len(left) > 0 {
 		t.Fatalf("%s survived restore in:\n%s", homeToken, strings.Join(left, "\n"))
 	}
+	return files, links
 }
 
 // run executes name with args in dir under c.Env. A bare name is resolved on

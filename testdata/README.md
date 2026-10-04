@@ -54,7 +54,9 @@ guide against it.
   gap. `bash-upgrade/PROVENANCE.md` only points at them.
 - **Saved form:** `origin.bundle` (all refs of the sandbox `origin`), `home.tar` (the harness
   folders with symlinks kept and the sandbox home rewritten to `@@SANDBOX_HOME@@`),
-  `clone-config.txt` (clone actions to replay), `records.txt` (the record inventory).
+  `clone-config.txt` (clone actions to replay), `records.txt` (the record inventory), and, where
+  the tag wrote ignored files into the repository's working tree, `clone-files.tar` (those files,
+  rooted at the clone, in the same tokenized form as `home.tar`).
 - **Immutable**, exactly like the versioned trees above: a different state is a new case, never
   an edit. Tests restore into their own temp directories and never write here.
 - **Temporary:** the cases and their test are retired when stable v1.0.0 ships.

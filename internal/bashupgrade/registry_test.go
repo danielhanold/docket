@@ -52,6 +52,8 @@ type runState struct {
 	Removed     []string // settings config-cleanup removed from .docket.yml
 
 	DispatchBlockRemoved bool // dispatch-block found and removed the CLAUDE.md block
+	RepoAgentFilesShadow int  // repository agent files that hid an installed agent before repo-agent-files
+	RepoSettingsSeen     bool // the repository carried migrate's .claude/settings.local.json
 }
 
 type stepAction func(t *testing.T, c *upgradeCase, st *runState, body string)
@@ -73,6 +75,7 @@ var stepRegistry = map[string]stepAction{
 	"repo-confirm":          runRepoConfirm,
 	"dispatch-block":        mirrorDispatchBlock,
 	"leftovers":             mirrorLeftovers,
+	"repo-agent-files":      runRepoAgentFiles,
 }
 
 // Guide headings the table checks anchor on.
@@ -1040,6 +1043,65 @@ func mirrorLeftovers(t *testing.T, c *upgradeCase, st *runState, body string) {
 		mustContain(t, "guide", st.Guide, "`~/"+d+"`")
 		if linksInto(t, filepath.Join(c.Home, d), checkout) == 0 {
 			t.Errorf("guide says links under ~/%s still point into the old checkout; none do", d)
+		}
+	}
+}
+
+// The per-repository leftovers the guide names. repoAgentGlob is the exact block line
+// the test requires; repoSettings is the file the guide says it does not cover.
+const (
+	repoAgentGlob = "rm -f .claude/agents/docket-*.md"
+	repoSettings  = ".claude/settings.local.json"
+)
+
+// runRepoAgentFiles runs the block that deletes the repository's Bash agent files.
+// Before it runs, every such file must be ignored by git (the guide says there is
+// nothing to commit) and at least one must share its name with an agent the installer
+// wrote under ~/.claude/agents (the guide says the old files hide those). Afterwards
+// none may be left, the repository has nothing to commit, and the repository's
+// .claude/settings.local.json, which the guide leaves alone, is unchanged.
+func runRepoAgentFiles(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	lines := blockLines(body)
+	if len(lines) != 2 || lines[0] != "cd "+c.Clone || lines[1] != repoAgentGlob {
+		t.Fatalf("repo-agent-files block must be exactly `cd <repo>` and `%s`:\n%s", repoAgentGlob, body)
+	}
+	mustContain(t, "guide", st.Guide, "these old files hide the agents the installer just wrote")
+	mustContain(t, "guide", st.Guide, "`"+repoSettings+"`")
+	mustContain(t, "guide", st.Guide, "the test leaves it in place")
+
+	glob := filepath.Join(c.Clone, ".claude", "agents", "docket-*.md")
+	before, _ := filepath.Glob(glob)
+	for _, p := range before {
+		rel := strings.TrimPrefix(p, c.Clone+"/")
+		if r := c.run(t, c.Clone, "git", "check-ignore", "-q", "--", rel); r.Code != 0 {
+			t.Errorf("guide says the .gitignore block keeps %s out of commits; git does not ignore it", rel)
+		}
+		if _, err := os.Stat(filepath.Join(c.Home, ".claude", "agents", filepath.Base(p))); err == nil {
+			st.RepoAgentFilesShadow++
+		}
+	}
+	if len(before) > 0 && st.RepoAgentFilesShadow == 0 {
+		t.Errorf("guide says the repository's agent files hide installed agents; none of %d shares a name with ~/.claude/agents", len(before))
+	}
+	settingsPath := filepath.Join(c.Clone, filepath.FromSlash(repoSettings))
+	settingsBefore, settingsErr := os.ReadFile(settingsPath)
+	if settingsErr == nil {
+		st.RepoSettingsSeen = true
+		mustContain(t, repoSettings, string(settingsBefore), "push origin HEAD:")
+	}
+
+	runBlock(t, c, st, body)
+
+	if left, _ := filepath.Glob(glob); len(left) > 0 {
+		t.Errorf("repo-agent-files left %v behind", left)
+	}
+	if left := strings.TrimSpace(c.mustGit(t, c.Clone, "status", "--porcelain")); left != "" {
+		t.Errorf("guide says there is nothing to commit after repo-agent-files; git status shows:\n%s", left)
+	}
+	if settingsErr == nil {
+		if after, err := os.ReadFile(settingsPath); err != nil || !bytes.Equal(after, settingsBefore) {
+			t.Errorf("guide says the test leaves %s in place; it changed or is gone (%v)", repoSettings, err)
 		}
 	}
 }
