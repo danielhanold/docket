@@ -58,3 +58,32 @@ func TestSubstitutePlaceholders(t *testing.T) {
 		t.Fatal("an unknown placeholder was accepted")
 	}
 }
+
+func TestDispatchBlockSpan(t *testing.T) {
+	const s, e = "<!-- docket:dispatch:start (managed by docket) -->", "<!-- docket:dispatch:end -->"
+	for _, tc := range []struct {
+		name       string
+		lines      []string
+		start, end int
+		bad        bool
+	}{
+		{"balanced", []string{"x", s, "body", e, "y"}, 1, 3, false},
+		{"absent", []string{"x", "y"}, -1, -1, false},
+		{"start only", []string{s, "body"}, 0, 0, true},
+		{"end only", []string{"body", e}, 0, 0, true},
+		{"out of order", []string{e, "body", s}, 0, 0, true},
+		{"two starts", []string{s, s, "body", e}, 0, 0, true},
+		{"two ends", []string{s, "body", e, e}, 0, 0, true},
+	} {
+		start, end, err := dispatchBlockSpan(tc.lines)
+		if tc.bad {
+			if err == nil {
+				t.Errorf("%s: want an error, got span %d..%d", tc.name, start, end)
+			}
+			continue
+		}
+		if err != nil || start != tc.start || end != tc.end {
+			t.Errorf("%s: got %d..%d, %v; want %d..%d", tc.name, start, end, err, tc.start, tc.end)
+		}
+	}
+}

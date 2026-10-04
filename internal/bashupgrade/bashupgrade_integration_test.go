@@ -89,11 +89,11 @@ func TestIntegrationBashUpgradeGuide(t *testing.T) {
 	src := readGuide(t)
 	seenFindings := map[string]bool{}
 	seenSettings := map[string]bool{}
+	dispatchRemoved := false
 	for _, tag := range savedTags(t) {
 		t.Run(tag, func(t *testing.T) {
 			c := restoreCase(t, tag)
 			before := listRecords(t, c)
-			claudeMD, _ := os.ReadFile(filepath.Join(c.Clone, "CLAUDE.md"))
 			st := runGuide(t, c)
 
 			// Both saved installs carry Bash skill links the installer will not take
@@ -106,9 +106,10 @@ func TestIntegrationBashUpgradeGuide(t *testing.T) {
 			}
 			assertCleanEndState(t, c)
 			assertRecordsSurvive(t, c, before)
-			if after, _ := os.ReadFile(filepath.Join(c.Clone, "CLAUDE.md")); string(after) != string(claudeMD) {
-				t.Errorf("guide says the upgrade leaves the repository CLAUDE.md as it is; it changed")
+			if after, _ := os.ReadFile(filepath.Join(c.Clone, "CLAUDE.md")); strings.Contains(string(after), "docket:dispatch:") {
+				t.Errorf("the repository CLAUDE.md still carries the Bash dispatch block after the guide")
 			}
+			dispatchRemoved = dispatchRemoved || st.DispatchBlockRemoved
 			assertWritable(t, c)
 			for _, f := range st.Observed["repo-check"] {
 				seenFindings[f.Code] = true
@@ -120,6 +121,9 @@ func TestIntegrationBashUpgradeGuide(t *testing.T) {
 	}
 	if t.Failed() {
 		return
+	}
+	if !dispatchRemoved {
+		t.Errorf("the guide's dispatch-block step removed no block on any saved case")
 	}
 	for code := range findingTable(t, src) {
 		if !seenFindings[code] {
