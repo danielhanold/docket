@@ -2,7 +2,7 @@
 id: 506
 slug: 'drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi'
 title: 'Drop the retired-harness globs from the managed .gitignore block'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'fix/drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi'
 pr: 'https://github.com/danielhanold/docket/pull/378'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T09:20:47Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T09:20:47Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-design.md) |
-| Plan | [2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md](https://github.com/danielhanold/docket/blob/fix/drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi/docs/superpowers/plans/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) |
-| Results | [2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-results.md](https://github.com/danielhanold/docket/blob/fix/drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi/docs/results/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-results.md) |
+| Plan | [2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) |
+| Results | [2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-results.md) |
 | ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md) |
 <!-- docket:artifacts:end -->
 

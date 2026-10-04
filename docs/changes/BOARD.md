@@ -1,6 +1,6 @@
 # Backlog
 
-**508 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 3 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 348 done · 🗑️ 137 killed
+**508 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 349 done · 🗑️ 137 killed
 
 ## 🟢 In progress (1)
 
@@ -8,11 +8,10 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0505](active/0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | `low` | `refactor` | [spec](../superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) | `refactor/share-one-unsupported-key-matcher-between-the-example-config` |  |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0506](active/0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | `low` | `fix` | [#378](https://github.com/danielhanold/docket/pull/378) | awaiting merge |
 | [0497](active/0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | `medium` | `fix` | [#379](https://github.com/danielhanold/docket/pull/379) | awaiting merge |
 
 ## 🟣 Groomed (3)
@@ -74,7 +73,6 @@ graph TD
   0464 --> 0502
   0503
   0505
-  0506
   0507
   0192:::done
   0251:::done
@@ -85,11 +83,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (485)</summary>
+<details><summary>✅🗑️ Archive — done + killed (486)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
+| [0506](archive/2026-10-04-0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | 2026-10-04 |
 | [0504](archive/2026-10-04-0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | 2026-10-04 |
 | [0501](archive/2026-10-04-0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) | Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note | 2026-10-04 |
 | [0500](archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | 2026-10-04 |
@@ -107,7 +106,6 @@ graph TD
 | [0490](archive/2026-10-02-0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | 2026-10-02 |
 | [0489](archive/2026-10-02-0489-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) | Delete the task-owned gate-drive machinery; the outer takeover recovers only live drives | 2026-10-02 |
 | [0488](archive/2026-10-02-0488-run-task-worker-tests-directly-in-the-foreground-not-through.md) | Run task-worker tests directly in the foreground, not through gate drives | 2026-10-02 |
-| [0487](archive/2026-10-02-0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) | Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go | 2026-10-02 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
 | [0483](archive/2026-10-02-0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | 2026-10-02 |
 | [0457](archive/2026-10-02-0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | 2026-10-02 |
@@ -246,7 +244,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 5 done |
+| [2026-10](archive/) | 6 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
