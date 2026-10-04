@@ -534,7 +534,7 @@ and `remove` must carry empty Markdown.
 
 **Used for:** rewriting a proposal's body during grooming without hand edits. Any other heading is
 refused with `invalid-section-heading`. A `revise` needs at least one `replace` or `remove`, and
-`re-enable` may not name `## Auto-groom blocked` because it removes that section itself.
+neither `revise` nor `re-enable` may name `## Auto-groom blocked`: abstain and re-enable own it.
 
 ```sh
 docket schema --operation change.groom   # the sections[] shape
