@@ -11,12 +11,12 @@ This skill defines the docket convention and does nothing else: no procedure, no
 
 docket tracks planned work as **changes** — one markdown file each, roughly one PR — and records architecture decisions as **ADRs**. This skill is the single source of the convention; the operating skills load it in their blocking startup check, use its vocabulary, and never restate it.
 
-### Configuration — `.docket.yml` (optional, committed in the primary worktree)
+### Configuration — `.docket.yml` (optional, committed to the default branch)
 
 Read at startup by every docket skill. Absent ⇒ all defaults. It is **committed** (never gitignored), because it governs cross-agent coordination and must be identical for every clone, agent, and device.
 
 ```yaml
-# .docket.yml — committed in the primary worktree; every key is optional
+# .docket.yml — committed to the default branch; every key is optional
 integration_branch: auto     # auto (origin's HEAD branch) | main | develop — where code lands
 changes_dir: docs/changes
 adrs_dir: docs/adrs
@@ -49,7 +49,7 @@ agent_harnesses: [claude]    # no default; absent = install writes no repository
 
 The board's presentation is configurable too: `board.section_order` (a permutation of the board sections) and, per section, `board.sorting.<section>.by` (`id` | `updated` | `created`) and `board.sorting.<section>.direction` (`asc` | `desc`) — all optional.
 
-Configuration is read from the primary worktree's `.docket.yml` and `.docket.local.yml` plus the global `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` — never from `origin/HEAD`. `integration_branch` resolves where code lands: `auto` (the default) resolves origin's HEAD branch, and an unresolvable remote HEAD is an error, not a fallback to `main`; an explicit value is used verbatim. A genuinely absent file ⇒ defaults apply.
+Every operation reads the committed `.docket.yml` from the fetched tip of origin's default branch, never the working tree, so an unpushed edit has no effect; `.docket.local.yml` and the global `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` are read from disk. The repository setup operations (`repository.prepare`, `repository.init`, `repository.check`, `repository.migrate`, `repository.repair`) instead resolve every layer from the primary worktree's files on disk. `integration_branch` resolves where code lands: `auto` (the default) resolves origin's HEAD branch, and an unresolvable remote HEAD is an error, not a fallback to `main`; an explicit value is used verbatim. A genuinely absent file ⇒ defaults apply.
 
 **Config layers.** Two more optional layers: a **user-level** `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` (every repo on this machine) and a **machine-local** `<repo>/.docket.local.yml` (gitignored; this repo, this machine only). Every key resolves **per-field**: **repo-local > repo-committed > global > built-in**. Agent model/effort pins (`agents.<harness>.<agent>.model|effort`) are honoured **from the global config only**; an agent pin in `.docket.yml` or `.docket.local.yml` blocks writes. Any explicit role-skill value blocks writes — the workflow role skills are fixed (see *Skill layer*). **Shared-setting guard:** the repository-identity keys (`integration_branch`, `changes_dir`, `adrs_dir`, `results_dir`) are per-repo-only — set in either machine-scoped file they are warned-and-ignored, never honored, never fatal (ADR-0019). An unknown key is an error on every read except the `install` operation, which downgrades it to a warning. The per-key classification and the malformed-file postures are authoritative in docket's config schema and discoverable via the `diagnostic.config` / schema operations — not restated here.
 
