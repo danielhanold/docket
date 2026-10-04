@@ -2206,8 +2206,15 @@ func (g *processFinalizeGate) mapDriveOutcome(ctx context.Context, req LocalGate
 func (g *processFinalizeGate) mapTerminalDrive(ctx context.Context, req LocalGateRequest, doc *gatedrive.DriveDoc, removeRoot *bool) LocalGateResult {
 	switch doc.Outcome {
 	case gatedrive.PASSED:
+		// Certify with the seam's own owner (change 0517), applying the seam's
+		// zero-value rule: anything but the build owner is finalize, so an empty
+		// owner never reaches EvidenceRecord (where empty would mean build).
+		owner := EvidenceOwnerFinalize
+		if g.owner == gateOwnerBuild {
+			owner = EvidenceOwnerBuild
+		}
 		evd := EvidenceRecord(ctx, g.planning, g.wdeps, req.RepoDir,
-			EvidenceRecordRequest{ID: req.ID, RunDir: doc.RawRunDir, Head: req.Head})
+			EvidenceRecordRequest{ID: req.ID, RunDir: doc.RawRunDir, Head: req.Head, Owner: owner})
 		if evd.Result != ResultApplied || evd.Block == "" {
 			*removeRoot = false
 			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable, RunDir: doc.RawRunDir}
