@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0517 — Make evidence.record certify a finalize re-test with the finalize gate settings](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md)**
+> ↩ **[Change 0517 — Make evidence.record certify a finalize re-test with the finalize gate settings](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md)**
 <!-- docket:backlink:end -->
 # Make evidence.record certify a finalize re-test with the finalize gate settings — Results
 
