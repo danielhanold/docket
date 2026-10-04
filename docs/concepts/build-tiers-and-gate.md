@@ -23,7 +23,7 @@ list of tasks, and each is routed to a **build tier**: one of four workers
 (economy, standard, premium, max) chosen by risk. After
 the last task lands, the **build gate** — the full test-suite run at the end of a
 build that must be green before review — runs the whole suite once and records
-**build evidence**, the committed record of that gate run, read by the reviewer.
+**build evidence**, the immutable record of that gate run, read by the reviewer.
 
 ## The moving parts
 
@@ -51,9 +51,10 @@ build that must be green before review — runs the whole suite once and records
        green                 red
          │                   │
          ▼                   ▼
-   build evidence      the build does not
-   committed;          reach review
-   review may begin
+   build evidence      repair tasks, then the
+   recorded;           suite again — until
+   review may begin    build.max_attempts is
+                       spent, then a halt
 ```
 
 - The router sends the bulk of the work to **standard** — the default, and the
@@ -69,17 +70,22 @@ build that must be green before review — runs the whole suite once and records
 - The build gate is not the per-task focused tests. It is the entire suite, run
   once after the branch is assembled, because a task that passed in isolation can
   still have reddened a test it never looked at.
-- A red gate does not reach review — the build turns the failure into a bounded
-  repair cycle instead. `build.max_attempts` (default 4) caps how many full-suite
-  runs the phase may spend — the initial run plus a repair-and-rerun for each red
-  result — and once that budget is spent a still-red suite halts for a human. A
-  value of 1 disables repair: the first red run halts.
-- The gate measures each test file against a wall-clock budget. A parallel run's
-  number is machine-dependent, so a budget-watch line is a screening finding to
-  record, while a serially-confirmed breach is the one to act on — neither fails
-  the run by itself.
-- The build evidence is committed, so the reviewer reads a durable record of the
-  gate run instead of trusting a worker's word that the suite passed.
+- A red gate does not reach review — the build turns the failure into repair
+  tasks instead (routed premium, then max, then a halt). `build.max_attempts`
+  (default 4) caps how many full-suite runs the phase may spend — the initial
+  run plus a repair-and-rerun for each red result — and once those runs are
+  spent a still-red suite halts for a human. A value of 1 disables repair: the
+  first red run halts.
+- The gate runs the command in `build.test_command` when `build.gate` is
+  `local`. With `build.gate: off` it runs nothing and records truthful skipped
+  evidence (`skipped`, reason `build-gate-off`) before review. An empty
+  `build.test_command` under `local` is a configuration gap, not a red suite: the
+  build halts with the remedy `docket repository configure-tests`.
+- Build evidence is minted by `docket evidence record` from the passed run and
+  checked by `docket evidence verify`. It lives in the pull request body's
+  build-evidence block and is never committed, so the reviewer reads a durable
+  record of the gate run instead of trusting a worker's word that the suite
+  passed.
 
 ## The invariants
 
@@ -93,25 +99,24 @@ build that must be green before review — runs the whole suite once and records
   only the tests a single task enumerated.
 - The gate's suite command is read from configuration (`build.test_command`),
   never from a second copy, so it tests the exact checkout under review.
-- A wall-clock budget line never fails the run on its own: a screening finding is
-  recorded, a serially-confirmed breach is acted on.
-- The build evidence is committed before review begins, so review rests on a
-  recorded gate run rather than a claim.
+- Build evidence is recorded in the pull request body before review begins, so
+  review rests on a recorded gate run rather than a claim.
+- An empty test command never reads as a red suite: it halts with a remedy
+  instead of manufacturing a repair task.
 
 ## Decided in
 
 - [ADR-0063](../adrs/0063-docket-owns-the-build-role-profile-routed-workers.md) —
   had docket own the build role as tier-routed workers, with model and effort
-  pinned on named agents (supersedes ADR-0023's per-role build-model surface).
+  pinned on named agents.
 - [ADR-0064](../adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md)
-  — moved the shipped model and effort defaults for those workers into a
-  harness-indexed sidecar.
+  — indexed the shipped model and effort defaults for those workers by harness.
 - [ADR-0066](../adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md)
   — had docket own the review role and fixed that the suite runs in the build
   gate, before review, not inside the review.
 - [ADR-0070](../adrs/0070-fix-loop-profile-envelope-blocker-floor-and-max-ceiling.md)
-  — bounded the fix loop's tier envelope with a blocker floor at standard and
-  a ceiling below max.
+  — bounded the fix pass's tiers: a blocker's fix starts no lower than
+  standard, and no fix task runs at max.
 - [ADR-0074](../adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md)
-  — made the build gate's verdict tri-state, so a runner-defined non-failure exit
-  reads as a halt rather than a pass.
+  — made the build gate's verdict three-valued (green, red, or halt), so an exit
+  the test runner defines as a non-failure halts instead of reading as red.

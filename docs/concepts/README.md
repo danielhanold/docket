@@ -21,6 +21,6 @@ parts, the invariants, and the decisions behind it.
 - [The run tracker and attribution](./run-tracker.md) — the bookkeeping that decides
   whether a launched build really finished and may be retried.
 - [Finalize as a sequencer](./finalize-sequencer.md) — close-out as an ordered
-  chain of gated steps: rebase, retest, merge, archive.
+  chain of gated steps: rebase, retest, publish, merge, archive, clean up.
 - [Learnings and ADRs as memory](./memory.md) — the two records docket keeps of
   why a decision was made and what a build taught.

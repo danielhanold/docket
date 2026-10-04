@@ -76,9 +76,7 @@ records it under the row **Refresh a stale change before planning**.
 
 ## Decided in
 
-- [ADR-0001](../adrs/0001-docket-metadata-branch-model.md) — put the
-  reconcile push and the reconciled spec on the metadata branch, read
-  cross-tree during the build rather than carried on the feature branch.
-- [ADR-0045](../adrs/0045-auto-capture-is-best-effort.md) — made the
-  discovered-work capture that runs during the reconcile pass best-effort,
-  so a failed stub mint never aborts the change in flight.
+- [ADR-0001](../adrs/0001-docket-metadata-branch-model.md) — put planning
+  metadata, including the reconciled spec, on the `docket` metadata branch,
+  read through the `.docket/` worktree during the build rather than carried on
+  the feature branch.
