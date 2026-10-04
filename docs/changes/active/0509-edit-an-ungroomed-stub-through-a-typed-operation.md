@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/edit-an-ungroomed-stub-through-a-typed-operation'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T11:39:48Z'
+reconciled: true
+claimed_at: '2026-10-04T11:43:04Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ Docket can edit a `proposed` stub's title, owned proposal sections, and relation
 ## Out of scope
 
 Editing changes past `proposed`. Changing a stub's groom state through `revise` (spec, trivial, abstain, re-enable keep their owners). Editing `type`, `priority`, or `auto_groomable`.
+
+## Reconcile log
+
+### 2026-10-04
+
+2026-10-04: origin/main is still at the spec's design baseline 5805127ab. The `revise` gate in `changeGroomOp.Plan`, the `spec-not-linked` refusal, and the re-enable-only `## Auto-groom blocked` heading check in `validateChangeGroomShape` are all as the spec describes. No scope change.
