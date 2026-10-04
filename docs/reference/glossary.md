@@ -709,7 +709,8 @@ to act on. Neither fails the run, and neither is part of the build gate in your 
 The immutable record of a passed [build gate](#build-gate) run, minted by `evidence record` and
 checked by `evidence verify`. It certifies an exact tested commit and lives in the PR body's
 build-evidence block; it is never committed. With `build.gate: off` the record says `skipped`
-(`build-gate-off`).
+(`build-gate-off`). When finalize re-tests a head, `evidence record --owner finalize` records
+`finalize.test_command` instead, and is never `skipped`.
 
 **Used for:** letting review and finalize trust a record rather than a worker's word. Adding a
 commit after the evidence was recorded makes it stale (`evidence-unverified`).

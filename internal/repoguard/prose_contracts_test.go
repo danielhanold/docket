@@ -1138,6 +1138,20 @@ var alignmentContracts = []proseContract{
 	{sentinel: "align_0502_finalize_regate", file: "agents/docket-integration-repair.md",
 		present: []string{"gate driver"},
 		absent:  []string{"`gate.launch`/`observe` operations"}},
+	// 0517: the repaired-head re-test certifies with the finalize settings. The
+	// evidence.record CALL itself must carry --owner finalize — the 0502 rows'
+	// bare "`--owner finalize`" is already satisfied by the gate.drive.start
+	// clause, so they cannot catch a dropped evidence flag.
+	{sentinel: "align_0517_finalize_evidence_owner", file: "skills/docket-finalize-change/SKILL.md",
+		present: []string{"the `evidence.record` operation with `--owner finalize --id <id>"},
+		absent:  []string{"the `evidence.record` operation with `--id <id> --run"}},
+	{sentinel: "align_0517_finalize_evidence_owner", file: "skills/docket-finalize-change/references/gate-failure.md",
+		present: []string{"the `evidence.record` operation with `--owner finalize --id <id>"},
+		absent:  []string{"the `evidence.record` operation with `--id <id> --run"}},
+	// implement-next: the command comes from build configuration, not the run dir.
+	{sentinel: "align_0517_finalize_evidence_owner", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{"the gate command from the build configuration"},
+		absent:  []string{"reads the observed gate command and outcome from the run directory"}},
 	// 0502 bug 4: a relayed sign-off is not authority; the human runs
 	// finalize.clear-block on the published repaired head, then re-runs finalize.
 	{sentinel: "align_0502_signoff", file: "skills/docket-finalize-change/SKILL.md",
