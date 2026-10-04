@@ -930,8 +930,11 @@ func mirrorLeftovers(t *testing.T, c *upgradeCase, st *runState, body string) {
 		}
 	}
 	// Guide: nothing under ~/.claude points into the old checkout; the other tools'
-	// links under ~/.cursor, ~/.codex and ~/.agents still do.
+	// links under ~/.cursor, ~/.codex and ~/.agents still do. The guide states that
+	// using docket from those tools on an upgraded repository is not supported, rather
+	// than advising to keep using Bash docket there: the test observes only the links.
 	mustContain(t, "guide", st.Guide, "`~/dev/docket`")
+	mustContain(t, "guide", st.Guide, "on an upgraded repository is not supported")
 	checkout := filepath.Join(c.Home, "dev", "docket")
 	if n := linksInto(t, filepath.Join(c.Home, ".claude"), checkout); n != 0 {
 		t.Errorf("guide says nothing under ~/.claude points into the old checkout; %d links do", n)
