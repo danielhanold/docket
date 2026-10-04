@@ -126,3 +126,7 @@ guarantee this sub-decision introduced is consciously retired. See [[0020]] for 
 rationale and what is kept (the generator, the built-in-defaults glob, the on-demand +
 `--check` operating model of sub-decision 3, which is redefined but not reversed). This
 `Decision` section is otherwise unchanged.
+
+**2026-10-04 (change 0515, [[0139]]).** The finalize repair sign-off described in the
+2026-06-17 note above is **reversed** by [[0139]] ("Finalize adds no human gate of its own"):
+a repair that turns the rebased suite green now merges. The rest of this ADR stands as written.

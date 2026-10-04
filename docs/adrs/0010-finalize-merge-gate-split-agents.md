@@ -97,3 +97,8 @@ attempts remain accounted separately from conflict-resolver dispatches.
 This is a bounded parameter change **within** this ADR's decision — the rebase-completion
 boundary and the split between ① conflict resolution and ② semantic repair are unaffected,
 so this ADR is neither reversed nor superseded and its accepted text above stands as written.
+
+**2026-10-04 (change 0515, [[0139]]).** The **sign-off rule** above (auto-authored repairs
+never merge unseen: an interactive prompt, or an autonomous force-push then abort-and-report)
+is **reversed** by [[0139]] ("Finalize adds no human gate of its own"): a repair that turns the
+rebased suite green now merges. The rest of this ADR stands as written.
