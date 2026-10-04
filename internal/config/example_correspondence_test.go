@@ -25,7 +25,9 @@ import (
 //	  documented: a static leaf by its exact key, a dynamic per-harness family
 //	  by a documented ancestor block.
 //	Direction C (unsupported -> absent): no unsupported path is documented as an
-//	  active or scope-tagged key.
+//	  active or scope-tagged key, and no registry-derived unsupported-key shape
+//	  appears anywhere in the raw file (commented blocks included).
+//	The commented agents table equals builtinAgents() row for row.
 //	D (copy safety): a verbatim copy of the example as .docket.yml resolves with
 //	  no warning, no write blocker, and effective values equal to the built-in
 //	  defaults.
@@ -184,6 +186,159 @@ func documentedUnsupported(documented map[string]bool) []string {
 	return out
 }
 
+// directionCViolations reports every unsupported key the example documents:
+// the structural view (documentedUnsupported over the extracted keys) plus a
+// lexical scan of the raw file for registry-derived unsupported-key shapes. The
+// lexical scan reaches what the extractor cannot see: keys inside a commented
+// block (a `runner:` in the commented agents flow mappings) and a commented key
+// that does not sit directly under its scope tag.
+func directionCViolations(content string) []string {
+	out := documentedUnsupported(exampleDocumentedKeys(content))
+	for _, s := range exampleUnsupportedKeyShapes() {
+		for _, m := range s.re.FindAllStringIndex(content, -1) {
+			line := strings.Count(content[:m[0]], "\n") + 1
+			out = append(out, fmt.Sprintf("line %d: unsupported key %s (%q)", line, s.name, strings.TrimSpace(content[m[0]:m[1]])))
+		}
+	}
+	return out
+}
+
+type exampleKeyShape struct {
+	name string
+	re   *regexp.Regexp
+}
+
+const exampleKeySegClass = `[A-Za-z0-9_<>*-]+`
+
+// exampleUnsupportedKeyShapes derives, from the schema registry, the spellings
+// of unsupported keys. It mirrors repoguard's unsupportedKeyShapes (the living
+// docs guard, which cannot be imported here without an import cycle): each
+// unsupported dotted path; for a top-level segment with no supported path
+// beneath it, its YAML-key form (commented or not) and any dotted child; and,
+// inside a block that also holds supported keys, an unsupported leaf's
+// YAML-key form at a line start or inside a flow mapping, when that leaf name
+// is no segment of any supported path.
+func exampleUnsupportedKeyShapes() []exampleKeyShape {
+	paths := SettingPaths()
+	supportedTop, supportedSeg := map[string]bool{}, map[string]bool{}
+	for _, p := range paths {
+		if p.Supported {
+			segs := strings.Split(p.Path, ".")
+			supportedTop[segs[0]] = true
+			for _, s := range segs {
+				supportedSeg[s] = true
+			}
+		}
+	}
+	var shapes []exampleKeyShape
+	seenTop, seenLeaf := map[string]bool{}, map[string]bool{}
+	for _, p := range paths {
+		if p.Supported {
+			continue
+		}
+		segs := strings.Split(p.Path, ".")
+		if len(segs) > 1 {
+			parts := make([]string, len(segs))
+			for i, s := range segs {
+				if s == "*" {
+					parts[i] = exampleKeySegClass
+				} else {
+					parts[i] = regexp.QuoteMeta(s)
+				}
+			}
+			shapes = append(shapes, exampleKeyShape{p.Path, regexp.MustCompile(`(?:^|[^\w.-])` + strings.Join(parts, `\.`) + `(?:[^\w-]|$)`)})
+		}
+		top := segs[0]
+		if !supportedTop[top] && !seenTop[top] {
+			seenTop[top] = true
+			q := regexp.QuoteMeta(top)
+			shapes = append(shapes, exampleKeyShape{top + ":", regexp.MustCompile("(?m)(?:^[ \\t]*(?:#[ \\t]*)?(?:-[ \\t]+)?|`)" + q + ":")})
+			if len(segs) > 1 {
+				shapes = append(shapes, exampleKeyShape{top + ".<child>", regexp.MustCompile(`(?:^|[^\w.-])` + q + `\.` + exampleKeySegClass)})
+			}
+		}
+		leaf := segs[len(segs)-1]
+		if len(segs) > 1 && supportedTop[top] && leaf != "*" && !supportedSeg[leaf] && !seenLeaf[leaf] {
+			seenLeaf[leaf] = true
+			shapes = append(shapes, exampleKeyShape{leaf + ":", regexp.MustCompile(`(?m)(?:^[ \t]*(?:#[ \t]*)?|[{,][ \t]*)` + regexp.QuoteMeta(leaf) + `:`)})
+		}
+	}
+	return shapes
+}
+
+// The commented `# agents:` table is parsed by shape: a harness row is
+// `#   <harness>:` and an agent row is `#     <agent>: { model: <m>, effort: <e> }`.
+var (
+	agentsOpenerRe     = regexp.MustCompile(`^#[ \t]*agents:[ \t]*$`)
+	agentsBlockLineRe  = regexp.MustCompile(`^#[ \t]{2,}\S`)
+	agentsHarnessRowRe = regexp.MustCompile(`^#[ \t]{3}([A-Za-z0-9_-]+):[ \t]*$`)
+	agentsAgentRowRe   = regexp.MustCompile(`^#[ \t]{5}([A-Za-z0-9_-]+):[ \t]*\{[ \t]*model:[ \t]*([^,}\s]+)[ \t]*,[ \t]*effort:[ \t]*([^,}\s]+)[ \t]*\}[ \t]*$`)
+)
+
+// exampleAgentsTable parses the example's commented agents table into
+// harness -> agent -> (model, effort), with `effort: auto` read as "" the way
+// builtinAgents suppresses it. It returns the agent-row count and every line in
+// the block that is neither row shape, or that repeats a row, as a problem.
+func exampleAgentsTable(content string) (map[string]map[string]pair, int, []string) {
+	table := map[string]map[string]pair{}
+	rows := 0
+	var problems []string
+	lines := strings.Split(content, "\n")
+	start := -1
+	for i, l := range lines {
+		if agentsOpenerRe.MatchString(l) {
+			if start >= 0 {
+				problems = append(problems, fmt.Sprintf("line %d: a second commented agents opener", i+1))
+				continue
+			}
+			start = i
+		}
+	}
+	if start < 0 {
+		return table, 0, []string{"no commented `# agents:` opener"}
+	}
+	harness := ""
+	for i := start + 1; i < len(lines) && agentsBlockLineRe.MatchString(lines[i]); i++ {
+		l := lines[i]
+		if m := agentsHarnessRowRe.FindStringSubmatch(l); m != nil {
+			harness = m[1]
+			if _, dup := table[harness]; dup {
+				problems = append(problems, fmt.Sprintf("line %d: harness %q repeated", i+1, harness))
+			}
+			table[harness] = map[string]pair{}
+			continue
+		}
+		m := agentsAgentRowRe.FindStringSubmatch(l)
+		if m == nil || harness == "" {
+			problems = append(problems, fmt.Sprintf("line %d: not a harness or agent row: %q", i+1, l))
+			continue
+		}
+		if _, dup := table[harness][m[1]]; dup {
+			problems = append(problems, fmt.Sprintf("line %d: agent %s.%s repeated", i+1, harness, m[1]))
+		}
+		effort := m[3]
+		if effort == "auto" {
+			effort = ""
+		}
+		table[harness][m[1]] = pair{Model: m[2], Effort: effort}
+		rows++
+	}
+	return table, rows, problems
+}
+
+// builtinAgentPairs flattens builtinAgents() to the same shape.
+func builtinAgentPairs() map[string]map[string]pair {
+	out := map[string]map[string]pair{}
+	for harness, agents := range builtinAgents() {
+		row := map[string]pair{}
+		for name, a := range agents {
+			row[name] = pair{Model: a.Model.Value, Effort: a.Effort.Value}
+		}
+		out[harness] = row
+	}
+	return out
+}
+
 // verbatimCopyProblems resolves content as a committed .docket.yml on its own
 // and reports what would make a verbatim copy unsafe: a resolve error, a
 // warning or error diagnostic, a mutation-preflight blocker, or effective values
@@ -323,7 +478,7 @@ func TestExampleSchemaCorrespondence(t *testing.T) {
 	}
 
 	// Direction C: no unsupported path is documented.
-	if u := documentedUnsupported(documented); len(u) != 0 {
+	if u := directionCViolations(string(b)); len(u) != 0 {
 		t.Errorf("unsupported keys documented in .docket.example.yml:\n%s", strings.Join(u, "\n"))
 	}
 
@@ -375,12 +530,77 @@ func TestExampleSchemaCorrespondence(t *testing.T) {
 				t.Errorf("Direction C missed planted %q (got %s)", want, got)
 			}
 		}
+		// Direction C reaches past the structural extractor: an unsupported leaf
+		// inside the commented agents table, and a commented unsupported key that
+		// follows an explanatory line instead of its scope tag.
+		content := string(b)
+		for name, planted := range map[string]string{
+			"runner in commented agents table": strings.Replace(content, "#   claude:\n", "#   claude:\n#     adr: { model: x, runner: codex }\n", 1),
+			"commented key after a prose line": content + "\n# scope: any layer\n# An explanatory line about the next key.\n# terminal_publish: true\n",
+		} {
+			if planted == content {
+				t.Fatalf("plant %q did not change the example", name)
+			}
+			if len(directionCViolations(planted)) == 0 {
+				t.Errorf("Direction C missed the plant: %s", name)
+			}
+		}
+		// The lexical shapes are registry-derived: every unsupported path,
+		// spelled as a config key, is caught.
+		if len(exampleUnsupportedKeyShapes()) == 0 {
+			t.Fatalf("no unsupported-key shapes derived from the schema registry")
+		}
+		for _, p := range SettingPaths() {
+			if p.Supported {
+				continue
+			}
+			spelled := strings.ReplaceAll(p.Path, "*", "x")
+			probe := "# see `" + spelled + "` here\n"
+			if !strings.Contains(p.Path, ".") {
+				probe = "# " + spelled + ": x\n"
+			}
+			if len(directionCViolations(probe)) == 0 {
+				t.Errorf("registry path %s not caught by %q", p.Path, probe)
+			}
+		}
 		// D: a blocking active line makes the verbatim copy unsafe.
 		if p := verbatimCopyProblems(string(b) + "\nterminal_publish: true\n"); len(p) == 0 {
 			t.Errorf("verbatim-copy check admitted a blocking line")
 		}
 		if p := verbatimCopyProblems(string(b) + "\nskills:\n  build: docket-build\n"); len(p) == 0 {
 			t.Errorf("verbatim-copy check admitted a skills binding")
+		}
+	})
+
+	// The commented agents table shows the built-in values; it must equal
+	// builtinAgents() row for row, both directions.
+	t.Run("commented_agents_table", func(t *testing.T) {
+		content := string(b)
+		check := func(content string) []string {
+			got, rows, problems := exampleAgentsTable(content)
+			const agentRowFloor = 68
+			if rows < agentRowFloor {
+				problems = append(problems, fmt.Sprintf("population floor: only %d agent rows parsed (expected >= %d)", rows, agentRowFloor))
+			}
+			if want := builtinAgentPairs(); !reflect.DeepEqual(got, want) {
+				problems = append(problems, fmt.Sprintf("commented agents table differs from builtinAgents():\n got: %v\nwant: %v", got, want))
+			}
+			return problems
+		}
+		for _, p := range check(content) {
+			t.Error(p)
+		}
+		// Mutation: one changed model value in a copy must redden.
+		mutated := strings.Replace(content, "{ model: claude-sonnet-5,", "{ model: claude-sonnet-4,", 1)
+		if mutated == content {
+			t.Fatalf("mutation probe did not change the example")
+		}
+		if len(check(mutated)) == 0 {
+			t.Errorf("a changed model value in the commented agents table was not caught")
+		}
+		// An unparseable row inside the block is reported, not skipped.
+		if _, _, p := exampleAgentsTable(strings.Replace(content, "#   claude:\n", "#   claude:\n#     adr: model claude-opus-5\n", 1)); len(p) == 0 {
+			t.Errorf("an unparseable row in the commented agents table was not reported")
 		}
 	})
 }
