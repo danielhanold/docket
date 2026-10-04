@@ -1,18 +1,12 @@
 # Backlog
 
-**503 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 7 proposed · ⚪ 12 deferred · ✅ 345 done · 🗑️ 134 killed
+**503 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 7 proposed · ⚪ 12 deferred · ✅ 346 done · 🗑️ 134 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align the human-facing docs and example config with the docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md) | `docs/align-guide-install-docs-and-docket-example-yml-with-the-go` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0501](active/0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) | Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note | `medium` | `fix` | [#375](https://github.com/danielhanold/docket/pull/375) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -75,7 +69,6 @@ graph TD
   0433
   0464
   0497
-  0501
   0464 --> 0502
   0503
   0192:::done
@@ -86,10 +79,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (479)</summary>
+<details><summary>✅🗑️ Archive — done + killed (480)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0501](archive/2026-10-04-0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) | Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note | 2026-10-04 |
 | [0500](archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0498](archive/2026-10-04-0498-results-file-puts-the-whole-branch-review-under-human-action.md) | Results file puts the whole-branch review under Human actions and testing | 2026-10-04 |
@@ -115,7 +109,6 @@ graph TD
 | [0484](archive/2026-10-01-0484-bring-test-go-race-back-under-its-budget-row-testretiredvoca.md) | Bring test_go_race back under its budget row (TestRetiredVocabularySeal scan cost) | 2026-10-01 |
 | [0482](archive/2026-10-01-0482-finish-0469-s-leftover-wording-outside-the-adr-0129-rename-r.md) | Finish 0469's leftover "repair" (relink) and "Step 0" (startup check) wording | 2026-10-01 |
 | [0481](archive/2026-10-01-0481-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) | Split the overloaded gate-drive halt tokens left by 0469 | 2026-10-01 |
-| [0480](archive/2026-10-01-0480-check-finalize-cleanup-s-not-final-message-for-killed-change.md) | Report killed changes truthfully in finalize cleanup | 2026-10-01 |
 | [0478](archive/2026-10-01-0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | 2026-10-01 |
 | [0476](archive/2026-10-01-0476-bring-test-go-integration-app-rebaserecovery-back-under-its.md) | Bring test_go_integration_app_rebaserecovery back under its runtime budget | 2026-10-01 |
 | [0475](archive/2026-10-01-0475-bring-test-go-integration-app-closeout-sh-back-under-its-bud.md) | Bring test_go_integration_app_closeout.sh back under its budget row | 2026-10-01 |
@@ -244,7 +237,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 2 done |
+| [2026-10](archive/) | 3 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

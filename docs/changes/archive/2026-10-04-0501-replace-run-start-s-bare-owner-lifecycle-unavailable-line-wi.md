@@ -2,7 +2,7 @@
 id: 501
 slug: 'replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi'
 title: 'Replace run.start''s bare owner-lifecycle-unavailable line with a plain stop note'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi'
 pr: 'https://github.com/danielhanold/docket/pull/375'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T06:49:15Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T06:49:15Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-design.md) |
-| Plan | [2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md](https://github.com/danielhanold/docket/blob/fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi/docs/superpowers/plans/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) |
-| Results | [2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-results.md](https://github.com/danielhanold/docket/blob/fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi/docs/results/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-results.md) |
+| Plan | [2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) |
+| Results | [2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-results.md) |
 | ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
