@@ -1,12 +1,13 @@
 # Validating docket's Cursor harness — the CLI probe and the IDE checklist
 
-`sync-agents.sh` writes docket's Cursor artifacts against **Cursor's own documented subagent
-contract**: `.cursor/agents/docket-*.md` wrappers carrying `name`/`description` (plus `model`
-wherever one resolves, with the reasoning effort bracket-encoded inside the model value) and the
-skills list as a body preamble, plus the `docket-dispatch.mdc` rule. The hermetic suite
-(`tests/test_sync_agents_cursor.sh`) proves docket *emits* that shape. It cannot prove Cursor *honors* it — that takes a live harness.
+`docket install --harness cursor` writes docket's Cursor artifacts against **Cursor's own documented
+subagent contract**: 17 user-level `~/.cursor/agents/docket-*.md` wrappers carrying
+`name`/`description` (plus `model` wherever one resolves, with the reasoning effort bracket-encoded
+inside the model value) and the skills list as a body preamble, plus, in a repository that opts in,
+the `.cursor/rules/docket-dispatch.mdc` rule. The hermetic tests in `internal/harness/cursor` prove
+docket *emits* that shape. They cannot prove Cursor *honors* it — that takes a live harness.
 
-This runbook carries the two tiers that cannot be automated. Tier 1 is the hermetic suite and is not
+This checklist carries the two tiers that cannot be automated. Tier 1 is the hermetic suite and is not
 described here.
 
 > **Provenance.** Cursor's subagent contract and its nesting limit are read from Cursor's published
@@ -52,38 +53,35 @@ result. The shape is settled by Cursor's published contract and certified by Tie
 The certifying tier. A human runs this in the Cursor IDE, in a repo opted in with
 `agent_harnesses: [claude, cursor]`.
 
-> `agent_harnesses` is the explicit repository opt-in (change 0351). At install time
-> `docket development install` (reached through `install.sh`) reconciles Cursor's wrappers and the
-> `docket-dispatch.mdc` rule in Go; an *absent* key keeps the shipped Claude-only default, a
-> *non-empty* list reconciles exactly the harnesses named, and an *explicit empty* list
-> (`agent_harnesses: []`) retires every docket-owned repository surface. Running `./sync-agents.sh`
-> directly, as Phase 1 does, still regenerates the same artifacts for inspection. Start a fresh
-> Cursor session after any change to a wrapper or the dispatch rule — Cursor registers agents at
-> process start, so clearing a conversation is not enough.
+> `agent_harnesses` is the explicit repository opt-in, read from the repository's `.docket.yml` or
+> `.docket.local.yml`. An *absent* key touches no repository surface, a *non-empty* list reconciles
+> exactly the harnesses named, and an *explicit empty* list (`agent_harnesses: []`) retires every
+> docket-owned repository surface. The user-level wrappers need no opt-in. Start a fresh Cursor
+> session after any change to a wrapper or the dispatch rule — Cursor registers agents at process
+> start, so clearing a conversation is not enough.
 
 **Pass condition: passes when phases 1–3 and 5 are green and phases 4, 6, and 7 have definitive
-observed answers.** Phase 7 applies only to a repo running `skills.build: docket-build`. A phase that
-is merely "seemed fine" is not an answer. Every gap found becomes a follow-up stub, not a silent
-note.
+observed answers.** A phase that is merely "seemed fine" is not an answer. Every gap found becomes
+a follow-up stub, not a silent note.
 
 ### Phase 1 — Generated artifacts
 
-Run `./sync-agents.sh`. Open `.cursor/agents/docket-*.md`.
+From the opted-in repository, run `docket install --harness cursor`. Open
+`~/.cursor/agents/docket-*.md`.
 
-Observable outcome: every file's frontmatter carries `name` and `description`, and **no** `effort:`
-key and **no** `skills:` key; the skills the agent needs appear as a preamble in the **body**.
-`.cursor/rules/docket-dispatch.mdc` exists.
+Observable outcome: 17 files, each with frontmatter carrying `name` and `description`, and **no**
+`effort` field and **no** `skills` field; the skills the agent needs appear as a preamble in the
+**body**. The repository's `.cursor/rules/docket-dispatch.mdc` exists.
 
-The `model:` key is present only where a model resolves. Docket's shipped
-`agents/harness-defaults.yml` maps Cursor for **all thirteen wrappers**, so with no Cursor `agents:`
-config of your own, every file carries a `model:` line holding the Cursor ID that harness-defaults
-ships for it.
+The `model:` key is present only where a model resolves. The built-in table (mirrored in
+`agents/harness-defaults.yml`) maps Cursor for **all 17 wrappers**, so with no Cursor `agents:`
+entries in your global config, every file carries a `model:` line holding the shipped Cursor ID.
 
-A **Claude** model ID appearing in a Cursor wrapper is the cross-harness leak this design removed;
-treat it as a defect, not a default. The one deliberate exception is `docket-build-max`, whose
-shipped Cursor ID *is* `claude-opus-5-high` — that is Cursor's own name for the model, selected
-through Cursor, not a leaked Claude Code pin. A **missing** `model:` line is also a defect now:
-before this change nine wrappers shipped unpinned, and that is no longer the design.
+A **Claude Code** model ID appearing in a Cursor wrapper is a cross-harness leak; treat it as a
+defect, not a default. The two deliberate exceptions are `docket-build-max` and
+`docket-review-deep`, whose shipped Cursor ID *is* `claude-opus-5-high` — that is Cursor's own name
+for the model, selected through Cursor, not a leaked Claude Code pin. A **missing** `model:` line is
+also a defect.
 
 Where an effort *is* pinned by your own config, the `model` value carries the bracket encoding
 (`<id>[effort=<e>]`). Every shipped Cursor ID already encodes its variant, so they all ship at
@@ -121,18 +119,19 @@ Observable outcome: the child names `docket-convention` and its own docket skill
 rule it could only know from having loaded them (e.g. a manifest field's lifecycle semantics). A bare
 "yes, loaded" is not evidence.
 
-### Phase 6 — SDD reachable at depth 2
+### Phase 6 — Nested dispatch reachable at depth 2
 
 From inside the child, trigger a real dispatch of one further subagent.
 
 Observable outcome: the nested dispatch runs and returns. Cursor documents a nesting limit of **two**,
-and docket's SDD topology is **flat** — the orchestrator dispatches implementers, task reviewers, fix
-subagents and the final reviewer as siblings, and the implementer never dispatches — so docket needs
-exactly depth 2, which Cursor permits. This phase confirms live that the documented limit and docket's
-actual need line up. A failure here is a definitive answer too, and a blocking one for SDD under
-Cursor.
+and docket's build is **flat** — inside `docket-implement-next`, `docket-build` dispatches each
+plan task to its tier worker (`docket-build-economy`, `-standard`, `-premium`, or `-max`) and the
+review tier agent runs as a sibling, and a tier worker never dispatches — so docket needs exactly
+depth 2, which Cursor permits. This phase confirms live that the documented limit and docket's
+actual need line up. A failure here is a definitive answer too, and a blocking one for building
+under Cursor.
 
-### Phase 7 — Tier-routed build under Cursor (required when `skills.build: docket-build`)
+### Phase 7 — Tier-routed build under Cursor
 
 Docket ships Cursor model IDs for every wrapper, the four build tiers among them, so a Cursor
 repo can run a tier-routed build with no configuration. That routing is what these checks certify; none of them
@@ -162,4 +161,4 @@ IDE. A green hermetic suite therefore does not clear the PR handoff on its own.
 The PR body for any change touching the Cursor wrapper contract **must state that Cursor IDE
 validation is pending and name this checklist** (`docs/reference/harness/validation.md`), so the human at the
 PR handoff knows what has not been verified yet. Merging on a green suite alone is exactly how the
-wrapper defect this runbook exists to prevent shipped in the first place.
+wrapper defect this checklist exists to prevent shipped in the first place.
