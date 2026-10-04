@@ -21,20 +21,16 @@ worker with its own context, pinned to a model and effort (`docket-implement-nex
 skills, `docket-new-change` and `docket-groom-next`, stay inline and only surface an advisory
 recommendation). To change the model or effort one of them runs at:
 
-**1. Edit a config layer.** Up to three layers override the built-in default, resolved per field
-(precedence: repo-local > repo-committed > global > built-in):
+**1. Edit your global config.** Pins live in the `agents:` block of your global
+`~/.config/docket/config.yml` (see [Global config](global-config.md)), and only there: docket
+installs agent wrappers for your user, never per repository, so a repository's `.docket.yml` or
+`.docket.local.yml` cannot pin a model. Each pin applies per agent and per field over the built-in
+table compiled into docket; a field you leave out keeps its built-in value, and a `default:` block
+applies to every harness that has no pin of its own for that agent.
 
-- **Global** — the `agents:` block in `~/.config/docket/config.yml` (applies to every repo on your
-  machine).
-- **Repo-committed** — the `agents:` block in a repo's committed `.docket.yml` (applies to that repo
-  for every clone).
-- **Repo-local** — the `agents:` block in that repo's `.docket.local.yml` (this machine only; wins
-  over the committed value for this clone).
-
-The config **shape** — the `agents:` keys and how the model and effort are written — is documented
-once in the `docket-convention` skill's *Agent layer* section; consult it there rather than copying
-field examples, so the shape has a single source of truth. For the layer model overall, see
-[Repo config](config-layers.md).
+The block's exact shape — harness, then agent, then `model` and `effort` — is shown in
+[`.docket.example.yml`](../../.docket.example.yml), with the built-in values as a starting point;
+copy from there rather than from a snippet, so the shape has a single source of truth.
 
 **`model: inherit` on Claude Code.** `inherit` is a Claude Code frontmatter value, not a docket
 keyword: it tells Claude Code to run the subagent on the **parent conversation's** model, which is a
@@ -59,57 +55,34 @@ it — so use exactly the IDs your harness reports:
 | opencode | `opencode models openrouter` |
 
 **2. Refresh the generated wrappers.** The resolved model and effort are baked into generated
-wrapper *copies* (not symlinks), so after editing any layer, regenerate them:
+wrapper *copies* (not symlinks), so after editing your global config, regenerate them:
 
 ```bash
-docket development install  # regenerate the wrappers; or re-run install.sh, which drives the same engine
+bash ~/dev/docket/install.sh   # runs docket development install --source ~/dev/docket
 ```
 
-- A **global** edit rewrites user-level wrappers into every **present** harness root
-  (`~/.<harness>/agents/`, e.g. `~/.claude/agents/`, `~/.cursor/agents/`, `~/.codex/agents/`).
-- A **repo-committed or repo-local** edit rewrites that repo's per-repo wrappers for each harness in
-  its (local-then-committed) `agent_harnesses:` list (default `[claude]`).
+The install rewrites the seventeen agent wrappers in every **present** harness's user-level agents
+directory:
 
-The install always writes **both** passes in one run, and project wins over global at generation
-time, per the four-layer precedence above.
+| Harness | Wrapper directory |
+|---|---|
+| Claude Code | `~/.claude/agents/` |
+| Codex | `~/.codex/agents/` |
+| Cursor | `~/.cursor/agents/` |
+| opencode | `${XDG_CONFIG_HOME:-~/.config}/opencode/agents/` |
 
-**Generated per-repo agent files are machine-local — gitignored, never committed.** Unlike a repo's
-committed `.docket.yml`, `<repo>/.<harness>/agents/docket-*.md` (and, for Cursor,
-`docket-dispatch.mdc`) are regenerated on every machine from that machine's own resolved config;
-they carry no team intent of their own — the committed `agents:` block is the artifact that does. A
-single marker-bounded `# docket` block in the repo's `.gitignore` covers every docket-owned path,
-and is seeded by `docket repository migrate` (fresh migration) or `docket repository prepare` (fresh
-orphan-branch bootstrap), then self-healed by the install, which prints a loud one-time notice to
-**commit it once**.
-
-**3. Guard drift in CI.** `docket install check` is a gate:
-
-- The `.gitignore` `# docket` block is present and current, **and** no per-repo generated file is
-  tracked by git — both are **CI-meaningful** (`rc != 0` fails the build; the second leg also
-  catches a repo whose migration commit never happened).
-- A committed `.docket.yml` using the legacy bare-agent-key `agents:` shape (agent keys sitting
-  directly under `agents:` instead of nested under `agents: default:`) also fails — **CI-meaningful**
-  — naming the offending keys and the reshape to `agents.default.<agent>` in its message.
-- Generated content drifting from the resolved config is **advisory only** (`rc` unaffected) — every
-  clone regenerates its own copy at build time, so a stale local file is a nudge to re-run the
-  install, not a CI failure.
-
-**The clone-identical guarantee is retired.** Before this design, committing the generated per-repo
-files meant an autonomous change built on the exact same model on every clone, by construction.
-Generation is now all-local, so that guarantee is gone — a deliberate trade: never having to
-reconcile a machine-generated file in a PR diff, at the cost of no CI-enforced pinning of the
-generated copies. Team defaults for a repo still live in its committed `.docket.yml` `agents:`
-block, by convention.
+`docket install check` reports whether this machine's installation is current; it writes nothing
+and checks only your machine.
 
 ### How the pin survives a direct invocation
 
 Both Cursor and Claude Code run a *directly-invoked* skill — a human typing `/docket-status`, or the
 model auto-invoking it — inline at the session model, which silently defeats the wrapper's
 model/effort pin. They fix it with **two mechanisms**: Cursor uses a generated `docket-dispatch.mdc`
-rule that forces a real dispatch; **Claude Code uses native `context: fork` + `agent: docket-<name>`
+rule (in a repository whose `agent_harnesses` includes `cursor`) that forces a real dispatch; **Claude Code uses native `context: fork` + `agent: docket-<name>`
 frontmatter** committed in each forked skill's `SKILL.md`, which forks the invocation into the same
 pinned wrapper. That frontmatter is inert in every other harness (unknown keys are ignored), so one
-shared `SKILL.md` serves all of them, and it degrades to today's inline behavior on a Claude Code too
+shared `SKILL.md` serves all of them, and it degrades to inline behavior on a Claude Code too
 old to know the field. **Fork-exclusion principle:** only skills that never need the human mid-run
 are forked — a forked subagent has no channel to the human (Claude Code withholds `AskUserQuestion`,
 `EnterPlanMode`, and similar from subagents). So the four headless-safe autonomous skills —

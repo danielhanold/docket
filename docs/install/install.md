@@ -9,8 +9,7 @@ section because harness setup is exactly what it is about; the guide keeps them 
 
 - **A harness.** docket's skills — a **skill** is a named, reusable instruction set an agent loads
   for one job — run inside a harness that has its own on-disk `skills/` and `agents/` directories
-  for docket to write into. **Claude Code, Cursor, Codex, and opencode** are first-class; docket
-  also writes into `.agents/`, `.kiro/`, and `.windsurf/` harness roots when they are present.
+  for docket to write into. docket supports four: **Claude Code, Cursor, Codex, and opencode**.
 - **`git` and the GitHub CLI (`gh`).** Every docket operation is a git operation, and the
   implementer opens pull requests with `gh`.
 - **GNU coreutils `timeout`.** Build workers run each focused test under
@@ -18,12 +17,12 @@ section because harness setup is exactly what it is about; the guide keeps them 
   (it may install as `gtimeout`, which workers also accept).
 - **A GitHub remote** for the pull-request flow. docket pushes branches and opens PRs against your
   `origin`.
-- **The superpowers plugin — recommended, not required.** superpowers is docket's default execution
-  engine (brainstorm, plan, build, review, finish). Installing it is your responsibility; docket
-  neither bundles nor fetches it. If it is absent, each workflow step **degrades to running inline
-  at the agent's own model, with a prominent warning** — so docket still works out of the box with
-  zero config, just without superpowers' structured execution. See
-  [Workflow roles](workflow-roles.md) to rebind any step.
+- **The superpowers plugin — recommended, not required.** Three of docket's five workflow steps
+  default to superpowers skills (brainstorm, plan, and finish); docket's own skills carry build and
+  review. Installing superpowers is your responsibility; docket neither bundles nor fetches it. If
+  it is absent, each of those steps **runs inline at the agent's own model, with a prominent
+  warning**, so docket still works out of the box with zero config. The full table is
+  [Default workflow roles](../reference/skills-and-agents.md#default-workflow-roles).
 
 ## Install docket on your machine
 
@@ -34,9 +33,9 @@ bash ~/dev/docket/install.sh
 ```
 
 That is the whole install. `install.sh` is a thin bootstrapper: it resolves this checkout and hands
-the install to docket's Go engine (`docket development install`), which does the real work as **one
+the install to `docket development install --source <checkout>`, which does the real work as **one
 journaled, all-or-nothing transaction** and is idempotent — re-run it any time (after adding a
-harness, after editing `~/.config/docket/config.yml`, and after every version update). A single run:
+harness, after editing a config file, and after every version update). A single run:
 
 - **Builds a fresh binary and hands the install to that binary**, so the version that plans and
   writes your machine is the one you are installing — never the older binary that happened to be
@@ -44,34 +43,29 @@ harness, after editing `~/.config/docket/config.yml`, and after every version up
   second.
 - **Links each present harness's global `skills/`** back to `~/dev/docket/skills/<name>` (symlinks,
   so editing a skill in the repo takes effect everywhere at once) and **reconciles that harness's
-  global agent wrappers** — the model/effort-pinned subagent copies, resolved from your config
-  layers over docket's shipped defaults. It also points `~/.config/docket/config.yml` at
-  [`.docket.example.yml`](../../.docket.example.yml), docket's canonical reference for every key and
-  its default.
+  global agent wrappers** — the model/effort-pinned subagent copies, resolved from your global
+  config over docket's built-in defaults. Wrappers are user-level only; no repository carries its
+  own copies.
 - **Retires the old global parent-facing dispatch blocks** that earlier docket versions wrote into
   your personal `~/.claude/CLAUDE.md` and the other harnesses' global instruction files, while
   keeping the global skills and agent wrappers. Removal is **proof-gated** — the engine deletes a
   block only while it still matches docket's exact ownership marker, byte for byte. There is **no
   `--force`**: a block you edited, or one that no longer matches, is left untouched and the run
   reports it so you can remedy it and re-run.
-- **Reconciles each repository's parent-facing dispatch surfaces** from that repository's *explicit*
-  `agent_harnesses` opt-in (see [Global config](global-config.md)) — automatic and Go-owned, with no
-  separate synchronization script to run.
+- **Reconciles the current repository's parent-facing dispatch surfaces**, but only when that
+  repository declares `agent_harnesses` in its `.docket.yml` or `.docket.local.yml`. Without that
+  declaration the install touches no repository surface. See [Repo config](config-layers.md).
 
-Two flags scope a run: **`--repo-dir <path>`** targets a repository other than the one containing
-your current directory, and a repeatable **`--harness <name>`** limits the run to the named
-harness(es) instead of every harness present on your machine.
+`install.sh` forwards two flags: **`--bin-dir <dir>`** chooses where the built binary is installed
+(default `XDG_BIN_HOME` or `~/.local/bin`), and a repeatable **`--harness <name>`** limits the run
+to the named harness(es) instead of every harness present on your machine. Run
+`docket development install` directly when you also need **`--repo-dir <dir>`** to reconcile a
+repository other than the one containing your current directory.
 
-The installer also writes a minimal `~/.config/docket/config.yml` the first time it runs. docket's
-ordinary defaults already apply, so a Claude-Code-only user can stop here; to enable another harness
-or change a default, continue with [Global config](global-config.md).
-
-> **Stale project-level Claude wrappers shadow the guard.** docket installs agent wrappers
-> **machine-globally** (under `~/.claude/agents/`), never inside a repository. If a repo still
-> carries its own `.claude/agents/docket-*.md` copies — as docket versions before the recursion
-> guard left behind — Claude Code loads *those* project-level wrappers in preference to the guarded
-> global ones, which re-enables recursive self-dispatch. Delete those project-level copies; docket
-> will not touch them, because it never owned them.
+The install writes no configuration file. docket's built-in defaults already apply, so a
+Claude-Code-only user can stop here. To pin a model or change a default on this machine, see
+[Global config](global-config.md); to enable a harness for a repository, add it to
+`agent_harnesses` in that repository's `.docket.yml` (see [Repo config](config-layers.md)).
 
 > **Start a fresh harness process after any install that changed a wrapper or a parent surface.**
 > Harnesses register their agents and read their instruction files **at process start**, so a
@@ -133,6 +127,7 @@ job.
 ## Adopting docket in a repository
 
 The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in each consuming project,
-not in the docket repo itself. To adopt docket in an *existing* repo, run `docket repository
-migrate` from inside that repo — a separate step from this machine install (see
-[Where the metadata lives](../guide/where-the-metadata-lives.md)).
+not in the docket repo itself. Adopting docket in a repository is a separate step from this machine
+install, run from inside that repository: a repository that has never used docket runs
+`docket repository init`, and a repository still on the legacy single-branch layout runs
+`docket repository migrate`. See [Where the metadata lives](../guide/where-the-metadata-lives.md).
