@@ -58,8 +58,6 @@ The driver's decision is binary: **continue on `advanced`/`contended`, stop on `
 
 The final report enumerates the change merged (if any), each change skipped with its closed reason, and the disposition that ended the run.
 
-**Dummy mode** is a *deferred capability* in the Go runtime: `dummy_mode.enabled` is rejected at the config gate, so a repo that sets it cannot mutate at all and this skill never runs with it on. Treat it as unavailable — do not calibrate prose to `DUMMY_MODE_PERSONA` or author an `### In plain terms` block. When a human asks for plainer language in-session, simply write it; that is an ordinary request, not this setting.
-
 ## The sequence
 
 The steps below run for the one selected change. Each is one operation; read its document and route on the token.

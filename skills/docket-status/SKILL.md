@@ -98,8 +98,6 @@ Drive these off the entries and findings the `maintenance.sweep` and `status` op
 
 Close with a short human-facing summary: backlog state (counts/highlights, read from the digest payload — never from the board file), what was swept to done (if anything), and any health-check findings or judgment flags raised above. When the `inline` board is enabled, point the user at `BOARD.md` for the full picture rather than reproducing it inline. When the report says `board off`, there is no board to point at — the digest-derived summary **is** the deliverable, and that is the intended, complete outcome.
 
-**Dummy mode:** when `DUMMY_MODE_ENABLED` is `true` (startup-check export), write this summary and every other part of the run's `reports` calibrated to `DUMMY_MODE_PERSONA`, per the convention's *Dummy mode* shared definition.
-
 ## Reference: what the board, sweep, and checks mean
 
 The mechanics below live entirely in the Go operations — this is a compact map so a reader knows what the report fields refer to, not a restatement of how they work.
