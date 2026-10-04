@@ -13,7 +13,7 @@ related: [502, 360, 520]
 discovered_from: [502]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T15:16:44Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md) |
+| Plan | [2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md](https://github.com/danielhanold/docket/blob/fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin/docs/superpowers/plans/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
