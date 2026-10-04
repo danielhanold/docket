@@ -14,7 +14,7 @@ discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md'
 plan: 'docs/superpowers/plans/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md'
-results:
+results: 'docs/results/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-04T08:17:52Z'
 |---|---|
 | Spec | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md) |
 | Plan | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md](https://github.com/danielhanold/docket/blob/docs/align-guide-install-docs-and-docket-example-yml-with-the-go/docs/superpowers/plans/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md) |
+| Results | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-results.md](https://github.com/danielhanold/docket/blob/docs/align-guide-install-docs-and-docket-example-yml-with-the-go/docs/results/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
