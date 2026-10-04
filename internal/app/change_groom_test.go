@@ -479,6 +479,19 @@ func TestChangeGroomReviseShapeValidation(t *testing.T) {
 		{"spec outcome with spec_revision refused", func(r *ChangeGroomRequest) {
 			r.Outcome = GroomSpec
 		}, "invalid-spec_revision"},
+		// abstain and re-enable own the abstain marker; a revise that replaced or
+		// removed it would desynchronize it from auto_groomable:.
+		{"revise replacing ## Auto-groom blocked refused", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown, r.SpecRevision = "", ""
+			r.Sections = []SectionEditRequest{{Heading: "## Auto-groom blocked", Intent: "replace", Markdown: "x\n"}}
+		}, "invalid-section-heading"},
+		{"revise removing ## Auto-groom blocked refused", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown, r.SpecRevision = "", ""
+			r.Sections = []SectionEditRequest{{Heading: "## Auto-groom blocked", Intent: "remove"}}
+		}, "invalid-section-heading"},
+		{"spec-body revise also naming ## Auto-groom blocked refused", func(r *ChangeGroomRequest) {
+			r.Sections = append(r.Sections, SectionEditRequest{Heading: "## Auto-groom blocked", Intent: "remove"})
+		}, "invalid-section-heading"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -495,6 +508,30 @@ func TestChangeGroomReviseShapeValidation(t *testing.T) {
 				t.Errorf("missing finding %q; got %v", c.code, findings)
 			}
 		})
+	}
+}
+
+// TestChangeGroomReviseAutoGroomBlockedRefusedWithoutEngineCall pins that the
+// guard fires at the real entry point before any engine call, so nothing is
+// written whatever state the target change is in (stub or groomed).
+func TestChangeGroomReviseAutoGroomBlockedRefusedWithoutEngineCall(t *testing.T) {
+	req := validReviseRequest()
+	req.SpecMarkdown, req.SpecRevision = "", ""
+	req.Sections = []SectionEditRequest{{Heading: "## Auto-groom blocked", Intent: "remove"}}
+	engine := &recordingEngine{}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeGroom(context.Background(), deps, "", req)
+
+	if res.Result != ResultInvalidInput {
+		t.Fatalf("result = %q, want invalid-input", res.Result)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("engine called %d times on a shape failure, want 0", len(engine.calls))
+	}
+	if !hasFindingCode(res.Findings, "invalid-section-heading") {
+		t.Errorf("missing invalid-section-heading; got %v", res.Findings)
 	}
 }
 
