@@ -2,7 +2,7 @@
 id: 519
 slug: 'make-the-finalize-block-schema-list-only-the-keys-input-acce'
 title: 'Make the finalize.block schema list only the keys --input accepts'
-status: 'proposed'
+status: 'killed'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -40,3 +40,7 @@ Make the published schema for `finalize.block` match what `--input` actually acc
 ## Out of scope
 
 Changing which values are passed as flags versus input. The broader CLI schema items bundled in change 0360.
+
+## Why killed
+
+Consolidated into #520 (with #518), which fixes both finalize schema mismatches together under one --input/schema guard test.
