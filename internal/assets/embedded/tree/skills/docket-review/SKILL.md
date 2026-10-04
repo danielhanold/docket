@@ -42,13 +42,17 @@ entire assignment is this role is bound by them for its whole turn.
 
 Before reading the diff, check the build-evidence record you were given. It must be
 
-1. **present** and parseable,
-2. carry `result: green`, and
-3. carry a `head_sha` equal to the HEAD of the branch you are reviewing
+1. **present** and parseable, and
+2. carry a `head_sha` equal to the HEAD of the branch you are reviewing
    (`git rev-parse HEAD`).
 
-If it is missing, malformed, red, or stale — a `head_sha` that does not match — return a
-**blocker** finding with the summary `unverified-build-state` and review what you can. Running the
+Its result then depends on the `build.gate` value the dispatch payload names. When the dispatch
+payload names `build.gate: off`, a `skipped` record carrying `reason: build-gate-off` is the
+expected build state, not a blocker. Under `local` it must carry `result: green`. When the payload
+names no `build.gate` value, treat it as `local`.
+
+If it is missing, malformed, red, stale — a `head_sha` that does not match — or a `skipped`
+record under `local`, return a **blocker** finding with the summary `unverified-build-state` and review what you can. Running the
 suite yourself is **not** an available remedy: the controller owns that decision, and a reviewer
 that quietly certifies its own subject is not a reviewer.
 

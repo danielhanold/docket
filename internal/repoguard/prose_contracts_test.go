@@ -1106,6 +1106,16 @@ var alignmentContracts = []proseContract{
 	{sentinel: "align_0502_autogroom_draft", file: "skills/docket-auto-groom/SKILL.md",
 		present: []string{"never inside `.docket/`", "`spec_markdown`", "discard the draft"},
 		absent:  []string{".docket/docs/superpowers/specs/", "delete any just-drafted spec markdown"}},
+	// 0502 bug 2: under build.gate off a skipped record is the expected build
+	// state; under local (or an unstated gate) green is still required.
+	{sentinel: "align_0502_review_gate_off", file: "skills/docket-review/SKILL.md",
+		present: []string{
+			"a `skipped` record carrying `reason: build-gate-off` is the expected build state, not a blocker",
+			"When the payload names no `build.gate` value, treat it as `local`",
+		}},
+	{sentinel: "align_0502_review_gate_off", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{"the resolved `build.gate` value"},
+		absent:  []string{"build_gate: off"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {
