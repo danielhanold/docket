@@ -22,7 +22,7 @@ branch: 'chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T08:45:22Z'
+claimed_at: '2026-10-04T08:47:23Z'
 ---
 
 ## Artifacts
