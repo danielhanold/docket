@@ -1,6 +1,6 @@
 # Backlog
 
-**522 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 359 done · 🗑️ 139 killed
+**523 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 359 done · 🗑️ 139 killed
 
 ## 🔵 Built (1)
 
@@ -15,10 +15,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (7)
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0523](active/0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) | repository check reports a behind-only .docket copy as diverged after repair | `medium` | `fix` | needs-grooming |
 | [0522](active/0522-share-the-json-key-rules-between-internal-cli-and-internal-a.md) | Share the JSON-key rules between internal/cli and internal/app | `low` | `refactor` | needs-grooming |
 | [0513](active/0513-release-v1-0-0-alpha-3-prove-and-publish-opencode-support.md) | Release v1.0.0-alpha.3: prove and publish OpenCode support | `high` | `chore` | ⏳ waiting on #512 — not yet built |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | ⏳ waiting on #366 — not yet built |
@@ -74,6 +75,7 @@ graph TD
   0512 --> 0513
   0511 --> 0514
   0522
+  0523
   0192:::done
   0251:::done
   0393:::done
