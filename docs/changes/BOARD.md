@@ -1,6 +1,6 @@
 # Backlog
 
-**521 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 139 killed
+**521 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 355 done · 🗑️ 139 killed
 
 ## 🟢 In progress (2)
 
@@ -8,12 +8,6 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0520](active/0520-make-the-published-finalize-request-schemas-match-what-input.md) | Make every published request schema match the JSON file the operation reads | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md) | `fix/make-the-published-finalize-request-schemas-match-what-input` |  |
 | [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md) | `fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin` | run halted — needs you |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0516](active/0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) | Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match | `low` | `chore` | [#384](https://github.com/danielhanold/docket/pull/384) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -83,7 +77,6 @@ graph TD
   0512 --> 0513
   0511 --> 0514
   0515
-  0516
   0517
   0520
   0521
@@ -95,12 +88,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (493)</summary>
+<details><summary>✅🗑️ Archive — done + killed (494)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
+| [0516](archive/2026-10-04-0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) | Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match | 2026-10-04 |
 | [0510](archive/2026-10-04-0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | 2026-10-04 |
 | [0509](archive/2026-10-04-0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -119,7 +113,6 @@ graph TD
 | [0496](archive/2026-10-03-0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) | Add `docket repository repair` and stop flagging empty claimed_at | 2026-10-03 |
 | [0495](archive/2026-10-03-0495-drop-startedrunresult-s-unreachable-empty-input-check.md) | Drop startedRunResult's unreachable empty-input check | 2026-10-03 |
 | [0494](archive/2026-10-03-0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md) | A publish killed mid-flight wedges its run's cancel and closeout | 2026-10-03 |
-| [0493](archive/2026-10-03-0493-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md) | Retire the automatic gate relaunch | 2026-10-03 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
 | [0483](archive/2026-10-02-0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | 2026-10-02 |
 | [0457](archive/2026-10-02-0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | 2026-10-02 |
@@ -258,7 +251,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 11 done |
+| [2026-10](archive/) | 12 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

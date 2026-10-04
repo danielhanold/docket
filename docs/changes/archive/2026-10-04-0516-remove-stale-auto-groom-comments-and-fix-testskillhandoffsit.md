@@ -2,7 +2,7 @@
 id: 516
 slug: 'remove-stale-auto-groom-comments-and-fix-testskillhandoffsit'
 title: 'Remove stale auto_groom comments and fix TestSkillHandoffSites'' ''cannot be invoked'' match'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'chore'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'chore/remove-stale-auto-groom-comments-and-fix-testskillhandoffsit'
 pr: 'https://github.com/danielhanold/docket/pull/384'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T15:10:27Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T15:10:27Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md) |
-| Plan | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md](https://github.com/danielhanold/docket/blob/chore/remove-stale-auto-groom-comments-and-fix-testskillhandoffsit/docs/superpowers/plans/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) |
-| Results | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-results.md](https://github.com/danielhanold/docket/blob/chore/remove-stale-auto-groom-comments-and-fix-testskillhandoffsit/docs/results/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-results.md) |
+| Plan | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) |
+| Results | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
