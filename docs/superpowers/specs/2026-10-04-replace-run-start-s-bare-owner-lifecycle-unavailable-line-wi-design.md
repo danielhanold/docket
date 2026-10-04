@@ -31,7 +31,7 @@ The caveat itself is correct and stays (change 0375, ADR-0118): on the default d
 
 3. **Run-tracker rule.** In `cursor-rules/run-tracker.md` (section "Stopping a dispatched run"), replace "and `run.start` says so (it reports the honest owner-lifecycle caveat)" with wording that says `run.start` prints a one-line stop note, and add: that note is for you, not a finding — do not repeat it in your dispatch report; bring up `run.cancel` only when the human asks how to stop a run or a run actually needs stopping. Regenerate the embedded copy (`go generate ./internal/assets`) and refresh this repo's `docket:dispatch` managed blocks in AGENTS.md and CLAUDE.md through docket's own generation path, never by hand.
 
-4. **Comments.** Update the doc comments on `ReasonOwnerLifecycleUnavailable`, `RunStartResult.OwnerLifecycle`, `HumanText`, and the step (7) comment in `armResumeReplacement` so they describe the printed note rather than "the token".
+4. **Comments.** Update the doc comments on `ReasonOwnerLifecycleUnavailable`, `RunStartResult.OwnerLifecycle`, `HumanText`, and the step (7) comment in `RunStart` so they describe the printed note rather than "the token".
 
 ## Testing
 
