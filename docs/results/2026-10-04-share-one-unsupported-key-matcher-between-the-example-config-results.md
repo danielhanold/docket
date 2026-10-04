@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0505 — Share one unsupported-key matcher between the example-config test and the docs guard](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0505-share-one-unsupported-key-matcher-between-the-example-config.md)**
+> ↩ **[Change 0505 — Share one unsupported-key matcher between the example-config test and the docs guard](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0505-share-one-unsupported-key-matcher-between-the-example-config.md)**
 <!-- docket:backlink:end -->
 # Share one unsupported-key matcher between the example-config test and the docs guard — Results
 
