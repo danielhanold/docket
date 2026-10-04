@@ -50,7 +50,7 @@ stop on `drained`/`halted`.** The built-in `/loop` is the recommended driver:
   iteration**, stopping on `drained`.
 - `/loop docket-finalize-change <id>,<id>,<id>` — bounds the run to that id set. **Naming the ids
   is the authorization:** it merges pull requests `finalize.require_pr_approval` would otherwise
-  hold, and retries a change already marked `## Finalize blocked`.
+  hold.
 
 Unlike the drainer that only builds changes, this driver **does merge** — that is the whole point of
 it, and it is the one place docket itself merges. Every merge still passes the finalize gate, so
@@ -64,11 +64,11 @@ id as the tiebreak — so each drain lands as many changes as it can before anyt
 
 ## When finalize is blocked
 
-A change whose finalize gate fails is marked with a `## Finalize blocked` section (dated in its body),
-shows on the board as **finalize blocked — needs you**, and is skipped by later *unscoped* runs until
-a successful finalize clears it automatically. **Name its id to retry it:**
-`/loop docket-finalize-change <id>` re-attempts that change specifically, and naming the id is
-exactly what re-runs a change already sitting under `## Finalize blocked`.
+A change whose finalize run stops for a human is marked with a `## Finalize blocked` section (dated in
+its body) and shows on the board as **finalize blocked — needs you**. The section is a note, not a
+lock: later runs still select the change and retry it, so a transient failure (a flaky test, a busy
+worktree, a moved base) heals on its own, and closeout removes the section once the change merges.
+To retry one change specifically, name its id: `/loop docket-finalize-change <id>`.
 
 Some blocks need a human hand before the retry will take. A rebase that conflicts, or a pull request
 whose pushed head no longer matches the branch finalize just rebased and retested (an **identity
@@ -76,12 +76,6 @@ mismatch**), halts the run rather than merging something it did not verify. You 
 or realign the pushed head with your local rebase, then name the id to finalize again. The identity
 check's place in the sequence — rebase, verify head, retest, merge — is
 [Finalize as a sequencer](../concepts/finalize-sequencer.md).
-
-One block always waits for you, even when you name the id. When a red retest is repaired by an agent
-during a hands-off run, that repair is code nobody approved, so finalize pushes it to the pull request
-and halts with `docket finalize block --reason repair-needs-signoff` instead of merging. Review the
-pushed repair on the pull request; once you are satisfied, clear the block with
-`docket finalize clear-block` and run finalize again.
 
 ## The prerequisite: branch protection that permits an unattended merge
 
@@ -112,3 +106,8 @@ or the maintainer running finalize when they are an eligible reviewer. That make
 APPROVED` satisfy both branch protection and `finalize.require_pr_approval: true`, and finalize merges with
 **no `--admin`**. The attended, explicit-id `--admin` path remains the escape hatch when a sole
 maintainer deliberately forces past an unsatisfiable required review.
+
+When branch protection also turns on GitHub's **Dismiss stale pull request approvals when new commits
+are pushed**, a repair finalize pushes to turn the rebased suite green dismisses that approval, and the
+merge waits for a fresh one — that is how a team gets repairs re-reviewed. The setting is off by
+default; with it off, the earlier approval stands and the repair merges like any other green change.

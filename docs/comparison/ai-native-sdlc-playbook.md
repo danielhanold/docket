@@ -102,7 +102,7 @@ fail-closed operations. In return docket has depth the playbook never mentions.
 | Findings feed institutional memory | Into `CLAUDE.md`. | Learnings findings with promotion to `AGENTS.md`; harvest and index are human curation today. | docket · deferred |
 | PR handoff | Code owner approves. | The implementer never merges; finalize merges only when authorised; branch-protection recipe. | Both |
 | Rebase-and-retest before merge | Not described. | `finalize.gate` local / ci / both / off; evidence-based skip only on a no-op rebase. | docket only |
-| Conflict and repair agents at the gate | Not described. | `docket-rebase-resolver` (≤2), `docket-integration-repair` (≤2); unattended repair blocks for sign-off. | docket only |
+| Conflict and repair agents at the gate | Not described. | `docket-rebase-resolver` (≤2), `docket-integration-repair` (≤2); a repair that greens the suite merges, named in the closeout notes. | docket only |
 | Exactly-once, verified merge | Not described. | Every condition rechecked at the moment of effect; one permitted method; merge commit proven reachable. | docket only |
 | Hooks as approval gates | Allow / ask / block scripts; release-manager authorisation; logged. | Typed operations refusing with closed reason tokens and durable markers. | Playbook only (different mechanism) |
 | Managed settings, sandboxing, deny lists | Central permissions, OS sandbox, credential stripping. | Documented Cursor/Codex/opencode fragments; nothing central or enforced. | Playbook only |
@@ -144,7 +144,7 @@ is current when build starts; docket assumes it is not.
 | Principle | Playbook | docket | Status |
 |---|---|---|---|
 | Governance as configuration | Skills, hooks, managed settings; `CLAUDE.md` and `REVIEW.md` reviewed like code. | Four config layers per key; shared-setting guard; every key documented in `.docket.example.yml` or the suite fails; the capability catalog is the only hard-coded CLI spelling. | Both (different content) |
-| Human judgement points | Intent, plan approval, design review, PR approval, findings triage, policy changes. | Change creation and grooming, the PR merge, finalize confirmations and repair sign-off, learnings promotion, filing discovered work, abstained stubs. Plan approval deliberately not a human point. | Both |
+| Human judgement points | Intent, plan approval, design review, PR approval, findings triage, policy changes. | Change creation and grooming, the PR merge, finalize confirmations, learnings promotion, filing discovered work, abstained stubs. Plan approval deliberately not a human point. | Both |
 | Audit trail | Git history; logged hook decisions; incident conversations. | Every transition a metadata commit; marker sections; receipts and leases; frozen plan/results records; ADR supersessions as new files. | Both |
 | Legacy tracker integration | One system of record per artifact. | One-way GitHub Issues mirror; Projects v2 guarded but unwired. | Both (GitHub issues only) |
 | Autonomy without a human channel | Scoped subagents; gates ask a human. | Abort-and-report wrappers; autonomy precedence; forked children never yield; four dispositions drive any loop. | docket only |

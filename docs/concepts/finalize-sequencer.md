@@ -66,11 +66,11 @@ to it.
   continues. When the rebase was a no-op and the branch already carries green
   build evidence for that exact head, produced by the same test command, the
   suite is not run again.
-- A repair that an agent authored during an unattended finalize is not merged on
-  its own say-so: the run records a block with
-  `docket finalize block --reason repair-needs-signoff` and stops. A human reviews
-  the pushed repair on the pull request, then clears the block with
-  `docket finalize clear-block` and runs finalize again.
+- A repair that turns the suite green merges like any other green change; the
+  run report and the archived record's closeout notes name what broke and the
+  repair commits. Finalize adds no human stop of its own: when the repository
+  requires approvals and dismisses stale approvals on new commits, pushing the
+  repair removes the approval and the merge waits for a fresh one.
 - `finalize.gate: off` skips the rebase and the retest entirely; the remaining
   steps still run in order.
 - Publish pushes the rebased head and updates the build-evidence block in the
@@ -104,8 +104,8 @@ to it.
   different jobs given to different workers.
 - Integration repair is bounded by `finalize.repair_max_attempts` and never
   weakens a test to go green; if it cannot re-green the suite, the sequence stops
-  for a human. An autonomously authored repair always waits for a human's
-  sign-off before it merges.
+  for a human. A repair that re-greens the suite merges; reviewing repairs is
+  the repository's approval policy, not a finalize step.
 - Whether the merge needs a human approval is a configured policy gate, settled
   before finalize runs, not decided by the sequencer mid-flight.
 - A change is marked `done` only after closeout has proved its pull request
