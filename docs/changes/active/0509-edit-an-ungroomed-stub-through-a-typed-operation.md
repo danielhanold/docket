@@ -2,7 +2,7 @@
 id: 509
 slug: 'edit-an-ungroomed-stub-through-a-typed-operation'
 title: 'Edit an ungroomed stub through a typed operation'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/edit-an-ungroomed-stub-through-a-typed-operation'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/381'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T11:57:41Z'

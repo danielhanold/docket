@@ -1,13 +1,18 @@
 # Backlog
 
-**510 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 351 done · 🗑️ 137 killed
+**510 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 351 done · 🗑️ 137 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0509](active/0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | `medium` | `chore` | [spec](../superpowers/specs/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md) | `chore/edit-an-ungroomed-stub-through-a-typed-operation` |  |
 | [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md) | `fix/align-the-skills-and-agent-files-with-the-docket-binary` |  |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0509](active/0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | `medium` | `chore` | [#381](https://github.com/danielhanold/docket/pull/381) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -21,7 +26,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0510](active/0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | `medium` | `feat` | ⏳ waiting on #509 — not yet built |
+| [0510](active/0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | `medium` | `feat` | ⏳ waiting on #509 — needs your merge |
 | [0507](active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Flaky tests: track and stabilize intermittent suite failures | `low` | `fix` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
