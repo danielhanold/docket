@@ -2,7 +2,7 @@
 id: 464
 slug: 'align-guide-install-docs-and-docket-example-yml-with-the-go'
 title: 'Align the human-facing docs and example config with the docket binary'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-27'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'docs/align-guide-install-docs-and-docket-example-yml-with-the-go'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T07:01:00Z'
 ---
 
 ## Artifacts
