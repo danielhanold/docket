@@ -30,28 +30,26 @@ func schemaKeyPaths(t *testing.T) map[string]bool {
 // TestSchemaRevisionKeys is the golden schema check for ADR-0129 rows 41-44
 // (change 0472): each record/PR revision key is spelled revision. The
 // whole-schema negative is TestRetiredVocabularySeal (internal/repoguard).
+// Request paths cover only operations that read a JSON file; a revision passed
+// as a flag is not part of any published request, and
+// TestRevisionFlagReachesRequest (internal/cli) pins the --revision flag
+// spelling.
 func TestSchemaRevisionKeys(t *testing.T) {
 	keys := schemaKeyPaths(t)
 	for _, p := range []string{
 		"adr.record REQ change.revision",
 		"adr.reverse REQ target.revision", "adr.reverse REQ successor.change.revision",
 		"adr.supersede REQ target.revision", "adr.supersede REQ successor.change.revision",
-		"change.attach-plan REQ revision", "change.attach-results REQ revision",
-		"change.block REQ revision", "change.claim REQ revision", "change.defer REQ revision",
+		"change.block REQ revision", "change.defer REQ revision",
 		"change.groom REQ revision", "change.groom REQ spec_revision",
-		"change.halt REQ revision", "change.kill REQ revision", "change.mark-implemented REQ revision",
-		"change.reclaim REQ revision", "change.reconcile REQ revision", "change.refresh-claim REQ revision",
-		"change.relink REQ ExpectRevision",
-		"change.resume-halted REQ revision", "change.revive REQ revision", "change.unblock REQ revision",
+		"change.kill REQ revision", "change.reconcile REQ revision",
+		"change.revive REQ revision", "change.unblock REQ revision",
 		"context.finalize RES candidates.revision", "context.finalize RES candidates.pr.revision",
 		"context.implementation RES context.change.revision", "context.implementation RES context.spec.revision",
-		"finalize.block REQ revision", "finalize.clear-block REQ revision",
-		"finalize.merge REQ revision", "finalize.merge RES merge.pr_revision",
-		"finalize.rebase REQ revision",
-		"finalize.retarget-children REQ revision", "finalize.retarget-children REQ children.pr_revision",
+		"finalize.merge RES merge.pr_revision",
+		"finalize.retarget-children REQ children.pr_revision",
 		"learning.update REQ revision",
 		"status RES changes.revision", "status RES records.revision",
-		"workspace.inspect REQ revision", "workspace.prepare REQ revision",
 	} {
 		if !keys[p] {
 			t.Errorf("schema lacks %s", p)

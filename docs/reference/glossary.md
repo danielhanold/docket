@@ -2175,8 +2175,11 @@ operation's closed set (`claim_dispositions`, `merge_dispositions`, `sync_dispos
 
 ### Schema / request file
 
-`docket schema` emits every operation's request and result fields plus the allowed values.
-A **request file** (`--request` / `--input`) is a JSON body built from that schema.
+`docket schema` emits every operation's result fields plus the allowed values. An operation that
+reads a JSON file (`--request`, `--input`, or `--body`) also gets a request block listing exactly
+the keys that file accepts. Values passed as flags (`--id`, `--revision`, …) are not part of any
+request; `docket capabilities --json` lists each operation's flags in its `signature`. A
+**request file** is a JSON body built from that request block.
 
 ```sh
 docket schema --operation change.kill
