@@ -22,7 +22,7 @@ branch: 'chore/edit-an-ungroomed-stub-through-a-typed-operation'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T11:43:04Z'
+claimed_at: '2026-10-04T11:49:03Z'
 ---
 
 ## Artifacts
