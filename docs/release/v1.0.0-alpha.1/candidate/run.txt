@@ -1,0 +1,18 @@
+Run: https://github.com/danielhanold/docket/actions/runs/37240575898 (workflow_dispatch, headSha 49e4af94b838ed11beb7ee32027eb122425632d9, conclusion success, 7/7 jobs green)
+Read-only copy: /Users/homer/docket-alpha-candidate/head
+Toolchain (source-gate): go version go1.26.8 darwin/arm64
+Suite: SUITE files=78 passed=78 failed=0 asserts=541 wall=922s
+TestBashUpgrade: test_go_integration_bashupgrade 47s rc=0 ok=4 notok=0
+^[[36;1mscreening="$(grep -nE '^(BUDGET WATCH|PARALLEL-SENSITIVE):' suite.log || true)"^[[0m
+BUDGET WATCH: /Users/runner/work/docket/docket/tests/test_go_finalize_e2e.sh — 122s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: /Users/runner/work/docket/docket/tests/test_go_integration_app_merge.sh — 83s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: /Users/runner/work/docket/docket/tests/test_go_integration_app_recordops.sh — 162s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: /Users/runner/work/docket/docket/tests/test_go_race.sh — 386s under -j3; consecutive parallel-overrun streak 1/5
+
+SHA-256 listing:
+2ab19e3d78a64895352561bbef3d3f35dadfca325d4052ae15f2f650ec153e27  checksums.txt
+0db0efc50e70e66bab4ca5de2838c42f8200fd1946cef2547abbb77331aebf12  docket_v1.0.0-alpha.1_darwin_amd64.tar.gz
+ceb35a19c28db67f59eabe2e928ec48203c421242d15f06ec191d68f8881721a  docket_v1.0.0-alpha.1_darwin_arm64.tar.gz
+95cddeac2e236f7949dbf164277bbece068b3b51f71273e0f1c70e9752e74afe  docket_v1.0.0-alpha.1_linux_amd64.tar.gz
+396622c46185dedbb5fb52b8cef9d83379ecc966025353b08ae21659b9f7a196  docket_v1.0.0-alpha.1_linux_arm64.tar.gz
+26f9b77114d80712b0abc33486f1ede046623541b32e5d8711a564ef4b89b92a  install.sh
