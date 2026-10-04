@@ -1,18 +1,39 @@
-# Dispositions, reason tokens, and health codes
+# Results, dispositions, reason tokens, and health codes
 
-The one-word outcomes docket reports, the reason tokens a blocked finalize prints, and the health
-codes a status scan raises are each defined in exactly one owning surface. This page points at those
-owners and copies none of the vocabularies, so it can never list a token the current binary no
-longer emits.
+docket reports what happened in a small set of fixed words. This page names each vocabulary and
+the surface that owns its current members. The machine-readable source for all of them is
+`docket schema` (read-only, repository-independent): `docket schema --json` lists every closed
+vocabulary, and `docket schema --operation <id>` shows one operation's request and result shape.
+
+## Results
+
+Every JSON result envelope (`--json`) carries a `result` field. It takes exactly one of:
+
+- `applied` — the operation did its work.
+- `no-op` — there was nothing to do; the state already matched.
+- `contended` — another writer got there first; re-read and try again.
+- `invalid-input` — the request itself was malformed.
+- `invalid-state` — the request was well formed, but the repository is not in a state that
+  allows it.
+- `blocked` — something must be resolved first; the finding names it.
+- `unsupported-config` — the resolved configuration is invalid or asks for something docket does
+  not support; `docket diagnostic config --repo-dir .` shows why.
+- `gate-failed` — a test suite ran and was red.
+- `external-failed` — an outside tool (Git, the GitHub CLI, the network) failed or timed out.
+- `interrupted` — the operation was stopped before it finished.
+- `internal-error` — docket itself failed.
 
 ## Dispositions
 
-A disposition is the one-word outcome an operation reports: applied, no-op, refused, or error. This
-set of allowed values is owned by the `docket-convention` skill's startup check
-([`../../skills/docket-convention/SKILL.md`](../../skills/docket-convention/SKILL.md)), which states
-that it **"takes the allowed values `applied` | `no-op` | `refused` | `error`"** and defines what each
-one obliges a caller to do. The exact closed set the binary emits is also machine-readable via
-`docket schema` (the schema/vocabulary command).
+A disposition is an operation's own, more specific outcome, reported beside `result`. Each
+operation has its own disposition vocabulary — for example, `docket run cancel` reports
+`cancelled`, `cancellation-pending`, `already-cancelled`, or `refused`. `docket schema --json`
+lists them all under `vocabularies`.
+
+`applied` | `no-op` | `refused` | `error` is the disposition set of `repository prepare` (the
+startup check every workflow runs first) and of nothing else. The `docket-convention` skill
+([`../../skills/docket-convention/SKILL.md`](../../skills/docket-convention/SKILL.md)) states what
+each of those four obliges a caller to do.
 
 ## Reason tokens
 
@@ -24,8 +45,8 @@ Read the current token and its recovery there, not from memory.
 
 ## Health codes
 
-A health check is a status-time scan for things a human should look at: stale claims, broken links,
-stalled dependencies. The health codes a scan can raise, and their current data, are owned by
-`docket status --json` — its output carries the live health section for your repo. The human-readable
-form is `docket status`. The convention skill's lifecycle and learnings-ledger sections give the
-background each code is checking against.
+The health findings a status scan raises are structural: a linked spec, plan, or results file
+that is missing (`artifact-missing`), a change that references one that does not exist
+(`change-reference-dangling`), a dependency cycle (`change-dependency-cycle`), a malformed branch
+name (`branch-malformed`), and configuration and parse diagnostics. `docket status --json` carries
+the live findings for your repository; `docket status` is the human-readable form.

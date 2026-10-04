@@ -1,57 +1,69 @@
 # Config keys
 
-Every config key, its shipped default, its meaning, and the layers it may be set in are documented
-in one place: [`../../.docket.example.yml`](../../.docket.example.yml). That file is the shipped
-reference (ADR-0048 makes it canonical), and the `docket-convention` skill's configuration section,
-**"Configuration — `.docket.yml` (optional, committed on the default branch)"**
-([`../../skills/docket-convention/SKILL.md`](../../skills/docket-convention/SKILL.md)), states the
-resolution rules. This page copies no values and no defaults — read the current shape from the
-example file, where a test keeps it honest against the actual schema.
+This page lists every configuration key docket supports, with its built-in default and the layers
+it may be set in. The full description of each key lives beside it in
+[`../../.docket.example.yml`](../../.docket.example.yml), the shipped example file (ADR-0048 makes
+it canonical, and a test keeps it in step with the binary's schema). The `docket-convention`
+skill's section **"Configuration — `.docket.yml` (optional, committed on the default branch)"**
+([`../../skills/docket-convention/SKILL.md`](../../skills/docket-convention/SKILL.md)) states the
+resolution rules. To see the configuration your repository actually resolves to, run
+`docket diagnostic config --repo-dir .`.
 
-## How to read a key's shape and scope
+## Layers and scope
 
-The example file carries, inline beside each key, its default value and a **scope tag**. The four
-resolution layers, highest precedence first, are: repo-local `.docket.local.yml` (this machine,
-gitignored), repo-committed `.docket.yml` (every clone), global
-`${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` (this machine, every repo), and docket's built-in
-defaults. Nested blocks merge leaf by leaf, not whole-block. The scope tags are:
+docket reads four layers. For each key, the highest layer that sets it wins:
 
-- **repo-only** — a coordination key (a config key whose value must be identical for every clone,
-  so it may only be set in the committed repo config); a value set in either machine-scoped layer is
-  warned-and-ignored (ADR-0019).
-- **any layer** — behavioral only; per-machine divergence is benign.
-- **local-only** — machine-specific tooling; a committed value is warned-and-ignored.
+1. machine-local `.docket.local.yml` (this clone; gitignored)
+2. committed `.docket.yml` (every clone)
+3. global `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml` (every repository on this machine)
+4. the built-in defaults
 
-Read the exact tag and default for any key from the example file, not from here.
+Nested blocks merge key by key. A malformed file, an unknown key, or a bad value in any layer makes
+the whole configuration invalid, and docket refuses to change the repository until it is fixed.
 
-## Top-level blocks
+Each key has one scope:
 
-One line per top-level block, enumerated from the example file. Each names the block's purpose; open
-the example file for its keys, defaults, and per-block scope.
+- **repo-only** — settable only in the committed `.docket.yml`. A value in either machine layer is
+  ignored with a warning, so one clone cannot move shared planning state (ADR-0019).
+- **any layer** — settable in `.docket.yml`, `.docket.local.yml`, or the global config.
+- **global-only** — honoured only from the global config.
 
-- **`runtime`** — the machine-local Bash-4+ interpreter path docket runs its shell with (local-only).
-- **`metadata_branch`** — where planning metadata lives; selects docket-mode vs single-branch mode (repo-only).
-- **`integration_branch`** — the branch code lands on, usually `main` (repo-only).
-- **`changes_dir`, `adrs_dir`, `results_dir`** — where change files, ADRs, and results records live (repo-only).
-- **`finalize`** — the closing-half sequencer's knobs (test command, publish behavior).
-- **`learnings`** — the learnings-ledger settings.
-- **`reclaim`** — the stale-claim reclamation policy (the claim lease and its threshold).
-- **`build`** — the build role's settings, including `build.test_command` (the build gate suite command).
-- **`review`** — the review role's settings.
-- **`gate_observation_budget`** — the per-observation slice budget for supervised gate runs.
-- **`delegation_observation_budget`** — the observation budget for delegated runner sub-processes.
-- **`board_surfaces`** — which derived board view(s) to render; `[]` disables the board entirely.
-- **`board`** — board-rendering options.
-- **`github_project`** — the GitHub Projects target when the board mirrors to GitHub.
-- **`terminal_publish`** — opt-in publishing of archived records to the integration branch.
-- **`auto_groom`** — opt-in autonomous grooming of the needs-grooming queue.
-- **`change_types`** — the allowed change-type taxonomy.
-- **`auto_capture`** — the discovered-work capture policy.
-- **`dummy_mode`** — the persona that shapes docket's generated prose and design conversations.
-- **`runners`** — the harness runner pairings for delegated dispatch.
-- **`skills`** — the workflow-role → skill bindings (the `skills:` map).
-- **`agents`** — the model/effort-pinned agent wrapper definitions (presence-sensitive; ships commented).
-- **`agent_harnesses`** — which harnesses the per-repo agent pass generates wrapper files for.
+## Keys
 
-Blocks are added and renamed as docket evolves; the example file, not this list, is the authority
-for what your binary accepts.
+| Key | Default | Scope | What it sets |
+|---|---|---|---|
+| `integration_branch` | `auto` (the repository's default branch) | repo-only | the branch pull requests merge into |
+| `changes_dir` | `docs/changes` | repo-only | where change files and the board live on the `docket` branch |
+| `adrs_dir` | `docs/adrs` | repo-only | where the ADR ledger lives on the `docket` branch |
+| `results_dir` | `docs/results` | repo-only | where results records live on the `docket` branch |
+| `finalize.gate` | `local` | any layer | `local` rebases and re-runs the suite before merging; `off` skips both |
+| `finalize.test_command` | `""` (unconfigured) | any layer | the suite finalize runs after its rebase |
+| `finalize.require_pr_approval` | `false` | any layer | whether a merge finalize picked on its own needs an approval |
+| `finalize.resolver_max_attempts` | `10` | any layer | conflict-resolver attempts per rebase |
+| `finalize.repair_max_attempts` | `6` | any layer | integration-repair attempts when the suite is red after the rebase |
+| `build.gate` | `local` | any layer | `local` runs the build gate once after every task; `off` records `skipped` evidence |
+| `build.test_command` | `""` (unconfigured) | any layer | the suite the build gate runs |
+| `build.max_attempts` | `4` | any layer | full suite runs a build may spend, repairs included |
+| `run.max_attempts` | `2` | any layer | attempts a tracked implement-next run may make on one change |
+| `review.min_fix_severity` | `minor` | any layer | the lowest review-finding severity the fix pass repairs |
+| `review.max_fix_tasks` | `10` | any layer | the most non-blocker fix tasks one fix pass dispatches |
+| `reclaim.lease_ttl` | `72` | any layer | hours a claim on an in-progress change lasts |
+| `reclaim.auto` | `false` | any layer | whether `docket maintenance sweep` reclaims an eligible change or reports it skipped |
+| `learnings.enabled` | `true` | any layer | whether learnings are written and read |
+| `gate_observation_budget` | `30` | any layer | minutes docket waits for a test-suite run it started to finish |
+| `board_surfaces` | `[inline]` | any layer | which board views to render; `[]` renders none |
+| `board.section_order` | `[in-progress, built, blocked, groomed, proposed, deferred]` | any layer | the order of the board's sections |
+| `board.sorting.<section>.by` / `.direction` | `updated` / `desc` | any layer | how each board section is sorted |
+| `change_types` | `[chore, docs, feat, fix, refactor, perf]` | any layer | the types a change can be classified as |
+| `agent_harnesses` | none | any layer | the dispatch opt-in (below) |
+| `agents.<harness>.<agent>.model` / `.effort` | the built-in table | global-only | model and effort pins for docket's agents |
+
+**`agent_harnesses`** opts a repository in to docket's parent-facing dispatch surfaces: the
+managed block in `CLAUDE.md` / `AGENTS.md` and, for Cursor, `.cursor/rules/docket-dispatch.mdc`.
+It takes `claude`, `codex`, `cursor`, and `opencode`. While it is absent, `docket install` touches
+no repository surface. Only `.docket.yml` or `.docket.local.yml` can opt a repository in; the
+installer ignores a value in the global config.
+
+**`agents`** pins apply per agent and per field; anything you leave out keeps its built-in value.
+The built-in table is compiled into the binary, and `agents/harness-defaults.yml` ships the same
+table. Re-run `docket install` after editing.
