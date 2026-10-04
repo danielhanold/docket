@@ -13,7 +13,7 @@ related: [363, 371, 502, 366, 409]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T07:03:47Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md) |
+| Plan | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md](https://github.com/danielhanold/docket/blob/docs/align-guide-install-docs-and-docket-example-yml-with-the-go/docs/superpowers/plans/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
