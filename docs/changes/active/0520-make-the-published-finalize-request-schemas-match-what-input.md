@@ -22,7 +22,7 @@ branch: 'fix/make-the-published-finalize-request-schemas-match-what-input'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T15:26:53Z'
+claimed_at: '2026-10-04T16:04:17Z'
 ---
 
 ## Artifacts
@@ -61,15 +61,3 @@ Changing which values are passed as flags versus in the JSON file. Renaming the 
 
 Re-traced against main fc719ac6d (0502 merged). The registry in internal/app/schema_registry.go still binds the seven mismatched operations exactly as the spec's table records, and every strict JSON decode in internal/cli still converges on decodeRequest (decodeRequestFlag, decodeInputFlag, pr.publish's direct call). No scope change.
 
-## Run halted
-
-### 2026-10-04
-
-The final certification gate could not run because the machine's disk is full. This is an environment problem, not a failure in this change's code.
-
-- Feature head 8d50334fd (results consolidated after the review fixes) is pushed to origin/fix/make-the-published-finalize-request-schemas-match-what-input.
-- The build gate passed on the earlier head b2abc18de. After that, the review's 4 findings were fixed in-branch (3198c7354 and 84925b413), so the final head has no gate evidence yet.
-- Final drive 454bdaadb6c723accf126e2689cdc829 (attempt 2 of build.max_attempts 4) returned FAILED. Every failure in the run log is a "no space left on device" from the Go linker, the compiler, or git in a temp directory. The data volume showed 351Mi free (100% used).
-- Nothing was repaired: no repair task was dispatched, because no test failed on its merits.
-
-Remedy: free disk space on this machine. Then resume through change.resume-halted with --acknowledge-quiescent, re-run the build gate on head 8d50334fd, record and verify the evidence, publish the PR, and mark the change implemented. The ADR (0138), the plan, the attached results, and all code are already in place.
