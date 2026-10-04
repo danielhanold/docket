@@ -1,13 +1,18 @@
 # Backlog
 
-**503 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 7 proposed · ⚪ 12 deferred · ✅ 345 done · 🗑️ 134 killed
+**503 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 7 proposed · ⚪ 12 deferred · ✅ 345 done · 🗑️ 134 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0501](active/0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) | Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-design.md) | `fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi` |  |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align the human-facing docs and example config with the docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md) | `docs/align-guide-install-docs-and-docket-example-yml-with-the-go` |  |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0501](active/0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) | Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note | `medium` | `fix` | [#375](https://github.com/danielhanold/docket/pull/375) | awaiting merge |
 
 ## 🟣 Groomed (3)
 

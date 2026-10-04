@@ -2,7 +2,7 @@
 id: 501
 slug: 'replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi'
 title: 'Replace run.start''s bare owner-lifecycle-unavailable line with a plain stop note'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/375'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T06:49:15Z'
