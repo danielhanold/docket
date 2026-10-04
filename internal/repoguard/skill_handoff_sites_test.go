@@ -243,11 +243,16 @@ func TestSkillHandoffSites(t *testing.T) {
 			t.Errorf("an unmarked invocation beside a negated clause was not classified as a violating invocation")
 		}
 		// Shape boundaries: "whenever" is not "never", and a word that merely
-		// contains "not" mid-word is not a negation.
+		// contains "not" mid-word is not a negation. The first case only checks
+		// the invocation count ("whenever" follows the verb, so it cannot test
+		// the \bnever boundary); "runs whenever invoked" is the real boundary
+		// guard. "annotated" sits inside the word window right before the verb,
+		// so dropping the trailing-word-boundary shape of the "not" alternative
+		// reddens it.
 		for _, inv := range []string{
 			"`docket-build` is invoked whenever the plan is ready.",
 			"`docket-build` runs whenever invoked by the controller.",
-			"Annotate the plan, then `docket-build` is invoked to execute it.",
+			"`docket-build` is annotated, invoked by the controller.",
 		} {
 			if classifyHandoffSite(inv) != handoffInvocation {
 				t.Errorf("an invocation was misread as a negation: %q", inv)
