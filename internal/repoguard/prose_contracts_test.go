@@ -843,6 +843,7 @@ var followUpBacklogMatchDocContracts = []docSectionContract{
 			"**Fits #N**",
 			"**Related to #N**",
 			"**No existing change fits (checked K)**",
+			"related or no fit — a new change a human captures (Step 3), linking any related #N under `related:`",
 			"The final report's follow-up list carries the same verdict per item",
 			"The match only recommends: it never edits, creates, revives, defers, or kills any change",
 			"never halt, retry in a loop, or block the implemented transition on it",
