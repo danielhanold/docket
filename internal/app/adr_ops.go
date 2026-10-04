@@ -53,9 +53,9 @@ type ADRRecordRequest struct {
 // current canonical path, and the exact full blob object id the transaction
 // expects that record to carry.
 type ADRProducingChange struct {
-	ID       int    `json:"id"`
-	Path     string `json:"path"`
-	Revision string `json:"revision"`
+	ID       int    `json:"id" docket:"required"`
+	Path     string `json:"path" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 }
 
 // adrProducingChangePaths returns the producing change's record path as an ADR
@@ -604,19 +604,20 @@ const adrNotAcceptedReason = "adr-not-accepted"
 // current canonical path, and the exact full blob object id the transaction
 // expects that record to carry.
 type ADRTarget struct {
-	ID       int    `json:"id"`
-	Path     string `json:"path"`
-	Revision string `json:"revision"`
+	ID       int    `json:"id" docket:"required"`
+	Path     string `json:"path" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 }
 
 // ADRReplaceRequest is the closed, caller-supplied request for one supersede or
 // reverse. RequestID governs idempotency; Target pins the flipped ADR; Successor
 // carries the brand-new ADR's authored content and references (its own RequestID
-// is ignored — the outer key governs).
+// is ignored — the outer key governs — although the published schema marks it
+// required, since the successor reuses ADRRecordRequest).
 type ADRReplaceRequest struct {
 	RequestID string           `json:"request_id" docket:"required"`
-	Target    ADRTarget        `json:"target"`
-	Successor ADRRecordRequest `json:"successor"`
+	Target    ADRTarget        `json:"target" docket:"required"`
+	Successor ADRRecordRequest `json:"successor" docket:"required"`
 }
 
 // adrReplacePayload is the semantic content of a supersede/reverse — the verb,

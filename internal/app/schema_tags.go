@@ -13,7 +13,9 @@ import (
 // here so the spellings are settled once:
 //
 //	required            the field must be present/non-zero; a shape validator
-//	                    mints an error finding on its absence.
+//	                    mints an error finding on its absence. On a field inside
+//	                    an optional object or a list element, it applies whenever
+//	                    that object or element is sent.
 //	success-only        the field is populated only on a successful result.
 //	refusal-only        the field is populated only on a refusal/failure result.
 //	enum=<vocabulary>   the field's value is drawn from the named set of

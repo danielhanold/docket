@@ -100,9 +100,9 @@ const (
 // from the context read: the child change id, its live PR number, and the PR's
 // opaque revision the authorization was granted against.
 type AuthorizedChild struct {
-	ID         int    `json:"id"`
-	PRNumber   int    `json:"pr_number"`
-	PRRevision string `json:"pr_revision"`
+	ID         int    `json:"id" docket:"required"`
+	PRNumber   int    `json:"pr_number" docket:"required"`
+	PRRevision string `json:"pr_revision" docket:"required"`
 }
 
 // RetargetChildrenRequest is the closed request. ID and Revision pin the parent

@@ -134,8 +134,8 @@ type ChangeGroomRequest struct {
 // request-layer analogue of render.SectionEdit; the operation validates it and
 // converts it before handing it to render.ApplySectionEdits.
 type SectionEditRequest struct {
-	Heading  string `json:"heading"`
-	Intent   string `json:"intent"` // preserve|replace|remove
+	Heading  string `json:"heading" docket:"required"`
+	Intent   string `json:"intent" docket:"required"` // preserve|replace|remove
 	Markdown string `json:"markdown,omitempty"`
 }
 
