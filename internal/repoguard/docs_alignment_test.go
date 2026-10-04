@@ -48,9 +48,10 @@ import (
 //     matched, and a wrapper's own `skills` frontmatter field must be described
 //     without the `skills:` spelling. A markdown heading spelled
 //     `## <unsupported-key>:` is matched too.
-//   - The key check skips a leading YAML frontmatter block only (blankFrontmatter):
-//     agent wrappers and skills carry a real skills list there. Citations are
-//     still checked in frontmatter.
+//   - The key check skips only the top-level `skills:` field of a leading YAML
+//     frontmatter block (blankFrontmatter): agent wrappers and skills carry a
+//     real skills list there. Every other frontmatter field, description
+//     included, is scanned, and citations are checked in all of it.
 //   - Refused VALUES of supported keys (`finalize.gate: ci`, the `github` board
 //     token) are out of reach; review catches those.
 //   - An unterminated code fence is reported, so it cannot mask the rest of a file.
@@ -114,6 +115,15 @@ func TestLivingDocsAlignment(t *testing.T) {
 		}
 		if got := scanUnsupportedKeys("x.md", blankFrontmatter("---\na: 1\n---\nset `skills.build` here\n"), shapes); len(got) == 0 || slices.ContainsFunc(got, func(v string) bool { return !strings.Contains(v, "x.md:4:") }) {
 			t.Errorf("blanking moved line numbers: %v", got)
+		}
+		if len(scanUnsupportedKeys("skills/x/SKILL.md", blankFrontmatter("---\nname: x\ndescription: Bindable via `skills: brainstorm:` here.\n---\nbody\n"), shapes)) == 0 {
+			t.Errorf("an unsupported key in a frontmatter description was not flagged")
+		}
+		if got := scanUnsupportedKeys("agents/x.md", blankFrontmatter("---\nname: x\nskills:\n  - docket-review\n  - docket-convention\nworktree-scope: feature\n---\nbody\n"), shapes); len(got) != 0 {
+			t.Errorf("a wrapper's block-style frontmatter skills list was flagged: %v", got)
+		}
+		if len(scanUnsupportedKeys("agents/x.md", blankFrontmatter("---\nskills: [docket-review]\nnote: set `skills.build` here\n---\n"), shapes)) == 0 {
+			t.Errorf("a frontmatter field after the skills list was not scanned")
 		}
 		if len(scanCitations("x.md", "---\ndescription: see change 0363\n---\n")) == 0 {
 			t.Errorf("a citation in frontmatter was not flagged")
@@ -206,25 +216,43 @@ var livingDocRoots = []string{
 	"AGENTS.md",
 }
 
-// blankFrontmatter blanks a leading YAML frontmatter block — the first line
-// is exactly "---" and a later line is exactly "---" — keeping every newline
-// so reported line numbers stay true. Agent wrappers and skills carry a real
-// skills list there; nothing else is skipped. A file without a closed leading
-// block is returned unchanged and scanned in full (fail-safe).
+// blankFrontmatter blanks only the top-level `skills:` field of a leading
+// YAML frontmatter block — the first line is exactly "---" and a later line is
+// exactly "---" — together with its continuation lines (indented, or block-list
+// items), keeping every newline so reported line numbers stay true. Agent
+// wrappers and skills carry a real skills list there; every other frontmatter
+// field (description included) is still scanned. A file without a closed
+// leading block is returned unchanged and scanned in full (fail-safe).
 func blankFrontmatter(content string) string {
 	lines := strings.Split(content, "\n")
 	if strings.TrimRight(lines[0], "\r") != "---" {
 		return content
 	}
+	end := -1
 	for i := 1; i < len(lines); i++ {
 		if strings.TrimRight(lines[i], "\r") == "---" {
-			for j := 0; j <= i; j++ {
-				lines[j] = ""
-			}
-			return strings.Join(lines, "\n")
+			end = i
+			break
 		}
 	}
-	return content
+	if end < 0 {
+		return content
+	}
+	inSkills := false
+	for i := 1; i < end; i++ {
+		ln := lines[i]
+		switch {
+		case strings.HasPrefix(ln, "skills:"):
+			inSkills = true
+		case inSkills && (strings.HasPrefix(ln, " ") || strings.HasPrefix(ln, "\t") || strings.HasPrefix(ln, "-")):
+		default:
+			inSkills = false
+		}
+		if inSkills {
+			lines[i] = ""
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // livingDocFiles returns every .md file under roots (a root may be a file),

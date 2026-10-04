@@ -1,6 +1,6 @@
 ---
 name: docket-brainstorm
-description: Docket-owned brainstorm role implementing the single-dispatch consultant-author flow — the parent runs the dialogue inline with the real human, then dispatches the pinned docket-brainstorm-consultant once to author a spec or return critique concerns. Bindable via `skills: brainstorm:` (the 0049 passthrough); invoked by docket-new-change / docket-groom-next.
+description: Docket-owned brainstorm role implementing the single-dispatch consultant-author flow — the parent runs the dialogue inline with the real human, then dispatches the pinned docket-brainstorm-consultant once to author a spec or return critique concerns. Invoked by docket-new-change / docket-groom-next, and only when the human asks for a consultant-authored spec in that run.
 ---
 
 # docket-brainstorm — the consultant-author flow
@@ -63,8 +63,8 @@ nothing becomes build-ready without pinned-tier sign-off.
 
 Show the authored spec to the human. Change requests go back as further dispatch
 rounds (Step 2 again, with the requested changes folded into the brief). On approval,
-write the spec to the configured spec path and **STOP AT THE SPEC** — the 0049 role
-artifact/stop-point is unchanged. Do NOT continue to `superpowers:writing-plans`;
+write the spec to the configured spec path and **STOP AT THE SPEC** — the brainstorm
+role's artifact/stop-point is unchanged. Do NOT continue to `superpowers:writing-plans`;
 planning is build-time, owned by `docket-implement-next`.
 
 **Scope of this stop:** if you invoked this skill yourself, this stop ends only the brainstorm

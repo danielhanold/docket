@@ -1036,7 +1036,7 @@ var alignmentContracts = []proseContract{
 	{sentinel: "align_0502_fixed_roles", file: "skills/docket-review/SKILL.md",
 		absent: []string{"skills.review"}},
 	{sentinel: "align_0502_fixed_roles", file: "skills/docket-brainstorm/SKILL.md",
-		absent: []string{"skills.brainstorm"}},
+		absent: []string{"skills.brainstorm", "skills: brainstorm:", "the 0049", "0049 passthrough"}},
 	{sentinel: "align_0502_fixed_roles", file: "skills/docket-implement-next/references/fix-pass.md",
 		absent: []string{"skills.build: auto"}},
 	// 0502: the convention's configuration contract matches the schema.
