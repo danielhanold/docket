@@ -26,7 +26,6 @@ Terms are grouped by the layer of docket they belong to. Jump to a group:
 11. [Skills, agents, and harnesses](#skills-agents-and-harnesses)
 12. [Configuration](#configuration)
 13. [Operations and the CLI protocol](#operations-and-the-cli-protocol)
-14. [Obsolete terms](#obsolete-terms)
 
 An [alphabetical index](#alphabetical-index) closes the page.
 
@@ -36,20 +35,20 @@ An [alphabetical index](#alphabetical-index) closes the page.
 
 ### Adopting docket in a repository
 
-Bringing a repo under docket, which is a separate step from installing docket on your machine. An
-existing single-branch repo is moved with `repository migrate`, a human-typed command that asks for
-confirmation unless you pass `--yes`. A fresh repo gets the orphan `docket` branch and `.docket/`
-worktree from `repository init`.
+Bringing a repo under docket, which is a separate step from installing docket on your machine. A
+repository that has never used docket runs `repository init`, which creates the orphan `docket`
+branch and the `.docket/` worktree. `repository migrate` converts only a repository still on the
+legacy single-branch layout; it is human-typed and asks for confirmation unless you pass `--yes`.
 
-**Used for:** the one-time setup per repo. The skills never migrate for you; the bootstrap guard
-stops and points at `migrate`. A local gate with no test command halts until one is configured,
-and `repository configure-tests` generates that policy.
+**Used for:** the one-time setup per repo. The skills never set a repository up for you; the
+bootstrap guard stops and names the command to run. A local gate with no test command halts until
+one is configured, and `repository configure-tests` sets the test commands.
 
 ```sh
 cd <target-repo>
-docket repository migrate            # existing repo (human-typed)
-docket repository init               # fresh repo
-docket repository configure-tests    # write the pending build/finalize test policy
+docket repository init               # a repository that has never used docket
+docket repository migrate            # a legacy single-branch repository (human-typed)
+docket repository configure-tests    # set the build and finalize test commands
 ```
 
 ### Archived record
@@ -73,30 +72,18 @@ fail-closed, and `repository.prepare` never creates the metadata branch or migra
 docket repository prepare --repo-dir . --json   # the verdict surfaces as this envelope's disposition
 ```
 
-### Docket-mode / single-branch mode
-
-Docket-mode is the default layout: metadata on the metadata branch, code on the integration
-branch. A **single-branch** (legacy) layout keeps the backlog on the integration branch.
-
-**Used for:** deciding where docket reads and writes. A single-branch repo is refused with a
-migration prompt rather than half-initialised. Docket-mode is the only supported topology; the old
-`metadata_branch: main` opt-out is obsolete.
-
-```sh
-docket repository init      # fresh repo: create the orphan docket branch
-docket repository migrate   # legacy single-branch repo: move the backlog (human-typed only)
-```
-
 ### Feature branch
 
 The branch a single change's code is built on, minted at claim as `<type>/<slug>` (or
-`<branch_prefix>/<slug>`) and recorded in the change's `branch:` field.
+`<branch_prefix>/<slug>`) and recorded in the change file's `branch:` field.
 
 **Used for:** carrying the code, plan, and results of one change. It never modifies docket
-metadata. Branches are named by slug, not id — read `branch:` rather than grepping for the number.
+metadata. Branches are named by slug, not id — read the change's `branch:` field rather than
+grepping for the number. Status output carries no branch or PR; the change file and the workspace
+inspection do.
 
 ```sh
-docket status --records --json   # each change's branch/pr fields
+docket workspace inspect --id 412 --json   # the change's feature ref and heads
 ```
 
 ### Git hooks in docket worktrees (pre-commit, husky, lefthook)
@@ -126,8 +113,7 @@ docket diagnostic config --repo-dir . --json   # shows the resolved integration 
 The `docket` git branch where the backlog, specs, and decisions are stored, separate from the code.
 
 **Used for:** keeping planning history out of your code history. The two branches never merge into
-each other. It is always the orphan `docket` branch: the old `metadata_branch` key is obsolete
-(change 0363) and resolves nothing.
+each other, and the metadata branch is always the orphan `docket` branch.
 
 ```sh
 git log --oneline origin/docket -5   # recent backlog commits, never mixed with code
@@ -168,7 +154,8 @@ An isolated working copy of the repo, on its own branch. A change's build happen
 worktree under `.worktrees/`.
 
 **Used for:** building several changes without disturbing your own checkout. Keep editors out of
-`.worktrees/` while a run is active — an out-of-band edit trips the run's identity check.
+`.worktrees/` while a run is active — an out-of-band edit makes a running gate halt
+`worktree-changed` (see [Worktree changed](#worktree-changed--certified-input-changed)).
 
 ```sh
 docket workspace inspect --id 412
@@ -330,7 +317,7 @@ docket status --json | jq '.changes[] | {id, slug, path}'
 
 ### Learnings / finding / promotion
 
-Learnings are the loop's memory of lessons from past builds, curated by a human. Each lesson is a
+Learnings are the learnings ledger: lessons from past builds, curated by a human. Each lesson is a
 **finding** file under `<changes_dir>/learnings/`. **Promotion** moves a finding into the
 always-in-context rules (`AGENTS.md`) when the answer to *"will the agent know to search for
 this?"* is no.
@@ -351,7 +338,8 @@ whose index line bears on the change at hand.
 
 **Used for:** a memory that grows without growing every run's context. Readers are implement-next
 (at plan and review time), groom-next, and auto-groom, and all are gated by `learnings.enabled`.
-Automated index rendering is deferred from Go v1, so the existing index bytes are kept, not refreshed.
+Docket never regenerates the index: `learning record` and `learning update` write only the finding,
+so the index is kept by hand.
 
 ### Learnings ledger / war story / `promotion_state`
 
@@ -392,12 +380,13 @@ docket change attach-plan --id 412 --revision <v> --path docs/superpowers/plans/
 
 ### Marker section
 
-A body section whose mere presence is state: `## Run halted`, `## Finalize blocked`,
-`## Auto-groom blocked`, `## Publish deferred`, `## Reclaim log`.
+A body section whose mere presence is state: `## Run halted`, `## Finalize blocked`, and
+`## Auto-groom blocked`.
 
 **Used for:** making a stop verifiable in git rather than a claim in a report. The board's
-"needs you" cells are driven by these sections; each has a named operation that writes and removes
-it.
+"needs you" cells are driven by these sections, and each has named operations that write and remove
+it: `change halt` / `change resume-halted`, `finalize block` / `finalize clear-block`, and
+`change groom` with an `abstain` / `re-enable` outcome.
 
 ### Results
 
@@ -501,8 +490,8 @@ the work and when it was taken. The **claim lease** is a timestamp on a claim (`
 when it expires with no branch behind it, the change goes back to the queue. **Reclaim** is that
 return trip (`in-progress → proposed`), logged in `## Reclaim log`.
 
-**Used for:** making sure an abandoned build never holds a change forever, while a claim that
-already has a branch (real work) is flagged for a human instead. Grooming never takes a claim.
+**Used for:** making sure an abandoned build never holds a change forever. A claim that already
+has a feature branch or a workspace (real work) is never reclaimed. Grooming never takes a claim.
 
 ```sh
 docket change claim         --id 412 --revision <v>
@@ -639,10 +628,9 @@ docket change groom --request groom.json
 
 ### Auto-groom / auto-groomable
 
-**Auto-groom** grooms stubs with no human, gated by an adversarial **critic**. A stub's **effective
-auto-groomable** value is its `auto_groomable:` override when set, or else the repo's `auto_groom`
-knob. A stub is **auto-groomable** (selectable by auto-groom) when it is needs-grooming *and* that
-effective value is `true`.
+**Auto-groom** grooms stubs with no human, gated by an adversarial **critic**. A stub is
+**auto-groomable** (selectable by auto-groom) when it is needs-grooming *and* its change file
+carries `auto_groomable: true`.
 
 **Used for:** draining design work unattended. Arm a stub by committing `auto_groomable: true`
 before dispatch; an uncommitted flag fails preflight.
@@ -708,13 +696,17 @@ docket change groom --request groom.json
 
 ### Budget watch / serially confirmed breach
 
-Wall-clock lines the suite runner prints even on a green run. `BUDGET WATCH:` and
-`PARALLEL-SENSITIVE:` are screening findings (parallel timings are machine-dependent);
-`SERIAL CONFIRMED OVER BUDGET:` is an authoritative breach to act on. Neither fails the run.
+Per-test-file wall-clock lines that docket's own contributor suite (`docket development test`)
+prints even on a green run. `BUDGET WATCH:` and `PARALLEL-SENSITIVE:` are screening findings
+(parallel timings are machine-dependent); `SERIAL CONFIRMED OVER BUDGET:` is an authoritative breach
+to act on. Neither fails the run, and neither is part of the build gate in your repository.
 
 ### Build evidence
 
-The committed record of that gate run, read by the reviewer. It certifies an exact tested commit.
+The immutable record of a passed [build gate](#build-gate) run, minted by `evidence record` and
+checked by `evidence verify`. It certifies an exact tested commit and lives in the PR body's
+build-evidence block; it is never committed. With `build.gate: off` the record says `skipped`
+(`build-gate-off`).
 
 **Used for:** letting review and finalize trust a record rather than a worker's word. Adding a
 commit after the evidence was recorded makes it stale (`evidence-unverified`).
@@ -916,9 +908,8 @@ One of the five pluggable steps — `brainstorm`, `plan`, `build`, `review`, `fi
 to a skill. The shipped defaults are `superpowers:brainstorming`, `superpowers:writing-plans`,
 `docket-build`, `docket-review`, and `superpowers:finishing-a-development-branch`.
 
-**Used for:** knowing which skill runs each step. Rebinding is deferred in Go v1: any explicit
-`skills.*` value in config — even one repeating the default, or the `auto` sentinel — blocks every
-repository mutation until removed.
+**Used for:** knowing which skill runs each step. The roles are fixed and the same in every
+repository; nothing rebinds them.
 
 ### Workspace publish
 
@@ -1167,7 +1158,7 @@ The posture for anything that may outlast one foreground call. Launch it detache
 short observe calls until a terminal result appears. Completion comes from a durable record, never from the launching
 command returning.
 
-**Used for:** long suite runs and delegated runs on other harnesses. A quiet run, or a stale "still running" report, is
+**Used for:** long suite runs. A quiet run, or a stale "still running" report, is
 not evidence that it crashed. The caller must never background a run and walk away.
 
 ### Liveness probe / moved to background
@@ -1179,19 +1170,18 @@ where the harness returned control to the agent while the command keeps running.
 **Used for:** not declaring a run dead or finished too early. When a shell tool yields with a live task or session id,
 keep that id and collect its real exit through the harness's own wait. Do not re-run the command or report completion.
 
-### Observation budget (`gate_observation_budget` / `delegation_observation_budget`)
+### Observation budget (`gate_observation_budget`)
 
-How long, in minutes, docket keeps watching for a terminal result. `gate_observation_budget` (default 30) covers a
-suite run an agent started. `delegation_observation_budget` (default 60) covers a delegated runner child.
+How long, in minutes, docket keeps watching a suite run an agent started for a terminal result
+(`gate_observation_budget`, default 30).
 
-**Used for:** failing closed instead of waiting forever. When the gate budget runs out with no result, the build halts
-for a human, and never counts it as red or as a pass. When the delegation budget runs out, docket kills the detached
-process group and reports the run unavailable. `0` means observe once, then fail closed.
+**Used for:** failing closed instead of waiting forever. When the budget runs out with no result,
+the build halts for a human, and never counts it as red or as a pass. `0` means observe once, then
+fail closed.
 
 ```yaml
 # .docket.yml
 gate_observation_budget: 30
-delegation_observation_budget: 60
 ```
 
 ### Process recovery
@@ -1208,11 +1198,13 @@ docket gate recover --root <run-root>
 ### Tri-state verdict / halt exit code
 
 A suite gate's result has three values, not two. **Green** is a finished run that exited zero. **Red** is a finished
-failing run. **Halt** is a non-zero exit that the runner defines as a non-failure. "Still running" and "result
-unavailable" are not verdicts; they end as budget halts.
+failing run. **Halt** means the run cannot be judged safely: a changed worktree, uncertain ownership, a spent
+observation budget, or a dead supervisor (see [Drive disposition](#drive-disposition-waiting--passed--failed--halted)).
+"Still running" and "result unavailable" are not verdicts; they end as budget halts.
 
-**Used for:** never reading a halt as a pass or a fail. The run tracker reports a halt with its own exit code. That code
-comes from the run's recorded state, not from how the gate found out the run stopped.
+**Used for:** never reading a halt as a pass or a fail. `docket gate` commands exit 0 on success, 1 on failure, and 2
+on invalid input, and a halted gate run exits like a failed one, so read the run's outcome from its output, never
+from the exit code alone.
 
 ### `worktree-busy`
 
@@ -1221,8 +1213,7 @@ The reason a gate start is refused because another gate's supervisor holds the
 
 **Used for:** recognising a blocking diagnostic, which is neither a red suite nor a retry trigger. It charges no suite
 attempt. The fix is an operator act: let the holder finish, or stop it (`run.cancel` for a tracked run, `gate stop`
-for a raw launch). `launch-unconfirmed` is retired: it was the gate-drive HALT cause for a relaunch whose launch could
-not be established, and no driver path emits it since change 0493; it was never an admission refusal.
+for a raw launch).
 
 ---
 
@@ -1230,20 +1221,20 @@ not be established, and no driver path emits it since change 0493; it was never 
 
 ### Finding severity: blocker / important / minor
 
-The severity levels a reviewer assigns. They decide which findings the fix loop routes and at what tier.
+The severity levels a reviewer assigns. They decide which findings the fix pass routes and at what tier.
 
-### Fix loop
+### Fix pass
 
-The bounded in-branch repair that runs after review and before the PR opens: findings are routed
-to build tiers as fix tasks (`review.max_fix_tasks`, default 10), then one full-suite run
+The bounded in-branch repair that runs once, after review and before the PR opens: findings become
+fix tasks routed to build tiers (`review.max_fix_tasks`, default 10), then one full-suite run
 confirms. Anything left unfixed becomes a line in the PR body.
 
 ### Review tier
 
 One of three pinned reviewer agents — `docket-review-lean`, `docket-review-standard`,
 `docket-review-deep` — all running the same read-only whole-branch contract. The tier is chosen
-deterministically one step above the build: economy → lean, standard → standard, premium/max →
-deep, bumped one step for a diff over 1500 changed lines.
+deterministically at the same level as the build tier: economy → lean, standard → standard,
+premium/max → deep, bumped one step for a diff over 1500 changed lines.
 
 **Used for:** a whole-branch review before the PR opens. Reviewers never fix, dispatch, or run the
 suite.
@@ -1260,8 +1251,8 @@ body section it writes (`### Verification`, `### Late findings`).
 
 ### Finalize
 
-The close-out sequence: rebase onto the integration branch, retest, merge, archive. Each step gates
-the next; a failed step stops the rest.
+The close-out sequence: rebase onto the change's effective base, retest, publish, merge, close out,
+clean up. Each step gates the next; a failed step stops the rest.
 
 **Used for:** landing an approved or merged PR and clearing it off the backlog. Run it as the
 `docket-finalize-change` agent, with or without an id (without, it auto-detects eligible changes).
@@ -1296,8 +1287,8 @@ Every finalize run ends with one of four outcomes: `advanced` (it closed a chang
 driver continues on `advanced`/`contended` and stops on `drained`/`halted`, which are the same four
 words implement-next uses.
 
-**Used for:** closing out hands-free, one merge per iteration. Unlike the build drainer, this loop
-**does merge**. Naming ids bounds the run and authorizes merges `require_pr_approval` would hold.
+**Used for:** closing out hands-free, one merge per iteration. Unlike implement-next, the finalize
+drain **does merge**. Naming ids bounds the run and authorizes merges `require_pr_approval` would hold.
 
 ```sh
 # inside an agent session
@@ -1307,10 +1298,10 @@ words implement-next uses.
 
 ### Finalize gate
 
-How finalize validates the rebased branch before merging: it rebases onto the integration branch and
-re-runs the suite. `finalize.gate` is `local` (run
-`finalize.test_command` here, default) or `off` (trust the PR's CI). `ci` and `both` are deferred in
-Go v1 and block every repository mutation while set.
+How finalize validates the rebased branch before merging: it rebases onto the change's effective
+base and re-runs the suite. `finalize.gate` is `local` (rebase, then run `finalize.test_command`
+here; the default) or `off` (skip the rebase and retest and trust the PR's CI). A no-op rebase whose
+build evidence is green for the exact head, with the same command, skips the suite.
 
 **Used for:** never merging a stale branch untested. It shares the worktree's single
 [worktree lock](#worktree-lock), so it can be refused with `worktree-busy`.
@@ -1475,9 +1466,10 @@ docket repository sync-integration --repo-dir . --json
 
 ### Health check / health code
 
-A health check is a status-time scan for things a human should look at: stale claims, broken
-links, stalled dependencies. Each result carries a **finding code** (for example `artifact-missing`,
-`deferred-setting`, `publish-deferred`) and a remedy.
+A health check is a status-time scan for structural problems a human should look at. Each result
+carries a **finding code**: a missing linked artifact (`artifact-missing`), a reference to a change
+that does not exist (`change-reference-dangling`), a dependency cycle (`change-dependency-cycle`), a
+malformed branch name (`branch-malformed`), or a configuration or parse diagnostic.
 
 ```sh
 docket status --json | jq '.findings[] | {code, message, remedy}'
@@ -1546,7 +1538,8 @@ and stopped on, never turned into an interactive prompt.
 
 An agent is a separately launched worker with its own context, pinned to a model and effort. A
 **wrapper** is the thin generated file that names the agent, pins its model and effort, and points
-at the skill it loads. Wrappers are machine-local — regenerated per machine, never committed.
+at the skill it loads. Wrappers are user-level files that `docket install` writes on each machine
+(17 agents per harness); no repository holds wrapper files.
 
 ```sh
 docket install                       # (re)generate skills, agents, and dispatch material
@@ -1572,8 +1565,7 @@ matching pinned subagent. Without it, Cursor runs the skill inline at the sessio
 is lost.
 
 **Used for:** keeping model and effort pins on Cursor. It is machine-local and gitignored, written
-user-level (`~/.cursor/rules/`) and per repo (`.cursor/rules/`) when `cursor` is in
-`agent_harnesses`. Claude Code handles the same problem with `context: fork` frontmatter instead.
+into the repository's `.cursor/rules/` when `cursor` is in the repository's `agent_harnesses`. Claude Code handles the same problem with `context: fork` frontmatter instead.
 
 ### `DIRECTED to:` marker
 
@@ -1597,10 +1589,9 @@ same-name `docket-*` agent, dispatch it rather than running the workflow inline.
 
 What a workflow does when dispatch is genuinely unavailable; the fallback differs by kind.
 **`inline`** (status, ADR): run the same work inline as a first-class equivalent. **`abstain`**
-(the critic): abstain. **`auto-or-halt`** (plan writer, build, review, fix workers): proceed inline
-only if the role is explicitly `auto`, otherwise halt (in Go v1 an explicit `skills.*` value blocks
-mutation, so in practice it halts). **`no-fallback`** (the finalize rebase resolver and integration
-repair): abort-and-report, never inline.
+(the critic): abstain. **`halt`** (plan writer, build, review, fix workers): stop the run for a
+human. **`no-fallback`** (the finalize rebase resolver and integration repair): abort-and-report,
+never inline.
 
 ### docket-adr
 
@@ -1622,8 +1613,8 @@ The autonomous groomer. It drains every auto-groomable stub in one invocation. F
 it drafts a spec with an `## Assumptions` block, or a trivial verdict, then has the critic attack it.
 Each stub exits as spec, trivial, or abstain.
 
-**Used for:** grooming overnight or from a routine. Kill and defer are never autonomous. Arm stubs
-by committing `auto_groomable: true`, or set the repo's `auto_groom: true`.
+**Used for:** grooming overnight or from a routine. Kill and defer are never autonomous. Arm a stub
+by committing `auto_groomable: true` on it.
 
 ```sh
 /docket-auto-groom
@@ -1637,12 +1628,11 @@ or return critique.
 
 **Used for:** getting every spec authored or audited by a pinned high-tier consultant. It is invoked
 from `docket-new-change` or `docket-groom-next`, never on its own. Asking for a consultant-written
-spec in either session uses it for that run, (A `skills.brainstorm` binding is deferred in Go v1 and would block mutation.)
-
+spec in either session uses it for that run.
 
 ### docket-build
 
-Docket's build role (`skills.build`, the default). It routes each plan task (`### Task N`) to one of
+Docket's build role, the fixed skill for the build step. It routes each plan task (`### Task N`) to one of
 the four build-tier agents, allows one bounded escalation per task, skips per-task review, and
 ends with a single full-suite build gate.
 
@@ -1689,7 +1679,7 @@ The interactive groomer. It selects the next needs-grooming stub (or the id you 
 cold-start recap, and brainstorms it with you. It exits with spec, trivial, kill, defer, revise, or
 re-enable. It never takes a claim and never mints ids.
 
-**Used for:** designing stubs with a human in the loop. Naming an already-groomed id routes to
+**Used for:** designing stubs together with you. Naming an already-groomed id routes to
 `revise`. It runs inline at the session model, and the model it recommends is advisory.
 
 ```sh
@@ -1713,21 +1703,21 @@ re-running this.
 
 ### docket-review
 
-Docket's review role (`skills.review`, the default). A bounded, read-only reviewer reads the branch
+Docket's review role, the fixed skill for the review step. A bounded, read-only reviewer reads the branch
 diff and the build-evidence record and returns findings ranked by severity. It never fixes,
 dispatches, or runs the suite.
 
 **Used for:** implement-next's Step 6 whole-branch review. It runs through one of the three review
-tier agents and is never invoked by a human. See *Review tier* and *Fix loop*.
+tier agents and is never invoked by a human. See *Review tier* and *Fix pass*.
 
 ### docket-status
 
-The backlog read-and-janitor skill. A see-only request runs the write-free `status` read. An explicit
-refresh first runs `maintenance.sweep --scope full` (close out merged PRs, retry cleanups, run health
-checks, sync the integration branch), then reads.
+The backlog read-and-janitor skill. A see-only request runs the read-only `docket status`. An
+explicit refresh first runs `docket maintenance sweep` (close out merged changes, retry close-out
+cleanup, reclaim expired claims, sync the integration branch), then reads status.
 
 **Used for:** knowing what is ready, stuck, or merged, and recovering a PR merged with the GitHub
-button. Health checks are warn-only: it never auto-fixes. Its dispatch fallback is `inline`: without dispatch it runs
+button. Health findings come from the status read and are warn-only: it never auto-fixes. Its dispatch fallback is `inline`: without dispatch it runs
 inline.
 
 ```sh
@@ -1753,16 +1743,16 @@ run inline. A headless finalize is authorized by naming ids instead.
 
 The tool that runs the agent: Claude Code, Cursor, Codex, or opencode.
 
-**Used for:** targeting generated wrappers (`agent_harnesses:`) and picking per-harness model
-defaults from the shipped sidecar `agents/harness-defaults.yml`.
+**Used for:** choosing where `docket install` writes agents (`--harness`, or the harnesses it
+detects), which dispatch surfaces a repository gets (`agent_harnesses`), and which built-in model
+and effort defaults apply (mirrored in `agents/harness-defaults.yml`).
 
 ### Harness defaults sidecar (`agents/harness-defaults.yml`)
 
-The file docket ships with the built-in model and effort for every agent on every harness. It is
-program data, not user config. Each harness block is complete, and it never carries `runner:` or
-a neutral `default:` block.
+The shipped mirror of the built-in model and effort table compiled into the binary: every agent on
+every harness. It is program data, not user config, and each harness block is complete.
 
-**Used for:** seeing the shipped pins. Don't edit it; override a pin from a config layer instead.
+**Used for:** seeing the shipped pins. Don't edit it; override a pin from the global config instead.
 `.docket.example.yml` mirrors it value for value.
 
 ### Interactive vs autonomous skills
@@ -1792,8 +1782,9 @@ docket install    # reconcile the block for this repo's agent_harnesses
 ### Model / effort, pinned vs unpinned wrapper
 
 A **pinned** wrapper carries a resolved `model` and `effort`, resolved field by field in this order:
-`agents.<harness>.<agent>` → `agents.default.<agent>` → the shipped sidecar. When nothing resolves,
-the wrapper is **unpinned** and the harness applies its own default.
+`agents.<harness>.<agent>` → `agents.default.<agent>` (both from the global config only) → the
+built-in table. When nothing resolves, the wrapper is **unpinned** and the harness applies its own
+default.
 
 **Used for:** matching the tier to the task rather than the session. `effort: auto` drops the
 effort line, while leaving `effort:` out keeps the shipped effort, so the two differ. `model:
@@ -1861,14 +1852,15 @@ else.
 
 ### `agent_harnesses`
 
-The list of harnesses docket generates wrappers and dispatch material for. In a repo file,
-**presence** is the opt-in. It has three states: absent (keep the shipped Claude-only default), a
-non-empty list (reconcile exactly those harnesses), or `[]` (retire every docket-owned repo
-surface).
+The list of harnesses a repository's parent-facing dispatch surfaces are installed for: the
+managed block in `CLAUDE.md` / `AGENTS.md` (with a `CLAUDE.md` → `AGENTS.md` symlink when Codex or
+opencode is also opted in) and, for Cursor, `.cursor/rules/docket-dispatch.mdc`. It has no default
+and three states: absent (install touches no repository surface), a non-empty list (reconcile
+exactly those harnesses), or `[]` (retire every docket-owned repository surface).
 
-**Used for:** turning on Cursor, Codex, or opencode. A **global** value only scopes the user-level
-pass and never opts a repo in, so Codex's `AGENTS.md` block needs the repo's own key. Re-run the
-install after changing it.
+**Used for:** opting a repository in to dispatch surfaces. Only `.docket.yml` or `.docket.local.yml`
+can opt a repository in; the installer ignores a global value, and an unknown token is an error.
+Re-run the install after changing it.
 
 ```yaml
 # .docket.yml (whole team) or .docket.local.yml (this clone)
@@ -1894,11 +1886,6 @@ build:
   max_attempts: 4
 ```
 
-### Auto-capture / discovered work
-
-Work an autonomous run discovers mid-run is reported in its final report, never silently minted.
-`auto_capture` is parsed but deferred from Go v1 — capture deliberately with `docket change create`.
-
 ### `board.section_order` / `board.sorting`
 
 Presentation keys for the inline board. `section_order` must list every section exactly once
@@ -1916,16 +1903,6 @@ board:
     proposed: { by: created, direction: asc }
 ```
 
-### `build.checkpoint`
-
-Whether docket-build keeps a resume ledger. `false` (default) keeps none: a resumed run rebuilds its
-progress from the plan, commits, code, and tests. `true` writes a compact ledger to the gitignored
-`.superpowers/docket-build/<change-id>/progress.md`.
-
-**Used for:** cheaper resumes of long builds. With `true`, a task is skipped on resume only when its
-entry is COMPLETE, the plan hash still matches, and its commit is an ancestor of the branch. Any value
-other than `true`/`false` is a config error.
-
 ### Change types
 
 The allowed `type:` values (`change_types`, default `chore, docs, feat, fix, refactor, perf`). The
@@ -1933,11 +1910,12 @@ type also becomes the feature-branch prefix.
 
 ### Config layers
 
-Four layers resolved per key, lowest to highest: shipped defaults → global
-`~/.config/docket/config.yml` → committed `.docket.yml` → gitignored `.docket.local.yml`. Nested
-blocks merge leaf by leaf. Full shape and defaults: `.docket.example.yml` (see
-[`config-keys.md`](config-keys.md)). In Go v1 an `agents:` model/effort pin is honoured only from the
-global file; the same pin in `.docket.yml` or `.docket.local.yml` blocks mutation.
+Four layers resolved per key, lowest to highest: built-in defaults → global
+`${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml` → committed `.docket.yml` → gitignored
+`.docket.local.yml`. Nested blocks merge leaf by leaf. An `agents:` model/effort pin is honoured
+only from the global file. A malformed file, an unknown key, or a bad value in any layer makes the
+whole configuration invalid. Full shape and defaults: `.docket.example.yml` (see
+[`config-keys.md`](config-keys.md)).
 
 ```sh
 docket diagnostic config --repo-dir . --json
@@ -1947,60 +1925,25 @@ docket diagnostic config --repo-dir . --json
 
 A coordination key is a config key whose value must be identical for every clone, so it may only be
 set in the committed repo config. The **shared-setting guard** ignores (with a warning) a coordination key set in
-any other layer. The warning's code is `shared-setting-ignored`. Each key's **scope tag** in the example file is `repo-only`, `any layer`, or
-`local-only`.
+any other layer. The warning's code is `shared-setting-ignored`. Each key's **scope tag** in the example file is `repo-only`,
+`any layer`, or `global-only`.
 
-### Dummy mode / persona / "In plain terms"
+### `learnings.enabled`
 
-`dummy_mode` calibrates human-facing prose to a described reader (the **persona**). Dialogue and
-reports are rewritten; results, change sections, and PR bodies get an additive
-`### In plain terms` block. Agents never read that block as a decision input.
+`learnings.enabled` (default `true`) turns the learnings ledger on or off. With `false`,
+`learning record` and `learning update` refuse, and readers perform zero learnings reads.
 
-### `finalize.skip_results_only_delta`
+**Used for:** switching the memory off. `false` is never a purge: files stay byte-untouched and
+re-enabling resumes from them. Docket never merges, promotes, or counts findings on its own.
 
-When `true`, finalize's gate accepts a near-match as proof the suite already passed: the tested
-commit is an ancestor of the merge head, and every file added since then is under `results_dir`.
-Default `false`.
+### Global config
 
-**Used for:** skipping the redundant re-run caused by the results file committed after testing. Turn
-it on only if no test reads files from `results_dir`. It is repo-only (shared-setting guarded), because
-it states a fact about one repo's suite.
+The user-level `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml`. It uses the same schema as
+`.docket.yml`, and a repo's committed and local files win over it key by key. Nothing writes or
+maintains it for you: create and edit it yourself.
 
-### GitHub board mirror / `github_project`
-
-A mirror of the board to GitHub Issues and a Projects v2 board, requested with the `github` token
-of `board_surfaces` and the `github_project` key. Neither works in Go v1. `inline` (`BOARD.md`) is
-the only supported surface.
-
-**Used for:** nothing yet. `github_project` is inert: it is read by nothing and only its
-shared-setting guard runs. A `github` token in the committed `board_surfaces` blocks every mutation
-until you remove it.
-
-### Inert / deferred setting
-
-A config key that is parsed but activates nothing in the current binary (for example
-`terminal_publish`, `auto_capture`). Status surfaces them as `inert-setting` / `deferred-setting`
-findings.
-
-### `learnings.enabled` / `learnings.cap`
-
-`learnings.enabled` (default `true`) is the read gate for the learnings subsystem. With `false`,
-readers perform zero learnings reads. `learnings.cap` (default 300) is the count of active findings
-(`retained` + `candidate`) past which the ledger needs human curation.
-
-**Used for:** switching the memory off, or signalling when it needs pruning. `false` is never a
-purge: files stay byte-untouched and re-enabling resumes from them. Promoted findings do not count
-against the cap, and docket never auto-merges findings.
-
-### Managed global config
-
-The user-level `~/.config/docket/config.yml`. It uses the same schema as `.docket.yml`, and a repo's
-committed file wins over it key by key. The installer writes a minimal copy on first run and fills
-in the values it manages on later runs without overwriting yours.
-
-**Used for:** machine-wide preferences, such as per-agent model and effort. A
-`~/.config/docket/.docket.yml` is never read, and an old `agents.yaml` there is migrated in
-automatically.
+**Used for:** machine-wide preferences. It is the only layer that honours per-agent model and
+effort pins.
 
 ```sh
 docket diagnostic config --repo-dir . --json   # shows which layer each value came from
@@ -2013,8 +1956,9 @@ docket diagnostic config --repo-dir . --json   # shows which layer each value ca
 ### `reclaim.auto` / `reclaim.lease_ttl`
 
 `reclaim.lease_ttl` (default 72 hours) is how long a claim lease lasts. `reclaim.auto` (default
-`false`) decides what happens to an expired, branchless claim. With `false`, status only flags and
-recommends it; with `true`, each maintenance sweep reclaims it back to `proposed`.
+`false`) decides what the maintenance sweep does with an eligible claim: an expired lease, no
+feature branch, and no workspace. With `false`, the sweep reports it as skipped
+(`reclaim-auto-disabled`); with `true`, the sweep reclaims it back to `proposed`.
 
 **Used for:** letting crashed runs self-heal without a human. Detection is always on; only the
 mutation is opt-in. A claim with a branch is never reclaimed automatically.
@@ -2031,11 +1975,11 @@ the board's Type cell. Migrating an older backlog means writing a `type:` onto e
 change once. Archived changes are never reclassified.
 
 **Used for:** keeping reports legible. `change.create` refuses an empty or unknown type, so the
-untyped set only shrinks. The scalar `auto_capture: true` from before the map form is a hard error.
+untyped set only shrinks.
 
 ### `review.min_fix_severity`
 
-The lowest review-finding severity that implement-next's fix loop repairs in-branch before the PR
+The lowest review-finding severity that implement-next's fix pass repairs in-branch before the PR
 opens: `minor` (default; fix everything), `important` (minors go in the PR body), or `blocker`.
 Blockers are always fixed.
 
@@ -2093,7 +2037,7 @@ revision you read. Docket pairs it with an exact-lease push to the metadata remo
 the recovery when that race is lost: re-run `repository.prepare`, re-read the path and revision,
 then retry.
 
-**Used for:** letting several sessions and loops share one backlog without silent overwrites. A lost
+**Used for:** letting several sessions and runs share one backlog without silent overwrites. A lost
 race returns `contended` and writes nothing. It is also why grooming needs no claim: the conflict-checked
 final push already protects it.
 
@@ -2104,7 +2048,7 @@ docket status --json | jq -r '.changes[] | select(.id==412) | .revision'   # ste
 
 ### Contended
 
-The outcome when a conflict-checked write lost a race with another writer (another session or loop). It
+The outcome when a conflict-checked write lost a race with another writer (another session or run). It
 is not a failure of your input: re-read and retry.
 
 ### Diagnostic runtime
@@ -2113,7 +2057,7 @@ A read-only report on the binary itself: the Go toolchain it was built with, the
 targets, and whether that target is supported. It works without a completed install.
 
 **Used for:** a quick sanity check when docket misbehaves on a new machine. It says nothing about
-Bash, config, or harnesses; use `diagnostic config` for config.
+config or harnesses; use `diagnostic config` for config.
 
 ```sh
 docket diagnostic runtime --json
@@ -2139,9 +2083,9 @@ exceed what it is authorised to do.
 
 ### Finding / finding code / remedy
 
-A structured diagnostic attached to a result: a `code`, a `severity`, the entity it concerns, a
-`message`, and a `remedy` naming the next command. The full code list is the `finding_codes`
-vocabulary.
+A structured diagnostic attached to a result: a `code`, a `severity` (`error`, `warning`, or
+`notice`), the entity, field, or path it concerns, a `message`, and, where one applies, a `remedy`
+naming the next step. The full code list is the `finding_codes` vocabulary in `docket schema`.
 
 ### Install / version tree / install collect
 
@@ -2162,12 +2106,11 @@ docket install collect --dry-run
 
 ### Install check
 
-A read-only check of whether this machine's installation is current. It also works as a CI gate:
-it fails if the managed `.gitignore` block is missing or stale, if a generated file is tracked, or
-if the committed `.docket.yml` uses the legacy bare `agents:` shape.
+A read-only check of whether this machine's installation is current. It checks only this machine
+and is not a repository CI gate; a repository's managed `.gitignore` block is checked by
+`docket repository check`.
 
-**Used for:** catching drift before it bites. If only the generated content has drifted, the check
-still passes and just suggests re-running the install.
+**Used for:** confirming an install or upgrade took effect.
 
 ```sh
 docket install check
@@ -2176,8 +2119,7 @@ docket install check
 ### Keeping docket current
 
 After every pull of a new docket version, re-run the install. Pulling alone updates only the skill
-symlinks. Wrappers, new harness support, managed global config, and dispatch surfaces are updated
-only by an install run.
+symlinks. Wrappers, new harness support, and dispatch surfaces are updated only by an install run.
 
 **Used for:** upgrading safely. Run the machine install first, then any per-repo steps in the
 release notes, then restart the harness. Merges to docket's own `main` use the verified rebuild in
@@ -2214,10 +2156,11 @@ docket schema --operation change.create   # request_id is required; result carri
 
 ### Result / disposition
 
-The **result** is the envelope's top-level outcome (`applied`, `no-op`, `contended`,
-`invalid-input`, `invalid-state`, `blocked`, `gate-failed`, …). A **disposition** is the one-word
-outcome an operation reports: applied, no-op, refused, or error — plus operation-specific closed
-sets (`claim_dispositions`, `merge_dispositions`, `sync_dispositions`, …) listed by `docket schema`.
+The **result** is the envelope's top-level outcome, one of `applied`, `no-op`, `contended`,
+`invalid-input`, `invalid-state`, `blocked`, `unsupported-config`, `gate-failed`, `external-failed`,
+`interrupted`, or `internal-error`. A **disposition** is an operation's own outcome word, from that
+operation's closed set (`claim_dispositions`, `merge_dispositions`, `sync_dispositions`, …) listed by
+`docket schema`. `applied` / `no-op` / `refused` / `error` is `repository prepare`'s disposition set.
 
 ### Schema / request file
 
@@ -2255,56 +2198,6 @@ docket development install --source ~/dev/docket
 
 ---
 
-## Obsolete terms
-
-Retired features and names. A retired feature's config key is still recognised, so a stale file gets
-a warning or a refusal instead of being silently accepted; nothing in current docket uses any of
-these.
-
-### Bootstrap verdicts (`BOOTSTRAP=`)
-
-The Bash-era bootstrap guard printed a `BOOTSTRAP=` line whose value was `PROCEED`, `STOP_MIGRATE`
-or `CREATE_ORPHAN`. The Go binary has no such line; see [Bootstrap guard](#bootstrap-guard).
-
-### Digest-only read (`docket status --digest-only`)
-
-A Bash-era `docket-status --digest-only` flag (ADR-0047) that produced the digest without writing.
-The Go `docket status` never writes, so the flag does not exist. See [Backlog digest](#backlog-digest).
-
-### Runner delegation
-
-**Runner delegation** handed an agent's whole run to a different harness, chosen by an explicit
-`runner:` key on that agent. It is retired in Go v1 (change 0371): any `agents.<h>.<a>.runner` value
-blocks every repository mutation until removed. See [Runner shim / `runners` block](#runner-shim--runners-block).
-
-### Runner shim / `runners` block
-
-These are the config for runner delegation. `runners.<name>` holds per-runner knobs:
-`codex.sandbox`, `codex.network`, `opencode.permissions`, and `shim_model` / `shim_effort`, which
-pin the small relay agent that runs in your own harness.
-
-**Used for:** nothing in Go v1. Cross-harness delegation is retired (change 0371). Any
-`agents.<h>.<a>.runner` value blocks mutation, and every `runners.*` key is an inert companion
-(`inert-setting`).
-
-### `runtime.bash`
-
-A former key that named the path to Bash 4 or newer for docket's shell scripts. The Bash runtime is
-gone, so the key is now warned about and ignored in every layer.
-
-**Used for:** nothing today. Delete it if a diagnostic flags it. `.docket.example.yml` still shows
-it as live, but that text is out of date.
-
-### Terminal publish
-
-Terminal publish (also called **selective publish on close-out**) was the opt-in copying of archived
-records onto the integration branch. It is deferred from Go v1: `terminal_publish: false` is inert,
-and `true` blocks every repository mutation until you remove it.
-
-**Used for:** nothing in Go v1. The integration branch gets code, plans, and results through PRs alone.
-
----
-
 ## Alphabetical index
 
 - [## Artifacts block](#-artifacts-block)
@@ -2324,7 +2217,6 @@ and `true` blocks every repository mutation until you remove it.
 - [Archived record](#archived-record)
 - [Attempt budgets (run.max_attempts / build.max_attempts / finalize repair)](#attempt-budgets-runmax_attempts--buildmax_attempts--finalize-repair)
 - [Attribution / unattributed read](#attribution--unattributed-read)
-- [Auto-capture / discovered work](#auto-capture--discovered-work)
 - [Auto-groom / auto-groomable](#auto-groom--auto-groomable)
 - [Backlog](#backlog)
 - [Backlog digest](#backlog-digest)
@@ -2332,19 +2224,16 @@ and `true` blocks every repository mutation until you remove it.
 - [Board](#board)
 - [board.section_order / board.sorting](#boardsection_order--boardsorting)
 - [Bootstrap guard](#bootstrap-guard)
-- [Bootstrap verdicts (BOOTSTRAP=)](#bootstrap-verdicts-bootstrap)
 - [Brainstorm / consultant](#brainstorm--consultant)
 - [Budget watch / serially confirmed breach](#budget-watch--serially-confirmed-breach)
 - [Build evidence](#build-evidence)
 - [Build gate](#build-gate)
 - [Build tier / escalation](#build-tier--escalation)
-- [build.checkpoint](#buildcheckpoint)
 - [Cancel](#cancel)
 - [Capability catalog](#capability-catalog)
 - [Capture modes: designed / rough stub / trivial / scan](#capture-modes-designed--rough-stub--trivial--scan)
 - [Change](#change)
 - [Change types](#change-types)
-- [Change version / entity version](#revision---revision) — see Revision
 - [Claim / claim lease / reclaim](#claim--claim-lease--reclaim)
 - [Close-out](#closeout--closeout-notes) — see Closeout / closeout notes
 - [Closeout / closeout notes](#closeout--closeout-notes)
@@ -2360,7 +2249,6 @@ and `true` blocks every repository mutation until you remove it.
 - [Derived view / generated block / backlink](#derived-view--generated-block--backlink)
 - [Development test (docket development test)](#development-test-docket-development-test)
 - [Diagnostic runtime](#diagnostic-runtime)
-- [Digest-only read (docket status --digest-only)](#digest-only-read-docket-status---digest-only)
 - [DIRECTED to: marker](#directed-to-marker)
 - [Dispatch](#dispatch)
 - [Dispatch fallbacks](#dispatch-fallbacks)
@@ -2372,13 +2260,10 @@ and `true` blocks every repository mutation until you remove it.
 - [docket-convention](#docket-convention)
 - [docket-finalize-change](#docket-finalize-change)
 - [docket-groom-next](#docket-groom-next)
-- [Docket-mode / single-branch mode](#docket-mode--single-branch-mode)
 - [docket-new-change](#docket-new-change)
 - [docket-review](#docket-review)
 - [docket-status](#docket-status)
 - [Drive disposition: WAITING / PASSED / FAILED / HALTED](#drive-disposition-waiting--passed--failed--halted)
-- [Dummy mode / persona / "In plain terms"](#dummy-mode--persona--in-plain-terms)
-- [Effective auto-groomable](#auto-groom--auto-groomable) — see Auto-groom / auto-groomable
 - [Effects](#effects)
 - [Escalation (NEEDS_ESCALATION)](#build-tier--escalation) — see Build tier / escalation
 - [Feature branch](#feature-branch)
@@ -2389,10 +2274,9 @@ and `true` blocks every repository mutation until you remove it.
 - [Finalize gate](#finalize-gate)
 - [Finalize publish](#finalize-publish)
 - [Finalize selection: auto-detect / explicit id / id allowlist](#finalize-selection-auto-detect--explicit-id--id-allowlist)
-- [finalize.skip_results_only_delta](#finalizeskip_results_only_delta)
 - [Finding / finding code / remedy](#finding--finding-code--remedy)
 - [Finding severity: blocker / important / minor](#finding-severity-blocker--important--minor)
-- [Fix loop](#fix-loop)
+- [Fix pass](#fix-pass)
 - [Focused tests / task gate](#focused-tests--task-gate)
 - [Fork / forked skill](#fork--forked-skill)
 - [Fork-exclusion principle](#fork-exclusion-principle)
@@ -2403,7 +2287,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Gate run / run dir](#gate-run--run-dir)
 - [Gate supervisor](#gate-run--run-dir) — see Gate run / run dir
 - [Git hooks in docket worktrees (pre-commit, husky, lefthook)](#git-hooks-in-docket-worktrees-pre-commit-husky-lefthook)
-- [GitHub board mirror / github_project](#github-board-mirror--github_project)
+- [Global config](#global-config)
 - [Groom](#groom)
 - [Groom outcome revise](#groom-outcome-revise)
 - [Halt / resume-halted](#halt--resume-halted)
@@ -2413,7 +2297,6 @@ and `true` blocks every repository mutation until you remove it.
 - [Id / slug](#id--slug)
 - [Implementation context](#implementation-context)
 - [Implement-next / the drainer](#implement-next--the-drainer)
-- [Inert / deferred setting](#inert--deferred-setting)
 - [Install / version tree / install collect](#install--version-tree--install-collect)
 - [Install check](#install-check)
 - [Integration branch](#integration-branch)
@@ -2423,10 +2306,9 @@ and `true` blocks every repository mutation until you remove it.
 - [Learnings / finding / promotion](#learnings--finding--promotion)
 - [Learnings index / read on demand](#learnings-index--read-on-demand)
 - [Learnings ledger / war story / promotion_state](#learnings-ledger--war-story--promotion_state)
-- [learnings.enabled / learnings.cap](#learningsenabled--learningscap)
+- [learnings.enabled](#learningsenabled)
 - [Liveness probe / moved to background](#liveness-probe--moved-to-background)
 - [Managed dispatch block (docket:dispatch)](#managed-dispatch-block-docketdispatch)
-- [Managed global config](#managed-global-config)
 - [Manifest](#manifest)
 - [Mark implemented](#mark-implemented)
 - [Marker section](#marker-section)
@@ -2434,7 +2316,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Metadata branch](#metadata-branch)
 - [Metadata worktree](#metadata-worktree)
 - [Model / effort, pinned vs unpinned wrapper](#model--effort-pinned-vs-unpinned-wrapper)
-- [Observation budget (gate_observation_budget / delegation_observation_budget)](#observation-budget-gate_observation_budget--delegation_observation_budget)
+- [Observation budget (gate_observation_budget)](#observation-budget-gate_observation_budget)
 - [Operation / operation id](#operation--operation-id)
 - [Owned sections / section intents (preserve / replace / remove)](#owned-sections--section-intents-preserve--replace--remove)
 - [Owner-lifecycle caveat](#cancel) — see Cancel
@@ -2477,13 +2359,9 @@ and `true` blocks every repository mutation until you remove it.
 - [Run tracker](#run-tracker)
 - [Run verdict](#run-verdict)
 - [Run verify](#run-verify)
-- [Runner delegation](#runner-delegation)
-- [Runner shim / runners block](#runner-shim--runners-block)
-- [runtime.bash](#runtimebash)
 - [Sandbox / allowlisting the binary](#sandbox--allowlisting-the-binary)
 - [Schema / request file](#schema--request-file)
 - [Selection order](#selection-order)
-- [Selective publish](#terminal-publish) — see Terminal publish
 - [Skill](#skill)
 - [Spec](#spec)
 - [Stacked change / effective base](#stacked-change--effective-base)
@@ -2496,7 +2374,6 @@ and `true` blocks every repository mutation until you remove it.
 - [Suite gate](#suite-gate)
 - [Sweep](#sweep)
 - [Sync integration](#sync-integration)
-- [Terminal publish](#terminal-publish)
 - [Tri-state verdict / halt exit code](#tri-state-verdict--halt-exit-code)
 - [Trivial](#trivial)
 - [Two invocation paths: skill-invoke vs agent-dispatch](#two-invocation-paths-skill-invoke-vs-agent-dispatch)
