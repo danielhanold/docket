@@ -147,6 +147,12 @@ type FinalizeRebaseRequest struct {
 // the reported paths are validated against the live unmerged set, and the body
 // prose (Summary, RecommendedAction) is redaction-only and never echoed into a
 // result.
+//
+// No field carries docket:"required": one report type serves both operations,
+// and finalize.rebase-abort accepts an empty report (it checks change_id only
+// when non-zero), while finalize.rebase-continue's refusals (change_id,
+// disposition, resolver_reservation) are verified against the owned receipt
+// after the attempt is proven, not request-shape checks.
 type ResolverReport struct {
 	ChangeID int    `json:"change_id"`
 	Attempt  string `json:"attempt"`
@@ -157,7 +163,7 @@ type ResolverReport struct {
 	// refuses. It is an authored echo, not authority: Go still verifies the live
 	// stopped commit and unmerged paths.
 	ResolverReservation string   `json:"resolver_reservation"`
-	Disposition         string   `json:"disposition"` // "resolved" | "stuck"
+	Disposition         string   `json:"disposition" docket:"enum=resolver_dispositions"`
 	Summary             string   `json:"summary"`
 	TouchedPaths        []string `json:"touched_paths"`
 	ConflictedPaths     []string `json:"conflicted_paths"`

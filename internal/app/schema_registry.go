@@ -11,7 +11,8 @@ import (
 // operation strictly decodes from a file (`--request`, `--input`, or `--body`),
 // or nil when it decodes none. Scalar flags are described only by the
 // capability catalog's `signature`, and non-JSON file inputs (the canonical
-// build-evidence record, `agent.enter`'s plain-text request) are not requests.
+// build-evidence record, `agent.enter`'s plain-text request) are not requests
+// (ADR-0138, which refines ADR-0109's request surface).
 // The id is the SAME stable id the capability catalog uses — the join key across
 // the two surfaces.
 type OperationBinding struct {
@@ -27,9 +28,9 @@ type OperationBinding struct {
 // strictly decodes from a file (`--request`, `--input`, or `--body`), or nil when
 // it decodes none, and every Result is the Envelope-embedding document its app
 // function returns. A flag-assembled *Request struct is an internal app input and
-// is never bound. TestPublishedRequestIsTheDecodedJSONFile (internal/cli) proves
-// each binding's Request is the type the command declares through
-// declareJSONFile. Each derivation names the app function symbol it was read
+// is never bound (ADR-0138; ADR-0109). TestPublishedRequestIsTheDecodedJSONFile
+// (internal/cli) proves each binding's Request is the type the command declares
+// through declareJSONFile. Each derivation names the app function symbol it was read
 // from — a symbol name, greppable and drift-visible, never a line number
 // (AGENTS.md, ADR-0054).
 //
