@@ -2,7 +2,7 @@
 id: 500
 slug: 'committed-ignore-invalid-hint-for-an-absent-gitignore-names'
 title: 'committed-ignore-invalid remedies print the paste-ready managed block'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-03'
@@ -22,7 +22,7 @@ branch: 'fix/committed-ignore-invalid-hint-for-an-absent-gitignore-names'
 pr: 'https://github.com/danielhanold/docket/pull/373'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T06:13:02Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T06:13:02Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md) |
-| Plan | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md](https://github.com/danielhanold/docket/blob/fix/committed-ignore-invalid-hint-for-an-absent-gitignore-names/docs/superpowers/plans/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) |
-| Results | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-results.md](https://github.com/danielhanold/docket/blob/fix/committed-ignore-invalid-hint-for-an-absent-gitignore-names/docs/results/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-results.md) |
+| Plan | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) |
+| Results | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

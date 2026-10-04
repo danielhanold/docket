@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0500 — committed-ignore-invalid remedies print the paste-ready managed block](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md)**
+> ↩ **[Change 0500 — committed-ignore-invalid remedies print the paste-ready managed block](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md)**
 <!-- docket:backlink:end -->
 
 # committed-ignore-invalid remedies print the paste-ready managed block — design

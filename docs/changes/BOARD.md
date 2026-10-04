@@ -1,6 +1,6 @@
 # Backlog
 
-**501 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 3 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 343 done · 🗑️ 134 killed
+**501 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 344 done · 🗑️ 134 killed
 
 ## 🟢 In progress (1)
 
@@ -8,11 +8,10 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0501](active/0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) | Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-design.md) | `fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi` |  |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0500](active/0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | `low` | `fix` | [#373](https://github.com/danielhanold/docket/pull/373) | awaiting merge |
 | [0498](active/0498-results-file-puts-the-whole-branch-review-under-human-action.md) | Results file puts the whole-branch review under Human actions and testing | `low` | `fix` | [#374](https://github.com/danielhanold/docket/pull/374) | awaiting merge |
 
 ## 🟣 Groomed (3)
@@ -76,7 +75,6 @@ graph TD
   0464
   0497
   0498
-  0500
   0501
   0192:::done
   0251:::done
@@ -86,10 +84,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (477)</summary>
+<details><summary>✅🗑️ Archive — done + killed (478)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0500](archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0496](archive/2026-10-03-0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) | Add `docket repository repair` and stop flagging empty claimed_at | 2026-10-03 |
 | [0495](archive/2026-10-03-0495-drop-startedrunresult-s-unreachable-empty-input-check.md) | Drop startedRunResult's unreachable empty-input check | 2026-10-03 |
@@ -118,7 +117,6 @@ graph TD
 | [0478](archive/2026-10-01-0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | 2026-10-01 |
 | [0476](archive/2026-10-01-0476-bring-test-go-integration-app-rebaserecovery-back-under-its.md) | Bring test_go_integration_app_rebaserecovery back under its runtime budget | 2026-10-01 |
 | [0475](archive/2026-10-01-0475-bring-test-go-integration-app-closeout-sh-back-under-its-bud.md) | Bring test_go_integration_app_closeout.sh back under its budget row | 2026-10-01 |
-| [0469](archive/2026-10-01-0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | 2026-10-01 |
 | [0292](archive/2026-09-29-0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | 2026-09-29 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
@@ -244,6 +242,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
+| [2026-10](archive/) | 1 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
