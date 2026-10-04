@@ -70,7 +70,8 @@ Two config knobs shape the fix pass, both settable in any layer:
 disarmed, so blockers never count against the cap either. One consequence worth stating: a review
 finding about the branch's own diff is never turned into a separate backlog item. It is fixed or it
 is recorded. Genuinely distinct work beyond the branch is listed as follow-up work in the run's final
-report, and a human decides whether to capture it as a change.
+report, and a human decides whether to capture it as a change. Each follow-up names a backlog verdict, so one
+that fits an existing proposed or deferred change is folded into that change rather than filed new.
 
 ## Why the suite already ran
 
