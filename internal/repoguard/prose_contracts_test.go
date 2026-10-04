@@ -1075,6 +1075,14 @@ var alignmentContracts = []proseContract{
 		absent:  []string{"learnings.cap", "## Capacity", "human curation"}},
 	{sentinel: "align_0502_publish_learnings_groom", file: "skills/docket-adr/SKILL.md",
 		absent: []string{"(deferred)", "terminal publish"}},
+	// 0502: the docket-review skill never dispatches (its own "never dispatches"
+	// rule); the review tier fan-out is the controller's own dispatch.
+	{sentinel: "align_0502_review_tier_dispatch", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{"you — the controller — dispatch the selected tier wrapper"},
+		absent:  []string{"it dispatches the selected tier", "the skill dispatches the selected tier"}},
+	{sentinel: "align_0502_review_tier_dispatch", file: "skills/docket-convention/SKILL.md",
+		present: []string{"the controller's own review-tier dispatch"},
+		absent:  []string{"`review` role skills' required nested dispatches"}},
 	// 0502: typed operations replace the Bash-era names.
 	{sentinel: "align_0502_typed_ops", file: "skills/docket-convention/SKILL.md",
 		present: []string{"`stack-base-unresolved`", "`change.resume-halted`"},
