@@ -1,15 +1,15 @@
 ---
 id: 366
 slug: 'human-attended-v1-0-0-rc1-acceptance-and-publication'
-title: 'Human-attended v1.0.0-rc1 acceptance and publication'
+title: 'v1.0.0-alpha.1 acceptance and publication (Claude Code)'
 status: 'proposed'
 priority: 'critical'
 type: 'chore'
 created: '2026-08-29'
-updated: '2026-09-27'
-depends_on: [370]
+updated: '2026-10-04'
+depends_on: [502, 511]
 stacked_on:
-related: [317, 318, 322, 326, 352, 361, 363, 369, 370, 371, 372, 374, 377, 384, 392, 393, 394, 399, 401, 433]
+related: [317, 318, 322, 326, 352, 361, 363, 369, 370, 371, 372, 374, 377, 384, 392, 393, 394, 399, 401, 412, 433, 510, 512, 513]
 discovered_from: [318]
 adrs: [95, 96, 99, 100, 102, 103, 104]
 spec: 'docs/superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md'
@@ -35,57 +35,32 @@ reconciled: false
 
 ## Why
 
-The Go-only source cutover is complete — 0318, 0369, 0371, 0372, and 0370 are all done, and
-fourteen further changes have merged since — but source acceptance is not release acceptance. No
-Go binary has been published: the latest tag is still `v0.9.3`, a Bash-era release with no assets.
-The exact candidate commit still needs human-attended proof across the four native targets and
-four genuinely fresh harness processes, a Bash-install upgrade probe, an isolated `v0.9.2` rollback
-rehearsal, explicit migration-ledger dispositions, and then irreversible publication as
-`v1.0.0-beta1` — the first public build of the Go product, released as a beta to gather feedback
-from the existing user base before stable `v1.0.0`.
+The Go-only source cutover is complete and many changes have merged since, but no Go binary has ever been published. The latest tag is still `v0.9.3`, a Bash-era release with no assets.
 
-The three protocol sections that follow `## Out of scope` below predate this groom (2026-09-03)
-and still name `v1.0.0-rc1` and the exact 0370 merge commit; the linked spec supersedes them,
-re-anchored on the current tip of `main` and on `v1.0.0-beta1`.
+This change takes one reviewed commit of `main` to the first public pre-release, **`v1.0.0-alpha.1`**, with a human present at each irreversible step. It is aimed at the few known Bash-era users, and they upgrade with change 0511's guide.
+
+On 2026-10-04 the human re-scoped the release:
+- It is renamed from `v1.0.0-beta1`.
+- Claude Code is the only human-tested harness. Cursor follows in alpha.2 (0512) and OpenCode in alpha.3 (0513); Codex stays paused.
+- The fresh macOS user, the rollback rehearsal, the recorded smoke evidence, the separate upgrade probes, and the backlog audit are dropped.
+
+The linked spec was rewritten to match. The three older protocol sections below `## Out of scope` (*Human-attended protocol to preserve*, *Required evidence*, *Failure and retry boundary*) predate both grooms. **The linked spec supersedes them.**
 
 ## What changes
 
-- Decide the pre-cut agenda with the human (0393, 0401, 0392, held PRs), then cut one candidate
-  from the current tip of `origin/main` and hold a quiescence window until closeout.
-- Close the migration ledger item by item through the installed Go product, using the program
-  map's five disposition rules, and record migration learnings manually.
-- Package once by dispatching the non-publishing candidate workflow for `v1.0.0-beta1` at the
-  candidate commit; keep one immutable, checksum-identified copy that every later gate reads.
-- Take the workflow's four native tuple smokes as tuple evidence, plus an operator-machine run.
-- In a fresh host, install the accepted bytes and drive one complete retained mutating lifecycle —
-  create, groom, implement with a restart/resume interruption, finalize, archive — through fresh
-  Claude, Cursor, and OpenCode processes, each against its own disposable private remote. Codex is
-  not part of this release (see *Codex excluded* below).
-- Probe upgrades from `v0.9.2` and `v0.9.3` Bash installs; rehearse an isolated `v0.9.2` rollback
-  and a read-only cross-compatibility check, without any runtime fallback.
-- At an explicit human boundary, create the annotated tag, the draft pre-release, the six verified
-  assets, publish, and verify a clean public installation from the release URL.
-- Collate the evidence bundle under `docs/release/v1.0.0-beta1/` and close out through the
-  normal PR, finalize, and sweep path.
+- **Before the cut:** 0502 and 0511 are merged; 0510 is finished or held; no loops or other sessions are running; 0412 is recorded as a known gap.
+- **Cut:** take one candidate from the tip of `main` and freeze `main` until closeout.
+- **Package once:** run the release workflow for `v1.0.0-alpha.1` and require it all green. Its whole-suite gate includes 0511's Bash upgrade test. Keep one read-only, checksum-verified copy of the bundle that every later step uses.
+- **Claude Code test:** in a throwaway home folder on the operator's own account, install the candidate and drive one full lifecycle on a disposable private repository: create, groom, implement with a kill and resume, finalize.
+- **Publish:** at the human's explicit go-ahead, tag, draft the pre-release (not marked latest), upload the six verified files, and publish.
+- **Public install check:** install from the real release URL with the checksum verified first.
+- **Closeout:** collect the evidence under `docs/release/v1.0.0-alpha.1/` and close out through the normal PR and finalize path.
 
-**Codex excluded (human decision, 2026-09-27).** Codex development is paused until the Codex CLI
-supports git worktree handling and better child-agent support (today subagents only go one level
-down without errors); change 0433 is deferred on that basis. This release candidate installs,
-proves, and claims support for three harnesses only — Claude Code, Cursor, and OpenCode. 0393
-(Codex coordinator root entry) is no longer a pre-cut prerequisite and is held. The linked spec
-carries the same exclusion; the older protocol sections below that still name Codex are
-superseded by it.
-
-Design decisions (detail in the spec): the candidate is cut from the current tip of `main`, not
-from 0370's merge commit, because the repository's own configuration and the skills' Step-0 verbs
-already depend on changes merged after it. The pre-release is `v1.0.0-beta1` (dotted, as the
-packager's version grammar requires); `rc` is reserved for a feature-frozen candidate of stable
-`v1.0.0`. Publication stays human-typed `gh` at an explicit boundary — no workflow carries a write
-token. Fresh-host proof runs in a fresh macOS user account so the Cursor IDE and the CLI harnesses
-alike load only the candidate's assets, with one disposable private GitHub repository per harness
-and one shared terminal predicate. The ledger audit table in the spec is the agenda; every rule-5
-item waits for the human. `v0.9.2` remains the documented rollback artifact per the program map,
-with `v0.9.3` recorded as the last Bash-era tag.
+The release notes say:
+- Claude Code is the only tested harness.
+- The upgrade guide is the upgrade path; the notes link it.
+- Known gaps: 0412 with its recovery steps, Cursor and OpenCode untested, Codex paused.
+- The Bash tags `v0.9.2` and `v0.9.3` remain available.
 
 ## Human-attended protocol to preserve
 
@@ -157,13 +132,11 @@ claim cannot substitute for direct observation. Missing or ambiguous evidence fa
 
 ## Out of scope
 
-Source changes of any kind — a defect found during acceptance returns to a separate reviewed
-change and invalidates the candidate; changes to the accepted candidate after packaging;
-rebuilding or substituting bytes mid-protocol; a Bash fallback or compatibility launcher; stable
-`v1.0.0` promotion; a tag-triggered publishing workflow; public-install documentation in the README
-or `docs/guide/` (a separate docs change); widening ADR-0096's frozen corpus to `v0.9.3`;
-Homebrew, Windows, signing/notarization, SBOM or provenance signing; uninstall or version-tree
-collection (0323); Codex support of any kind — install, fresh-host proof, or a supported-harness
-claim (paused; 0433 deferred until the Codex CLI handles git worktrees and multi-level child
-agents); and any redesign of storage, the JSON protocol, harness topology, or the Git/GitHub
-adapters.
+- Source changes of any kind. A defect goes to its own reviewed change and invalidates the candidate.
+- Changing or substituting accepted bytes; a Bash fallback.
+- Stable `v1.0.0`; alpha.2 and alpha.3.
+- Cursor, OpenCode and Codex testing or support claims.
+- A fresh macOS user account; a rollback rehearsal; four-platform smoke evidence; Bash-install upgrade probes; a backlog or migration-ledger audit.
+- Homebrew, Windows, signing/notarization, SBOM.
+- A publishing workflow.
+- Any redesign of storage, the JSON protocol, harness topology, or the Git/GitHub adapters.
