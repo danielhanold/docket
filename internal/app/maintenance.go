@@ -421,7 +421,7 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 	if ops.probeFacts != nil {
 		facts, factFindings = ops.probeFacts(ctx, inv.snap)
 	}
-	queue := domain.SelectFinalizeQueue(inv.snap, facts, finalizeBlockedMap(), nil)
+	queue := domain.SelectFinalizeQueue(inv.snap, facts, nil)
 
 	items, deferredHistorical := sweepWorklist(inv.snap, queue, eff, deps.Planning.Clock.Now(), scope)
 

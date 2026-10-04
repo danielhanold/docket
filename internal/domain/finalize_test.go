@@ -48,6 +48,11 @@ func withDeps(ids ...ChangeID) func(*ChangeSpec) {
 }
 func noPR() func(*ChangeSpec) { return func(sp *ChangeSpec) { sp.PR = OptionalString{} } }
 
+// withFinalizeBlocked marks the record as carrying a `## Finalize blocked` note.
+func withFinalizeBlocked() func(*ChangeSpec) {
+	return func(sp *ChangeSpec) { sp.HasFinalizeBlocked = true }
+}
+
 // finSnapshot builds a snapshot with "main" as the integration branch.
 func finSnapshot(changes ...Change) Snapshot {
 	return NewSnapshot(SnapshotSpec{
@@ -99,7 +104,7 @@ func TestSelectFinalizeQueueOrdering(t *testing.T) {
 		4: {State: "open", Approved: true, Mergeable: "CONFLICTING", HeadBranch: finDefaultBranch, ChangedFiles: 1, DiffLines: 50},
 		5: {State: "open", Approved: true, Mergeable: "UNKNOWN", HeadBranch: finDefaultBranch, ChangedFiles: 1, DiffLines: 1},
 	}
-	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil, nil)
+	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil)
 	eqIDs(t, candidateIDs(got), []ChangeID{1, 3, 2, 5, 4})
 
 	if b := bandOf(got, 1); b != "merged-recovery" {
@@ -116,7 +121,7 @@ func TestSelectFinalizeQueueOrdering(t *testing.T) {
 	}
 
 	// Determinism: identical inputs yield identical output.
-	again := SelectFinalizeQueue(finSnapshot(changes...), facts, nil, nil)
+	again := SelectFinalizeQueue(finSnapshot(changes...), facts, nil)
 	eqIDs(t, candidateIDs(again), candidateIDs(got))
 
 	// Priority / created / id tail, once band + file + line all tie.
@@ -129,7 +134,7 @@ func TestSelectFinalizeQueueOrdering(t *testing.T) {
 	}
 	tf := PRFacts{State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch, ChangedFiles: 3, DiffLines: 3}
 	tfacts := map[ChangeID]PRFacts{6: tf, 7: tf, 8: tf, 9: tf, 10: tf}
-	tgot := SelectFinalizeQueue(finSnapshot(tail...), tfacts, nil, nil)
+	tgot := SelectFinalizeQueue(finSnapshot(tail...), tfacts, nil)
 	eqIDs(t, candidateIDs(tgot), []ChangeID{8, 9, 7, 10, 6})
 }
 
@@ -140,7 +145,6 @@ func TestSelectFinalizeQueueSkipReasons(t *testing.T) {
 		finChange(11),               // draft (facts.Draft)
 		finChange(12),               // pr-closed
 		finChange(13),               // approval-required
-		finChange(14),               // finalize-blocked
 		finChange(15, withDeps(16)), // dependency-unmerged
 		finChange(16, withStatus(StatusImplemented), noPR()), // unmerged dep, out of population
 		finChange(18, withSlug("Bad Slug")),                  // malformed
@@ -151,20 +155,17 @@ func TestSelectFinalizeQueueSkipReasons(t *testing.T) {
 		11: {State: "open", Draft: true, Approved: true, Mergeable: "MERGEABLE"},
 		12: {State: "closed"},
 		13: {State: "open", Approved: false, Mergeable: "MERGEABLE"},
-		14: open,
 		15: open,
 		18: open,
 		19: {State: "unknown"},
 	}
-	blocked := map[ChangeID]bool{14: true}
-	got := SelectFinalizeQueue(finSnapshot(changes...), facts, blocked, nil)
+	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil)
 
 	want := map[ChangeID]string{
 		10: "not-implemented",
 		11: "draft",
 		12: "pr-closed",
 		13: "approval-required",
-		14: "finalize-blocked",
 		15: "dependency-unmerged",
 		18: "malformed",
 		19: "pr-unknown",
@@ -216,7 +217,7 @@ func TestSelectFinalizeQueueIdentityClassification(t *testing.T) {
 		5: {State: "unknown", HeadBranch: "feature/other"},
 		6: {State: "closed", HeadBranch: "feature/other"},
 	}
-	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil, nil)
+	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil)
 
 	bands := map[ChangeID]string{}
 	skips := map[ChangeID]string{}
@@ -257,7 +258,7 @@ func TestSelectFinalizeQueueIdentityBeforeApproval(t *testing.T) {
 	facts := map[ChangeID]PRFacts{
 		1: {State: "open", Approved: false, Mergeable: "MERGEABLE", HeadBranch: "feat/actual-head"},
 	}
-	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil, nil)
+	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil)
 	if len(got) != 1 {
 		t.Fatalf("candidates = %d, want 1", len(got))
 	}
@@ -274,7 +275,7 @@ func TestSelectFinalizeQueueIdentityBeforeApproval(t *testing.T) {
 	approvedFacts := map[ChangeID]PRFacts{
 		1: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: "feat/actual-head"},
 	}
-	gotApproved := SelectFinalizeQueue(finSnapshot(changes...), approvedFacts, nil, nil)
+	gotApproved := SelectFinalizeQueue(finSnapshot(changes...), approvedFacts, nil)
 	if len(gotApproved) != 1 {
 		t.Fatalf("approved candidates = %d, want 1", len(gotApproved))
 	}
@@ -284,25 +285,16 @@ func TestSelectFinalizeQueueIdentityBeforeApproval(t *testing.T) {
 }
 
 func TestSelectFinalizeQueueExplicitOverride(t *testing.T) {
-	// approval-required and finalize-blocked are skip reasons in auto mode; the
-	// app layer (Task 10) overrides them for an explicit --id. Here we only
-	// assert the tokens exist so that override has something to key on.
-	changes := []Change{finChange(1), finChange(2)}
+	// approval-required is the one skip reason the app layer overrides for an
+	// explicit --id; here we only assert the token exists so that override has
+	// something to key on.
+	changes := []Change{finChange(1)}
 	facts := map[ChangeID]PRFacts{
 		1: {State: "open", Approved: false, Mergeable: "MERGEABLE"}, // approval-required
-		2: {State: "open", Approved: true, Mergeable: "MERGEABLE"},  // finalize-blocked
 	}
-	blocked := map[ChangeID]bool{2: true}
-	got := SelectFinalizeQueue(finSnapshot(changes...), facts, blocked, nil)
-	reasons := map[ChangeID]string{}
-	for _, c := range got {
-		reasons[c.ID] = c.SkipReason
-	}
-	if reasons[1] != "approval-required" {
-		t.Errorf("id 1 skip = %q, want approval-required", reasons[1])
-	}
-	if reasons[2] != "finalize-blocked" {
-		t.Errorf("id 2 skip = %q, want finalize-blocked", reasons[2])
+	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil)
+	if len(got) != 1 || got[0].SkipReason != "approval-required" {
+		t.Fatalf("got %+v, want single id 1 approval-required", got)
 	}
 }
 
@@ -313,11 +305,11 @@ func TestSelectFinalizeQueueAllowlist(t *testing.T) {
 		2: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch, ChangedFiles: 2},
 		3: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch, ChangedFiles: 3},
 	}
-	full := SelectFinalizeQueue(finSnapshot(changes...), facts, nil, nil)
+	full := SelectFinalizeQueue(finSnapshot(changes...), facts, nil)
 	eqIDs(t, candidateIDs(full), []ChangeID{1, 2, 3})
 
 	// Allowlist bounds membership without reordering survivors.
-	bounded := SelectFinalizeQueue(finSnapshot(changes...), facts, nil, []ChangeID{3, 1})
+	bounded := SelectFinalizeQueue(finSnapshot(changes...), facts, []ChangeID{3, 1})
 	eqIDs(t, candidateIDs(bounded), []ChangeID{1, 3})
 }
 
@@ -328,7 +320,7 @@ func TestSelectFinalizeQueueDependencyOrder(t *testing.T) {
 		finChange(2, withStatus(StatusImplemented), noPR()),
 	}
 	facts := map[ChangeID]PRFacts{1: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch}}
-	got := SelectFinalizeQueue(finSnapshot(unmerged...), facts, nil, nil)
+	got := SelectFinalizeQueue(finSnapshot(unmerged...), facts, nil)
 	if len(got) != 1 || got[0].ID != 1 || got[0].SkipReason != "dependency-unmerged" {
 		t.Fatalf("got %+v, want single id 1 dependency-unmerged", got)
 	}
@@ -338,18 +330,18 @@ func TestSelectFinalizeQueueDependencyOrder(t *testing.T) {
 		finChange(1, withDeps(2)),
 		finChange(2, withStatus(StatusDone), noPR()),
 	}
-	got2 := SelectFinalizeQueue(finSnapshot(merged...), facts, nil, nil)
+	got2 := SelectFinalizeQueue(finSnapshot(merged...), facts, nil)
 	if len(got2) != 1 || got2[0].ID != 1 || got2[0].SkipReason != "" || got2[0].Band != "mergeable" {
 		t.Fatalf("got %+v, want single id 1 actionable mergeable", got2)
 	}
 }
 
 func TestSelectFinalizeQueueNilSafe(t *testing.T) {
-	if got := SelectFinalizeQueue(finSnapshot(), nil, nil, nil); len(got) != 0 {
+	if got := SelectFinalizeQueue(finSnapshot(), nil, nil); len(got) != 0 {
 		t.Fatalf("empty snapshot yielded %d candidates, want 0", len(got))
 	}
 	// A change with no facts entry surfaces as pr-unknown, never a panic.
-	got := SelectFinalizeQueue(finSnapshot(finChange(1)), nil, nil, nil)
+	got := SelectFinalizeQueue(finSnapshot(finChange(1)), nil, nil)
 	if len(got) != 1 || got[0].SkipReason != "pr-unknown" {
 		t.Fatalf("got %+v, want single id 1 pr-unknown", got)
 	}
@@ -398,5 +390,35 @@ func TestMergeConditionsFirstFailure(t *testing.T) {
 			t.Errorf("%s: token %q not distinct", tc.name, got)
 		}
 		seen[got] = true
+	}
+}
+
+// TestSelectFinalizeQueueNoteNeverSkips pins that a `## Finalize blocked` note is
+// visible only: a noted open PR bands like any other candidate (the next run
+// retries it), and a noted merged PR is still merged-recovery. Mutation:
+// reintroduce `if c.HasFinalizeBlocked() { return "", "finalize-blocked", f }`
+// in classifyFinalize and this test fails.
+func TestSelectFinalizeQueueNoteNeverSkips(t *testing.T) {
+	changes := []Change{
+		finChange(1, withFinalizeBlocked()), // open, approved, mergeable, noted
+		finChange(2, withFinalizeBlocked()), // merged, noted
+	}
+	facts := map[ChangeID]PRFacts{
+		1: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch},
+		2: {State: "merged", HeadBranch: finDefaultBranch},
+	}
+	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil)
+	if len(got) != 2 {
+		t.Fatalf("candidates = %d, want 2: %+v", len(got), got)
+	}
+	byID := map[ChangeID]FinalizeCandidate{}
+	for _, c := range got {
+		byID[c.ID] = c
+	}
+	if c := byID[1]; c.SkipReason != "" || c.Band != "mergeable" {
+		t.Errorf("noted open PR = band %q skip %q, want mergeable/actionable", c.Band, c.SkipReason)
+	}
+	if c := byID[2]; c.SkipReason != "" || c.Band != "merged-recovery" {
+		t.Errorf("noted merged PR = band %q skip %q, want merged-recovery", c.Band, c.SkipReason)
 	}
 }
