@@ -1,12 +1,12 @@
 # Backlog
 
-**517 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 353 done · 🗑️ 137 killed
+**518 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 10 proposed · ⚪ 14 deferred · ✅ 353 done · 🗑️ 137 killed
 
-## 🔵 Built (1)
+## 🔴 Blocked (1)
 
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | [#383](https://github.com/danielhanold/docket/pull/383) | awaiting merge |
+| # | Title | Priority | Type | PR | Reason |
+|---|-------|----------|------|----|--------|
+| [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | [#383](https://github.com/danielhanold/docket/pull/383) | finalize blocked — needs you |
 
 ## 🟣 Groomed (3)
 
@@ -16,10 +16,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0518](active/0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | `low` | `fix` | needs-grooming |
 | [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | needs-grooming |
 | [0516](active/0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) | Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match | `low` | `chore` | needs-grooming |
 | [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Make finalize.merge honor the repair sign-off block when an id is named | `high` | `fix` | needs-grooming |
@@ -80,6 +81,7 @@ graph TD
   0515
   0516
   0517
+  0518
   0192:::done
   0251:::done
   0393:::done
