@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [118]
 spec: 'docs/superpowers/specs/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-design.md'
 plan: 'docs/superpowers/plans/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md'
-results:
+results: 'docs/results/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-04T06:35:57Z'
 |---|---|
 | Spec | [2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-design.md) |
 | Plan | [2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md](https://github.com/danielhanold/docket/blob/fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi/docs/superpowers/plans/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) |
+| Results | [2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-results.md](https://github.com/danielhanold/docket/blob/fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi/docs/results/2026-10-04-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi-results.md) |
 | ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
