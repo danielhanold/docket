@@ -1,12 +1,12 @@
 # Backlog
 
-**504 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 346 done · 🗑️ 136 killed
+**504 changes** — 🔵 1 built · 🟣 4 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 346 done · 🗑️ 136 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align the human-facing docs and example config with the docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md) | `docs/align-guide-install-docs-and-docket-example-yml-with-the-go` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align the human-facing docs and example config with the docket binary | `medium` | `docs` | [#376](https://github.com/danielhanold/docket/pull/376) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
@@ -22,7 +22,7 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0504](active/0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | `medium` | `chore` | needs-grooming |
-| [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | ⏳ waiting on #464 — not yet built |
+| [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | ⏳ waiting on #464 — needs your merge |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
