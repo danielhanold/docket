@@ -7,7 +7,7 @@
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0520](active/0520-make-the-published-finalize-request-schemas-match-what-input.md) | Make every published request schema match the JSON file the operation reads | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md) | `fix/make-the-published-finalize-request-schemas-match-what-input` |  |
-| [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md) | `fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin` |  |
+| [0517](active/0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md) | `fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin` | run halted — needs you |
 
 ## 🔵 Built (1)
 
