@@ -13,7 +13,7 @@ related: [302]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T12:42:37Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan-design.md) |
+| Plan | [2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan.md](https://github.com/danielhanold/docket/blob/feat/match-reported-follow-ups-against-proposed-and-deferred-chan/docs/superpowers/plans/2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
