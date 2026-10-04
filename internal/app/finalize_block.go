@@ -50,10 +50,8 @@ import (
 // published remote feature ref, and a matching open PR before transactionally
 // removing the section. Any missing condition refuses; the marker stays.
 //
-// Task 10's `finalize merge` reads the "## Finalize blocked" marker through a
-// shape-keyed body check (changeHasFinalizeBlockedMarker / finalizeBlockedHeading
-// in finalize_merge.go). This file WRITES that heading via finalizeBlockedSectionHeading,
-// whose ATX text is exactly finalizeBlockedHeading, so the reader keeps working.
+// The section is a visible note: no finalize selection or merge reads it. The
+// board and status read its presence through the record decoder.
 
 // The operation keys `finalize block` / `finalize clear-block` record in their
 // result envelopes and transaction trailers.
@@ -62,11 +60,15 @@ const (
 	OperationFinalizeClearBlock = "finalize.clear-block"
 )
 
+// finalizeBlockedHeading is the ATX heading text of the durable
+// "## Finalize blocked" section finalize.block writes and finalize.clear-block
+// removes. The section is a visible note only: no finalize selection or merge
+// reads it.
+const finalizeBlockedHeading = "Finalize blocked"
+
 // finalizeBlockedSectionHeading is the full ATX H2 heading line the durable
-// finalize-blocked section carries. Its heading text (everything after "## ") is
-// exactly finalizeBlockedHeading (defined in finalize_merge.go), the text Task
-// 10's shape-keyed reader matches — so writing this heading is what that reader
-// detects.
+// finalize-blocked section carries; its heading text is exactly
+// finalizeBlockedHeading.
 const finalizeBlockedSectionHeading = "## " + finalizeBlockedHeading
 
 // The closed set of `finalize block` / `finalize clear-block` dispositions.

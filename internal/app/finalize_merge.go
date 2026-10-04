@@ -24,8 +24,9 @@ import (
 //      reload of the metadata and live GitHub/Git facts IMMEDIATELY before the
 //      effect. The first falsified condition refuses with its closed token and
 //      issues NO merge call. An explicit id (attended, human-named) satisfies
-//      the approval and finalize-blocked skips but never a wrong PR identity, an
-//      unsafe stack, the repair sign-off (gate), or a superseding revision.
+//      the approval skip but never a wrong PR identity, an unsafe stack, the
+//      gate, or a superseding revision. A `## Finalize blocked` note is never a
+//      merge condition.
 //
 //   2. `--admin` is honored ONLY on an explicitly-named run and is never
 //      inferred — not from an approval absence and not from a permission error.
@@ -54,12 +55,6 @@ import (
 // OperationFinalizeMerge is the operation key `finalize merge` records in its
 // result envelope.
 const OperationFinalizeMerge = "finalize.merge"
-
-// finalizeBlockedHeading is the durable "## Finalize blocked" section heading a
-// change record carries when a prior finalize attempt recorded a block. Task 11
-// writes it; this operation only reads its presence, keyed on the heading shape
-// (never an enumerated spelling of the interior).
-const finalizeBlockedHeading = "Finalize blocked"
 
 // The closed set of `finalize merge` dispositions.
 const (
@@ -160,7 +155,7 @@ const (
 // context read; Head is the exact feature head the merge must match; Admin
 // requests an admin-override merge (honored only with ExplicitID); ExplicitID is
 // true when a human explicitly named this change (an attended run), which
-// supplies the approval and finalize-blocked authorization.
+// supplies the approval authorization.
 type FinalizeMergeRequest struct {
 	ID         int    `json:"id" docket:"required"`
 	Revision   string `json:"revision" docket:"required"`
@@ -261,14 +256,12 @@ type mergeConditionInputs struct {
 	// is open and still targets the parent's feature branch.
 	unretargetedOpenChildren int
 	revisionMatches          bool
-	finalizeBlocked          bool
 }
 
 // mergeConditions assembles the domain merge conditions from the live inputs. The
-// two human-overridable conditions read the explicit-id flag: an explicit id
-// supplies approval and satisfies a finalize-blocked marker. A superseding
-// revision is NEVER overridable — NotSuperseded requires an exact revision match
-// regardless of authorization.
+// one human-overridable condition reads the explicit-id flag: an explicit id
+// supplies approval. A superseding revision is NEVER overridable — NotSuperseded
+// requires an exact revision match regardless of authorization.
 func mergeConditions(in mergeConditionInputs) domain.MergeConditions {
 	return domain.MergeConditions{
 		Implemented:         in.status == domain.StatusImplemented,
@@ -279,7 +272,7 @@ func mergeConditions(in mergeConditionInputs) domain.MergeConditions {
 		GateSatisfied:       in.gateOff || (in.evidenceGreen && in.evidenceHead == in.reqHead),
 		ApprovalSatisfied:   in.explicitID || !in.requireApproval,
 		NoOpenChildren:      in.unretargetedOpenChildren == 0,
-		NotSuperseded:       in.revisionMatches && (in.explicitID || !in.finalizeBlocked),
+		NotSuperseded:       in.revisionMatches,
 	}
 }
 
@@ -298,14 +291,12 @@ func mergeConditionOutcome(token string) (Result, string) {
 
 // mergeContext is everything `finalize merge` resolves once from a fresh pin: the
 // snapshot (for the stack graph), the resolved change and its exact record
-// revision and raw body (for the finalize-blocked marker), the resolved effective
-// base and validated target, the discovered Git repository, and the effective
+// revision, the resolved effective base and validated target, the discovered Git repository, and the effective
 // config (for the gate/approval policy).
 type mergeContext struct {
 	snap     domain.Snapshot
 	change   domain.Change
 	revision string
-	body     []byte
 	base     domain.EffectiveBase
 	target   workspace.Target
 	repo     gitcli.Repository
@@ -316,7 +307,7 @@ type mergeContext struct {
 // running the capability preflight before any external effect and refusing with
 // a typed merge result for every pre-effect condition — including a validation
 // error relevant to the change (namedPreEffectErrors, change 0449). It pins
-// once, reads the corpus once, and resolves the change/revision/body/base/
+// once, reads the corpus once, and resolves the change/revision/base/
 // target/repo from that one authoritative copy (decide-and-act-on-the-same-copy).
 func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id int) (*mergeContext, *FinalizeMergeResult) {
 	reader := deps.Planning.Reader
@@ -374,11 +365,10 @@ func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id
 		return nil, &r
 	}
 
-	revision, body := "", []byte(nil)
+	revision := ""
 	for _, b := range blobs {
 		if b.Path == c.Path() {
 			revision = b.Revision
-			body = b.Data
 			break
 		}
 	}
@@ -415,7 +405,7 @@ func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id
 	}
 
 	return &mergeContext{
-		snap: snap, change: c, revision: revision, body: body,
+		snap: snap, change: c, revision: revision,
 		base: base, target: target, repo: repo, eff: eff,
 	}, nil
 }
@@ -534,7 +524,6 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 		requireApproval:          mc.eff.Finalize.RequirePRApproval.Value,
 		unretargetedOpenChildren: len(openChildren),
 		revisionMatches:          mc.revision == req.Revision,
-		finalizeBlocked:          changeHasFinalizeBlockedMarker(mc.body),
 	})
 	if token := conj.FirstFailure(); token != "" {
 		result, disp := mergeConditionOutcome(token)
@@ -706,35 +695,6 @@ func probeUnretargetedOpenChildren(ctx context.Context, deps FinalizeDeps, repo 
 	return open, nil
 }
 
-// changeHasFinalizeBlockedMarker reports whether a change record body carries a
-// durable "## Finalize blocked" section. It keys on the heading SHAPE — a
-// markdown heading line whose text is exactly the block heading — not on the
-// interior spelling, so a re-marked block with new interior still reads as
-// blocked (AGENTS.md: key a guard on shape, not an enumerated list).
-func changeHasFinalizeBlockedMarker(body []byte) bool {
-	for _, line := range strings.Split(string(body), "\n") {
-		if headingText(line) == finalizeBlockedHeading {
-			return true
-		}
-	}
-	return false
-}
-
-// headingText returns the trimmed text of a markdown ATX heading line (one or
-// more leading '#'), or "" when the line is not a heading. It is the shape probe
-// changeHasFinalizeBlockedMarker keys on.
-func headingText(line string) string {
-	trimmed := strings.TrimSpace(line)
-	hashes := 0
-	for hashes < len(trimmed) && trimmed[hashes] == '#' {
-		hashes++
-	}
-	if hashes == 0 || hashes == len(trimmed) || trimmed[hashes] != ' ' {
-		return ""
-	}
-	return strings.TrimSpace(trimmed[hashes:])
-}
-
 // mergeConditionMessage renders the explanatory (non-parsed) message for a
 // falsified condition token.
 func mergeConditionMessage(token string, id int) string {
@@ -756,7 +716,7 @@ func mergeConditionMessage(token string, id int) string {
 	case "open-children":
 		return "an open child PR still targets this change's feature branch; retarget children first"
 	case "superseded":
-		return "the request was superseded by a newer record revision or a finalize-blocked marker; re-read context finalize"
+		return "the request was superseded by a newer record revision; re-read context finalize"
 	default:
 		return "a merge precondition does not hold"
 	}

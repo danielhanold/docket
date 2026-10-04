@@ -134,7 +134,7 @@ func TestIntegrationFinalizeMergeConditionAssembly(t *testing.T) {
 		gateOff: false, evidenceGreen: true, evidenceHead: head,
 		explicitID: true, requireApproval: false,
 		unretargetedOpenChildren: 0,
-		revisionMatches:          true, finalizeBlocked: false,
+		revisionMatches:          true,
 	}
 	if got := mergeConditions(good).FirstFailure(); got != "" {
 		t.Fatalf("a fully-satisfied input failed condition %q", got)
@@ -158,7 +158,6 @@ func TestIntegrationFinalizeMergeConditionAssembly(t *testing.T) {
 		{"approval", func(in *mergeConditionInputs) { in.explicitID = false; in.requireApproval = true }, "approval-required"},
 		{"open-children", func(in *mergeConditionInputs) { in.unretargetedOpenChildren = 1 }, "open-children"},
 		{"superseded-revision", func(in *mergeConditionInputs) { in.revisionMatches = false }, "superseded"},
-		{"superseded-blocked", func(in *mergeConditionInputs) { in.explicitID = false; in.finalizeBlocked = true }, "superseded"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -170,22 +169,14 @@ func TestIntegrationFinalizeMergeConditionAssembly(t *testing.T) {
 		})
 	}
 
-	// The overridable conditions: an explicit id satisfies approval and a
-	// finalize-blocked marker, but never a superseding revision.
+	// The overridable condition: an explicit id satisfies approval, but never a
+	// superseding revision.
 	t.Run("explicit-id-overrides-approval", func(t *testing.T) {
 		in := good
 		in.explicitID = true
 		in.requireApproval = true
 		if got := mergeConditions(in).FirstFailure(); got != "" {
 			t.Fatalf("explicit id did not satisfy approval: %q", got)
-		}
-	})
-	t.Run("explicit-id-overrides-blocked", func(t *testing.T) {
-		in := good
-		in.explicitID = true
-		in.finalizeBlocked = true
-		if got := mergeConditions(in).FirstFailure(); got != "" {
-			t.Fatalf("explicit id did not satisfy the finalize-blocked marker: %q", got)
 		}
 	})
 	t.Run("explicit-id-never-overrides-revision", func(t *testing.T) {
@@ -251,22 +242,13 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 		assertMergeRefusal(t, res, gh, "gate-unsatisfied")
 	})
 
-	// Metadata-shaped cases: a stale revision, a durable finalize-blocked marker,
-	// and a not-implemented status.
+	// Metadata-shaped cases: a stale revision and a not-implemented status.
 	t.Run("superseded-revision", func(t *testing.T) {
 		f := setupMergeFixture(t, m)
 		gh := f.baselineFake(t)
 		req := mergeReq(f, f.head, true, false)
 		req.Revision = "sha256:" + strings.Repeat("f", 64) // stale; explicit id never overrides a revision
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, req)
-		assertMergeRefusal(t, res, gh, "superseded")
-	})
-
-	t.Run("superseded-finalize-blocked", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
-		f.patchParent(t, "implemented", mergePRRef(), "## Finalize blocked\n\nBlocked pending a decision.")
-		gh := f.baselineFake(t)
-		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, false, false))
 		assertMergeRefusal(t, res, gh, "superseded")
 	})
 
@@ -334,37 +316,40 @@ func TestIntegrationFinalizeMergeDeniedCarriesMethod(t *testing.T) {
 	}
 }
 
-// TestFinalizeMergeExplicitIDOverrides proves an explicit id satisfies the
-// finalize-blocked skip but never overrides wrong PR identity, an unsafe stack,
-// or the repair sign-off (gate), and never a superseding revision.
+// TestFinalizeMergeExplicitIDOverrides proves an explicit id never overrides
+// wrong PR identity, an unsafe stack, the gate, or a superseding revision, and
+// that a `## Finalize blocked` note never stops a merge, named or not.
 func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]
 
-	t.Run("explicit-id-merges-past-finalize-blocked", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
-		f.patchParent(t, "implemented", mergePRRef(), "## Finalize blocked\n\nBlocked pending a decision.")
-		mergeCommit := f.mergeFeatureIntoBase(t)
-		gh := f.baselineFake(t)
-		gh.mergeOutcome = githubcli.MergeMerged
-		gh.mergeFacts = mergedFactsFor(f.head, "main", mergeCommit)
-		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
-		if res.Result != ResultApplied || res.Merge == nil {
-			t.Fatalf("explicit id did not merge past the finalize-blocked marker: %q (reason %q)", res.Result, res.Reason)
-		}
-		if gh.mergeCalls != 1 {
-			t.Fatalf("merge calls = %d, want 1", gh.mergeCalls)
-		}
-	})
-
-	// Without an explicit id, the same finalize-blocked marker refuses.
-	t.Run("auto-refuses-finalize-blocked", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
-		f.patchParent(t, "implemented", mergePRRef(), "## Finalize blocked\n\nBlocked pending a decision.")
-		gh := f.baselineFake(t)
-		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, false, false))
-		assertMergeRefusal(t, res, gh, "superseded")
-	})
+	// A `## Finalize blocked` note is visible only: it never stops a merge,
+	// named or not. Mutation: reintroduce a refusal on
+	// mc.change.HasFinalizeBlocked() before the condition recheck and both
+	// subtests fail.
+	for _, tc := range []struct {
+		name     string
+		explicit bool
+	}{
+		{"note-never-blocks-auto-merge", false},
+		{"note-never-blocks-explicit-merge", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := setupMergeFixture(t, m)
+			f.patchParent(t, "implemented", mergePRRef(), "## Finalize blocked\n\n- 2026-10-01 — reason `rebase-stuck`: an earlier attempt halted.")
+			mergeCommit := f.mergeFeatureIntoBase(t)
+			gh := f.baselineFake(t)
+			gh.mergeOutcome = githubcli.MergeMerged
+			gh.mergeFacts = mergedFactsFor(f.head, "main", mergeCommit)
+			res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, tc.explicit, false))
+			if res.Result != ResultApplied || res.Merge == nil {
+				t.Fatalf("a Finalize blocked note stopped the merge: %q (reason %q)", res.Result, res.Reason)
+			}
+			if gh.mergeCalls != 1 {
+				t.Fatalf("merge calls = %d, want 1", gh.mergeCalls)
+			}
+		})
+	}
 
 	t.Run("explicit-id-does-not-override-pr-link", func(t *testing.T) {
 		f := setupMergeFixture(t, m)
