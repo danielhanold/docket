@@ -89,8 +89,8 @@ are forked — a forked subagent has no channel to the human (Claude Code withho
 `EnterPlanMode`, and similar from subagents). So the four headless-safe autonomous skills —
 `docket-status`, `docket-adr`, `docket-implement-next`, `docket-auto-groom` — carry the frontmatter;
 the two interactive brainstorm skills (`docket-new-change`, `docket-groom-next`) and
-`docket-finalize-change` (which keeps real prompts — the multi-candidate batch confirmation and
-repair sign-off — so a headless drive is authorized by
+`docket-finalize-change` (which keeps a real prompt — the multi-candidate batch confirmation — so a
+headless drive is authorized by
 [naming ids](../guide/landing-changes.md) instead) do not.
 
 **The two invocation paths.** **Dispatch** — launching a named agent to do a step and waiting for it

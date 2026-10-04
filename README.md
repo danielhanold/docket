@@ -64,8 +64,7 @@ The stance: plans rot, so refresh them just-in-time and never trust a stale back
   never autonomous.
 - **Merging the PR.** The one required checkpoint — the implementer stops at an open pull
   request every time.
-- **Finalize's confirmations.** Close-out merges only with your authorization, and unattended
-  repair at the finalize gate blocks for your sign-off.
+- **Finalize's confirmations.** Close-out merges only with your authorization.
 - **Promoting a learning.** Findings graduate into the always-loaded instructions file only by
   your hand.
 - **Filing discovered work.** Runs report follow-up work; a human decides what enters the

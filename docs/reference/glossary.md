@@ -1278,8 +1278,9 @@ docket finalize cleanup  --id 412
 ### Finalize blocked / reason token / clear-block
 
 When a gate failure needs a human, finalize writes `## Finalize blocked` with a typed **reason
-token** (e.g. a mismatched PR head). Auto-detect runs skip a blocked change; naming its id
-overrides that. A human clears the block explicitly. The token vocabulary and remedies live in the
+token** (e.g. a mismatched PR head). The section is a visible note: selection and merge ignore it,
+so the next run retries the change, and closeout removes it after the merge. `clear-block` removes
+it by hand. The token vocabulary and remedies live in the
 finalize skill's `references/gate-failure.md`.
 
 `finalize block` writes the marker (after first posting an owned PR comment); `clear-block` removes it.
@@ -1337,8 +1338,8 @@ queue: merged-recovery first, then mergeable open PRs, smallest diff, then prior
 **explicit id** or an **id allowlist** narrows that set, and naming the ids counts as the human's
 authorization.
 
-**Used for:** a named id or allowlist member overrides the `approval-required` and
-`finalize-blocked` skips. It never overrides a real blocker such as `pr-closed`,
+**Used for:** a named id or allowlist member overrides the `approval-required`
+skip. It never overrides a real blocker such as `pr-closed`,
 `dependency-unmerged`, or `draft`.
 
 ```sh
@@ -1420,21 +1421,6 @@ The two specialised finalize workers, split at the rebase-completion boundary.
 (`finalize.resolver_max_attempts`, default 10). `docket-integration-repair` makes a red rebased
 suite green with a minimal fix, never weakening a test (`finalize.repair_max_attempts`, default 6).
 Neither may be substituted inline.
-
-### Repair sign-off (`repair-needs-signoff`)
-
-A fix that `docket-integration-repair` wrote after the human approved the PR, so the human has not
-seen it. It never merges unseen. An autonomous run records a `## Finalize blocked` marker with
-reason `repair-needs-signoff` and halts. An attended run publishes the repair and asks before
-merging.
-
-**Used for:** keeping a machine-written fix out of `main` until a human has looked at it. After
-reviewing the pushed repair on the PR, re-run finalize. The retry clears the block and merges.
-
-```sh
-docket finalize block --id 412 --revision <v> --pr-number 301 --attempt <token> \
-  --reason repair-needs-signoff --head <repaired-sha> --input block-report.json
-```
 
 ### Resolver reservation / resolver budget exhausted
 
@@ -1675,8 +1661,8 @@ re-tests, publishes, merges once, archives, and cleans up, then reports `advance
 `drained`, or `halted`. It is the one place docket itself merges.
 
 **Used for:** landing work now instead of waiting for the sweep. It is not forked, because it keeps
-real prompts. Naming ids authorizes a headless drive and overrides the `approval-required` and
-`finalize-blocked` skips. See *Finalize*.
+real prompts. Naming ids authorizes a headless drive and overrides the `approval-required`
+skip. See *Finalize*.
 
 ```sh
 /docket-finalize-change 90
@@ -2355,7 +2341,6 @@ docket development install --source ~/dev/docket
 - [Reconcile / reconcile log](#reconcile--reconcile-log)
 - [Related / discovered_from](#related--discovered_from)
 - [Relink (change relink)](#relink-change-relink)
-- [Repair sign-off (repair-needs-signoff)](#repair-sign-off-repair-needs-signoff)
 - [Repository check / migrate](#repository-check--migrate)
 - [request_id / replayed (idempotent replay)](#request_id--replayed-idempotent-replay)
 - [Reserved type tokens all / untyped, and migrating to typed changes](#reserved-type-tokens-all--untyped-and-migrating-to-typed-changes)
