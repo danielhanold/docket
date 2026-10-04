@@ -19,7 +19,7 @@ func TestEvidenceCommandsRegistered(t *testing.T) {
 		path  []string
 		flags []string
 	}{
-		{[]string{"evidence", "record"}, []string{"id", "run", "head", "repo-dir"}},
+		{[]string{"evidence", "record"}, []string{"id", "run", "head", "owner", "repo-dir"}},
 		{[]string{"evidence", "verify"}, []string{"record", "head"}},
 	}
 	for _, tc := range cases {
@@ -114,5 +114,26 @@ func TestEvidenceCommandsAssetIndependent(t *testing.T) {
 		if !assetIndependent[key] {
 			t.Errorf("%q is not registered asset-independent", key)
 		}
+	}
+}
+
+// TestEvidenceRecordRoutesOwner (change 0517): --owner reaches the request. An
+// unknown owner is refused invalid-owner before config is read (so even a
+// non-repository directory yields that reason); a valid owner is not.
+func TestEvidenceRecordRoutesOwner(t *testing.T) {
+	root := testsupport.TempDir(t)
+	run := filepath.Join(root, "run")
+	out, errS, _ := runCLI(t, "evidence", "record",
+		"--id", "7", "--run", run, "--head", "abc", "--owner", "review", "--repo-dir", root, "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"reason":"invalid-owner"`) {
+		t.Fatalf("unknown --owner must be refused invalid-owner: %q", out)
+	}
+	out, _, _ = runCLI(t, "evidence", "record",
+		"--id", "7", "--run", run, "--head", "abc", "--owner", "finalize", "--repo-dir", root, "--json")
+	if strings.Contains(out, `"reason":"invalid-owner"`) {
+		t.Fatalf("--owner finalize must be accepted: %q", out)
 	}
 }
