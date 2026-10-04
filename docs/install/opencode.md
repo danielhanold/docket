@@ -33,8 +33,9 @@ docket markers is preserved untouched.
 ### Pinning models and effort
 
 The generated definitions carry the model and effort resolved from your **global** config's
-`agents:` table over the built-in `opencode:` block; agent overrides are honoured from the global
-file only, and your value overrides the shipped pin. **Models are reached through OpenRouter**,
+`agents:` table over the built-in `opencode:` block; agent overrides belong in the global file
+only (a pin in `.docket.yml` or `.docket.local.yml` makes docket refuse to change the repository
+until you move it there), and your value overrides the shipped pin. **Models are reached through OpenRouter**,
 so authenticate that provider first (`opencode auth login`). OpenRouter model IDs are
 **double-prefixed** — `openrouter/<vendor>/<model>`, e.g.
 `openrouter/deepseek/deepseek-v4-flash-0731`. opencode splits that into a provider id (`openrouter`)

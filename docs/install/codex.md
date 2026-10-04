@@ -56,8 +56,9 @@ config keeps the committed file the same in every clone.
 ### Pinning models and effort
 
 The `.toml` wrappers carry the model and effort resolved from your **global** config's `agents:`
-table over the built-in `codex:` block. Agent overrides are honoured from the global file only
-(`~/.config/docket/config.yml`); a repository file cannot set them. Your value overrides the
+table over the built-in `codex:` block. Agent overrides belong in the global file only
+(`~/.config/docket/config.yml`); an `agents:` pin in `.docket.yml` or `.docket.local.yml` makes
+docket refuse to change the repository until you move it there. Your value overrides the
 shipped pin field by field, so pinning only `model` keeps the shipped `effort`. If your model does
 not accept that effort token, pin `effort` alongside it. Use the model IDs Codex itself reports:
 

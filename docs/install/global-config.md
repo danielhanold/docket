@@ -10,9 +10,10 @@ one, so a Claude-Code-only user can skip this page entirely.
 
 Two kinds of setting belong here:
 
-- **Your per-agent model and effort pins.** The `agents:` block is honoured **only** from this file
+- **Your per-agent model and effort pins.** The `agents:` block belongs **only** in this file
   — docket installs agent wrappers for your user, not per repository, so the pins are a property of
-  your machine. The built-in values are compiled into docket and mirrored, value for value, in
+  your machine. An `agents:` pin in a repository's `.docket.yml` or `.docket.local.yml` makes docket
+  refuse to change that repository until you move it here. The built-in values are compiled into docket and mirrored, value for value, in
   [`agents/harness-defaults.yml`](../../agents/harness-defaults.yml), a shipped file you read but
   never edit. To change one, see [Models](models-and-effort.md), then re-run the install.
 - **Any `scope: any layer` key you want as your personal default** across repositories — for

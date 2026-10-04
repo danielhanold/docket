@@ -1912,8 +1912,9 @@ type also becomes the feature-branch prefix.
 
 Four layers resolved per key, lowest to highest: built-in defaults → global
 `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml` → committed `.docket.yml` → gitignored
-`.docket.local.yml`. Nested blocks merge leaf by leaf. An `agents:` model/effort pin is honoured
-only from the global file. A malformed file, an unknown key, or a bad value in any layer makes the
+`.docket.local.yml`. Nested blocks merge leaf by leaf. An `agents:` model/effort pin belongs
+only in the global file; one in `.docket.yml` or `.docket.local.yml` makes docket refuse to change
+the repository until it is moved there. A malformed file, an unknown key, or a bad value in any layer makes the
 whole configuration invalid. Full shape and defaults: `.docket.example.yml` (see
 [`config-keys.md`](config-keys.md)).
 

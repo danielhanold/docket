@@ -32,8 +32,10 @@ the whole global file, only the one key it names. Where two layers set the *same
 one on the list wins outright. Nested blocks such as `finalize:` or `review:` merge key by key the
 same way: setting one key in a block leaves its other keys resolving from the layers below.
 
-One block is the exception: the `agents:` model and effort pins are honoured **only** from the
-global file, because docket installs agent wrappers for your user rather than per repository. See
+One block is the exception: the `agents:` model and effort pins belong **only** in the global
+file, because docket installs agent wrappers for your user rather than per repository. An `agents:`
+pin in `.docket.yml` or `.docket.local.yml` is not ignored: even one that repeats the built-in
+value makes docket refuse to change the repository until you move it to the global file. See
 [Models](models-and-effort.md).
 
 To see what docket actually resolved, and anything that would block a write, run:
