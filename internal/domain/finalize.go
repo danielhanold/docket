@@ -54,7 +54,6 @@ const (
 	skipDraft              = "draft"
 	skipPRClosed           = "pr-closed"
 	skipApprovalRequired   = "approval-required"
-	skipFinalizeBlocked    = "finalize-blocked"
 	skipDependencyUnmerged = "dependency-unmerged"
 	skipMalformed          = "malformed"
 	skipPRUnknown          = "pr-unknown"
@@ -106,10 +105,13 @@ type finalizeRow struct {
 // smaller DiffLines, then priority, created date, and ID. Skipped candidates
 // sort after every actionable one and are surfaced, not omitted.
 //
-// The function is nil-safe: a nil facts map, a nil blocked map, a nil
-// allowlist, and an empty snapshot all yield an empty slice with no panic. A
-// missing facts entry is treated as pr-unknown, never as a clean absence.
-func SelectFinalizeQueue(s Snapshot, facts map[ChangeID]PRFacts, blocked map[ChangeID]bool, allowlist []ChangeID) []FinalizeCandidate {
+// A `## Finalize blocked` note on a record is visible only and never a skip:
+// the next run retries the change.
+//
+// The function is nil-safe: a nil facts map, a nil allowlist, and an empty
+// snapshot all yield an empty slice with no panic. A missing facts entry is
+// treated as pr-unknown, never as a clean absence.
+func SelectFinalizeQueue(s Snapshot, facts map[ChangeID]PRFacts, allowlist []ChangeID) []FinalizeCandidate {
 	allow := allowlistSet(allowlist)
 
 	var rows []finalizeRow
@@ -124,7 +126,7 @@ func SelectFinalizeQueue(s Snapshot, facts map[ChangeID]PRFacts, blocked map[Cha
 			continue
 		}
 
-		band, skip, f := classifyFinalize(s, c, facts, blocked)
+		band, skip, f := classifyFinalize(s, c, facts)
 		rank := skippedRank
 		if skip == "" {
 			rank = bandRank(band)
@@ -153,7 +155,7 @@ func SelectFinalizeQueue(s Snapshot, facts map[ChangeID]PRFacts, blocked map[Cha
 // reported before any state-dependent decision; a merged PR takes the recovery
 // band regardless of stored status (the merge already happened and needs
 // closeout), unless its recorded branch cannot be reconciled with the merged
-// PR's own head; then status, PR state, draft, block, and dependency gates in
+// PR's own head; then status, PR state, draft, and dependency gates in
 // turn; an open PR whose exact head is observed but cannot be reconciled with the
 // recorded branch is surfaced with an identity skip BEFORE the approval gate, so a
 // head mismatch outranks approval — identity is more fundamental than the
@@ -164,7 +166,7 @@ func SelectFinalizeQueue(s Snapshot, facts map[ChangeID]PRFacts, blocked map[Cha
 // observed (empty HeadBranch) falls through to the approval gate rather than
 // reconciling against a head it never saw. f is the resolved facts (zero value
 // when absent).
-func classifyFinalize(s Snapshot, c Change, facts map[ChangeID]PRFacts, blocked map[ChangeID]bool) (band, skip string, f PRFacts) {
+func classifyFinalize(s Snapshot, c Change, facts map[ChangeID]PRFacts) (band, skip string, f PRFacts) {
 	if _, out := s.Change(c.ID()); out == LookupAmbiguous {
 		return "", skipMalformed, PRFacts{}
 	}
@@ -190,9 +192,6 @@ func classifyFinalize(s Snapshot, c Change, facts map[ChangeID]PRFacts, blocked 
 	}
 	if f.Draft {
 		return "", skipDraft, f
-	}
-	if blocked[c.ID()] {
-		return "", skipFinalizeBlocked, f
 	}
 	if !EvaluateDependencies(s, c).Satisfied {
 		return "", skipDependencyUnmerged, f

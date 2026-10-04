@@ -238,8 +238,8 @@ type FinalizeDescendant struct {
 // its identity and source revision, resolved branch and effective base, live PR
 // facts, dependency and stack relations, the set of open child PRs that must be
 // retargeted before a stacked merge, and the typed candidate band or skip
-// reason. OverrideNote is set when a skip reason (approval-required or
-// finalize-blocked) is one an explicit --id may override at the mutation layer.
+// reason. OverrideNote is set when the skip reason (approval-required) is
+// one an explicit --id may override at the mutation layer.
 type FinalizeCandidateReport struct {
 	ID            int                  `json:"id"`
 	Slug          string               `json:"slug"`
@@ -393,7 +393,7 @@ func ContextFinalize(ctx context.Context, deps FinalizeDeps, repoDir string, req
 		}
 	}
 
-	queue := domain.SelectFinalizeQueue(snap, facts, finalizeBlockedMap(), allowlistChangeIDs(selectIDs))
+	queue := domain.SelectFinalizeQueue(snap, facts, allowlistChangeIDs(selectIDs))
 
 	facts2 := domain.NewBranchFacts(nil)
 	reports := make([]FinalizeCandidateReport, 0, len(queue))
@@ -411,8 +411,8 @@ func ContextFinalize(ctx context.Context, deps FinalizeDeps, repoDir string, req
 // finalizeExplicitGuard returns a typed refusal when an explicit --id cannot be
 // inspected as a finalize candidate: absent, ambiguous, malformed, or outside
 // the finalize population. It returns nil when the id names one usable,
-// finalizable record — a skip-reasoned candidate (approval-required,
-// finalize-blocked, and the rest) is NOT refused here, so an explicit id
+// finalizable record — a skip-reasoned candidate (approval-required
+// and the rest) is NOT refused here, so an explicit id
 // surfaces it with its reason for the mutation layer to override.
 func finalizeExplicitGuard(snap domain.Snapshot, id int, policy FinalizePolicy) *FinalizeContextResult {
 	c, out := snap.Change(domain.ChangeID(id))
@@ -469,11 +469,10 @@ func buildCandidateReport(snap domain.Snapshot, c domain.Change, cand domain.Fin
 }
 
 // overridableSkip reports whether a skip reason is one an explicit --id may
-// override at the mutation layer (Task 10 merge policy). Approval and a finalize
-// block are human-overridable; every other skip reflects a state the merge path
-// cannot be authorized past.
+// override at the mutation layer: approval is the only human-overridable skip;
+// every other skip reflects a state the merge path cannot be authorized past.
 func overridableSkip(reason string) bool {
-	return reason == "approval-required" || reason == "finalize-blocked"
+	return reason == "approval-required"
 }
 
 // finalizePRReport renders the live PR facts. An unresolved probe reports the
@@ -580,12 +579,6 @@ func finalizePolicy(pin StatusPin) FinalizePolicy {
 		ReclaimLeaseTTLHours: eff.Reclaim.LeaseTTL.Value,
 	}
 }
-
-// finalizeBlockedMap is the finalize-blocked marker set the domain selector
-// consults. Reading durable "## Finalize blocked" markers is Task 11's job;
-// until then no change is marked blocked, so this is empty. It is a named seam so
-// a later task wires marker reading in one place.
-func finalizeBlockedMap() map[domain.ChangeID]bool { return map[domain.ChangeID]bool{} }
 
 // finalizeHasPRRef reports whether c carries a usable PR reference — the
 // manifest signal that a change is in finalize's population.

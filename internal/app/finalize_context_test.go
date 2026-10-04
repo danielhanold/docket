@@ -382,7 +382,7 @@ func TestContextFinalizeTypedReasons(t *testing.T) {
 	}
 	skipTokens := map[string]bool{
 		"not-implemented": true, "draft": true, "pr-closed": true,
-		"approval-required": true, "finalize-blocked": true, "dependency-unmerged": true,
+		"approval-required": true, "dependency-unmerged": true,
 		"malformed": true, "pr-unknown": true,
 	}
 	bandTokens := map[string]bool{"merged-recovery": true, "mergeable": true, "conflicting": true, "unknown": true}
@@ -705,5 +705,44 @@ func TestPRNumberTokenForms(t *testing.T) {
 		if got := prNumberToken(tc.ref); got != tc.want {
 			t.Errorf("prNumberToken(%q) = %q, want %q", tc.ref, got, tc.want)
 		}
+	}
+}
+
+// TestContextFinalizeNotedChangeIsSelected pins that a `## Finalize blocked`
+// note — including a legacy repair-needs-signoff note an older binary wrote — is
+// visible only: auto-detect selects the change as an ordinary actionable
+// candidate (the next run retries it), and an explicit id earns no override
+// note, because there is no finalize-blocked skip left to override. Mutation:
+// reintroduce a skip on c.HasFinalizeBlocked() in domain.classifyFinalize and
+// both subtests fail.
+func TestContextFinalizeNotedChangeIsSelected(t *testing.T) {
+	pin := docketPin(t)
+	for _, tc := range []struct {
+		name string
+		req  FinalizeContextRequest
+	}{
+		{"auto-detect", FinalizeContextRequest{}},
+		{"explicit-id", FinalizeContextRequest{ID: 81}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			noted := finalizeBlob(81, "noted", "implemented", "high", prRefFor(81), "")
+			noted.Data = append(noted.Data, []byte("\n## Finalize blocked\n\n- 2026-10-01 — reason `repair-needs-signoff`: an earlier finalize stopped for a sign-off.\n")...)
+			prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+				prRefFor(81): withHead(openFacts(81, "MERGEABLE", 1, 1), "feat/noted"),
+			}}
+			fake := &fakeReader{pin: pin, corpus: []StatusBlob{noted}}
+
+			got := ContextFinalize(context.Background(), finalizeDeps(fake, prober, &recordingEngine{}), "", tc.req)
+			if got.Result != ResultApplied || len(got.Candidates) != 1 {
+				t.Fatalf("result=%q reason=%q candidates=%d", got.Result, got.Reason, len(got.Candidates))
+			}
+			c := got.Candidates[0]
+			if c.SkipReason != "" || c.Band != "mergeable" {
+				t.Errorf("noted change = band %q skip %q, want mergeable/actionable", c.Band, c.SkipReason)
+			}
+			if c.OverrideNote != "" {
+				t.Errorf("noted change carries an override note %q; a note is not a skip", c.OverrideNote)
+			}
+		})
 	}
 }
