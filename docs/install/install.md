@@ -130,4 +130,6 @@ The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in 
 not in the docket repo itself. Adopting docket in a repository is a separate step from this machine
 install, run from inside that repository: a repository that has never used docket runs
 `docket repository init`, and a repository still on the legacy single-branch layout runs
-`docket repository migrate`. See [Where the metadata lives](../guide/where-the-metadata-lives.md).
+`docket repository migrate`. See [Where the metadata lives](../guide/where-the-metadata-lives.md). If the repository already has
+a docket branch from the Bash version of docket, follow
+[Upgrading from Bash docket](../release/upgrading-from-bash.md) instead.

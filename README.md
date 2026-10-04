@@ -86,7 +86,8 @@ Re-run `install.sh` after every update — it is idempotent and machine-global. 
 prerequisites and what an install run does: [Installing docket](docs/install/install.md). To adopt
 docket in a repository, run `docket repository init` from inside it; `docket repository migrate`
 is only for converting a repository that still uses the legacy single-branch layout
-([Where the metadata lives](docs/guide/where-the-metadata-lives.md)).
+([Where the metadata lives](docs/guide/where-the-metadata-lives.md)). Upgrading from the Bash
+version of docket? Follow [Upgrading from Bash docket](docs/release/upgrading-from-bash.md).
 
 The five steps, one skill per step
 ([Quickstart](docs/guide/five-steps.md)):
