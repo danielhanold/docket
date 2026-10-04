@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T09:14:27Z'
+reconciled: true
+claimed_at: '2026-10-04T09:14:59Z'
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ claimed_at: '2026-10-04T09:14:27Z'
 - Retiring the supported-harness wrapper globs or deleting leftover wrapper files.
 - `link-skills.sh`'s `.kiro`/`.windsurf` skill targets and other harness support changes.
 - Teaching `repository check` to accept the previous block.
+
+## Reconcile log
+
+### 2026-10-04
+
+Re-checked against origin/main (ecbb32f19): `canonicalBlockBytes` in `internal/reposetup/gitignore.go` and the repository `.gitignore` still carry the three retired-harness globs, and the stale bash-port header comment is still present. The accepted harness vocabulary is unchanged. Scope and spec hold as written; no adjustment.
