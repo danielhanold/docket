@@ -13,7 +13,7 @@ related: [360, 502]
 discovered_from: [518, 519]
 adrs: [109]
 spec: 'docs/superpowers/specs/2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-make-the-published-finalize-request-schemas-match-what-input.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T15:12:27Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-make-the-published-finalize-request-schemas-match-what-input-design.md) |
+| Plan | [2026-10-04-make-the-published-finalize-request-schemas-match-what-input.md](https://github.com/danielhanold/docket/blob/fix/make-the-published-finalize-request-schemas-match-what-input/docs/superpowers/plans/2026-10-04-make-the-published-finalize-request-schemas-match-what-input.md) |
 | ADRs | [ADR-0109](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md) |
 <!-- docket:artifacts:end -->
 
