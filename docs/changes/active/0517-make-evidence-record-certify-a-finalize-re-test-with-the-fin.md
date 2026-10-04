@@ -22,7 +22,7 @@ branch: 'fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T15:25:15Z'
+claimed_at: '2026-10-04T15:39:50Z'
 ---
 
 ## Artifacts
