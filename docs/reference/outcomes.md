@@ -3,7 +3,10 @@
 docket reports what happened in a small set of fixed words. This page names each vocabulary and
 the surface that owns its current members. The machine-readable source for all of them is
 `docket schema` (read-only, repository-independent): `docket schema --json` lists every closed
-vocabulary, and `docket schema --operation <id>` shows one operation's request and result shape.
+vocabulary, and `docket schema --operation <id>` shows one operation's result shape. An operation
+that reads a JSON file (`--request`, `--input`, or `--body`) also shows that file's request shape.
+A flag-only operation shows no request; `docket capabilities --json` lists its flags in its
+`signature`. A required field inside an optional object is required only when that object is sent.
 
 ## Results
 
