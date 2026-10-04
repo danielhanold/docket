@@ -12,9 +12,9 @@ import (
 // closed JSON request from a file or stdin and hand it to the matching
 // internal/app manual-learning operation over the real Git-backed seams,
 // letting the presenter own the outcome. It reuses the shared request-file and
-// dependency plumbing (changeSubcommand, newPlanningDeps, decodeRequestFlag) in
-// change.go — the request-file conventions are identical across the whole
-// planning command surface. Every policy question — slug shape, duplicate
+// dependency plumbing (changeSubcommand and newPlanningDeps in change.go,
+// declareJSONFile in jsonfile.go) — the request-file conventions are identical
+// across the whole planning command surface. Every policy question — slug shape, duplicate
 // detection, the learnings.enabled check — belongs to internal/app, so no body
 // here branches on request content.
 
@@ -36,24 +36,14 @@ func newLearningCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	record := changeSubcommand("learning", "record",
 		"Record a new manual learning finding from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.LearningRecordRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.LearningRecordRequest) {
 			setResult(app.LearningRecordOp(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	update := changeSubcommand("learning", "update",
 		"Update an existing manual learning finding from a JSON request",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
-			var req app.LearningUpdateRequest
-			if err := decodeRequestFlag(c, &req); err != nil {
-				return err
-			}
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.LearningUpdateRequest) {
 			setResult(app.LearningUpdate(c.Context(), deps, repoDir, req))
-			return nil
 		}, EffectMetadataWrite)
 
 	learningCmd.AddCommand(record, update)
