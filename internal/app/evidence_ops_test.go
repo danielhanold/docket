@@ -266,3 +266,18 @@ func TestEvidenceVerifyMissingAndMalformed(t *testing.T) {
 		t.Fatalf("malformed: result=%q verdict=%q", malformed.Result, malformed.Verdict)
 	}
 }
+
+// TestEvidenceRecordUnknownOwnerRefusedBeforeConfigRead (change 0517): an owner
+// other than build/finalize/empty is invalid input with its own reason. The
+// zero PlanningDeps has a nil Reader, so any config read would panic — a typed
+// refusal proves the owner check runs before config is read. Near-miss
+// spellings are refused, never folded into build (Review Focus 1).
+func TestEvidenceRecordUnknownOwnerRefusedBeforeConfigRead(t *testing.T) {
+	for _, owner := range []string{"review", "Finalize", " build", "build "} {
+		res := EvidenceRecord(context.Background(), PlanningDeps{}, WorkspaceDeps{}, testsupport.TempDir(t),
+			EvidenceRecordRequest{ID: 7, Head: evidenceHead, Owner: owner})
+		if res.Result != ResultInvalidInput || res.Reason != ReasonEvidenceInvalidOwner {
+			t.Errorf("owner %q: result/reason = %v/%s, want invalid-input/%s", owner, res.Result, res.Reason, ReasonEvidenceInvalidOwner)
+		}
+	}
+}

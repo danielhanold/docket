@@ -7,9 +7,11 @@ package app
 // tests/test_go_integration_app_evidence.sh (prefix ^TestIntegrationEvidence).
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -57,5 +59,131 @@ func TestIntegrationEvidenceEvidenceRecordRecordsBuildCommandNotFinalize(t *test
 	}
 	if res.Command != "go test ./build-only" {
 		t.Errorf("recorded command = %q; evidence must record build.test_command", res.Command)
+	}
+}
+
+// --- record: per-request owner (change 0517) ---------------------------------
+
+// Mixed-owner fixtures: build and finalize ALWAYS carry different commands.
+// With identical commands the build-owned and finalize-owned paths produce the
+// same record, so only a mixed fixture can tell them apart (learning
+// shared-resource-keeps-first-owner-assumptions).
+const (
+	ownerBuildCmd        = "build-cmd"
+	ownerFinalizeCmd     = "finalize-cmd"
+	ownerMixedLocal      = "build:\n  gate: local\n  test_command: build-cmd\nfinalize:\n  gate: local\n  test_command: finalize-cmd\n"
+	ownerBuildOff        = "build:\n  gate: \"off\"\n  test_command: build-cmd\nfinalize:\n  gate: local\n  test_command: finalize-cmd\n"
+	ownerBuildEmpty      = "build:\n  gate: local\nfinalize:\n  gate: local\n  test_command: finalize-cmd\n"
+	ownerFinalizeEmpty   = "build:\n  gate: local\n  test_command: build-cmd\nfinalize:\n  gate: local\n"
+	ownerFinalizeGateOff = "build:\n  gate: local\n  test_command: build-cmd\nfinalize:\n  gate: \"off\"\n  test_command: finalize-cmd\n"
+)
+
+// evidenceRecordPassedRunAs runs EvidenceRecord over a real passed gate run dir
+// at the current feature head, under the given YAML overlay and owner.
+func evidenceRecordPassedRunAs(t *testing.T, yaml, owner string) EvidenceOpResult {
+	t.Helper()
+	deps, wdeps, repoDir := evidenceDepsWithConfig(t, readyWorkspace(), yaml)
+	return EvidenceRecord(context.Background(), deps, wdeps, repoDir,
+		EvidenceRecordRequest{ID: 7, RunDir: passedRunDir(t), Head: evidenceHead, Owner: owner})
+}
+
+// assertGreenCommand fails unless res is an applied green record naming want,
+// both in the result field and inside the rendered canonical block.
+func assertGreenCommand(t *testing.T, res EvidenceOpResult, want string) {
+	t.Helper()
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %v (%s: %s), want applied", res.Result, res.Reason, res.Message)
+	}
+	if res.Outcome != string(evidence.ResultGreen) || res.Command != want {
+		t.Fatalf("outcome/command = %q/%q, want green/%q", res.Outcome, res.Command, want)
+	}
+	rec, err := evidence.Extract([]byte(res.Block))
+	if err != nil {
+		t.Fatalf("block does not parse: %v\n%s", err, res.Block)
+	}
+	if rec.Result != evidence.ResultGreen || rec.Command != want {
+		t.Fatalf("block record = %s/%q, want green/%q", rec.Result, rec.Command, want)
+	}
+}
+
+// TestIntegrationEvidenceRecordFinalizeOwnerCertifiesFinalizeCommand: owner
+// finalize records finalize.test_command whatever the build settings say —
+// (a) build.gate off is NOT skipped, (b) a divergent build command is not
+// recorded, (c) an empty build.test_command is not refused — and finalize.gate
+// is not consulted.
+func TestIntegrationEvidenceRecordFinalizeOwnerCertifiesFinalizeCommand(t *testing.T) {
+	for _, tc := range []struct{ name, yaml string }{
+		{"build-gate-off", ownerBuildOff},
+		{"both-local", ownerMixedLocal},
+		{"build-command-empty", ownerBuildEmpty},
+		{"finalize-gate-off-not-consulted", ownerFinalizeGateOff},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assertGreenCommand(t, evidenceRecordPassedRunAs(t, tc.yaml, EvidenceOwnerFinalize), ownerFinalizeCmd)
+		})
+	}
+}
+
+// TestIntegrationEvidenceRecordFinalizeOwnerUnconfiguredCommandRefused: an
+// empty finalize.test_command is a typed setup refusal naming the FINALIZE key.
+func TestIntegrationEvidenceRecordFinalizeOwnerUnconfiguredCommandRefused(t *testing.T) {
+	res := evidenceRecordWithConfig(t, ownerFinalizeEmpty, EvidenceRecordRequest{
+		ID: 7, Head: currentFeatureHead(t), RunDir: testsupport.TempDir(t), Owner: EvidenceOwnerFinalize})
+	if res.Result != ResultUnsupportedConfig || res.Reason != ReasonEvidenceUnconfiguredGate {
+		t.Fatalf("result/reason = %v/%s, want unsupported-config/%s", res.Result, res.Reason, ReasonEvidenceUnconfiguredGate)
+	}
+	if !strings.Contains(res.Message, "finalize.test_command") || strings.Contains(res.Message, "build.") {
+		t.Errorf("message %q must name finalize.test_command and no build.* key", res.Message)
+	}
+	if !strings.Contains(res.Message, "docket repository configure-tests") {
+		t.Errorf("message %q must name the setup remedy", res.Message)
+	}
+}
+
+// TestIntegrationEvidenceRecordFinalizeOwnerMissingRunDirNamesNoBuildGate:
+// owner finalize with no --run is missing-run-dir, and the message does not
+// claim a build gate setting (Review Focus 2).
+func TestIntegrationEvidenceRecordFinalizeOwnerMissingRunDirNamesNoBuildGate(t *testing.T) {
+	res := evidenceRecordWithConfig(t, ownerBuildOff, EvidenceRecordRequest{
+		ID: 7, Head: currentFeatureHead(t), Owner: EvidenceOwnerFinalize})
+	if res.Result != ResultInvalidInput || res.Reason != ReasonEvidenceMissingRunDir {
+		t.Fatalf("result/reason = %v/%s, want invalid-input/%s", res.Result, res.Reason, ReasonEvidenceMissingRunDir)
+	}
+	if strings.Contains(res.Message, "build.") {
+		t.Errorf("finalize-owned message %q must not name a build.* key", res.Message)
+	}
+}
+
+// TestIntegrationEvidenceRecordFinalizeOwnerHeadMismatchRefused: the new
+// finalize branch still goes through verifyFeatureHead (Review Focus 3).
+func TestIntegrationEvidenceRecordFinalizeOwnerHeadMismatchRefused(t *testing.T) {
+	deps, wdeps, repoDir := evidenceDepsWithConfig(t, readyWorkspace(), ownerMixedLocal)
+	res := EvidenceRecord(context.Background(), deps, wdeps, repoDir, EvidenceRecordRequest{
+		ID: 7, RunDir: passedRunDir(t), Head: evidenceOtherHead, Owner: EvidenceOwnerFinalize})
+	if res.Reason != ReasonEvidenceHeadMismatch {
+		t.Fatalf("reason = %s (%v), want %s", res.Reason, res.Result, ReasonEvidenceHeadMismatch)
+	}
+}
+
+// TestIntegrationEvidenceRecordBuildOwnerAndOmittedStayBuild: owner build and
+// an omitted owner behave exactly as before 0517 on the mixed fixture — green
+// naming build-cmd under a local build gate, skipped under build.gate: off.
+func TestIntegrationEvidenceRecordBuildOwnerAndOmittedStayBuild(t *testing.T) {
+	for _, tc := range []struct{ name, owner string }{
+		{"omitted", ""},
+		{"build", EvidenceOwnerBuild},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assertGreenCommand(t, evidenceRecordPassedRunAs(t, ownerMixedLocal, tc.owner), ownerBuildCmd)
+
+			off := evidenceRecordWithConfig(t, ownerBuildOff,
+				EvidenceRecordRequest{ID: 7, Head: currentFeatureHead(t), Owner: tc.owner})
+			if off.Result != ResultApplied || off.Outcome != string(evidence.ResultSkipped) {
+				t.Fatalf("gate-off result/outcome = %v/%q (%s), want applied/skipped", off.Result, off.Outcome, off.Reason)
+			}
+			if off.Command != "" || !strings.Contains(off.Block, evidence.ReasonBuildGateOff) {
+				t.Errorf("gate-off command/block = %q/%q, want empty/%s", off.Command, off.Block, evidence.ReasonBuildGateOff)
+			}
+		})
 	}
 }
