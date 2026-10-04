@@ -2,7 +2,7 @@
 id: 516
 slug: 'remove-stale-auto-groom-comments-and-fix-testskillhandoffsit'
 title: 'Remove stale auto_groom comments and fix TestSkillHandoffSites'' ''cannot be invoked'' match'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'chore'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/remove-stale-auto-groom-comments-and-fix-testskillhandoffsit'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/384'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T15:10:27Z'
