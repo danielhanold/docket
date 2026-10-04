@@ -4,17 +4,38 @@ import (
 	"bytes"
 	"errors"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/harness"
 )
 
-// canonicalGitignoreBlock is the frozen expected block literal — byte-identical
-// to scripts/lib/docket-gitignore-block.sh's emit_docket_gitignore_block output
-// (markers inclusive, LF endings). This literal is the drift anchor for the
-// native emitter: the bash lib documents this block as the "single home for ALL
-// docket-owned ignores", and Task 8's TestIntegrationRepoSetupGitignoreParity
-// proves cross-language byte-parity against the live bash emitter.
+// canonicalGitignoreBlock is the frozen expected block literal (markers
+// inclusive, LF endings). It is the drift anchor for canonicalBlockBytes in
+// gitignore.go, which is the block's single owner: TestGitignoreBlockCanonical
+// byte-compares the two, so any edit to the emitted block must be mirrored
+// here on purpose (learning frozen-copy-needs-a-drift-assert).
 const canonicalGitignoreBlock = "# docket:start (managed by docket — do not hand-edit)\n" +
+	".docket/\n" +
+	".worktrees/\n" +
+	".claude/settings.local.json\n" +
+	".docket.local.yml\n" +
+	".claude/agents/docket-*.md\n" +
+	".codex/agents/docket-*.md\n" +
+	".cursor/agents/docket-*.md\n" +
+	".opencode/agents/docket-*.md\n" +
+	".codex/agents/docket-*.toml\n" +
+	".cursor/rules/docket-dispatch.mdc\n" +
+	"# docket:end\n"
+
+// previousGitignoreBlock is a HISTORICAL SNAPSHOT of the managed block as
+// emitted before change 0506 dropped the three retired-harness globs
+// (.agents, .kiro, .windsurf). It must never be synced to the current block:
+// it is the committed bytes an adopting repository still carries until it
+// re-runs `docket repository init`, and the upgrade tests below rely on it
+// differing from canonicalGitignoreBlock.
+const previousGitignoreBlock = "# docket:start (managed by docket — do not hand-edit)\n" +
 	".docket/\n" +
 	".worktrees/\n" +
 	".claude/settings.local.json\n" +
@@ -347,5 +368,140 @@ func TestCommittedIgnoreOutcome(t *testing.T) {
 	p, d = CommittedIgnoreOutcome([]byte("stuff\n"), true, nil)
 	if p != PresenceAbsent || d.Defect != IgnoreDefectBlockAbsent {
 		t.Fatalf("invalid: got (%v, %v), want (Absent, BlockAbsent)", p, d.Defect)
+	}
+}
+
+// --- change 0506: the block's agent-wrapper globs follow the harness roster ---
+
+// agentWrapperGlob is the syntactic shape of an agent-wrapper entry:
+// `.<root>/agents/docket-*.<ext>`. The guard keys on this shape, not on a
+// list of forbidden spellings, so any unsupported root is caught.
+var agentWrapperGlob = regexp.MustCompile(`^\.([^/]+)/agents/docket-\*\.[^/]+$`)
+
+// TestGitignoreAgentGlobsNameSupportedHarnesses: every agent-wrapper entry in
+// the managed block names a harness in the accepted vocabulary (harness.Order),
+// per ADR-0020 (the block follows the harness roster). Non-vacuity: every
+// supported harness keeps its `.md` wrapper glob, which also pins the spec's
+// decision to keep those globs for leftover wrapper files.
+func TestGitignoreAgentGlobsNameSupportedHarnesses(t *testing.T) {
+	supported := map[string]bool{}
+	for _, h := range harness.Order {
+		supported[h] = true
+	}
+	if len(supported) == 0 {
+		t.Fatalf("harness.Order is empty — the roster guard would pass vacuously")
+	}
+	entries := map[string]bool{}
+	matched := 0
+	for _, e := range GitignoreEntries() {
+		entries[e] = true
+		m := agentWrapperGlob.FindStringSubmatch(e)
+		if m == nil {
+			continue
+		}
+		matched++
+		if !supported[m[1]] {
+			t.Errorf("managed block entry %q names harness root %q, which is not in harness.Order %v", e, m[1], harness.Order)
+		}
+	}
+	if matched == 0 {
+		t.Fatalf("no agent-wrapper entries matched %s in %v — the shape guard is vacuous", agentWrapperGlob, GitignoreEntries())
+	}
+	for _, h := range harness.Order {
+		want := "." + h + "/agents/docket-*.md"
+		if !entries[want] {
+			t.Errorf("managed block lost supported-harness wrapper glob %q", want)
+		}
+	}
+}
+
+// TestEnsureGitignoreBlockUpgradesPreviousBlock: an adopting repository whose
+// committed .gitignore holds the previous block upgrades through the existing
+// rewrite path — user bytes outside the block are preserved, the block becomes
+// canonical, and a second call is a no-op.
+func TestEnsureGitignoreBlockUpgradesPreviousBlock(t *testing.T) {
+	cases := []struct {
+		name   string
+		before string // user lines above the block
+		after  string // user lines below the block
+	}{
+		{"user-lines-around-block", "node_modules/\n*.log\n\n", "dist/\n"},
+		{"user-kiro-line-outside-block", ".kiro/agents/docket-*.md\n\n", ""},
+		{"block-alone", "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			in := tc.before + previousGitignoreBlock + tc.after
+			out, changed, err := EnsureGitignoreBlock([]byte(in))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !changed {
+				t.Fatalf("changed = false on the previous block, want true")
+			}
+			rest := strings.TrimRight(tc.before+tc.after, "\n")
+			want := canonicalGitignoreBlock
+			if rest != "" {
+				want = rest + "\n\n" + canonicalGitignoreBlock
+			}
+			if string(out) != want {
+				t.Fatalf("upgrade mismatch:\n got %q\nwant %q", out, want)
+			}
+			if !ValidGitignoreBlock(out) {
+				t.Fatalf("upgraded output not valid: %q", out)
+			}
+			if d := ExplainGitignoreBlock(out); d.Defect != IgnoreDefectNone {
+				t.Fatalf("upgraded output explains as %v, want None", d.Defect)
+			}
+			for _, retired := range []string{".agents/agents/docket-*.md", ".windsurf/agents/docket-*.md"} {
+				if strings.Contains(string(out), retired) {
+					t.Fatalf("retired glob %q survived the upgrade: %q", retired, out)
+				}
+			}
+			// The managed block itself carries no .kiro line; a user's own
+			// line outside it is user content and survives verbatim.
+			if strings.Contains(canonicalGitignoreBlock, ".kiro/") {
+				t.Fatalf("fixture drifted: canonical block carries a .kiro line")
+			}
+			if strings.Contains(tc.before+tc.after, ".kiro/agents/docket-*.md") &&
+				!strings.HasPrefix(string(out), ".kiro/agents/docket-*.md\n") {
+				t.Fatalf("user's own .kiro line outside the block was not preserved: %q", out)
+			}
+			again, changed2, err := EnsureGitignoreBlock(out)
+			if err != nil {
+				t.Fatalf("unexpected error on second call: %v", err)
+			}
+			if changed2 || !bytes.Equal(again, out) {
+				t.Fatalf("second call not idempotent: changed=%v\n got %q\nwant %q", changed2, again, out)
+			}
+		})
+	}
+}
+
+// TestExplainGitignoreBlockPreviousBlockIsNonCanonical: the previous block
+// holds every current entry plus the three retired ones, so repository check
+// classifies it NonCanonical (not MissingEntries), and that finding's remedy
+// pastes the new block — never a retired-harness line.
+func TestExplainGitignoreBlockPreviousBlockIsNonCanonical(t *testing.T) {
+	for name, in := range map[string]string{
+		"block alone":      previousGitignoreBlock,
+		"with user prefix": "node_modules/\n\n" + previousGitignoreBlock,
+	} {
+		if ValidGitignoreBlock([]byte(in)) {
+			t.Fatalf("%s: previous block accepted as canonical", name)
+		}
+		d := ExplainGitignoreBlock([]byte(in))
+		if d.Defect != IgnoreDefectNonCanonical || len(d.MissingEntries) != 0 {
+			t.Fatalf("%s: got (%v, %v), want (NonCanonical, none)", name, d.Defect, d.MissingEntries)
+		}
+		fnd := committedIgnoreFinding(d)
+		if !strings.Contains(fnd.Remedy, strings.TrimSuffix(canonicalGitignoreBlock, "\n")) {
+			t.Fatalf("%s: remedy does not paste the canonical block:\n%s", name, fnd.Remedy)
+		}
+		for _, retired := range []string{".agents/agents/", ".kiro/agents/", ".windsurf/agents/"} {
+			if strings.Contains(fnd.Remedy, retired) {
+				t.Fatalf("%s: remedy still names retired glob %q:\n%s", name, retired, fnd.Remedy)
+			}
+		}
 	}
 }

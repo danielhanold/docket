@@ -1,23 +1,24 @@
 package reposetup
 
-// gitignore.go — native emitter and marker validation for docket's managed
-// .gitignore block. This is the Go port of scripts/lib/docket-gitignore-block.sh's
-// emit_docket_gitignore_block / _docket_gi_malformed: that lib documents the block
-// as the "single home for ALL docket-owned ignores", and this file transcribes its
-// canonical bytes and marker-balance rules verbatim. The two must stay
-// byte-identical; cross-language byte-parity is proven by Task 8's integration
-// fixture TestIntegrationRepoSetupGitignoreParity, which shells the bash emitter
-// and byte-compares its output with GitignoreBlock(). Frozen-copy drift is caught
-// by TestGitignoreBlockCanonical here (learning frozen-copy-needs-a-drift-assert).
+// gitignore.go — emitter and marker validation for docket's managed
+// .gitignore block, the single home for every docket-owned ignore. This file
+// is the sole owner of the block's bytes (canonicalBlockBytes) and its
+// marker-balance rules; GitignoreBlock, ValidGitignoreBlock,
+// EnsureGitignoreBlock, GitignoreEntries, and ExplainGitignoreBlock all derive
+// from that one definition. Frozen-copy drift is caught by
+// TestGitignoreBlockCanonical, which byte-compares GitignoreBlock() with the
+// literal in gitignore_test.go (learning frozen-copy-needs-a-drift-assert),
+// and TestGitignoreAgentGlobsNameSupportedHarnesses keeps every agent-wrapper
+// glob on the accepted harness roster (ADR-0020).
 //
 // No I/O: these are pure functions over byte slices. Callers own reading and
 // atomically writing the file.
 
 import "bytes"
 
-// GitignoreStart / GitignoreEnd are the exact marker lines owned by the bash lib
-// (DOCKET_GI_START / DOCKET_GI_END). The legacy 0051 spelling is recognized only
-// for one-time upgrade detection and is never re-emitted.
+// GitignoreStart / GitignoreEnd are the exact marker lines that delimit the
+// managed block. The legacy 0051 spelling is recognized only for one-time
+// upgrade detection and is never re-emitted.
 const (
 	GitignoreStart = "# docket:start (managed by docket — do not hand-edit)"
 	GitignoreEnd   = "# docket:end"
@@ -26,10 +27,12 @@ const (
 	legacyGitignoreEnd   = "# docket:generated:end"
 )
 
-// canonicalBlock is the block body between (and including) the markers, LF
-// endings — transcribed from emit_docket_gitignore_block. Order is load-bearing:
-// core entries, .docket.local.yml, the per-harness agent globs, the codex toml
-// glob, then the cursor dispatch rule.
+// canonicalBlockBytes is the block body between (and including) the markers,
+// LF endings. Order is load-bearing: core entries, .docket.local.yml, one
+// agent-wrapper glob per supported harness (claude, codex, cursor, opencode —
+// harness.Order), the codex toml glob, then the cursor dispatch rule. docket
+// no longer writes per-repository wrappers; the wrapper globs stay so leftover
+// files from older versions remain ignored.
 var canonicalBlockBytes = []byte(GitignoreStart + "\n" +
 	".docket/\n" +
 	".worktrees/\n" +
@@ -39,16 +42,13 @@ var canonicalBlockBytes = []byte(GitignoreStart + "\n" +
 	".codex/agents/docket-*.md\n" +
 	".cursor/agents/docket-*.md\n" +
 	".opencode/agents/docket-*.md\n" +
-	".agents/agents/docket-*.md\n" +
-	".kiro/agents/docket-*.md\n" +
-	".windsurf/agents/docket-*.md\n" +
 	".codex/agents/docket-*.toml\n" +
 	".cursor/rules/docket-dispatch.mdc\n" +
 	GitignoreEnd + "\n")
 
-// GitignoreBlock returns the canonical managed block bytes (markers inclusive, LF
-// line endings), byte-identical to the bash emit_docket_gitignore_block output.
-// A fresh copy is returned on each call so callers may mutate it freely.
+// GitignoreBlock returns the canonical managed block bytes (markers inclusive,
+// LF line endings). A fresh copy is returned on each call so callers may
+// mutate it freely.
 func GitignoreBlock() []byte {
 	return append([]byte(nil), canonicalBlockBytes...)
 }
@@ -98,12 +98,9 @@ func EnsureGitignoreBlock(current []byte) (out []byte, changed bool, err error) 
 }
 
 // buildFile assembles the outside bytes, a blank-line separator, and a single
-// canonical block — mirroring the bash rewrite exactly. The bash captures rest
-// through command substitution (`rest="$(strip …)"`), which strips trailing
-// newlines, then emits `printf '%s\n\n' "$rest"` when rest is non-empty followed
-// by the block. So trailing blank lines in the outside content are collapsed to
-// the single blank-line separator, which is what makes a second call idempotent.
-// When rest is empty the block stands alone.
+// canonical block. Trailing newlines in the outside content are trimmed and
+// replaced by exactly one blank-line separator, which is what makes a second
+// call idempotent. When rest is empty the block stands alone.
 func buildFile(rest []byte) []byte {
 	trimmed := bytes.TrimRight(rest, "\n")
 	if len(trimmed) == 0 {
@@ -127,10 +124,10 @@ func (e *MalformedGitignoreError) Error() string {
 		" generation): dangling, out-of-order, or nested start/end — refusing to rewrite"
 }
 
-// gitignoreMarkersMalformed mirrors _docket_gi_malformed: returns true when the
-// start/end markers are NOT a clean, ordered set of non-overlapping pairs
-// (dangling start, dangling end, end-before-start, nested start). String-exact,
-// line-anchored marker match. An empty/markerless file is well-formed (false).
+// gitignoreMarkersMalformed returns true when the start/end markers are NOT a
+// clean, ordered set of non-overlapping pairs (dangling start, dangling end,
+// end-before-start, nested start). String-exact, line-anchored marker match. An
+// empty/markerless file is well-formed (false).
 func gitignoreMarkersMalformed(fileBytes []byte, start, end string) bool {
 	inBlock := false
 	bad := false
@@ -153,7 +150,7 @@ func gitignoreMarkersMalformed(fileBytes []byte, start, end string) bool {
 }
 
 // stripGitignoreBlock returns fileBytes with the [start,end] block (inclusive)
-// removed and every byte outside it preserved — the port of _docket_gi_strip_block.
+// removed and every byte outside it preserved.
 // It assumes markers are well-formed (callers guard first). When no block is
 // present the input is returned unchanged.
 func stripGitignoreBlock(fileBytes []byte, start, end string) []byte {
@@ -189,7 +186,6 @@ func hasLine(fileBytes []byte, target string) bool {
 
 // splitLines splits on LF, dropping a single trailing empty segment produced by
 // a final LF (so a file ending in "\n" does not yield a phantom empty line).
-// This matches awk's record model, on which the bash primitives rely.
 func splitLines(fileBytes []byte) [][]byte {
 	if len(fileBytes) == 0 {
 		return nil
@@ -201,7 +197,7 @@ func splitLines(fileBytes []byte) [][]byte {
 	return lines
 }
 
-// joinLines re-joins whole lines each terminated by LF (awk print semantics),
+// joinLines re-joins whole lines each terminated by LF (each line LF-terminated),
 // so an empty result is empty bytes, not a lone LF.
 func joinLines(lines [][]byte) []byte {
 	if len(lines) == 0 {
