@@ -2,7 +2,7 @@
 id: 366
 slug: 'human-attended-v1-0-0-rc1-acceptance-and-publication'
 title: 'v1.0.0-alpha.1 acceptance and publication (Claude Code)'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'chore'
 created: '2026-08-29'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable: false
 branch_prefix:
-branch:
+branch: 'chore/human-attended-v1-0-0-rc1-acceptance-and-publication'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T22:34:31Z'
 ---
 
 ## Artifacts
