@@ -117,6 +117,16 @@ type PRPublishRequest struct {
 	EvidenceRecord []byte `json:"-"`
 }
 
+// PRPublishInput is the JSON file `pr publish --body` reads: the authored PR
+// title and body. The change id, head, and evidence record ride on flags (the
+// evidence record is a canonical record file, not a JSON request); the CLI
+// assembles all of them into PRPublishRequest. This type is the operation's
+// published request.
+type PRPublishInput struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+}
+
 // PRPublishResult is the protocol-v1 document `pr publish` returns. It names the
 // canonical PR reference, url, number, head, base, and the adapter's disposition
 // verbatim; a refusal carries a stable reason and message. It deliberately holds
