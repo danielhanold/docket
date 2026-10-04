@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestLivingDocsAlignment keeps two kinds of drift out of docket's living,
@@ -126,7 +127,7 @@ func TestLivingDocsAlignment(t *testing.T) {
 			}
 		}
 
-		tmp := t.TempDir()
+		tmp := testsupport.TempDir(t)
 		for _, f := range []string{"a/one.md", "a/fixtures/skip.md", "a/testdata/skip.md", "a/notes.txt", "top.md", "b/notes.txt"} {
 			if err := os.MkdirAll(filepath.Join(tmp, filepath.Dir(f)), 0o755); err != nil {
 				t.Fatal(err)
@@ -155,13 +156,7 @@ var livingDocRoots = []string{
 	"README.md",
 	"docs/README.md",
 	"docs/concepts",
-	"docs/guide/README.md",
-	"docs/guide/building-without-supervision.md",
-	"docs/guide/capturing-work.md",
-	"docs/guide/designing-before-building.md",
-	"docs/guide/five-steps.md",
-	"docs/guide/proving-the-build.md",
-	"docs/guide/reviewing-before-the-human.md",
+	"docs/guide",
 }
 
 // livingDocFiles returns every .md file under roots (a root may be a file),
