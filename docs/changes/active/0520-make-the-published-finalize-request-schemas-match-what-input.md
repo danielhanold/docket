@@ -2,7 +2,7 @@
 id: 520
 slug: 'make-the-published-finalize-request-schemas-match-what-input'
 title: 'Make every published request schema match the JSON file the operation reads'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/make-the-published-finalize-request-schemas-match-what-input'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T15:08:20Z'
 ---
 
 ## Artifacts
