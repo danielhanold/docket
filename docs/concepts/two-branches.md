@@ -32,14 +32,14 @@ your repo/
   │           │
   │   [ integration branch: main ] ── never merges ── [ metadata branch: docket ]
   │                                                            ▲
-  │        archived record copied ──────────────────────►     │  backlog / spec / ADR
-  │        onto the integration branch                         │  edits commit here
+  │                                                            │  backlog / spec / ADR
+  │                                                            │  edits commit here
   │                                                            │
   └── .docket/   (metadata worktree, checked out on the metadata branch)
-           ├── changes/      one markdown file per change
-           ├── adrs/         one file per decision
-           ├── BOARD.md      the generated board
-           └── learnings/    the loop's memory
+           ├── <changes_dir>/   one markdown file per change, plus
+           │                    the learnings ledger (default docs/changes)
+           ├── <adrs_dir>/      one file per decision (default docs/adrs)
+           └── BOARD.md         the generated board
 ```
 
 A **change** — one unit of planned work, roughly one pull request, tracked as one
@@ -47,14 +47,20 @@ markdown file — and its **spec**, the design document a change links to, writt
 before building, live under `.docket/` on the metadata branch. So does every
 **ADR**, an architecture decision record: one file per decision, immutable once
 accepted; the **board**, the generated overview of every change and its state,
-never edited by hand; and the **learnings**, the loop's memory of lessons from
-past builds, curated by a human. Your code checkout never sees any of them.
+never edited by hand; and the **learnings**, the learnings ledger of lessons from
+past builds, curated by a human. Where changes and ADRs sit inside `.docket/`
+follows the `changes_dir` and `adrs_dir` settings. Your code checkout never sees
+any of them.
 
-When a change closes out, its archived record — the archived change file and any
-results — reaches the integration branch by copying the file across, not by
-merging the metadata branch. That leaves a durable record on `main` for anyone
-browsing the code without the metadata worktree, while keeping the two histories
-disjoint.
+When a change closes out, it is archived on the metadata branch only. Nothing is
+copied to the integration branch; the plan and results files that reached it
+through the feature branch's pull request keep a backlink to the change's record
+on the `docket` branch.
+
+There is one metadata layout. A repository that has never used docket has no
+metadata branch, and docket refuses to work in it rather than half-initialize
+it; the remedy is `docket repository init`, which creates the `docket` branch
+and the `.docket/` worktree.
 
 The metadata worktree also fixes where docket resolves the repository root: a
 bookkeeping commit runs against `.docket/` explicitly, never against whatever
@@ -62,39 +68,30 @@ directory you happen to be standing in when you invoke a command.
 
 ## The invariants
 
-- The metadata branch and the integration branch never merge into each other; a
-  archived record reaches the integration branch by copy, not merge.
-- Docket-mode is the default; a repository that is not yet set up is refused with
-  a migration prompt rather than left half-initialized.
+- The metadata branch and the integration branch never merge into each other,
+  and no record is copied from one to the other.
+- A repository with no metadata branch is refused, with
+  `docket repository init` as the remedy, rather than left half-initialized.
 - Backlog, spec, ADR, board, and learnings edits commit to the metadata worktree
   at `.docket/`, never to your code checkout.
 - Bookkeeping commits in the metadata worktree skip the repository's shared git
   hooks, so a code-side pre-commit hook never fires on a backlog edit.
-- A destructive reset in the shared metadata worktree first requires a
-  tracked-files-only clean tree, so a concurrent loop's untracked scratch files
-  are never wiped out.
+- Contention on the shared metadata worktree is survivable: a commit names the
+  paths it means to commit, so a lost race commits nothing rather than someone
+  else's work.
 - Docket resolves the repository root from the main worktree, never from the
   caller's current directory.
 
 ## Decided in
 
 - [ADR-0001](../adrs/0001-docket-metadata-branch-model.md) — put planning
-  metadata on an orphan `docket` branch and publish archived records by copy
-  instead of merging the two branches.
-- [ADR-0002](../adrs/0002-docket-mode-default-and-bootstrap.md) — made
-  docket-mode the default and set the refuse-and-migrate response for a
-  repository that is not yet initialized.
+  metadata on an orphan `docket` branch reached through a persistent `.docket/`
+  worktree, never merged with the integration branch.
 - [ADR-0025](../adrs/0025-docket-worktrees-disable-git-hooks.md) — scoped
   `core.hooksPath` per worktree so bookkeeping commits skip the shared git hooks.
 - [ADR-0034](../adrs/0034-repo-root-anchored-to-main-worktree.md) — anchored the
   repository root to the main worktree rather than the caller's current
   directory.
-- [ADR-0046](../adrs/0046-cas-reset-hard-shared-worktree-tracked-clean-tree-precondition.md)
-  — required a tracked-files-only clean-tree precondition before a
-  conflict-checked reset in the shared metadata worktree.
 - [ADR-0089](../adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md)
   — made concurrent contention on the shared metadata worktree survivable and
   made a wedged tree halt rather than corrupt state.
-- [ADR-0051](../adrs/0051-publish-deferred-marker-not-branch-diff-detector.md) —
-  marked a deferred terminal publish with a marker section instead of a
-  branch-diff detector.
