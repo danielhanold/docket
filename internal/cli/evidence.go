@@ -49,17 +49,19 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 			id, _ := c.Flags().GetInt("id")
 			run, _ := c.Flags().GetString("run")
 			head, _ := c.Flags().GetString("head")
+			owner, _ := c.Flags().GetString("owner")
 			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}
 			setResult(app.EvidenceRecord(c.Context(), deps, wdeps, repoDir,
-				app.EvidenceRecordRequest{ID: id, RunDir: run, Head: head}))
+				app.EvidenceRecordRequest{ID: id, RunDir: run, Head: head, Owner: owner}))
 			return nil
 		},
 	}
 	record.Flags().Int("id", 0, "change `id` the evidence belongs to (required)")
-	record.Flags().String("run", "", "absolute gate run `dir` to observe (required for a local build gate; ignored when build.gate is off)")
+	record.Flags().String("run", "", "absolute gate run `dir` to observe (required, except for owner build under build.gate: off, where no run is observed)")
+	record.Flags().String("owner", "", "which `role`'s settings certify the run: build (default) or finalize; finalize records finalize.test_command and never mints skipped evidence")
 	record.Flags().String("head", "", "exact feature head `ref` the evidence must certify (required)")
 	record.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = record.MarkFlagRequired("id")
