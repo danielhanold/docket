@@ -878,3 +878,67 @@ func TestHealthLiveSurfaceUnverifiedRemedyMatchesCommittedTree(t *testing.T) {
 		t.Fatalf("remedy = %q, want %q", fnd.Remedy, want)
 	}
 }
+
+// TestCommittedIgnoreRemediesCarryPasteReadyBlock pins change 0500 over every
+// IgnoreDefect committedIgnoreFinding can receive — derived by iterating up to
+// the terminal ignoreDefectSentinel, never hand-listed, so a defect added later
+// is covered. Each remedy must end with the canonical block (from
+// GitignoreBlock(), trailing newline trimmed) on its own line after a
+// colon-terminated instruction, and none may name `repository migrate`, which is
+// a no-op on a migrated repository.
+//
+// Mutation probes (each must redden this test): restore the old
+// IgnoreDefectFileAbsent remedy text; drop the withCanonicalBlock call from any
+// one case; make withCanonicalBlock indent the block lines; make it join the
+// instruction and block with a space instead of a newline.
+func TestCommittedIgnoreRemediesCarryPasteReadyBlock(t *testing.T) {
+	block := strings.TrimSuffix(string(GitignoreBlock()), "\n")
+	if !strings.HasPrefix(block, GitignoreStart+"\n") {
+		t.Fatalf("canonical block does not open with the start marker line: %q", block)
+	}
+	const missing = ".opencode/agents/docket-*.md"
+	instructions := map[string]bool{}
+	n := 0
+	for d := IgnoreDefectNone; d < ignoreDefectSentinel; d++ {
+		n++
+		detail := IgnoreDetail{Defect: d}
+		switch d {
+		case IgnoreDefectMalformedMarkers:
+			detail.Generation = "docket"
+		case IgnoreDefectMissingEntries:
+			detail.MissingEntries = []string{missing}
+		}
+		fnd := committedIgnoreFinding(detail)
+		if fnd == nil || fnd.Code != "committed-ignore-invalid" {
+			t.Fatalf("defect %d: want a committed-ignore-invalid finding, got %+v", d, fnd)
+		}
+		r := fnd.Remedy
+		// (a)+(b): the block closes the remedy and starts on its own line.
+		if !strings.HasSuffix(r, "\n"+block) {
+			t.Errorf("defect %d: remedy must end with a newline then the canonical block verbatim:\n%s", d, r)
+			continue
+		}
+		// (c): never send the reader to migrate.
+		if strings.Contains(r, "repository migrate") {
+			t.Errorf("defect %d: remedy names `repository migrate`: %q", d, r)
+		}
+		instr := strings.TrimSuffix(r, "\n"+block)
+		if instr == "" || strings.Contains(instr, "\n") || !strings.HasSuffix(instr, ":") {
+			t.Errorf("defect %d: instruction must be one non-empty line ending in a colon: %q", d, instr)
+		}
+		if d == IgnoreDefectMissingEntries && !strings.Contains(instr, missing) {
+			t.Errorf("missing-entries instruction must still list %s: %q", missing, instr)
+		}
+		instructions[instr] = true
+	}
+	// Population floor (marker-scoped-guard-needs-a-population-floor):
+	// IgnoreDefectNone through IgnoreDefectUnreadable exist today.
+	if n < 8 {
+		t.Fatalf("population floor: iterated %d defects, want >= 8", n)
+	}
+	// None and Unreadable share default's instruction; the six detailed cases
+	// each keep their own.
+	if len(instructions) < 7 {
+		t.Errorf("want >= 7 distinct instructions, got %d: %v", len(instructions), instructions)
+	}
+}

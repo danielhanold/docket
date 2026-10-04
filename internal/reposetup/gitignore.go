@@ -231,6 +231,11 @@ const (
 	IgnoreDefectMissingEntries                // well-formed block lacking canonical entries
 	IgnoreDefectNonCanonical                  // all entries present but not the exact canonical bytes
 	IgnoreDefectUnreadable                    // the committed blob could not be read
+
+	// ignoreDefectSentinel is the terminal count marker, never a real
+	// defect: tests iterate IgnoreDefectNone up to it so a defect added
+	// above is covered automatically (change 0500). Keep it last.
+	ignoreDefectSentinel
 )
 
 // IgnoreDetail is the small diagnostic payload the committed-ignore probe
