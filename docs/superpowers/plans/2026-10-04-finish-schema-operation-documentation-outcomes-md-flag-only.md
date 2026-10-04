@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0521 — Mark every nested required request field in the schema, and fix the stale schema docs](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0521-finish-schema-operation-documentation-outcomes-md-flag-only.md)**
+> ↩ **[Change 0521 — Mark every nested required request field in the schema, and fix the stale schema docs](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0521-finish-schema-operation-documentation-outcomes-md-flag-only.md)**
 <!-- docket:backlink:end -->
 # Mark every nested required request field, and fix the stale schema docs: Implementation Plan
 
