@@ -218,6 +218,15 @@ var proseContracts = []proseContract{
 	// nothing (slug, record path, spec path, and branch stay put).
 	{sentinel: "change_0461_retitle", file: "skills/docket-groom-next/SKILL.md",
 		present: []string{"also carry `title`", "a `title` alone is a valid revise", "a retitle renames nothing", "`not-retitleable`"}},
+	// change 0509 — revise edits any proposed change without changing its groom
+	// state; a request to edit (not groom) a needs-grooming stub goes straight
+	// to the revise exit with no brainstorm. The absent phrases are the retired
+	// already-groomed-only claims.
+	{sentinel: "change_0509_stub_revise", file: "skills/docket-groom-next/SKILL.md",
+		present: []string{"skip the brainstorm and apply Step 4's revise exit directly", "the stub stays needs-grooming",
+			"The change keeps its groom state."},
+		absent: []string{"The change stays build-ready.", "the change is already groomed and the human wants it adjusted",
+			"no longer an already-groomed `proposed` change", "a revise keeps the row build-ready"}},
 	// change 0389 — implementation-scope sweep + the two completion barriers.
 	// docket-status owns the COMMAND barrier: a backgrounded sweep is observed
 	// to its terminal envelope, never declared done by proxy signals; and an

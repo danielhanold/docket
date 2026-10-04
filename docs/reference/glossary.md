@@ -663,7 +663,7 @@ self-critiquing.
 ### Groom
 
 Taking a stub through design to build-ready. Exits: a linked spec, a trivial verdict, a kill, a
-defer, a revise of an already-groomed change, or (autonomous only) an abstain.
+defer, a revise of a `proposed` change (it keeps its groom state), or (autonomous only) an abstain.
 
 **Used for:** the step between capturing and building. Interactive grooming is
 `docket-groom-next`; the typed write underneath is `change.groom` with an `outcome` of `spec`,
@@ -676,14 +676,17 @@ docket change groom --request groom.json
 
 ### Groom outcome `revise`
 
-The `change.groom` outcome that adjusts a change that is already groomed (`proposed` with a spec or
-`trivial: true`). It can replace the linked spec's body and edit owned sections. It never sets
-`spec:` or `trivial:`, so a change cannot flip between spec'd and trivial.
+The `change.groom` outcome that edits any `proposed` change without changing its groom state: a
+needs-grooming stub stays needs-grooming, and a spec'd or trivial change stays build-ready. It can
+replace the linked spec's body (only when the change links a spec) and edit owned sections, the
+title, and relationship fields. It never sets `spec:`, `trivial:`, or `auto_groomable:`, and it
+never edits `## Auto-groom blocked`, which only abstain and re-enable write.
 
-**Used for:** fixing a just-landed design. Reach it by naming the id to `docket-groom-next`. A spec
-replace also needs `spec_revision` (the spec's blob id), so a concurrent spec edit contends
-instead of being overwritten. A `title` alone is also a valid revise: it rewrites `title:`, the board row, and
-the spec's backlink line, and renames nothing — the slug and every path stay put.
+**Used for:** fixing a just-landed design, or sharpening a stub's Why or title without grooming it.
+Reach it by naming the id to `docket-groom-next`. A spec replace also needs `spec_revision` (the
+spec's blob id), so a concurrent spec edit contends instead of being overwritten. A `title` alone is
+also a valid revise: it rewrites `title:`, the board row, and the spec's backlink line, and renames
+nothing — the slug and every path stay put.
 
 ```sh
 # groom.json: {"change_id": 412, "path": "…", "revision": "<v>", "outcome": "revise", "spec_markdown": "…", "spec_revision": "<blob>"}
@@ -1685,8 +1688,9 @@ The interactive groomer. It selects the next needs-grooming stub (or the id you 
 cold-start recap, and brainstorms it with you. It exits with spec, trivial, kill, defer, revise, or
 re-enable. It never takes a claim and never mints ids.
 
-**Used for:** designing stubs together with you. Naming an already-groomed id routes to
-`revise`. It runs inline at the session model, and the model it recommends is advisory.
+**Used for:** designing stubs together with you. Naming an already-groomed id, or asking to edit a
+stub rather than groom it, routes to `revise`. It runs inline at the session model, and the model
+it recommends is advisory.
 
 ```sh
 /docket-groom-next
