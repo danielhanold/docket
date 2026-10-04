@@ -110,9 +110,7 @@ import (
 // always-loaded AGENTS.md / CLAUDE.md / agents/*.md / cursor-rules/*) only a fenced
 // code block is scanned; prose (including inline `code` spans) is descriptive. The
 // seal scans inside ``` / ~~~ fences and ignores prose, so a documented-removal
-// sentence and the surviving scripts/runners/*.md prose that names
-// `runner-dispatch.sh` descriptively are permitted, while a fenced `scripts/docket.sh`
-// recipe is not. GENERATOR OUTPUT is the deliberate exception (scanGeneratedForRetired
+// sentence is permitted, while a fenced `scripts/docket.sh` recipe is not. GENERATOR OUTPUT is the deliberate exception (scanGeneratedForRetired
 // scans prose too) — see the third structural blind spot below for why the on-disk
 // prose asymmetry is unavoidable rather than an oversight.
 //
