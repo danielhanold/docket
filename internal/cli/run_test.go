@@ -77,3 +77,21 @@ func TestRunCommandsAssetIndependent(t *testing.T) {
 		}
 	}
 }
+
+// TestRunGroupShortHelpIsNotReadOnly pins the run group's one-line summary:
+// run start, run cancel, run continue, and run verdict write local run state,
+// so the group must not advertise itself as read-only.
+func TestRunGroupShortHelpIsNotReadOnly(t *testing.T) {
+	out, errS, code := runCLI(t, "run", "--help")
+	if code != 0 {
+		t.Fatalf("run --help exit %d, stderr %q", code, errS)
+	}
+	first := strings.SplitN(out, "\n", 2)[0]
+	if strings.Contains(first, "read-only") {
+		t.Errorf("run group summary still claims read-only: %q", first)
+	}
+	const want = "Track dispatched runs and verify a change's claim-to-implemented run"
+	if first != want {
+		t.Errorf("run group summary = %q, want %q", first, want)
+	}
+}
