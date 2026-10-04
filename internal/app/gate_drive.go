@@ -592,6 +592,9 @@ func (r GateDriveResult) HumanText() string {
 		if r.Drive.Cause != "" {
 			lines = append(lines, "cause: "+r.Drive.Cause)
 		}
+		if r.Drive.Finding != "" {
+			lines = append(lines, "finding: "+r.Drive.Finding)
+		}
 		if r.Drive.RawRunDir != "" {
 			lines = append(lines, "raw_run_dir: "+r.Drive.RawRunDir)
 		}

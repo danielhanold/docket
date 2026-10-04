@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -713,6 +714,50 @@ func TestIntegrationFinalizeRebaseOpsFinalizeRebaseGateHaltGenericUnchanged(t *t
 	human := res.HumanText()
 	if strings.Contains(human, "[gate:") || strings.Contains(human, "incumbent-") {
 		t.Fatalf("generic human line carries a locator fragment: %q", human)
+	}
+}
+
+// TestIntegrationFinalizeRebaseOpsFinalizeRebaseGateHaltLeftoverMessage (change
+// 0497): a halted local gate whose supervisor died says so, and a leftover suite
+// adds the wait-for-the-group clause and rides teardown_finding — while the
+// result, reason, disposition, and halt cause stay those of any drive halt.
+func TestIntegrationFinalizeRebaseOpsFinalizeRebaseGateHaltLeftoverMessage(t *testing.T) {
+	const finding = "tree-survives:0123456789abcdef0123456789abcdef:4242"
+	const wait = "part of the suite is still running as process group 4242 — wait until pgrep -lg 4242 prints nothing, then re-run finalize"
+	for _, tc := range []struct {
+		name, cause, leftover, wantMsg string
+	}{
+		{"supervisor-died", gatedrive.CauseSupervisorDied, "",
+			"the local gate's supervisor died before the suite finished; re-run finalize to re-run the suite"},
+		{"supervisor-died-leftover", gatedrive.CauseSupervisorDied, finding,
+			"the local gate's supervisor died before the suite finished; " + wait},
+		{"uncertain-ownership-leftover", gatedrive.CauseUncertainOwnership, finding,
+			"the local gate did not reach a decidable pass/fail; retained, no red fabricated; " + wait},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := setupRebaseFixture(t, planRepoModes()[0])
+			gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+			gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable,
+				HaltDriveCause: tc.cause, HaltLeftover: tc.leftover, TeardownFinding: tc.leftover}}
+			res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
+				FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
+			if res.Result != ResultBlocked || res.Reason != ReasonRebaseGateHalted || res.Disposition != RebaseDispBlocked {
+				t.Fatalf("result/reason/disposition = %q/%q/%q, want blocked/%q/%q",
+					res.Result, res.Reason, res.Disposition, ReasonRebaseGateHalted, RebaseDispBlocked)
+			}
+			if res.Gate == nil || res.Gate.Outcome != string(FinalizeGateHalted) || res.Gate.HaltCause != GateHaltUnavailable {
+				t.Fatalf("gate report = %+v, want a halted/unavailable gate", res.Gate)
+			}
+			if res.Message != tc.wantMsg {
+				t.Fatalf("message = %q\nwant      %q", res.Message, tc.wantMsg)
+			}
+			if res.Gate.TeardownFinding != tc.leftover {
+				t.Fatalf("teardown_finding = %q, want %q", res.Gate.TeardownFinding, tc.leftover)
+			}
+			if res.Gate.Reason != "" || res.Gate.Message != "" || res.Gate.Stage != "" || res.Gate.Locator != "" {
+				t.Fatalf("a drive halt grew refusal detail: %+v", res.Gate)
+			}
+		})
 	}
 }
 
