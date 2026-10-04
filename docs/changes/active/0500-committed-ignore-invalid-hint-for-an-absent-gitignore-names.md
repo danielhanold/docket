@@ -2,7 +2,7 @@
 id: 500
 slug: 'committed-ignore-invalid-hint-for-an-absent-gitignore-names'
 title: 'committed-ignore-invalid remedies print the paste-ready managed block'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-03'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/committed-ignore-invalid-hint-for-an-absent-gitignore-names'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-04T06:03:11Z'
 ---
 
 ## Artifacts

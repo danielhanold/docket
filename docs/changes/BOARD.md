@@ -1,12 +1,17 @@
 # Backlog
 
-**500 changes** — 🟣 5 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 343 done · 🗑️ 134 killed
+**500 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 6 proposed · ⚪ 12 deferred · ✅ 343 done · 🗑️ 134 killed
 
-## 🟣 Groomed (5)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0500](active/0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md) | `fix/committed-ignore-invalid-hint-for-an-absent-gitignore-names` |  |
+
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0500](active/0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md) |
 | [0498](active/0498-results-file-puts-the-whole-branch-review-under-human-action.md) | Results file puts the whole-branch review under Human actions and testing | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
