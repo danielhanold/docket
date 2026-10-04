@@ -13,7 +13,7 @@ related: [363, 371, 505, 248, 360, 366, 412]
 discovered_from: [464]
 adrs: [18, 22, 81, 99, 130]
 spec: 'docs/superpowers/specs/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T11:51:54Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md) |
+| Plan | [2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary.md](https://github.com/danielhanold/docket/blob/fix/align-the-skills-and-agent-files-with-the-docket-binary/docs/superpowers/plans/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary.md) |
 | ADRs | [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0022](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0022-consultant-authored-brainstorm.md), [ADR-0081](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0130](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md) |
 <!-- docket:artifacts:end -->
 
