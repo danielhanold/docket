@@ -103,9 +103,20 @@ func parseGuide(src string) (guideDoc, error) {
 	return doc, nil
 }
 
-// docketCommandLines returns the lines of body whose first shell word, after trimming
-// leading whitespace and an optional "$ " prompt, is exactly "docket". Comment lines
-// are skipped.
+var (
+	// commandSeparatorRe splits a shell line where a new command word can start:
+	// a list or pipe operator, or a command substitution. A single | also splits ||
+	// (the empty segment between the two bars has no command word).
+	commandSeparatorRe = regexp.MustCompile(`&&|;|\||\$\(`)
+	// leadingAssignmentRe matches one leading VAR=value word.
+	leadingAssignmentRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S*)(\s+|$)`)
+)
+
+// docketCommandLines returns the lines of body that run docket as a command: after
+// trimming leading whitespace and an optional "$ " prompt, some command segment (the
+// line start, or the text after &&, ||, ;, | or $( ) has docket as its command word
+// once leading VAR=value assignments and sudo are stripped. A command word "docket"
+// or any path ending in "/docket" counts. Comment lines are skipped.
 func docketCommandLines(body string) []string {
 	var out []string
 	for _, raw := range strings.Split(body, "\n") {
@@ -114,11 +125,40 @@ func docketCommandLines(body string) []string {
 			continue
 		}
 		line = strings.TrimSpace(strings.TrimPrefix(line, "$ "))
-		if f := strings.Fields(line); len(f) > 0 && f[0] == "docket" {
-			out = append(out, line)
+		for _, seg := range commandSeparatorRe.Split(line, -1) {
+			if commandWord(seg) == "docket" {
+				out = append(out, line)
+				break
+			}
 		}
 	}
 	return out
+}
+
+// commandWord returns the command word of one shell command segment, skipping leading
+// VAR=value assignments and sudo, with a path reduced to its last element.
+func commandWord(seg string) string {
+	seg = strings.TrimSpace(seg)
+	for {
+		if m := leadingAssignmentRe.FindString(seg); m != "" {
+			seg = seg[len(m):]
+			continue
+		}
+		if f := strings.Fields(seg); len(f) > 0 && f[0] == "sudo" {
+			seg = strings.TrimSpace(strings.TrimPrefix(seg, "sudo"))
+			continue
+		}
+		break
+	}
+	f := strings.Fields(seg)
+	if len(f) == 0 {
+		return ""
+	}
+	w := f[0]
+	if i := strings.LastIndex(w, "/"); i >= 0 {
+		w = w[i+1:]
+	}
+	return w
 }
 
 // substitutePlaceholders replaces each <key> token named in repl and refuses a body

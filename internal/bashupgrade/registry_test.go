@@ -379,12 +379,17 @@ func gitRev(t *testing.T, c *upgradeCase, ref string) string {
 
 // ---- section 3 and 4: the machine install ------------------------------------------
 
+// releaseVerifiedProse is the guide's statement that the download and checksum
+// lines rest on the release verification, not on this test.
+const releaseVerifiedProse = "The download and checksum lines are checked by the release's own verification, not by\nthis guide's test."
+
 // mirrorInstallBinary mirrors the release download block. The download and the
-// checksum check need the published release, which the release verification proves;
-// here every line must be one of those known shapes, and the installer invocation is
-// mirrored by installHandoff.
+// checksum check need the published release, which the release verification proves
+// (and the guide says so); here every line must be one of those known shapes, and the
+// installer invocation is mirrored by installHandoff.
 func mirrorInstallBinary(t *testing.T, c *upgradeCase, st *runState, body string) {
 	t.Helper()
+	mustContain(t, "guide", st.Guide, releaseVerifiedProse)
 	var sawInstallSh, sawChecksums, sawVerify bool
 	for _, line := range blockLines(body) {
 		f := strings.Fields(line)
@@ -437,9 +442,20 @@ func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
 		t.Fatal(err)
 	}
 	before := snapshotTree(t, filepath.Join(c.Home, ".claude"))
-	r := c.run(t, st.DownloadDir, stage, "--json", "install", "--harness", "claude")
+	// The downloader runs the staged binary in human mode, so the reader sees these
+	// lines; the guide quotes them.
+	r := c.run(t, st.DownloadDir, stage, "install", "--harness", "claude")
 	st.InstallAttempts = append(st.InstallAttempts, r)
+	human := r.Stdout + r.Stderr
 	if r.Code != 0 {
+		// Guide: "this first run stops with `install: invalid-state` and a list of
+		// `conflict` lines".
+		mustContain(t, "guide", st.Guide, "`install: invalid-state`")
+		mustContain(t, "install output", human, "install: invalid-state")
+		// A failed run changes nothing, so a --json re-run reads the same conflict
+		// set in a form the test can parse; the human output must list each path on
+		// a conflict line.
+		j := c.run(t, st.DownloadDir, stage, "--json", "install", "--harness", "claude")
 		_ = os.Remove(stage)
 		var conflicts []string
 		var doc struct {
@@ -448,16 +464,24 @@ func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
 				Op, Path, Detail string
 			} `json:"actions"`
 		}
-		if err := json.Unmarshal([]byte(r.Stdout), &doc); err != nil {
-			t.Fatalf("install --json output: %v\nstdout:\n%s\nstderr:\n%s", err, r.Stdout, r.Stderr)
+		if err := json.Unmarshal([]byte(j.Stdout), &doc); err != nil {
+			t.Fatalf("install --json output: %v\nstdout:\n%s\nstderr:\n%s", err, j.Stdout, j.Stderr)
 		}
 		for _, a := range doc.Actions {
 			if a.Op == "conflict" {
 				conflicts = append(conflicts, a.Path)
 			}
 		}
-		if len(conflicts) == 0 || doc.Result != "invalid-state" {
-			t.Fatalf("install exited %d with result %q and %d conflict paths\nstdout:\n%s\nstderr:\n%s", r.Code, doc.Result, len(conflicts), r.Stdout, r.Stderr)
+		if j.Code == 0 || len(conflicts) == 0 || doc.Result != "invalid-state" {
+			t.Fatalf("install exited %d (json %d) with result %q and %d conflict paths\nhuman:\n%s\njson:\n%s", r.Code, j.Code, doc.Result, len(conflicts), human, j.Stdout)
+		}
+		for _, p := range conflicts {
+			if !humanConflictLine(human, p) {
+				t.Errorf("install's human output has no `conflict` line naming %s:\n%s", p, human)
+			}
+		}
+		if t.Failed() {
+			t.FailNow()
 		}
 		if len(st.InstallAttempts) > 1 {
 			t.Fatalf("install still conflicts after the guide's remedy: %v", conflicts)
@@ -472,7 +496,9 @@ func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
 		st.Conflicts = conflicts
 		return
 	}
-	mustContain(t, "install output", r.Stdout, `"result":"applied"`)
+	// Guide: "This time the installer reports `install: applied`."
+	mustContain(t, "guide", st.Guide, "`install: applied`")
+	mustContain(t, "install output", human, "install: applied")
 	if err := os.Rename(stage, dest); err != nil {
 		t.Fatal(err)
 	}
@@ -488,6 +514,18 @@ func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
 	if chk := c.run(t, st.DownloadDir, dest, "install", "check"); chk.Code != 0 {
 		t.Fatalf("install check after install exited %d\nstdout:\n%s\nstderr:\n%s", chk.Code, chk.Stdout, chk.Stderr)
 	}
+}
+
+// humanConflictLine reports whether human-mode install output has a line whose first
+// word is "conflict" and which names path.
+func humanConflictLine(out, path string) bool {
+	for _, l := range strings.Split(out, "\n") {
+		f := strings.Fields(l)
+		if len(f) > 0 && strings.TrimRight(f[0], ":") == "conflict" && strings.Contains(l, path) {
+			return true
+		}
+	}
+	return false
 }
 
 func mapsEqual(a, b map[string]string) bool {
@@ -555,7 +593,9 @@ func mirrorTakeoverRemedy(t *testing.T, c *upgradeCase, st *runState, body strin
 		t.FailNow()
 	}
 	installHandoff(t, c, st)
-	mustContain(t, "second install output", st.InstallAttempts[len(st.InstallAttempts)-1].Stdout, `"result":"applied"`)
+	if last := st.InstallAttempts[len(st.InstallAttempts)-1]; last.Code != 0 {
+		t.Fatalf("the install after takeover-remedy exited %d", last.Code)
+	}
 }
 
 // mirrorGlobalConfigCleanup deletes the marked runtime.bash block from the global
@@ -845,12 +885,14 @@ func removeYAMLKey(m *yaml.Node, path []string) bool {
 	return false
 }
 
-// runCommit runs a commit block, or records a skip when there is nothing to commit.
+// runCommit runs a commit block. The guide shows these blocks unconditionally, so a
+// clean tree means the steps before it did nothing the guide says they do: fatal.
+// A step the guide says to skip when there is nothing to commit handles that case
+// itself and never reaches here with a clean tree.
 func runCommit(t *testing.T, c *upgradeCase, st *runState, body string) {
 	t.Helper()
 	if strings.TrimSpace(c.mustGit(t, st.Cwd, "status", "--porcelain")) == "" {
-		t.Logf("commit step skipped: nothing to commit")
-		return
+		t.Fatalf("commit block has nothing to commit, but the guide runs it unconditionally:\n%s", body)
 	}
 	before := gitRev(t, c, "main")
 	runBlock(t, c, st, body)
@@ -917,6 +959,10 @@ func runRepoConfirm(t *testing.T, c *upgradeCase, st *runState, body string) {
 const (
 	dispatchBlockStart = "<!-- docket:dispatch:start"
 	dispatchBlockEnd   = "<!-- docket:dispatch:end -->"
+	// dispatchBlockSkip and dispatchBlockSkipWhy are the guide's instruction for a
+	// repository without the block, which mirrorDispatchBlock proves.
+	dispatchBlockSkip    = "If there is no such block, skip this step."
+	dispatchBlockSkipWhy = "There is nothing to commit, and `git commit` stops with an error."
 )
 
 // dispatchBlockSpan validates the dispatch block's markers in lines and returns the
@@ -947,8 +993,8 @@ func dispatchBlockSpan(lines []string) (int, int, error) {
 
 // mirrorDispatchBlock deletes the Bash dispatch block from the repository's CLAUDE.md
 // the way the prose says (the file too, when nothing else is left), then runs the
-// block to commit and push it. On a case without the block it asserts there is
-// nothing to remove and that the commit block is skipped.
+// block to commit and push it. On a case without the block it asserts the guide's
+// skip instruction holds: nothing to commit, and the block as written fails.
 func mirrorDispatchBlock(t *testing.T, c *upgradeCase, st *runState, body string) {
 	t.Helper()
 	mustContain(t, "guide", st.Guide, "`"+dispatchBlockStart+"`")
@@ -968,11 +1014,23 @@ func mirrorDispatchBlock(t *testing.T, c *upgradeCase, st *runState, body string
 		t.Fatalf("CLAUDE.md: %v; leaving it untouched", err)
 	}
 	if start < 0 {
-		t.Logf("dispatch-block: the repository has no dispatch block; nothing to remove")
+		// Guide: with no block there is nothing to commit, so the reader skips the
+		// step, because the block's `git commit -am` stops with an error on a clean
+		// tree. Prove both halves: the tree is clean, and the block as written fails
+		// and pushes nothing.
+		mustContain(t, "guide", st.Guide, dispatchBlockSkip)
+		mustContain(t, "guide", st.Guide, dispatchBlockSkipWhy)
 		if left := strings.TrimSpace(c.mustGit(t, st.Cwd, "status", "--porcelain")); left != "" {
 			t.Fatalf("dispatch-block found no block but the repository has changes:\n%s", left)
 		}
-		runCommit(t, c, st, body)
+		before := gitRev(t, c, "main")
+		if r := c.run(t, st.Cwd, "/bin/sh", "-e", "-c", body); r.Code == 0 {
+			t.Fatalf("guide says git commit stops with an error on a clean tree; the dispatch-block block exited 0\nstdout:\n%s\nstderr:\n%s", r.Stdout, r.Stderr)
+		}
+		if gitRev(t, c, "main") != before {
+			t.Fatalf("the skipped dispatch-block block moved origin main")
+		}
+		t.Logf("dispatch-block: the repository has no dispatch block; the step is skipped")
 		return
 	}
 	// Guide: the upgrade leaves the block in place and `docket repository check`
