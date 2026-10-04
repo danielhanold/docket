@@ -843,6 +843,8 @@ var followUpBacklogMatchDocContracts = []docSectionContract{
 			"**Fits #N**",
 			"**Related to #N**",
 			"**No existing change fits (checked K)**",
+			"a groomed `proposed` #N — edit it through `docket-groom-next <N>` (revise), which also revises its spec when needed",
+			"a `deferred` #N — revive it (`change.revive`), then edit it as a proposed change",
 			"related or no fit — a new change a human captures (Step 3), linking any related #N under `related:`",
 			"The final report's follow-up list carries the same verdict per item",
 			"The match only recommends: it never edits, creates, revives, defers, or kills any change",
@@ -863,7 +865,7 @@ var followUpBacklogMatchDocContracts = []docSectionContract{
 	{change: "change_0510_final_report_verdict", file: "skills/docket-implement-next/SKILL.md",
 		section: "### Terminal disposition (driver contract)", terminator: "### Atomic board rendering",
 		present: []string{
-			"any follow-up work **reported for deliberate capture**, each with its backlog verdict (Step 6.5 *Backlog match*)",
+			"any follow-up work **reported for deliberate capture**, each with its backlog verdict when final consolidation produced one (Step 6.5 *Backlog match*)",
 		}},
 	{change: "change_0510_convention_backlog_match", file: "skills/docket-convention/SKILL.md",
 		section: "### Directory layout (paths relative to the configured knobs)", terminator: "### Change manifest (frontmatter at the top of each change file)",
