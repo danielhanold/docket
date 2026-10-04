@@ -7,7 +7,7 @@ description: Use when stubs are sitting at needs-grooming on the docket board an
 
 ## Overview
 
-`docket-groom-next` drains the needs-grooming queue: `docket-new-change`'s scan mode captures ideas as lightweight stubs; this skill is the later brainstorm pass that turns them build-ready through an interactive design conversation with the human. One stub per invocation; loop by re-invoking. It writes markdown only: the change file, a spec, and a refreshed `BOARD.md` — never branches, worktrees, or code.
+`docket-groom-next` drains the needs-grooming queue: `docket-new-change`'s scan mode captures ideas as lightweight stubs; this skill is the later brainstorm pass that turns them build-ready through an interactive design conversation with the human. One stub per invocation; re-invoke for the next. It writes markdown only: the change file, a spec, and a refreshed `BOARD.md` — never branches, worktrees, or code.
 
 ## When to use
 

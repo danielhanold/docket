@@ -9,7 +9,7 @@ agent: docket-auto-groom
 
 ## Overview
 
-`docket-auto-groom` is `docket-groom-next`'s autonomous sibling. Same queue vocabulary, same exits where safe — but no human, and **drain semantics**: nobody is waiting between stubs, so one invocation loops until no auto-groomable stub remains, then reports. It keeps superpowers' brainstorming *reasoning* — enumerate the decision points, weigh approaches, commit to the conservative default — and replaces the *waiting-for-a-human protocol* with an audit trail (the spec's `## Assumptions` block) plus an adversarial critic that gates every build-ready exit. It writes markdown only: change files, specs, `BOARD.md` — never branches, worktrees, or code.
+`docket-auto-groom` is `docket-groom-next`'s autonomous sibling. Same queue vocabulary, same exits where safe — but no human, and **drain semantics**: nobody is waiting between stubs, so one invocation keeps going until no auto-groomable stub remains, then reports. It keeps superpowers' brainstorming *reasoning* — enumerate the decision points, weigh approaches, commit to the conservative default — and replaces the *waiting-for-a-human protocol* with an audit trail (the spec's `## Assumptions` block) plus an adversarial critic that gates every build-ready exit. It writes markdown only: change files, specs, `BOARD.md` — never branches, worktrees, or code.
 
 ## When to use
 
@@ -22,7 +22,7 @@ agent: docket-auto-groom
 
 Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check* (load the convention; run the capability bootstrap; run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context values forward as literals; act on the disposition). Everything below uses its vocabulary (needs-grooming, auto-groomable, the abstain rule, …) without redefinition. All reads and writes land in the `.docket/` worktree on the `docket` branch, pushed to its remote immediately.
 
-## Procedure — the drain loop
+## Procedure — the drain
 
 Repeat steps 1–5 until no auto-groomable stub remains; then step 6.
 
@@ -53,7 +53,7 @@ Dispatch the dedicated **`docket-auto-groom-critic`** subagent (foreground, at t
 
 ### Step 5 — The outcome lands (no separate board pass)
 
-Every exit's Step-4 `change.groom` operation is the whole write — it re-checks the pinned `revision` and commits the record, any spec, the `## Artifacts` block, and the inline board in one metadata commit pushed under an exact-lease push, so there is **no separate Board pass** and no hand-staged commit. On a `contended` refusal it writes nothing: re-sync (re-run the `repository.prepare` operation), re-read the stub's `path` + `revision` from the `status` operation, and if it is no longer auto-groomable (groomed, killed, claimed, or opted out) DISCARD this iteration's draft (discard the draft from scratch space) and loop; otherwise re-author and retry. Loop to step 1.
+Every exit's Step-4 `change.groom` operation is the whole write — it re-checks the pinned `revision` and commits the record, any spec, the `## Artifacts` block, and the inline board in one metadata commit pushed under an exact-lease push, so there is **no separate Board pass** and no hand-staged commit. On a `contended` refusal it writes nothing: re-sync (re-run the `repository.prepare` operation), re-read the stub's `path` + `revision` from the `status` operation, and if it is no longer auto-groomable (groomed, killed, claimed, or opted out) DISCARD this iteration's draft (discard the draft from scratch space) and move on; otherwise re-author and retry. Return to step 1.
 
 ### Step 6 — Report
 

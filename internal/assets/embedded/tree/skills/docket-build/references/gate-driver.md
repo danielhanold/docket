@@ -11,7 +11,7 @@ never a direct `gate.drive` call. A build-task worker is never a caller: it
 runs its focused tests directly under a fixed time limit. A caller makes **short, slice-bounded,
 synchronous** calls to the native gate **driver**, which composes the raw supervisor,
 persists one deadline and one execution identity, and returns one of four typed dispositions per
-call. No caller runs a shell poll loop, backgrounds the suite, subscribes to a notification, or
+call. No caller runs a shell polling script, backgrounds the suite, subscribes to a notification, or
 authors its own liveness check — the driver owns all of that.
 
 ## The driver's operations
@@ -104,10 +104,10 @@ the holder is unknown.
 `worktree-busy` is a **command failure**, distinct from the four dispositions above: the response
 carries the bounded reason token and a next-action message, and exposes no drive document to
 advance. A caller treats it as a **blocking diagnostic — not a retry trigger and not a `FAILED`
-result** — that reserves no suite attempt and feeds no repair loop. Map it to the caller's own halt
+result** — that reserves no suite attempt and feeds no repair attempt. Map it to the caller's own halt
 posture (the build controller halts per its *Halting conditions*). Freeing the worktree is the
 operator's act — wait for the holding gate to finish, or stop it (`run.cancel` for a tracked run,
-`gate.stop <run-dir>` for a raw launch) — never a poll loop on `start`.
+`gate.stop <run-dir>` for a raw launch) — never polling on `start`.
 
 ## Handoff — the only ownership transfer
 
@@ -125,13 +125,13 @@ opaque **handoff token** — the continuation the next owner claims. A bare "sti
 handoff token is not a valid departure: the drive would be stranded with a live owner generation
 nobody holds.
 
-## The raw verbs are primitive/operator APIs, not caller-loop verbs
+## The raw verbs are primitive/operator APIs, not caller verbs
 
 The raw verbs — `gate.launch`, `gate.observe`, `gate.stop`,
 `gate.recover`, and `gate.cleanup` — retain their narrow primitive meanings and remain
 callable by the **driver implementation, primitive-level tests, diagnostics, recovery, cleanup, and
 operator workflows**. They are **not** high-level workflow APIs. A workflow caller never composes
-them directly and never recreates a shell observe/sleep poll loop — the build controller's
+them directly and never recreates shell observe/sleep polling — the build controller's
 full-suite gate and implement-next's evidence re-mint and re-gates drive the gate through the
 `gate.drive` operations above instead, and finalize's local gate goes through `finalize.rebase`. The raw verbs are
 documented as primitives in the operator-facing gate documentation, not here.
