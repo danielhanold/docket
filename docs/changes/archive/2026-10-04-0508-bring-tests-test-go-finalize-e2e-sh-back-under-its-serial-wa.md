@@ -2,7 +2,7 @@
 id: 508
 slug: 'bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa'
 title: 'Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget'
-status: 'proposed'
+status: 'killed'
 priority: 'low'
 type: 'chore'
 created: '2026-10-04'
@@ -40,3 +40,7 @@ Trace why `tests/test_go_finalize_e2e.sh` takes ~49s serially and bring it under
 ## Out of scope
 
 Other tests' budgets, the budget-report mechanism itself, and any new blocking gate (budget findings stay visibility-only).
+
+## Why killed
+
+Filed in error; consolidated into #507, which tracks flaky and slow tests.
