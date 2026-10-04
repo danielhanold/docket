@@ -23,8 +23,9 @@ recommendation). To change the model or effort one of them runs at:
 
 **1. Edit your global config.** Pins live in the `agents:` block of your global
 `~/.config/docket/config.yml` (see [Global config](global-config.md)), and only there: docket
-installs agent wrappers for your user, never per repository, so a repository's `.docket.yml` or
-`.docket.local.yml` cannot pin a model. Each pin applies per agent and per field over the built-in
+installs agent wrappers for your user, never per repository. An `agents:` pin in a repository's
+`.docket.yml` or `.docket.local.yml` — even one that repeats the built-in value — makes docket
+refuse to change the repository until you move it to the global config. Each pin applies per agent and per field over the built-in
 table compiled into docket; a field you leave out keeps its built-in value, and a `default:` block
 applies to every harness that has no pin of its own for that agent.
 

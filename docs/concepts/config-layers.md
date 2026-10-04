@@ -85,7 +85,9 @@ anything that blocks docket from writing.
 - A repository-only key is honored only from the committed `.docket.yml`;
   the same key set in the global or machine-local layer is ignored with a
   warning, so no personal layer can split the backlog across machines.
-- Agent model and effort overrides are honored from the global file only.
+- Agent model and effort overrides belong in the global file only. One set in
+  the committed or machine-local layer is not ignored: it makes docket refuse
+  to change the repository until it is moved to the global file.
 - The machine-local layer is gitignored and never committed, so a personal
   override cannot leak onto a teammate.
 - A malformed file, an unknown key, or a bad value in any layer makes the

@@ -29,7 +29,8 @@
 #   # scope: any layer
 #       Settable in .docket.yml, .docket.local.yml, or the global config.
 #   # scope: global-only (global config.yml)
-#       Honoured only from the global config.
+#       Settable only in the global config. Declared in .docket.yml or .docket.local.yml, it
+#       makes docket refuse to change the repository until you move it to the global config.
 #
 # A new key lands here, with its documentation, in the same change that adds it; a test enforces
 # that every supported key appears in this file.
@@ -227,7 +228,9 @@ change_types: [chore, docs, feat, fix, refactor, perf]
 # Pins apply per agent and per field; a line you leave out keeps its built-in value. A `default:`
 # block applies to every harness that has no pin of its own for that agent. Model IDs and effort
 # tokens pass through unchecked; `effort: auto` writes no effort line, so the harness picks.
-# Re-run `docket install` after editing.
+# Re-run `docket install` after editing. Set pins only in the global config: an `agents:` pin in
+# .docket.yml or .docket.local.yml, even one that repeats the built-in value, makes docket refuse
+# to change the repository until you move it to the global config.
 # scope: global-only (global config.yml)
 # agents:
 #   claude:

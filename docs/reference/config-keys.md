@@ -26,7 +26,9 @@ Each key has one scope:
 - **repo-only** — settable only in the committed `.docket.yml`. A value in either machine layer is
   ignored with a warning, so one clone cannot move shared planning state (ADR-0019).
 - **any layer** — settable in `.docket.yml`, `.docket.local.yml`, or the global config.
-- **global-only** — honoured only from the global config.
+- **global-only** — settable only in the global config. Declared in `.docket.yml` or
+  `.docket.local.yml`, it makes docket refuse to change the repository until you move it to the
+  global config.
 
 ## Keys
 

@@ -1,14 +1,14 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:bf0ce28b104099ae81a892e1a8d6859e2c93d390220eb8155a8d70f3903c55a0",
+  "asset_set_id": "sha256:c033f47377c79775d156ac7c754027631b7e3054840d46ed1c945b58becc00e9",
   "entries": [
     {
       "path": ".docket.example.yml",
       "role": "config-schema",
       "mode": 420,
-      "size": 18224,
-      "sha256": "10c6cd1758a36b7bef96901d9e7086e89335875d8f0b4cdc7220a0af8978e3e0"
+      "size": 18585,
+      "sha256": "3bd5ca3d31b45c6a2b5a6a906f53f8974d76bcc8e315d18330b7a95658bad32b"
     },
     {
       "path": "agents/docket-adr.md",
