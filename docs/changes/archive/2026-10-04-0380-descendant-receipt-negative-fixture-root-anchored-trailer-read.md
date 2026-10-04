@@ -2,11 +2,11 @@
 id: 380
 slug: 'descendant-receipt-negative-fixture-root-anchored-trailer-read'
 title: 'Add a descendant-receipt negative fixture pinning the root-anchored trailer read'
-status: proposed
+status: 'killed'
 priority: medium
 type: chore
 created: '2026-08-30'
-updated: '2026-08-30'
+updated: '2026-10-04'
 depends_on: []
 stacked_on:
 related: [378]
@@ -55,3 +55,7 @@ anchored at the parentless root. Cherry-pick the reverted 0378 fixture as the st
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Consolidated into #504, which carries this fixture together with #320's testdata ignore-negation guard. Same shape (an unprobed residual, one mutation-proven guard each), so they ship as one change.
