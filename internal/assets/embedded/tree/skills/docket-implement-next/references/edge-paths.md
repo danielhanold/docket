@@ -69,7 +69,7 @@ worktree carries at most one live run. When the caller starts the resume (`run.s
   the same reservation (`resume-replacement-reserved`) rather than minting a second run. Resume thus
   admits one replacement, only after cancellation is confirmed.
 
-**The plan seam (change 0324).** An attributed caller-side re-dispatch — one naming the id and
+**The plan seam.** An attributed caller-side re-dispatch — one naming the id and
 the `run.verify` operation's unmet conditions — enters this resume path before ordinary ready-queue and
 proposed-only allowlist filtering; a normal invocation that merely names an already-`in-progress`
 id still skips it (it may belong to a live concurrent run — the run tracker's
@@ -85,7 +85,7 @@ before-set/dispatch attribution is what distinguishes a resume from claim theft)
    parent stopped after the child returned. The trailer is evidence only — subject it to the same
    git and backlink verification as a live return.
 
-**The results seam (change 0410).** The results artifact is required for every change, so a resume
+**The results seam.** The results artifact is required for every change, so a resume
 must not lose it. On resume, **load the committed results before starting new work**, and reuse the
 `results:` field whenever it is already set — a changed authoring date **never mints a second
 file**; the canonical path is chosen once and reused.
@@ -113,6 +113,6 @@ to force a workspace, a commit, or a HEAD move.
 
 **Best-effort PR→issue reference.** If the change carries an `issue:` value, add a plain `#<issue>` reference to the PR body — but **never `Closes #N`**, so merging the PR never auto-closes the referenced issue. Skip silently when `issue:` is unset — the reference is a one-time courtesy, not a build gate.
 
-**PR-body back-link (change 0136).** When docket authors the PR body, prepend a **back-link line** pointing home to the change on the `docket` branch — a first body line of the shape `↩ Change <padded-id> — <title>` linking to the change file on `docket` (built with the same blob-or-bare-path logic; skill-side, since the renderer's contract excludes the PR body). Best-effort — never block the PR on it.
+**PR-body back-link.** When docket authors the PR body, prepend a **back-link line** pointing home to the change on the `docket` branch — a first body line of the shape `↩ Change <padded-id> — <title>` linking to the change file on `docket` (built with the same blob-or-bare-path logic; skill-side, since the renderer's contract excludes the PR body). Best-effort — never block the PR on it.
 
-**Build-evidence block (change 0170).** Write the current evidence record into the PR body, marker-bounded, alongside the review outcome — the tier that reviewed, and the **findings disposition table** (change 0218): one row per finding, each marked fixed (with its commit SHA), deferred, reverted, or recorded. The table's states are defined in `fix-pass.md`; do not redefine them here. The PR body is the block's durable home: `docket-finalize-change` reads it to decide whether its post-rebase suite run can be skipped. Validate marker order and balance before rewriting an existing block. A step-6.5 results commit — now **required** for every change, like any post-gate commit — moves branch HEAD after the evidence was minted, so a stale `head_sha` on that path is EXPECTED, not a defect: write the block anyway with that stale SHA. `docket-finalize-change`'s gate skips its suite run **only** when the rebase was a no-op **and** the PR body carries green build-evidence for the exact current head recorded against the resolved `finalize.test_command`. As that skill states, "**There is no strict-ancestor or results-only skip**." A post-gate results commit moves HEAD past the evidence head, so **expect finalize's suite to run** for it exactly as for any other post-gate commit.
+**Build-evidence block.** Write the current evidence record into the PR body, marker-bounded, alongside the review outcome — the tier that reviewed, and the **findings disposition table**: one row per finding, each marked fixed (with its commit SHA), deferred, reverted, or recorded. The table's states are defined in `fix-pass.md`; do not redefine them here. The PR body is the block's durable home: `docket-finalize-change` reads it to decide whether its post-rebase suite run can be skipped. Validate marker order and balance before rewriting an existing block. A step-6.5 results commit — now **required** for every change, like any post-gate commit — moves branch HEAD after the evidence was minted, so a stale `head_sha` on that path is EXPECTED, not a defect: write the block anyway with that stale SHA. `docket-finalize-change`'s gate skips its suite run **only** when the rebase was a no-op **and** the PR body carries green build-evidence for the exact current head recorded against the resolved `finalize.test_command`. As that skill states, "**There is no strict-ancestor or results-only skip**." A post-gate results commit moves HEAD past the evidence head, so **expect finalize's suite to run** for it exactly as for any other post-gate commit.

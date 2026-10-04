@@ -312,8 +312,7 @@ vocabulary live in `references/gate-driver.md` (**read it now, blocking, before 
 Drive the suite through short synchronous `gate.drive.start` then `gate.drive.advance` calls; the
 driver composes the raw supervisor and owns the detached run, durable drive record, artifact-based
 completion, and fail-closed budget. **Reuse the driver, never a hand-rolled polling script** — a hand-rolled
-sleep-and-parse over `gate.observe` is the retired drift that once spun a gate until a human resumed
-it; the raw `gate.launch`/`observe`/`stop` operations are primitives, never this role's workflow API.
+sleep-and-parse over `gate.observe` can spin a gate until a human resumes it; the raw `gate.launch`/`observe`/`stop` operations are primitives, never this role's workflow API.
 
 **Keying on the disposition.** Key the wait on the typed disposition the driver returns
 (`WAITING`/`PASSED`/`FAILED`/`HALTED`), never on a success marker in the log — a marker-keyed reading

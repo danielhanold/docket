@@ -1,7 +1,7 @@
 <!-- results-template.md — REQUIRED close-out artifact for every implemented change (trivial
-     included; change 0410). Authored and consolidated by the coordinator in the FEATURE worktree,
+     included). Authored and consolidated by the coordinator in the FEATURE worktree,
      committed on <type>/<slug> at each checkpoint and finally before the implemented transition.
-     Written for a mid-level engineer with little knowledge of Docket internals (change 0440):
+     Written for a mid-level engineer with little knowledge of Docket internals:
      lead with what the reader must do and what changed; implementation detail belongs in the
      linked PR, plan, and evidence. Angle-bracket instructions are authoring guidance only —
      remove them from actual artifacts. The Human action statement and Outcome are required at

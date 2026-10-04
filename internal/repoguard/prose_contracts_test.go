@@ -285,8 +285,8 @@ var proseContracts = []proseContract{
 	// untouched and still pins "Merged plans and results are frozen build records.")
 	{sentinel: "change_0410_convention_results", file: "skills/docket-convention/SKILL.md",
 		present: []string{
-			"required close-out artifacts (one per implemented change, trivial included; change 0410)",
-			"required close-out artifact for every implemented change, trivial included (change 0410)",
+			"required close-out artifacts (one per implemented change, trivial included)",
+			"required close-out artifact for every implemented change, trivial included.",
 		}},
 	// change 0410 — docket-build's end-of-build capture ownership: the controller
 	// may checkpoint on the coordinator's behalf, but task workers never write the
