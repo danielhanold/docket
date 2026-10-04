@@ -14,7 +14,7 @@ discovered_from: [496]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md'
 plan: 'docs/superpowers/plans/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md'
-results:
+results: 'docs/results/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-04T06:13:02Z'
 |---|---|
 | Spec | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md) |
 | Plan | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md](https://github.com/danielhanold/docket/blob/fix/committed-ignore-invalid-hint-for-an-absent-gitignore-names/docs/superpowers/plans/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) |
+| Results | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-results.md](https://github.com/danielhanold/docket/blob/fix/committed-ignore-invalid-hint-for-an-absent-gitignore-names/docs/results/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
