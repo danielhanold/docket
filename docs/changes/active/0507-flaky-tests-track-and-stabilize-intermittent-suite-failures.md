@@ -10,7 +10,7 @@ updated: '2026-10-04'
 depends_on: []
 stacked_on:
 related: [381]
-discovered_from: [504, 506]
+discovered_from: [504, 506, 520]
 adrs: []
 spec:
 plan:
@@ -35,7 +35,7 @@ The full suite occasionally fails on tests that pass on a plain re-run, which co
 
 ## What changes
 
-Maintain a list of known flaky tests in this ticket, each with name, package, observed failure, frequency and the change that saw it. Then stabilize them one at a time: reproduce under parallel load and -race, find the real timing race, fix the test or the code under test, and never mask it with retries or loosened assertions. Seed list: (1) internal/process TestObserveRunningThenTerminal. (2) tests/test_go_finalize_e2e.sh: not a flake but a slow test, seen by change 0506 — the final full-suite run reported `SERIAL CONFIRMED OVER BUDGET` at 49s run alone against a 45s limit. It is unrelated to 0506 (gitignore code only). Trace why it takes ~49s serially and bring it under the 45s budget by cutting redundant work in the test or its fixtures; raise the budget only if the work proves irreducible, with the evidence recorded.
+Maintain a list of known flaky tests in this ticket, each with name, package, observed failure, frequency and the change that saw it. Then stabilize them one at a time: reproduce under parallel load and -race, find the real timing race, fix the test or the code under test, and never mask it with retries or loosened assertions. Seed list: (1) internal/process TestObserveRunningThenTerminal. (2) tests/test_go_finalize_e2e.sh: not a flake but a slow test, seen by change 0506 — the final full-suite run reported `SERIAL CONFIRMED OVER BUDGET` at 49s run alone against a 45s limit. It is unrelated to 0506 (gitignore code only). Trace why it takes ~49s serially and bring it under the 45s budget by cutting redundant work in the test or its fixtures; raise the budget only if the work proves irreducible, with the evidence recorded. (3) tests/test_go_integration_app_merge.sh: also a slow test, not a flake — seen by change 0520, whose final gate reported it at 92s run alone against a 45s limit. Change 0520 does not touch it. Apply the same treatment as (2): trace why it takes ~92s serially, cut redundant work in the test or its fixtures, and raise the budget only if the work proves irreducible, with the evidence recorded.
 
 ## Out of scope
 
