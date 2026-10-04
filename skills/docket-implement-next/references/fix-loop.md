@@ -178,9 +178,11 @@ workspace is safe to write — the coordinator persists the returned review find
 artifact, then updates their **actual** dispositions at a later checkpoint once the fixes return, so
 that unresolved findings and the fix consequences that matter survive as durable prose rather than
 living only in chat. This does **not** relocate the disposition table: the **PR body remains the
-disposition table's durable home** — the block `docket-finalize-change` reads. The results file
-preserves the findings, their evidence, and their impact for the human; it never carries the machine
-build-evidence block.
+disposition table's durable home** — the block `docket-finalize-change` reads. During the build the
+results file may hold the full returned findings, their evidence, and their impact, so they survive
+a halt before the PR exists; final consolidation condenses them to a one-line review summary plus
+Known issues entries for the findings not fixed (Step 6.5's *Review findings*). It never carries
+the machine build-evidence block.
 
 ## Beyond-the-branch findings are reported
 
