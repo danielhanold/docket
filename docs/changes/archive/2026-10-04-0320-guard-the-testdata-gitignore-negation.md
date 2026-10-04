@@ -2,11 +2,11 @@
 id: 320
 slug: guard-the-testdata-gitignore-negation
 title: 'Guard the testdata gitignore negation'
-status: proposed
+status: 'killed'
 priority: medium
 type: chore
 created: 2026-08-13
-updated: 2026-08-13
+updated: '2026-10-04'
 depends_on: []
 stacked_on:
 related: []
@@ -55,3 +55,7 @@ fixtures themselves.
 **Reason for deferral** — 0305 is merged; its branch is gone. The residual was recorded in its
 results file as knowingly unprobed rather than undetectable, which is exactly the shape this repo's
 own `residual-is-for-undetectable-not-unprobed` finding says should become follow-up work.
+
+## Why killed
+
+Consolidated into #504, which carries this guard together with #380's root-anchored receipt fixture. Same shape (an unprobed residual, one mutation-proven guard each), so they ship as one change.

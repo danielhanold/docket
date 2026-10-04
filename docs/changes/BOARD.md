@@ -1,6 +1,6 @@
 # Backlog
 
-**504 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 6 proposed · ⚪ 13 deferred · ✅ 346 done · 🗑️ 134 killed
+**504 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 5 proposed · ⚪ 13 deferred · ✅ 346 done · 🗑️ 135 killed
 
 ## 🟢 In progress (1)
 
@@ -17,7 +17,7 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (6)
+## 🟡 Proposed (5)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -26,7 +26,6 @@
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 | [0380](active/0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | `medium` | `chore` | needs-grooming |
-| [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-grooming |
 
 ## ⚪ Deferred (13)
 
@@ -59,7 +58,6 @@ graph TD
   0263
   0251 --> 0273
   0302
-  0320
   0393 --> 0345
   0407 --> 0345
   0360
@@ -81,7 +79,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (480)</summary>
+<details><summary>✅🗑️ Archive — done + killed (481)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -89,6 +87,7 @@ graph TD
 | [0500](archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0498](archive/2026-10-04-0498-results-file-puts-the-whole-branch-review-under-human-action.md) | Results file puts the whole-branch review under Human actions and testing | 2026-10-04 |
+| [0320](archive/2026-10-04-0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | 2026-10-04 |
 | [0496](archive/2026-10-03-0496-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) | Add `docket repository repair` and stop flagging empty claimed_at | 2026-10-03 |
 | [0495](archive/2026-10-03-0495-drop-startedrunresult-s-unreachable-empty-input-check.md) | Drop startedRunResult's unreachable empty-input check | 2026-10-03 |
 | [0494](archive/2026-10-03-0494-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md) | A publish killed mid-flight wedges its run's cancel and closeout | 2026-10-03 |
