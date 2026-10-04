@@ -1,11 +1,11 @@
 ---
 name: docket-build
-description: Use as docket's build role (skills.build) — executes an implementation plan task-by-task by routing each task to a named economy/standard/premium/max tier agent running the docket-build-task contract, with one bounded escalation per task, no per-task review, and a single full-suite gate at the end.
+description: Use as docket's build role — executes an implementation plan task-by-task by routing each task to a named economy/standard/premium/max tier agent running the docket-build-task contract, with one bounded escalation per task, no per-task review, and a single full-suite gate at the end.
 ---
 
 # docket-build — tier-routed plan execution
 
-docket's build role, bound by `skills.build`. You run inside `docket-implement-next` Step 5 with
+docket's build role. You run inside `docket-implement-next` Step 5 with
 the plan written and the worktree cut: read the plan, route each task to a tier, dispatch one
 fresh worker per task, apply the escalation protocol, run the build gate. Then you stop — review
 is not yours.
@@ -87,13 +87,11 @@ for a **named** agent the wrapper's own `skills:` frontmatter is the operative p
 forbids is bolting a review skill or instruction onto the dispatch prompt.
 <!-- docket:feature-dispatch:end -->
 
-If tier dispatch is genuinely unavailable — established only per the convention's
-*Dispatch-capability resolution*, **never from a tool name** — this role's fallback is
-**`auto-or-halt`**: only an explicitly configured `skills.build: auto` authorizes inline execution.
-Selecting `docket-build` is not implicit authorization to discard its isolation or its model/effort
-contract, so halt per *Halting conditions* instead.
+A tier agent that cannot be dispatched — established only per the convention's
+*Dispatch-capability resolution*, **never from a tool name** — is the **`halt`** posture: halt per
+*Halting conditions*, and never execute tasks inline.
 
-A tier agent **not registered on this machine** is the same `auto-or-halt` condition reached
+A tier agent **not registered on this machine** is the same `halt` condition reached
 differently: the harness rejected a dispatch naming `docket-build-economy` — a concrete rejection of a
 named agent, never an inference from a missing tool name, so the rule above stands. The cause is a
 stale install (`install.sh` generates the wrappers; a harness registers them only at session start):
@@ -171,7 +169,7 @@ rules elsewhere in this file name their condition and point here rather than res
 disposition.
 
 - **Tier routing is un-dispatchable**, established per the convention's *Dispatch-capability
-  resolution* and never from a tool name, and `skills.build: auto` was not explicitly configured.
+  resolution* and never from a tool name.
 - **A tier agent is not registered on this machine** — the harness rejected a dispatch naming
   it. Remedy: re-run `install.sh`, then start a fresh session.
 - **An explicit plan `Build tier:` value is invalid** — a plan contract error; never fall back
@@ -252,8 +250,8 @@ ran_at:   <UTC ISO-8601>
 `head_sha` and `ran_at`.
 
 The record certifies the branch so the review step need not re-run the suite; `docket-implement-next`
-Step 6 validates it and Step 7 writes it into the PR body, then runs the resolved `skills.review`
-role once over the whole branch. Only a green run — or an explicit `build_gate: off` — mints a
+Step 6 validates it and Step 7 writes it into the PR body, then runs the review role (`docket-review`)
+once over the whole branch. Only a green run — or an explicit `build_gate: off` — mints a
 record: a red suite mints no evidence record at all, and enters the repair path below.
 
 **Red** → the build **never invokes review**. `build_max_attempts` (from the implementation context,
@@ -364,8 +362,7 @@ the next safe boundary it controls.
 
 This build performs **no per-task independent review** and **no final review of its own**. The
 worker's self-review is part of implementation, not a second agent or an adversarial gate. Docket's
-single independent whole-branch review remains `docket-implement-next` Step 6's `skills.review` role,
-separately configurable.
+single independent whole-branch review remains `docket-implement-next` Step 6's review role (`docket-review`).
 
 ## Checkpointing
 

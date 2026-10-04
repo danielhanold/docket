@@ -95,12 +95,10 @@ observed, never elapsed time; a blocked foreground controller has no clock.
 
 **If tier dispatch is unavailable** — established only per the convention's
 *Dispatch-capability resolution*, **never from a tool name**; an unregistered tier wrapper is
-the same condition reached by a concrete rejection — the fix dispatch is **`auto-or-halt`**, on the same
-terms Step 5's build role carries: an explicitly configured `skills.build: auto`
-authorizes running the fix inline under this same contract, and any other resolved value is
-abort-and-report. That authorizer is **borrowed on purpose** — a fix worker runs the
-`docket-build-task` contract at `docket-build`'s own tiers, so the build role's switch is the
-honest one and no `skills.fix` knob exists. Recording every finding instead is **not** the
+the same condition reached by a concrete rejection — the fix dispatch is the **`halt`** posture, on
+the same terms Step 5's build role carries: a fix worker runs the build role's own contract
+(`docket-build-task` at `docket-build`'s tiers), so it is never run inline — halt, abort-and-report.
+Recording every finding instead is **not** the
 fallback — that fails the loop open silently, and a blocker would ride out to the PR unfixed.
 
 - **Order: blockers first, then importants, then minors.** Non-blocker fix commits are therefore
