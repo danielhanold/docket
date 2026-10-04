@@ -22,7 +22,7 @@ branch: 'fix/align-the-skills-and-agent-files-with-the-docket-binary'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T11:51:54Z'
+claimed_at: '2026-10-04T12:11:05Z'
 ---
 
 ## Artifacts
