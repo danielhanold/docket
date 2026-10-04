@@ -35,3 +35,4 @@ Do this after the post-merge binary rebuild. Use any repo where you are about to
 - The existing exact-match integration assertions were updated to the new line and pass.
 - The dispatch-block guards (`TestCommittedCodexDispatchMatchesGenerator`, `TestDispatchBlockBudget`) went red after the rule edit and green after regeneration through docket's install path. The embedded-asset check (`genassets -check`) passes.
 - Full suite: certified by the build gate at the head that carries this file. The evidence is in the PR body.
+- Whole-branch review (standard tier): no findings.
