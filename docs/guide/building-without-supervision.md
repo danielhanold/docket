@@ -1,11 +1,11 @@
 # Build: Building without supervision
 
-By the end of this page you can hand a designed piece of work to an autonomous loop and get back an
-open pull request, without babysitting it — and you will understand what the loop checks before it
-writes a line of code, how it decides how hard to work on each part, and where it stops and waits
+By the end of this page you can hand a designed piece of work to implement-next and get back an
+open pull request, without babysitting it — and you will understand what a build run checks before
+it writes a line of code, how it decides how hard to work on each part, and where it stops and waits
 for you. The one thing it never does is merge; that stays your call.
 
-## Why hand work to the loop at all
+## Why hand work to implement-next at all
 
 If you already run coding agents in your repos, you have probably felt the gap this fills.
 
@@ -16,22 +16,23 @@ gap by adding a full living-spec lifecycle, but at the cost of a command-line de
 markdown contract not every project wants to adopt.
 
 Docket sits in between. It adds a thin lifecycle layer — plain markdown files in your repo, a
-handful of skills (a **skill** is a named, reusable instruction set an agent loads for one job), no
-extra command-line tool to install — and by default hands each execution step back to whatever
-workflow engine you already use. The code stays the single source of truth about current state:
+handful of skills (a **skill** is a named, reusable instruction set an agent loads for one job), and
+its own `docket` binary, which the skills call for every bookkeeping step. Brainstorming, planning,
+and finishing a branch use the superpowers skills; building and reviewing use docket's own
+`docket-build` and `docket-review` skills. The code stays the single source of truth about current state:
 docket keeps no living-spec layer and never tries to mirror your codebase in prose. The decisions
 behind the code are recorded separately, as ADRs (an **ADR** is an architecture decision record: one
 file per decision, immutable once accepted).
 
-But the thin lifecycle is not the real reason to use the loop. The reconcile step is.
+But the thin lifecycle is not the real reason to use docket. The reconcile step is.
 
 ## Reconcile: killing stale work before any code
 
-This is the most valuable and least obvious part of the loop.
+This is the most valuable and least obvious part of a build run.
 
 **The problem.** A change (one unit of planned work, roughly one pull request, tracked as one
 markdown file) is drafted against a *snapshot* of the world — the codebase, the recorded decisions,
-and the other in-flight work as they stood the day you wrote it. In a durable backlog, the loop may
+and the other in-flight work as they stood the day you wrote it. In a durable backlog, a build run may
 not pick that work up for a week or a month. By then another change may have already shipped what
 this one planned to add; a decision may have settled an open question in the opposite direction; or
 a dependency may have changed the interface this design assumed.
@@ -40,7 +41,7 @@ Most backlog-driven systems build the ticket as written and let the worker disco
 halfway through. The classic results: re-implementing something already done elsewhere, or building
 something a later decision has invalidated.
 
-**What the loop does instead.** Every run includes a **reconcile** step (a check at build time that
+**What a build run does instead.** Every run includes a **reconcile** step (a check at build time that
 the change is still worth doing and its assumptions still hold, before any code is written). It runs
 at the last responsible moment — *after* the change is claimed, so it belongs to this run, but
 *before* the working copy and the plan are created, so no build effort is wasted if the scope
@@ -52,9 +53,9 @@ scope, and folds in new constraints, leaving a dated reconcile-log entry and a `
 mark as an audit trail.
 
 Two escape hatches handle what a rewrite cannot. If the change is now entirely obsolete, it is
-killed and the loop moves on to the next one. If the design is fundamentally invalidated — it needs
+killed and the run moves on to the next one. If the design is fundamentally invalidated — it needs
 re-thinking, not just scope-trimming — the run stops and escalates to you, because re-designing
-needs a human and the loop will not do it alone.
+needs a human and a build run will not do it alone.
 
 The stance: **plans rot; refresh them just-in-time, and never trust a stale backlog.** If an
 interrupted run resumes with `reconciled` still `false`, the full reconcile pass runs again before
@@ -62,10 +63,10 @@ any work continues.
 
 ## What one unattended run does, end to end
 
-A single run of the autonomous loop walks a fixed path and then stops:
+A single implement-next run walks a fixed path and then stops:
 
 1. **Pick.** It selects the next **build-ready** change (a proposed change that has a spec or is
-   marked trivial and whose dependencies are all merged). It never touches work that is not ready.
+   marked trivial and whose dependencies are all `done`). It never touches work that is not ready.
 2. **Claim.** It takes a **claim** on that change (the moment a change is picked up for building; it
    records which branch will carry the work and when it was taken) with a conflict-checked write on the
    change's status, so two runs in parallel can never grab the same change. The claim carries a
@@ -112,7 +113,7 @@ line on that task; an invalid value halts the build rather than silently falling
 Each task carries **at most one automatic escalation**, and only ever one tier up: an `economy`
 worker that cannot finish retries once at `standard`, a `standard` worker once at `premium`, a
 `premium` worker once at `max`. There is never a second climb — a `max` worker that still cannot
-finish halts the build for a human rather than looping. The concrete payoff of this shape is that a
+finish halts the build for a human rather than climbing again. The concrete payoff of this shape is that a
 cheap task costs a cheap worker, a risky task gets a strong one, and a task that turns out harder
 than it looked gets exactly one shot at more capability before a human is asked.
 
@@ -123,8 +124,8 @@ deeper mechanism behind tier routing and the gate verdict lives in
 
 ## Draining the queue hands-free
 
-A single run builds one change. To drain a whole backlog you loop the run, and the loop keys on the
-outcome each run declares. Every run ends by declaring one of four outcomes:
+A single run builds one change. To drain a whole backlog you start runs one after another, and
+whatever starts them keys on the outcome each run declares. Every run ends by declaring one of four outcomes:
 
 - **advanced** — it built a change and opened a pull request.
 - **contended** — it lost a claim race to another run and built nothing.
@@ -133,7 +134,7 @@ outcome each run declares. Every run ends by declaring one of four outcomes:
 
 A driver keys on these with one simple rule: **continue on `advanced` or `contended`, stop on
 `drained` or `halted`.** The contract is deliberately driver-agnostic — a human re-typing the
-command between runs satisfies it exactly as well as any automated runner, so nothing here depends
+command between runs satisfies it exactly as well as any automated driver, so nothing here depends
 on a particular tool.
 
 The recommended driver is the built-in `/loop`, which starts a fresh run each iteration so the heavy
@@ -146,10 +147,10 @@ build work stays isolated and the driver's own context stays small:
   waiting on an unmerged dependency — is skipped this drain with its reason, not waited on.
 
 Budget and iteration caps belong to the driver, not to docket, which does not reimplement them. The
-one invariant the driver never breaks is the PR handoff: **the loop never merges.** A dependency
-therefore only clears between drains when a merge happens outside the loop — you clicking Merge, or a
-separate close-out drain ([Landing changes safely](./landing-changes.md)). Confirm the driver
-composes cleanly in your own setup before relying on it unattended; loop behavior is version- and
-mode-specific. The bookkeeping that decides whether a stopped run may be retried at all — who
+one invariant the driver never breaks is the PR handoff: **a build run never merges.** A dependency
+therefore only clears between drains, once its pull request is merged outside the drain — you
+clicking Merge, or a separate close-out drain ([Landing changes safely](./landing-changes.md)) — and
+the change reaches `done`. Confirm the driver composes cleanly in your own setup before relying on it
+unattended; `/loop` behavior is version- and mode-specific. The bookkeeping that decides whether a stopped run may be retried at all — who
 launched it, whether it finished, whether a re-dispatch is allowed — is the run tracker, described in
 [The run tracker and attribution](../concepts/run-tracker.md).

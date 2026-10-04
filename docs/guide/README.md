@@ -1,20 +1,20 @@
 # Guide
 
 How do I do the thing? Each page below takes one goal end to end, and its title names the docket
-component it is about. Start with the daily loop for the shape of a day's work, then read the page
+component it is about. Start with the five steps for the shape of the work, then read the page
 for whatever step you are on. Installing docket and configuring it is its own section:
 [Install and configure](../install/README.md).
 
-- [The daily loop](daily-loop.md) — the handful of steps you run by name in a day of docket work,
-  and which page covers each one in full.
+- [The five steps](five-steps.md) — the handful of steps you run by name when you work with
+  docket, and which page covers each one in full.
 - [Change: Capturing work that outlives the session](capturing-work.md) — turn an idea into a
-  tracked unit of work that survives the session it occurred to you in, so you (or the autonomous
-  loop) can pick it up weeks later without re-explaining it.
+  tracked unit of work that survives the session it occurred to you in, so you (or an autonomous
+  build run) can pick it up weeks later without re-explaining it.
 - [Groom: Designing before building](designing-before-building.md) — take a half-formed stub through
   the step between capturing and building, until an autonomous run can implement it without
   guessing.
 - [Build: Building without supervision](building-without-supervision.md) — hand a designed piece of
-  work to an autonomous loop and get back an open pull request, and learn what it checks, how hard
+  work to implement-next and get back an open pull request, and learn what it checks, how hard
   it works on each part, and where it stops and waits for you.
 - [Suite gate: Proving the build](proving-the-build.md) — how a finished branch earns the right to be
   reviewed and merged: the test run that certifies it and the durable record that run leaves behind.

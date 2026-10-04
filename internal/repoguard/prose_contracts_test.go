@@ -79,7 +79,7 @@ var proseContracts = []proseContract{
 	{sentinel: "test_consultant_brainstorm", file: "skills/docket-brainstorm/SKILL.md",
 		present: []string{"docket-brainstorm-consultant"}},
 	{sentinel: "test_consultant_brainstorm", file: "docs/guide/designing-before-building.md",
-		present: []string{"brainstorm: docket-brainstorm"}},
+		present: []string{"The consultant is the `docket-brainstorm-consultant` agent"}},
 	// tests/test_convention_extraction.sh — operating skills carry the load-first line
 	// and never copy the convention (the begin marker is a copy tell).
 	{sentinel: "test_convention_extraction", file: "skills/docket-implement-next/SKILL.md",
@@ -202,9 +202,6 @@ var proseContracts = []proseContract{
 	// tests/test_docket_example_yml.sh — key-presence core (full correspondence scan flagged).
 	{sentinel: "test_docket_example_yml", file: ".docket.example.yml",
 		present: []string{"board_surfaces", "agent_harnesses", "finalize:"}},
-	// tests/test_typed_changes_docs.sh — README typed-change vocabulary rule.
-	{sentinel: "test_typed_changes_docs", file: "docs/guide/capturing-work.md",
-		present: []string{"untyped set can only shrink"}},
 	// tests/test_change_types.sh — the change template still ships a type placeholder.
 	{sentinel: "test_change_types", file: "skills/docket-new-change/change-template.md",
 		present: []string{"type:"}},

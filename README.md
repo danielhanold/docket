@@ -7,8 +7,8 @@ implementation of the Plan, Design, Build, Test, and Deploy stages of Anthropic'
 ([stage-by-stage comparison](docs/comparison/ai-native-sdlc-playbook.md)) — git-native,
 harness-neutral, with the human at the merge. Each unit of work is a **change**: one markdown
 file, roughly one pull request's worth of work, that moves through a fixed lifecycle from idea
-to archived record — coordinated entirely through git, with no service, no database, and no
-CLI to install.
+to archived record — coordinated entirely through git, with no service and no database. A
+single `docket` binary, installed by `install.sh`, does the bookkeeping the skills ask for.
 
 ## What you get
 
@@ -23,7 +23,7 @@ CLI to install.
 - **No new infrastructure.** Markdown files, git, and skills any supported harness can run —
   Claude Code, Cursor, Codex, and opencode are first-class.
 - **The right model for each step.** Every autonomous skill is pinned to its own model and
-  effort, so a board refresh runs at a cheap tier while a build runs at a top one — see
+  effort, so a status check runs at a cheap tier while a build runs at a top one — see
   [Models: tuning model and effort per task](docs/install/models-and-effort.md).
 
 ## The committed artifact chain
@@ -75,7 +75,7 @@ Plan approval is deliberately **not** a human point: your checkpoint is the PR, 
 the diff, and the evidence arrive together. And docket ends at the merge — it does not deploy to production,
 monitor production, or feed incidents back into the backlog.
 
-## Install and the daily loop
+## Install and the five steps
 
 ```bash
 cd ~/dev/docket
@@ -85,11 +85,12 @@ bash install.sh
 
 Re-run `install.sh` after every update — it is idempotent and machine-global. Full
 prerequisites and what an install run does: [Installing docket](docs/install/install.md). To adopt
-docket in an existing repo, run `docket repository migrate` from inside it
-([Migration](docs/guide/where-the-metadata-lives.md)).
+docket in a repository, run `docket repository init` from inside it; `docket repository migrate`
+is only for converting a repository that still uses the legacy single-branch layout
+([Where the metadata lives](docs/guide/where-the-metadata-lives.md)).
 
-The daily loop, one skill per step
-([Quickstart](docs/guide/daily-loop.md)):
+The five steps, one skill per step
+([Quickstart](docs/guide/five-steps.md)):
 
 1. **Capture** an idea into the backlog — `docket-new-change`.
 2. **Groom** rough stubs to build-ready — `docket-groom-next` (or `docket-auto-groom`).
@@ -116,11 +117,10 @@ start-here path through them.
 
 ## Status
 
-docket-mode — planning metadata on its own orphan `docket` branch — is the supported default;
-`main`-mode (`metadata_branch: main`) remains a simple opt-out that keeps everything on one
-branch. Five documented features are deferred from Go v1 and activate nothing today:
-`auto_capture`, `terminal_publish`, the automated learnings harvest/index/promotion,
-`dummy_mode`, and `github_project`.
+docket keeps its planning records on their own orphan `docket` branch, checked out at `.docket/`
+next to your code; that is the one supported layout. Everything this README and the linked
+documentation describe is what the `docket` binary and its skills do today. Run
+`docket capabilities --json` for the exact list of operations your installed binary supports.
 
 ## License
 

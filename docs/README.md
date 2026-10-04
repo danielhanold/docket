@@ -9,12 +9,12 @@ each pointing at the surface that holds the current value.
 
 ## Start here
 
-Install, configure, then follow the daily loop and read the page for the step you are on:
+Install, configure, then follow the five steps and read the page for the step you are on:
 
 [Installing docket](install/install.md) → [Global config](install/global-config.md) → your
 harness page ([Claude Code](install/claude-code.md), [Cursor](install/cursor.md),
 [Codex](install/codex.md), or [opencode](install/opencode.md)) →
-[The daily loop](guide/daily-loop.md) → [Capturing work](guide/capturing-work.md) →
+[The five steps](guide/five-steps.md) → [Capturing work](guide/capturing-work.md) →
 [Building without supervision](guide/building-without-supervision.md) →
 [Landing changes](guide/landing-changes.md)
 
@@ -30,12 +30,8 @@ Index: [install/README.md](install/README.md)
   `~/.config/docket/config.yml`: what belongs there, and how to enable a second harness.
 - [Repo config](install/config-layers.md) — `.docket.yml` and `.docket.local.yml`, the four-layer
   precedence, the shared-setting guard, and what happens when a file is misplaced or malformed.
-- [Workflow roles](install/workflow-roles.md) — rebind any of the five workflow steps to a
-  different skill, or to none, with the `skills:` map.
 - [Models](install/models-and-effort.md) — run each docket skill at its own model and effort
   instead of one session-wide tier, and how the pin survives a direct invocation.
-- [Delegation](install/delegating-across-harnesses.md) — hand an agent's whole run to a different
-  harness with its own subscription and models.
 - Harnesses — one page each: [Claude Code](install/claude-code.md), [Cursor](install/cursor.md),
   [Codex](install/codex.md), [opencode](install/opencode.md).
 
@@ -43,16 +39,16 @@ Index: [install/README.md](install/README.md)
 
 Index: [guide/README.md](guide/README.md)
 
-- [The daily loop](guide/daily-loop.md) — the handful of steps you run by name in a day of docket work,
-  and which page covers each one in full.
+- [The five steps](guide/five-steps.md) — the handful of steps you run by name when you work with
+  docket, and which page covers each one in full.
 - [Change: Capturing work that outlives the session](guide/capturing-work.md) — turn an idea into a
-  tracked unit of work that survives the session it occurred to you in, so you (or the autonomous
-  loop) can pick it up weeks later without re-explaining it.
+  tracked unit of work that survives the session it occurred to you in, so you (or an autonomous
+  build run) can pick it up weeks later without re-explaining it.
 - [Groom: Designing before building](guide/designing-before-building.md) — take a half-formed stub through
   the step between capturing and building, until an autonomous run can implement it without
   guessing.
 - [Build: Building without supervision](guide/building-without-supervision.md) — hand a designed piece of
-  work to an autonomous loop and get back an open pull request, and learn what it checks, how hard
+  work to implement-next and get back an open pull request, and learn what it checks, how hard
   it works on each part, and where it stops and waits for you.
 - [Suite gate: Proving the build](guide/proving-the-build.md) — how a finished branch earns the right to be
   reviewed and merged: the test run that certifies it and the durable record that run leaves behind.
