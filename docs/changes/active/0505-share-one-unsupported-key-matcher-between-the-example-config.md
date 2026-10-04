@@ -2,7 +2,7 @@
 id: 505
 slug: 'share-one-unsupported-key-matcher-between-the-example-config'
 title: 'Share one unsupported-key matcher between the example-config test and the docs guard'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/share-one-unsupported-key-matcher-between-the-example-config'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/380'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T10:54:14Z'

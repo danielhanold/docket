@@ -1,12 +1,12 @@
 # Backlog
 
-**509 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 350 done · 🗑️ 137 killed
+**509 changes** — 🔵 1 built · 🟣 4 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 350 done · 🗑️ 137 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0505](active/0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | `low` | `refactor` | [spec](../superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) | `refactor/share-one-unsupported-key-matcher-between-the-example-config` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0505](active/0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | `low` | `refactor` | [#380](https://github.com/danielhanold/docket/pull/380) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
