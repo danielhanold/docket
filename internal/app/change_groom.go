@@ -84,8 +84,10 @@ const reasonSpecRevisionMismatch = "spec-revision-mismatch"
 const specsDir = "docs/superpowers/specs"
 
 // autoGroomBlockedHeading is the abstain marker section: the abstain
-// outcome appends to it, and the board's "auto-groom blocked — needs you" cell
-// keys on its presence (domain.ReadyAutoGroomBlocked).
+// outcome appends to it, the re-enable outcome removes it, and a section
+// edit naming it is refused on revise and re-enable. The board's
+// "auto-groom blocked — needs you" cell keys on its presence
+// (domain.ReadyAutoGroomBlocked).
 const autoGroomBlockedHeading = "## Auto-groom blocked"
 
 // ChangeGroomRequest is the closed, caller-supplied request for one groom. Path
@@ -333,6 +335,11 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 			}
 		} else if !hasEffectiveSectionEdit(req.Sections) && req.Title == "" {
 			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown, at least one replace/remove section edit, or a title")
+		}
+		for _, s := range req.Sections {
+			if s.Heading == autoGroomBlockedHeading {
+				addShape(FCInvalidSectionHeading, "abstain and re-enable own \"## Auto-groom blocked\"; a revise section edit may not name it")
+			}
 		}
 	case GroomAbstain:
 		if strings.TrimSpace(req.BlockedNote) == "" {
