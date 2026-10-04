@@ -2,7 +2,7 @@
 id: 506
 slug: 'drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi'
 title: 'Drop the retired-harness globs from the managed .gitignore block'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/378'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T09:20:47Z'

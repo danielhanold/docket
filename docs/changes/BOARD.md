@@ -1,13 +1,18 @@
 # Backlog
 
-**506 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 3 proposed · ⚪ 13 deferred · ✅ 348 done · 🗑️ 136 killed
+**506 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 3 proposed · ⚪ 13 deferred · ✅ 348 done · 🗑️ 136 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0506](active/0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-design.md) | `fix/drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi` |  |
 | [0497](active/0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-re-running-finalize-can-start-a-second-suite-beside-an-orpha-design.md) | `fix/re-running-finalize-can-start-a-second-suite-beside-an-orpha` |  |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0506](active/0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | `low` | `fix` | [#378](https://github.com/danielhanold/docket/pull/378) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
