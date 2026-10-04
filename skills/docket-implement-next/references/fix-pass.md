@@ -1,10 +1,10 @@
 # fix-pass — repairing review findings in-branch
 
-The mechanics behind `docket-implement-next` Step 6's bounded fix loop. **Read this before
+The mechanics behind `docket-implement-next` Step 6's bounded fix pass. **Read this before
 dispatching the first fix task.** Loaded on demand from Step 6; sibling files are not auto-loaded
 with the skill.
 
-The loop runs **after review returns and before the PR opens**, on the branch that is already
+The fix pass runs **after review returns and before the PR opens**, on the branch that is already
 green. The PR handoff does not move: every auto-authored fix arrives inside the diff they
 were going to read anyway. Nothing here relaxes `docket-review`'s read-only contract (ADR-0066) —
 the reviewer stays a reviewer, and the fixing is the implementer's.
@@ -78,7 +78,7 @@ takes the PR-body record path unchanged.
 The reviewer's `unverified-build-state` blocker is the one finding you never hand to a worker: you
 resolve it by re-running the suite yourself, **before any fix task dispatches**. That re-run does
 **not** count against the suite gate's two-run bound below — it establishes the green baseline the
-loop requires rather than verifying the loop's own work, and charging it to the gate would spend the
+fix pass requires rather than verifying the fix pass's own work, and charging it to the gate would spend the
 revert path's re-run before a single fix existed. A run that hits it therefore spends **at most
 three** suite runs across Step 6; the bound below is scoped to the gate and is unchanged.
 
@@ -100,7 +100,7 @@ the same condition reached by a concrete rejection — the fix dispatch is the *
 the same terms Step 5's build role carries: a fix worker runs the build role's own contract
 (`docket-build-task` at `docket-build`'s tiers), so it is never run inline — halt, abort-and-report.
 Recording every finding instead is **not** the
-fallback — that fails the loop open silently, and a blocker would ride out to the PR unfixed.
+fallback — that fails the fix pass open silently, and a blocker would ride out to the PR unfixed.
 
 - **Order: blockers first, then importants, then minors.** Non-blocker fix commits are therefore
   the tail of the branch, and the suite gate below can lift them off without unstacking a blocker
@@ -134,7 +134,7 @@ docket-build's gate uses, and refresh the build-evidence record from the result.
 
 **Green** → proceed to Step 6.5 with the refreshed record.
 
-**Red** → the loop must not leave the branch worse than the green build that entered it:
+**Red** → the fix pass must not leave the branch worse than the green build that entered it:
 
 1. **Revert the non-blocker fix commits** by tracked SHA — the importants and minors. Blocker
    fixes stay: the run cannot proceed without them. They are the branch's tail by the dispatch
@@ -171,7 +171,7 @@ Every finding returned by the reviewer takes exactly one of these states — the
 accounting, so a finding that reached the report path below still gets a row rather than
 vanishing from the human's view.
 
-**Results-checkpoint linkage (change 0410).** Before a long fix loop — and **only** when the
+**Results-checkpoint linkage (change 0410).** Before a long fix pass — and **only** when the
 workspace is safe to write — the coordinator persists the returned review findings to the results
 artifact, then updates their **actual** dispositions at a later checkpoint once the fixes return, so
 that unresolved findings and the fix consequences that matter survive as durable prose rather than

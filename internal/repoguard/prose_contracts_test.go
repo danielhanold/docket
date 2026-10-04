@@ -646,7 +646,7 @@ func TestUninstallCollectionDocContracts(t *testing.T) {
 // the exception, or substituting abort as the remedy, goes red.
 var rebaseRecoveryDocContracts = []docSectionContract{
 	{change: "change_0411_recovery_exception_skill", file: "skills/docket-finalize-change/SKILL.md",
-		section: "### 3. Rebase onto the effective base (resolver loop)", terminator: "### 4. The local gate",
+		section: "### 3. Rebase onto the effective base (resolver rounds)", terminator: "### 4. The local gate",
 		present: []string{
 			"re-run `finalize.rebase-continue` with the same `--id <id> --attempt <attempt> --input <report>`",
 			"never route this persistence failure to `finalize.rebase-abort`",
@@ -656,7 +656,7 @@ var rebaseRecoveryDocContracts = []docSectionContract{
 		present: []string{
 			"Preserve the workspace, the receipt, and the original resolver report",
 			"Re-run `finalize.rebase-continue` with the same `--id <id> --attempt <attempt> --input <report>`",
-			"an operator remedy, not an autonomous retry loop",
+			"an operator remedy, not an autonomous retry",
 			"resumes via the original identical `finalize.rebase` invocation",
 		}},
 	{change: "change_0411_recovery_not_in_abort_set", file: "skills/docket-finalize-change/references/gate-failure.md",

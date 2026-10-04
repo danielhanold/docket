@@ -124,7 +124,7 @@ are absorbed into step 1 and carry no separate command):
 |---|---|
 | `docket-finalize-change` (single-change close-out) | **abort-and-report** — stop this change's close-out, surface the failure |
 | `docket-status` merge sweep (bulk janitor) | **log-and-continue** — abandon the remainder of this change's close-out, move to the next change; the next sweep self-heals idempotently |
-| `docket-implement-next` reconcile-kill | trust each exit code; a failure aborts the kill and is surfaced before looping back to selection |
+| `docket-implement-next` reconcile-kill | trust each exit code; a failure aborts the kill and is surfaced before returning to selection |
 | `docket-new-change` proposed-kill | same as reconcile-kill — surface and stop; nothing else is in flight |
 
 **Step-failure propagation:** step 1's atomic transaction owns the archive move, the `## Artifacts`

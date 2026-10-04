@@ -61,7 +61,7 @@ nothing becomes build-ready without pinned-tier sign-off.
 
 ## Step 3 — Present + write
 
-Show the authored spec to the human. Change requests loop back as further dispatch
+Show the authored spec to the human. Change requests go back as further dispatch
 rounds (Step 2 again, with the requested changes folded into the brief). On approval,
 write the spec to the configured spec path and **STOP AT THE SPEC** — the 0049 role
 artifact/stop-point is unchanged. Do NOT continue to `superpowers:writing-plans`;

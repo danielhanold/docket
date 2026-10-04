@@ -79,7 +79,7 @@ Every operating skill starts identically; skill bodies compress to a pointer her
 
 **Mid-run posture.** Construct every subsequent docket invocation from the fetched catalog entry for the semantic operation the skill names. An operation the workflow needs that is **absent** from the catalog → the workflow's existing hard-error posture; never guess a spelling. An invocation resolved from a validated catalog that returns **unknown-command mid-run** → the binary was replaced or is inconsistent: **stop**; do not silently refetch and switch interfaces mid-workflow. An operation whose cataloged `effects` **exceed the workflow's authorized boundary** → stop with a capability-mismatch diagnostic. A `--request`/`--input` body is built from that operation's `schema` descriptor (per *Reaching docket's operations*), never guessed, probed, or read from source.
 
-All metadata reads and writes happen in the `.docket/` worktree on the `docket` branch, pushed to its remote immediately. Every mid-run metadata re-sync — pre-read syncs and **conflict-checked push-retry loops alike** — is a fresh `repository.prepare` run (for a push-retry loop: re-run `repository.prepare`, then retry the push); plain git plumbing (`git add`/`commit`/`push`, `git -C` forms) stays direct — and stages by explicit path: that tree is SHARED, so `git add -A`, `git add .`, or `commit -a` there sweeps up whatever another agent had staged at that instant, committing it under your message and pushing it (observed live, change 0247 — a groom's three staged files landed in two unrelated autonomous commits, and its own commit then reported "nothing to commit"). Stage by explicit path.
+All metadata reads and writes happen in the `.docket/` worktree on the `docket` branch, pushed to its remote immediately. Every mid-run metadata re-sync — pre-read syncs and **conflict-checked push retries alike** — is a fresh `repository.prepare` run (for a push retry: re-run `repository.prepare`, then retry the push); plain git plumbing (`git add`/`commit`/`push`, `git -C` forms) stays direct — and stages by explicit path: that tree is SHARED, so `git add -A`, `git add .`, or `commit -a` there sweeps up whatever another agent had staged at that instant, committing it under your message and pushing it (observed live, change 0247 — a groom's three staged files landed in two unrelated autonomous commits, and its own commit then reported "nothing to commit"). Stage by explicit path.
 
 ### Harness-native recovery after sandbox or permission denial
 
@@ -148,7 +148,7 @@ docket's workflow steps are **roles**, each done by one fixed skill:
   BOARD.md                # generated board (NEVER hand-edited); spans active + archive
   README.md               # small static blurb linking to BOARD.md (NOT generated)
   LEARNINGS.md            # pointer stub → learnings/ (the pre-0067 single-file ledger)
-  learnings/              # curated build-loop findings; written by learning.record / learning.update (see "Learnings ledger")
+  learnings/              # curated findings from builds; written by learning.record / learning.update (see "Learnings ledger")
     <slug>.md             # one finding per lesson/family — living files, extended on re-hit
     README.md             # derived index; no operation refreshes it, never hand-edited
 <adrs_dir>/               # default docs/adrs/  — flat; ADRs are NEVER archived
@@ -306,7 +306,7 @@ minted or discarded** — a human captures reported work deliberately with `dock
 
 ### Learnings ledger
 
-`<changes_dir>/learnings/` — the project's **build-loop memory**: one curated finding per file,
+`<changes_dir>/learnings/` — the project's **learnings ledger**: one curated finding per file,
 on the `docket` branch only, never published to the integration branch. `LEARNINGS.md` remains as a
 pointer stub to the earlier single-file ledger. The finding files are written by the
 `learning.record` and `learning.update` operations; the index (`learnings/README.md`) is a

@@ -4,12 +4,12 @@ The shared classification rubric behind docket's tier-routed work. **Two consume
 file**, and it is written for both:
 
 - **`docket-build`** routes each plan task to a tier agent (`## Routing` in its `SKILL.md`).
-- **`docket-implement-next`** routes each review finding in its Step 6 fix loop
+- **`docket-implement-next`** routes each review finding in its Step 6 fix pass
   (`references/fix-pass.md`).
 
 Neither restates it. What is classified differs — a plan task, a review finding — but the question
 is identical: *how much reasoning investment does this piece of work need, and what happens if it
-is got wrong?* Consumer-specific rules (a plan's `**Build tier:**` override, the fix loop's
+is got wrong?* Consumer-specific rules (a plan's `**Build tier:**` override, the fix pass's
 `premium` ceiling, escalation ladders) belong to each consumer, not here.
 
 ## The rubric
@@ -33,7 +33,7 @@ below.
   this closed list, so uncertainty still sinks to `standard`.
 - **`standard`** — everything remaining; the default and the uncertainty sink. Deliberately includes
   hard-but-safe work: difficulty known ahead of time is handled by the consumer's own override
-  **where one exists** (docket-build's `**Build tier:**`; the fix loop has no override at all, so
+  **where one exists** (docket-build's `**Build tier:**`; the fix pass has no override at all, so
   a known-hard finding simply routes here), and difficulty discovered while working is handled by
   the `standard -> premium` escalation.
 - **`economy`** — *only when* the work is fully specified, follows an established pattern, carries no
@@ -45,4 +45,4 @@ below.
 
 `max` is rare by construction. Its doors are narrow and each consumer states its own: docket-build
 admits the two-item rubric above, an explicit plan override, and a `premium` escalation; the fix
-loop admits **none of them** — it never dispatches `max` at all.
+pass admits **none of them** — it never dispatches `max` at all.

@@ -59,7 +59,7 @@ surface it — never silently fall back to a default.
 
 **Otherwise classify** using the shared character→tier rubric in
 [`references/task-routing.md`](references/task-routing.md) — the same rubric
-`docket-implement-next`'s Step 6 fix loop reads, which is why it lives in a file rather than here.
+`docket-implement-next`'s Step 6 fix pass reads, which is why it lives in a file rather than here.
 **Read it now (blocking) before routing your first task.** It carries the deliberate asymmetry
 (`economy` positively established, uncertainty sinking to `standard`), the `max`/`premium`
 organizing principle, and the four tier bullets. Never restate it in this file or in your dispatch
@@ -228,8 +228,8 @@ run posture* requires: **completed successfully** means that artifact records a 
 never red. Nor is every non-zero status red: a completed run whose recorded status the resolved
 runner defines as a **non-failure** outcome is a halt per *Halting conditions*, the same refusal the
 configuration gap gets — neither has a failure to repair. **Red** is a completed run that is neither
-green nor one of those halts. When the resolved command is a **loop over per-file commands**, the
-deciding status is the **aggregate** the loop exits with, never any individual file's. This rule
+green nor one of those halts. When the resolved command is a **sequence of per-file commands**, the
+deciding status is the **aggregate** the sequence exits with, never any individual file's. This rule
 binds every full-suite run this role performs, including every post-repair attempt below.
 
 **Green** → the build is done. Emit the **build-evidence** record — a marker-bounded block carrying
@@ -311,7 +311,7 @@ operations (`start`, `advance`, `handoff`, `claim`), whose caller-side contract 
 vocabulary live in `references/gate-driver.md` (**read it now, blocking, before the gate**).
 Drive the suite through short synchronous `gate.drive.start` then `gate.drive.advance` calls; the
 driver composes the raw supervisor and owns the detached run, durable drive record, artifact-based
-completion, and fail-closed budget. **Reuse the driver, never a shell observe loop** — a hand-rolled
+completion, and fail-closed budget. **Reuse the driver, never a hand-rolled polling script** — a hand-rolled
 sleep-and-parse over `gate.observe` is the retired drift that once spun a gate until a human resumed
 it; the raw `gate.launch`/`observe`/`stop` operations are primitives, never this role's workflow API.
 
