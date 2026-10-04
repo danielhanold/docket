@@ -1,21 +1,16 @@
 # Backlog
 
-**523 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 359 done · 🗑️ 139 killed
+**523 changes** — 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 360 done · 🗑️ 139 killed
 
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0511](active/0511-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa.md) | Upgrade guide from Bash docket to the Go binary, proven on saved v0.9.2 and v0.9.3 installs | `critical` | `docs` | [#389](https://github.com/danielhanold/docket/pull/389) | awaiting merge |
-
-## 🟣 Groomed (2)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | v1.0.0-alpha.1 acceptance and publication (Claude Code) | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -24,7 +19,6 @@
 | [0513](active/0513-release-v1-0-0-alpha-3-prove-and-publish-opencode-support.md) | Release v1.0.0-alpha.3: prove and publish OpenCode support | `high` | `chore` | ⏳ waiting on #512 — not yet built |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | ⏳ waiting on #366 — not yet built |
 | [0507](active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Flaky tests: track and stabilize intermittent suite failures | `low` | `fix` | needs-grooming |
-| [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | v1.0.0-alpha.1 acceptance and publication (Claude Code) | `critical` | `chore` | ⏳ waiting on #511 — needs your merge |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
@@ -70,7 +64,6 @@ graph TD
   0433
   0503
   0507
-  0511
   0366 --> 0512
   0512 --> 0513
   0511 --> 0514
@@ -81,10 +74,11 @@ graph TD
   0393:::done
   0407:::done
   0502:::done
+  0511:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (498)</summary>
+<details><summary>✅🗑️ Archive — done + killed (499)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -95,6 +89,7 @@ graph TD
 | [0517](archive/2026-10-04-0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | 2026-10-04 |
 | [0516](archive/2026-10-04-0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) | Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match | 2026-10-04 |
 | [0515](archive/2026-10-04-0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | 2026-10-04 |
+| [0511](archive/2026-10-04-0511-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa.md) | Upgrade guide from Bash docket to the Go binary, proven on saved v0.9.2 and v0.9.3 installs | 2026-10-04 |
 | [0510](archive/2026-10-04-0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | 2026-10-04 |
 | [0509](archive/2026-10-04-0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -106,7 +101,6 @@ graph TD
 | [0500](archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0498](archive/2026-10-04-0498-results-file-puts-the-whole-branch-review-under-human-action.md) | Results file puts the whole-branch review under Human actions and testing | 2026-10-04 |
-| [0497](archive/2026-10-04-0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | 2026-10-04 |
 | [0380](archive/2026-10-04-0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | 2026-10-04 |
 | [0320](archive/2026-10-04-0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | 2026-10-04 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
@@ -247,7 +241,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 16 done |
+| [2026-10](archive/) | 17 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
