@@ -68,8 +68,7 @@ your model rejects docket's token, pin `effort` explicitly alongside your model.
 
 Everything above configures opencode as the harness **hosting** your session. Runner delegation is
 the other direction — your session stays in Claude Code and individual docket agents are handed to
-opencode, with its models and its bill, for their whole run. The config recipe and its full rules
-live under [Delegation](delegating-across-harnesses.md); this is a **different mechanism** from the
+opencode, with its models and its bill, for their whole run. This is a **different mechanism** from the
 hosting path here: hosting writes `reasoningEffort:` into `.opencode/agents/docket-*.md`, read by
 opencode's own agent loader, while delegation bakes `--variant` into the shim's command line. Same
 `effort:` key in your config, two different destinations.

@@ -157,6 +157,12 @@ var livingDocRoots = []string{
 	"docs/README.md",
 	"docs/concepts",
 	"docs/guide",
+	"docs/install/README.md",
+	"docs/install/install.md",
+	"docs/install/keeping-current.md",
+	"docs/install/global-config.md",
+	"docs/install/config-layers.md",
+	"docs/install/models-and-effort.md",
 }
 
 // livingDocFiles returns every .md file under roots (a root may be a file),

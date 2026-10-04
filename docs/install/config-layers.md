@@ -22,25 +22,25 @@ through to the shipped default. From strongest to weakest:
    over everything.
 2. **Repo-committed** — that repository's committed `.docket.yml`. Applies to every clone of the
    repo, on every machine.
-3. **Global** — your cross-repo file at `~/.config/docket/config.yml`. This machine, every repo on
-   it. See [Global config](global-config.md).
-4. **Built-in** — docket's shipped defaults, when no layer above sets the key.
+3. **Global** — your cross-repo file at `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml`. This
+   machine, every repo on it. See [Global config](global-config.md).
+4. **Built-in** — docket's compiled-in defaults, when no layer above sets the key.
 
 The concrete consequence of "resolved independently, per key": if the global file sets one key and
 the repo's committed file sets a different key, both take effect — the repo file does not replace
 the whole global file, only the one key it names. Where two layers set the *same* key, the higher
-one on the list wins outright.
+one on the list wins outright. Nested blocks such as `finalize:` or `review:` merge key by key the
+same way: setting one key in a block leaves its other keys resolving from the layers below.
 
-Two keys hold a map rather than a single value: `skills:` (rebinds workflow steps — see
-[Workflow roles](workflow-roles.md)) and `agents:` (per-agent model and effort, covered in
-[Models](models-and-effort.md)). These **merge field by field** with the same precedence, so a
-global default and a repo override can each set different fields of the same map and both survive.
+One block is the exception: the `agents:` model and effort pins are honoured **only** from the
+global file, because docket installs agent wrappers for your user rather than per repository. See
+[Models](models-and-effort.md).
 
-One historical key is worth knowing because you may still see it: `runtime.bash` named the path to
-a machine's Bash and was the deliberate exception to the precedence above — a machine-identity
-value resolved repo-local over global, with a committed value warned and ignored. That key is now
-**obsolete** (the Bash runtime it named was retired) and is warned-and-ignored in every layer, but
-the local-over-global rule it illustrated still governs any future machine-identity key.
+To see what docket actually resolved, and anything that would block a write, run:
+
+```bash
+docket diagnostic config --repo-dir .
+```
 
 ## The per-repo file: `.docket.yml`
 
@@ -50,66 +50,50 @@ agent, and device needs the same shared values, and the default branch is the on
 (a named, reusable instruction set an agent loads for one job) can reliably find it before any
 other configuration has been read.
 
-Every key is optional; an unset key means the shipped default. Common per-repo keys name where
-planning and code live and how the board (the generated overview of every change and its state,
-never edited by hand) is rendered — `metadata_branch`, `integration_branch`, and `board_surfaces`
-— all of which are explained where they matter in
-[Where the metadata lives](../guide/where-the-metadata-lives.md), plus the finalize-gate switch
-`finalize.gate` covered in [Proving the build](../guide/proving-the-build.md). Set only the keys you
-want to change, and copy their shape from `.docket.example.yml` rather than from any snippet — that
-example file is the surface the test suite keeps honest against docket's own resolver, and is
-deliberately the only place that enumerates every key.
+Every key is optional; an unset key means the built-in default. Common per-repo keys name where
+code lands and how the board (the generated overview of every change and its state, never edited
+by hand) is rendered — `integration_branch` and `board_surfaces` — both explained where they matter
+in [Where the metadata lives](../guide/where-the-metadata-lives.md), plus the finalize-gate switch
+`finalize.gate` covered in [Proving the build](../guide/proving-the-build.md), and `agent_harnesses`,
+which opts the repository in to a harness's dispatch surfaces (the managed block in `CLAUDE.md` /
+`AGENTS.md`, and for Cursor `.cursor/rules/docket-dispatch.mdc`). `agent_harnesses` has no default:
+while it is absent, the install touches no repository surface. Set only the keys you want to
+change, and copy their shape from `.docket.example.yml` rather than from any snippet — that example
+file is the surface the test suite keeps honest against docket's own resolver, and is deliberately
+the only place that enumerates every key.
 
-With no `.docket.yml` at all, a repo runs in docket's default two-branch mode. What that mode is,
-and how to opt out of it, is [Where the metadata lives](../guide/where-the-metadata-lives.md).
+With no `.docket.yml` at all, a repo runs on the built-in defaults. Where the backlog itself is
+stored is [Where the metadata lives](../guide/where-the-metadata-lives.md).
 
 ## Machine-local overrides: `.docket.local.yml`
 
 A repository's `.docket.local.yml` is an optional, **gitignored** sibling of its committed
 `.docket.yml` — an override scoped to both this machine *and* this repo that never leaves the
-clone. Reach for it when the value is genuinely yours alone: a personal model preference, a local
-test command, or a way to try a setting before committing it for the whole team. It accepts the
-same **global-able** key set as the global file.
+clone. Reach for it when the value is genuinely yours alone: a local test command, or a way to try
+a setting before committing it for the whole team. It accepts every `scope: any layer` key.
 
-Because it never leaves your clone, it deliberately **cannot** set the shared, coordination keys
-(the next section): those are warned-and-ignored here just as they are in the global file, so a
-machine-local value can never silently split shared state. Its own path, and every file docket's
-installer generates, is kept out of git by a marker-bounded block the installer maintains in the
-repo's `.gitignore`.
+Because it never leaves your clone, it deliberately **cannot** set the shared keys (the next
+section): those are ignored with a warning here just as they are in the global file, so a
+machine-local value can never silently split shared state. Its own path is kept out of git by a
+marker-bounded block in the repo's `.gitignore`, written by `docket repository init` or
+`docket repository migrate` and checked by `docket repository check`.
 
 ## The shared-setting guard
 
-Some keys write **shared** state, and a value for them that lived on only one machine would
-silently split the backlog across machines or mint external objects that others cannot see. These
-are **coordination keys** — a coordination key being a config key whose value must be identical for
-every clone, so it may only be set in the committed repo config. They are ignored, with a loud
-warning, when set either globally **or** in a repo's `.docket.local.yml`; they take effect only in
-the committed `.docket.yml`.
-
-The guarded keys are `metadata_branch`, `integration_branch`, `changes_dir`, `adrs_dir`,
-`results_dir`, `github_project`, `terminal_publish`, and the `github` token of `board_surfaces` —
-each naming either the **metadata branch** (the `docket` git branch where the backlog, specs, and
-decisions are stored, separate from the code), the **integration branch** (the branch code lands
-on, usually `main`), a shared directory, or an external GitHub object. The reasoning behind the
-guard — why a per-clone value here would corrupt shared state — is
+Some keys name **shared** planning state, and a value for them that lived on only one machine would
+silently split the backlog across machines. These are the four repository-only keys —
+`integration_branch`, `changes_dir`, `adrs_dir`, and `results_dir` — naming the **integration
+branch** (the branch code lands on, usually `main`) and the directories on the `docket` branch where
+the change files, the ADR ledger, and the results records live. They take effect only in the
+committed `.docket.yml`; set globally **or** in a repo's `.docket.local.yml`, they are ignored with
+a warning. The reasoning behind the guard is
 [Config layers and the shared-setting guard](../concepts/config-layers.md).
 
 ## When a config file is misplaced or malformed
 
-docket fails soft on a bad or misplaced file rather than bricking a repo:
-
-- A `~/.config/docket/.docket.yml` is **never read** — the resolver warns and points you at the
-  correct name, `config.yml`. (The global file is `config.yml`; `.docket.yml` is the per-repo
-  name.)
-- A malformed or unreadable `config.yml` (or `.docket.local.yml`) warns and falls back to the
-  built-in defaults **for that layer only**. The repo's own committed file and every other layer
-  are still honored, so a broken personal or machine-local file never takes a working repository
-  down with it.
-
-### Migrating from `agents.yaml`
-
-Older docket kept per-agent settings in a separate global file, `~/.config/docket/agents.yaml`.
-That file is migrated automatically: the next install run rewrites its contents under the `agents:`
-key of `config.yml` and renames the original to `agents.yaml.migrated`. Nothing reads the old file
-after the migration, so there is no manual step — the first install after upgrading does it for
-you.
+- A `~/.config/docket/.docket.yml` is **never read**. The global file is `config.yml`;
+  `.docket.yml` is the per-repo name.
+- A malformed file, an unknown key, or a bad value in **any** layer makes the whole configuration
+  invalid — there is no per-layer fallback — and docket refuses to change the repository until it
+  is fixed. A file that exists but cannot be read is a load error.
+- `docket diagnostic config --repo-dir .` names the offending file and key.

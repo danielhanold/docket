@@ -25,6 +25,22 @@ Each line names one skill directory under `skills/` and its job.
 - **docket-review** — the bounded read-only whole-branch reviewer role.
 - **docket-status** — refresh the backlog, sweep merged changes to done, and run health checks.
 
+## Default workflow roles
+
+docket runs five workflow steps, and each one is carried out by a fixed default skill. Three come
+from the superpowers plugin; docket owns `build` and `review` itself.
+
+| Role | Default skill | Where it runs |
+|---|---|---|
+| `brainstorm` | `superpowers:brainstorming` | up-front design, before the spec |
+| `plan` | `superpowers:writing-plans` | the task plan built from the spec |
+| `build` | `docket-build` | executing the plan task by task |
+| `review` | `docket-review` | whole-branch review before the pull request |
+| `finish` | `superpowers:finishing-a-development-branch` | pushing the branch and opening the pull request |
+
+If a superpowers skill is not installed, that step runs inline at the agent's own model, with a
+prominent warning.
+
 ## Agents
 
 Each line names one agent file under `agents/` and its job.

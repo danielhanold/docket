@@ -1,40 +1,35 @@
 # Global config: machine-wide defaults in `~/.config/docket/config.yml`
 
 Settings you want on **every** repo on your machine go in one optional user-level file,
-`~/.config/docket/config.yml` (more precisely `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml`).
-It accepts the **same schema as `.docket.yml`**, and a repository's committed `.docket.yml` wins
-over it per key. This is where a personal preference that spans your work belongs — a default
-`skills:` binding, your per-agent model and effort choices, a taxonomy of change types you use
-across projects — rather than repeating it in every repo. Its full accepted key set is the
-global-able subset documented in `.docket.example.yml`; how this file ranks against the repo's own
-files is [Repo config](config-layers.md).
+`~/.config/docket/config.yml` (more precisely `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml`).
+A repository's committed `.docket.yml` and its `.docket.local.yml` both win over it per key; how
+the layers rank is [Repo config](config-layers.md).
 
-The installer writes a minimal `config.yml` the first time it runs and non-destructively maintains
-its managed values. docket's ordinary defaults already apply, so a Claude-Code-only user can stop
-here.
+Nothing creates or maintains this file for you: docket's built-in defaults apply until you write
+one, so a Claude-Code-only user can skip this page entirely.
+
+Two kinds of setting belong here:
+
+- **Your per-agent model and effort pins.** The `agents:` block is honoured **only** from this file
+  — docket installs agent wrappers for your user, not per repository, so the pins are a property of
+  your machine. The built-in values are compiled into docket and mirrored, value for value, in
+  [`agents/harness-defaults.yml`](../../agents/harness-defaults.yml), a shipped file you read but
+  never edit. To change one, see [Models](models-and-effort.md), then re-run the install.
+- **Any `scope: any layer` key you want as your personal default** across repositories — for
+  example `review.min_fix_severity` or `reclaim.lease_ttl`. A repository's own files still win.
 
 The canonical reference for every key is [`.docket.example.yml`](../../.docket.example.yml): every
-config key, active at its shipped default, with full documentation and a scope tag saying which
-layers may set it. Copy the keys you want to change into the layer you want them in.
+supported key at its built-in default, with a short note and a scope tag saying which layers may
+set it. Copy only the keys you want to change. The four `scope: repo-only` keys
+(`integration_branch`, `changes_dir`, `adrs_dir`, `results_dir`) are ignored here with a warning.
 
-- **To see docket's built-in per-skill model and effort:** they all live in
-  [`agents/harness-defaults.yml`](../../agents/harness-defaults.yml) — docket's shipped,
-  harness-indexed default sidecar, not a file you edit. All four of the example's commented harness
-  blocks — `agents.claude`, `agents.cursor`, `agents.codex`, and `agents.opencode` — mirror it in
-  full, value for value. To change one, see [Models](models-and-effort.md).
-- **To enable another harness (Cursor, Codex, opencode):** add it to `agent_harnesses` and re-run
-  `install.sh`; the Go engine reconciles that harness's wrappers and dispatch surfaces for you.
-  Leave the harness's `agents:` block commented, since it only restates the shipped defaults and
-  uncommenting it would freeze today's values into your config forever. `agent_harnesses` is the
-  **explicit opt-in** for a repository's parent-facing dispatch surfaces, and it has **three
-  states**: *absent* leaves the shipped default (Claude only) in force and writes no other harness's
-  repository surfaces; a *non-empty* list reconciles exactly the harnesses you name; and an
-  *explicit empty* list (`agent_harnesses: []`) retires every docket-owned repository surface the
-  repo previously had. An absent key touches nothing — only an explicit value reconciles or retires.
-  Each harness page ([Cursor](cursor.md), [Codex](codex.md), [opencode](opencode.md)) covers what
-  its opt-in writes and where the repo itself must also opt in.
+`agent_harnesses` does not belong here: the installer ignores a value in the global config.
+Enabling a harness for a repository is that repository's own decision, made in its `.docket.yml` or
+`.docket.local.yml`; each harness page ([Cursor](cursor.md), [Codex](codex.md),
+[opencode](opencode.md)) covers what that opt-in writes.
 
-Two things to know if the file is not behaving: a `~/.config/docket/.docket.yml` is never read
-(the global file is `config.yml`), and an older `~/.config/docket/agents.yaml` is migrated into it
-automatically. Both are covered under *When a config file is misplaced or malformed* in
+If the file is not behaving, check its name — the global file is `config.yml`, and
+`~/.config/docket/.docket.yml` is never read — and run `docket diagnostic config --repo-dir .`
+from any repository to see the resolved configuration. A malformed global file makes the whole
+configuration invalid, as described under *When a config file is misplaced or malformed* in
 [Repo config](config-layers.md).
