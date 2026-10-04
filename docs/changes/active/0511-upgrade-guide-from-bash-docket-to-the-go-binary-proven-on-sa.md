@@ -13,7 +13,7 @@ related: [366, 502, 464, 392, 322, 363, 377, 409, 323]
 discovered_from: [366]
 adrs: [96, 99]
 spec: 'docs/superpowers/specs/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary.md'
 results:
 trivial: false
 auto_groomable: false
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T17:59:48Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa-design.md) |
+| Plan | [2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary.md](https://github.com/danielhanold/docket/blob/docs/upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa/docs/superpowers/plans/2026-10-04-upgrade-guide-from-bash-docket-to-the-go-binary.md) |
 | ADRs | [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
