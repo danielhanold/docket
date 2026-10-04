@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/share-one-unsupported-key-matcher-between-the-example-config'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T10:44:18Z'
+reconciled: true
+claimed_at: '2026-10-04T10:46:03Z'
 ---
 
 ## Artifacts
@@ -48,3 +48,9 @@ Design: the linked spec.
 ## Out of scope
 
 Changing which keys count as unsupported, what else the two guards check (citations, the structural extractor, refused values of supported keys), or the schema registry.
+
+## Reconcile log
+
+### 2026-10-04
+
+Reconciled against main f68dec6f1. Both duplicated matchers (exampleUnsupportedKeyShapes in internal/config/example_correspondence_test.go, unsupportedKeyShapes in internal/repoguard/docs_alignment_test.go) still exist as the spec describes, with the single optional comment marker. No intervening change touched them. Scope unchanged; the no-new-failures claim is re-verified by the build gate.
