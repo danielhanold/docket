@@ -1,13 +1,18 @@
 # Backlog
 
-**521 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 357 done · 🗑️ 139 killed
+**521 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 357 done · 🗑️ 139 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0521](active/0521-finish-schema-operation-documentation-outcomes-md-flag-only.md) | Mark every nested required request field in the schema, and fix the stale schema docs | `low` | `fix` | [spec](../superpowers/specs/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md) | `fix/finish-schema-operation-documentation-outcomes-md-flag-only` |  |
 | [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | `high` | `fix` | [spec](../superpowers/specs/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-design.md) | `fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an` |  |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0521](active/0521-finish-schema-operation-documentation-outcomes-md-flag-only.md) | Mark every nested required request field in the schema, and fix the stale schema docs | `low` | `fix` | [#387](https://github.com/danielhanold/docket/pull/387) | awaiting merge |
 
 ## 🟣 Groomed (3)
 

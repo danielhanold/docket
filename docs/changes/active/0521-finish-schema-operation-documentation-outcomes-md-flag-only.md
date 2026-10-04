@@ -2,7 +2,7 @@
 id: 521
 slug: 'finish-schema-operation-documentation-outcomes-md-flag-only'
 title: 'Mark every nested required request field in the schema, and fix the stale schema docs'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/finish-schema-operation-documentation-outcomes-md-flag-only'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/387'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T16:51:15Z'
