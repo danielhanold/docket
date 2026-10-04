@@ -14,7 +14,7 @@ discovered_from: [320, 380]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md'
 plan: 'docs/superpowers/plans/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md'
-results:
+results: 'docs/results/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-04T08:53:27Z'
 |---|---|
 | Spec | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md) |
 | Plan | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md](https://github.com/danielhanold/docket/blob/chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a/docs/superpowers/plans/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) |
+| Results | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-results.md](https://github.com/danielhanold/docket/blob/chore/guard-two-unproven-invariants-the-testdata-ignore-negation-a/docs/results/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
