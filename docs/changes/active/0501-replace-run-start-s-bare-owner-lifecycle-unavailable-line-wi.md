@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T06:26:31Z'
+reconciled: true
+claimed_at: '2026-10-04T06:27:35Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ The caveat itself is real and worth keeping (change 0375, ADR-0118): on the defa
 - Making `run.start` aware of which dispatch route follows it, or having `agent.enter` report its death guardian.
 - Changing or removing the JSON `owner_lifecycle` field or the `ReasonOwnerLifecycleUnavailable` constant.
 - Rewording the rule's "there is no automatic Stop button" heading, which is also inexact on the Codex route.
+
+## Reconcile log
+
+### 2026-10-04
+
+Re-read against current main (20bc0a36a). `startedRunResult` still stamps `ReasonOwnerLifecycleUnavailable` on every start and `RunStartResult.HumanText` still appends the bare token; the rule text in `cursor-rules/run-tracker.md` (and its embedded copy) still says "it reports the honest owner-lifecycle caveat". Test sites match the spec (plus `runtracker_start_resume_integration_test.go` references the token and must be checked). `docs/reference/glossary.md` names the caveat as a concept and stays accurate. No scope change.
