@@ -2,7 +2,7 @@
 id: 517
 slug: 'make-evidence-record-certify-a-finalize-re-test-with-the-fin'
 title: 'Make evidence.record certify a finalize re-test with the finalize gate settings'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin'
 pr: 'https://github.com/danielhanold/docket/pull/386'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T16:11:40Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T16:11:40Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-design.md) |
-| Plan | [2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md](https://github.com/danielhanold/docket/blob/fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin/docs/superpowers/plans/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) |
-| Results | [2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-results.md](https://github.com/danielhanold/docket/blob/fix/make-evidence-record-certify-a-finalize-re-test-with-the-fin/docs/results/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-results.md) |
+| Plan | [2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) |
+| Results | [2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-make-evidence-record-certify-a-finalize-re-test-with-the-fin-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
