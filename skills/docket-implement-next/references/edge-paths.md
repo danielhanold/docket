@@ -70,7 +70,7 @@ worktree carries at most one live run. When the caller starts the resume (`run.s
   admits one replacement, only after cancellation is confirmed.
 
 **The plan seam (change 0324).** An attributed caller-side re-dispatch — one naming the id and
-`verify-run`'s unmet conditions — enters this resume path before ordinary ready-queue and
+the `run.verify` operation's unmet conditions — enters this resume path before ordinary ready-queue and
 proposed-only allowlist filtering; a normal invocation that merely names an already-`in-progress`
 id still skips it (it may belong to a live concurrent run — the run tracker's
 before-set/dispatch attribution is what distinguishes a resume from claim theft). Then:

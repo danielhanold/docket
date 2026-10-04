@@ -1073,6 +1073,19 @@ var alignmentContracts = []proseContract{
 		absent:  []string{"learnings.cap", "## Capacity", "human curation"}},
 	{sentinel: "align_0502_publish_learnings_groom", file: "skills/docket-adr/SKILL.md",
 		absent: []string{"(deferred)", "terminal publish"}},
+	// 0502: typed operations replace the Bash-era names.
+	{sentinel: "align_0502_typed_ops", file: "skills/docket-convention/SKILL.md",
+		present: []string{"`stack-base-unresolved`", "`change.resume-halted`"},
+		absent:  []string{"stack-base.sh", "disable-worktree-hooks", "verify-run", "scripts/<name>.md"}},
+	{sentinel: "align_0502_typed_ops", file: "skills/docket-convention/references/stacked-changes.md",
+		present: []string{"`workspace.prepare`", "`finalize.retarget-children`", "`change-stack-cycle`"},
+		absent:  []string{"verify-run", "fm_field", "git worktree add", "gh pr edit", "stack-invalid", "stack-parent-killed"}},
+	{sentinel: "align_0502_typed_ops", file: "skills/docket-convention/references/close-out.md",
+		absent: []string{"scripts/<name>.md", "board off", "promote-failed", "stack-carried-failed"}},
+	{sentinel: "align_0502_typed_ops", file: "skills/docket-implement-next/SKILL.md",
+		absent: []string{"reclaim-claims", "does not clear an interrupted run's marker"}},
+	{sentinel: "align_0502_typed_ops", file: "skills/docket-implement-next/references/edge-paths.md",
+		absent: []string{"verify-run"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {

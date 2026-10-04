@@ -25,12 +25,13 @@ it can lag a child added later. Anything that decides — a gate, a report, a cl
 typed descendant set from the `context.finalize` operation (its `descendants` and `open_child_prs`
 fields) instead.
 
-The key is **optional**, so every read of it uses the anchored `fm_field`, never `field` — in this
-repo a change body discussing `stacked_on:` is ordinary content, and an unanchored read of an absent
-key falls through to it.
+The key is **optional**, and a change body discussing `stacked_on:` is ordinary content, so no skill
+reads the stack from the record text: it reads the typed fields the binary parses from frontmatter —
+`effective_base` on the `status` operation's `--json` output, and the `context.*` operations below.
 
 A chain must be **acyclic and complete**: every ancestor exists and no id repeats. A chain that is
-neither is a data defect, reported as the `stack-invalid` health check — never worked around.
+neither is a data defect — a cycle is the `change-stack-cycle` validation finding, a missing ancestor
+resolves to the `missing-parent` kind below — and is never worked around.
 
 `stacked_on` is orthogonal to `depends_on`. `depends_on` gates *readiness* on a dependency reaching
 `done`; `stacked_on` says *where this change's code sits*. Stacking a change on a parent does not
@@ -46,11 +47,12 @@ transition yet to publish.
 
 What it satisfies:
 
-- **`verify-run`** — an implement-next run that reached it is complete; the change is not unclaimed.
 - **The board** — it renders in its own section.
 
 What it does **not** satisfy:
 
+- **`run.verify`'s `run-complete`.** That verdict requires `implemented`; a `stacked-merged` change
+  is a claimed run, never `run-unclaimed`, but it reports `run-incomplete`.
 - **`depends_on` for anything.** A dependency is satisfied at `done` and at nothing else. A change
   depending on a `stacked-merged` change is still waiting, correctly: that code has not shipped.
 - **Close-out.** Nothing is archived, published, or cleaned up until the stack root lands.
@@ -99,8 +101,7 @@ The walk applies four rules, upward from the change:
 **Never fall back to the integration branch on a `parent-killed` or an invalid `kind`.** Each carries
 an empty `branch` precisely so a caller cannot mistake a broken stack for a fine one; a silent
 fallback produces a branch nobody designed while every surface still reports it as stacked. The kinds
-are separate because the remedies are, and the board reports them as the separate
-`stack-parent-killed` and `stack-invalid` health checks.
+are separate because the remedies are.
 
 A change whose base does not resolve is **not build-ready**: the board reads
 *waiting on #A — stack base not built* and the digest token is `stack-base-unresolved`.
@@ -112,11 +113,11 @@ there. Everything else about the feature branch is unchanged: it is cut after cl
 carries only plan + results + code, and never modifies docket metadata.
 
 ```
-git worktree add .worktrees/<slug> -b <type>/<slug> origin/<effective-base>
+workspace.prepare  --id <id> --revision <revision>   # cuts <type>/<slug> from the effective base; resolve argv from the capability catalog
 ```
 
-The PR **targets that same base**, not the integration branch. Fetch the base ref directly before
-cutting, as with any feature branch.
+The `workspace.prepare` operation cuts the branch; no skill runs `git worktree` by hand. The PR
+**targets that same base**, not the integration branch.
 
 **The child's rebase is lazy.** A child is not rebased when the parent's branch moves; it is rebased
 at the child's **own next finalize gate**, which already rebases onto its base and re-runs the suite
@@ -151,8 +152,9 @@ no change is a typed refusal, never an all-clear. `descendants` carries the whol
   - **Interactive finalize warns and lets the human override.** State which children are open and
     what the override costs (their PRs must be retargeted now, by this run), then proceed only on an
     explicit go-ahead.
-- **Retarget every open child PR explicitly, BEFORE the parent's branch is deleted** —
-  `gh pr edit <child-pr> --base <the parent's own base>` — and verify each edit landed. **Docket
+- **Retarget every open child PR explicitly, BEFORE the parent's branch is deleted** — the
+  `finalize.retarget-children` operation moves each onto the parent's own effective base and reports
+  a per-child outcome, so each edit is verified. **Docket
   never relies on GitHub's delete-time base retargeting**: it is a platform behaviour docket does not
   control, it is silent, and it does not exist at all for a branch deleted by any route other than
   the PR merge UI.
@@ -179,8 +181,7 @@ a killed parent is a design decision, not a fallback.
   says is false — and deleting their branches would destroy the only copy of work a human may well
   want to re-parent.
 
-An `effective_base.kind` of `parent-killed` and the `stack-parent-killed` health check are how this
-state is surfaced; the flip itself is a human-directed edit, never an automatic sweep.
+An `effective_base.kind` of `parent-killed` is how this state is surfaced; the flip itself is a human-directed edit, never an automatic sweep.
 
 ## The stack close-out is idempotent
 
