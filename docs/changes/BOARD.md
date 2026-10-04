@@ -1,6 +1,6 @@
 # Backlog
 
-**510 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 4 proposed · ⚪ 13 deferred · ✅ 351 done · 🗑️ 137 killed
+**510 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 3 proposed · ⚪ 13 deferred · ✅ 352 done · 🗑️ 137 killed
 
 ## 🟢 In progress (1)
 
@@ -8,25 +8,19 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0502](active/0502-align-the-skills-and-agent-files-with-the-docket-binary.md) | Align the skills and agent files with the docket binary | `medium` | `fix` | [spec](../superpowers/specs/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md) | `fix/align-the-skills-and-agent-files-with-the-docket-binary` |  |
 
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0509](active/0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | `medium` | `chore` | [#381](https://github.com/danielhanold/docket/pull/381) | awaiting merge |
-
-## 🟣 Groomed (3)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0510](active/0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | `medium` | `feat` | [spec](../superpowers/specs/2026-10-04-match-reported-follow-ups-against-proposed-and-deferred-chan-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (4)
+## 🟡 Proposed (3)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0510](active/0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | `medium` | `feat` | ⏳ waiting on #509 — needs your merge |
 | [0507](active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Flaky tests: track and stabilize intermittent suite failures | `low` | `fix` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
@@ -72,7 +66,6 @@ graph TD
   0464 --> 0502
   0503
   0507
-  0509
   0509 --> 0510
   0192:::done
   0251:::done
@@ -80,13 +73,15 @@ graph TD
   0393:::done
   0407:::done
   0464:::done
+  0509:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (488)</summary>
+<details><summary>✅🗑️ Archive — done + killed (489)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0509](archive/2026-10-04-0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
 | [0506](archive/2026-10-04-0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | 2026-10-04 |
 | [0505](archive/2026-10-04-0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | 2026-10-04 |
@@ -105,7 +100,6 @@ graph TD
 | [0493](archive/2026-10-03-0493-cancel-misses-a-replacement-supervisor-behind-a-halted-unatt.md) | Retire the automatic gate relaunch | 2026-10-03 |
 | [0492](archive/2026-10-03-0492-suite-teardown-can-outlive-its-supervisor.md) | Suite teardown can outlive its supervisor | 2026-10-03 |
 | [0491](archive/2026-10-03-0491-stop-fencing-gate-admission-on-the-run-id-keep-the-run-track.md) | Retire the run id; the run key becomes the run tracker's only handle | 2026-10-03 |
-| [0490](archive/2026-10-02-0490-replace-the-durable-worktree-admission-slot-with-a-superviso.md) | Replace the durable worktree admission slot with a supervisor-held kernel lock | 2026-10-02 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
 | [0483](archive/2026-10-02-0483-clean-up-a-killed-change-s-workspace-in-finalize-cleanup.md) | Clean up a killed change's workspace in finalize cleanup | 2026-10-02 |
 | [0457](archive/2026-10-02-0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | 2026-10-02 |
@@ -244,7 +238,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 8 done |
+| [2026-10](archive/) | 9 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

@@ -2,7 +2,7 @@
 id: 509
 slug: 'edit-an-ungroomed-stub-through-a-typed-operation'
 title: 'Edit an ungroomed stub through a typed operation'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'chore/edit-an-ungroomed-stub-through-a-typed-operation'
 pr: 'https://github.com/danielhanold/docket/pull/381'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T11:57:41Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T11:57:41Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md) |
-| Plan | [2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation.md](https://github.com/danielhanold/docket/blob/chore/edit-an-ungroomed-stub-through-a-typed-operation/docs/superpowers/plans/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation.md) |
-| Results | [2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-results.md](https://github.com/danielhanold/docket/blob/chore/edit-an-ungroomed-stub-through-a-typed-operation/docs/results/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-results.md) |
+| Plan | [2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation.md) |
+| Results | [2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
