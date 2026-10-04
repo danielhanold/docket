@@ -20,4 +20,9 @@
 
 ## STOPs
 
-(none yet)
+### STOP 1 — Phase 2, evidence byte-equality (2026-10-04)
+
+- Gate: `evidence.json` `checksums_txt` must be byte-equal to the bundle's `checksums.txt`.
+- Reason: they differ only by the final newline. The workflow builds `$checksums` with a shell command substitution (`.github/workflows/release-candidate.yml`, `--arg checksums "$checksums"`), which strips trailing newlines. All five bundle digests recomputed and match the manifest; no unmatched lines.
+- Resolution: human (Daniel) accepted as benign on 2026-10-04; candidate kept. No source change.
+- Resumption probe: `git ls-remote origin refs/heads/main` = 49e4af94b838ed11beb7ee32027eb122425632d9.
