@@ -536,6 +536,7 @@ type docSectionContract struct {
 	section    string   // exact heading line that opens the section
 	terminator string   // exact heading line that must follow and closes the section
 	present    []string // clauses required within [section, terminator), matched whitespace-collapsed
+	absent     []string // retired clauses that must appear NOWHERE in the file, matched whitespace-collapsed
 }
 
 // change 0323 — the uninstall/version-collection lifecycle documented for users.
@@ -598,6 +599,12 @@ func scanDocSection(content string, c docSectionContract) []string {
 	for _, p := range c.present {
 		if !strings.Contains(body, collapseWS(p)) {
 			v = append(v, fmt.Sprintf("%s §%q: missing required clause %q", c.file, c.section, p))
+		}
+	}
+	whole := collapseWS(content)
+	for _, a := range c.absent {
+		if strings.Contains(whole, collapseWS(a)) {
+			v = append(v, fmt.Sprintf("%s: retired clause is present: %q", c.file, a))
 		}
 	}
 	return v
@@ -721,6 +728,95 @@ func TestRebaseRecoveryDocContracts(t *testing.T) {
 	if len(violations) != 0 {
 		t.Errorf("recovery-exception doc contracts (%d violations):\n%s", len(violations), strings.Join(violations, "\n"))
 	}
+}
+
+// change 0498 — whole-branch review outcomes get a named home in the results
+// file. The PR body keeps the full disposition table; the final results carry a
+// one-line review summary under Verification performed and Known issues entries
+// for unfixed/reported findings; Human actions and testing holds only human
+// work. Each clause is bound to its section (prose-guard-binds-phrase-to-claim)
+// and matched whitespace-collapsed (phrase-grep-over-wrapped-prose). The absent
+// clause is the retired fix-loop sentence that gave review findings no home; it
+// WRAPS in the source, so only the collapsed match can see it
+// (assert-detects-removal-not-replacement). Mutation-tested at introduction.
+var resultsReviewPlacementDocContracts = []docSectionContract{
+	{change: "change_0498_template_review_summary", file: "skills/docket-implement-next/results-template.md",
+		section: "## Verification performed", terminator: "## Known issues and follow-ups",
+		present: []string{
+			"Give the whole-branch review one line: which review ran (the tier, or the custom review skill) and how its findings ended",
+			"full table in the PR body",
+			"A fixed finding with no remaining risk appears in the results only through this line",
+		}},
+	{change: "change_0498_fix_loop_condensation", file: "skills/docket-implement-next/references/fix-loop.md",
+		section: "## Recording — the PR-body disposition table", terminator: "## Beyond-the-branch findings are reported",
+		present: []string{
+			"the **PR body remains the disposition table's durable home**",
+			"During the build the results file may hold the full returned findings, their evidence, and their impact, so they survive a halt before the PR exists",
+			"final consolidation condenses them to a one-line review summary",
+		},
+		absent: []string{
+			"The results file preserves the findings, their evidence, and their impact for the human",
+		}},
+}
+
+// TestResultsReviewPlacementDocContracts binds the change 0498 review-placement
+// clauses to their sections; scanDocSection's missing-section / -terminator /
+// -clause branches are exercised by TestUninstallCollectionDocContracts'
+// non_vacuity subtest, and the absent branch by this test's own.
+func TestResultsReviewPlacementDocContracts(t *testing.T) {
+	root := guardRoot(t)
+
+	// Population floor: a collapse means rows were lost or the table was gutted.
+	checks := 0
+	for _, c := range resultsReviewPlacementDocContracts {
+		checks += len(c.present) + len(c.absent)
+	}
+	if checks < 7 {
+		t.Fatalf("population floor: only %d review-placement doc clauses (expected >= 7)", checks)
+	}
+
+	var violations []string
+	cache := map[string]string{}
+	for _, c := range resultsReviewPlacementDocContracts {
+		content, ok := cache[c.file]
+		if !ok {
+			b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(c.file)))
+			if err != nil {
+				t.Fatalf("read contract file %s (%s): %v (fail closed)", c.file, c.change, err)
+			}
+			content = string(b)
+			cache[c.file] = content
+		}
+		for _, msg := range scanDocSection(content, c) {
+			violations = append(violations, fmt.Sprintf("[%s] %s", c.change, msg))
+		}
+	}
+	if len(violations) != 0 {
+		t.Errorf("review-placement doc-contract violations (%d):\n%s", len(violations), strings.Join(violations, "\n"))
+	}
+
+	t.Run("non_vacuity", func(t *testing.T) {
+		const doc = "intro\n## Alpha\nbody with a\nwrapped clause here\n## Beta\ntail"
+		sec := docSectionContract{file: "x.md", section: "## Alpha", terminator: "## Beta"}
+		// A retired clause that WRAPS in the source is still detected.
+		c := sec
+		c.absent = []string{"with a wrapped clause"}
+		if got := scanDocSection(doc, c); len(got) != 1 {
+			t.Errorf("scanDocSection missed a wrapped absent clause: %v", got)
+		}
+		// A retired clause OUTSIDE the section is still detected (file-wide).
+		c = sec
+		c.absent = []string{"tail"}
+		if got := scanDocSection(doc, c); len(got) != 1 {
+			t.Errorf("scanDocSection missed an absent clause outside the section: %v", got)
+		}
+		// A clause that is genuinely gone produces no violation.
+		c = sec
+		c.absent = []string{"never written"}
+		if got := scanDocSection(doc, c); len(got) != 0 {
+			t.Errorf("scanDocSection flagged an absent clause that is not there: %v", got)
+		}
+	})
 }
 
 // change 0488 — build-task workers run every test directly under a fixed
