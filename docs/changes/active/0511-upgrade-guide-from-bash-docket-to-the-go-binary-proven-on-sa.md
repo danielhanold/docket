@@ -22,7 +22,7 @@ branch: 'docs/upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T17:59:48Z'
+claimed_at: '2026-10-04T18:09:18Z'
 ---
 
 ## Artifacts
