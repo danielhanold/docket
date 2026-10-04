@@ -5,7 +5,7 @@
 > All four drivers route
 > through this file: `docket-finalize-change`'s per-change close-out and `docket-status`'s merge
 > sweep (the two `done` drivers), plus the kill callers — `docket-implement-next`'s reconcile-kill
-> and `docket-new-change`'s proposed-kill (changes 0054/0055). The sequence is one; only the
+> and `docket-new-change`'s proposed-kill. The sequence is one; only the
 > failure posture differs per caller (table below). This file owns ordering and posture; each
 > operation's request and result shape comes from the `schema` operation.
 
@@ -18,7 +18,7 @@ before the first read; every commit pushes immediately.
 
 1. **Archive on `docket` first.** The two final outcomes split here: `done` runs the Go
    `finalize.closeout` transaction; `killed` runs the Go `change.kill` transaction (`finalize.closeout`
-   does not cover the `killed` outcome — change 0369).
+   does not cover the `killed` outcome).
 
    **Done drivers** (`docket-finalize-change`'s close-out, the `docket-status` merge sweep) archive
    through the typed transaction. There is **no caller-supplied date**: it derives the UTC archive
@@ -67,11 +67,11 @@ before the first read; every commit pushes immediately.
 2. **Artifact block + spec back-link — owned atomically by step 1, no separate caller commit.**
    Both close-out transactions re-render the archived record's `## Artifacts` block (plan/results
    re-point to the integration branch at final state) **and** re-stamp every metadata-resident
-   back-link — the spec's `docket:backlink` block included (change 0136) — retargeted to the
+   back-link — the spec's `docket:backlink` block included — retargeted to the
    now-**archived** change path, **in the same step-1 metadata commit** as the archive:
 
    - On the **done** path the step-1 `finalize.closeout` operation transaction owns this restamp
-     atomically (change 0369; proven by `internal/app/finalize_closeout_test.go`'s
+     atomically (proven by `internal/app/finalize_closeout_test.go`'s
      `TestCloseoutBacklinkLegDocketMode` and
      `internal/app/finalize_closeout_integration_test.go`'s
      `TestIntegrationFinalizeCloseoutBacklinkLegDocketMode`).
@@ -92,7 +92,7 @@ before the first read; every commit pushes immediately.
    finalize.cleanup  --id <id>   # resolve argv from the capability catalog
    ```
 
-   Trust the typed outcome. Ownership is proven **inside the transaction** (change 0369): only
+   Trust the typed outcome. Ownership is proven **inside the transaction**: only
    workspaces and feature refs proven owned by *this* closed change are removed — the local ref
    only when its recorded tip is detached from every worktree AND contained in the verified merge
    chain, the remote ref only under an exact old-value lease with no open child PR still targeting
@@ -105,7 +105,7 @@ before the first read; every commit pushes immediately.
    a success, not a failure, so the kill caller continues. Any feature worktree or branch a
    reconcile-killed change already had stays in place; remove it by hand if it is no longer wanted —
    the branch is the pre-kill `branch:` value (`<type>/<slug>` by default; the kill clears the
-   field) and `git worktree list` finds the worktree (docket change 0483 tracks automatic killed-change cleanup). A `proposed`-kill has none.
+   field) and `git worktree list` finds the worktree. A `proposed`-kill has none.
 
 4. **Board refresh — owned atomically by step 1, no separate pass.** Both close-out transactions
    render the inline `BOARD.md` **inside their own step-1 metadata commit** — the `finalize.closeout`

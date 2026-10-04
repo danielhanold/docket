@@ -71,7 +71,7 @@ planning is build-time, owned by `docket-implement-next`.
 role — you continue to your own next step (for `docket-new-change`, its Steps 3–5: draft, commit,
 push & Board pass); only an agent whose entire assignment is this role ends its turn here.
 
-## Degrade rule (ADR-0018)
+## Degrade rule
 
 If the consultant cannot be dispatched — agents not synced, harness without dispatch,
 or any other per-machine unavailability — `docket-brainstorm` degrades to running the

@@ -117,9 +117,9 @@ ledger* section owns the promotion mechanics.
   condition, report `binary rebuild incomplete` naming it, keep the merged change done, and
   never stash, reset, or switch branches to force the rebuild — fix the reported source state,
   re-sync, and repeat.
-- A merged change that extends the `.docket.yml` schema no longer blocks this: since change
-  0392 the install path tolerates unknown configuration keys (surfaced as warnings), so the
-  tracked `development.install` reinstall works directly with the pre-schema binary.
+- A merged change that extends the `.docket.yml` schema does not block this: the install path
+  tolerates unknown configuration keys (surfaced as warnings), so the tracked
+  `development.install` reinstall works directly with the pre-schema binary.
 
 ## Shell
 

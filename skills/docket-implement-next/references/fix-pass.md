@@ -30,9 +30,7 @@ One deliberate exception to this orthogonality exists — the blocker floor, bel
 **No fix task dispatches the `max` tier, at any severity.** `premium` is
 "consequential but correctable" — still walk-backable inside a reviewed diff. `max` is defined by
 irreversibility, and an irreversible act must never happen to a branch as an unplanned side-quest
-discovered at review time. The pre-0218 blocker ladder (`standard` → `premium` → halt) also
-stopped short of that top tier, so the **ceiling** matches it; the **floor** it guaranteed is
-preserved separately, below.
+discovered at review time. The **floor** is a separate rule, below.
 
 ## The floor — a blocker's fix starts no lower than `standard`
 
@@ -40,8 +38,7 @@ This is the one deliberate exception to the character/severity orthogonality abo
 place severity touches the tier: a blocker's fix task starts at `standard` even when its
 character routes `economy`. A blocker is the gate that must not fail open — the run halts on it —
 so its fix may not start below the uncertainty sink. Without the floor, a blocker misclassified as
-mechanical would run `economy` → `standard` and halt with `premium` never tried, where the
-pre-0218 ladder always reached `premium` before halting. The floor restores that guarantee;
+mechanical would run `economy` → `standard` and halt with `premium` never tried. The floor guarantees a blocker reaches `premium` before halting;
 character routing at or above `standard` is untouched, and the never-`max` ceiling still binds.
 
 The rubric therefore doubles as the size ceiling; there is no separate knob for "too big to fix
@@ -171,7 +168,7 @@ Every finding returned by the reviewer takes exactly one of these states — the
 accounting, so a finding that reached the report path below still gets a row rather than
 vanishing from the human's view.
 
-**Results-checkpoint linkage (change 0410).** Before a long fix pass — and **only** when the
+**Results-checkpoint linkage.** Before a long fix pass — and **only** when the
 workspace is safe to write — the coordinator persists the returned review findings to the results
 artifact, then updates their **actual** dispositions at a later checkpoint once the fixes return, so
 that unresolved findings and the fix consequences that matter survive as durable prose rather than
@@ -186,6 +183,5 @@ the machine build-evidence block.
 
 **A finding about this branch's own diff is fixed or recorded** — never captured as separate work.
 A genuinely distinct, beyond-the-branch finding is **reported as follow-up work in the final
-report**, never minted: automatic change capture is deferred from Go v1, so a human captures
-reported work deliberately with `docket change create`. The report carries the backlog verdict
+report**, never minted: a human captures reported work deliberately with `docket change create`. The report carries the backlog verdict
 final consolidation attaches (SKILL.md Step 6.5 *Backlog match*).
