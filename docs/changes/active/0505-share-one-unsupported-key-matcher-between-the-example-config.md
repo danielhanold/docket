@@ -14,7 +14,7 @@ discovered_from: [464]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md'
 plan: 'docs/superpowers/plans/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md'
-results:
+results: 'docs/results/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-04T10:54:14Z'
 |---|---|
 | Spec | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) |
 | Plan | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md](https://github.com/danielhanold/docket/blob/refactor/share-one-unsupported-key-matcher-between-the-example-config/docs/superpowers/plans/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md) |
+| Results | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-results.md](https://github.com/danielhanold/docket/blob/refactor/share-one-unsupported-key-matcher-between-the-example-config/docs/results/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
