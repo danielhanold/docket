@@ -22,7 +22,7 @@ branch: 'fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T16:47:14Z'
+claimed_at: '2026-10-04T17:00:04Z'
 ---
 
 ## Artifacts
