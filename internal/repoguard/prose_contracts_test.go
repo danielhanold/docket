@@ -1101,6 +1101,11 @@ var alignmentContracts = []proseContract{
 		absent: []string{"per-repo agent pass", "generates wrapper files for", "(change 0016)", "skills: [<skill>, docket-convention]"}},
 	{sentinel: "align_0502_agent_layer", file: "skills/docket-build/SKILL.md",
 		absent: []string{"install.sh", "`skills:` frontmatter"}},
+	// 0502 bug 1: the draft never touches .docket/ (a dirty metadata worktree
+	// makes the next repository.prepare refuse metadata-worktree-dirty).
+	{sentinel: "align_0502_autogroom_draft", file: "skills/docket-auto-groom/SKILL.md",
+		present: []string{"never inside `.docket/`", "`spec_markdown`", "discard the draft"},
+		absent:  []string{".docket/docs/superpowers/specs/", "delete any just-drafted spec markdown"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {
