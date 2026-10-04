@@ -205,6 +205,20 @@ docket repository check
 
 `docket repository check` now reports `healthy`.
 
+One thing is left that `docket repository check` does not report. If you turned on agents in Bash
+docket, the repository's `CLAUDE.md` has a docket block. It starts at a line beginning with
+`<!-- docket:dispatch:start` and ends at the `<!-- docket:dispatch:end -->` line. That block tells
+Claude to run Bash docket's `docket.sh`, which the upgraded repository no longer uses. Delete
+everything from the start line through the end line. If that leaves `CLAUDE.md` empty, delete the
+file. Then commit and push the change. If there is no such block, there is nothing to commit, so
+skip this.
+
+<!-- upgrade-step: dispatch-block -->
+```sh
+git commit -am "Remove the Bash docket block from CLAUDE.md"
+git push
+```
+
 ## 6. Settings that changed
 
 These are the Bash-era settings docket reports, in `.docket.yml` or in
@@ -248,14 +262,10 @@ Your old Bash checkout, usually `~/dev/docket`, is no longer used by Claude Code
 docket from Cursor or OpenCode on an upgraded repository is not supported until their sections
 arrive, and Codex is not supported at all (see section 1).
 
-This guide does not cover two more things:
-
-- Agent files under `.claude/agents/docket-*.md` and a `.claude/settings.local.json` inside a
-  repository, which older Bash versions wrote. The saved installs have none, so the test does not
-  cover them. The new `.gitignore` block keeps both out of commits.
-- The docket block in a repository's `CLAUDE.md`, between the `docket:dispatch:start` and
-  `docket:dispatch:end` lines. The upgrade leaves it as it is, and `docket repository check` does
-  not report it. The guide does not cover changing it.
+This guide does not cover agent files under `.claude/agents/docket-*.md` or a
+`.claude/settings.local.json` inside a repository, which older Bash versions wrote. The saved
+installs have none, so the test does not cover them. The new `.gitignore` block keeps both out of
+commits.
 
 ## 8. Restart Claude Code
 

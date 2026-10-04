@@ -23,6 +23,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -49,6 +50,8 @@ type runState struct {
 	CheckJSON   string   // repo-check's --json stdout
 	Settings    []string // settings-table patterns config-cleanup matched to a finding
 	Removed     []string // settings config-cleanup removed from .docket.yml
+
+	DispatchBlockRemoved bool // dispatch-block found and removed the CLAUDE.md block
 }
 
 type stepAction func(t *testing.T, c *upgradeCase, st *runState, body string)
@@ -68,6 +71,7 @@ var stepRegistry = map[string]stepAction{
 	"repair-preview":        observeRepairPreview,
 	"repair-apply":          runRepairApply,
 	"repo-confirm":          runRepoConfirm,
+	"dispatch-block":        mirrorDispatchBlock,
 	"leftovers":             mirrorLeftovers,
 }
 
@@ -903,6 +907,99 @@ func runRepoConfirm(t *testing.T, c *upgradeCase, st *runState, body string) {
 	t.Helper()
 	r := runBlock(t, c, st, body)
 	mustContain(t, "repository check output", r.Stdout+r.Stderr, "repository check: no-op (healthy)")
+}
+
+// The lines that open and close the dispatch block Bash docket wrote into a
+// repository's CLAUDE.md. The opening line carries a trailing note after the stem.
+const (
+	dispatchBlockStart = "<!-- docket:dispatch:start"
+	dispatchBlockEnd   = "<!-- docket:dispatch:end -->"
+)
+
+// dispatchBlockSpan validates the dispatch block's markers in lines and returns the
+// index of its opening and closing line, or -1, -1 when neither marker is present.
+// A dangling, duplicated or out-of-order marker is an error, so the caller refuses
+// before writing anything and the removal never runs to the end of the file.
+func dispatchBlockSpan(lines []string) (int, int, error) {
+	start, end := -1, -1
+	for i, l := range lines {
+		switch {
+		case strings.HasPrefix(l, dispatchBlockStart):
+			if start >= 0 {
+				return -1, -1, fmt.Errorf("two %q lines", dispatchBlockStart)
+			}
+			start = i
+		case l == dispatchBlockEnd:
+			if end >= 0 {
+				return -1, -1, fmt.Errorf("two %q lines", dispatchBlockEnd)
+			}
+			end = i
+		}
+	}
+	if (start < 0) != (end < 0) || end < start {
+		return -1, -1, fmt.Errorf("dispatch block markers are unbalanced or out of order (start line %d, end line %d)", start+1, end+1)
+	}
+	return start, end, nil
+}
+
+// mirrorDispatchBlock deletes the Bash dispatch block from the repository's CLAUDE.md
+// the way the prose says (the file too, when nothing else is left), then runs the
+// block to commit and push it. On a case without the block it asserts there is
+// nothing to remove and that the commit block is skipped.
+func mirrorDispatchBlock(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	mustContain(t, "guide", st.Guide, "`"+dispatchBlockStart+"`")
+	mustContain(t, "guide", st.Guide, "`"+dispatchBlockEnd+"`")
+	mustContain(t, "guide", st.Guide, "If that leaves `CLAUDE.md` empty")
+	if st.Cwd != c.Clone {
+		t.Fatalf("dispatch-block runs in the repository; the reader is in %s", st.Cwd)
+	}
+	path := filepath.Join(c.Clone, "CLAUDE.md")
+	b, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(b), "\n")
+	start, end, err := dispatchBlockSpan(lines)
+	if err != nil {
+		t.Fatalf("CLAUDE.md: %v; leaving it untouched", err)
+	}
+	if start < 0 {
+		t.Logf("dispatch-block: the repository has no dispatch block; nothing to remove")
+		if left := strings.TrimSpace(c.mustGit(t, st.Cwd, "status", "--porcelain")); left != "" {
+			t.Fatalf("dispatch-block found no block but the repository has changes:\n%s", left)
+		}
+		runCommit(t, c, st, body)
+		return
+	}
+	// Guide: the upgrade leaves the block in place and `docket repository check`
+	// does not report it. repo-confirm already saw `healthy` with the block present.
+	mustContain(t, "guide", st.Guide, "`docket.sh`")
+	if !strings.Contains(strings.Join(lines[start:end+1], "\n"), "/docket.sh ") {
+		t.Errorf("the guide says the block tells Claude to run Bash docket's docket.sh; it does not")
+	}
+	out := append(append([]string{}, lines[:start]...), lines[end+1:]...)
+	rest := strings.Join(out, "\n")
+	if strings.TrimSpace(rest) == "" {
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+	} else if err := os.WriteFile(path, []byte(rest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runCommit(t, c, st, body)
+	// The block is gone from the working copy and from the pushed default branch.
+	after, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal(err)
+	}
+	if s, _, err := dispatchBlockSpan(strings.Split(string(after), "\n")); err != nil || s >= 0 {
+		t.Fatalf("CLAUDE.md still carries the dispatch block after dispatch-block")
+	}
+	if r := c.run(t, c.Origin, "git", "show", "main:CLAUDE.md"); r.Code == 0 && strings.Contains(r.Stdout, "docket:dispatch:") {
+		t.Fatalf("origin main:CLAUDE.md still carries the dispatch block after dispatch-block")
+	}
+	st.DispatchBlockRemoved = true
 }
 
 // ---- section 7: leftovers ----------------------------------------------------------
