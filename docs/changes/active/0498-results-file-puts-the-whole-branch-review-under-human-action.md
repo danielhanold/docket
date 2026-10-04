@@ -14,7 +14,7 @@ discovered_from: [494]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-design.md'
 plan: 'docs/superpowers/plans/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action.md'
-results:
+results: 'docs/results/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-04T06:19:05Z'
 |---|---|
 | Spec | [2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-design.md) |
 | Plan | [2026-10-04-results-file-puts-the-whole-branch-review-under-human-action.md](https://github.com/danielhanold/docket/blob/fix/results-file-puts-the-whole-branch-review-under-human-action/docs/superpowers/plans/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action.md) |
+| Results | [2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-results.md](https://github.com/danielhanold/docket/blob/fix/results-file-puts-the-whole-branch-review-under-human-action/docs/results/2026-10-04-results-file-puts-the-whole-branch-review-under-human-action-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
