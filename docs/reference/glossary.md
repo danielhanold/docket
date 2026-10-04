@@ -1131,7 +1131,7 @@ signal).
 lock until the terminal record is written, so an observer sees either "still running" or "finished, here is how".
 
 ```sh
-docket gate launch  --cwd <worktree> --root <run-root> -- ./run-tests.sh
+docket gate launch  --cwd <worktree> --root <run-root> -- <test command>
 docket gate observe <run-dir>
 docket gate stop    <run-dir> --reason "wrong branch"
 docket gate recover --root <run-root>

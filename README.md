@@ -113,7 +113,7 @@ start-here path through them.
   linking the decisions behind it.
 - **[Reference](docs/reference/README.md)** — exact fields, keys, verbs, and outcomes, each
   pointing at the surface that owns the current value; includes the
-  [harness runbooks and examples](docs/reference/harness/README.md).
+  [harness validation checklist](docs/reference/harness/README.md) (the live Cursor checklist).
 
 ## Status
 

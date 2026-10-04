@@ -27,7 +27,7 @@ Index: [install/README.md](install/README.md)
 - [Keeping docket current](install/keeping-current.md) — why every pull is followed by a re-install,
   and what silently stays stale if it is not.
 - [Global config](install/global-config.md) — the machine-wide file at
-  `~/.config/docket/config.yml`: what belongs there, and how to enable a second harness.
+  `~/.config/docket/config.yml`: what belongs there, including your per-agent model and effort pins.
 - [Repo config](install/config-layers.md) — `.docket.yml` and `.docket.local.yml`, the four-layer
   precedence, the shared-setting guard, and what happens when a file is misplaced or malformed.
 - [Models](install/models-and-effort.md) — run each docket skill at its own model and effort
@@ -100,8 +100,8 @@ Index: [reference/README.md](reference/README.md)
   capability catalog for the current verbs and flags.
 - [`fields.md`](reference/fields.md) — the change-manifest and ADR fields, owned by the
   `docket-convention` skill's sections.
-- [`config-keys.md`](reference/config-keys.md) — every top-level config block by purpose, pointing at
-  `.docket.example.yml` for shape, defaults, and layer scope.
+- [`config-keys.md`](reference/config-keys.md) — every supported key with its default and scope, pointing at
+  `.docket.example.yml` for shape.
 - [`outcomes.md`](reference/outcomes.md) — dispositions, finalize reason tokens, and status health
   codes, each with its owning surface.
 - [`skills-and-agents.md`](reference/skills-and-agents.md) — the skills and agents inventory, derived
