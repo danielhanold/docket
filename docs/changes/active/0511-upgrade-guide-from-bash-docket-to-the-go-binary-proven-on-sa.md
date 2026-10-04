@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'docs/upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T17:56:53Z'
+reconciled: true
+claimed_at: '2026-10-04T17:58:32Z'
 ---
 
 ## Artifacts
@@ -79,3 +79,9 @@ The first public Go build, `v1.0.0-alpha.1` (change 0366), is aimed at exactly t
 - The alpha.1 release notes, which belong to 0366.
 - Rollback instructions or a rollback test.
 - Any product code change. A defect gets its own change.
+
+## Reconcile log
+
+### 2026-10-04
+
+2026-10-04 — Reconciled against main @ 7ddda0471 (81 commits past the spec's traced 6908393f3). No commit since then touches internal/install, internal/reposetup, internal/config, install.sh or docs/install/install.md; README.md and docs/release/ gained only unrelated lines (four-harness-acceptance.md). Tags v0.9.2 and v0.9.3 exist locally. Scope unchanged; the spec's traced facts stand, and the build still re-verifies each and halts on a binary defect per spec section 4.
