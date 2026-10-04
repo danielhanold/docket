@@ -56,7 +56,8 @@ autonomous and attended runs alike — finalize adds no human stop of its own, s
 `finalize.block`, no prompt, and no `finalize.clear-block`. The repair stays visible: the run's final
 report names what broke, the claimed repair commits, and the attempts used, and closeout records the
 same facts as a `late_findings` entry under `## Closeout notes`. A refused notes request is retried
-once without notes; a lost note never stops closeout.
+once without notes, and the run's final report names every note that fallback dropped; a lost note
+never stops closeout.
 
 A run that publishes a repair and then halts before closeout (a denied merge, an `unknown`, a
 `record-invalid`) names the repair in its `finalize.block` request. The `report` reaches only the PR

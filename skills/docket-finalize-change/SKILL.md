@@ -153,7 +153,8 @@ replays as `already`, and different notes against an archived record are refused
 notes, call the unchanged no-input form and archive immediately — no post-merge pause or second user step.
 A run that authored a repair (step 6) always sends notes: one `late_findings` entry naming what broke, the claimed
 repair commits, and the attempts used, alongside any notes from the invocation. A run whose change carries a `## Finalize blocked` section with an `Authored repair:` remedy from an earlier run sends that repair's facts the same way, one `late_findings` entry per repair — closeout strips the section, so the note is the repair's only surviving trace. If closeout refuses that notes request
-for any reason, re-run it once without `--input` and route on that result — a lost note never stops the closeout. No
+for any reason, re-run it once without `--input` and route on that result, and the run's final report names every note
+that fallback dropped — a lost note never stops the closeout. No
 caller-supplied done boolean or archive date: it reloads metadata, reprobes the PR and its destination, derives the
 UTC archive date from the verified `mergedAt`, and applies one atomic transaction. Route on `disposition`:
 
