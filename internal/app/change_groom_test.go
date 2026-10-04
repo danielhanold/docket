@@ -745,10 +745,11 @@ func TestChangeGroomPlanReviseRefusals(t *testing.T) {
 		{"spec-not-linked", map[string]string{
 			groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget"),
 		}, func(r *ChangeGroomRequest) {}, "spec-not-linked"},
-		// Spec item 6: a needs-grooming change is groom's target, not revise's.
-		{"not-revisable needs-grooming", map[string]string{
+		// A needs-grooming stub is revisable, but it links no spec, so a
+		// spec-body revise of it refuses before any mutation is assembled.
+		{"spec-not-linked needs-grooming", map[string]string{
 			groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget"),
-		}, func(r *ChangeGroomRequest) {}, "not-revisable"},
+		}, func(r *ChangeGroomRequest) {}, "spec-not-linked"},
 		// Spec item 7: a non-proposed change.
 		{"not-revisable blocked", map[string]string{
 			groomPath(2, "add-a-widget"): strings.Replace(
@@ -797,6 +798,168 @@ func TestChangeGroomPlanReviseRefusals(t *testing.T) {
 				t.Errorf("refused plan still carries files: %v", planPaths(plan))
 			}
 		})
+	}
+}
+
+// optedOutStub is the groomable fixture with an explicit auto_groomable: false,
+// so a revise that wrote the flag (either way) is observable.
+func optedOutStub(id int, slug string) string {
+	return strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: false\nauto_groomable: false\n", 1)
+}
+
+// stubSectionReviseRequest is a sections-only revise of the stub at id 2.
+func stubSectionReviseRequest() ChangeGroomRequest {
+	r := validReviseRequest()
+	r.SpecMarkdown, r.SpecRevision = "", ""
+	r.Sections = []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Sharpened why.\n"}}
+	return r
+}
+
+// TestChangeGroomPlanReviseNeedsGroomingStub pins that revise edits a
+// needs-grooming stub's owned sections and leaves its groom state alone: no
+// spec: written, trivial: still false, auto_groomable: untouched, a fresh
+// updated:, the artifacts block intact, and the board row still needs-grooming.
+func TestChangeGroomPlanReviseNeedsGroomingStub(t *testing.T) {
+	files := map[string]string{
+		groomPath(2, "add-a-widget"): optedOutStub(2, "add-a-widget"),
+		"docs/changes/BOARD.md":      "# Backlog\n\nold\n",
+	}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, stubSectionReviseRequest()))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+		"docs/changes/BOARD.md":      transaction.MutationReplace,
+	})
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if strings.Contains(rec, "Original why.") || !strings.Contains(rec, "Sharpened why.") {
+		t.Errorf("## Why section not replaced:\n%s", rec)
+	}
+	if strings.Contains(rec, "spec: '") {
+		t.Errorf("revise of a stub wrote a spec link:\n%s", rec)
+	}
+	if !strings.Contains(rec, "trivial: false") || strings.Contains(rec, "trivial: true") {
+		t.Errorf("revise of a stub changed trivial:\n%s", rec)
+	}
+	if !strings.Contains(rec, "auto_groomable: false") || strings.Contains(rec, "auto_groomable: true") {
+		t.Errorf("revise of a stub changed auto_groomable:\n%s", rec)
+	}
+	if !strings.Contains(rec, "updated: '2026-08-16'") {
+		t.Errorf("updated not stamped from the clock:\n%s", rec)
+	}
+	if strings.Count(rec, "docket:artifacts:start") != 1 || strings.Count(rec, "docket:artifacts:end") != 1 {
+		t.Errorf("artifacts block not intact after the re-render:\n%s", rec)
+	}
+	board := string(groomedRecordBytes(t, plan, "docs/changes/BOARD.md"))
+	if !strings.Contains(board, "needs-grooming") || strings.Contains(board, "build-ready") {
+		t.Errorf("board row is no longer needs-grooming:\n%s", board)
+	}
+	var receipt changeGroomReceipt
+	if err := json.Unmarshal(plan.Receipt, &receipt); err != nil || receipt.Outcome != "revise" {
+		t.Errorf("receipt = %s (%v), want outcome revise", plan.Receipt, err)
+	}
+	assertGroomReceiptSpecPath(t, plan, "")
+}
+
+// TestChangeGroomPlanTitleOnlyReviseOfNeedsGroomingStub pins that a title alone
+// retitles a stub. A stub links no spec, so only the record (and the board) are
+// written, and the slug stays put.
+func TestChangeGroomPlanTitleOnlyReviseOfNeedsGroomingStub(t *testing.T) {
+	files := map[string]string{
+		groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget"),
+		"docs/changes/BOARD.md":      "# Backlog\n\nold\n",
+	}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, titleOnlyReviseRequest("Renamed widget")))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+		"docs/changes/BOARD.md":      transaction.MutationReplace,
+	})
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	for _, want := range []string{"title: 'Renamed widget'", "slug: add-a-widget", "trivial: false"} {
+		if !strings.Contains(rec, want) {
+			t.Errorf("record missing %q:\n%s", want, rec)
+		}
+	}
+	if strings.Contains(rec, "spec: '") {
+		t.Errorf("title-only revise of a stub wrote a spec link:\n%s", rec)
+	}
+	board := string(groomedRecordBytes(t, plan, "docs/changes/BOARD.md"))
+	if !strings.Contains(board, "| Renamed widget |") || !strings.Contains(board, "needs-grooming") {
+		t.Errorf("board row not retitled or no longer needs-grooming:\n%s", board)
+	}
+}
+
+// TestChangeGroomPlanReviseNeedsGroomingStubRelationships pins that a stub revise
+// writes relationship collections as complete desired values, as on a groomed
+// change.
+func TestChangeGroomPlanReviseNeedsGroomingStubRelationships(t *testing.T) {
+	files := map[string]string{
+		groomPath(2, "add-a-widget"):        groomableChange(2, "add-a-widget"),
+		"docs/changes/active/0001-first.md": fixtureChange(1, "first"),
+	}
+	req := stubSectionReviseRequest()
+	req.Related = []int{1}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if !strings.Contains(rec, "related: [1]") {
+		t.Errorf("related not written as the complete desired value:\n%s", rec)
+	}
+	if strings.Contains(rec, "spec: '") || strings.Contains(rec, "trivial: true") {
+		t.Errorf("stub revise changed its groom state:\n%s", rec)
+	}
+}
+
+// TestChangeGroomPlanReviseAbstainedStubKeepsMarker pins that a revise of an
+// abstained stub on an unrelated section leaves the ## Auto-groom blocked
+// marker and auto_groomable: false exactly as they were, so the board keeps
+// reading "auto-groom blocked — needs you".
+func TestChangeGroomPlanReviseAbstainedStubKeepsMarker(t *testing.T) {
+	files := map[string]string{
+		groomPath(2, "add-a-widget"): abstainedChange(2, "add-a-widget"),
+		"docs/changes/BOARD.md":      "# Backlog\n\nold\n",
+	}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, stubSectionReviseRequest()))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if !strings.Contains(rec, "Sharpened why.") {
+		t.Errorf("## Why section not replaced:\n%s", rec)
+	}
+	if strings.Count(rec, "## Auto-groom blocked") != 1 || !strings.Contains(rec, "First note.") {
+		t.Errorf("abstain marker section not preserved:\n%s", rec)
+	}
+	if !strings.Contains(rec, "auto_groomable: false") || strings.Contains(rec, "auto_groomable: true") {
+		t.Errorf("auto_groomable changed under revise:\n%s", rec)
+	}
+	board := string(groomedRecordBytes(t, plan, "docs/changes/BOARD.md"))
+	if !strings.Contains(board, "auto-groom blocked — needs you") {
+		t.Errorf("board lost the auto-groom blocked cell:\n%s", board)
+	}
+}
+
+// TestChangeGroomPlanReviseSpecNotLinkedMessage pins the reworded refusal: it
+// covers both a trivial change and a needs-grooming stub, so it names neither.
+func TestChangeGroomPlanReviseSpecNotLinkedMessage(t *testing.T) {
+	files := map[string]string{groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget")}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, validReviseRequest()))
+	if !opRes.Refused || len(plan.Files) != 0 {
+		t.Fatalf("want a refusal writing nothing, got refused=%v files=%v", opRes.Refused, planPaths(plan))
+	}
+	want := "change 0002 has no linked spec to revise"
+	found := false
+	for _, f := range opRes.Findings {
+		found = found || (f.Code == "spec-not-linked" && f.Detail["message"] == want)
+	}
+	if !found {
+		t.Errorf("want spec-not-linked with message %q; got %v", want, opRes.Findings)
 	}
 }
 
