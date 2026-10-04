@@ -2,7 +2,7 @@
 id: 515
 slug: 'make-finalize-merge-honor-the-repair-sign-off-block-when-an'
 title: 'Retire the finalize repair sign-off so a green repair merges'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'fix'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an'
 pr: 'https://github.com/danielhanold/docket/pull/388'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T17:00:04Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-04T17:00:04Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-design.md) |
-| Plan | [2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md](https://github.com/danielhanold/docket/blob/fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an/docs/superpowers/plans/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) |
-| Results | [2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-results.md](https://github.com/danielhanold/docket/blob/fix/make-finalize-merge-honor-the-repair-sign-off-block-when-an/docs/results/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-results.md) |
+| Plan | [2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) |
+| Results | [2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-make-finalize-merge-honor-the-repair-sign-off-block-when-an-results.md) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0011](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0011-finalize-consent-model.md), [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md), [ADR-0139](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0139-finalize-adds-no-human-gate-of-its-own.md) |
 <!-- docket:artifacts:end -->
 

@@ -1,12 +1,6 @@
 # Backlog
 
-**522 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 358 done · 🗑️ 139 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | `high` | `fix` | [#388](https://github.com/danielhanold/docket/pull/388) | awaiting merge |
+**522 changes** — 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 359 done · 🗑️ 139 killed
 
 ## 🟣 Groomed (3)
 
@@ -74,7 +68,6 @@ graph TD
   0366 --> 0512
   0512 --> 0513
   0511 --> 0514
-  0515
   0522
   0192:::done
   0251:::done
@@ -84,7 +77,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (497)</summary>
+<details><summary>✅🗑️ Archive — done + killed (498)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -94,6 +87,7 @@ graph TD
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0517](archive/2026-10-04-0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | 2026-10-04 |
 | [0516](archive/2026-10-04-0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) | Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match | 2026-10-04 |
+| [0515](archive/2026-10-04-0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | 2026-10-04 |
 | [0510](archive/2026-10-04-0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | 2026-10-04 |
 | [0509](archive/2026-10-04-0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -106,7 +100,6 @@ graph TD
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0498](archive/2026-10-04-0498-results-file-puts-the-whole-branch-review-under-human-action.md) | Results file puts the whole-branch review under Human actions and testing | 2026-10-04 |
 | [0497](archive/2026-10-04-0497-re-running-finalize-can-start-a-second-suite-beside-an-orpha.md) | Re-running finalize can start a second suite beside an orphaned one | 2026-10-04 |
-| [0464](archive/2026-10-04-0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align the human-facing docs and example config with the docket binary | 2026-10-04 |
 | [0380](archive/2026-10-04-0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | 2026-10-04 |
 | [0320](archive/2026-10-04-0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | 2026-10-04 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
@@ -247,7 +240,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 15 done |
+| [2026-10](archive/) | 16 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
