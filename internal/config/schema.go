@@ -179,6 +179,40 @@ var registryTable = buildRegistry()
 // concrete paths against.
 func registry() []pathSpec { return registryTable }
 
+// SettingPath is one configuration path from the registry (dynamic segments
+// spelled "*") and whether docket supports it today. Repository guards read it
+// so documentation checks derive the unsupported key set from this registry
+// rather than re-listing it.
+type SettingPath struct {
+	Path      string
+	Supported bool
+}
+
+// SettingPaths returns every registry path, in registry order, with its
+// support verdict.
+func SettingPaths() []SettingPath {
+	out := make([]SettingPath, 0, len(registryTable))
+	for _, s := range registryTable {
+		out = append(out, SettingPath{Path: s.path, Supported: dispositionSupported(s.disp)})
+	}
+	return out
+}
+
+// dispositionSupported reports whether a disposition family is supported
+// configuration. finalize.gate (refused only for some values), board_surfaces
+// (one token dropped), and the agents model/effort leaves (honoured only from
+// the global layer) are supported keys whose individual values or layers may
+// still be refused. Obsolete, inert, inert-companion, deferred, and
+// deferred-active paths are not supported. A new disposition defaults to
+// unsupported until it is added here.
+func dispositionSupported(d disposition) bool {
+	switch d {
+	case dispSupported, dispDeferredByValue, dispSupportedOrDropped, dispAgentsLeaf:
+		return true
+	}
+	return false
+}
+
 func buildRegistry() []pathSpec {
 	dirLeaf := stringLeaf(true, false, true)
 	rows := []pathSpec{

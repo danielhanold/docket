@@ -236,10 +236,10 @@ func stripHashComment(line string) string {
 // emission — a generator that learns to write the retired route into an
 // agent-INSTRUCTION block (which a harness executes as prose, learning
 // agent-executed-markdown-is-code) is exactly the regression this scan catches,
-// so a forbidden token anywhere in the emitted bytes is a violation. Comment
-// residuals the generator copies verbatim into config YAML (.docket.example.yml,
-// agents/harness-defaults.yml) are still stripped, so the two frozen-pinned
-// comment residuals stay green here too.
+// so a forbidden token anywhere in the emitted bytes is a violation. Comments
+// the generator copies verbatim into config YAML (.docket.example.yml,
+// agents/harness-defaults.yml) are still stripped: they are documentation the
+// config readers never execute.
 func scanGeneratedForRetired(rel, content string) []absenceHit {
 	var hits []absenceHit
 	for i, raw := range strings.Split(content, "\n") {
