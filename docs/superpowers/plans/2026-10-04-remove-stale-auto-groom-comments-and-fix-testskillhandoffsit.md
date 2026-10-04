@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0516 — Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md)**
+> ↩ **[Change 0516 — Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md)**
 <!-- docket:backlink:end -->
 # Stale auto_groom comments and the handoff guard's negation match Implementation Plan
 
