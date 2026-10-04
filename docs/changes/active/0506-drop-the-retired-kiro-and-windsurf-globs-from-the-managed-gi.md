@@ -22,7 +22,7 @@ branch: 'fix/drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-04T09:16:21Z'
+claimed_at: '2026-10-04T09:20:47Z'
 ---
 
 ## Artifacts
