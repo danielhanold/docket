@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/match-reported-follow-ups-against-proposed-and-deferred-chan'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T12:39:48Z'
+reconciled: true
+claimed_at: '2026-10-04T12:41:25Z'
 ---
 
 ## Artifacts
@@ -48,3 +48,9 @@ The check only recommends. A human decides whether to fold the follow-up in.
 ## Out of scope
 
 Editing, creating, reviving, or killing any change from the run; the check never writes outside the run's own results file and final report. Matching against `in-progress`, `blocked`, `implemented`, `stacked-merged`, or archived changes. finalize's late findings in closeout notes. Any new gate, halt, or operation: a failed backlog read degrades to today's wording with a note, and never stops the run. The general dedup redesign tracked in #302.
+
+## Reconcile log
+
+### 2026-10-04
+
+2026-10-04 — Reconciled against main 6908393f3. Dependency #509 is done (merged), so the widened `change.groom` `revise` edit path the next-action table names exists. All wording targets named in the spec (implement-next SKILL.md Step 6.5 and final-report enumeration, fix-loop.md *Beyond-the-branch findings are reported*, results-template.md placeholder, docket-convention SKILL.md *Results artifact shape and lifecycle*) still carry the old phrasing. No scope change.
