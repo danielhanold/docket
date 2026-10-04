@@ -28,10 +28,12 @@ broken: surface it, never rebuild the run tracker by hand.
 ## Stopping a dispatched run — there is no automatic Stop button
 
 A run you dispatched has **no automatic Stop**: closing a tab, interrupting the coordinator, or
-killing a process does not tell the run tracker the run is over, and `run.start` says so (it
-reports the honest owner-lifecycle caveat). To stop a dispatched run deliberately, invoke the
-explicit `run.cancel` operation (argv resolved from the capability catalog) with the key
-`run.start` gave you, plus a human reason — `--key <key> --reason <why>`.
+killing a process does not tell the run tracker the run is over, and `run.start` prints a one-line
+stop note saying so. That note is for you, not a finding: do not repeat it in your dispatch report,
+and bring up `run.cancel` only when the human asks how to stop a run or a run actually needs
+stopping. To stop a dispatched run deliberately, invoke the explicit `run.cancel` operation (argv
+resolved from the capability catalog) with the key `run.start` gave you, plus a human reason —
+`--key <key> --reason <why>`.
 
 It fences the run, then stops the run's registered native tasks and processes and reports one
 disposition:
