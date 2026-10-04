@@ -12,7 +12,7 @@ stacked_on:
 related: [445, 461]
 discovered_from: []
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-edit-an-ungroomed-stub-through-a-typed-operation-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,4 +42,4 @@ Docket can edit a `proposed` stub's title, owned proposal sections, and relation
 
 ## Out of scope
 
-Editing changes past `proposed`. Changing a stub's groom state (spec, trivial, abstain, re-enable keep their current owners). Editing `type`, `priority`, or `auto_groomable` unless the design shows the existing op already covers them.
+Editing changes past `proposed`. Changing a stub's groom state through `revise` (spec, trivial, abstain, re-enable keep their owners). Editing `type`, `priority`, or `auto_groomable`.
