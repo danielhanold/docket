@@ -13,7 +13,7 @@ related: [360, 520]
 discovered_from: [520]
 adrs: [138]
 spec: 'docs/superpowers/specs/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T16:35:51Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md) |
+| Plan | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only.md](https://github.com/danielhanold/docket/blob/fix/finish-schema-operation-documentation-outcomes-md-flag-only/docs/superpowers/plans/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only.md) |
 | ADRs | [ADR-0138](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0138-a-published-request-schema-is-exactly-the-json-file-an-opera.md) |
 <!-- docket:artifacts:end -->
 
