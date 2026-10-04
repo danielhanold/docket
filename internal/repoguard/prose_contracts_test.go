@@ -126,10 +126,6 @@ var proseContracts = []proseContract{
 	// tests/test_results_artifact.sh — merged plan/results freeze rule.
 	{sentinel: "test_results_artifact", file: "skills/docket-convention/SKILL.md",
 		present: []string{"Merged plans and results are frozen build records."}},
-	// tests/test_role_skill_self_description.sh — the role-skill self-description rule
-	// (also the surviving convention clause test_inline_role_stop_scoping touches).
-	{sentinel: "test_role_skill_self_description", file: "skills/docket-convention/SKILL.md",
-		present: []string{"skills.<role>"}},
 	// tests/test_skill_fork_dispatch.sh — fork-dispatch README contract.
 	{sentinel: "test_skill_fork_dispatch", file: "docs/install/models-and-effort.md",
 		present: []string{"completed (forked execution)"}},
@@ -1035,6 +1031,18 @@ var alignmentContracts = []proseContract{
 	{sentinel: "align_0502_record_blocks", file: "skills/docket-convention/SKILL.md",
 		present: []string{"branch_prefix:", "## Alternatives considered"},
 		absent:  []string{"Seeded empty by the template"}},
+	// 0502: roles are fixed; no auto sentinel, no rebinding, halt posture.
+	{sentinel: "align_0502_fixed_roles", file: "skills/docket-convention/SKILL.md",
+		present: []string{"never outranks", "DIRECTED to:", "**`halt`**"},
+		absent:  []string{"auto-or-halt", "`auto` sentinel", "SKILL_BRAINSTORM", "Passthrough."}},
+	{sentinel: "align_0502_fixed_roles", file: "skills/docket-build/SKILL.md",
+		absent: []string{"auto-or-halt", "skills.build", "skills.review"}},
+	{sentinel: "align_0502_fixed_roles", file: "skills/docket-review/SKILL.md",
+		absent: []string{"skills.review"}},
+	{sentinel: "align_0502_fixed_roles", file: "skills/docket-brainstorm/SKILL.md",
+		absent: []string{"skills.brainstorm"}},
+	{sentinel: "align_0502_fixed_roles", file: "skills/docket-implement-next/references/fix-pass.md",
+		absent: []string{"skills.build: auto"}},
 }
 
 func TestAlignmentContracts(t *testing.T) {

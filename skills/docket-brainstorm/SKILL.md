@@ -7,7 +7,8 @@ description: Docket-owned brainstorm role implementing the single-dispatch consu
 
 ## Overview
 
-`docket-brainstorm` is docket's own brainstorm role, bound by `skills.brainstorm`.
+`docket-brainstorm` is docket's own brainstorm role, run when a human asks for a
+consultant-authored brainstorm in this run.
 It keeps the ADR-0006 boundary — the design dialogue stays with the real human,
 inline, at whatever model the session runs — but adds one thing the built-in role
 cannot: every build-ready spec is authored (or audited) by a pinned high-tier
