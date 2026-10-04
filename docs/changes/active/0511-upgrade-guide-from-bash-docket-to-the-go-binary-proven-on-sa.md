@@ -2,7 +2,7 @@
 id: 511
 slug: 'upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa'
 title: 'Upgrade guide from Bash docket to the Go binary, proven on saved v0.9.2 and v0.9.3 installs'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'docs'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable: false
 branch_prefix:
 branch: 'docs/upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/389'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-04T18:09:18Z'
