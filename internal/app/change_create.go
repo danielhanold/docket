@@ -53,8 +53,9 @@ type ChangeCreateRequest struct {
 	DiscoveredFrom []int `json:"discovered_from"`
 	ADRs           []int `json:"adrs"`
 
-	// AutoGroomable is the optional per-change auto-groom override: nil leaves
-	// the record unset (inherit the repo's auto_groom); true/false are explicit.
+	// AutoGroomable is the optional per-change auto-groom opt-in: nil leaves
+	// the record unset; true/false are written as given. Only true makes the
+	// stub auto-groomable — unset and false both mean it is not.
 	AutoGroomable *bool `json:"auto_groomable"`
 	// BranchPrefix is the optional mint-prefix override, as the human typed it.
 	// It is normalized by domain.NormalizeBranchPrefix before it is validated,

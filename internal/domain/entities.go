@@ -90,7 +90,7 @@ type ChangeSpec struct {
 	Plan           OptionalString
 	Results        OptionalString
 	Trivial        bool
-	AutoGroomable  OptionalBool   // per-change auto-groom override; unset ⇒ inherit auto_groom
+	AutoGroomable  OptionalBool   // per-change auto-groom opt-in; only an explicit true opts in
 	BranchPrefix   OptionalString // per-change mint-prefix override; durable input
 	Branch         OptionalString
 	ClaimedAt      OptionalTime // second-precision UTC; Raw kept
@@ -181,8 +181,10 @@ func (c Change) Results() OptionalString { return c.spec.Results }
 // Trivial reports whether the change is marked trivial.
 func (c Change) Trivial() bool { return c.spec.Trivial }
 
-// AutoGroomable returns the optional per-change auto-groom override. Unset
-// (absent or valueless) means the repository's auto_groom knob applies.
+// AutoGroomable returns the optional per-change auto-groom opt-in. Only an
+// explicit true makes a stub auto-groomable; unset (absent or valueless) and
+// false both mean it is not. The tri-state is kept so the record writer
+// round-trips what the human wrote.
 func (c Change) AutoGroomable() OptionalBool { return c.spec.AutoGroomable }
 
 // BranchPrefix returns the optional per-change mint-prefix override. It is
