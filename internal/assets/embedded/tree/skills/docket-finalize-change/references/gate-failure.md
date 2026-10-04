@@ -58,6 +58,13 @@ report names what broke, the claimed repair commits, and the attempts used, and 
 same facts as a `late_findings` entry under `## Closeout notes`. A refused notes request is retried
 once without notes; a lost note never stops closeout.
 
+A run that publishes a repair and then halts before closeout (a denied merge, an `unknown`, a
+`record-invalid`) names the repair in its `finalize.block` request. The `report` reaches only the PR
+comment and the `remedy` is what the `## Finalize blocked` section records, so both carry what broke,
+the claimed repair commits, and the attempts used, the remedy opening with `Authored repair:`. A later
+run whose change carries that section turns each `Authored repair:` remedy into its own closeout
+`late_findings` entry, because closeout strips the section and the note is all that survives.
+
 Approval is the repository's policy, not a docket gate. When branch protection requires approvals and
 has GitHub's "Dismiss stale pull request approvals when new commits are pushed" turned on, publishing
 the repair dismisses the PR's approval: GitHub refuses the merge (`halted`), and with

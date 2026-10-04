@@ -127,7 +127,7 @@ Then re-gate the repaired head through the gate driver — a drive you start you
 
 ### 6. A green repair merges
 
-A repair that turns the rebased suite green publishes and merges like any other green change, on autonomous and attended runs alike: continue to step 7 and step 8 with the repaired head and its recorded evidence. Finalize adds no stop of its own here — no `finalize.block`, no prompt, no `finalize.clear-block`. Approval stays the repository's policy: when branch protection requires approvals and dismisses stale approvals on new commits, publishing the repair removes the PR's approval and the merge waits for a fresh one (`references/gate-failure.md`). The repair stays visible: the run's final report names what broke, the claimed repair commits, and the attempts used, and step 9 records the same facts in the archived record's `## Closeout notes`.
+A repair that turns the rebased suite green publishes and merges like any other green change, on autonomous and attended runs alike: continue to step 7 and step 8 with the repaired head and its recorded evidence. Finalize adds no stop of its own here — no `finalize.block`, no prompt, no `finalize.clear-block`. Approval stays the repository's policy: when branch protection requires approvals and dismisses stale approvals on new commits, publishing the repair removes the PR's approval and the merge waits for a fresh one (`references/gate-failure.md`). The repair stays visible: the run's final report names what broke, the claimed repair commits, and the attempts used, and step 9 records the same facts in the archived record's `## Closeout notes`. A run that publishes a repair and then halts before closeout (a denied merge, an `unknown`, a `record-invalid`) names the repair in its `finalize.block` request: the `report` and the `remedy` each carry what broke, the claimed repair commits, and the attempts used, the remedy (the part the `## Finalize blocked` section records) opening with `Authored repair:`.
 
 A pass with **no** authored repair (an exact-head-evidence skip, or a clean first-try rebase) has nothing to record here.
 
@@ -152,7 +152,7 @@ renders them under `## Closeout notes` in the same transaction that archives the
 replays as `already`, and different notes against an archived record are refused (`final-notes-frozen`). With no
 notes, call the unchanged no-input form and archive immediately — no post-merge pause or second user step.
 A run that authored a repair (step 6) always sends notes: one `late_findings` entry naming what broke, the claimed
-repair commits, and the attempts used, alongside any notes from the invocation. If closeout refuses that notes request
+repair commits, and the attempts used, alongside any notes from the invocation. A run whose change carries a `## Finalize blocked` section with an `Authored repair:` remedy from an earlier run sends that repair's facts the same way, one `late_findings` entry per repair — closeout strips the section, so the note is the repair's only surviving trace. If closeout refuses that notes request
 for any reason, re-run it once without `--input` and route on that result — a lost note never stops the closeout. No
 caller-supplied done boolean or archive date: it reloads metadata, reprobes the PR and its destination, derives the
 UTC archive date from the verified `mergedAt`, and applies one atomic transaction. Route on `disposition`:

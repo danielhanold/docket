@@ -1156,14 +1156,20 @@ var alignmentContracts = []proseContract{
 	// rebased suite green publishes and merges, named in the run report and the
 	// closeout notes; the retired sign-off token, its block/clear-block ritual,
 	// and the never-wired finalize-blocked skip are gone from the agent surfaces.
+	// A repair whose run halts before closeout is named in finalize.block's
+	// remedy (`Authored repair:`) and carried into a later run's closeout notes.
 	{sentinel: "align_0515_green_repair_merges", file: "skills/docket-finalize-change/SKILL.md",
 		present: []string{"A repair that turns the rebased suite green publishes and merges like any other green change",
-			"one `late_findings` entry naming what broke"},
+			"one `late_findings` entry naming what broke",
+			"the `report` and the `remedy` each carry what broke",
+			"with an `Authored repair:` remedy from an earlier run sends that repair's facts"},
 		absent: []string{"repair-needs-signoff", "First record the sign-off requirement durably",
 			"`finalize-blocked`"}},
 	{sentinel: "align_0515_green_repair_merges", file: "skills/docket-finalize-change/references/gate-failure.md",
 		present: []string{"A repair that turns the rebased suite green publishes and merges like any other green change",
-			"Dismiss stale pull request approvals when new commits are pushed"},
+			"Dismiss stale pull request approvals when new commits are pushed",
+			"the remedy opening with `Authored repair:`",
+			"turns each `Authored repair:` remedy into its own closeout"},
 		absent: []string{"repair-needs-signoff", "It first records the sign-off requirement durably",
 			"Auto-detect selection skips"}},
 	{sentinel: "align_0515_green_repair_merges", file: "agents/docket-integration-repair.md",
