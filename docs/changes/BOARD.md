@@ -1,6 +1,6 @@
 # Backlog
 
-**520 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 139 killed
+**521 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 354 done · 🗑️ 139 killed
 
 ## 🟢 In progress (2)
 
@@ -23,10 +23,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (7)
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0521](active/0521-finish-schema-operation-documentation-outcomes-md-flag-only.md) | Finish schema operation documentation: outcomes.md flag-only operations and ADRReplaceRequest required fields | `low` | `fix` | needs-grooming |
 | [0515](active/0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Make finalize.merge honor the repair sign-off block when an id is named | `high` | `fix` | needs-grooming |
 | [0513](active/0513-release-v1-0-0-alpha-3-prove-and-publish-opencode-support.md) | Release v1.0.0-alpha.3: prove and publish OpenCode support | `high` | `chore` | ⏳ waiting on #512 — not yet built |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | ⏳ waiting on #366 — not yet built |
@@ -85,6 +86,7 @@ graph TD
   0516
   0517
   0520
+  0521
   0192:::done
   0251:::done
   0393:::done
