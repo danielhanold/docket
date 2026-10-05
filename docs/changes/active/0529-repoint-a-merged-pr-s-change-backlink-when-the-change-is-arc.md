@@ -9,10 +9,10 @@ created: '2026-10-05'
 updated: '2026-10-05'
 depends_on: []
 stacked_on:
-related: [337, 417]
+related: [337, 417, 530]
 discovered_from: []
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
