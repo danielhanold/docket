@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -139,5 +140,108 @@ func TestIntegrationRepoSetupConfigureTestsRefusesFresh(t *testing.T) {
 	}
 	if !strings.Contains(res.HumanText(), "docket repository init") {
 		t.Errorf("fresh remedy %q must name `docket repository init`", res.HumanText())
+	}
+}
+
+// resolveDocketYML resolves the invocation clone's .docket.yml through the real
+// config resolver, so asserts read what docket will actually run.
+func resolveDocketYML(t *testing.T, r *initRepo) config.Effective {
+	t.Helper()
+	data := mustReadFile(t, filepath.Join(r.invocation, ".docket.yml"))
+	snap, _, err := config.Resolve([]config.Source{{
+		Layer: config.LayerRepository, Name: ".docket.yml", Data: data,
+	}}, config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		t.Fatalf("resolving .docket.yml: %v\n%s", err, data)
+	}
+	return snap.Effective
+}
+
+// TestIntegrationRepoSetupConfigureTestsCommandTurnsOnRootTestSh is the
+// acceptance-fixture shape: a repository whose only test is a root test.sh
+// (no registered detector family) is initialized with both gates off, plain
+// configure-tests says so truthfully and names --command, and
+// `configure-tests --command "sh ./test.sh"` turns both gates on. configure-tests
+// never runs the command, so the file's mode is irrelevant here.
+func TestIntegrationRepoSetupConfigureTestsCommandTurnsOnRootTestSh(t *testing.T) {
+	r := newInitRepo(t, healthySetupYML, map[string]string{"test.sh": "#!/bin/sh\nexit 0\n"})
+
+	initRes := r.runInit(t)
+	if initRes.Result != ResultApplied {
+		t.Fatalf("init = %q (%s), want applied", initRes.Result, initRes.HumanText())
+	}
+	if !strings.Contains(initRes.HumanText(), reposetup.ConfigureTestsCommandRemedy) {
+		t.Errorf("init's none note %q must name %q", initRes.HumanText(), reposetup.ConfigureTestsCommandRemedy)
+	}
+	if eff := resolveDocketYML(t, r); eff.Build.Gate.Value != "off" || eff.Finalize.Gate.Value != "off" {
+		t.Fatalf("init on a no-suite repo must write both gates off, got build=%q finalize=%q", eff.Build.Gate.Value, eff.Finalize.Gate.Value)
+	}
+	r.commitAndPushMain(t, "commit init's pending edits", ".gitignore", ".docket.yml")
+
+	plain := r.runConfigureTests(t)
+	if plain.Result != ResultNoOp {
+		t.Fatalf("plain configure-tests = %q (%s), want no-op", plain.Result, plain.HumanText())
+	}
+	if strings.Contains(plain.HumanText(), "already configured") || !strings.Contains(plain.HumanText(), reposetup.ConfigureTestsCommandRemedy) {
+		t.Errorf("plain configure-tests on none %q must name --command, not claim already configured", plain.HumanText())
+	}
+
+	cmd := "sh ./test.sh"
+	res := r.runConfigureTestsWith(t, ConfigureTestsOptions{Command: &cmd})
+	if res.Result != ResultApplied || res.RepositoryState != string(reposetup.StateNeedsReview) {
+		t.Fatalf("configure-tests --command = %q/%q (%s), want applied/needs-review", res.Result, res.RepositoryState, res.HumanText())
+	}
+	if !contains(res.PendingPaths, ".docket.yml") {
+		t.Errorf("PendingPaths = %v, want .docket.yml", res.PendingPaths)
+	}
+	if staged := runGit(t, r.invocation, "diff", "--cached", "--name-only"); strings.Contains(staged, ".docket.yml") {
+		t.Errorf("configure-tests --command staged .docket.yml; staged: %q", staged)
+	}
+	eff := resolveDocketYML(t, r)
+	if eff.Build.Gate.Value != "local" || eff.Finalize.Gate.Value != "local" ||
+		eff.Build.TestCommand.Value != cmd || eff.Finalize.TestCommand.Value != cmd {
+		t.Fatalf("resolved policy build=%q/%q finalize=%q/%q, want local/%q for both",
+			eff.Build.Gate.Value, eff.Build.TestCommand.Value, eff.Finalize.Gate.Value, eff.Finalize.TestCommand.Value, cmd)
+	}
+
+	r.commitAndPushMain(t, "commit the explicit test policy", ".docket.yml")
+	check := r.runCheck(t)
+	if check.RepositoryState != string(reposetup.StateHealthy) || check.CheckExitCode() != 0 {
+		t.Fatalf("check after commit = %q exit %d (%s), want healthy/0", check.RepositoryState, check.CheckExitCode(), check.HumanText())
+	}
+	for _, f := range check.Findings {
+		if f.Code == reposetup.TestConfigMissingCode {
+			t.Errorf("check still reports %s: %+v", reposetup.TestConfigMissingCode, f)
+		}
+	}
+
+	before := mustReadFile(t, filepath.Join(r.invocation, ".docket.yml"))
+	again := r.runConfigureTestsWith(t, ConfigureTestsOptions{Command: &cmd})
+	if again.Result != ResultNoOp {
+		t.Errorf("repeat --command = %q (%s), want no-op", again.Result, again.HumanText())
+	}
+	if after := mustReadFile(t, filepath.Join(r.invocation, ".docket.yml")); string(before) != string(after) {
+		t.Errorf("repeat --command rewrote .docket.yml; want byte-identical")
+	}
+}
+
+// TestIntegrationRepoSetupConfigureTestsCommandRefusesInvalidInput proves an
+// empty, whitespace-only, or `auto` --command is invalid-input and leaves the
+// healthy repository's .docket.yml byte-identical with no working-tree change.
+func TestIntegrationRepoSetupConfigureTestsCommandRefusesInvalidInput(t *testing.T) {
+	r := newHealthyRepo(t)
+	before := mustReadFile(t, filepath.Join(r.invocation, ".docket.yml"))
+	for _, raw := range []string{"", "   ", "auto"} {
+		v := raw
+		res := r.runConfigureTestsWith(t, ConfigureTestsOptions{Command: &v})
+		if res.Result != ResultInvalidInput {
+			t.Errorf("--command %q = %q (%s), want invalid-input", raw, res.Result, res.HumanText())
+		}
+	}
+	if after := mustReadFile(t, filepath.Join(r.invocation, ".docket.yml")); string(before) != string(after) {
+		t.Errorf("a refused --command changed .docket.yml")
+	}
+	if dirty := runGit(t, r.invocation, "status", "--porcelain"); strings.TrimSpace(dirty) != "" {
+		t.Errorf("a refused --command left working-tree changes: %q", dirty)
 	}
 }
