@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/repository-check-reports-a-behind-only-docket-copy-as-diverg'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-05T10:32:10Z'
+reconciled: true
+claimed_at: '2026-10-05T10:33:47Z'
 ---
 
 ## Artifacts
@@ -55,3 +55,9 @@ A sibling with the same shape: when the primary checkout has unpushed commits on
 ## Out of scope
 
 Changing how a truly diverged or ahead `.docket` copy is handled (it stays a conflict with a human remedy). Making typed operations advance the local `.docket` copy after they push. `init`'s and `migrate`'s attach behavior, `repair`'s output, and `init`'s refusal text. Self-healing a worktree whose hooks-off config is already missing. Other `repository check` findings.
+
+## Reconcile log
+
+### 2026-10-05
+
+Reconciled against main f5fef87be. The spec was groomed today and every symbol it names (prepareSyncRelationship, prepareFastForwardWorktree, synchronizedPresence, worktreeCleanPresence, the upgrade guide and its registry test) is still present and unchanged since grooming; no related or recently archived change covered any of the work. Scope unchanged.
