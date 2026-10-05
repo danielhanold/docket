@@ -32,34 +32,9 @@ func (c *Client) DisableWorktreeHooks(ctx context.Context, worktreeDir string) e
 		return newFailure(disableHooksOp, KindInvalidRequest, "worktree dir not found", err)
 	}
 
-	// Resolve the common git dir relative to the worktree, then canonicalize it —
-	// the script's `cd "$WT" && cd "$(git rev-parse --git-common-dir)" && pwd -P`.
-	commonRes, f := c.run(ctx, runRequest{
-		op:   disableHooksOp,
-		dir:  worktreeDir,
-		args: []string{"rev-parse", "--git-common-dir"},
-	})
+	empty, f := c.emptyHooksDir(ctx, disableHooksOp, worktreeDir)
 	if f != nil {
 		return f
-	}
-	if commonRes.exitCode != 0 {
-		return newFailure(disableHooksOp, KindCommandFailed, "cannot resolve git common dir: "+stderrExcerpt(commonRes.stderr), nil).withExitCode(commonRes.exitCode)
-	}
-	commonLines := stdoutLines(commonRes.stdout)
-	if len(commonLines) != 1 {
-		return newFailure(disableHooksOp, KindInvalidOutput, "unexpected git-common-dir output", nil)
-	}
-	common, err := resolveGitPath(commonLines[0], worktreeDir)
-	if err != nil {
-		return newFailure(disableHooksOp, KindInvalidOutput, "cannot canonicalize git common dir", err)
-	}
-
-	// Absolute, empty, docket-owned hooks dir under the common git dir — never
-	// tracked, never leaks into a commit, and a real (empty) dir avoids
-	// "hooksPath does not exist" surprises.
-	empty := filepath.Join(common, "docket", "empty-hooks")
-	if err := os.MkdirAll(empty, 0o755); err != nil {
-		return newFailure(disableHooksOp, KindCommandFailed, "cannot create empty hooks dir", err)
 	}
 
 	if err := c.ensureWorktreeConfig(ctx, worktreeDir); err != nil {
@@ -81,6 +56,40 @@ func (c *Client) DisableWorktreeHooks(ctx context.Context, worktreeDir string) e
 		return newFailure(disableHooksOp, KindCommandFailed, "cannot set core.hooksPath: "+stderrExcerpt(setRes.stderr), nil).withExitCode(setRes.exitCode)
 	}
 	return nil
+}
+
+// emptyHooksDir resolves the worktree's common git dir and returns docket's
+// absolute, empty hooks directory under it (<common>/docket/empty-hooks), creating
+// it when absent. It is the one place that directory is named: DisableWorktreeHooks
+// points a worktree's per-worktree core.hooksPath at it, and the in-place
+// fast-forward primitives force it per command with `-c core.hooksPath=`.
+//
+// The common dir is resolved relative to the worktree, then canonicalized — the
+// script's `cd "$WT" && cd "$(git rev-parse --git-common-dir)" && pwd -P`. The
+// directory is absolute, empty, and docket-owned under the common git dir: never
+// tracked, never leaks into a commit, and a real (empty) dir avoids "hooksPath does
+// not exist" surprises.
+func (c *Client) emptyHooksDir(ctx context.Context, op Operation, worktreeDir string) (string, *Failure) {
+	commonRes, f := c.run(ctx, runRequest{op: op, dir: worktreeDir, args: []string{"rev-parse", "--git-common-dir"}})
+	if f != nil {
+		return "", f
+	}
+	if commonRes.exitCode != 0 {
+		return "", newFailure(op, KindCommandFailed, "cannot resolve git common dir: "+stderrExcerpt(commonRes.stderr), nil).withExitCode(commonRes.exitCode)
+	}
+	commonLines := stdoutLines(commonRes.stdout)
+	if len(commonLines) != 1 {
+		return "", newFailure(op, KindInvalidOutput, "unexpected git-common-dir output", nil)
+	}
+	common, err := resolveGitPath(commonLines[0], worktreeDir)
+	if err != nil {
+		return "", newFailure(op, KindInvalidOutput, "cannot canonicalize git common dir", err)
+	}
+	empty := filepath.Join(common, "docket", "empty-hooks")
+	if err := os.MkdirAll(empty, 0o755); err != nil {
+		return "", newFailure(op, KindCommandFailed, "cannot create empty hooks dir", err)
+	}
+	return empty, nil
 }
 
 // ensureWorktreeConfig enables extensions.worktreeConfig when it is not already
