@@ -120,10 +120,10 @@ const (
 	ReasonGateCleanupInvalidID = "invalid-run-dir"
 )
 
-// FindingWorkspaceRemnant is the warning a cleaned finalize-cleanup result
-// carries when Git removed the worktree but part of its folder could not be
-// deleted. A note for a human, never a retryable leg: the disposition stays
-// cleaned.
+// FindingWorkspaceRemnant is the warning a finalize-cleanup result carries
+// when Git removed the worktree but part of its folder could not be deleted.
+// The workspace leg is done; this is a note for a human and never makes the
+// result pending.
 const FindingWorkspaceRemnant = "workspace-remnant"
 
 // CleanupOpResult is the protocol-v1 document both cleanup operations return. It
@@ -180,7 +180,8 @@ func cleanupRefusal(result Result, disposition, reason, message string, id int) 
 	})
 }
 
-// cleanupWarning is one retryable pending finding.
+// cleanupWarning builds a warning finding; it is retryable only when placed in
+// the pending list.
 func cleanupWarning(code, msg string) StatusFinding {
 	return StatusFinding{Code: code, Severity: string(domain.SeverityWarning), Message: msg}
 }
