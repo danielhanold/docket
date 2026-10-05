@@ -2,7 +2,7 @@
 id: 522
 slug: 'share-the-json-key-rules-between-internal-cli-and-internal-a'
 title: 'Share the JSON-key rules between internal/cli and internal/app'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: true
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/share-the-json-key-rules-between-internal-cli-and-internal-a'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-05T09:47:42Z'
 ---
 
 ## Artifacts
