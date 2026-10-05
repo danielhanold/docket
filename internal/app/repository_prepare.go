@@ -661,10 +661,7 @@ func prepareExecute(ctx context.Context, git *gitcli.Client, sc setupContext, ve
 	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
 	switch verdict.action {
 	case prepareActionAttach:
-		if err := prepareAttachFresh(ctx, git, sc.repo, worktreePath, metaRef, verdict); err != nil {
-			return err
-		}
-		return git.DisableWorktreeHooks(ctx, worktreePath)
+		return prepareAttachFresh(ctx, git, sc.repo, worktreePath, metaRef, verdict)
 	case prepareActionFastForward:
 		return git.FastForwardCheckedOutBranch(ctx, worktreePath, metaRef, gitcli.ObjectID(verdict.observedTip), gitcli.ObjectID(verdict.targetRev))
 	default:
@@ -674,18 +671,33 @@ func prepareExecute(ctx context.Context, git *gitcli.Client, sc setupContext, ve
 
 // prepareAttachFresh is prepare's own attach; ensureMetadataWorktree stays init's and
 // migrate's, with its contract unchanged. With no local docket branch it creates one
-// at the target (git refuses if a branch appeared since routing). With one, it moves
-// that branch from the observed tip to the target by compare-and-swap (a no-op that
-// still verifies the tip when it is already current), then attaches it.
+// at the target (git refuses if a branch appeared since routing). With one, it
+// attaches the branch where it stands FIRST and only then moves it: `git worktree
+// add`'s own checked-out guard decides whether another worktree holds the branch —
+// including one mid-rebase or mid-bisect, which `git worktree list` reports as
+// detached and the router's holder probe cannot see — so a held branch is refused
+// before anything moves. The attached branch then advances in place
+// (gitcli's FastForwardCheckedOutBranch) by compare-and-swap from the observed tip,
+// hooks forced off; when the branch is already current that is a no-op that still
+// verifies the tip. A branch that moved between routing and the attach fails that
+// compare-and-swap with its commits kept, leaving .docket attached (hooks-off already
+// applied) at the moved tip for the next run to classify. Hooks-off is applied
+// right after the attach in every case.
 func prepareAttachFresh(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, worktreePath string, metaRef gitcli.RefName, v prepareVerdict) error {
 	target := gitcli.ObjectID(v.targetRev)
 	if v.observedTip == "" {
-		return git.AddBranchWorktree(ctx, repo, worktreePath, metaRef, target)
+		if err := git.AddBranchWorktree(ctx, repo, worktreePath, metaRef, target); err != nil {
+			return err
+		}
+		return git.DisableWorktreeHooks(ctx, worktreePath)
 	}
-	if err := git.AdvanceBranchChecked(ctx, repo, metaRef, gitcli.ObjectID(v.observedTip), target); err != nil {
+	if err := git.AttachBranchWorktree(ctx, repo, worktreePath, metaRef); err != nil {
 		return err
 	}
-	return git.AttachBranchWorktree(ctx, repo, worktreePath, metaRef)
+	if err := git.DisableWorktreeHooks(ctx, worktreePath); err != nil {
+		return err
+	}
+	return git.FastForwardCheckedOutBranch(ctx, worktreePath, metaRef, gitcli.ObjectID(v.observedTip), target)
 }
 
 // prepareContextResult builds an applied/no-op result carrying the closed typed
