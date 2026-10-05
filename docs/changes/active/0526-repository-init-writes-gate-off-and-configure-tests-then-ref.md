@@ -22,7 +22,7 @@ branch: 'fix/repository-init-writes-gate-off-and-configure-tests-then-ref'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T12:00:51Z'
+claimed_at: '2026-10-05T13:48:09Z'
 ---
 
 ## Artifacts
@@ -61,16 +61,3 @@ The real cause: `configure-tests` takes no input. It only re-runs init's suite d
 
 Reconciled against origin/main 19206a65d. Traced premises still hold: configure-tests takes only --repo-dir and emits one generic "already configured; nothing to write" message (internal/app/repository_configure_tests.go), init's ambiguous note still points at plain configure-tests (internal/app/repository_init.go testDiscoveryNote), ConfigureTestsGapNote still prescribes a hand edit, and AmbiguousTestDiscoveryError still names configure-tests. No overlapping work landed (0523/0524 do not touch the planner). Scope unchanged.
 
-## Run halted
-
-### 2026-10-05
-
-The fix-pass suite gate stayed red after the revert, so the run halted before the PR. The fix pass allows at most two suite runs.
-
-- The build gate passed at e9b73a36cecdd6c3508c962379ea32ac66a74058, after all 5 plan tasks.
-- The deep-tier review returned 2 findings: one important (a `--command` splice corrupts block-scalar and flow-style YAML) and one minor (init's no-suite note wording). Both were fixed in 3e4b6b0a3 and fad21d690.
-- Fix-pass run 1 was red: `internal/repoguard` TestRealProcessPackagesUseFixtureTempDir rejected the bare `t.TempDir()` in `internal/app/repository_configure_tests_test.go`, which the important fix added.
-- Both non-blocker fixes were reverted (1b8519c35, 5384f833e), and the results file was updated to record them as reverted. The head is now c317d7d18a3b469d488fcefdec6f46acd54598b1.
-- Fix-pass run 2 was red: `internal/process` TestObserveRunningThenTerminal failed with "timed out waiting for vanished" (test_go_toolchain). This looks like a timing flake that this branch does not touch, but it has not been confirmed.
-
-Branch fix/repository-init-writes-gate-off-and-configure-tests-then-ref is not published, and no PR was opened. To resume: re-run the gate on c317d7d18a3b469d488fcefdec6f46acd54598b1. If it passes, record evidence, attach the results, and publish. The reverted important fix can be re-applied with `testsupport.TempDir(t)` in its test.
