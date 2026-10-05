@@ -42,16 +42,17 @@ type fakeMergeGitHub struct {
 	findErr    error
 
 	// MergePullRequest result and recorded call state.
-	mergeOutcome       githubcli.MergeOutcome
-	mergeMethod        githubcli.MergeMethod
-	mergeRepoMethods   []githubcli.MergeMethod
-	mergeBranchMethods []githubcli.MergeMethod
-	mergeFacts         githubcli.MergedFacts
-	mergeErr           error
-	mergeCalls         int
-	lastMergeAdmin     bool
-	lastMergeHead      githubcli.ObjectRef
-	lastMergeNum       int
+	mergeOutcome          githubcli.MergeOutcome
+	mergeMethod           githubcli.MergeMethod
+	mergeRepoMethods      []githubcli.MergeMethod
+	mergeBranchMethods    []githubcli.MergeMethod
+	mergeRulesUnavailable bool
+	mergeFacts            githubcli.MergedFacts
+	mergeErr              error
+	mergeCalls            int
+	lastMergeAdmin        bool
+	lastMergeHead         githubcli.ObjectRef
+	lastMergeNum          int
 }
 
 func (f *fakeMergeGitHub) DiscoverRepository(context.Context, string) (githubcli.Repository, error) {
@@ -87,11 +88,12 @@ func (f *fakeMergeGitHub) MergePullRequest(_ context.Context, _ githubcli.Reposi
 		return githubcli.MergeResult{Outcome: githubcli.MergeUnknown}, f.mergeErr
 	}
 	return githubcli.MergeResult{
-		Outcome:       f.mergeOutcome,
-		Method:        f.mergeMethod,
-		Facts:         f.mergeFacts,
-		RepoMethods:   f.mergeRepoMethods,
-		BranchMethods: f.mergeBranchMethods,
+		Outcome:                f.mergeOutcome,
+		Method:                 f.mergeMethod,
+		Facts:                  f.mergeFacts,
+		RepoMethods:            f.mergeRepoMethods,
+		BranchMethods:          f.mergeBranchMethods,
+		BranchRulesUnavailable: f.mergeRulesUnavailable,
 	}, nil
 }
 
