@@ -121,7 +121,10 @@ Two keys name the suite, one per gate, and they are **read from config, never fr
 
 Both default to the empty string, which means *unconfigured*: a `local` gate with no command halts
 with a typed remedy pointing you at `docket repository configure-tests` rather than trying to guess a
-command at runtime. They are **independent** — the two may diverge if a repo wants a lighter suite at
+command at runtime. Plain `configure-tests` re-runs suite discovery. When discovery cannot find your
+suite, or finds more than one, pass it yourself: `docket repository configure-tests --command "<cmd>"`
+sets both gates to `local` with that command and leaves the `.docket.yml` edit unstaged for you to
+commit. They are **independent** — the two may diverge if a repo wants a lighter suite at
 build time than at merge time. The one rule that matters whichever they resolve to: each gate reads its own key from config, so there is
 exactly one source for each and no drifting duplicate to keep in sync. `finalize.gate` is the
 matching on/off switch for the finalize gate — `local` (the default) or `off`, where `off` skips the
