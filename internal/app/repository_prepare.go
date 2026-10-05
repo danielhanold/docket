@@ -235,9 +235,9 @@ type prepareVerdict struct {
 // that is missing, current, or strictly behind (prepareAttachRoute).
 //
 // heldElsewhere says whether another worktree holds the local docket branch. It is
-// consulted only on the absent-.docket attach row, where a behind branch must move
-// before it attaches; prepareAugment probes it only for that row.
-func prepareRoute(f reposetup.Facts, heldElsewhere reposetup.Presence) prepareVerdict {
+// consulted only on the absent-.docket attach row, where an existing branch must be
+// free to attach; prepareAugment probes it only for that row.
+func prepareRoute(f reposetup.Facts, heldElsewhere prepareHolder) prepareVerdict {
 	// 1. Fail-closed: a required topology probe that could not be resolved is an
 	// error, never a fabricated absence that could authorize an attach.
 	if u := prepareUnresolvedTopology(f); len(u) > 0 {
@@ -400,12 +400,22 @@ func prepareDivergedFinding() reposetup.Finding {
 	}
 }
 
+// prepareHolder is what prepareAugment learned about another worktree holding the
+// local docket branch. stale marks a leftover registration — the .docket path's own
+// (its directory deleted, the registration kept) or one Git lists as prunable — which
+// `git worktree prune` clears.
+type prepareHolder struct {
+	presence reposetup.Presence
+	stale    bool
+}
+
 // prepareAttachRoute decides the absent-.docket row by the local docket branch's
 // relationship to the pinned remote tip, so prepare never attaches a stale, ahead,
-// or diverged branch as-is and then reports healthy. A behind branch moves to the
-// target first (a compare-and-swap from the observed tip); a behind branch another
-// worktree holds is a forced, unsupported setup and refuses with nothing touched.
-func prepareAttachRoute(f reposetup.Facts, heldElsewhere reposetup.Presence) prepareVerdict {
+// or diverged branch as-is and then reports healthy. A current or behind branch
+// attaches (a behind one then moves to the target by compare-and-swap from the
+// observed tip); one another worktree holds is a forced, unsupported setup — or a
+// leftover registration — and refuses with nothing touched.
+func prepareAttachRoute(f reposetup.Facts, heldElsewhere prepareHolder) prepareVerdict {
 	target := f.RemoteMetadata.Tip
 	switch f.LocalMetadata.Presence {
 	case reposetup.PresenceAbsent:
@@ -414,20 +424,12 @@ func prepareAttachRoute(f reposetup.Facts, heldElsewhere reposetup.Presence) pre
 		return prepareLocalUnknownVerdict()
 	}
 	switch f.LocalMetadataSync {
-	case reposetup.SyncCurrent:
-		return prepareApplyVerdict(prepareActionAttach, target, f.LocalMetadata.Tip)
-	case reposetup.SyncBehind:
-		switch heldElsewhere {
+	case reposetup.SyncCurrent, reposetup.SyncBehind:
+		switch heldElsewhere.presence {
 		case reposetup.PresenceAbsent:
 			return prepareApplyVerdict(prepareActionAttach, target, f.LocalMetadata.Tip)
 		case reposetup.PresencePresent:
-			return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
-				Code:     string(FCDocketWorktreeAmbiguousRegistration),
-				Severity: reposetup.SeverityError,
-				Ref:      docketWorktreeName,
-				Message:  "The local docket branch is checked out in another worktree, so it cannot be moved to the remote tip and attached at .docket.",
-				Remedy:   "Inspect the worktree holding the docket branch and resolve it manually with a human, then run `docket repository check`.",
-			})
+			return prepareRefuseVerdict(reposetup.StateConflict, prepareHeldElsewhereFinding(heldElsewhere.stale))
 		default:
 			return prepareLocalUnknownVerdict()
 		}
@@ -438,6 +440,24 @@ func prepareAttachRoute(f reposetup.Facts, heldElsewhere reposetup.Presence) pre
 	default:
 		return prepareLocalUnknownVerdict()
 	}
+}
+
+// prepareHeldElsewhereFinding refuses an attach whose local docket branch another
+// worktree registration holds. A stale registration names `git worktree prune`, the
+// plain-Git cleanup; a live one is a human's to resolve.
+func prepareHeldElsewhereFinding(stale bool) reposetup.Finding {
+	f := reposetup.Finding{
+		Code:     string(FCDocketWorktreeAmbiguousRegistration),
+		Severity: reposetup.SeverityError,
+		Ref:      docketWorktreeName,
+		Message:  "The local docket branch is checked out in another worktree, so it cannot be attached at .docket.",
+		Remedy:   "Inspect the worktree holding the docket branch and resolve it manually with a human, then run `docket repository check`.",
+	}
+	if stale {
+		f.Message = "The local docket branch is still registered to a worktree whose directory is gone, so it cannot be attached at .docket."
+		f.Remedy = "Run `git worktree prune` to drop the stale worktree registration, then run `docket repository prepare`."
+	}
+	return f
 }
 
 // prepareUnresolvedTopology lists the required topology probes prepare could not
@@ -555,7 +575,7 @@ func RunRepositoryPrepare(ctx context.Context, d SetupDeps, o PrepareOptions) Re
 	// metadata branch is proven present; a fresh/legacy repository is decided from
 	// the base facts alone. Every probe maps its own error to the safe Unknown
 	// value, never a false absence.
-	held := reposetup.PresenceUnknown
+	held := prepareHolder{presence: reposetup.PresenceUnknown}
 	if facts.RemoteMetadata.Presence == reposetup.PresencePresent {
 		held = prepareAugment(ctx, d.Git, &facts, sc)
 	}
@@ -582,11 +602,12 @@ func RunRepositoryPrepare(ctx context.Context, d SetupDeps, o PrepareOptions) Re
 // deliberately leaves unproven, including LocalMetadataSync (the ancestry
 // relationship between the local metadata tip and the pinned remote metadata
 // revision, computed by applyLocalMetadataSync). It returns whether another worktree
-// holds the local docket branch, probed only when `.docket` is absent and the local
+// holds the local docket branch, and whether that holder is a stale registration
+// (prepareHolder), probed only when `.docket` is absent and the local
 // branch is present — the one attach row that consults it; everywhere else it is
 // PresenceUnknown and never read. Every probe maps its own error to the safe Unknown
 // value so a probe that could not run can never let the router read healthy.
-func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts, sc setupContext) reposetup.Presence {
+func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts, sc setupContext) prepareHolder {
 	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
 
 	// Metadata root shape at the FETCHED remote docket tip (fetch it first so the
@@ -632,18 +653,22 @@ func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts,
 	applyLocalMetadataSync(ctx, git, sc.repo, f)
 
 	if f.DocketWorktree.Presence != reposetup.PresenceAbsent || f.LocalMetadata.Presence != reposetup.PresencePresent {
-		return reposetup.PresenceUnknown // not consulted outside the absent-.docket attach row
+		return prepareHolder{presence: reposetup.PresenceUnknown} // not consulted outside the absent-.docket attach row
 	}
 	wts, err := git.ListWorktrees(ctx, sc.repo)
 	if err != nil {
-		return reposetup.PresenceUnknown
+		return prepareHolder{presence: reposetup.PresenceUnknown}
 	}
+	worktreePath := filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName)
 	for _, wt := range wts {
 		if wt.Branch == metaRef {
-			return reposetup.PresencePresent
+			return prepareHolder{
+				presence: reposetup.PresencePresent,
+				stale:    wt.Prunable || filepath.Clean(wt.Path) == filepath.Clean(worktreePath),
+			}
 		}
 	}
-	return reposetup.PresenceAbsent
+	return prepareHolder{presence: reposetup.PresenceAbsent}
 }
 
 // prepareExecute performs the single planned idempotent Git effect. Attachment
@@ -681,17 +706,19 @@ func prepareExecute(ctx context.Context, git *gitcli.Client, sc setupContext, ve
 // hooks forced off; when the branch is already current that is a no-op that still
 // verifies the tip. A branch that moved between routing and the attach fails that
 // compare-and-swap with its commits kept, leaving .docket attached (hooks-off already
-// applied) at the moved tip for the next run to classify. Hooks-off is applied
-// right after the attach in every case.
+// applied) at the moved tip for the next run to classify. The attach itself runs no
+// repository hook (gitcli's AttachBranchWorktreeNoHooks / AddBranchWorktreeNoHooks),
+// so a failing post-checkout hook cannot leave .docket attached with hooks on;
+// hooks-off is applied right after the attach in every case.
 func prepareAttachFresh(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, worktreePath string, metaRef gitcli.RefName, v prepareVerdict) error {
 	target := gitcli.ObjectID(v.targetRev)
 	if v.observedTip == "" {
-		if err := git.AddBranchWorktree(ctx, repo, worktreePath, metaRef, target); err != nil {
+		if err := git.AddBranchWorktreeNoHooks(ctx, repo, worktreePath, metaRef, target); err != nil {
 			return err
 		}
 		return git.DisableWorktreeHooks(ctx, worktreePath)
 	}
-	if err := git.AttachBranchWorktree(ctx, repo, worktreePath, metaRef); err != nil {
+	if err := git.AttachBranchWorktreeNoHooks(ctx, repo, worktreePath, metaRef); err != nil {
 		return err
 	}
 	if err := git.DisableWorktreeHooks(ctx, worktreePath); err != nil {

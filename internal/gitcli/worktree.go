@@ -20,12 +20,15 @@ const (
 // WorktreeInfo is one registered worktree as reported by
 // `git worktree list --porcelain -z`. Path is the path git reports; callers
 // canonicalize (Abs + every symlink hop) before comparing it to their own
-// spelling. Branch is empty on a detached worktree.
+// spelling. Branch is empty on a detached worktree. Prunable is Git's own
+// "prunable" annotation: the registration's directory is gone, so
+// `git worktree prune` would drop it.
 type WorktreeInfo struct {
 	Path     string
 	Head     ObjectID
 	Detached bool
 	Branch   RefName
+	Prunable bool
 }
 
 // AddDetachedWorktree registers a detached worktree at path checked out at
@@ -89,6 +92,18 @@ func (c *Client) RemoveWorktree(ctx context.Context, repo Repository, path strin
 // command-failed. path must be absolute; a malformed start commit id or branch
 // ref is invalid-request.
 func (c *Client) AddBranchWorktree(ctx context.Context, repo Repository, path string, branch RefName, startCommit ObjectID) error {
+	return c.addBranchWorktree(ctx, repo, path, branch, startCommit, false)
+}
+
+// AddBranchWorktreeNoHooks is AddBranchWorktree with no repository hook run: the
+// `worktree add` forces docket's empty hooks dir, so a failing post-checkout hook
+// can neither run nor fail the attach before the caller turns the new worktree's
+// own hooks off.
+func (c *Client) AddBranchWorktreeNoHooks(ctx context.Context, repo Repository, path string, branch RefName, startCommit ObjectID) error {
+	return c.addBranchWorktree(ctx, repo, path, branch, startCommit, true)
+}
+
+func (c *Client) addBranchWorktree(ctx context.Context, repo Repository, path string, branch RefName, startCommit ObjectID, noHooks bool) error {
 	if !filepath.IsAbs(path) {
 		return newFailure(worktreeAddBranchOp, KindInvalidRequest, "worktree path must be absolute", nil)
 	}
@@ -102,10 +117,14 @@ func (c *Client) AddBranchWorktree(ctx context.Context, repo Repository, path st
 	if err := validateObjectID(startCommit); err != nil {
 		return newFailure(worktreeAddBranchOp, KindInvalidRequest, "invalid start commit id", err)
 	}
+	args, f := c.worktreeAddArgs(ctx, worktreeAddBranchOp, repo, noHooks, "-b", short, "--", path, string(startCommit))
+	if f != nil {
+		return f
+	}
 	res, f := c.run(ctx, runRequest{
 		op:   worktreeAddBranchOp,
 		dir:  repo.PrimaryWorktree,
-		args: []string{"worktree", "add", "-b", short, "--", path, string(startCommit)},
+		args: args,
 	})
 	if f != nil {
 		return f
@@ -122,6 +141,16 @@ func (c *Client) AddBranchWorktree(ctx context.Context, repo Repository, path st
 // non-zero exit surfaced as command-failed, never a create. branch must be a
 // fully qualified refs/heads/... name; path must be absolute.
 func (c *Client) AttachBranchWorktree(ctx context.Context, repo Repository, path string, branch RefName) error {
+	return c.attachBranchWorktree(ctx, repo, path, branch, false)
+}
+
+// AttachBranchWorktreeNoHooks is AttachBranchWorktree with no repository hook run
+// (see AddBranchWorktreeNoHooks).
+func (c *Client) AttachBranchWorktreeNoHooks(ctx context.Context, repo Repository, path string, branch RefName) error {
+	return c.attachBranchWorktree(ctx, repo, path, branch, true)
+}
+
+func (c *Client) attachBranchWorktree(ctx context.Context, repo Repository, path string, branch RefName, noHooks bool) error {
 	if !filepath.IsAbs(path) {
 		return newFailure(worktreeAttachOp, KindInvalidRequest, "worktree path must be absolute", nil)
 	}
@@ -132,10 +161,14 @@ func (c *Client) AttachBranchWorktree(ctx context.Context, repo Repository, path
 	if short == string(branch) {
 		return newFailure(worktreeAttachOp, KindInvalidRequest, "branch must be fully qualified refs/heads/<name>", nil)
 	}
+	args, f := c.worktreeAddArgs(ctx, worktreeAttachOp, repo, noHooks, "--", path, short)
+	if f != nil {
+		return f
+	}
 	res, f := c.run(ctx, runRequest{
 		op:   worktreeAttachOp,
 		dir:  repo.PrimaryWorktree,
-		args: []string{"worktree", "add", "--", path, short},
+		args: args,
 	})
 	if f != nil {
 		return f
@@ -144,6 +177,20 @@ func (c *Client) AttachBranchWorktree(ctx context.Context, repo Repository, path
 		return newFailure(worktreeAttachOp, KindCommandFailed, "worktree add failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
 	}
 	return nil
+}
+
+// worktreeAddArgs builds a `worktree add` argument list, prefixed with docket's
+// forced empty hooks dir when noHooks is set.
+func (c *Client) worktreeAddArgs(ctx context.Context, op Operation, repo Repository, noHooks bool, rest ...string) ([]string, *Failure) {
+	args := []string{"worktree", "add"}
+	if noHooks {
+		hooks, f := c.emptyHooksDir(ctx, op, repo.PrimaryWorktree)
+		if f != nil {
+			return nil, f
+		}
+		args = append([]string{"-c", "core.hooksPath=" + hooks}, args...)
+	}
+	return append(args, rest...), nil
 }
 
 // RemoveWorktreeClean deregisters exactly the worktree registered at path via
@@ -200,7 +247,7 @@ func (c *Client) ListWorktrees(ctx context.Context, repo Repository) ([]Worktree
 // `worktree list --porcelain -z`. Each worktree stanza is a run of
 // "label value" (or bare "label") fields terminated by an empty field; the
 // "worktree <path>" field opens a stanza. Recognized attributes are worktree,
-// HEAD, branch, and detached; bare and any other attribute (locked, prunable,
+// HEAD, branch, detached, and prunable; bare and any other attribute (locked,
 // …) are tolerated and ignored. A HEAD value must be a valid object id; a
 // stanza without a worktree path is malformed.
 func parseWorktreeListZ(out []byte) ([]WorktreeInfo, error) {
@@ -256,8 +303,10 @@ func parseWorktreeListZ(out []byte) ([]WorktreeInfo, error) {
 			cur.Detached = true
 		case "bare":
 			isBare = true
+		case "prunable":
+			cur.Prunable = true
 		default:
-			// locked, prunable, and any future attribute: ignored.
+			// locked and any future attribute: ignored.
 		}
 	}
 	if err := flush(); err != nil {

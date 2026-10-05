@@ -138,6 +138,50 @@ func TestIntegrationBranchTipFastForwardCheckedOutBranch(t *testing.T) {
 		}
 	})
 
+	t.Run("modified tracked file on a changed path refuses and rolls back", func(t *testing.T) {
+		r, wt, base, target := newCheckedOutBranchFixture(t)
+		c := newRealClient(t)
+		writeWorktreeFile(t, wt, "README.md", "local edit\n")
+		if err := c.FastForwardCheckedOutBranch(ctx, wt, "refs/heads/meta", base, target); err == nil {
+			t.Fatal("fast-forward over a modified tracked file succeeded; want refusal")
+		}
+		if got := metaTip(t, r); got != base {
+			t.Fatalf("meta = %s after refusal, want rolled back to %s", got, base)
+		}
+		if b, _ := os.ReadFile(filepath.Join(wt, "README.md")); string(b) != "local edit\n" {
+			t.Fatalf("README.md = %q, want the local modification intact", b)
+		}
+	})
+
+	// An unfinished merge whose staged content does not collide with the target would
+	// let read-tree succeed and strand MERGE_HEAD; the operation check refuses first.
+	t.Run("unfinished merge refuses and changes nothing", func(t *testing.T) {
+		r, wt, base, target := newCheckedOutBranchFixture(t)
+		c := newRealClient(t)
+		gitOut(t, wt, "checkout", "-q", "-b", "side")
+		writeWorktreeFile(t, wt, "side.txt", "side\n")
+		gitOut(t, wt, "add", "--", "side.txt")
+		gitOut(t, wt, "-c", "user.name=t", "-c", ffIdent, "commit", "-q", "-m", "side")
+		gitOut(t, wt, "checkout", "-q", "meta")
+		gitOut(t, wt, "-c", "user.name=t", "-c", ffIdent, "merge", "-q", "--no-ff", "--no-commit", "side")
+		mergeHead := filepath.Join(gitOut(t, wt, "rev-parse", "--absolute-git-dir"), "MERGE_HEAD")
+		if _, err := os.Stat(mergeHead); err != nil {
+			t.Fatalf("premise: no merge in progress: %v", err)
+		}
+		if err := c.FastForwardCheckedOutBranch(ctx, wt, "refs/heads/meta", base, target); err == nil {
+			t.Fatal("fast-forward during an unfinished merge succeeded; want refusal")
+		}
+		if got := metaTip(t, r); got != base {
+			t.Fatalf("meta = %s, want untouched %s", got, base)
+		}
+		if _, err := os.Stat(mergeHead); err != nil {
+			t.Fatalf("MERGE_HEAD gone after refusal: %v", err)
+		}
+		if b, _ := os.ReadFile(filepath.Join(wt, "side.txt")); string(b) != "side\n" {
+			t.Fatalf("merged side.txt = %q, want the in-progress merge content intact", b)
+		}
+	})
+
 	t.Run("stale stat info on a changed path still fast-forwards", func(t *testing.T) {
 		r, wt, base, target := newCheckedOutBranchFixture(t)
 		c := newRealClient(t)

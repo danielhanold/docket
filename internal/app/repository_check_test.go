@@ -223,7 +223,7 @@ func TestLocalMetadataRefusalsMatchPrepare(t *testing.T) {
 		f := preparableFacts()
 		f.LocalMetadataSync = tc.rel
 		f.DocketWorktree.Synchronized = reposetup.PresenceAbsent
-		v := prepareRoute(f, reposetup.PresenceAbsent)
+		v := prepareRoute(f, prepareHolder{presence: reposetup.PresenceAbsent})
 		if v.finding == nil {
 			t.Fatalf("%s: prepare produced no finding", tc.reason)
 		}
@@ -242,7 +242,7 @@ func TestLocalMetadataRefusalsMatchPrepare(t *testing.T) {
 		f := preparableFacts()
 		f.DocketWorktree.Clean = reposetup.PresenceAbsent
 		f.DocketWorktree.UnfinishedOperation = op
-		v := prepareRoute(f, reposetup.PresenceAbsent)
+		v := prepareRoute(f, prepareHolder{presence: reposetup.PresenceAbsent})
 		if v.finding == nil {
 			t.Fatalf("dirty (operation=%v): prepare produced no finding", op)
 		}
@@ -262,7 +262,7 @@ func TestLocalMetadataRefusalsMatchPrepare(t *testing.T) {
 	f := preparableFacts()
 	f.DocketWorktree.Clean = reposetup.PresenceAbsent
 	f.DocketWorktree.InterruptedFastForward = true
-	v := prepareRoute(f, reposetup.PresenceAbsent)
+	v := prepareRoute(f, prepareHolder{presence: reposetup.PresenceAbsent})
 	if v.finding == nil {
 		t.Fatal("interrupted fast-forward: prepare produced no finding")
 	}
