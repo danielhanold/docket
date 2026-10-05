@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/human-attended-v1-0-0-rc1-acceptance-and-publication'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-04T22:34:31Z'
+reconciled: true
+claimed_at: '2026-10-05T01:15:14Z'
 ---
 
 ## Artifacts
@@ -75,3 +75,9 @@ The release notes say:
 - Homebrew, Windows, signing/notarization, SBOM.
 - A publishing workflow.
 - Any redesign of storage, the JSON protocol, harness topology, or the Git/GitHub adapters.
+
+## Reconcile log
+
+### 2026-10-05
+
+2026-10-04 — Human-attended run per the spec. Scope unchanged at claim: 0502, 0510 and 0511 merged, no open PRs, no other in-progress change. During the run the human dropped 0412 and the private-repo finalize merge block from the release notes known gaps (recorded in decisions.md). No plan artifact: the spec says there is no code to plan or build.
