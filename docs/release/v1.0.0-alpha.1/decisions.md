@@ -31,8 +31,15 @@
 
 - Gate: finalize merges the PR itself.
 - Reason: finalize stopped at the branch-protection check (GitHub branch-rules API returns an error for a private repository on a plan without it). The operator merged PR #1 by hand; re-running finalize then archived and cleaned up.
-- Resolution: human (Daniel) classed it as a **known gap** for alpha.1 — a Claude Code path limitation on private repos without the branch-rules API. It goes in the release notes. No source change.
+- Resolution: human (Daniel) classed it as a **known gap** for alpha.1 — a Claude Code path limitation on private repos without the branch-rules API. No source change. (Later, at notes review, the human left it out of the release notes as a GitHub-side issue.)
 
 ### Observation — Phase 3, change 0523
 
 `docket repository check` reported a clean, behind-only `.docket` worktree as `conflict`. This is the already-tracked change 0523. `docket repository prepare` synced it and the check went `healthy`. Not a new defect.
+
+### Release-notes review (2026-10-04)
+
+Human (Daniel) edits to the known-gaps list:
+- 0412 is left out of the notes (judged probably not an issue), overriding the spec's "known gap in the notes" decision.
+- The private-repo finalize merge block (STOP 2) is left out as a GitHub-side issue.
+- 0523 is moved to the last item.

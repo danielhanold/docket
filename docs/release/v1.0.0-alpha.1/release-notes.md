@@ -45,12 +45,10 @@ The Bash tags `v0.9.2` and `v0.9.3` are still available.
 
 ## Known gaps
 
-- **The build agent can stall during long test runs (change 0412).** A dispatched implement-next run can return before its test run finishes. Recovery: run `docket run verdict <key>` with the key `docket run start` gave you, and do exactly what its `run-*` line says. If the run needs to be restarted, use `docket run start implement-next --resume <id>` and dispatch `docket-implement-next <id>` again.
-- **Finalize can't merge on some private repositories.** On a private repository whose GitHub plan doesn't return the branch-rules API, finalize stops before merging. Merge the PR on GitHub yourself, then run `docket-finalize-change <id>` again. It archives the merged change and cleans up.
-- **`docket repository check` can report a clean metadata copy as diverged (change 0523).** This happens when the local `.docket` copy is only behind the remote. Run `docket repository prepare` to sync it, then check again.
 - **Cursor and OpenCode** can be installed but are not tested in this release (changes 0512, 0513).
 - **Codex** is paused (change 0433).
 - No Homebrew, no Windows, and no code signing or notarization.
+- **`docket repository check` can report a clean metadata copy as diverged (change 0523).** This happens when the local `.docket` copy is only behind the remote. Run `docket repository prepare` to sync it, then check again.
 
 ## Evidence
 
