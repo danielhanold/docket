@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0525 — Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md)**
+> ↩ **[Change 0525 — Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-05-0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md)**
 <!-- docket:backlink:end -->
 # Finalize merges on a plan without branch rules, and finishes a removal Git started — Implementation Plan
 
