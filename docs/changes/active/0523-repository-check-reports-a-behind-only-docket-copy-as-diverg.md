@@ -2,7 +2,7 @@
 id: 523
 slug: 'repository-check-reports-a-behind-only-docket-copy-as-diverg'
 title: 'Treat a behind-only .docket copy as healthy and make prepare fast-forward it in place'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/repository-check-reports-a-behind-only-docket-copy-as-diverg'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/394'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-05T12:36:28Z'
