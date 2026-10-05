@@ -42,13 +42,15 @@ legacy single-branch layout; it is human-typed and asks for confirmation unless 
 
 **Used for:** the one-time setup per repo. The skills never set a repository up for you; the
 bootstrap guard stops and names the command to run. A local gate with no test command halts until
-one is configured, and `repository configure-tests` sets the test commands.
+one is configured, and `repository configure-tests` sets the test commands: from suite discovery,
+or from `--command "<cmd>"` when discovery cannot find the suite.
 
 ```sh
 cd <target-repo>
 docket repository init               # a repository that has never used docket
 docket repository migrate            # a legacy single-branch repository (human-typed)
 docket repository configure-tests    # set the build and finalize test commands
+docket repository configure-tests --command "sh ./test.sh"   # set both gates to local with this command
 ```
 
 ### Archived record
@@ -893,8 +895,14 @@ the finalize gate. They are independent and may differ. Both default to `""`, wh
 not a red suite, and names `docket repository configure-tests` as the remedy. Each gate reads its key from config,
 never from a second copy.
 
+Plain `docket repository configure-tests` re-runs suite discovery and writes what it finds. `--command "<cmd>"`
+skips discovery and sets both `build` and `finalize` to `gate: local` with that command, replacing whatever test
+policy was there. Either way the `.docket.yml` edit is left unstaged for you to review and commit. Different build
+and finalize commands are a hand edit.
+
 ```sh
 docket repository configure-tests --repo-dir .   # generate the build/finalize test policy in .docket.yml
+docket repository configure-tests --command "sh ./test.sh" --repo-dir .   # set both gates to local with this command
 docket diagnostic config --repo-dir . --json      # see what each key resolves to
 ```
 

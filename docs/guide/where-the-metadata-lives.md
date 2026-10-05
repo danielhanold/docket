@@ -121,7 +121,8 @@ All of these operate on the repository in your current directory (or the one `--
 - **`docket repository repair`** — previews the mechanical repairs `check` reports and applies them
   only once you confirm (or pass `--yes`).
 - **`docket repository configure-tests`** — writes the build and finalize test commands into
-  `.docket.yml` for a repository that is already set up, for you to review and commit.
+  `.docket.yml` for a repository that is already set up, from suite discovery or from
+  `--command "<cmd>"`, for you to review and commit.
 
 The workflows never set a repository up for you. If one runs against a repository that is not set
 up, its startup check stops and names the command to run: `init` for a fresh repository, `migrate`

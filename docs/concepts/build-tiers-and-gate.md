@@ -80,7 +80,8 @@ build that must be green before review — runs the whole suite once and records
   `local`. With `build.gate: off` it runs nothing and records truthful skipped
   evidence (`skipped`, reason `build-gate-off`) before review. An empty
   `build.test_command` under `local` is a configuration gap, not a red suite: the
-  build halts with the remedy `docket repository configure-tests`.
+  build halts with the remedy `docket repository configure-tests` (add
+  `--command "<cmd>"` when discovery cannot find the suite).
 - Build evidence is minted by `docket evidence record` from the passed run and
   checked by `docket evidence verify`. It lives in the pull request body's
   build-evidence block and is never committed, so the reviewer reads a durable
