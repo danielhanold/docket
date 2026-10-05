@@ -150,6 +150,21 @@ const (
 	ReasonMergeRecordInvalid = "record-invalid"
 )
 
+// FindingBranchRulesUnavailable is the warning finding a finalize.merge result
+// carries when GitHub answered the branch-rules read with its plan-gate 403:
+// the repository's plan offers no branch rules, so the method came from the
+// repository settings alone. A note, never a stop.
+const FindingBranchRulesUnavailable = "branch-rules-unavailable"
+
+// branchRulesUnavailableFinding is the one warning a plan-gated merge carries.
+func branchRulesUnavailableFinding() StatusFinding {
+	return StatusFinding{
+		Code:     FindingBranchRulesUnavailable,
+		Severity: string(domain.SeverityWarning),
+		Message:  "GitHub does not offer branch rules for this repository on its plan; the merge method was chosen from the repository settings alone",
+	}
+}
+
 // FinalizeMergeRequest is the closed request for `finalize merge`. ID names the
 // change; Revision is the exact record blob revision from the authoritative
 // context read; Head is the exact feature head the merge must match; Admin
@@ -557,9 +572,18 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 	// path can pass admin without it.
 	admin := req.Admin && req.ExplicitID
 	mres, merr := deps.GitHub.MergePullRequest(ctx, repo, canonicalN, githubcli.ObjectRef(req.Head), admin)
+	res := mergeOutcomeResult(ctx, deps, mc, repo, canonicalN, req, id, mres, merr)
+	if mres.BranchRulesUnavailable {
+		res.Findings = append(res.Findings, branchRulesUnavailableFinding())
+	}
+	return res
+}
+
+// mergeOutcomeResult maps one MergePullRequest return onto the finalize.merge
+// document. A transport/launch failure is unknown — the merge may or may not
+// have landed; retain and reprobe on the next run, never fabricate a result.
+func mergeOutcomeResult(ctx context.Context, deps FinalizeDeps, mc *mergeContext, repo githubcli.Repository, canonicalN int, req FinalizeMergeRequest, id int, mres githubcli.MergeResult, merr error) FinalizeMergeResult {
 	if merr != nil {
-		// A transport/launch failure is unknown — the merge may or may not have
-		// landed; retain and reprobe on the next run, never fabricate a result.
 		return newMergeResult(ResultExternalFailed, FinalizeMergeResult{
 			ID: id, Disposition: MergeDispUnknown, Number: canonicalN, Reason: ReasonMergeProbeUnknown, Message: merr.Error(),
 		})

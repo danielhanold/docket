@@ -898,3 +898,86 @@ func TestIntegrationFinalizeMergeCarryTransitive(t *testing.T) {
 		}
 	})
 }
+
+// countFindingCode counts findings carrying exactly code.
+func countFindingCode(fs []StatusFinding, code string) int {
+	n := 0
+	for _, f := range fs {
+		if f.Code == code {
+			n++
+		}
+	}
+	return n
+}
+
+// TestIntegrationFinalizeMergeBranchRulesUnavailableNote proves a merge reached
+// through GitHub's plan-gate answer carries exactly one branch-rules-unavailable
+// warning — on a merged result and on a denial alike — and that the note never
+// changes the result, disposition, or method. A normally-read rules array
+// carries none.
+func TestIntegrationFinalizeMergeBranchRulesUnavailableNote(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+
+	assertNote := func(t *testing.T, res FinalizeMergeResult) {
+		t.Helper()
+		if n := countFindingCode(res.Findings, "branch-rules-unavailable"); n != 1 {
+			t.Fatalf("branch-rules-unavailable findings = %d, want 1 (%+v)", n, res.Findings)
+		}
+		for _, f := range res.Findings {
+			if f.Code != "branch-rules-unavailable" {
+				continue
+			}
+			if f.Severity != "warning" {
+				t.Fatalf("severity = %q, want warning", f.Severity)
+			}
+			if f.Message != "GitHub does not offer branch rules for this repository on its plan; the merge method was chosen from the repository settings alone" {
+				t.Fatalf("message = %q", f.Message)
+			}
+		}
+	}
+
+	t.Run("merged", func(t *testing.T) {
+		f := setupMergeFixture(t, m)
+		mergeCommit := f.mergeFeatureIntoBase(t)
+		gh := f.baselineFake(t)
+		gh.mergeOutcome = githubcli.MergeMerged
+		gh.mergeMethod = githubcli.MethodRebase
+		gh.mergeFacts = mergedFactsFor(f.head, "main", mergeCommit)
+		gh.mergeRulesUnavailable = true
+		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Result != ResultApplied || res.Disposition != MergeDispMerged || res.Method != "rebase" || res.Merge == nil {
+			t.Fatalf("got result %q disp %q method %q merge %v (reason %q)", res.Result, res.Disposition, res.Method, res.Merge, res.Reason)
+		}
+		assertNote(t, res)
+	})
+
+	t.Run("denied", func(t *testing.T) {
+		f := setupMergeFixture(t, m)
+		gh := f.baselineFake(t)
+		gh.mergeOutcome = githubcli.MergeDenied
+		gh.mergeMethod = githubcli.MethodRebase
+		gh.mergeRulesUnavailable = true
+		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Disposition != MergeDispDenied || res.Reason != "merge-denied" || res.Method != "rebase" {
+			t.Fatalf("got disp %q reason %q method %q, want denied/merge-denied/rebase", res.Disposition, res.Reason, res.Method)
+		}
+		assertNote(t, res)
+	})
+
+	t.Run("rules-read-normally", func(t *testing.T) {
+		f := setupMergeFixture(t, m)
+		mergeCommit := f.mergeFeatureIntoBase(t)
+		gh := f.baselineFake(t)
+		gh.mergeOutcome = githubcli.MergeMerged
+		gh.mergeMethod = githubcli.MethodRebase
+		gh.mergeFacts = mergedFactsFor(f.head, "main", mergeCommit)
+		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Result != ResultApplied {
+			t.Fatalf("result = %q (%s)", res.Result, res.Reason)
+		}
+		if n := countFindingCode(res.Findings, "branch-rules-unavailable"); n != 0 {
+			t.Fatalf("a normal rules read carried %d branch-rules-unavailable findings, want 0", n)
+		}
+	})
+}
