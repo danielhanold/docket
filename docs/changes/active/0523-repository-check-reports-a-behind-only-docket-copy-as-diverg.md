@@ -1,7 +1,7 @@
 ---
 id: 523
 slug: 'repository-check-reports-a-behind-only-docket-copy-as-diverg'
-title: 'repository check flags a behind-only .docket copy as a conflict and an ahead primary as behind'
+title: 'Treat a behind-only .docket copy as healthy and make prepare fast-forward it in place'
 status: 'proposed'
 priority: 'medium'
 type: 'fix'
@@ -38,16 +38,19 @@ After any typed metadata write, the local `.docket` copy is clean and only behin
 
 The cause: `check` asks only whether the local and remote tips are equal. `prepare` already tells same, behind, ahead, and diverged apart. The same verdict also makes `repository configure-tests` refuse ("not in a healthy state") after any docket action until `prepare` runs.
 
+Calling "behind" healthy rests on the next `prepare` always fixing it, and today it doesn't always. `prepare` fast-forwards by deleting `.docket`, deleting the branch, and re-creating both. That fails on a locked worktree, runs the repository's own post-checkout hooks, silently deletes ignored files and unfinished-merge state, can strand a commit made at the wrong moment, and can be left half-done by an interruption. Its attach path also re-attaches an existing local branch at that branch's own possibly old commit and reports healthy.
+
 A sibling with the same shape: when the primary checkout has unpushed commits on the integration branch, `check` labels it `primary-behind-remote-tip` and says to fast-forward, which can't work in that state.
 
 ## What changes
 
-- `repository check` uses the relationship `prepare` already computes (same, behind, ahead, diverged) instead of tip equality. A clean, behind-only local `.docket` copy is **healthy**: exit 0, no finding. The next `prepare` fast-forwards it.
-- "Dirty" fires only for real uncommitted or untracked files. A copy with local-only commits reports `local-metadata-ahead`. "Diverged" is kept for true divergence.
-- `repository configure-tests` stops refusing a repository whose only issue is a behind-only `.docket` copy. It shares the same verdict, so no extra code is needed.
+- `repository check` uses the relationship `prepare` already computes (same, behind, ahead, diverged) instead of tip equality. A clean, behind-only local `.docket` copy is **healthy**: exit 0, no finding.
+- "Dirty" fires only for real uncommitted or untracked files, or an unfinished Git operation. A copy with local-only commits reports `local-metadata-ahead`. "Diverged" is kept for true divergence.
+- `repository configure-tests` stops refusing a repository whose only issue is a behind-only `.docket` copy.
+- `repository prepare` fast-forwards `.docket` in place. Nothing is deleted. The branch moves only from the commit it checked. No repository hooks run. It refuses rather than discards. Its attach path fast-forwards a behind local branch and refuses an ahead or diverged one, instead of attaching it as-is. So the next `prepare` really does fix every copy `check` calls healthy-but-behind.
 - Bundled sibling: `check`'s primary-checkout finding is split by relationship. Behind keeps `primary-behind-remote-tip` and its fast-forward remedy. Ahead and diverged get their own findings, with remedies that work in those states. All three stay non-healthy.
 - The Bash upgrade guide drops its extra `prepare` step after `repair`, and its executable test follows the new text.
 
 ## Out of scope
 
-Changing how a truly diverged or ahead `.docket` copy is handled (it stays a conflict with a human remedy). Making typed operations advance the local `.docket` copy after they push. `prepare`'s routing, `repair`'s output, and `init`'s refusal text. Other `repository check` findings.
+Changing how a truly diverged or ahead `.docket` copy is handled (it stays a conflict with a human remedy). Making typed operations advance the local `.docket` copy after they push. `init`'s and `migrate`'s attach behavior, `repair`'s output, and `init`'s refusal text. Self-healing a worktree whose hooks-off config is already missing. Other `repository check` findings.
