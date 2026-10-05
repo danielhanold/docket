@@ -160,7 +160,14 @@ func (f *mergeFixture) patchParent(t *testing.T, status, pr, extraBody string) s
 // parent record to carry the canonical PR reference merge gates on.
 func setupMergeFixture(t *testing.T, m planRepoMode) *mergeFixture {
 	t.Helper()
-	f := setupRebaseFixture(t, m)
+	return setupMergeFixtureWithNode(t, m, planningDepsFor)
+}
+
+// setupMergeFixtureWithNode is setupMergeFixture with the planning-node builder
+// chosen by the caller (see setupRebaseFixtureWithNode).
+func setupMergeFixtureWithNode(t *testing.T, m planRepoMode, nodeFor func(*testing.T, string) realNode) *mergeFixture {
+	t.Helper()
+	f := setupRebaseFixtureWithNode(t, m, "implemented", nodeFor)
 	mf := &mergeFixture{rebaseFixture: f}
 	mf.patchParent(t, "implemented", mergePRRef(), "")
 	return mf
