@@ -1,18 +1,12 @@
 # Backlog
 
-**526 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 4 proposed · ⚪ 14 deferred · ✅ 364 done · 🗑️ 139 killed
+**526 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 4 proposed · ⚪ 14 deferred · ✅ 365 done · 🗑️ 139 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0526](active/0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md) | `fix/repository-init-writes-gate-off-and-configure-tests-then-ref` | run halted — needs you |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0523](active/0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) | Treat a behind-only .docket copy as healthy and make prepare fast-forward it in place | `medium` | `fix` | [#394](https://github.com/danielhanold/docket/pull/394) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -74,7 +68,6 @@ graph TD
   0366 --> 0512
   0512 --> 0513
   0511 --> 0514
-  0523
   0526
   0192:::done
   0251:::done
@@ -85,12 +78,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (503)</summary>
+<details><summary>✅🗑️ Archive — done + killed (504)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0525](archive/2026-10-05-0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | 2026-10-05 |
 | [0524](archive/2026-10-05-0524-release-candidate-evidence-json-drops-the-trailing-newline-f.md) | Release-candidate evidence.json drops the trailing newline from its checksums copy | 2026-10-05 |
+| [0523](archive/2026-10-05-0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) | Treat a behind-only .docket copy as healthy and make prepare fast-forward it in place | 2026-10-05 |
 | [0522](archive/2026-10-05-0522-share-the-json-key-rules-between-internal-cli-and-internal-a.md) | Share the JSON-key rules between internal/cli and internal/app | 2026-10-05 |
 | [0366](archive/2026-10-05-0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | v1.0.0-alpha.1 acceptance and publication (Claude Code) | 2026-10-05 |
 | [0521](archive/2026-10-04-0521-finish-schema-operation-documentation-outcomes-md-flag-only.md) | Mark every nested required request field in the schema, and fix the stale schema docs | 2026-10-04 |
@@ -106,7 +100,6 @@ graph TD
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
 | [0506](archive/2026-10-04-0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) | Drop the retired-harness globs from the managed .gitignore block | 2026-10-04 |
 | [0505](archive/2026-10-04-0505-share-one-unsupported-key-matcher-between-the-example-config.md) | Share one unsupported-key matcher between the example-config test and the docs guard | 2026-10-04 |
-| [0504](archive/2026-10-04-0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) | Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0380](archive/2026-10-04-0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | 2026-10-04 |
 | [0320](archive/2026-10-04-0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | 2026-10-04 |
@@ -248,7 +241,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 21 done |
+| [2026-10](archive/) | 22 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
