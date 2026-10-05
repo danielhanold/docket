@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0523 — Treat a behind-only .docket copy as healthy and make prepare fast-forward it in place](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md)**
+> ↩ **[Change 0523 — Treat a behind-only .docket copy as healthy and make prepare fast-forward it in place](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-05-0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md)**
 <!-- docket:backlink:end -->
 # Treat a behind-only .docket copy as healthy and make prepare fast-forward it in place — Results
 
