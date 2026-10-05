@@ -14,7 +14,7 @@ discovered_from: [521]
 adrs: []
 spec:
 plan: 'docs/superpowers/plans/2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a.md'
-results:
+results: 'docs/results/2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a-results.md'
 trivial: true
 auto_groomable:
 branch_prefix:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-05T10:13:16Z'
 | Artifact | Link |
 |---|---|
 | Plan | [2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a.md](https://github.com/danielhanold/docket/blob/refactor/share-the-json-key-rules-between-internal-cli-and-internal-a/docs/superpowers/plans/2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a.md) |
+| Results | [2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a-results.md](https://github.com/danielhanold/docket/blob/refactor/share-the-json-key-rules-between-internal-cli-and-internal-a/docs/results/2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
