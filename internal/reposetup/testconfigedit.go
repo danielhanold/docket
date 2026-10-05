@@ -108,7 +108,117 @@ func renderOwnerPairs(existing []byte, pairs []kvPair) (edited []byte, changed b
 
 	edited = applySplices(existing, splices)
 	edited = appendBlocks(edited, appends)
+	if verr := verifyOwnerPairs(root, edited, pairs); verr != nil {
+		return nil, false, verr
+	}
 	return edited, true, nil
+}
+
+// verifyOwnerPairs is the post-splice re-parse guard (mirroring
+// RemoveMetadataBranchKey's). The line planner locates a leaf through
+// maxNodeLine, which under-reports a folded or literal block scalar (its
+// continuation lines carry no child nodes) and shares a line between a
+// flow-style owner and its leaves — so a splice can leave continuation lines
+// behind, silently changing the command or breaking the YAML, or delete the
+// owner key itself. Re-parse the edited bytes and refuse unless every original
+// top-level key survives in order (plus any appended owner), and both build and
+// finalize hold exactly the desired pairs — a preserve-explicit leaf keeping its
+// original value — with no owner child gained or lost.
+func verifyOwnerPairs(origRoot *yaml.Node, edited []byte, pairs []kvPair) error {
+	refuse := func(format string, args ...any) error {
+		return fmt.Errorf("reposetup: the test-policy edit cannot be spliced safely into .docket.yml ("+format+"); refusing to edit — set build/finalize gate and test_command by hand", args...)
+	}
+	after, err := topLevelMapping(edited)
+	if err != nil {
+		return refuse("the edited file does not parse: %v", err)
+	}
+	if after == nil {
+		return refuse("the edited file has no top-level mapping")
+	}
+	origKeys := mappingKeys(origRoot)
+	afterKeys := mappingKeys(after)
+	if len(afterKeys) < len(origKeys) {
+		return refuse("a top-level setting was lost")
+	}
+	for i, k := range origKeys {
+		if afterKeys[i] != k {
+			return refuse("top-level setting %q was lost or moved", k)
+		}
+	}
+	for _, k := range afterKeys[len(origKeys):] {
+		if (k != "build" && k != "finalize") || containsString(origKeys, k) {
+			return refuse("unexpected top-level setting %q", k)
+		}
+	}
+
+	for _, owner := range []string{"build", "finalize"} {
+		var origOwner *yaml.Node
+		if origRoot != nil {
+			_, origOwner, _ = findChild(origRoot, owner)
+		}
+		_, afterOwner, dup := findChild(after, owner)
+		if dup || afterOwner == nil || afterOwner.Kind != yaml.MappingNode {
+			return refuse("%q is not a single mapping after the edit", owner)
+		}
+		want := map[string]string{}
+		for _, p := range pairs {
+			w := p.val
+			if p.preserveExplicit && origOwner != nil {
+				if _, o, _ := findChild(origOwner, p.key); o != nil && o.Value != "" && o.Value != p.val {
+					w = o.Value
+				}
+			}
+			want[p.key] = w
+			_, v, dup := findChild(afterOwner, p.key)
+			if dup || v == nil || v.Kind != yaml.ScalarNode || v.Value != w {
+				got := "<missing>"
+				if v != nil {
+					got = fmt.Sprintf("%q", v.Value)
+				}
+				return refuse("%s.%s would be %s, want %q", owner, p.key, got, w)
+			}
+		}
+		// Every non-pair child the owner had survives, and nothing else appears.
+		expect := map[string]bool{}
+		for _, k := range mappingKeys(origOwner) {
+			expect[k] = true
+		}
+		for k := range want {
+			expect[k] = true
+		}
+		got := mappingKeys(afterOwner)
+		if len(got) != len(expect) {
+			return refuse("%q gained or lost a setting", owner)
+		}
+		for _, k := range got {
+			if !expect[k] {
+				return refuse("%q gained setting %q", owner, k)
+			}
+		}
+	}
+	return nil
+}
+
+// mappingKeys returns the scalar key names of mapping m in document order; a
+// nil or non-mapping node has none.
+func mappingKeys(m *yaml.Node) []string {
+	if m == nil || m.Kind != yaml.MappingNode {
+		return nil
+	}
+	var keys []string
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		keys = append(keys, m.Content[i].Value)
+	}
+	return keys
+}
+
+func containsString(ss []string, s string) bool {
+	for _, x := range ss {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 // kvPair is one leaf setting to ensure inside an owner block. preserveExplicit

@@ -140,8 +140,8 @@ func topLevelMapping(src []byte) (*yaml.Node, error) {
 // For a plain/quoted scalar this is the node's own line; for a flow collection
 // or a block mapping/sequence value it is the deepest child's line, which is the
 // last physical line the value occupies. (Block SCALARS carry no child nodes and
-// thus under-report; RemoveMetadataBranchKey's post-splice re-parse catches that
-// pathological case for a branch-name setting.)
+// thus under-report; the post-splice re-parses in RemoveMetadataBranchKey and
+// verifyOwnerPairs catch that pathological case and refuse the edit.)
 func maxNodeLine(n *yaml.Node) int {
 	m := n.Line
 	for _, c := range n.Content {
