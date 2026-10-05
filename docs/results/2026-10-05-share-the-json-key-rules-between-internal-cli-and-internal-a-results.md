@@ -14,3 +14,4 @@ The code that lists the JSON keys a request file accepts now lives in one place.
 - Each build task ran focused tests. The moved unit tests (`TestRequestJSONKeysReconcile`, `TestRequestJSONKeysSkipsAndPromotes`) and a new `TestRequiredJSONKeysFiltersTheSharedWalk` pass in `internal/app`. Two mutations of the shared walk (removing embedded-struct promotion, and removing the required filter) turned them red. `TestPublishedRequestIsTheDecodedJSONFile` and the unknown-key refusal test pass in `internal/cli`.
 - A whole-repo grep finds no remaining `requestJSONKeys` in Go source.
 - The full suite ran through the build gate at the final head.
+- Whole-branch review (standard tier): no findings.
