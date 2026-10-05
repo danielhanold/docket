@@ -1100,3 +1100,44 @@ func TestSweepImplementationScopeDoesNotGrowWithHistory(t *testing.T) {
 		t.Errorf("full scope must exercise more historical cleanups than implementation scope: full=%d implementation=%d", full30.cleanups, base.cleanups)
 	}
 }
+
+// TestSweepCleanupSurfacesWorkspaceRemnant: a cleaned cleanup result carrying a
+// workspace-remnant finding has no reason of its own, so the sweep entry must
+// carry the remnant itself — otherwise the leftover folder goes unreported on
+// the safety-net path.
+func TestSweepCleanupSurfacesWorkspaceRemnant(t *testing.T) {
+	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
+	}}
+	remnant := cleanupWarning(FindingWorkspaceRemnant,
+		"Git removed the worktree but part of the folder could not be deleted; delete /repo/.worktrees/merged by hand")
+	ops := &recordingSweepOps{cleanup: map[int]CleanupOpResult{
+		30: newCleanupResult(OperationFinalizeCleanup, ResultApplied, CleanupOpResult{
+			ID: 30, Disposition: CleanupDispCleaned, Findings: []StatusFinding{remnant},
+			Message: "the final change was cleaned: workspace removed and feature refs deleted",
+		}),
+	}}
+
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+
+	var e *MaintenanceEntry
+	for i := range res.Entries {
+		if res.Entries[i].ID == 30 && res.Entries[i].Kind == sweepKindCleanup {
+			e = &res.Entries[i]
+		}
+	}
+	if e == nil {
+		t.Fatalf("no cleanup entry for 30; entries=%+v", res.Entries)
+	}
+	if e.Disposition != SweepDispApplied {
+		t.Errorf("a remnant must not change the applied disposition; got %q", e.Disposition)
+	}
+	if e.Reason != FindingWorkspaceRemnant {
+		t.Errorf("entry reason = %q, want %q", e.Reason, FindingWorkspaceRemnant)
+	}
+	if !strings.Contains(e.Message, "/repo/.worktrees/merged") {
+		t.Errorf("entry message must name the leftover path; got %q", e.Message)
+	}
+}

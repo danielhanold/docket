@@ -680,10 +680,27 @@ func sweepRunCleanup(ctx context.Context, ops sweepOps, id int) MaintenanceEntry
 		return sweepEntry(id, sweepKindCleanup, SweepDispSkipped, "", ReasonSweepItemVanished, "record absent or ambiguous on reload")
 	}
 	res := ops.cleanup(ctx, id, obs)
-	return MaintenanceEntry{
+	entry := MaintenanceEntry{
 		ID: id, Kind: sweepKindCleanup, Disposition: sweepDispositionForResult(res.Env().Result),
 		Operation: res.Env().Operation, Reason: res.Reason, Message: res.Message,
 	}
+	// A workspace-remnant note rides a cleaned result's findings, not its
+	// reason; carry it into the entry so the leftover folder is reported on the
+	// safety-net path too. It never changes the entry's disposition.
+	for _, f := range res.Findings {
+		if f.Code != FindingWorkspaceRemnant {
+			continue
+		}
+		if entry.Reason == "" {
+			entry.Reason = FindingWorkspaceRemnant
+		}
+		if entry.Message == "" {
+			entry.Message = f.Message
+		} else {
+			entry.Message += "; " + f.Message
+		}
+	}
+	return entry
 }
 
 // sweepRunReclaim gates the reclaim on reclaim.auto: when it is off the eligible

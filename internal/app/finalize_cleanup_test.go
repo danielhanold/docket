@@ -362,3 +362,16 @@ func planRepoModeDocket() planRepoMode {
 }
 
 // --- TestCleanupBacklinkRepairIgnoresUnrelatedCorpusErrors ----------------
+
+// TestCleanupHumanTextNamesWorkspaceRemnant: the human one-liner of a cleaned
+// result must still name a workspace-remnant warning and its leftover path.
+func TestCleanupHumanTextNamesWorkspaceRemnant(t *testing.T) {
+	r := newCleanupResult(OperationFinalizeCleanup, ResultApplied, CleanupOpResult{
+		ID: 7, Disposition: CleanupDispCleaned,
+		Findings: []StatusFinding{cleanupWarning(FindingWorkspaceRemnant, "delete /repo/.worktrees/x by hand")},
+	})
+	got := r.HumanText()
+	if !strings.Contains(got, FindingWorkspaceRemnant) || !strings.Contains(got, "/repo/.worktrees/x") {
+		t.Fatalf("HumanText must name the remnant warning; got %q", got)
+	}
+}
