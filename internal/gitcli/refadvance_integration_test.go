@@ -25,7 +25,7 @@ func newUnattachedBranchFixture(t *testing.T) (r *testRepos, base, target Object
 	return r, base, target
 }
 
-func TestIntegrationRepoAdvanceBranchChecked(t *testing.T) {
+func TestIntegrationBranchTipAdvanceBranchChecked(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("advances an unattached branch", func(t *testing.T) {

@@ -3,8 +3,10 @@
 # tests/test_go_integration_app_reposynccheck.sh — Go integration shard: the local
 # .docket copy relationship scenarios for `repository check` (a clean behind-only copy
 # is healthy with no finding and configure-tests accepts it; ahead, diverged, and
-# dirty-behind each report exactly their own finding), behind the `integration` build
-# tag, prefix ^TestIntegrationRepoSyncCheck. A new shard because no existing app
+# dirty-behind each report exactly their own finding; an unfinished merge in .docket
+# reads dirty) and the primary checkout's ahead and behind positions against the
+# remote integration tip, behind the `integration` build tag, prefix
+# ^TestIntegrationRepoSyncCheck. A new shard because no existing app
 # prefix is a name-prefix of TestIntegrationRepoSyncCheck. Declarations only —
 # execution and inspection live in tests/lib/go-integration-shard.sh; the
 # completeness contract is tests/test_go_integration_contract.sh.

@@ -55,7 +55,7 @@ func installHooks(t *testing.T, sentinel string, code int, names ...string) stri
 	return dir
 }
 
-func TestIntegrationRepoFastForwardCheckedOutBranch(t *testing.T) {
+func TestIntegrationBranchTipFastForwardCheckedOutBranch(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("advances branch, index, and files in place", func(t *testing.T) {

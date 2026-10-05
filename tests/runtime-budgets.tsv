@@ -70,6 +70,7 @@ tests/test_go_integration_gitcli_history.sh	10	parallel
 tests/test_go_integration_gitcli_preserve.sh	15	parallel
 tests/test_go_integration_gitcli_process.sh	15	parallel
 tests/test_go_integration_gitcli_repo.sh	30	parallel
+tests/test_go_integration_gitcli_branchtip.sh	15	parallel
 tests/test_go_integration_gitcli_stoppedcommit.sh	10	parallel
 tests/test_go_integration_gitcli_setuptree.sh	10	parallel
 tests/test_go_integration_gitcli_source.sh	10	parallel

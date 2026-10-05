@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestIntegrationRepoFastForwardWorktree(t *testing.T) {
+func TestIntegrationBranchTipFastForwardWorktree(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("clean advance and already current", func(t *testing.T) {
