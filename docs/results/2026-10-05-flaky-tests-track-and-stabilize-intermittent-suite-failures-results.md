@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0507 — Fix the observe-test hang and bring two test files back under their time limits](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md)**
+> ↩ **[Change 0507 — Fix the observe-test hang and bring two test files back under their time limits](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-05-0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md)**
 <!-- docket:backlink:end -->
 # Fix the observe-test hang and bring two test files back under their time limits — Results
 
