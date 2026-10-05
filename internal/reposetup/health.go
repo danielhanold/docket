@@ -69,7 +69,7 @@ func categoryOf(reason string) int {
 		"metadata-seeded", "metadata-seeded-live-surface":
 		return catIntegrationTree
 	case "docket-dir-foreign", "metadata-worktree-dirty",
-		"local-metadata-diverged", "integration-pruned-attach-incomplete":
+		"local-metadata-ahead", "local-metadata-diverged", "integration-pruned-attach-incomplete":
 		return catLocalWorktree
 	case "surfaces-drift":
 		return catSurface
@@ -169,14 +169,9 @@ func findingFor(reason string, f Facts) Finding {
 			Remedy:   "Inspect the .docket path and resolve it manually with a human before any repository operation.",
 		}
 	case "metadata-worktree-dirty":
-		msg := "The .docket metadata worktree has uncommitted or unsynchronized changes."
-		switch {
-		case f.DocketWorktree.Clean == PresenceAbsent && f.DocketWorktree.Synchronized == PresenceAbsent:
-			msg = "The .docket metadata worktree has uncommitted changes and is not synchronized with the remote docket tip."
-		case f.DocketWorktree.Clean == PresenceAbsent:
-			msg = "The .docket metadata worktree has uncommitted or untracked changes."
-		case f.DocketWorktree.Synchronized == PresenceAbsent:
-			msg = "The .docket metadata worktree is not synchronized with the remote docket tip."
+		msg := "The .docket metadata worktree has uncommitted or untracked changes."
+		if f.DocketWorktree.UnfinishedOperation {
+			msg = "The .docket metadata worktree has an unfinished Git operation (a merge, cherry-pick, revert, rebase, am, or bisect)."
 		}
 		return Finding{
 			Code:     "metadata-worktree-dirty",
@@ -184,6 +179,13 @@ func findingFor(reason string, f Facts) Finding {
 			Ref:      ".docket",
 			Message:  msg,
 			Remedy:   "Commit or inspect the changes in the .docket metadata worktree before any repository operation; leave them in place.",
+		}
+	case "local-metadata-ahead":
+		return Finding{
+			Code:     "local-metadata-ahead",
+			Severity: SeverityError,
+			Message:  "The local docket branch is ahead of the remote docket branch (it carries commits the remote does not).",
+			Remedy:   "Reconcile the local docket branch with the remote manually with a human before any repository operation.",
 		}
 	case "local-metadata-diverged":
 		return Finding{
@@ -369,7 +371,8 @@ func CheckExit(c Classification, findings []Finding) int {
 var reasonExplains = map[string][]HealthCondition{
 	"metadata-root-foreign":                {CondMetadataRootVerified},
 	"docket-dir-foreign":                   {CondWorktreeNotForeign, CondWorktreeRegistered, CondWorktreeClean, CondWorktreeSynchronized, CondWorktreeHooksOff},
-	"metadata-worktree-dirty":              {CondWorktreeClean, CondWorktreeSynchronized},
+	"metadata-worktree-dirty":              {CondWorktreeClean},
+	"local-metadata-ahead":                 {CondWorktreeSynchronized},
 	"local-metadata-diverged":              {CondWorktreeSynchronized},
 	"pending-review-paths":                 {CondNoPendingReviewPaths},
 	"metadata-seeded":                      {CondLiveSurfaceAbsent},
@@ -522,10 +525,19 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 		if !worktreeInspectable(f) {
 			return nil
 		}
-		// Synchronization needs both branch tips; missing prerequisites are
-		// represented by the local-metadata finding. Absent is explained by
-		// the metadata-worktree-dirty reason.
-		return nil
+		// Ahead and diverged are explained by their reasons. Unknown with both tips
+		// known means the ancestry probe failed: unverified, never guessed behind. A
+		// missing tip is explained by the local-metadata findings.
+		if f.DocketWorktree.Synchronized != PresenceUnknown || f.LocalMetadata.Tip == "" || f.RemoteMetadata.Tip == "" {
+			return nil
+		}
+		return &Finding{
+			Code:     "local-metadata-sync-unverified",
+			Severity: SeverityWarning,
+			Ref:      ".docket",
+			Message:  "Could not determine how the local docket branch relates to the remote docket branch (unverified, not proven diverged).",
+			Remedy:   "Re-run `docket repository check` once local Git reads succeed.",
+		}
 	case CondWorktreeHooksOff:
 		if !worktreeInspectable(f) {
 			return nil
