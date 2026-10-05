@@ -2,7 +2,7 @@
 id: 524
 slug: 'release-candidate-evidence-json-drops-the-trailing-newline-f'
 title: 'Release-candidate evidence.json drops the trailing newline from its checksums copy'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-05'
@@ -22,7 +22,7 @@ branch: 'fix/release-candidate-evidence-json-drops-the-trailing-newline-f'
 pr: 'https://github.com/danielhanold/docket/pull/391'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T09:52:20Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -30,8 +30,8 @@ claimed_at: '2026-10-05T09:52:20Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f.md](https://github.com/danielhanold/docket/blob/fix/release-candidate-evidence-json-drops-the-trailing-newline-f/docs/superpowers/plans/2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f.md) |
-| Results | [2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f-results.md](https://github.com/danielhanold/docket/blob/fix/release-candidate-evidence-json-drops-the-trailing-newline-f/docs/results/2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f-results.md) |
+| Plan | [2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f.md) |
+| Results | [2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -55,3 +55,9 @@ Any other change to the release-candidate workflow or the evidence schema.
 ### 2026-10-05
 
 Re-read against current main (7d2fa3e1a). The `checksums="$(cat candidate-head/checksums.txt)"` line and `--arg checksums "$checksums"` still sit in the summary job's "Assemble the evidence JSON" step; no other change touched them. No test or script references the line. Scope unchanged.
+
+## Closeout notes
+
+### Late findings
+
+- Finalize's first local gate at rebased head d6742e5 went red; docket-integration-repair could not reproduce it (78/78 green, 1 of 6 attempts, no repair commits) and the finalize re-gate passed at the same head. Likely contention-induced flake under concurrent suites.
