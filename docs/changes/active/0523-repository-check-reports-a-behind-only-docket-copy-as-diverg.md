@@ -22,7 +22,7 @@ branch: 'fix/repository-check-reports-a-behind-only-docket-copy-as-diverg'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T10:56:20Z'
+claimed_at: '2026-10-05T11:49:31Z'
 ---
 
 ## Artifacts
@@ -63,16 +63,3 @@ Changing how a truly diverged or ahead `.docket` copy is handled (it stays a con
 
 Reconciled against main f5fef87be. The spec was groomed today and every symbol it names (prepareSyncRelationship, prepareFastForwardWorktree, synchronizedPresence, worktreeCleanPresence, the upgrade guide and its registry test) is still present and unchanged since grooming; no related or recently archived change covered any of the work. Scope unchanged.
 
-## Run halted
-
-### 2026-10-05
-
-The build stopped at plan Task 2 (in-place fast-forward of a checked-out branch). The premium-tier worker returned BLOCKED, as the plan itself directs in Task 2 Step 5.
-
-**Cause.** The plan's mechanism (`git read-tree -u -m <old> <new>` after a compare-and-swap ref update) silently overwrites an ignored file at a path the target newly tracks. Reproduced on git 2.55.0: with `target.txt` ignored via `.git/info/exclude` and containing "mine", `read-tree -u -m` exits 0 and the file now reads "target". No read-tree flag preserves ignored files. That breaks spec section 3, "refuse rather than discard", and the plan's Review Focus item 1. Of the 10 subtests in `TestIntegrationRepoFastForwardCheckedOutBranch`, 9 pass and only the ignored-file-at-new-path subtest fails.
-
-**Decision needed.** Pick one of two directions, then revise the plan:
-- Add a pre-check before the compare-and-swap that refuses when any path `target` adds relative to the observed tip exists on disk, or has a non-directory leading component (via `diff-tree -r --name-only --diff-filter=A`). This needs a decision on how to handle an ignored directory sitting at a new file path.
-- Or accept Git's normal overwrite of ignored files, which spec section 3 already allows, and drop the stricter refusal the plan added.
-
-**State left for inspection.** Branch `fix/repository-check-reports-a-behind-only-docket-copy-as-diverg`, HEAD 5ea4f50a8. Task 1 is committed. The worktree has uncommitted Task 2 work-in-progress: `internal/gitcli/hooksoff.go` (emptyHooksDir extraction, green), and the untracked files `internal/gitcli/fastforward_inplace.go` and `internal/gitcli/fastforward_inplace_integration_test.go`. No build evidence and no PR exist yet.
