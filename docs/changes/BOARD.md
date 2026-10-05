@@ -1,6 +1,6 @@
 # Backlog
 
-**524 changes** — 🟣 2 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 361 done · 🗑️ 139 killed
+**525 changes** — 🟣 2 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 361 done · 🗑️ 139 killed
 
 ## 🟣 Groomed (2)
 
@@ -9,10 +9,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0525](active/0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | `medium` | `fix` | needs-grooming |
 | [0524](active/0524-release-candidate-evidence-json-drops-the-trailing-newline-f.md) | Release-candidate evidence.json drops the trailing newline from its checksums copy | `low` | `fix` | needs-grooming |
 | [0523](active/0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) | repository check reports a behind-only .docket copy as diverged after repair | `medium` | `fix` | needs-grooming |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | needs-grooming |
@@ -68,6 +69,7 @@ graph TD
   0522
   0523
   0524
+  0525
   0192:::done
   0251:::done
   0366:::done
