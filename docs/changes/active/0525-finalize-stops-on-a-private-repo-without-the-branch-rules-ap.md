@@ -22,7 +22,7 @@ branch: 'fix/finalize-stops-on-a-private-repo-without-the-branch-rules-ap'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T10:42:14Z'
+claimed_at: '2026-10-05T10:55:22Z'
 ---
 
 ## Artifacts
