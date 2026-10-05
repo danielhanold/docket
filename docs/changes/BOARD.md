@@ -1,6 +1,6 @@
 # Backlog
 
-**532 changes** — 🟣 2 groomed · 🟡 10 proposed · ⚪ 14 deferred · ✅ 367 done · 🗑️ 139 killed
+**533 changes** — 🟣 2 groomed · 🟡 11 proposed · ⚪ 14 deferred · ✅ 367 done · 🗑️ 139 killed
 
 ## 🟣 Groomed (2)
 
@@ -9,10 +9,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | ⏳ waiting on #530 — not yet built |
 | [0532](active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Private visibility: keep docket out of PRs, commits, and shipped files | `medium` | `feat` | ⏳ waiting on #530 — not yet built |
 | [0531](active/0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md) | Private visibility: keep the metadata branch on a local remote with neutral naming | `medium` | `feat` | needs-grooming |
 | [0530](active/0530-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) | Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR | `medium` | `feat` | needs-grooming |
@@ -73,6 +74,8 @@ graph TD
   0531
   0530 --> 0532
   0531 --> 0532
+  0530 --> 0533
+  0531 --> 0533
   0192:::done
   0251:::done
   0366:::done
