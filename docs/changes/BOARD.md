@@ -15,7 +15,7 @@
 |---|-------|----------|------|-----------|
 | [0526](active/0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository init writes gate: off and configure-tests then refuses to set test commands | `medium` | `fix` | needs-grooming |
 | [0525](active/0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | `medium` | `fix` | needs-grooming |
-| [0524](active/0524-release-candidate-evidence-json-drops-the-trailing-newline-f.md) | Release-candidate evidence.json drops the trailing newline from its checksums copy | `low` | `fix` | needs-grooming |
+| [0524](active/0524-release-candidate-evidence-json-drops-the-trailing-newline-f.md) | Release-candidate evidence.json drops the trailing newline from its checksums copy | `low` | `fix` | build-ready (trivial) |
 | [0523](active/0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) | repository check reports a behind-only .docket copy as diverged after repair | `medium` | `fix` | needs-grooming |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | needs-grooming |
 | [0522](active/0522-share-the-json-key-rules-between-internal-cli-and-internal-a.md) | Share the JSON-key rules between internal/cli and internal/app | `low` | `refactor` | needs-grooming |
