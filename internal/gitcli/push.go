@@ -172,17 +172,35 @@ func (c *Client) PushCreateLease(ctx context.Context, repo Repository, remote Re
 // `git merge-base --is-ancestor <ancestor> <descendant>`: exit 0 is true, exit 1
 // is false, and any other exit is a typed command-failed *Failure.
 func (c *Client) IsAncestor(ctx context.Context, repo Repository, ancestor, descendant ObjectID) (bool, error) {
+	return c.isAncestorIn(ctx, repo.PrimaryWorktree, ancestor, descendant, false)
+}
+
+// IsAncestorIgnoringReplacements is IsAncestor with Git's history rewrites switched
+// off: replace refs are ignored (`--no-replace-objects`) and so is the legacy graft
+// file (GIT_GRAFT_FILE set to the empty string, which Git opens as no file). A
+// relationship probe that decides whether a fast-forward is safe uses it, so a
+// replace ref or graft can never fake "behind" and strand local-only commits.
+// Other callers keep IsAncestor's behavior.
+func (c *Client) IsAncestorIgnoringReplacements(ctx context.Context, repo Repository, ancestor, descendant ObjectID) (bool, error) {
+	return c.isAncestorIn(ctx, repo.PrimaryWorktree, ancestor, descendant, true)
+}
+
+// isAncestorIn runs `git merge-base --is-ancestor` in dir: exit 0 is true, exit 1
+// is false, and any other exit is a typed command-failed *Failure.
+func (c *Client) isAncestorIn(ctx context.Context, dir string, ancestor, descendant ObjectID, ignoreReplacements bool) (bool, error) {
 	if err := validateObjectID(ancestor); err != nil {
 		return false, newFailure(isAncestorOp, KindInvalidRequest, "invalid ancestor id", err)
 	}
 	if err := validateObjectID(descendant); err != nil {
 		return false, newFailure(isAncestorOp, KindInvalidRequest, "invalid descendant id", err)
 	}
-	res, f := c.run(ctx, runRequest{
-		op:   isAncestorOp,
-		dir:  repo.PrimaryWorktree,
-		args: []string{"merge-base", "--is-ancestor", string(ancestor), string(descendant)},
-	})
+	args := []string{"merge-base", "--is-ancestor", string(ancestor), string(descendant)}
+	var env []string
+	if ignoreReplacements {
+		args = append([]string{"--no-replace-objects"}, args...)
+		env = []string{"GIT_GRAFT_FILE="}
+	}
+	res, f := c.run(ctx, runRequest{op: isAncestorOp, dir: dir, args: args, env: env})
 	if f != nil {
 		return false, f
 	}

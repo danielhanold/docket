@@ -36,8 +36,9 @@ type runRequest struct {
 	// env is appended to the client's sanitized base environment for this one
 	// command; a duplicate name overrides the base value (last wins). It is the
 	// only per-command environment channel — used for the engine-clock commit
-	// dates (GIT_AUTHOR_DATE / GIT_COMMITTER_DATE) — and never carries repository
-	// redirection, config injection, or credentials.
+	// dates (GIT_AUTHOR_DATE / GIT_COMMITTER_DATE) and for the ancestry probe's
+	// graft-disabling GIT_GRAFT_FILE= (IsAncestorIgnoringReplacements) — and never
+	// carries repository redirection, config injection, or credentials.
 	env []string
 }
 
