@@ -2,7 +2,7 @@
 id: 526
 slug: 'repository-init-writes-gate-off-and-configure-tests-then-ref'
 title: 'repository configure-tests takes the test command as input'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-05'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/repository-init-writes-gate-off-and-configure-tests-then-ref'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-05T11:04:58Z'
 ---
 
 ## Artifacts
