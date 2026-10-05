@@ -2,7 +2,7 @@
 id: 525
 slug: 'finalize-stops-on-a-private-repo-without-the-branch-rules-ap'
 title: 'Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-05'
@@ -22,7 +22,7 @@ branch: 'fix/finalize-stops-on-a-private-repo-without-the-branch-rules-ap'
 pr: 'https://github.com/danielhanold/docket/pull/393'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T10:55:22Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-05T10:55:22Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md) |
-| Plan | [2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md](https://github.com/danielhanold/docket/blob/fix/finalize-stops-on-a-private-repo-without-the-branch-rules-ap/docs/superpowers/plans/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) |
-| Results | [2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-results.md](https://github.com/danielhanold/docket/blob/fix/finalize-stops-on-a-private-repo-without-the-branch-rules-ap/docs/results/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-results.md) |
+| Plan | [2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) |
+| Results | [2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-results.md) |
 | ADRs | [ADR-0035](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0140](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0140-cleanup-finishes-a-worktree-removal-git-already-committed-to.md) |
 <!-- docket:artifacts:end -->
 
