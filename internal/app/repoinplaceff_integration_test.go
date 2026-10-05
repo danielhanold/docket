@@ -335,3 +335,79 @@ func TestIntegrationRepoInPlaceFFAttachBehindHeldByRebaseRefuses(t *testing.T) {
 		t.Fatalf(".docket attached on a refusal (err=%v)", err)
 	}
 }
+
+// TestIntegrationRepoInPlaceFFAttachBehindHeldElsewhereRefuses holds the behind docket
+// branch in a live worktree elsewhere, which `git worktree list` reports on the
+// branch: the router's holder probe (prepareAugment) must refuse before any effect,
+// so the branch keeps its tip and .docket is never attached.
+func TestIntegrationRepoInPlaceFFAttachBehindHeldElsewhereRefuses(t *testing.T) {
+	r, oldTip, _ := newBehindHealthyRepo(t)
+	removeDocketWorktree(t, r)
+	other := filepath.Join(testsupport.TempDir(t), "holder")
+	runGit(t, r.invocation, "worktree", "add", "--force", other, "docket")
+
+	res := runPrepareAt(t, r.invocation)
+	if res.Disposition != PrepareDispositionRefused || !prepareFinding(res, "docket-worktree-ambiguous-registration") {
+		t.Fatalf("prepare = %q %+v, want refused docket-worktree-ambiguous-registration", res.Disposition, res.Findings)
+	}
+	if local := runGit(t, r.invocation, "rev-parse", "refs/heads/docket"); local != oldTip {
+		t.Fatalf("local docket = %s, want untouched %s", local, oldTip)
+	}
+	if _, err := os.Stat(filepath.Join(r.invocation, ".docket")); !os.IsNotExist(err) {
+		t.Fatalf(".docket attached on a refusal (err=%v)", err)
+	}
+}
+
+// TestIntegrationRepoInPlaceFFAttachHeldByDeletedDocketNamesPrune deletes the .docket
+// directory but keeps its registration, the common way a current docket branch ends
+// up held: prepare must refuse naming `git worktree prune` (never apply and then fail
+// the attach), and after that prune it attaches.
+func TestIntegrationRepoInPlaceFFAttachHeldByDeletedDocketNamesPrune(t *testing.T) {
+	r := newHealthyRepo(t)
+	if err := os.RemoveAll(filepath.Join(r.invocation, ".docket")); err != nil {
+		t.Fatal(err)
+	}
+	res := runPrepareAt(t, r.invocation)
+	if res.Disposition != PrepareDispositionRefused || len(res.Findings) != 1 ||
+		res.Findings[0].Code != "docket-worktree-ambiguous-registration" ||
+		!strings.Contains(res.Findings[0].Remedy, "git worktree prune") {
+		t.Fatalf("prepare = %q %+v, want refused docket-worktree-ambiguous-registration naming git worktree prune", res.Disposition, res.Findings)
+	}
+	runGit(t, r.invocation, "worktree", "prune")
+	if again := runPrepareAt(t, r.invocation); again.Disposition != PrepareDispositionApplied {
+		t.Fatalf("prepare after prune = %q (%s), want applied", again.Disposition, again.HumanText())
+	}
+	requireCheckHealthy(t, r)
+}
+
+// TestIntegrationRepoInPlaceFFAttachRunsNoRepositoryHook installs a failing,
+// file-writing post-checkout hook through the shared hooks path. prepare's attach —
+// of an existing behind branch and of a newly created one — must not run it, so the
+// attach succeeds and .docket ends with its hooks-off setting.
+func TestIntegrationRepoInPlaceFFAttachRunsNoRepositoryHook(t *testing.T) {
+	for _, existing := range []bool{true, false} {
+		r, _, newTip := newBehindHealthyRepo(t)
+		removeDocketWorktree(t, r)
+		if !existing {
+			runGit(t, r.invocation, "branch", "-D", "docket")
+		}
+		hooks := filepath.Join(testsupport.TempDir(t), "shared-hooks")
+		sentinel := filepath.Join(testsupport.TempDir(t), "hook-ran")
+		writeHook(t, hooks, "post-checkout", "echo post-checkout >> '"+sentinel+"'\nexit 1\n")
+		runGit(t, r.invocation, "config", "core.hooksPath", hooks)
+
+		res := runPrepareAt(t, r.invocation)
+		if res.Disposition != PrepareDispositionApplied {
+			t.Fatalf("existing=%v: prepare = %q (%s), want applied", existing, res.Disposition, res.HumanText())
+		}
+		if b, err := os.ReadFile(sentinel); err == nil {
+			t.Fatalf("existing=%v: a repository hook ran during the attach: %q", existing, b)
+		}
+		if head := r.dotDocketHead(t); head != newTip {
+			t.Fatalf("existing=%v: .docket HEAD = %s, want %s", existing, head, newTip)
+		}
+		if hp := runGit(t, filepath.Join(r.invocation, ".docket"), "config", "--worktree", "core.hooksPath"); hp == "" || hp == hooks {
+			t.Fatalf("existing=%v: .docket hooksPath = %q, want docket's hooks-off setting", existing, hp)
+		}
+	}
+}

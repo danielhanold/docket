@@ -16,7 +16,8 @@ const fastForwardReflogMessage = "docket: fast-forward"
 // worktree directory, its admin dir (registration, per-worktree config, lock), the
 // branch, and its reflog all survive. The branch moves by compare-and-swap from
 // expectedTip, so a commit made since the caller observed expectedTip makes it
-// refuse with nothing changed. target must descend from expectedTip, judged with
+// refuse with nothing changed, as does an unfinished Git operation in the worktree
+// (WorktreeCheckoutState). target must descend from expectedTip, judged with
 // replace refs and grafts ignored. The tree moves with `read-tree -u -m`, which
 // refuses rather than overwrite a local change or an untracked file in the way; on
 // that refusal the branch is swapped back. An ignored file at a path target tracks
@@ -48,6 +49,17 @@ func (c *Client) FastForwardCheckedOutBranch(ctx context.Context, worktreeDir st
 	}
 	if sym.exitCode != 0 || RefName(strings.TrimSpace(string(sym.stdout))) != branch {
 		return newFailure(op, KindInvalidRepository, "the worktree does not have the branch checked out", nil)
+	}
+
+	// An unfinished Git operation (merge, cherry-pick, revert, rebase, bisect) refuses
+	// before anything moves: its staged state may not collide with the target, so
+	// read-tree would succeed and strand the operation on a moved branch.
+	state, err := c.WorktreeCheckoutState(ctx, worktreeDir)
+	if err != nil {
+		return err
+	}
+	if state.OperationInProgress {
+		return newFailure(op, KindInvalidRepository, "an unfinished Git operation is in progress in the worktree; nothing changed", nil)
 	}
 
 	descends, err := c.isAncestorIn(ctx, worktreeDir, expectedTip, target, true)
