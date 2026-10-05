@@ -2,7 +2,7 @@
 id: 525
 slug: 'finalize-stops-on-a-private-repo-without-the-branch-rules-ap'
 title: 'Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-05'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/finalize-stops-on-a-private-repo-without-the-branch-rules-ap'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-05T10:36:11Z'
 ---
 
 ## Artifacts

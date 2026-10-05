@@ -1,11 +1,12 @@
 # Backlog
 
-**526 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 362 done · 🗑️ 139 killed
+**526 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 362 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
+| [0525](active/0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md) | `fix/finalize-stops-on-a-private-repo-without-the-branch-rules-ap` |  |
 | [0523](active/0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) | Treat a behind-only .docket copy as healthy and make prepare fast-forward it in place | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg-design.md) | `fix/repository-check-reports-a-behind-only-docket-copy-as-diverg` |  |
 
 ## 🔵 Built (1)
@@ -14,11 +15,10 @@
 |---|-------|----------|------|----|-------|
 | [0524](active/0524-release-candidate-evidence-json-drops-the-trailing-newline-f.md) | Release-candidate evidence.json drops the trailing newline from its checksums copy | `low` | `fix` | [#391](https://github.com/danielhanold/docket/pull/391) | awaiting merge |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0525](active/0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md) |
 | [0507](active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Fix the observe-test hang and bring two test files back under their time limits | `low` | `fix` | [spec](../superpowers/specs/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
