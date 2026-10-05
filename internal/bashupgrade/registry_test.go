@@ -381,7 +381,7 @@ func gitRev(t *testing.T, c *upgradeCase, ref string) string {
 
 // repairPrepareOptionalProse is the guide's statement that the prepare step repair
 // mentions is optional.
-const repairPrepareOptionalProse = "That step is optional: the next docket command brings the folder up to date by itself."
+const repairPrepareOptionalProse = "That step is optional: every docket workflow runs `docket repository prepare` first, which brings the folder up to date."
 
 // releaseVerifiedProse is the guide's statement that the download and checksum
 // lines rest on the release verification, not on this test.

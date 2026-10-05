@@ -197,7 +197,7 @@ docket repository repair --yes
 
 It then tells you to run `docket repository prepare` to bring your local `.docket` folder up to
 date.
-That step is optional: the next docket command brings the folder up to date by itself.
+That step is optional: every docket workflow runs `docket repository prepare` first, which brings the folder up to date.
 Check the repository:
 
 <!-- upgrade-step: repo-confirm -->
