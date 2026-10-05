@@ -14,3 +14,5 @@ This change has no code to plan or build. Its plan is the human-attended protoco
 7. Phase 6 — evidence bundle, results, build gate, PR, mark implemented, finalize.
 
 This file exists because `change.mark-implemented` requires a linked plan. It was written during Phase 6, after Phases 0–5 had run. The evidence for each phase is in `docs/release/v1.0.0-alpha.1/`.
+
+The build gate for the closeout PR runs on the head that carries this plan.
