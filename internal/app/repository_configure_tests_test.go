@@ -9,6 +9,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/reposetup"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // healthyFacts returns a Facts value that classifies healthy, so the guard's
@@ -226,7 +227,7 @@ func TestRunRepositoryConfigureTestsRefusesInvalidCommandBeforeGather(t *testing
 // existing folded block-scalar test_command) surfaces as an error and leaves
 // .docket.yml byte-identical.
 func TestEnsureExplicitTestCommandRefusesUnsplicableFileUntouched(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	abs := filepath.Join(dir, docketYMLRel)
 	orig := []byte("build:\n  gate: \"off\"\n  test_command: >-\n    sh ./test.sh\n    make test\nfinalize:\n  gate: \"off\"\n")
 	if err := os.WriteFile(abs, orig, 0o644); err != nil {
