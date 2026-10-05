@@ -110,6 +110,17 @@ func EvaluateHealth(c Classification, f Facts, fm []RepairFinding) []Finding {
 	return out
 }
 
+// InterruptedFastForwardMessage and InterruptedFastForwardRemedy describe a .docket
+// worktree left by an interrupted in-place fast-forward: the branch moved to the
+// remote revision but the index and files did not, so `git status` shows staged
+// changes that would undo the remote update. Check and prepare share these texts
+// (TestLocalMetadataRefusalsMatchPrepare). Committing those changes would record a
+// revert of remote metadata, so the remedy names the plain-Git finish instead.
+const (
+	InterruptedFastForwardMessage = "The .docket metadata worktree holds an interrupted fast-forward: its branch moved to the new revision but its files did not, so the staged changes would undo the remote update."
+	InterruptedFastForwardRemedy  = "Finish the update inside .docket with plain Git — `git -C .docket reset --merge HEAD` (it refuses rather than overwrite a local edit) — and never commit the staged changes; then re-run."
+)
+
 // findingFor builds the single finding for one classifier reason token. The
 // remedy is branched on the reason (and, for needs-review, on the pending
 // paths), so every printed remedy is valid in exactly the state that produced
@@ -170,15 +181,19 @@ func findingFor(reason string, f Facts) Finding {
 		}
 	case "metadata-worktree-dirty":
 		msg := "The .docket metadata worktree has uncommitted or untracked changes."
-		if f.DocketWorktree.UnfinishedOperation {
+		remedy := "Commit or inspect the changes in the .docket metadata worktree before any repository operation; leave them in place."
+		switch {
+		case f.DocketWorktree.UnfinishedOperation:
 			msg = "The .docket metadata worktree has an unfinished Git operation (a merge, cherry-pick, revert, rebase, am, or bisect)."
+		case f.DocketWorktree.InterruptedFastForward:
+			msg, remedy = InterruptedFastForwardMessage, InterruptedFastForwardRemedy
 		}
 		return Finding{
 			Code:     "metadata-worktree-dirty",
 			Severity: SeverityError,
 			Ref:      ".docket",
 			Message:  msg,
-			Remedy:   "Commit or inspect the changes in the .docket metadata worktree before any repository operation; leave them in place.",
+			Remedy:   remedy,
 		}
 	case "local-metadata-ahead":
 		return Finding{

@@ -108,3 +108,50 @@ func (c *Client) FastForwardCheckedOutBranch(ctx context.Context, worktreeDir st
 	}
 	return f
 }
+
+const interruptedFastForwardOp Operation = "interrupted-fast-forward"
+
+// InterruptedFastForward reports whether worktreeDir, with branch checked out, holds
+// the state FastForwardCheckedOutBranch leaves when killed between its ref swap and
+// its tree update: the branch's newest reflog entry is the fast-forward's own (not
+// its roll-back) and the index still equals the tree of the branch's previous tip.
+// A completed fast-forward has an index at the new tip, so it reads false. Every
+// probe failure is a typed error, never a false.
+func (c *Client) InterruptedFastForward(ctx context.Context, worktreeDir string, branch RefName) (bool, error) {
+	op := interruptedFastForwardOp
+	if !filepath.IsAbs(worktreeDir) {
+		return false, newFailure(op, KindInvalidRequest, "worktree path must be absolute", nil)
+	}
+	if err := validateRefName(branch); err != nil {
+		return false, newFailure(op, KindInvalidRequest, "invalid branch ref", err)
+	}
+	if _, ok := branchShortName(branch); !ok {
+		return false, newFailure(op, KindInvalidRequest, "branch must be fully qualified refs/heads/<name>", nil)
+	}
+
+	last, f := c.run(ctx, runRequest{op: op, dir: worktreeDir,
+		args: []string{"log", "--walk-reflogs", "-1", "--format=%gs", string(branch), "--"}})
+	if f != nil {
+		return false, f
+	}
+	if last.exitCode != 0 {
+		return false, newFailure(op, KindCommandFailed, "reading the branch reflog failed: "+stderrExcerpt(last.stderr), nil).withExitCode(last.exitCode)
+	}
+	if strings.TrimSpace(string(last.stdout)) != fastForwardReflogMessage {
+		return false, nil
+	}
+
+	diff, f := c.run(ctx, runRequest{op: op, dir: worktreeDir,
+		args: []string{"diff", "--cached", "--quiet", string(branch) + "@{1}", "--"}})
+	if f != nil {
+		return false, f
+	}
+	switch diff.exitCode {
+	case 0:
+		return true, nil
+	case 1:
+		return false, nil
+	default:
+		return false, newFailure(op, KindCommandFailed, "comparing the index with the previous tip failed: "+stderrExcerpt(diff.stderr), nil).withExitCode(diff.exitCode)
+	}
+}

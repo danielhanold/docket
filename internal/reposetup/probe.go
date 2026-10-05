@@ -64,13 +64,14 @@ func (r SyncRelation) Synchronized() Presence {
 // WorktreeFact carries the probed state of the persistent .docket/ metadata
 // worktree.
 type WorktreeFact struct {
-	Presence            Presence // .docket/ path state: absent, or present-and-probed
-	Registered          Presence // registered as a linked worktree of THIS repo on the metadata branch
-	Foreign             bool     // present but a foreign dir / escaping link / conflicting registration
-	Clean               Presence
-	UnfinishedOperation bool     // Clean is Absent because a merge, cherry-pick, revert, rebase, am, or bisect is unfinished
-	Synchronized        Presence // proven current or behind the remote metadata tip: the local copy holds nothing the remote lacks
-	HooksOff            Presence
+	Presence               Presence // .docket/ path state: absent, or present-and-probed
+	Registered             Presence // registered as a linked worktree of THIS repo on the metadata branch
+	Foreign                bool     // present but a foreign dir / escaping link / conflicting registration
+	Clean                  Presence
+	UnfinishedOperation    bool     // Clean is Absent because a merge, cherry-pick, revert, rebase, am, or bisect is unfinished
+	InterruptedFastForward bool     // Clean is Absent because docket's in-place fast-forward moved the branch but not the tree
+	Synchronized           Presence // proven current or behind the remote metadata tip: the local copy holds nothing the remote lacks
+	HooksOff               Presence
 }
 
 // Facts is the complete classifier input. Every field defaults to the safe

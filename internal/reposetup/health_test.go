@@ -805,12 +805,16 @@ func TestHealthDirtyMessageNamesTheCause(t *testing.T) {
 	op := healthyFacts()
 	op.DocketWorktree.Clean = PresenceAbsent
 	op.DocketWorktree.UnfinishedOperation = true
+	ff := healthyFacts()
+	ff.DocketWorktree.Clean = PresenceAbsent
+	ff.DocketWorktree.InterruptedFastForward = true
 	for name, tc := range map[string]struct {
 		f    Facts
 		want string
 	}{
-		"files":     {files, "The .docket metadata worktree has uncommitted or untracked changes."},
-		"operation": {op, "The .docket metadata worktree has an unfinished Git operation (a merge, cherry-pick, revert, rebase, am, or bisect)."},
+		"files":       {files, "The .docket metadata worktree has uncommitted or untracked changes."},
+		"operation":   {op, "The .docket metadata worktree has an unfinished Git operation (a merge, cherry-pick, revert, rebase, am, or bisect)."},
+		"fastforward": {ff, InterruptedFastForwardMessage},
 	} {
 		var msg string
 		for _, fn := range EvaluateHealth(Classify(tc.f), tc.f, nil) {
