@@ -18,7 +18,7 @@ import (
 // repository-preparation operation. It discovers the repository, pins the
 // authoritative topology, classifies once, requires the fixed Go-v1 docket-branch
 // topology, and — for a healthy remote whose local `.docket` checkout is absent or
-// cleanly behind — attaches or fast-forwards it idempotently. It creates no
+// cleanly behind — attaches it or fast-forwards it in place, idempotently. It creates no
 // planning record, makes no lifecycle decision, and pushes no remote mutation
 // (spec §Purpose and interface). Attachment and fast-forward are the only Git
 // effects, both keyed on the re-read remote metadata revision so a lost-response
@@ -218,6 +218,7 @@ type prepareVerdict struct {
 	disposition string
 	action      prepareAction
 	targetRev   string
+	observedTip string // the local docket tip the router decided on; every branch move is a compare-and-swap from it ("" when no local branch exists)
 	state       reposetup.State
 	finding     *reposetup.Finding
 }
@@ -317,7 +318,7 @@ func prepareRoute(f reposetup.Facts) prepareVerdict {
 	// presence is fail-closed.
 	switch f.DocketWorktree.Presence {
 	case reposetup.PresenceAbsent:
-		return prepareApplyVerdict(prepareActionAttach, f.RemoteMetadata.Tip)
+		return prepareApplyVerdict(prepareActionAttach, f.RemoteMetadata.Tip, "")
 	case reposetup.PresenceUnknown:
 		return prepareLocalUnknownVerdict()
 	}
@@ -359,7 +360,7 @@ func prepareRoute(f reposetup.Facts) prepareVerdict {
 	case reposetup.SyncCurrent:
 		return prepareVerdict{disposition: PrepareDispositionNoOp, action: prepareActionNone, state: reposetup.StateHealthy}
 	case reposetup.SyncBehind:
-		return prepareApplyVerdict(prepareActionFastForward, f.RemoteMetadata.Tip)
+		return prepareApplyVerdict(prepareActionFastForward, f.RemoteMetadata.Tip, f.LocalMetadata.Tip)
 	case reposetup.SyncAhead:
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
 			Code:     string(FCLocalMetadataAhead),
@@ -416,9 +417,10 @@ func prepareLocalUnknownVerdict() prepareVerdict {
 }
 
 // prepareApplyVerdict builds an applied verdict for a planned Git effect keyed on
-// the pinned target revision.
-func prepareApplyVerdict(action prepareAction, targetRev string) prepareVerdict {
-	return prepareVerdict{disposition: PrepareDispositionApplied, action: action, targetRev: targetRev, state: reposetup.StateHealthy}
+// the pinned target revision, carrying the local tip the router observed so the
+// effect moves the branch by compare-and-swap from exactly that tip.
+func prepareApplyVerdict(action prepareAction, targetRev, observedTip string) prepareVerdict {
+	return prepareVerdict{disposition: PrepareDispositionApplied, action: action, targetRev: targetRev, observedTip: observedTip, state: reposetup.StateHealthy}
 }
 
 // prepareRefuseVerdict builds a refused verdict naming the classified state and a
@@ -473,10 +475,11 @@ func buildPrepareContext(cfg config.Effective, sc setupContext, f reposetup.Fact
 // repository and origin, pins the topology and loads configuration, gathers the
 // classifier facts augmented with the local worktree/sync state, classifies once
 // through prepareRoute, and — for a healthy topology — attaches an absent local
-// `.docket` worktree or fast-forwards a clean strictly-behind one to the pinned
-// remote metadata revision. Attachment and fast-forward are the only mutations;
-// both are idempotent and keyed on the re-read remote state, so a lost-response
-// retry converges. It never initializes or migrates implicitly and never pushes.
+// `.docket` worktree or fast-forwards a clean strictly-behind one in place to the
+// pinned remote metadata revision. Attachment and fast-forward are the only
+// mutations; both are idempotent and keyed on the re-read remote state, so a
+// lost-response retry converges. It never initializes or migrates implicitly and
+// never pushes.
 func RunRepositoryPrepare(ctx context.Context, d SetupDeps, o PrepareOptions) RepositoryPrepareResult {
 	if o.RepoDir != "" {
 		d.RepoDir = o.RepoDir
@@ -568,8 +571,12 @@ func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts,
 // prepareExecute performs the single planned idempotent Git effect. Attachment
 // materializes the local checkout of the already-valid remote topology;
 // fast-forward advances a clean strictly-behind worktree to the pinned remote
-// revision. Both key on the re-read remote state so a lost-response retry
-// converges by re-reading topology.
+// revision in place (gitcli's FastForwardCheckedOutBranch): nothing is removed, the
+// branch moves by compare-and-swap from the tip the router observed, and no
+// repository hook runs. A commit made in `.docket` since routing, or a local change in
+// the way, makes it refuse rather than discard. The worktree's hooks-off setting is
+// not re-applied on that path because nothing removed it. Both effects key on the
+// re-read remote state so a lost-response retry converges by re-reading topology.
 func prepareExecute(ctx context.Context, git *gitcli.Client, sc setupContext, verdict prepareVerdict) error {
 	worktreePath := filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName)
 	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
@@ -581,34 +588,10 @@ func prepareExecute(ctx context.Context, git *gitcli.Client, sc setupContext, ve
 		}
 		return git.DisableWorktreeHooks(ctx, worktreePath)
 	case prepareActionFastForward:
-		return prepareFastForwardWorktree(ctx, git, sc.repo, worktreePath, metaRef, target)
+		return git.FastForwardCheckedOutBranch(ctx, worktreePath, metaRef, gitcli.ObjectID(verdict.observedTip), target)
 	default:
 		return nil
 	}
-}
-
-// prepareFastForwardWorktree advances the clean, strictly-behind `.docket`
-// worktree to the pinned remote metadata revision. The precondition (clean AND a
-// strict ancestor of the target) is proven by the router, so removing the clean
-// worktree, deleting the checked-out branch at its exact known tip, and re-adding
-// the branch at the target loses no content and is a true fast-forward composed
-// from the existing worktree primitives. It is idempotent: a re-run whose worktree
-// is already absent re-attaches at the same target.
-func prepareFastForwardWorktree(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, worktreePath string, metaRef gitcli.RefName, target gitcli.ObjectID) error {
-	oldTip, err := git.ResolveRef(ctx, repo, metaRef)
-	if err != nil {
-		return err
-	}
-	if err := git.RemoveWorktreeClean(ctx, repo, worktreePath); err != nil {
-		return err
-	}
-	if err := git.DeleteLocalBranchChecked(ctx, repo, metaRef, oldTip); err != nil {
-		return err
-	}
-	if err := git.AddBranchWorktree(ctx, repo, worktreePath, metaRef, target); err != nil {
-		return err
-	}
-	return git.DisableWorktreeHooks(ctx, worktreePath)
 }
 
 // prepareContextResult builds an applied/no-op result carrying the closed typed
@@ -650,13 +633,20 @@ func prepareDiagnosisResult(result Result, disposition string, verdict prepareVe
 	return out
 }
 
+// prepareFastForwardRecovery is appended to a failed in-place fast-forward's human
+// text. The fast-forward removes nothing, and a refusal or interruption leaves at
+// most an unfinished tree update that `git status` reports inside .docket.
+const prepareFastForwardRecovery = " Nothing was removed. If `git -C .docket status` shows changes, finish or reset that update inside .docket with plain Git, then re-run `docket repository prepare`."
+
 // prepareEffectFailure downgrades an applied verdict to an error when its Git
 // effect failed mid-sequence. The remote topology is untouched (prepare pushes
 // nothing), so a re-run re-reads and retries.
 func prepareEffectFailure(verdict prepareVerdict, err error, notices []string) RepositoryPrepareResult {
 	stage := "attaching the .docket worktree"
+	recovery := ""
 	if verdict.action == prepareActionFastForward {
 		stage = "fast-forwarding the .docket worktree"
+		recovery = prepareFastForwardRecovery
 	}
 	out := RepositoryPrepareResult{
 		Envelope:        NewEnvelope(OperationRepositoryPrepare, ResultExternalFailed),
@@ -664,7 +654,7 @@ func prepareEffectFailure(verdict prepareVerdict, err error, notices []string) R
 		RepositoryState: string(reposetup.StateNeedsReview),
 		Notices:         notices,
 	}
-	out.human = fmt.Sprintf("repository prepare: %s while %s: %s", PrepareDispositionError, stage, err.Error())
+	out.human = fmt.Sprintf("repository prepare: %s while %s: %s%s", PrepareDispositionError, stage, err.Error(), recovery)
 	return out
 }
 

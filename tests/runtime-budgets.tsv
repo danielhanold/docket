@@ -35,6 +35,7 @@ tests/test_go_integration_app_mixedbundle.sh	15	parallel
 tests/test_go_integration_app_buildstart.sh	10	parallel
 tests/test_go_integration_app_repocheck.sh	20	parallel
 tests/test_go_integration_app_repocontention.sh	15	parallel
+tests/test_go_integration_app_repoinplaceff.sh	30	parallel
 tests/test_go_integration_app_repomigration.sh	20	parallel
 tests/test_go_integration_app_repoownership.sh	30	parallel
 tests/test_go_integration_app_repoprepare.sh	20	parallel
