@@ -2,7 +2,7 @@
 id: 366
 slug: 'human-attended-v1-0-0-rc1-acceptance-and-publication'
 title: 'v1.0.0-alpha.1 acceptance and publication (Claude Code)'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'chore'
 created: '2026-08-29'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable: false
 branch_prefix:
 branch: 'chore/human-attended-v1-0-0-rc1-acceptance-and-publication'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/390'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-05T01:15:14Z'
