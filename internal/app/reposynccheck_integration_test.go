@@ -5,6 +5,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/reposetup"
@@ -80,5 +81,43 @@ func TestIntegrationRepoSyncCheckDirtyBehindReportsDirtyOnly(t *testing.T) {
 	got := checkCodes(res)
 	if !got["metadata-worktree-dirty"] || got["local-metadata-diverged"] || got["local-metadata-ahead"] {
 		t.Fatalf("dirty+behind: findings=%+v, want metadata-worktree-dirty only", res.Findings)
+	}
+}
+
+// TestIntegrationRepoSyncCheckUnfinishedMergeIsDirty: a merge whose index equals HEAD
+// (so `git status` lists nothing) is still not clean. Check reports it as dirty and
+// names the operation; prepare refuses and keeps MERGE_HEAD.
+func TestIntegrationRepoSyncCheckUnfinishedMergeIsDirty(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.advanceRemoteDocket(t, "notes/advance.txt", "advanced\n", "advance docket")
+	dot := filepath.Join(r.invocation, ".docket")
+	runGit(t, dot, "fetch", "-q", "origin", "docket")
+	runGit(t, dot, "merge", "--no-ff", "--no-commit", "-s", "ours", "FETCH_HEAD")
+	if s := runGit(t, dot, "status", "--porcelain", "--untracked-files=all"); s != "" {
+		t.Fatalf("premise: the unfinished merge must leave status empty, got:\n%s", s)
+	}
+	headBefore := r.dotDocketHead(t)
+	mergeHead := runGit(t, dot, "rev-parse", "MERGE_HEAD")
+
+	res := r.runCheck(t)
+	var msg string
+	for _, f := range res.Findings {
+		if f.Code == "metadata-worktree-dirty" {
+			msg = f.Message
+		}
+	}
+	if !strings.Contains(msg, "unfinished Git operation") {
+		t.Fatalf("check findings %+v, want metadata-worktree-dirty naming the unfinished operation", res.Findings)
+	}
+
+	pr := runPrepareAt(t, r.invocation)
+	if pr.Disposition != PrepareDispositionRefused || !prepareFinding(pr, "metadata-worktree-dirty") {
+		t.Fatalf("prepare = %q %+v, want refused metadata-worktree-dirty", pr.Disposition, pr.Findings)
+	}
+	if got := runGit(t, dot, "rev-parse", "MERGE_HEAD"); got != mergeHead {
+		t.Fatalf("MERGE_HEAD = %q after prepare, want kept %q", got, mergeHead)
+	}
+	if got := r.dotDocketHead(t); got != headBefore {
+		t.Fatalf(".docket HEAD moved from %s to %s", headBefore, got)
 	}
 }

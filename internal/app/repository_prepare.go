@@ -337,11 +337,15 @@ func prepareRoute(f reposetup.Facts) prepareVerdict {
 	// resets, or stashes local content.
 	switch f.DocketWorktree.Clean {
 	case reposetup.PresenceAbsent:
+		msg := "The .docket metadata worktree has uncommitted or untracked changes."
+		if f.DocketWorktree.UnfinishedOperation {
+			msg = "The .docket metadata worktree has an unfinished Git operation (a merge, cherry-pick, revert, rebase, am, or bisect)."
+		}
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
 			Code:     string(FCMetadataWorktreeDirty),
 			Severity: reposetup.SeverityError,
 			Ref:      docketWorktreeName,
-			Message:  "The .docket metadata worktree has uncommitted or untracked changes.",
+			Message:  msg,
 			Remedy:   "Commit or set aside the changes in the .docket metadata worktree, then re-run.",
 		})
 	case reposetup.PresenceUnknown:
@@ -555,7 +559,7 @@ func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts,
 
 	// The .docket worktree clean state, probed only when the worktree is present.
 	if f.DocketWorktree.Presence == reposetup.PresencePresent {
-		f.DocketWorktree.Clean = worktreeCleanPresence(ctx, git, filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName))
+		f.DocketWorktree.Clean, f.DocketWorktree.UnfinishedOperation = worktreeCleanState(ctx, git, filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName))
 	}
 
 	applyLocalMetadataSync(ctx, git, sc.repo, f)

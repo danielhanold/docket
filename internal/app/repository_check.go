@@ -212,7 +212,7 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 	// present.
 	if f.DocketWorktree.Presence == reposetup.PresencePresent {
 		worktreeDir := filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName)
-		f.DocketWorktree.Clean = worktreeCleanPresence(ctx, git, worktreeDir)
+		f.DocketWorktree.Clean, f.DocketWorktree.UnfinishedOperation = worktreeCleanState(ctx, git, worktreeDir)
 		f.DocketWorktree.HooksOff = hooksOffPresence(ctx, git, worktreeDir)
 	}
 	applyLocalMetadataSync(ctx, git, sc.repo, f)
@@ -258,17 +258,28 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 	}
 }
 
-// worktreeCleanPresence reports whether the .docket worktree has no
-// uncommitted/untracked change. A status read error is the safe Unknown.
-func worktreeCleanPresence(ctx context.Context, git *gitcli.Client, worktreeDir string) reposetup.Presence {
+// worktreeCleanState is the ONE clean probe for the .docket worktree (check and
+// prepare both call it). Clean means no uncommitted or untracked change AND no
+// unfinished Git operation (merge, cherry-pick, revert, rebase, am, bisect): a merge
+// whose index equals HEAD lists nothing in `git status`, yet a fast-forward would
+// silently drop its MERGE_HEAD. The bool reports that an unfinished operation is
+// what made it not clean. Any probe error is the safe Unknown.
+func worktreeCleanState(ctx context.Context, git *gitcli.Client, worktreeDir string) (reposetup.Presence, bool) {
+	st, err := git.WorktreeCheckoutState(ctx, worktreeDir)
+	if err != nil {
+		return reposetup.PresenceUnknown, false
+	}
 	changes, err := git.ChangedPaths(ctx, worktreeDir)
 	if err != nil {
-		return reposetup.PresenceUnknown
+		return reposetup.PresenceUnknown, false
+	}
+	if st.OperationInProgress {
+		return reposetup.PresenceAbsent, true
 	}
 	if len(changes) == 0 {
-		return reposetup.PresencePresent
+		return reposetup.PresencePresent, false
 	}
-	return reposetup.PresenceAbsent
+	return reposetup.PresenceAbsent, false
 }
 
 // hooksOffPresence reports whether the .docket worktree's hooks are disabled the
