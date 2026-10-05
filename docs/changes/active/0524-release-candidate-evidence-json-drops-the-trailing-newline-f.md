@@ -22,7 +22,7 @@ branch: 'fix/release-candidate-evidence-json-drops-the-trailing-newline-f'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T09:46:17Z'
+claimed_at: '2026-10-05T09:47:45Z'
 ---
 
 ## Artifacts
