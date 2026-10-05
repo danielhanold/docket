@@ -177,7 +177,7 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 	// with no ownership proof (RootForeign), or unreadable evidence (RootUnknown).
 	// The fetched tip is the single authority (learning
 	// decide-and-act-on-the-same-copy): it becomes RemoteMetadata's reported
-	// revision and the synchronizedPresence comparison's remote side, so the
+	// revision and the remote side of syncRelationship, so the
 	// reported tip is exactly the tip the ownership proof was computed at.
 	if sc.metadataTip != "" {
 		// The base gatherer proves the metadata branch PRESENT via ls-remote (its OID
@@ -207,14 +207,15 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 		f.LocalMetadata.Presence = reposetup.PresenceAbsent
 	} // any other error leaves LocalMetadata Unknown
 
-	// The .docket metadata worktree: clean, synchronized with the remote tip, and
-	// hooks disabled. Probed only when the worktree is actually present.
+	// The .docket metadata worktree: clean and hooks disabled; its synchronized fact
+	// comes from applyLocalMetadataSync. Probed only when the worktree is actually
+	// present.
 	if f.DocketWorktree.Presence == reposetup.PresencePresent {
 		worktreeDir := filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName)
 		f.DocketWorktree.Clean = worktreeCleanPresence(ctx, git, worktreeDir)
-		f.DocketWorktree.Synchronized = synchronizedPresence(f.LocalMetadata, f.RemoteMetadata)
 		f.DocketWorktree.HooksOff = hooksOffPresence(ctx, git, worktreeDir)
 	}
+	applyLocalMetadataSync(ctx, git, sc.repo, f)
 
 	// A repository whose remote is fully migrated — a parentless docket seed with
 	// the integration surface already pruned — but whose local .docket attachment
@@ -265,22 +266,6 @@ func worktreeCleanPresence(ctx context.Context, git *gitcli.Client, worktreeDir 
 		return reposetup.PresenceUnknown
 	}
 	if len(changes) == 0 {
-		return reposetup.PresencePresent
-	}
-	return reposetup.PresenceAbsent
-}
-
-// synchronizedPresence reports whether the local metadata tip equals the remote
-// docket tip. Either tip unknown leaves the fact Unknown; equal is Present,
-// unequal is Absent.
-func synchronizedPresence(local, remote reposetup.BranchFact) reposetup.Presence {
-	if local.Presence != reposetup.PresencePresent || remote.Presence != reposetup.PresencePresent {
-		return reposetup.PresenceUnknown
-	}
-	if local.Tip == "" || remote.Tip == "" {
-		return reposetup.PresenceUnknown
-	}
-	if local.Tip == remote.Tip {
 		return reposetup.PresencePresent
 	}
 	return reposetup.PresenceAbsent

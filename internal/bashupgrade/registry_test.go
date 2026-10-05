@@ -379,6 +379,10 @@ func gitRev(t *testing.T, c *upgradeCase, ref string) string {
 
 // ---- section 3 and 4: the machine install ------------------------------------------
 
+// repairPrepareOptionalProse is the guide's statement that the prepare step repair
+// mentions is optional.
+const repairPrepareOptionalProse = "That step is optional: the next docket command brings the folder up to date by itself."
+
 // releaseVerifiedProse is the guide's statement that the download and checksum
 // lines rest on the release verification, not on this test.
 const releaseVerifiedProse = "The download and checksum lines are checked by the release's own verification, not by\nthis guide's test."
@@ -925,31 +929,32 @@ func observeRepairPreview(t *testing.T, c *upgradeCase, st *runState, body strin
 }
 
 // runRepairApply runs the block and checks the guide's claims: the repair is pushed
-// to the docket branch, the output asks for `docket repository prepare`, and until
-// then the check reports the two named findings.
+// to the docket branch, the output names `docket repository prepare`, which the guide
+// calls optional, and the local .docket copy is left behind the remote (so the
+// healthy check that follows proves a behind-only copy is healthy).
 func runRepairApply(t *testing.T, c *upgradeCase, st *runState, body string) {
 	t.Helper()
 	before := gitRev(t, c, "docket")
 	r := runBlock(t, c, st, body)
-	if gitRev(t, c, "docket") == before {
+	after := gitRev(t, c, "docket")
+	if after == before {
 		t.Fatalf("guide says repair pushes to the docket branch; origin/docket did not move")
 	}
 	mustContain(t, "repair output", r.Stdout+r.Stderr, "docket repository prepare")
-	chk := c.run(t, st.Cwd, "docket", "--json", "repository", "check")
-	got := map[string]bool{}
-	for _, f := range findingCodes(t, chk.Stdout) {
-		got[f.Code] = true
-	}
-	for _, code := range []string{"metadata-worktree-dirty", "local-metadata-diverged"} {
-		mustContain(t, "guide", st.Guide, "`"+code+"`")
-		if !got[code] {
-			t.Errorf("guide says check reports %s before prepare; it reported %v", code, chk.Stdout)
-		}
+	mustContain(t, "guide", st.Guide, repairPrepareOptionalProse)
+	local := strings.TrimSpace(c.mustGit(t, filepath.Join(st.Cwd, ".docket"), "rev-parse", "HEAD"))
+	if local == after {
+		t.Fatalf("the local .docket copy is already at the repaired tip; the guide's claim that prepare is optional is untested")
 	}
 }
 
+// runRepoConfirm checks the guide's claim that `docket repository check` alone
+// reports healthy right after the repair, with no `prepare` step in between.
 func runRepoConfirm(t *testing.T, c *upgradeCase, st *runState, body string) {
 	t.Helper()
+	if strings.TrimSpace(body) != "docket repository check" {
+		t.Fatalf("repo-confirm block must be exactly `docket repository check`:\n%s", body)
+	}
 	r := runBlock(t, c, st, body)
 	mustContain(t, "repository check output", r.Stdout+r.Stderr, "repository check: no-op (healthy)")
 }

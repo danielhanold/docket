@@ -196,12 +196,12 @@ docket repository repair --yes
 ```
 
 It then tells you to run `docket repository prepare` to bring your local `.docket` folder up to
-date. Until you do, `docket repository check` reports `metadata-worktree-dirty` and
-`local-metadata-diverged`. Both clear after `prepare`. Run it and check again:
+date.
+That step is optional: the next docket command brings the folder up to date by itself.
+Check the repository:
 
 <!-- upgrade-step: repo-confirm -->
 ```sh
-docket repository prepare
 docket repository check
 ```
 

@@ -208,3 +208,31 @@ func TestRepositoryCheckPrintsCommittedIgnoreBlockFlushLeft(t *testing.T) {
 		t.Fatalf("check text must carry the canonical block flush left (newline, then the block verbatim):\n%s", text)
 	}
 }
+
+// TestLocalMetadataRefusalsMatchPrepare: check's ahead/diverged findings and
+// prepare's refusals for the same state carry the same code, message, and remedy,
+// so the two commands never describe one state two ways.
+func TestLocalMetadataRefusalsMatchPrepare(t *testing.T) {
+	for _, tc := range []struct {
+		rel    reposetup.SyncRelation
+		reason string
+	}{
+		{reposetup.SyncAhead, "local-metadata-ahead"},
+		{reposetup.SyncDiverged, "local-metadata-diverged"},
+	} {
+		f := preparableFacts()
+		f.LocalMetadataSync = tc.rel
+		f.DocketWorktree.Synchronized = reposetup.PresenceAbsent
+		v := prepareRoute(f)
+		if v.finding == nil {
+			t.Fatalf("%s: prepare produced no finding", tc.reason)
+		}
+		got := reposetup.EvaluateHealth(reposetup.Classification{State: reposetup.StateConflict, Reasons: []string{tc.reason}}, reposetup.Facts{}, nil)
+		if len(got) != 1 {
+			t.Fatalf("%s: check findings = %+v", tc.reason, got)
+		}
+		if got[0].Code != v.finding.Code || got[0].Message != v.finding.Message || got[0].Remedy != v.finding.Remedy {
+			t.Errorf("%s: check %+v != prepare %+v", tc.reason, got[0], *v.finding)
+		}
+	}
+}

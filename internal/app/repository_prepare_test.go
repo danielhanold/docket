@@ -33,6 +33,7 @@ func preparableFacts() reposetup.Facts {
 			Clean:        reposetup.PresencePresent,
 			Synchronized: reposetup.PresencePresent,
 		},
+		LocalMetadataSync: reposetup.SyncCurrent,
 	}
 }
 
@@ -53,7 +54,8 @@ func TestRepositoryPrepareFreshRefusesWithInitRemedy(t *testing.T) {
 	f.RemoteMetadata = reposetup.BranchFact{Presence: reposetup.PresenceAbsent}
 	f.LiveSurface = reposetup.PresenceAbsent
 
-	v := prepareRoute(f, prepareSyncUnknown)
+	f.LocalMetadataSync = reposetup.SyncUnknown
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionRefused {
 		t.Fatalf("disposition = %q, want refused", v.disposition)
 	}
@@ -78,7 +80,8 @@ func TestRepositoryPrepareLegacyRefusesWithMigrateRemedy(t *testing.T) {
 	f.RemoteMetadata = reposetup.BranchFact{Presence: reposetup.PresenceAbsent}
 	f.LiveSurface = reposetup.PresencePresent
 
-	v := prepareRoute(f, prepareSyncUnknown)
+	f.LocalMetadataSync = reposetup.SyncUnknown
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionRefused || v.state != reposetup.StateLegacy {
 		t.Fatalf("verdict = %q/%q, want refused/legacy", v.disposition, v.state)
 	}
@@ -98,7 +101,8 @@ func TestRepositoryPrepareHealthyMissingWorktreeAttaches(t *testing.T) {
 	f.DocketWorktree = reposetup.WorktreeFact{Presence: reposetup.PresenceAbsent}
 	f.LocalMetadata = reposetup.BranchFact{Presence: reposetup.PresenceAbsent}
 
-	v := prepareRoute(f, prepareSyncUnknown)
+	f.LocalMetadataSync = reposetup.SyncUnknown
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionApplied {
 		t.Fatalf("disposition = %q, want applied", v.disposition)
 	}
@@ -117,7 +121,8 @@ func TestRepositoryPrepareCleanBehindFastForwards(t *testing.T) {
 	f.LocalMetadata.Tip = "m1" // behind m9
 	f.DocketWorktree.Synchronized = reposetup.PresenceAbsent
 
-	v := prepareRoute(f, prepareSyncBehind)
+	f.LocalMetadataSync = reposetup.SyncBehind
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionApplied {
 		t.Fatalf("disposition = %q, want applied", v.disposition)
 	}
@@ -132,7 +137,9 @@ func TestRepositoryPrepareCleanBehindFastForwards(t *testing.T) {
 // TestRepositoryPrepareCleanCurrentIsNoOp — a worktree already at the pinned
 // revision is a no-op with no planned effect.
 func TestRepositoryPrepareCleanCurrentIsNoOp(t *testing.T) {
-	v := prepareRoute(preparableFacts(), prepareSyncCurrent)
+	f := preparableFacts()
+	f.LocalMetadataSync = reposetup.SyncCurrent
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionNoOp {
 		t.Fatalf("disposition = %q, want no-op", v.disposition)
 	}
@@ -150,7 +157,8 @@ func TestRepositoryPrepareDirtyRefuses(t *testing.T) {
 	f := preparableFacts()
 	f.DocketWorktree.Clean = reposetup.PresenceAbsent
 
-	v := prepareRoute(f, prepareSyncCurrent)
+	f.LocalMetadataSync = reposetup.SyncCurrent
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionRefused || v.action != prepareActionNone {
 		t.Fatalf("verdict = %q/%v, want refused/none", v.disposition, v.action)
 	}
@@ -166,7 +174,8 @@ func TestRepositoryPrepareAheadRefuses(t *testing.T) {
 	f.LocalMetadata.Tip = "mA"
 	f.DocketWorktree.Synchronized = reposetup.PresenceAbsent
 
-	v := prepareRoute(f, prepareSyncAhead)
+	f.LocalMetadataSync = reposetup.SyncAhead
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionRefused || v.action != prepareActionNone {
 		t.Fatalf("verdict = %q/%v, want refused/none", v.disposition, v.action)
 	}
@@ -181,7 +190,8 @@ func TestRepositoryPrepareDivergedRefuses(t *testing.T) {
 	f.LocalMetadata.Tip = "mD"
 	f.DocketWorktree.Synchronized = reposetup.PresenceAbsent
 
-	v := prepareRoute(f, prepareSyncDiverged)
+	f.LocalMetadataSync = reposetup.SyncDiverged
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionRefused {
 		t.Fatalf("disposition = %q, want refused", v.disposition)
 	}
@@ -196,7 +206,8 @@ func TestRepositoryPrepareForeignRefuses(t *testing.T) {
 	f := preparableFacts()
 	f.DocketWorktree.Foreign = true
 
-	v := prepareRoute(f, prepareSyncCurrent)
+	f.LocalMetadataSync = reposetup.SyncCurrent
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionRefused {
 		t.Fatalf("disposition = %q, want refused", v.disposition)
 	}
@@ -212,7 +223,8 @@ func TestRepositoryPrepareForeignRootRefusesAsForeign(t *testing.T) {
 	f := preparableFacts()
 	f.MetadataRoot = reposetup.RootForeign
 
-	v := prepareRoute(f, prepareSyncCurrent)
+	f.LocalMetadataSync = reposetup.SyncCurrent
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionRefused {
 		t.Fatalf("disposition = %q, want refused", v.disposition)
 	}
@@ -235,7 +247,8 @@ func TestRepositoryPrepareUnknownRootRefusesAsReachability(t *testing.T) {
 	f := preparableFacts()
 	f.MetadataRoot = reposetup.RootUnknown // RemoteMetadata stays PresencePresent
 
-	v := prepareRoute(f, prepareSyncCurrent)
+	f.LocalMetadataSync = reposetup.SyncCurrent
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionRefused {
 		t.Fatalf("disposition = %q, want refused (fail-closed, no mutation)", v.disposition)
 	}
@@ -268,7 +281,8 @@ func TestRepositoryPrepareAmbiguousRegistrationRefuses(t *testing.T) {
 	f := preparableFacts()
 	f.DocketWorktree.Registered = reposetup.PresenceUnknown
 
-	v := prepareRoute(f, prepareSyncCurrent)
+	f.LocalMetadataSync = reposetup.SyncCurrent
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionRefused {
 		t.Fatalf("disposition = %q, want refused", v.disposition)
 	}
@@ -280,7 +294,9 @@ func TestRepositoryPrepareAmbiguousRegistrationRefuses(t *testing.T) {
 // TestRepositoryPrepareProbeUnknownRefuses — a healthy topology whose local sync
 // relationship could not be proven refuses (never guesses a fast-forward).
 func TestRepositoryPrepareProbeUnknownRefuses(t *testing.T) {
-	v := prepareRoute(preparableFacts(), prepareSyncUnknown)
+	f := preparableFacts()
+	f.LocalMetadataSync = reposetup.SyncUnknown
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionRefused {
 		t.Fatalf("disposition = %q, want refused", v.disposition)
 	}
@@ -310,7 +326,8 @@ func TestRepositoryPrepareProbeErrorIsNotAbsence(t *testing.T) {
 		t.Fatalf("RemoteMetadata.Presence = %v, want Unknown", f.RemoteMetadata.Presence)
 	}
 
-	v := prepareRoute(f, prepareSyncUnknown)
+	f.LocalMetadataSync = reposetup.SyncUnknown
+	v := prepareRoute(f)
 	if v.disposition != PrepareDispositionError {
 		t.Errorf("disposition = %q, want error (an errored probe is never a clean absence)", v.disposition)
 	}
@@ -630,7 +647,8 @@ func TestRepositoryPrepareRepairMaxAttempts(t *testing.T) {
 func TestRepositoryPrepareResultOmitsContextOnRefusal(t *testing.T) {
 	f := preparableFacts()
 	f.RemoteMetadata = reposetup.BranchFact{Presence: reposetup.PresenceAbsent}
-	v := prepareRoute(f, prepareSyncUnknown)
+	f.LocalMetadataSync = reposetup.SyncUnknown
+	v := prepareRoute(f)
 	res := prepareDiagnosisResult(ResultInvalidState, PrepareDispositionRefused, v, nil)
 	if res.Context != nil {
 		t.Errorf("a refusal must carry no context, got %+v", res.Context)

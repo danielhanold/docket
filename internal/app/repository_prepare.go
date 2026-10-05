@@ -209,19 +209,6 @@ const (
 	prepareActionFastForward
 )
 
-// prepareSync is the ancestry relationship between the local metadata branch tip
-// and the pinned remote metadata revision. The zero value is the SAFE
-// prepareSyncUnknown — an unproven relationship never fast-forwards.
-type prepareSync int
-
-const (
-	prepareSyncUnknown  prepareSync = iota
-	prepareSyncCurrent              // local == remote
-	prepareSyncBehind               // local is a strict ancestor of remote (fast-forwardable)
-	prepareSyncAhead                // remote is a strict ancestor of local
-	prepareSyncDiverged             // neither is an ancestor of the other
-)
-
 // prepareVerdict is prepareRoute's pure decision: the closed disposition, the
 // planned Git effect (attach/fast-forward/none), the pinned target revision that
 // effect keys on, the repository state to report, and the single finding a
@@ -235,16 +222,16 @@ type prepareVerdict struct {
 	finding     *reposetup.Finding
 }
 
-// prepareRoute maps the gathered (and locally augmented) facts plus the computed
-// sync relationship to a verdict. It is pure so every disposition row is pinned by
-// a unit test asserting both the disposition and its mechanism (finding code and
-// remedy). The ladder is deliberately ordered and fail-closed: an unresolved
+// prepareRoute maps the gathered (and locally augmented) facts, including the
+// local/remote sync relationship in f.LocalMetadataSync, to a verdict. It is pure
+// so every disposition row is pinned by a unit test asserting both the disposition
+// and its mechanism (finding code and remedy). The ladder is deliberately ordered and fail-closed: an unresolved
 // required topology probe is an error before anything else; a foreign `.docket`
 // path refuses; no remote metadata is a fresh/legacy refusal naming the exact
 // remedy; a non-parentless or still-live remote is refused without a local touch;
 // only a proven-clean, registered, strictly-behind or current worktree fast-
 // forwards or is a no-op, and an absent worktree attaches.
-func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
+func prepareRoute(f reposetup.Facts) prepareVerdict {
 	// 1. Fail-closed: a required topology probe that could not be resolved is an
 	// error, never a fabricated absence that could authorize an attach.
 	if u := prepareUnresolvedTopology(f); len(u) > 0 {
@@ -364,19 +351,19 @@ func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
 	// 6. Clean, registered worktree: synchronize by the pinned remote revision,
 	// keyed on the ancestry relationship. Only a strictly-behind local fast-
 	// forwards; ahead and diverged refuse without a touch.
-	switch sync {
-	case prepareSyncCurrent:
+	switch f.LocalMetadataSync {
+	case reposetup.SyncCurrent:
 		return prepareVerdict{disposition: PrepareDispositionNoOp, action: prepareActionNone, state: reposetup.StateHealthy}
-	case prepareSyncBehind:
+	case reposetup.SyncBehind:
 		return prepareApplyVerdict(prepareActionFastForward, f.RemoteMetadata.Tip)
-	case prepareSyncAhead:
+	case reposetup.SyncAhead:
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
 			Code:     string(FCLocalMetadataAhead),
 			Severity: reposetup.SeverityError,
 			Message:  "The local docket branch is ahead of the remote docket branch (it carries commits the remote does not).",
 			Remedy:   "Reconcile the local docket branch with the remote manually with a human before any repository operation.",
 		})
-	case prepareSyncDiverged:
+	case reposetup.SyncDiverged:
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
 			Code:     string(FCLocalMetadataDiverged),
 			Severity: reposetup.SeverityError,
@@ -500,12 +487,11 @@ func RunRepositoryPrepare(ctx context.Context, d SetupDeps, o PrepareOptions) Re
 	// metadata branch is proven present; a fresh/legacy repository is decided from
 	// the base facts alone. Every probe maps its own error to the safe Unknown
 	// value, never a false absence.
-	sync := prepareSyncUnknown
 	if facts.RemoteMetadata.Presence == reposetup.PresencePresent {
-		sync = prepareAugment(ctx, d.Git, &facts, sc)
+		prepareAugment(ctx, d.Git, &facts, sc)
 	}
 
-	verdict := prepareRoute(facts, sync)
+	verdict := prepareRoute(facts)
 	notices := prepareNotices(sc)
 
 	switch verdict.disposition {
@@ -524,11 +510,12 @@ func RunRepositoryPrepare(ctx context.Context, d SetupDeps, o PrepareOptions) Re
 }
 
 // prepareAugment fills the local metadata/worktree/sync facts the base gatherer
-// deliberately leaves unproven, and returns the ancestry relationship between the
-// local metadata tip and the pinned remote metadata revision. Every probe maps its
-// own error to the safe Unknown value so a probe that could not run can never let
-// the router read healthy.
-func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts, sc setupContext) prepareSync {
+// deliberately leaves unproven, including LocalMetadataSync (the ancestry
+// relationship between the local metadata tip and the pinned remote metadata
+// revision, computed by applyLocalMetadataSync), and returns nothing. Every probe
+// maps its own error to the safe Unknown value so a probe that could not run can
+// never let the router read healthy.
+func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts, sc setupContext) {
 	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
 
 	// Metadata root shape at the FETCHED remote docket tip (fetch it first so the
@@ -569,40 +556,9 @@ func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts,
 	// The .docket worktree clean state, probed only when the worktree is present.
 	if f.DocketWorktree.Presence == reposetup.PresencePresent {
 		f.DocketWorktree.Clean = worktreeCleanPresence(ctx, git, filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName))
-		f.DocketWorktree.Synchronized = synchronizedPresence(f.LocalMetadata, f.RemoteMetadata)
 	}
 
-	return prepareSyncRelationship(ctx, git, sc.repo, f.LocalMetadata.Tip, metaTip)
-}
-
-// prepareSyncRelationship computes the ancestry relationship between the local
-// metadata tip and the pinned remote metadata revision. An empty tip or a probe
-// error is the safe Unknown — an unproven relationship never fast-forwards.
-func prepareSyncRelationship(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, localTip, remoteTip string) prepareSync {
-	if localTip == "" || remoteTip == "" {
-		return prepareSyncUnknown
-	}
-	if localTip == remoteTip {
-		return prepareSyncCurrent
-	}
-	local := gitcli.ObjectID(localTip)
-	remote := gitcli.ObjectID(remoteTip)
-	localBehind, err := git.IsAncestor(ctx, repo, local, remote)
-	if err != nil {
-		return prepareSyncUnknown
-	}
-	remoteBehind, err := git.IsAncestor(ctx, repo, remote, local)
-	if err != nil {
-		return prepareSyncUnknown
-	}
-	switch {
-	case localBehind:
-		return prepareSyncBehind
-	case remoteBehind:
-		return prepareSyncAhead
-	default:
-		return prepareSyncDiverged
-	}
+	applyLocalMetadataSync(ctx, git, sc.repo, f)
 }
 
 // prepareExecute performs the single planned idempotent Git effect. Attachment
