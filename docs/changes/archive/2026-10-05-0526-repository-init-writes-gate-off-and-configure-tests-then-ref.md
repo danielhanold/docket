@@ -2,7 +2,7 @@
 id: 526
 slug: 'repository-init-writes-gate-off-and-configure-tests-then-ref'
 title: 'repository configure-tests takes the test command as input'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-05'
@@ -22,7 +22,7 @@ branch: 'fix/repository-init-writes-gate-off-and-configure-tests-then-ref'
 pr: 'https://github.com/danielhanold/docket/pull/395'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T13:48:09Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-05T13:48:09Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md) |
-| Plan | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref.md](https://github.com/danielhanold/docket/blob/fix/repository-init-writes-gate-off-and-configure-tests-then-ref/docs/superpowers/plans/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref.md) |
-| Results | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-results.md](https://github.com/danielhanold/docket/blob/fix/repository-init-writes-gate-off-and-configure-tests-then-ref/docs/results/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-results.md) |
+| Plan | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref.md) |
+| Results | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
