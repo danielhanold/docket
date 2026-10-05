@@ -351,3 +351,97 @@ func TestIntegrationFinalizeCleanupKilledRetained(t *testing.T) {
 		t.Fatalf("a killed change must retain its branches")
 	}
 }
+
+// lockIgnoredWorkspaceDir makes Git's delete of the feature workspace fail part-
+// way after it has removed the registration: an ignored (clean-check-invisible)
+// directory holding one file, made read-only. Restored at test end.
+func lockIgnoredWorkspaceDir(t *testing.T, commonDir, ws string) {
+	t.Helper()
+	info := filepath.Join(commonDir, "info")
+	if err := os.MkdirAll(info, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ex, err := os.OpenFile(filepath.Join(info, "exclude"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ex.WriteString("\nlocked/\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ex.Close(); err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, ws, "locked/keep", "ignored bytes\n")
+	locked := filepath.Join(ws, "locked")
+	if err := os.Chmod(locked, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+}
+
+// TestIntegrationFinalizeCleanupWorkspaceRemnant: Git removes the registration
+// but part of the folder cannot be deleted. The workspace leg is done, the
+// local and remote branch legs still run, and the result is cleaned with
+// exactly one workspace-remnant warning naming the leftover path.
+func TestIntegrationFinalizeCleanupWorkspaceRemnant(t *testing.T) {
+	requireRealGit(t)
+	if os.Geteuid() == 0 {
+		t.Skip("permission-based removal failure needs a non-root user")
+	}
+	f := setupCloseoutFixture(t, planRepoModeDocket())
+	head, mergeCommit := f.archiveClosed(t)
+	gh := f.mergedCleanupFake(head, mergeCommit)
+	ws, err := filepath.EvalSymlinks(f.wp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockIgnoredWorkspaceDir(t, f.gitrepo.CommonDir, ws)
+
+	res := FinalizeCleanup(context.Background(), f.cleanupDeps(gh, f.deps.Client, f.svc), f.repo.invocation, f.id)
+
+	if res.Result != ResultApplied || res.Disposition != CleanupDispCleaned {
+		t.Fatalf("cleanup = %q disp %q (%s) findings %+v; want applied/cleaned", res.Result, res.Disposition, res.Message, res.Findings)
+	}
+	if f.localBranchPresent(t) || f.remoteBranchPresent(t) {
+		t.Fatal("the branch legs must still run after a remnant")
+	}
+	if len(res.Findings) != 1 || res.Findings[0].Code != "workspace-remnant" || res.Findings[0].Severity != "warning" {
+		t.Fatalf("findings = %+v; want exactly one workspace-remnant warning", res.Findings)
+	}
+	want := "Git removed the worktree but part of the folder could not be deleted; delete " + ws + " by hand"
+	if res.Findings[0].Message != want {
+		t.Fatalf("message = %q; want %q", res.Findings[0].Message, want)
+	}
+}
+
+// TestIntegrationFinalizeCleanupWorkspaceBlockedNamesPath: an untracked,
+// non-ignored file blocks cleanup (nothing touched, branches retained) and the
+// workspace-blocked finding names it.
+func TestIntegrationFinalizeCleanupWorkspaceBlockedNamesPath(t *testing.T) {
+	requireRealGit(t)
+	f := setupCloseoutFixture(t, planRepoModeDocket())
+	head, mergeCommit := f.archiveClosed(t)
+	gh := f.mergedCleanupFake(head, mergeCommit)
+	writeRepoFile(t, f.wp, "stray-notes.txt", "not committed\n")
+
+	res := FinalizeCleanup(context.Background(), f.cleanupDeps(gh, f.deps.Client, f.svc), f.repo.invocation, f.id)
+
+	if res.Disposition != CleanupDispPending {
+		t.Fatalf("disposition = %q; want pending", res.Disposition)
+	}
+	var msg string
+	for _, fd := range res.Findings {
+		if fd.Code == "workspace-blocked" {
+			msg = fd.Message
+		}
+	}
+	if !strings.Contains(msg, "(stray-notes.txt)") {
+		t.Fatalf("workspace-blocked message = %q; want it to name stray-notes.txt", msg)
+	}
+	if !f.localBranchPresent(t) {
+		t.Fatal("a blocked workspace must retain the local branch")
+	}
+	if _, err := os.Stat(filepath.Join(f.wp, "stray-notes.txt")); err != nil {
+		t.Fatalf("the blocking file must survive: %v", err)
+	}
+}
