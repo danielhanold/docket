@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0524 — Release-candidate evidence.json drops the trailing newline from its checksums copy](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0524-release-candidate-evidence-json-drops-the-trailing-newline-f.md)**
+> ↩ **[Change 0524 — Release-candidate evidence.json drops the trailing newline from its checksums copy](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-05-0524-release-candidate-evidence-json-drops-the-trailing-newline-f.md)**
 <!-- docket:backlink:end -->
 # Release-candidate evidence.json keeps checksums.txt byte-exact Implementation Plan
 
