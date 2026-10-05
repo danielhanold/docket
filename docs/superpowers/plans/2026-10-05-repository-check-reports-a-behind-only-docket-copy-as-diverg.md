@@ -31,7 +31,7 @@
 
 ## Review Focus
 
-1. **An ignored file sitting at a path the target newly tracks.** A person expects nothing lost. `read-tree -u -m` without `--exclude-per-directory` refuses to overwrite it, so the fast-forward refuses and rolls the branch back. (This is stricter than plain checkout's "ignored files are expendable" rule and satisfies "refuse rather than discard".) Pinned in Task 2, subtest "ignored file at a newly tracked path refuses and is kept".
+1. **An ignored file sitting at a path the target newly tracks.** This follows Git's normal checkout rule, as spec §3 property 4 allows ("Ignored files survive, except at a path the target itself tracks, which is Git's normal checkout rule"): ignored files are expendable, so modern Git's `read-tree -u -m` (verified on git 2.55.0, like `merge --ff-only` and `checkout`) overwrites the file with the target's version and the fast-forward succeeds. Docket adds no stricter refusal (decided 2026-10-05 after the Task 2 halt). An ignored file at any path the target does not track survives, and an untracked, non-ignored file in the way still refuses. Pinned in Task 2, subtest "ignored file at a newly tracked path follows Git's checkout rule".
 2. **Stale index stat info** (a tracked file touched but unchanged, e.g. by an editor or `touch`). A person expects the fast-forward to still work. Pinned in Task 2, subtest "stale stat info on a changed path still fast-forwards" (the `update-index --refresh` step is load-bearing).
 3. **An interrupted fast-forward** (branch moved, tree not yet updated). A person expects `check` to say dirty and `prepare` to refuse, never to report healthy and never to need `git worktree prune`. Pinned in Task 7, `TestIntegrationRepoInPlaceFFInterruptedReadsDirty`.
 4. **A replace ref or graft that fakes ancestry.** A person expects local-only commits never to be fast-forwarded over. Pinned in Task 1 (both replace refs and the graft file).
@@ -249,7 +249,7 @@ git commit -m "feat(gitcli): ancestry probe that ignores replace refs and grafts
   - `func (c *Client) emptyHooksDir(ctx context.Context, op Operation, worktreeDir string) (string, *Failure)` — resolves and creates `<git-common-dir>/docket/empty-hooks`, returns its absolute path.
   - `func (c *Client) FastForwardCheckedOutBranch(ctx context.Context, worktreeDir string, branch RefName, expectedTip, target ObjectID) error` — Task 7 calls it with the `.docket` path, `refs/heads/docket`, the router's observed tip, and the pinned remote tip.
 
-Mechanism (decide it here, not later): (1) refuse unless `symbolic-ref HEAD` in the worktree is exactly `branch`; (2) refuse unless `target` descends from `expectedTip` (replace refs and grafts ignored); (3) compare-and-swap the branch ref `expectedTip → target` with `update-ref <branch> <target> <expectedTip>` — if the branch moved, nothing changes; (4) `update-index -q --refresh` (exit 0 or 1 accepted); (5) `read-tree -u -m <expectedTip> <target>`, which updates index and files from the old tree to the new one and refuses on local changes or untracked/ignored files in the way; (6) on any read-tree refusal, compare-and-swap the branch back `target → expectedTip`. Every command carries `-c core.hooksPath=<empty-hooks>`, which also silences `reference-transaction` and `post-index-change`. An interruption between (3) and (5) leaves HEAD at target with the old index: `git status` reports staged changes, so it reads dirty — never clean, never a missing worktree.
+Mechanism (decide it here, not later): (1) refuse unless `symbolic-ref HEAD` in the worktree is exactly `branch`; (2) refuse unless `target` descends from `expectedTip` (replace refs and grafts ignored); (3) compare-and-swap the branch ref `expectedTip → target` with `update-ref <branch> <target> <expectedTip>` — if the branch moved, nothing changes; (4) `update-index -q --refresh` (exit 0 or 1 accepted); (5) `read-tree -u -m <expectedTip> <target>`, which updates index and files from the old tree to the new one and refuses on local changes or untracked (non-ignored) files in the way — an ignored file at a path the target tracks is overwritten, Git's normal checkout rule (Review Focus 1); (6) on any read-tree refusal, compare-and-swap the branch back `target → expectedTip`. Every command carries `-c core.hooksPath=<empty-hooks>`, which also silences `reference-transaction` and `post-index-change`. An interruption between (3) and (5) leaves HEAD at target with the old index: `git status` reports staged changes, so it reads dirty — never clean, never a missing worktree.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -359,19 +359,21 @@ func TestIntegrationRepoFastForwardCheckedOutBranch(t *testing.T) {
 		}
 	})
 
-	t.Run("ignored file at a newly tracked path refuses and is kept", func(t *testing.T) {
+	// Git's normal checkout rule: an ignored file at a path the target tracks is
+	// expendable, so it is replaced by the target's version (spec §3 property 4).
+	t.Run("ignored file at a newly tracked path follows Git's checkout rule", func(t *testing.T) {
 		r, wt, base, target := newCheckedOutBranchFixture(t)
 		c := newRealClient(t)
 		appendExclude(t, r.Invocation, "target.txt")
 		writeWorktreeFile(t, wt, "target.txt", "mine\n")
-		if err := c.FastForwardCheckedOutBranch(ctx, wt, "refs/heads/meta", base, target); err == nil {
-			t.Fatal("fast-forward over an ignored file at a newly tracked path succeeded; want refusal")
+		if err := c.FastForwardCheckedOutBranch(ctx, wt, "refs/heads/meta", base, target); err != nil {
+			t.Fatalf("FastForwardCheckedOutBranch: %v", err)
 		}
-		if got := metaTip(t, r); got != base {
-			t.Fatalf("meta = %s after refusal, want rolled back to %s", got, base)
+		if got := metaTip(t, r); got != target {
+			t.Fatalf("meta = %s, want %s", got, target)
 		}
-		if b, _ := os.ReadFile(filepath.Join(wt, "target.txt")); string(b) != "mine\n" {
-			t.Fatalf("ignored file overwritten: %q", b)
+		if b, _ := os.ReadFile(filepath.Join(wt, "target.txt")); string(b) == "mine\n" {
+			t.Fatalf("target.txt still holds the ignored content; want the target's tracked version")
 		}
 	})
 
@@ -573,8 +575,9 @@ const fastForwardReflogMessage = "docket: fast-forward"
 // expectedTip, so a commit made since the caller observed expectedTip makes it
 // refuse with nothing changed. target must descend from expectedTip, judged with
 // replace refs and grafts ignored. The tree moves with `read-tree -u -m`, which
-// refuses rather than overwrite a local change or an untracked or ignored file in
-// the way; on that refusal the branch is swapped back. Every command forces docket's
+// refuses rather than overwrite a local change or an untracked file in the way; on
+// that refusal the branch is swapped back. An ignored file at a path target tracks
+// is overwritten, Git's normal checkout rule. Every command forces docket's
 // empty hooks dir, so no repository hook runs even when the worktree's own hooks-off
 // setting is missing. An interruption after the ref swap leaves HEAD at target with
 // the old index, which `git status` reports as staged changes (dirty), never clean.
@@ -662,7 +665,7 @@ If `*Failure` has no `Error()` method with that exact spelling, use the existing
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `go test -tags integration -count=1 -run '^TestIntegrationRepoFastForwardCheckedOutBranch$' ./internal/gitcli/ && go test -count=1 ./internal/gitcli/`
-Expected: PASS. If the "ignored file at a newly tracked path" subtest shows Git overwriting the ignored file instead of refusing, STOP and report BLOCKED with the Git output: Review Focus line 1 depends on the refusal.
+Expected: PASS.
 
 - [ ] **Step 6: Mutation-check the keys**
 
