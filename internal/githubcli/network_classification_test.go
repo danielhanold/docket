@@ -34,7 +34,7 @@ func TestEveryNetworkSiteIsReadWriteClassified(t *testing.T) {
 		"EnsureComment":              true,  // pr comment
 		"probeRepoMergeMethods":      false, // repo/api read
 		"probeBranchMergeRules":      false, // api read
-		"MergePullRequest":           true,  // pr merge
+		"issueMerge":                 true,  // pr merge (MergePullRequest's act half)
 		"probeMergeSnapshot":         false, // pr view (verify/reprobe)
 		"ViewPullRequestsBatch":      false, // api graphql (batched read)
 		"ViewPullRequest":            false, // pr view

@@ -13,7 +13,7 @@ import (
 // Network sites gated by the read/write budget split (mechanical enumeration,
 // `grep -rn "network: *true" internal/githubcli/ --include='*.go' | grep -v _test`):
 //
-//	merge.go        MergePullRequest    pr merge          WRITE
+//	merge.go        issueMerge          pr merge          WRITE (MergePullRequest's act half)
 //	merge.go        probeMergeSnapshot  pr view           READ  (verifyMerge/ProbeMerged reprobe)
 //	ensure.go       createRequest       pr create         WRITE
 //	ensure.go       editRequest         pr edit           WRITE
@@ -29,7 +29,7 @@ import (
 //	repo.go         repo discovery      repo view         READ
 //
 // Writes are the gh invocations that MUTATE GitHub state: the merge in
-// MergePullRequest, the create/edit in EnsurePullRequest/mutateAndVerify, the
+// MergePullRequest (issueMerge), the create/edit in EnsurePullRequest/mutateAndVerify, the
 // edit --base in RetargetPullRequest, and the comment post in EnsureComment.
 // Their verification/reprobe queries (verifyMerge, verifyPostMutation,
 // viewPullRequest, FindComment) and every discovery probe are reads.
