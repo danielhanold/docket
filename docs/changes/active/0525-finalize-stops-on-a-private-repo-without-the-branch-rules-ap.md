@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/finalize-stops-on-a-private-repo-without-the-branch-rules-ap'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-05T10:36:11Z'
+reconciled: true
+claimed_at: '2026-10-05T10:39:50Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ A blocked cleanup also doesn't say what blocked it, which made this hard to diag
 ## Out of scope
 
 Other finalize gates, and what a real branch rule allows. Any other unreadable branch-rules response. Ignoring or deleting OS files such as `.DS_Store`. A durable "removing" manifest phase. Workspaces with uncommitted tracked changes, which must still block.
+
+## Reconcile log
+
+### 2026-10-05
+
+Reconciled against origin/main f5fef87be. probeBranchMergeRules (internal/githubcli/mergemethod.go), cleanupReady/RemoveWorktreeClean and CleanupResult.BlockedBy (internal/workspace/cleanup.go), and finalizeCleanupWorkspace's workspace-blocked finding (internal/app/finalize_cleanup.go) are unchanged since grooming; related changes 366/316/336 are done and 483 killed, none of which altered this ground. Scope and spec stand as written.
