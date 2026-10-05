@@ -1,7 +1,7 @@
 ---
 id: 526
 slug: 'repository-init-writes-gate-off-and-configure-tests-then-ref'
-title: 'repository init writes gate: off and configure-tests then refuses to set test commands'
+title: 'repository configure-tests takes the test command as input'
 status: 'proposed'
 priority: 'medium'
 type: 'fix'
@@ -9,10 +9,10 @@ created: '2026-10-05'
 updated: '2026-10-05'
 depends_on: []
 stacked_on:
-related: [366, 352, 374]
+related: [366, 352, 374, 523, 512]
 discovered_from: [366]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md'
 plan:
 results:
 trivial: false
@@ -27,21 +27,28 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-On the alpha.1 acceptance fixture (change 0366), `docket repository init` ran on a repository whose only test was an executable `test.sh`. It wrote `.docket.yml` with `build.gate: "off"` and `finalize.gate: "off"` and no test commands. The release spec expected `init` to leave the policy pending so that `repository configure-tests` could fill it in. Instead, `configure-tests` returned `no-op (healthy): the test policy is already configured; nothing to write`, because it treats an explicit `off` as a decision already made. The docs describe `configure-tests` as the command that writes the build and finalize test commands. There was no command path to turn the gates on, so the operator edited `.docket.yml` by hand to set `gate: local` and `test_command: sh ./test.sh` for both gates.
+On the alpha.1 acceptance fixture (change 0366), `docket repository init` ran on a repository whose only test was an executable root `test.sh`. It wrote `.docket.yml` with `build.gate: "off"` and `finalize.gate: "off"` and no test commands. Then `repository configure-tests` returned `no-op (healthy): the test policy is already configured; nothing to write`. The operator had to edit `.docket.yml` by hand to set `gate: local` and `test_command: sh ./test.sh` for both gates.
+
+The real cause: `configure-tests` takes no input. It only re-runs init's suite discovery, which recognizes six repository layouts and not a root `test.sh`. So it found nothing again, planned the same `off` policy, and printed its one generic "already configured" message. That message is also false when discovery finds two candidate suites. In that case init tells the operator to "run configure-tests to choose one", and configure-tests can't choose. Whenever discovery can't find the command, there's no command path, only a hand edit.
 
 ## What changes
 
-Give a freshly initialized repository a command path to local gates. Options:
-- `init` leaves the policy pending, instead of `off`, when it can't infer a command;
-- `configure-tests` can replace an `off` policy that `init` wrote (or takes a flag to);
-- `configure-tests` takes the test command as input.
-
-Grooming picks one. Check whether `init` should recognize a root `test.sh` at all. Align the docs with whatever is chosen.
+- `docket repository configure-tests --command "<cmd>"` sets both gates to `local` with that command. It skips discovery and replaces whatever policy is there (`off`, a different command, or a half-configured pair). It still leaves a pending, unstaged `.docket.yml` edit for review and still runs only on a healthy repository. Running it again with the same command is a no-op. An empty value or the legacy `auto` is refused.
+- Without `--command`, configure-tests says what discovery actually found. For "no suite found", it says the gates are off and to re-run with `--command`. For "two suites found", it names the candidates and their commands. For "already configured", it names the configured commands. The half-configured note names `--command` instead of a hand edit. init's "no suite" and "two suites" notes point at `--command` too.
+- `migrate`'s refusal when two suites are found stops pointing at `configure-tests`, which refuses on a legacy repository. It says to set `finalize.test_command`, commit it, and re-run `migrate`.
+- The glossary and the build/gate guide pages describe `--command`.
 
 ## Out of scope
 
-Inferring test commands for specific language ecosystems beyond what grooming settles. Changing gate semantics.
+- init still writes `gate: "off"` when it finds no supported suite. That's honest "skipped" evidence rather than a halt on every build, as decided in 0374.
+- No new suite types. A root `test.sh` is still not auto-detected; `--command` covers it.
+- No per-gate command flags. Different build and finalize commands stay a hand edit. No `--command` on `init` or `migrate`.
+- Gate semantics, build evidence, and the `test-config-missing` check finding are unchanged.
+- configure-tests refusing a repository whose `.docket` copy is only behind (change 0523).
