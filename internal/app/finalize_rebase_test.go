@@ -170,12 +170,20 @@ func setupRebaseFixture(t *testing.T, m planRepoMode) *rebaseFixture {
 // precondition can be exercised over a real feature branch).
 func setupRebaseFixtureStatus(t *testing.T, m planRepoMode, status string) *rebaseFixture {
 	t.Helper()
+	return setupRebaseFixtureWithNode(t, m, status, planningDepsFor)
+}
+
+// setupRebaseFixtureWithNode is setupRebaseFixtureStatus with the planning-node
+// builder chosen by the caller, so a parallel test can pass one that never calls
+// t.Setenv (parallelPlanningNode in finalize_merge_integration_test.go).
+func setupRebaseFixtureWithNode(t *testing.T, m planRepoMode, status string, nodeFor func(*testing.T, string) realNode) *rebaseFixture {
+	t.Helper()
 	requireRealGit(t)
 	id, slug := rebaseFixtureID, rebaseFixtureSlug
 	recPath := groomPath(id, slug)
 	repo := buildConfiguredRepo(t, m, recPath, lifecycleChange(id, slug, status))
 
-	node := planningDepsFor(t, repo.invocation)
+	node := nodeFor(t, repo.invocation)
 	svc, err := workspace.NewService(node.deps.Client)
 	if err != nil {
 		t.Fatalf("workspace.NewService: %v", err)

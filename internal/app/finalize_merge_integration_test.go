@@ -7,8 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/repository/transaction"
+	"github.com/danielhanold/docket/internal/testsupport"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -16,11 +22,13 @@ import (
 // explicitly-named run, is never inferred, and that a denial stays denied
 // (never retried with admin).
 func TestIntegrationFinalizeMergeAdminGate(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
 
 	t.Run("admin-honored-with-explicit-id", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		mergeCommit := f.mergeFeatureIntoBase(t)
 		gh := f.baselineFake(t)
 		gh.mergeOutcome = githubcli.MergeMerged
@@ -35,7 +43,8 @@ func TestIntegrationFinalizeMergeAdminGate(t *testing.T) {
 	})
 
 	t.Run("admin-refused-without-explicit-id", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, false, true))
 		if res.Result == ResultApplied || res.Result == ResultNoOp {
@@ -50,7 +59,8 @@ func TestIntegrationFinalizeMergeAdminGate(t *testing.T) {
 	})
 
 	t.Run("denied-stays-denied-no-admin-retry", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.mergeOutcome = githubcli.MergeDenied
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -72,9 +82,10 @@ func TestIntegrationFinalizeMergeAdminGate(t *testing.T) {
 // TestFinalizeMergeAlreadyMergedNoop proves an already-merged exact PR is a
 // verified no-op regardless of who merged it, issuing no second merge.
 func TestIntegrationFinalizeMergeAlreadyMergedNoop(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
-	f := setupMergeFixture(t, m)
+	f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 	mergeCommit := f.mergeFeatureIntoBase(t)
 	gh := f.baselineFake(t)
 	gh.probeOutcome = githubcli.MergeAlreadyMerged
@@ -96,9 +107,10 @@ func TestIntegrationFinalizeMergeAlreadyMergedNoop(t *testing.T) {
 // surfaces no method (Docket did not choose the historical merge) and the
 // omitempty tag keeps the "method" key out of the document entirely.
 func TestIntegrationFinalizeMergeAlreadyMergedOmitsMethod(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
-	f := setupMergeFixture(t, m)
+	f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 	mergeCommit := f.mergeFeatureIntoBase(t)
 	gh := f.baselineFake(t)
 	gh.probeOutcome = githubcli.MergeAlreadyMerged
@@ -124,6 +136,7 @@ func TestIntegrationFinalizeMergeAlreadyMergedOmitsMethod(t *testing.T) {
 // satisfied. This is the exhaustive per-field oracle; the operation-level test
 // proves the recheck-before-effect wiring.
 func TestIntegrationFinalizeMergeConditionAssembly(t *testing.T) {
+	t.Parallel()
 	const head = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
 	good := mergeConditionInputs{
 		status:            domain.StatusImplemented,
@@ -193,13 +206,15 @@ func TestIntegrationFinalizeMergeConditionAssembly(t *testing.T) {
 // condition from a FRESH reload immediately before the effect: a falsified field
 // refuses with that field's closed token and issues zero merge calls.
 func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
 
 	// Cases achievable by perturbing the live fake/request over a shared baseline
 	// fixture (no metadata rewrite needed).
 	t.Run("pr-link-mismatch", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.openByHead["feat/"+f.slug] = []githubcli.PullRequest{func() githubcli.PullRequest {
 			pr := f.parentPR(f.head, greenEvidenceFor(t, f.head))
@@ -211,7 +226,8 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 	})
 
 	t.Run("head-moved", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		other := strings.Repeat("b", 40)
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, other, true, false))
@@ -219,7 +235,8 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 	})
 
 	t.Run("draft", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.openByHead["feat/"+f.slug][0].Draft = true
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -227,7 +244,8 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 	})
 
 	t.Run("base-mismatch", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.openByHead["feat/"+f.slug][0].BaseBranch = "develop"
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -235,7 +253,8 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 	})
 
 	t.Run("gate-unsatisfied", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.openByHead["feat/"+f.slug][0].Body = "" // no green evidence; gate is local
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -244,7 +263,8 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 
 	// Metadata-shaped cases: a stale revision and a not-implemented status.
 	t.Run("superseded-revision", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		req := mergeReq(f, f.head, true, false)
 		req.Revision = "sha256:" + strings.Repeat("f", 64) // stale; explicit id never overrides a revision
@@ -253,9 +273,10 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 	})
 
 	t.Run("not-implemented", func(t *testing.T) {
+		t.Parallel()
 		// A claimed-but-not-yet-implemented record: it carries a recorded branch (so
 		// identity resolves), and the Implemented condition is what refuses.
-		f := setupMergeFixture(t, m)
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		f.patchParent(t, "in-progress", mergePRRef(), "")
 		gh := f.baselineFake(t)
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -263,10 +284,11 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 	})
 
 	t.Run("unclaimed-branch-missing", func(t *testing.T) {
+		t.Parallel()
 		// A proposed (never-claimed) record has no recorded branch, so the merge
 		// fails closed on identity before any external effect — never a second merge
 		// and never a reconstruction of the branch from the slug.
-		f := setupMergeFixture(t, m)
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		f.patchParent(t, "proposed", mergePRRef(), "")
 		gh := f.baselineFake(t)
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -277,7 +299,8 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 	})
 
 	t.Run("unretargeted-open-child", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		f.repo.writerAdvance(t, f.branch, map[string]string{groomPath(6, "gadget"): childRecord(6, "gadget", f.id, "github.com/acme/widget#8")})
 		gh := f.baselineFake(t)
 		// The child's open PR still targets the parent's feature branch: unretargeted.
@@ -295,9 +318,10 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 // records the attempted method (the merge command WAS issued) while keeping the
 // unchanged external-failed/denied/merge-denied mapping.
 func TestIntegrationFinalizeMergeDeniedCarriesMethod(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
-	f := setupMergeFixture(t, m)
+	f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 	gh := f.baselineFake(t)
 	gh.mergeOutcome = githubcli.MergeDenied
 	gh.mergeMethod = githubcli.MethodSquash
@@ -320,6 +344,7 @@ func TestIntegrationFinalizeMergeDeniedCarriesMethod(t *testing.T) {
 // wrong PR identity, an unsafe stack, the gate, or a superseding revision, and
 // that a `## Finalize blocked` note never stops a merge, named or not.
 func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
 
@@ -335,7 +360,8 @@ func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
 		{"note-never-blocks-explicit-merge", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := setupMergeFixture(t, m)
+			t.Parallel()
+			f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 			f.patchParent(t, "implemented", mergePRRef(), "## Finalize blocked\n\n- 2026-10-01 — reason `rebase-stuck`: an earlier attempt halted.")
 			mergeCommit := f.mergeFeatureIntoBase(t)
 			gh := f.baselineFake(t)
@@ -352,7 +378,8 @@ func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
 	}
 
 	t.Run("explicit-id-does-not-override-pr-link", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.openByHead["feat/"+f.slug][0].Number = 9
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -360,7 +387,8 @@ func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
 	})
 
 	t.Run("explicit-id-does-not-override-gate", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.openByHead["feat/"+f.slug][0].Body = ""
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -368,7 +396,8 @@ func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
 	})
 
 	t.Run("explicit-id-does-not-override-superseding-revision", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		req := mergeReq(f, f.head, true, false)
 		req.Revision = "sha256:" + strings.Repeat("f", 64)
@@ -385,9 +414,10 @@ func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
 // human can reconcile them. It is neither merge-denied (nothing was attempted)
 // nor an unknown disposition (the incompatible policy WAS observed).
 func TestIntegrationFinalizeMergeMethodUnavailableBlocks(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
-	f := setupMergeFixture(t, m)
+	f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 	gh := f.baselineFake(t)
 	gh.mergeOutcome = githubcli.MergeMethodUnavailable
 	gh.mergeRepoMethods = []githubcli.MergeMethod{"squash"}
@@ -422,9 +452,10 @@ func TestIntegrationFinalizeMergeMethodUnavailableBlocks(t *testing.T) {
 // TestFinalizeMergeReportsAttemptedMethod proves a successful merge surfaces the
 // method Docket chose on the protocol document.
 func TestIntegrationFinalizeMergeReportsAttemptedMethod(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
-	f := setupMergeFixture(t, m)
+	f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 	mergeCommit := f.mergeFeatureIntoBase(t)
 	gh := f.baselineFake(t)
 	gh.mergeOutcome = githubcli.MergeMerged
@@ -444,11 +475,13 @@ func TestIntegrationFinalizeMergeReportsAttemptedMethod(t *testing.T) {
 // contended; an unobservable reprobe is unknown; none but the reachable proof
 // permits closeout.
 func TestIntegrationFinalizeMergeVerification(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
 
 	t.Run("reachable-merge-commit-verifies", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		mergeCommit := f.mergeFeatureIntoBase(t)
 		gh := f.baselineFake(t)
 		gh.mergeOutcome = githubcli.MergeMerged
@@ -467,7 +500,8 @@ func TestIntegrationFinalizeMergeVerification(t *testing.T) {
 	})
 
 	t.Run("head-divergence-is-contended", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.mergeOutcome = githubcli.MergeMerged
 		gh.mergeFacts = mergedFactsFor(strings.Repeat("b", 40), "main", strings.Repeat("a", 40))
@@ -478,7 +512,8 @@ func TestIntegrationFinalizeMergeVerification(t *testing.T) {
 	})
 
 	t.Run("base-divergence-is-contended", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.mergeOutcome = githubcli.MergeMerged
 		gh.mergeFacts = mergedFactsFor(f.head, "develop", strings.Repeat("a", 40))
@@ -489,7 +524,8 @@ func TestIntegrationFinalizeMergeVerification(t *testing.T) {
 	})
 
 	t.Run("unobservable-reprobe-is-unknown", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.mergeOutcome = githubcli.MergeUnknown
 		gh.mergeErr = errors.New("gh merge transport boom")
@@ -500,7 +536,8 @@ func TestIntegrationFinalizeMergeVerification(t *testing.T) {
 	})
 
 	t.Run("present-but-unreachable-merge-commit-is-contended", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		// The feature head is a real object in the shared store but is NOT merged
 		// into the destination, so it is present yet not reachable from the base
 		// tip — a clean unreachable answer, distinct from an absent object.
@@ -517,7 +554,8 @@ func TestIntegrationFinalizeMergeVerification(t *testing.T) {
 	})
 
 	t.Run("reported-merge-commit-absent-is-unknown", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.mergeOutcome = githubcli.MergeMerged
 		// A well-formed object id that is not in the destination's object graph:
@@ -603,12 +641,14 @@ func (f *mergeFixture) carryFake(prBody string) *fakeMergeCarryGitHub {
 // (it never runs before the head/lease condition, and never displaces the
 // already-merged short circuit closeout owns the post-merge proof for).
 func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
 	ctx := context.Background()
 
 	t.Run("all-conditions-hold-but-carried-child-lost-refuses-zero-merge-calls", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "Y\n"})
 		// The child merge object EXISTS (a drop, not a missing object): pins the
@@ -639,10 +679,11 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 	})
 
 	t.Run("ordinary-change-merges-witness-fires-on-happy-path", func(t *testing.T) {
+		t.Parallel()
 		// No stack descendants: the proof is vacuously satisfied with zero probes and
 		// the merge lands, so the MergePullRequest witness fires exactly once — the
 		// companion that proves the zero-call assertion above is not vacuous.
-		f := setupMergeFixture(t, m)
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		mergeCommit := f.mergeFeatureIntoBase(t)
 		gh := f.carryFake(greenEvidenceFor(t, f.head))
 		gh.mergeOutcome = githubcli.MergeMerged
@@ -657,7 +698,8 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 	})
 
 	t.Run("gate-off-enforces-the-same-proof", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "G\n"})
 		// finalize.gate: off — the gate condition is satisfied by config, not by
@@ -679,9 +721,10 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 	})
 
 	t.Run("direct-merge-explicit-id-enforces-the-proof", func(t *testing.T) {
+		t.Parallel()
 		// An explicit-id request reaches FinalizeMerge directly, with no prior rebase
 		// receipt: the proof still gates the external merge.
-		f := setupMergeFixture(t, m)
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "D\n"})
 		gh := f.carryFake(greenEvidenceFor(t, f.head))
@@ -697,11 +740,12 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 	})
 
 	t.Run("concurrent-head-move-fails-the-existing-condition-first", func(t *testing.T) {
+		t.Parallel()
 		// The PR head no longer matches the requested head: the EXISTING
 		// exact-head/lease condition rejects the movement BEFORE the carry proof, so
 		// the reason is the existing head-moved token, not the carry reason — proving
 		// the new gate complements, not replaces, the head/lease authorization.
-		f := setupMergeFixture(t, m)
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "H\n"})
 		gh := f.carryFake(greenEvidenceFor(t, f.head))
@@ -721,10 +765,11 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 	})
 
 	t.Run("already-merged-short-circuit-unchanged-no-new-proof", func(t *testing.T) {
+		t.Parallel()
 		// An already-merged exact PR is a verified no-op probed BEFORE the condition
 		// recheck and the carry proof; closeout owns the post-merge proof, so a lost
 		// carried child does not turn the short circuit into a carry refusal.
-		f := setupMergeFixture(t, m)
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		mergeCommit := f.mergeFeatureIntoBase(t)
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "A\n"})
@@ -795,16 +840,18 @@ func (f *mergeFixture) commitOntoFeature(t *testing.T, files map[string]string) 
 // (root <- C(open) <- D) because a grandchild merged into a still-open child is not
 // yet promised by the root pre-merge.
 func TestIntegrationFinalizeMergeCarryTransitive(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
 	ctx := context.Background()
 
 	t.Run("drop-of-transitive-grandchild-refuses-naming-it", func(t *testing.T) {
+		t.Parallel()
 		// root(id5) <- A(id6, present on the feature head) <- B(id7, dropped). A's
 		// merged content rides the feature head (ancestry-proven); B's merge object
 		// EXISTS but its content was never carried onto the feature head. The refusal
 		// must name B — proving the proof reached the grandchild through A.
-		f := setupMergeFixture(t, m)
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		seedRebaseCarryChild(t, f.rebaseFixture)     // id 6 (gadget), stacked-merged, PR #8
 		seedMergeCarryGrandchild(t, f.rebaseFixture) // id 7 (gizmo), stacked-merged, PR #9
 		aMerge := f.commitOntoFeature(t, map[string]string{"gadget.yaml": "A\n"})
@@ -845,9 +892,10 @@ func TestIntegrationFinalizeMergeCarryTransitive(t *testing.T) {
 	})
 
 	t.Run("all-present-through-the-chain-merges", func(t *testing.T) {
+		t.Parallel()
 		// root(id5) <- A(id6) <- B(id7), every descendant's merged content riding the
 		// feature head: the transitive proof clears and the merge lands.
-		f := setupMergeFixture(t, m)
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		seedMergeCarryGrandchild(t, f.rebaseFixture)
 		aMerge := f.commitOntoFeature(t, map[string]string{"gadget.yaml": "A\n"})
@@ -870,12 +918,13 @@ func TestIntegrationFinalizeMergeCarryTransitive(t *testing.T) {
 	})
 
 	t.Run("open-intermediate-does-not-promise-its-grandchild", func(t *testing.T) {
+		t.Parallel()
 		// root(id5) <- C(id6, OPEN) <- D(id7, stacked-merged into C). D's content is
 		// absent from the root head, yet the merge proceeds: the carried-set walk stops
 		// at the open intermediate, so D is not promised by the root pre-merge. The
 		// intermediate presents no open PR against the root branch, so the open-child
 		// gate stays clear and this case isolates the carry derivation.
-		f := setupMergeFixture(t, m)
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		seedMergeOpenIntermediate(t, f.rebaseFixture) // id 6 (gadget), in-progress
 		seedMergeCarryGrandchild(t, f.rebaseFixture)  // id 7 (gizmo), stacked-merged into id 6
 		mergeCommit := f.mergeFeatureIntoBase(t)
@@ -916,6 +965,7 @@ func countFindingCode(fs []StatusFinding, code string) int {
 // changes the result, disposition, or method. A normally-read rules array
 // carries none.
 func TestIntegrationFinalizeMergeBranchRulesUnavailableNote(t *testing.T) {
+	t.Parallel()
 	requireRealGit(t)
 	m := planRepoModes()[0]
 
@@ -938,7 +988,8 @@ func TestIntegrationFinalizeMergeBranchRulesUnavailableNote(t *testing.T) {
 	}
 
 	t.Run("merged", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		mergeCommit := f.mergeFeatureIntoBase(t)
 		gh := f.baselineFake(t)
 		gh.mergeOutcome = githubcli.MergeMerged
@@ -953,7 +1004,8 @@ func TestIntegrationFinalizeMergeBranchRulesUnavailableNote(t *testing.T) {
 	})
 
 	t.Run("denied", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.mergeOutcome = githubcli.MergeDenied
 		gh.mergeMethod = githubcli.MethodRebase
@@ -966,7 +1018,8 @@ func TestIntegrationFinalizeMergeBranchRulesUnavailableNote(t *testing.T) {
 	})
 
 	t.Run("rules-read-normally", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		mergeCommit := f.mergeFeatureIntoBase(t)
 		gh := f.baselineFake(t)
 		gh.mergeOutcome = githubcli.MergeMerged
@@ -980,4 +1033,68 @@ func TestIntegrationFinalizeMergeBranchRulesUnavailableNote(t *testing.T) {
 			t.Fatalf("a normal rules read carried %d branch-rules-unavailable findings, want 0", n)
 		}
 	})
+}
+
+// mergeXDGOnce guards the one process-wide global-config isolation
+// parallelPlanningNode performs; mergeXDGDir is the empty dir it points
+// XDG_CONFIG_HOME at, and mergeXDGErr the setup failure every caller reports.
+var (
+	mergeXDGOnce sync.Once
+	mergeXDGDir  string
+	mergeXDGErr  error
+)
+
+// parallelPlanningNode is planningDepsFor without t.Setenv, so the
+// TestIntegrationFinalizeMerge* tests can call t.Parallel(). It isolates the
+// global-config layer ONCE per test process with os.Setenv, the trade e2eNode
+// makes in finalize_e2e_test.go. That is safe because this file is behind the
+// `integration` build tag and the merge shard (tests/test_go_integration_app_merge.sh)
+// runs only ^TestIntegrationFinalizeMerge in its process; Go runs every
+// sequential top-level test before releasing parallel ones, so no t.Setenv
+// elsewhere overlaps it.
+func parallelPlanningNode(t *testing.T, dir string) realNode {
+	t.Helper()
+	mergeXDGOnce.Do(func() {
+		// tempdir-exempt: one empty global-config dir per test process, shared by every parallel merge test (the e2eNode precedent).
+		mergeXDGDir, mergeXDGErr = os.MkdirTemp("", "docket-merge-xdg-*")
+		if mergeXDGErr == nil {
+			mergeXDGErr = os.Setenv("XDG_CONFIG_HOME", mergeXDGDir)
+		}
+	})
+	if mergeXDGErr != nil {
+		t.Fatalf("isolate global config: %v", mergeXDGErr)
+	}
+	client, err := gitcli.NewClient()
+	if err != nil {
+		t.Fatalf("gitcli.NewClient: %v", err)
+	}
+	engine, err := transaction.NewEngine(client, testClock())
+	if err != nil {
+		t.Fatalf("transaction.NewEngine: %v", err)
+	}
+	return realNode{
+		dir: dir,
+		deps: PlanningDeps{
+			Client: client,
+			Engine: engine,
+			Reader: NewGitStatusReader(client),
+			Clock:  testClock(),
+		},
+	}
+}
+
+// TestIntegrationFinalizeMergeParallelNodeIsolatesGlobalConfig pins that the
+// no-Setenv planning node still isolates the in-process global-config layer:
+// after it runs, XDG_CONFIG_HOME names the process-wide empty dir it created,
+// never the developer's own config home, and that dir carries no docket config.
+func TestIntegrationFinalizeMergeParallelNodeIsolatesGlobalConfig(t *testing.T) {
+	t.Parallel()
+	parallelPlanningNode(t, testsupport.TempDir(t))
+	got := os.Getenv("XDG_CONFIG_HOME")
+	if got == "" || got != mergeXDGDir {
+		t.Fatalf("XDG_CONFIG_HOME = %q, want the isolated dir %q", got, mergeXDGDir)
+	}
+	if _, err := os.Stat(filepath.Join(got, "docket", "config.yml")); !os.IsNotExist(err) {
+		t.Fatalf("isolated global-config dir carries a docket config (stat err %v)", err)
+	}
 }
