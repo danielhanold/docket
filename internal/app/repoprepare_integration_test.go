@@ -18,10 +18,12 @@ import (
 // against the same bare-upstream + clone fixture the init/check/migrate shards use.
 // Prepare is the only operation that attaches or fast-forwards the local `.docket`
 // worktree, so its real-git correctness (worktree registration, the clean-behind
-// fast-forward composed from the worktree primitives, and hooks disabling via the
-// mechanism scripts/disable-worktree-hooks.sh documents) is provable only against real
-// repositories — the clean-behind fast-forward in particular (prepareFastForward-
-// Worktree) has no unit coverage of its multi-step remove/delete/re-add sequence.
+// fast-forward to the pinned revision, and hooks disabling via the mechanism
+// scripts/disable-worktree-hooks.sh documents) is provable only against real
+// repositories. The clean-behind fast-forward is an in-place compare-and-swap
+// fast-forward (gitcli's FastForwardCheckedOutBranch); its properties — nothing
+// removed, a stale observed tip refused, no repository hook run — are proven in the
+// TestIntegrationRepoInPlaceFF shard (repoinplaceff_integration_test.go).
 //
 // The crux these tests prove: the remote docket branch is a REAL MULTI-COMMIT chain
 // (an init-seed parentless root plus a descendant), not a single seed commit. The

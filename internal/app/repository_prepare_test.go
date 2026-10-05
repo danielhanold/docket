@@ -132,6 +132,9 @@ func TestRepositoryPrepareCleanBehindFastForwards(t *testing.T) {
 	if v.targetRev != "m9" {
 		t.Errorf("targetRev = %q, want the pinned remote metadata tip m9", v.targetRev)
 	}
+	if v.observedTip != "m1" {
+		t.Errorf("observedTip = %q, want the router's local tip m1 (the compare-and-swap source)", v.observedTip)
+	}
 }
 
 // TestRepositoryPrepareCleanCurrentIsNoOp — a worktree already at the pinned
