@@ -12,7 +12,7 @@ stacked_on:
 related: [532, 352, 363]
 discovered_from: []
 adrs: [1, 99]
-spec:
+spec: 'docs/superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
