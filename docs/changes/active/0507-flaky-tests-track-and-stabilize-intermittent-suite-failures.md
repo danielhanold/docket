@@ -2,7 +2,7 @@
 id: 507
 slug: 'flaky-tests-track-and-stabilize-intermittent-suite-failures'
 title: 'Fix the observe-test hang and bring two test files back under their time limits'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/flaky-tests-track-and-stabilize-intermittent-suite-failures'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-05T14:04:51Z'
 ---
 
 ## Artifacts

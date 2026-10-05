@@ -1,6 +1,12 @@
 # Backlog
 
-**526 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 4 proposed · ⚪ 14 deferred · ✅ 365 done · 🗑️ 139 killed
+**526 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 2 groomed · 🟡 4 proposed · ⚪ 14 deferred · ✅ 365 done · 🗑️ 139 killed
+
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0507](active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Fix the observe-test hang and bring two test files back under their time limits | `low` | `fix` | [spec](../superpowers/specs/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-design.md) | `fix/flaky-tests-track-and-stabilize-intermittent-suite-failures` |  |
 
 ## 🔵 Built (1)
 
@@ -8,11 +14,10 @@
 |---|-------|----------|------|----|-------|
 | [0526](active/0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | `medium` | `fix` | [#395](https://github.com/danielhanold/docket/pull/395) | awaiting merge |
 
-## 🟣 Groomed (3)
+## 🟣 Groomed (2)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0507](active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Fix the observe-test hang and bring two test files back under their time limits | `low` | `fix` | [spec](../superpowers/specs/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
