@@ -62,9 +62,12 @@ func TestIntegrationMergeProbeBranchMergeRules(t *testing.T) {
 		ArgvPrefix: []string{"api", "--hostname", "github.com", "repos/octo/widgets/rules/branches/feat%2Fparent"},
 		Stdout:     rules,
 	}}})
-	set, f := c.probeBranchMergeRules(context.Background(), Repository{Host: "github.com", Owner: "octo", Name: "widgets"}, "feat/parent")
+	set, unavailable, f := c.probeBranchMergeRules(context.Background(), Repository{Host: "github.com", Owner: "octo", Name: "widgets"}, "feat/parent")
 	if f != nil {
 		t.Fatalf("unexpected failure: %v", f)
+	}
+	if unavailable {
+		t.Fatal("a readable rules array must not report rules-unavailable")
 	}
 	// intersection of the two allowed_merge_methods rules is {squash}; linear
 	// history removes merge (already absent). rebase excluded by the first rule.
@@ -83,8 +86,8 @@ func TestIntegrationMergeProbeBranchMergeRulesNoRestriction(t *testing.T) {
 		"pr rule no key": `[{"type":"pull_request","parameters":{"required_approving_review_count":0}}]`,
 	} {
 		c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{{ArgvPrefix: []string{"api"}, Stdout: body}}})
-		set, f := c.probeBranchMergeRules(context.Background(), Repository{Host: "github.com", Owner: "o", Name: "n"}, "main")
-		if f != nil || set != (methodSet{rebase: true, merge: true, squash: true}) {
+		set, unavailable, f := c.probeBranchMergeRules(context.Background(), Repository{Host: "github.com", Owner: "o", Name: "n"}, "main")
+		if f != nil || unavailable || set != (methodSet{rebase: true, merge: true, squash: true}) {
 			t.Errorf("%s: want unrestricted set, got %+v f=%v", name, set, f)
 		}
 	}
@@ -102,8 +105,62 @@ func TestIntegrationMergeProbeBranchMergeRulesFailsClosed(t *testing.T) {
 	}
 	for name, arm := range cases {
 		c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{arm}})
-		if _, f := c.probeBranchMergeRules(context.Background(), Repository{Host: "github.com", Owner: "o", Name: "n"}, "main"); f == nil {
+		if _, _, f := c.probeBranchMergeRules(context.Background(), Repository{Host: "github.com", Owner: "o", Name: "n"}, "main"); f == nil {
 			t.Errorf("%s: must fail closed", name)
+		}
+	}
+}
+
+// planGateBody is GitHub's literal answer to a branch-rules read on a private
+// repository whose plan has no branch rules (reproduced 2026-10-05 against the
+// 0366 fixture repository). `gh api` prints it on stdout and exits 1.
+const planGateBody = `{"message":"Upgrade to GitHub Pro or make this repository public to enable this feature.","documentation_url":"https://docs.github.com/rest/repos/rules#get-rules-for-a-branch","status":"403"}`
+
+// TestIntegrationMergeProbeBranchMergeRulesPlanGate: GitHub's plan-gate 403 means
+// the branch has no rules — every method is permitted and the probe reports
+// rules-unavailable with no failure. The Team wording matches too.
+func TestIntegrationMergeProbeBranchMergeRulesPlanGate(t *testing.T) {
+	bodies := map[string]string{
+		"pro":  planGateBody,
+		"team": `{"message":"Upgrade to GitHub Team or make this repository public to enable this feature.","status":"403"}`,
+	}
+	for name, body := range bodies {
+		c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{{
+			ArgvPrefix: []string{"api"}, Stdout: body, Exit: 1,
+			Stderr: "gh: Upgrade to GitHub Pro or make this repository public to enable this feature. (HTTP 403)",
+		}}})
+		set, unavailable, f := c.probeBranchMergeRules(context.Background(), Repository{Host: "github.com", Owner: "o", Name: "n"}, "main")
+		if f != nil {
+			t.Fatalf("%s: plan-gate answer must not be a failure, got %v", name, f)
+		}
+		if !unavailable {
+			t.Fatalf("%s: plan-gate answer must report rules-unavailable", name)
+		}
+		if set != (methodSet{rebase: true, merge: true, squash: true}) {
+			t.Fatalf("%s: plan-gate answer must permit every method, got %+v", name, set)
+		}
+	}
+}
+
+// TestIntegrationMergeProbeBranchMergeRulesPlanGateLookalikesFailClosed: only the
+// exact plan-gate answer proceeds. Every lookalike stays a typed failure with an
+// empty set and rules-unavailable false.
+func TestIntegrationMergeProbeBranchMergeRulesPlanGateLookalikesFailClosed(t *testing.T) {
+	cases := map[string]string{
+		"other 403 message":         `{"message":"Resource not accessible by integration","status":"403"}`,
+		"404 body":                  `{"message":"Not Found","documentation_url":"https://docs.github.com/rest","status":"404"}`,
+		"non-JSON stdout":           `Upgrade to GitHub Pro or make this repository public to enable this feature.`,
+		"plan-gate text, 404":       `{"message":"Upgrade to GitHub Pro or make this repository public to enable this feature.","status":"404"}`,
+		"plan-gate text, numeric":   `{"message":"Upgrade to GitHub Pro or make this repository public to enable this feature.","status":403}`,
+		"plan-gate text, no status": `{"message":"Upgrade to GitHub Pro or make this repository public to enable this feature."}`,
+		"empty plan name":           `{"message":"Upgrade to GitHub  or make this repository public to enable this feature.","status":"403"}`,
+		"empty stdout":              ``,
+	}
+	for name, body := range cases {
+		c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{{ArgvPrefix: []string{"api"}, Stdout: body, Exit: 1}}})
+		set, unavailable, f := c.probeBranchMergeRules(context.Background(), Repository{Host: "github.com", Owner: "o", Name: "n"}, "main")
+		if f == nil || unavailable || set != (methodSet{}) {
+			t.Errorf("%s: must fail closed, got set=%+v unavailable=%v f=%v", name, set, unavailable, f)
 		}
 	}
 }

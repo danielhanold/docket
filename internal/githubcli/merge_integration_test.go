@@ -358,6 +358,9 @@ func TestIntegrationMergeSelectsMergeWhenRebaseDisabled(t *testing.T) {
 	if res.Method != MethodMerge {
 		t.Fatalf("method = %q, want %q", res.Method, MethodMerge)
 	}
+	if res.BranchRulesUnavailable {
+		t.Fatal("a readable rules array must not set BranchRulesUnavailable")
+	}
 	assertMergeFlag(t, log, "--merge")
 }
 
@@ -495,4 +498,101 @@ func argvHasFlagValue(argv []string, flag, value string) bool {
 		}
 	}
 	return false
+}
+
+// TestIntegrationMergePlanGateMergesWithRepoMethods: on a plan without branch
+// rules, the merge proceeds with the repository settings' best method and the
+// result carries BranchRulesUnavailable.
+func TestIntegrationMergePlanGateMergesWithRepoMethods(t *testing.T) {
+	c, log := newFakeClient(t, fakeScenario{
+		Sequential: true,
+		Invocations: []fakeArm{
+			mrgViewArm(openPR(ensHeadOid, "MERGEABLE"), 0),
+			mrgRepoSettingsArm(repoAllTrue, 0),
+			mrgBranchRulesArm(planGateBody, 1),
+			mrgMergeArm(0),
+			mrgViewArm(mergedPR(), 0),
+		},
+	})
+	res, err := c.MergePullRequest(context.Background(), mrgRepo(), 7, ObjectRef(ensHeadOid), false)
+	if err != nil {
+		t.Fatalf("MergePullRequest: %v", err)
+	}
+	if res.Outcome != MergeMerged || res.Method != MethodRebase {
+		t.Fatalf("outcome/method = %q/%q, want merged/rebase", res.Outcome, res.Method)
+	}
+	if !res.BranchRulesUnavailable {
+		t.Fatal("a plan-gated merge must carry BranchRulesUnavailable")
+	}
+	assertMergeFlag(t, log, "--rebase")
+}
+
+// TestIntegrationMergePlanGateSquashOnly: the plan-gate answer contributes no
+// restriction, so a squash-only repository still selects squash.
+func TestIntegrationMergePlanGateSquashOnly(t *testing.T) {
+	c, log := newFakeClient(t, fakeScenario{
+		Sequential: true,
+		Invocations: []fakeArm{
+			mrgViewArm(openPR(ensHeadOid, "MERGEABLE"), 0),
+			mrgRepoSettingsArm(repoSquashOnly, 0),
+			mrgBranchRulesArm(planGateBody, 1),
+			mrgMergeArm(0),
+			mrgViewArm(mergedPR(), 0),
+		},
+	})
+	res, err := c.MergePullRequest(context.Background(), mrgRepo(), 7, ObjectRef(ensHeadOid), false)
+	if err != nil {
+		t.Fatalf("MergePullRequest: %v", err)
+	}
+	if res.Outcome != MergeMerged || res.Method != MethodSquash || !res.BranchRulesUnavailable {
+		t.Fatalf("got outcome %q method %q unavailable %v, want merged/squash/true", res.Outcome, res.Method, res.BranchRulesUnavailable)
+	}
+	assertMergeFlag(t, log, "--squash")
+}
+
+// TestIntegrationMergePlanGateMethodUnavailableCarriesFlag: a plan-gated
+// repository whose settings enable nothing is still method-unavailable, issues
+// no merge, and still carries BranchRulesUnavailable.
+func TestIntegrationMergePlanGateMethodUnavailableCarriesFlag(t *testing.T) {
+	c, log := newFakeClient(t, fakeScenario{
+		Sequential: true,
+		Invocations: []fakeArm{
+			mrgViewArm(openPR(ensHeadOid, "MERGEABLE"), 0),
+			mrgRepoSettingsArm(repoAllFalse, 0),
+			mrgBranchRulesArm(planGateBody, 1),
+		},
+	})
+	res, err := c.MergePullRequest(context.Background(), mrgRepo(), 7, ObjectRef(ensHeadOid), false)
+	if err != nil {
+		t.Fatalf("method-unavailable must be a value outcome, got %v", err)
+	}
+	if res.Outcome != MergeMethodUnavailable || !res.BranchRulesUnavailable {
+		t.Fatalf("got outcome %q unavailable %v, want method-unavailable/true", res.Outcome, res.BranchRulesUnavailable)
+	}
+	if n := countArgv(log.records(t), "pr", "merge"); n != 0 {
+		t.Fatalf("pr merge issued %d times, want 0", n)
+	}
+}
+
+// TestIntegrationMergePlanGateLookalikeIssuesNoMerge: any other 403 on the
+// branch-rules read is still unknown with a diagnostic error and no merge.
+func TestIntegrationMergePlanGateLookalikeIssuesNoMerge(t *testing.T) {
+	c, log := newFakeClient(t, fakeScenario{
+		Sequential: true,
+		Invocations: []fakeArm{
+			mrgViewArm(openPR(ensHeadOid, "MERGEABLE"), 0),
+			mrgRepoSettingsArm(repoAllTrue, 0),
+			mrgBranchRulesArm(`{"message":"Resource not accessible by integration","status":"403"}`, 1),
+		},
+	})
+	res, err := c.MergePullRequest(context.Background(), mrgRepo(), 7, ObjectRef(ensHeadOid), false)
+	if err == nil || res.Outcome != MergeUnknown {
+		t.Fatalf("got outcome %q err %v, want unknown with an error", res.Outcome, err)
+	}
+	if res.BranchRulesUnavailable {
+		t.Fatal("a lookalike 403 must not set BranchRulesUnavailable")
+	}
+	if n := countArgv(log.records(t), "pr", "merge"); n != 0 {
+		t.Fatalf("pr merge issued %d times, want 0", n)
+	}
 }

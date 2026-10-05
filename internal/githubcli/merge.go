@@ -10,6 +10,9 @@ package githubcli
 // attempts exactly that one method, never retrying a lower-priority one on
 // rejection. A cleanly observed empty permitted set is MergeMethodUnavailable and
 // issues no merge; an unobservable capability probe is unknown (retain).
+// GitHub's plan-gate answer to the branch-rules read means no branch rules
+// exist; the method then comes from the repository settings alone and the
+// result carries BranchRulesUnavailable.
 //
 // The merge is gated on an authoritative pre-decision snapshot and issued with an
 // exact `--match-head-commit`, so GitHub itself refuses if the head moved between
@@ -99,11 +102,16 @@ type MergedFacts struct {
 // recovery (Docket did not choose the historical merge's method). RepoMethods
 // and BranchMethods are populated only on MergeMethodUnavailable, naming the
 // two observed permitted sets so a human can correct the conflicting setting.
+// BranchRulesUnavailable is true when GitHub answered the branch-rules read with
+// its plan-gate 403 (no branch rules exist on this repository's plan) and the
+// method was chosen from the repository settings alone; it is set on every
+// outcome reached after the policy probes, method-unavailable included.
 type MergeResult struct {
 	Outcome                    MergeOutcome
 	Method                     MergeMethod
 	Facts                      MergedFacts
 	RepoMethods, BranchMethods []MergeMethod
+	BranchRulesUnavailable     bool
 }
 
 // mergePRJSON is the merge-specific projection of gh's nested PR shape. mergedAt
@@ -192,21 +200,29 @@ func (c *Client) MergePullRequest(ctx context.Context, repo Repository, number i
 	if pf != nil {
 		return MergeResult{Outcome: MergeUnknown}, pf
 	}
-	branchSet, pf := c.probeBranchMergeRules(ctx, repo, snap.pr.BaseBranch)
+	branchSet, rulesUnavailable, pf := c.probeBranchMergeRules(ctx, repo, snap.pr.BaseBranch)
 	if pf != nil {
 		return MergeResult{Outcome: MergeUnknown}, pf
 	}
 	method, ok := selectMergeMethod(repoSet.intersect(branchSet))
 	if !ok {
 		return MergeResult{
-			Outcome:       MergeMethodUnavailable,
-			RepoMethods:   repoSet.list(),
-			BranchMethods: branchSet.list(),
+			Outcome:                MergeMethodUnavailable,
+			RepoMethods:            repoSet.list(),
+			BranchMethods:          branchSet.list(),
+			BranchRulesUnavailable: rulesUnavailable,
 		}, nil
 	}
+	res, err := c.issueMerge(ctx, repo, number, expectedHead, admin, method)
+	res.BranchRulesUnavailable = rulesUnavailable
+	return res, err
+}
 
-	// Act: the selected method at the exact expected head. No --delete-branch. The
-	// allowed values are guarded — a method outside them renders no flag.
+// issueMerge is the act half of MergePullRequest: the selected method at the
+// exact expected head, never --delete-branch, resolved against a fresh
+// authoritative reprobe. The allowed values are guarded — a method outside
+// them renders no flag.
+func (c *Client) issueMerge(ctx context.Context, repo Repository, number int, expectedHead ObjectRef, admin bool, method MergeMethod) (MergeResult, error) {
 	flag := method.mergeFlag()
 	if flag == "" {
 		return MergeResult{Outcome: MergeUnknown}, newFailure(mergeOp, StageValidate, KindInvalidInput,
