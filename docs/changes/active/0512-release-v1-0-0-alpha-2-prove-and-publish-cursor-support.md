@@ -9,7 +9,7 @@ created: '2026-10-04'
 updated: '2026-10-05'
 depends_on: [366]
 stacked_on:
-related: [366, 511]
+related: [366, 511, 523, 524, 525, 526]
 discovered_from: []
 adrs: []
 spec:
@@ -47,12 +47,13 @@ Until alpha.2 ships, Cursor users have no tested release and no upgrade steps fo
 - **Fold in the protocol gaps alpha.1 hit (change 0366).** The trimmed protocol should state each of these up front instead of discovering them mid-run:
   - *Installing the candidate before publication.* `sh <copy>/install.sh` always downloads from the release URL, which doesn't exist yet. Install from the read-only copy through `DOCKET_RELEASE_BASE_URL=file://<mirror>`, where `<mirror>/<version>` points at the copy.
   - *Test-home Git credentials.* With `HOME` pointed at the test home, `git push` over HTTPS prompts for credentials. Run `gh auth login` and then `gh auth setup-git` inside the test home. The operator's SSH keys are not there.
-  - *Fixture setup.* `gh repo create --clone` gave a `master` branch with nothing pushed. Rename it to `main` and push before `repository init`. `init` wrote `gate: off` and `configure-tests` would not change it, so the local gates were set by hand (see the change filed for that).
+  - *Fixture setup.* `gh repo create --clone` gave a `master` branch with nothing pushed. Rename it to `main` and push before `repository init`. `init` wrote `gate: off` and `configure-tests` would not change it, so the local gates were set by hand (change 0526).
   - *The kill window.* The record's `plan:` field is set well after the plan commit lands, so polling for `plan:` missed the window and the kill came during review. Key the window on a signal that appears in time, such as the plan commit on the feature branch or the record going `in-progress`.
   - *Verdict lines.* The printed `run-*` lines from the kill and resume weren't captured, and the session transcripts don't contain them. Say who copies them, and when.
   - *Closeout with no code.* `change.mark-implemented` refuses without a reconciled record (`not-reconciled`) and a linked plan (`plan-unlinked`). `change.attach-plan` needs a plan-only commit carrying a `Docket-Plan-Path:` trailer. Plan for a reconcile and a pointer plan from the start.
   - *PR evidence after implemented.* After `mark-implemented`, `pr.publish` returns `contended`, so the PR body kept stale evidence until `evidence recertify` refreshed it. Order the closeout so the final head is gated and published before marking implemented.
-  - *Private fixture and finalize.* Finalize's merge refused on the private fixture (branch-rules API), and the operator merged by hand. Use a fixture where finalize can merge, or track the fix (see the finalize change filed from 0366).
+  - *Private fixture and finalize.* Finalize's merge refused on the private fixture (branch-rules API), and the operator merged by hand. Use a fixture where finalize can merge, or land change 0525 first.
+  - *Evidence byte-equality.* Phase 2's `evidence.json` check STOPs on a trailing-newline difference until change 0524 lands.
 
 ## Out of scope
 
