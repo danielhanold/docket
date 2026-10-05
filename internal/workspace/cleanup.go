@@ -2,10 +2,11 @@ package workspace
 
 // This file owns Cleanup: the proof-gated, non-forcing removal of exactly one
 // feature workspace's checkout. Cleanup removes ONLY the checkout — never a local
-// or remote branch, never an administrative directory by pathname, never a
-// transaction or sibling worktree, and never via a global `git worktree prune` or
-// an inventory sweep. It is the destructive counterpart of Prepare, and it earns
-// the right to remove through the same proof Inspect classifies:
+// or remote branch, never a transaction or sibling worktree, never a directory by
+// pathname except to finish a removal Git already committed to (step 4), and
+// never via a global `git worktree prune` or an inventory sweep. It is the
+// destructive counterpart of Prepare, and it earns the right to remove through
+// the same proof Inspect classifies:
 //
 //	1. validate the target and repository paths, then take the per-workspace
 //	   operation lock (serializing against Prepare/Inspect-refresh/Publish);
@@ -21,11 +22,15 @@ package workspace
 //	4. remove via the NON-FORCING gitcli.RemoveWorktreeClean so Git itself rechecks
 //	   cleanliness at the destructive boundary. A preflight status check followed by
 //	   a forced removal would leave a race in which a worker writes between the two
-//	   calls and loses data; the non-forcing primitive closes it. Git's refusal at
-//	   the boundary is `blocked`, byte-untouched;
-//	5. after Git confirms removal, advance the manifest atomically from ready to the
-//	   cleaned tombstone (the monotonic chain allows ready->cleaned only) and return
-//	   `cleaned`.
+//	   calls and loses data; the non-forcing primitive closes it. When the removal
+//	   exits non-zero, a fresh worktree list decides: still registered is Git's
+//	   refusal (`blocked`, byte-untouched); no longer registered means Git passed its
+//	   own clean check and started deleting, so Cleanup finishes the delete of the
+//	   recorded path and reports any undeletable leftover as Remnant; an unreadable
+//	   list is `failed`;
+//	5. after the removal completes (or is finished), advance the manifest
+//	   atomically from ready to the cleaned tombstone (the monotonic chain allows
+//	   ready->cleaned only) and return `cleaned`.
 //
 // A probe that cannot see a resource NEVER reads as clean absence (learnings:
 // probe-error-is-not-clean-absence; the 0309 review's important finding): every
@@ -34,6 +39,7 @@ package workspace
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -52,11 +58,15 @@ type CleanupRequest struct {
 
 // CleanupResult is the value outcome of a Cleanup. BlockedBy carries a bounded,
 // redacted set of reasons/paths when the disposition is blocked (empty
-// otherwise); it is diagnostic data, never an oracle.
+// otherwise); it is diagnostic data, never an oracle. Remnant is set only on a
+// cleaned disposition, to the recorded path, when Cleanup finished a removal Git
+// had already started (its registration gone) but could not delete the whole
+// folder; the checkout is no longer a Git checkout and a human deletes the rest.
 type CleanupResult struct {
 	Disposition CleanupDisposition
 	Path        string
 	BlockedBy   []string
+	Remnant     string
 }
 
 // Cleanup removes only the checkout of one owned, ready, clean workspace and
@@ -180,19 +190,81 @@ func (s *Service) cleanupReady(ctx context.Context, repo gitcli.Repository, dir 
 	}
 
 	// Remove non-forcingly: Git rechecks cleanliness at the destructive boundary,
-	// closing the check-then-remove race a forced removal would leave. Git's
-	// refusal there (a command failure) means the workspace turned dirty and is
-	// left byte-untouched — blocked, not removed. Any other removal error (the
-	// process could not run, was cancelled, or timed out) is a failure.
+	// closing the check-then-remove race a forced removal would leave. A command
+	// failure is either Git's refusal (nothing deleted, registration intact) or a
+	// delete Git started and could not finish (registration already gone);
+	// finishStartedRemoval tells them apart. Any other removal error (the process
+	// could not run, was cancelled, or timed out) is a failure.
 	if err := s.git.RemoveWorktreeClean(ctx, repo, m.Path); err != nil {
 		if f, ok := gitcli.AsFailure(err); ok && f.Kind == gitcli.KindCommandFailed {
-			return blockedCleanup(m.Path, "git refused the non-forcing removal (workspace not clean)"), nil
+			return s.finishStartedRemoval(ctx, repo, dir, m, target)
 		}
 		return CleanupResult{Disposition: CleanupFailed, Path: m.Path}, mapGitFailure(cleanupOp, "remove", err)
 	}
+	return advanceToCleaned(dir, m, "")
+}
 
-	// Advance the manifest atomically to the cleaned tombstone. The monotonic phase
-	// chain permits ready->cleaned only; refuse defensively if it does not hold.
+// finishStartedRemoval classifies a `git worktree remove` that exited non-zero.
+// Git runs its own clean check first, then deletes the tree and, even when that
+// delete fails, deletes its registration ("there's no going back from here").
+// So a fresh worktree list decides:
+//   - the list cannot be read: a failed error — a probe error is never absence;
+//   - the recorded path (or any registration on the feature ref) is still
+//     registered: Git refused before deleting anything — blocked, byte-untouched;
+//   - it is no longer registered: Git passed its clean check and committed to the
+//     delete. Docket finishes it with os.RemoveAll on the recorded path — the one
+//     case where Docket deletes a directory by path — and advances the manifest to
+//     cleaned. If that delete fails too, the manifest still advances (the folder is
+//     no longer a Git checkout) and Remnant names the leftover path.
+//
+// The leftover can only hold copies of tracked files at the verified head,
+// gitignored files, and anything written during Git's delete — all of which Git
+// was already deleting under the same clean proof.
+func (s *Service) finishStartedRemoval(ctx context.Context, repo gitcli.Repository, dir string, m Manifest, target Target) (CleanupResult, error) {
+	infos, err := s.git.ListWorktrees(ctx, repo)
+	if err != nil {
+		return CleanupResult{Disposition: CleanupFailed, Path: m.Path}, mapGitFailure(cleanupOp, "inventory", err)
+	}
+	if stillRegistered(infos, m.Path, target.FeatureRef) {
+		return blockedCleanup(m.Path, "git refused the non-forcing removal"), nil
+	}
+	// Defensive: ownsManifest already proved this; never delete anything but
+	// this repository's <primary>/.worktrees/<slug>.
+	if m.Path != filepath.Join(repo.PrimaryWorktree, ".worktrees", target.Slug) {
+		return blockedCleanup(m.Path, "recorded path is not this repository's workspace path"), nil
+	}
+	remnant := ""
+	if err := os.RemoveAll(m.Path); err != nil {
+		remnant = m.Path
+	}
+	return advanceToCleaned(dir, m, remnant)
+}
+
+// stillRegistered reports whether Git still holds a registration for the
+// workspace after a failed removal: any attached registration on the feature
+// ref, or a registration whose path is the recorded path lexically or
+// canonically. An unrelated registration whose path no longer resolves is not
+// this workspace — the proven registration was on the feature ref, and a
+// refusal leaves it there — so it never blocks the finish.
+func stillRegistered(infos []gitcli.WorktreeInfo, path string, featureRef gitcli.RefName) bool {
+	for _, info := range infos {
+		if !info.Detached && info.Branch == featureRef {
+			return true
+		}
+		if abs, err := filepath.Abs(info.Path); err == nil && filepath.Clean(abs) == path {
+			return true
+		}
+		if cp, err := canonicalizePath(info.Path); err == nil && cp == path {
+			return true
+		}
+	}
+	return false
+}
+
+// advanceToCleaned advances the manifest atomically from ready to the cleaned
+// tombstone (the monotonic chain allows ready->cleaned only; refuse defensively
+// if it does not hold) and returns cleaned, carrying remnant when set.
+func advanceToCleaned(dir string, m Manifest, remnant string) (CleanupResult, error) {
 	if !m.Phase.canAdvanceTo(PhaseCleaned) {
 		return CleanupResult{Disposition: CleanupFailed, Path: m.Path}, &Failure{Op: cleanupOp, Stage: "manifest", Kind: KindInvalidState, Detail: "manifest phase may not advance to cleaned"}
 	}
@@ -201,7 +273,7 @@ func (s *Service) cleanupReady(ctx context.Context, repo gitcli.Repository, dir 
 	if err := writeManifest(dir, m); err != nil {
 		return CleanupResult{Disposition: CleanupFailed, Path: m.Path}, &Failure{Op: cleanupOp, Stage: "manifest", Kind: KindExternal, Detail: "advancing manifest to cleaned", Err: err}
 	}
-	return CleanupResult{Disposition: CleanupCleaned, Path: m.Path}, nil
+	return CleanupResult{Disposition: CleanupCleaned, Path: m.Path, Remnant: remnant}, nil
 }
 
 // blockedCleanup is the byte-untouched blocked disposition: a value, not an error.
