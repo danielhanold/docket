@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0366 — v1.0.0-alpha.1 acceptance and publication (Claude Code)](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md)**
+> ↩ **[Change 0366 — v1.0.0-alpha.1 acceptance and publication (Claude Code)](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-05-0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md)**
 <!-- docket:backlink:end -->
 
 # v1.0.0-alpha.1 — acceptance and publication

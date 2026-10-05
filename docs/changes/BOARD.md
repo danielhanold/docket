@@ -1,12 +1,6 @@
 # Backlog
 
-**523 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 360 done · 🗑️ 139 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | v1.0.0-alpha.1 acceptance and publication (Claude Code) | `critical` | `chore` | [#390](https://github.com/danielhanold/docket/pull/390) | awaiting merge |
+**523 changes** — 🟣 2 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 361 done · 🗑️ 139 killed
 
 ## 🟣 Groomed (2)
 
@@ -22,7 +16,7 @@
 | [0523](active/0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) | repository check reports a behind-only .docket copy as diverged after repair | `medium` | `fix` | needs-grooming |
 | [0522](active/0522-share-the-json-key-rules-between-internal-cli-and-internal-a.md) | Share the JSON-key rules between internal/cli and internal/app | `low` | `refactor` | needs-grooming |
 | [0513](active/0513-release-v1-0-0-alpha-3-prove-and-publish-opencode-support.md) | Release v1.0.0-alpha.3: prove and publish OpenCode support | `high` | `chore` | ⏳ waiting on #512 — not yet built |
-| [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | ⏳ waiting on #366 — needs your merge |
+| [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | needs-grooming |
 | [0507](active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Flaky tests: track and stabilize intermittent suite failures | `low` | `fix` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
@@ -62,8 +56,6 @@ graph TD
   0393 --> 0345
   0407 --> 0345
   0360
-  0502 --> 0366
-  0511 --> 0366
   0409
   0412
   0433
@@ -76,17 +68,18 @@ graph TD
   0523
   0192:::done
   0251:::done
+  0366:::done
   0393:::done
   0407:::done
-  0502:::done
   0511:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (499)</summary>
+<details><summary>✅🗑️ Archive — done + killed (500)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0366](archive/2026-10-05-0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | v1.0.0-alpha.1 acceptance and publication (Claude Code) | 2026-10-05 |
 | [0521](archive/2026-10-04-0521-finish-schema-operation-documentation-outcomes-md-flag-only.md) | Mark every nested required request field in the schema, and fix the stale schema docs | 2026-10-04 |
 | [0520](archive/2026-10-04-0520-make-the-published-finalize-request-schemas-match-what-input.md) | Make every published request schema match the JSON file the operation reads | 2026-10-04 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
@@ -105,7 +98,6 @@ graph TD
 | [0501](archive/2026-10-04-0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md) | Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note | 2026-10-04 |
 | [0500](archive/2026-10-04-0500-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) | committed-ignore-invalid remedies print the paste-ready managed block | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
-| [0498](archive/2026-10-04-0498-results-file-puts-the-whole-branch-review-under-human-action.md) | Results file puts the whole-branch review under Human actions and testing | 2026-10-04 |
 | [0380](archive/2026-10-04-0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | 2026-10-04 |
 | [0320](archive/2026-10-04-0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | 2026-10-04 |
 | [0486](archive/2026-10-02-0486-run-plan-mutation-checks-outside-a-gate-drive-not-by-editing.md) | Run plan mutation checks outside a gate drive, not by editing the tree under it | 2026-10-02 |
@@ -246,7 +238,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 17 done |
+| [2026-10](archive/) | 18 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

@@ -2,7 +2,7 @@
 id: 366
 slug: 'human-attended-v1-0-0-rc1-acceptance-and-publication'
 title: 'v1.0.0-alpha.1 acceptance and publication (Claude Code)'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'chore'
 created: '2026-08-29'
@@ -22,7 +22,7 @@ branch: 'chore/human-attended-v1-0-0-rc1-acceptance-and-publication'
 pr: 'https://github.com/danielhanold/docket/pull/390'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T01:15:14Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-05T01:15:14Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
-| Plan | [2026-10-04-human-attended-v1-0-0-alpha-1-acceptance-and-publication-plan.md](https://github.com/danielhanold/docket/blob/chore/human-attended-v1-0-0-rc1-acceptance-and-publication/docs/superpowers/plans/2026-10-04-human-attended-v1-0-0-alpha-1-acceptance-and-publication-plan.md) |
-| Results | [2026-10-04-human-attended-v1-0-0-rc1-acceptance-and-publication-results.md](https://github.com/danielhanold/docket/blob/chore/human-attended-v1-0-0-rc1-acceptance-and-publication/docs/results/2026-10-04-human-attended-v1-0-0-rc1-acceptance-and-publication-results.md) |
+| Plan | [2026-10-04-human-attended-v1-0-0-alpha-1-acceptance-and-publication-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-human-attended-v1-0-0-alpha-1-acceptance-and-publication-plan.md) |
+| Results | [2026-10-04-human-attended-v1-0-0-rc1-acceptance-and-publication-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-human-attended-v1-0-0-rc1-acceptance-and-publication-results.md) |
 | ADRs | [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0100](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0100-native-host-dispatch-is-authoritative-for-registered-docket.md), [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md), [ADR-0103](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0103-enter-codex-coordinator-roles-through-app-server-root-thread.md), [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) |
 <!-- docket:artifacts:end -->
 
