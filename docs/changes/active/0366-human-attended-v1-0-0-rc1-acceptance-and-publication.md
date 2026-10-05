@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'critical'
 type: 'chore'
 created: '2026-08-29'
-updated: '2026-10-04'
+updated: '2026-10-05'
 depends_on: [502, 511]
 stacked_on:
 related: [317, 318, 322, 326, 352, 361, 363, 369, 370, 371, 372, 374, 377, 384, 392, 393, 394, 399, 401, 412, 433, 510, 512, 513]
@@ -14,7 +14,7 @@ discovered_from: [318]
 adrs: [95, 96, 99, 100, 102, 103, 104]
 spec: 'docs/superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md'
 plan:
-results:
+results: 'docs/results/2026-10-04-human-attended-v1-0-0-rc1-acceptance-and-publication-results.md'
 trivial: false
 auto_groomable: false
 branch_prefix:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-04T22:34:31Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
+| Results | [2026-10-04-human-attended-v1-0-0-rc1-acceptance-and-publication-results.md](https://github.com/danielhanold/docket/blob/chore/human-attended-v1-0-0-rc1-acceptance-and-publication/docs/results/2026-10-04-human-attended-v1-0-0-rc1-acceptance-and-publication-results.md) |
 | ADRs | [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0100](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0100-native-host-dispatch-is-authoritative-for-registered-docket.md), [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md), [ADR-0103](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0103-enter-codex-coordinator-roles-through-app-server-root-thread.md), [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) |
 <!-- docket:artifacts:end -->
 
