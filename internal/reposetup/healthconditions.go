@@ -22,7 +22,7 @@ const (
 	CondWorktreeRegistered    HealthCondition = "docket-worktree-registered"
 	CondWorktreeNotForeign    HealthCondition = "docket-worktree-not-foreign"
 	CondWorktreeClean         HealthCondition = "docket-worktree-clean"
-	CondWorktreeSynchronized  HealthCondition = "docket-worktree-synchronized"
+	CondWorktreeSynchronized  HealthCondition = "docket-worktree-synchronized" // proven current or behind: the local copy holds nothing the remote lacks; Unknown never satisfies it
 	CondWorktreeHooksOff      HealthCondition = "docket-worktree-hooks-off"
 	CondCommittedIgnoreValid  HealthCondition = "committed-ignore-valid"
 	CondLiveSurfaceAbsent     HealthCondition = "live-surface-absent"

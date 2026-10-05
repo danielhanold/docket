@@ -1,6 +1,7 @@
 package reposetup
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -16,6 +17,7 @@ func healthyFacts() Facts {
 		RemoteMetadata:       BranchFact{Presence: PresencePresent, Tip: "meta0"},
 		MetadataRoot:         RootParentless,
 		LocalMetadata:        BranchFact{Presence: PresencePresent, Tip: "meta0"},
+		LocalMetadataSync:    SyncCurrent,
 		LiveSurface:          PresenceAbsent,
 		LegacyConfigKey:      PresenceAbsent,
 		CommittedIgnoreBlock: PresencePresent,
@@ -195,17 +197,6 @@ func TestClassify(t *testing.T) {
 			reasonsReq: true,
 		},
 		{
-			name: "ahead metadata worktree -> conflict metadata-worktree-dirty",
-			facts: func() Facts {
-				f := healthyFacts()
-				f.DocketWorktree.Synchronized = PresenceAbsent
-				return f
-			}(),
-			wantState:  StateConflict,
-			wantReason: "metadata-worktree-dirty",
-			reasonsReq: true,
-		},
-		{
 			name: "foreign .docket/ -> conflict docket-dir-foreign",
 			facts: func() Facts {
 				f := healthyFacts()
@@ -221,6 +212,8 @@ func TestClassify(t *testing.T) {
 			facts: func() Facts {
 				f := healthyFacts()
 				f.LocalMetadata = BranchFact{Presence: PresencePresent, Tip: "other9"}
+				f.LocalMetadataSync = SyncDiverged
+				f.DocketWorktree.Synchronized = PresenceAbsent
 				return f
 			}(),
 			wantState:  StateConflict,
@@ -350,4 +343,68 @@ func containsReason(rs []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// TestClassifyLocalMetadataRelationship pins every row of the spec's local-copy
+// table by exact reason set: the relationship, never tip equality, decides.
+func TestClassifyLocalMetadataRelationship(t *testing.T) {
+	rows := []struct {
+		name        string
+		mutate      func(*Facts)
+		wantState   State
+		wantReasons []string
+	}{
+		{"current clean", func(f *Facts) {}, StateHealthy, nil},
+		{"behind clean", func(f *Facts) {
+			f.LocalMetadata.Tip = "meta-old"
+			f.LocalMetadataSync = SyncBehind
+			f.DocketWorktree.Synchronized = PresencePresent
+		}, StateHealthy, nil},
+		{"behind dirty", func(f *Facts) {
+			f.LocalMetadata.Tip = "meta-old"
+			f.LocalMetadataSync = SyncBehind
+			f.DocketWorktree.Clean = PresenceAbsent
+		}, StateConflict, []string{"metadata-worktree-dirty"}},
+		{"ahead clean", func(f *Facts) {
+			f.LocalMetadata.Tip = "meta-ahead"
+			f.LocalMetadataSync = SyncAhead
+			f.DocketWorktree.Synchronized = PresenceAbsent
+		}, StateConflict, []string{"local-metadata-ahead"}},
+		{"ahead dirty", func(f *Facts) {
+			f.LocalMetadata.Tip = "meta-ahead"
+			f.LocalMetadataSync = SyncAhead
+			f.DocketWorktree.Synchronized = PresenceAbsent
+			f.DocketWorktree.Clean = PresenceAbsent
+		}, StateConflict, []string{"metadata-worktree-dirty", "local-metadata-ahead"}},
+		{"diverged clean", func(f *Facts) {
+			f.LocalMetadata.Tip = "meta-div"
+			f.LocalMetadataSync = SyncDiverged
+			f.DocketWorktree.Synchronized = PresenceAbsent
+		}, StateConflict, []string{"local-metadata-diverged"}},
+		{"unknown relation", func(f *Facts) {
+			f.LocalMetadata.Tip = "meta-x"
+			f.LocalMetadataSync = SyncUnknown
+			f.DocketWorktree.Synchronized = PresenceUnknown
+		}, StateConflict, []string{"postconditions-unmet"}},
+	}
+	for _, row := range rows {
+		f := healthyFacts()
+		row.mutate(&f)
+		got := Classify(f)
+		if got.State != row.wantState || !reflect.DeepEqual(got.Reasons, row.wantReasons) {
+			t.Errorf("%s: Classify = %+v, want state %q reasons %v", row.name, got, row.wantState, row.wantReasons)
+		}
+	}
+}
+
+func TestSyncRelationSynchronized(t *testing.T) {
+	want := map[SyncRelation]Presence{
+		SyncUnknown: PresenceUnknown, SyncCurrent: PresencePresent, SyncBehind: PresencePresent,
+		SyncAhead: PresenceAbsent, SyncDiverged: PresenceAbsent,
+	}
+	for r, p := range want {
+		if got := r.Synchronized(); got != p {
+			t.Errorf("SyncRelation(%d).Synchronized() = %v, want %v", r, got, p)
+		}
+	}
 }

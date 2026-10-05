@@ -318,7 +318,7 @@ func TestHealthRemedyPartial(t *testing.T) {
 func TestHealthRemedyConflictNeverDestructive(t *testing.T) {
 	reasons := []string{
 		"metadata-root-foreign", "docket-dir-foreign", "metadata-worktree-dirty",
-		"local-metadata-diverged", "surfaces-drift", "postconditions-unmet",
+		"local-metadata-ahead", "local-metadata-diverged", "surfaces-drift", "postconditions-unmet",
 	}
 	for _, reason := range reasons {
 		c := Classification{State: StateConflict, Reasons: []string{reason}}
@@ -356,7 +356,7 @@ func TestHealthInitCommandAppearsOnlyInFresh(t *testing.T) {
 		{State: StateNeedsReview, Reasons: []string{"pending-review-paths"}},
 		{State: StatePartial, Reasons: []string{"metadata-seeded"}},
 		{State: StateConflict, Reasons: []string{"metadata-root-foreign", "docket-dir-foreign",
-			"metadata-worktree-dirty", "local-metadata-diverged", "surfaces-drift", "postconditions-unmet"}},
+			"metadata-worktree-dirty", "local-metadata-ahead", "local-metadata-diverged", "surfaces-drift", "postconditions-unmet"}},
 		{State: StateUnknown, Reasons: []string{"remote-configured-unknown", "remote-default-unknown",
 			"remote-integration-unknown", "metadata-presence-unknown", "live-surface-unknown"}},
 	}
@@ -797,23 +797,97 @@ func TestHealthUnauthorizedSurfacesNoFinding(t *testing.T) {
 	}
 }
 
-// TestHealthDirtyMessageNamesObservedAlternatives: the metadata-worktree-dirty
-// finding identifies which alternative(s) were actually observed.
-func TestHealthDirtyMessageNamesObservedAlternatives(t *testing.T) {
-	onlySync := healthyFacts()
-	onlySync.DocketWorktree.Synchronized = PresenceAbsent
-	got := EvaluateHealth(Classify(onlySync), onlySync, nil)
-	found := false
-	for _, fn := range got {
-		if fn.Code == "metadata-worktree-dirty" {
-			found = true
-			if !strings.Contains(fn.Message, "not synchronized") || strings.Contains(fn.Message, "uncommitted") {
-				t.Fatalf("message does not identify the observed alternative: %q", fn.Message)
+// TestHealthDirtyMessageNamesTheCause: the dirty finding names an unfinished Git
+// operation when that is the cause, and never mentions synchronization.
+func TestHealthDirtyMessageNamesTheCause(t *testing.T) {
+	files := healthyFacts()
+	files.DocketWorktree.Clean = PresenceAbsent
+	op := healthyFacts()
+	op.DocketWorktree.Clean = PresenceAbsent
+	op.DocketWorktree.UnfinishedOperation = true
+	for name, tc := range map[string]struct {
+		f    Facts
+		want string
+	}{
+		"files":     {files, "The .docket metadata worktree has uncommitted or untracked changes."},
+		"operation": {op, "The .docket metadata worktree has an unfinished Git operation (a merge, cherry-pick, revert, rebase, am, or bisect)."},
+	} {
+		var msg string
+		for _, fn := range EvaluateHealth(Classify(tc.f), tc.f, nil) {
+			if fn.Code == "metadata-worktree-dirty" {
+				msg = fn.Message
 			}
 		}
+		if msg != tc.want {
+			t.Errorf("%s: dirty message = %q, want %q", name, msg, tc.want)
+		}
+		if strings.Contains(msg, "synchroniz") {
+			t.Errorf("%s: dirty message still mentions synchronization: %q", name, msg)
+		}
 	}
-	if !found {
-		t.Fatalf("dirty finding missing: %v", findingCodes(got))
+}
+
+// TestHealthLocalMetadataRelationshipRows pins findings and exit per table row.
+func TestHealthLocalMetadataRelationshipRows(t *testing.T) {
+	rows := []struct {
+		name      string
+		mutate    func(*Facts)
+		wantCodes []string
+		wantExit  int
+	}{
+		{"behind clean is healthy with no finding", func(f *Facts) {
+			f.LocalMetadata.Tip = "meta-old"
+			f.LocalMetadataSync = SyncBehind
+		}, nil, 0},
+		{"behind dirty", func(f *Facts) {
+			f.LocalMetadataSync = SyncBehind
+			f.DocketWorktree.Clean = PresenceAbsent
+		}, []string{"metadata-worktree-dirty"}, 1},
+		{"ahead", func(f *Facts) {
+			f.LocalMetadataSync = SyncAhead
+			f.DocketWorktree.Synchronized = PresenceAbsent
+		}, []string{"local-metadata-ahead"}, 1},
+		{"ahead dirty", func(f *Facts) {
+			f.LocalMetadataSync = SyncAhead
+			f.DocketWorktree.Synchronized = PresenceAbsent
+			f.DocketWorktree.Clean = PresenceAbsent
+		}, []string{"metadata-worktree-dirty", "local-metadata-ahead"}, 1},
+		{"diverged", func(f *Facts) {
+			f.LocalMetadataSync = SyncDiverged
+			f.DocketWorktree.Synchronized = PresenceAbsent
+		}, []string{"local-metadata-diverged"}, 1},
+		{"unknown with both tips known warns unverified", func(f *Facts) {
+			f.LocalMetadata.Tip = "meta-x"
+			f.LocalMetadataSync = SyncUnknown
+			f.DocketWorktree.Synchronized = PresenceUnknown
+		}, []string{"postconditions-unmet", "local-metadata-sync-unverified"}, 1},
+	}
+	for _, row := range rows {
+		f := healthyFacts()
+		row.mutate(&f)
+		c := Classify(f)
+		got := EvaluateHealth(c, f, nil)
+		codes := findingCodes(got)
+		// findingCodes returns an empty, non-nil slice; a nil want means none.
+		if len(row.wantCodes) == 0 {
+			if len(codes) != 0 {
+				t.Errorf("%s: codes = %v, want none", row.name, codes)
+			}
+		} else if !reflect.DeepEqual(codes, row.wantCodes) {
+			t.Errorf("%s: codes = %v, want %v", row.name, codes, row.wantCodes)
+		}
+		if exit := CheckExit(c, got); exit != row.wantExit {
+			t.Errorf("%s: exit = %d, want %d", row.name, exit, row.wantExit)
+		}
+	}
+	// A missing local tip is explained by local-metadata-unverified, never by the
+	// sync warning.
+	f := healthyFacts()
+	f.LocalMetadata = BranchFact{Presence: PresenceUnknown}
+	f.LocalMetadataSync = SyncUnknown
+	f.DocketWorktree.Synchronized = PresenceUnknown
+	if hasCode(EvaluateHealth(Classify(f), f, nil), "local-metadata-sync-unverified") {
+		t.Error("sync-unverified fired although the local tip is missing")
 	}
 }
 

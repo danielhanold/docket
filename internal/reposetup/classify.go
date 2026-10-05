@@ -64,11 +64,13 @@ func Classify(f Facts) Classification {
 		conflict = append(conflict, "docket-dir-foreign")
 	}
 	if f.RemoteMetadata.Presence == PresencePresent && f.DocketWorktree.Presence == PresencePresent &&
-		(f.DocketWorktree.Clean == PresenceAbsent || f.DocketWorktree.Synchronized == PresenceAbsent) {
+		f.DocketWorktree.Clean == PresenceAbsent {
 		conflict = append(conflict, "metadata-worktree-dirty")
 	}
-	if f.RemoteMetadata.Presence == PresencePresent && f.LocalMetadata.Presence == PresencePresent &&
-		f.LocalMetadata.Tip != "" && f.RemoteMetadata.Tip != "" && f.LocalMetadata.Tip != f.RemoteMetadata.Tip {
+	if f.RemoteMetadata.Presence == PresencePresent && f.LocalMetadataSync == SyncAhead {
+		conflict = append(conflict, "local-metadata-ahead")
+	}
+	if f.RemoteMetadata.Presence == PresencePresent && f.LocalMetadataSync == SyncDiverged {
 		conflict = append(conflict, "local-metadata-diverged")
 	}
 	if f.SurfacesAuthorized && f.SurfacesAgree == PresenceAbsent {

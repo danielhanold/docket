@@ -34,15 +34,43 @@ type BranchFact struct {
 	Tip      string // object id when Present, else ""
 }
 
+// SyncRelation is the ancestry relationship of a local tip to the remote tip it
+// tracks. The zero value, SyncUnknown, is safe: an unproven relationship is never
+// read as current or behind.
+type SyncRelation int
+
+const (
+	SyncUnknown  SyncRelation = iota // a tip is missing or an ancestry probe failed
+	SyncCurrent                      // local == remote
+	SyncBehind                       // local is a strict ancestor of remote
+	SyncAhead                        // remote is a strict ancestor of local
+	SyncDiverged                     // neither is an ancestor of the other
+)
+
+// Synchronized maps a relationship to the docket-worktree-synchronized fact:
+// proven current or behind — the local copy holds nothing the remote lacks — is
+// Present; proven ahead or diverged is Absent; an unproven relationship is Unknown.
+func (r SyncRelation) Synchronized() Presence {
+	switch r {
+	case SyncCurrent, SyncBehind:
+		return PresencePresent
+	case SyncAhead, SyncDiverged:
+		return PresenceAbsent
+	default:
+		return PresenceUnknown
+	}
+}
+
 // WorktreeFact carries the probed state of the persistent .docket/ metadata
 // worktree.
 type WorktreeFact struct {
-	Presence     Presence // .docket/ path state: absent, or present-and-probed
-	Registered   Presence // registered as a linked worktree of THIS repo on the metadata branch
-	Foreign      bool     // present but a foreign dir / escaping link / conflicting registration
-	Clean        Presence
-	Synchronized Presence // local tip == remote metadata tip
-	HooksOff     Presence
+	Presence            Presence // .docket/ path state: absent, or present-and-probed
+	Registered          Presence // registered as a linked worktree of THIS repo on the metadata branch
+	Foreign             bool     // present but a foreign dir / escaping link / conflicting registration
+	Clean               Presence
+	UnfinishedOperation bool     // Clean is Absent because a merge, cherry-pick, revert, rebase, am, or bisect is unfinished
+	Synchronized        Presence // proven current or behind the remote metadata tip: the local copy holds nothing the remote lacks
+	HooksOff            Presence
 }
 
 // Facts is the complete classifier input. Every field defaults to the safe
@@ -55,6 +83,7 @@ type Facts struct {
 	RemoteMetadata        BranchFact // the remote `docket` branch
 	MetadataRoot          RootShape  // meaningful only when RemoteMetadata is Present
 	LocalMetadata         BranchFact
+	LocalMetadataSync     SyncRelation // local docket tip vs remote docket tip; set only by the check/prepare augmentation
 	LiveSurface           Presence     // active dir or BOARD.md in the AUTHORITATIVE integration tree
 	LegacyConfigKey       Presence     // top-level metadata_branch key in the pinned .docket.yml bytes
 	CommittedIgnoreBlock  Presence     // managed block valid in the integration COMMIT tree
