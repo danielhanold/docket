@@ -13,7 +13,7 @@ related: [366, 511]
 discovered_from: [511]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-05T10:35:12Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg-design.md) |
+| Plan | [2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg.md](https://github.com/danielhanold/docket/blob/fix/repository-check-reports-a-behind-only-docket-copy-as-diverg/docs/superpowers/plans/2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
