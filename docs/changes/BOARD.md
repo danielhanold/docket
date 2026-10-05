@@ -1,18 +1,13 @@
 # Backlog
 
-**526 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 361 done · 🗑️ 139 killed
+**526 changes** — 🔵 2 built · 🟣 4 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 361 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0522](active/0522-share-the-json-key-rules-between-internal-cli-and-internal-a.md) | Share the JSON-key rules between internal/cli and internal/app | `low` | `refactor` | [spec](../) | `refactor/share-the-json-key-rules-between-internal-cli-and-internal-a` |  |
-
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0524](active/0524-release-candidate-evidence-json-drops-the-trailing-newline-f.md) | Release-candidate evidence.json drops the trailing newline from its checksums copy | `low` | `fix` | [#391](https://github.com/danielhanold/docket/pull/391) | awaiting merge |
+| [0522](active/0522-share-the-json-key-rules-between-internal-cli-and-internal-a.md) | Share the JSON-key rules between internal/cli and internal/app | `low` | `refactor` | [#392](https://github.com/danielhanold/docket/pull/392) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
