@@ -2,8 +2,11 @@ package reposetup
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/config"
 )
 
 // detectedOutcome/noneOutcome are the two edit-producing discovery outcomes.
@@ -239,5 +242,160 @@ func TestConfigEditMalformedYAMLErrorsFileUntouched(t *testing.T) {
 	}
 	if out != nil || changed {
 		t.Fatalf("error return must be (nil,false,err); got out=%q changed=%v", out, changed)
+	}
+}
+
+// explicitBlock is the exact owner-block text the explicit path writes for cmd.
+func explicitBlock(owner, cmd string) string {
+	return owner + ":\n  gate: local\n  test_command: " + cmd + "\n"
+}
+
+func TestExplicitEditNoFileRendersBothLocalGates(t *testing.T) { // (a)
+	out, changed, err := RenderExplicitTestCommandEdit(nil, "sh ./test.sh")
+	if err != nil || !changed {
+		t.Fatalf("changed=%v err=%v, want a fresh file", changed, err)
+	}
+	want := explicitBlock("build", "sh ./test.sh") + explicitBlock("finalize", "sh ./test.sh")
+	if string(out) != want {
+		t.Fatalf("byte mismatch\n got: %q\nwant: %q", out, want)
+	}
+}
+
+func TestExplicitEditOverwritesOffGates(t *testing.T) { // (b)
+	existing := "# top comment\nintegration_branch: main  # inline\n" +
+		"build:\n  gate: \"off\"\nfinalize:\n  gate: \"off\"\n"
+	out, changed, err := RenderExplicitTestCommandEdit([]byte(existing), "sh ./test.sh")
+	if err != nil || !changed {
+		t.Fatalf("changed=%v err=%v, want an edit", changed, err)
+	}
+	want := "# top comment\nintegration_branch: main  # inline\n" +
+		explicitBlock("build", "sh ./test.sh") + explicitBlock("finalize", "sh ./test.sh")
+	if string(out) != want {
+		t.Fatalf("byte mismatch\n got: %q\nwant: %q", out, want)
+	}
+}
+
+func TestExplicitEditReplacesDifferentCommand(t *testing.T) { // (c)
+	existing := explicitBlock("build", "make check") + explicitBlock("finalize", "make check")
+	out, changed, err := RenderExplicitTestCommandEdit([]byte(existing), "sh ./test.sh")
+	if err != nil || !changed {
+		t.Fatalf("changed=%v err=%v, want an edit", changed, err)
+	}
+	want := explicitBlock("build", "sh ./test.sh") + explicitBlock("finalize", "sh ./test.sh")
+	if string(out) != want {
+		t.Fatalf("byte mismatch\n got: %q\nwant: %q", out, want)
+	}
+}
+
+func TestExplicitEditCompletesHalfConfiguredPair(t *testing.T) { // (d)
+	existing := explicitBlock("build", "sh ./test.sh") + "finalize:\n  gate: local\n"
+	out, changed, err := RenderExplicitTestCommandEdit([]byte(existing), "sh ./test.sh")
+	if err != nil || !changed {
+		t.Fatalf("changed=%v err=%v, want an edit", changed, err)
+	}
+	want := explicitBlock("build", "sh ./test.sh") + explicitBlock("finalize", "sh ./test.sh")
+	if string(out) != want {
+		t.Fatalf("byte mismatch\n got: %q\nwant: %q", out, want)
+	}
+}
+
+func TestExplicitEditOverwritesDivergentExplicitGateOnOneOwner(t *testing.T) { // (e)
+	existing := explicitBlock("build", "sh ./test.sh") +
+		"finalize:\n  gate: \"off\"\n  test_command: sh ./test.sh\n"
+	out, changed, err := RenderExplicitTestCommandEdit([]byte(existing), "sh ./test.sh")
+	if err != nil || !changed {
+		t.Fatalf("changed=%v err=%v, want an edit (explicit command overwrites the gate)", changed, err)
+	}
+	want := explicitBlock("build", "sh ./test.sh") + explicitBlock("finalize", "sh ./test.sh")
+	if string(out) != want {
+		t.Fatalf("byte mismatch\n got: %q\nwant: %q", out, want)
+	}
+}
+
+func TestExplicitEditAlreadyEqualIsNoChange(t *testing.T) { // (f)
+	existing := []byte("integration_branch: main\n" +
+		explicitBlock("build", "sh ./test.sh") + explicitBlock("finalize", "sh ./test.sh"))
+	out, changed, err := RenderExplicitTestCommandEdit(existing, "sh ./test.sh")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if changed || !bytes.Equal(out, existing) {
+		t.Fatalf("an already-equal file must be untouched: changed=%v\n got: %q", changed, out)
+	}
+}
+
+func TestExplicitEditMalformedYAMLErrors(t *testing.T) {
+	existing := []byte("build: [unclosed\n")
+	out, changed, err := RenderExplicitTestCommandEdit(existing, "sh ./test.sh")
+	if err == nil || changed || out != nil {
+		t.Fatalf("malformed YAML must error with no edit: out=%q changed=%v err=%v", out, changed, err)
+	}
+}
+
+func TestExplicitTestCommandRefusesInvalidInput(t *testing.T) {
+	for _, raw := range []string{"", "   ", "\t\n", "auto", "  auto  ",
+		"make\ntest", "make\ttest", "make\rtest", "a\u2028b", "a\u2029b", "a\u0085b", "\xff"} {
+		got, err := ExplicitTestCommand(raw)
+		if err == nil {
+			t.Errorf("ExplicitTestCommand(%q) = %q, want a refusal", raw, got)
+			continue
+		}
+		if !errors.Is(err, ErrInvalidTestCommand) {
+			t.Errorf("ExplicitTestCommand(%q) error %v must wrap ErrInvalidTestCommand", raw, err)
+		}
+	}
+}
+
+func TestExplicitTestCommandTrims(t *testing.T) {
+	got, err := ExplicitTestCommand("  sh ./test.sh  ")
+	if err != nil || got != "sh ./test.sh" {
+		t.Fatalf("ExplicitTestCommand = %q, %v; want the trimmed command", got, err)
+	}
+}
+
+// TestExplicitCommandRoundTripsThroughConfigResolve is the reader-correspondence
+// guard: every accepted command, rendered into .docket.yml, must resolve through
+// the REAL config resolver (which types test_command as a !!str leaf) back to
+// exactly that command with both gates local. Digit-led tokens such as 123 or
+// 2026-10-05 are the cases a plain-charset check renders bare and the YAML
+// resolver retypes.
+func TestExplicitCommandRoundTripsThroughConfigResolve(t *testing.T) {
+	cmds := []string{
+		"sh ./test.sh", "123", "1.5", "2026-10-05", "0x10", "1e3",
+		"off", "true", "null", "yes", "auto-test",
+		`pytest -k "a and b"`, `echo 'x' \ y`, "make test # tail", "npm test -- --watch=false",
+		"a: b", "{x}", "[x]", "- dash", "ünï test", "@at", "`tick`", "&anchor", "*alias",
+		"!tag", "%pct", "|pipe", ">gt", `bash -c 'set -e; for t in tests/test_*.sh; do bash "$t"; done'`,
+	}
+	bases := map[string][]byte{
+		"no file":  nil,
+		"off file": []byte("integration_branch: main\nbuild:\n  gate: \"off\"\nfinalize:\n  gate: \"off\"\n"),
+	}
+	for _, cmd := range cmds {
+		valid, err := ExplicitTestCommand(cmd)
+		if err != nil {
+			t.Fatalf("ExplicitTestCommand(%q) refused a legal command: %v", cmd, err)
+		}
+		for name, base := range bases {
+			out, _, err := RenderExplicitTestCommandEdit(base, valid)
+			if err != nil {
+				t.Fatalf("%s / %q: render error %v", name, cmd, err)
+			}
+			snap, _, err := config.Resolve([]config.Source{{
+				Layer: config.LayerRepository, Name: ".docket.yml", Data: out,
+			}}, config.ResolveContext{DefaultBranch: "main"})
+			if err != nil {
+				t.Fatalf("%s / %q: rendered file does not resolve: %v\n%s", name, cmd, err, out)
+			}
+			eff := snap.Effective
+			if eff.Build.TestCommand.Value != cmd || eff.Finalize.TestCommand.Value != cmd {
+				t.Errorf("%s / %q: resolved build=%q finalize=%q\n%s", name, cmd,
+					eff.Build.TestCommand.Value, eff.Finalize.TestCommand.Value, out)
+			}
+			if eff.Build.Gate.Value != "local" || eff.Finalize.Gate.Value != "local" {
+				t.Errorf("%s / %q: resolved gates build=%q finalize=%q, want local", name, cmd,
+					eff.Build.Gate.Value, eff.Finalize.Gate.Value)
+			}
+		}
 	}
 }

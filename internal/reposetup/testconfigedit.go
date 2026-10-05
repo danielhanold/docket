@@ -9,11 +9,14 @@ package reposetup
 // refused with the file untouched; it is never re-written from a parsed tree.
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/document"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -65,8 +68,16 @@ func RenderTestConfigEdit(existing []byte, out DiscoveryOutcome) (edited []byte,
 		return nil, false, fmt.Errorf("reposetup: unknown discovery kind %q; refusing to edit", out.Kind)
 	}
 
-	pairs := desiredPairs(out)
+	return renderOwnerPairs(existing, desiredPairs(out))
+}
 
+// renderOwnerPairs is the shared splice core of every test-policy render: it
+// ensures each pair under BOTH the build and finalize owner blocks, replacing
+// a divergent leaf in place, inserting a missing one, or appending a wholly
+// missing block, and preserves every other byte. changed == false returns the
+// existing bytes untouched. A malformed or structurally unsafe file is an
+// error with (nil, false, err).
+func renderOwnerPairs(existing []byte, pairs []kvPair) (edited []byte, changed bool, err error) {
 	root, err := topLevelMapping(existing)
 	if err != nil {
 		return nil, false, err
@@ -75,9 +86,8 @@ func RenderTestConfigEdit(existing []byte, out DiscoveryOutcome) (edited []byte,
 
 	var splices []byteSplice
 	var appends []string
-	changed = false
 	// build and finalize are edited independently: each owns its own gate and
-	// test_command, even though a detected command is written identically to both.
+	// test_command, even though one command is written identically to both.
 	for _, owner := range []string{"build", "finalize"} {
 		sp, appText, ch, err := planOwnerBlock(existing, starts, root, owner, pairs)
 		if err != nil {
@@ -125,6 +135,60 @@ func desiredPairs(out DiscoveryOutcome) []kvPair {
 		return []kvPair{{"gate", "off", true}}
 	}
 	return nil
+}
+
+// ConfigureTestsCommandRemedy is the configure-tests invocation that sets both
+// gates to `local` with an operator-supplied suite command. Every note that
+// sends an operator to an explicit command names it through this constant.
+const ConfigureTestsCommandRemedy = `docket repository configure-tests --command "<cmd>"`
+
+// ErrInvalidTestCommand classifies a refused --command value.
+var ErrInvalidTestCommand = errors.New("invalid test command")
+
+// ExplicitTestCommand validates an operator-supplied suite command and returns
+// it trimmed of surrounding whitespace. It refuses an empty or whitespace-only
+// value, the legacy `auto` sentinel (it never survives resolution as a command;
+// isConfiguredCommand), invalid UTF-8, and any rune document.IllegalTextRune
+// refuses (control characters, tab, and the U+2028/U+2029 line separators),
+// because a double-quoted YAML scalar folds a line break to a space and would
+// write a command other than the one given.
+func ExplicitTestCommand(raw string) (string, error) {
+	if !utf8.ValidString(raw) {
+		return "", fmt.Errorf("%w: --command is not valid UTF-8", ErrInvalidTestCommand)
+	}
+	cmd := strings.TrimSpace(raw)
+	if cmd == "" {
+		return "", fmt.Errorf(`%w: --command is empty; pass the suite command, e.g. --command "make test"`, ErrInvalidTestCommand)
+	}
+	if !isConfiguredCommand(cmd) {
+		return "", fmt.Errorf("%w: --command %q is the legacy unconfigured sentinel, not a suite command", ErrInvalidTestCommand, cmd)
+	}
+	for _, r := range cmd {
+		if document.IllegalTextRune(r) {
+			return "", fmt.Errorf("%w: --command contains a control or line-break character (%U); pass a single-line command", ErrInvalidTestCommand, r)
+		}
+	}
+	return cmd, nil
+}
+
+// RenderExplicitTestCommandEdit produces the pending `.docket.yml` bytes that
+// set BOTH build and finalize to `gate: local` + `test_command: <cmd>`. Unlike
+// the discovery render, the explicit command is the human's choice, so it wins:
+// the gate pair is NOT preserve-explicit, an existing `off` (or any other)
+// gate becomes `local`, and a different command is replaced. changed == false
+// means the file already carries exactly these settings. cmd must already have
+// passed ExplicitTestCommand; an invalid cmd is refused here too.
+func RenderExplicitTestCommandEdit(existing []byte, cmd string) (edited []byte, changed bool, err error) {
+	if _, verr := ExplicitTestCommand(cmd); verr != nil {
+		return nil, false, verr
+	}
+	return renderOwnerPairs(existing, explicitPairs(cmd))
+}
+
+// explicitPairs is the explicit-command policy: gate local and the command,
+// neither preserve-explicit.
+func explicitPairs(cmd string) []kvPair {
+	return []kvPair{{"gate", "local", false}, {"test_command", cmd, false}}
 }
 
 // byteSplice replaces src[from:to] with text. Splices from one render are
@@ -389,7 +453,22 @@ func plainSafe(v string) bool {
 			return false
 		}
 	}
-	return true
+	// The charset admits digit-led tokens that YAML resolves to a non-string
+	// (123 → !!int, 1.5 → !!float, 2026-10-05 → !!timestamp), and the config
+	// schema's string leaves accept only !!str. Ask the resolver itself rather
+	// than enumerating number shapes.
+	return resolvesToStr(v)
+}
+
+// resolvesToStr reports whether v, emitted as a bare plain scalar, reads back
+// as the !!str v.
+func resolvesToStr(v string) bool {
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(v), &doc); err != nil || len(doc.Content) != 1 {
+		return false
+	}
+	n := doc.Content[0]
+	return n.Kind == yaml.ScalarNode && n.Tag == "!!str" && n.Value == v
 }
 
 func isAlnum(c byte) bool {
