@@ -114,6 +114,7 @@ type setupContext struct {
 	integrationBranch string
 	sourceRevision    string // pinned authoritative integration tip
 	metadataTip       string // remote docket tip when present, else ""
+	primaryHead       string // primary worktree HEAD read by primaryAtTipPresence, else ""
 	diagnostics       []setupDiag
 }
 
@@ -388,6 +389,7 @@ func primaryAtTipPresence(ctx context.Context, p setupProber, repo gitcli.Reposi
 		if filepath.Clean(wt.Path) != filepath.Clean(repo.PrimaryWorktree) {
 			continue
 		}
+		sc.primaryHead = string(wt.Head)
 		if string(wt.Head) == rev {
 			return reposetup.PresencePresent
 		}

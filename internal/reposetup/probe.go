@@ -92,7 +92,8 @@ type Facts struct {
 	PrimaryClean          Presence
 	PrimaryOnIntegration  Presence
 	PrimaryAtRemoteTip    Presence
-	PendingReviewPaths    []string // init-planned integration-worktree paths not yet committed
+	PrimaryTipRelation    SyncRelation // primary HEAD vs pinned integration tip; set only by check's augmentation, only when PrimaryAtRemoteTip is Absent
+	PendingReviewPaths    []string     // init-planned integration-worktree paths not yet committed
 	PartialPhase          PartialPhase
 	SurfacesAuthorized    bool     // agent_harnesses explicitly declared at repo/repo-local layer
 	SurfacesAgree         Presence // 0351 plan vs bytes+ownership record; only meaningful when authorized

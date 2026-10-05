@@ -1016,3 +1016,48 @@ func TestCommittedIgnoreRemediesCarryPasteReadyBlock(t *testing.T) {
 		t.Errorf("want >= 7 distinct instructions, got %d: %v", len(instructions), instructions)
 	}
 }
+
+// TestHealthPrimaryTipFindingByRelationship: the primary-not-at-tip finding is chosen
+// by relationship; every case stays non-healthy and every remedy works in its state.
+func TestHealthPrimaryTipFindingByRelationship(t *testing.T) {
+	rows := []struct {
+		rel        SyncRelation
+		wantCode   string
+		remedyHas  string
+		remedyLack string
+	}{
+		{SyncBehind, "primary-behind-remote-tip", "sync-integration", ""},
+		{SyncAhead, "primary-ahead-of-remote-tip", "Push the local commits", "sync-integration"},
+		{SyncDiverged, "primary-diverged-from-remote-tip", "rebase or merge", "sync-integration"},
+		{SyncUnknown, "primary-tip-unverified", "", "sync-integration"},
+	}
+	for _, row := range rows {
+		f := healthyFacts()
+		f.PrimaryAtRemoteTip = PresenceAbsent
+		f.PrimaryTipRelation = row.rel
+		c := Classify(f)
+		if c.State == StateHealthy {
+			t.Fatalf("%s: a primary off the tip classified healthy", row.wantCode)
+		}
+		got := EvaluateHealth(c, f, nil)
+		var fnd *Finding
+		for i := range got {
+			if strings.HasPrefix(got[i].Code, "primary-") {
+				fnd = &got[i]
+			}
+		}
+		if fnd == nil || fnd.Code != row.wantCode {
+			t.Fatalf("relation %d: findings %v, want %s", row.rel, findingCodes(got), row.wantCode)
+		}
+		if row.remedyHas != "" && !strings.Contains(fnd.Remedy, row.remedyHas) {
+			t.Errorf("%s remedy %q lacks %q", row.wantCode, fnd.Remedy, row.remedyHas)
+		}
+		if row.remedyLack != "" && strings.Contains(fnd.Remedy, row.remedyLack) {
+			t.Errorf("%s remedy %q must not name %q (invalid in this state)", row.wantCode, fnd.Remedy, row.remedyLack)
+		}
+		assertNoDestructiveCommand(t, fnd.Remedy)
+		if CheckExit(c, got) != 1 {
+			t.Errorf("%s: exit != 1", row.wantCode)
+		}
+	}
+}

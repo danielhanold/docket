@@ -248,6 +248,12 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 	// pending path too — the committed-ignore guard and the needs-review signal
 	// share one authority.
 	f.PrimaryOnIntegration = primaryOnIntegrationPresence(ctx, git, sc.repo, sc.integrationBranch)
+	// The primary checkout's relationship to the pinned integration tip, computed
+	// only where it is reported and only when HEAD is not the tip, through the same
+	// syncRelationship the local docket copy uses.
+	if f.PrimaryAtRemoteTip == reposetup.PresenceAbsent && sc.sourceRevision != "" {
+		f.PrimaryTipRelation = syncRelationship(ctx, git, sc.repo, sc.primaryHead, sc.sourceRevision)
+	}
 	f.PendingReviewPaths = pendingReviewPaths(ctx, git, sc.repo, f.CommittedIgnoreBlock)
 
 	// Authorized parent-facing surfaces: absent a drift probe (Task 11 owns the
