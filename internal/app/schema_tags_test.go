@@ -439,3 +439,54 @@ func flatRequiredKeys(t *testing.T, prototype any) []string {
 	}
 	return out
 }
+
+// TestRequestJSONKeysReconcile proves RequestJSONKeys returns exactly the
+// sorted top-level JSON keys DisallowUnknownFields enforces for a real request.
+func TestRequestJSONKeysReconcile(t *testing.T) {
+	got := RequestJSONKeys(&ChangeReconcileRequest{})
+	want := []string{"id", "reconcile_log_entry", "relations", "revision", "sections", "spec_sections"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("RequestJSONKeys = %v, want %v", got, want)
+	}
+}
+
+// TestRequestJSONKeysSkipsAndPromotes proves a `json:"-"` field contributes no
+// key and an embedded struct's fields are promoted into the key set.
+func TestRequestJSONKeysSkipsAndPromotes(t *testing.T) {
+	type embedded struct {
+		Promoted string `json:"promoted"`
+	}
+	type fixture struct {
+		embedded
+		Kept    string `json:"kept"`
+		Skipped string `json:"-"`
+		Named   string `json:"renamed"`
+	}
+	got := RequestJSONKeys(&fixture{})
+	want := []string{"kept", "promoted", "renamed"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("RequestJSONKeys = %v, want %v", got, want)
+	}
+}
+
+// TestRequiredJSONKeysFiltersTheSharedWalk proves requiredJSONKeys is the
+// RequestJSONKeys walk filtered to docket:"required": a required field promoted
+// from an embedded struct counts, an optional field does not, and a `json:"-"`
+// field contributes no key to either set even when it is tagged required.
+func TestRequiredJSONKeysFiltersTheSharedWalk(t *testing.T) {
+	type embedded struct {
+		Promoted string `json:"promoted" docket:"required"`
+	}
+	type fixture struct {
+		embedded
+		Kept     string `json:"kept" docket:"required"`
+		Optional string `json:"optional"`
+		Skipped  string `json:"-" docket:"required"`
+	}
+	if got, want := RequestJSONKeys(&fixture{}), []string{"kept", "optional", "promoted"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("RequestJSONKeys = %v, want %v", got, want)
+	}
+	if got, want := requiredJSONKeys(&fixture{}), []string{"kept", "promoted"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("requiredJSONKeys = %v, want %v", got, want)
+	}
+}

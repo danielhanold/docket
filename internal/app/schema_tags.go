@@ -56,10 +56,11 @@ func docketEnumRef(tag reflect.StructTag) string {
 }
 
 // jsonFieldKey derives the JSON key of one non-embedded struct field, the
-// single copy of the key rules reflectFields, requiredJSONKeys, and the tests'
-// field lookup share: a `json:"-"` field and an untagged unexported field
-// contribute nothing (ok is false), and an untagged exported field falls back to
-// its Go field name. Promoting an embedded struct's fields is the caller's walk.
+// single copy of the key rules reflectFields, walkJSONKeys (behind
+// RequestJSONKeys and requiredJSONKeys), and the tests' field lookup share:
+// a `json:"-"` field and an untagged unexported field contribute nothing (ok
+// is false), and an untagged exported field falls back to its Go field name.
+// Promoting an embedded struct's fields is the caller's walk.
 func jsonFieldKey(f reflect.StructField) (key string, ok bool) {
 	key = strings.Split(f.Tag.Get("json"), ",")[0]
 	if key == "-" || (key == "" && !f.IsExported()) {
@@ -71,12 +72,30 @@ func jsonFieldKey(f reflect.StructField) (key string, ok bool) {
 	return key, true
 }
 
+// RequestJSONKeys returns the sorted top-level JSON keys a closed request
+// struct accepts, which is the exact set DisallowUnknownFields enforces. The
+// CLI lists them in an unknown-key refusal. It is walkJSONKeys keeping every
+// field.
+func RequestJSONKeys(prototype any) []string {
+	return walkJSONKeys(prototype, func(reflect.StructField) bool { return true })
+}
+
 // requiredJSONKeys returns the sorted top-level JSON keys of prototype whose
-// field carries docket:"required". It walks the same shape as the CLI's
-// requestJSONKeys — embedded structs promote their fields; `json:"-"` and
-// untagged unexported fields contribute nothing — filtered to required-tagged
-// fields. It lives app-side because Task 5's schema generator consumes it.
+// field carries docket:"required": the RequestJSONKeys walk filtered to
+// required-tagged fields. The request-shape validator tests and the schema
+// surface consume it.
 func requiredJSONKeys(prototype any) []string {
+	return walkJSONKeys(prototype, func(f reflect.StructField) bool {
+		return hasDocketOption(f.Tag, "required")
+	})
+}
+
+// walkJSONKeys is the one walk of a struct's top-level JSON keys behind
+// RequestJSONKeys and requiredJSONKeys. It dereferences pointers, lets an
+// embedded struct promote its fields, takes every other field's key from
+// jsonFieldKey, and keeps a key only when keep reports true for its field.
+// The result is sorted and non-nil.
+func walkJSONKeys(prototype any, keep func(reflect.StructField) bool) []string {
 	t := reflect.TypeOf(prototype)
 	for t != nil && t.Kind() == reflect.Pointer {
 		t = t.Elem()
@@ -94,7 +113,7 @@ func requiredJSONKeys(prototype any) []string {
 			if !ok {
 				continue
 			}
-			if hasDocketOption(f.Tag, "required") {
+			if keep(f) {
 				seen[key] = true
 			}
 		}
