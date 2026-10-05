@@ -226,3 +226,58 @@ func TestIntegrationRepoInPlaceFFInterruptedReadsDirty(t *testing.T) {
 		t.Fatalf(".docket removed: %v", err)
 	}
 }
+
+// removeDocketWorktree deregisters a clean .docket, leaving the local branch.
+func removeDocketWorktree(t *testing.T, r *initRepo) {
+	t.Helper()
+	runGit(t, r.invocation, "worktree", "remove", filepath.Join(r.invocation, ".docket"))
+}
+
+func TestIntegrationRepoInPlaceFFAttachBehindAdvancesBranch(t *testing.T) {
+	r, _, newTip := newBehindHealthyRepo(t)
+	removeDocketWorktree(t, r)
+	res := runPrepareAt(t, r.invocation)
+	if res.Disposition != PrepareDispositionApplied {
+		t.Fatalf("prepare = %q (%s), want applied", res.Disposition, res.HumanText())
+	}
+	if head := r.dotDocketHead(t); head != newTip {
+		t.Fatalf(".docket attached at %s, want the remote tip %s (never the stale local tip)", head, newTip)
+	}
+	if local := runGit(t, r.invocation, "rev-parse", "refs/heads/docket"); local != newTip {
+		t.Fatalf("local docket = %s, want %s", local, newTip)
+	}
+	requireCheckHealthy(t, r)
+}
+
+func TestIntegrationRepoInPlaceFFAttachAheadRefuses(t *testing.T) {
+	r := newHealthyRepo(t)
+	aheadTip := r.commitInDocket(t, "ahead.txt", "ahead\n", "local-only docket commit")
+	removeDocketWorktree(t, r)
+	res := runPrepareAt(t, r.invocation)
+	if res.Disposition != PrepareDispositionRefused || !prepareFinding(res, "local-metadata-ahead") {
+		t.Fatalf("prepare = %q %+v, want refused local-metadata-ahead", res.Disposition, res.Findings)
+	}
+	if local := runGit(t, r.invocation, "rev-parse", "refs/heads/docket"); local != aheadTip {
+		t.Fatalf("local docket = %s, want untouched %s", local, aheadTip)
+	}
+	if _, err := os.Stat(filepath.Join(r.invocation, ".docket")); !os.IsNotExist(err) {
+		t.Fatalf(".docket attached on a refusal (err=%v)", err)
+	}
+}
+
+func TestIntegrationRepoInPlaceFFAttachDivergedRefuses(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.advanceRemoteDocket(t, "notes/remote.txt", "remote\n", "remote side")
+	localTip := r.commitInDocket(t, "local.txt", "local\n", "local side")
+	removeDocketWorktree(t, r)
+	res := runPrepareAt(t, r.invocation)
+	if res.Disposition != PrepareDispositionRefused || !prepareFinding(res, "local-metadata-diverged") {
+		t.Fatalf("prepare = %q %+v, want refused local-metadata-diverged", res.Disposition, res.Findings)
+	}
+	if local := runGit(t, r.invocation, "rev-parse", "refs/heads/docket"); local != localTip {
+		t.Fatalf("local docket = %s, want untouched %s", local, localTip)
+	}
+	if _, err := os.Stat(filepath.Join(r.invocation, ".docket")); !os.IsNotExist(err) {
+		t.Fatalf(".docket attached on a refusal (err=%v)", err)
+	}
+}
