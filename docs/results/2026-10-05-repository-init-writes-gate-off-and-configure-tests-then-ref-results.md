@@ -3,9 +3,7 @@
 <!-- docket:backlink:end -->
 # repository configure-tests takes the test command as input — Results
 
-**Human action:** Before merge, decide whether to merge with the known gap described under
-Known issues: `--command` can silently write the wrong value when `.docket.yml` uses folded,
-literal, or inline YAML for the test settings. One optional walkthrough below shows `--command`
+**Human action:** None required before merge. One optional walkthrough below shows `--command`
 working on a repository whose only test is a root `test.sh`.
 
 ## Outcome
@@ -70,30 +68,14 @@ Cleanup: `rm -rf /tmp/ct526`.
   carries the evidence from the final run. The run printed
   `BUDGET WATCH` and `PARALLEL-SENSITIVE` lines for unrelated app-integration shards, which this
   change does not touch, and no `SERIAL CONFIRMED OVER BUDGET` line.
-- Whole-branch review (deep tier): 2 findings (1 important, 1 minor). Both were fixed, but the
-  suite failed after the fixes because a new test used a bare `t.TempDir()`, which a repository
-  guard rejects. Following the fix-pass rule, both fixes were reverted. Both findings stand, and
-  the full table is in the PR body.
-
-## Known issues and follow-ups
-
-### `--command` can write the wrong value for some YAML shapes (review finding, important — fix reverted)
-
-This happens when `.docket.yml` already writes `test_command` as a folded (`>-`) or literal (`|`)
-block, or writes `build:`/`finalize:` in inline `{...}` form. Running
-`configure-tests --command "<cmd>"` then leaves part of the old block behind or drops the owner
-key. The pending edit resolves to a different command, such as `sh ./test.sh make test`, or fails
-to parse, while the success message names the intended command. This is confirmed by the reviewer,
-and the reverted fix's tests reproduced it. The impact is limited: the edit is pending and unstaged,
-so the operator sees it in `git diff`, and these shapes are uncommon. Workaround: check
-`git diff .docket.yml` before committing, or edit by hand. Suggested next action: re-apply the
-reverted fix, which re-parses the spliced file in `renderOwnerPairs` and refuses on a mismatch,
-with its unit test using `testsupport.TempDir(t)` instead of `t.TempDir()`. It is a fix for this
-branch's own code, so it can land here before merge or immediately after.
-
-### init's no-suite note misstates the gate default (review finding, minor — fix reverted)
-
-When `docket repository init` finds no test suite, its note says a gate `.docket.yml` does not set
-is `off`. The built-in default is actually `local`; init writes `off` only for gates the file did
-not already set. This is confirmed, and it only affects wording. Suggested next action: reword it
-to "any gate .docket.yml did not already set was written `off`", together with the fix above.
+- Whole-branch review (deep tier): 2 findings (1 important, 1 minor), both fixed in-branch.
+  The first fix-pass suite run failed because the important fix's new test used a bare
+  `t.TempDir()`, which a repository guard rejects; both fixes were reverted, the run halted, and
+  on the authorized resume both were re-applied with the test switched to
+  `testsupport.TempDir(t)`. The splice now re-parses the edited `.docket.yml` and refuses, file
+  untouched, when a folded/literal block `test_command` or an inline `{...}` `build:`/`finalize:`
+  would not round-trip to exactly the requested settings. The init no-suite note now says only
+  gates `.docket.yml` did not already set were written `off`. The full table is in the PR body.
+- A second fix-pass run failed in `internal/process` TestObserveRunningThenTerminal ("timed out
+  waiting for vanished"), a package this branch does not touch; the final gate run is recorded in
+  the PR body's evidence block.
