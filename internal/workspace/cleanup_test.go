@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestStillRegisteredEachCheck pins each of stillRegistered's three checks on
@@ -13,7 +14,7 @@ import (
 // check reddens its row.
 func TestStillRegisteredEachCheck(t *testing.T) {
 	const featureRef = gitcli.RefName("refs/heads/feat/x")
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 
 	// A recorded path that does not exist: only the lexical check can match it,
 	// because canonicalization fails on a missing path.
