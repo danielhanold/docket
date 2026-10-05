@@ -379,8 +379,11 @@ func TestIntegrationRepoMigrationAmbiguousTestDiscoveryBlocksBeforeAnyWrite(t *t
 	if res.Result != ResultInvalidState {
 		t.Fatalf("migrate = %q (%s), want invalid-state (ambiguous discovery)", res.Result, res.HumanText())
 	}
-	if !strings.Contains(res.HumanText(), "docket repository configure-tests") {
-		t.Errorf("ambiguous refusal %q must name the remedy", res.HumanText())
+	if !strings.Contains(res.HumanText(), "docket repository migrate") || !strings.Contains(res.HumanText(), "finalize.test_command") {
+		t.Errorf("ambiguous refusal %q must name the finalize.test_command + re-run migrate remedy", res.HumanText())
+	}
+	if strings.Contains(res.HumanText(), "configure-tests") {
+		t.Errorf("ambiguous refusal %q must not name configure-tests, which refuses a legacy repository", res.HumanText())
 	}
 	if r.remoteBranchExists(t, "docket") {
 		t.Error("an ambiguous-discovery refusal created the remote docket branch; nothing must be written")

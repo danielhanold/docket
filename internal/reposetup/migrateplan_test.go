@@ -283,8 +283,20 @@ func TestPlanMigrationAmbiguousRefusesWithNoPlan(t *testing.T) {
 	if len(amb.Candidates) != 2 {
 		t.Errorf("typed error must name both candidates, got %+v", amb.Candidates)
 	}
-	if !strings.Contains(amb.Error(), "docket repository configure-tests") {
-		t.Errorf("remedy %q must name `docket repository configure-tests`", amb.Error())
+	// configure-tests refuses a legacy repository, so naming it here loops; the
+	// remedy is the explicit finalize command migrate itself preserves.
+	if strings.Contains(amb.Error(), "configure-tests") {
+		t.Errorf("remedy %q must not name configure-tests, which refuses a legacy repository", amb.Error())
+	}
+	for _, want := range []string{"finalize.test_command", "docket repository migrate"} {
+		if !strings.Contains(amb.Error(), want) {
+			t.Errorf("remedy %q must name %q", amb.Error(), want)
+		}
+	}
+	for _, c := range amb.Candidates {
+		if !strings.Contains(amb.Error(), c.Command) {
+			t.Errorf("remedy %q must name candidate command %q", amb.Error(), c.Command)
+		}
 	}
 	// No plan is composed: ConfigBytes and the receipts are the zero value.
 	if plan.ConfigBytes != nil || plan.SeedReceipt.Operation != "" {

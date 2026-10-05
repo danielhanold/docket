@@ -88,24 +88,35 @@ func isConfiguredCommand(cmd string) bool {
 	return cmd != "" && cmd != "auto"
 }
 
+// DescribeCandidates renders discovery candidates for an operator as
+// "family (`command`)" joined by ", " in registry order, so a human choosing
+// between them sees the exact command each would configure.
+func DescribeCandidates(cands []DetectedSuite) string {
+	parts := make([]string, 0, len(cands))
+	for _, c := range cands {
+		parts = append(parts, fmt.Sprintf("%s (`%s`)", c.Family, c.Command))
+	}
+	return strings.Join(parts, ", ")
+}
+
 // AmbiguousTestDiscoveryError reports that setup-time test discovery matched more
 // than one suite family and cannot deterministically choose one. It carries the
-// matched candidates and renders a remedy naming the exact setup command, so a
-// caller (migrate) can surface it BEFORE any repository mutation rather than
-// guessing a command. Init tolerates ambiguity (it reports the candidates and
-// writes nothing); only migrate treats it as a typed refusal.
+// matched candidates and renders a remedy valid on a legacy repository — commit
+// an explicit finalize.test_command, then re-run migrate — so a caller (migrate)
+// can surface it BEFORE any repository mutation rather than guessing a command.
+// Init tolerates ambiguity (it reports the candidates and writes nothing); only
+// migrate treats it as a typed refusal.
 type AmbiguousTestDiscoveryError struct {
 	Candidates []DetectedSuite
 }
 
-// Error names the ambiguous families and the exact remedy command.
+// Error names the ambiguous candidates with their commands and the remedy valid
+// on a legacy repository: commit an explicit finalize.test_command, which
+// migrateTestOutcome preserves and carries into build.test_command, then re-run
+// migrate. It never names configure-tests, which refuses a legacy repository.
 func (e *AmbiguousTestDiscoveryError) Error() string {
-	fams := make([]string, 0, len(e.Candidates))
-	for _, c := range e.Candidates {
-		fams = append(fams, c.Family)
-	}
-	return fmt.Sprintf("test discovery is ambiguous: multiple suite families match (%s); set build.test_command / finalize.test_command explicitly, then run `docket repository configure-tests`",
-		strings.Join(fams, ", "))
+	return fmt.Sprintf("test discovery is ambiguous: multiple suite families match (%s); set `finalize.test_command` in .docket.yml to the suite to use, commit and push it, then re-run `docket repository migrate` (migrate carries an explicit finalize.test_command into build.test_command)",
+		DescribeCandidates(e.Candidates))
 }
 
 // detector pairs a family token with its pure detection function. The registry

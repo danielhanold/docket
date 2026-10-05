@@ -111,6 +111,12 @@ func TestConfigureTestsGapNoteFinalizeLocalEmptyWhileBuildConfigured(t *testing.
 	if !strings.Contains(note, "docket repository check") {
 		t.Errorf("note %q must tell the operator how to confirm completion (re-run check)", note)
 	}
+	if !strings.Contains(note, ConfigureTestsCommandRemedy) {
+		t.Errorf("note %q must name the command remedy %q", note, ConfigureTestsCommandRemedy)
+	}
+	if strings.Contains(note, "by hand") {
+		t.Errorf("note %q must not prescribe a hand edit now that --command exists", note)
+	}
 }
 
 // TestConfigureTestsGapNoteBuildLocalEmptyWhileFinalizeConfigured is the
@@ -123,6 +129,12 @@ func TestConfigureTestsGapNoteBuildLocalEmptyWhileFinalizeConfigured(t *testing.
 	}
 	if strings.Contains(note, "finalize.test_command") {
 		t.Errorf("note %q must not name finalize, whose explicit command is intact", note)
+	}
+	if !strings.Contains(note, ConfigureTestsCommandRemedy) {
+		t.Errorf("note %q must name the command remedy %q", note, ConfigureTestsCommandRemedy)
+	}
+	if strings.Contains(note, "by hand") {
+		t.Errorf("note %q must not prescribe a hand edit now that --command exists", note)
 	}
 }
 
