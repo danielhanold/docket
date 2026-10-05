@@ -141,13 +141,20 @@ type CleanupOpResult struct {
 	Findings    []StatusFinding `json:"findings"`
 }
 
-// HumanText renders a one-line summary naming identity and disposition only.
+// HumanText renders a one-line summary naming identity and disposition, plus
+// any workspace-remnant warning so a leftover folder is never silent.
 func (r CleanupOpResult) HumanText() string {
 	if r.Result == ResultApplied || r.Result == ResultNoOp {
 		if r.RunDir != "" {
 			return r.Operation + ": " + r.Disposition + " " + r.RunDir
 		}
-		return r.Operation + ": change " + itoa(r.ID) + " " + r.Disposition
+		out := r.Operation + ": change " + itoa(r.ID) + " " + r.Disposition
+		for _, f := range r.Findings {
+			if f.Code == FindingWorkspaceRemnant {
+				out += "; warning " + FindingWorkspaceRemnant + ": " + f.Message
+			}
+		}
+		return out
 	}
 	if r.Reason != "" {
 		return r.Operation + ": " + string(r.Result) + " (" + r.Reason + ")"
