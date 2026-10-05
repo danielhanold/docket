@@ -10,11 +10,11 @@ import (
 	"testing"
 )
 
-// TestIntegrationRepoIsAncestorIgnoringReplacements proves the relationship probe
+// TestIntegrationBranchTipIsAncestorIgnoringReplacements proves the relationship probe
 // ignores both history-rewrite mechanisms: a replace ref and the legacy graft file
 // each make an unrelated orphan commit look like a descendant to plain IsAncestor,
 // and IsAncestorIgnoringReplacements must still answer false.
-func TestIntegrationRepoIsAncestorIgnoringReplacements(t *testing.T) {
+func TestIntegrationBranchTipIsAncestorIgnoringReplacements(t *testing.T) {
 	ctx := context.Background()
 	newOrphan := func(t *testing.T, r *testRepos) (base, orphan ObjectID) {
 		t.Helper()

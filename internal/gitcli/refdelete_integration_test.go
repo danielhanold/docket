@@ -13,7 +13,7 @@ import (
 // removes a branch whose tip matches exactly and which is checked out nowhere,
 // and refuses (leaving the branch intact) both when the tip has moved and when
 // the branch is checked out in a worktree.
-func TestIntegrationRepoDeleteLocalBranchChecked(t *testing.T) {
+func TestIntegrationBranchTipDeleteLocalBranchChecked(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
