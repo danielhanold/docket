@@ -328,3 +328,14 @@ func TestProbeErrorIsUnknownNeverNone(t *testing.T) {
 		t.Errorf("a probe error yields the zero outcome, got kind %q", out.Kind)
 	}
 }
+
+func TestDescribeCandidatesNamesFamilyAndCommand(t *testing.T) {
+	got := DescribeCandidates([]DetectedSuite{
+		{Family: "go", Command: "go test ./..."},
+		{Family: "rust", Command: "cargo test"},
+	})
+	want := "go (`go test ./...`), rust (`cargo test`)"
+	if got != want {
+		t.Fatalf("DescribeCandidates = %q, want %q", got, want)
+	}
+}

@@ -290,8 +290,9 @@ func localGateNeedsCommand(gate, command string) bool {
 // reports "nothing to write" while `docket repository check` keeps flagging the
 // gap. configure-tests cannot fill it automatically — re-probing would clobber
 // the already-set command, and copying the other gate's command conflates two
-// independent settings — so it names the specific gate(s) and the by-hand
-// completion. It returns "" when no local gate is missing a command (the
+// independent settings — so it names the specific gate(s) and the explicit
+// `configure-tests --command` completion, which sets both gates to one command.
+// It returns "" when no local gate is missing a command (the
 // fully-configured and gate-off cases are unchanged).
 func ConfigureTestsGapNote(cfg config.Effective) string {
 	var owners, keys []string
@@ -306,8 +307,8 @@ func ConfigureTestsGapNote(cfg config.Effective) string {
 	if len(owners) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("the %s gate is `local` with no command and discovery left it unset (the pair reads as configured because the other gate already has a command); set %s in .docket.yml by hand, then re-run `docket repository check`.",
-		strings.Join(owners, " and "), strings.Join(keys, " and "))
+	return fmt.Sprintf("the %s gate is `local` with no command (%s unset; the pair reads as configured because the other gate already has a command); run `%s` to set both gates to `local` with one suite command, commit the pending .docket.yml, then re-run `docket repository check`.",
+		strings.Join(owners, " and "), strings.Join(keys, " and "), ConfigureTestsCommandRemedy)
 }
 
 // committedDeclaresLegacyAuto reports whether the committed repository-layer
