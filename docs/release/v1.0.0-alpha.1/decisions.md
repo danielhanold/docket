@@ -43,3 +43,7 @@ Human (Daniel) edits to the known-gaps list:
 - 0412 is left out of the notes (judged probably not an issue), overriding the spec's "known gap in the notes" decision.
 - The private-repo finalize merge block (STOP 2) is left out as a GitHub-side issue.
 - 0523 is moved to the last item.
+
+### Phase 4 go-ahead
+
+Human (Daniel) gave the explicit "publish" on 2026-10-04 (reply: "approved. go ahead and publish").
