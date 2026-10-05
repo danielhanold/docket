@@ -2,7 +2,7 @@
 id: 522
 slug: 'share-the-json-key-rules-between-internal-cli-and-internal-a'
 title: 'Share the JSON-key rules between internal/cli and internal/app'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'refactor/share-the-json-key-rules-between-internal-cli-and-internal-a'
 pr: 'https://github.com/danielhanold/docket/pull/392'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T10:13:16Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -30,8 +30,8 @@ claimed_at: '2026-10-05T10:13:16Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a.md](https://github.com/danielhanold/docket/blob/refactor/share-the-json-key-rules-between-internal-cli-and-internal-a/docs/superpowers/plans/2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a.md) |
-| Results | [2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a-results.md](https://github.com/danielhanold/docket/blob/refactor/share-the-json-key-rules-between-internal-cli-and-internal-a/docs/results/2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a-results.md) |
+| Plan | [2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a.md) |
+| Results | [2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-05-share-the-json-key-rules-between-internal-cli-and-internal-a-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
