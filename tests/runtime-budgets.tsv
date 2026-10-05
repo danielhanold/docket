@@ -24,7 +24,7 @@ tests/test_go_integration_app_cleanup.sh	40	parallel
 tests/test_go_integration_app_closeout.sh	40	parallel
 tests/test_go_integration_app_archive.sh	40	parallel
 tests/test_go_integration_app_concurrency.sh	35	parallel
-tests/test_go_integration_app_merge.sh	30	parallel
+tests/test_go_integration_app_merge.sh	15	parallel
 tests/test_go_integration_app_rebase.sh	45	parallel
 tests/test_go_integration_app_rebasepublished.sh	45	parallel
 tests/test_go_integration_app_rebaserecovery.sh	40	parallel
