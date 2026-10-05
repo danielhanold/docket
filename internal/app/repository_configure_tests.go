@@ -4,12 +4,20 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
 // OperationRepositoryConfigureTests is the operation key `repository
 // configure-tests` records.
 const OperationRepositoryConfigureTests = "repository.configure-tests"
+
+// ConfigureTestsOptions carries configure-tests' one input. Command is nil when
+// --command was not passed (discovery runs) and non-nil whenever it was, even
+// when empty: an explicit empty value is refused, never read as absent.
+type ConfigureTestsOptions struct {
+	Command *string
+}
 
 // RunRepositoryConfigureTests is the setup-time upgrade path for an
 // already-initialized repository: it (re)generates the pending, UNSTAGED
@@ -18,14 +26,31 @@ const OperationRepositoryConfigureTests = "repository.configure-tests"
 // already perform, for a repository whose test policy was never configured or
 // whose suite has since appeared.
 //
+// With `--command` (o.Command non-nil) it validates the command before any
+// read, skips discovery, and plans both gates `local` with that command,
+// overwriting the existing policy. Invalid input is an invalid-input refusal
+// with nothing read or written.
+//
 // It requires the HEALTHY docket topology — it is an upgrade path, not a
 // bootstrap — and refuses every other state with the remedy valid there: a fresh
 // repository is pointed at `docket repository init`, a legacy one at `docket
 // repository migrate`, and any other unhealthy state at `docket repository
 // check`. It classifies once, never commits, and never stages: the generated
-// edit rides back as a pending review path exactly as init's does. An ambiguous
-// discovery writes nothing and names the candidate families so a human chooses.
-func RunRepositoryConfigureTests(ctx context.Context, d SetupDeps) OperationResult {
+// edit rides back as a pending review path exactly as init's does. A discovery
+// that writes nothing reports what it actually found (configureTestsDiscoveryText).
+func RunRepositoryConfigureTests(ctx context.Context, d SetupDeps, o ConfigureTestsOptions) OperationResult {
+	// Validate the whole input before any repository read or write.
+	var explicit string
+	if o.Command != nil {
+		cmd, verr := reposetup.ExplicitTestCommand(*o.Command)
+		if verr != nil {
+			out := newRepositoryOpResult(OperationRepositoryConfigureTests, ResultInvalidInput, RepositoryOpResult{})
+			out.human = fmt.Sprintf("%s: %s: %s", OperationRepositoryConfigureTests, ResultInvalidInput, verr.Error())
+			return out
+		}
+		explicit = cmd
+	}
+
 	facts, sc, err := GatherSetupFacts(ctx, d, true)
 	if err != nil {
 		return repositoryGatherFailure(OperationRepositoryConfigureTests, err)
@@ -46,14 +71,23 @@ func RunRepositoryConfigureTests(ctx context.Context, d SetupDeps) OperationResu
 		return *refusal
 	}
 
-	// Discover the suite over the primary worktree and write the generated
-	// `.docket.yml` edit UNSTAGED when it applies — the same helper (and pending
-	// posture) init uses. A configured pair or a file already carrying these exact
-	// settings writes nothing (idempotent no-op); an ambiguous outcome writes
-	// nothing and rides back as a note.
-	pendingPath, wrote, discovery, derr := ensureTestPolicyConfig(sc.repo.PrimaryWorktree, sc.cfg)
-	if derr != nil {
-		return repositoryInternalFailure(OperationRepositoryConfigureTests, cls.State, "generating the test-policy config", derr)
+	// Write the `.docket.yml` edit UNSTAGED when it applies — the same pending
+	// posture init uses. An explicit command plans both gates local with it;
+	// otherwise discovery runs. A file already carrying these exact settings
+	// writes nothing (idempotent no-op); an ambiguous discovery writes nothing.
+	var (
+		pendingPath string
+		wrote       bool
+		discovery   reposetup.DiscoveryOutcome
+		werr        error
+	)
+	if o.Command != nil {
+		pendingPath, wrote, werr = ensureExplicitTestCommand(sc.repo.PrimaryWorktree, explicit)
+	} else {
+		pendingPath, wrote, discovery, werr = ensureTestPolicyConfig(sc.repo.PrimaryWorktree, sc.cfg)
+	}
+	if werr != nil {
+		return repositoryInternalFailure(OperationRepositoryConfigureTests, cls.State, "generating the test-policy config", werr)
 	}
 
 	result := ResultNoOp
@@ -70,26 +104,70 @@ func RunRepositoryConfigureTests(ctx context.Context, d SetupDeps) OperationResu
 		PendingPaths:    pending,
 		SourceRevision:  sc.sourceRevision,
 	})
-	if wrote {
-		out.human = fmt.Sprintf("test policy generated (%s); review and commit the pending path: %s", state, pendingPath)
+	if o.Command != nil {
+		out.human = configureTestsExplicitText(state, wrote, pendingPath, explicit)
 	} else {
-		out.human = fmt.Sprintf("%s: %s (%s): the test policy is already configured; nothing to write",
-			OperationRepositoryConfigureTests, result, state)
+		out.human = configureTestsDiscoveryText(state, wrote, pendingPath, discovery, sc.cfg)
+	}
+	return out
+}
+
+// configureTestsExplicitText renders the --command outcome.
+func configureTestsExplicitText(state reposetup.State, wrote bool, pendingPath, cmd string) string {
+	if wrote {
+		return fmt.Sprintf("test policy set: build and finalize gates `local` running `%s` (%s); review and commit the pending path: %s",
+			cmd, state, pendingPath)
+	}
+	return fmt.Sprintf("%s: %s (%s): build and finalize gates are already `local` running `%s`; nothing to write",
+		OperationRepositoryConfigureTests, ResultNoOp, state, cmd)
+}
+
+// configureTestsDiscoveryText renders the discovery outcome truthfully per
+// kind, never one generic "already configured" line: none reports the resolved
+// gates and the --command remedy (the none plan is preserve-explicit on gate,
+// so the gates are not assumed off); ambiguous names every candidate's command;
+// configured names both resolved commands plus any per-gate gap; detected with
+// no change names the command already in place.
+func configureTestsDiscoveryText(state reposetup.State, wrote bool, pendingPath string, outcome reposetup.DiscoveryOutcome, cfg config.Effective) string {
+	noneRemedy := fmt.Sprintf("re-run with `%s` to set both gates to `local` with your suite command", reposetup.ConfigureTestsCommandRemedy)
+	if wrote {
+		text := fmt.Sprintf("test policy generated (%s); review and commit the pending path: %s", state, pendingPath)
+		if outcome.Kind == reposetup.DiscoveryNone {
+			text += "\nno supported test suite was found, so no test command was written; after committing, " + noneRemedy
+		}
+		return text
+	}
+	var body string
+	switch outcome.Kind {
+	case reposetup.DiscoveryNone:
+		body = fmt.Sprintf("no supported test suite was found, so no test command was written (build gate `%s`, finalize gate `%s`); %s",
+			cfg.Build.Gate.Value, cfg.Finalize.Gate.Value, noneRemedy)
+	case reposetup.DiscoveryAmbiguous:
+		body = fmt.Sprintf("test discovery found more than one suite, so nothing was written: %s; re-run `%s` with the one to use",
+			reposetup.DescribeCandidates(outcome.Candidates), reposetup.ConfigureTestsCommandRemedy)
+	case reposetup.DiscoveryDetected:
+		body = fmt.Sprintf("the test policy is already configured (build and finalize: `%s`); nothing to write", outcome.Command)
+	default: // configured
 		// The configured short-circuit fires as soon as EITHER gate's command is
 		// set, so a repo with one gate configured and the other `gate: local` +
 		// empty command reaches this no-op while `docket repository check` still
-		// flags the gap. Name that gate and the by-hand completion instead of
-		// stranding the operator at a bare "nothing to write".
-		if discovery.Kind == reposetup.DiscoveryConfigured {
-			if gap := reposetup.ConfigureTestsGapNote(sc.cfg); gap != "" {
-				out.human += "\n" + gap
-			}
+		// flags the gap: name that gate and its remedy.
+		body = fmt.Sprintf("the test policy is already configured (build: %s; finalize: %s); nothing to write",
+			describeCommand(cfg.Build.TestCommand.Value), describeCommand(cfg.Finalize.TestCommand.Value))
+		if gap := reposetup.ConfigureTestsGapNote(cfg); gap != "" {
+			body += "\n" + gap
 		}
 	}
-	if note := testDiscoveryNote(discovery); note != "" {
-		out.human += "\n" + note
+	return fmt.Sprintf("%s: %s (%s): %s", OperationRepositoryConfigureTests, ResultNoOp, state, body)
+}
+
+// describeCommand renders a resolved test command for an operator: the
+// backticked command, or "no command" when unset.
+func describeCommand(cmd string) string {
+	if cmd == "" {
+		return "no command"
 	}
-	return out
+	return "`" + cmd + "`"
 }
 
 // configureTestsGuard classifies once and admits only the healthy docket

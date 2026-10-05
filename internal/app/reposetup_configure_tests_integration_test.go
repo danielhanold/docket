@@ -19,12 +19,18 @@ import (
 // discovers the suite over the primary worktree and leaves the generated edit
 // UNSTAGED for human review, exactly like init — it never commits or stages.
 
-// runConfigureTests runs RunRepositoryConfigureTests against the invocation clone
-// with a fresh isolated client and type-asserts the concrete repository result.
+// runConfigureTests runs a discovery configure-tests (no --command).
 func (r *initRepo) runConfigureTests(t *testing.T) RepositoryOpResult {
 	t.Helper()
+	return r.runConfigureTestsWith(t, ConfigureTestsOptions{})
+}
+
+// runConfigureTestsWith runs RunRepositoryConfigureTests against the invocation
+// clone with a fresh isolated client and type-asserts the concrete result.
+func (r *initRepo) runConfigureTestsWith(t *testing.T, o ConfigureTestsOptions) RepositoryOpResult {
+	t.Helper()
 	client := newGitClient(t)
-	res := RunRepositoryConfigureTests(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation})
+	res := RunRepositoryConfigureTests(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation}, o)
 	got, ok := res.(RepositoryOpResult)
 	if !ok {
 		t.Fatalf("configure-tests result is %T, want RepositoryOpResult", res)
@@ -114,8 +120,8 @@ func TestIntegrationRepoSetupConfigureTestsAmbiguousLeavesFileUntouched(t *testi
 	if !strings.Contains(human, "go") || !strings.Contains(human, "rust") {
 		t.Errorf("ambiguous note %q must name the candidate families (go, rust)", human)
 	}
-	if !strings.Contains(human, "docket repository configure-tests") {
-		t.Errorf("ambiguous note %q must name the configure-tests remedy", human)
+	if !strings.Contains(human, reposetup.ConfigureTestsCommandRemedy) {
+		t.Errorf("ambiguous note %q must name the configure-tests --command remedy %q", human, reposetup.ConfigureTestsCommandRemedy)
 	}
 }
 

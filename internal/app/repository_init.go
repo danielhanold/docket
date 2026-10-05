@@ -183,49 +183,80 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 	return out
 }
 
-// ensureTestPolicyConfig discovers the suite from the primary worktree and, when
-// a write applies, writes the generated `.docket.yml` test policy UNSTAGED to the
-// working tree (the managed-.gitignore posture: generated config is human-gated,
-// never staged). It returns the pending review path ("" when nothing was
-// written), whether it changed the file, and the discovery outcome so the caller
-// can report an ambiguous result. A malformed existing config or a probe fault is
-// an error with the file untouched.
-func ensureTestPolicyConfig(primaryWorktree string, cfg config.Effective) (pendingPath string, wrote bool, outcome reposetup.DiscoveryOutcome, err error) {
-	tree := newOSTree(primaryWorktree)
-	docketYMLAbs := filepath.Join(primaryWorktree, docketYMLRel)
-	existing, rerr := os.ReadFile(docketYMLAbs)
+// writePendingDocketYML reads the primary worktree's .docket.yml (nil when
+// absent), asks render for the edited bytes, and writes them UNSTAGED when
+// render returns non-nil — the managed-.gitignore posture: generated config is
+// human-gated, never staged. It returns the pending review path ("" when nothing
+// was written). A read fault, a render error (malformed config, probe fault,
+// invalid command), or a write fault is an error with the file untouched.
+func writePendingDocketYML(primaryWorktree string, render func(existing []byte) ([]byte, error)) (pendingPath string, wrote bool, err error) {
+	abs := filepath.Join(primaryWorktree, docketYMLRel)
+	existing, rerr := os.ReadFile(abs)
 	if rerr != nil {
 		if !os.IsNotExist(rerr) {
-			return "", false, reposetup.DiscoveryOutcome{}, rerr
+			return "", false, rerr
 		}
 		existing = nil
 	}
-	bytes, outcome, perr := reposetup.TestPolicyEdit(cfg, existing, tree)
+	edited, perr := render(existing)
 	if perr != nil {
-		return "", false, reposetup.DiscoveryOutcome{}, perr
+		return "", false, perr
 	}
-	if bytes == nil {
-		return "", false, outcome, nil
+	if edited == nil {
+		return "", false, nil
 	}
-	if werr := os.WriteFile(docketYMLAbs, bytes, 0o644); werr != nil {
-		return "", false, outcome, werr
+	if werr := os.WriteFile(abs, edited, 0o644); werr != nil {
+		return "", false, werr
 	}
-	return docketYMLRel, true, outcome, nil
+	return docketYMLRel, true, nil
 }
 
-// testDiscoveryNote renders the operator-facing note for an ambiguous test
-// discovery: it names the candidate families and the remedy so a human resolves
-// the choice. A non-ambiguous outcome has no note.
+// ensureTestPolicyConfig discovers the suite from the primary worktree and
+// writes the generated test-policy edit through writePendingDocketYML,
+// returning the discovery outcome so the caller can report it. A malformed
+// existing config or a probe fault is an error with the file untouched.
+func ensureTestPolicyConfig(primaryWorktree string, cfg config.Effective) (pendingPath string, wrote bool, outcome reposetup.DiscoveryOutcome, err error) {
+	tree := newOSTree(primaryWorktree)
+	pendingPath, wrote, err = writePendingDocketYML(primaryWorktree, func(existing []byte) ([]byte, error) {
+		edited, oc, perr := reposetup.TestPolicyEdit(cfg, existing, tree)
+		outcome = oc
+		return edited, perr
+	})
+	if err != nil {
+		return "", false, reposetup.DiscoveryOutcome{}, err
+	}
+	return pendingPath, wrote, outcome, nil
+}
+
+// ensureExplicitTestCommand writes the explicit-command policy (both gates
+// local, both commands cmd) through writePendingDocketYML. No discovery runs.
+// cmd must already have passed reposetup.ExplicitTestCommand.
+func ensureExplicitTestCommand(primaryWorktree, cmd string) (pendingPath string, wrote bool, err error) {
+	return writePendingDocketYML(primaryWorktree, func(existing []byte) ([]byte, error) {
+		edited, changed, rerr := reposetup.RenderExplicitTestCommandEdit(existing, cmd)
+		if rerr != nil || !changed {
+			return nil, rerr
+		}
+		return edited, nil
+	})
+}
+
+// testDiscoveryNote renders init's operator-facing note for a discovery that
+// wrote no test command: ambiguous names every candidate's command, none says
+// no suite was found. Both point at the --command remedy, which configure-tests
+// admits only from the healthy state, so every remedy here is valid only once
+// init's pending paths are committed — the note says so. A detected or
+// configured outcome has no note.
 func testDiscoveryNote(outcome reposetup.DiscoveryOutcome) string {
-	if outcome.Kind != reposetup.DiscoveryAmbiguous {
-		return ""
+	switch outcome.Kind {
+	case reposetup.DiscoveryAmbiguous:
+		return fmt.Sprintf("test discovery was ambiguous (%s); no test policy was written — after committing the pending paths, run `%s` with the one to use",
+			reposetup.DescribeCandidates(outcome.Candidates), reposetup.ConfigureTestsCommandRemedy)
+	case reposetup.DiscoveryNone:
+		return fmt.Sprintf("no supported test suite was found, so no test command was written and a gate .docket.yml does not set is `off`; after committing the pending paths, run `%s` to set both gates to `local` with your suite command",
+			reposetup.ConfigureTestsCommandRemedy)
 	}
-	fams := make([]string, 0, len(outcome.Candidates))
-	for _, c := range outcome.Candidates {
-		fams = append(fams, c.Family)
-	}
-	return fmt.Sprintf("test discovery was ambiguous (%s); no test policy was written — run `docket repository configure-tests` to choose one",
-		strings.Join(fams, ", "))
+	return ""
 }
 
 // initGuard classifies once and returns the refusal for every state init must

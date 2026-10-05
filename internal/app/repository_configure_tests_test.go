@@ -1,9 +1,11 @@
 package app
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -91,5 +93,128 @@ func TestConfigureTestsGuardRefusesLegacyNamesMigrate(t *testing.T) {
 	}
 	if !strings.Contains(refusal.HumanText(), "docket repository migrate") {
 		t.Errorf("legacy remedy %q must name `docket repository migrate`", refusal.HumanText())
+	}
+}
+func testPolicyCfg(buildGate, buildCmd, finalizeGate, finalizeCmd string) config.Effective {
+	var eff config.Effective
+	eff.Build.Gate = config.Value[string]{Value: buildGate}
+	eff.Build.TestCommand = config.Value[string]{Value: buildCmd}
+	eff.Finalize.Gate = config.Value[string]{Value: finalizeGate}
+	eff.Finalize.TestCommand = config.Value[string]{Value: finalizeCmd}
+	return eff
+}
+
+const alreadyConfiguredText = "already configured"
+
+func TestConfigureTestsDiscoveryTextNoneNamesCommandRemedy(t *testing.T) {
+	got := configureTestsDiscoveryText(reposetup.StateHealthy, false, "",
+		reposetup.DiscoveryOutcome{Kind: reposetup.DiscoveryNone}, testPolicyCfg("off", "", "off", ""))
+	if !strings.Contains(got, "no supported test suite was found") || !strings.Contains(got, reposetup.ConfigureTestsCommandRemedy) {
+		t.Errorf("none text %q must say no suite was found and name %q", got, reposetup.ConfigureTestsCommandRemedy)
+	}
+	if strings.Contains(got, alreadyConfiguredText) {
+		t.Errorf("none text %q must not claim the policy is already configured", got)
+	}
+}
+
+// The none plan is preserve-explicit on gate, so an explicit `local` gate with
+// no command also reaches the none no-op: the text must report the RESOLVED
+// gates, never assume off.
+func TestConfigureTestsDiscoveryTextNoneReportsResolvedGates(t *testing.T) {
+	got := configureTestsDiscoveryText(reposetup.StateHealthy, false, "",
+		reposetup.DiscoveryOutcome{Kind: reposetup.DiscoveryNone}, testPolicyCfg("local", "", "off", ""))
+	if !strings.Contains(got, "build gate `local`") || !strings.Contains(got, "finalize gate `off`") {
+		t.Errorf("none text %q must report the resolved gates (build local, finalize off)", got)
+	}
+}
+
+func TestConfigureTestsDiscoveryTextAmbiguousListsEveryCandidateCommand(t *testing.T) {
+	outcome := reposetup.DiscoveryOutcome{Kind: reposetup.DiscoveryAmbiguous, Candidates: []reposetup.DetectedSuite{
+		{Family: "go", Command: "go test ./..."}, {Family: "rust", Command: "cargo test"},
+	}}
+	got := configureTestsDiscoveryText(reposetup.StateHealthy, false, "", outcome, testPolicyCfg("off", "", "off", ""))
+	for _, want := range []string{"go test ./...", "cargo test", reposetup.ConfigureTestsCommandRemedy} {
+		if !strings.Contains(got, want) {
+			t.Errorf("ambiguous text %q must name %q", got, want)
+		}
+	}
+	if strings.Contains(got, alreadyConfiguredText) {
+		t.Errorf("ambiguous text %q must not claim the policy is already configured", got)
+	}
+}
+
+func TestConfigureTestsDiscoveryTextConfiguredNamesBothCommands(t *testing.T) {
+	got := configureTestsDiscoveryText(reposetup.StateHealthy, false, "",
+		reposetup.DiscoveryOutcome{Kind: reposetup.DiscoveryConfigured}, testPolicyCfg("local", "make a", "local", "make b"))
+	for _, want := range []string{alreadyConfiguredText, "`make a`", "`make b`"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("configured text %q must contain %q", got, want)
+		}
+	}
+	if strings.Contains(got, reposetup.ConfigureTestsCommandRemedy) {
+		t.Errorf("a fully configured pair has no gap; text %q must not name the command remedy", got)
+	}
+}
+
+func TestConfigureTestsDiscoveryTextConfiguredWithGapNamesCommandRemedy(t *testing.T) {
+	got := configureTestsDiscoveryText(reposetup.StateHealthy, false, "",
+		reposetup.DiscoveryOutcome{Kind: reposetup.DiscoveryConfigured}, testPolicyCfg("local", "make a", "local", ""))
+	for _, want := range []string{"finalize.test_command", reposetup.ConfigureTestsCommandRemedy} {
+		if !strings.Contains(got, want) {
+			t.Errorf("configured-with-gap text %q must contain %q", got, want)
+		}
+	}
+}
+
+func TestConfigureTestsDiscoveryTextDetectedNoChangeNamesCommand(t *testing.T) {
+	outcome := reposetup.DiscoveryOutcome{Kind: reposetup.DiscoveryDetected, Command: "go test ./...",
+		Candidates: []reposetup.DetectedSuite{{Family: "go", Command: "go test ./..."}}}
+	got := configureTestsDiscoveryText(reposetup.StateHealthy, false, "", outcome, testPolicyCfg("off", "", "off", ""))
+	if !strings.Contains(got, alreadyConfiguredText) || !strings.Contains(got, "`go test ./...`") {
+		t.Errorf("detected-no-change text %q must say already configured and name the command", got)
+	}
+}
+
+func TestConfigureTestsDiscoveryTextWroteNoneStillNamesRemedy(t *testing.T) {
+	got := configureTestsDiscoveryText(reposetup.StateNeedsReview, true, ".docket.yml",
+		reposetup.DiscoveryOutcome{Kind: reposetup.DiscoveryNone}, testPolicyCfg("", "", "", ""))
+	for _, want := range []string{"review and commit the pending path: .docket.yml", reposetup.ConfigureTestsCommandRemedy} {
+		if !strings.Contains(got, want) {
+			t.Errorf("wrote-none text %q must contain %q", got, want)
+		}
+	}
+}
+
+func TestConfigureTestsExplicitText(t *testing.T) {
+	wrote := configureTestsExplicitText(reposetup.StateNeedsReview, true, ".docket.yml", "sh ./test.sh")
+	for _, want := range []string{"`sh ./test.sh`", "review and commit the pending path: .docket.yml"} {
+		if !strings.Contains(wrote, want) {
+			t.Errorf("explicit wrote text %q must contain %q", wrote, want)
+		}
+	}
+	noop := configureTestsExplicitText(reposetup.StateHealthy, false, "", "sh ./test.sh")
+	for _, want := range []string{"no-op", "`sh ./test.sh`", "nothing to write"} {
+		if !strings.Contains(noop, want) {
+			t.Errorf("explicit no-op text %q must contain %q", noop, want)
+		}
+	}
+}
+
+// Bad input is refused before ANY repository read: the nil Git client would
+// fail the gather if validation ran after it.
+func TestRunRepositoryConfigureTestsRefusesInvalidCommandBeforeGather(t *testing.T) {
+	for _, raw := range []string{"", "   ", "auto"} {
+		v := raw
+		res := RunRepositoryConfigureTests(context.Background(), SetupDeps{}, ConfigureTestsOptions{Command: &v})
+		got, ok := res.(RepositoryOpResult)
+		if !ok {
+			t.Fatalf("result is %T, want RepositoryOpResult", res)
+		}
+		if got.Result != ResultInvalidInput {
+			t.Errorf("--command %q = %q (%s), want invalid-input", raw, got.Result, got.HumanText())
+		}
+		if len(got.PendingPaths) != 0 {
+			t.Errorf("--command %q wrote pending paths %v", raw, got.PendingPaths)
+		}
 	}
 }
