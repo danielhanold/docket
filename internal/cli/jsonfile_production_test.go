@@ -79,7 +79,7 @@ func TestPublishedRequestIsTheDecodedJSONFile(t *testing.T) {
 				published = append(published, f.Key)
 			}
 			sort.Strings(published)
-			if got := requestJSONKeys(b.Request); !reflect.DeepEqual(got, published) {
+			if got := app.RequestJSONKeys(b.Request); !reflect.DeepEqual(got, published) {
 				t.Errorf("operation %q: the decoder accepts keys %v but docket schema publishes %v", id, got, published)
 			}
 		}
@@ -153,7 +153,7 @@ func TestPublishedRequestKeysAreAccepted(t *testing.T) {
 		sample["schema_version"] = 1
 		body, _ = json.Marshal(sample)
 		err := decodeRequest(bytes.NewReader(body), "--input", "-", reflect.New(typ).Interface())
-		accepted := "accepted keys: " + strings.Join(requestJSONKeys(reflect.New(typ).Interface()), ", ")
+		accepted := "accepted keys: " + strings.Join(app.RequestJSONKeys(reflect.New(typ).Interface()), ", ")
 		if err == nil || !strings.Contains(err.Error(), `unknown field "schema_version"`) || !strings.Contains(err.Error(), accepted) {
 			t.Errorf("operation %q: schema_version refusal = %v, want an unknown-field refusal naming %q", op.ID, err, accepted)
 		}
