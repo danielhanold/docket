@@ -9,10 +9,10 @@ created: '2026-10-05'
 updated: '2026-10-05'
 depends_on: []
 stacked_on:
-related: [366, 316, 483]
+related: [366, 316, 483, 336]
 discovered_from: [366]
-adrs: []
-spec:
+adrs: [35]
+spec: 'docs/superpowers/specs/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md'
 plan:
 results:
 trivial: false
@@ -27,20 +27,27 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md) |
+| ADRs | [ADR-0035](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0035-cleanup-teardown-fail-closed.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-The alpha.1 acceptance (change 0366) hit two finalize failures.
+The alpha.1 acceptance (change 0366) hit two finalize failures. Tracing showed both had a different cause than first reported.
 
-1. **Branch-rules API refusal.** The fixture was a private repository on a GitHub plan that doesn't serve the branch-rules API. Finalize's branch-protection check got an error back and stopped before merging. Its only remedies were: make the repository public, upgrade the plan, or merge on GitHub by hand and re-run finalize. A first-time user with a private repository on a free plan would hit the same stop. Docket's direction is that new checks default to visibility-only rather than blocking. Here, an unanswerable probe blocks the merge outright.
-2. **Half-finished cleanup that can't finish.** On this repository, `finalize cleanup` for 0366 returned `pending` / `workspace-blocked`. The workspace directory held an untracked `.DS_Store`, which Finder writes when a folder is browsed. Cleanup had already removed Git's worktree registration and most of the files. It left 36 files and a `.git` pointer to a registration that no longer existed. Re-running cleanup returned `workspace-blocked` again, because the remnant can never look like a clean checkout. The directory and the local and remote branches had to be deleted by hand.
+1. **The merge-method picker stops on a plan without branch rules.** Before merging, finalize reads the repository's allowed merge methods and the base branch's rules to pick rebase, merge commit, or squash (change 0336). On a private repository whose GitHub plan has no branch rules, the rules request returns HTTP 403, "Upgrade to GitHub Pro or make this repository public to enable this feature." 0336 counts any failed read as unknown, so finalize stopped and the human merged by hand. That 403 is really an answer: no rule can restrict the merge on that plan.
+2. **A removal Git started is never finished.** `git worktree remove` passed its own clean check, then failed partway through deleting the folder. Finder writing a `.DS_Store` into it during the delete is the likely cause. Git still removed its registration. Docket read the error as "Git refused" and left its manifest at ready, so every re-run found an unregistered path and stopped as `workspace-blocked`. Because the workspace step never finished, both feature branches were kept too. The folder and both branches had to be deleted by hand. `.DS_Store` itself was gitignored and was not the blocker.
+
+A blocked cleanup also doesn't say what blocked it, which made this hard to diagnose.
 
 ## What changes
 
-- **Branch-rules probe.** When the branch-rules or protection probe can't be answered (not available on the plan, or forbidden), finalize should not stop. It reports the probe as unknown, visibly in its result and the closeout notes, and proceeds with the merge. A probe that answers and actually forbids the merge still stops. Grooming settles exactly which HTTP and API responses count as "unanswerable".
-- **Cleanup.** Decide what cleanup does with untracked, ignorable OS files such as `.DS_Store`, either treating them as clean or removing them. Cleanup should also not end up half-done: either check before removing anything, or recognize and finish its own remnant on a re-run.
+- **Merge picker.** Treat GitHub's plan-gate 403 as "this branch has no rules": pick the method from the repository settings, merge, and record a visible `branch-rules-unavailable` note in the merge result and the closeout notes. Every other failed rules read still stops as unknown.
+- **Cleanup.** When `git worktree remove` fails after Git has already removed its registration, finish deleting the leftover folder, mark the workspace cleaned, and delete the branches as usual. If the folder still can't be deleted, report its path in a `workspace-remnant` warning instead of blocking. A new ADR records this narrow exception to "never delete a folder by path", related to ADR-0035.
+- **Visibility.** The `workspace-blocked` warning names the paths or reasons that blocked it.
 
 ## Out of scope
 
-Other finalize gates. Changing what a real branch-protection rule allows. Workspaces with uncommitted tracked changes, which must still block.
+Other finalize gates, and what a real branch rule allows. Any other unreadable branch-rules response. Ignoring or deleting OS files such as `.DS_Store`. A durable "removing" manifest phase. Workspaces with uncommitted tracked changes, which must still block.
