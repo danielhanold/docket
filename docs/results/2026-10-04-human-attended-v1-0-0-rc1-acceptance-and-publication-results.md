@@ -58,6 +58,10 @@ After finalize, `repository check` called the behind-only `.docket` copy a confl
 
 Daniel dropped 0412 from the notes' known gaps, overriding the spec, and dropped the private-repo merge block.
 
+### The spec's closeout path needed a plan
+
+`change.mark-implemented` requires a linked plan and a reconciled record, but the spec says this change has no plan. A short plan that points at the spec's protocol was added during Phase 6, and the record was reconciled. A later release spec should list both steps.
+
 ### Follow-ups for later
 
 These come from the spec's list; none was minted:
