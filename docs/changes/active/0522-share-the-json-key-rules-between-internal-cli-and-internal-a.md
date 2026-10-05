@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/share-the-json-key-rules-between-internal-cli-and-internal-a'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-05T09:47:42Z'
+reconciled: true
+claimed_at: '2026-10-05T09:49:29Z'
 ---
 
 ## Artifacts
@@ -46,3 +46,9 @@ This is a tidy-up, not a bug fix. The copies agree today. `TestPublishedRequestI
 ## Out of scope
 
 Changing the JSON-key rules themselves, the schema tags, or validator behavior. The `jsonTagName` helper in `internal/repoguard/testexec_boundary_test.go` is test-only and answers a different question (a config field's bare tag, with no field-name fallback), so it stays as is.
+
+## Reconcile log
+
+### 2026-10-05
+
+Re-read against current main (7d2fa3e1a). The duplicate walk still exists: internal/cli/requestkeys.go defines requestJSONKeys (used by change.go unknown-key refusal and jsonfile_production_test.go), and the app-side comments on requiredJSONKeys (schema_tags.go) and reflectFields (schema.go) still point at it. jsonFieldKey from 521 is in place. Scope unchanged; still trivial.
