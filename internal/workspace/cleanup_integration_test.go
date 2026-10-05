@@ -6,10 +6,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestIntegrationWorkspaceLifecycleCleanupReadyClean proves a ready + clean workspace is removed: the
@@ -451,4 +453,259 @@ func assertReadyManifestKept(t *testing.T, r *wsRepos, repo gitcli.Repository, t
 	if !branchExists(r.Primary, "feat/"+prepSlug) {
 		t.Errorf("feat branch deleted; must be preserved")
 	}
+}
+
+// requireNonRoot skips a permission-driven removal-failure test as root, where
+// a 0555 directory does not stop an unlink.
+func requireNonRoot(t *testing.T) {
+	t.Helper()
+	if os.Geteuid() == 0 {
+		t.Skip("permission-based removal failure needs a non-root user")
+	}
+}
+
+// lockIgnoredDir makes Git's delete of ws fail part-way, the way the 2026-10-05
+// reproduction did: an ignored (so clean-check-invisible) directory "locked"
+// holding one file, made read-only so its entry cannot be unlinked. The
+// directory is made writable again at test end so the temp tree can be removed.
+func lockIgnoredDir(t *testing.T, commonDir, ws string) string {
+	t.Helper()
+	info := filepath.Join(commonDir, "info")
+	if err := os.MkdirAll(info, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ex, err := os.OpenFile(filepath.Join(info, "exclude"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ex.WriteString("\nlocked/\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ex.Close(); err != nil {
+		t.Fatal(err)
+	}
+	locked := filepath.Join(ws, "locked")
+	writeWorktreeFile(t, ws, "locked/keep", "ignored bytes\n")
+	if err := os.Chmod(locked, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	return locked
+}
+
+// writeRemoveHookGit writes a wrapper "git" that runs pre before and post after
+// a real `git worktree remove` (with $last bound to the removed path, and the
+// real exit status preserved), and runs list before any `git worktree list`.
+// Every other invocation execs the real git. The scripts are POSIX sh.
+func writeRemoveHookGit(t *testing.T, pre, post, list string) string {
+	t.Helper()
+	dir := testsupport.TempDir(t)
+	p := filepath.Join(dir, "git")
+	script := "#!/bin/sh\n" +
+		"if [ \"$1\" = \"worktree\" ] && [ \"$2\" = \"remove\" ]; then\n" +
+		"  for a; do last=$a; done\n" +
+		"  " + pre + "\n" +
+		"  git \"$@\"; rc=$?\n" +
+		"  " + post + "\n" +
+		"  exit $rc\n" +
+		"fi\n" +
+		"if [ \"$1\" = \"worktree\" ] && [ \"$2\" = \"list\" ]; then\n" +
+		"  " + list + "\n" +
+		"fi\n" +
+		"exec git \"$@\"\n"
+	if err := os.WriteFile(p, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// serviceWithGit builds a Service over exe while reusing an already-discovered
+// repo (discovery must not run through a faulting wrapper).
+func serviceWithGit(t *testing.T, exe string) *Service {
+	t.Helper()
+	c, err := gitcli.NewClient(gitcli.WithExecutable(exe))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	svc, err := NewService(c)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	return svc
+}
+
+// assertCleanedTombstone asserts the manifest advanced to the cleaned phase.
+func assertCleanedTombstone(t *testing.T, repo gitcli.Repository, tgt Target) {
+	t.Helper()
+	m, present, err := loadManifest(metaDirOf(repo, tgt))
+	if err != nil || !present || m.Phase != PhaseCleaned {
+		t.Fatalf("manifest present=%v phase=%v err=%v; want cleaned tombstone", present, m.Phase, err)
+	}
+}
+
+// TestIntegrationWorkspaceLifecycleCleanupFinishesStartedRemoval: Git passes its
+// clean check, removes the registration, then fails part-way through the delete
+// (the wrapper makes the locked directory deletable again right after). Docket
+// finishes the delete: folder gone, manifest cleaned, no remnant, branch kept.
+func TestIntegrationWorkspaceLifecycleCleanupFinishesStartedRemoval(t *testing.T) {
+	requireNonRoot(t)
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	prepareOK(t, svc, repo, tgt)
+	ws := wsPathOf(repo)
+	lockIgnoredDir(t, repo.CommonDir, ws)
+
+	exe := writeRemoveHookGit(t, ":", "chmod 0755 \"$last/locked\"", ":")
+	res := cleanupOK(t, serviceWithGit(t, exe), repo, tgt)
+
+	if res.Disposition != CleanupCleaned || res.Remnant != "" {
+		t.Fatalf("got disposition %q remnant %q; want cleaned with no remnant", res.Disposition, res.Remnant)
+	}
+	if _, err := os.Lstat(ws); !os.IsNotExist(err) {
+		t.Fatalf("workspace dir Lstat err = %v; want removed", err)
+	}
+	if registeredLine(gitOut(t, r.Primary, "worktree", "list", "--porcelain"), ws) {
+		t.Fatal("worktree still registered")
+	}
+	assertCleanedTombstone(t, repo, tgt)
+	if !branchExists(r.Primary, "feat/"+prepSlug) {
+		t.Fatal("feat branch deleted; cleanup never deletes a branch")
+	}
+}
+
+// TestIntegrationWorkspaceLifecycleCleanupRemnantWhenFinishFails: Git started the
+// delete and failed; Docket's finish fails on the same locked directory. The
+// manifest is still cleaned and the result is cleaned with Remnant = the path.
+func TestIntegrationWorkspaceLifecycleCleanupRemnantWhenFinishFails(t *testing.T) {
+	requireNonRoot(t)
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	prepareOK(t, svc, repo, tgt)
+	ws := wsPathOf(repo)
+	lockIgnoredDir(t, repo.CommonDir, ws)
+
+	res := cleanupOK(t, svc, repo, tgt)
+
+	if res.Disposition != CleanupCleaned {
+		t.Fatalf("disposition = %q; want cleaned", res.Disposition)
+	}
+	if res.Remnant != ws {
+		t.Fatalf("remnant = %q; want %q", res.Remnant, ws)
+	}
+	if _, err := os.Lstat(filepath.Join(ws, "locked", "keep")); err != nil {
+		t.Fatalf("the undeletable leftover should remain: %v", err)
+	}
+	if registeredLine(gitOut(t, r.Primary, "worktree", "list", "--porcelain"), ws) {
+		t.Fatal("worktree still registered")
+	}
+	assertCleanedTombstone(t, repo, tgt)
+}
+
+// TestIntegrationWorkspaceLifecycleCleanupRemnantIgnoresUnrelatedStaleRegistration:
+// an unrelated prunable registration (directory deleted, still registered)
+// does not stop the finish — the registration check keys on this path and the
+// feature ref, never on every registration resolving.
+func TestIntegrationWorkspaceLifecycleCleanupRemnantIgnoresUnrelatedStaleRegistration(t *testing.T) {
+	requireNonRoot(t)
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	prepareOK(t, svc, repo, tgt)
+	ws := wsPathOf(repo)
+	prunable := filepath.Join(repo.PrimaryWorktree, ".worktrees", "prunable")
+	gitOut(t, r.Primary, "worktree", "add", "-b", "feat/prunable", prunable, "main")
+	if err := os.RemoveAll(prunable); err != nil {
+		t.Fatal(err)
+	}
+	lockIgnoredDir(t, repo.CommonDir, ws)
+
+	exe := writeRemoveHookGit(t, ":", "chmod 0755 \"$last/locked\"", ":")
+	res := cleanupOK(t, serviceWithGit(t, exe), repo, tgt)
+
+	if res.Disposition != CleanupCleaned || res.Remnant != "" {
+		t.Fatalf("got disposition %q remnant %q (blocked by %v); want cleaned", res.Disposition, res.Remnant, res.BlockedBy)
+	}
+	if _, err := os.Lstat(ws); !os.IsNotExist(err) {
+		t.Fatalf("workspace dir Lstat err = %v; want removed", err)
+	}
+	if !registeredLine(gitOut(t, r.Primary, "worktree", "list", "--porcelain"), prunable) {
+		t.Fatal("the unrelated prunable registration disappeared; cleanup must never prune")
+	}
+}
+
+// TestIntegrationWorkspaceLifecycleCleanupGitRefusalStillBlocked: an untracked
+// file appears after Docket's own clean check (the wrapper writes it just
+// before the real removal). Git refuses with the path still registered: the
+// result is blocked with the refusal reason, nothing is deleted, the manifest
+// stays ready.
+func TestIntegrationWorkspaceLifecycleCleanupGitRefusalStillBlocked(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	prepareOK(t, svc, repo, tgt)
+	ws := wsPathOf(repo)
+	tracked := readFileBytes(t, filepath.Join(ws, "main.go"))
+
+	exe := writeRemoveHookGit(t, "printf 'late\\n' > \"$last/late-untracked.txt\"", ":", ":")
+	res := cleanupOK(t, serviceWithGit(t, exe), repo, tgt)
+
+	if res.Disposition != CleanupBlocked {
+		t.Fatalf("disposition = %q; want blocked", res.Disposition)
+	}
+	if !slicesContains(res.BlockedBy, "git refused the non-forcing removal") {
+		t.Fatalf("BlockedBy = %v; want the refusal reason", res.BlockedBy)
+	}
+	if !containsWorktreePath(t, gitOut(t, r.Primary, "worktree", "list", "--porcelain"), ws) {
+		t.Fatal("registration removed; a refusal must leave it")
+	}
+	if got := readFileBytes(t, filepath.Join(ws, "main.go")); got != tracked {
+		t.Fatal("tracked file changed")
+	}
+	if _, err := os.Lstat(filepath.Join(ws, "late-untracked.txt")); err != nil {
+		t.Fatalf("the late untracked file must survive: %v", err)
+	}
+	assertReadyManifestKept(t, r, repo, tgt)
+}
+
+// TestIntegrationWorkspaceLifecycleCleanupRelistErrorDeletesNothing: Git half-
+// removes, then the re-list fails. A probe error is never absence: the result
+// is a failed error, Docket deletes nothing (the wrapper made the folder fully
+// deletable, so a wrongful RemoveAll would empty it), and the manifest stays
+// ready.
+func TestIntegrationWorkspaceLifecycleCleanupRelistErrorDeletesNothing(t *testing.T) {
+	requireNonRoot(t)
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	prepareOK(t, svc, repo, tgt)
+	ws := wsPathOf(repo)
+	lockIgnoredDir(t, repo.CommonDir, ws)
+
+	marker := filepath.Join(testsupport.TempDir(t), "removed")
+	exe := writeRemoveHookGit(t, ":",
+		"chmod 0755 \"$last/locked\"; : > '"+marker+"'",
+		"if [ -f '"+marker+"' ]; then echo 'fake git: list disabled' >&2; exit 1; fi")
+	res, err := serviceWithGit(t, exe).Cleanup(context.Background(), CleanupRequest{Repository: repo, Target: tgt})
+
+	if err == nil || res.Disposition != CleanupFailed {
+		t.Fatalf("got disposition %q err %v; want failed with an error", res.Disposition, err)
+	}
+	if _, err := os.Lstat(filepath.Join(ws, "locked", "keep")); err != nil {
+		t.Fatalf("Docket deleted the leftover after a failed re-list: %v", err)
+	}
+	if m, present, err := loadManifest(metaDirOf(repo, tgt)); err != nil || !present || m.Phase != PhaseReady {
+		t.Fatalf("manifest present=%v phase=%v err=%v; want ready", present, m.Phase, err)
+	}
+}
+
+// slicesContains reports whether any element of xs contains sub.
+func slicesContains(xs []string, sub string) bool {
+	for _, x := range xs {
+		if strings.Contains(x, sub) {
+			return true
+		}
+	}
+	return false
 }
