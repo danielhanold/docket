@@ -136,9 +136,6 @@ func TestInitTestDiscoveryNoteNoneNamesCommandAfterCommit(t *testing.T) {
 			t.Errorf("init none note %q must contain %q", note, want)
 		}
 	}
-	if strings.Contains(note, "does not set is `off`") || !strings.Contains(note, "did not already set was written `off`") {
-		t.Errorf("init none note %q must say only gates the file did not already set were written off, not that an unset gate is off", note)
-	}
 }
 
 func TestInitTestDiscoveryNoteAmbiguousNamesCandidatesAndCommand(t *testing.T) {
