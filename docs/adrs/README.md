@@ -123,6 +123,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0137](0137-the-publish-journal-blocks-only-on-a-publisher-that-may-stil.md) — The publish journal blocks only on a publisher that may still be running (Accepted) ← change #494 · relates to ADR-0118, ADR-0124, ADR-0132, ADR-0133, ADR-0134
 - [ADR-0138](0138-a-published-request-schema-is-exactly-the-json-file-an-opera.md) — A published request schema is exactly the JSON file an operation decodes (Accepted) ← change #520 · relates to ADR-0109
 - [ADR-0139](0139-finalize-adds-no-human-gate-of-its-own.md) — Finalize adds no human gate of its own (Accepted) ← change #515 · relates to ADR-0010, ADR-0011, ADR-0043, ADR-0008
+- [ADR-0140](0140-cleanup-finishes-a-worktree-removal-git-already-committed-to.md) — Cleanup finishes a worktree removal Git already committed to (Accepted) ← change #525 · relates to ADR-0035
 
 ## Superseded / Reversed
 
