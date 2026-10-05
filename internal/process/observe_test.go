@@ -1,9 +1,12 @@
 package process
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -36,6 +39,37 @@ func observeUntilTerminal(t *testing.T, svc *Service, runDir string) *Observatio
 	return obs
 }
 
+// describeStuckRun reports what was still stuck when a kill-then-wait-for-gone
+// test's wait expired: the last Observe state and error, whether the killed
+// group and its supervisor still have live members (zero-signal probes), and
+// whether live.lock is still held. Every probe keeps its three-way answer;
+// "unknown" is never folded into "absent". A pid or pgid <= 1 is not probed
+// (kill(0, 0) would address the caller's own group) and reads "unknown".
+func describeStuckRun(runDir string, m *manifestRecord, last *Observation, lastErr error) string {
+	state := "<none>"
+	if last != nil {
+		state = string(last.State)
+	}
+	errText := "<none>"
+	if lastErr != nil {
+		errText = lastErr.Error()
+	}
+	supervisor := probeUnknown
+	if m.SupervisorPID > 1 {
+		supervisor = processAlive(m.SupervisorPID)
+	}
+	held, ans := probeFlock(filepath.Join(runDir, liveLockFile))
+	lock := "free"
+	switch {
+	case ans == probeUnknown:
+		lock = "unknown"
+	case held:
+		lock = "held"
+	}
+	return fmt.Sprintf("last observe state=%s err=%s; group %d: %v; supervisor pid %d: %v; live.lock: %s",
+		state, errText, m.PGID, groupAlive(m.PGID), m.SupervisorPID, supervisor, lock)
+}
+
 func TestObserveRunningThenTerminal(t *testing.T) {
 	svc := newTestService(t)
 	out := launchHelper(t, svc, testsupport.TempDir(t), "sleep")
@@ -46,17 +80,29 @@ func TestObserveRunningThenTerminal(t *testing.T) {
 	if obs.StdoutLog == "" || obs.StderrLog == "" {
 		t.Fatalf("log paths missing from observation")
 	}
-	m, _ := readManifest(out.RunDir)
-	signalGroup(m.PGID, syscall_SIGKILL())
+	m, err := readManifest(out.RunDir)
+	if err != nil {
+		t.Fatalf("readManifest: %v", err)
+	}
+	if err := signalGroup(m.PGID, syscall_SIGKILL()); err != nil {
+		t.Fatalf("SIGKILL group %d: %v", m.PGID, err)
+	}
 	// Supervisor dies with the child under KILL: no terminal record can
-	// exist, no stop intent was recorded -> vanished.
-	waitFor(t, "vanished", 30*time.Second, func() bool {
-		o, oerr := svc.Observe(out.RunDir)
-		if oerr != nil {
-			return false // lock release can race; keep polling
+	// exist, no stop intent was recorded -> vanished. An Observe error while
+	// polling is kept (lock release can race) and reported if the wait expires.
+	var last *Observation
+	var lastErr error
+	end := time.Now().Add(30 * time.Second)
+	for {
+		last, lastErr = svc.Observe(out.RunDir)
+		if lastErr == nil && last.State == StateVanished {
+			return
 		}
-		return o.State == StateVanished
-	})
+		if time.Now().After(end) {
+			t.Fatalf("timed out waiting for vanished: %s", describeStuckRun(out.RunDir, m, last, lastErr))
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 }
 
 func TestObserveExitStates(t *testing.T) {
@@ -143,4 +189,50 @@ func TestObservePostProbeTerminalRaceWins(t *testing.T) {
 	if obs.State != StatePassed {
 		t.Fatalf("post-probe terminal race lost: state = %v, want passed", obs.State)
 	}
+}
+
+// TestDescribeStuckRunNamesEveryProbe pins the report's shape when nothing is
+// provable: no observation ever succeeded, the manifest names no real group or
+// supervisor, and no lock file exists. Unprovable probes must read "unknown",
+// never "absent", and a nil observation must not panic.
+func TestDescribeStuckRunNamesEveryProbe(t *testing.T) {
+	dir := testsupport.TempDir(t)
+	m := &manifestRecord{PGID: 0, SupervisorPID: 0}
+	got := describeStuckRun(dir, m, nil, errors.New("boom"))
+	for _, want := range []string{
+		"state=<none>",
+		"err=boom",
+		"group 0: unknown",
+		"supervisor pid 0: unknown",
+		"live.lock: free",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("report %q missing %q", got, want)
+		}
+	}
+}
+
+// TestDescribeStuckRunReportsLiveRun pins the report against a real, still
+// running run: the group and supervisor are live and live.lock is held.
+func TestDescribeStuckRunReportsLiveRun(t *testing.T) {
+	svc := newTestService(t)
+	out := launchHelper(t, svc, testsupport.TempDir(t), "sleep")
+	m, err := readManifest(out.RunDir)
+	if err != nil {
+		t.Fatalf("readManifest: %v", err)
+	}
+	obs, oerr := svc.Observe(out.RunDir)
+	got := describeStuckRun(out.RunDir, m, obs, oerr)
+	for _, want := range []string{
+		"state=running",
+		"err=<none>",
+		fmt.Sprintf("group %d: live", m.PGID),
+		fmt.Sprintf("supervisor pid %d: live", m.SupervisorPID),
+		"live.lock: held",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("report %q missing %q", got, want)
+		}
+	}
+	// Teardown: launchHelperReq's drain (quiesceRun) kills the still-running group.
 }
