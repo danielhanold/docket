@@ -1,0 +1,49 @@
+---
+id: 529
+slug: 'repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc'
+title: 'Repoint a merged PR''s change backlink when the change is archived'
+status: 'proposed'
+priority: 'medium'
+type: 'fix'
+created: '2026-10-05'
+updated: '2026-10-05'
+depends_on: []
+stacked_on:
+related: [337, 417]
+discovered_from: []
+adrs: []
+spec:
+plan:
+results:
+trivial: false
+auto_groomable:
+branch_prefix:
+branch:
+pr:
+blocked_by:
+reconciled: false
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+Every PR docket opens starts with a `↩ Change NNNN — title` link to the change record at `docs/changes/active/<id>-<slug>.md` on the `docket` branch. When the change closes out, the record moves to `docs/changes/archive/<date>-<id>-<slug>.md`, and nothing updates the PR description. Every merged PR's link to its change is therefore dead. Example: PR #250 links to `active/0363-…`, but change 0363 was archived on 2026-08-29.
+
+Roughly 250 merged PRs in this repository carry a dead link today, and every future merge adds one more.
+
+## What changes
+
+- When close-out archives a change, it edits the merged PR's description so the backlink points at the archive path. This is a GitHub edit, not a git push. A failed edit is retried by the maintenance sweep, the same way other best-effort close-out legs are.
+- A one-time repair, previewed first and run only after a human confirms, fixes the existing merged PRs whose backlink still points at an `active/` path that no longer exists.
+- Living docs describing the PR backlink are corrected only where they would otherwise be wrong.
+
+## Out of scope
+
+- Moving plan, results, or build evidence (a separate change in this series).
+- Changing the backlink's wording or adding new links to the PR description.
+- PRs of changes killed before they merged.
+- Private-visibility repositories, whose PRs carry no backlink at all (a separate change in this series).
