@@ -2,7 +2,7 @@
 id: 507
 slug: 'flaky-tests-track-and-stabilize-intermittent-suite-failures'
 title: 'Fix the observe-test hang and bring two test files back under their time limits'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/flaky-tests-track-and-stabilize-intermittent-suite-failures'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/396'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-05T15:08:40Z'

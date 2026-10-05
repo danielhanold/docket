@@ -1,12 +1,12 @@
 # Backlog
 
-**526 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 4 proposed · ⚪ 14 deferred · ✅ 366 done · 🗑️ 139 killed
+**526 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 4 proposed · ⚪ 14 deferred · ✅ 366 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0507](active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Fix the observe-test hang and bring two test files back under their time limits | `low` | `fix` | [spec](../superpowers/specs/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-design.md) | `fix/flaky-tests-track-and-stabilize-intermittent-suite-failures` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0507](active/0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Fix the observe-test hang and bring two test files back under their time limits | `low` | `fix` | [#396](https://github.com/danielhanold/docket/pull/396) | awaiting merge |
 
 ## 🟣 Groomed (2)
 
