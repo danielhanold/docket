@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0526](active/0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md) | `fix/repository-init-writes-gate-off-and-configure-tests-then-ref` | run halted — needs you |
+| [0526](active/0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md) | `fix/repository-init-writes-gate-off-and-configure-tests-then-ref` |  |
 
 ## 🟣 Groomed (3)
 
