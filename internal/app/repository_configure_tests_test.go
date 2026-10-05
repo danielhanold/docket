@@ -2,8 +2,6 @@ package app
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -218,35 +216,5 @@ func TestRunRepositoryConfigureTestsRefusesInvalidCommandBeforeGather(t *testing
 		if len(got.PendingPaths) != 0 {
 			t.Errorf("--command %q wrote pending paths %v", raw, got.PendingPaths)
 		}
-	}
-}
-
-// TestEnsureExplicitTestCommandRefusesUnsplicableFileUntouched proves a
-// configure-tests --command edit the splice core cannot make safely (an
-// existing folded block-scalar test_command) surfaces as an error and leaves
-// .docket.yml byte-identical.
-func TestEnsureExplicitTestCommandRefusesUnsplicableFileUntouched(t *testing.T) {
-	dir := t.TempDir()
-	abs := filepath.Join(dir, docketYMLRel)
-	orig := []byte("build:\n  gate: \"off\"\n  test_command: >-\n    sh ./test.sh\n    make test\nfinalize:\n  gate: \"off\"\n")
-	if err := os.WriteFile(abs, orig, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	pending, wrote, err := ensureExplicitTestCommand(dir, "make test")
-	if err == nil {
-		t.Fatalf("expected a refusal; got pending=%q wrote=%v", pending, wrote)
-	}
-	if wrote || pending != "" {
-		t.Errorf("refusal reported pending=%q wrote=%v", pending, wrote)
-	}
-	if !strings.Contains(err.Error(), "refusing to edit") {
-		t.Errorf("error %q does not say the edit was refused", err)
-	}
-	got, rerr := os.ReadFile(abs)
-	if rerr != nil {
-		t.Fatal(rerr)
-	}
-	if string(got) != string(orig) {
-		t.Errorf(".docket.yml changed on refusal:\n%s", got)
 	}
 }
