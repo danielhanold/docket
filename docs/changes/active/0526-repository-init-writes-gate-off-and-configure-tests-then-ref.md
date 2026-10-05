@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/repository-init-writes-gate-off-and-configure-tests-then-ref'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-05T11:04:58Z'
+reconciled: true
+claimed_at: '2026-10-05T11:06:42Z'
 ---
 
 ## Artifacts
@@ -53,3 +53,9 @@ The real cause: `configure-tests` takes no input. It only re-runs init's suite d
 - No per-gate command flags. Different build and finalize commands stay a hand edit. No `--command` on `init` or `migrate`.
 - Gate semantics, build evidence, and the `test-config-missing` check finding are unchanged.
 - configure-tests refusing a repository whose `.docket` copy is only behind (change 0523).
+
+## Reconcile log
+
+### 2026-10-05
+
+Reconciled against origin/main 19206a65d. Traced premises still hold: configure-tests takes only --repo-dir and emits one generic "already configured; nothing to write" message (internal/app/repository_configure_tests.go), init's ambiguous note still points at plain configure-tests (internal/app/repository_init.go testDiscoveryNote), ConfigureTestsGapNote still prescribes a hand edit, and AmbiguousTestDiscoveryError still names configure-tests. No overlapping work landed (0523/0524 do not touch the planner). Scope unchanged.
