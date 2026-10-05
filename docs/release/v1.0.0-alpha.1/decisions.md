@@ -26,3 +26,13 @@
 - Reason: they differ only by the final newline. The workflow builds `$checksums` with a shell command substitution (`.github/workflows/release-candidate.yml`, `--arg checksums "$checksums"`), which strips trailing newlines. All five bundle digests recomputed and match the manifest; no unmatched lines.
 - Resolution: human (Daniel) accepted as benign on 2026-10-04; candidate kept. No source change.
 - Resumption probe: `git ls-remote origin refs/heads/main` = 49e4af94b838ed11beb7ee32027eb122425632d9.
+
+### STOP 2 — Phase 3, finalize merge blocked on a private repo (2026-10-04)
+
+- Gate: finalize merges the PR itself.
+- Reason: finalize stopped at the branch-protection check (GitHub branch-rules API returns an error for a private repository on a plan without it). The operator merged PR #1 by hand; re-running finalize then archived and cleaned up.
+- Resolution: human (Daniel) classed it as a **known gap** for alpha.1 — a Claude Code path limitation on private repos without the branch-rules API. It goes in the release notes. No source change.
+
+### Observation — Phase 3, change 0523
+
+`docket repository check` reported a clean, behind-only `.docket` worktree as `conflict`. This is the already-tracked change 0523. `docket repository prepare` synced it and the check went `healthy`. Not a new defect.
