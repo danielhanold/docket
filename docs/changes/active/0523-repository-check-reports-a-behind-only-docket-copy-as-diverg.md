@@ -22,7 +22,7 @@ branch: 'fix/repository-check-reports-a-behind-only-docket-copy-as-diverg'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T11:52:38Z'
+claimed_at: '2026-10-05T12:36:28Z'
 ---
 
 ## Artifacts
