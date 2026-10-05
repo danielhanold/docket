@@ -1,14 +1,19 @@
 # Backlog
 
-**526 changes** — 🟢 3 in progress · 🟣 3 groomed · 🟡 4 proposed · ⚪ 14 deferred · ✅ 363 done · 🗑️ 139 killed
+**526 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 4 proposed · ⚪ 14 deferred · ✅ 363 done · 🗑️ 139 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0526](active/0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md) | `fix/repository-init-writes-gate-off-and-configure-tests-then-ref` |  |
-| [0525](active/0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md) | `fix/finalize-stops-on-a-private-repo-without-the-branch-rules-ap` |  |
 | [0523](active/0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) | Treat a behind-only .docket copy as healthy and make prepare fast-forward it in place | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg-design.md) | `fix/repository-check-reports-a-behind-only-docket-copy-as-diverg` | run halted — needs you |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0525](active/0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | `medium` | `fix` | [#393](https://github.com/danielhanold/docket/pull/393) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
