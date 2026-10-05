@@ -2,7 +2,7 @@
 id: 507
 slug: 'flaky-tests-track-and-stabilize-intermittent-suite-failures'
 title: 'Fix the observe-test hang and bring two test files back under their time limits'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'fix/flaky-tests-track-and-stabilize-intermittent-suite-failures'
 pr: 'https://github.com/danielhanold/docket/pull/396'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T15:08:40Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-05T15:08:40Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-design.md) |
-| Plan | [2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures.md](https://github.com/danielhanold/docket/blob/fix/flaky-tests-track-and-stabilize-intermittent-suite-failures/docs/superpowers/plans/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) |
-| Results | [2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-results.md](https://github.com/danielhanold/docket/blob/fix/flaky-tests-track-and-stabilize-intermittent-suite-failures/docs/results/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-results.md) |
+| Plan | [2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) |
+| Results | [2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
