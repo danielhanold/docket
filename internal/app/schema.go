@@ -60,11 +60,11 @@ func reflectDescriptor(prototype any) (TypeDescriptor, error) {
 }
 
 // reflectFields walks a struct type's fields into descriptors, in declaration
-// order. It mirrors requiredJSONKeys / the CLI's requestJSONKeys walk: an
-// embedded struct promotes its fields inline; a `json:"-"` field and an
-// untagged unexported field contribute nothing; an untagged exported field
-// falls back to its Go field name. The docket tag (via Task 4's helpers)
-// supplies Required, Presence, and Enum.
+// order. It walks the same shape as walkJSONKeys (behind RequestJSONKeys and
+// requiredJSONKeys): an embedded struct promotes its fields inline; a
+// `json:"-"` field and an untagged unexported field contribute nothing; an
+// untagged exported field falls back to its Go field name. The docket tag (via
+// Task 4's helpers) supplies Required, Presence, and Enum.
 func reflectFields(t reflect.Type) ([]FieldDescriptor, error) {
 	var out []FieldDescriptor
 	for i := 0; i < t.NumField(); i++ {
