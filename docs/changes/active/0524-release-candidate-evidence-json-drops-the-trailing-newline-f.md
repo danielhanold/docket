@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/release-candidate-evidence-json-drops-the-trailing-newline-f'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-05T09:44:38Z'
+reconciled: true
+claimed_at: '2026-10-05T09:46:17Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ Trivial: there is no design question. No test exercises any workflow step today,
 ## Out of scope
 
 Any other change to the release-candidate workflow or the evidence schema.
+
+## Reconcile log
+
+### 2026-10-05
+
+Re-read against current main (7d2fa3e1a). The `checksums="$(cat candidate-head/checksums.txt)"` line and `--arg checksums "$checksums"` still sit in the summary job's "Assemble the evidence JSON" step; no other change touched them. No test or script references the line. Scope unchanged.
