@@ -235,4 +235,25 @@ func TestLocalMetadataRefusalsMatchPrepare(t *testing.T) {
 			t.Errorf("%s: check %+v != prepare %+v", tc.reason, got[0], *v.finding)
 		}
 	}
+
+	// A dirty worktree, with and without an unfinished Git operation: prepare's
+	// refusal message is check's metadata-worktree-dirty message for the same facts.
+	for _, op := range []bool{false, true} {
+		f := preparableFacts()
+		f.DocketWorktree.Clean = reposetup.PresenceAbsent
+		f.DocketWorktree.UnfinishedOperation = op
+		v := prepareRoute(f)
+		if v.finding == nil {
+			t.Fatalf("dirty (operation=%v): prepare produced no finding", op)
+		}
+		got := reposetup.EvaluateHealth(
+			reposetup.Classification{State: reposetup.StateConflict, Reasons: []string{"metadata-worktree-dirty"}},
+			reposetup.Facts{DocketWorktree: reposetup.WorktreeFact{UnfinishedOperation: op}}, nil)
+		if len(got) != 1 {
+			t.Fatalf("dirty (operation=%v): check findings = %+v", op, got)
+		}
+		if got[0].Code != v.finding.Code || got[0].Message != v.finding.Message {
+			t.Errorf("dirty (operation=%v): check %+v != prepare %+v", op, got[0], *v.finding)
+		}
+	}
 }
