@@ -9,10 +9,10 @@ created: '2026-10-05'
 updated: '2026-10-05'
 depends_on: [530, 531]
 stacked_on:
-related: [529]
+related: [529, 533]
 discovered_from: []
 adrs: [36, 78]
-spec:
+spec: 'docs/superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md) |
 | ADRs | [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
 
