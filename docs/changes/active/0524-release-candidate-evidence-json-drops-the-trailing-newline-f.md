@@ -14,7 +14,7 @@ discovered_from: [366]
 adrs: []
 spec:
 plan: 'docs/superpowers/plans/2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f.md'
-results:
+results: 'docs/results/2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f-results.md'
 trivial: true
 auto_groomable:
 branch_prefix:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-05T09:52:20Z'
 | Artifact | Link |
 |---|---|
 | Plan | [2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f.md](https://github.com/danielhanold/docket/blob/fix/release-candidate-evidence-json-drops-the-trailing-newline-f/docs/superpowers/plans/2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f.md) |
+| Results | [2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f-results.md](https://github.com/danielhanold/docket/blob/fix/release-candidate-evidence-json-drops-the-trailing-newline-f/docs/results/2026-10-05-release-candidate-evidence-json-drops-the-trailing-newline-f-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
