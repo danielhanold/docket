@@ -2,7 +2,7 @@
 id: 526
 slug: 'repository-init-writes-gate-off-and-configure-tests-then-ref'
 title: 'repository configure-tests takes the test command as input'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-05'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/repository-init-writes-gate-off-and-configure-tests-then-ref'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/395'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-05T13:48:09Z'

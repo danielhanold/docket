@@ -1,12 +1,12 @@
 # Backlog
 
-**526 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 4 proposed · ⚪ 14 deferred · ✅ 365 done · 🗑️ 139 killed
+**526 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 4 proposed · ⚪ 14 deferred · ✅ 365 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0526](active/0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md) | `fix/repository-init-writes-gate-off-and-configure-tests-then-ref` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0526](active/0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | `medium` | `fix` | [#395](https://github.com/danielhanold/docket/pull/395) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
