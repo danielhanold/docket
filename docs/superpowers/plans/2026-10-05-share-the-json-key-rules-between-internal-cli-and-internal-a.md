@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0522 — Share the JSON-key rules between internal/cli and internal/app](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0522-share-the-json-key-rules-between-internal-cli-and-internal-a.md)**
+> ↩ **[Change 0522 — Share the JSON-key rules between internal/cli and internal/app](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-05-0522-share-the-json-key-rules-between-internal-cli-and-internal-a.md)**
 <!-- docket:backlink:end -->
 # Share the JSON-key rules between internal/cli and internal/app Implementation Plan
 
