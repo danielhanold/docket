@@ -526,3 +526,48 @@ func TestRepositoryRepairInteractiveNoPromptWithoutConfirmation(t *testing.T) {
 		t.Errorf("a no-op preview must not prompt; stdout:\n%s", out)
 	}
 }
+
+// TestRepositoryConfigureTestsCommandFlagFlows proves --command reaches the app
+// options as a non-nil pointer whenever the flag is PASSED, including the empty
+// value (which the app must refuse, not mistake for "absent"), and stays nil
+// when it is not passed.
+func TestRepositoryConfigureTestsCommandFlagFlows(t *testing.T) {
+	tmp := testsupport.TempDir(t)
+	var got app.ConfigureTestsOptions
+	old := repositoryConfigureTestsRunner
+	repositoryConfigureTestsRunner = func(ctx context.Context, d app.SetupDeps, o app.ConfigureTestsOptions) app.OperationResult {
+		got = o
+		return fakeSyncResult{Envelope: app.NewEnvelope("repository.configure-tests", app.ResultNoOp)}
+	}
+	defer func() { repositoryConfigureTestsRunner = old }()
+
+	if _, _, code := runCLI(t, "repository", "configure-tests", "--repo-dir", tmp, "--command", "sh ./test.sh"); code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if got.Command == nil || *got.Command != "sh ./test.sh" {
+		t.Fatalf("Command = %v, want pointer to %q", got.Command, "sh ./test.sh")
+	}
+
+	got = app.ConfigureTestsOptions{}
+	if _, _, code := runCLI(t, "repository", "configure-tests", "--repo-dir", tmp, "--command", ""); code != 0 {
+		t.Fatalf("exit = %d, want 0 (the stubbed runner decides)", code)
+	}
+	if got.Command == nil || *got.Command != "" {
+		t.Fatalf("an explicit empty --command must arrive as a non-nil empty pointer, got %v", got.Command)
+	}
+
+	got = app.ConfigureTestsOptions{Command: new(string)}
+	if _, _, code := runCLI(t, "repository", "configure-tests", "--repo-dir", tmp); code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if got.Command != nil {
+		t.Fatalf("no --command must arrive as nil (run discovery), got %q", *got.Command)
+	}
+}
+
+func TestRepositoryConfigureTestsHelpNamesCommandFlag(t *testing.T) {
+	out, _, _ := runCLI(t, "repository", "configure-tests", "--help")
+	if !strings.Contains(out, "--command") {
+		t.Errorf("configure-tests --help must document --command:\n%s", out)
+	}
+}

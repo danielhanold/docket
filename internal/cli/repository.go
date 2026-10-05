@@ -45,8 +45,8 @@ var (
 	repositoryPrepareRunner = func(ctx context.Context, d app.SetupDeps, o app.PrepareOptions) app.OperationResult {
 		return app.RunRepositoryPrepare(ctx, d, o)
 	}
-	repositoryConfigureTestsRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
-		return app.RunRepositoryConfigureTests(ctx, d)
+	repositoryConfigureTestsRunner = func(ctx context.Context, d app.SetupDeps, o app.ConfigureTestsOptions) app.OperationResult {
+		return app.RunRepositoryConfigureTests(ctx, d, o)
 	}
 	repositorySyncIntegrationRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
 		return app.RunRepositorySyncIntegration(ctx, d)
@@ -112,11 +112,20 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 	configureTestsCmd := repositorySubcommand("configure-tests",
 		"Generate the pending .docket.yml build/finalize test policy for an already-initialized repository",
 		func(c *cobra.Command, deps app.SetupDeps) {
-			setResult(repositoryConfigureTestsRunner(c.Context(), deps))
+			// Changed, not the value: an explicit empty --command must reach the
+			// app (which refuses it), never read as "run discovery".
+			var o app.ConfigureTestsOptions
+			if c.Flags().Changed("command") {
+				v, _ := c.Flags().GetString("command")
+				o.Command = &v
+			}
+			setResult(repositoryConfigureTestsRunner(c.Context(), deps, o))
 		},
 		// local-write: (re)generates the pending, unstaged .docket.yml edit —
 		// never commits, never stages.
 		EffectLocalWrite)
+	configureTestsCmd.Flags().String("command", "",
+		"suite `command` to set as both build.test_command and finalize.test_command with both gates local (skips discovery)")
 
 	syncIntegrationCmd := repositorySubcommand("sync-integration",
 		"Fast-forward the primary checkout to the freshly fetched integration tip when it is safe (explicit skips otherwise)",

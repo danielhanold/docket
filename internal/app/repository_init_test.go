@@ -129,3 +129,28 @@ func TestRepositoryOpResultHumanTextNamesPendingPaths(t *testing.T) {
 		}
 	}
 }
+func TestInitTestDiscoveryNoteNoneNamesCommandAfterCommit(t *testing.T) {
+	note := testDiscoveryNote(reposetup.DiscoveryOutcome{Kind: reposetup.DiscoveryNone})
+	for _, want := range []string{"no supported test suite was found", "after committing the pending paths", reposetup.ConfigureTestsCommandRemedy} {
+		if !strings.Contains(note, want) {
+			t.Errorf("init none note %q must contain %q", note, want)
+		}
+	}
+}
+
+func TestInitTestDiscoveryNoteAmbiguousNamesCandidatesAndCommand(t *testing.T) {
+	note := testDiscoveryNote(reposetup.DiscoveryOutcome{Kind: reposetup.DiscoveryAmbiguous, Candidates: []reposetup.DetectedSuite{
+		{Family: "go", Command: "go test ./..."}, {Family: "rust", Command: "cargo test"},
+	}})
+	for _, want := range []string{"go test ./...", "cargo test", "after committing the pending paths", reposetup.ConfigureTestsCommandRemedy} {
+		if !strings.Contains(note, want) {
+			t.Errorf("init ambiguous note %q must contain %q", note, want)
+		}
+	}
+}
+
+func TestInitTestDiscoveryNoteDetectedIsEmpty(t *testing.T) {
+	if note := testDiscoveryNote(reposetup.DiscoveryOutcome{Kind: reposetup.DiscoveryDetected, Command: "make test"}); note != "" {
+		t.Errorf("a detected outcome needs no note, got %q", note)
+	}
+}
