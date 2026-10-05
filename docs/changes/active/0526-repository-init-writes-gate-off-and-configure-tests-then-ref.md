@@ -13,7 +13,7 @@ related: [366, 352, 374, 523, 512]
 discovered_from: [366]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-05T11:08:00Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md) |
+| Plan | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref.md](https://github.com/danielhanold/docket/blob/fix/repository-init-writes-gate-off-and-configure-tests-then-ref/docs/superpowers/plans/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
