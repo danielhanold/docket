@@ -14,7 +14,7 @@ discovered_from: [504, 506, 520, 517]
 adrs: [108]
 spec: 'docs/superpowers/specs/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-design.md'
 plan: 'docs/superpowers/plans/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures.md'
-results:
+results: 'docs/results/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-05T14:20:47Z'
 |---|---|
 | Spec | [2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-design.md) |
 | Plan | [2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures.md](https://github.com/danielhanold/docket/blob/fix/flaky-tests-track-and-stabilize-intermittent-suite-failures/docs/superpowers/plans/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) |
+| Results | [2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-results.md](https://github.com/danielhanold/docket/blob/fix/flaky-tests-track-and-stabilize-intermittent-suite-failures/docs/results/2026-10-05-flaky-tests-track-and-stabilize-intermittent-suite-failures-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
