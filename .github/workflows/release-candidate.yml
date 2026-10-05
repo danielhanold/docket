@@ -396,7 +396,6 @@ jobs:
           SMOKE_RESULT: ${{ needs.smoke.result }}
         run: |
           set -euo pipefail
-          checksums="$(cat candidate-head/checksums.txt)"
           # Every one of the four tuples must have reported, and every report must say "success".
           expected=(darwin_amd64 darwin_arm64 linux_amd64 linux_arm64)
           missing=()
@@ -420,7 +419,7 @@ jobs:
             --arg commit "$COMMIT" \
             --arg head "$HEAD_VERSION" \
             --arg base "$BASE_VERSION" \
-            --arg checksums "$checksums" \
+            --rawfile checksums candidate-head/checksums.txt \
             --arg smoke_result "$SMOKE_RESULT" \
             --argjson tuples "$verdicts_json" \
             '{
