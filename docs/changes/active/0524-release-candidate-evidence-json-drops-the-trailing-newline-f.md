@@ -2,7 +2,7 @@
 id: 524
 slug: 'release-candidate-evidence-json-drops-the-trailing-newline-f'
 title: 'Release-candidate evidence.json drops the trailing newline from its checksums copy'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-05'
@@ -18,10 +18,11 @@ results:
 trivial: true
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/release-candidate-evidence-json-drops-the-trailing-newline-f'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-05T09:44:38Z'
 ---
 
 ## Artifacts
