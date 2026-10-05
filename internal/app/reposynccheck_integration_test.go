@@ -121,3 +121,28 @@ func TestIntegrationRepoSyncCheckUnfinishedMergeIsDirty(t *testing.T) {
 		t.Fatalf(".docket HEAD moved from %s to %s", headBefore, got)
 	}
 }
+
+func TestIntegrationRepoSyncCheckPrimaryAhead(t *testing.T) {
+	r := newHealthyRepo(t)
+	writeRepoFile(t, r.invocation, "local-only.txt", "unpushed\n")
+	runGit(t, r.invocation, "add", "--", "local-only.txt")
+	runGit(t, r.invocation, "commit", "-q", "-m", "unpushed")
+	got := checkCodes(r.runCheck(t))
+	if !got["primary-ahead-of-remote-tip"] || got["primary-behind-remote-tip"] {
+		t.Fatalf("primary with an unpushed commit: findings %v, want primary-ahead-of-remote-tip only", got)
+	}
+}
+
+func TestIntegrationRepoSyncCheckPrimaryBehind(t *testing.T) {
+	r := newHealthyRepo(t)
+	runGit(t, r.writer, "fetch", "-q", "origin", "main")
+	runGit(t, r.writer, "checkout", "-q", "-B", "main", "origin/main")
+	writeRepoFile(t, r.writer, "remote-only.txt", "remote\n")
+	runGit(t, r.writer, "add", "--", "remote-only.txt")
+	runGit(t, r.writer, "commit", "-q", "-m", "remote advance")
+	runGit(t, r.writer, "push", "-q", "origin", "main")
+	got := checkCodes(r.runCheck(t))
+	if !got["primary-behind-remote-tip"] || got["primary-ahead-of-remote-tip"] {
+		t.Fatalf("primary behind the remote: findings %v, want primary-behind-remote-tip only", got)
+	}
+}

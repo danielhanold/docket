@@ -642,13 +642,31 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 			return nil
 		}
 		if f.PrimaryAtRemoteTip == PresenceAbsent {
-			return &Finding{
-				Code:     "primary-behind-remote-tip",
-				Severity: SeverityError,
-				Message:  "The primary worktree's HEAD does not equal the pinned remote integration tip.",
-				Remedy:   "Fetch and fast-forward the integration branch (e.g. `docket repository sync-integration`), preserving local work, then re-run `docket repository check`.",
+			switch f.PrimaryTipRelation {
+			case SyncBehind:
+				return &Finding{
+					Code:     "primary-behind-remote-tip",
+					Severity: SeverityError,
+					Message:  "The primary worktree's HEAD is behind the pinned remote integration tip.",
+					Remedy:   "Fetch and fast-forward the integration branch (e.g. `docket repository sync-integration`), preserving local work, then re-run `docket repository check`.",
+				}
+			case SyncAhead:
+				return &Finding{
+					Code:     "primary-ahead-of-remote-tip",
+					Severity: SeverityError,
+					Message:  "The primary worktree's HEAD is ahead of the pinned remote integration tip (it carries commits the remote does not).",
+					Remedy:   "Push the local commits (or move them to a branch) yourself, preserving them, then re-run `docket repository check`.",
+				}
+			case SyncDiverged:
+				return &Finding{
+					Code:     "primary-diverged-from-remote-tip",
+					Severity: SeverityError,
+					Message:  "The primary worktree's HEAD has diverged from the pinned remote integration tip.",
+					Remedy:   "Reconcile the primary checkout with the remote integration branch yourself (rebase or merge), preserving local work, then re-run `docket repository check`.",
+				}
 			}
 		}
+		// Unproven position, or HEAD off the tip with an unproven relationship.
 		return &Finding{
 			Code:     "primary-tip-unverified",
 			Severity: SeverityWarning,
