@@ -239,3 +239,64 @@ func appendExclude(t *testing.T, repoDir, pattern string) {
 		t.Fatal(err)
 	}
 }
+
+// TestIntegrationBranchTipInterruptedFastForward pins the probe that tells an
+// interrupted in-place fast-forward (ref swapped, tree not) from every other state.
+func TestIntegrationBranchTipInterruptedFastForward(t *testing.T) {
+	ctx := context.Background()
+	probe := func(t *testing.T, c *Client, wt string) bool {
+		t.Helper()
+		got, err := c.InterruptedFastForward(ctx, wt, "refs/heads/meta")
+		if err != nil {
+			t.Fatalf("InterruptedFastForward: %v", err)
+		}
+		return got
+	}
+
+	t.Run("ref swapped but tree not is interrupted", func(t *testing.T) {
+		_, wt, base, target := newCheckedOutBranchFixture(t)
+		c := newRealClient(t)
+		gitOut(t, wt, "update-ref", "-m", fastForwardReflogMessage, "refs/heads/meta", string(target), string(base))
+		if !probe(t, c, wt) {
+			t.Fatal("interrupted fast-forward read as not interrupted")
+		}
+	})
+
+	t.Run("completed fast-forward is not interrupted", func(t *testing.T) {
+		_, wt, base, target := newCheckedOutBranchFixture(t)
+		c := newRealClient(t)
+		if err := c.FastForwardCheckedOutBranch(ctx, wt, "refs/heads/meta", base, target); err != nil {
+			t.Fatalf("FastForwardCheckedOutBranch: %v", err)
+		}
+		if probe(t, c, wt) {
+			t.Fatal("completed fast-forward read as interrupted")
+		}
+		// A later local edit staged on top is ordinary dirt, not an interruption.
+		writeWorktreeFile(t, wt, "README.md", "local edit\n")
+		gitOut(t, wt, "add", "--", "README.md")
+		if probe(t, c, wt) {
+			t.Fatal("staged edit after a completed fast-forward read as interrupted")
+		}
+	})
+
+	t.Run("rolled-back fast-forward is not interrupted", func(t *testing.T) {
+		_, wt, base, target := newCheckedOutBranchFixture(t)
+		c := newRealClient(t)
+		writeWorktreeFile(t, wt, "target.txt", "mine\n")
+		if err := c.FastForwardCheckedOutBranch(ctx, wt, "refs/heads/meta", base, target); err == nil {
+			t.Fatal("fast-forward over an untracked file succeeded; want refusal")
+		}
+		if probe(t, c, wt) {
+			t.Fatal("rolled-back fast-forward read as interrupted")
+		}
+	})
+
+	t.Run("a ref move by any other writer is not interrupted", func(t *testing.T) {
+		_, wt, base, target := newCheckedOutBranchFixture(t)
+		c := newRealClient(t)
+		gitOut(t, wt, "update-ref", "-m", "someone else", "refs/heads/meta", string(target), string(base))
+		if probe(t, c, wt) {
+			t.Fatal("a foreign ref move read as an interrupted docket fast-forward")
+		}
+	})
+}

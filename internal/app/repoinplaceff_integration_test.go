@@ -206,22 +206,48 @@ func TestIntegrationRepoInPlaceFFIdempotent(t *testing.T) {
 }
 
 // TestIntegrationRepoInPlaceFFInterruptedReadsDirty simulates an interruption after
-// the branch moved but before the tree did: it must read dirty, never clean, and
-// prepare must refuse without removing anything.
+// the branch moved (with the fast-forward's own reflog message) but before the tree
+// did: it must read dirty, never clean, and prepare must refuse without removing
+// anything. Both name the interrupted update and a plain-Git finish, never the
+// generic "Commit" remedy that would record a revert of the remote metadata.
 func TestIntegrationRepoInPlaceFFInterruptedReadsDirty(t *testing.T) {
 	r, oldTip, newTip := newBehindHealthyRepo(t)
 	dot := filepath.Join(r.invocation, ".docket")
 	runGit(t, r.invocation, "fetch", "-q", "origin", "docket")
-	runGit(t, dot, "update-ref", "refs/heads/docket", newTip, oldTip)
+	runGit(t, dot, "update-ref", "-m", "docket: fast-forward", "refs/heads/docket", newTip, oldTip)
 
+	wantInterrupted := func(where string, f reposetup.Finding) {
+		t.Helper()
+		if f.Message != reposetup.InterruptedFastForwardMessage || f.Remedy != reposetup.InterruptedFastForwardRemedy {
+			t.Errorf("%s: dirty finding %+v, want the interrupted fast-forward message and remedy", where, f)
+		}
+		if strings.HasPrefix(f.Remedy, "Commit") || !strings.Contains(f.Remedy, "git -C .docket reset --merge HEAD") {
+			t.Errorf("%s: remedy %q must name the plain-Git finish and never lead with Commit", where, f.Remedy)
+		}
+	}
 	res := r.runCheck(t)
-	if !checkCodes(res)["metadata-worktree-dirty"] {
+	var dirty *reposetup.Finding
+	for i := range res.Findings {
+		if res.Findings[i].Code == "metadata-worktree-dirty" {
+			dirty = &res.Findings[i]
+		}
+	}
+	if dirty == nil {
 		t.Fatalf("interrupted fast-forward: findings %+v, want metadata-worktree-dirty", res.Findings)
 	}
+	wantInterrupted("check", *dirty)
 	pr := runPrepareAt(t, r.invocation)
 	if pr.Disposition != PrepareDispositionRefused {
 		t.Fatalf("prepare = %q, want refused", pr.Disposition)
 	}
+	if len(pr.Findings) != 1 || pr.Findings[0].Code != "metadata-worktree-dirty" {
+		t.Fatalf("prepare findings %+v, want one metadata-worktree-dirty", pr.Findings)
+	}
+	wantInterrupted("prepare", pr.Findings[0])
+
+	// The named remedy really finishes the update: afterwards check is healthy.
+	runGit(t, dot, "reset", "--merge", "HEAD")
+	requireCheckHealthy(t, r)
 	if _, err := os.Stat(dot); err != nil {
 		t.Fatalf(".docket removed: %v", err)
 	}

@@ -212,7 +212,7 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 	// present.
 	if f.DocketWorktree.Presence == reposetup.PresencePresent {
 		worktreeDir := filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName)
-		f.DocketWorktree.Clean, f.DocketWorktree.UnfinishedOperation = worktreeCleanState(ctx, git, worktreeDir)
+		f.DocketWorktree.Clean, f.DocketWorktree.UnfinishedOperation, f.DocketWorktree.InterruptedFastForward = worktreeCleanState(ctx, git, worktreeDir)
 		f.DocketWorktree.HooksOff = hooksOffPresence(ctx, git, worktreeDir)
 	}
 	applyLocalMetadataSync(ctx, git, sc.repo, f)
@@ -268,24 +268,32 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 // prepare both call it). Clean means no uncommitted or untracked change AND no
 // unfinished Git operation (merge, cherry-pick, revert, rebase, am, bisect): a merge
 // whose index equals HEAD lists nothing in `git status`, yet a fast-forward would
-// silently drop its MERGE_HEAD. The bool reports that an unfinished operation is
-// what made it not clean. Any probe error is the safe Unknown.
-func worktreeCleanState(ctx context.Context, git *gitcli.Client, worktreeDir string) (reposetup.Presence, bool) {
+// silently drop its MERGE_HEAD. The bools report what made it not clean: an
+// unfinished operation, or an interrupted in-place fast-forward (branch moved, tree
+// not — its staged changes would undo the remote update, so it must never get the
+// generic "commit" remedy). Any clean-probe error is the safe Unknown; a failed
+// interruption probe on a proven-dirty worktree only drops the specific cause.
+func worktreeCleanState(ctx context.Context, git *gitcli.Client, worktreeDir string) (clean reposetup.Presence, unfinishedOp, interruptedFF bool) {
 	st, err := git.WorktreeCheckoutState(ctx, worktreeDir)
 	if err != nil {
-		return reposetup.PresenceUnknown, false
+		return reposetup.PresenceUnknown, false, false
 	}
 	changes, err := git.ChangedPaths(ctx, worktreeDir)
 	if err != nil {
-		return reposetup.PresenceUnknown, false
+		return reposetup.PresenceUnknown, false, false
 	}
 	if st.OperationInProgress {
-		return reposetup.PresenceAbsent, true
+		return reposetup.PresenceAbsent, true, false
 	}
 	if len(changes) == 0 {
-		return reposetup.PresencePresent, false
+		return reposetup.PresencePresent, false, false
 	}
-	return reposetup.PresenceAbsent, false
+	if !st.Detached {
+		if interrupted, ierr := git.InterruptedFastForward(ctx, worktreeDir, st.Branch); ierr == nil && interrupted {
+			return reposetup.PresenceAbsent, false, true
+		}
+	}
+	return reposetup.PresenceAbsent, false, false
 }
 
 // hooksOffPresence reports whether the .docket worktree's hooks are disabled the

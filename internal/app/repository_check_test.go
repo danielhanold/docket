@@ -256,4 +256,26 @@ func TestLocalMetadataRefusalsMatchPrepare(t *testing.T) {
 			t.Errorf("dirty (operation=%v): check %+v != prepare %+v", op, got[0], *v.finding)
 		}
 	}
+
+	// An interrupted in-place fast-forward: check and prepare carry the same code,
+	// message, AND remedy, and the remedy never invites committing the revert.
+	f := preparableFacts()
+	f.DocketWorktree.Clean = reposetup.PresenceAbsent
+	f.DocketWorktree.InterruptedFastForward = true
+	v := prepareRoute(f, reposetup.PresenceAbsent)
+	if v.finding == nil {
+		t.Fatal("interrupted fast-forward: prepare produced no finding")
+	}
+	got := reposetup.EvaluateHealth(
+		reposetup.Classification{State: reposetup.StateConflict, Reasons: []string{"metadata-worktree-dirty"}},
+		reposetup.Facts{DocketWorktree: reposetup.WorktreeFact{InterruptedFastForward: true}}, nil)
+	if len(got) != 1 {
+		t.Fatalf("interrupted fast-forward: check findings = %+v", got)
+	}
+	if got[0].Code != v.finding.Code || got[0].Message != v.finding.Message || got[0].Remedy != v.finding.Remedy {
+		t.Errorf("interrupted fast-forward: check %+v != prepare %+v", got[0], *v.finding)
+	}
+	if got[0].Message != reposetup.InterruptedFastForwardMessage || got[0].Remedy != reposetup.InterruptedFastForwardRemedy {
+		t.Errorf("interrupted fast-forward: finding %+v, want the interrupted message and remedy", got[0])
+	}
 }
