@@ -253,7 +253,7 @@ func testDiscoveryNote(outcome reposetup.DiscoveryOutcome) string {
 		return fmt.Sprintf("test discovery was ambiguous (%s); no test policy was written — after committing the pending paths, run `%s` with the one to use",
 			reposetup.DescribeCandidates(outcome.Candidates), reposetup.ConfigureTestsCommandRemedy)
 	case reposetup.DiscoveryNone:
-		return fmt.Sprintf("no supported test suite was found, so no test command was written, and any gate .docket.yml did not already set was written `off`; after committing the pending paths, run `%s` to set both gates to `local` with your suite command",
+		return fmt.Sprintf("no supported test suite was found, so no test command was written and a gate .docket.yml does not set is `off`; after committing the pending paths, run `%s` to set both gates to `local` with your suite command",
 			reposetup.ConfigureTestsCommandRemedy)
 	}
 	return ""
