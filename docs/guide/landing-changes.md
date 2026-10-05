@@ -19,7 +19,8 @@ its pull request is approved or merged, `docket-finalize-change`:
 3. pushes the rebased head and updates the build evidence in the pull request
    (`docket finalize publish`);
 4. merges the pull request with the first merge method the repository permits: rebase, then merge
-   commit, then squash;
+   commit, then squash. On a private repository whose GitHub plan has no branch rules, the method
+   comes from the repository settings alone;
 5. marks the change `done` and archives it on the `docket` branch, refreshing the **board** (the
    generated overview of every change and its state, never edited by hand);
 6. cleans up the change's worktree and feature branch.
