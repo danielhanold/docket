@@ -17,3 +17,4 @@ The "Assemble the evidence JSON" step in `.github/workflows/release-candidate.ym
   - A sample with no trailing newline: cmp exit 0, so nothing is added.
 - An independent coordinator check with jq 1.8.2 reproduced the same result: the old `--arg "$(cat …)"` form fails `cmp`, and the `--rawfile` form passes. The ubuntu-24.04 runner ships jq 1.7; `--rawfile` exists since 1.6.
 - The full suite ran through the build gate.
+- Review: the lean-tier whole-branch review returned no findings.
