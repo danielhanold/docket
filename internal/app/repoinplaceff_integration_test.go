@@ -307,3 +307,31 @@ func TestIntegrationRepoInPlaceFFAttachDivergedRefuses(t *testing.T) {
 		t.Fatalf(".docket attached on a refusal (err=%v)", err)
 	}
 }
+
+// TestIntegrationRepoInPlaceFFAttachBehindHeldByRebaseRefuses holds the behind docket
+// branch in another worktree that is mid-rebase, which `git worktree list` reports as
+// detached, so the router's holder probe cannot see it. Git's own checked-out guard
+// must decide before the branch moves: prepare fails, the branch keeps its tip, and
+// .docket is never attached.
+func TestIntegrationRepoInPlaceFFAttachBehindHeldByRebaseRefuses(t *testing.T) {
+	r, oldTip, _ := newBehindHealthyRepo(t)
+	removeDocketWorktree(t, r)
+	other := filepath.Join(testsupport.TempDir(t), "rebasing")
+	runGit(t, r.invocation, "worktree", "add", other, "docket")
+	runGit(t, other, "-c", `sequence.editor=sh -c 'echo break > "$1"' -`, "rebase", "-i", "HEAD")
+	list := runGit(t, r.invocation, "worktree", "list", "--porcelain")
+	if strings.Contains(list, "branch refs/heads/docket") {
+		t.Fatalf("premise: the rebasing worktree is listed on the branch, want detached:\n%s", list)
+	}
+
+	res := runPrepareAt(t, r.invocation)
+	if res.Disposition == PrepareDispositionApplied {
+		t.Fatalf("prepare = applied (%s), want a refusal while another worktree rebases docket", res.HumanText())
+	}
+	if local := runGit(t, r.invocation, "rev-parse", "refs/heads/docket"); local != oldTip {
+		t.Fatalf("local docket = %s, want untouched %s", local, oldTip)
+	}
+	if _, err := os.Stat(filepath.Join(r.invocation, ".docket")); !os.IsNotExist(err) {
+		t.Fatalf(".docket attached on a refusal (err=%v)", err)
+	}
+}

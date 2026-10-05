@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # docket-suite: go
 # tests/test_go_integration_gitcli_branchtip.sh — Go integration shard (change
-# 0333): the gitcli branch-tip movement tests (in-place and unattached
-# compare-and-swap fast-forwards, the checked delete, and the replace-ref-blind
-# ancestry probe that judges them), behind the `integration` build tag, prefix
+# 0333): the gitcli branch-tip movement tests (the in-place compare-and-swap
+# fast-forward, the worktree fast-forward, the checked delete, and the
+# replace-ref-blind ancestry probe that judges them), behind the `integration` build tag, prefix
 # ^TestIntegrationBranchTip. Split out of the gitcli repo shard so neither grows
 # past its runtime budget. Declarations only — execution and inspection live in
 # tests/lib/go-integration-shard.sh; the completeness contract is
