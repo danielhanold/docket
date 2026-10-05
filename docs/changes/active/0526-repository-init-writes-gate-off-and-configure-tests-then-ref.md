@@ -22,7 +22,7 @@ branch: 'fix/repository-init-writes-gate-off-and-configure-tests-then-ref'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-05T11:06:42Z'
+claimed_at: '2026-10-05T11:08:00Z'
 ---
 
 ## Artifacts
