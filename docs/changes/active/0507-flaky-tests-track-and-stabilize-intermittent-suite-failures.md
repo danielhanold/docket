@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/flaky-tests-track-and-stabilize-intermittent-suite-failures'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-05T14:04:51Z'
+reconciled: true
+claimed_at: '2026-10-05T14:07:40Z'
 ---
 
 ## Artifacts
@@ -59,3 +59,9 @@ Detail, measurement protocol and acceptance criteria are in the linked spec.
 - Making the runner's solo re-check notice another suite running on the same machine. That is a separate change for a human to capture.
 - Flakes and slow files not named here.
 - #273's host-relative budgets.
+
+## Reconcile log
+
+### 2026-10-05
+
+Reconciled against main b2b6035c4. The spec was groomed earlier today; the four targets are unchanged (TestObserveRunningThenTerminal still discards the readManifest and signalGroup results; finalize_merge_integration_test.go and finalize_e2e_test.go untouched since grooming; the 30s rows for the two files are unchanged). No scope adjustment.
