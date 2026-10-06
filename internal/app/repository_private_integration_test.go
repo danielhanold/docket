@@ -136,23 +136,57 @@ func TestIntegrationRepoSetupPrivateFreshInitCreatesNeutralLayout(t *testing.T) 
 	}
 }
 
+// TestIntegrationRepoSetupPrivateRerunIsNoOp proves a re-run of a finished
+// private init reports no-op whatever the clock does between the two runs. The
+// commit dates are pinned so each case is deterministic: with the same dates the
+// re-run would rebuild a byte-identical init root (two runs inside one second),
+// and with a later date it would build a different one. Either way the re-run
+// adopts the published branch instead of republishing it.
 func TestIntegrationRepoSetupPrivateRerunIsNoOp(t *testing.T) {
-	r, data := newPrivateInitRepo(t, nil)
-	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
-		t.Fatalf("first init = %q (%s), want applied", res.Result, res.HumanText())
+	for _, tc := range []struct {
+		name         string
+		first, rerun string
+	}{
+		{name: "identical root within one second", first: "1700000000 +0000", rerun: "1700000000 +0000"},
+		{name: "different root a second later", first: "1700000000 +0000", rerun: "1700000001 +0000"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r, data := newPrivateInitRepo(t, nil)
+			pinCommitDate(t, tc.first)
+			if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+				t.Fatalf("first init = %q (%s), want applied", res.Result, res.HumanText())
+			}
+			lay := privateLayoutOf(t, r.invocation, data)
+			tip := runGit(t, lay.DefaultBareRemote, "rev-parse", "refs/heads/dckt")
+			pinCommitDate(t, tc.rerun)
+			res := r.runInitWith(t, InitOptions{})
+			if res.Result != ResultNoOp {
+				t.Fatalf("re-run = %q (%s), want no-op", res.Result, res.HumanText())
+			}
+			if res.MetadataTip != tip {
+				t.Errorf("re-run MetadataTip = %q, want the published tip %q", res.MetadataTip, tip)
+			}
+			if got := runGit(t, lay.DefaultBareRemote, "rev-parse", "refs/heads/dckt"); got != tip {
+				t.Errorf("the store's dckt branch moved from %s to %s on re-run", tip, got)
+			}
+			prep := RunRepositoryPrepare(context.Background(), SetupDeps{Git: newGitClient(t), RepoDir: r.invocation}, PrepareOptions{})
+			if prep.Disposition != PrepareDispositionNoOp {
+				t.Fatalf("prepare disposition = %q (%s), want no-op", prep.Disposition, prep.HumanText())
+			}
+			if prep.Context == nil || prep.Context.MetadataRemote != "dckt" || prep.Context.MetadataWorktreePath != lay.MetadataWorktree {
+				t.Errorf("prepare context = %+v, want MetadataRemote dckt and MetadataWorktreePath %q", prep.Context, lay.MetadataWorktree)
+			}
+		})
 	}
-	res := r.runInitWith(t, InitOptions{})
-	if res.Result != ResultNoOp {
-		t.Fatalf("re-run = %q (%s), want no-op", res.Result, res.HumanText())
-	}
-	lay := privateLayoutOf(t, r.invocation, data)
-	prep := RunRepositoryPrepare(context.Background(), SetupDeps{Git: newGitClient(t), RepoDir: r.invocation}, PrepareOptions{})
-	if prep.Disposition != PrepareDispositionNoOp {
-		t.Fatalf("prepare disposition = %q (%s), want no-op", prep.Disposition, prep.HumanText())
-	}
-	if prep.Context == nil || prep.Context.MetadataRemote != "dckt" || prep.Context.MetadataWorktreePath != lay.MetadataWorktree {
-		t.Errorf("prepare context = %+v, want MetadataRemote dckt and MetadataWorktreePath %q", prep.Context, lay.MetadataWorktree)
-	}
+}
+
+// pinCommitDate fixes the author and committer dates of every commit the next
+// git client builds; gitcli passes both variables through its sanitized
+// environment, and newGitClient snapshots the environment per run.
+func pinCommitDate(t *testing.T, date string) {
+	t.Helper()
+	t.Setenv("GIT_AUTHOR_DATE", date)
+	t.Setenv("GIT_COMMITTER_DATE", date)
 }
 
 // TestIntegrationRepoSetupPrivateInterruptedAfterConfigResumes proves the
@@ -231,6 +265,29 @@ func TestIntegrationRepoSetupPrivateRemoteURLConflictRefuses(t *testing.T) {
 	}
 	if url := runGit(t, r.invocation, "config", "--get", "remote.dckt.url"); url != elsewhere {
 		t.Errorf("dckt remote rewritten to %q; docket never rewrites a remote", url)
+	}
+}
+
+// TestIntegrationRepoSetupPrivateForeignStoreBranchRefuses proves the adopt
+// path a private init takes for a dckt branch the store already holds verifies
+// the branch first: a foreign branch refuses and stays byte-untouched, never
+// adopted and never republished.
+func TestIntegrationRepoSetupPrivateForeignStoreBranchRefuses(t *testing.T) {
+	r, _ := newPrivateInitRepo(t, nil)
+	store := filepath.Join(testsupport.TempDir(t), "store.git")
+	runGit(t, r.root, "init", "--bare", "-q", store)
+	runGit(t, r.writer, "push", "-q", store, "main:refs/heads/dckt")
+	foreign := runGit(t, store, "rev-parse", "refs/heads/dckt")
+
+	res := r.runInitWith(t, InitOptions{Private: true, MetadataRemote: store})
+	if res.Result != ResultInvalidState {
+		t.Fatalf("init over a foreign store branch = %q (%s), want invalid-state", res.Result, res.HumanText())
+	}
+	if res.RepositoryState != string(reposetup.StateConflict) {
+		t.Errorf("RepositoryState = %q, want conflict", res.RepositoryState)
+	}
+	if got := runGit(t, store, "rev-parse", "refs/heads/dckt"); got != foreign {
+		t.Errorf("the store's foreign dckt branch moved from %s to %s", foreign, got)
 	}
 }
 
