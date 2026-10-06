@@ -22,7 +22,7 @@ branch: 'feat/keep-plan-results-and-build-evidence-on-the-metadata-branch'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-06T02:29:15Z'
+claimed_at: '2026-10-06T02:32:31Z'
 ---
 
 ## Artifacts
