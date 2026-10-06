@@ -13,7 +13,7 @@ related: [532, 533, 334, 351]
 discovered_from: [531]
 adrs: [36, 78]
 spec: 'docs/superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-06T17:40:02Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md](../../superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) |
+| Plan | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos.md](../../superpowers/plans/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos.md) |
 | ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](../../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
 
