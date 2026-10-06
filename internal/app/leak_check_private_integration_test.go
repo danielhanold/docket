@@ -295,6 +295,29 @@ func TestIntegrationWorkflowLifecyclePrivateLeakCheckBlocksSeededLeaks(t *testin
 		if got := originRefTip(t, lw.origin, lw.featureRef); got != head {
 			t.Errorf("origin %s = %s, want the merged head %s", lw.featureRef, got, head)
 		}
+		if len(pub.Findings) != 0 {
+			t.Errorf("publish findings = %+v, want none while origin holds no docket-named ref", pub.Findings)
+		}
+	})
+
+	t.Run("docket-named-ref-on-origin-is-reported", func(t *testing.T) {
+		if cleanHead == "" {
+			t.Fatal("the clean publish did not run")
+		}
+		runGit(t, lw.writer, "push", "-q", "origin", "main:refs/heads/dckt")
+		head := commitInWorkspace(t, lw.wp, "Polish the widget layout", map[string]string{"polish.md": "Polished.\n"})
+		pub := lw.publish(t, head)
+		if pub.Result != ResultApplied {
+			t.Fatalf("publish = %q/%q (msg %q, leaks %+v), want applied; a docket-named origin ref never blocks",
+				pub.Result, pub.Reason, pub.Message, pub.Leaks)
+		}
+		if len(pub.Findings) != 1 || pub.Findings[0].Code != FindingMetadataOnSharedRemote ||
+			pub.Findings[0].Path != "refs/heads/dckt" || pub.Findings[0].Severity != "warning" {
+			t.Errorf("publish findings = %+v, want one %s warning for refs/heads/dckt", pub.Findings, FindingMetadataOnSharedRemote)
+		}
+		if got := originRefTip(t, lw.origin, lw.featureRef); got != head {
+			t.Errorf("origin %s = %s, want the published head %s", lw.featureRef, got, head)
+		}
 	})
 }
 

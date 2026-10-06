@@ -773,7 +773,11 @@ func prepareContextResult(ctx context.Context, git *gitcli.Client, result Result
 		Context:         pc,
 		Notices:         notices,
 	}
+	out.Findings = sharedRemoteMetadataFindings(ctx, git, sc.layout, sc.repo)
 	out.human = fmt.Sprintf("repository prepare: %s (%s); metadata worktree %s", disposition, reposetup.StateHealthy, pc.MetadataWorktreePath)
+	for _, f := range out.Findings {
+		out.human += fmt.Sprintf("\n- [%s] %s %s", f.Severity, f.Code, f.Ref)
+	}
 	return out
 }
 

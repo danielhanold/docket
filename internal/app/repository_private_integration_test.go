@@ -841,3 +841,46 @@ func TestIntegrationRepoSetupPrivatePRBacklinkRepairIsNoOp(t *testing.T) {
 		t.Errorf("private PR-backlink repair text = %q; want it to say a private repository's pull requests carry no backlink", res.HumanText())
 	}
 }
+
+// TestIntegrationRepoSetupPrivateMetadataOnSharedRemote proves a docket-named
+// branch or refs/docket/ ref on a private repository's origin is reported by
+// check and prepare as a warning, and never changes the classified state.
+func TestIntegrationRepoSetupPrivateMetadataOnSharedRemote(t *testing.T) {
+	r, _ := initPrivateHealthy(t)
+	before := r.runCheck(t)
+	if got := findingsWithCode(before.Findings, FindingMetadataOnSharedRemote); len(got) != 0 {
+		t.Fatalf("a clean private origin already reports %+v", got)
+	}
+
+	runGit(t, r.writer, "push", "-q", "origin", "main:refs/heads/docket", "main:refs/docket/x")
+	want := []string{"refs/docket/x", "refs/heads/docket"}
+	refsOf := func(fs []reposetup.Finding) []string {
+		var out []string
+		for _, f := range findingsWithCode(fs, FindingMetadataOnSharedRemote) {
+			if f.Severity != reposetup.SeverityWarning {
+				t.Errorf("finding %+v is not a warning", f)
+			}
+			out = append(out, f.Ref)
+		}
+		return out
+	}
+
+	chk := r.runCheck(t)
+	if got := refsOf(chk.Findings); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("check %s refs = %v, want %v:\n%s", FindingMetadataOnSharedRemote, got, want, chk.HumanText())
+	}
+	if chk.RepositoryState != before.RepositoryState {
+		t.Errorf("state moved from %q to %q; the finding never changes the state", before.RepositoryState, chk.RepositoryState)
+	}
+
+	prep := RunRepositoryPrepare(context.Background(), SetupDeps{Git: newGitClient(t), RepoDir: r.invocation}, PrepareOptions{})
+	if prep.Disposition != PrepareDispositionApplied && prep.Disposition != PrepareDispositionNoOp {
+		t.Fatalf("prepare disposition = %q (%s), want applied or no-op", prep.Disposition, prep.HumanText())
+	}
+	if got := refsOf(prep.Findings); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("prepare %s refs = %v, want %v:\n%s", FindingMetadataOnSharedRemote, got, want, prep.HumanText())
+	}
+	if !strings.Contains(prep.HumanText(), "- [warning] "+FindingMetadataOnSharedRemote+" refs/heads/docket") {
+		t.Errorf("prepare human text does not list the finding:\n%s", prep.HumanText())
+	}
+}
