@@ -292,8 +292,12 @@ func TestHookEntriesInspect(t *testing.T) {
 			wrongEvent, nullEvent = `{"hooks": {"sessionStart": "x"}}`, `{"hooks": {"sessionStart": null}}`
 		}
 		var out []tc
-		for _, s := range []string{`{"hooks": []}`, wrongEvent, nullEvent, `[1]`, `null`, `not json`, `{"hooks": null}`, `{} {}`} {
-			out = append(out, tc{"invalid " + s, str(s), DispositionConflict, ReasonManagedBlockInvalid, remedyHookFileInvalid})
+		// A file docket cannot parse is skipped, never a conflict: a conflict
+		// would fail the whole install over a trigger that is inert outside a
+		// private repository.
+		for _, s := range []string{`{"hooks": []}`, wrongEvent, nullEvent, `[1]`, `null`, `not json`, `{"hooks": null}`, `{} {}`,
+			"\ufeff{}", "{\n  // a comment\n}\n"} {
+			out = append(out, tc{"invalid " + s, str(s), DispositionSkip, "", remedyHookFileInvalid})
 		}
 		return out
 	}
@@ -519,6 +523,12 @@ func TestHookEntriesInstallUninstallLifecycle(t *testing.T) {
 				t.Fatalf("Install: %v", out.Err)
 			}
 			writeFileOrDie(t, path, "not json")
+			// Install and check skip the broken file; uninstall still refuses
+			// it, because removal of the recorded entries cannot be proven from
+			// a file docket cannot parse — and it is never edited.
+			if check := Check(opts); check.Err != nil || !skippedWith(check, path, remedyHookFileInvalid) {
+				t.Errorf("Check: err %v (actions %+v), skipped %+v; want the broken file skipped", check.Err, check.Actions, check.Skipped)
+			}
 			out := Uninstall(uopts)
 			if out.Err == nil || out.Reason != ReasonManagedBlockInvalid || !hasConflictFor(out, path, ReasonManagedBlockInvalid) {
 				t.Errorf("Uninstall = err %v, reason %s, actions %+v", out.Err, out.Reason, out.Actions)
@@ -589,8 +599,14 @@ func TestHookEntriesInstallUninstallLifecycle(t *testing.T) {
 // skippedFor reports whether the outcome names path as a skipped target
 // carrying the not-a-regular-file remedy.
 func skippedFor(out Outcome, path string) bool {
+	return skippedWith(out, path, remedyHookFileNotRegular)
+}
+
+// skippedWith reports whether the outcome names path as a skipped target
+// carrying remedy.
+func skippedWith(out Outcome, path, remedy string) bool {
 	for _, s := range out.Skipped {
-		if s.Target.Path == path && s.Disposition == DispositionSkip && s.Remedy == remedyHookFileNotRegular {
+		if s.Target.Path == path && s.Disposition == DispositionSkip && s.Remedy == remedy {
 			return true
 		}
 	}
@@ -730,6 +746,63 @@ func TestHookEntriesSymlinkedHooksFileIsSkipped(t *testing.T) {
 				t.Errorf("the link's destination changed:\n%s", got)
 			}
 		})
+	}
+}
+
+// A hooks file docket cannot parse (a JSONC comment, a byte-order mark, a
+// non-object hooks value) must not fail the install either: it is left
+// byte-identical, every other target installs, the outcome names the skipped
+// trigger with its remedy, no record is written for it, and check and
+// uninstall stay clean.
+func TestHookEntriesUnparseableHooksFileIsSkipped(t *testing.T) {
+	for _, dialect := range []string{HookDialectClaude, HookDialectCursor} {
+		for _, broken := range []string{"{\n  // my settings\n  \"model\": \"opus\"\n}\n", "\ufeff{}\n", `{"hooks": null}`} {
+			t.Run(dialect+"/"+broken, func(t *testing.T) {
+				var other string
+				opts, uopts, path := hookWorld(t, dialect, func(r UserRoots) []Target {
+					other = filepath.Join(r.Home, "."+dialect, "agent.md")
+					return []Target{{Path: other, Kind: KindFile, Content: []byte("agent\n"), Role: "agent"}}
+				})
+				writeFileOrDie(t, path, broken)
+				assertUntouched := func(stage string) {
+					t.Helper()
+					if got := readOrDie(t, path); got != broken {
+						t.Errorf("%s: the unparseable hooks file changed:\n%q", stage, got)
+					}
+				}
+
+				out := Install(opts)
+				if out.Err != nil || !out.Applied {
+					t.Fatalf("Install: err %v (reason %q, applied %v, actions %+v)", out.Err, out.Reason, out.Applied, out.Actions)
+				}
+				if !skippedWith(out, path, remedyHookFileInvalid) {
+					t.Errorf("the outcome does not name the skipped hooks file %s: %+v", path, out.Skipped)
+				}
+				for _, a := range out.Actions {
+					if a.Path == path {
+						t.Errorf("an action names the skipped hooks file: %+v", a)
+					}
+				}
+				if got := readOrDie(t, other); got != "agent\n" {
+					t.Errorf("the other target was not installed: %q", got)
+				}
+				assertUntouched("install")
+				if rec := stateRecordAt(t, opts.Roots, path); rec != nil {
+					t.Errorf("a record was written for the skipped hooks file: %+v", rec)
+				}
+
+				check := Check(opts)
+				if check.Err != nil || !skippedWith(check, path, remedyHookFileInvalid) {
+					t.Errorf("Check: err %v (reason %q, actions %+v), skipped %+v; want clean with the skip named",
+						check.Err, check.Reason, check.Actions, check.Skipped)
+				}
+
+				if u := Uninstall(uopts); u.Err != nil {
+					t.Fatalf("Uninstall: %v (actions %+v)", u.Err, u.Actions)
+				}
+				assertUntouched("uninstall")
+			})
+		}
 	}
 }
 

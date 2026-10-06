@@ -237,7 +237,10 @@ func inspectHookEntries(t Target, info fs.FileInfo) (Inspection, error) {
 	}
 	entries, ok := readHookEntries(data, t.HookDialect)
 	if !ok {
-		return conflict(t, ReasonManagedBlockInvalid, remedyHookFileInvalid), nil
+		// Skipped for the same reason: a file docket cannot parse (a JSONC
+		// comment, a byte-order mark, a non-object hooks value) is the user's to
+		// repair, and refusing it would fail every other target over a trigger.
+		return skip(t, remedyHookFileInvalid), nil
 	}
 	for _, c := range t.HookCommands {
 		if !anyEntryRuns(entries, t.HookDialect, c) {
@@ -268,8 +271,8 @@ const (
 		"restore the recorded content, or move it aside, then re-run"
 	remedyHookFileNotRegular = "this hooks file is not a regular file (a symlink or a directory), so docket left it untouched " +
 		"and did not add its session-start entries; to install them, make it a regular file, then re-run"
-	remedyHookFileInvalid = "this hooks file is not a JSON object docket can edit (hooks must be an object and each event an array); " +
-		"repair it by hand, then re-run"
+	remedyHookFileInvalid = "this hooks file is not a JSON object docket can edit (hooks must be an object and each event an array), " +
+		"so docket left it untouched and did not add its session-start entries; to install them, repair it by hand, then re-run"
 )
 
 // remedyLinkDestination names the destination the plan wants, which is the one
