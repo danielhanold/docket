@@ -1,12 +1,12 @@
 # Backlog
 
-**533 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 367 done · 🗑️ 139 killed
+**533 changes** — 🔵 1 built · 🟣 4 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 367 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0529](active/0529-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) | Repoint a merged PR's change backlink when the change is archived | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md) | `fix/repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0529](active/0529-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) | Repoint a merged PR's change backlink when the change is archived | `medium` | `fix` | [#397](https://github.com/danielhanold/docket/pull/397) | awaiting merge |
 
 ## 🟣 Groomed (4)
 

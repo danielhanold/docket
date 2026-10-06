@@ -2,7 +2,7 @@
 id: 529
 slug: 'repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc'
 title: 'Repoint a merged PR''s change backlink when the change is archived'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-05'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/397'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-06T00:51:00Z'
