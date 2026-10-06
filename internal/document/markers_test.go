@@ -1,6 +1,10 @@
 package document
 
-import "testing"
+import (
+	"errors"
+	"strings"
+	"testing"
+)
 
 const artifactsBlock = "<!-- docket:artifacts:start (generated — do not hand-edit) -->\n| a |\n<!-- docket:artifacts:end -->\n"
 
@@ -177,5 +181,96 @@ func TestCRLFMarkerLinesDiscovered(t *testing.T) {
 	}
 	if got := string(d.Source()[b.Interior.Start:b.Interior.End]); got != "x\r\n" {
 		t.Fatalf("interior = %q", got)
+	}
+}
+
+func TestNeutralMarkerBlockRoundTrip(t *testing.T) {
+	src := []byte("user line\n<!-- dckt:private-instructions:start (managed — do not hand-edit) -->\nbody\n<!-- dckt:private-instructions:end -->\n<!-- docket:dispatch:start -->\nd\n<!-- docket:dispatch:end -->\n")
+	doc, err := Parse(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, ok := doc.Block("dckt:private-instructions")
+	if !ok || string(src[b.Interior.Start:b.Interior.End]) != "body\n" || b.Annotation != "managed — do not hand-edit" {
+		t.Fatalf("neutral block not located: %+v ok=%v", b, ok)
+	}
+	if _, ok := doc.Block("private-instructions"); ok {
+		t.Fatal("a bare name must not find a dckt: block")
+	}
+	if _, ok := doc.Block("dispatch"); !ok {
+		t.Fatal("the docket: block must keep its bare name")
+	}
+	var p PatchSet
+	p.RemoveBlock("dckt:private-instructions")
+	out, err := doc.Apply(p)
+	if err != nil || string(out) != "user line\n<!-- docket:dispatch:start -->\nd\n<!-- docket:dispatch:end -->\n" {
+		t.Fatalf("remove: %q %v", out, err)
+	}
+}
+
+func TestNeutralMarkerInsertRendersDcktPrefix(t *testing.T) {
+	doc := mustParse(t, "keep\n")
+	var p PatchSet
+	p.InsertBlock("dckt:private-instructions", "managed — do not hand-edit", "x", AtDocumentStart)
+	out, err := doc.Apply(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "<!-- dckt:private-instructions:start (managed — do not hand-edit) -->\nx\n<!-- dckt:private-instructions:end -->\nkeep\n"
+	if string(out) != want {
+		t.Fatalf("insert = %q, want %q", out, want)
+	}
+	if strings.Contains(string(out), "docket") {
+		t.Fatalf("a dckt: block must not spell docket: %q", out)
+	}
+	again := mustParse(t, string(out))
+	if _, ok := again.Block("dckt:private-instructions"); !ok {
+		t.Fatal("the inserted dckt: block does not re-parse under its qualified name")
+	}
+	var r PatchSet
+	r.ReplaceBlock("dckt:private-instructions", "y\n")
+	out2, err := again.Apply(r)
+	if err != nil || !strings.Contains(string(out2), "-->\ny\n<!-- dckt:private-instructions:end -->") {
+		t.Fatalf("replace: %q %v", out2, err)
+	}
+}
+
+func TestMalformedNeutralMarkerRefuses(t *testing.T) {
+	_, err := Parse([]byte("<!-- dckt:Bad Name:start -->\nx\n"))
+	var de *Error
+	if !errors.As(err, &de) || de.Kind != KindMalformedMarker {
+		t.Fatalf("err = %v, want malformed marker", err)
+	}
+}
+
+func TestSameNameInBothNamespacesIsTwoBlocks(t *testing.T) {
+	doc := mustParse(t, "<!-- docket:x:start -->\na\n<!-- docket:x:end -->\n<!-- dckt:x:start -->\nb\n<!-- dckt:x:end -->\n")
+	src := doc.Source()
+	bare, ok := doc.Block("x")
+	if !ok || string(src[bare.Interior.Start:bare.Interior.End]) != "a\n" {
+		t.Fatalf("docket:x not found: %+v ok=%v", bare, ok)
+	}
+	neutral, ok := doc.Block("dckt:x")
+	if !ok || string(src[neutral.Interior.Start:neutral.Interior.End]) != "b\n" {
+		t.Fatalf("dckt:x not found: %+v ok=%v", neutral, ok)
+	}
+}
+
+func TestNeutralMarkerMismatchedNamespaceIsImbalance(t *testing.T) {
+	_, err := Parse([]byte("<!-- dckt:x:start -->\na\n<!-- docket:x:end -->\n"))
+	var de *Error
+	if !errors.As(err, &de) || de.Kind != KindMarkerImbalance || de.Name != "x" {
+		t.Fatalf("err = %v, want imbalance naming the docket: end", err)
+	}
+}
+
+func TestMarkerSpelling(t *testing.T) {
+	for name, want := range map[string]string{
+		"dispatch":                  "docket:dispatch",
+		"dckt:private-instructions": "dckt:private-instructions",
+	} {
+		if got := MarkerSpelling(name); got != want {
+			t.Fatalf("MarkerSpelling(%q) = %q, want %q", name, got, want)
+		}
 	}
 }

@@ -310,7 +310,9 @@ func EmptyValue(located Field, locatedOK bool, node *yaml.Node) bool {
 // mutating it cannot reach the document's own index.
 func (d Document) Blocks() []Block { return append([]Block(nil), d.blocks...) }
 
-// Block returns the managed block named name, and whether it exists.
+// Block returns the managed block named name, and whether it exists. A
+// `docket:` block is named bare ("dispatch"); a block in the neutral namespace
+// is named with NeutralMarkerPrefix ("dckt:private-instructions").
 func (d Document) Block(name string) (Block, bool) {
 	for _, b := range d.blocks {
 		if b.Name == name {

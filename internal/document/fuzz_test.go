@@ -85,6 +85,9 @@ var markerAdversarialSeeds = []string{
 	"<!-- docket:a:start (nested (paren)) -->\nx\n<!-- docket:a:end -->\n",
 	"---\nid: 1\n---\n<!-- docket:a:start -->\nx\n<!-- docket:a:end -->\n",
 	"---\n<!-- docket:a:start -->\n---\nbody\n", // marker-shaped text inside frontmatter
+	"<!-- dckt:a:start (managed) -->\nx\n<!-- dckt:a:end -->\n<!-- docket:a:start -->\ny\n<!-- docket:a:end -->\n",
+	"<!-- dckt:a:start -->\nx\n<!-- docket:a:end -->\n", // namespaces do not pair across
+	"<!-- dckt:A:start -->\n",                           // malformed neutral name
 }
 
 // seedMarkerBodies seeds the marker surface with body-oriented slices: the
@@ -172,18 +175,20 @@ func FuzzMarkers(f *testing.F) {
 			if m == nil {
 				t.Fatalf("block %q start line %q does not match the marker grammar", b.Name, startText)
 			}
-			if string(m[1]) != b.Name || string(m[2]) != "start" || string(m[3]) != b.Annotation {
+			if spelled := string(m[1]) + ":" + string(m[2]); spelled != MarkerSpelling(b.Name) ||
+				string(m[3]) != "start" || string(m[4]) != b.Annotation {
 				t.Fatalf("block %q start line %q reports (%q, %q, %q), want (%q, \"start\", %q)",
-					b.Name, startText, m[1], m[2], m[3], b.Name, b.Annotation)
+					b.Name, startText, spelled, m[3], m[4], MarkerSpelling(b.Name), b.Annotation)
 			}
 			endText := trimTerminator(src[b.End.Start:b.End.End])
 			m = markerRE.FindSubmatch(endText)
 			if m == nil {
 				t.Fatalf("block %q end line %q does not match the marker grammar", b.Name, endText)
 			}
-			if string(m[1]) != b.Name || string(m[2]) != "end" || string(m[3]) != "" {
+			if spelled := string(m[1]) + ":" + string(m[2]); spelled != MarkerSpelling(b.Name) ||
+				string(m[3]) != "end" || string(m[4]) != "" {
 				t.Fatalf("block %q end line %q reports (%q, %q, %q), want (%q, \"end\", \"\")",
-					b.Name, endText, m[1], m[2], m[3], b.Name)
+					b.Name, endText, spelled, m[3], m[4], MarkerSpelling(b.Name))
 			}
 			// The canonical renderers agree with source whenever the source
 			// line is already canonical — the end marker has exactly one
