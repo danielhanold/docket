@@ -22,7 +22,7 @@ branch: 'feat/install-an-alias-for-the-docket-binary'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-06T13:50:52Z'
+claimed_at: '2026-10-06T14:04:47Z'
 ---
 
 ## Artifacts
