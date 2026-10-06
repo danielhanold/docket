@@ -493,3 +493,74 @@ func TestIntegrationFinalizeCleanupPRBacklinkRetry(t *testing.T) {
 		}
 	})
 }
+
+// TestIntegrationFinalizeCleanupPRBacklinkRetryCarriedDescendant proves a
+// carried stacked descendant has a reachable PR-backlink retry: its PR merged
+// into the ROOT's branch (never the integration branch), so cleanup refuses its
+// destructive legs as destination-mismatch — but the non-destructive PR-body
+// repoint still runs first, landing the edit close-out left pending.
+func TestIntegrationFinalizeCleanupPRBacklinkRetryCarriedDescendant(t *testing.T) {
+	requireRealGit(t)
+	f := setupCloseoutFixture(t, planRepoModes()[0])
+	descPlan := "docs/superpowers/plans/2026-08-16-gadget-plan.md"
+	descActive := groomPath(6, "gadget")
+	desc := closeoutRecord(6, "gadget", "stacked-merged", "github.com/acme/widget#8", "", descPlan, "")
+	desc = strings.Replace(desc, "stacked_on:\n", "stacked_on: 5\n", 1)
+	f.repo.writerAdvance(t, f.branch, map[string]string{
+		descActive: desc,
+		descPlan:   artifactWithBacklink(descActive, "Gadget plan", "The gadget plan."),
+	})
+	childMerge := f.carryOntoRootFeature(t, map[string]string{"gadget.txt": "gadget work\n"})
+	mergeCommit := f.mergeIntoBase(t)
+	f.fetchAllIntoInvocation(t)
+	merged := map[int]closeoutProbe{
+		closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "main", mergeCommit)},
+		8:          {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(childMerge, "feat/"+f.slug, childMerge)},
+	}
+
+	// Close-out archives root + descendant, but every PR-body edit fails: the
+	// descendant's PR still names its ACTIVE record path.
+	pr := newFakePRBody(map[int]string{
+		closeoutPR: artifactWithBacklink(groomPath(5, "widget"), "Root", "root prose"),
+		8:          artifactWithBacklink(descActive, "Child", "child prose"),
+	})
+	pr.editErr = errors.New("gh: HTTP 502")
+	cdeps := f.closeoutDeps(&fakeCloseoutGitHub{repo: retargetRepo(), merged: merged})
+	cdeps.PRBody = pr
+	if res := FinalizeCloseout(context.Background(), cdeps, f.repo.invocation, f.id, CloseoutNotes{}); res.Disposition != CloseoutDispRootArchived {
+		t.Fatalf("root carry = %q disp %q (%s)", res.Result, res.Disposition, res.Message)
+	}
+	if got := pr.bodies[8]; !strings.Contains(got, "`"+descActive+"`") {
+		t.Fatalf("fixture: the failed close-out edit must leave the active backlink:\n%s", got)
+	}
+
+	// The retry: cleanup of the carried descendant, the edit now succeeding.
+	pr.editErr = nil
+	deps := f.cleanupDeps(&fakeCleanupGitHub{repo: retargetRepo(), merged: merged, openByHead: map[string][]githubcli.PullRequest{}}, f.deps.Client, f.svc)
+	deps.PRBody = pr
+	res := FinalizeCleanup(context.Background(), deps, f.repo.invocation, 6)
+
+	if got := pr.bodies[8]; strings.Contains(got, "`"+descActive+"`") || !strings.Contains(got, "docs/changes/archive/2026-08-18-0006-gadget.md") {
+		t.Fatalf("cleanup did not repoint the carried descendant's PR backlink:\n%s", got)
+	}
+	// The destructive legs are still refused: nothing removed, the root's branch
+	// (which carries the descendant's merged work) intact.
+	if res.Result != ResultBlocked || res.Disposition != CleanupDispPending || res.Reason != ReasonCleanupDestination {
+		t.Fatalf("cleanup = %q disp %q reason %q, want blocked/pending/%s", res.Result, res.Disposition, res.Reason, ReasonCleanupDestination)
+	}
+	if len(res.RemovedRefs) != 0 || !f.localBranchPresent(t) || !f.remoteBranchPresent(t) {
+		t.Fatalf("a destination-mismatch cleanup must remove nothing; removed=%v", res.RemovedRefs)
+	}
+
+	// A still-failing retry surfaces the retryable finding on the refusal.
+	pr.bodies[8] = artifactWithBacklink(descActive, "Child", "child prose")
+	pr.editErr = errors.New("gh: HTTP 502")
+	again := FinalizeCleanup(context.Background(), deps, f.repo.invocation, 6)
+	var pending bool
+	for _, fd := range again.Findings {
+		pending = pending || fd.Code == ReasonPRBacklinkPending
+	}
+	if again.Reason != ReasonCleanupDestination || !pending {
+		t.Fatalf("failing retry = reason %q findings %+v, want %s carrying a %s finding", again.Reason, again.Findings, ReasonCleanupDestination, ReasonPRBacklinkPending)
+	}
+}

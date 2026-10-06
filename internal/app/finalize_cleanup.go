@@ -278,9 +278,24 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 		return cleanupRefusal(ResultBlocked, CleanupDispPending, ReasonCleanupNotMerged,
 			"the pull request is not merged; cleanup preserves the resources", id)
 	}
+
+	// Leg 1b: repoint the merged PR's description backlink at the archived record
+	// when close-out left it pending. Best-effort and independent: a failure is a
+	// retryable pr-backlink-pending finding and never blocks the other legs. It is
+	// non-destructive and needs only the PR number and the archived record, so it
+	// runs BEFORE the merge-destination refusal: a carried stacked descendant
+	// (merged into its parent's branch, never the integration branch) has no other
+	// retry for a close-out repoint that failed.
+	var findings []StatusFinding
+	if f := finalizeCleanupPRBacklinkRepair(ctx, deps, cc, ghRepo, number); f != nil {
+		findings = append(findings, *f)
+	}
+
 	if facts.BaseRef != cc.integrationBranch {
-		return cleanupRefusal(ResultBlocked, CleanupDispPending, ReasonCleanupDestination,
+		r := cleanupRefusal(ResultBlocked, CleanupDispPending, ReasonCleanupDestination,
 			"the verified merge destination is not the integration branch; cleanup preserves the resources", id)
+		r.Findings = append(r.Findings, findings...)
+		return r
 	}
 
 	// Delete the change's own feature ref by its RECORDED branch, never a
@@ -288,26 +303,20 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 	// deletion — the branches are retained.
 	featureBranch, berr := recordedBranch(cc.change)
 	if berr != nil {
-		return cleanupRefusal(ResultInvalidState, CleanupDispPending, berr.Error(),
+		r := cleanupRefusal(ResultInvalidState, CleanupDispPending, berr.Error(),
 			"the change's recorded feature branch is unusable; the branches are retained", id)
+		r.Findings = append(r.Findings, findings...)
+		return r
 	}
 	featureRef := gitcli.RefName(branchRefPrefix + featureBranch)
 	git := cleanupGit(deps)
 
-	var findings []StatusFinding
 	var removed []string
 
-	// Leg 1: repair the final backlinks first when needed (docket mode). A
+	// Leg 1: repair the final backlinks when needed (docket mode). A
 	// failed/contended leg is a pending finding; it never blocks the independent
 	// ref-deletion legs.
 	if f := finalizeCleanupBacklinkRepair(ctx, deps, cc, facts); f != nil {
-		findings = append(findings, *f)
-	}
-
-	// Leg 1b: repoint the merged PR's description backlink at the archived record
-	// when close-out left it pending. Best-effort and independent: a failure is a
-	// retryable pr-backlink-pending finding and never blocks the other legs.
-	if f := finalizeCleanupPRBacklinkRepair(ctx, deps, cc, ghRepo, number); f != nil {
 		findings = append(findings, *f)
 	}
 
