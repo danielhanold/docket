@@ -72,11 +72,12 @@ The preview lists every phase below that will run and every flag's effect, and p
 7. **Metadata worktree.**
    - `git worktree move` it from `<primary>/.docket` to the private checkout path.
    - Switch it to `dckt`, re-scope its hooks setting, and delete the local `docket` branch.
-8. **`--delete-shared-branch`** (optional).
+8. **Agent instructions.** When `agent_harnesses` is set, write the dispatch block into the private instructions file `<git-common-dir>/dckt/AGENTS.md` (#532). The repository's committed AGENTS.md keeps loading as before, promoted lessons included. Only docket's managed block is removed from it, and only with `--remove-shared-files`.
+9. **`--delete-shared-branch`** (optional).
    - Verify that the bare `dckt` tip equals `origin/docket`'s tip.
    - Delete `origin`'s `docket` with an exact-tip lease.
    - On any mismatch, keep the branch and report.
-9. **`--remove-shared-files`** (optional). Produce uncommitted edits that:
+10. **`--remove-shared-files`** (optional). Produce uncommitted edits that:
    - delete `.docket.yml`;
    - strip the managed `.gitignore` block;
    - strip the AGENTS.md and CLAUDE.md dispatch blocks;
@@ -93,13 +94,17 @@ The preview lists every phase below that will run and every flag's effect, and p
    - Create local `docket` at the same commit.
    - `git worktree move` the metadata worktree back to `<primary>/.docket` and switch it to `docket`.
    - Remove the `dckt` remote and the local `dckt` branch.
-5. **State folder.** Rename `<git-common-dir>/dckt/` to `<git-common-dir>/docket/`.
-6. **Config split.**
+5. **Agent instructions.**
+   - When `agent_harnesses` is set, write the repository-level dispatch block (AGENTS.md, CLAUDE.md, and the Cursor rule, exactly as `install`'s repository phase would) as **uncommitted edits** for review.
+   - Promoted lessons held in the private instructions file are **listed** in the output for the human to move into the committed AGENTS.md. Promotion is always a human act.
+   - Then remove the private instructions file and the private Cursor rule file.
+6. **State folder.** Rename `<git-common-dir>/dckt/` to `<git-common-dir>/docket/`. The private instructions file was already removed in phase 5, so it never lands under the shared state folder.
+7. **Config split.**
    - Personal keys go to `.docket.local.yml`.
    - `visibility: shared` plus any remaining repository keys go to the `.docket.yml` uncommitted edit.
    - The managed `.gitignore` block becomes an uncommitted edit.
    - The `.git/info/exclude` block is removed.
-7. **Backup.** The bare remote is kept, and its path is printed.
+8. **Backup.** The bare remote is kept, and its path is printed.
 
 ### Resume and receipts
 
@@ -123,6 +128,9 @@ Every phase is idempotent, and its completion is readable from state (refs on ea
 5. **`--remove-shared-files`** produces uncommitted edits only, and nothing is pushed to the integration branch.
 6. **Second clone.** It switches with local phases only.
 7. **Private result is clean.** After switching to private, #531's private-layout checks pass: nothing docket-named in the root, `dckt` naming, and the worktree outside the clone.
+8. **Instructions follow the switch.**
+   - After switching to private, `docket instructions` prints the dispatch block.
+   - After switching back to shared, it prints nothing, the repository-level block exists as an uncommitted edit, and any promoted lessons from the private file are listed.
 
 ## ADRs expected
 

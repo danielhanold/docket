@@ -6,7 +6,7 @@ status: 'proposed'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
-updated: '2026-10-05'
+updated: '2026-10-06'
 depends_on: [530, 531]
 stacked_on:
 related: [532, 352, 363]
