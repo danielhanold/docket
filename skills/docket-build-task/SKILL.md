@@ -133,6 +133,11 @@ A task produces a commit **only on success** — `COMPLETE` means focused verifi
 If the **task text itself** prescribes more than one commit, the plan wins over this default:
 follow the task and report every SHA in your return.
 
+In a private repository (the dispatch payload says `Visibility: private`), every commit message,
+code line, comment, and test name follows the convention's private-repository writing rule; never
+copy a change id or docket wording from the plan. When the task cannot be done without breaking it,
+return `BLOCKED` naming the conflict — never commit the violation.
+
 ## Outcomes
 
 Return exactly one of three outcomes. A missing or malformed outcome halts the build, so state it

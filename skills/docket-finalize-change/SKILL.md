@@ -133,7 +133,7 @@ A pass with **no** authored repair (an exact-head-evidence skip, or a clean firs
 
 ### 7. Publish the rebased head
 
-The `finalize.publish` operation with `--id <id> --attempt <attempt> --head <head> --evidence <evidence file>`. It probes the remote first (a no-op when already at `head`), pushes exactly `head` under the receipt's exact old-value lease, then records that head's evidence in the change record's `## Build evidence` section. The PR body is not touched. It never creates a second PR. A reprobe `unknown` returns `rewrite-unknown`/`pr-probe-failed` and stops with no second mutation (`halted`); a moved remote returns `rewrite-contended` (re-read context, `contended`); an attempt token not matching the receipt is refused before any push.
+The `finalize.publish` operation with `--id <id> --attempt <attempt> --head <head> --evidence <evidence file>`. It probes the remote first (a no-op when already at `head`), pushes exactly `head` under the receipt's exact old-value lease, then records that head's evidence in the change record's `## Build evidence` section. The PR body is not touched. It never creates a second PR. A reprobe `unknown` returns `rewrite-unknown`/`pr-probe-failed` and stops with no second mutation (`halted`); a moved remote returns `rewrite-contended` (re-read context, `contended`); an attempt token not matching the receipt is refused before any push. `leak-detected` (`blocked`): record it with `finalize.block` (reason `leak-detected`, the hit list as the report) and stop `halted`; never reword or force-push past it.
 
 ### 8. Merge exactly once
 
@@ -232,7 +232,7 @@ After a successful relink, **reload and re-probe from scratch** — run the `con
 
 ## Abort and the blocked marker
 
-The full abort-and-report set, the two-agent split, the green-repair rule, and the `## Finalize blocked` marker's write shape and lifecycle live in **`references/gate-failure.md`** — **read it at any abort** (a conflict, a red gate, an unavailable dispatch, a denied merge) before recording or reporting. Every abort-and-report point maps to `halted`, leaves the PR open and the change `implemented`, and records the `## Finalize blocked` marker via the `finalize.block` operation (comment first, then the single upserted section); the `finalize.clear-block` operation removes it after a successful reprobe. The marker is a visible note: it never stops selection or merge, so the next run retries the change.
+The full abort-and-report set, the two-agent split, the green-repair rule, and the `## Finalize blocked` marker's write shape and lifecycle live in **`references/gate-failure.md`** — **read it at any abort** (a conflict, a red gate, an unavailable dispatch, a denied merge) before recording or reporting. Every abort-and-report point maps to `halted`, leaves the PR open and the change `implemented`, and records the `## Finalize blocked` marker via the `finalize.block` operation (comment first, then the single upserted section; in a private repository no PR comment is posted; the marker is recorded on the change only); the `finalize.clear-block` operation removes it after a successful reprobe. The marker is a visible note: it never stops selection or merge, so the next run retries the change.
 
 ## Dispatch unavailability — no fallback
 

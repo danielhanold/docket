@@ -100,10 +100,10 @@ to force a workspace, a commit, or a HEAD move.
 
 ## PR-body assembly (Step 7)
 
-**Best-effort PR→issue reference.** If the change carries an `issue:` value, add a plain `#<issue>` reference to the PR body — but **never `Closes #N`**, so merging the PR never auto-closes the referenced issue. Skip silently when `issue:` is unset — the reference is a one-time courtesy, not a build gate.
+**Best-effort PR→issue reference.** If the change carries an `issue:` value, add a plain `#<issue>` reference to the PR body — but **never `Closes #N`**, so merging the PR never auto-closes the referenced issue. Skip silently when `issue:` is unset — the reference is a one-time courtesy, not a build gate. None in a private repository (private-repository writing rule); the body is published verbatim.
 
-**PR-body back-link.** `pr.publish` renders and upserts a **back-link line** pointing home to the change on the metadata branch — a first body line of the shape `↩ Change <padded-id> — <title>` linking to the change file on `docket` (built with the same blob-or-bare-path logic) — plus the plan/results links block; never author either in the body.
+**PR-body back-link.** `pr.publish` renders and upserts a **back-link line** pointing home to the change on the metadata branch — a first body line of the shape `↩ Change <padded-id> — <title>` linking to the change file on `docket` (built with the same blob-or-bare-path logic) — plus the plan/results links block; never author either in the body. None in a private repository (private-repository writing rule); the body is published verbatim.
 
 **Review outcome.** The authored body names the tier that reviewed and carries the **findings disposition table**: one row per finding, each marked fixed (with its commit SHA), deferred, reverted, recorded, or reported. The table's states are defined in `fix-pass.md`; do not redefine them here.
 
-**Plan/results links.** `pr.publish` adds a Docket-owned links block pointing at the plan and results files on the metadata branch; never author it by hand.
+**Plan/results links.** `pr.publish` adds a Docket-owned links block pointing at the plan and results files on the metadata branch; never author it by hand. None in a private repository (private-repository writing rule); the body is published verbatim.
