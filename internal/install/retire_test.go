@@ -1,10 +1,16 @@
 package install
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/buildinfo"
+	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -484,5 +490,199 @@ func TestRetireCollectsAllConflicts(t *testing.T) {
 	}
 	if len(conflicts) != 2 {
 		t.Errorf("expected both conflicts collected, got %d: %+v", len(conflicts), conflicts)
+	}
+}
+
+// --- retiring one block and writing another in the same file ----------------
+
+// pointerBlockName is the neutral-namespace block the codex planner writes into
+// the same file that still carries a leftover docket:dispatch block.
+const pointerBlockName = "dckt:private-instructions"
+
+// leftoverCodexWorld seeds <home>/.codex/AGENTS.md with the user's prose around
+// a docket:dispatch block whose interior the prior state records, and returns
+// install options whose codex planner writes a pointer block into that same file
+// (plus any extra targets). The planner's GlobalDispatchTarget names the
+// leftover, so one install must retire it and add the pointer together.
+func leftoverCodexWorld(t *testing.T, extra ...Target) (opts Options, path, original string) {
+	t.Helper()
+	return leftoverCodexWorldAt(t, versionRoots(t), extra...)
+}
+
+// leftoverCodexWorldAt is leftoverCodexWorld over roots the caller already
+// holds, so an extra target can be planned under the same home.
+func leftoverCodexWorldAt(t *testing.T, roots UserRoots, extra ...Target) (opts Options, path, original string) {
+	t.Helper()
+	path = filepath.Join(roots.Home, ".codex", "AGENTS.md")
+	interior := "leftover dispatch rules\n"
+	original = "# mine\n\n" +
+		"<!-- docket:dispatch:start (managed by docket) -->\n" + interior + "<!-- docket:dispatch:end -->\n" +
+		"tail\n"
+	writeFileOrDie(t, path, original)
+
+	payload := samplePayload()
+	manifest := sampleManifest(t, payload)
+	prior := &State{FormatVersion: StateFormatVersion, ProductVersion: "v-prior", AssetProtocol: assets.AssetProtocol,
+		AssetSetID: manifest.AssetSetID, Mode: ModeRelease, Harnesses: []string{"codex"},
+		AgentDigest: "sha256:agents", Targets: []TargetRecord{blockRecord(path, interior, "codex")}}
+	if err := WriteStateAtomic(roots.StatePath(), prior); err != nil {
+		t.Fatal(err)
+	}
+
+	opts = Options{
+		Roots: roots, FS: RealFS{}, Config: &config.Snapshot{},
+		Catalog:   assets.NewCatalog(manifest, openFrom(payload)),
+		Info:      buildinfo.Info{Version: "retire-and-write"},
+		Harnesses: []string{"codex"},
+		Planners: []Planner{{
+			Name: "codex",
+			Plan: func(Mode, string, assets.Catalog) ([]Target, error) {
+				return append([]Target{{
+					Path: path, Kind: KindManagedBlock, BlockName: pointerBlockName,
+					Annotation: "managed — do not hand-edit", Content: []byte("pointer"), Role: "trigger",
+				}}, extra...), nil
+			},
+			GlobalDispatchTarget: func(r UserRoots) Target {
+				return mbTarget(filepath.Join(r.Home, ".codex", "AGENTS.md"))
+			},
+		}},
+	}
+	return opts, path, original
+}
+
+func TestInstallRetiresLeftoverBlockAndWritesPointerInOneFile(t *testing.T) {
+	opts, path, _ := leftoverCodexWorld(t)
+
+	out := Install(opts)
+	if out.Err != nil {
+		t.Fatalf("Install: %v (reason %s, actions %+v)", out.Err, out.Reason, out.Actions)
+	}
+
+	got := readOrDie(t, path)
+	doc, err := document.Parse([]byte(got))
+	if err != nil {
+		t.Fatalf("parsing the installed file: %v\n%s", err, got)
+	}
+	if _, ok := doc.Block("dispatch"); ok || strings.Contains(got, "docket:dispatch") {
+		t.Errorf("the leftover docket:dispatch block survived:\n%s", got)
+	}
+	block, ok := doc.Block(pointerBlockName)
+	if !ok {
+		t.Fatalf("no %s block was written:\n%s", pointerBlockName, got)
+	}
+	if interior := got[block.Interior.Start:block.Interior.End]; interior != "pointer\n" {
+		t.Errorf("pointer interior = %q, want %q", interior, "pointer\n")
+	}
+	if n := strings.Count(got, "<!-- dckt:private-instructions:start"); n != 1 {
+		t.Errorf("found %d pointer blocks, want 1:\n%s", n, got)
+	}
+	for _, kept := range []string{"# mine\n", "tail\n"} {
+		if !strings.Contains(got, kept) {
+			t.Errorf("the user's %q did not survive:\n%s", kept, got)
+		}
+	}
+
+	var removes, updates int
+	for _, a := range out.Actions {
+		if a.Path != path {
+			continue
+		}
+		switch a.Op {
+		case OpRemove:
+			removes++
+		case OpUpdate:
+			updates++
+		}
+	}
+	if removes != 1 || updates != 1 {
+		t.Errorf("actions on %s: %d remove, %d update; want one of each: %+v", path, removes, updates, out.Actions)
+	}
+
+	state, err := LoadState(opts.Roots.StatePath())
+	if err != nil || state == nil {
+		t.Fatalf("LoadState = %v, %v", state, err)
+	}
+	var records []TargetRecord
+	for _, rec := range state.Targets {
+		if filepath.Clean(rec.Path) == path {
+			records = append(records, rec)
+		}
+	}
+	if len(records) != 1 || records[0].BlockName != pointerBlockName {
+		t.Errorf("state records for %s = %+v, want exactly the %s record", path, records, pointerBlockName)
+	}
+}
+
+func TestInstallRetiresLeftoverBlockAndWritesPointerInOneFileRollsBackBothSteps(t *testing.T) {
+	roots := versionRoots(t)
+	later := filepath.Join(roots.Home, ".codex", "zz.txt")
+	// The later-sorting whole file is planned against the same home the world
+	// builds, so it is created after both AGENTS.md steps have run.
+	opts, path, original := leftoverCodexWorldAt(t, roots, Target{
+		Path: later, Kind: KindFile, Content: []byte("later\n"), Role: "agent",
+	})
+
+	agentsRenames := 0
+	ifs := &injectFS{inner: RealFS{}, fail: func(op, p string) error {
+		if op != "Rename" {
+			return nil
+		}
+		switch p {
+		case path:
+			agentsRenames++
+		case later:
+			return fmt.Errorf("injected failure publishing %s", p)
+		}
+		return nil
+	}}
+	opts.FS = ifs
+
+	out := Install(opts)
+	if out.Err == nil {
+		t.Fatalf("Install succeeded despite the injected failure: %+v", out.Actions)
+	}
+	// Both AGENTS.md steps published before the failure (the retirement, then the
+	// pointer) and the rollback published both restores (newest first).
+	if agentsRenames != 4 {
+		t.Errorf("AGENTS.md was published %d times, want 2 applies + 2 restores", agentsRenames)
+	}
+	if got := readOrDie(t, path); got != original {
+		t.Errorf("AGENTS.md after rollback =\n%q\nwant\n%q", got, original)
+	}
+	if _, err := os.Lstat(later); !os.IsNotExist(err) {
+		t.Errorf("%s survived the rollback: %v", later, err)
+	}
+	assertNoStaging(t, filepath.Dir(path))
+	if _, found, err := DetectRecovery(roots); err != nil || found {
+		t.Errorf("DetectRecovery after rollback = (found %v, err %v), want (false, nil)", found, err)
+	}
+}
+
+// --- block remedies spell the block's own marker namespace ------------------
+
+func TestBlockRemediesSpellTheMarkerNamespace(t *testing.T) {
+	// The docket:dispatch wording is pinned byte-for-byte: it is what every
+	// existing conflict report says.
+	pinned := map[string]string{
+		remedyBlockMarkers("dispatch"): "the docket:dispatch markers in this file are malformed, unbalanced, or out of order; " +
+			"repair them by hand, then re-run",
+		remedyForeignBlock("dispatch"): "the docket:dispatch block in this file holds content docket did not write; " +
+			"delete the block, or move the file aside, then re-run",
+		remedyDriftedBlock("dispatch"): "the docket:dispatch block no longer matches the recorded install, " +
+			"so docket cannot prove it may rewrite it; restore its recorded content, or delete the block, then re-run",
+	}
+	for got, want := range pinned {
+		if got != want {
+			t.Errorf("remedy = %q, want %q", got, want)
+		}
+	}
+	for _, remedy := range []string{
+		remedyBlockMarkers(pointerBlockName),
+		remedyForeignBlock(pointerBlockName),
+		remedyDriftedBlock(pointerBlockName),
+	} {
+		if !strings.HasPrefix(remedy, "the "+pointerBlockName+" ") || strings.Contains(remedy, "docket:dckt:") {
+			t.Errorf("a neutral block's remedy misspells its markers: %q", remedy)
+		}
 	}
 }
