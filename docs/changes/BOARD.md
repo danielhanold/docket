@@ -1,12 +1,6 @@
 # Backlog
 
-**535 changes** — 🔵 1 built · 🟣 4 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 368 done · 🗑️ 139 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0530](active/0530-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) | Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR | `medium` | `feat` | [#398](https://github.com/danielhanold/docket/pull/398) | awaiting merge |
+**535 changes** — 🟣 4 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 369 done · 🗑️ 139 killed
 
 ## 🟣 Groomed (4)
 
@@ -22,8 +16,8 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0535](active/0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | `medium` | `feat` | ⏳ waiting on #531 — not yet built |
-| [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | ⏳ waiting on #530 — needs your merge |
-| [0532](active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | `medium` | `feat` | ⏳ waiting on #530 — needs your merge |
+| [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | ⏳ waiting on #531 — not yet built |
+| [0532](active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | `medium` | `feat` | ⏳ waiting on #531 — not yet built |
 | [0528](active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | `medium` | `fix` | needs-grooming |
 | [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | needs-grooming |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | needs-grooming |
@@ -75,7 +69,6 @@ graph TD
   0511 --> 0514
   0527
   0528
-  0530
   0531
   0530 --> 0532
   0531 --> 0532
@@ -91,13 +84,15 @@ graph TD
   0393:::done
   0407:::done
   0511:::done
+  0530:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (507)</summary>
+<details><summary>✅🗑️ Archive — done + killed (508)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0530](archive/2026-10-06-0530-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) | Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR | 2026-10-06 |
 | [0529](archive/2026-10-06-0529-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) | Repoint a merged PR's change backlink when the change is archived | 2026-10-06 |
 | [0526](archive/2026-10-05-0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | 2026-10-05 |
 | [0525](archive/2026-10-05-0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | 2026-10-05 |
@@ -114,7 +109,6 @@ graph TD
 | [0516](archive/2026-10-04-0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) | Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match | 2026-10-04 |
 | [0515](archive/2026-10-04-0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | 2026-10-04 |
 | [0511](archive/2026-10-04-0511-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa.md) | Upgrade guide from Bash docket to the Go binary, proven on saved v0.9.2 and v0.9.3 installs | 2026-10-04 |
-| [0510](archive/2026-10-04-0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0380](archive/2026-10-04-0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | 2026-10-04 |
@@ -257,7 +251,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 25 done |
+| [2026-10](archive/) | 26 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

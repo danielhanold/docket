@@ -2,7 +2,7 @@
 id: 530
 slug: 'keep-plan-results-and-build-evidence-on-the-metadata-branch'
 title: 'Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
@@ -22,7 +22,7 @@ branch: 'feat/keep-plan-results-and-build-evidence-on-the-metadata-branch'
 pr: 'https://github.com/danielhanold/docket/pull/398'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-06T07:06:18Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-06T07:06:18Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch-design.md) |
-| Plan | [2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch.md](https://github.com/danielhanold/docket/blob/feat/keep-plan-results-and-build-evidence-on-the-metadata-branch/docs/superpowers/plans/2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) |
-| Results | [2026-10-06-keep-plan-results-and-build-evidence-on-the-metadata-branch-results.md](https://github.com/danielhanold/docket/blob/feat/keep-plan-results-and-build-evidence-on-the-metadata-branch/docs/results/2026-10-06-keep-plan-results-and-build-evidence-on-the-metadata-branch-results.md) |
+| Plan | [2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) |
+| Results | [2026-10-06-keep-plan-results-and-build-evidence-on-the-metadata-branch-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-06-keep-plan-results-and-build-evidence-on-the-metadata-branch-results.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0141](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0141-build-artifacts-plan-results-evidence-live-on-the-metadata-b.md) |
 <!-- docket:artifacts:end -->
 
