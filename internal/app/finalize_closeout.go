@@ -15,7 +15,6 @@ import (
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/render"
-	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
@@ -743,8 +742,8 @@ func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext
 	}
 	res, execErr := deps.Planning.Engine.Execute(ctx, transaction.Request{
 		Repository: cc.repo,
-		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
+		Remote:     metadataRemote(cc.pin.Layout),
+		TargetRef:  metadataRef(cc.pin.Layout),
 		Expected: []transaction.EntityExpectation{{
 			Path:     gitcli.RepoPath(cc.change.Path()),
 			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(cc.revision)},
@@ -806,8 +805,8 @@ func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *c
 	}
 	res, execErr := deps.Planning.Engine.Execute(ctx, transaction.Request{
 		Repository: cc.repo,
-		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
+		Remote:     metadataRemote(cc.pin.Layout),
+		TargetRef:  metadataRef(cc.pin.Layout),
 		Expected:   expectations,
 		Loader:     newPlanningLoader(cc.eff),
 		Scope:      changeScope(id, cc.change.Path(), true, targetPaths...),

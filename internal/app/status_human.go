@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/danielhanold/docket/internal/reposetup"
 )
 
 // StatusResult is a fully-computed operation outcome the presenter renders, so
@@ -26,14 +24,14 @@ var _ OperationResult = StatusResult{}
 func (r StatusResult) HumanText() string {
 	var b strings.Builder
 
-	// 1. short revisions. Go v1 has one metadata topology (the fixed orphan
-	// `docket` branch), so there is no mode line; the metadata branch line is
-	// explanatory identity rendered unconditionally from the fixed branch name
-	// and the pinned revision (change 0363).
+	// 1. short revisions. Go v1 has one metadata topology (an orphan metadata
+	// branch), so there is no mode line; the metadata branch line is
+	// explanatory identity rendered from the pinned layout's branch name and
+	// the pinned revision (change 0363).
 	fmt.Fprintf(&b, "default branch: %s @ %s\n", r.Context.DefaultBranch, shortRevision(r.Context.DefaultBranchRevision))
 	fmt.Fprintf(&b, "integration branch: %s @ %s\n", r.Context.IntegrationBranch, shortRevision(r.Context.IntegrationRevision))
 	if r.Context.MetadataRevision != "" {
-		fmt.Fprintf(&b, "metadata branch: %s @ %s\n", reposetup.MetadataBranchName, shortRevision(r.Context.MetadataRevision))
+		fmt.Fprintf(&b, "metadata branch: %s @ %s\n", r.Context.MetadataBranch, shortRevision(r.Context.MetadataRevision))
 	}
 
 	// Failure results carry no report body — surface the classification instead.

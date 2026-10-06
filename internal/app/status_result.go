@@ -16,6 +16,12 @@ type StatusContext struct {
 	IntegrationBranch     string `json:"integration_branch"`
 	IntegrationRevision   string `json:"integration_revision"`
 	MetadataRevision      string `json:"metadata_revision,omitempty"`
+	// MetadataBranch is the pinned layout's metadata branch, rendered on the
+	// human report's metadata line. It is deliberately not serialized: change
+	// 0363 removed metadata_branch from the status protocol
+	// (TestStatusContextProtocolOmitsModeFields), and skills key on
+	// repository.prepare's context for the branch instead.
+	MetadataBranch string `json:"-"`
 }
 
 // StatusSummary carries the counts a reader would otherwise recompute from the

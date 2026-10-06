@@ -21,6 +21,11 @@ type LinkContext struct {
 	// rows); empty falls back to MetadataBranch at the BlobURLOnBranch
 	// boundary, so a malformed URL is unrepresentable.
 	IntegrationBranch string
+	// PrivateMetadata marks a private repository, whose metadata branch is
+	// published to a local bare remote rather than the web host: no web page
+	// exists for it, so every blob link on MetadataBranch renders "" (the
+	// repo-relative fallback). Links on other branches are unaffected.
+	PrivateMetadata bool
 }
 
 // BlobURL returns the blob URL on the metadata branch — correct for records
@@ -33,13 +38,17 @@ func (l LinkContext) BlobURL(repoRelPath string) string {
 // BlobURLOnBranch returns RepoWebURL + "/blob/" + branch + "/" + repoRelPath,
 // or "" when RepoWebURL is empty. An empty branch falls back to
 // MetadataBranch: the defensive default for a caller whose branch is
-// unresolvable, never a malformed "/blob//" URL.
+// unresolvable, never a malformed "/blob//" URL. A private repository's
+// metadata branch (after that fallback) has no web page, so it also yields "".
 func (l LinkContext) BlobURLOnBranch(repoRelPath, branch string) string {
 	if l.RepoWebURL == "" {
 		return ""
 	}
 	if branch == "" {
 		branch = l.MetadataBranch
+	}
+	if l.PrivateMetadata && branch == l.MetadataBranch {
+		return ""
 	}
 	return l.RepoWebURL + "/blob/" + branch + "/" + repoRelPath
 }

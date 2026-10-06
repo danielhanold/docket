@@ -10,6 +10,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -243,7 +244,7 @@ func gatherRepoFacts(ctx context.Context, p setupProber, in repoFactsInput) (rep
 	// (adopt on the expected empty orphan, refuse on anything foreign), so the
 	// authoritative adopt/conflict decision keys on the promised remote state, not
 	// a gather-time proxy.
-	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
+	metaRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
 	rr, merr := p.ProbeRemoteBranch(ctx, in.repo, setupRemote(), metaRef)
 	if merr != nil {
 		sc.diagnostics = append(sc.diagnostics, setupDiag{Probe: "remote-metadata-branch", Err: merr})

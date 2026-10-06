@@ -9,6 +9,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -527,7 +528,7 @@ func buildPrepareContext(cfg config.Effective, sc setupContext, f reposetup.Fact
 		DefaultBranchRevision:     f.RemoteDefaultBranch.Tip,
 		IntegrationBranch:         sc.integrationBranch,
 		IntegrationBranchRevision: f.RemoteIntegration.Tip,
-		MetadataBranch:            reposetup.MetadataBranchName,
+		MetadataBranch:            layout.SharedName, // Task 4: resolve through sc.layout
 		MetadataBranchRevision:    f.RemoteMetadata.Tip,
 		MetadataWorktreePath:      filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName),
 		ChangesDir:                cfg.ChangesDir.Value,
@@ -608,7 +609,7 @@ func RunRepositoryPrepare(ctx context.Context, d SetupDeps, o PrepareOptions) Re
 // PresenceUnknown and never read. Every probe maps its own error to the safe Unknown
 // value so a probe that could not run can never let the router read healthy.
 func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts, sc setupContext) prepareHolder {
-	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
+	metaRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
 
 	// Metadata root shape at the FETCHED remote docket tip (fetch it first so the
 	// object is local on a clone that never fetched docket). The shared ownership
@@ -683,7 +684,7 @@ func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts,
 // re-read remote state so a lost-response retry converges by re-reading topology.
 func prepareExecute(ctx context.Context, git *gitcli.Client, sc setupContext, verdict prepareVerdict) error {
 	worktreePath := filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName)
-	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
+	metaRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
 	switch verdict.action {
 	case prepareActionAttach:
 		return prepareAttachFresh(ctx, git, sc.repo, worktreePath, metaRef, verdict)

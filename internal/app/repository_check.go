@@ -14,6 +14,7 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
@@ -167,7 +168,7 @@ func checkRevisions(facts reposetup.Facts) map[string]string {
 // never to a false absence — so a probe that could not run can never let the
 // classifier read healthy.
 func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Facts, sc setupContext) {
-	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
+	metaRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
 
 	// Metadata root shape: the shared ownership verifier decides, at the FETCHED
 	// remote docket tip, whether the tip's sole parentless-root lineage is a
@@ -522,6 +523,7 @@ func readCheckCorpus(ctx context.Context, git *gitcli.Client, sc setupContext) (
 	corpus.link = linkContextOf(StatusPin{
 		RepoWebURL:        githubWebURL(remoteURL),
 		IntegrationBranch: sc.integrationBranch,
+		Layout:            layout.SharedLayout(sc.repo.CommonDir, sc.repo.PrimaryWorktree), // Task 4: resolve through sc.layout
 	})
 	return corpus, nil
 }

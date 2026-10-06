@@ -21,6 +21,7 @@ func healthyStatusResult() StatusResult {
 			IntegrationBranch:     "develop",
 			IntegrationRevision:   "b2c3d4e5f6a1FEEDFACE",
 			MetadataRevision:      "c3d4e5f6a1b2CAFED00D",
+			MetadataBranch:        "docket",
 		},
 		Summary: StatusSummary{
 			TotalChanges: 5, ActiveChanges: 3, DisplayedChanges: 3,
@@ -116,6 +117,7 @@ func TestStatusHumanTextFilteredEmptyProjection(t *testing.T) {
 			IntegrationBranch:     "develop",
 			IntegrationRevision:   "a1a1a1a1a1a1",
 			MetadataRevision:      "b2b2b2b2b2b2",
+			MetadataBranch:        "docket",
 		},
 		Summary: StatusSummary{
 			TotalChanges: 4, ActiveChanges: 3, DisplayedChanges: 0,

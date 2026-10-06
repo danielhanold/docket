@@ -9,12 +9,42 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 	"path"
 	"strings"
 	"testing"
 	"time"
 )
+
+// TestIntegrationRecordOpsClaimTransactionTargetsPinnedMetadataLayout pins the
+// caller wiring (defaulted-param-hides-caller-wiring): the claim transaction's
+// remote and target ref come from the PINNED layout, not a shared default. The
+// pin carries a NON-default private layout, so a site that still hardcodes
+// origin/docket reddens here even though every shared-mode test stays green.
+func TestIntegrationRecordOpsClaimTransactionTargetsPinnedMetadataLayout(t *testing.T) {
+	repoDir := newRunTrackerRepo(t)
+	engine := &claimGateEngine{result: appliedGateResult(t, 3)}
+	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
+	reader := deps.Reader.(*fakeReader)
+	reader.pin.Layout = layout.PrivateLayout("/c", "/r", "/d", "o-r")
+
+	res := ChangeClaim(context.Background(), deps, repoDir,
+		ChangeClaimRequest{ID: 3, Revision: gateClaimRevision})
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied (%v)", res.Result, res.Findings)
+	}
+	if len(engine.calls) != 1 {
+		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
+	}
+	req := engine.calls[0]
+	if req.Remote != "dckt" {
+		t.Errorf("transaction remote = %q, want dckt (the pinned private metadata remote)", req.Remote)
+	}
+	if req.TargetRef != "refs/heads/dckt" {
+		t.Errorf("transaction target ref = %q, want refs/heads/dckt (the pinned private metadata branch)", req.TargetRef)
+	}
+}
 
 // TestIntegrationRecordOpsClaimRunContextInvalidRefusesBeforeTransaction: a supplied context that
 // matches no started run-tracker record is a typed refusal that writes nothing and never

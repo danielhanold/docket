@@ -70,6 +70,7 @@ func mainModePin(surfaces []string) StatusPin {
 	return StatusPin{
 		DefaultBranch: "main",
 		Config:        config.Snapshot{Effective: planningTestConfig(surfaces)},
+		Layout:        testSharedLayout(),
 	}
 }
 

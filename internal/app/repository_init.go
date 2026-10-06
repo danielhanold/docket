@@ -14,6 +14,7 @@ import (
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -104,7 +105,7 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 	// verified init-equivalent lineage AT ITS TIP (descendants preserved), or
 	// refuse a migration-seeded, foreign, or unreadable branch — the remote is
 	// never overwritten or reset to the seed.
-	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
+	metaRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
 	metadataTip, createdRemote, refusal := publishOrAdoptMetadataRoot(ctx, d.Git, sc.repo, metaRef, sc.sourceRevision, sc.defaultBranch)
 	if refusal != nil {
 		return *refusal

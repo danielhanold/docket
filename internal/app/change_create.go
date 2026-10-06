@@ -13,7 +13,6 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
-	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
@@ -246,8 +245,8 @@ func ChangeCreate(ctx context.Context, deps PlanningDeps, repoDir string, req Ch
 
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository:  repo,
-		Remote:      originRemote,
-		TargetRef:   gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
+		Remote:      metadataRemote(pin.Layout),
+		TargetRef:   metadataRef(pin.Layout),
 		Idempotency: &transaction.IdempotencyKey{RequestID: req.RequestID, Digest: digest},
 		Loader:      newPlanningLoader(eff),
 		Operation:   op,

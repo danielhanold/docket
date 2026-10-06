@@ -16,8 +16,10 @@ package repoguard
 // Mutation-tested: re-inlining "docket" in workspace.workspacesRoot reddens it.
 
 import (
+	"bytes"
 	"go/ast"
 	"go/parser"
+	"go/printer"
 	"go/token"
 	"io/fs"
 	"path/filepath"
@@ -79,6 +81,110 @@ func isPathJoin(call *ast.CallExpr) bool {
 	}
 	pkg, ok := sel.X.(*ast.Ident)
 	return ok && (pkg.Name == "filepath" || pkg.Name == "path")
+}
+
+// TestTransactionRequestsUseResolvedMetadataRemote pins that every metadata
+// transaction pushes to the RESOLVED metadata remote. In a private repository
+// the metadata branch lives on the bare dckt remote, not origin, so a
+// transaction.Request that names origin (or any other fixed spelling) would
+// lease-push metadata to the wrong place.
+//
+// Shape: every transaction.Request composite literal in a non-test .go file
+// under internal/app must set its Remote field to a call of metadataRemote —
+// the one accessor over the pinned layout. Keyed on that positive shape, so
+// originRemote, setupRemote(), a string literal, and an omitted Remote all
+// redden alike. Its TargetRef twin is shape 1 of
+// TestNoIntegrationPushOutsidePRMerge (integration_push_test.go).
+//
+// Mutation-tested: putting `Remote: originRemote` back in ChangeClaim reddens
+// it (and TestIntegrationRecordOpsClaimTransactionTargetsPinnedMetadataLayout).
+func TestTransactionRequestsUseResolvedMetadataRemote(t *testing.T) {
+	root := guardRoot(t)
+	fset := token.NewFileSet()
+	literals := 0
+	var violations []string
+	walkGo(t, root, func(rel string) {
+		if dirOf(rel) != "internal/app" {
+			return
+		}
+		file, err := parser.ParseFile(fset, filepath.Join(root, filepath.FromSlash(rel)), nil, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatalf("parse %s: %v", rel, err)
+		}
+		n, v := metadataRemoteViolations(fset, rel, file)
+		literals += n
+		violations = append(violations, v...)
+	})
+	// Population floor: an empty enumeration passes every negative.
+	if literals < 20 {
+		t.Fatalf("population floor: found %d transaction.Request literals under internal/app (want >= 20); the literal detector drifted", literals)
+	}
+	for _, v := range violations {
+		t.Error(v)
+	}
+}
+
+// metadataRemoteViolations reports each transaction.Request literal in file
+// whose Remote is not a metadataRemote(...) call, and how many literals it saw.
+func metadataRemoteViolations(fset *token.FileSet, rel string, file *ast.File) (int, []string) {
+	literals := 0
+	var violations []string
+	ast.Inspect(file, func(n ast.Node) bool {
+		lit, ok := n.(*ast.CompositeLit)
+		if !ok || !isTransactionRequest(lit.Type) {
+			return true
+		}
+		literals++
+		pos := rel + ":" + strconv.Itoa(fset.Position(lit.Pos()).Line)
+		var remote ast.Expr
+		for _, el := range lit.Elts {
+			if kv, ok := el.(*ast.KeyValueExpr); ok {
+				if id, ok := kv.Key.(*ast.Ident); ok && id.Name == "Remote" {
+					remote = kv.Value
+				}
+			}
+		}
+		if remote == nil {
+			violations = append(violations, pos+": a transaction.Request sets no Remote; it must be metadataRemote(<pinned layout>)")
+			return true
+		}
+		if call, ok := remote.(*ast.CallExpr); ok {
+			if fn, ok := call.Fun.(*ast.Ident); ok && fn.Name == "metadataRemote" {
+				return true
+			}
+		}
+		var buf bytes.Buffer
+		_ = printer.Fprint(&buf, fset, remote)
+		violations = append(violations, pos+": a transaction.Request pushes to Remote "+buf.String()+", not the resolved metadata remote (metadataRemote(<pinned layout>))")
+		return true
+	})
+	return literals, violations
+}
+
+// TestTransactionRequestsUseResolvedMetadataRemoteDetects is the guard's own
+// negative control: originRemote, a string literal, and an omitted Remote each
+// produce a violation, and the metadataRemote shape produces none.
+func TestTransactionRequestsUseResolvedMetadataRemoteDetects(t *testing.T) {
+	src := `package app
+
+func good() { _ = transaction.Request{Remote: metadataRemote(pin.Layout)} }
+func origin() { _ = transaction.Request{Remote: originRemote} }
+func literal() { _ = transaction.Request{Remote: "dckt"} }
+func missing() { _ = transaction.Request{TargetRef: metadataRef(pin.Layout)} }
+`
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "internal/app/x.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, v := metadataRemoteViolations(fset, "internal/app/x.go", f)
+	if n != 4 {
+		t.Errorf("literals = %d, want 4", n)
+	}
+	joined := strings.Join(v, "\n")
+	if len(v) != 3 || !strings.Contains(joined, "originRemote") || !strings.Contains(joined, `"dckt"`) || !strings.Contains(joined, "sets no Remote") {
+		t.Errorf("violations = %v, want exactly originRemote, the literal, and the omitted Remote", v)
+	}
 }
 
 func TestNoInlineStateFolderSpelling(t *testing.T) {

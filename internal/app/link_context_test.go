@@ -3,6 +3,7 @@ package app
 import (
 	"testing"
 
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 )
 
@@ -43,6 +44,7 @@ func TestLinkContextOfCarriesBothFields(t *testing.T) {
 	pin := StatusPin{
 		RepoWebURL:        "https://github.com/owner/repo",
 		IntegrationBranch: "main",
+		Layout:            testSharedLayout(),
 	}
 	got := linkContextOf(pin)
 	want := render.LinkContext{
@@ -55,6 +57,33 @@ func TestLinkContextOfCarriesBothFields(t *testing.T) {
 	}
 	if url := got.BlobURL("docs/x.md"); url != "https://github.com/owner/repo/blob/docket/docs/x.md" {
 		t.Fatalf("BlobURL = %q", url)
+	}
+}
+
+// TestLinkContextOfCarriesPrivateLayout pins that the metadata branch and the
+// private flag come from the PINNED layout (defaulted-param-hides-caller-wiring:
+// a non-default private layout must arrive), so a private repository's
+// metadata links render repo-relative instead of pointing at a web page that
+// does not exist. Mutation probes: hardcode MetadataBranch, or drop the
+// PrivateMetadata assignment, in linkContextOf — each reddens.
+func TestLinkContextOfCarriesPrivateLayout(t *testing.T) {
+	pin := StatusPin{
+		RepoWebURL:        "https://github.com/owner/repo",
+		IntegrationBranch: "main",
+		Layout:            layout.PrivateLayout("/c", "/r", "/d", "o-r"),
+	}
+	got := linkContextOf(pin)
+	want := render.LinkContext{
+		RepoWebURL:        "https://github.com/owner/repo",
+		MetadataBranch:    "dckt",
+		IntegrationBranch: "main",
+		PrivateMetadata:   true,
+	}
+	if got != want {
+		t.Fatalf("linkContextOf = %+v, want %+v", got, want)
+	}
+	if url := got.BlobURL("docs/x.md"); url != "" {
+		t.Fatalf("BlobURL on a private metadata branch = %q, want empty", url)
 	}
 }
 

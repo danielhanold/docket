@@ -46,6 +46,33 @@ func TestBlobURLOnBranch(t *testing.T) {
 	}
 }
 
+// TestPrivateMetadataRendersNoMetadataURL: a private repository's metadata
+// branch is published to a local bare remote, never to the web host, so a blob
+// URL on it would point at nothing. Metadata-branch links (explicit or via the
+// empty-branch fallback) render "" — the repo-relative fallback — while a link
+// on the integration branch, which does live on the web host, stays absolute.
+func TestPrivateMetadataRendersNoMetadataURL(t *testing.T) {
+	l := render.LinkContext{
+		RepoWebURL:        "https://github.com/o/r",
+		MetadataBranch:    "dckt",
+		IntegrationBranch: "main",
+		PrivateMetadata:   true,
+	}
+	const p = "docs/changes/active/0001-x.md"
+	if got := l.BlobURL(p); got != "" {
+		t.Errorf("BlobURL = %q, want empty for a private metadata branch", got)
+	}
+	if got := l.BlobURLOnBranch(p, ""); got != "" {
+		t.Errorf("BlobURLOnBranch(empty) = %q, want empty for a private metadata branch", got)
+	}
+	if got := l.BlobURLOnBranch(p, "dckt"); got != "" {
+		t.Errorf("BlobURLOnBranch(dckt) = %q, want empty for a private metadata branch", got)
+	}
+	if got, want := l.BlobURLOnBranch(p, "main"), "https://github.com/o/r/blob/main/"+p; got != want {
+		t.Errorf("BlobURLOnBranch(main) = %q, want %q", got, want)
+	}
+}
+
 func TestBlobURLOnBranchWithoutRepoWebURL(t *testing.T) {
 	l := render.LinkContext{RepoWebURL: "", MetadataBranch: "docket", IntegrationBranch: "main"}
 	if got := l.BlobURLOnBranch("docs/x.md", "fix/some-change"); got != "" {

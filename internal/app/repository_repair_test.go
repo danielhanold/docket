@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
@@ -21,7 +22,7 @@ func repairArchivedDone(claimedLine string) []byte {
 const repairArchivedPath = "docs/changes/archive/2026-01-02-0003-archived-change.md"
 
 func repairLink() render.LinkContext {
-	return render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}
+	return render.LinkContext{MetadataBranch: layout.SharedName}
 }
 
 // TestPlanRepositoryRepairComposesFrontmatterAndArtifactLinks proves a record that
@@ -364,7 +365,7 @@ func TestComposeDerivedRepairBoardBytes(t *testing.T) {
 	path, canonical := canonicalChangeRecord(t, cfg)
 	rec := corpusRecord{path: path, bytes: canonical, kind: repository.KindChange, location: repository.LocationActive}
 	snap, _ := buildCorpusSnapshot(cfg, []corpusRecord{rec})
-	corpus := checkCorpus{records: []corpusRecord{rec}, link: render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}}
+	corpus := checkCorpus{records: []corpusRecord{rec}, link: render.LinkContext{MetadataBranch: layout.SharedName}}
 	recByPath := map[string]corpusRecord{rec.path: rec}
 
 	got, err := composeDerivedRepairBytes(setupContext{cfg: cfg}, snap, corpus, recByPath, boardCorpusPath(cfg))
@@ -386,7 +387,7 @@ func TestComposeDerivedRepairArtifactLinksBytes(t *testing.T) {
 	path := "docs/changes/active/0001-example.md"
 	stale := corpusRecord{path: path, bytes: changeRecordBytes(derivedChangeFM, ""), kind: repository.KindChange, location: repository.LocationActive}
 	snap, _ := buildCorpusSnapshot(cfg, []corpusRecord{stale})
-	corpus := checkCorpus{records: []corpusRecord{stale}, link: render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}}
+	corpus := checkCorpus{records: []corpusRecord{stale}, link: render.LinkContext{MetadataBranch: layout.SharedName}}
 	recByPath := map[string]corpusRecord{path: stale}
 
 	got, err := composeDerivedRepairBytes(setupContext{cfg: cfg}, snap, corpus, recByPath, path)

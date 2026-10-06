@@ -117,7 +117,8 @@ const (
 // Diagnostics, never here.
 type Effective struct {
 	// metadata_branch is gone (change 0363): it is an obsolete tombstone, never
-	// resolved policy. The metadata branch is fixed at reposetup.MetadataBranchName.
+	// resolved policy. The metadata branch comes from the repository's layout
+	// (layout.Layout.MetadataBranch), decided from state, never from config.
 	IntegrationBranch Value[string]   `json:"integration_branch"` // auto already resolved
 	ChangesDir        Value[string]   `json:"changes_dir"`
 	ADRsDir           Value[string]   `json:"adrs_dir"`

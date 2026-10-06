@@ -13,7 +13,6 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
-	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
@@ -195,8 +194,8 @@ func ADRRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, req ADR
 
 	txReq := transaction.Request{
 		Repository:  repo,
-		Remote:      originRemote,
-		TargetRef:   gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
+		Remote:      metadataRemote(pin.Layout),
+		TargetRef:   metadataRef(pin.Layout),
 		Idempotency: &transaction.IdempotencyKey{RequestID: req.RequestID, Digest: digest},
 		Loader:      newPlanningLoader(eff),
 		Scope:       adrScope("", adrProducingChangePaths(req.Change), path.Join(eff.ADRsDir.Value, "README.md")),
@@ -714,8 +713,8 @@ func adrReplace(ctx context.Context, deps PlanningDeps, repoDir, opKey string, r
 
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository:  repo,
-		Remote:      originRemote,
-		TargetRef:   gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
+		Remote:      metadataRemote(pin.Layout),
+		TargetRef:   metadataRef(pin.Layout),
 		Idempotency: &transaction.IdempotencyKey{RequestID: req.RequestID, Digest: digest},
 		Loader:      newPlanningLoader(eff),
 		Scope:       adrScope(req.Target.Path, adrProducingChangePaths(req.Successor.Change), path.Join(eff.ADRsDir.Value, "README.md")),

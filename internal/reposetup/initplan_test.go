@@ -23,8 +23,7 @@ func freshFacts() Facts {
 
 func initCfg() config.Effective {
 	// metadata_branch is gone from config.Effective (obsolete tombstone, 0363);
-	// PlanInit pins the fixed metadata branch itself (bridged in initplan.go until
-	// Task 3 sources it from reposetup.MetadataBranchName).
+	// PlanInit pins the shared metadata branch itself (layout.SharedName).
 	return config.Effective{
 		ChangesDir: config.Value[string]{Value: "docs/changes"},
 		ADRsDir:    config.Value[string]{Value: "docs/adrs"},

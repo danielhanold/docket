@@ -11,6 +11,7 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -73,6 +74,9 @@ type StatusPin struct {
 	RepoWebURL  string
 	Config      config.Snapshot
 	ConfigDiags []config.Diagnostic
+	// Layout is the repository's resolved per-repo layout (resolveLayout): the
+	// metadata remote and branch every metadata fetch and transaction targets.
+	Layout layout.Layout
 }
 
 // StatusBlob is one record read from a pinned source: its declared kind and
@@ -791,6 +795,7 @@ func contextFromPin(pin StatusPin) StatusContext {
 		IntegrationBranch:     pin.IntegrationBranch,
 		IntegrationRevision:   pin.IntegrationRevision,
 		MetadataRevision:      pin.MetadataRevision,
+		MetadataBranch:        pin.Layout.MetadataBranch,
 	}
 }
 

@@ -69,6 +69,7 @@ func (r *gitStatusReader) PinContext(ctx context.Context, repoDir string) (Statu
 		Config:              oc.snapshot,
 		ConfigDiags:         oc.diags,
 		RepoWebURL:          oc.repoWebURL,
+		Layout:              oc.layout,
 	}, nil
 }
 
@@ -210,7 +211,7 @@ func (r *gitStatusReader) openSource(ctx context.Context, rev string) (gitcli.Ob
 }
 
 // metadataRevision is the revision the metadata source reads from: the pinned
-// tip of the fixed docket metadata branch.
+// tip of the resolved metadata branch.
 func metadataRevision(pin StatusPin) string {
 	return pin.MetadataRevision
 }

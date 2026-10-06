@@ -13,7 +13,6 @@ import (
 	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
-	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
@@ -336,8 +335,8 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 	// (admitWorkflowMutation is not duplicated at engine boundaries).
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository: repo,
-		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
+		Remote:     metadataRemote(pin.Layout),
+		TargetRef:  metadataRef(pin.Layout),
 		Expected: []transaction.EntityExpectation{{
 			Path:     gitcli.RepoPath(recPath),
 			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},

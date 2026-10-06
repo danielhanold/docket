@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposeed"
 )
 
@@ -62,8 +63,8 @@ func PlanInit(cfg config.Effective, f Facts, tree TestTree, primaryRoot string) 
 	return InitPlan{
 		RootSubject:   initRootSubject,
 		RootTrailers:  Receipt{Operation: OpInitRoot}.Trailers(),
-		MetadataRef:   "refs/heads/" + MetadataBranchName,
-		WorktreePath:  filepath.Join(primaryRoot, ".docket"),
+		MetadataRef:   "refs/heads/" + layout.SharedName,
+		WorktreePath:  filepath.Join(primaryRoot, layout.SharedWorktreeDir),
 		GitignorePath: ".gitignore",
 		SeedInput: reposeed.PlanInput{
 			WorktreeRoot: primaryRoot,

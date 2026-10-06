@@ -18,6 +18,7 @@ func learningsDisabledPin() StatusPin {
 	return StatusPin{
 		DefaultBranch: "main",
 		Config:        config.Snapshot{Effective: eff},
+		Layout:        testSharedLayout(),
 	}
 }
 
