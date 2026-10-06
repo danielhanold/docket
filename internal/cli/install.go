@@ -116,6 +116,7 @@ var assetIndependent = map[string]bool{
 	"repository configure-tests":  true,
 	"repository sync-integration": true,
 	"agent":                       true,
+	"instructions":                true, // session hooks must answer on a machine mid-install; it reads only the repository's own file
 	"diagnostic":                  true, // the group itself; it reports a missing command
 	"diagnostic runtime":          true,
 	"diagnostic config":           true,
