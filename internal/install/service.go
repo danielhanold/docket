@@ -176,8 +176,12 @@ type Outcome struct {
 	// out of Err and Reason: a published installation remains successful even
 	// when reclaiming an old version tree needs a later retry.
 	Collection CollectionOutcome
-	Reason     string
-	Err        error
+	// AliasFindings are dckt aliases an operation found missing or foreign.
+	// They are findings, never failures: they leave Reason and Err alone, and
+	// the app layer renders them as warnings.
+	AliasFindings []AliasFinding
+	Reason        string
+	Err           error
 	// Relayed marks a development-install PARENT outcome whose candidate has
 	// already printed the sole result document to the shared stdout. The parent
 	// itself planned nothing and wrote nothing; the CLI presenter emits no
