@@ -16,10 +16,12 @@ import (
 // This file is the `evidence recertify` operation (change 0415): for an
 // implemented change whose open PR received a PUBLISHED follow-up commit, it
 // reruns the BUILD gate at the current feature head, records and verifies
-// canonical build evidence, and refreshes ONLY the existing PR's build-evidence
-// block. The change stays implemented throughout; the operation performs no
-// Docket metadata mutation, no push, no rebase, no merge, and no automatic
-// repair. It composes only landed services: the workspace context/target
+// canonical build evidence, refreshes ONLY the existing PR's build-evidence
+// block, and records the evidence in the change record's "## Build evidence"
+// section. The change stays implemented throughout; its only Docket metadata
+// mutation is that section's exact-revision write (recordBuildEvidence), and it
+// performs no push, no rebase, no merge, and no automatic repair. It composes
+// only landed services: the workspace context/target
 // resolution, the build-owned production local gate (NewBuildLocalGate), the
 // build-owned evidence record path, and finalize publish's loss-preserving PR
 // evidence-block edit (evidence.Upsert + finalizePublishEnsurer) WITHOUT its
@@ -31,12 +33,13 @@ const OperationEvidenceRecertify = "evidence.recertify"
 
 // The closed recertify outcomes.
 const (
-	// RecertifyOutcomeGreen: the build gate passed and the PR's evidence block
-	// was converged onto the exact current head.
+	// RecertifyOutcomeGreen: the build gate passed, the PR's evidence block was
+	// converged onto the exact current head, and the change record records it.
 	RecertifyOutcomeGreen = "green"
 	// RecertifyOutcomeSkipped: build.gate is off; truthful skipped evidence was
-	// minted and verified. The PR block is untouched — evidence.Upsert is
-	// green-only by design, and this operation preserves evidence rendering.
+	// minted, verified, and recorded in the change record. The PR block is
+	// untouched — evidence.Upsert is green-only by design, and this operation
+	// preserves evidence rendering.
 	RecertifyOutcomeSkipped = "skipped"
 )
 
@@ -67,6 +70,12 @@ const (
 	ReasonRecertifyEditorUnavailable     = "pr-editor-unavailable"
 	ReasonRecertifyEditContended         = "pr-edit-contended"
 	ReasonRecertifyEditUnknown           = "pr-edit-unknown"
+	// ReasonRecertifyRecordContended: the change record moved between the read
+	// and the build-evidence write; the record is untouched — rerun recertify.
+	ReasonRecertifyRecordContended = "record-evidence-contended"
+	// ReasonRecertifyRecordFailed: the change record's build-evidence write did
+	// not apply for any other reason; never reported as completion.
+	ReasonRecertifyRecordFailed = "record-evidence-failed"
 )
 
 // EvidenceRecertifyRequest is the closed request for `evidence recertify`.
@@ -251,7 +260,8 @@ func EvidenceRecertify(ctx context.Context, deps FinalizeDeps, wdeps WorkspaceDe
 		// Truthful skipped evidence at the verified current head; no run, and no
 		// PR edit — evidence.Upsert is green-only by design (see
 		// TestIntegrationFinalizeOpsPRPublishAcceptsSkippedEvidenceAtExactHead's note), and this
-		// operation preserves evidence rendering.
+		// operation preserves evidence rendering. The change record's section is
+		// the skipped record's durable home.
 		evd := EvidenceRecord(ctx, deps.Planning, wdeps, repoDir, EvidenceRecordRequest{ID: facts.id, Head: facts.head})
 		if evd.Result != ResultApplied || evd.Block == "" {
 			return recertifyRefusal(evd.Result, evd.Reason, evd.Message, facts.id)
@@ -260,12 +270,17 @@ func EvidenceRecertify(ctx context.Context, deps FinalizeDeps, wdeps WorkspaceDe
 			return recertifyRefusal(ResultInvalidState, ReasonRecertifyEvidenceUnverified,
 				"the skipped evidence record did not verify against the current head ("+string(v)+")", facts.id)
 		}
-		return EvidenceRecertifyResult{
-			Envelope: NewEnvelope(OperationEvidenceRecertify, ResultApplied),
+		skipped, err := evidence.Extract([]byte(evd.Block))
+		if err != nil {
+			// Unreachable after a skipped verdict, but fail closed rather than trust it.
+			return recertifyRefusal(ResultInvalidState, ReasonRecertifyEvidenceUnverified, err.Error(), facts.id)
+		}
+		return recertifyRecordEvidence(ctx, deps, repoDir, skipped, EvidenceRecertifyResult{
+			Envelope: NewEnvelope(OperationEvidenceRecertify, ResultNoOp),
 			ID:       facts.id, Head: facts.head, Outcome: RecertifyOutcomeSkipped,
 			Number: facts.pr.Number, Reference: fmt.Sprintf("%s#%d", facts.repo.Spec(), facts.pr.Number), URL: facts.pr.URL,
-			Message: "build.gate is off; truthful skipped evidence was recorded and verified (the PR evidence block is untouched — skipped evidence is never woven into a PR body)",
-		}
+			Message: "build.gate is off; truthful skipped evidence was verified and recorded in the change record (the PR evidence block is untouched — skipped evidence is never woven into a PR body)",
+		})
 	}
 	if facts.build.TestCommand.Value == "" {
 		return recertifyRefusal(ResultUnsupportedConfig, ReasonEvidenceUnconfiguredGate,
@@ -337,7 +352,9 @@ func runRecertifyGate(ctx context.Context, deps FinalizeDeps, repoDir string, fa
 // cannot inherit the pass), re-pins the build command against the evidence, and
 // then loss-preservingly replaces ONLY the PR's build-evidence block, exactly
 // as FinalizePublish does — without its rebase receipt, PublishRewrite, or
-// merge path. A failed or uncertain edit is never reported as completion.
+// merge path — and, once the PR has converged, records the evidence in the
+// change record. A failed or uncertain edit or record write is never reported
+// as completion.
 func publishRecertifiedEvidence(ctx context.Context, deps FinalizeDeps, repoDir string, first recertifyFacts, block string) EvidenceRecertifyResult {
 	if len(block) > maxAuthoredMarkdownBytes {
 		return recertifyRefusal(ResultInvalidInput, ReasonRecertifyEvidenceUnverified,
@@ -405,12 +422,12 @@ func publishRecertifiedEvidence(ctx context.Context, deps FinalizeDeps, repoDir 
 	switch eres.Disposition {
 	case githubcli.EnsureCreated, githubcli.EnsureUpdated:
 		base.Envelope = NewEnvelope(OperationEvidenceRecertify, ResultApplied)
-		return base
+		return recertifyRecordEvidence(ctx, deps, repoDir, rec, base)
 	case githubcli.EnsureAdopted, githubcli.EnsureUnchanged:
 		// The PR already carried this exact evidence — an idempotent replay.
 		base.Envelope = NewEnvelope(OperationEvidenceRecertify, ResultNoOp)
 		base.Message = "the pull request already carries verified evidence for this head"
-		return base
+		return recertifyRecordEvidence(ctx, deps, repoDir, rec, base)
 	case githubcli.EnsureContended:
 		return recertifyRefusal(ResultContended, ReasonRecertifyEditContended,
 			"the pull request diverged under the update; rerun recertify", first.id)
@@ -420,6 +437,35 @@ func publishRecertifiedEvidence(ctx context.Context, deps FinalizeDeps, repoDir 
 	default:
 		return recertifyRefusal(ResultInternalError, ReasonStatusInternalError,
 			fmt.Sprintf("unexpected pull-request edit disposition %q", eres.Disposition), first.id)
+	}
+}
+
+// recertifyRecordEvidence records rec in the change record's "## Build evidence"
+// section after base (an applied or no-op result) has converged. A write that
+// applied makes a no-op base applied; a no-op write keeps base; a record that
+// moved under the write is contended (untouched); any other outcome is a
+// failure — never reported as completion.
+func recertifyRecordEvidence(ctx context.Context, deps FinalizeDeps, repoDir string, rec evidence.Record, base EvidenceRecertifyResult) EvidenceRecertifyResult {
+	out := recordBuildEvidence(ctx, deps.Planning, repoDir, OperationEvidenceRecertify, base.ID, rec)
+	switch out.Result {
+	case ResultApplied:
+		if base.Result == ResultNoOp {
+			base.Envelope = NewEnvelope(OperationEvidenceRecertify, ResultApplied)
+			if base.Outcome == RecertifyOutcomeGreen {
+				base.Message = "the pull request already carried verified evidence for this head; the change record now records it"
+			}
+		}
+		return base
+	case ResultNoOp:
+		return base
+	case ResultContended:
+		r := recertifyRefusal(ResultContended, ReasonRecertifyRecordContended, out.Message, base.ID)
+		r.Head = base.Head
+		return r
+	default:
+		r := recertifyRefusal(out.Result, ReasonRecertifyRecordFailed, out.Message, base.ID)
+		r.Head = base.Head
+		return r
 	}
 }
 

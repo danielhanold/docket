@@ -201,6 +201,14 @@ func TestIntegrationEvidenceEvidenceRecertifyHappyPath(t *testing.T) {
 	if gh.ensLast.ExpectedHead != f.head || gh.ensLast.ExpectedRevision == "" {
 		t.Fatalf("PR edit was not pinned to head+revision: %+v", gh.ensLast)
 	}
+	// The recertified record is durable in the change record's evidence section.
+	want, err := evidence.Extract([]byte(greenBlockFor(t, f.head)))
+	if err != nil {
+		t.Fatalf("evidence.Extract: %v", err)
+	}
+	if got := f.remoteRecordEvidence(t); got != want {
+		t.Fatalf("recorded evidence = %+v, want the recertified record %+v", got, want)
+	}
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyAdvancesOneDriveAcrossWaiting: WAITING is nonterminal —
@@ -279,6 +287,11 @@ func TestIntegrationEvidenceEvidenceRecertifyGateOffRecordsSkipped(t *testing.T)
 	}
 	if gh.ensNext != 0 {
 		t.Fatalf("a skipped recertify edited the PR block")
+	}
+	// The skipped record's durable home is the change record's evidence section.
+	got := f.remoteRecordEvidence(t)
+	if got.Result != evidence.ResultSkipped || got.Reason != evidence.ReasonBuildGateOff || got.Head != f.head {
+		t.Fatalf("recorded evidence = %+v, want skipped/%s at %s", got, evidence.ReasonBuildGateOff, f.head)
 	}
 }
 

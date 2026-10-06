@@ -185,4 +185,26 @@ func (f *publishFixture) openPRForPublish(head, body string) githubcli.PullReque
 	}
 }
 
+// remoteRecordBytes reads the fixture change's record at the metadata remote tip.
+func (f *rebaseFixture) remoteRecordBytes(t *testing.T) string {
+	t.Helper()
+	body, ok := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+	if !ok {
+		t.Fatalf("change record %s absent on origin %s", groomPath(f.id, f.slug), f.branch)
+	}
+	return body
+}
+
+// remoteRecordEvidence reads the "## Build evidence" section of the fixture
+// change's record at the metadata remote tip — the durable evidence home.
+func (f *rebaseFixture) remoteRecordEvidence(t *testing.T) evidence.Record {
+	t.Helper()
+	body := f.remoteRecordBytes(t)
+	rec, err := ReadRecordEvidence([]byte(body))
+	if err != nil {
+		t.Fatalf("the change record at the metadata remote tip carries no readable build evidence: %v\n%s", err, body)
+	}
+	return rec
+}
+
 // --- TestFinalizePublishOrder ---------------------------------------------

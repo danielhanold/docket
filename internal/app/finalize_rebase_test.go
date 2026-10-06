@@ -181,7 +181,7 @@ func setupRebaseFixtureWithNode(t *testing.T, m planRepoMode, status string, nod
 	requireRealGit(t)
 	id, slug := rebaseFixtureID, rebaseFixtureSlug
 	recPath := groomPath(id, slug)
-	repo := buildConfiguredRepo(t, m, recPath, lifecycleChange(id, slug, status))
+	repo := buildConfiguredRepo(t, m, recPath, rebaseFixtureRecord(id, slug, status))
 
 	node := nodeFor(t, repo.invocation)
 	svc, err := workspace.NewService(node.deps.Client)
@@ -231,6 +231,18 @@ func setupRebaseFixtureWithNode(t *testing.T, m planRepoMode, status string, nod
 		slug:     slug,
 		branch:   m.branch,
 	}
+}
+
+// rebaseFixtureRecord is the fixture's change record. An implemented record
+// carries the plan and PR an implemented transition always records, so a
+// metadata transaction that writes it (the build-evidence record write) sees a
+// coherent record rather than refusing on a pre-existing incoherence.
+func rebaseFixtureRecord(id int, slug, status string) string {
+	rec := lifecycleChange(id, slug, status)
+	if status == "implemented" {
+		rec = strings.Replace(rec, "\nplan:\n", "\nplan: 'docs/superpowers/plans/2026-08-01-"+slug+".md'\npr: 'https://github.com/acme/widgets/pull/1'\n", 1)
+	}
+	return rec
 }
 
 // finalizeDeps assembles the FinalizeDeps a rebase test drives: the real planning

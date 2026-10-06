@@ -1,12 +1,21 @@
 package app
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
 
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/document"
+	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/evidence"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
+	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
 // This file owns the change record's operation-owned "## Build evidence"
@@ -103,4 +112,139 @@ func recordEvidenceFacts(record []byte) (head, command string, green bool) {
 		return "", "", false
 	}
 	return rec.Head, rec.Command, rec.Result == evidence.ResultGreen
+}
+
+// recordEvidenceOutcome is the folded result of one record-evidence write.
+type recordEvidenceOutcome struct {
+	Result   Result // ResultApplied, ResultNoOp, ResultContended, or a failure class
+	Reason   string
+	Message  string
+	Revision string // the applied metadata commit, when applied
+}
+
+// recordBuildEvidence writes rec into change id's "## Build evidence" section in
+// one exact-revision metadata transaction keyed on the record blob it reads: a
+// record that moves between this read and the transaction is contended and left
+// untouched, never overwritten. An unchanged section is a clean no-op (no
+// commit), so a replay of the same record converges without a second write.
+func recordBuildEvidence(ctx context.Context, deps PlanningDeps, repoDir, opKey string, id int, rec evidence.Record) recordEvidenceOutcome {
+	pin, err := deps.Reader.PinContext(ctx, repoDir)
+	if err != nil {
+		result, reason := classifyStatusError(ctx, err)
+		return recordEvidenceOutcome{Result: result, Reason: reason, Message: err.Error()}
+	}
+	eff := pin.Config.Effective
+	inline, err := resolveBoardSurface(eff)
+	if err != nil {
+		if pe, ok := asPlanningError(err); ok {
+			return recordEvidenceOutcome{Result: pe.Result, Reason: pe.Reason, Message: pe.Message}
+		}
+		return recordEvidenceOutcome{Result: ResultInternalError, Reason: ReasonStatusInternalError, Message: err.Error()}
+	}
+	_, recPath, revision, refusal := resolveImplementedChange(ctx, deps, pin, eff, id)
+	if refusal != nil {
+		out := recordEvidenceOutcome{Result: refusal.Result}
+		if len(refusal.Findings) > 0 {
+			out.Reason, out.Message = refusal.Findings[0].Code, refusal.Findings[0].Message
+		}
+		return out
+	}
+	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
+	if err != nil {
+		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
+		return recordEvidenceOutcome{Result: result, Reason: reason, Message: err.Error()}
+	}
+	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
+		Repository: repo,
+		Remote:     originRemote,
+		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
+		Expected: []transaction.EntityExpectation{{
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(revision)},
+		}},
+		Loader:    newPlanningLoader(eff),
+		Scope:     changeScope(id, recPath, false),
+		Operation: recordEvidenceOp{opKey: opKey, changeID: id, rec: rec, eff: eff, inline: inline, changesDir: eff.ChangesDir.Value},
+	})
+	result, _ := mapOutcome(res, execErr, ResultInvalidState)
+	out := recordEvidenceOutcome{Result: result}
+	switch result {
+	case ResultApplied:
+		out.Revision = string(res.AppliedCommit)
+	case ResultNoOp:
+	case ResultContended:
+		out.Message = fmt.Sprintf("change %04d's record moved under the build-evidence write; re-read context and retry", id)
+	default:
+		if len(res.Findings) > 0 {
+			out.Reason = res.Findings[0].Code
+			out.Message = res.Findings[0].Detail["message"]
+		}
+		if out.Message == "" && execErr != nil {
+			out.Message = execErr.Error()
+		}
+		if out.Message == "" {
+			out.Message = fmt.Sprintf("the build-evidence write for change %04d did not apply (%s)", id, res.Disposition)
+		}
+	}
+	return out
+}
+
+// recordEvidenceOp is the SemanticOperation recordBuildEvidence drives. It edits
+// only the change record's "## Build evidence" section. No board-visible field
+// changes, so the inline board re-render (every change-record mutator renders
+// it) declares no board mutation unless the committed board was already stale.
+// An unchanged section is the engine's clean no-op path.
+type recordEvidenceOp struct {
+	opKey      string
+	changeID   int
+	rec        evidence.Record
+	eff        config.Effective
+	inline     bool
+	changesDir string
+}
+
+func (o recordEvidenceOp) Key() transaction.OperationKey { return transaction.OperationKey(o.opKey) }
+
+func (o recordEvidenceOp) Plan(ctx context.Context, st transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
+	c, out := st.State.Snapshot.Change(domain.ChangeID(o.changeID))
+	if out != domain.LookupFound {
+		return refuseLifecycle(FindingCode(ReasonImplementedUnknownChange), fmt.Sprintf("change %04d is not a single record in the current corpus", o.changeID))
+	}
+	src, ok := st.State.Sources[c.Path()]
+	if !ok {
+		return refuseLifecycle(FCPathMismatch, fmt.Sprintf("no record source loaded at %q for change %04d", c.Path(), o.changeID))
+	}
+	updated, err := UpsertRecordEvidence(src, o.rec)
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, err
+	}
+	// Receipt fields are alphabetical: the engine's receipt validator requires
+	// the sorted compact form.
+	receipt, err := json.Marshal(struct {
+		Head string `json:"head"`
+		ID   int    `json:"id"`
+		Op   string `json:"op"`
+	}{Head: o.rec.Head, ID: o.changeID, Op: o.opKey})
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, err
+	}
+	var files []transaction.FileMutation
+	if !bytes.Equal(updated, src) {
+		files = append(files, transaction.FileMutation{Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: updated})
+	}
+	if o.inline {
+		candidate, err := buildGroomCandidate(o.eff, st.State.Documents, c.Path(), updated)
+		if err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, err
+		}
+		boardPath := path.Join(o.changesDir, "BOARD.md")
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, boardUnrenderable(st.State, o.changesDir), boardPresentation(o.eff), &files); err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("record evidence: %w", err)
+		}
+	}
+	return transaction.MutationPlan{
+		Files:         files,
+		CommitSubject: fmt.Sprintf("change %04d build evidence recorded", o.changeID),
+		Receipt:       receipt,
+	}, transaction.OperationResult{}, nil
 }
