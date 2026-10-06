@@ -1,6 +1,6 @@
 # Codex: running docket under Codex
 
-Codex is a first-class docket harness. An install writes two kinds of Codex artifact:
+Codex is a first-class docket harness. An install writes three kinds of Codex artifact:
 
 - **User-level skills and agent wrappers.** docket's skills are linked under the harness-neutral
   `~/.agents/skills/` root, which Codex reads, and its 17 agent wrappers are written to
@@ -13,6 +13,11 @@ Codex is a first-class docket harness. An install writes two kinds of Codex arti
   `.toml` agent (Codex reads `AGENTS.md`; it has no analog of Cursor's `.mdc` rule). The block is
   **committed and machine-neutral**: it carries only agent names and routing instructions, never a
   model ID or effort value, so it is identical in every clone (ADR-0036).
+- **A `dckt:private-instructions` pointer block in `~/.codex/AGENTS.md`.** This user-level,
+  content-free block asks Codex to run `dckt instructions` once at the start of a session and to
+  follow whatever it prints as the repository's own `AGENTS.md`. Outside a private repository the
+  command prints nothing, so the block is inert. It needs no opt-in, and uninstall removes it only
+  while it is unchanged.
 
 ### The opt-in you need
 

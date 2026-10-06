@@ -1,6 +1,6 @@
 # opencode: running docket under opencode
 
-opencode is a first-class docket harness. An install writes two kinds of opencode artifact:
+opencode is a first-class docket harness. An install writes three kinds of opencode artifact:
 
 - **User-level skills and agent definitions**, under
   `${XDG_CONFIG_HOME:-~/.config}/opencode/`: docket's skills are linked under `skills/`, and its 17
@@ -13,6 +13,10 @@ opencode is a first-class docket harness. An install writes two kinds of opencod
   block, **shared with Codex**: opencode reads the same committed project-root `AGENTS.md`, so one
   managed block serves both. A repo targeting either harness gets it; a repo targeting both gets it
   exactly once. It is **committed and machine-neutral** (ADR-0036).
+- **The `plugins/dckt-instructions.js` plugin**, under the same user-level opencode directory. This
+  content-free plugin runs `dckt instructions` and adds whatever it prints to the system prompt.
+  Outside a private repository the command prints nothing, so the plugin is inert. It needs no
+  opt-in, and uninstall removes it only while it is unchanged.
 
 ### The opt-in you need
 

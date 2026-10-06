@@ -10,6 +10,12 @@ calling out, after a word on what the install writes.
   17 agent wrappers are written to `~/.claude/agents/docket-*.md`, each carrying the model and
   effort resolved from your global config over the built-in table. Nothing is written per
   repository for these.
+- **Two `SessionStart` hooks in `~/.claude/settings.json`.** These content-free hooks run
+  `dckt instructions --hook claude --section dispatch` and
+  `dckt instructions --hook claude --section lessons`, which print nothing outside a private
+  repository, so they are inert everywhere else. A `settings.json` docket cannot edit in place (a
+  symlink, for example) is left untouched, and the run warns about it. Uninstall removes the hooks
+  only while they are unchanged.
 - **The dispatch block in `CLAUDE.md`, on opt-in only.** When a repository's `.docket.yml` or
   `.docket.local.yml` lists `claude` in `agent_harnesses`, the install reconciles a
   marker-bounded `docket` dispatch block in that repository's `CLAUDE.md`. When Codex or opencode is
