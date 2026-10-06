@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -31,7 +32,7 @@ func specChange(t *testing.T) domain.Change {
 }
 
 func TestSpecCopyBytesStripsBacklinkAndAddsChangeLine(t *testing.T) {
-	got, err := specCopyBytes([]byte(specFixture()), specChange(t))
+	got, err := specCopyBytes([]byte(specFixture()), specChange(t), layout.Shared)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,9 +42,33 @@ func TestSpecCopyBytesStripsBacklinkAndAddsChangeLine(t *testing.T) {
 	}
 }
 
+// TestSpecCopyPrivateOmitsChangeLine: a private repository's copy is the spec
+// minus its backlink with leading newlines trimmed, and carries no change line;
+// the shared copy is unchanged.
+func TestSpecCopyPrivateOmitsChangeLine(t *testing.T) {
+	got, err := specCopyBytes([]byte(specFixture()), specChange(t), layout.Private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "# Widget: design\n\nBody paragraph.\n\n## Decisions\n\n1. One.\n"
+	if string(got) != want {
+		t.Fatalf("private copy:\n%q\nwant\n%q", got, want)
+	}
+	if strings.Contains(string(got), "Change ") {
+		t.Fatalf("private copy carries a change line:\n%q", got)
+	}
+	shared, err := specCopyBytes([]byte(specFixture()), specChange(t), layout.Shared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wantShared := "# Widget: design\n\nChange 0042 — Widget\n\nBody paragraph.\n\n## Decisions\n\n1. One.\n"; string(shared) != wantShared {
+		t.Fatalf("shared copy:\n%q\nwant\n%q", shared, wantShared)
+	}
+}
+
 func TestSpecCopyBytesSkipsFencedH1(t *testing.T) {
 	src := "```\n# not a title\n```\n\n# Real title\n\ntext\n"
-	got, err := specCopyBytes([]byte(src), specChange(t))
+	got, err := specCopyBytes([]byte(src), specChange(t), layout.Shared)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +81,7 @@ func TestSpecCopyBytesSkipsFencedH1(t *testing.T) {
 }
 
 func TestSpecCopyBytesNoTitle(t *testing.T) {
-	got, err := specCopyBytes([]byte("Just prose.\n"), specChange(t))
+	got, err := specCopyBytes([]byte("Just prose.\n"), specChange(t), layout.Shared)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +94,7 @@ func TestSpecCopyBytesNoTitle(t *testing.T) {
 // spec ends on it) still gets the change line after it, separated by one
 // blank line, and the copy ends with a terminator.
 func TestSpecCopyBytesTitleIsLastLine(t *testing.T) {
-	got, err := specCopyBytes([]byte("# Only a title"), specChange(t))
+	got, err := specCopyBytes([]byte("# Only a title"), specChange(t), layout.Shared)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +105,7 @@ func TestSpecCopyBytesTitleIsLastLine(t *testing.T) {
 
 func TestSpecCopyBytesKeepsCRLF(t *testing.T) {
 	src := strings.ReplaceAll(specFixture(), "\n", "\r\n")
-	got, err := specCopyBytes([]byte(src), specChange(t))
+	got, err := specCopyBytes([]byte(src), specChange(t), layout.Shared)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +123,7 @@ func TestSpecCopyBytesKeepsCRLF(t *testing.T) {
 
 func TestSpecCopyBytesRefusesMalformedMarkers(t *testing.T) {
 	src := "<!-- docket:backlink:start (generated — do not hand-edit) -->\n# T\n"
-	if _, err := specCopyBytes([]byte(src), specChange(t)); err == nil {
+	if _, err := specCopyBytes([]byte(src), specChange(t), layout.Shared); err == nil {
 		t.Fatal("a dangling backlink marker must refuse, never be copied")
 	}
 }

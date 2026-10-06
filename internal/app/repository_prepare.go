@@ -159,6 +159,10 @@ type PrepareContext struct {
 	// resolved remote instead of assuming origin.
 	MetadataRemote      string `json:"metadata_remote"`
 	MetadataTrackingRef string `json:"metadata_tracking_ref"`
+	// Visibility is the repository's visibility mode ("shared" or "private"),
+	// so a workflow knows whether what it writes ships into a private
+	// repository.
+	Visibility string `json:"visibility"`
 
 	ChangesDir string `json:"changes_dir"`
 	AdrsDir    string `json:"adrs_dir"`
@@ -547,6 +551,7 @@ func buildPrepareContext(cfg config.Effective, sc setupContext, f reposetup.Fact
 		MetadataBranchRevision:    f.RemoteMetadata.Tip,
 		MetadataRemote:            sc.layout.MetadataRemote,
 		MetadataTrackingRef:       sc.layout.TrackingRef(),
+		Visibility:                string(sc.layout.Mode),
 		MetadataWorktreePath:      sc.layout.MetadataWorktree,
 		ChangesDir:                cfg.ChangesDir.Value,
 		AdrsDir:                   cfg.ADRsDir.Value,

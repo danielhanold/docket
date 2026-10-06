@@ -9,6 +9,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository"
 )
@@ -36,7 +37,9 @@ import (
 //     is a typed refusal and gh is never invoked.
 //   - Redaction. The authored PR prose is preserved byte-for-byte while only the
 //     Docket-owned backlink block is inserted/replaced (via the loss-preserving
-//     document patch). The evidence is a head gate only: it is never woven into
+//     document patch). In a private repository nothing is inserted: the
+//     authored prose is published verbatim, with no backlink and no artifacts
+//     block. The evidence is a head gate only: it is never woven into
 //     the PR body — its durable home is the change record's "## Build evidence"
 //     section, written by `change mark-implemented`. The result never carries the
 //     PR body bytes — no Body/Title field exists on it.
@@ -226,20 +229,24 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	}
 
 	// (6) Resolve the change record for the deterministic backlink block.
-	change, link, refusal := resolvePRChange(ctx, deps, repoDir, req.ID)
+	change, pin, refusal := resolvePRChange(ctx, deps, repoDir, req.ID)
 	if refusal != nil {
 		return *refusal
 	}
-	backlink, err := render.BacklinkContent(change, link)
-	if err != nil {
-		return prRefusal(ResultInternalError, ReasonStatusInternalError, err.Error(), req.ID)
-	}
 
 	// (7) Assemble the PR body: authored prose preserved byte-for-byte, only the
-	// backlink block and the plan/results links block inserted/replaced.
-	body, err := assemblePRBody([]byte(req.Body), backlink, render.PRArtifactLinksContent(change, link))
-	if err != nil {
-		return prRefusal(ResultInvalidState, ReasonPRBodyAssemblyFailed, err.Error(), req.ID)
+	// backlink block and the plan/results links block inserted/replaced. A
+	// private repository publishes the authored prose verbatim.
+	body := []byte(req.Body)
+	if pin.Layout.Mode != layout.Private {
+		link := linkContextOf(pin)
+		backlink, err := render.BacklinkContent(change, link)
+		if err != nil {
+			return prRefusal(ResultInternalError, ReasonStatusInternalError, err.Error(), req.ID)
+		}
+		if body, err = assemblePRBody([]byte(req.Body), backlink, render.PRArtifactLinksContent(change, link)); err != nil {
+			return prRefusal(ResultInvalidState, ReasonPRBodyAssemblyFailed, err.Error(), req.ID)
+		}
 	}
 
 	// (8a) Run mutation fence (change 0375 Task 11): PR creation is an external
@@ -305,27 +312,28 @@ func prFenceRefusal(id int, ferr error) PRPublishResult {
 
 // resolvePRChange pins context once, reads the corpus once, builds the snapshot,
 // and returns the change named by id (a typed unknown/ambiguous refusal otherwise)
-// with the link context its backlink renders under. A validation error relevant
+// with the pinned context (its layout decides the visibility mode; its link
+// context is what the backlink renders under). A validation error relevant
 // to the change (namedPreEffectErrors, change 0449) is a typed record-invalid
 // refusal.
-func resolvePRChange(ctx context.Context, deps PlanningDeps, repoDir string, id int) (domain.Change, render.LinkContext, *PRPublishResult) {
+func resolvePRChange(ctx context.Context, deps PlanningDeps, repoDir string, id int) (domain.Change, StatusPin, *PRPublishResult) {
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		r := prRefusal(result, reason, err.Error(), id)
-		return domain.Change{}, render.LinkContext{}, &r
+		return domain.Change{}, StatusPin{}, &r
 	}
 	blobs, err := deps.Reader.ReadCorpus(ctx, pin)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		r := prRefusal(result, reason, err.Error(), id)
-		return domain.Change{}, render.LinkContext{}, &r
+		return domain.Change{}, StatusPin{}, &r
 	}
 	inputs, _ := parseCorpus(blobs)
 	build, err := repository.BuildSnapshot(repository.BuildInput{Config: pin.Config.Effective, Documents: inputs})
 	if err != nil {
 		r := prRefusal(ResultInternalError, ReasonStatusInternalError, err.Error(), id)
-		return domain.Change{}, render.LinkContext{}, &r
+		return domain.Change{}, StatusPin{}, &r
 	}
 	c, out := build.Snapshot.Change(domain.ChangeID(id))
 	if out != domain.LookupFound {
@@ -336,7 +344,7 @@ func resolvePRChange(ctx context.Context, deps PlanningDeps, repoDir string, id 
 			msg = fmt.Sprintf("more than one record claims change id %04d; refusing to choose", id)
 		}
 		r := prRefusal(result, reason, msg, id)
-		return domain.Change{}, render.LinkContext{}, &r
+		return domain.Change{}, StatusPin{}, &r
 	}
 	// B must pass relevant validation before the GitHub publication (change
 	// 0449): an error on B or on a record B structurally requires refuses here,
@@ -345,9 +353,9 @@ func resolvePRChange(ctx context.Context, deps PlanningDeps, repoDir string, id 
 	if bad := namedPreEffectErrors(build, id, c.Path()); len(bad) > 0 {
 		r := prRefusal(ResultInvalidState, ReasonPRRecordInvalid, namedPreEffectMessage(id, bad), id)
 		r.Findings = findingsToStatus(bad)
-		return domain.Change{}, render.LinkContext{}, &r
+		return domain.Change{}, StatusPin{}, &r
 	}
-	return c, linkContextOf(pin), nil
+	return c, pin, nil
 }
 
 // assemblePRBody weaves the Docket-owned blocks into the authored PR prose

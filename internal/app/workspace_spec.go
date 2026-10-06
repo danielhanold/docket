@@ -9,6 +9,7 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
@@ -16,8 +17,9 @@ import (
 // change's metadata spec onto its feature branch, at the spec's own path, so a
 // PR carries exactly the spec copy plus code. The copy is a pure function of the
 // metadata spec and the change (specCopyBytes): the spec's docket:backlink block
-// is dropped and one plain change line (specCopyChangeLine) is inserted after its
-// title. The operation is idempotent — a feature head that already carries the
+// is dropped and, in a shared repository, one plain change line
+// (specCopyChangeLine) is inserted after its title; a private repository's copy
+// carries no change line. The operation is idempotent — a feature head that already carries the
 // exact copy is a no-op — and a revised metadata spec refreshes the copy with a
 // second commit.
 //
@@ -66,8 +68,8 @@ const (
 const specCopyFileMode = gitcli.FileMode("100644")
 
 // specCopyChangeLine renders the one plain line the feature-branch spec copy
-// carries after its title. It has no URL, so it never needs updating. It is the
-// single seam a visibility mode would change (a private repository omits it).
+// carries after its title. It has no URL, so it never needs updating. A private
+// repository omits it (specCopyBytes under layout.Private).
 func specCopyChangeLine(c domain.Change) string {
 	return fmt.Sprintf("Change %04d — %s", int(c.ID()), c.Title())
 }
@@ -75,9 +77,11 @@ func specCopyChangeLine(c domain.Change) string {
 // specCopyBytes renders the copy of a change's metadata spec that rides the PR:
 // the spec without its docket:backlink block, with specCopyChangeLine inserted
 // after the first top-level "# " title outside fenced code (or at the top when
-// the spec has no title). Line endings follow the source. Malformed managed
-// markers refuse — the copy is never built from a spec the parser rejects.
-func specCopyBytes(spec []byte, c domain.Change) ([]byte, error) {
+// the spec has no title). In a private repository (mode layout.Private) the copy
+// is the spec without its backlink and leading blank lines, with no change line.
+// Line endings follow the source. Malformed managed markers refuse — the copy is
+// never built from a spec the parser rejects.
+func specCopyBytes(spec []byte, c domain.Change, mode layout.Mode) ([]byte, error) {
 	doc, err := document.Parse(spec)
 	if err != nil {
 		return nil, fmt.Errorf("spec copy: %w", err)
@@ -95,6 +99,11 @@ func specCopyBytes(spec []byte, c domain.Change) ([]byte, error) {
 		}
 	}
 	text := strings.TrimLeft(string(body), "\r\n")
+	if mode == layout.Private {
+		// A private repository's copy carries no change line: nothing that
+		// ships names the change.
+		return []byte(text), nil
+	}
 	line := specCopyChangeLine(c)
 	end, ok := firstTitleLineEnd(text)
 	if !ok {
@@ -199,7 +208,7 @@ func WorkspaceCommitSpec(ctx context.Context, deps PlanningDeps, wdeps Workspace
 		return refuse(ResultInvalidState, ReasonSpecCopyMissing,
 			fmt.Sprintf("change %04d links spec %s, which does not exist on the metadata branch", req.ID, specPath))
 	}
-	copyBytes, err := specCopyBytes(art.Data, wc.change)
+	copyBytes, err := specCopyBytes(art.Data, wc.change, wc.pin.Layout.Mode)
 	if err != nil {
 		return refuse(ResultInvalidState, ReasonSpecCopyMalformed,
 			fmt.Sprintf("the metadata spec %s cannot be copied: %v", specPath, err))

@@ -6,6 +6,7 @@ import (
 	"context"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -1838,7 +1839,7 @@ func expectedSpecCopy(t *testing.T, metadataSpec string) string {
 		Kind: repository.KindChange, Location: repository.LocationActive,
 		Path: groomPath(31, "copyme"), Revision: "blobcopyme", Data: []byte(commitSpecRecord(commitSpecPath)),
 	}})
-	want, err := specCopyBytes([]byte(metadataSpec), mustChange(t, snap, 31))
+	want, err := specCopyBytes([]byte(metadataSpec), mustChange(t, snap, 31), layout.Shared)
 	if err != nil {
 		t.Fatalf("specCopyBytes: %v", err)
 	}
