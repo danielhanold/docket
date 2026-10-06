@@ -293,8 +293,23 @@ func TestInstructionsJSONResult(t *testing.T) {
 	}
 	bad := filepath.Join(testsupport.TempDir(t), "r")
 	writeFixture(t, filepath.Join(bad, ".git", "dckt"), "file\n")
-	if res := Instructions(bad, InstructionsSectionAll); res.Result != ResultExternalFailed || res.Failure == nil {
-		t.Errorf("Instructions over a broken layout = %+v, want external-failed with a failure", res)
+	// A read op's failure is a typed reason and a message; Failure is reserved
+	// for a failed transaction and stays unset.
+	if res := Instructions(bad, InstructionsSectionAll); res.Result != ResultExternalFailed ||
+		res.Reason != ReasonInstructionsReadFailed || res.Message == "" || res.Failure != nil {
+		t.Errorf("Instructions over a broken layout = %+v, want external-failed / %s with a message and no failure",
+			res, ReasonInstructionsReadFailed)
+	}
+	unbalanced := privateFixture(t, testsupport.TempDir(t), "lead\n<!-- docket:dispatch:start (a) -->\nX\n")
+	if res := Instructions(unbalanced, InstructionsSectionDispatch); res.Result != ResultInvalidState ||
+		res.Reason != ReasonInstructionsMarkersInvalid || res.Message == "" || res.Failure != nil {
+		t.Errorf("Instructions over unbalanced markers = %+v, want invalid-state / %s with a message and no failure",
+			res, ReasonInstructionsMarkersInvalid)
+	}
+	if res := Instructions(r, "bogus"); res.Result != ResultInvalidInput ||
+		res.Reason != ReasonInstructionsUnknownSection || res.Message == "" || res.Failure != nil {
+		t.Errorf("Instructions with an unknown section = %+v, want invalid-input / %s with a message and no failure",
+			res, ReasonInstructionsUnknownSection)
 	}
 }
 

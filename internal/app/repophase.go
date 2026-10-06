@@ -83,6 +83,7 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 		return nil, "", nil, nil
 	}
 	root, gitDir := wt.Root, wt.GitDir
+	invokedRoot := root
 	common, ok, err := layout.CommonDirOf(root)
 	if err != nil || !ok {
 		if err == nil {
@@ -193,16 +194,54 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 		return nil, "", nil, err
 	}
 
+	// An earlier private install run from a linked worktree planned the shared
+	// surfaces into THAT worktree and recorded them under its own git dir. They
+	// are retired here exactly as the primary's are — proof-gated against that
+	// record — and the record is rewritten with whatever this run left in it.
+	var extraRecords []install.StateDoc
+	if private && !sameDir(gitDir, commonDir) {
+		legacyPath := reposeed.RecordPath(gitDir, layout.PrivateName)
+		legacyRec, err := reposeed.LoadRecord(legacyPath)
+		if err != nil {
+			return nil, "", nil, &RepoResolutionError{Reason: install.ReasonStateInvalid, Err: err}
+		}
+		if legacyRec != nil {
+			legacyState := legacyRec.ToState(invokedRoot)
+			legacyRemovals, err := computeRemovals(legacyRec, invokedRoot, optIns, inScope, planned, legacyState, legacy)
+			if err != nil {
+				return nil, "", nil, err
+			}
+			legacyBytes, err := composeRecordBytes(nil, nil, legacyRec, invokedRoot, optIns, planned, inScope)
+			if err != nil {
+				return nil, "", nil, &RepoResolutionError{Reason: install.ReasonInternal, Err: err}
+			}
+			removals = append(removals, legacyRemovals...)
+			extraRecords = append(extraRecords, install.StateDoc{Path: legacyPath, Bytes: legacyBytes})
+		}
+	}
+
 	return &install.RepoPhase{
-		Authorized:  true,
-		Targets:     targets,
-		Owners:      owners,
-		PriorState:  priorState,
-		Removals:    removals,
-		RecordPath:  recordPath,
-		RecordBytes: recordBytes,
-		Worktree:    root,
+		Authorized:   true,
+		Targets:      targets,
+		Owners:       owners,
+		PriorState:   priorState,
+		Removals:     removals,
+		RecordPath:   recordPath,
+		RecordBytes:  recordBytes,
+		ExtraRecords: extraRecords,
+		Worktree:     root,
 	}, root, warnings, nil
+}
+
+// sameDir reports whether a and b name one directory, by identity when both
+// stat and by cleaned spelling otherwise.
+func sameDir(a, b string) bool {
+	ai, aerr := os.Stat(a)
+	bi, berr := os.Stat(b)
+	if aerr == nil && berr == nil {
+		return os.SameFile(ai, bi)
+	}
+	return filepath.Clean(a) == filepath.Clean(b)
 }
 
 // isRepositoryLayer mirrors config's own write-authority predicate: only the

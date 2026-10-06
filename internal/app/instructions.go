@@ -209,33 +209,55 @@ func CursorProjectDir(getenv func(string) string, stdin io.Reader) string {
 	return ""
 }
 
+// Stable machine reasons for the instructions operation's failure results.
+// Message is explanatory prose and must not be parsed.
+const (
+	ReasonInstructionsReadFailed     = "instructions-read-failed"
+	ReasonInstructionsMarkersInvalid = "instructions-markers-invalid"
+	ReasonInstructionsUnknownSection = "instructions-unknown-section"
+)
+
 // InstructionsResult is the --json form of `docket instructions`.
 type InstructionsResult struct {
 	Envelope
 	Private bool   `json:"private"`
 	Section string `json:"section,omitempty"`
 	Content string `json:"content"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 // HumanText is the selected content itself.
 func (r InstructionsResult) HumanText() string { return r.Content }
 
-// Instructions is the --json form: applied with the selected content, or
-// external-failed (carrying the error as its failure detail) on a read or
-// section error.
+// Instructions is the --json form: applied with the selected content, or a
+// failure result carrying a stable reason and a message — invalid-input for an
+// unknown section, external-failed when the file cannot be read, invalid-state
+// when its markers are malformed. It is a read: Failure, which diagnoses a
+// failed transaction, is never set.
 func Instructions(dir, section string) InstructionsResult {
-	content, private, err := ReadPrivateInstructions(dir)
-	if err == nil {
-		content, err = SelectInstructionsSection(content, section)
-	}
-	if err != nil {
-		out := InstructionsResult{
-			Envelope: NewEnvelope(OperationInstructions, ResultExternalFailed),
+	fail := func(result Result, private bool, reason string, err error) InstructionsResult {
+		return InstructionsResult{
+			Envelope: NewEnvelope(OperationInstructions, result),
 			Private:  private,
 			Section:  section,
+			Reason:   reason,
+			Message:  err.Error(),
 		}
-		out.Failure = &FailureStatus{Kind: string(ResultExternalFailed), Detail: err.Error()}
-		return out
+	}
+	switch section {
+	case InstructionsSectionAll, InstructionsSectionDispatch, InstructionsSectionLessons:
+	default:
+		_, err := SelectInstructionsSection(nil, section)
+		return fail(ResultInvalidInput, false, ReasonInstructionsUnknownSection, err)
+	}
+	content, private, err := ReadPrivateInstructions(dir)
+	if err != nil {
+		return fail(ResultExternalFailed, private, ReasonInstructionsReadFailed, err)
+	}
+	content, err = SelectInstructionsSection(content, section)
+	if err != nil {
+		return fail(ResultInvalidState, private, ReasonInstructionsMarkersInvalid, err)
 	}
 	return InstructionsResult{
 		Envelope: NewEnvelope(OperationInstructions, ResultApplied),

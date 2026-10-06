@@ -477,6 +477,14 @@ func (t *Txn) applyStep(i int) error {
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("reading %s: %w", step.Path, err)
 		}
+		if len(target.retireHookCommands) > 0 {
+			// A changed trigger command: the recorded command's exact entry goes
+			// in the same rewrite, so the old and the new never both fire.
+			existing, err = removeHookEntries(existing, target.HookDialect, target.retireHookCommands)
+			if err != nil {
+				return fmt.Errorf("retiring stale hook entries from %s: %w", step.Path, err)
+			}
+		}
 		out, err := insertHookEntries(existing, target.HookDialect, target.HookCommands)
 		if err != nil {
 			return fmt.Errorf("adding hook entries to %s: %w", step.Path, err)

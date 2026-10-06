@@ -257,6 +257,91 @@ func TestIntegrationPrivateInstructionsRetiresBuggyWorktreeSurfaces(t *testing.T
 	}
 }
 
+// TestIntegrationPrivateInstructionsRetiresLinkedWorktreeSurfaces proves an
+// install run from a linked worktree also retires the working-tree surfaces an
+// earlier install planned into THAT worktree and recorded under its own git
+// dir (<common>/worktrees/<name>/dckt/install.json), and empties that record so
+// a second run is a no-op.
+func TestIntegrationPrivateInstructionsRetiresLinkedWorktreeSurfaces(t *testing.T) {
+	r, primary, common := newPrivateInstructionsRepo(t)
+	setPrivateHarnesses(t, common, "[claude, codex, cursor]")
+	feature := filepath.Join(r.root, "feature")
+	runGit(t, r.invocation, "worktree", "add", "-q", "-b", "feat/x", feature)
+	feature, err := filepath.EvalSymlinks(feature)
+	if err != nil {
+		t.Fatal(err)
+	}
+	featureGitDir := filepath.Join(common, "worktrees", filepath.Base(feature))
+	if _, err := os.Stat(featureGitDir); err != nil {
+		t.Fatalf("precondition: the linked worktree's git dir %s: %v", featureGitDir, err)
+	}
+
+	rt, err := buildRunTracker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	targets, owners, err := reposeed.Plan(reposeed.PlanInput{
+		WorktreeRoot: feature, Harnesses: []string{"claude", "codex", "cursor"}, RunTracker: rt,
+		ClaudeMDState: reposeed.ClaudeMDAbsent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	desired, err := reposeed.DesiredRecord(targets, owners, feature)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recordBytes, err := reposeed.EncodeRecord(desired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots, err := install.ResolveRoots(os.UserHomeDir, os.Getenv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyRecord := reposeed.RecordPath(featureGitDir, layout.PrivateName)
+	if _, err := applyRepoPhaseSurfaces(&install.RepoPhase{
+		Authorized: true, Targets: targets, Owners: owners,
+		RecordPath: legacyRecord, RecordBytes: recordBytes, Worktree: feature,
+	}, roots); err != nil {
+		t.Fatalf("seeding the old linked-worktree surfaces: %v", err)
+	}
+	for _, rel := range []string{"CLAUDE.md", filepath.Join(".cursor", "rules", "docket-dispatch.mdc")} {
+		if _, err := os.Lstat(filepath.Join(feature, rel)); err != nil {
+			t.Fatalf("precondition: %s not seeded: %v", rel, err)
+		}
+	}
+
+	installSurfacesIn(t, feature)
+
+	for _, rel := range []string{"CLAUDE.md", filepath.Join(".cursor", "rules", "docket-dispatch.mdc")} {
+		if _, err := os.Lstat(filepath.Join(feature, rel)); !os.IsNotExist(err) {
+			t.Errorf("%s survived in the linked worktree (err=%v); want it retired", rel, err)
+		}
+	}
+	if agents, err := os.ReadFile(filepath.Join(feature, "AGENTS.md")); err == nil && strings.Contains(string(agents), dispatchStartMarker) {
+		t.Errorf("the linked worktree's AGENTS.md still carries the dispatch block: %q", agents)
+	}
+	if private := string(mustReadFile(t, layout.PrivateInstructionsPath(common))); !strings.Contains(private, dispatchStartMarker) {
+		t.Errorf("%s = %q, want the dispatch block", layout.PrivateInstructionsDisplay, private)
+	}
+	assertNoWorktreeSurfaces(t, primary)
+	if rec, err := reposeed.LoadRecord(legacyRecord); err != nil || rec == nil || len(rec.Surfaces) != 0 {
+		t.Errorf("the linked worktree's record = %+v (%v), want an empty record", rec, err)
+	}
+
+	phase, _, _, err := ResolveRepoPhase(context.Background(), newGitClient(t), feature, nil, rt, nil, config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		t.Fatalf("second ResolveRepoPhase: %v", err)
+	}
+	if len(phase.Removals) != 0 {
+		t.Errorf("second run removals = %v, want none", phase.Removals)
+	}
+	if wrote, err := applyRepoPhaseSurfaces(phase, roots); err != nil || wrote {
+		t.Errorf("second run: wrote %v, err %v; want a no-op", wrote, err)
+	}
+}
+
 // TestIntegrationPrivateInstructionsOwnerRemovalKeepsSharedFile proves the
 // private file is shared by every opted-in harness: dropping codex rewrites the
 // block with the plain interior, dropping the last harness retires the block,

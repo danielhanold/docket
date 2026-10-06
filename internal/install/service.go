@@ -716,6 +716,7 @@ func applyPlan(o Options, p plannedInstallation, repo *RepoPhase, out Outcome) O
 	docs := []StateDoc{{Path: o.Roots.StatePath(), Bytes: desiredBytes}}
 	if repoActive && repo.RecordBytes != nil {
 		docs = append(docs, StateDoc{Path: repo.RecordPath, Bytes: repo.RecordBytes})
+		docs = append(docs, repo.ExtraRecords...)
 	}
 
 	steps := nonNoopCount(inspections) + nonNoopCount(repoInspections)
@@ -800,14 +801,20 @@ func repoRecordSettled(active bool, repo *RepoPhase) (bool, error) {
 	if !active || repo.RecordBytes == nil {
 		return true, nil
 	}
-	existing, err := os.ReadFile(repo.RecordPath)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+	docs := append([]StateDoc{{Path: repo.RecordPath, Bytes: repo.RecordBytes}}, repo.ExtraRecords...)
+	for _, d := range docs {
+		existing, err := os.ReadFile(d.Path)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return false, nil
+			}
+			return false, fmt.Errorf("install: reading %s: %w", d.Path, err)
+		}
+		if string(existing) != string(d.Bytes) {
 			return false, nil
 		}
-		return false, fmt.Errorf("install: reading %s: %w", repo.RecordPath, err)
 	}
-	return string(existing) == string(repo.RecordBytes), nil
+	return true, nil
 }
 
 // notAuthorizedAction names the repository no-op so a run that touched no
