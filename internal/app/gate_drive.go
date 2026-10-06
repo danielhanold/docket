@@ -558,7 +558,7 @@ func holderChangeLabel(changeID string) string {
 func incumbentRemedyMessage(inc *gatedrive.IncumbentSnapshot) string {
 	switch {
 	case inc == nil:
-		return "holder unknown: another gate's supervisor holds this worktree's lock and it could not be confirmed running; wait for it to finish — the worktree frees itself when that gate ends — or find the holding process with lsof on this worktree's busy.lock under the repository's Git common dir (docket/worktree-locks/<key>/busy.lock); never start a second gate here"
+		return "holder unknown: another gate's supervisor holds this worktree's lock and it could not be confirmed running; wait for it to finish — the worktree frees itself when that gate ends — or find the holding process with lsof on this worktree's busy.lock under the repository's per-repo state folder (worktree-locks/<key>/busy.lock); never start a second gate here"
 	case inc.Kind == "raw" && inc.RawRunDir != "" && rawRunIDShape.MatchString(inc.RawRunID):
 		dir := quoteOperand(inc.RawRunDir)
 		return "a raw gate run holds this worktree (run dir " + dir + "); wait for it, or stop it with docket gate stop " + dir + " --reason <why> — the worktree frees itself when the run ends"

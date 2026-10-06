@@ -14,7 +14,7 @@ import "github.com/danielhanold/docket/internal/gitcli"
 // manifest and receipt already live in.
 
 // MetaDir returns the per-workspace metadata directory a target's manifest and
-// rebase receipt live in — <commonDir>/docket/workspaces/<sha256(featureRef)>.
+// rebase receipt live in — <per-repo state folder>/workspaces/<sha256(featureRef)>.
 // commonDir is a repository's canonical common directory (gitcli.Repository's
 // CommonDir); featureRef is the fully qualified refs/heads/feat/<slug>. The
 // returned path is exactly the directory WriteRebaseReceipt and its siblings

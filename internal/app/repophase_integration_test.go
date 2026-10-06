@@ -15,6 +15,7 @@ import (
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposeed"
 )
 
@@ -120,7 +121,7 @@ func TestIntegrationContextProbeResolveRepoPhaseAbsentKeyNotAuthorized(t *testin
 	if gotRoot != root || phase.Worktree != root {
 		t.Errorf("root = %q / %q, want %q", gotRoot, phase.Worktree, root)
 	}
-	if want := reposeed.RecordPath(gitDir); phase.RecordPath != want {
+	if want := reposeed.RecordPath(gitDir, layout.SharedName); phase.RecordPath != want {
 		t.Errorf("record path = %q, want %q", phase.RecordPath, want)
 	}
 	if len(phase.Targets) != 0 {
@@ -195,7 +196,7 @@ func TestIntegrationContextProbeResolveRepoPhaseScopedHarnessCarriesUnrelatedRec
 	if err != nil {
 		t.Fatal(err)
 	}
-	recPath := reposeed.RecordPath(gitDir)
+	recPath := reposeed.RecordPath(gitDir, layout.SharedName)
 	if err := os.MkdirAll(filepath.Dir(recPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +270,7 @@ func TestIntegrationContextProbeResolveRepoPhaseRetiresDroppedClaudeLink(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	recPath := reposeed.RecordPath(gitDir)
+	recPath := reposeed.RecordPath(gitDir, layout.SharedName)
 	if err := os.MkdirAll(filepath.Dir(recPath), 0o755); err != nil {
 		t.Fatal(err)
 	}

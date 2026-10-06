@@ -274,15 +274,15 @@ func resumeIncumbentRemedy(runKey string) string {
 
 // acquireResumeLock takes the exclusive per-change resume lock that serializes
 // `run start --resume` starts of one change (change 0463). It lives outside the
-// run-tracker root, under <git-common-dir>/docket/run-tracker-resume/<change-id>, so the
+// run-tracker root, under <per-repo state folder>/run-tracker-resume/<change-id>, so the
 // scanners that walk run-key directories never see it. Closing the returned file
 // releases the lock.
 func acquireResumeLock(repoDir, changeID string) (*os.File, error) {
-	common, err := runTrackerGitCommonDir(repoDir)
+	state, err := runTrackerStateDir(repoDir)
 	if err != nil {
 		return nil, err
 	}
-	dir := filepath.Join(common, "docket", runTrackerResumeDirName, changeID)
+	dir := filepath.Join(state, runTrackerResumeDirName, changeID)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, runErr(ErrRunRecordIO, "resume-lock-dir", err)
 	}

@@ -17,7 +17,7 @@
 // directory, sharing every durability and privacy discipline the drive store
 // established (store.go):
 //
-//	<git-common-dir>/docket/gate-scopes/v2/<opaque-scope-id>/record.json
+//	<per-repo state folder>/gate-scopes/v2/<opaque-scope-id>/record.json
 //
 // The directory is owner-only (0700) and its record is private (0600). Writes go
 // through the same writeAtomicJSON helper, and every mutating transition runs

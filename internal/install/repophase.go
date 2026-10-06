@@ -52,7 +52,7 @@ type RepoPhase struct {
 	// reproducer. They ride the same journaled transaction as the writes.
 	Removals []TargetRecord
 	// RecordPath is where the repository ownership record is published:
-	// <git-dir>/docket/install.json. It is one of the transaction's commit
+	// <git-dir>/<state name>/install.json. It is one of the transaction's commit
 	// documents, journaled and rolled back beside the machine state.
 	RecordPath string
 	// RecordBytes is the desired record's canonical bytes; nil when the phase is

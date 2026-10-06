@@ -4,7 +4,8 @@
 // so a dispatch's gate outcome survives the launching process, a
 // `git worktree remove`, and a restart.
 //
-// WHERE: <git-common-dir>/docket/run-tracker/<key>/record.json — the same family as
+// WHERE: <per-repo state folder>/run-tracker/<key>/record.json (the state folder
+// is layout.StateDirOf of the git common dir) — the same family as
 // the dispatch dir and the gate-drive store. Rooting under the git COMMON dir
 // (not a worktree's .git) means the record sits outside every worktree yet stays
 // reachable from any linked worktree of the same repository, is never tracked,
@@ -51,6 +52,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/danielhanold/docket/internal/layout"
 )
 
 // runTrackerSchemaVersion is the on-disk record schema this store understands. A record
@@ -91,7 +94,7 @@ const (
 	runTrackerClaimBindingName = "claim-binding.json"
 )
 
-// The run tracker's local storage roots under <git-common-dir>/docket/
+// The run tracker's local storage roots under the per-repo state folder
 // (ADR-0129 row 38, change 0471). They were renamed by RESET, not migrated: the
 // binary never reads the retired rungate/ and rungate-resume/ roots, which stay
 // inert on disk and may be deleted by hand.
@@ -351,15 +354,25 @@ func runTrackerGitCommonDir(repoDir string) (string, error) {
 	return common, nil
 }
 
-// runTrackerRoot resolves <git-common-dir>/docket/run-tracker for repoDir. It resolves,
-// never creates — an observer must be able to ask where the root is without
-// minting one as a side effect of looking.
-func runTrackerRoot(repoDir string) (string, error) {
+// runTrackerStateDir resolves the repository's per-repo state folder
+// (layout.StateDirOf of the canonical git common dir) for repoDir.
+func runTrackerStateDir(repoDir string) (string, error) {
 	common, err := runTrackerGitCommonDir(repoDir)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(common, "docket", runTrackerDirName), nil
+	return layout.StateDirOf(common), nil
+}
+
+// runTrackerRoot resolves the run-tracker root beneath the per-repo state folder
+// for repoDir. It resolves, never creates — an observer must be able to ask where
+// the root is without minting one as a side effect of looking.
+func runTrackerRoot(repoDir string) (string, error) {
+	state, err := runTrackerStateDir(repoDir)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(state, runTrackerDirName), nil
 }
 
 // validateRunKey enforces the path-safety contract before any path is built: a
@@ -384,7 +397,7 @@ func MintRunTrackerRecord(repoDir string, rec RunTrackerRecord) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	root := filepath.Join(common, "docket", runTrackerDirName)
+	root := filepath.Join(layout.StateDirOf(common), runTrackerDirName)
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", runTrackerErr(ErrRunTrackerIO, "mint", err)
 	}
@@ -427,7 +440,7 @@ func LoadRunTrackerRecord(repoDir, key string) (RunTrackerRecord, error) {
 	if err != nil {
 		return RunTrackerRecord{}, err
 	}
-	dir := filepath.Join(common, "docket", runTrackerDirName, key)
+	dir := filepath.Join(layout.StateDirOf(common), runTrackerDirName, key)
 	buf, err := os.ReadFile(filepath.Join(dir, runTrackerRecordFileName))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -504,7 +517,7 @@ func SaveRunTrackerRecord(repoDir, key string, rec RunTrackerRecord) error {
 	if err != nil {
 		return err
 	}
-	dir := filepath.Join(common, "docket", runTrackerDirName, key)
+	dir := filepath.Join(layout.StateDirOf(common), runTrackerDirName, key)
 	if fi, serr := os.Stat(dir); serr != nil || !fi.IsDir() {
 		return runTrackerErr(ErrRunTrackerNotFound, "save", serr)
 	}
@@ -581,11 +594,11 @@ func ConsumeRunTrackerRetry(repoDir, key string, attempt, limit int) (bool, erro
 	if attempt >= limit || attempt < 1 {
 		return false, nil
 	}
-	common, err := runTrackerGitCommonDir(repoDir)
+	state, err := runTrackerStateDir(repoDir)
 	if err != nil {
 		return false, err
 	}
-	dir := filepath.Join(common, "docket", runTrackerDirName, key)
+	dir := filepath.Join(state, runTrackerDirName, key)
 	if fi, serr := os.Stat(dir); serr != nil || !fi.IsDir() {
 		return false, runTrackerErr(ErrRunTrackerNotFound, "consume", serr)
 	}
@@ -625,11 +638,11 @@ func RunTrackerRetryUsage(repoDir, key string) (int, error) {
 	if err := validateRunKey(key); err != nil {
 		return 0, err
 	}
-	common, err := runTrackerGitCommonDir(repoDir)
+	state, err := runTrackerStateDir(repoDir)
 	if err != nil {
 		return 0, err
 	}
-	dir := filepath.Join(common, "docket", runTrackerDirName, key)
+	dir := filepath.Join(state, runTrackerDirName, key)
 	n, cerr := countRunTrackerRetryMarkers(dir)
 	if cerr != nil {
 		return 0, runTrackerErr(ErrRunTrackerIO, "retry-usage", cerr)
@@ -644,11 +657,11 @@ func runKeyDir(repoDir, key, op string) (string, error) {
 	if err := validateRunKey(key); err != nil {
 		return "", err
 	}
-	common, err := runTrackerGitCommonDir(repoDir)
+	state, err := runTrackerStateDir(repoDir)
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(common, "docket", runTrackerDirName, key)
+	dir := filepath.Join(state, runTrackerDirName, key)
 	if fi, serr := os.Stat(dir); serr != nil || !fi.IsDir() {
 		return "", runTrackerErr(ErrRunTrackerNotFound, op, serr)
 	}

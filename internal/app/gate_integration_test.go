@@ -69,7 +69,7 @@ func TestIntegrationGateLifecycleRawLaunchHoldsWorktreeLock(t *testing.T) {
 	if got := admissionRefusalCause(err); got != "incumbent-run:"+res.RunID {
 		t.Fatalf("busy refusal cause = %q, want incumbent-run:%s", got, res.RunID)
 	}
-	// holder.json sits beside busy.lock under <common>/docket/worktree-locks/<sha256(root)>/.
+	// holder.json sits beside busy.lock under <per-repo state folder>/worktree-locks/<sha256(root)>/.
 	sum := sha256.Sum256([]byte(root))
 	buf, err := os.ReadFile(filepath.Join(gitDir, "docket", "worktree-locks", hex.EncodeToString(sum[:]), "holder.json"))
 	if err != nil {

@@ -36,7 +36,7 @@ type Config struct {
 	// Go wrappers translate it into `go test -p` / GOMAXPROCS. 0 => Go defaults.
 	GoTestConcurrency int
 
-	StatePath string // default <git-common-dir>/docket/development-test-budget-state.tsv; DOCKET_RUNTESTS_STATE overrides
+	StatePath string // default <per-repo state folder>/development-test-budget-state.tsv; DOCKET_RUNTESTS_STATE overrides
 	Strict    bool   // DOCKET_RUNTESTS_STRICT=1 — confirm every candidate and gate on a breach (exit 4)
 	Verbose   bool   // reserved false in 0318 (the command exposes no flags)
 

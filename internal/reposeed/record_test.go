@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/layout"
 )
 
 // sampleTargets renders one target of each kind under root, mirroring the shapes
@@ -226,7 +227,27 @@ func TestToStateProducesAbsoluteCleanedPaths(t *testing.T) {
 }
 
 func TestRecordPath(t *testing.T) {
-	if got, want := RecordPath("/some/.git"), filepath.Join("/some/.git", "docket", "install.json"); got != want {
+	if got, want := RecordPath("/some/.git", "docket"), filepath.Join("/some/.git", "docket", "install.json"); got != want {
 		t.Errorf("RecordPath = %q, want %q", got, want)
+	}
+}
+
+// TestRecordPathUsesStateName proves the record follows the repository's state
+// folder name: a <common>/dckt directory puts it under <git-dir>/dckt/, and its
+// absence puts it back under <git-dir>/docket/.
+func TestRecordPathUsesStateName(t *testing.T) {
+	common := t.TempDir()
+	priv := filepath.Join(common, "dckt")
+	if err := os.Mkdir(priv, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := RecordPath(common, layout.StateName(common)), filepath.Join(priv, "install.json"); got != want {
+		t.Errorf("private RecordPath = %q, want %q", got, want)
+	}
+	if err := os.Remove(priv); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := RecordPath(common, layout.StateName(common)), filepath.Join(common, "docket", "install.json"); got != want {
+		t.Errorf("shared RecordPath = %q, want %q", got, want)
 	}
 }

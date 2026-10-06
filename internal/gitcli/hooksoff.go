@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+
+	"github.com/danielhanold/docket/internal/layout"
 )
 
 // disableHooksOp labels every Failure from the worktree hook-disabling surface.
@@ -59,7 +61,7 @@ func (c *Client) DisableWorktreeHooks(ctx context.Context, worktreeDir string) e
 }
 
 // emptyHooksDir resolves the worktree's common git dir and returns docket's
-// absolute, empty hooks directory under it (<common>/docket/empty-hooks), creating
+// absolute, empty hooks directory under it (<per-repo state folder>/empty-hooks), creating
 // it when absent. It is the one place that directory is named: DisableWorktreeHooks
 // points a worktree's per-worktree core.hooksPath at it, and the in-place
 // fast-forward primitives force it per command with `-c core.hooksPath=`.
@@ -85,7 +87,7 @@ func (c *Client) emptyHooksDir(ctx context.Context, op Operation, worktreeDir st
 	if err != nil {
 		return "", newFailure(op, KindInvalidOutput, "cannot canonicalize git common dir", err)
 	}
-	empty := filepath.Join(common, "docket", "empty-hooks")
+	empty := filepath.Join(layout.StateDirOf(common), "empty-hooks")
 	if err := os.MkdirAll(empty, 0o755); err != nil {
 		return "", newFailure(op, KindCommandFailed, "cannot create empty hooks dir", err)
 	}
