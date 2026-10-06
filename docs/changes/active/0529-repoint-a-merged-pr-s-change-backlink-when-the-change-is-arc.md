@@ -13,7 +13,7 @@ related: [337, 417, 530]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-06T00:34:02Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md) |
+| Plan | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md](https://github.com/danielhanold/docket/blob/fix/repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc/docs/superpowers/plans/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
