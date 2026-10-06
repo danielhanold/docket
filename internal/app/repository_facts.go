@@ -218,10 +218,16 @@ type repoFactsInput struct {
 // private.
 func applyLayoutFacts(f *reposetup.Facts, l layout.Layout) {
 	f.Private = l.Mode == layout.Private
-	f.MetadataWorktreeRef = layout.SharedWorktreeDir
-	if f.Private {
-		f.MetadataWorktreeRef = l.MetadataWorktree
+	f.MetadataWorktreeRef = metadataWorktreeRef(l)
+}
+
+// metadataWorktreeRef is how user-facing text names the layout's metadata
+// worktree: the shared `.docket` spelling, or the resolved private checkout path.
+func metadataWorktreeRef(l layout.Layout) string {
+	if l.Mode == layout.Private {
+		return l.MetadataWorktree
 	}
+	return layout.SharedWorktreeDir
 }
 
 // gatherRepoFacts is the ONE set of Git topology probes behind both the

@@ -450,6 +450,16 @@ func worktreeInspectable(f Facts) bool {
 	return f.DocketWorktree.Presence == PresencePresent && !f.DocketWorktree.Foreign
 }
 
+// attachmentRestorer names the idempotent command that restores a missing local
+// metadata attachment: migrate on a shared repository; prepare on a private one,
+// where migrate refuses and prepare attaches the absent private checkout.
+func attachmentRestorer(f Facts) string {
+	if f.Private {
+		return "prepare"
+	}
+	return "migrate"
+}
+
 // conditionFinding builds the supplemental finding for one unmet condition,
 // or nil when a missing prerequisite's own finding already represents it
 // (explanatory grouping, never permission to drop an unexplained failure).
@@ -478,7 +488,7 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 				Code:     "local-metadata-missing",
 				Severity: SeverityError,
 				Message:  "No local docket branch exists for the present remote docket branch.",
-				Remedy:   "Run `docket repository migrate` to restore the local metadata attachment; it is idempotent.",
+				Remedy:   fmt.Sprintf("Run `docket repository %s` to restore the local metadata attachment; it is idempotent.", attachmentRestorer(f)),
 			}
 		}
 		return &Finding{
@@ -494,7 +504,7 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 				Severity: SeverityError,
 				Ref:      f.MetadataWorktreeRef,
 				Message:  fmt.Sprintf("The %s metadata worktree is missing; its registration, cleanliness, and hooks state cannot be established until it exists.", f.MetadataWorktreeRef),
-				Remedy:   fmt.Sprintf("Run `docket repository migrate` to restore the %s worktree attachment; it is idempotent.", f.MetadataWorktreeRef),
+				Remedy:   fmt.Sprintf("Run `docket repository %s` to restore the %s worktree attachment; it is idempotent.", attachmentRestorer(f), f.MetadataWorktreeRef),
 			}
 		}
 		return &Finding{
