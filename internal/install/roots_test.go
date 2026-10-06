@@ -273,3 +273,25 @@ func TestVersionDirSanitizesID(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveRootsStateHome(t *testing.T) {
+	home := cleanTempDir(t)
+	roots, err := ResolveRoots(fixedHome(home), fakeEnv(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := roots.ReleaseBinaryRecordPath(), filepath.Join(home, ".local", "state", "docket", "release-binary.record"); got != want {
+		t.Errorf("default ReleaseBinaryRecordPath = %q, want %q", got, want)
+	}
+	state := filepath.Join(home, "xdg-state")
+	roots, err = ResolveRoots(fixedHome(home), fakeEnv(map[string]string{"XDG_STATE_HOME": state}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := roots.ReleaseBinaryRecordPath(), filepath.Join(state, "docket", "release-binary.record"); got != want {
+		t.Errorf("XDG ReleaseBinaryRecordPath = %q, want %q", got, want)
+	}
+	if got := (UserRoots{}).ReleaseBinaryRecordPath(); got != "" {
+		t.Errorf("zero roots ReleaseBinaryRecordPath = %q, want empty", got)
+	}
+}

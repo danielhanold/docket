@@ -1451,6 +1451,42 @@ func TestCheckNamesTheDriftedTarget(t *testing.T) {
 	}
 }
 
+// A release install records no binary: the downloader placed it and its own
+// record says where. Check reads that record and classifies the alias beside
+// the binary it names, reporting a missing one as a finding, never drift.
+func TestCheckReportsTheReleaseAlias(t *testing.T) {
+	w := newWorld(t, ".claude")
+	o := w.options(nil)
+	o.Harnesses = []string{"claude"}
+	if out := install.Install(o); out.Err != nil {
+		t.Fatalf("Install: %v (reason %q)", out.Err, out.Reason)
+	}
+	bin := filepath.Join(w.home, ".local", "bin")
+	mkdirAll(t, bin)
+	binary := filepath.Join(bin, "docket")
+	writeFile(t, binary, "release binary\n")
+	writeFile(t, filepath.Join(w.home, ".local", "state", "docket", "release-binary.record"),
+		"path="+binary+"\nversion=v1.0.0\nsha256=x\n")
+
+	check := o
+	check.FS = panicFS{}
+	out := install.Check(check)
+	if out.Reason != "" || out.Err != nil {
+		t.Fatalf("check: reason %q err %v", out.Reason, out.Err)
+	}
+	if len(out.AliasFindings) != 1 || out.AliasFindings[0].Kind != install.AliasMissing ||
+		out.AliasFindings[0].Path != filepath.Join(bin, install.AliasName) {
+		t.Fatalf("alias findings = %+v, want one missing", out.AliasFindings)
+	}
+
+	if err := os.Symlink("docket", filepath.Join(bin, install.AliasName)); err != nil {
+		t.Fatal(err)
+	}
+	if out := install.Check(check); out.Err != nil || len(out.AliasFindings) != 0 {
+		t.Fatalf("a healthy release alias: err %v findings %+v", out.Err, out.AliasFindings)
+	}
+}
+
 func TestCheckDetectsMissingVersionTree(t *testing.T) {
 	w := newWorld(t, ".claude")
 	o := w.options(nil)

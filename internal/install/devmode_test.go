@@ -658,7 +658,45 @@ func TestCheckVerifiesTheDevelopmentBinary(t *testing.T) {
 		if _, ok := findAction(out, install.OpDrift, binary); ok {
 			t.Errorf("an intact binary was reported as drift")
 		}
+		if len(out.AliasFindings) != 0 {
+			t.Errorf("a healthy development install reported alias findings: %+v", out.AliasFindings)
+		}
 		assertUnchanged(t, before, snapshot(t, w.home), "check over a healthy development install")
+	})
+
+	t.Run("alias deleted is a finding, not drift", func(t *testing.T) {
+		w, o, binary := setup(t)
+		alias := filepath.Join(filepath.Dir(binary), install.AliasName)
+		if err := os.Remove(alias); err != nil {
+			t.Fatal(err)
+		}
+		before := snapshot(t, w.home)
+		out := install.Check(o)
+		if out.Reason != "" || out.Err != nil {
+			t.Fatalf("a missing alias failed the check: reason %q err %v", out.Reason, out.Err)
+		}
+		if len(out.AliasFindings) != 1 || out.AliasFindings[0].Kind != install.AliasMissing || out.AliasFindings[0].Path != alias {
+			t.Fatalf("alias findings = %+v", out.AliasFindings)
+		}
+		assertUnchanged(t, before, snapshot(t, w.home), "check over a missing alias")
+	})
+
+	t.Run("alias foreign is a finding, not drift", func(t *testing.T) {
+		w, o, binary := setup(t)
+		alias := filepath.Join(filepath.Dir(binary), install.AliasName)
+		if err := os.Remove(alias); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, alias, "mine\n")
+		before := snapshot(t, w.home)
+		out := install.Check(o)
+		if out.Reason != "" || out.Err != nil {
+			t.Fatalf("a foreign alias failed the check: reason %q err %v", out.Reason, out.Err)
+		}
+		if len(out.AliasFindings) != 1 || out.AliasFindings[0].Kind != install.AliasForeign {
+			t.Fatalf("alias findings = %+v", out.AliasFindings)
+		}
+		assertUnchanged(t, before, snapshot(t, w.home), "check over a foreign alias")
 	})
 
 	t.Run("replaced", func(t *testing.T) {

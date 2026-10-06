@@ -442,6 +442,16 @@ func Check(o Options) Outcome {
 	}
 	drift = append(drift, binaryDrift...)
 
+	// The dckt alias beside each installed binary is a finding, never drift:
+	// the binary works without it, and a check that failed on it would fail
+	// the release downloader's closing `install check` for a user who merely
+	// owns a dckt of their own.
+	aliasFindings, err := checkBinaryAliases(state, o.Roots)
+	if err != nil {
+		return fail(out, ReasonFilesystemFailed, err)
+	}
+	out.AliasFindings = aliasFindings
+
 	prunes, err := PruneCandidates(scopedTo(state, plannerNames(selected)), targets)
 	if err != nil {
 		return fail(out, ReasonStateInvalid, err)
