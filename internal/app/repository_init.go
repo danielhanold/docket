@@ -14,7 +14,6 @@ import (
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/install"
-	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -105,8 +104,8 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 	// verified init-equivalent lineage AT ITS TIP (descendants preserved), or
 	// refuse a migration-seeded, foreign, or unreadable branch — the remote is
 	// never overwritten or reset to the seed.
-	metaRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
-	metadataTip, createdRemote, refusal := publishOrAdoptMetadataRoot(ctx, d.Git, sc.repo, metaRef, sc.sourceRevision, sc.defaultBranch)
+	metaRef := metadataRef(sc.layout)
+	metadataTip, createdRemote, refusal := publishOrAdoptMetadataRoot(ctx, d.Git, sc.repo, metadataRemote(sc.layout), metaRef, sc.sourceRevision, sc.defaultBranch)
 	if refusal != nil {
 		return *refusal
 	}
@@ -114,7 +113,7 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 	// Effect 3: create or adopt the local branch and attach the persistent
 	// root-level .docket worktree. Idempotent — a re-run finds it already
 	// registered and does nothing.
-	worktreePath := filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName)
+	worktreePath := sc.layout.MetadataWorktree
 	createdWorktree, err := ensureMetadataWorktree(ctx, d.Git, sc.repo, worktreePath, metaRef, metadataTip)
 	if err != nil {
 		return repositoryExternalFailure(OperationRepositoryInit, cls.State, "attaching the .docket worktree", err)
@@ -304,9 +303,10 @@ func initGuard(facts reposetup.Facts) (reposetup.Classification, *RepositoryOpRe
 // foreign, or unreadable branch. The create-only push is never widened to an
 // overwriting lease — that is the guard the create-only protection mutation probe
 // strips — and adoption of the reread tip never re-pushes or resets to the seed.
+// remote and metaRef are the layout's metadata remote and branch ref.
 // sourceRevision (the pinned integration tip) and defaultBranch thread into the
 // shared ownership verifier for the lost-lease inspection.
-func publishOrAdoptMetadataRoot(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, metaRef gitcli.RefName, sourceRevision, defaultBranch string) (gitcli.ObjectID, bool, *RepositoryOpResult) {
+func publishOrAdoptMetadataRoot(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, remote gitcli.RemoteName, metaRef gitcli.RefName, sourceRevision, defaultBranch string) (gitcli.ObjectID, bool, *RepositoryOpResult) {
 	emptyTree, err := git.EmptyTreeOID(ctx, repo)
 	if err != nil {
 		r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateFresh, "resolving the empty tree", err)
@@ -319,7 +319,7 @@ func publishOrAdoptMetadataRoot(ctx context.Context, git *gitcli.Client, repo gi
 		return "", false, &r
 	}
 
-	outcome, err := git.PushCreateLease(ctx, repo, setupRemote(), metaRef, root)
+	outcome, err := git.PushCreateLease(ctx, repo, remote, metaRef, root)
 	if err != nil {
 		r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateFresh, "publishing the metadata branch", err)
 		return "", false, &r
@@ -334,7 +334,7 @@ func publishOrAdoptMetadataRoot(ctx context.Context, git *gitcli.Client, repo gi
 		// adopt a verified init-equivalent lineage (descendants preserved) or refuse
 		// a migration-seeded, foreign, or unreadable branch. The create-only push
 		// never overwrote it, and adoption of the reread tip must not either.
-		if _, ferr := git.FetchBranch(ctx, repo, setupRemote(), metaRef); ferr != nil {
+		if _, ferr := git.FetchBranch(ctx, repo, remote, metaRef); ferr != nil {
 			r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateConflict, "reading the published metadata branch", ferr)
 			return "", false, &r
 		}

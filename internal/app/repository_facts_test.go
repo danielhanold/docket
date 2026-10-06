@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -29,6 +30,11 @@ type fakeSetupProber struct {
 	head        gitcli.ObjectID
 	resolveErr  error
 	worktrees   []gitcli.WorktreeInfo
+
+	// probedRemote/probedRef record the metadata ls-remote probe's target so a
+	// test can prove the resolved layout (not a shared default) reached it.
+	probedRemote gitcli.RemoteName
+	probedRef    gitcli.RefName
 }
 
 func (f *fakeSetupProber) Discover(ctx context.Context, opts gitcli.DiscoverOptions) (gitcli.Repository, error) {
@@ -41,7 +47,11 @@ func (f *fakeSetupProber) FetchBranch(ctx context.Context, repo gitcli.Repositor
 	return f.fetchRev, f.fetchErr
 }
 func (f *fakeSetupProber) ProbeRemoteBranch(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, ref gitcli.RefName) (gitcli.RemoteRef, error) {
+	f.probedRemote, f.probedRef = remote, ref
 	return f.probe, f.probeErr
+}
+func (f *fakeSetupProber) RemoteURL(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName) (string, error) {
+	return "git@github.com:o/r.git", nil
 }
 func (f *fakeSetupProber) OpenObjectSource(ctx context.Context, repo gitcli.Repository, rev gitcli.Revision) (gitcli.ObjectSource, error) {
 	return nil, errors.New("fake: OpenObjectSource unreachable in this test")
@@ -151,6 +161,52 @@ func TestGatherSetupFactsAbsentHarnessesDoNotAuthorize(t *testing.T) {
 	}
 	if f.SurfacesAuthorized {
 		t.Errorf("SurfacesAuthorized = true, want false when agent_harnesses is unset")
+	}
+}
+
+// TestGatherSetupFactsThreadsResolvedLayout proves the gatherer resolves the
+// layout from state and threads a NON-default one through every metadata probe
+// (learning defaulted-param-hides-caller-wiring): with a <common>/dckt directory
+// the metadata branch is probed on the dckt remote, the worktree fact names the
+// private checkout, and setupContext carries the private layout.
+func TestGatherSetupFactsThreadsResolvedLayout(t *testing.T) {
+	root := setupProberRepoDir(t, "integration_branch: main\n")
+	data := testsupport.TempDir(t)
+	t.Setenv("XDG_DATA_HOME", data)
+	common := filepath.Join(root, ".git")
+	if err := os.MkdirAll(filepath.Join(common, "dckt"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := &fakeSetupProber{
+		repo:       gitcli.Repository{PrimaryWorktree: root, CommonDir: common},
+		defaultRef: gitcli.RefName("refs/heads/main"),
+		probe:      gitcli.RemoteRef{State: gitcli.RemoteRefAbsent},
+	}
+	f, sc, err := gatherSetupFacts(context.Background(), p, root, true)
+	if err != nil {
+		t.Fatalf("gatherSetupFacts: %v", err)
+	}
+	want := layout.PrivateLayout(common, root, data, "o-r")
+	if sc.layout != want {
+		t.Errorf("sc.layout = %+v, want %+v", sc.layout, want)
+	}
+	if p.probedRemote != "dckt" || p.probedRef != "refs/heads/dckt" {
+		t.Errorf("metadata probe = %s %s, want dckt refs/heads/dckt", p.probedRemote, p.probedRef)
+	}
+	if !f.Private || f.MetadataWorktreeRef != want.MetadataWorktree {
+		t.Errorf("facts Private=%v MetadataWorktreeRef=%q, want true %q", f.Private, f.MetadataWorktreeRef, want.MetadataWorktree)
+	}
+
+	// The shared layout records the `.docket` spelling and probes origin.
+	if err := os.Remove(filepath.Join(common, "dckt")); err != nil {
+		t.Fatal(err)
+	}
+	f, sc, err = gatherSetupFacts(context.Background(), p, root, true)
+	if err != nil {
+		t.Fatalf("gatherSetupFacts (shared): %v", err)
+	}
+	if sc.layout != layout.SharedLayout(common, root) || p.probedRemote != "origin" || p.probedRef != "refs/heads/docket" || f.Private || f.MetadataWorktreeRef != ".docket" {
+		t.Errorf("shared: layout %+v probe %s %s Private=%v ref=%q", sc.layout, p.probedRemote, p.probedRef, f.Private, f.MetadataWorktreeRef)
 	}
 }
 

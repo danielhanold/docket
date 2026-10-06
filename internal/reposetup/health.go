@@ -110,16 +110,21 @@ func EvaluateHealth(c Classification, f Facts, fm []RepairFinding) []Finding {
 	return out
 }
 
-// InterruptedFastForwardMessage and InterruptedFastForwardRemedy describe a .docket
-// worktree left by an interrupted in-place fast-forward: the branch moved to the
-// remote revision but the index and files did not, so `git status` shows staged
-// changes that would undo the remote update. Check and prepare share these texts
-// (TestLocalMetadataRefusalsMatchPrepare). Committing those changes would record a
-// revert of remote metadata, so the remedy names the plain-Git finish instead.
-const (
-	InterruptedFastForwardMessage = "The .docket metadata worktree holds an interrupted fast-forward: its branch moved to the new revision but its files did not, so the staged changes would undo the remote update."
-	InterruptedFastForwardRemedy  = "Finish the update inside .docket with plain Git — `git -C .docket reset --merge HEAD` (it refuses rather than overwrite a local edit) — and never commit the staged changes; then re-run."
-)
+// InterruptedFastForwardMessage and InterruptedFastForwardRemedy describe a
+// metadata worktree (named by worktree: `.docket` when shared, the checkout path
+// when private) left by an interrupted in-place fast-forward: the branch moved
+// to the remote revision but the index and files did not, so `git status` shows
+// staged changes that would undo the remote update. Check and prepare share
+// these texts (TestLocalMetadataRefusalsMatchPrepare). Committing those changes
+// would record a revert of remote metadata, so the remedy names the plain-Git
+// finish instead.
+func InterruptedFastForwardMessage(worktree string) string {
+	return fmt.Sprintf("The %s metadata worktree holds an interrupted fast-forward: its branch moved to the new revision but its files did not, so the staged changes would undo the remote update.", worktree)
+}
+
+func InterruptedFastForwardRemedy(worktree string) string {
+	return fmt.Sprintf("Finish the update inside %s with plain Git — `git -C %s reset --merge HEAD` (it refuses rather than overwrite a local edit) — and never commit the staged changes; then re-run.", worktree, worktree)
+}
 
 // findingFor builds the single finding for one classifier reason token. The
 // remedy is branched on the reason (and, for needs-review, on the pending
@@ -175,23 +180,24 @@ func findingFor(reason string, f Facts) Finding {
 		return Finding{
 			Code:     "docket-dir-foreign",
 			Severity: SeverityError,
-			Ref:      ".docket",
-			Message:  "The .docket path is a foreign directory or a conflicting worktree registration.",
-			Remedy:   "Inspect the .docket path and resolve it manually with a human before any repository operation.",
+			Ref:      f.MetadataWorktreeRef,
+			Message:  fmt.Sprintf("The %s path is a foreign directory or a conflicting worktree registration.", f.MetadataWorktreeRef),
+			Remedy:   fmt.Sprintf("Inspect the %s path and resolve it manually with a human before any repository operation.", f.MetadataWorktreeRef),
 		}
 	case "metadata-worktree-dirty":
-		msg := "The .docket metadata worktree has uncommitted or untracked changes."
-		remedy := "Commit or inspect the changes in the .docket metadata worktree before any repository operation; leave them in place."
+		wt := f.MetadataWorktreeRef
+		msg := fmt.Sprintf("The %s metadata worktree has uncommitted or untracked changes.", wt)
+		remedy := fmt.Sprintf("Commit or inspect the changes in the %s metadata worktree before any repository operation; leave them in place.", wt)
 		switch {
 		case f.DocketWorktree.UnfinishedOperation:
-			msg = "The .docket metadata worktree has an unfinished Git operation (a merge, cherry-pick, revert, rebase, am, or bisect)."
+			msg = fmt.Sprintf("The %s metadata worktree has an unfinished Git operation (a merge, cherry-pick, revert, rebase, am, or bisect).", wt)
 		case f.DocketWorktree.InterruptedFastForward:
-			msg, remedy = InterruptedFastForwardMessage, InterruptedFastForwardRemedy
+			msg, remedy = InterruptedFastForwardMessage(wt), InterruptedFastForwardRemedy(wt)
 		}
 		return Finding{
 			Code:     "metadata-worktree-dirty",
 			Severity: SeverityError,
-			Ref:      ".docket",
+			Ref:      wt,
 			Message:  msg,
 			Remedy:   remedy,
 		}
@@ -437,7 +443,7 @@ func integrationResolved(f Facts) bool {
 	return f.RemoteIntegration.Presence == PresencePresent && f.RemoteIntegration.Tip != ""
 }
 
-// worktreeInspectable reports whether the .docket worktree's dependent facts
+// worktreeInspectable reports whether the metadata worktree's dependent facts
 // (registration, cleanliness, synchronization, hooks) were meaningfully
 // probed: a missing or foreign path is itself the blocking observation.
 func worktreeInspectable(f Facts) bool {
@@ -486,17 +492,17 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 			return &Finding{
 				Code:     "docket-worktree-missing",
 				Severity: SeverityError,
-				Ref:      ".docket",
-				Message:  "The .docket metadata worktree is missing; its registration, cleanliness, and hooks state cannot be established until it exists.",
-				Remedy:   "Run `docket repository migrate` to restore the .docket worktree attachment; it is idempotent.",
+				Ref:      f.MetadataWorktreeRef,
+				Message:  fmt.Sprintf("The %s metadata worktree is missing; its registration, cleanliness, and hooks state cannot be established until it exists.", f.MetadataWorktreeRef),
+				Remedy:   fmt.Sprintf("Run `docket repository migrate` to restore the %s worktree attachment; it is idempotent.", f.MetadataWorktreeRef),
 			}
 		}
 		return &Finding{
 			Code:     "docket-worktree-unverified",
 			Severity: SeverityWarning,
-			Ref:      ".docket",
-			Message:  "The .docket path could not be inspected (unverified, not proven absent); its dependent state cannot be established.",
-			Remedy:   "Restore read access to the .docket path, then re-run `docket repository check`.",
+			Ref:      f.MetadataWorktreeRef,
+			Message:  fmt.Sprintf("The %s path could not be inspected (unverified, not proven absent); its dependent state cannot be established.", f.MetadataWorktreeRef),
+			Remedy:   fmt.Sprintf("Restore read access to the %s path, then re-run `docket repository check`.", f.MetadataWorktreeRef),
 		}
 	case CondWorktreeNotForeign:
 		return nil // always explained by the docket-dir-foreign conflict reason
@@ -508,16 +514,16 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 			return &Finding{
 				Code:     "docket-worktree-unregistered",
 				Severity: SeverityError,
-				Ref:      ".docket",
-				Message:  "The .docket path exists but is not a registered worktree of this repository.",
-				Remedy:   "Inspect the .docket path and resolve its registration manually with a human; leave its contents in place.",
+				Ref:      f.MetadataWorktreeRef,
+				Message:  fmt.Sprintf("The %s path exists but is not a registered worktree of this repository.", f.MetadataWorktreeRef),
+				Remedy:   fmt.Sprintf("Inspect the %s path and resolve its registration manually with a human; leave its contents in place.", f.MetadataWorktreeRef),
 			}
 		}
 		return &Finding{
 			Code:     "docket-worktree-registration-unverified",
 			Severity: SeverityWarning,
-			Ref:      ".docket",
-			Message:  "The .docket worktree registration could not be resolved (unverified, not proven foreign).",
+			Ref:      f.MetadataWorktreeRef,
+			Message:  fmt.Sprintf("The %s worktree registration could not be resolved (unverified, not proven foreign).", f.MetadataWorktreeRef),
 			Remedy:   "Re-run `docket repository check` once `git worktree list` succeeds.",
 		}
 	case CondWorktreeClean:
@@ -533,9 +539,9 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 		return &Finding{
 			Code:     "docket-worktree-clean-unverified",
 			Severity: SeverityWarning,
-			Ref:      ".docket",
-			Message:  "The .docket worktree's cleanliness could not be resolved (unverified, not proven dirty).",
-			Remedy:   "Re-run `docket repository check` once the .docket status read succeeds.",
+			Ref:      f.MetadataWorktreeRef,
+			Message:  fmt.Sprintf("The %s worktree's cleanliness could not be resolved (unverified, not proven dirty).", f.MetadataWorktreeRef),
+			Remedy:   fmt.Sprintf("Re-run `docket repository check` once the %s status read succeeds.", f.MetadataWorktreeRef),
 		}
 	case CondWorktreeSynchronized:
 		if !worktreeInspectable(f) {
@@ -550,7 +556,7 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 		return &Finding{
 			Code:     "local-metadata-sync-unverified",
 			Severity: SeverityWarning,
-			Ref:      ".docket",
+			Ref:      f.MetadataWorktreeRef,
 			Message:  "Could not determine how the local docket branch relates to the remote docket branch (unverified, not proven diverged).",
 			Remedy:   "Re-run `docket repository check` once local Git reads succeed.",
 		}
@@ -562,17 +568,17 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 			return &Finding{
 				Code:     "docket-worktree-hooks-enabled",
 				Severity: SeverityError,
-				Ref:      ".docket",
-				Message:  "Git hooks are not disabled on the .docket metadata worktree (per-worktree core.hooksPath is not set to an existing directory).",
-				Remedy:   "Point the .docket worktree's per-worktree core.hooksPath at an existing empty directory, as init leaves it, then re-run `docket repository check`.",
+				Ref:      f.MetadataWorktreeRef,
+				Message:  fmt.Sprintf("Git hooks are not disabled on the %s metadata worktree (per-worktree core.hooksPath is not set to an existing directory).", f.MetadataWorktreeRef),
+				Remedy:   fmt.Sprintf("Point the %s worktree's per-worktree core.hooksPath at an existing empty directory, as init leaves it, then re-run `docket repository check`.", f.MetadataWorktreeRef),
 			}
 		}
 		return &Finding{
 			Code:     "docket-worktree-hooks-unverified",
 			Severity: SeverityWarning,
-			Ref:      ".docket",
-			Message:  "The .docket worktree's hooks configuration could not be resolved (unverified, not proven enabled).",
-			Remedy:   "Re-run `docket repository check` once the .docket config read succeeds.",
+			Ref:      f.MetadataWorktreeRef,
+			Message:  fmt.Sprintf("The %s worktree's hooks configuration could not be resolved (unverified, not proven enabled).", f.MetadataWorktreeRef),
+			Remedy:   fmt.Sprintf("Re-run `docket repository check` once the %s config read succeeds.", f.MetadataWorktreeRef),
 		}
 	case CondCommittedIgnoreValid:
 		if !integrationResolved(f) {

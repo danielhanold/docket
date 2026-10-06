@@ -218,7 +218,7 @@ func TestIntegrationRepoInPlaceFFInterruptedReadsDirty(t *testing.T) {
 
 	wantInterrupted := func(where string, f reposetup.Finding) {
 		t.Helper()
-		if f.Message != reposetup.InterruptedFastForwardMessage || f.Remedy != reposetup.InterruptedFastForwardRemedy {
+		if f.Message != reposetup.InterruptedFastForwardMessage(".docket") || f.Remedy != reposetup.InterruptedFastForwardRemedy(".docket") {
 			t.Errorf("%s: dirty finding %+v, want the interrupted fast-forward message and remedy", where, f)
 		}
 		if strings.HasPrefix(f.Remedy, "Commit") || !strings.Contains(f.Remedy, "git -C .docket reset --merge HEAD") {

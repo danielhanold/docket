@@ -28,6 +28,7 @@ func preparableFacts() reposetup.Facts {
 		MetadataRoot:        reposetup.RootParentless,
 		LiveSurface:         reposetup.PresenceAbsent,
 		LocalMetadata:       reposetup.BranchFact{Presence: reposetup.PresencePresent, Tip: "m9"},
+		MetadataWorktreeRef: ".docket",
 		DocketWorktree: reposetup.WorktreeFact{
 			Presence:     reposetup.PresencePresent,
 			Registered:   reposetup.PresencePresent,
@@ -455,6 +456,9 @@ func (p *countingSetupProber) ListWorktrees(ctx context.Context, repo gitcli.Rep
 	p.worktrees++
 	return nil, nil
 }
+func (p *countingSetupProber) RemoteURL(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName) (string, error) {
+	return "git@github.com:o/r.git", nil
+}
 
 // TestRepositoryPrepareInvalidConfigRefusesBeforeSync — an invalid configuration
 // refuses, and no synchronization/topology probe is reached: the gather fails at
@@ -510,9 +514,10 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 
 	sc := setupContext{
 		cfg:               cfg,
-		repo:              gitcli.Repository{PrimaryWorktree: "/repo"},
+		repo:              gitcli.Repository{PrimaryWorktree: "/repo", CommonDir: "/repo/.git"},
 		defaultBranch:     "develop",
 		integrationBranch: "develop",
+		layout:            layout.SharedLayout("/repo/.git", "/repo"),
 	}
 	f := preparableFacts()
 
@@ -543,6 +548,8 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 			MetadataBranch            string `json:"metadata_branch"`
 			MetadataBranchRevision    string `json:"metadata_branch_revision"`
 			MetadataWorktreePath      string `json:"metadata_worktree_path"`
+			MetadataRemote            string `json:"metadata_remote"`
+			MetadataTrackingRef       string `json:"metadata_tracking_ref"`
 			ChangesDir                string `json:"changes_dir"`
 			AdrsDir                   string `json:"adrs_dir"`
 			ResultsDir                string `json:"results_dir"`
@@ -575,8 +582,23 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 	if c.MetadataBranchRevision != "m9" {
 		t.Errorf("metadata_branch_revision = %q, want the pinned m9", c.MetadataBranchRevision)
 	}
-	if c.MetadataWorktreePath != filepath.Join("/repo", docketWorktreeName) {
-		t.Errorf("metadata_worktree_path = %q, want the fixed .docket path", c.MetadataWorktreePath)
+	if c.MetadataWorktreePath != filepath.Join("/repo", layout.SharedWorktreeDir) {
+		t.Errorf("metadata_worktree_path = %q, want the shared .docket path", c.MetadataWorktreePath)
+	}
+	if c.MetadataRemote != "origin" {
+		t.Errorf("metadata_remote = %q, want origin", c.MetadataRemote)
+	}
+	if c.MetadataTrackingRef != "refs/remotes/origin/docket" {
+		t.Errorf("metadata_tracking_ref = %q, want refs/remotes/origin/docket", c.MetadataTrackingRef)
+	}
+	// A non-default (private) layout arrives field-for-field: no metadata field
+	// is a shared-spelling default (learning defaulted-param-hides-caller-wiring).
+	priv := layout.PrivateLayout("/repo/.git", "/repo", "/d", "o-r")
+	psc := sc
+	psc.layout = priv
+	ppc := buildPrepareContext(cfg, psc, f, "")
+	if ppc.MetadataBranch != "dckt" || ppc.MetadataRemote != "dckt" || ppc.MetadataTrackingRef != "refs/remotes/dckt/dckt" || ppc.MetadataWorktreePath != priv.MetadataWorktree {
+		t.Errorf("private layout not wired through: %+v", ppc)
 	}
 	if c.ChangesDir != "planning/changes" || c.AdrsDir != "planning/adrs" || c.ResultsDir != "planning/results" {
 		t.Errorf("resolved dirs not wired through: %+v", c)

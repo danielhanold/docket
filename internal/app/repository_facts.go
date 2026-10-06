@@ -96,6 +96,9 @@ type setupProber interface {
 	ChangedPaths(ctx context.Context, dir string) ([]gitcli.PathChange, error)
 	ResolveRef(ctx context.Context, repo gitcli.Repository, ref gitcli.RefName) (gitcli.ObjectID, error)
 	ListWorktrees(ctx context.Context, repo gitcli.Repository) ([]gitcli.WorktreeInfo, error)
+	// RemoteURL reads origin's URL, which locates a private repository's
+	// metadata store (resolveLayout); a shared repository never calls it.
+	RemoteURL(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName) (string, error)
 }
 
 // setupDiag records one probe that could not be resolved: the probe name and the
@@ -109,22 +112,22 @@ type setupDiag struct {
 
 // setupContext carries everything the later init/migrate/check phases need that
 // is not part of the pure Facts value: the resolved configuration, the
-// discovered repository, the resolved branch names, and the exact pinned
-// revisions captured at gather time. The pinned integration revision is the
-// authoritative source revision every later phase reads and keys on.
+// discovered repository, its resolved layout (where the metadata branch is
+// published, how it is spelled, and where its worktree sits), the resolved
+// branch names, and the exact pinned revisions captured at gather time. The
+// pinned integration revision is the authoritative source revision every later
+// phase reads and keys on.
 type setupContext struct {
 	cfg               config.Effective
 	repo              gitcli.Repository
+	layout            layout.Layout
 	defaultBranch     string
 	integrationBranch string
 	sourceRevision    string // pinned authoritative integration tip
-	metadataTip       string // remote docket tip when present, else ""
+	metadataTip       string // remote metadata tip when present, else ""
 	primaryHead       string // primary worktree HEAD read by primaryAtTipPresence, else ""
 	diagnostics       []setupDiag
 }
-
-// docketWorktreeName is the fixed root-level metadata worktree directory.
-const docketWorktreeName = ".docket"
 
 // GatherSetupFacts discovers the canonical repository, resolves configuration
 // (a mutation preflight for init/migrate, a read preflight for check), fetches
@@ -149,6 +152,17 @@ func gatherSetupFacts(ctx context.Context, p setupProber, repoDir string, forMut
 		return f, sc, classifyGitFailure(err)
 	}
 	sc.repo = repo
+
+	// The layout is decided from state right after discovery: every metadata
+	// probe below reads its remote, branch, and worktree path from it. A failure
+	// (an unprobeable mode, or a private repository whose store cannot be
+	// located) is an external failure, never a guessed shared layout.
+	lay, err := resolveLayout(ctx, p, repo)
+	if err != nil {
+		return f, sc, err
+	}
+	sc.layout = lay
+	applyLayoutFacts(&f, lay)
 
 	// The remote default branch is the first authoritative read. A failure here
 	// means the remote is not configured or not reachable; both leave the
@@ -179,6 +193,7 @@ func gatherSetupFacts(ctx context.Context, p setupProber, repoDir string, forMut
 		repo:          repo,
 		defaultBranch: defaultBranch,
 		cfg:           eff,
+		layout:        lay,
 	})
 	return f, sc, nil
 }
@@ -194,6 +209,19 @@ type repoFactsInput struct {
 	defaultTip     string // pre-pinned default tip; "" → fetched here
 	integrationTip string // pre-pinned integration tip; "" → fetched here
 	cfg            config.Effective
+	layout         layout.Layout // the caller's resolved layout; every metadata probe reads it
+}
+
+// applyLayoutFacts records the layout facts the pure classifier and its
+// findings read: how findings name the metadata worktree (the shared
+// `.docket` spelling, or the private checkout path) and whether the layout is
+// private.
+func applyLayoutFacts(f *reposetup.Facts, l layout.Layout) {
+	f.Private = l.Mode == layout.Private
+	f.MetadataWorktreeRef = layout.SharedWorktreeDir
+	if f.Private {
+		f.MetadataWorktreeRef = l.MetadataWorktree
+	}
 }
 
 // gatherRepoFacts is the ONE set of Git topology probes behind both the
@@ -207,6 +235,8 @@ func gatherRepoFacts(ctx context.Context, p setupProber, in repoFactsInput) (rep
 	var sc setupContext
 	sc.repo = in.repo
 	sc.cfg = in.cfg
+	sc.layout = in.layout
+	applyLayoutFacts(&f, in.layout)
 
 	f.RemoteConfigured = reposetup.PresencePresent
 	f.RemoteDefaultBranch.Presence = reposetup.PresencePresent
@@ -238,14 +268,16 @@ func gatherRepoFacts(ctx context.Context, p setupProber, in repoFactsInput) (rep
 		}
 	}
 
-	// The remote docket branch presence is an authoritative ls-remote probe. Its
+	// The remote metadata branch presence is an authoritative ls-remote probe on
+	// the layout's metadata remote (origin when shared, the bare dckt remote when
+	// private). Its
 	// root shape is deliberately NOT inspected here: init publishes with
 	// create-only protection and re-reads the exact remote shape at that boundary
 	// (adopt on the expected empty orphan, refuse on anything foreign), so the
 	// authoritative adopt/conflict decision keys on the promised remote state, not
 	// a gather-time proxy.
-	metaRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
-	rr, merr := p.ProbeRemoteBranch(ctx, in.repo, setupRemote(), metaRef)
+	metaRef := metadataRef(in.layout)
+	rr, merr := p.ProbeRemoteBranch(ctx, in.repo, metadataRemote(in.layout), metaRef)
 	if merr != nil {
 		sc.diagnostics = append(sc.diagnostics, setupDiag{Probe: "remote-metadata-branch", Err: merr})
 	} else {
@@ -276,9 +308,9 @@ func gatherRepoFacts(ctx context.Context, p setupProber, in repoFactsInput) (rep
 		f.PrimaryAtRemoteTip = primaryAtTipPresence(ctx, p, in.repo, sc.sourceRevision, &sc)
 	}
 
-	// The .docket path: absent, a correctly registered owned worktree on the
-	// metadata branch, or a foreign directory / conflicting registration.
-	f.DocketWorktree = docketWorktreeFact(ctx, p, in.repo, metaRef)
+	// The metadata worktree path: absent, a correctly registered owned worktree
+	// on the metadata branch, or a foreign directory / conflicting registration.
+	f.DocketWorktree = docketWorktreeFact(ctx, p, in.repo, in.layout.MetadataWorktree, metaRef)
 
 	return f, sc
 }
@@ -372,8 +404,8 @@ func isDocketManagedWorktreePath(rel string) bool {
 	if docketManagedWorktreePaths[rel] {
 		return true
 	}
-	return rel == docketWorktreeName ||
-		strings.HasPrefix(rel, docketWorktreeName+"/") ||
+	return rel == layout.SharedWorktreeDir ||
+		strings.HasPrefix(rel, layout.SharedWorktreeDir+"/") ||
 		strings.HasPrefix(rel, ".worktrees/")
 }
 
@@ -404,12 +436,12 @@ func primaryAtTipPresence(ctx context.Context, p setupProber, repo gitcli.Reposi
 	return reposetup.PresenceUnknown
 }
 
-// docketWorktreeFact probes the .docket path: absent, a correctly registered
-// owned worktree on the metadata branch, or a foreign directory / conflicting
-// registration. A list error leaves the fact at its safe zero value (Unknown /
-// not-foreign) with no false foreign flag.
-func docketWorktreeFact(ctx context.Context, p setupProber, repo gitcli.Repository, metaRef gitcli.RefName) reposetup.WorktreeFact {
-	worktreePath := filepath.Join(repo.PrimaryWorktree, docketWorktreeName)
+// docketWorktreeFact probes the metadata worktree path (the layout's
+// MetadataWorktree): absent, a correctly registered owned worktree on the
+// metadata branch, or a foreign directory / conflicting registration. A list
+// error leaves the fact at its safe zero value (Unknown / not-foreign) with no
+// false foreign flag.
+func docketWorktreeFact(ctx context.Context, p setupProber, repo gitcli.Repository, worktreePath string, metaRef gitcli.RefName) reposetup.WorktreeFact {
 	info, err := os.Lstat(worktreePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -441,7 +473,7 @@ func docketWorktreeFact(ctx context.Context, p setupProber, repo gitcli.Reposito
 		fact.Foreign = true
 		return fact
 	}
-	// A .docket directory git does not know as a worktree of this repo is foreign.
+	// A directory git does not know as a worktree of this repo is foreign.
 	fact.Foreign = true
 	return fact
 }

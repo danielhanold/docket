@@ -248,7 +248,7 @@ func TestLocalMetadataRefusalsMatchPrepare(t *testing.T) {
 		}
 		got := reposetup.EvaluateHealth(
 			reposetup.Classification{State: reposetup.StateConflict, Reasons: []string{"metadata-worktree-dirty"}},
-			reposetup.Facts{DocketWorktree: reposetup.WorktreeFact{UnfinishedOperation: op}}, nil)
+			reposetup.Facts{MetadataWorktreeRef: ".docket", DocketWorktree: reposetup.WorktreeFact{UnfinishedOperation: op}}, nil)
 		if len(got) != 1 {
 			t.Fatalf("dirty (operation=%v): check findings = %+v", op, got)
 		}
@@ -268,14 +268,14 @@ func TestLocalMetadataRefusalsMatchPrepare(t *testing.T) {
 	}
 	got := reposetup.EvaluateHealth(
 		reposetup.Classification{State: reposetup.StateConflict, Reasons: []string{"metadata-worktree-dirty"}},
-		reposetup.Facts{DocketWorktree: reposetup.WorktreeFact{InterruptedFastForward: true}}, nil)
+		reposetup.Facts{MetadataWorktreeRef: ".docket", DocketWorktree: reposetup.WorktreeFact{InterruptedFastForward: true}}, nil)
 	if len(got) != 1 {
 		t.Fatalf("interrupted fast-forward: check findings = %+v", got)
 	}
 	if got[0].Code != v.finding.Code || got[0].Message != v.finding.Message || got[0].Remedy != v.finding.Remedy {
 		t.Errorf("interrupted fast-forward: check %+v != prepare %+v", got[0], *v.finding)
 	}
-	if got[0].Message != reposetup.InterruptedFastForwardMessage || got[0].Remedy != reposetup.InterruptedFastForwardRemedy {
+	if got[0].Message != reposetup.InterruptedFastForwardMessage(".docket") || got[0].Remedy != reposetup.InterruptedFastForwardRemedy(".docket") {
 		t.Errorf("interrupted fast-forward: finding %+v, want the interrupted message and remedy", got[0])
 	}
 }
