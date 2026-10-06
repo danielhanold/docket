@@ -2,7 +2,7 @@
 id: 531
 slug: 'private-visibility-keep-the-metadata-branch-on-a-local-remot'
 title: 'Keep the metadata branch on a local remote with neutral naming'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/private-visibility-keep-the-metadata-branch-on-a-local-remot'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-06T10:03:51Z'
 ---
 
 ## Artifacts
@@ -29,8 +30,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-05-private-visibility-keep-the-metadata-branch-on-a-local-remot-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-private-visibility-keep-the-metadata-branch-on-a-local-remot-design.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0025](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0025-docket-worktrees-disable-git-hooks.md), [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0089](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
+| Spec | [2026-10-05-private-visibility-keep-the-metadata-branch-on-a-local-remot-design.md](../../superpowers/specs/2026-10-05-private-visibility-keep-the-metadata-branch-on-a-local-remot-design.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0019](../../adrs/0019-global-config-fence-classification.md), [ADR-0020](../../adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0025](../../adrs/0025-docket-worktrees-disable-git-hooks.md), [ADR-0034](../../adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0089](../../adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
