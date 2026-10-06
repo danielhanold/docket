@@ -55,6 +55,7 @@ Once a leak is pushed it cannot be undone, and a rebase-merge would carry it int
 - Delivery is set up once per machine by `docket install`, with no rule text in either surface:
   - **Claude Code:** a user-level `SessionStart` hook loads the private instructions file automatically.
   - **Codex and OpenCode:** a static pointer block in their user-level AGENTS.md.
+  - **Cursor:** Cursor reads rules only from the project, so a private repository gets `.cursor/rules/dckt-dispatch.mdc`, hidden from git through `.git/info/exclude`. This is the one visible trace in a private repository's working tree, and the human accepted it.
 
 ## Out of scope
 
