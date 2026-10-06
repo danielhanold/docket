@@ -110,17 +110,11 @@ func TestClassifyMatrix(t *testing.T) {
 			sources: []Source{srcR("finalize:\n  test_command: make test\n  require_pr_approval: true\n")},
 		},
 
-		// Row 10 — repo-only deferred bool.
+		// Row 10 — obsolete tombstone: even true is inactive and never blocks.
 		{
-			name:     "skip_results_only_delta true blocks",
-			sources:  []Source{srcR("finalize:\n  skip_results_only_delta: true\n")},
-			want:     []capWant{{"finalize.skip_results_only_delta", Deferred, true, true, LayerRepository}},
-			blockers: []string{"finalize.skip_results_only_delta"},
-		},
-		{
-			name:    "skip_results_only_delta explicit false is inactive",
-			sources: []Source{srcR("finalize:\n  skip_results_only_delta: false\n")},
-			want:    []capWant{{"finalize.skip_results_only_delta", Deferred, false, false, LayerRepository}},
+			name:    "skip_results_only_delta true is obsolete",
+			sources: []Source{srcR("finalize:\n  skip_results_only_delta: true\n")},
+			want:    []capWant{{"finalize.skip_results_only_delta", Obsolete, false, false, LayerRepository}},
 		},
 
 		// Rows 11-12 — learnings.
@@ -361,12 +355,12 @@ func TestClassifyMatrix(t *testing.T) {
 func TestClassifyMultiBlockerCompleteSet(t *testing.T) {
 	snap := mustSnapshot(t,
 		srcG("auto_capture:\n  enabled: true\n"),
-		srcR("build:\n  checkpoint: true\nterminal_publish: true\nfinalize:\n  skip_results_only_delta: true\n"),
+		srcR("build:\n  checkpoint: true\nterminal_publish: true\nauto_groom: true\n"),
 	)
 	want := []string{
 		"auto_capture.enabled",
+		"auto_groom",
 		"build.checkpoint",
-		"finalize.skip_results_only_delta",
 		"terminal_publish",
 	}
 	if got := blockerPaths(snap); !reflect.DeepEqual(got, want) {
@@ -470,7 +464,7 @@ func TestClassifyReasonsAndRemedies(t *testing.T) {
 // declaration at all, so it cannot be a capability request either — the guard
 // warning is the whole report.
 func TestClassifyGuardedDeclarationsAreNotCapabilities(t *testing.T) {
-	snap := mustSnapshot(t, srcL("terminal_publish: true\nfinalize:\n  skip_results_only_delta: true\n"))
+	snap := mustSnapshot(t, srcL("terminal_publish: true\ngithub_project: {owner: acme, number: 7}\n"))
 	if len(snap.Capabilities) != 0 {
 		t.Errorf("capabilities = %+v, want none", gotCaps(snap.Capabilities))
 	}

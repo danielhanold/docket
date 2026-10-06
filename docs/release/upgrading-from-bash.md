@@ -230,10 +230,10 @@ These are the Bash-era settings docket reports, in `.docket.yml` or in
 |---|---|---|
 | `metadata_branch` | Warning: ignores it. `docket repository check` also reports it as an error. | Remove it. |
 | `runtime.bash` | Warning: ignores it. | Remove it. |
+| `finalize.skip_results_only_delta` | Warning: ignores it. | Remove it. |
 | `terminal_publish` | Error when set to `true`. | Remove it, or set it to `false`. |
 | `auto_groom` | Error when set to `true`. | Remove it, or set it to `false`. |
 | `build.checkpoint` | Error when set to `true`. | Remove it, or set it to `false`. |
-| `finalize.skip_results_only_delta` | Error when set to `true`. | Remove it, or set it to `false`. |
 | `auto_capture.enabled` | Error when set to `true`. | Remove it, or set it to `false`. |
 | `dummy_mode.enabled` | Error when set to `true`. | Remove it, or set it to `false`. |
 | `finalize.gate` | Error when set to `ci` or `both`. The saved installs cover `ci` only. | Remove it, or set it to `local` or `off`. |

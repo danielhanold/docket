@@ -80,10 +80,10 @@ func loadCorpusBlobs(t *testing.T) (blobs []StatusBlob, docketYML []byte) {
 // corpusConfig resolves the frozen `.docket.yml` as the repository layer, the
 // way PinContext would, and returns the snapshot together with the diagnostics
 // the resolver raised. The frozen production config is faithful, not synthetic:
-// it requests three capabilities Go v1 has not implemented (build.checkpoint,
-// finalize.skip_results_only_delta, terminal_publish) plus one deferred setting
-// (learnings.enabled), so `docket status` over this repo surfaces those four
-// diagnostics as findings. Threading them is what makes the corpus the oracle
+// it requests two capabilities Go v1 has not implemented (build.checkpoint,
+// terminal_publish), one deferred setting (learnings.enabled), and two obsolete
+// settings (metadata_branch, finalize.skip_results_only_delta), so `docket
+// status` over this repo surfaces those five diagnostics as findings. Threading them is what makes the corpus the oracle
 // for the operation's REAL output on this tree, not a substitute config.
 func corpusConfig(t *testing.T, docketYML []byte) (config.Snapshot, []config.Diagnostic) {
 	t.Helper()
@@ -116,10 +116,11 @@ func corpusConfig(t *testing.T, docketYML []byte) (config.Snapshot, []config.Dia
 //     36, whose depends_on:[35] and related:[35] both name change 35, which is
 //     deliberately excluded. That yields exactly one error and one warning.
 //
-// On top of the two record findings, the frozen config contributes four
-// findings (see corpusConfig): three deferred-capability ERRORS and one
-// deferred-setting NOTICE. Findings are assembled config-first, so the full
-// health tally is 4 errors + 1 warning + 1 notice = 6 findings.
+// On top of the two record findings, the frozen config contributes five
+// findings (see corpusConfig): two deferred-capability ERRORS, two
+// obsolete-setting WARNINGS, and one deferred-setting NOTICE. Findings are
+// assembled config-first, so the full health tally is 3 errors + 3 warnings +
+// 1 notice = 7 findings.
 func TestStatusCorpusFrozenSemantics(t *testing.T) {
 	blobs, docketYML := loadCorpusBlobs(t)
 	if docketYML == nil {
@@ -171,16 +172,16 @@ func TestStatusCorpusFrozenSemantics(t *testing.T) {
 	if got.Summary.Learnings != 0 {
 		t.Errorf("Learnings = %d, want 0 (the tag's tree carries no learnings ledger)", got.Summary.Learnings)
 	}
-	// Error tally: 3 deferred-capability config errors + change 36's dangling
+	// Error tally: 2 deferred-capability config errors + change 36's dangling
 	// depends_on:[35]. Warning tally: the committed .docket.yml's obsolete
-	// metadata_branch key (0363) + change 36's dangling related:[35]. (The
-	// deferred-setting learnings.enabled diagnostic is a NOTICE, counted in
-	// neither tally.)
-	if got.Summary.ErrorFindings != 4 {
-		t.Errorf("ErrorFindings = %d, want 4 (3 deferred-capability config errors + change 36 depends_on:[35])", got.Summary.ErrorFindings)
+	// metadata_branch and finalize.skip_results_only_delta keys + change 36's
+	// dangling related:[35]. (The deferred-setting learnings.enabled diagnostic
+	// is a NOTICE, counted in neither tally.)
+	if got.Summary.ErrorFindings != 3 {
+		t.Errorf("ErrorFindings = %d, want 3 (2 deferred-capability config errors + change 36 depends_on:[35])", got.Summary.ErrorFindings)
 	}
-	if got.Summary.WarningFindings != 2 {
-		t.Errorf("WarningFindings = %d, want 2 (obsolete metadata_branch + change 36 related:[35] dangling)", got.Summary.WarningFindings)
+	if got.Summary.WarningFindings != 3 {
+		t.Errorf("WarningFindings = %d, want 3 (obsolete metadata_branch and finalize.skip_results_only_delta + change 36 related:[35] dangling)", got.Summary.WarningFindings)
 	}
 
 	// --- empty active projection ----------------------------------------------
@@ -227,16 +228,17 @@ func TestStatusCorpusFrozenSemantics(t *testing.T) {
 	// ordering while still pinning the exact set.
 	type findKey struct{ code, severity, field, identity string }
 	wantFindings := map[findKey]bool{
-		// Config layer: three deferred capabilities (errors) + one deferred
+		// Config layer: two deferred capabilities (errors) + one deferred
 		// setting (notice). Identity is empty — a config diagnostic names a
 		// setting path, not a repository entity.
-		{"deferred-capability-requested", "error", "build.checkpoint", ""}:                 false,
-		{"deferred-capability-requested", "error", "finalize.skip_results_only_delta", ""}: false,
-		{"deferred-capability-requested", "error", "terminal_publish", ""}:                 false,
-		{"deferred-setting", "notice", "learnings.enabled", ""}:                            false,
-		// The committed .docket.yml still carries metadata_branch, now an obsolete
-		// tombstone (0363): a warning-severity obsolete-setting finding.
-		{"obsolete-setting", "warning", "metadata_branch", ""}: false,
+		{"deferred-capability-requested", "error", "build.checkpoint", ""}: false,
+		{"deferred-capability-requested", "error", "terminal_publish", ""}: false,
+		{"deferred-setting", "notice", "learnings.enabled", ""}:            false,
+		// The committed .docket.yml still carries metadata_branch and
+		// finalize.skip_results_only_delta, both obsolete tombstones: one
+		// warning-severity obsolete-setting finding each.
+		{"obsolete-setting", "warning", "metadata_branch", ""}:                  false,
+		{"obsolete-setting", "warning", "finalize.skip_results_only_delta", ""}: false,
 		// Record layer: change 36's two dangling references to the excluded 35.
 		{"change-reference-dangling", "error", "depends_on", "0036"}: false,
 		{"change-reference-dangling", "warning", "related", "0036"}:  false,
