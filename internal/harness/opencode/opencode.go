@@ -1,6 +1,7 @@
 // Package opencode renders Docket's installation for opencode: skill
-// symlinks and one native agent definition per agent source, all under the XDG
-// config root. It no longer plans a user-global dispatch block (change
+// symlinks, one native agent definition per agent source, and one content-free
+// trigger (the private-instructions system-prompt plugin,
+// harness.OpenCodePluginTarget), all under the XDG config root. It no longer plans a user-global dispatch block (change
 // 0351) — parent-facing routing belongs to a repository's own AGENTS.md, not a
 // personal global one — but it still exports GlobalDispatchTarget so the
 // installer can retire a leftover a prior install owns. It plans only: nothing
@@ -35,6 +36,7 @@ const (
 	skillsDir    = "skills"
 	agentsDir    = "agents"
 	dispatchFile = "AGENTS.md"
+	pluginsDir   = "plugins"
 
 	// The managed block docket owns in the dispatch file. Both spellings are
 	// part of the installed-state identity: install.InspectTarget finds the
@@ -132,6 +134,8 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 			Role:    roleAgent,
 		})
 	}
+
+	targets = append(targets, harness.OpenCodePluginTarget(filepath.Join(root, pluginsDir, harness.OpenCodePluginFile)))
 
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Path < targets[j].Path })
 	return targets, nil

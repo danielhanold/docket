@@ -54,9 +54,28 @@ func newPrivateInitRepo(t *testing.T, files map[string]string) (*initRepo, strin
 	return r, data
 }
 
+// inheritedXDGDataHome is XDG_DATA_HOME as the test process inherited it,
+// read at package initialization, before any test pins it.
+var inheritedXDGDataHome = os.Getenv("XDG_DATA_HOME")
+
+// pinInitUserRoots keeps an init run off the real user's machine roots, since
+// init reaches the installer (installAuthorizedSurfaces resolves its roots from
+// the environment). HOME always moves to a fresh temp dir; XDG_CONFIG_HOME is
+// pinned by newGitClient (or runInitWithGlobal); XDG_DATA_HOME moves to a fresh
+// temp dir unless the test already pinned it, because a private store the test
+// inspects (newPrivateInitRepo's data home) lives there.
+func pinInitUserRoots(t *testing.T) {
+	t.Helper()
+	t.Setenv("HOME", testsupport.TempDir(t))
+	if v := os.Getenv("XDG_DATA_HOME"); v == "" || v == inheritedXDGDataHome {
+		t.Setenv("XDG_DATA_HOME", testsupport.TempDir(t))
+	}
+}
+
 // runInitWith runs RunRepositoryInit against the invocation clone with o.
 func (r *initRepo) runInitWith(t *testing.T, o InitOptions) RepositoryOpResult {
 	t.Helper()
+	pinInitUserRoots(t)
 	client := newGitClient(t)
 	return RunRepositoryInit(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation}, o)
 }
@@ -66,6 +85,7 @@ func (r *initRepo) runInitWith(t *testing.T, o InitOptions) RepositoryOpResult {
 // the client is built.
 func (r *initRepo) runInitWithGlobal(t *testing.T, globalYML string, o InitOptions) RepositoryOpResult {
 	t.Helper()
+	pinInitUserRoots(t)
 	client := newGitClient(t)
 	cfgHome := testsupport.TempDir(t)
 	if err := os.MkdirAll(filepath.Join(cfgHome, "docket"), 0o755); err != nil {

@@ -619,12 +619,34 @@ func TestInstallFreshApplies(t *testing.T) {
 	// global destinations are created.
 	for _, p := range [][]string{
 		{".claude", "CLAUDE.md"},
-		{".codex", "AGENTS.md"},
 		{".cursor", "rules", "docket-dispatch.mdc"},
 		{".config", "opencode", "AGENTS.md"},
 	} {
 		if _, err := os.Lstat(w.path(p...)); !os.IsNotExist(err) {
 			t.Errorf("fresh install created a global dispatch surface at %v (err=%v)", p, err)
+		}
+	}
+	// ~/.codex/AGENTS.md does exist now, but it holds only the content-free
+	// private-instructions pointer, never a dispatch block.
+	codexAgents := readFile(t, w.path(".codex", "AGENTS.md"))
+	if strings.Contains(codexAgents, "docket:dispatch") || strings.Contains(codexAgents, harness.DispatchHeading) {
+		t.Errorf("fresh install wrote a dispatch block into ~/.codex/AGENTS.md:\n%s", codexAgents)
+	}
+	if !strings.Contains(codexAgents, "<!-- "+harness.PointerBlockName+":start") || !strings.Contains(codexAgents, harness.PointerInterior) {
+		t.Errorf("~/.codex/AGENTS.md lacks the private-instructions pointer:\n%s", codexAgents)
+	}
+	// Every harness's content-free trigger landed at its user-level path.
+	for _, tc := range []struct {
+		path []string
+		want string
+	}{
+		{[]string{".claude", "settings.json"}, harness.ClaudeDispatchHookCommand},
+		{[]string{".claude", "settings.json"}, harness.ClaudeLessonsHookCommand},
+		{[]string{".cursor", "hooks.json"}, harness.CursorHookCommand},
+		{[]string{".config", "opencode", "plugins", harness.OpenCodePluginFile}, harness.OpenCodePlugin},
+	} {
+		if body := readFile(t, w.path(tc.path...)); !strings.Contains(body, tc.want) {
+			t.Errorf("%v lacks %q:\n%s", tc.path, tc.want, body)
 		}
 	}
 

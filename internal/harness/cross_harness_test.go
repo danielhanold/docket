@@ -207,6 +207,11 @@ func TestWrapperRecursionGuard(t *testing.T) {
 // re-added a dispatch block or rule reddens here regardless of what a golden
 // says. A parent surface is a dispatch-role target or a managed block — the two
 // shapes a global CLAUDE.md/AGENTS.md dispatch block or a .cursor rule took.
+//
+// One managed block is allowed: the content-free Codex pointer, and only in its
+// exact form (trigger role, the pointer's block name, the pointer's interior).
+// Beside that narrowing, every trigger-role target (the pointer included) must
+// carry no line of rule text, and each adapter plans exactly one trigger.
 func TestNoGlobalParentSurface(t *testing.T) {
 	in := crossPlanInput(t)
 	adapters := map[string]harness.Adapter{
@@ -223,6 +228,7 @@ func TestNoGlobalParentSurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInventory: %v", err)
 	}
+	population := rulePopulation(t)
 
 	for _, name := range harness.Order {
 		a, ok := adapters[name]
@@ -233,12 +239,16 @@ func TestNoGlobalParentSurface(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s Plan: %v", name, err)
 		}
-		agentOrSkill := 0
+		agentOrSkill, triggers := 0, 0
 		for _, tg := range targets {
+			if tg.Role == harness.TriggerRole {
+				triggers++
+				assertNoRuleText(t, name+" trigger "+tg.Path, string(tg.Content), population)
+			}
 			if tg.Role == "dispatch" {
 				t.Errorf("%s plans a dispatch-role target at %q", name, tg.Path)
 			}
-			if tg.Kind == install.KindManagedBlock {
+			if tg.Kind == install.KindManagedBlock && !isCodexPointer(tg) {
 				t.Errorf("%s plans a managed-block target at %q", name, tg.Path)
 			}
 			if tg.Role == "agent" || tg.Role == "skill" {
@@ -250,7 +260,17 @@ func TestNoGlobalParentSurface(t *testing.T) {
 		if agentOrSkill == 0 || len(targets) < len(sources) {
 			t.Errorf("%s planned %d targets for %d agent sources; the gate would be vacuous", name, len(targets), len(sources))
 		}
+		if triggers != 1 {
+			t.Errorf("%s plans %d trigger-role targets, want 1", name, triggers)
+		}
 	}
+}
+
+// isCodexPointer is the one managed block TestNoGlobalParentSurface allows:
+// the trigger-role pointer, carrying exactly the pointer's name and interior.
+func isCodexPointer(tg install.Target) bool {
+	return tg.Role == harness.TriggerRole && tg.BlockName == harness.PointerBlockName &&
+		string(tg.Content) == harness.PointerInterior
 }
 
 // TestNoCrossHarnessDelegation plans all four adapters under one shared input

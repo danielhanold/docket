@@ -1,5 +1,7 @@
 // Package claude renders Docket's installation for Claude Code: skill
-// symlinks and one native agent definition per agent source. It no longer
+// symlinks, one native agent definition per agent source, and one content-free
+// trigger (the private-instructions SessionStart hooks in settings.json,
+// harness.ClaudeHookTarget). It no longer
 // plans a user-global dispatch block (change 0351) — parent-facing routing
 // belongs to a repository's own CLAUDE.md, not a personal global one — but it
 // still exports GlobalDispatchTarget so the installer can retire a leftover a
@@ -33,6 +35,7 @@ const (
 	skillsDir    = "skills"
 	agentsDir    = "agents"
 	dispatchFile = "CLAUDE.md"
+	settingsFile = "settings.json"
 
 	// The managed block docket owns in the dispatch file. Both spellings are
 	// part of the installed-state identity: install.InspectTarget finds the
@@ -118,6 +121,8 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 			Role:    roleAgent,
 		})
 	}
+
+	targets = append(targets, harness.ClaudeHookTarget(filepath.Join(root, settingsFile)))
 
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Path < targets[j].Path })
 	return targets, nil
