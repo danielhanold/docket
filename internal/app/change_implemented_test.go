@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/render"
@@ -11,6 +12,7 @@ import (
 	"github.com/danielhanold/docket/internal/workspace"
 	"strings"
 	"testing"
+	"time"
 )
 
 // miRevision is the exact record revision the happy fixtures pin.
@@ -36,9 +38,11 @@ func miRecord(id int, slug, plan, results string, reconciled, trivial bool) stri
 }
 
 // baseImplementedOp builds a mark-implemented transaction op for the plan-closure
-// tests, wiring the inline board when the surfaces request it.
+// tests, wiring the inline board when the surfaces request it. It carries
+// miOpEvidence, the verified record the transition writes into the record.
 func baseImplementedOp(surfaces []string, id int, pr string) changeImplementedOp {
 	return changeImplementedOp{
+		evidence:   miOpEvidence(),
 		changeID:   id,
 		pr:         pr,
 		eff:        planningTestConfig(surfaces),
@@ -47,6 +51,16 @@ func baseImplementedOp(surfaces []string, id int, pr string) changeImplementedOp
 		link:       render.LinkContext{MetadataBranch: "main"},
 		changesDir: "docs/changes",
 	}
+}
+
+// miOpEvidence is the green build-evidence record the plan-closure fixtures hand
+// the op, as ChangeMarkImplemented extracts it from the verified --evidence bytes.
+func miOpEvidence() evidence.Record {
+	rec, err := evidence.NewRecord("go test ./...", "0123456789abcdef0123456789abcdef01234567", time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+	if err != nil {
+		panic(err)
+	}
+	return rec
 }
 
 // implementedPlanFor runs the mark-implemented op's Plan closure over a fake tree
@@ -106,6 +120,15 @@ func TestMarkImplementedApplies(t *testing.T) {
 	// The updated date moved; the pre-transition date must be gone.
 	if strings.Contains(rec, "updated: 2026-08-02") {
 		t.Errorf("updated date not refreshed:\n%s", rec)
+	}
+	// The transition records the evidence it verified as the record's
+	// "## Build evidence" section, in this same commit.
+	gotEv, err := ReadRecordEvidence([]byte(rec))
+	if err != nil {
+		t.Fatalf("implemented record carries no readable build evidence: %v\n%s", err, rec)
+	}
+	if want := miOpEvidence(); gotEv != want {
+		t.Fatalf("recorded evidence = %+v, want %+v", gotEv, want)
 	}
 }
 
@@ -253,6 +276,12 @@ func firstStatusFindingCode(findings []StatusFinding) string {
 // repo, with every reprobe condition satisfied for head.
 func miRealRun(t *testing.T, repo *gitRepo, recPath, head string) ChangeLifecycleResult {
 	t.Helper()
+	return miRealRunWith(t, repo, recPath, head, prEvidenceBytes(t, head))
+}
+
+// miRealRunWith is miRealRun with the --evidence bytes supplied by the caller.
+func miRealRunWith(t *testing.T, repo *gitRepo, recPath, head string, ev []byte) ChangeLifecycleResult {
+	t.Helper()
 	node := planningDepsFor(t, repo.invocation)
 	wdeps := WorkspaceDeps{Service: &fakeWorkspaceService{
 		inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(head)},
@@ -260,7 +289,7 @@ func miRealRun(t *testing.T, repo *gitRepo, recPath, head string) ChangeLifecycl
 	gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{happyPR(head)}}}
 	req := MarkImplementedRequest{
 		ID: 3, Revision: blobRevisionAt(t, repo.origin, "docket", recPath), Head: head,
-		PR: prRepo().Spec() + "#42", EvidenceRecord: prEvidenceBytes(t, head),
+		PR: prRepo().Spec() + "#42", EvidenceRecord: ev,
 	}
 	return ChangeMarkImplemented(context.Background(), node.deps, wdeps, gdeps, node.dir, req)
 }

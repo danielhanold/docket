@@ -26,7 +26,8 @@ import (
 // adapter (the ready PR), and the reparsed build-evidence bytes, then applies the
 // landed domain.MarkImplemented action through one atomic, exact-revision
 // transaction that records the PR reference, status, updated date, artifact
-// block, inline board, and an audit receipt. It does NOT clear the claim, delete
+// block, the verified build evidence (the "## Build evidence" section), inline
+// board, and an audit receipt. It does NOT clear the claim, delete
 // a branch or workspace, merge the PR, archive the change, or close descendants
 // (those are 0316 effects).
 //
@@ -168,6 +169,11 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 	if verdict := evidence.Verify(req.EvidenceRecord, req.Head); verdict != evidence.VerdictVerified && verdict != evidence.VerdictSkipped {
 		return implementedRefusal(ResultInvalidState, ReasonImplementedEvidenceUnverified,
 			"the reparsed evidence does not verify (green or skipped) against the supplied head ("+string(verdict)+")", req.ID)
+	}
+	rec, err := evidence.Extract(req.EvidenceRecord)
+	if err != nil {
+		// Unreachable after a verified verdict, but fail closed rather than trust it.
+		return implementedRefusal(ResultInvalidState, ReasonImplementedEvidenceUnverified, err.Error(), req.ID)
 	}
 
 	// Pin authoritative context, check the board surface, discover the repository.
@@ -321,6 +327,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		inline:     inline,
 		link:       linkContextOf(pin),
 		changesDir: eff.ChangesDir.Value,
+		evidence:   rec,
 	}
 	// The run mutation fence (change 0375 Task 11) covers this implemented
 	// transition VIA the engine's AdmissionHook — the transition is one
@@ -451,8 +458,9 @@ func verifyImplementedResults(ctx context.Context, deps PlanningDeps, repo gitcl
 // re-runs domain.MarkImplemented against the attempt's own fresh change (so a
 // concurrent edit that unreconciled or unlinked the record refuses inside the
 // transaction as well as at the pre-transaction reprobe), upserts the owned
-// fields (status, pr, plan, updated), re-renders the artifact block, and — when
-// inline is enabled — the board. It never touches claimed_at or branch: the claim
+// fields (status, pr, plan, updated), re-renders the artifact block, writes the
+// verified evidence record as the record's "## Build evidence" section, and —
+// when inline is enabled — the board. It never touches claimed_at or branch: the claim
 // survives the transition (0316 owns claim release).
 type changeImplementedOp struct {
 	changeID   int
@@ -462,6 +470,7 @@ type changeImplementedOp struct {
 	inline     bool
 	link       render.LinkContext
 	changesDir string
+	evidence   evidence.Record
 }
 
 func (o changeImplementedOp) Key() transaction.OperationKey {
@@ -535,6 +544,12 @@ func (o changeImplementedOp) Plan(ctx context.Context, st transaction.AttemptSta
 	finalBytes, err := doc2.Apply(ps2)
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("mark-implemented: writing artifact block: %w", err)
+	}
+	// The implemented transition records the evidence it just verified as the
+	// record's durable "## Build evidence" section, in this same commit.
+	finalBytes, err = UpsertRecordEvidence(finalBytes, o.evidence)
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("mark-implemented: recording build evidence: %w", err)
 	}
 
 	files := []transaction.FileMutation{
