@@ -63,3 +63,7 @@ Once private visibility exists, a repository's mode is chosen at `init` and is t
 - Removing plan or results files that were merged into `main` before plans and results moved to the metadata branch.
 - Rewriting already-pushed history or PR descriptions.
 - Guide or concept pages describing the switch. Documentation is command help, skills, and `.docket.example.yml` only.
+
+## Open questions
+
+- **Old spec backlinks are still absolute links (found while building #530, 2026-10-06).** The spec says that after #530, links between metadata files are relative, so no record needs rewriting. That holds for `## Artifacts` blocks once `docket repository repair` has run. It does not hold for the backlink block at the top of spec files groomed before #530: those still carry full `https://github.com/<owner>/<repo>/blob/docket/...` links, and `repository repair` does not rewrite them (it re-renders only `## Artifacts` blocks, the board, and the ADR index). This change's own spec is one of them. After a switch to private with `--delete-shared-branch`, those links stop resolving. Settle at build: the suggested route is to extend `repository repair` to re-stamp spec backlinks as relative links, and have the `set-visibility` preview list any absolute same-branch links that remain.
