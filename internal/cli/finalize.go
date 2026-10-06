@@ -146,7 +146,7 @@ func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.C
 func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "block",
-		Short: "Record a blocked finalize attempt: an owned PR comment then a durable marker",
+		Short: "Record a blocked finalize attempt: an owned PR comment (none in a private repository), then a durable marker",
 		Args:  cobra.NoArgs,
 		// external-write (the owned PR comment) + metadata-write (the durable
 		// "## Finalize blocked" marker upserted in an exact-revision metadata-

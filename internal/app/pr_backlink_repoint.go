@@ -8,6 +8,7 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/layout"
 )
 
 // This file is the one place that decides whether a merged pull request's
@@ -28,6 +29,14 @@ import (
 // the archived record (a read, edit, or marker problem, or a lost race); the
 // change stays truthfully done and cleanup / the sweep retry it.
 const ReasonPRBacklinkPending = "pr-backlink-pending"
+
+// prBacklinksApply reports whether a repository's merged pull requests carry a
+// docket:backlink block to repoint. A private repository's PR descriptions carry
+// no docket blocks, so nothing is repointed and no PR body is read for it. It is
+// the one predicate every repoint site consults.
+func prBacklinksApply(lay layout.Layout) bool {
+	return lay.Mode != layout.Private
+}
 
 // The closed outcomes of one repoint attempt.
 const (

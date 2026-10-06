@@ -838,8 +838,11 @@ func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *c
 // archive path. It runs after the metadata transaction landed and never
 // changes the close-out disposition: each target that did not reach its promised
 // state contributes one pr-backlink-pending warning. No editor wired (a test
-// GitHub fake) runs nothing.
+// GitHub fake) runs nothing, and neither does a private repository.
 func runCloseoutPRBacklinkLeg(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, ghRepo githubcli.Repository, targets []closeoutTarget) []StatusFinding {
+	if !prBacklinksApply(cc.pin.Layout) {
+		return nil
+	}
 	ed := prBodyEditor(deps)
 	if ed == nil {
 		return nil

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/testsupport"
@@ -804,5 +805,39 @@ func TestIntegrationRepoSetupPrivateMovedCloneOrphanPruned(t *testing.T) {
 	prep = RunRepositoryPrepare(context.Background(), d, PrepareOptions{})
 	if prep.Disposition != PrepareDispositionApplied || prep.Context == nil || prep.Context.MetadataWorktreePath != newCheckout {
 		t.Fatalf("prepare after prune = %q (%s), want the new checkout %s attached", prep.Disposition, prep.HumanText(), newCheckout)
+	}
+}
+
+// fatalRepairGitHub is a RepairGitHub whose every method fails the test: a
+// private repository's PR-backlink repair must never reach GitHub.
+type fatalRepairGitHub struct{ t *testing.T }
+
+func (g fatalRepairGitHub) DiscoverRepository(context.Context, string) (githubcli.Repository, error) {
+	g.t.Fatalf("a private PR-backlink repair resolved the GitHub repository")
+	return githubcli.Repository{}, nil
+}
+
+func (g fatalRepairGitHub) ViewPullRequestsBatch(context.Context, githubcli.Repository, []int) (map[int]githubcli.BatchPRResult, error) {
+	g.t.Fatalf("a private PR-backlink repair read pull-request bodies")
+	return nil, nil
+}
+
+func (g fatalRepairGitHub) EditPullRequestBody(context.Context, githubcli.Repository, int, string, string) (githubcli.BodyEditOutcome, githubcli.PullRequest, error) {
+	g.t.Fatalf("a private PR-backlink repair edited a pull-request body")
+	return githubcli.BodyUnknown, githubcli.PullRequest{}, nil
+}
+
+// TestIntegrationRepoSetupPrivatePRBacklinkRepairIsNoOp: a private repository's
+// pull requests carry no backlink, so `repository repair --pr-backlinks` is a
+// no-op that says so and never touches GitHub.
+func TestIntegrationRepoSetupPrivatePRBacklinkRepairIsNoOp(t *testing.T) {
+	r, _ := initPrivateHealthy(t)
+	d := SetupDeps{Git: newGitClient(t), RepoDir: r.invocation, GitHub: fatalRepairGitHub{t: t}}
+	res := RunRepositoryRepair(context.Background(), d, RepairOptions{PRBacklinks: true})
+	if res.Result != ResultNoOp {
+		t.Fatalf("private PR-backlink repair = %q (%s), want no-op", res.Result, res.HumanText())
+	}
+	if !strings.Contains(res.HumanText(), "a private repository's pull requests carry no backlink") {
+		t.Errorf("private PR-backlink repair text = %q; want it to say a private repository's pull requests carry no backlink", res.HumanText())
 	}
 }

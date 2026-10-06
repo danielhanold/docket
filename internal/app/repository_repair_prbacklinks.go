@@ -82,6 +82,9 @@ func runPRBacklinkRepair(ctx context.Context, d SetupDeps, o RepairOptions) Repo
 	if refusal != nil {
 		return *refusal
 	}
+	if !prBacklinksApply(sc.layout) {
+		return prRepairPrivateNoOp(metadataTip)
+	}
 	if d.GitHub == nil {
 		return repairInternalFailure(reposetup.StateHealthy, "wiring the GitHub client",
 			errors.New("no GitHub client is wired for --pr-backlinks"))
@@ -280,6 +283,17 @@ func prRepairNoOp(metadataTip string, skipped []PRBacklinkRepair) RepositoryRepa
 	fmt.Fprintf(&b, "repository repair --pr-backlinks: no pull-request backlink to repoint at metadata %s\n", metadataTip)
 	writePRRepairRows(&b, skipped)
 	out.human = strings.TrimRight(b.String(), "\n")
+	return out
+}
+
+// prRepairPrivateNoOp is the no-op a private repository answers with: its pull
+// requests carry no docket:backlink block, so nothing is read or repointed.
+func prRepairPrivateNoOp(metadataTip string) RepositoryRepairResult {
+	out := newRepairResult(ResultNoOp, RepositoryRepairResult{
+		RepositoryState: string(reposetup.StateHealthy),
+		SourceRevision:  metadataTip,
+	})
+	out.human = "repository repair --pr-backlinks: a private repository's pull requests carry no backlink; nothing to repoint"
 	return out
 }
 

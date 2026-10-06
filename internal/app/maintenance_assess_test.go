@@ -11,6 +11,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -457,7 +458,7 @@ func TestGatherSweepSharedFactsMarksUnreadPRBodiesUnknown(t *testing.T) {
 	}}
 	deps := FinalizeDeps{Planning: PlanningDeps{Reader: f.reader, Clock: testClock()}, PRBatch: batch}
 	items := []sweepWorkItem{{id: 41, kind: sweepKindCleanup}, {id: 42, kind: sweepKindCleanup}}
-	shared := gatherSweepSharedFacts(context.Background(), deps, "repo", f.inv, items)
+	shared := gatherSweepSharedFacts(context.Background(), deps, "repo", f.pin.Layout, f.inv, items)
 	if !shared.prBodiesGathered || batch.calls != 1 {
 		t.Fatalf("gathered=%v calls=%d, want one batched read", shared.prBodiesGathered, batch.calls)
 	}
@@ -466,6 +467,74 @@ func TestGatherSweepSharedFactsMarksUnreadPRBodiesUnknown(t *testing.T) {
 	}
 	if _, ok := shared.prBodies[n42]; ok || !shared.prBodiesUnknown[n42] {
 		t.Errorf("PR #%d was not returned, so it must be unknown", n42)
+	}
+}
+
+// TestGatherSweepSharedFactsSkipsPRBodiesInPrivateRepository: a private
+// repository's PR descriptions carry no backlink, so the sweep reads no PR body
+// and leaves the PR-backlink leg unassessed.
+func TestGatherSweepSharedFactsSkipsPRBodiesInPrivateRepository(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "a", ""), assessDoneBlob(42, "b", "")}, nil)
+	n41 := prNumberOf(t, f, 41)
+	batch := &fakeSweepBatchReader{result: SweepPRSetResult{Bodies: map[int]string{n41: "body"}}}
+	deps := FinalizeDeps{Planning: PlanningDeps{Reader: f.reader, Clock: testClock()}, PRBatch: batch}
+	items := []sweepWorkItem{{id: 41, kind: sweepKindCleanup}, {id: 42, kind: sweepKindCleanup}}
+	lay := layout.PrivateLayout("/c", "/r", "/d", "o-r")
+	shared := gatherSweepSharedFacts(context.Background(), deps, "repo", lay, f.inv, items)
+	if shared.prBodiesGathered || batch.calls != 0 {
+		t.Fatalf("private: gathered=%v calls=%d, want no PR-body read", shared.prBodiesGathered, batch.calls)
+	}
+}
+
+// privateBacklinkFixture builds a legacy archived done record whose merged PR
+// still carries an active-path backlink: shared, both repoint legs would read
+// and edit it.
+func privateBacklinkFixture(t *testing.T) (assessFixture, StatusBlob, domain.Change, int, string) {
+	t.Helper()
+	blob := assessArchivedDoneBlob(41, "legacy")
+	f := newAssessFixture(t, []StatusBlob{blob}, nil)
+	c, _ := f.inv.snap.Change(domain.ChangeID(41))
+	return f, blob, c, prNumberOf(t, f, 41), "docs/changes/active/0041-legacy.md"
+}
+
+// TestFinalizeCleanupPRBacklinkRepairSkipsPrivateRepository: cleanup's
+// PR-backlink leg neither reads nor edits a private repository's PR.
+func TestFinalizeCleanupPRBacklinkRepairSkipsPrivateRepository(t *testing.T) {
+	f, blob, c, n, active := privateBacklinkFixture(t)
+	pin := f.pin
+	pin.Layout = layout.PrivateLayout("/c", "/r", "/d", "o-r")
+	pr := newFakePRBody(map[int]string{n: prBodyWithActiveBacklink(active, "prose")})
+	cc := &closeoutContext{pin: pin, eff: f.pin.Config.Effective, change: c, body: blob.Data, link: linkContextOf(f.pin)}
+	if fnd := finalizeCleanupPRBacklinkRepair(context.Background(), FinalizeDeps{PRBody: pr}, cc, githubcli.Repository{}, n); fnd != nil {
+		t.Fatalf("private cleanup leg returned a finding: %+v", *fnd)
+	}
+	if pr.views != 0 || pr.edits != 0 {
+		t.Fatalf("private cleanup leg touched the PR: views=%d edits=%d", pr.views, pr.edits)
+	}
+}
+
+// TestCloseoutPRBacklinkLegSkipsPrivateRepository: close-out's PR-backlink leg
+// neither reads nor edits a private repository's PR. The shared control proves
+// the same context does reach the PR.
+func TestCloseoutPRBacklinkLegSkipsPrivateRepository(t *testing.T) {
+	f, blob, c, n, active := privateBacklinkFixture(t)
+	targets := []closeoutTarget{{id: 41, activePath: active, slug: "legacy", archivePath: c.Path()}}
+	run := func(lay layout.Layout) (*fakePRBody, []StatusFinding) {
+		pin := f.pin
+		pin.Layout = lay
+		pr := newFakePRBody(map[int]string{n: prBodyWithActiveBacklink(active, "prose")})
+		cc := &closeoutContext{
+			pin: pin, eff: f.pin.Config.Effective, snap: f.inv.snap, change: c,
+			sources: map[string][]byte{active: blob.Data}, link: linkContextOf(f.pin),
+		}
+		return pr, runCloseoutPRBacklinkLeg(context.Background(), FinalizeDeps{PRBody: pr}, cc, githubcli.Repository{}, targets)
+	}
+	if pr, _ := run(f.pin.Layout); pr.views == 0 {
+		t.Fatalf("shared control: the close-out leg never read the PR; the fixture does not reach it")
+	}
+	pr, out := run(layout.PrivateLayout("/c", "/r", "/d", "o-r"))
+	if out != nil || pr.views != 0 || pr.edits != 0 {
+		t.Fatalf("private close-out leg: findings=%+v views=%d edits=%d, want none", out, pr.views, pr.edits)
 	}
 }
 
