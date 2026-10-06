@@ -49,6 +49,7 @@ func builtinEffective() Effective {
 			LeaseTTL: builtinValue(72),
 			Auto:     builtinValue(false),
 		},
+		LeakCheck: LeakCheck{MatchWord: builtinValue(true)},
 		Review: Review{
 			MinFixSeverity: builtinValue("minor"),
 			MaxFixTasks:    builtinValue(10),

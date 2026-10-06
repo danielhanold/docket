@@ -253,6 +253,7 @@ func effectiveLines(eff *config.Effective) []effectiveLine {
 		leafLine("learnings.enabled", strconv.FormatBool(eff.Learnings.Enabled.Value), eff.Learnings.Enabled.Provenance),
 		leafLine("reclaim.lease_ttl", strconv.Itoa(eff.Reclaim.LeaseTTL.Value), eff.Reclaim.LeaseTTL.Provenance),
 		leafLine("reclaim.auto", strconv.FormatBool(eff.Reclaim.Auto.Value), eff.Reclaim.Auto.Provenance),
+		leafLine("leak_check.match_word", strconv.FormatBool(eff.LeakCheck.MatchWord.Value), eff.LeakCheck.MatchWord.Provenance),
 		leafLine("review.min_fix_severity", textValue(eff.Review.MinFixSeverity.Value), eff.Review.MinFixSeverity.Provenance),
 		leafLine("review.max_fix_tasks", strconv.Itoa(eff.Review.MaxFixTasks.Value), eff.Review.MaxFixTasks.Provenance),
 		leafLine("gate_observation_budget", strconv.Itoa(eff.GateObservation.Value), eff.GateObservation.Provenance),

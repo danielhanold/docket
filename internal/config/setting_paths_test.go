@@ -31,6 +31,7 @@ func TestSettingPathsSupportSplit(t *testing.T) {
 		"run.max_attempts",
 		"review.min_fix_severity", "review.max_fix_tasks",
 		"reclaim.lease_ttl", "reclaim.auto",
+		"leak_check.match_word",
 		"learnings.enabled",
 		"gate_observation_budget",
 		"board_surfaces", "board.section_order",

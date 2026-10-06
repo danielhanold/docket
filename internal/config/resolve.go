@@ -317,6 +317,7 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 	set(assign(&eff.Learnings.Enabled, r.declared, "learnings.enabled"))
 	set(assign(&eff.Reclaim.LeaseTTL, r.declared, "reclaim.lease_ttl"))
 	set(assign(&eff.Reclaim.Auto, r.declared, "reclaim.auto"))
+	set(assign(&eff.LeakCheck.MatchWord, r.declared, "leak_check.match_word"))
 	set(assign(&eff.Review.MinFixSeverity, r.declared, "review.min_fix_severity"))
 	set(assign(&eff.Review.MaxFixTasks, r.declared, "review.max_fix_tasks"))
 	set(assign(&eff.GateObservation, r.declared, "gate_observation_budget"))

@@ -157,6 +157,7 @@ func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 		"learnings.enabled":              eff.Learnings.Enabled.Value,
 		"reclaim.lease_ttl":              eff.Reclaim.LeaseTTL.Value,
 		"reclaim.auto":                   eff.Reclaim.Auto.Value,
+		"leak_check.match_word":          eff.LeakCheck.MatchWord.Value,
 		"review.min_fix_severity":        eff.Review.MinFixSeverity.Value,
 		"review.max_fix_tasks":           eff.Review.MaxFixTasks.Value,
 		"gate_observation_budget":        eff.GateObservation.Value,
