@@ -568,6 +568,57 @@ func TestIntegrationRepoSetupPrivateBothLocalConfigsRefuse(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoSetupPrivateInitRefusesBesideLocalConfig proves a private
+// init over a repository that already carries a .docket.local.yml refuses before
+// any write, with the same both-paths unsupported-config refusal every private
+// operation gives: writing .git/dckt/ first would turn the repository private
+// and leave every later operation, the recommended init re-run included,
+// refusing.
+func TestIntegrationRepoSetupPrivateInitRefusesBesideLocalConfig(t *testing.T) {
+	// The local file is ignored, as a shared repository's usually is, so the
+	// primary worktree reads clean.
+	r, data := newPrivateInitRepo(t, map[string]string{".gitignore": ".docket.local.yml\n"})
+	local := filepath.Join(r.invocation, ".docket.local.yml")
+	if err := os.WriteFile(local, []byte("learnings: {cap: 250}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitDir := r.gitDir(t)
+	excludePath := filepath.Join(gitDir, "info", "exclude")
+	excludeBefore, _ := os.ReadFile(excludePath)
+
+	res := r.runInitWith(t, InitOptions{Private: true})
+	if res.Result != ResultUnsupportedConfig {
+		t.Fatalf("init = %q (%s), want unsupported-config", res.Result, res.HumanText())
+	}
+	top, err := filepath.EvalSymlinks(r.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantLocal, wantPrivate := filepath.Join(top, ".docket.local.yml"), filepath.Join(top, ".git", "dckt", "config.yml")
+	if text := res.HumanText(); !strings.Contains(text, wantLocal) || !strings.Contains(text, wantPrivate) {
+		t.Errorf("refusal %q must name both %s and %s", text, wantLocal, wantPrivate)
+	}
+	if strings.Contains(res.HumanText(), privateInitRecovery) {
+		t.Errorf("refusal %q carries the post-write recovery text; nothing was written", res.HumanText())
+	}
+	if _, err := os.Lstat(filepath.Join(gitDir, "dckt")); !os.IsNotExist(err) {
+		t.Errorf(".git/dckt exists after the refusal (err=%v); init must write nothing", err)
+	}
+	if _, err := tryGit(r.invocation, "config", "--get", "remote.dckt.url"); err == nil {
+		t.Error("a dckt remote was added; init must write nothing")
+	}
+	lay := privateLayoutOf(t, r.invocation, data)
+	if _, err := os.Lstat(lay.StoreDir); !os.IsNotExist(err) {
+		t.Errorf("store %s exists after the refusal (err=%v); init must write nothing", lay.StoreDir, err)
+	}
+	if excludeAfter, _ := os.ReadFile(excludePath); string(excludeAfter) != string(excludeBefore) {
+		t.Errorf(".git/info/exclude changed to %q; init must write nothing", excludeAfter)
+	}
+	if r.remoteBranchExists(t, "docket") || r.remoteBranchExists(t, "dckt") {
+		t.Error("origin gained a docket or dckt branch")
+	}
+}
+
 // TestIntegrationRepoSetupPrivateRecloneSamePathReattaches deletes a private
 // clone and re-clones it at the same path. The store survives and the clone id
 // is the same, so the old checkout still sits at the new clone's checkout path,
