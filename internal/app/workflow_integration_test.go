@@ -18,9 +18,10 @@ import (
 )
 
 // TestAttachPlanBoardLinkAtomicity proves the attach-plan metadata transaction is
-// atomic: the single applied commit rewrites the change record (its plan: field
-// and its re-rendered artifact block) and the inline board together — never one
-// without the other. It inspects the winning commit's exact changed-path set.
+// atomic: the single applied commit writes the plan file, rewrites the change
+// record (its plan: field and its re-rendered artifact block), and re-renders the
+// inline board together — never one without the others. It inspects the winning
+// commit's exact changed-path set.
 func TestIntegrationWorkflowRepoAttachPlanBoardLinkAtomicity(t *testing.T) {
 	requireRealGit(t)
 	const (
@@ -37,21 +38,10 @@ func TestIntegrationWorkflowRepoAttachPlanBoardLinkAtomicity(t *testing.T) {
 			})
 			revision := blobRevisionAt(t, repo.origin, m.branch, recPath)
 			node := planningDepsFor(t, repo.invocation)
-			svc, err := workspace.NewService(node.deps.Client)
-			if err != nil {
-				t.Fatalf("workspace.NewService: %v", err)
-			}
-			wdeps := WorkspaceDeps{Service: svc}
 			ctx := context.Background()
 
-			prep := WorkspacePrepare(ctx, node.deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: id, Revision: revision})
-			if prep.Result != ResultApplied {
-				t.Fatalf("prepare workspace = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
-			}
-			head := commitPlanFile(t, prep.Path, planPath, attachHappyPlan(id, "A change", recPath), planPath)
-
-			res := ChangeAttachPlan(ctx, node.deps, wdeps, repo.invocation,
-				ChangeAttachRequest{ID: id, Revision: revision, Path: planPath, Commit: head})
+			res := ChangeAttachPlan(ctx, node.deps, repo.invocation,
+				ChangeAttachRequest{ID: id, Revision: revision, Path: planPath, Markdown: []byte(attachHappyPlanBody())})
 			if res.Result != ResultApplied {
 				t.Fatalf("attach = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
 			}
@@ -59,12 +49,13 @@ func TestIntegrationWorkflowRepoAttachPlanBoardLinkAtomicity(t *testing.T) {
 				t.Fatalf("applied attach carried no committed revision")
 			}
 
-			// The one metadata commit changes exactly the change record and the board.
-			want := []string{"docs/changes/BOARD.md", recPath}
+			// The one metadata commit changes exactly the plan file, the change
+			// record, and the board.
+			want := []string{"docs/changes/BOARD.md", recPath, planPath}
 			sort.Strings(want)
 			got := originCommitPaths(t, repo.origin, res.Revision)
 			if strings.Join(got, ",") != strings.Join(want, ",") {
-				t.Errorf("attach commit changed %v, want exactly %v (record + board in one commit)", got, want)
+				t.Errorf("attach commit changed %v, want exactly %v (plan + record + board in one commit)", got, want)
 			}
 			final, ok := originFile(t, repo.origin, m.branch, recPath)
 			if !ok || !strings.Contains(final, "plan: '"+planPath+"'") {
@@ -74,182 +65,137 @@ func TestIntegrationWorkflowRepoAttachPlanBoardLinkAtomicity(t *testing.T) {
 	}
 }
 
-// TestChangeAttachPlanGitVerification is the guard-table mutation test: each row
-// corrupts exactly one property of the happy fixture and asserts the operation
-// refuses with that guard's stable reason.
-func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
-	f := attachSetup(t)
+// attachOutcomeCode is the stable machine reason of a refused attach: the
+// pre-transaction reason, or the in-transaction refusal's finding code.
+func attachOutcomeCode(res ChangeAttachResult) string {
+	if res.Reason != "" {
+		return res.Reason
+	}
+	if len(res.Findings) > 0 {
+		return res.Findings[0].Code
+	}
+	return ""
+}
+
+// TestIntegrationWorkflowRepoChangeAttachPlanMetadataRefusals is the guard table
+// against real git: each row starts from the happy fixture, corrupts exactly one
+// property, and asserts the operation refuses with that guard's stable reason
+// and leaves the plan unlinked and the plan path untouched on the remote.
+func TestIntegrationWorkflowRepoChangeAttachPlanMetadataRefusals(t *testing.T) {
 	otherPlan := "docs/superpowers/plans/2026-08-17-decoy.md"
+	foreign := attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md") + "\n# Other plan\n\nSteps.\n"
 
 	rows := []struct {
-		name   string
-		build  func(t *testing.T) ChangeAttachRequest // resets, mutates, returns the request
+		name string
+		// build prepares the remote and returns the request.
+		build  func(t *testing.T, f *attachFixture) ChangeAttachRequest
 		reason string
+		// planAt is the path whose remote bytes must be unchanged by the refusal.
+		planAt string
 	}{
 		{
 			name: "plan outside the planning root",
-			build: func(t *testing.T) ChangeAttachRequest {
-				f.reset(t)
-				head := f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: "docs/notes/outside.md", Commit: head}
+			build: func(t *testing.T, f *attachFixture) ChangeAttachRequest {
+				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: "docs/notes/outside.md", Markdown: []byte(attachHappyPlanBody())}
 			},
 			reason: ReasonAttachPathOutsideRoot,
 		},
 		{
-			name: "commit is not the feature head",
-			build: func(t *testing.T) ChangeAttachRequest {
-				f.reset(t)
-				_ = f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
-				// The base is a real commit that is not the head.
-				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Commit: f.base}
-			},
-			reason: ReasonAttachCommitNotHead,
-		},
-		{
-			name: "commit does not descend from the prepared base",
-			build: func(t *testing.T) ChangeAttachRequest {
-				f.reset(t)
-				// A root (orphan) commit carrying a valid plan: it is the head, but it
-				// does not descend from the prepared base.
-				runGit(t, f.wp, "checkout", "-q", "--orphan", "_orphan")
-				writeRepoFile(t, f.wp, f.planPath, attachHappyPlan(f.id, "A change", f.recPath))
-				runGit(t, f.wp, "add", "-A")
-				runGit(t, f.wp, "commit", "-q", "-m", "orphan plan", "--trailer", "Docket-Plan-Path: "+f.planPath)
-				orphan := runGit(t, f.wp, "rev-parse", "HEAD")
-				runGit(t, f.wp, "branch", "-qf", "feat/"+f.slug, "_orphan")
-				runGit(t, f.wp, "checkout", "-q", "feat/"+f.slug)
-				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Commit: orphan}
-			},
-			reason: ReasonAttachCommitNotDescendant,
-		},
-		{
-			name: "artifact path is not tracked at the commit",
-			build: func(t *testing.T) ChangeAttachRequest {
-				f.reset(t)
-				// The commit adds a DIFFERENT file; the requested plan path is absent.
-				head := f.commitPlan(t, map[string]string{otherPlan: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Commit: head}
-			},
-			reason: ReasonAttachUntrackedFile,
-		},
-		{
-			name: "artifact is a symlink at the commit",
-			build: func(t *testing.T) ChangeAttachRequest {
-				f.reset(t)
-				symlinkRepoFile(t, f.wp, f.planPath, "README.md")
-				runGit(t, f.wp, "add", "-A")
-				runGit(t, f.wp, "commit", "-q", "-m", "symlink plan", "--trailer", "Docket-Plan-Path: "+f.planPath)
-				head := runGit(t, f.wp, "rev-parse", "HEAD")
-				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Commit: head}
-			},
-			reason: ReasonAttachSymlinkedPlan,
-		},
-		{
-			name: "writer commit changes two artifacts",
-			build: func(t *testing.T) ChangeAttachRequest {
-				f.reset(t)
-				head := f.commitPlan(t, map[string]string{
-					f.planPath: attachHappyPlan(f.id, "A change", f.recPath),
-					"docs/superpowers/plans/2026-08-17-extra.md": "# extra\n",
-				}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Commit: head}
-			},
-			reason: ReasonAttachMultiArtifactDelta,
-		},
-		{
-			name: "writer commit is a rename (two-sided with --no-renames)",
-			build: func(t *testing.T) ChangeAttachRequest {
-				f.reset(t)
-				// A prior commit places an old file; the writer commit renames it to
-				// the plan path. With rename detection off this is a delete + an add.
-				old := "docs/superpowers/plans/2026-08-17-old.md"
-				f.commitPlan(t, map[string]string{old: attachHappyPlan(f.id, "A change", f.recPath)}, "")
-				runGit(t, f.wp, "mv", old, f.planPath)
-				runGit(t, f.wp, "commit", "-q", "-m", "rename plan", "--trailer", "Docket-Plan-Path: "+f.planPath)
-				head := runGit(t, f.wp, "rev-parse", "HEAD")
-				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Commit: head}
-			},
-			reason: ReasonAttachMultiArtifactDelta,
-		},
-		{
-			name: "writer commit lacks the plan-path trailer",
-			build: func(t *testing.T) ChangeAttachRequest {
-				f.reset(t)
-				head := f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, "")
-				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Commit: head}
-			},
-			reason: ReasonAttachMissingTrailer,
-		},
-		{
 			name: "backlink markers are unbalanced",
-			build: func(t *testing.T) ChangeAttachRequest {
-				f.reset(t)
+			build: func(t *testing.T, f *attachFixture) ChangeAttachRequest {
 				// A dangling start marker with no partner: the whole-population marker
 				// validation fails the parse.
 				bad := "<!-- docket:backlink:start (generated — do not hand-edit) -->\n> ↩ dangling\n\n# Plan\n\nSteps.\n"
-				head := f.commitPlan(t, map[string]string{f.planPath: bad}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Commit: head}
+				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Markdown: []byte(bad)}
 			},
 			reason: ReasonAttachUnbalancedBacklink,
 		},
 		{
-			name: "backlink targets another change",
-			build: func(t *testing.T) ChangeAttachRequest {
-				f.reset(t)
-				// A balanced backlink pointing at a different change.
-				bad := attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md") + "\n# Plan\n\nSteps.\n"
-				head := f.commitPlan(t, map[string]string{f.planPath: bad}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Commit: head}
-			},
-			reason: ReasonAttachBacklinkMismatch,
-		},
-		{
 			name: "plan whose section body is only a placeholder token",
-			build: func(t *testing.T) ChangeAttachRequest {
-				f.reset(t)
-				// A whole-slot filler: the section's entire body is the bare
-				// token. A plan that merely MENTIONS a token attaches (the
-				// success test proves that direction).
-				withFillerSlot := attachBacklinkBlock(f.id, "A change", f.recPath) +
-					"\n# Plan\n\n## Error handling\n\n" + tok("tbd") + "\n"
-				head := f.commitPlan(t, map[string]string{f.planPath: withFillerSlot}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Commit: head}
+			build: func(t *testing.T, f *attachFixture) ChangeAttachRequest {
+				// A whole-slot filler: the section's entire body is the bare token.
+				// A plan that merely MENTIONS a token attaches (the happy path
+				// proves that direction).
+				withFillerSlot := "# Plan\n\n## Error handling\n\n" + tok("tbd") + "\n"
+				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Markdown: []byte(withFillerSlot)}
 			},
 			reason: ReasonAttachPlaceholderToken,
+		},
+		{
+			name: "plan: already names a different path",
+			build: func(t *testing.T, f *attachFixture) ChangeAttachRequest {
+				first := ChangeAttachPlan(f.ctx, f.deps, f.invocation, ChangeAttachRequest{
+					ID: f.id, Revision: f.revision, Path: otherPlan, Markdown: []byte(attachHappyPlanBody()),
+				})
+				if first.Result != ResultApplied {
+					t.Fatalf("seed attach = %q (reason %q findings %v)", first.Result, first.Reason, first.Findings)
+				}
+				return ChangeAttachRequest{
+					ID: f.id, Revision: blobRevisionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath,
+					Markdown: []byte(attachHappyPlanBody()),
+				}
+			},
+			reason: ReasonAttachPathMismatch,
+		},
+		{
+			name: "another change's file already occupies the path",
+			build: func(t *testing.T, f *attachFixture) ChangeAttachRequest {
+				advanceDocketOrigin(t, f.repo, map[string]string{f.planPath: foreign})
+				return ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Markdown: []byte(attachHappyPlanBody())}
+			},
+			reason: ReasonAttachPathOccupied,
+			planAt: "docs/superpowers/plans/2026-08-17-widget-plan.md",
 		},
 	}
 
 	for _, row := range rows {
 		row := row
 		t.Run(row.name, func(t *testing.T) {
-			req := row.build(t)
-			res := ChangeAttachPlan(f.ctx, f.deps, f.wdeps, f.invocation, req)
+			f := attachSetup(t)
+			req := row.build(t, f)
+			var before string
+			var hadBefore bool
+			if row.planAt != "" {
+				before, hadBefore = originFile(t, f.repo.origin, "docket", row.planAt)
+			}
+			tip := originTip(t, f.repo.origin, "docket")
+
+			res := ChangeAttachPlan(f.ctx, f.deps, f.invocation, req)
 			if res.Result == ResultApplied {
 				t.Fatalf("%s: attach applied, want a refusal", row.name)
 			}
-			if res.Reason != row.reason {
-				t.Fatalf("%s: reason = %q, want %q (msg %q)", row.name, res.Reason, row.reason, res.Message)
+			if got := attachOutcomeCode(res); got != row.reason {
+				t.Fatalf("%s: reason = %q, want %q (msg %q findings %v)", row.name, got, row.reason, res.Message, res.Findings)
 			}
-			// A refusal opens no transaction: the remote record keeps no plan field.
-			final, ok := originFile(t, f.repo.origin, "docket", f.recPath)
-			if ok && strings.Contains(final, "plan: '") {
-				t.Errorf("%s: a refused attach wrote the plan field to the remote", row.name)
+			// A refusal commits nothing: the metadata remote did not move, the
+			// requested path was never linked, and an occupied file is untouched.
+			if got := originTip(t, f.repo.origin, "docket"); got != tip {
+				t.Errorf("%s: a refused attach moved the metadata branch %s -> %s", row.name, tip, got)
+			}
+			final, _ := originFile(t, f.repo.origin, "docket", f.recPath)
+			if strings.Contains(final, "plan: '"+req.Path+"'") {
+				t.Errorf("%s: a refused attach linked %q on the remote", row.name, req.Path)
+			}
+			if row.planAt != "" {
+				after, hasAfter := originFile(t, f.repo.origin, "docket", row.planAt)
+				if hasAfter != hadBefore || after != before {
+					t.Errorf("%s: a refused attach changed %q on the remote", row.name, row.planAt)
+				}
 			}
 		})
 	}
 }
 
-// TestChangeAttachPlanGitVerificationHappyPath proves a correctly written plan
-// commit passes every from-Git guard and lands the metadata transaction: the
-// change record on the remote gains the plan: field, rendered by the engine.
-func TestIntegrationWorkflowRepoChangeAttachPlanGitVerificationHappyPath(t *testing.T) {
+// TestIntegrationWorkflowRepoChangeAttachPlanMetadataHappyPath proves a plan
+// attach lands one metadata commit: the plan file exists at the metadata remote
+// tip carrying the backlink rendered for this change ahead of the authored body,
+// the record gains the plan: field, and the feature workspace never moves.
+func TestIntegrationWorkflowRepoChangeAttachPlanMetadataHappyPath(t *testing.T) {
 	f := attachSetup(t)
-	head := f.commitPlan(t, map[string]string{
-		f.planPath: attachHappyPlan(f.id, "A change", f.recPath),
-	}, f.planPath)
+	headBefore := runGit(t, f.wp, "rev-parse", "HEAD")
 
-	res := ChangeAttachPlan(f.ctx, f.deps, f.wdeps, f.invocation,
-		ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Commit: head})
+	res := ChangeAttachPlan(f.ctx, f.deps, f.invocation,
+		ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: f.planPath, Markdown: []byte(attachHappyPlanBody())})
 	if res.Result != ResultApplied {
 		t.Fatalf("happy attach = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
 	}
@@ -262,6 +208,28 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerificationHappyPath(t *test
 	}
 	if !strings.Contains(final, "plan: '"+f.planPath+"'") {
 		t.Errorf("committed record missing the plan field:\n%s", final)
+	}
+	plan, ok := originFile(t, f.repo.origin, "docket", f.planPath)
+	if !ok {
+		t.Fatalf("plan file missing at the metadata remote tip")
+	}
+	if want := attachHappyPlan(f.id, "A change", f.recPath); plan != want {
+		t.Errorf("stored plan =\n%q\nwant\n%q", plan, want)
+	}
+	if got := runGit(t, f.wp, "rev-parse", "HEAD"); got != headBefore {
+		t.Errorf("attaching the plan moved the feature head %s -> %s", headBefore, got)
+	}
+
+	// Resubmitting the stored plan exactly as read back (backlink included) is
+	// no change: the stored bytes stay byte-identical.
+	again := ChangeAttachPlan(f.ctx, f.deps, f.invocation, ChangeAttachRequest{
+		ID: f.id, Revision: blobRevisionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath, Markdown: []byte(plan),
+	})
+	if again.Result != ResultApplied && again.Result != ResultNoOp {
+		t.Fatalf("read-back resubmit = %q (reason %q findings %v)", again.Result, again.Reason, again.Findings)
+	}
+	if got, _ := originFile(t, f.repo.origin, "docket", f.planPath); got != plan {
+		t.Errorf("read-back resubmit changed the stored plan:\n%q\nwant\n%q", got, plan)
 	}
 }
 
@@ -282,7 +250,7 @@ func TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent(t *testing.
 		// template prompts (change 0414 — derived from the shipped template).
 		scaffold := attachBacklinkBlock(f.id, "A change", f.recPath) +
 			"\n# <Change title> — Results\n\n## Outcome\n\n<The original problem, the delivered behavior, and any material departure from the\nagreed design — lead with observable effects. Explain unfamiliar Docket concepts when\nnecessary; include method names, stored fields, or internal identifiers only when they\nhelp the reader understand a consequence or take action.>\n"
-		head := f.commitPlan(t, map[string]string{resultsPath: scaffold}, "")
+		head := f.commitArtifact(t, map[string]string{resultsPath: scaffold})
 		res := ChangeAttachResults(f.ctx, f.deps, f.wdeps, f.invocation,
 			ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: resultsPath, Commit: head})
 		if res.Result == ResultApplied {
@@ -304,7 +272,7 @@ func TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent(t *testing.
 		// checkpoint artifact must not be held to the final content contract.
 		artifact := attachBacklinkBlock(f.id, "A change", f.recPath) +
 			"\n# Widget — Results\n\n## Outcome\n\nDelivered the in-progress slice; behavior X now refuses Y.\n"
-		head := f.commitPlan(t, map[string]string{resultsPath: artifact}, "")
+		head := f.commitArtifact(t, map[string]string{resultsPath: artifact})
 		res := ChangeAttachResults(f.ctx, f.deps, f.wdeps, f.invocation,
 			ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: resultsPath, Commit: head})
 		if res.Result != ResultApplied {
@@ -505,11 +473,12 @@ func TestIntegrationWorkflowLifecycleClaimToImplementedWorkflow(t *testing.T) {
 }
 
 // TestEffectiveBaseConsumedFromDomain proves a stacked change's workspace prepare
-// and attach ancestry checks run against the PARENT branch base that
-// domain.ResolveEffectiveBase resolves — not the integration branch. The child's
-// workspace is created at the parent feature branch tip, and the plan committed
-// on it (which descends from that tip, not from main) passes attach's descendant
-// check. Both metadata modes.
+// runs against the PARENT branch base that domain.ResolveEffectiveBase resolves —
+// not the integration branch: the child's workspace is created at the parent
+// feature branch tip. The plan half once pinned attach's ancestry check against
+// that base; the plan is now written on the metadata branch, so no plan commit
+// lands on the workspace and no ancestry property remains — the attach below
+// only proves a stacked child attaches its plan without moving the workspace.
 func TestIntegrationWorkflowRepoEffectiveBaseConsumedFromDomain(t *testing.T) {
 	requireRealGit(t)
 	const (
@@ -569,14 +538,15 @@ func TestIntegrationWorkflowRepoEffectiveBaseConsumedFromDomain(t *testing.T) {
 				t.Fatalf("prepared base is the integration branch tip; the stacked base was not consumed from the domain")
 			}
 
-			// A plan committed on the parent-based workspace descends from the parent
-			// tip, so attach's ancestry check (run against the same resolved base)
-			// passes.
-			head := commitPlanFile(t, prep.Path, childPlan, attachHappyPlan(childID, "A change", childRec), childPlan)
-			res := ChangeAttachPlan(ctx, node.deps, wdeps, repo.invocation,
-				ChangeAttachRequest{ID: childID, Revision: revision, Path: childPlan, Commit: head})
+			// The stacked child attaches its plan on the metadata branch; the
+			// parent-based workspace stays at the resolved base.
+			res := ChangeAttachPlan(ctx, node.deps, repo.invocation,
+				ChangeAttachRequest{ID: childID, Revision: revision, Path: childPlan, Markdown: []byte(attachHappyPlanBody())})
 			if res.Result != ResultApplied {
-				t.Fatalf("attach on the stacked workspace = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
+				t.Fatalf("attach for the stacked child = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
+			}
+			if got := runGit(t, prep.Path, "rev-parse", "HEAD"); got != parentTip {
+				t.Errorf("attaching the plan moved the stacked workspace off the parent base: %s, want %s", got, parentTip)
 			}
 		})
 	}

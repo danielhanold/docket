@@ -304,22 +304,37 @@ func TestChangeClaimCommandsReachOperation(t *testing.T) {
 }
 
 // TestChangeAttachCommandsRegistered proves attach-plan and attach-results are
-// wired as change subcommands carrying the scalar --id/--revision/--path/--commit
-// flags (no --request: they name a verified Git artifact, not authored Markdown).
+// wired as change subcommands carrying their kind's flag set: attach-plan takes
+// the scalar --id/--revision/--path plus the --markdown body file (the plan is
+// written on the metadata branch) and no --commit; attach-results still names a
+// verified feature commit with --commit.
 func TestChangeAttachCommandsRegistered(t *testing.T) {
 	root := captureTree(t)
-	for _, sub := range []string{"attach-plan", "attach-results"} {
-		cmd, _, err := root.Find([]string{"change", sub})
-		if err != nil || cmd == nil || cmd.Name() != sub {
-			t.Fatalf("change %s not registered: cmd=%v err=%v", sub, cmd, err)
+	cases := []struct {
+		sub     string
+		flags   []string
+		without []string
+	}{
+		{"attach-plan", []string{"id", "revision", "path", "markdown", "repo-dir"}, []string{"commit"}},
+		{"attach-results", []string{"id", "revision", "path", "commit", "repo-dir"}, []string{"markdown"}},
+	}
+	for _, c := range cases {
+		cmd, _, err := root.Find([]string{"change", c.sub})
+		if err != nil || cmd == nil || cmd.Name() != c.sub {
+			t.Fatalf("change %s not registered: cmd=%v err=%v", c.sub, cmd, err)
 		}
-		for _, flag := range []string{"id", "revision", "path", "commit"} {
+		for _, flag := range c.flags {
 			if cmd.Flags().Lookup(flag) == nil {
-				t.Errorf("change %s: missing --%s flag", sub, flag)
+				t.Errorf("change %s: missing --%s flag", c.sub, flag)
 			}
 		}
-		if !assetIndependent["change "+sub] {
-			t.Errorf("change %s is not registered asset-independent", sub)
+		for _, flag := range c.without {
+			if cmd.Flags().Lookup(flag) != nil {
+				t.Errorf("change %s: unexpected --%s flag", c.sub, flag)
+			}
+		}
+		if !assetIndependent["change "+c.sub] {
+			t.Errorf("change %s is not registered asset-independent", c.sub)
 		}
 	}
 }
@@ -387,6 +402,12 @@ func TestChangeAttachFlagsRequired(t *testing.T) {
 	if code != 2 || errS == "" {
 		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
 	}
+	// The plan body is required: every scalar present but no --markdown.
+	_, errS, code = runCLI(t, "change", "attach-plan", "--id", "7",
+		"--revision", "1234123412341234123412341234123412341234", "--path", "docs/superpowers/plans/x.md")
+	if code != 2 || !strings.Contains(errS, "markdown") {
+		t.Fatalf("err=%q code=%d, want a required --markdown argument error", errS, code)
+	}
 }
 
 // TestChangeAttachCommandsReachOperation proves both attach commands decode their
@@ -394,15 +415,22 @@ func TestChangeAttachFlagsRequired(t *testing.T) {
 // naming it. A bare tempdir is no docket repo, so the operation fails past its
 // shape check — but only after naming itself.
 func TestChangeAttachCommandsReachOperation(t *testing.T) {
-	cases := []struct{ sub, op string }{
-		{"attach-plan", "change.attach-plan"},
-		{"attach-results", "change.attach-results"},
+	dir := testsupport.TempDir(t)
+	planFile := filepath.Join(dir, "plan.md")
+	if err := os.WriteFile(planFile, []byte("# Plan\n\n## Task 1\n\nDo it.\n"), 0o644); err != nil {
+		t.Fatalf("seed plan: %v", err)
+	}
+	cases := []struct {
+		sub, op string
+		args    []string
+	}{
+		{"attach-plan", "change.attach-plan", []string{"--path", "docs/superpowers/plans/x.md", "--markdown", planFile}},
+		{"attach-results", "change.attach-results", []string{"--path", "docs/results/x-results.md", "--commit", "1234123412341234123412341234123412341234"}},
 	}
 	for _, c := range cases {
-		out, errS, _ := runCLI(t, "change", c.sub,
-			"--id", "7", "--revision", "1234123412341234123412341234123412341234",
-			"--path", "docs/superpowers/plans/x.md", "--commit", "1234123412341234123412341234123412341234",
-			"--repo-dir", testsupport.TempDir(t), "--json")
+		args := append([]string{"change", c.sub, "--id", "7", "--revision", "1234123412341234123412341234123412341234"}, c.args...)
+		args = append(args, "--repo-dir", testsupport.TempDir(t), "--json")
+		out, errS, _ := runCLI(t, args...)
 		if errS != "" {
 			t.Fatalf("%s: unexpected stderr %q", c.sub, errS)
 		}

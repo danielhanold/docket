@@ -186,6 +186,8 @@ var AllFindingCodes = []FindingCode{
 	FindingCode("ambiguous-adr"),
 	FindingCode("ambiguous-change"),
 	FCArtifactMissing,
+	FindingCode(ReasonAttachPathMismatch),
+	FindingCode(ReasonAttachPathOccupied),
 	FCArtifactRenderFailed,
 	FCAuthoredInputTooLarge,
 	FCBranchMalformed,

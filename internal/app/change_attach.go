@@ -3,6 +3,8 @@ package app
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -20,23 +22,29 @@ import (
 )
 
 // This file is the `change attach-plan` and `change attach-results` operations:
-// two exact-revision metadata transitions that link a verified authored artifact
-// (a plan, or an optional results record) to its change and re-render every
-// affected v1-owned derived view (the change record's plan:/results: field, its
-// refreshed updated date, its artifact block, and the inline board) as one
-// atomic transaction.
+// two exact-revision metadata transitions that link an authored artifact (a
+// plan, or a results record) to its change and re-render every affected v1-owned
+// derived view (the change record's plan:/results: field, its refreshed updated
+// date, its artifact block, and the inline board) as one atomic transaction.
+// The two kinds run under different profiles:
 //
-// The load-bearing property is pre-transaction Git VERIFICATION, done from Git
-// and never from the child agent's return: the writer commit must be the current
-// feature head, the plan must be a regular tracked file inside the allowed
-// planning directory carrying a balanced backlink that targets THIS change, and
-// (for a plan) the commit must descend from the prepared base, carry the
-// ADR-0094 single-artifact delta (exactly the plan file, rename detection off —
-// learning diff-derived-allowlist-needs-no-renames), carry the plan-path commit
-// trailer, and carry no placeholder-only plan slot (change 0414). Only after
-// every check passes does the exact-revision transaction open.
+//   - attach-plan (changeAttachMetadata) carries the plan Markdown itself and
+//     WRITES the plan file on the metadata branch in the same transaction, the
+//     way change.groom writes a spec: any submitted docket:backlink block is
+//     replaced by the freshly rendered one, the body must be non-empty, bounded,
+//     parse cleanly, and carry no placeholder-only slot (change 0414), and the
+//     path must sit inside the planning root. Inside the transaction a field that
+//     already names a different path refuses, and a file already at the path
+//     that does not point home to THIS change is never overwritten. A re-plan at
+//     the linked path replaces the content.
+//   - attach-results (changeAttach) verifies an artifact already committed on
+//     the feature branch from Git, never from the child agent's return: the
+//     writer commit must be the current feature head, the results file a regular
+//     tracked file inside the configured results root carrying a balanced
+//     backlink that targets THIS change and passing checkpoint-phase content
+//     validation. Only after every check passes does the transaction open.
 //
-// Idempotency is keyed on the PROMISED state — the (id, path, blob-at-commit)
+// Idempotency is keyed on the PROMISED state — the (id, path, artifact bytes)
 // triple — so a lost-response retry replays the original applied receipt rather
 // than attaching whatever now occupies the path (learning idempotency-keying).
 
@@ -47,8 +55,9 @@ const (
 )
 
 // The two artifact kinds an attach operation links. Kind selects the owned
-// frontmatter field, the allowed planning root, and (plan only) the required
-// commit trailer and single-artifact/placeholder verification.
+// frontmatter field, the allowed planning root, and the verification profile
+// (the plan is written on the metadata branch; results are verified at the
+// feature head).
 const (
 	attachKindPlan    = "plan"
 	attachKindResults = "results"
@@ -60,17 +69,10 @@ const (
 // (config.Effective.ResultsDir) and is read from the resolved workflow config.
 const plansPlanningRoot = "docs/superpowers/plans"
 
-// The commit trailer the plan-writer stamps (ADR-0094). Results carry their own
-// path trailer. Both are verified verbatim off the writer commit, never trusted
-// from the child return.
-const (
-	planPathTrailerKey    = "Docket-Plan-Path"
-	resultsPathTrailerKey = "Docket-Results-Path"
-)
-
 // Stable machine reasons the attach operations report for their typed refusals.
-// Message text is explanatory and must not be parsed. Every refusal predates the
-// transaction, so a refused call writes nothing.
+// Message text is explanatory and must not be parsed. A refused call writes
+// nothing: most refusals predate the transaction, and the in-transaction ones
+// (artifact-path-mismatch, artifact-path-occupied) refuse before any commit.
 const (
 	// ReasonAttachAbsolutePath: the artifact path is absolute; paths crossing the
 	// CLI are canonical repository-relative (Global Constraints).
@@ -86,26 +88,31 @@ const (
 	ReasonAttachUnknownChange = "unknown-change"
 	ReasonAttachAmbiguousID   = "ambiguous-change"
 	// ReasonAttachCommitNotHead: the verified commit is not the current feature
-	// head, so it does not describe the checkout the change owns.
+	// head, so it does not describe the checkout the change owns (results).
 	ReasonAttachCommitNotHead = "commit-not-head"
-	// ReasonAttachCommitNotDescendant: the commit does not descend from the
-	// prepared base — it was not built on the workspace this change prepared.
-	ReasonAttachCommitNotDescendant = "commit-not-descendant"
 	// ReasonAttachUntrackedFile: the artifact path is not a tracked file at the
-	// verified commit.
+	// verified commit (results).
 	ReasonAttachUntrackedFile = "untracked-file"
 	// ReasonAttachSymlinkedPlan: the artifact path is a symlink at the commit, not
-	// a regular file.
+	// a regular file (results).
 	ReasonAttachSymlinkedPlan = "symlinked-plan"
-	// ReasonAttachMultiArtifactDelta: the writer commit changes more than the one
-	// allowed artifact (ADR-0094). A rename with detection off reddens here too.
-	ReasonAttachMultiArtifactDelta = "multi-artifact-delta"
-	// ReasonAttachMissingTrailer: the writer commit lacks the required path trailer
-	// (or its value does not name the artifact).
-	ReasonAttachMissingTrailer = "missing-trailer"
 	// ReasonAttachUnbalancedBacklink: the artifact's managed backlink markers are
-	// malformed (dangling/out-of-order/nested) — the blob will not parse.
+	// malformed (dangling/out-of-order/nested) — the body will not parse. For a
+	// plan it is the submitted Markdown that refuses, before anything is read.
 	ReasonAttachUnbalancedBacklink = "unbalanced-backlink"
+	// ReasonAttachEmptyMarkdown: the submitted artifact Markdown is empty or
+	// whitespace-only.
+	ReasonAttachEmptyMarkdown = "empty-markdown"
+	// ReasonAttachMarkdownTooLarge: the submitted artifact Markdown exceeds the
+	// authored-input bound (maxAuthoredMarkdownBytes).
+	ReasonAttachMarkdownTooLarge = "authored-input-too-large"
+	// ReasonAttachPathMismatch: the change's owned field already names a
+	// different artifact path; an attach never silently re-points the link.
+	ReasonAttachPathMismatch = "artifact-path-mismatch"
+	// ReasonAttachPathOccupied: a file already sits at the artifact path on the
+	// metadata branch and its backlink does not point home to this change, so
+	// the attach refuses rather than overwrite another change's artifact.
+	ReasonAttachPathOccupied = "artifact-path-occupied"
 	// ReasonAttachMissingBacklink: the artifact carries no docket:backlink block.
 	ReasonAttachMissingBacklink = "missing-backlink"
 	// ReasonAttachBacklinkMismatch: the artifact's backlink targets a different
@@ -127,18 +134,23 @@ const (
 
 // ChangeAttachRequest is the closed request for one attach. ID and Revision pin
 // the change record (exact submitted blob); Path is the canonical repo-relative
-// artifact path; Commit is the exact feature commit the writer reported.
+// artifact path; Commit is the exact feature commit the writer reported
+// (results only); Markdown is the authored plan body (plan only).
 type ChangeAttachRequest struct {
 	ID       int    `json:"id" docket:"required"`
 	Revision string `json:"revision" docket:"required"`
 	Path     string `json:"path" docket:"required"`
-	Commit   string `json:"commit" docket:"required"`
+	Commit   string `json:"commit"` // results only
+	// Markdown is the authored artifact body, read from --markdown at the CLI
+	// boundary (a non-JSON file input, ADR-0138), never a JSON key.
+	Markdown []byte `json:"-"`
 }
 
 // attachDigestPayload is the idempotency digest payload: the promised state a
-// retry must match — the change id, the artifact path, and the exact blob object
-// id at the verified commit. Keying on the blob (not merely the path) means a
-// retry after the path was overwritten is NOT a replay.
+// retry must match — the change id, the artifact path, and the artifact's
+// identity: for a plan, the sha256 of the stored artifact bytes; for results,
+// the exact blob object id at the verified commit. Keying on the content (not
+// merely the path) means a retry after the content changed is NOT a replay.
 type attachDigestPayload struct {
 	Blob string `json:"blob"`
 	ID   int    `json:"id"`
@@ -188,9 +200,10 @@ func attachRefusal(opKey string, result Result, kind, reason, message string) Ch
 	return newAttachResult(opKey, result, ChangeAttachResult{Kind: kind, Reason: reason, Message: message})
 }
 
-// ChangeAttachPlan verifies a written plan from Git and links it to the change.
-func ChangeAttachPlan(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req ChangeAttachRequest) ChangeAttachResult {
-	return changeAttach(ctx, deps, wdeps, repoDir, req, attachKindPlan)
+// ChangeAttachPlan writes the authored plan on the metadata branch with its
+// backlink and links it to the change, in one metadata transaction.
+func ChangeAttachPlan(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeAttachRequest) ChangeAttachResult {
+	return changeAttachMetadata(ctx, deps, repoDir, req, attachKindPlan)
 }
 
 // ChangeAttachResults verifies an authored results record (required at
@@ -203,9 +216,192 @@ func ChangeAttachResults(ctx context.Context, deps PlanningDeps, wdeps Workspace
 	return changeAttach(ctx, deps, wdeps, repoDir, req, attachKindResults)
 }
 
-// changeAttach is the shared driver. It validates the request shape, pins
-// context, verifies the artifact from Git under the kind's verification profile,
-// then drives one atomic, idempotency-keyed exact-revision transaction.
+// changeAttachMetadata is the metadata-profile driver: it validates the request
+// and the authored body, pins context, assembles the stored artifact (the
+// freshly rendered backlink prepended to the body), then drives one atomic,
+// idempotency-keyed exact-revision transaction that writes the artifact file and
+// links it. Every refusal before the transaction writes nothing; the
+// state-dependent refusals (a field naming another path, an occupied path) are
+// decided inside the transaction against the attempt's own fresh tree.
+func changeAttachMetadata(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeAttachRequest, kind string) ChangeAttachResult {
+	opKey := attachOpKey(kind)
+
+	// (1) Request shape: the pinned-entity scalars, then the authored body —
+	// non-empty, bounded, parsing cleanly (balanced managed markers), and free
+	// of placeholder-only slots. All of it is decided before anything is read.
+	if findings := validateLifecycleShape("id", req.ID, req.Path, req.Revision); len(findings) > 0 {
+		return newAttachResult(opKey, ResultInvalidInput, ChangeAttachResult{Kind: kind, Findings: findings})
+	}
+	if r := checkAttachMarkdown(opKey, kind, req.Markdown); r != nil {
+		return *r
+	}
+
+	// (2) Pin context, check the board surface, discover the repository.
+	pin, err := deps.Reader.PinContext(ctx, repoDir)
+	if err != nil {
+		result, reason := classifyStatusError(ctx, err)
+		return attachRefusal(opKey, result, kind, reason, err.Error())
+	}
+	eff := pin.Config.Effective
+	inline, err := resolveBoardSurface(eff)
+	if err != nil {
+		if pe, ok := asPlanningError(err); ok {
+			return attachRefusal(opKey, pe.Result, kind, pe.Reason, pe.Message)
+		}
+		return attachRefusal(opKey, ResultInternalError, kind, ReasonStatusInternalError, err.Error())
+	}
+	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
+	if err != nil {
+		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
+		return attachRefusal(opKey, result, kind, reason, err.Error())
+	}
+
+	// (3) Resolve the change record (path, backlink target) from one corpus read.
+	ac, refusal := resolveAttachChange(ctx, deps, pin, eff, req.ID, opKey, kind)
+	if refusal != nil {
+		return *refusal
+	}
+
+	// (4) Canonical-path containment inside the kind's allowed planning root.
+	if r := verifyAttachPath(opKey, kind, req.Path, eff); r != nil {
+		return *r
+	}
+
+	// (5) An owned field that already names a different path refuses: the link
+	// is never silently re-pointed (the Plan closure re-checks on fresh state).
+	if linked := attachFieldValue(ac.change, kind); linked != "" && linked != req.Path {
+		return attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachPathMismatch, pathMismatchMessage(kind, linked, req.Path))
+	}
+
+	// (6) Assemble the stored artifact: the submitted body with any backlink
+	// block it carries replaced by the freshly rendered one for this change.
+	backlink, err := render.BacklinkContent(ac.change, ac.link)
+	if err != nil {
+		return attachRefusal(opKey, ResultInternalError, kind, ReasonStatusInternalError, err.Error())
+	}
+	artifact, err := metadataArtifactBytes(req.Markdown, backlink)
+	if err != nil {
+		// Unreachable after checkAttachMarkdown parsed the same body; kept so a
+		// future reorder can never store a malformed artifact.
+		return attachRefusal(opKey, ResultInvalidInput, kind, ReasonAttachUnbalancedBacklink,
+			fmt.Sprintf("the submitted Markdown has a malformed managed-block population: %v", err))
+	}
+
+	// (7) Open the exact-revision, idempotency-keyed transaction. The promised
+	// state is (id, path, stored bytes), so a lost-response retry of the same
+	// body replays and a different body is a new request.
+	sum := sha256.Sum256(artifact)
+	contentID := hex.EncodeToString(sum[:])
+	digest, derr := canonicalDigest(opKey, attachDigestPayload{Blob: contentID, ID: req.ID, Path: req.Path})
+	if derr != nil {
+		return attachRefusal(opKey, ResultInternalError, kind, ReasonStatusInternalError, derr.Error())
+	}
+	op := changeAttachOp{
+		opKey:         opKey,
+		kind:          kind,
+		changeID:      req.ID,
+		artifact:      req.Path,
+		artifactBytes: artifact,
+		eff:           eff,
+		clock:         deps.Clock,
+		inline:        inline,
+		link:          linkContextOf(pin),
+		changesDir:    eff.ChangesDir.Value,
+	}
+	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
+		Repository: repo,
+		Remote:     originRemote,
+		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
+		Expected: []transaction.EntityExpectation{{
+			Path:     gitcli.RepoPath(ac.recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
+		}},
+		Idempotency: &transaction.IdempotencyKey{
+			RequestID: fmt.Sprintf("attach-%s-%d-%s", kind, req.ID, contentID[:16]),
+			Digest:    digest,
+		},
+		Loader:    newPlanningLoader(eff),
+		Scope:     changeScope(req.ID, ac.recPath, false),
+		Operation: op,
+	})
+	return attachResultFromOutcome(opKey, kind, req.Path, res, execErr)
+}
+
+// checkAttachMarkdown applies the authored-body request checks shared by the
+// metadata profile: non-empty, within the authored-input bound, a clean parse
+// (balanced managed markers), and — for a plan — no slot whose whole body is a
+// bare placeholder token (change 0414). Managed blocks are not author content,
+// so the slot check reads the submitted body exactly as it reads the stored
+// artifact. It returns nil when the body is usable.
+func checkAttachMarkdown(opKey, kind string, markdown []byte) *ChangeAttachResult {
+	refuse := func(result Result, reason, msg string) *ChangeAttachResult {
+		r := attachRefusal(opKey, result, kind, reason, msg)
+		return &r
+	}
+	if len(bytes.TrimSpace(markdown)) == 0 {
+		return refuse(ResultInvalidInput, ReasonAttachEmptyMarkdown,
+			fmt.Sprintf("the %s Markdown is empty; send the authored artifact body", kind))
+	}
+	if len(markdown) > maxAuthoredMarkdownBytes {
+		return refuse(ResultInvalidInput, ReasonAttachMarkdownTooLarge,
+			fmt.Sprintf("the %s Markdown is %d bytes, over the %d-byte authored-input bound", kind, len(markdown), maxAuthoredMarkdownBytes))
+	}
+	if _, err := document.Parse(markdown); err != nil {
+		return refuse(ResultInvalidInput, ReasonAttachUnbalancedBacklink,
+			fmt.Sprintf("the submitted Markdown has a malformed managed-block population: %v", err))
+	}
+	if kind == attachKindPlan {
+		// A plan that merely MENTIONS a token — an instruction, a code example,
+		// ambiguous prose — is build-actionable and attaches; completeness
+		// judgment stays with plan authoring and review.
+		if slot, found := planPlaceholderSlot(markdown); found {
+			return refuse(ResultInvalidState, ReasonAttachPlaceholderToken,
+				fmt.Sprintf("%s of the plan contains only a placeholder token; fill the slot with real content", slot))
+		}
+	}
+	return nil
+}
+
+// metadataArtifactBytes assembles the stored artifact: any submitted backlink
+// block removed, the freshly rendered backlink prepended. Leading blank lines of
+// the body are dropped, so an artifact resubmitted exactly as read back from the
+// metadata branch reassembles byte-identical (a fixed point, never a duplicate
+// block or a growing gap). A body whose managed markers are malformed returns
+// the parse error untouched.
+func metadataArtifactBytes(markdown []byte, backlink string) ([]byte, error) {
+	doc, err := document.Parse(markdown)
+	if err != nil {
+		return nil, err
+	}
+	body := markdown
+	if _, ok := doc.Block(backlinkBlockName); ok {
+		var ps document.PatchSet
+		ps.RemoveBlock(backlinkBlockName)
+		if body, err = doc.Apply(ps); err != nil {
+			return nil, err
+		}
+	}
+	return assembleSpecFile(backlink, strings.TrimLeft(string(body), "\r\n")), nil
+}
+
+// attachFieldValue returns the change's current value of the kind's owned
+// artifact field ("" when unset).
+func attachFieldValue(c domain.Change, kind string) string {
+	if kind == attachKindResults {
+		return strings.TrimSpace(c.Results().Value)
+	}
+	return strings.TrimSpace(c.Plan().Value)
+}
+
+// pathMismatchMessage explains an artifact-path-mismatch refusal.
+func pathMismatchMessage(kind, linked, requested string) string {
+	return fmt.Sprintf("the change's %s: field already names %q; attach the %s at that path rather than %q", kind, linked, kind, requested)
+}
+
+// changeAttach is the feature-head driver attach-results still runs. It
+// validates the request shape, pins context, verifies the committed artifact
+// from Git, then drives one atomic, idempotency-keyed exact-revision
+// transaction.
 func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req ChangeAttachRequest, kind string) ChangeAttachResult {
 	opKey := attachOpKey(kind)
 
@@ -259,67 +455,28 @@ func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, r
 			"the verified commit is not the current feature head; re-read the workspace head before attaching")
 	}
 
-	// (6, plan only) The commit descends from the prepared base.
-	if kind == attachKindPlan {
-		desc, err := deps.Client.IsAncestor(ctx, repo, gitcli.ObjectID(insp.BaseCommit), gitcli.ObjectID(req.Commit))
-		if err != nil {
-			result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-			return attachRefusal(opKey, result, kind, reason, err.Error())
-		}
-		if !desc {
-			return attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachCommitNotDescendant,
-				"the commit does not descend from the prepared base; it was not built on this change's workspace")
-		}
-	}
-
-	// (7) Read the artifact blob AT THE VERIFIED COMMIT — tracked, regular, no
+	// (6) Read the artifact blob AT THE VERIFIED COMMIT — tracked, regular, no
 	// symlink — and keep its exact bytes and object id (never the working tree).
 	blob, r := readAttachBlob(ctx, deps, repo, req.Commit, req.Path, opKey, kind)
 	if r != nil {
 		return *r
 	}
 
-	// (8, plan only) The writer commit carries the ADR-0094 single-artifact delta.
-	if kind == attachKindPlan {
-		if r := verifySingleArtifactDelta(ctx, deps, repo, req.Commit, req.Path, opKey); r != nil {
-			return *r
-		}
-		// (9, plan only) The writer commit carries the required path trailer.
-		if r := verifyPathTrailer(ctx, deps, repo, req.Commit, req.Path, planPathTrailerKey, opKey); r != nil {
-			return *r
-		}
-	}
-
-	// (10) The artifact carries a balanced backlink targeting THIS change.
+	// (7) The artifact carries a balanced backlink targeting THIS change.
 	if r := verifyBacklink(opKey, kind, blob.Blob.Bytes, ac); r != nil {
 		return *r
 	}
 
-	// (11b, results only) checkpoint-phase content sanity: a truthful in-progress
-	// artifact passes; raw template scaffolding, a missing title, or a malformed
-	// document refuses. The FINAL content contract binds at mark-implemented, not
-	// here — the phase is explicit so checkpoint attachment can never claim it.
-	if kind == attachKindResults {
-		if fs := ValidateResultsContent(blob.Blob.Bytes, ResultsPhaseCheckpoint); len(fs) > 0 {
-			return attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachResultsContent,
-				fmt.Sprintf("the results artifact fails checkpoint content validation: %s: %s", fs[0].Reason, fs[0].Message))
-		}
+	// (8) Checkpoint-phase content sanity: a truthful in-progress artifact
+	// passes; raw template scaffolding, a missing title, or a malformed document
+	// refuses. The FINAL content contract binds at mark-implemented, not here —
+	// the phase is explicit so checkpoint attachment can never claim it.
+	if fs := ValidateResultsContent(blob.Blob.Bytes, ResultsPhaseCheckpoint); len(fs) > 0 {
+		return attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachResultsContent,
+			fmt.Sprintf("the results artifact fails checkpoint content validation: %s: %s", fs[0].Reason, fs[0].Message))
 	}
 
-	// (11, plan only) No whole-slot placeholder filler (change 0414): a section
-	// or the pre-heading preamble whose ENTIRE authored body is one bare
-	// planning token (tbd/todo/fixme/tktk/xxx/placeholder, any case) is an
-	// unfilled slot and refuses. A plan that merely mentions such a token — an
-	// instruction, a code example, ambiguous prose — is build-actionable and
-	// attaches; completeness judgment stays with plan authoring and review.
-	if kind == attachKindPlan {
-		if slot, found := planPlaceholderSlot(blob.Blob.Bytes); found {
-			return attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachPlaceholderToken,
-				fmt.Sprintf("%s of the plan contains only a placeholder token; fill the slot with real content", slot))
-		}
-	}
-
-	// (12) Every verification passed: open the exact-revision, idempotency-keyed
+	// (9) Every verification passed: open the exact-revision, idempotency-keyed
 	// transaction that stores the artifact path and re-renders the derived views.
 	digest, derr := canonicalDigest(opKey, attachDigestPayload{Blob: string(blob.Blob.ObjectID), ID: req.ID, Path: req.Path})
 	if derr != nil {
@@ -492,47 +649,6 @@ func readAttachBlob(ctx context.Context, deps PlanningDeps, repo gitcli.Reposito
 	return results[0], nil
 }
 
-// verifySingleArtifactDelta proves the writer commit changes exactly the one
-// artifact path against its first parent, rename detection off.
-func verifySingleArtifactDelta(ctx context.Context, deps PlanningDeps, repo gitcli.Repository, commit, artifactPath, opKey string) *ChangeAttachResult {
-	paths, err := deps.Client.CommitChangedPaths(ctx, repo, gitcli.ObjectID(commit))
-	if err != nil {
-		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		r := attachRefusal(opKey, result, attachKindPlan, reason, err.Error())
-		return &r
-	}
-	if len(paths) != 1 || string(paths[0]) != artifactPath {
-		r := attachRefusal(opKey, ResultInvalidState, attachKindPlan, ReasonAttachMultiArtifactDelta,
-			fmt.Sprintf("the writer commit changes %d paths, not exactly the one allowed artifact", len(paths)))
-		return &r
-	}
-	return nil
-}
-
-// verifyPathTrailer proves the writer commit carries the required path trailer,
-// whose value names the artifact.
-func verifyPathTrailer(ctx context.Context, deps PlanningDeps, repo gitcli.Repository, commit, artifactPath, key, opKey string) *ChangeAttachResult {
-	scanned, err := deps.Client.ScanCommitTrailers(ctx, repo, gitcli.ObjectID(commit), []string{key})
-	if err != nil {
-		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		r := attachRefusal(opKey, result, attachKindPlan, reason, err.Error())
-		return &r
-	}
-	for _, ct := range scanned {
-		if string(ct.Commit) != commit {
-			continue
-		}
-		for _, tr := range ct.Trailers {
-			if tr.Key == key && tr.Value == artifactPath {
-				return nil
-			}
-		}
-	}
-	r := attachRefusal(opKey, ResultInvalidState, attachKindPlan, ReasonAttachMissingTrailer,
-		fmt.Sprintf("the writer commit lacks the required %q trailer naming the artifact", key))
-	return &r
-}
-
 // backlinkTargets reports whether artifactBytes carries a balanced docket:backlink
 // managed block whose interior equals the backlink rendered for ch under link. It
 // is the shared backlink-identity check both change.attach-results (verifyBacklink)
@@ -633,27 +749,32 @@ func decodeChangeAttachReceipt(b []byte) (changeAttachReceipt, bool) {
 }
 
 // changeAttachOp is the SemanticOperation the engine drives per attempt. Every
-// field is fixed before the transaction; the state-dependent work (field
-// patching, artifact-block and board rendering) re-runs from the attempt's own
-// fresh state.
+// field is fixed before the transaction; the state-dependent work (the path
+// checks, field patching, artifact-block and board rendering) re-runs from the
+// attempt's own fresh state.
 type changeAttachOp struct {
-	opKey      string
-	kind       string
-	changeID   int
-	artifact   string
-	eff        config.Effective
-	clock      transaction.Clock
-	inline     bool
-	link       render.LinkContext
-	changesDir string
+	opKey    string
+	kind     string
+	changeID int
+	artifact string
+	// artifactBytes is the stored artifact the metadata profile writes at
+	// artifact in the same commit (backlink + authored body); nil for the
+	// feature-head profile, which links a file already committed elsewhere.
+	artifactBytes []byte
+	eff           config.Effective
+	clock         transaction.Clock
+	inline        bool
+	link          render.LinkContext
+	changesDir    string
 }
 
 func (o changeAttachOp) Key() transaction.OperationKey { return transaction.OperationKey(o.opKey) }
 
 // Plan stores the artifact path in the owned frontmatter field (plan or
 // results), refreshes the updated date, re-renders the artifact block, and
-// assembles the closed plan: the mutated change record and the re-rendered board
-// when inline is enabled.
+// assembles the closed plan: the mutated change record, the re-rendered board
+// when inline is enabled, and — for the metadata profile — the artifact file
+// itself.
 func (o changeAttachOp) Plan(ctx context.Context, st transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
 	snap := st.State.Snapshot
 
@@ -675,6 +796,35 @@ func (o changeAttachOp) Plan(ctx context.Context, st transaction.AttemptState) (
 	field := attachKindPlan
 	if o.kind == attachKindResults {
 		field = attachKindResults
+	}
+
+	// The metadata profile writes the artifact file, so it decides on this
+	// attempt's own tree: a field already naming another path never re-points,
+	// and a file already at the path is overwritten only when the link already
+	// names it or its backlink points home to THIS change (a prior attach of
+	// this change). Anything else belongs to someone else and refuses.
+	var artifactFile *transaction.FileMutation
+	if o.artifactBytes != nil {
+		linked := attachFieldValue(c, o.kind)
+		if linked != "" && linked != o.artifact {
+			return refuseLifecycle(FindingCode(ReasonAttachPathMismatch), pathMismatchMessage(o.kind, linked, o.artifact))
+		}
+		existing, _, exists, err := treeBlob(ctx, st.Tree, o.artifact)
+		if err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change attach: %w", err)
+		}
+		if exists && linked != o.artifact {
+			if home, berr := backlinkTargets(existing, c, o.link); berr != nil || !home {
+				return refuseLifecycle(FindingCode(ReasonAttachPathOccupied),
+					fmt.Sprintf("a file already exists at %q on the metadata branch and its backlink does not point to change %04d; refusing to overwrite it", o.artifact, o.changeID))
+			}
+		}
+		switch {
+		case !exists:
+			artifactFile = &transaction.FileMutation{Path: gitcli.RepoPath(o.artifact), Kind: transaction.MutationCreate, Bytes: o.artifactBytes}
+		case !bytes.Equal(existing, o.artifactBytes):
+			artifactFile = &transaction.FileMutation{Path: gitcli.RepoPath(o.artifact), Kind: transaction.MutationReplace, Bytes: o.artifactBytes}
+		}
 	}
 
 	// First patch pass: the owned artifact field plus the refreshed updated date.
@@ -723,6 +873,9 @@ func (o changeAttachOp) Plan(ctx context.Context, st transaction.AttemptState) (
 		files = append(files, transaction.FileMutation{
 			Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: finalBytes,
 		})
+	}
+	if artifactFile != nil {
+		files = append(files, *artifactFile)
 	}
 	if o.inline {
 		// Attaching an artifact edits no board-visible field, so includeBoard's

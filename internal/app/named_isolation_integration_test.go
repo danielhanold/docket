@@ -246,13 +246,10 @@ func TestIntegrationNamedImplementationFlowIsolation(t *testing.T) {
 	}
 	wp := prep.Path
 
-	// (5) Plan attach.
-	writeRepoFile(t, wp, planPath, "# Implementation Plan\n\nConcrete steps here.\n")
-	if bl := ArtifactBacklink(ctx, node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: planPath, ChangePath: recPath}); bl.Result != ResultApplied {
-		t.Fatalf("plan backlink = %q (reason %q msg %q)", bl.Result, bl.Reason, bl.Message)
-	}
-	planHead := commitPlanFile(t, wp, planPath, string(mustReadFile(t, filepath.Join(wp, planPath))), planPath)
-	attach := ChangeAttachPlan(ctx, node.deps, wdeps, node.dir, ChangeAttachRequest{ID: id, Revision: ver(), Path: planPath, Commit: planHead})
+	// (5) Plan attach: the plan is written on the metadata branch.
+	attach := ChangeAttachPlan(ctx, node.deps, node.dir, ChangeAttachRequest{
+		ID: id, Revision: ver(), Path: planPath, Markdown: []byte("# Implementation Plan\n\nConcrete steps here.\n"),
+	})
 	if attach.Result != ResultApplied {
 		t.Fatalf("attach plan = %q (reason %q msg %q findings %v), want applied", attach.Result, attach.Reason, attach.Message, attach.Findings)
 	}

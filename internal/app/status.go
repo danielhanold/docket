@@ -113,7 +113,7 @@ type StatusReader interface {
 	// live stack relationships and reports which exist on the remote.
 	BranchFacts(ctx context.Context, pin StatusPin, branches []string) (domain.BranchFacts, error)
 	// ArtifactExists reports whether a repo-relative path exists on the named
-	// pinned source ("metadata" for specs, "integration" for plans/results).
+	// pinned source ("metadata" or "integration").
 	ArtifactExists(ctx context.Context, pin StatusPin, source, path string) (bool, error)
 	// ReadArtifact reads a repo-relative path from the named pinned source,
 	// returning its exact bytes and blob object id, or Found=false when the
@@ -516,27 +516,37 @@ func readinessReason(r domain.Readiness) string {
 }
 
 // artifactChecks verifies each non-empty artifact link of an active change
-// against the source its kind lives on. A missing target is an error finding;
-// an empty link produces no finding (a distinct, benign state). An
-// ArtifactExists error propagates as an operation failure.
+// against the sources its kind lives on, in order: the spec and the plan on the
+// metadata branch — a plan absent there falls back to the integration branch,
+// where a record closed before plans moved to the metadata branch keeps it —
+// and results on the integration branch. A target absent from every source is
+// an error finding; an empty link produces no finding (a distinct, benign
+// state). An ArtifactExists error propagates as an operation failure.
 func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, c domain.Change) ([]StatusFinding, error) {
 	var findings []StatusFinding
 	links := []struct {
-		field  string
-		value  domain.OptionalString
-		source string
+		field   string
+		value   domain.OptionalString
+		sources []string
 	}{
-		{"spec", c.Spec(), sourceMetadata},
-		{"plan", c.Plan(), sourceIntegration},
-		{"results", c.Results(), sourceIntegration},
+		{"spec", c.Spec(), []string{sourceMetadata}},
+		{"plan", c.Plan(), []string{sourceMetadata, sourceIntegration}},
+		{"results", c.Results(), []string{sourceIntegration}},
 	}
 	for _, link := range links {
 		if link.value.State != domain.FieldPresent || link.value.Value == "" {
 			continue
 		}
-		exists, err := reader.ArtifactExists(ctx, pin, link.source, link.value.Value)
-		if err != nil {
-			return nil, err
+		exists := false
+		for _, source := range link.sources {
+			found, err := reader.ArtifactExists(ctx, pin, source, link.value.Value)
+			if err != nil {
+				return nil, err
+			}
+			if found {
+				exists = true
+				break
+			}
 		}
 		if !exists {
 			findings = append(findings, StatusFinding{

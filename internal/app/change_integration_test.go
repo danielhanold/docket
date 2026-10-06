@@ -4167,6 +4167,18 @@ func TestIntegrationChangeRuntimeRunVerifyIncompleteEnumeratesConditions(t *test
 		})
 	}
 
+	// The plan lives on the metadata branch: a plan file present only at the
+	// feature head (the fixture commits rvPlanPath there) and absent on the
+	// metadata tip is plan-file-missing — the feature head is never consulted.
+	t.Run("plan only at the feature head, absent on metadata", func(t *testing.T) {
+		deps, wdeps, gdeps := pub.deps(rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/"+rvSlug), ev), rvPR(pub.head, prBodyNoEvidence))
+		delete(deps.Reader.(*fakeReader).artifactData, sourceMetadata+"|"+rvPlanPath)
+		res := RunVerify(context.Background(), deps, wdeps, gdeps, pub.repo.invocation, RunVerifyRequest{ID: 3})
+		if got := unmetReasons(res); res.Verdict != VerdictRunIncomplete || len(got) != 1 || got[0] != ReasonRunPlanMissing {
+			t.Fatalf("verdict %q unmet %v, want run-incomplete with exactly [%s]", res.Verdict, got, ReasonRunPlanMissing)
+		}
+	})
+
 	// The remote-head postcondition needs an unpublished feature head: the local
 	// head exists but the remote never received it, so the remote is absent.
 	t.Run("feature head differs from remote", func(t *testing.T) {
