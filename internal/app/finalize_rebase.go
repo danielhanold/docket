@@ -47,8 +47,8 @@ import (
 //     that set refuses. Report bodies are never echoed into a result (Global
 //     Constraints: returned diagnostics redact report bodies) — only bounded,
 //     safe tokens (disposition, counts, the attempt) travel out.
-//   - The local suite is skipped ONLY when the rebase was a no-op and the PR body
-//     carries green evidence for the EXACT current head AND the recorded command is
+//   - The local suite is skipped ONLY when the rebase was a no-op and the change
+//     record's build-evidence section carries green evidence for the EXACT current head AND the recorded command is
 //     byte-equal to the currently resolved finalize.test_command (gateDecision).
 //     Skipped (build-gate-off) build evidence never waives finalize; a differing or
 //     empty command runs the suite. Any other evidence head runs the full suite;
@@ -494,7 +494,7 @@ type FinalizeGate interface {
 // ---------------------------------------------------------------------------
 
 // gateDecision decides whether the local suite may be skipped after a completed
-// rebase. It skips ONLY when the rebase was a no-op AND the PR body carries GREEN
+// rebase. It skips ONLY when the rebase was a no-op AND the record carries GREEN
 // evidence for the EXACT current head AND the recorded command is byte-equal to
 // the currently resolved finalize.test_command (with both non-empty); the permit
 // names that head. Differing commands are different assertions even at the same
@@ -609,11 +609,14 @@ type rebaseContext struct {
 	repo     gitcli.Repository
 	change   domain.Change
 	revision string
-	base     domain.EffectiveBase
-	target   workspace.Target
-	insp     workspace.Inspection
-	wsDir    string
-	metaDir  string
+	// record is the change record's bytes from the workspace context's one
+	// corpus read; the record-evidence skip reads it.
+	record  []byte
+	base    domain.EffectiveBase
+	target  workspace.Target
+	insp    workspace.Inspection
+	wsDir   string
+	metaDir string
 	// snap is the corpus snapshot the context was resolved from; the carried-
 	// descendant preservation gate reads the live stacked_on graph from it.
 	snap domain.Snapshot
@@ -642,6 +645,7 @@ func loadRebaseContext(ctx context.Context, deps FinalizeDeps, repoDir string, o
 		repo:     wc.repo,
 		change:   wc.change,
 		revision: wc.revision,
+		record:   wc.record,
 		base:     wc.base,
 		target:   target,
 		insp:     insp,
@@ -835,8 +839,8 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 }
 
 // rebaseMapOptions carries the caller's policy for mapping a begun rebase onto
-// the gate composition. evidenceSkip permits the PR-body evidence skip (the fresh
-// FinalizeRebase path only; recovery never bypasses the suite on PR evidence).
+// the gate composition. evidenceSkip permits the record-evidence skip (the fresh
+// FinalizeRebase path only; recovery never bypasses the suite on record evidence).
 // forceRetest suppresses the mechanically-unchanged no-op shortcut so a base
 // refresh always retests even when Git reports no textual change (Task 3).
 type rebaseMapOptions struct {
@@ -1011,7 +1015,7 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 		// The receipt's pair may be set (a prior WAITING to resume) or empty (a crash
 		// before WAITING, or a cleared terminal); composeLocalGate derives the
 		// continuation from rec, so both are correct as-is. Recovery never bypasses the
-		// suite on PR-body evidence (spec §4): allowEvidenceSkip is false.
+		// suite on record evidence (spec §4): allowEvidenceSkip is false.
 		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, localHead, noop, false)
 	}
 
@@ -1631,7 +1635,7 @@ func requireCarriedPreserved(ctx context.Context, deps FinalizeDeps, repoDir, op
 }
 
 // composeLocalGate decides skip-or-run after a completed rebase and maps the gate
-// outcome. It skips only on a no-op rebase with exact-head green PR evidence whose
+// outcome. It skips only on a no-op rebase with exact-head green record evidence whose
 // recorded command is byte-equal to the resolved finalize.test_command;
 // otherwise it runs the full suite through the gate seam. A passed run carries the
 // evidence block; a failed run is repair work (failed); a halt is retained
@@ -1656,12 +1660,12 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 	}
 	currentHead := strings.ToLower(string(head))
 
-	evidenceHead, evidenceCommand, evidenceGreen := prBodyEvidence(pr)
+	evidenceHead, evidenceCommand, evidenceGreen := recordEvidenceFacts(rc.record)
 	resolvedCommand, resolvedGatePolicy := resolvedFinalizeGateConfig(ctx, deps, repoDir)
 	skip, permit := false, ""
-	// The PR-body evidence skip is consulted ONLY on the fresh path
+	// The record-evidence skip is consulted ONLY on the fresh path
 	// (allowEvidenceSkip): receipt-based completion recovery never bypasses the
-	// suite on PR-body evidence (spec §4), and a recorded live continuation
+	// suite on record evidence (spec §4), and a recorded live continuation
 	// (DriveID set) must be advanced to a terminal, never skipped past.
 	if cont.DriveID == "" && allowEvidenceSkip {
 		skip, permit = gateDecision(noop, evidenceHead, currentHead, evidenceGreen, evidenceCommand, resolvedCommand)
@@ -1782,7 +1786,7 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 // terminal), and — for a real rewrite whose PR identity is known and whose gate
 // configuration resolved — the completed-gate publish checkpoint is recorded so
 // a denied publish can resume without re-running the suite (change 0408). A
-// no-op rebase records no checkpoint (its skip waiver is the PR-body evidence
+// no-op rebase records no checkpoint (its skip waiver is the record evidence
 // gateDecision already honors). Best-effort like clearGateContinuation: the
 // gate outcome is already mapped, so a write failure is appended to the result
 // message and never changes the disposition — the resume simply re-runs the
@@ -1831,23 +1835,6 @@ func clearGateContinuation(ctx context.Context, deps FinalizeDeps, rc *rebaseCon
 		res.Message = strings.TrimSpace(res.Message +
 			" (clearing the gate continuation from the rebase receipt failed: " + err.Error() + ")")
 	}
-}
-
-// prBodyEvidence extracts the exact-head evidence facts from a PR body: the
-// certified head, the recorded command, and whether the record is GREEN (result
-// == evidence.ResultGreen). A skipped (build-gate-off) record parses but is not
-// green and carries no command, so it can never waive finalize's local gate
-// through gateDecision. A body with no block, or one that does not parse, is not
-// green.
-func prBodyEvidence(pr githubcli.PullRequest) (evidenceHead, evidenceCommand string, green bool) {
-	if pr.Body == "" {
-		return "", "", false
-	}
-	rec, err := evidence.Extract([]byte(pr.Body))
-	if err != nil {
-		return "", "", false
-	}
-	return rec.Head, rec.Command, rec.Result == evidence.ResultGreen
 }
 
 // resolvedFinalizeGateConfig re-reads the authoritative finalize gate

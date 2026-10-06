@@ -84,12 +84,12 @@ func mxDeps(t *testing.T, f *rvFixture, id int, slug string, record []byte) (Pla
 	t.Helper()
 	reader := &fakeReader{
 		pin:    f.pin,
-		corpus: []StatusBlob{mxBlob(id, slug, record)},
+		corpus: []StatusBlob{mxBlob(id, slug, rvWithEvidence(t, record, prEvidenceBytes(t, f.head)))},
 		facts:  domain.NewBranchFacts(nil),
 	}
 	deps := PlanningDeps{Client: f.client, Reader: reader, Clock: testClock()}
 	wdeps := WorkspaceDeps{Service: &fakeWorkspaceService{inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(f.head)}}}
-	gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{rvPR(f.head, string(prEvidenceBytes(t, f.head)))}}}
+	gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{rvPR(f.head, prBodyNoEvidence)}}}
 	return deps, wdeps, gdeps
 }
 
@@ -225,12 +225,13 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 			Service:     &fakeWorkspaceService{inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(f.head)}},
 			ClaimProofs: &fakeProofScanner{proofs: proofs},
 		}
-		gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{rvPR(f.head, string(prEvidenceBytes(t, f.head)))}}}
+		gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{rvPR(f.head, prBodyNoEvidence)}}}
 		return RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	}
 
 	baseProof := ClaimProof{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "rA"}
-	baseCorpus := []StatusBlob{mxBlob(3, "widget", mxImplementedRecord(3, "widget"))}
+	evidenced := rvWithEvidence(t, mxImplementedRecord(3, "widget"), prEvidenceBytes(t, f.head))
+	baseCorpus := []StatusBlob{mxBlob(3, "widget", evidenced)}
 
 	res1 := verdict([]ClaimProof{baseProof}, baseCorpus)
 	if got, want := res1.HumanText(), "run-done "+key+" run-complete 3"; got != want {
@@ -240,7 +241,7 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 	// Refresh id 3's claimed_at and priority (a real refresh-claim / groom edit
 	// leaves the change complete), and add two sibling in-progress claims — exactly
 	// the churn the pre-0407 before-set/run inference keyed on.
-	refreshed := string(mxImplementedRecord(3, "widget"))
+	refreshed := string(evidenced)
 	refreshed = strings.Replace(refreshed, "claimed_at: 2026-08-02T00:00:00Z", "claimed_at: 2026-09-05T00:00:00Z", 1)
 	refreshed = strings.Replace(refreshed, "priority: medium", "priority: high", 1)
 	churnedCorpus := []StatusBlob{

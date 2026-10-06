@@ -130,8 +130,8 @@ const (
 	ReasonClearRemoteHeadMismatch = "remote-head-mismatch"
 	// ReasonClearPRNotOpen: not exactly one open PR for the feature head.
 	ReasonClearPRNotOpen = "pr-not-open"
-	// ReasonClearEvidenceUnverified: the PR body evidence does not verify green
-	// for the exact current head (and the gate is on).
+	// ReasonClearEvidenceUnverified: the change record's build evidence does not
+	// verify green for the exact current head (and the gate is on).
 	ReasonClearEvidenceUnverified = "evidence-unverified"
 )
 
@@ -372,6 +372,15 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 		return *refusal
 	}
 	recPath := c.Path()
+	// The record's bytes from this one corpus read carry the build evidence the
+	// gate reprobe reads below.
+	var record []byte
+	for _, b := range blobs {
+		if b.Path == recPath {
+			record = b.Data
+			break
+		}
+	}
 
 	// Reprobe the four removal conditions against fresh live facts before any
 	// mutation. Each unresolved external probe is unknown (retain); each cleanly
@@ -438,7 +447,7 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 			ReasonClearRemoteHeadMismatch, "the remote feature ref names a commit other than the expected head; the marker stays", req.ID)
 	}
 
-	// Matching open PR at the exact head, and (unless the gate is off) green body
+	// Matching open PR at the exact head, and (unless the gate is off) green record
 	// evidence for that head.
 	featureBranch := strings.TrimPrefix(string(target.FeatureRef), branchRefPrefix)
 	prs, err := deps.GitHub.FindOpenPullRequestsByHead(ctx, ghRepo, featureBranch)
@@ -452,10 +461,10 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 			ReasonClearPRNotOpen, "there is not exactly one matching open pull request for the feature head; the marker stays", req.ID)
 	}
 	if eff.Finalize.Gate.Value != "off" {
-		evHead, _, evGreen := prBodyEvidence(prs[0])
+		evHead, _, evGreen := recordEvidenceFacts(record)
 		if !evGreen || evHead != req.Head {
 			return blockRefusal(OperationFinalizeClearBlock, ResultBlocked, BlockDispRefused,
-				ReasonClearEvidenceUnverified, "the pull-request body evidence does not verify green for the exact current head; the marker stays", req.ID)
+				ReasonClearEvidenceUnverified, "the change record's build evidence does not verify green for the exact current head; the marker stays", req.ID)
 		}
 	}
 

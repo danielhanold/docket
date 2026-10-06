@@ -167,8 +167,11 @@ func newWorkspaceResult(opKey string, result Result, out WorkspaceOpResult) Work
 type workspaceContext struct {
 	change   domain.Change
 	revision string
-	base     domain.EffectiveBase
-	repo     gitcli.Repository
+	// record is the change record's bytes from the same corpus read that yields
+	// revision, so a caller decides and acts on one copy of the record.
+	record []byte
+	base   domain.EffectiveBase
+	repo   gitcli.Repository
 	// snap is the authoritative corpus snapshot the context was resolved from. The
 	// carried-descendant preservation gate (proveCarriedOnHead) reads the live
 	// stacked_on graph from it, so a caller need not rebuild the snapshot.
@@ -218,9 +221,10 @@ func loadWorkspaceContext(ctx context.Context, deps PlanningDeps, repoDir string
 	}
 
 	revision := ""
+	var record []byte
 	for _, b := range blobs {
 		if b.Path == c.Path() {
-			revision = b.Revision
+			revision, record = b.Revision, b.Data
 			break
 		}
 	}
@@ -242,6 +246,7 @@ func loadWorkspaceContext(ctx context.Context, deps PlanningDeps, repoDir string
 	return workspaceContext{
 		change:   c,
 		revision: revision,
+		record:   record,
 		base:     domain.ResolveEffectiveBase(snap, c, facts),
 		repo:     repo,
 		snap:     snap,

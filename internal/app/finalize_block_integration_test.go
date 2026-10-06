@@ -28,9 +28,10 @@ func TestIntegrationFinalizeOpsFinalizeBlockUnrelatedInvalidRecordProgress(t *te
 
 func TestIntegrationFinalizeOpsFinalizeClearBlockUnrelatedInvalidRecordProgress(t *testing.T) {
 	f := setupBlockedFixture(t, planRepoModeDocket())
+	f.seedGreenRecordEvidence(t, f.head)
 	f.repo.writerAdvance(t, f.branch, map[string]string{unrelatedBrokenPath: unrelatedBrokenBytes})
 	gh := &fakeBlockGitHub{repo: retargetRepo(),
-		openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
+		openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, prBodyNoEvidence)}}}
 
 	got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
 		ClearBlockRequest{ID: f.id, Revision: f.revision, Head: f.head, PRNumber: 1})

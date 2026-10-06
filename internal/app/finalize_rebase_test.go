@@ -313,16 +313,28 @@ func (f *rebaseFixture) advanceBase(t *testing.T) string {
 	return f.repo.writerAdvance(t, "main", map[string]string{name: "downstream base work\n"})
 }
 
-// greenEvidenceFor renders a green build-evidence block certifying head, for
-// embedding in a PR body.
+// greenEvidenceFor renders a green build-evidence block certifying head inside
+// surrounding prose (a gate's evidence output, a checkpoint, or a PR body).
 func greenEvidenceFor(t *testing.T, head string) string {
+	t.Helper()
+	return "Authored prose.\n\n" + evidence.Render(greenEvidenceRecord(t, head)) + "\nMore prose.\n"
+}
+
+// greenEvidenceRecord is the green build-evidence record greenEvidenceFor
+// renders: certifying head for the "go test ./..." command.
+func greenEvidenceRecord(t *testing.T, head string) evidence.Record {
 	t.Helper()
 	rec, err := evidence.NewRecord("go test ./...", head, time.Date(2026, 8, 18, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("evidence.NewRecord: %v", err)
 	}
-	return "Authored prose.\n\n" + evidence.Render(rec) + "\nMore prose.\n"
+	return rec
 }
+
+// prBodyNoEvidence is an authored PR description carrying no build-evidence
+// block: the durable build evidence lives in the change record's
+// "## Build evidence" section, never in the PR body.
+const prBodyNoEvidence = "Authored prose.\n"
 
 // --- TestGateDecision -----------------------------------------------------
 
@@ -393,17 +405,21 @@ func TestGateDecisionRequiresCommandByteEquality(t *testing.T) {
 	}
 }
 
-// TestPRBodyEvidenceReportsCommandAndGreenFlag proves prBodyEvidence surfaces
-// the recorded command and reports green ONLY for a green record — a skipped
-// (build-gate-off) block is not green and carries no command, so it can never
-// waive finalize's local gate through gateDecision.
-func TestPRBodyEvidenceReportsCommandAndGreenFlag(t *testing.T) {
+// TestRecordEvidenceFactsReportsCommandAndGreenFlag proves recordEvidenceFacts
+// surfaces the recorded command and reports green ONLY for a green record — a
+// skipped (build-gate-off) section is not green and carries no command, so it
+// can never waive finalize's local gate through gateDecision.
+func TestRecordEvidenceFactsReportsCommandAndGreenFlag(t *testing.T) {
 	head := strings.Repeat("ab", 20)
 	green, err := evidence.NewRecord("go test ./...", head, time.Now())
 	if err != nil {
 		t.Fatalf("NewRecord: %v", err)
 	}
-	h, cmd, isGreen := prBodyEvidence(githubcli.PullRequest{Body: evidence.Render(green)})
+	greenRecord, err := UpsertRecordEvidence([]byte(esRecord()), green)
+	if err != nil {
+		t.Fatalf("UpsertRecordEvidence(green): %v", err)
+	}
+	h, cmd, isGreen := recordEvidenceFacts(greenRecord)
 	if !isGreen || cmd != "go test ./..." || h != head {
 		t.Errorf("green record: head/cmd/green = %q/%q/%v, want %q/%q/true", h, cmd, isGreen, head, "go test ./...")
 	}
@@ -411,7 +427,11 @@ func TestPRBodyEvidenceReportsCommandAndGreenFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSkippedRecord: %v", err)
 	}
-	sh, scmd, sGreen := prBodyEvidence(githubcli.PullRequest{Body: evidence.Render(skipped)})
+	skippedRecord, err := UpsertRecordEvidence([]byte(esRecord()), skipped)
+	if err != nil {
+		t.Fatalf("UpsertRecordEvidence(skipped): %v", err)
+	}
+	sh, scmd, sGreen := recordEvidenceFacts(skippedRecord)
 	if sGreen {
 		t.Errorf("skipped record reported green; skipped evidence never waives finalize")
 	}

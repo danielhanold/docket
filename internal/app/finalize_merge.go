@@ -312,10 +312,13 @@ type mergeContext struct {
 	snap     domain.Snapshot
 	change   domain.Change
 	revision string
-	base     domain.EffectiveBase
-	target   workspace.Target
-	repo     gitcli.Repository
-	eff      config.Effective
+	// record is the change record's bytes from the same corpus read that yields
+	// revision: the merge gate reads the build evidence from this one copy.
+	record []byte
+	base   domain.EffectiveBase
+	target workspace.Target
+	repo   gitcli.Repository
+	eff    config.Effective
 }
 
 // loadMergeContext performs the fresh reload every merge decision reads from,
@@ -381,9 +384,10 @@ func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id
 	}
 
 	revision := ""
+	var record []byte
 	for _, b := range blobs {
 		if b.Path == c.Path() {
-			revision = b.Revision
+			revision, record = b.Revision, b.Data
 			break
 		}
 	}
@@ -420,7 +424,7 @@ func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id
 	}
 
 	return &mergeContext{
-		snap: snap, change: c, revision: revision,
+		snap: snap, change: c, revision: revision, record: record,
 		base: base, target: target, repo: repo, eff: eff,
 	}, nil
 }
@@ -519,7 +523,7 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 		})
 	}
 
-	evHead, _, evGreen := prBodyEvidence(pr)
+	evHead, _, evGreen := recordEvidenceFacts(mc.record)
 	conj := mergeConditions(mergeConditionInputs{
 		status:                   mc.change.Status(),
 		canonicalPRNumber:        canonicalN,

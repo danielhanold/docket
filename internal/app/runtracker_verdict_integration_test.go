@@ -291,8 +291,8 @@ func TestIntegrationRunVerdictVerdictIncompleteRespectsAttemptLimit(t *testing.T
 		t.Run(fmt.Sprintf("limit-%d", tc.limit), func(t *testing.T) {
 			f := newRunVerifyFixture(t, true)
 			deps, wdeps, gdeps := f.deps(
-				runTrackerIncompleteRecord(),
-				rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+				rvWithEvidence(t, runTrackerIncompleteRecord(), prEvidenceBytes(t, f.head)),
+				rvPR(f.head, prBodyNoEvidence),
 			)
 			key := runTrackerMintAttributedLimit(t, f.repo.invocation, 3, tc.limit)
 
@@ -334,8 +334,8 @@ func TestIntegrationRunVerdictVerdictIncompleteRespectsAttemptLimit(t *testing.T
 func TestIntegrationRunVerdictVerdictIncompleteRepeatObservationDoesNotDoubleGrant(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		runTrackerIncompleteRecord(),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, runTrackerIncompleteRecord(), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	key := runTrackerMintAttributedLimit(t, f.repo.invocation, 3, 2)
 
@@ -362,8 +362,8 @@ func TestIntegrationRunVerdictVerdictIncompleteRepeatObservationDoesNotDoubleGra
 func TestIntegrationRunVerdictVerdictIncompleteNoGrantLeavesRetryMirrorUnused(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		runTrackerIncompleteRecord(),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, runTrackerIncompleteRecord(), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	key := runTrackerMintAttributedLimit(t, f.repo.invocation, 3, 1)
 
@@ -520,8 +520,8 @@ func TestIntegrationRunVerdictVerdictIncompleteWithTrackedDriveContinuesWithoutR
 func TestIntegrationRunVerdictVerdictIncompleteQuiescentStillRetriesOnce(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		runTrackerIncompleteRecord(),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, runTrackerIncompleteRecord(), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	wdeps.Continuation = &fakeContinuationSeam{candidates: nil} // zero candidates
 	key := runTrackerMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
@@ -549,8 +549,8 @@ func TestIntegrationRunVerdictVerdictIncompleteQuiescentStillRetriesOnce(t *test
 func TestIntegrationRunVerdictVerdictAmbiguousDrivesStops(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		runTrackerIncompleteRecord(),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, runTrackerIncompleteRecord(), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	wdeps.Continuation = &fakeContinuationSeam{candidates: []string{"a", "b"}}
 	key := runTrackerMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
@@ -575,8 +575,8 @@ func TestIntegrationRunVerdictVerdictAmbiguousDrivesStops(t *testing.T) {
 func TestIntegrationRunVerdictVerdictTakeoverHaltStops(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		runTrackerIncompleteRecord(),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, runTrackerIncompleteRecord(), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	wdeps.Continuation = &fakeContinuationSeam{
 		candidates:    []string{"d0opaque"},
@@ -633,8 +633,8 @@ func TestIntegrationRunVerdictVerdictContinueNeverAuthorizesNewClaim(t *testing.
 func TestIntegrationRunVerdictVerdictFreshRunBindsScopeChange(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	seam := &fakeContinuationSeam{} // no candidates: ownership adopts the sole proof,
 	// then the run-incomplete path finds zero tracked drives and takes the ordinary
@@ -696,8 +696,8 @@ func TestIntegrationRunVerdictVerdictContinuationDoesNotRebindScope(t *testing.T
 func TestIntegrationRunVerdictVerdictObservePathStillCannotContinue(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		runTrackerIncompleteRecord(),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, runTrackerIncompleteRecord(), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	res := RunVerdictObserve(context.Background(), deps, wdeps, gdeps, f.repo.invocation, []string{"3"})
 	line := res.HumanText()
@@ -728,8 +728,8 @@ func TestIntegrationRunVerdictVerdictObservePathStillCannotContinue(t *testing.T
 func TestIntegrationRunVerdictVerdictConfirmedBindingResolvesBoundChange(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	key := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
 	if err := ReserveRunTrackerClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
@@ -786,8 +786,8 @@ func TestIntegrationRunVerdictVerdictNoBindingNoProofIsNoAttributableClaim(t *te
 func TestIntegrationRunVerdictVerdictUnconfirmedReservationRecoversFromExactReceipt(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	key := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
 	if err := ReserveRunTrackerClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
@@ -864,8 +864,8 @@ func TestIntegrationRunVerdictVerdictAbsentBindingAdoptsSoleProof(t *testing.T) 
 	t.Run("sole proof adopted", func(t *testing.T) {
 		f := newRunVerifyFixture(t, true)
 		deps, wdeps, gdeps := f.deps(
-			rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-			rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+			rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+			rvPR(f.head, prBodyNoEvidence),
 		)
 		key := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
 		wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
@@ -1001,8 +1001,8 @@ func TestIntegrationRunVerdictVerdictCorruptBindingFailsClosed(t *testing.T) {
 func TestIntegrationRunVerdictVerdictResumeBindingSkipsContinuity(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	key := runTrackerMintAttributed(t, f.repo.invocation, 3)
 	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
@@ -1077,8 +1077,8 @@ func TestIntegrationRunVerdictVerdictRunCompleteClosesOutRunOwnership(t *testing
 func TestIntegrationRunVerdictVerdictRunCompleteWithoutRunUnchanged(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	key := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
 	if err := ReserveRunTrackerClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
@@ -1366,8 +1366,8 @@ func TestIntegrationRunVerdictNeverLaunchedDriveEarnsRetry(t *testing.T) {
 	requireProcessSupervisorHere(t)
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		runTrackerIncompleteRecord(),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, runTrackerIncompleteRecord(), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	repo := f.repo.invocation
 	common, err := runTrackerGitCommonDir(repo)
