@@ -400,15 +400,15 @@ func (r fakeRepairResult) SourceRev() string          { return r.source }
 func (r fakeRepairResult) ConfirmationRequired() bool { return r.confirm }
 
 // TestRepositoryRepairRegisteredWithCapability proves `repository repair` is a
-// registered leaf carrying exactly --repo-dir and --yes, the catalog id
-// repository.repair, and exactly the metadata-write effect.
+// registered leaf carrying --repo-dir, --yes, and --pr-backlinks, the catalog id
+// repository.repair, and exactly the external-write and metadata-write effects.
 func TestRepositoryRepairRegisteredWithCapability(t *testing.T) {
 	root := captureTree(t)
 	cmd, _, err := root.Find([]string{"repository", "repair"})
 	if err != nil || cmd == nil || cmd.Name() != "repair" {
 		t.Fatalf("repository repair not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"repo-dir", "yes"} {
+	for _, flag := range []string{"repo-dir", "yes", "pr-backlinks"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("repository repair: missing --%s flag", flag)
 		}
@@ -419,8 +419,8 @@ func TestRepositoryRepairRegisteredWithCapability(t *testing.T) {
 	if got := cmd.Annotations[capAnnotationID]; got != "repository.repair" {
 		t.Errorf("capability id = %q, want repository.repair", got)
 	}
-	if got := cmd.Annotations[capAnnotationEffects]; got != string(EffectMetadataWrite) {
-		t.Errorf("effects = %q, want exactly %q", got, EffectMetadataWrite)
+	if got, want := cmd.Annotations[capAnnotationEffects], "external-write metadata-write"; got != want {
+		t.Errorf("effects = %q, want exactly %q", got, want)
 	}
 }
 
@@ -482,6 +482,59 @@ func TestRepositoryRepairInteractiveConfirmReinvokes(t *testing.T) {
 	}
 	if calls[0].Authorized || !calls[1].Authorized || calls[1].ExpectedSource != "pinnedtip" {
 		t.Errorf("calls = %+v, want unauthorized preview then authorized pinned to pinnedtip", calls)
+	}
+}
+
+// TestRepositoryRepairGitHubOnlyWithPRBacklinks proves the GitHub client is
+// built and wired only under --pr-backlinks, and the flag reaches the service.
+func TestRepositoryRepairGitHubOnlyWithPRBacklinks(t *testing.T) {
+	built := 0
+	oldGH := repositoryRepairGitHub
+	repositoryRepairGitHub = func() (app.RepairGitHub, error) { built++; return nil, nil }
+	var seen []app.RepairOptions
+	oldR := repositoryRepairRunner
+	repositoryRepairRunner = func(ctx context.Context, d app.SetupDeps, o app.RepairOptions) app.OperationResult {
+		seen = append(seen, o)
+		return fakeRepairResult{Envelope: app.NewEnvelope("repository.repair", app.ResultNoOp), source: "abc"}
+	}
+	defer func() { repositoryRepairGitHub = oldGH; repositoryRepairRunner = oldR }()
+
+	runCLI(t, "repository", "repair", "--yes")
+	if built != 0 || len(seen) != 1 || seen[0].PRBacklinks {
+		t.Fatalf("plain repair built GitHub %d time(s) / opts %+v; want none", built, seen)
+	}
+	runCLI(t, "repository", "repair", "--pr-backlinks", "--yes")
+	if built != 1 || len(seen) != 2 || !seen[1].PRBacklinks || !seen[1].Authorized {
+		t.Fatalf("--pr-backlinks: built=%d opts=%+v", built, seen)
+	}
+}
+
+// TestRepositoryRepairPRBacklinksInteractiveConfirmKeepsFlag proves the
+// confirmed re-invocation of a --pr-backlinks preview still selects the
+// PR-backlink repair, pinned to the previewed revision.
+func TestRepositoryRepairPRBacklinksInteractiveConfirmKeepsFlag(t *testing.T) {
+	var calls []app.RepairOptions
+	oldGH := repositoryRepairGitHub
+	repositoryRepairGitHub = func() (app.RepairGitHub, error) { return nil, nil }
+	old := repositoryRepairRunner
+	repositoryRepairRunner = func(ctx context.Context, d app.SetupDeps, o app.RepairOptions) app.OperationResult {
+		calls = append(calls, o)
+		return fakeRepairResult{Envelope: app.NewEnvelope("repository.repair", app.ResultInvalidState), source: "pinnedtip", confirm: !o.Authorized}
+	}
+	oldI := repositoryConfirmInteractive
+	repositoryConfirmInteractive = func() bool { return true }
+	defer func() {
+		repositoryRepairRunner = old
+		repositoryConfirmInteractive = oldI
+		repositoryRepairGitHub = oldGH
+	}()
+
+	_, _, _ = runCLIStdin(t, "y\n", "repository", "repair", "--pr-backlinks")
+	if len(calls) != 2 {
+		t.Fatalf("runner called %d times, want preview then authorized", len(calls))
+	}
+	if !calls[0].PRBacklinks || calls[0].Authorized || !calls[1].PRBacklinks || !calls[1].Authorized || calls[1].ExpectedSource != "pinnedtip" {
+		t.Errorf("calls = %+v, want a --pr-backlinks preview then an authorized --pr-backlinks run pinned to pinnedtip", calls)
 	}
 }
 

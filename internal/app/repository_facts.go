@@ -43,7 +43,11 @@ func setupRemote() gitcli.RemoteName { return originRemote }
 type SetupDeps struct {
 	Git     *gitcli.Client
 	RepoDir string // invocation dir; Discover resolves the canonical primary
-	hooks   setupHooks
+	// GitHub is set ONLY by `repository repair --pr-backlinks` (the one
+	// repository command that reads and edits merged PR bodies). Every other
+	// repository command leaves it nil and never consults it.
+	GitHub RepairGitHub
+	hooks  setupHooks
 }
 
 // setupHooks is the generalized interruption seam. Each hook, when non-nil, is

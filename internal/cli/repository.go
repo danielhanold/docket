@@ -13,6 +13,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/app"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/githubcli"
 )
 
 // This file is the `docket repository` command family: thin adapters that
@@ -41,6 +42,16 @@ var (
 	}
 	repositoryRepairRunner = func(ctx context.Context, d app.SetupDeps, o app.RepairOptions) app.OperationResult {
 		return app.RunRepositoryRepair(ctx, d, o)
+	}
+	// repositoryRepairGitHub constructs the GitHub client `repository repair
+	// --pr-backlinks` reads and edits PR bodies through. It is called only when
+	// that flag is set; tests replace it.
+	repositoryRepairGitHub = func() (app.RepairGitHub, error) {
+		gh, err := githubcli.NewClient()
+		if err != nil {
+			return nil, err
+		}
+		return gh, nil
 	}
 	repositoryPrepareRunner = func(ctx context.Context, d app.SetupDeps, o app.PrepareOptions) app.OperationResult {
 		return app.RunRepositoryPrepare(ctx, d, o)
@@ -222,9 +233,9 @@ func newRepositoryRepairCommand(setResult func(app.OperationResult)) *cobra.Comm
 		Short: "Preview and apply the mechanical repairs `repository check` reports on a migrated repository",
 		Args:  cobra.NoArgs,
 		// metadata-write: one repair descendant published to the metadata branch
-		// under an exact lease. It never touches the local .docket worktree (the
-		// result names `docket repository prepare` to sync it).
-		Annotations: capability("repository.repair", EffectMetadataWrite),
+		// under an exact lease. external-write: --pr-backlinks edits merged PR
+		// descriptions on GitHub. It never touches the local .docket worktree.
+		Annotations: capability("repository.repair", EffectExternalWrite, EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -235,13 +246,21 @@ func newRepositoryRepairCommand(setResult func(app.OperationResult)) *cobra.Comm
 				return err
 			}
 			deps := app.SetupDeps{Git: client, RepoDir: repoDir}
+			prBacklinks, _ := c.Flags().GetBool("pr-backlinks")
+			if prBacklinks {
+				gh, err := repositoryRepairGitHub()
+				if err != nil {
+					return err
+				}
+				deps.GitHub = gh
+			}
 			yes, _ := c.Flags().GetBool("yes")
 			if yes {
-				setResult(repositoryRepairRunner(c.Context(), deps, app.RepairOptions{Authorized: true}))
+				setResult(repositoryRepairRunner(c.Context(), deps, app.RepairOptions{Authorized: true, PRBacklinks: prBacklinks}))
 				return nil
 			}
 
-			preview := repositoryRepairRunner(c.Context(), deps, app.RepairOptions{})
+			preview := repositoryRepairRunner(c.Context(), deps, app.RepairOptions{PRBacklinks: prBacklinks})
 			jsonMode, _ := c.Flags().GetBool("json")
 			confirmable, ok := preview.(interface{ ConfirmationRequired() bool })
 			if jsonMode || !repositoryConfirmInteractive() || !ok || !confirmable.ConfirmationRequired() {
@@ -258,12 +277,13 @@ func newRepositoryRepairCommand(setResult func(app.OperationResult)) *cobra.Comm
 			if p, ok := preview.(interface{ SourceRev() string }); ok {
 				expected = p.SourceRev()
 			}
-			setResult(repositoryRepairRunner(c.Context(), deps, app.RepairOptions{Authorized: true, ExpectedSource: expected}))
+			setResult(repositoryRepairRunner(c.Context(), deps, app.RepairOptions{Authorized: true, ExpectedSource: expected, PRBacklinks: prBacklinks}))
 			return nil
 		},
 	}
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	cmd.Flags().Bool("yes", false, "authorize the previewed repairs without an interactive confirmation")
+	cmd.Flags().Bool("pr-backlinks", false, "repoint merged pull requests whose change backlink names a path that no longer exists (reads and edits PR descriptions on GitHub)")
 	return cmd
 }
 
