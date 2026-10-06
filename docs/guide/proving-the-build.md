@@ -43,19 +43,20 @@ Two `build:` config keys shape this step, both settable in any config layer:
 
 A green gate does not just pass silently — it leaves **build evidence** (the immutable record of
 that gate run, read by the reviewer). `docket evidence record` mints it from the passed run, and
-`docket evidence verify` checks it against the branch head. It lives in the pull request body's
-build-evidence block and is never committed to the repository. The record captures the command that ran, its result, the exact
+`docket evidence verify` checks it against the branch head. It lives in the change record's
+`## Build evidence` section on the metadata branch, never in your code. The record captures the command that ran, its result, the exact
 branch head it ran against, and a timestamp. The reviewer verifies that this record is present,
 green, and pinned to the exact head it is reviewing; if it is missing, malformed, or stale, the
 reviewer returns a blocker and refuses to certify — running the suite itself is never the reviewer's
 job.
 
-That same record carries forward into the pull request body, where the close-out sequence reads it
-back. This is what lets a clean merge skip a redundant test run: when the pre-merge rebase changes
+When the change is marked implemented, that same record is written into the change record, where
+the close-out sequence reads it back. This is what lets a clean merge skip a redundant test run: when the pre-merge rebase changes
 nothing and the recorded evidence is green and still pinned to the head being merged, the post-rebase
 run is skipped and the skip is logged. The concrete payoff is that the whole path from build to merge
 runs the suite **once** when nothing has to be fixed or rebased — the record, not a re-run, carries
-the proof between steps.
+the proof between steps. The results file lives on the metadata branch too, so recording a results
+checkpoint after the gate never moves the feature head and never forces a retest.
 
 ### Re-certifying after a follow-up commit
 
@@ -67,11 +68,12 @@ in-place recovery is:
 
 It reruns the configured `build.test_command` (only the build command — never finalize's) in the
 change's feature worktree at the current published head, records and verifies fresh evidence, and
-replaces only the build-evidence block on the existing PR. The change stays `implemented`; nothing
-is committed, pushed, rebased, or merged. Preconditions: a clean feature worktree whose local head,
+replaces the change record's `## Build evidence` section in one metadata commit. The change stays
+`implemented`; the pull request description is not edited, and nothing is pushed, rebased, or
+merged. Preconditions: a clean feature worktree whose local head,
 remote feature head, and single open PR head all agree — an unpushed follow-up must be published
-through the normal workflow first. `build.gate: off` records truthful skipped evidence (the PR
-block is untouched); a failed or halted gate reports repair work and never touches the PR. The run
+through the normal workflow first. `build.gate: off` records truthful skipped evidence; a failed or
+halted gate reports repair work and never touches the change record. The run
 charges one attempt against the change's `build.max_attempts` suite budget.
 
 The build command itself must leave the worktree clean. The pre-publish cleanliness recheck is the

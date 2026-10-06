@@ -27,14 +27,15 @@ Two branches divide the work, and neither touches the other's history:
   reviewable on the remote at all times. Every bit of planning churn lands here and never touches
   your code history.
 - Your **integration branch** — the branch code lands on, usually `main` (or `develop` under
-  GitFlow) — stays code-only. It holds your code and the build artifacts that arrive with each pull
-  request (the plan and results files). Nothing is copied onto it when a change closes out.
+  GitFlow) — stays code-only. It receives exactly what each pull request carries: a copy of the
+  change's spec and the code. Nothing is pushed to it when a change closes out.
 
 A change's feature branch is always cut from the integration branch — unless the change is a
 **stacked change** (a change built on another change's unmerged branch rather than on the
 integration branch), in which case it is cut from that parent's branch and targets it while the
 parent is still open, then moves onto the integration branch once the parent is `done`. Either way,
-the feature branch carries only plan, results, and code, and never modifies planning records.
+the feature branch carries only the spec copy (its first commit) and code, and never modifies
+planning records.
 
 ## Where each artifact lives
 
@@ -43,19 +44,22 @@ Each kind of record has one home:
 | Record | Lives on | Reaches the integration branch |
 |---|---|---|
 | Change file (manifest + body) | metadata branch | never |
-| Spec | metadata branch | never |
+| Spec | metadata branch | a copy, as the feature branch's first commit, through the pull-request merge |
 | ADR | metadata branch | never |
 | Learnings | metadata branch | never |
 | Board | metadata branch | never |
-| Plan | feature branch | through the pull-request merge |
-| Results | feature branch | through the pull-request merge |
+| Plan | metadata branch | never |
+| Results | metadata branch | never |
+| Build evidence | the change file's `## Build evidence` section | never |
 | Code | feature branch | through the pull-request merge |
 | `.docket.yml` | committed with your code | already there |
 
-The split to notice: plan, results, and code are **build artifacts** that live on the feature
-branch and ride onto the integration branch through the ordinary pull-request merge. Every planning
-record — the change file, spec, ADRs, learnings, and the board — stays on the metadata branch for
-good, including after the change closes out; the archive lives there too.
+The split to notice: only the code and a copy of the spec ride a pull request onto the integration
+branch. The plan, the results file, and the build evidence are written on the metadata branch as
+the build runs, so recording a results checkpoint never moves the feature branch. Every planning
+record stays on the metadata branch for good, including after the change closes out; the archive
+lives there too. Links between files on the metadata branch are relative paths, so they keep
+working after a record is archived; `docket repository repair` converts older absolute ones.
 
 ## `integration_branch` and GitFlow
 

@@ -35,8 +35,8 @@ the audit trail — and the whole interface between you and the autonomous skill
 |---|---|---|
 | Plan | The change file: why, what changes, out of scope, dependencies, priority, type | `docs/changes/active/` on the `docket` metadata branch; rendered on `BOARD.md` |
 | Design | The spec, linked from the change (or `trivial: true` for small mechanical work) | `docs/superpowers/specs/` on the metadata branch |
-| Build | A dated reconcile log, the implementation plan, one verified commit per task | The change body; the plan on the feature branch |
-| Test | The build-evidence record — suite command, result, head SHA — plus the results file and the review's disposition table | The PR body; `docs/results/` |
+| Build | A dated reconcile log, the implementation plan, one verified commit per task | The change body and `docs/superpowers/plans/` on the metadata branch; the commits on the feature branch |
+| Test | The build-evidence record — suite command, result, head SHA — plus the results file and the review's disposition table | The change body's `## Build evidence` section and `docs/results/` on the metadata branch; the table in the PR body |
 | Deploy | The merge (proven reachable), the archived change record, a cleaned branch and worktree, a re-rendered board | `docs/changes/archive/`; `BOARD.md` |
 
 ## Why docket: plans rot

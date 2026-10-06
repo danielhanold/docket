@@ -55,8 +55,9 @@ docket repository configure-tests --command "sh ./test.sh"   # set both gates to
 
 ### Archived record
 
-A change's archived file (plus its results) once it reaches a final status, `done` or `killed`. It
-stays on the metadata branch; the integration branch gets code, plans, and results through PRs alone.
+A change's archived file once it reaches a final status, `done` or `killed`. It stays on the
+metadata branch with its spec, plan, and results; the integration branch gets only what PRs merge
+(the code and a copy of the spec).
 
 **Used for:** historical browsing. `archive/` on the metadata branch keeps every closed change.
 
@@ -79,9 +80,9 @@ docket repository prepare --repo-dir . --json   # the verdict surfaces as this e
 The branch a single change's code is built on, minted at claim as `<type>/<slug>` (or
 `<branch_prefix>/<slug>`) and recorded in the change file's `branch:` field.
 
-**Used for:** carrying the code, plan, and results of one change. It never modifies docket
-metadata. Branches are named by slug, not id — read the change's `branch:` field rather than
-grepping for the number. Status output carries no branch or PR; the change file and the workspace
+**Used for:** carrying the code of one change, after a first commit that copies its spec. It never
+modifies docket metadata. Branches are named by slug, not id — read the change's `branch:` field
+rather than grepping for the number. Status output carries no branch or PR; the change file and the workspace
 inspection do.
 
 ```sh
@@ -287,24 +288,26 @@ docket change claim --id 412 --revision <that-revision>
 
 A derived view is anything rendered from the change files rather than authored: the board, each
 change's `## Artifacts` link block, and the `docket:backlink` block stamped at the top of every
-spec, plan, results file, and PR body. Each has exactly one writer and is never hand-edited.
-When a change closes out, every one of these backlinks, the one in the merged PR's description
-included, is repointed to the archived record.
+spec, plan, results file, and PR body. Each has exactly one writer and is never hand-edited. Links
+between files on the metadata branch are relative; the PR row, the `Spec (merged)` row, and the
+PR-body links are absolute. When a change closes out, the archive commit retargets every backlink
+on the metadata branch, and the merged PR's description backlink is repointed best-effort.
 
 **Used for:** keeping links between a change and its artifacts correct in both directions.
 
 ```sh
-docket artifact backlink --artifact docs/results/<file>.md --change docs/changes/active/0412-<slug>.md
+docket repository check    # reports records whose links are stale or absolute
+docket repository repair   # re-renders them in one metadata commit
 ```
 
 ### Frozen build record
 
-A merged change's `plan:` and `results:` files. After the PR merges, nobody hand-edits them again,
-not even to fix a stale line reference.
+A closed-out change's `plan:` and `results:` files. After the change closes out, nobody hand-edits
+them again, not even to fix a stale line reference.
 
 **Used for:** keeping a completed run auditable: they record what the build was told to do at the
-time. Corrections go in a new change. The only writer allowed afterwards is `artifact.backlink`,
-which re-stamps the generated backlink block.
+time. Corrections go in a new change. Only docket touches them afterwards, and only their
+generated backlink block.
 
 ### Id / slug
 
@@ -372,14 +375,14 @@ hand edit leaves the board stale.
 
 ### Plan
 
-The task-by-task breakdown a build follows, written on the feature branch.
+The task-by-task breakdown a build follows, written on the metadata branch.
 
-**Used for:** routing each task to a build tier. The plan file lives on the feature branch; the
-`plan:` field is attached on the metadata branch. A merged plan is a frozen build record — never
-hand-edited afterwards.
+**Used for:** routing each task to a build tier. `change attach-plan` writes the plan file with its
+backlink and sets the `plan:` field in one metadata commit; a re-plan replaces the content. A
+closed-out plan is a frozen build record — never hand-edited afterwards.
 
 ```sh
-docket change attach-plan --id 412 --revision <v> --path docs/superpowers/plans/<file>.md --commit <sha>
+docket change attach-plan --id 412 --revision <v> --path docs/superpowers/plans/<file>.md --markdown <file>
 ```
 
 ### Marker section
@@ -398,11 +401,12 @@ The close-out record of what a build actually did — required for every impleme
 trivial included.
 
 **Used for:** telling the human what to check (`**Human action:**`, `## Outcome`, verification,
-known follow-ups). The file lives in `<results_dir>` on the feature branch; the `results:` field is
-attached on the metadata branch.
+known follow-ups). `change attach-results` writes the file in `<results_dir>` on the metadata
+branch with its backlink and sets the `results:` field; each later checkpoint is one more metadata
+commit that replaces the content, and never moves the feature branch.
 
 ```sh
-docket change attach-results --id 412 --revision <v> --path docs/results/<file>.md --commit <sha>
+docket change attach-results --id 412 --revision <v> --path docs/results/<file>.md --markdown <file>
 ```
 
 ### Results `**Human action:**` line
@@ -418,7 +422,9 @@ assessment is pending; the final results must give a settled answer.
 The design document a change links to, written before building.
 
 **Used for:** giving the build everything it needs to implement without guessing. Stored on the
-metadata branch and linked from the `spec:` field; produced by a brainstorm or by auto-groom.
+metadata branch and linked from the `spec:` field; produced by a brainstorm or by auto-groom. A copy
+is the feature branch's first commit (`workspace commit-spec`), so it merges with the code; after
+the merge, the `## Artifacts` block adds a `Spec (merged)` row linking that copy.
 
 ### Stub
 
@@ -711,13 +717,15 @@ to act on. Neither fails the run, and neither is part of the build gate in your 
 ### Build evidence
 
 The immutable record of a passed [build gate](#build-gate) run, minted by `evidence record` and
-checked by `evidence verify`. It certifies an exact tested commit and lives in the PR body's
-build-evidence block; it is never committed. With `build.gate: off` the record says `skipped`
-(`build-gate-off`). When finalize re-tests a head, `evidence record --owner finalize` records
+checked by `evidence verify`. It certifies an exact tested commit and lives in the change record's
+`## Build evidence` section on the metadata branch, written by `change mark-implemented`,
+`finalize publish`, and `evidence recertify`; the PR body carries none. With `build.gate: off` the
+record says `skipped` (`build-gate-off`). When finalize re-tests a head, `evidence record --owner finalize` records
 `finalize.test_command` instead, and is never `skipped`.
 
 **Used for:** letting review and finalize trust a record rather than a worker's word. Adding a
-commit after the evidence was recorded makes it stale (`evidence-unverified`).
+commit to the feature branch after the evidence was recorded makes it stale
+(`evidence-unverified`); a results checkpoint never does.
 
 ```sh
 docket evidence record    --id 412 --head <sha> --run <run-dir>
@@ -818,14 +826,16 @@ docket change mark-implemented --id 412 --revision <v> --head <sha> --pr <url> -
 
 ### Plan writer
 
-`docket-plan-writer` — the agent implement-next dispatches to invoke the plan skill, commit the
-plan with its backlink on the feature branch, and return `PLAN_PATH=<path>`.
+`docket-plan-writer` — the agent implement-next dispatches to invoke the plan skill, attach the
+plan through `change attach-plan` (which writes it with its backlink on the metadata branch), and
+return `PLAN_PATH=<path>`.
 
 ### PR publish
 
 Creates the change's pull request for a published feature head, or adopts the one that already
-exists. It writes docket's backlink and build-evidence blocks into the body. Before calling GitHub
-it checks that the local head, the remote head, the evidence head, and the requested head all
+exists. It writes docket's backlink block and absolute links to the change's plan and results on
+the metadata branch into the body; the body carries no build evidence. Before calling GitHub it
+checks that the local head, the remote head, the evidence head, and the requested head all
 match.
 
 **Used for:** opening the PR at the end of a build. It never makes a duplicate PR, and your
@@ -850,11 +860,11 @@ docket maintenance preflight --json
 
 The supported fix when a follow-up commit (for example, one answering review feedback) is pushed to
 an `implemented` change's open PR and the build evidence goes stale (`evidence-unverified`). It
-re-runs `build.test_command` at the current published head and replaces only the PR's
-build-evidence block.
+re-runs `build.test_command` at the current published head and replaces the change record's
+`## Build evidence` section.
 
 **Used for:** refreshing the proof without re-entering implement-next. The change stays
-`implemented`, and nothing is committed, pushed, or merged. It needs a clean feature worktree whose
+`implemented`; its only write is that one metadata commit, and nothing is pushed or merged. It needs a clean feature worktree whose
 local, remote, and PR heads all agree. It charges one attempt against `build.max_attempts`.
 
 ```sh
@@ -876,8 +886,8 @@ docket change reconcile --input reconcile.json
 
 ### Run verify
 
-A read-only check of one change's claim-to-implemented postconditions (committed plan and results,
-evidence, PR, status) that reports a closed verdict. The convention calls it **verify-run**. Its
+A read-only check of one change's claim-to-implemented postconditions (plan and results on the
+metadata branch, the record's build evidence, PR, status) that reports a closed verdict. Its
 verdicts are `run-complete`, `run-unclaimed`, `run-incomplete`, `run-halted`, and `run-waiting`, all
 with exit code 0, so key on the verdict, never the exit code.
 
@@ -1322,7 +1332,8 @@ drain **does merge**. Naming ids bounds the run and authorizes merges `require_p
 How finalize validates the rebased branch before merging: it rebases onto the change's effective
 base and re-runs the suite. `finalize.gate` is `local` (rebase, then run `finalize.test_command`
 here; the default) or `off` (skip the rebase and retest and trust the PR's CI). A no-op rebase whose
-build evidence is green for the exact head, with the same command, skips the suite.
+recorded build evidence in the change record is green for the exact head, with the same command,
+skips the suite.
 
 **Used for:** never merging a stale branch untested. It shares the worktree's single
 [worktree lock](#worktree-lock), so it can be refused with `worktree-busy`.
@@ -1330,8 +1341,8 @@ build evidence is green for the exact head, with the same command, skips the sui
 ### Finalize publish
 
 The finalize step that pushes the rebased (or repaired) head to the remote feature branch, using
-the receipt's exact lease. It then updates the PR's build-evidence block to match that head and
-leaves the rest of the PR body byte-identical.
+the receipt's exact lease. It then records that head's build evidence in the change record's
+`## Build evidence` section; the PR body is not touched.
 
 **Used for:** getting the head that finalize retested onto the PR before the merge. It never
 creates a second PR. An `unknown` probe (`rewrite-unknown` / `pr-probe-failed`) stops the run with

@@ -63,7 +63,7 @@ fail-closed operations. In return docket has depth the playbook never mentions.
 
 | Capability | Playbook | docket | Status |
 |---|---|---|---|
-| Plan committed before code | Plan-mode interview; `plan.md` committed. | `docket-plan-writer` authors via the `plan` role, commits on the feature branch with a trailer; the parent verifies from git facts; `change attach-plan` records it. | Both |
+| Plan committed before code | Plan-mode interview; `plan.md` committed. | `docket-plan-writer` authors via the `plan` role and attaches it on the metadata branch through `change attach-plan`; the parent verifies from git facts. | Both |
 | Human approves the plan | The engineer validates before code. | Deliberately absent; the human's checkpoint is the PR. | Playbook only (by design) |
 | Refresh a stale change before planning | Not described. | The reconcile pass after claim, before the worktree: re-reads against related/archived changes, ADRs, and code; rewrites scope; `## Reconcile log`; kills obsolete, halts invalidated. | docket only |
 | Institutional knowledge file | `CLAUDE.md`; mistake twice → into the file. | `AGENTS.md` is the promotion destination for learnings; criterion *will the agent know to search for this?*; human-gated. | Both |
@@ -82,7 +82,7 @@ fail-closed operations. In return docket has depth the playbook never mentions.
 | Capability | Playbook | docket | Status |
 |---|---|---|---|
 | Agent verifies before human review | Tests, builds, screenshots; quantifiable targets. | The build gate runs `build.test_command` once after all tasks; unconfigured halts. | Both |
-| Verification output as proof of done | Output pasted before "complete". | Build-evidence record (command, result, head SHA, time) minted from the run directory, written into the PR body, required by the reviewer, read by finalize. | Both |
+| Verification output as proof of done | Output pasted before "complete". | Build-evidence record (command, result, head SHA, time) minted from the run directory, written into the change record's `## Build evidence` section, required by the reviewer, read by finalize. | Both |
 | Suite outlives one foreground call | Not described. | `docket gate drive` slices; `gate_observation_budget` fails closed; forked children block. | docket only |
 | Red suite repaired in-loop | Implied. | One synthetic integration-repair task, one tier above default. | Both |
 | Block test edits during a fix | A hook forbids editing tests in fix tasks. | Prose contract only. | Playbook only |
@@ -131,8 +131,8 @@ fail-closed operations. In return docket has depth the playbook never mentions.
 |---|---|---|
 | 1 | `intent.md` | Change file on `docket`: frontmatter + Why / What changes / Out of scope / Open questions; board row. |
 | 2 | `spec.md` | Spec file on `docket` with a backlink header; `spec:` and `## Artifacts` on the change; or `trivial: true`. |
-| 3 | `plan.md` + the diff | `## Reconcile log` and `reconciled: true`; plan on the feature branch (frozen once merged); one verified commit per task. |
-| 4 | PR with test results | Build-evidence record in the PR body; results file; review disposition table. |
+| 3 | `plan.md` + the diff | `## Reconcile log` and `reconciled: true`; plan on the metadata branch (frozen once closed out); one verified commit per task. |
+| 4 | PR with test results | Build-evidence record in the change record; results file; review disposition table in the PR body. |
 | 5 | Merged PR / commit | Merge proven reachable; change archived as `archive/<date>-<id>-<slug>.md` with optional `## Closeout notes`; branch and worktree cleaned; board re-rendered. |
 | 6 | Incident record → new `intent.md` | ADRs; learnings findings; discovered work in the run report → human-filed change. Nothing from production. |
 

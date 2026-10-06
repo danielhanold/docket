@@ -41,7 +41,7 @@ is unchanged — it returns the finding list and a one-line verdict, and never f
 Two axes are kept deliberately apart:
 
 - **Character** picks the build tier, using the same routing rubric the build applies to a **plan**
-  (the task-by-task breakdown a build follows, written on the feature branch) task — so a subtle
+  (the task-by-task breakdown a build follows, written on the metadata branch) task — so a subtle
   one-line fix is not handed to a cheap model just for being labelled minor.
 - **Severity** picks only the *failure posture*: a blocker that cannot be fixed halts the run, while an
   important or minor that cannot be fixed falls back to a line in the pull request body. Fix routing
@@ -95,12 +95,12 @@ runs on the branch as it lands, and the reviewer is the human-style reader who t
 instead of re-running it.
 
 That boundary is made durable by the **build evidence** (the immutable record of that gate run,
-carried in the pull request body and read by the reviewer). On green, the gate emits the command it ran, the result, the exact branch head, and
+read by the reviewer and kept in the change record's `## Build evidence` section). On green, the gate emits the command it ran, the result, the exact branch head, and
 a timestamp; the reviewer verifies the record is present, green, and pinned to the exact head it is
 reviewing, and returns an `unverified-build-state` blocker if it is missing, malformed, or stale —
 running the suite itself is never the remedy. When a review-feedback follow-up commit has already
 been pushed to the open PR and only the evidence went stale, `docket evidence recertify --id <id>`
-re-runs the build gate at the new head and refreshes the PR's evidence block in place — no re-entry
+re-runs the build gate at the new head and refreshes the change record's evidence in place — no re-entry
 into implement-next and no merge-time re-gate needed. How that record is minted and carried forward
 is [Proving the build](./proving-the-build.md); the tier ladder and the gate verdict as a
 mechanism are [Build tiers and the suite gate](../concepts/build-tiers-and-gate.md).
