@@ -55,7 +55,7 @@ Once a leak is pushed it cannot be undone, and a rebase-merge would carry it int
 - Delivery is set up once per machine by `docket install`, with no rule text in either surface:
   - **Claude Code:** a user-level `SessionStart` hook loads the private instructions file automatically.
   - **Codex and OpenCode:** a static pointer block in their user-level AGENTS.md.
-  - Both invoke `dckt`, a new alias for the binary that the installer (and therefore `install.sh`) creates beside `docket`. The pointer's markers are `dckt:`, so neither surface contains the word "docket".
+  - Both invoke `dckt`, a new alias for the binary that both installers (the public release downloader and the development installer) create beside `docket`. The pointer's markers are `dckt:`, so neither surface contains the word "docket".
   - **Cursor:** Cursor reads rules only from the project, so a private repository gets `.cursor/rules/dckt-dispatch.mdc`, hidden from git through `.git/info/exclude`. This is the one visible trace in a private repository's working tree, and the human accepted it.
 
 ## Out of scope

@@ -133,11 +133,18 @@ follow it for the rest of the session. If it prints nothing, ignore this section
 
 The managed-block machinery must accept the `dckt` marker prefix for these user-level blocks: install, idempotence, outside-bytes preservation, and ownership-proved removal, with the same guarantees as today's `docket:` blocks.
 
-**The `dckt` alias.**
-- `docket development install`, the Go installer that `install.sh` delegates to, creates `dckt` as a symlink to the installed `docket` binary in the same bin directory (`--bin-dir`, default `XDG_BIN_HOME` or `~/.local/bin`). This happens inside the same journaled install transaction. So `install.sh` installs the alias with no change of its own beyond the header comment listing what an install produces. The bootstrapper does not place binaries itself.
-- A re-install is a no-op. `docket uninstall` removes `dckt` only when it is a symlink resolving to the installed `docket` binary.
-- An existing `dckt` that docket does not own (another tool's binary or link) is **never** overwritten. Install reports it as a finding, and skips the user-level hook and pointer blocks, which depend on the alias. `docket instructions` still works by hand.
-- Invoked as `dckt`, the binary behaves exactly as `docket`. The capability catalog keeps spelling `docket`, and skills keep resolving argv from the catalog, so only the user-level hook and pointer use the alias.
+**The `dckt` alias.** `dckt` is a symlink to the `docket` binary in the same bin directory (`--bin-dir`, default `${XDG_BIN_HOME:-~/.local/bin}`). It is created by **whichever installer places the binary**, so both install paths get it.
+
+| Install path | Who places the binary | Where the alias is added |
+|---|---|---|
+| **Public release install (v1.0 and later; the path users take)** | the release downloader `internal/release/downloader/install.sh`, rendered into every release bundle and published as a release asset | the downloader creates `dckt` beside `$bin_dir/docket` and records it in its ownership record (`release-binary.record`) next to the binary |
+| Development install from a checkout | the Go development installer (`docket development install`), reached through the repository-root `install.sh` bootstrapper | the Go development installer creates it beside the binary, inside the same journaled transaction |
+
+Rules:
+- **The alias follows the binary.** Install creates or refreshes it only when the existing `dckt` is absent or already owned (a symlink resolving to the installed `docket`). `docket uninstall` leaves it in place, exactly as it already leaves the binary itself (`internal/install/uninstall.go`: "The installation's own binary … remain recorded and untouched").
+- **A foreign `dckt`** (another tool's binary or link) is never overwritten, and there is no force path, matching the downloader's existing refusal posture for a binary it does not own. The installer warns and finishes the rest of the install. `docket install check` reports a missing or foreign `dckt` with its remedy. The user-level hook and pointer are installed regardless; without the alias they fail harmlessly, and `docket instructions` still works by hand.
+- **Downloader contract.** The downloader's contract comment lists its runtime dependencies, and its tests (`tests/test_release_downloader.sh`, `tests/test_release_downloader_refusals.sh`, `tests/test_release_downloader_converge.sh`, plus `scripts/release-smoke.sh`) pin its command spellings and PATH sandbox. They must admit the one added POSIX `ln -s` and cover the alias: created, converged on re-run, and refused when foreign.
+- **Invoked as `dckt`, the binary behaves exactly as `docket`.** The capability catalog keeps spelling `docket`, and skills keep resolving argv from the catalog, so only the user-level hook and pointer use the alias.
 
 **Safety requirements for the user-level writes:**
 - The `settings.json` hook entry is identified by its exact command string. Install adds it only when absent and merges without reformatting or dropping any other setting. Uninstall removes only an exact match, and refuses (reporting) on a modified entry.
@@ -156,7 +163,7 @@ Record the results in the results file before building on them.
 
 - `leak_check.match_word` is documented in `.docket.example.yml` and its twin.
 - `docket instructions` is documented in its command help.
-- The `dckt` alias appears in the install summary output and in `install.sh`'s header comment, not in `docs/`.
+- The `dckt` alias appears in both installers' summary output and in the downloader's usage text, not in `docs/`.
 - Skills carry the writing rule, the leak-check halt handling, and the private promotion destination.
 - No `docs/` pages.
 
@@ -183,10 +190,9 @@ Record the results in the results file before building on them.
    - `--hook` emits valid `SessionStart` output in private repositories only.
 10. **User-level surfaces.**
     - `install` adds the `settings.json` hook entry and the two pointer blocks. All three invoke `dckt`, and none contains the word "docket": the pointer blocks' markers are `dckt:` (pinned by a test).
-    - `install.sh` (through the Go installer) creates the `dckt` symlink beside `docket`.
+    - Both the release downloader and the development installer create the `dckt` symlink beside `docket`. A re-run converges, and `uninstall` leaves the alias with the binary.
     - `dckt instructions` and `docket instructions` produce identical output.
-    - `uninstall` removes the alias only with ownership proof.
-    - A foreign pre-existing `dckt` is left untouched, reported, and the hook and pointers are skipped.
+    - A foreign pre-existing `dckt` is left untouched, the install completes with a warning, and `install check` reports it.
     - A second install is a no-op.
     - An unrelated `settings.json` key and hook survive byte-for-byte.
     - `uninstall` removes only docket's exact entries.
