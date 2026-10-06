@@ -174,13 +174,43 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 	if want == "" && !unconfigured && sc.layout.Mode == layout.Private {
 		want = got
 	}
-	if want == "" {
+	createStore := want == ""
+	if createStore {
 		want = lay.DefaultBareRemote
+	}
+	// The default store's name is derived from origin's URL and can collide
+	// across distinct origins, so the store records the origin that created it
+	// and a repository with a different origin refuses before attaching to it.
+	var recordOrigin func() (bool, error)
+	if want == lay.DefaultBareRemote {
+		origin, oerr := d.Git.RemoteURL(ctx, sc.repo, originRemote)
+		if oerr != nil {
+			return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "reading origin's URL", oerr))
+		}
+		record, rerr := checkStoreOrigin(lay.StoreDir, origin)
+		if rerr != nil {
+			return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "reading the metadata store's origin record", rerr))
+		}
+		if record.foreign != "" {
+			return fail(initRefusal(reposetup.StateConflict, fmt.Sprintf(
+				"the metadata store %s belongs to origin %s, not this repository's origin %s (both derive the store name %s); re-run `docket repository init --metadata-remote <url>` with a bare repository of this repository's own",
+				lay.StoreDir, record.foreign, origin, filepath.Base(lay.StoreDir))))
+		}
+		recordOrigin = record.write
+	}
+	if createStore {
 		_, statErr := os.Stat(want)
 		if err := d.Git.InitBare(ctx, want); err != nil {
 			return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "creating the bare metadata store", err))
 		}
 		changed = changed || os.IsNotExist(statErr)
+	}
+	if recordOrigin != nil {
+		wrote, werr := recordOrigin()
+		if werr != nil {
+			return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "recording the metadata store's origin", werr))
+		}
+		changed = changed || wrote
 	}
 
 	// 5. The dckt git remote: added when absent, kept when it already points at
@@ -294,6 +324,69 @@ func ensureExcludeFile(path string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// storeOriginRecordName is the file beside the default store's remote.git that
+// records the origin URL of the repository that created the store.
+const storeOriginRecordName = "origin-url"
+
+// storeOriginCheck is checkStoreOrigin's verdict: foreign names the recorded
+// origin when it is not this repository's, and write records this repository's
+// origin when the store has no record yet.
+type storeOriginCheck struct {
+	foreign string
+	write   func() (bool, error)
+}
+
+// checkStoreOrigin reads the default store's origin record under storeDir. A
+// record naming a different origin is foreign; a matching one needs no write; an
+// absent one (a new store, or one created before the record existed) is adopted
+// and its write records origin once the store directory exists.
+func checkStoreOrigin(storeDir, origin string) (storeOriginCheck, error) {
+	path := filepath.Join(storeDir, storeOriginRecordName)
+	b, err := os.ReadFile(path)
+	switch {
+	case err == nil:
+		if recorded := strings.TrimSpace(string(b)); !sameOrigin(recorded, origin) {
+			return storeOriginCheck{foreign: recorded}, nil
+		}
+		return storeOriginCheck{write: func() (bool, error) { return false, nil }}, nil
+	case !os.IsNotExist(err):
+		return storeOriginCheck{}, err
+	}
+	return storeOriginCheck{write: func() (bool, error) {
+		if _, serr := os.Stat(storeDir); serr != nil {
+			if os.IsNotExist(serr) {
+				return false, nil // no store to record (a flagless re-run whose store is gone)
+			}
+			return false, serr
+		}
+		return true, os.WriteFile(path, []byte(strings.TrimSpace(origin)+"\n"), 0o644)
+	}}, nil
+}
+
+// sameOrigin reports whether two origin URLs name one repository: the
+// transport (scheme), the user, and a trailing "/" or ".git" do not matter;
+// host and path, case included, do.
+func sameOrigin(a, b string) bool { return originIdentity(a) == originIdentity(b) }
+
+// originIdentity reduces an origin URL to host/path ("github.com/acme/app"), or
+// to the cleaned path for a local path.
+func originIdentity(u string) string {
+	s := strings.TrimSuffix(strings.TrimRight(strings.TrimSpace(u), "/"), ".git")
+	if i := strings.Index(s, "://"); i >= 0 {
+		s = s[i+3:]
+	} else if colon := strings.IndexByte(s, ':'); colon > 0 && !strings.ContainsAny(s[:colon], `/\`) {
+		s = s[:colon] + "/" + s[colon+1:] // scp-like host:path
+	} else {
+		return s
+	}
+	if slash := strings.IndexByte(s, '/'); slash >= 0 {
+		if at := strings.LastIndexByte(s[:slash], '@'); at >= 0 {
+			s = s[at+1:]
+		}
+	}
+	return s
 }
 
 // privateConfigSeed is the first content of a new private config file.

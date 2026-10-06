@@ -248,6 +248,80 @@ func TestIntegrationRepoSetupPrivateSecondCloneAdoptsSharedStore(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoSetupPrivateStoreOriginCollisionRefuses proves the default
+// store records the origin that created it and a repository whose distinct
+// origin derives the same <owner>-<repo> store name refuses instead of adopting
+// the other repository's backlog: no dckt remote, no checkout, and the store's
+// branch and record stay untouched.
+func TestIntegrationRepoSetupPrivateStoreOriginCollisionRefuses(t *testing.T) {
+	a, data := newPrivateInitRepo(t, nil)
+	if res := a.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("repo A init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	layA := privateLayoutOf(t, a.invocation, data)
+	recordPath := filepath.Join(layA.StoreDir, storeOriginRecordName)
+	record, err := os.ReadFile(recordPath)
+	if err != nil || strings.TrimSpace(string(record)) != a.origin {
+		t.Fatalf("store origin record = %q (%v), want A's origin %q", record, err, a.origin)
+	}
+	tipA := runGit(t, layA.DefaultBareRemote, "rev-parse", "refs/heads/dckt")
+
+	// Repo B: a different origin whose last two path segments equal A's, so it
+	// derives the same store name — the same owner/repo on another host.
+	b, _ := newPrivateInitRepo(t, nil)
+	t.Setenv("XDG_DATA_HOME", data)
+	collider := filepath.Join(testsupport.TempDir(t), filepath.Base(a.root), "origin.git")
+	runGit(t, b.root, "clone", "-q", "--bare", b.origin, collider)
+	runGit(t, b.invocation, "remote", "set-url", "origin", collider)
+	if layB := privateLayoutOf(t, b.invocation, data); layB.StoreDir != layA.StoreDir {
+		t.Fatalf("fixture: B's store %q does not collide with A's %q", layB.StoreDir, layA.StoreDir)
+	}
+
+	res := b.runInitWith(t, InitOptions{Private: true})
+	if res.Result != ResultInvalidState || res.RepositoryState != string(reposetup.StateConflict) {
+		t.Fatalf("colliding init = %q/%q (%s), want invalid-state/conflict", res.Result, res.RepositoryState, res.HumanText())
+	}
+	text := res.HumanText()
+	if !strings.Contains(text, a.origin) || !strings.Contains(text, collider) || !strings.Contains(text, "--metadata-remote") {
+		t.Errorf("refusal %q must name both origins and the --metadata-remote remedy", text)
+	}
+	if _, err := tryGit(b.invocation, "config", "--get", "remote.dckt.url"); err == nil {
+		t.Error("the colliding repository gained a dckt remote; the refusal must write nothing further")
+	}
+	if wts := runGit(t, b.invocation, "worktree", "list", "--porcelain"); strings.Contains(wts, layA.CheckoutsDir) {
+		t.Errorf("the colliding repository attached a checkout under the shared store:\n%s", wts)
+	}
+	if got := runGit(t, layA.DefaultBareRemote, "rev-parse", "refs/heads/dckt"); got != tipA {
+		t.Errorf("the store's dckt branch moved from %s to %s", tipA, got)
+	}
+	if got, _ := os.ReadFile(recordPath); string(got) != string(record) {
+		t.Errorf("store origin record changed from %q to %q", record, got)
+	}
+}
+
+// TestIntegrationRepoSetupPrivateUnrecordedStoreAdoptsAndRecords proves a store
+// created before the origin record existed is adopted by a matching repository
+// and gains the record.
+func TestIntegrationRepoSetupPrivateUnrecordedStoreAdoptsAndRecords(t *testing.T) {
+	r, data := newPrivateInitRepo(t, nil)
+	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("clone A init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	lay := privateLayoutOf(t, r.invocation, data)
+	recordPath := filepath.Join(lay.StoreDir, storeOriginRecordName)
+	if err := os.Remove(recordPath); err != nil {
+		t.Fatal(err)
+	}
+	b := r.freshClone(t)
+	bRepo := &initRepo{root: r.root, origin: r.origin, writer: r.writer, invocation: b}
+	if res := bRepo.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("clone B init over an unrecorded store = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	if got, err := os.ReadFile(recordPath); err != nil || strings.TrimSpace(string(got)) != r.origin {
+		t.Errorf("store origin record = %q (%v), want it rewritten to %q", got, err, r.origin)
+	}
+}
+
 func TestIntegrationRepoSetupPrivateRemoteURLConflictRefuses(t *testing.T) {
 	r, _ := newPrivateInitRepo(t, nil)
 	elsewhere := filepath.Join(r.root, "elsewhere.git")
