@@ -12,6 +12,11 @@
 #     ever moved into the bin dir or run. Unverified bytes are never executed or installed.
 #   - It keeps its own ownership record and REFUSES to replace a binary it does not own. There is
 #     no --force path.
+#   - It also places dckt, a RELATIVE symlink to docket, beside the binary (ln -s is its one tool
+#     beyond the list above). An absent dckt is created; a dckt already resolving to the binary is
+#     left as is; anything else is left UNTOUCHED with a warning, and the install still succeeds —
+#     the binary install is never failed by the alias. The record gains alias= only when the
+#     alias is in place and ours.
 #   - Exit codes: 0 success; 2 usage error (bad flag / non-absolute bin dir / bad version); 1
 #     every other failure. Every failure prints a one-line actionable diagnostic to stderr.
 set -u
@@ -23,6 +28,7 @@ DOCKET_DEFAULT_VERSION="@DOCKET_DEFAULT_VERSION@"
 
 # --- Diagnostics --------------------------------------------------------------------------------
 die() { printf '%s\n' "install.sh: $1" >&2; exit "${2:-1}"; }
+warn() { printf '%s\n' "install.sh: warning: $1" >&2; }
 
 usage() {
 	printf '%s\n' \
@@ -31,6 +37,8 @@ usage() {
 "Downloads the docket release binary, verifies its SHA-256 against the release" \
 "checksums.txt BEFORE extraction, installs it, and records ownership so a later run" \
 "will only ever replace a binary it installed." \
+"Also places dckt, a symlink to docket, in the same directory, unless a dckt" \
+"it did not create is already there (then it warns and leaves it alone)." \
 "" \
 "  --version <v>     release version to install (default: the stamped bundle version)" \
 "  --bin-dir <dir>   absolute install directory (default: \${XDG_BIN_HOME:-\$HOME/.local/bin})" \
@@ -271,6 +279,23 @@ chmod 755 "$stage" || die "cannot set mode 755 on the staged binary"
 # (3) Only after the asset transaction succeeds, move the staged binary into place.
 mv -f "$stage" "$dest" || die "cannot move the staged binary into $dest"
 
+# (3b) The dckt alias. Identity is decided by -ef (device + inode, every symlink hop followed), never
+# by a link's spelling: the development installer writes an absolute link, this script a relative
+# one, and both are ours. A dangling or foreign link fails -ef and is left alone.
+alias_path="$bin_dir/dckt"
+alias_owned=no
+if [ -L "$alias_path" ] && [ "$alias_path" -ef "$dest" ]; then
+	alias_owned=yes
+elif [ ! -e "$alias_path" ] && [ ! -L "$alias_path" ]; then
+	if ln -s docket "$alias_path"; then
+		alias_owned=yes
+	else
+		warn "could not create the dckt alias at $alias_path; docket is installed, re-run to retry"
+	fi
+else
+	warn "$alias_path exists and is not docket's alias; left untouched. Move or delete it, then re-run to get dckt."
+fi
+
 # (4) Publish the ownership record atomically: write beside it, then mv -f into place.
 record_dir=$(dirname "$record")
 mkdir -p "$record_dir" || die "cannot create state dir $record_dir"
@@ -278,6 +303,7 @@ record_tmp="$record.tmp.$$"
 {
 	printf 'path=%s\n' "$dest"
 	printf 'version=%s\n' "$version"
+	if [ "$alias_owned" = yes ]; then printf 'alias=%s\n' "$alias_path"; fi
 	printf 'sha256=%s\n' "$bin_sha"
 } > "$record_tmp" || { rm -f "$record_tmp"; die "cannot write the ownership record"; }
 mv -f "$record_tmp" "$record" || { rm -f "$record_tmp"; die "cannot publish the ownership record"; }
