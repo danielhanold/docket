@@ -2,7 +2,7 @@
 id: 532
 slug: 'private-visibility-keep-docket-out-of-prs-commits-and-shippe'
 title: 'Implement private visibility for PRs, commits, and shipped files'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/private-visibility-keep-docket-out-of-prs-commits-and-shippe'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-06T15:02:40Z'
 ---
 
 ## Artifacts

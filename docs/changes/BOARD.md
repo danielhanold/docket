@@ -1,13 +1,18 @@
 # Backlog
 
-**535 changes** — 🟣 4 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 371 done · 🗑️ 139 killed
+**535 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 371 done · 🗑️ 139 killed
 
-## 🟣 Groomed (4)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0532](active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | `medium` | `feat` | [spec](../superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md) | `feat/private-visibility-keep-docket-out-of-prs-commits-and-shippe` |  |
+
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0535](active/0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | `medium` | `feat` | [spec](../superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) |
-| [0532](active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | `medium` | `feat` | [spec](../superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
