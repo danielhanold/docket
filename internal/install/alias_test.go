@@ -115,6 +115,26 @@ func TestInspectBinaryAlias(t *testing.T) {
 			t.Fatalf("finding = %+v, err %v; want foreign", f, err)
 		}
 	})
+	// An alias that cannot even be resolved is still somebody else's entry:
+	// a resolution failure is a foreign finding, never a failed probe.
+	t.Run("self-looping link is foreign", func(t *testing.T) {
+		bin, binary := aliasBin(t)
+		if err := os.Symlink(AliasName, filepath.Join(bin, AliasName)); err != nil {
+			t.Fatal(err)
+		}
+		if f, err := InspectBinaryAlias(binary); err != nil || f == nil || f.Kind != AliasForeign {
+			t.Fatalf("finding = %+v, err %v; want foreign", f, err)
+		}
+	})
+	t.Run("link through a regular file is foreign", func(t *testing.T) {
+		bin, binary := aliasBin(t)
+		if err := os.Symlink(filepath.Join(binary, "x"), filepath.Join(bin, AliasName)); err != nil {
+			t.Fatal(err)
+		}
+		if f, err := InspectBinaryAlias(binary); err != nil || f == nil || f.Kind != AliasForeign {
+			t.Fatalf("finding = %+v, err %v; want foreign", f, err)
+		}
+	})
 	t.Run("probe error is an error, not missing", func(t *testing.T) {
 		if runtime.GOOS == "windows" || os.Geteuid() == 0 {
 			t.Skip("permission bits do not deny root")

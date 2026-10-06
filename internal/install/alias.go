@@ -50,8 +50,10 @@ func AliasPathFor(binary string) string {
 // InspectBinaryAlias classifies the alias beside binary. A nil finding means a
 // symlink that resolves — every hop canonicalised — to binary. Absence is
 // AliasMissing; anything else at the path (a link elsewhere, a dangling link,
-// a file, a directory) is AliasForeign. It only reads. An error means the
-// probe itself failed, which is never reported as a clean absence.
+// a file, a directory, a link that cannot even be resolved) is AliasForeign. It
+// only reads. An error means the probe itself failed — the alias path cannot be
+// examined, or the binary's own path cannot be canonicalised — which is never
+// reported as a clean absence.
 func InspectBinaryAlias(binary string) (*AliasFinding, error) {
 	path := AliasPathFor(binary)
 	info, err := os.Lstat(path)
@@ -62,15 +64,14 @@ func InspectBinaryAlias(binary string) (*AliasFinding, error) {
 		return nil, fmt.Errorf("install: inspecting %s: %w", path, err)
 	}
 	if info.Mode()&fs.ModeSymlink != 0 {
-		have, err := linkDestination(path)
-		if err != nil {
-			return nil, err
-		}
 		want, err := canonicalPath(binary)
 		if err != nil {
 			return nil, err
 		}
-		if have == want {
+		// Something is at the path; a link docket cannot resolve (a loop, a
+		// hop through a file, an unreadable directory) is not provably
+		// docket's, so it is foreign rather than a failed probe.
+		if have, err := linkDestination(path); err == nil && have == want {
 			if _, err := os.Stat(path); err == nil {
 				return nil, nil
 			}
@@ -87,14 +88,31 @@ func InspectBinaryAlias(binary string) (*AliasFinding, error) {
 // recorded and that still matches its record. A conflict is reported rather
 // than returned as a refusal: the binary install must never be failed by the
 // alias.
+//
+// Only a failure to examine the alias path, or to canonicalise the binary's
+// own path, is an error. Once something is known to be at the path, any
+// failure resolving or reading it (a looping link, a hop through a file, an
+// unreadable directory or file) is a foreign finding: what docket cannot
+// resolve it cannot prove it owns.
 func planBinaryAlias(binary string, prior *State) (*Target, *AliasFinding, error) {
 	t := Target{Path: AliasPathFor(binary), Kind: KindSymlink, LinkTarget: binary, Role: roleBinaryAlias}
+	foreign := &AliasFinding{Kind: AliasForeign, Path: t.Path, Binary: binary, Remedy: remedyAliasForeign}
+	_, lerr := os.Lstat(t.Path)
+	if lerr != nil && !errors.Is(lerr, fs.ErrNotExist) {
+		return nil, nil, fmt.Errorf("install: inspecting %s: %w", t.Path, lerr)
+	}
+	if _, err := canonicalPath(binary); err != nil {
+		return nil, nil, err
+	}
 	inspection, err := InspectTarget(t, prior, nil)
 	if err != nil {
+		if lerr == nil {
+			return nil, foreign, nil
+		}
 		return nil, nil, err
 	}
 	if inspection.Disposition == DispositionConflict {
-		return nil, &AliasFinding{Kind: AliasForeign, Path: t.Path, Binary: binary, Remedy: remedyAliasForeign}, nil
+		return nil, foreign, nil
 	}
 	return &t, nil, nil
 }

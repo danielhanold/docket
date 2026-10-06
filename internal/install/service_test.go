@@ -1485,6 +1485,19 @@ func TestCheckReportsTheReleaseAlias(t *testing.T) {
 	if out := install.Check(check); out.Err != nil || len(out.AliasFindings) != 0 {
 		t.Fatalf("a healthy release alias: err %v findings %+v", out.Err, out.AliasFindings)
 	}
+
+	// An alias that cannot be resolved is a foreign finding, never a failed
+	// check: the downloader's final `install check` must still exit clean.
+	if err := os.Remove(filepath.Join(bin, install.AliasName)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(install.AliasName, filepath.Join(bin, install.AliasName)); err != nil {
+		t.Fatal(err)
+	}
+	if out := install.Check(check); out.Err != nil || out.Reason != "" ||
+		len(out.AliasFindings) != 1 || out.AliasFindings[0].Kind != install.AliasForeign {
+		t.Fatalf("a self-looping release alias: reason %q err %v findings %+v", out.Reason, out.Err, out.AliasFindings)
+	}
 }
 
 func TestCheckDetectsMissingVersionTree(t *testing.T) {
