@@ -4,7 +4,32 @@ package app
 // tests (change_implemented_test.go, claim_workflow_git_test.go) still use, kept
 // untagged so every build compiles them.
 
-import "fmt"
+import (
+	"fmt"
+	"testing"
+
+	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/repository"
+)
+
+// changeByPath rebuilds the snapshot from corpus and returns the change at path,
+// so a test's golden ties to render.BacklinkContent rather than a hand-copied
+// string.
+func changeByPath(t *testing.T, pin StatusPin, corpus []StatusBlob, path string) domain.Change {
+	t.Helper()
+	inputs, _ := parseCorpus(corpus)
+	build, err := repository.BuildSnapshot(repository.BuildInput{Config: pin.Config.Effective, Documents: inputs})
+	if err != nil {
+		t.Fatalf("build snapshot: %v", err)
+	}
+	for _, c := range build.Snapshot.Changes() {
+		if c.Path() == path {
+			return c
+		}
+	}
+	t.Fatalf("no change at %q in corpus", path)
+	return domain.Change{}
+}
 
 // attachBacklinkBlock renders the docket:backlink block the operation expects at
 // the head of an artifact, targeting change id/title at recPath. It mirrors

@@ -47,7 +47,6 @@ var operationBindings = []OperationBinding{
 	{ID: "adr.reverse", Request: ADRReplaceRequest{}, Result: ADRResult{}},                                 // ADRReverse
 	{ID: "adr.supersede", Request: ADRReplaceRequest{}, Result: ADRResult{}},                               // ADRSupersede
 	{ID: "agent.enter", Request: nil, Result: AgentEnterResult{}},                                          // AgentEnter
-	{ID: "artifact.backlink", Request: nil, Result: ArtifactBacklinkResult{}},                              // ArtifactBacklink
 	{ID: "capabilities", Request: nil, Result: CapabilitiesResult{}},                                       // Capabilities
 	{ID: "change.attach-plan", Request: nil, Result: ChangeAttachResult{}},                                 // ChangeAttachPlan
 	{ID: "change.attach-results", Request: nil, Result: ChangeAttachResult{}},                              // ChangeAttachResults

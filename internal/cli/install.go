@@ -56,8 +56,6 @@ var assetIndependent = map[string]bool{
 	"context":                 true, // the group itself; it reports a missing command
 	"context implementation":  true,
 	"context finalize":        true,
-	"artifact":                true, // the group itself; it reports a missing command
-	"artifact backlink":       true,
 	"workspace":               true, // the group itself; it reports a missing command
 	"workspace prepare":       true,
 	"workspace commit-spec":   true,

@@ -58,6 +58,16 @@ const (
 	attachKindResults = "results"
 )
 
+// backlinkBlockName and backlinkBlockAnnotation are the docket:backlink managed
+// block's marker identity, shared by every writer of an artifact's or PR body's
+// backlink (attach, groom, kill, close-out, PR publish, the spec copy). They
+// mirror render.BacklinkContent's marker spelling exactly, so an inserted block
+// round-trips through render on the next write and the write is idempotent.
+const (
+	backlinkBlockName       = "backlink"
+	backlinkBlockAnnotation = "generated — do not hand-edit"
+)
+
 // plansPlanningRoot is the allowed repository-relative directory a plan artifact
 // lives under. It is the superpowers plan-writer convention (agents/
 // docket-plan-writer.md), not a configured field; the results root IS configured

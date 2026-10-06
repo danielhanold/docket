@@ -405,7 +405,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	// operation, and assigns the outcome to the shared result for the presenter.
 	changeCmd := newChangeCommand(func(r app.OperationResult) { result = r })
 	contextCmd := newContextCommand(func(r app.OperationResult) { result = r })
-	artifactCmd := newArtifactCommand(func(r app.OperationResult) { result = r })
 	workspaceCmd := newWorkspaceCommand(func(r app.OperationResult) { result = r })
 	evidenceCmd := newEvidenceCommand(func(r app.OperationResult) { result = r })
 	prCmd := newPRCommand(func(r app.OperationResult) { result = r })
@@ -421,7 +420,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	installCmd.AddCommand(installCheckCmd, installCollectCmd)
 	developmentCmd.AddCommand(developmentInstallCmd, developmentTestCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(capabilitiesCmd, schemaCmd, versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, agentCmd, diagnosticCmd, installCmd, uninstallCmd, developmentCmd)
+	root.AddCommand(capabilitiesCmd, schemaCmd, versionCmd, statusCmd, changeCmd, contextCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, agentCmd, diagnosticCmd, installCmd, uninstallCmd, developmentCmd)
 	root.AddCommand(extra...)
 
 	// The asset-dependence guard. Commands that do not read installed assets
