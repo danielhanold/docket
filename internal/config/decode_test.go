@@ -89,6 +89,8 @@ func decodeAcceptanceCases() []decodeCase {
 			block: "reclaim:\n  lease_ttl: 24\n", flow: "reclaim: {lease_ttl: 24}\n", value: 24},
 		{row: "reclaim.auto", path: "reclaim.auto",
 			block: "reclaim:\n  auto: true\n", flow: "reclaim: {auto: true}\n", value: true},
+		{row: "leak_check.match_word", path: "leak_check.match_word",
+			block: "leak_check:\n  match_word: false\n", flow: "leak_check: {match_word: false}\n", value: false},
 
 		{row: "build.checkpoint", path: "build.checkpoint",
 			block: "build:\n  checkpoint: true\n", flow: "build: {checkpoint: true}\n", value: true},

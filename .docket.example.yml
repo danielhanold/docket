@@ -161,6 +161,18 @@ reclaim:
   auto: false
 
 
+# ═══ leak_check — keeping docket out of a private repository's shared surfaces ═══════════
+
+leak_check:
+  # match_word — true (default): in a private repository, a push or pull request whose commits,
+  # added lines, added paths, or PR text contain the bare word "docket" is refused. false: let
+  # the bare word through, for a codebase where it is an ordinary word (court or shipping
+  # dockets); markers, trailers, `.docket` paths, `dckt`, and change ids are still refused.
+  # A shared repository never runs the check.
+  # scope: any layer
+  match_word: true
+
+
 # ═══ learnings — the learnings ledger ═════════════════════════════════════════════════════
 
 learnings:

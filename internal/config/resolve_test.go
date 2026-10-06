@@ -90,6 +90,8 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 		return eff.Reclaim.LeaseTTL.Value, eff.Reclaim.LeaseTTL.Provenance, eff.Reclaim.LeaseTTL.Explicit
 	case "reclaim.auto":
 		return eff.Reclaim.Auto.Value, eff.Reclaim.Auto.Provenance, eff.Reclaim.Auto.Explicit
+	case "leak_check.match_word":
+		return eff.LeakCheck.MatchWord.Value, eff.LeakCheck.MatchWord.Provenance, eff.LeakCheck.MatchWord.Explicit
 	case "review.min_fix_severity":
 		return eff.Review.MinFixSeverity.Value, eff.Review.MinFixSeverity.Provenance, eff.Review.MinFixSeverity.Explicit
 	case "review.max_fix_tasks":

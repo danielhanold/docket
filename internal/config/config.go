@@ -129,6 +129,7 @@ type Effective struct {
 	Run               Run             `json:"run"`
 	Learnings         Learnings       `json:"learnings"`
 	Reclaim           Reclaim         `json:"reclaim"`
+	LeakCheck         LeakCheck       `json:"leak_check"`
 	Review            Review          `json:"review"`
 	GateObservation   Value[int]      `json:"gate_observation_budget"` // minutes
 	BoardSurfaces     Value[[]string] `json:"board_surfaces"`
@@ -185,6 +186,10 @@ type Learnings struct {
 type Reclaim struct {
 	LeaseTTL Value[int]  `json:"lease_ttl"` // hours
 	Auto     Value[bool] `json:"auto"`
+}
+
+type LeakCheck struct {
+	MatchWord Value[bool] `json:"match_word"`
 }
 
 type Review struct {

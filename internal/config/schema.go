@@ -284,6 +284,11 @@ func buildRegistry() []pathSpec {
 		{path: "reclaim.auto", kind: kindBool, def: false,
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
 
+		// leak_check: whether the private-repository leak check matches the bare
+		// word "docket". A shared repository never runs the check.
+		{path: "leak_check.match_word", kind: kindBool, def: true,
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
+
 		// 15: build. The build role's own gate policy (change 0374): build.gate
 		// and build.test_command resolve independently of the finalize pair.
 		{path: "build.checkpoint", kind: kindBool, def: false,
