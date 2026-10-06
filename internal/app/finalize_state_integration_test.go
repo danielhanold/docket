@@ -149,8 +149,9 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 			// Full-condition success removes the marker.
 			t.Run("all-hold-clears", func(t *testing.T) {
 				f := setupBlockedFixture(t, m)
+				f.seedGreenRecordEvidence(t, f.head)
 				gh := &fakeBlockGitHub{repo: retargetRepo(),
-					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
+					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, prBodyNoEvidence)}}}
 				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
 					ClearBlockRequest{ID: f.id, Revision: f.revision, Head: f.head, PRNumber: 1})
 				if got.Result != ResultApplied || got.Disposition != BlockDispCleared {
@@ -165,8 +166,9 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 			// Wrong expected head: refuse, marker stays.
 			t.Run("head-mismatch-refuses", func(t *testing.T) {
 				f := setupBlockedFixture(t, m)
+				f.seedGreenRecordEvidence(t, f.head)
 				gh := &fakeBlockGitHub{repo: retargetRepo(),
-					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
+					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, prBodyNoEvidence)}}}
 				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
 					ClearBlockRequest{ID: f.id, Revision: f.revision, Head: strings.Repeat("b", 40), PRNumber: 1})
 				if got.Reason != ReasonClearHeadMismatch {
@@ -189,11 +191,25 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 				}
 			})
 
-			// Stale (non-green-for-head) evidence with the gate on: refuse.
+			// Stale (non-green-for-head) record evidence with the gate on: refuse.
 			t.Run("stale-evidence-refuses", func(t *testing.T) {
 				f := setupBlockedFixture(t, m)
+				f.seedGreenRecordEvidence(t, f.baseTip) // green, but for another head
 				gh := &fakeBlockGitHub{repo: retargetRepo(),
-					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, "")}}}
+					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, prBodyNoEvidence)}}}
+				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
+					ClearBlockRequest{ID: f.id, Revision: f.revision, Head: f.head, PRNumber: 1})
+				if got.Reason != ReasonClearEvidenceUnverified {
+					t.Fatalf("reason=%q, want %q", got.Reason, ReasonClearEvidenceUnverified)
+				}
+			})
+
+			// Green evidence only in the PR description, none in the record: refuse
+			// (no compatibility read of PR-body evidence).
+			t.Run("pr-body-evidence-only-refuses", func(t *testing.T) {
+				f := setupBlockedFixture(t, m)
+				gh := &fakeBlockGitHub{repo: retargetRepo(),
+					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
 				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
 					ClearBlockRequest{ID: f.id, Revision: f.revision, Head: f.head, PRNumber: 1})
 				if got.Reason != ReasonClearEvidenceUnverified {
@@ -887,11 +903,12 @@ func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
 
 	// 3. Clear-block on a record with NO marker: a real no-op once the four
 	//    removal conditions hold (exact head, published remote ref at head, one
-	//    matching open PR, green body evidence).
+	//    matching open PR, green record evidence).
 	t.Run("absent-marker-clear-block-is-a-no-op", func(t *testing.T) {
 		f := setupRebaseFixtureStatus(t, m, "in-progress")
+		f.seedGreenRecordEvidence(t, f.head)
 		gh := &fakeBlockGitHub{repo: retargetRepo(),
-			openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
+			openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, prBodyNoEvidence)}}}
 		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}
 		before := originTip(t, f.repo.origin, f.branch)
 		got := FinalizeClearBlock(context.Background(), deps, f.repo.invocation,

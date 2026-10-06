@@ -174,7 +174,8 @@ func TestIntegrationFinalizeRebaseGateOutcomes(t *testing.T) {
 
 	t.Run("skip-on-noop-exact-green", func(t *testing.T) {
 		f := setupRebaseFixture(t, main) // base unmoved: the rebase is a no-op.
-		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))}}
+		f.seedGreenRecordEvidence(t, f.head)
+		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, prBodyNoEvidence)}}
 		gate := &fakeGate{}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
 			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
@@ -188,6 +189,33 @@ func TestIntegrationFinalizeRebaseGateOutcomes(t *testing.T) {
 			t.Errorf("skip permit = %q, want the exact evidence head %q", res.Gate.Permit, f.head)
 		}
 	})
+
+	// The skip reads the change record only: a no-op whose green exact-head
+	// evidence sits solely in the PR description, or whose record evidence
+	// certifies another head, runs the suite.
+	for _, tc := range []struct {
+		name string
+		seed func(f *rebaseFixture)
+		body func(f *rebaseFixture) string
+	}{
+		{"noop-pr-body-evidence-only-runs", func(*rebaseFixture) {}, func(f *rebaseFixture) string { return greenEvidenceFor(t, f.head) }},
+		{"noop-stale-record-evidence-runs", func(f *rebaseFixture) { f.seedGreenRecordEvidence(t, f.baseTip) }, func(*rebaseFixture) string { return prBodyNoEvidence }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := setupRebaseFixture(t, main) // base unmoved: the rebase is a no-op.
+			tc.seed(f)
+			gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, tc.body(f))}}
+			gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
+			res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
+				FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
+			if res.Gate == nil || res.Gate.Compose != gateComposeRan {
+				t.Fatalf("noop without exact-head record evidence = disp %q gate %+v (reason %q), want the suite run", res.Disposition, res.Gate, res.Reason)
+			}
+			if gate.calls != 1 {
+				t.Errorf("the suite ran %d time(s); want 1", gate.calls)
+			}
+		})
+	}
 
 	t.Run("passed-produces-evidence", func(t *testing.T) {
 		f := setupRebaseFixture(t, main)
@@ -463,7 +491,7 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 
 	t.Run("recorded-live-continuation-overrides-the-evidence-skip", func(t *testing.T) {
 		// A pair recorded by a WAITING slice means a drive is LIVE for this
-		// attempt; goal 3 forbids leaving it dangling. Even if the PR body now
+		// attempt; goal 3 forbids leaving it dangling. Even if the change record now
 		// carries exact-head green evidence (which would skip on a first call),
 		// the re-entry must ADVANCE the recorded drive, not skip past it —
 		// otherwise the pair encodes a state nothing transitions out of
@@ -475,15 +503,16 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 			{Outcome: FinalizeGateWaiting, Continuation: cont},
 			{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"},
 		}}
-		// First call: no PR evidence -> the suite runs -> WAITING records the pair.
+		// First call: no record evidence -> the suite runs -> WAITING records the pair.
 		ghNone := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		req := FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head}
 		ctx := context.Background()
 		if r := FinalizeRebase(ctx, f.finalizeDeps(ghNone, gate), f.repo.invocation, req); r.Disposition != RebaseDispWaiting {
 			t.Fatalf("first = %q, want waiting", r.Disposition)
 		}
-		// Second call: the PR body NOW carries exact-head green evidence.
-		ghGreen := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))}}
+		// Second call: the change record NOW carries exact-head green evidence.
+		req.Revision = f.seedGreenRecordEvidence(t, f.head)
+		ghGreen := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, prBodyNoEvidence)}}
 		second := FinalizeRebase(ctx, f.finalizeDeps(ghGreen, gate), f.repo.invocation, req)
 		if second.Gate == nil || second.Gate.Compose != "ran" {
 			t.Fatalf("re-entry with a recorded live drive skipped: gate %+v", second.Gate)
@@ -1046,7 +1075,7 @@ func TestIntegrationFinalizeRebaseGatePassedRecordsPublishCheckpoint(t *testing.
 	t.Run("noop-rebase-records-nothing", func(t *testing.T) {
 		f := setupRebaseFixture(t, main)
 		// No advanceBase: the feature already sits on the base; the gate still runs
-		// (no PR evidence waives it) but the pass is for a no-op rebase.
+		// (no record evidence waives it) but the pass is for a no-op rebase.
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		gate := &headEvidenceGate{t: t}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
@@ -1347,9 +1376,10 @@ func TestIntegrationFinalizeRebaseRecoveryCarryPreservation(t *testing.T) {
 		// The child's merge-result is an ancestor of the feature head (a real object
 		// preserved by ancestry), so the proof passes and the operation proceeds to a
 		// normal rebase outcome — never a carry refusal.
+		f.seedGreenRecordEvidence(t, f.head)
 		gh := &fakeRebaseCarryGitHub{
 			repo:   retargetRepo(),
-			prs:    []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))},
+			prs:    []githubcli.PullRequest{f.prForHead(f.head, prBodyNoEvidence)},
 			merged: map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", f.baseTip)}},
 		}
 		res := FinalizeRebase(ctx, f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
@@ -1428,13 +1458,14 @@ func TestIntegrationFinalizeRebaseRecoveryCarryPreservation(t *testing.T) {
 		if err := f.svc.WriteRebaseReceipt(ctx, f.metaDir, rec); err != nil {
 			t.Fatalf("write receipt: %v", err)
 		}
-		// Exact-head GREEN evidence on the PR body would otherwise skip the local
-		// suite; the carry proof runs before and independently of that decision, so
-		// the refusal is the carry reason, never a skipped success.
+		// Exact-head GREEN evidence in the change record would otherwise skip the
+		// local suite; the carry proof runs before and independently of that
+		// decision, so the refusal is the carry reason, never a skipped success.
+		f.seedGreenRecordEvidence(t, f.head)
 		gate := &fakeGate{}
 		gh := &fakeRebaseCarryGitHub{
 			repo:   retargetRepo(),
-			prs:    []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))},
+			prs:    []githubcli.PullRequest{f.prForHead(f.head, prBodyNoEvidence)},
 			merged: map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}},
 		}
 		res := FinalizeRebase(ctx, f.finalizeDeps(gh, gate), f.repo.invocation,
@@ -1553,34 +1584,35 @@ func TestIntegrationFinalizeRebaseRecoveryPreStartResumeForeignHeadRetained(t *t
 
 // TestIntegrationFinalizeRebaseRecoveryNoEvidenceSkip proves receipt-based
 // completion recovery with no valid checkpoint runs the gate (spec §4): a fresh
-// invocation may skip on exact-head green PR evidence (existing behavior), but a
+// invocation may skip on exact-head green record evidence (existing behavior), but a
 // REPLAY after response loss must run the gate because a receipt now exists and no
 // checkpoint was recorded.
 func TestIntegrationFinalizeRebaseRecoveryNoEvidenceSkip(t *testing.T) {
 	requireRealGit(t)
 	f := setupRebaseFixture(t, planRepoModes()[0])
-	// Base NOT advanced: a fresh call is a mechanical no-op whose PR body carries
-	// green evidence for the exact current head and command.
-	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))}}
+	// Base NOT advanced: a fresh call is a mechanical no-op whose change record
+	// carries green evidence for the exact current head and command.
+	f.seedGreenRecordEvidence(t, f.head)
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, prBodyNoEvidence)}}
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
 	deps := f.finalizeDeps(gh, gate)
 
 	first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
 		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if first.Gate == nil || first.Gate.Compose != gateComposeSkipped {
-		t.Fatalf("first call = %+v, want a fresh skip on exact-head green PR evidence", first.Gate)
+		t.Fatalf("first call = %+v, want a fresh skip on exact-head green record evidence", first.Gate)
 	}
 	if gate.calls != 0 {
 		t.Fatalf("the suite ran on the fresh no-op skip; want 0 calls, got %d", gate.calls)
 	}
 
 	// Replay after a lost response: a receipt now exists and no checkpoint was
-	// recorded, so recovery must RUN the gate — PR-body evidence cannot bypass the
+	// recorded, so recovery must RUN the gate — record evidence cannot bypass the
 	// retest on recovery.
 	second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
 		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if second.Gate == nil || second.Gate.Compose != gateComposeRan {
-		t.Fatalf("replay recovery = %+v, want compose ran (no PR-evidence skip on recovery)", second.Gate)
+		t.Fatalf("replay recovery = %+v, want compose ran (no record-evidence skip on recovery)", second.Gate)
 	}
 	if gate.calls != 1 {
 		t.Errorf("recovery ran the gate %d time(s); want exactly 1", gate.calls)
@@ -1981,7 +2013,7 @@ func TestIntegrationFinalizeRebaseForwardRefreshInterruptions(t *testing.T) {
 // acceptance 5 and spec §4: when the effective base advances to a commit the
 // completed rewrite ALREADY contains, the forward refresh is a mechanically
 // unchanged rebase (Git rewrites nothing), yet the full suite still re-runs on
-// the refreshed head and records a checkpoint against the NEW base — PR-body
+// the refreshed head and records a checkpoint against the NEW base — record
 // evidence never waives that retest. A response-lost replay then reuses the
 // freshly recorded checkpoint instead of re-running: change 0438 opened the
 // checkpoint-reuse gate to the mechanically unchanged refresh (a valid
@@ -1991,10 +2023,11 @@ func TestIntegrationFinalizeRebaseForwardRefreshUnchangedRetests(t *testing.T) {
 	requireRealGit(t)
 	f := setupRebaseFixture(t, planRepoModes()[0])
 	f.advanceBase(t) // origin/main -> B1, off the feature base
-	// The PR carries green PR-body evidence for the feature head — the kind of
+	// The change record carries green evidence for the feature head — the kind of
 	// record that waives the suite on the FRESH no-op path — so the refresh's
 	// forced retest is proven never to be waived by it.
-	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))}}
+	f.seedGreenRecordEvidence(t, f.head)
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, prBodyNoEvidence)}}
 	gate := &headEvidenceGate{t: t}
 	deps := f.finalizeDeps(gh, gate)
 
@@ -2014,8 +2047,8 @@ func TestIntegrationFinalizeRebaseForwardRefreshUnchangedRetests(t *testing.T) {
 
 	// Second finalize.rebase: the base moved, so this forward-refreshes. Git rewrites
 	// nothing (the head is already based on the new base), but the suite STILL runs
-	// (spec §4) and records a checkpoint against the new base — even though the PR
-	// body carries green evidence.
+	// (spec §4) and records a checkpoint against the new base — even though the
+	// change record carries green evidence.
 	second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
 		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
@@ -2025,7 +2058,7 @@ func TestIntegrationFinalizeRebaseForwardRefreshUnchangedRetests(t *testing.T) {
 		t.Fatalf("refresh gate = %+v, want compose ran (a base refresh always retests, even mechanically unchanged)", second.Gate)
 	}
 	if gate.calls != 2 {
-		t.Fatalf("gate calls after the refresh = %d, want 2 (the refresh re-ran the suite despite PR-body evidence)", gate.calls)
+		t.Fatalf("gate calls after the refresh = %d, want 2 (the refresh re-ran the suite despite record evidence)", gate.calls)
 	}
 	if f.localHead() != rewritten {
 		t.Fatalf("the mechanically-unchanged refresh moved the head: %q -> %q", rewritten, f.localHead())
@@ -2484,7 +2517,7 @@ func TestIntegrationFinalizeRebasePublishedRefreshInterruption(t *testing.T) {
 			out.Disposition, out.Attempt, out.Reason, crashed.Attempt)
 	}
 	if out.Gate == nil || out.Gate.Compose != gateComposeRan {
-		t.Fatalf("gate = %+v, want compose ran (recovery never skips on PR evidence)", out.Gate)
+		t.Fatalf("gate = %+v, want compose ran (recovery never skips on record evidence)", out.Gate)
 	}
 	callsAfter := gate.calls
 	// Valid replay of the identical invocation: the completed rewrite's fresh

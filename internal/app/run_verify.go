@@ -77,8 +77,9 @@ const (
 	// ReasonRunRemoteHeadMismatch: the remote feature ref is absent or names a
 	// commit other than the current local feature head.
 	ReasonRunRemoteHeadMismatch = "remote-head-mismatch"
-	// ReasonRunEvidenceUnverified: the durable build evidence (the PR body) does not
-	// verify against the current feature head — missing, malformed, or stale.
+	// ReasonRunEvidenceUnverified: the durable build evidence (the change record's
+	// ## Build evidence section) does not verify against the current feature head —
+	// missing, malformed, or stale.
 	ReasonRunEvidenceUnverified = "evidence-unverified"
 	// ReasonRunPRUnverified: there is not exactly one open PR for the feature branch
 	// naming the current head, targeting the resolved base, and equal to the
@@ -302,6 +303,15 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	}
 
 	recordedPR := strings.TrimSpace(c.PR().Value)
+	// The record's bytes from this one corpus read carry the durable build
+	// evidence verified against the feature head below.
+	var record []byte
+	for _, b := range blobs {
+		if b.Path == c.Path() {
+			record = b.Data
+			break
+		}
+	}
 	var unmet []RunVerifyCondition
 	add := func(reason, observed string) {
 		unmet = append(unmet, RunVerifyCondition{Reason: reason, Observed: observed})
@@ -401,9 +411,8 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		add(ReasonRunRemoteHeadMismatch, string(rref.Commit))
 	}
 
-	// PR identity and evidence: exactly one open PR for the feature branch, naming
-	// the head, targeting the base, and naming the recorded PR number; the PR body
-	// is the durable evidence store, verified against the head.
+	// PR identity: exactly one open PR for the feature branch, naming the head,
+	// targeting the base, and naming the recorded PR number.
 	ghRepo, err := gdeps.Service.DiscoverRepository(ctx, repoDir)
 	if err != nil {
 		return runOperationalRefusal(ResultExternalFailed, ReasonRunRepoUnresolved, err.Error(), req.ID)
@@ -414,7 +423,6 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	}
 	if len(prs) != 1 {
 		add(ReasonRunPRUnverified, fmt.Sprintf("%d open pull requests for the feature branch", len(prs)))
-		add(ReasonRunEvidenceUnverified, "no unique pull-request body to read evidence from")
 	} else {
 		pr := prs[0]
 		// Identity is by parsed PR number within the already-resolved repository
@@ -431,9 +439,12 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		case !recordedOK || recordedNum != pr.Number:
 			add(ReasonRunPRUnverified, "the open PR is not the one recorded on the change")
 		}
-		if v := evidence.Verify([]byte(pr.Body), head); v != evidence.VerdictVerified && v != evidence.VerdictSkipped {
-			add(ReasonRunEvidenceUnverified, string(v))
-		}
+	}
+
+	// Evidence: the change record's build-evidence section, verified against the
+	// head once, independent of the pull-request probe.
+	if v := VerifyRecordEvidence(record, head); v != evidence.VerdictVerified && v != evidence.VerdictSkipped {
+		add(ReasonRunEvidenceUnverified, string(v))
 	}
 
 	// Completed-run postconditions take precedence over a stale local handoff: a

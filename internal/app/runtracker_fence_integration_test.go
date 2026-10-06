@@ -398,8 +398,8 @@ func TestIntegrationRunFenceFreshRunClaimBindsRunWorktreeSoFenceActs(t *testing.
 func TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsRunWorktreeSoFenceActs(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	repo := f.repo.invocation
 	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
@@ -499,8 +499,8 @@ func TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsRunWorktreeSoFenceAct
 func TestIntegrationRunFenceVerdictSoleProofAdoptionBindsRunWorktreeSoFenceActs(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	repo := f.repo.invocation
 	key := runTrackerMintStarted(t, repo, nil, 1, "ha")

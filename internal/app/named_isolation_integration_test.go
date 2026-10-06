@@ -376,7 +376,8 @@ func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 				block.Result, block.Disposition, block.Reason, block.Message, block.Findings)
 		}
 
-		pr := f.prForHead(f.head, greenEvidenceFor(t, f.head))
+		f.seedGreenRecordEvidence(t, f.head)
+		pr := f.prForHead(f.head, prBodyNoEvidence)
 		pr.Number = closeoutPR
 		clearGH := &fakeBlockGitHub{repo: retargetRepo(), openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {pr}}}
 		clear := FinalizeClearBlock(ctx, FinalizeDeps{Planning: f.deps, GitHub: clearGH, Workspace: f.svc}, f.repo.invocation, ClearBlockRequest{
@@ -506,9 +507,9 @@ func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 		mainTip := originTip(t, f.repo.origin, "main")
 
 		// Every other merge condition holds: the one open canonical PR at the
-		// exact head, targeting main, carrying green evidence — so only the
+		// exact head, targeting main, and green record evidence — so only the
 		// relevant-validation guard stands between B and the GitHub merge.
-		pr := f.prForHead(f.head, greenEvidenceFor(t, f.head))
+		pr := f.prForHead(f.head, prBodyNoEvidence)
 		pr.Number = closeoutPR
 		gh := &fakeMergeGitHub{
 			repo:         retargetRepo(),

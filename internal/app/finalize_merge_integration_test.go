@@ -217,7 +217,7 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
 		gh.openByHead["feat/"+f.slug] = []githubcli.PullRequest{func() githubcli.PullRequest {
-			pr := f.parentPR(f.head, greenEvidenceFor(t, f.head))
+			pr := f.parentPR(f.head, prBodyNoEvidence)
 			pr.Number = 9 // not the canonical #7
 			return pr
 		}()}
@@ -256,7 +256,28 @@ func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 		t.Parallel()
 		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
-		gh.openByHead["feat/"+f.slug][0].Body = "" // no green evidence; gate is local
+		f.clearEvidence(t) // the record carries no build evidence; gate is local
+		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		assertMergeRefusal(t, res, gh, "gate-unsatisfied")
+	})
+
+	t.Run("gate-stale-record-evidence", func(t *testing.T) {
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
+		gh := f.baselineFake(t)
+		f.seedGreenEvidence(t, f.baseTip) // green, but for a head other than the PR head
+		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		assertMergeRefusal(t, res, gh, "gate-unsatisfied")
+	})
+
+	// No compatibility read of PR-body evidence: a green block for the exact head
+	// in the PR description, with no record section, leaves the gate unsatisfied.
+	t.Run("gate-evidence-only-in-pr-body", func(t *testing.T) {
+		t.Parallel()
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
+		gh := f.baselineFake(t)
+		f.clearEvidence(t)
+		gh.openByHead["feat/"+f.slug][0].Body = greenEvidenceFor(t, f.head)
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
 		assertMergeRefusal(t, res, gh, "gate-unsatisfied")
 	})
@@ -390,7 +411,7 @@ func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
 		t.Parallel()
 		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		gh := f.baselineFake(t)
-		gh.openByHead["feat/"+f.slug][0].Body = ""
+		f.clearEvidence(t)
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
 		assertMergeRefusal(t, res, gh, "gate-unsatisfied")
 	})
@@ -624,13 +645,20 @@ func (f *fakeMergeCarryGitHub) FindComment(context.Context, githubcli.Repository
 	panic("FindComment: carry-gated merge must not call this")
 }
 
-// carryFake builds a carry-gated fake whose parent PR (#7) carries prBody (green
-// evidence, or "" when the gate is off) and passes every non-carry condition;
-// tests seed the child #8 reprobe and the merge outcome onto it.
-func (f *mergeFixture) carryFake(prBody string) *fakeMergeCarryGitHub {
+// carryFake builds a carry-gated fake whose parent PR (#7) passes every
+// non-carry condition; tests seed the child #8 reprobe and the merge outcome onto
+// it. green seeds record evidence certifying the current f.head (refreshing
+// f.revision); !green removes it (only gate-off then satisfies the gate).
+func (f *mergeFixture) carryFake(t *testing.T, green bool) *fakeMergeCarryGitHub {
+	t.Helper()
+	if green {
+		f.seedGreenEvidence(t, f.head)
+	} else {
+		f.clearEvidence(t)
+	}
 	return &fakeMergeCarryGitHub{
 		repo:       retargetRepo(),
-		openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.parentPR(f.head, prBody)}},
+		openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.parentPR(f.head, prBodyNoEvidence)}},
 		merged:     map[int]closeoutProbe{},
 	}
 }
@@ -656,7 +684,7 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", dropped); err != nil {
 			t.Fatalf("the child merge object must exist to pin a drop: %v", err)
 		}
-		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh := f.carryFake(t, true)
 		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
 		// A real merge outcome would otherwise land: the witness is that the gate
 		// refuses BEFORE any MergePullRequest, leaving zero merge calls.
@@ -685,7 +713,7 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 		// companion that proves the zero-call assertion above is not vacuous.
 		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		mergeCommit := f.mergeFeatureIntoBase(t)
-		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh := f.carryFake(t, true)
 		gh.mergeOutcome = githubcli.MergeMerged
 		gh.mergeFacts = mergedFactsFor(f.head, "main", mergeCommit)
 		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -703,12 +731,12 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "G\n"})
 		// finalize.gate: off — the gate condition is satisfied by config, not by
-		// green PR evidence, so the merge reaches the proof through the gate-off
+		// green record evidence, so the merge reaches the proof through the gate-off
 		// route. The proof still runs and refuses: gate mode cannot disable it.
 		f.repo.writerAdvance(t, "main", map[string]string{
 			".docket.yml": "integration_branch: main\nbuild:\n  test_command: 'go test ./...'\nfinalize:\n  gate: \"off\"\n  test_command: 'go test ./...'\n",
 		})
-		gh := f.carryFake("") // NO green evidence: only gate-off lets the gate condition pass
+		gh := f.carryFake(t, false) // NO green evidence: only gate-off lets the gate condition pass
 		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
 		gh.mergeOutcome = githubcli.MergeMerged
 		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -727,7 +755,7 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "D\n"})
-		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh := f.carryFake(t, true)
 		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
 		gh.mergeOutcome = githubcli.MergeMerged
 		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -748,7 +776,7 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "H\n"})
-		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh := f.carryFake(t, true)
 		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
 		gh.mergeOutcome = githubcli.MergeMerged
 		other := strings.Repeat("b", 40)
@@ -773,7 +801,7 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 		mergeCommit := f.mergeFeatureIntoBase(t)
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "A\n"})
-		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh := f.carryFake(t, true)
 		gh.merged[7] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "main", mergeCommit)}
 		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
 		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -861,7 +889,7 @@ func TestIntegrationFinalizeMergeCarryTransitive(t *testing.T) {
 		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", bDropped); err != nil {
 			t.Fatalf("the grandchild merge object must exist to pin a drop: %v", err)
 		}
-		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh := f.carryFake(t, true)
 		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", aMerge)}
 		gh.merged[9] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/gadget", bDropped)}
 		gh.mergeOutcome = githubcli.MergeMerged
@@ -902,7 +930,7 @@ func TestIntegrationFinalizeMergeCarryTransitive(t *testing.T) {
 		bMerge := f.commitOntoFeature(t, map[string]string{"gizmo.yaml": "B\n"})
 		f.commitOntoFeature(t, map[string]string{"feature-more.txt": "more\n"}) // both carried commits are now strict ancestors
 		mergeCommit := f.mergeFeatureIntoBase(t)
-		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh := f.carryFake(t, true)
 		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", aMerge)}
 		gh.merged[9] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/gadget", bMerge)}
 		gh.mergeOutcome = githubcli.MergeMerged
@@ -928,7 +956,7 @@ func TestIntegrationFinalizeMergeCarryTransitive(t *testing.T) {
 		seedMergeOpenIntermediate(t, f.rebaseFixture) // id 6 (gadget), in-progress
 		seedMergeCarryGrandchild(t, f.rebaseFixture)  // id 7 (gizmo), stacked-merged into id 6
 		mergeCommit := f.mergeFeatureIntoBase(t)
-		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh := f.carryFake(t, true)
 		// D's PR #9 reprobes merged into C's branch, but D is never reached (C is open),
 		// so its dropped content never gates the merge.
 		gh.merged[9] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/gadget", strings.Repeat("c", 40))}

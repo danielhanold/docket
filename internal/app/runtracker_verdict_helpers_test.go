@@ -124,8 +124,8 @@ func newVerdictCompletionFixture(t *testing.T) verdictCompletionFixture {
 	t.Helper()
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	repo := f.repo.invocation
 	common, err := runTrackerGitCommonDir(repo)

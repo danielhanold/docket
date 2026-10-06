@@ -364,7 +364,7 @@ func TestRaceIntegrationAppConcurrencyPlanningSameEntityRevisionOneAppliesOneCon
 // consuming afterward — double-grants and reddens here.
 func TestRaceIntegrationAppConcurrencyRunVerdictConcurrentRetryGrantsOnce(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
-	ev := string(prEvidenceBytes(t, f.head))
+	ev := prEvidenceBytes(t, f.head)
 	// Resume-verified shape (AttributedID set, no claim binding): ownership resolves
 	// immediately for all concurrent calls, so the only resource they contend on is
 	// the on-disk retry CAS — exactly what this test guards (change 0407). Limit 3
@@ -387,8 +387,8 @@ func TestRaceIntegrationAppConcurrencyRunVerdictConcurrentRetryGrantsOnce(t *tes
 	for i := 0; i < n; i++ {
 		wg.Add(1)
 		deps, wdeps, gdeps := f.deps(
-			rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
-			rvPR(f.head, ev),
+			rvWithEvidence(t, rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug), ev),
+			rvPR(f.head, prBodyNoEvidence),
 		)
 		go func(idx int, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps) {
 			defer wg.Done()

@@ -20,8 +20,8 @@ import (
 func TestIntegrationEvidenceRunVerifyMissingResultsIsUnmetCondition(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, "", rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, "", rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
 	if res.Verdict != VerdictRunIncomplete {
@@ -39,8 +39,8 @@ func TestIntegrationEvidenceRunVerifyMissingResultsIsUnmetCondition(t *testing.T
 func TestIntegrationEvidenceRunVerifyInvalidResultsContentIsUnmetCondition(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsInvalidPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsInvalidPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
 	if res.Verdict != VerdictRunIncomplete {
@@ -68,8 +68,8 @@ func TestIntegrationEvidenceRunVerifyInvalidResultsContentIsUnmetCondition(t *te
 func TestIntegrationEvidenceRunVerifyWaitingSurvivesMissingResults(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvInProgressRecord(rvPlanPath, "", "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvInProgressRecord(rvPlanPath, "", "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	wdeps.Waiting = fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true}
 	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
@@ -79,18 +79,63 @@ func TestIntegrationEvidenceRunVerifyWaitingSurvivesMissingResults(t *testing.T)
 }
 
 // TestIntegrationEvidenceRunVerifyAcceptsSkippedEvidenceAtExactHead: a build.gate: off repository's
-// PR carries a truthful skipped (build-gate-off) block at the exact feature head.
-// run verify's evidence postcondition accepts VerdictSkipped exactly as
-// VerdictVerified, so the run is complete. Mirrors TestIntegrationChangeRuntimeRunVerifyComplete
-// with a skipped PR-body block substituted.
+// change record carries a truthful skipped (build-gate-off) block at the exact
+// feature head. run verify's evidence postcondition accepts VerdictSkipped exactly
+// as VerdictVerified, so the run is complete. Mirrors
+// TestIntegrationChangeRuntimeRunVerifyComplete with a skipped record block substituted.
 func TestIntegrationEvidenceRunVerifyAcceptsSkippedEvidenceAtExactHead(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prSkippedEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prSkippedEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
 	if res.Verdict != VerdictRunComplete {
-		t.Fatalf("verdict = %q, want %q — a skipped PR-body block at the exact head verifies (unmet %v)", res.Verdict, VerdictRunComplete, unmetReasons(res))
+		t.Fatalf("verdict = %q, want %q — a skipped record block at the exact head verifies (unmet %v)", res.Verdict, VerdictRunComplete, unmetReasons(res))
+	}
+}
+
+// TestIntegrationEvidenceRunVerifyEvidenceReadsRecordNotPR: run verify reads the
+// durable build evidence from the change record's "## Build evidence" section
+// only. A green block for the exact head in the PR description, with no record
+// section, is run-incomplete with exactly evidence-unverified — there is no
+// compatibility read of PR-body evidence.
+func TestIntegrationEvidenceRunVerifyEvidenceReadsRecordNotPR(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
+	if res.Verdict != VerdictRunIncomplete {
+		t.Fatalf("verdict = %q, want %q (PR-body evidence must not certify; unmet %v)", res.Verdict, VerdictRunIncomplete, unmetReasons(res))
+	}
+	if got := unmetReasons(res); len(got) != 1 || got[0] != ReasonRunEvidenceUnverified {
+		t.Fatalf("unmet = %v, want exactly [%s]", got, ReasonRunEvidenceUnverified)
+	}
+}
+
+// TestIntegrationEvidenceRunVerifyEvidenceIndependentOfPRCount: with no open PR
+// the record's evidence is still evaluated on its own — a verified record
+// section adds no evidence-unverified condition beside pr-unverified, and a
+// missing one adds exactly one.
+func TestIntegrationEvidenceRunVerifyEvidenceIndependentOfPRCount(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	for _, tc := range []struct {
+		name   string
+		record []byte
+		want   []string
+	}{
+		{"verified record", rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)), []string{ReasonRunPRUnverified}},
+		{"no record evidence", rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), []string{ReasonRunEvidenceUnverified, ReasonRunPRUnverified}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			deps, wdeps, _ := f.deps(tc.record, rvPR(f.head, prBodyNoEvidence))
+			gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo()}}
+			res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
+			if got := unmetReasons(res); strings.Join(got, ",") != strings.Join(tc.want, ",") {
+				t.Fatalf("unmet = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

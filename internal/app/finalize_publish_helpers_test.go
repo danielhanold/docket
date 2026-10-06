@@ -195,6 +195,81 @@ func (f *rebaseFixture) remoteRecordBytes(t *testing.T) string {
 	return body
 }
 
+// writeRemoteRecord replaces the fixture change's record at the metadata remote
+// tip with body (syncing the writer clone to that tip first, so a docket
+// operation's earlier metadata commit never makes the push non-fast-forward)
+// and refreshes f.revision — the blob revision every gated read pins — which it
+// also returns.
+func (f *rebaseFixture) writeRemoteRecord(t *testing.T, body string) string {
+	t.Helper()
+	runGit(t, f.repo.writer, "fetch", "-q", "origin", f.branch)
+	runGit(t, f.repo.writer, "checkout", "-q", "-B", f.branch, "FETCH_HEAD")
+	f.repo.writerAdvance(t, f.branch, map[string]string{groomPath(f.id, f.slug): body})
+	f.revision = blobRevisionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+	return f.revision
+}
+
+// seedRecordEvidence makes rec the "## Build evidence" section of the fixture
+// change's record at the metadata remote tip — the durable evidence every
+// finalize gate and run verify reads — and returns the refreshed revision. A
+// record that already carries exactly rec is left untouched.
+func (f *rebaseFixture) seedRecordEvidence(t *testing.T, rec evidence.Record) string {
+	t.Helper()
+	body := f.remoteRecordBytes(t)
+	out, err := UpsertRecordEvidence([]byte(body), rec)
+	if err != nil {
+		t.Fatalf("UpsertRecordEvidence: %v", err)
+	}
+	if string(out) == body {
+		f.revision = blobRevisionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+		return f.revision
+	}
+	return f.writeRemoteRecord(t, string(out))
+}
+
+// seedGreenRecordEvidence seeds green record evidence certifying head
+// (greenEvidenceRecord) and returns the refreshed revision.
+func (f *rebaseFixture) seedGreenRecordEvidence(t *testing.T, head string) string {
+	t.Helper()
+	return f.seedRecordEvidence(t, greenEvidenceRecord(t, head))
+}
+
+// clearRecordEvidence removes the "## Build evidence" section from the fixture
+// change's record at the metadata remote tip and returns the refreshed revision.
+// A record that carries no section is left untouched (its live revision is
+// returned).
+func (f *rebaseFixture) clearRecordEvidence(t *testing.T) string {
+	t.Helper()
+	body := f.remoteRecordBytes(t)
+	if _, present, err := recordEvidenceSection([]byte(body)); err != nil || !present {
+		if err != nil {
+			t.Fatalf("record evidence section: %v", err)
+		}
+		f.revision = blobRevisionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+		return f.revision
+	}
+	return f.writeRemoteRecord(t, withoutRecordEvidence(t, body))
+}
+
+// withoutRecordEvidence strips the trailing "## Build evidence" section
+// UpsertRecordEvidence appends. It fails the test when the section is absent or
+// is followed by another H2, so a fixture never silently keeps the evidence.
+func withoutRecordEvidence(t *testing.T, record string) string {
+	t.Helper()
+	i := strings.Index(record, "\n"+buildEvidenceHeading+"\n")
+	if i < 0 {
+		t.Fatalf("record carries no %q section to remove:\n%s", buildEvidenceHeading, record)
+	}
+	if strings.Contains(record[i+1+len(buildEvidenceHeading):], "\n## ") {
+		t.Fatalf("the %q section is not the record's last section:\n%s", buildEvidenceHeading, record)
+	}
+	out := record[:i]
+	if !strings.HasSuffix(out, "\n") {
+		out += "\n"
+	}
+	return out
+}
+
 // remoteRecordEvidence reads the "## Build evidence" section of the fixture
 // change's record at the metadata remote tip — the durable evidence home.
 func (f *rebaseFixture) remoteRecordEvidence(t *testing.T) evidence.Record {

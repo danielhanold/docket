@@ -1376,7 +1376,7 @@ func TestIntegrationChangeAuthoringOuterBudgetEndToEnd(t *testing.T) {
 
 			// (3) Drive successive quiescent run-incomplete verdicts (no tracked
 			// drive, so each falls through to the retry CAS).
-			deps, wdeps, gdeps := f.deps(runTrackerIncompleteRecord(), rvPR(f.head, string(prEvidenceBytes(t, f.head))))
+			deps, wdeps, gdeps := f.deps(rvWithEvidence(t, runTrackerIncompleteRecord(), prEvidenceBytes(t, f.head)), rvPR(f.head, prBodyNoEvidence))
 			wdeps.Continuation = &fakeContinuationSeam{candidates: nil}
 
 			for i := 1; i <= tc.wantRetries; i++ {
@@ -3776,8 +3776,8 @@ func TestIntegrationChangeRuntimeRunVerdictObserveHintsMixedVerdicts(t *testing.
 func TestIntegrationChangeRuntimeRunVerdictObserveIncompleteWritesNothing(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		runTrackerIncompleteRecord(),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, runTrackerIncompleteRecord(), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 
 	res := RunVerdictObserve(context.Background(), deps, wdeps, gdeps, f.repo.invocation, []string{"3"})
@@ -3850,8 +3850,8 @@ func TestIntegrationChangeRuntimeRunVerdictObserveSyncFailureUnavailable(t *test
 func TestIntegrationChangeRuntimeRunVerdictRestartDurability(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	// Simulate the starting process: mint and forget (nothing carried in memory). The
 	// resume-verified shape (AttributedID set, no claim binding) is the durable state
@@ -3876,8 +3876,8 @@ func TestIntegrationChangeRuntimeRunVerdictRestartDurability(t *testing.T) {
 func TestIntegrationChangeRuntimeRunVerdictRunComplete(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	key := runTrackerMintAttributed(t, f.repo.invocation, 3)
 
@@ -3926,8 +3926,8 @@ func TestIntegrationChangeRuntimeRunVerdictRunHalted(t *testing.T) {
 func TestIntegrationChangeRuntimeRunVerdictRunIncompleteRetryThenStop(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		runTrackerIncompleteRecord(),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, runTrackerIncompleteRecord(), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	key := runTrackerMintAttributed(t, f.repo.invocation, 3)
 
@@ -4007,8 +4007,8 @@ func TestIntegrationChangeRuntimeRunVerdictRunWaiting(t *testing.T) {
 func TestIntegrationChangeRuntimeRunVerdictTwoKeysIsolated(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	keyA := runTrackerMintAttributed(t, f.repo.invocation, 3)
 	keyB := runTrackerMintAttributed(t, f.repo.invocation, 3)
@@ -4046,8 +4046,8 @@ func TestIntegrationChangeRuntimeRunVerdictUnknownVerdictFailsClosed(t *testing.
 func TestIntegrationChangeRuntimeRunVerifyComplete(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
 	if res.Verdict != VerdictRunComplete {
@@ -4070,8 +4070,8 @@ func TestIntegrationChangeRuntimeRunVerifyComplete(t *testing.T) {
 func TestIntegrationChangeRuntimeRunVerifyCompletePrecedesStaleHandoff(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	wdeps.Waiting = fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true}
 
@@ -4088,7 +4088,7 @@ func TestIntegrationChangeRuntimeRunVerifyCompletePrecedesStaleHandoff(t *testin
 // satisfies all of them.
 func TestIntegrationChangeRuntimeRunVerifyIncompleteEnumeratesConditions(t *testing.T) {
 	pub := newRunVerifyFixture(t, true)
-	ev := string(prEvidenceBytes(t, pub.head))
+	ev := prEvidenceBytes(t, pub.head)
 	recordedPR := rvRecordedPR()
 	ghostPlan := "docs/superpowers/plans/2026-08-17-ghost.md"
 	ghostResults := "docs/changes/results/0003-ghost.md"
@@ -4101,32 +4101,32 @@ func TestIntegrationChangeRuntimeRunVerifyIncompleteEnumeratesConditions(t *test
 	}{
 		{
 			name:   "missing plan link",
-			record: rvRecord("", rvResultsPath, recordedPR, "feat/"+rvSlug),
-			pr:     rvPR(pub.head, ev),
+			record: rvWithEvidence(t, rvRecord("", rvResultsPath, recordedPR, "feat/"+rvSlug), ev),
+			pr:     rvPR(pub.head, prBodyNoEvidence),
 			want:   ReasonRunPlanUnlinked,
 		},
 		{
 			name:   "plan file gone at recorded path",
-			record: rvRecord(ghostPlan, rvResultsPath, recordedPR, "feat/"+rvSlug),
-			pr:     rvPR(pub.head, ev),
+			record: rvWithEvidence(t, rvRecord(ghostPlan, rvResultsPath, recordedPR, "feat/"+rvSlug), ev),
+			pr:     rvPR(pub.head, prBodyNoEvidence),
 			want:   ReasonRunPlanMissing,
 		},
 		{
 			name:   "stale evidence names another head",
-			record: rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/"+rvSlug),
-			pr:     rvPR(pub.head, string(prEvidenceBytes(t, prOtherHead))),
+			record: rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/"+rvSlug), prEvidenceBytes(t, prOtherHead)),
+			pr:     rvPR(pub.head, prBodyNoEvidence),
 			want:   ReasonRunEvidenceUnverified,
 		},
 		{
 			name:   "PR names another head",
-			record: rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/"+rvSlug),
-			pr:     rvPR(prOtherHead, ev),
+			record: rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/"+rvSlug), ev),
+			pr:     rvPR(prOtherHead, prBodyNoEvidence),
 			want:   ReasonRunPRUnverified,
 		},
 		{
 			name:   "results identity broken",
-			record: rvRecord(rvPlanPath, ghostResults, recordedPR, "feat/"+rvSlug),
-			pr:     rvPR(pub.head, ev),
+			record: rvWithEvidence(t, rvRecord(rvPlanPath, ghostResults, recordedPR, "feat/"+rvSlug), ev),
+			pr:     rvPR(pub.head, prBodyNoEvidence),
 			want:   ReasonRunResultsIdentity,
 		},
 		{
@@ -4137,8 +4137,8 @@ func TestIntegrationChangeRuntimeRunVerifyIncompleteEnumeratesConditions(t *test
 			// the branch reconstructed from the slug, the remote probe would find the
 			// published head and this condition would wrongly pass.
 			name:   "recorded branch honored — its remote head is absent",
-			record: rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/other"),
-			pr:     rvPR(pub.head, ev),
+			record: rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/other"), ev),
+			pr:     rvPR(pub.head, prBodyNoEvidence),
 			want:   ReasonRunRemoteHeadMismatch,
 		},
 	}
@@ -4164,8 +4164,8 @@ func TestIntegrationChangeRuntimeRunVerifyIncompleteEnumeratesConditions(t *test
 	t.Run("feature head differs from remote", func(t *testing.T) {
 		unpub := newRunVerifyFixture(t, false)
 		deps, wdeps, gdeps := unpub.deps(
-			rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/"+rvSlug),
-			rvPR(unpub.head, string(prEvidenceBytes(t, unpub.head))),
+			rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/"+rvSlug), prEvidenceBytes(t, unpub.head)),
+			rvPR(unpub.head, prBodyNoEvidence),
 		)
 		res := RunVerify(context.Background(), deps, wdeps, gdeps, unpub.repo.invocation, RunVerifyRequest{ID: 3})
 		if res.Verdict != VerdictRunIncomplete {
@@ -4181,7 +4181,7 @@ func TestIntegrationChangeRuntimeRunVerifyIncompleteEnumeratesConditions(t *test
 // verdict — it carries no verdict and exits non-zero.
 func TestIntegrationChangeRuntimeRunVerifyOperationalError(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
-	deps, wdeps, gdeps := f.deps(rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), rvPR(f.head, string(prEvidenceBytes(t, f.head))))
+	deps, wdeps, gdeps := f.deps(rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), prEvidenceBytes(t, f.head)), rvPR(f.head, prBodyNoEvidence))
 	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 999})
 	if res.Verdict != "" {
 		t.Errorf("operational error carried a verdict %q", res.Verdict)
@@ -4198,7 +4198,7 @@ func TestIntegrationChangeRuntimeRunVerifyOperationalError(t *testing.T) {
 // is unparseable. The verified PR is number 42 (rvPR).
 func TestIntegrationChangeRuntimeRunVerifyPRIdentityForms(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
-	ev := string(prEvidenceBytes(t, f.head))
+	ev := prEvidenceBytes(t, f.head)
 
 	cases := []struct {
 		name       string
@@ -4214,8 +4214,8 @@ func TestIntegrationChangeRuntimeRunVerifyPRIdentityForms(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			deps, wdeps, gdeps := f.deps(
-				rvRecord(rvPlanPath, rvResultsPath, tc.recorded, "feat/"+rvSlug),
-				rvPR(f.head, ev),
+				rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsPath, tc.recorded, "feat/"+rvSlug), ev),
+				rvPR(f.head, prBodyNoEvidence),
 			)
 			res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
 			reasons := unmetReasons(res)

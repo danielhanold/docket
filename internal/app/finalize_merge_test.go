@@ -180,7 +180,7 @@ func (f *mergeFixture) mergeDeps(gh FinalizeGitHub) FinalizeDeps {
 }
 
 // parentPR is the canonical open PR for the parent feature head: number 7,
-// non-draft, targeting main, carrying green evidence for the given head.
+// non-draft, targeting main, with the given description.
 func (f *mergeFixture) parentPR(head string, body string) githubcli.PullRequest {
 	return githubcli.PullRequest{
 		Number: mergeCanonicalPRNumber, URL: "https://example.test/pr/7", State: githubcli.StateOpen,
@@ -190,13 +190,31 @@ func (f *mergeFixture) parentPR(head string, body string) githubcli.PullRequest 
 }
 
 // baselineFake returns a fake whose parent PR passes every condition: open,
-// non-draft, number 7, at the fixture head, base main, green evidence.
+// non-draft, number 7, at the fixture head, base main. It also seeds green
+// build evidence for the fixture head into the parent record's
+// "## Build evidence" section (refreshing f.revision) — the gate condition reads
+// the record, never the PR description, which carries no evidence block.
 func (f *mergeFixture) baselineFake(t *testing.T) *fakeMergeGitHub {
 	t.Helper()
+	f.seedGreenEvidence(t, f.head)
 	return &fakeMergeGitHub{
 		repo:       retargetRepo(),
-		openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.parentPR(f.head, greenEvidenceFor(t, f.head))}},
+		openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.parentPR(f.head, prBodyNoEvidence)}},
 	}
+}
+
+// seedGreenEvidence seeds green record evidence certifying head into the parent
+// record and keeps the merge request's pinned revision current.
+func (f *mergeFixture) seedGreenEvidence(t *testing.T, head string) {
+	t.Helper()
+	f.revision = f.rebaseFixture.seedGreenRecordEvidence(t, head)
+}
+
+// clearEvidence removes the parent record's build-evidence section and keeps
+// the merge request's pinned revision current.
+func (f *mergeFixture) clearEvidence(t *testing.T) {
+	t.Helper()
+	f.revision = f.rebaseFixture.clearRecordEvidence(t)
 }
 
 // mergeFeatureIntoBase creates a real merge commit on origin's integration

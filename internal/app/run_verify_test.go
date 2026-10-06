@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
@@ -61,6 +62,22 @@ func rvRecord(plan, results, pr, branch string) []byte {
 		src = strings.Replace(src, "branch: feat/"+rvSlug, "branch: "+branch, 1)
 	}
 	return []byte(src)
+}
+
+// rvWithEvidence returns record with the build-evidence block block (as
+// prEvidenceBytes / prSkippedEvidenceBytes render it) as its "## Build evidence"
+// section — the durable evidence run verify reads.
+func rvWithEvidence(t *testing.T, record, block []byte) []byte {
+	t.Helper()
+	rec, err := evidence.Extract(block)
+	if err != nil {
+		t.Fatalf("evidence.Extract: %v", err)
+	}
+	out, err := UpsertRecordEvidence(record, rec)
+	if err != nil {
+		t.Fatalf("UpsertRecordEvidence: %v", err)
+	}
+	return out
 }
 
 // rvPR is the single open PR the fake adapter reports for the feature branch.
@@ -222,8 +239,8 @@ func rvAgreeingReceipt(head string) WaitingReceipt {
 func rvWaitingDeps(t *testing.T, f *rvFixture, reader WaitingReceiptReader) (PlanningDeps, WorkspaceDeps, GitHubDeps) {
 	t.Helper()
 	deps, wdeps, gdeps := f.deps(
-		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		rvWithEvidence(t, rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug), prEvidenceBytes(t, f.head)),
+		rvPR(f.head, prBodyNoEvidence),
 	)
 	wdeps.Waiting = reader
 	return deps, wdeps, gdeps
