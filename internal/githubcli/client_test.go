@@ -22,6 +22,7 @@ import (
 //	ensure.go       verifyViewByNumber  pr view           READ
 //	retarget.go     RetargetPullRequest pr edit --base    WRITE
 //	retarget.go     viewPullRequest     pr view           READ  (verifyRetarget reprobe)
+//	bodyedit.go     EditPullRequestBody pr edit --body-file - WRITE
 //	comment.go      EnsureComment       pr comment        WRITE
 //	comment.go      FindComment         pr view --comments READ
 //	mergemethod.go  merge-method probes repo/api reads    READ
@@ -30,7 +31,8 @@ import (
 //
 // Writes are the gh invocations that MUTATE GitHub state: the merge in
 // MergePullRequest (issueMerge), the create/edit in EnsurePullRequest/mutateAndVerify, the
-// edit --base in RetargetPullRequest, and the comment post in EnsureComment.
+// edit --base in RetargetPullRequest, the body edit in EditPullRequestBody, and
+// the comment post in EnsureComment.
 // Their verification/reprobe queries (verifyMerge, verifyPostMutation,
 // viewPullRequest, FindComment) and every discovery probe are reads.
 
