@@ -1,12 +1,17 @@
 # Backlog
 
-**536 changes** — 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 372 done · 🗑️ 139 killed
+**536 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 372 done · 🗑️ 139 killed
 
-## 🟣 Groomed (3)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0535](active/0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | `medium` | `feat` | [spec](../superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) | `feat/load-a-private-repository-s-agent-instructions-without-repos` |  |
+
+## 🟣 Groomed (2)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0535](active/0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | `medium` | `feat` | [spec](../superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 

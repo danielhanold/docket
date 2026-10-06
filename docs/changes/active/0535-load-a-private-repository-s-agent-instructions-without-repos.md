@@ -2,7 +2,7 @@
 id: 535
 slug: 'load-a-private-repository-s-agent-instructions-without-repos'
 title: 'Load a private repository''s agent instructions without repository files'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-06'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/load-a-private-repository-s-agent-instructions-without-repos'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-06T17:36:50Z'
 ---
 
 ## Artifacts
