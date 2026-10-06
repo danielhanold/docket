@@ -1,12 +1,12 @@
 # Backlog
 
-**535 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 371 done · 🗑️ 139 killed
+**535 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 371 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0532](active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | `medium` | `feat` | [spec](../superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md) | `feat/private-visibility-keep-docket-out-of-prs-commits-and-shippe` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0532](active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | `medium` | `feat` | [#401](https://github.com/danielhanold/docket/pull/401) | awaiting merge |
 
 ## 🟣 Groomed (3)
 

@@ -2,7 +2,7 @@
 id: 532
 slug: 'private-visibility-keep-docket-out-of-prs-commits-and-shippe'
 title: 'Implement private visibility for PRs, commits, and shipped files'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/private-visibility-keep-docket-out-of-prs-commits-and-shippe'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/401'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-06T15:32:33Z'
@@ -70,3 +70,12 @@ Once a leak is pushed it cannot be undone, and a rebase-merge would carry it int
 ### 2026-10-06
 
 Reconciled against current main (dc3559810) after #530, #531, #534 landed. Anchors still hold: assemblePRBody in internal/app/pr_publish.go, finalizeBlockedCommentMarker in internal/app/finalize_block.go, workspace.Service.PublishHead in internal/workspace/publish.go, private findings in internal/app/repository_private_findings.go, and finalize rebase anchors under refs/docket/ (internal/gitcli/rebase.go ownedRefRequiredPrefix). No leak scanner exists yet. Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 62d525b97cf57d7488cf3b6ea7562f01d1660c7b
+ran_at:   2026-10-06T17:00:06Z
+<!-- docket:build-evidence:end -->
