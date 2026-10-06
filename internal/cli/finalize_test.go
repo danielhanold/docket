@@ -503,6 +503,9 @@ func TestFinalizeCloseoutRegistered(t *testing.T) {
 			t.Errorf("finalize closeout must not carry a --%s flag", forbidden)
 		}
 	}
+	if got := cmd.Annotations[capAnnotationEffects]; got != "external-write metadata-write" {
+		t.Errorf("finalize closeout effects = %q, want %q", got, "external-write metadata-write")
+	}
 }
 
 // TestFinalizeCloseoutAssetIndependent guards the install.go registration: the

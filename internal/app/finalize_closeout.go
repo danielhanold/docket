@@ -66,7 +66,11 @@ import (
 // not terminal publishing: it copies no metadata record and edits no authored
 // bytes. A failed or contended second leg leaves the change truthfully `done` and
 // emits a typed final-backlink-pending finding; its idempotency is keyed on the
-// remote block bytes (a block already pointing at the archive path is a no-op).
+// remote block bytes (a block already pointing at the archive path is a no-op). A
+// third, GitHub-side leg repoints each archived target's merged PR description
+// block at its archive path (runCloseoutPRBacklinkLeg); a failed edit leaves the
+// change truthfully `done` with a pr-backlink-pending warning that cleanup and
+// the sweep retry.
 
 // OperationFinalizeCloseout is the operation key the metadata closeout
 // transaction records in its result envelope and trailer.
@@ -619,6 +623,10 @@ func closeoutIntegrationDestination(ctx context.Context, deps FinalizeDeps, cc *
 	if finding := runCloseoutBacklinkLeg(ctx, deps, cc, targets, archiveDate); finding != nil {
 		res.Findings = append(res.Findings, *finding)
 	}
+	// Follow-up: repoint each archived target's merged PR backlink block at its
+	// archive path (a GitHub edit, best-effort). A failed edit leaves the change
+	// truthfully done and emits a retryable pr-backlink-pending warning.
+	res.Findings = append(res.Findings, runCloseoutPRBacklinkLeg(ctx, deps, cc, ghRepo, targets)...)
 	return res
 }
 
@@ -897,6 +905,44 @@ func runCloseoutBacklinkLeg(ctx context.Context, deps FinalizeDeps, cc *closeout
 		Severity: string(domain.SeverityWarning),
 		Message:  msg,
 	}
+}
+
+// runCloseoutPRBacklinkLeg repoints, for every archived target (the root and
+// each carried descendant), its own merged PR's docket:backlink block at its own
+// archive path. It is independent of the integration-ref backlink leg and never
+// changes the close-out disposition: each target that did not reach its promised
+// state contributes one pr-backlink-pending warning. No editor wired (a test
+// GitHub fake) runs nothing.
+func runCloseoutPRBacklinkLeg(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, ghRepo githubcli.Repository, targets []closeoutTarget) []StatusFinding {
+	ed := prBodyEditor(deps)
+	if ed == nil {
+		return nil
+	}
+	var out []StatusFinding
+	for _, tg := range targets {
+		c, found := cc.snap.Change(domain.ChangeID(tg.id))
+		if found != domain.LookupFound {
+			continue
+		}
+		number, ok := parsePRNumber(c.PR().Value)
+		if !finalizeHasPRRef(c) || !ok {
+			continue
+		}
+		src, ok := cc.sources[tg.activePath]
+		if !ok {
+			out = append(out, *prBacklinkFinding(tg.id, number, prBacklinkResult{outcome: prBacklinkUnknown, detail: "the record's source bytes were not in hand"}))
+			continue
+		}
+		interior, err := archivedBacklinkInterior(cc.eff, tg.archivePath, src, cc.link)
+		if err != nil {
+			out = append(out, *prBacklinkFinding(tg.id, number, prBacklinkResult{outcome: prBacklinkUnknown, detail: "the archived backlink could not be rendered"}))
+			continue
+		}
+		if f := prBacklinkFinding(tg.id, number, repointPRBacklink(ctx, ed, ghRepo, number, tg.archivePath, interior)); f != nil {
+			out = append(out, *f)
+		}
+	}
+	return out
 }
 
 // rootIDOf returns the root target's id.

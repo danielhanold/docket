@@ -101,10 +101,11 @@ func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.C
 		Use:   "closeout",
 		Short: "Close out a merged change: mark done and archive, mark stacked-merged, or carry a stack root",
 		Args:  cobra.NoArgs,
-		// metadata-write only: archive relocation + backlink retarget are
-		// metadata-branch transactions; the PR/merge reprobes are read-only, and
-		// it pushes no feature ref.
-		Annotations: capability("finalize.closeout", EffectMetadataWrite),
+		// metadata-write: archive relocation + backlink retarget are
+		// metadata-branch transactions. external-write: the merged PR's
+		// description backlink is repointed at the archived record (a GitHub
+		// edit). It pushes no feature ref.
+		Annotations: capability("finalize.closeout", EffectExternalWrite, EffectMetadataWrite),
 	}
 	decode := declareJSONFile[app.CloseoutNotes](cmd, "input")
 	cmd.RunE = func(c *cobra.Command, _ []string) error {
