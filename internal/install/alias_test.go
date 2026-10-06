@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/testsupport"
@@ -140,4 +141,49 @@ func TestInspectBinaryAlias(t *testing.T) {
 			t.Fatalf("finding = %+v, err %v; want foreign (the alias resolves to nothing)", f, err)
 		}
 	})
+}
+
+func TestReadReleaseBinaryPath(t *testing.T) {
+	dir := testsupport.TempDir(t)
+	rec := filepath.Join(dir, "release-binary.record")
+	if got, err := readReleaseBinaryPath(rec); err != nil || got != "" {
+		t.Fatalf("absent record = %q, %v; want empty, nil", got, err)
+	}
+	write := func(body string) {
+		if err := os.WriteFile(rec, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("path=/abs/bin/docket\nversion=v1.0.0\nsha256=abc\nalias=/abs/bin/dckt\n")
+	if got, err := readReleaseBinaryPath(rec); err != nil || got != "/abs/bin/docket" {
+		t.Fatalf("record path = %q, %v", got, err)
+	}
+	write("version=v1.0.0\n")
+	if got, err := readReleaseBinaryPath(rec); err != nil || got != "" {
+		t.Fatalf("record without path= = %q, %v; want empty", got, err)
+	}
+	write("path=relative/docket\n")
+	if got, err := readReleaseBinaryPath(rec); err != nil || got != "" {
+		t.Fatalf("relative path= = %q, %v; want empty", got, err)
+	}
+}
+
+// The Go reader and the POSIX writer spell the record location and its path=
+// key independently; this ties the two so a respelling on either side reddens.
+func TestReleaseRecordSpellingMatchesDownloader(t *testing.T) {
+	src, err := os.ReadFile(filepath.Join("..", "release", "downloader", "install.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`record="${XDG_STATE_HOME:-$HOME/.local/state}/docket/release-binary.record"`,
+		`printf 'path=%s\n' "$dest"`,
+	} {
+		if !strings.Contains(string(src), want) {
+			t.Errorf("downloader no longer contains %q; ReleaseBinaryRecordPath/readReleaseBinaryPath must move with it", want)
+		}
+	}
+	if got := (UserRoots{StateHome: "/s"}).ReleaseBinaryRecordPath(); got != "/s/docket/release-binary.record" {
+		t.Errorf("ReleaseBinaryRecordPath = %q", got)
+	}
 }

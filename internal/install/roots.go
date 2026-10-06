@@ -20,6 +20,7 @@ type UserRoots struct {
 	DataRoot   string // <XDG_DATA_HOME|~/.local/share>/docket
 	ConfigHome string // XDG_CONFIG_HOME or ~/.config (for opencode)
 	BinDir     string // XDG_BIN_HOME or ~/.local/bin (development mode)
+	StateHome  string // XDG_STATE_HOME or ~/.local/state (the release downloader's record)
 }
 
 // ResolveRoots reads the environment through the injected getenv func and the
@@ -56,6 +57,7 @@ func ResolveRoots(homeFn func() (string, error), getenv func(string) string) (Us
 		DataRoot:   filepath.Join(xdgOr(getenv, "XDG_DATA_HOME", filepath.Join(home, ".local", "share")), "docket"),
 		ConfigHome: xdgOr(getenv, "XDG_CONFIG_HOME", filepath.Join(home, ".config")),
 		BinDir:     xdgOr(getenv, "XDG_BIN_HOME", filepath.Join(home, ".local", "bin")),
+		StateHome:  xdgOr(getenv, "XDG_STATE_HOME", filepath.Join(home, ".local", "state")),
 	}
 
 	for _, p := range []string{roots.Home, roots.DataRoot, roots.ConfigHome, roots.BinDir} {
@@ -118,6 +120,18 @@ func (r UserRoots) CollectionQuarantineDir() string {
 
 // StatePath is the published ownership manifest.
 func (r UserRoots) StatePath() string { return filepath.Join(r.DataRoot, "state", "install.json") }
+
+// ReleaseBinaryRecordPath is the release downloader's ownership record: where
+// it says the release binary it installed lives. It is the downloader's file,
+// spelled independently in internal/release/downloader/install.sh and tied to
+// this spelling by TestReleaseRecordSpellingMatchesDownloader. Empty roots
+// (StateHome unset) name no record.
+func (r UserRoots) ReleaseBinaryRecordPath() string {
+	if r.StateHome == "" {
+		return ""
+	}
+	return filepath.Join(r.StateHome, "docket", "release-binary.record")
+}
 
 // LockPath is the file carrying the exclusive installation lock. It sits at the
 // root of the data tree because it serializes every mutation under it; see

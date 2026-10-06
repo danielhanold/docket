@@ -1,11 +1,13 @@
 package install
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Every install also places a second, shorter name for the binary beside it:
@@ -95,4 +97,77 @@ func planBinaryAlias(binary string, prior *State) (*Target, *AliasFinding, error
 		return nil, &AliasFinding{Kind: AliasForeign, Path: t.Path, Binary: binary, Remedy: remedyAliasForeign}, nil
 	}
 	return &t, nil, nil
+}
+
+// readReleaseBinaryPath returns the absolute binary path the release
+// downloader's record names, or "" when there is no record or it names no
+// usable absolute path — the downloader itself grants no ownership to such a
+// record. A record that exists but cannot be read is an error, not an absence.
+func readReleaseBinaryPath(recordPath string) (string, error) {
+	if recordPath == "" {
+		return "", nil
+	}
+	f, err := os.Open(recordPath)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return "", nil
+	case err != nil:
+		return "", fmt.Errorf("install: reading %s: %w", recordPath, err)
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		if v, ok := strings.CutPrefix(sc.Text(), "path="); ok {
+			if filepath.IsAbs(v) {
+				return filepath.Clean(v), nil
+			}
+			return "", nil
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return "", fmt.Errorf("install: reading %s: %w", recordPath, err)
+	}
+	return "", nil
+}
+
+// checkBinaryAliases classifies the alias beside every binary an installer
+// owns: the development installation's recorded binary, and the binary the
+// release downloader's record names. It only reads.
+func checkBinaryAliases(state *State, roots UserRoots) ([]AliasFinding, error) {
+	var binaries []string
+	seen := map[string]bool{}
+	add := func(p string) {
+		if p == "" {
+			return
+		}
+		p = filepath.Clean(p)
+		if !seen[p] {
+			seen[p] = true
+			binaries = append(binaries, p)
+		}
+	}
+	if state != nil {
+		for _, rec := range state.Targets {
+			if rec.Role == roleBinary {
+				add(rec.Path)
+			}
+		}
+	}
+	release, err := readReleaseBinaryPath(roots.ReleaseBinaryRecordPath())
+	if err != nil {
+		return nil, err
+	}
+	add(release)
+
+	var findings []AliasFinding
+	for _, binary := range binaries {
+		f, err := InspectBinaryAlias(binary)
+		if err != nil {
+			return nil, err
+		}
+		if f != nil {
+			findings = append(findings, *f)
+		}
+	}
+	return findings, nil
 }
