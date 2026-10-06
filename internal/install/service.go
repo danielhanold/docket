@@ -180,8 +180,14 @@ type Outcome struct {
 	// They are findings, never failures: they leave Reason and Err alone, and
 	// the app layer renders them as warnings.
 	AliasFindings []AliasFinding
-	Reason        string
-	Err           error
+	// Skipped are the planned targets an operation left untouched because
+	// docket cannot edit them in place (DispositionSkip), each with its
+	// remedy. Like AliasFindings they are findings, never failures: they leave
+	// Reason and Err alone, no record is published for them, and the app layer
+	// renders them as warnings.
+	Skipped []Inspection
+	Reason  string
+	Err     error
 	// Relayed marks a development-install PARENT outcome whose candidate has
 	// already printed the sole result document to the shared stdout. The parent
 	// itself planned nothing and wrote nothing; the CLI presenter emits no
@@ -399,6 +405,12 @@ func Check(o Options) Outcome {
 		if inspection.Disposition == DispositionNoop {
 			continue
 		}
+		if inspection.Disposition == DispositionSkip {
+			// What install leaves untouched and unrecorded is a finding here
+			// too, never drift: install itself proceeds past it.
+			out.Skipped = append(out.Skipped, inspection)
+			continue
+		}
 		detail := string(inspection.Disposition)
 		if inspection.Reason != "" {
 			// A conflict seen from `check` is the same dead end it is from
@@ -518,6 +530,11 @@ type plannedInstallation struct {
 	// docket cannot prove it owns. A prior roleBinaryAlias record for one of
 	// them grants nothing, so it is not carried into the published state.
 	foreignAliases []string
+	// skipped are the cleaned paths of planned targets applyPlan found it
+	// cannot edit in place (DispositionSkip). Neither a record for them nor a
+	// prior one is published: docket left them untouched, so it owns nothing
+	// there now.
+	skipped map[string]bool
 }
 
 // applyPlan is the shared tail of Install and DevelopmentInstall: classify,
@@ -559,13 +576,23 @@ func applyPlan(o Options, p plannedInstallation, repo *RepoPhase, out Outcome) O
 
 	inspections := make([]Inspection, 0, len(p.targets))
 	var conflicts []Inspection
+	p.skipped = map[string]bool{}
 	for _, t := range p.targets {
 		inspection, err := InspectTarget(t, prior, legacy)
 		if err != nil {
 			return fail(out, ReasonFilesystemFailed, err)
 		}
-		if inspection.Disposition == DispositionConflict {
+		switch inspection.Disposition {
+		case DispositionConflict:
 			conflicts = append(conflicts, inspection)
+		case DispositionSkip:
+			// Left untouched and reported, never refused: it becomes no
+			// transaction step and no record (desiredState), while every other
+			// target proceeds. It stays in p.targets so the prune scan still
+			// sees the path as planned and never tries to remove it.
+			out.Skipped = append(out.Skipped, inspection)
+			p.skipped[filepath.Clean(t.Path)] = true
+			continue
 		}
 		inspections = append(inspections, inspection)
 	}
@@ -805,7 +832,13 @@ func notAuthorizedAction(repo *RepoPhase) Action {
 func desiredState(o Options, p plannedInstallation, prior *State) (*State, error) {
 	records := make([]TargetRecord, 0, len(p.targets))
 	claimed := make(map[string]bool, len(p.targets))
+	skippedOwner := map[string]bool{}
 	for _, t := range p.targets {
+		if p.skipped[filepath.Clean(t.Path)] {
+			claimed[filepath.Clean(t.Path)] = true // and so never carried from prior either.
+			skippedOwner[p.owner[filepath.Clean(t.Path)]] = true
+			continue
+		}
 		rec, err := RecordFor(t)
 		if err != nil {
 			return nil, err
@@ -845,7 +878,12 @@ func desiredState(o Options, p plannedInstallation, prior *State) (*State, error
 
 	harnesses := map[string]bool{}
 	for _, name := range p.harnesses {
-		harnesses[name] = true
+		// A harness that owns a skipped target is listed only through a record
+		// below: when every target it planned was skipped, nothing of it is
+		// installed, and a listed harness with no target is invalid state.
+		if !skippedOwner[name] {
+			harnesses[name] = true
+		}
 	}
 	for _, rec := range records {
 		if rec.Harness != "" {

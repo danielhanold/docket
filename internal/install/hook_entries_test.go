@@ -345,14 +345,31 @@ func TestHookEntriesInspect(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if insp.Disposition != DispositionConflict || insp.Reason != ReasonOwnershipConflict || insp.Remedy != remedyHookFileNotRegular {
-				t.Errorf("inspection = %+v, want an ownership conflict with the not-a-regular-file remedy", insp)
+			// A dotfiles manager's link is skipped, never a conflict: a conflict
+			// would fail the whole install over a trigger that is inert outside a
+			// private repository.
+			if insp.Disposition != DispositionSkip || insp.Reason != "" || insp.Remedy != remedyHookFileNotRegular {
+				t.Errorf("inspection = %+v, want a skip with the not-a-regular-file remedy", insp)
 			}
 			if got := readOrDie(t, real); got != "{}\n" {
 				t.Errorf("the link's destination changed: %q", got)
 			}
 			if fi, err := os.Lstat(path); err != nil || fi.Mode()&os.ModeSymlink == 0 {
 				t.Errorf("the link was replaced: %v %v", fi, err)
+			}
+		})
+
+		t.Run(dialect+"/directory at the hooks path", func(t *testing.T) {
+			path := filepath.Join(testsupport.TempDir(t), "hooks.json")
+			if err := os.Mkdir(path, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			insp, err := InspectTarget(hookTarget(path, dialect), nil, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if insp.Disposition != DispositionSkip || insp.Remedy != remedyHookFileNotRegular {
+				t.Errorf("inspection = %+v, want a skip with the not-a-regular-file remedy", insp)
 			}
 		})
 	}
@@ -564,6 +581,153 @@ func TestHookEntriesInstallUninstallLifecycle(t *testing.T) {
 			}
 			if got := readOrDie(t, path); got != want {
 				t.Errorf("after uninstall = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// skippedFor reports whether the outcome names path as a skipped target
+// carrying the not-a-regular-file remedy.
+func skippedFor(out Outcome, path string) bool {
+	for _, s := range out.Skipped {
+		if s.Target.Path == path && s.Disposition == DispositionSkip && s.Remedy == remedyHookFileNotRegular {
+			return true
+		}
+	}
+	return false
+}
+
+func stateRecordAt(t *testing.T, roots UserRoots, path string) *TargetRecord {
+	t.Helper()
+	state, err := LoadState(roots.StatePath())
+	if err != nil {
+		t.Fatalf("LoadState: %v", err)
+	}
+	if state == nil {
+		return nil
+	}
+	for i := range state.Targets {
+		if state.Targets[i].Path == path {
+			return &state.Targets[i]
+		}
+	}
+	return nil
+}
+
+// A hooks file that is a dotfiles manager's symlink cannot be edited in place
+// (the transaction publishes by rename, which would replace the link). It must
+// not fail the install: the link and its destination stay byte-identical, every
+// other target installs, the outcome names the skipped trigger, no record is
+// written for it, and check and uninstall stay clean.
+func TestHookEntriesSymlinkedHooksFileIsSkipped(t *testing.T) {
+	for _, dialect := range []string{HookDialectClaude, HookDialectCursor} {
+		seed := userEntrySeed(t, dialect)
+
+		t.Run(dialect+"/fresh install skips the link and installs the rest", func(t *testing.T) {
+			var other string
+			opts, uopts, path := hookWorld(t, dialect, func(r UserRoots) []Target {
+				other = filepath.Join(r.Home, "."+dialect, "agent.md")
+				return []Target{{Path: other, Kind: KindFile, Content: []byte("agent\n"), Role: "agent"}}
+			})
+			real := filepath.Join(opts.Roots.Home, "dotfiles", filepath.Base(path))
+			writeFileOrDie(t, real, seed)
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(real, path); err != nil {
+				t.Fatal(err)
+			}
+			assertLinkUntouched := func(stage string) {
+				t.Helper()
+				if dest, err := os.Readlink(path); err != nil || dest != real {
+					t.Errorf("%s: the link now reads %q (%v), want %q", stage, dest, err, real)
+				}
+				if got := readOrDie(t, real); got != seed {
+					t.Errorf("%s: the link's destination changed:\n%s", stage, got)
+				}
+			}
+
+			out := Install(opts)
+			if out.Err != nil || !out.Applied {
+				t.Fatalf("Install: err %v (reason %q, applied %v, actions %+v)", out.Err, out.Reason, out.Applied, out.Actions)
+			}
+			if !skippedFor(out, path) {
+				t.Errorf("the outcome does not name the skipped hooks file %s: %+v", path, out.Skipped)
+			}
+			for _, a := range out.Actions {
+				if a.Path == path {
+					t.Errorf("an action names the skipped hooks file: %+v", a)
+				}
+			}
+			if got := readOrDie(t, other); got != "agent\n" {
+				t.Errorf("the other target was not installed: %q", got)
+			}
+			assertLinkUntouched("install")
+			if rec := stateRecordAt(t, opts.Roots, path); rec != nil {
+				t.Errorf("a record was written for the skipped hooks file: %+v", rec)
+			}
+			if rec := stateRecordAt(t, opts.Roots, other); rec == nil {
+				t.Errorf("no record was written for the installed target %s", other)
+			}
+
+			again := Install(opts)
+			if again.Err != nil || again.Applied || !skippedFor(again, path) {
+				t.Errorf("a second install: err %v, applied %v, skipped %+v (want a no-op that still names the skip)",
+					again.Err, again.Applied, again.Skipped)
+			}
+			assertLinkUntouched("second install")
+
+			check := Check(opts)
+			if check.Err != nil || !skippedFor(check, path) {
+				t.Errorf("Check: err %v (reason %q, actions %+v), skipped %+v; want clean with the skip named",
+					check.Err, check.Reason, check.Actions, check.Skipped)
+			}
+
+			if u := Uninstall(uopts); u.Err != nil {
+				t.Fatalf("Uninstall: %v (actions %+v)", u.Err, u.Actions)
+			}
+			assertLinkUntouched("uninstall")
+			if _, err := os.Lstat(other); !os.IsNotExist(err) {
+				t.Errorf("uninstall left the installed target %s: %v", other, err)
+			}
+		})
+
+		t.Run(dialect+"/a recorded hooks file later linked is skipped and its record dropped", func(t *testing.T) {
+			opts, uopts, path := hookWorld(t, dialect, nil)
+			writeFileOrDie(t, path, seed)
+			if out := Install(opts); out.Err != nil {
+				t.Fatalf("Install: %v", out.Err)
+			}
+			if stateRecordAt(t, opts.Roots, path) == nil {
+				t.Fatalf("the first install recorded no hook-entries target")
+			}
+			installed := readOrDie(t, path)
+			// The user moves the file into a dotfiles checkout and links it back.
+			real := filepath.Join(opts.Roots.Home, "dotfiles", filepath.Base(path))
+			writeFileOrDie(t, real, installed)
+			if err := os.Remove(path); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(real, path); err != nil {
+				t.Fatal(err)
+			}
+
+			out := Install(opts)
+			if out.Err != nil || !skippedFor(out, path) {
+				t.Fatalf("Install over the link: err %v (reason %q, actions %+v), skipped %+v",
+					out.Err, out.Reason, out.Actions, out.Skipped)
+			}
+			if rec := stateRecordAt(t, opts.Roots, path); rec != nil {
+				t.Errorf("the record for the now-linked hooks file survived: %+v", rec)
+			}
+			if u := Uninstall(uopts); u.Err != nil {
+				t.Fatalf("Uninstall: %v (actions %+v)", u.Err, u.Actions)
+			}
+			if dest, err := os.Readlink(path); err != nil || dest != real {
+				t.Errorf("the link now reads %q (%v), want %q", dest, err, real)
+			}
+			if got := readOrDie(t, real); got != installed {
+				t.Errorf("the link's destination changed:\n%s", got)
 			}
 		})
 	}

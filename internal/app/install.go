@@ -236,7 +236,23 @@ func NewInstallResult(operation string, out install.Outcome) InstallResult {
 		r.Warnings = append(r.Warnings, collectionWarning(out.Collection))
 	}
 	r.Warnings = append(r.Warnings, aliasWarnings(out.AliasFindings)...)
+	r.Warnings = append(r.Warnings, skippedWarnings(out.Skipped)...)
 	return r
+}
+
+// skippedWarnings renders the targets an operation left untouched because
+// docket cannot edit them in place. Each is reported with its path and remedy
+// and never reclassifies the operation: the rest of the installation proceeded.
+func skippedWarnings(skipped []install.Inspection) []InstallWarning {
+	var out []InstallWarning
+	for _, s := range skipped {
+		out = append(out, InstallWarning{Diagnostic: config.Diagnostic{
+			Code: string(FCHookFileNotEditable), Severity: config.SeverityWarning, Path: s.Target.Path,
+			Message: "hooks file left untouched; its trigger is not installed",
+			Remedy:  s.Remedy,
+		}})
+	}
+	return out
 }
 
 // aliasWarnings renders the dckt alias findings as warnings. The alias is a

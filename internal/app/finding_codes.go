@@ -155,6 +155,13 @@ const (
 	// unaffected.
 	FCBinaryAliasForeign FindingCode = "binary-alias-foreign"
 	FCBinaryAliasMissing FindingCode = "binary-alias-missing"
+
+	// hook-file-not-editable is the warning code an install, development
+	// install, or install check surfaces for a hooks file docket cannot edit in
+	// place (a dotfiles manager's symlink, say): the file is left untouched and
+	// that harness's trigger is not installed. A warning only: the primary
+	// result is unaffected.
+	FCHookFileNotEditable FindingCode = "hook-file-not-editable"
 )
 
 // AllFindingCodes is the authoritative, sorted, deduplicated vocabulary of every
@@ -244,6 +251,7 @@ var AllFindingCodes = []FindingCode{
 	FCEmptyWhyDeferred,
 	FCEmptyWhyKilled,
 	FindingCode(ReasonStatusExternal),
+	FCHookFileNotEditable,
 	FindingCode("illegal-source-status"),
 	FindingCode(ReasonStatusInternalError),
 	FindingCode(ReasonStatusInterrupted),

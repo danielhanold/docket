@@ -17,12 +17,12 @@ type Inspection struct {
 	Target      Target
 	Disposition Disposition
 	Reason      string // conflict detail: ReasonOwnershipConflict | ReasonManagedBlockInvalid
-	// Remedy is the target-specific way forward for a conflict: what docket
-	// found here, and the one action that clears it. There is deliberately no
-	// --force, so the only way past a conflict is for the user to change what
-	// is on disk and run again — a report naming the reason alone would leave
-	// them with nowhere to go. Every conflict carries one; no other
-	// disposition does.
+	// Remedy is the target-specific way forward for a conflict or a skip: what
+	// docket found here, and the one action that clears it. There is
+	// deliberately no --force, so the only way past a conflict is for the user
+	// to change what is on disk and run again — a report naming the reason
+	// alone would leave them with nowhere to go. Every conflict and every skip
+	// carries one; no other disposition does.
 	Remedy string
 }
 
@@ -225,8 +225,11 @@ func inspectManagedBlock(t Target, info fs.FileInfo, rec TargetRecord, hasRec bo
 func inspectHookEntries(t Target, info fs.FileInfo) (Inspection, error) {
 	if !info.Mode().IsRegular() {
 		// The transaction publishes by rename, which would replace a symlink (a
-		// dotfiles manager's link, say) with a regular file.
-		return conflict(t, ReasonOwnershipConflict, remedyHookFileNotRegular), nil
+		// dotfiles manager's link, say) with a regular file. A skip, not a
+		// conflict: these entries are only a trigger, inert outside a private
+		// repository, so a file docket cannot edit in place must not fail the
+		// rest of the install.
+		return skip(t, remedyHookFileNotRegular), nil
 	}
 	data, err := os.ReadFile(t.Path)
 	if err != nil {
@@ -250,6 +253,12 @@ func conflict(t Target, reason, remedy string) Inspection {
 	return Inspection{Target: t, Disposition: DispositionConflict, Reason: reason, Remedy: remedy}
 }
 
+// skip is a target left untouched and reported with its remedy: what is at the
+// path cannot be edited in place, and the operation proceeds without it.
+func skip(t Target, remedy string) Inspection {
+	return Inspection{Target: t, Disposition: DispositionSkip, Remedy: remedy}
+}
+
 // The remedies. Each names what docket found, then the one action that clears
 // it — the installer has no --force, so the only way past a conflict is for the
 // user to change what is on disk and run again.
@@ -257,8 +266,8 @@ const (
 	remedyForeignPath = "docket did not write what is at this path; move or delete it, then re-run"
 	remedyDriftedPath = "this path no longer matches the recorded install, so docket cannot prove it may overwrite it; " +
 		"restore the recorded content, or move it aside, then re-run"
-	remedyHookFileNotRegular = "this hooks file is not a regular file (a symlink or a directory), so docket cannot add its entries in place; " +
-		"make it a regular file, then re-run"
+	remedyHookFileNotRegular = "this hooks file is not a regular file (a symlink or a directory), so docket left it untouched " +
+		"and did not add its session-start entries; to install them, make it a regular file, then re-run"
 	remedyHookFileInvalid = "this hooks file is not a JSON object docket can edit (hooks must be an object and each event an array); " +
 		"repair it by hand, then re-run"
 )
