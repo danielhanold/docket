@@ -144,6 +144,42 @@ func TestIntegrationMergeBodyEditProbeActVerify(t *testing.T) {
 		}
 	})
 
+	t.Run("refused-edit-is-unknown-not-contended", func(t *testing.T) {
+		// A refused edit (403/locked) leaves the pre-edit body in place: the verify
+		// probe must report it as a failed edit with gh's redacted stderr, never as
+		// a race.
+		edit := retEditArm(1)
+		edit.Stderr = "HTTP 403: Resource not accessible by integration (token ghp_abcdefghijklmnopqrstuvwxyz0123456789)\n"
+		c, _ := newFakeClient(t, fakeScenario{Sequential: true, Invocations: []fakeArm{
+			retViewArm(mergedPRJSON(bodyOld), 0),
+			edit,
+			retViewArm(mergedPRJSON(bodyOld), 0),
+		}})
+		out, _, err := c.EditPullRequestBody(context.Background(), retRepo(), 7, oldRev, bodyNew)
+		if out != BodyUnknown || err == nil {
+			t.Fatalf("outcome = %q err=%v, want %q with a diagnostic", out, err, BodyUnknown)
+		}
+		msg := err.Error()
+		if !strings.Contains(msg, "not applied") || !strings.Contains(msg, "HTTP 403") {
+			t.Fatalf("diagnostic %q must say the edit was not applied and carry the stderr excerpt", msg)
+		}
+		if strings.Contains(msg, "ghp_abcdefghijklmnopqrstuvwxyz0123456789") {
+			t.Fatalf("diagnostic leaked a token: %q", msg)
+		}
+	})
+
+	t.Run("zero-exit-but-unchanged-is-unknown", func(t *testing.T) {
+		c, _ := newFakeClient(t, fakeScenario{Sequential: true, Invocations: []fakeArm{
+			retViewArm(mergedPRJSON(bodyOld), 0),
+			retEditArm(0),
+			retViewArm(mergedPRJSON(bodyOld), 0),
+		}})
+		out, _, err := c.EditPullRequestBody(context.Background(), retRepo(), 7, oldRev, bodyNew)
+		if out != BodyUnknown || err == nil {
+			t.Fatalf("outcome = %q err=%v, want %q: an unchanged body is no race", out, err, BodyUnknown)
+		}
+	})
+
 	t.Run("verify-error-unknown", func(t *testing.T) {
 		c, _ := newFakeClient(t, fakeScenario{Sequential: true, Invocations: []fakeArm{
 			retViewArm(mergedPRJSON(bodyOld), 0),

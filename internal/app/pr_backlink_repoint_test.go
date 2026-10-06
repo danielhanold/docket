@@ -190,6 +190,25 @@ func TestRepointPRBacklinkFailuresArePendingFindings(t *testing.T) {
 	}
 }
 
+// TestRepointPRBacklinkRefusedEditIsNotARace: the body editor reports a refused
+// edit (the verify probe found the pre-edit body) as unknown with gh's excerpt;
+// the finding carries it and never claims the body changed under us.
+func TestRepointPRBacklinkRefusedEditIsNotARace(t *testing.T) {
+	ed := newFakePRBody(map[int]string{7: prBodyWithActiveBacklink(tActive, "p")})
+	ed.editErr = errors.New("githubcli edit-pull-request-body/invoke: external: gh pr edit exited 1 and the body edit was not applied: HTTP 403")
+	r := repointPRBacklink(context.Background(), ed, githubcli.Repository{}, 7, tArchive, tInterior)
+	if r.outcome != prBacklinkUnknown {
+		t.Fatalf("outcome = %q, want %q", r.outcome, prBacklinkUnknown)
+	}
+	f := prBacklinkFinding(5, 7, r)
+	if f == nil || !strings.Contains(f.Message, "HTTP 403") || !strings.Contains(f.Message, "not applied") {
+		t.Fatalf("finding = %+v, want the refusal excerpt", f)
+	}
+	if strings.Contains(f.Message, "changed since it was read") {
+		t.Fatalf("a refused edit was reported as a race: %q", f.Message)
+	}
+}
+
 func TestRepointPRBacklinkNoBlockNoEditNoFinding(t *testing.T) {
 	ed := newFakePRBody(map[int]string{7: "hand-written\n"})
 	r := repointPRBacklink(context.Background(), ed, githubcli.Repository{}, 7, tArchive, tInterior)

@@ -14,8 +14,11 @@ package githubcli
 //	4. `gh pr edit <n> --repo <spec> --body-file -` carries the body on stdin
 //	   only — never in argv or a diagnostic — and edits nothing else; and
 //	5. a fresh by-number probe re-derives the postcondition: an equal body is
-//	   `edited`, a different body is `contended` (a race, reported, never rolled
-//	   back), and a probe that cannot be established is `unknown`.
+//	   `edited`; a body still equal to the pre-edit body means the edit did not
+//	   land (refused, locked, or lost) and is `unknown`, carrying a redacted
+//	   stderr excerpt when gh exited non-zero; a third body is `contended` (a
+//	   race, reported, never rolled back); and a probe that cannot be
+//	   established is `unknown`.
 //
 // An errored probe is never read as clean absence (learning
 // probe-error-is-not-clean-absence): a launch/timeout/cancel Failure or a
@@ -38,7 +41,8 @@ const (
 	// BodyAlready: the PR already carried exactly the requested body; no edit.
 	BodyAlready BodyEditOutcome = "already"
 	// BodyContended: the live revision diverged from ExpectedRevision, or the
-	// verified body differs from the request; the PR was not overwritten.
+	// verified body is neither the request nor the pre-edit body (someone else
+	// wrote it); the PR was not overwritten.
 	BodyContended BodyEditOutcome = "contended"
 	// BodyUnknown: an external probe could not establish the truth (or the input
 	// was invalid); nothing was authorized. The returned error is the diagnostic.
@@ -67,7 +71,7 @@ func (c *Client) EditPullRequestBody(ctx context.Context, repo Repository, numbe
 		return BodyContended, PullRequest{}, nil
 	}
 
-	_, mf := c.run(ctx, runRequest{
+	res, mf := c.run(ctx, runRequest{
 		op: bodyEditOp,
 		args: []string{
 			"pr", "edit", strconv.Itoa(number),
@@ -91,5 +95,27 @@ func (c *Client) EditPullRequestBody(ctx context.Context, repo Repository, numbe
 	if after.Body == body {
 		return BodyEdited, after, nil
 	}
+	if after.Body == pr.Body {
+		// The body never moved: the edit did not land. That is a refusal or a
+		// lost write, never a race.
+		return BodyUnknown, PullRequest{}, bodyEditNotApplied(res, mf)
+	}
 	return BodyContended, PullRequest{}, nil
+}
+
+// bodyEditNotApplied is the diagnostic for an edit the verify probe proved did
+// not land: the run Failure (timeout/cancel) when there is one, else gh's exit
+// with a bounded, redacted stderr excerpt.
+func bodyEditNotApplied(res runResult, mf *Failure) *Failure {
+	if mf != nil {
+		return newFailure(bodyEditOp, StageInvoke, mf.Kind, "the body edit was not applied: "+mf.Detail, mf)
+	}
+	detail := "the body edit was not applied"
+	if res.exitCode != 0 {
+		detail = "gh pr edit exited " + strconv.Itoa(res.exitCode) + " and the body edit was not applied"
+		if ex := stderrExcerpt(res.stderr); ex != "" {
+			detail += ": " + ex
+		}
+	}
+	return newFailure(bodyEditOp, StageInvoke, KindExternal, detail, nil)
 }

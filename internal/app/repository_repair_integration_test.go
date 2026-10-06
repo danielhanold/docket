@@ -494,6 +494,35 @@ func TestIntegrationRepoRepairPRBacklinksSkipsUnreadable(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoRepairPRBacklinksSkipsSharedPR: two done changes naming one
+// PR give that PR no single owner, so each is a skipped row and the PR is neither
+// read nor planned; an unshared candidate beside them is still planned.
+func TestIntegrationRepoRepairPRBacklinksSkipsSharedPR(t *testing.T) {
+	gh := &fakeRepairGitHub{t: t, bodies: map[int]string{
+		250: prBodyNaming(prRepairActive),
+		260: prBodyNaming(prRepairActive),
+	}}
+	cands := []prRepairCandidate{
+		{id: 363, pr: 250, path: prRepairPath, interior: "> x `" + prRepairPath + "`"},
+		{id: 370, pr: 260, path: "docs/changes/archive/2026-09-01-0370-a.md", interior: "> a"},
+		{id: 371, pr: 260, path: "docs/changes/archive/2026-09-01-0371-b.md", interior: "> b"},
+	}
+	planned, skipped := planPRRepairs(context.Background(), gh, githubcli.Repository{}, cands)
+	if len(planned) != 1 || planned[0].row.PR != 250 {
+		t.Fatalf("planned = %+v, want only PR #250", planned)
+	}
+	if len(skipped) != 2 {
+		t.Fatalf("skipped = %+v, want both sharers of PR #260", skipped)
+	}
+	for i, id := range []int{370, 371} {
+		e := skipped[i]
+		if e.ID != id || e.PR != 260 || e.Outcome != PRBacklinkRepairSkipped ||
+			!strings.Contains(e.Message, "0370, 0371") {
+			t.Fatalf("skipped[%d] = %+v", i, e)
+		}
+	}
+}
+
 // TestIntegrationRepoRepairRoutineCommandsReadNoPRBodies pins spec acceptance 4:
 // with a GitHub fake that fails on ANY call wired into SetupDeps, routine
 // `repository repair` (preview and --yes), `check`, and `prepare` never call it.
