@@ -141,6 +141,11 @@ type FinalizeDeps struct {
 	// FinalizeDeps carries it too; only the sweep (MaintenanceSweep) READS it, so
 	// in every other operation it is populated but inert.
 	PRBatch SweepPRBatchReader
+	// PRBody is the narrow GitHub seam close-out and cleanup repoint a merged
+	// PR's docket:backlink block through (pr_backlink_repoint.go). Production
+	// leaves it nil: prBodyEditor falls back to GitHub when that client satisfies
+	// FinalizePRBody (the real *githubcli.Client does). A test injects a fake.
+	PRBody FinalizePRBody
 	// Gate is the local-gate composition seam finalize rebase drives after a
 	// completed rebase (Task 8): it launches the resolved suite in the feature
 	// workspace, observes it to a terminal within the observation budget, and maps
