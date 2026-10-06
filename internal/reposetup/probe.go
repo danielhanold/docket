@@ -61,8 +61,8 @@ func (r SyncRelation) Synchronized() Presence {
 	}
 }
 
-// WorktreeFact carries the probed state of the persistent .docket/ metadata
-// worktree.
+// WorktreeFact carries the probed state of the persistent metadata worktree
+// (`.docket/` in a shared repository, the store checkout in a private one).
 type WorktreeFact struct {
 	Presence               Presence // .docket/ path state: absent, or present-and-probed
 	Registered             Presence // registered as a linked worktree of THIS repo on the metadata branch
@@ -90,6 +90,8 @@ type Facts struct {
 	CommittedIgnoreBlock  Presence     // managed block valid in the integration COMMIT tree
 	CommittedIgnoreDetail IgnoreDetail // why the committed block failed; zero when valid or never probed
 	DocketWorktree        WorktreeFact
+	MetadataWorktreeRef   string // how findings name the metadata worktree: ".docket" when shared, the checkout path when private
+	Private               bool   // the repository's layout is private (decided from state by the gatherer)
 	PrimaryClean          Presence
 	PrimaryOnIntegration  Presence
 	PrimaryAtRemoteTip    Presence

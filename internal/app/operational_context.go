@@ -195,6 +195,7 @@ func loadOperationalContext(ctx context.Context, client *gitcli.Client, repoDir 
 		defaultTip:     defaultRev,
 		integrationTip: oc.integrationRevision,
 		cfg:            eff,
+		layout:         oc.layout,
 	})
 	oc.classification = reposetup.Classify(facts)
 	if rerr := operationalRefusal(oc.classification, facts); rerr != nil {

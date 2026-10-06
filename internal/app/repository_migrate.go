@@ -12,7 +12,6 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
-	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 )
@@ -251,7 +250,7 @@ func migrateRoute(ctx context.Context, git *gitcli.Client, facts reposetup.Facts
 		// Fetch the published metadata branch so its object is local, then re-read
 		// its tip authoritatively (ls-remote gave only the id at gather time). The
 		// branch decision keys on this re-read, never a local proxy.
-		rev, ferr := git.FetchBranch(ctx, sc.repo, setupRemote(), gitcli.RefName(branchRefPrefix+layout.SharedName)) // Task 4: resolve through sc.layout
+		rev, ferr := git.FetchBranch(ctx, sc.repo, metadataRemote(sc.layout), metadataRef(sc.layout))
 		if ferr != nil {
 			r := migrateExternalFailure(reposetup.StateConflict, "re-reading the published metadata branch", ferr)
 			return phaseRefuse, &r
@@ -485,7 +484,7 @@ func repairedCandidateErrors(cfg config.Effective, mr migrationRepairs) []string
 func migrateExecute(ctx context.Context, git *gitcli.Client, hooks setupHooks, facts reposetup.Facts, sc setupContext, plan reposetup.MigrationPlan, mr migrationRepairs, phase migratePhase) RepositoryMigrateResult {
 	sourceRevision := sc.sourceRevision
 	sourceOID := gitcli.ObjectID(sourceRevision)
-	docketRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
+	docketRef := metadataRef(sc.layout)
 	integrationRef := gitcli.RefName(branchRefPrefix + sc.integrationBranch)
 
 	// Full-corpus validation BEFORE any branch change. A non-repairable error in
@@ -544,7 +543,7 @@ func migrateExecute(ctx context.Context, git *gitcli.Client, hooks setupHooks, f
 		if err != nil {
 			return migrateExternalFailure(reposetup.StateLegacy, "creating the metadata seed commit", err)
 		}
-		tip, refusal := publishSeed(ctx, git, sc.repo, docketRef, seedCommit)
+		tip, refusal := publishSeed(ctx, git, sc.repo, metadataRemote(sc.layout), docketRef, seedCommit)
 		if refusal != nil {
 			return *refusal
 		}
@@ -645,7 +644,7 @@ func migrateExecute(ctx context.Context, git *gitcli.Client, hooks setupHooks, f
 //     the tree disagrees — a tampered seed) it refuses as a conflict, destroying
 //     nothing.
 func reconcileResumeSeed(ctx context.Context, git *gitcli.Client, hooks setupHooks, sc setupContext, docketRef gitcli.RefName, seedReceipt reposetup.Receipt, seedTree gitcli.ObjectID) (gitcli.ObjectID, *RepositoryMigrateResult) {
-	rev, err := git.FetchBranch(ctx, sc.repo, setupRemote(), docketRef)
+	rev, err := git.FetchBranch(ctx, sc.repo, metadataRemote(sc.layout), docketRef)
 	if err != nil {
 		r := migrateExternalFailure(reposetup.StateConflict, "re-reading the published metadata seed", err)
 		return "", &r
@@ -722,7 +721,7 @@ func reconcileResumeSeed(ctx context.Context, git *gitcli.Client, hooks setupHoo
 		r := migrateExternalFailure(reposetup.StateLegacy, "updating the metadata seed under its owned lease (interrupted before publication)", err)
 		return "", &r
 	}
-	out, perr := git.PushLease(ctx, sc.repo, setupRemote(), docketRef, newSeed, metadataTip)
+	out, perr := git.PushLease(ctx, sc.repo, metadataRemote(sc.layout), docketRef, newSeed, metadataTip)
 	if perr != nil {
 		r := migrateExternalFailure(reposetup.StateLegacy, "updating the metadata seed under its owned lease", perr)
 		return "", &r
@@ -750,7 +749,7 @@ func migrateResumeLocal(ctx context.Context, git *gitcli.Client, hooks setupHook
 	}
 	metadataTip := gitcli.ObjectID(sc.metadataTip)
 	integrationTip := gitcli.ObjectID(sc.sourceRevision)
-	docketRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
+	docketRef := metadataRef(sc.layout)
 	pendingLocal := migrateLocalFinish(ctx, git, facts, sc, docketRef, metadataTip, integrationTip, integrationTip)
 	return migrateApplied(sc, metadataTip, integrationTip, sc.sourceRevision, []string{}, []string{}, nil, pendingLocal)
 }
@@ -779,8 +778,9 @@ func mergeMigrateDebris(res RepositoryMigrateResult, debris setupDebrisReport) R
 // the create-only push is never widened to an overwriting lease (this is the
 // create-only protection mutation probe target). Resume-time adoption of an
 // already-published seed is owned by reconcileResumeSeed, not by this function.
-func publishSeed(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, docketRef gitcli.RefName, seedCommit gitcli.ObjectID) (gitcli.ObjectID, *RepositoryMigrateResult) {
-	outcome, err := git.PushCreateLease(ctx, repo, setupRemote(), docketRef, seedCommit)
+// remote is the layout's metadata remote.
+func publishSeed(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, remote gitcli.RemoteName, docketRef gitcli.RefName, seedCommit gitcli.ObjectID) (gitcli.ObjectID, *RepositoryMigrateResult) {
+	outcome, err := git.PushCreateLease(ctx, repo, remote, docketRef, seedCommit)
 	if err != nil {
 		r := migrateExternalFailure(reposetup.StateLegacy, "publishing the metadata seed", err)
 		return "", &r
@@ -801,7 +801,7 @@ func publishSeed(ctx context.Context, git *gitcli.Client, repo gitcli.Repository
 // verifySeedPublished re-reads the metadata branch from the remote and proves it
 // carries exactly the composed seed tree at exactly metadataTip before any prune.
 func verifySeedPublished(ctx context.Context, git *gitcli.Client, sc setupContext, docketRef gitcli.RefName, metadataTip, seedTree gitcli.ObjectID, prefixes []string) *RepositoryMigrateResult {
-	rev, err := git.FetchBranch(ctx, sc.repo, setupRemote(), docketRef)
+	rev, err := git.FetchBranch(ctx, sc.repo, metadataRemote(sc.layout), docketRef)
 	if err != nil {
 		r := migrateExternalFailure(reposetup.StateLegacy, "re-reading the published metadata seed", err)
 		return &r
@@ -914,7 +914,7 @@ func migrateLocalFinish(ctx context.Context, git *gitcli.Client, facts reposetup
 	if remedy := migratePrimarySyncRemedy(ctx, git, sc, sourceOID, integrationTip); remedy != "" {
 		pending = append(pending, remedy)
 	}
-	worktreePath := filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName)
+	worktreePath := sc.layout.MetadataWorktree
 	if _, err := ensureMetadataWorktree(ctx, git, sc.repo, worktreePath, docketRef, metadataTip); err != nil {
 		pending = append(pending, "attach the .docket worktree: `docket repository check` then re-run `docket repository migrate` ("+err.Error()+")")
 	} else if herr := git.DisableWorktreeHooks(ctx, worktreePath); herr != nil {
@@ -967,15 +967,16 @@ func sortedRepairedPaths(m map[string][]byte) []string {
 }
 
 // migratePreviewText renders the full confirmation plan: the resolved repo,
-// remote, exact integration revision, destination branch, copy set, removal set,
-// config edit, and the complete repair diff.
+// integration remote, exact integration revision, destination metadata branch and
+// the metadata remote it is published to, copy set, removal set, config edit, and
+// the complete repair diff.
 func migratePreviewText(sc setupContext, plan reposetup.MigrationPlan, mr migrationRepairs, sourceRevision string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "docket repository migrate — plan\n")
 	fmt.Fprintf(&b, "  repository:  %s\n", sc.repo.PrimaryWorktree)
 	fmt.Fprintf(&b, "  remote:      %s\n", setupRemote())
 	fmt.Fprintf(&b, "  integration: %s @ %s\n", sc.integrationBranch, sourceRevision)
-	fmt.Fprintf(&b, "  destination: %s (orphan metadata branch)\n", layout.SharedName) // Task 4: resolve through sc.layout
+	fmt.Fprintf(&b, "  destination: %s on %s (orphan metadata branch)\n", sc.layout.MetadataBranch, metadataRemote(sc.layout))
 	fmt.Fprintf(&b, "  copy set:    %s\n", strings.Join(plan.Copy.Prefixes, ", "))
 	fmt.Fprintf(&b, "  removal set: %s/, %s, %s\n", plan.Removal.ActiveDir, plan.Removal.BoardPath, plan.Removal.ReadmePath)
 	fmt.Fprintf(&b, "  config edit: %s\n", migrateConfigEditText(plan.ConfigEdit))

@@ -10,7 +10,6 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
-	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
@@ -264,7 +263,7 @@ func manualReviewLine(code, path, message string) string {
 // carried forward from the pinned tree.
 func executeRepositoryRepair(ctx context.Context, git *gitcli.Client, sc setupContext, metadataTip string, plan repositoryRepairPlan) RepositoryRepairResult {
 	tipOID := gitcli.ObjectID(metadataTip)
-	docketRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
+	docketRef := metadataRef(sc.layout)
 
 	ops := make([]gitcli.TreeOp, 0, len(plan.files))
 	for _, f := range plan.files {
@@ -278,7 +277,7 @@ func executeRepositoryRepair(ctx context.Context, git *gitcli.Client, sc setupCo
 	if err != nil {
 		return repairExternalFailure(reposetup.StateHealthy, "creating the repair commit", err)
 	}
-	out, err := git.PushLease(ctx, sc.repo, setupRemote(), docketRef, commit, tipOID)
+	out, err := git.PushLease(ctx, sc.repo, metadataRemote(sc.layout), docketRef, commit, tipOID)
 	if err != nil {
 		return repairExternalFailure(reposetup.StateHealthy, "publishing the repair", err)
 	}
@@ -290,7 +289,7 @@ func executeRepositoryRepair(ctx context.Context, git *gitcli.Client, sc setupCo
 	default:
 		return repairExternalFailure(reposetup.StateHealthy, "publishing the repair", errors.New("docket lease push failed"))
 	}
-	rev, err := git.FetchBranch(ctx, sc.repo, setupRemote(), docketRef)
+	rev, err := git.FetchBranch(ctx, sc.repo, metadataRemote(sc.layout), docketRef)
 	if err != nil {
 		return repairExternalFailure(reposetup.StateHealthy, "re-reading the repaired metadata branch", err)
 	}
@@ -387,15 +386,16 @@ func newRepairResult(result Result, out RepositoryRepairResult) RepositoryRepair
 	return out
 }
 
-// repairPreviewText renders the confirmation preview: repo, remote, exact pinned
+// repairPreviewText renders the confirmation preview: repo, the metadata remote
+// the repair publishes to, exact pinned
 // metadata revision, each repair as `[code] path` (frontmatter entries with their
 // patch preview), and the manual-review list.
 func repairPreviewText(sc setupContext, metadataTip string, plan repositoryRepairPlan) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "docket repository repair — preview\n")
 	fmt.Fprintf(&b, "  repository:  %s\n", sc.repo.PrimaryWorktree)
-	fmt.Fprintf(&b, "  remote:      %s\n", setupRemote())
-	fmt.Fprintf(&b, "  metadata:    %s @ %s\n", layout.SharedName, metadataTip) // Task 4: resolve through sc.layout
+	fmt.Fprintf(&b, "  remote:      %s\n", metadataRemote(sc.layout))
+	fmt.Fprintf(&b, "  metadata:    %s @ %s\n", sc.layout.MetadataBranch, metadataTip)
 	fmt.Fprintf(&b, "  repairs:\n")
 	for _, f := range plan.frontmatter {
 		fmt.Fprintf(&b, "    [%s] %s\n", f.Code, f.Path)

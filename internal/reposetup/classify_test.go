@@ -21,6 +21,7 @@ func healthyFacts() Facts {
 		LiveSurface:          PresenceAbsent,
 		LegacyConfigKey:      PresenceAbsent,
 		CommittedIgnoreBlock: PresencePresent,
+		MetadataWorktreeRef:  ".docket",
 		DocketWorktree: WorktreeFact{
 			Presence:     PresencePresent,
 			Registered:   PresencePresent,

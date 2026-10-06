@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
-	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -58,7 +58,11 @@ import (
 //   - repository root / origin identity      → PrepareContext.RepoRoot / OriginURL
 //   - default / integration / metadata branch → PrepareContext.{Default,Integration,Metadata}Branch
 //     names plus their pinned …Revision fields
-//   - fixed `.docket` worktree path           → PrepareContext.MetadataWorktreePath
+//   - metadata worktree path (`.docket` when   → PrepareContext.MetadataWorktreePath
+//     shared, the store checkout when private)
+//   - metadata remote and its tracking ref    → PrepareContext.MetadataRemote /
+//     (resolved from the layout, never assumed   MetadataTrackingRef
+//     to be origin)
 //   - resolved changes / ADR / results dirs   → PrepareContext.{ChangesDir,AdrsDir,ResultsDir}
 //   - supported finalize/test configuration   → PrepareContext.Finalize (mirrors the
 //     supported config.Effective finalize fields)
@@ -149,6 +153,12 @@ type PrepareContext struct {
 	MetadataBranchRevision    string `json:"metadata_branch_revision,omitempty"`
 
 	MetadataWorktreePath string `json:"metadata_worktree_path"`
+	// MetadataRemote is the remote the metadata branch is fetched from and
+	// pushed to (origin when shared, the bare dckt remote when private), and
+	// MetadataTrackingRef its remote-tracking ref, so a workflow names the
+	// resolved remote instead of assuming origin.
+	MetadataRemote      string `json:"metadata_remote"`
+	MetadataTrackingRef string `json:"metadata_tracking_ref"`
 
 	ChangesDir string `json:"changes_dir"`
 	AdrsDir    string `json:"adrs_dir"`
@@ -256,9 +266,9 @@ func prepareRoute(f reposetup.Facts, heldElsewhere prepareHolder) prepareVerdict
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
 			Code:     string(FCDocketDirForeign),
 			Severity: reposetup.SeverityError,
-			Ref:      docketWorktreeName,
-			Message:  "The .docket path is a foreign directory or a conflicting worktree registration.",
-			Remedy:   "Inspect the .docket path and resolve it manually with a human, then run `docket repository check`.",
+			Ref:      f.MetadataWorktreeRef,
+			Message:  fmt.Sprintf("The %s path is a foreign directory or a conflicting worktree registration.", f.MetadataWorktreeRef),
+			Remedy:   fmt.Sprintf("Inspect the %s path and resolve it manually with a human, then run `docket repository check`.", f.MetadataWorktreeRef),
 		})
 	}
 
@@ -326,7 +336,7 @@ func prepareRoute(f reposetup.Facts, heldElsewhere prepareHolder) prepareVerdict
 	case reposetup.PresenceAbsent:
 		return prepareAttachRoute(f, heldElsewhere)
 	case reposetup.PresenceUnknown:
-		return prepareLocalUnknownVerdict()
+		return prepareLocalUnknownVerdict(f.MetadataWorktreeRef)
 	}
 
 	// Present: it must be registered to this repository on the metadata branch.
@@ -334,9 +344,9 @@ func prepareRoute(f reposetup.Facts, heldElsewhere prepareHolder) prepareVerdict
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
 			Code:     string(FCDocketWorktreeAmbiguousRegistration),
 			Severity: reposetup.SeverityError,
-			Ref:      docketWorktreeName,
-			Message:  "The .docket worktree is present but not provably registered to this repository on the metadata branch.",
-			Remedy:   "Inspect the .docket worktree registration and resolve it manually with a human, then run `docket repository check`.",
+			Ref:      f.MetadataWorktreeRef,
+			Message:  fmt.Sprintf("The %s worktree is present but not provably registered to this repository on the metadata branch.", f.MetadataWorktreeRef),
+			Remedy:   fmt.Sprintf("Inspect the %s worktree registration and resolve it manually with a human, then run `docket repository check`.", f.MetadataWorktreeRef),
 		})
 	}
 
@@ -344,23 +354,24 @@ func prepareRoute(f reposetup.Facts, heldElsewhere prepareHolder) prepareVerdict
 	// resets, or stashes local content.
 	switch f.DocketWorktree.Clean {
 	case reposetup.PresenceAbsent:
-		msg := "The .docket metadata worktree has uncommitted or untracked changes."
-		remedy := "Commit or set aside the changes in the .docket metadata worktree, then re-run."
+		wt := f.MetadataWorktreeRef
+		msg := fmt.Sprintf("The %s metadata worktree has uncommitted or untracked changes.", wt)
+		remedy := fmt.Sprintf("Commit or set aside the changes in the %s metadata worktree, then re-run.", wt)
 		switch {
 		case f.DocketWorktree.UnfinishedOperation:
-			msg = "The .docket metadata worktree has an unfinished Git operation (a merge, cherry-pick, revert, rebase, am, or bisect)."
+			msg = fmt.Sprintf("The %s metadata worktree has an unfinished Git operation (a merge, cherry-pick, revert, rebase, am, or bisect).", wt)
 		case f.DocketWorktree.InterruptedFastForward:
-			msg, remedy = reposetup.InterruptedFastForwardMessage, reposetup.InterruptedFastForwardRemedy
+			msg, remedy = reposetup.InterruptedFastForwardMessage(wt), reposetup.InterruptedFastForwardRemedy(wt)
 		}
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
 			Code:     string(FCMetadataWorktreeDirty),
 			Severity: reposetup.SeverityError,
-			Ref:      docketWorktreeName,
+			Ref:      wt,
 			Message:  msg,
 			Remedy:   remedy,
 		})
 	case reposetup.PresenceUnknown:
-		return prepareLocalUnknownVerdict()
+		return prepareLocalUnknownVerdict(f.MetadataWorktreeRef)
 	}
 
 	// 6. Clean, registered worktree: synchronize by the pinned remote revision,
@@ -376,7 +387,7 @@ func prepareRoute(f reposetup.Facts, heldElsewhere prepareHolder) prepareVerdict
 	case reposetup.SyncDiverged:
 		return prepareRefuseVerdict(reposetup.StateConflict, prepareDivergedFinding())
 	default:
-		return prepareLocalUnknownVerdict()
+		return prepareLocalUnknownVerdict(f.MetadataWorktreeRef)
 	}
 }
 
@@ -422,7 +433,7 @@ func prepareAttachRoute(f reposetup.Facts, heldElsewhere prepareHolder) prepareV
 	case reposetup.PresenceAbsent:
 		return prepareApplyVerdict(prepareActionAttach, target, "")
 	case reposetup.PresenceUnknown:
-		return prepareLocalUnknownVerdict()
+		return prepareLocalUnknownVerdict(f.MetadataWorktreeRef)
 	}
 	switch f.LocalMetadataSync {
 	case reposetup.SyncCurrent, reposetup.SyncBehind:
@@ -430,32 +441,34 @@ func prepareAttachRoute(f reposetup.Facts, heldElsewhere prepareHolder) prepareV
 		case reposetup.PresenceAbsent:
 			return prepareApplyVerdict(prepareActionAttach, target, f.LocalMetadata.Tip)
 		case reposetup.PresencePresent:
-			return prepareRefuseVerdict(reposetup.StateConflict, prepareHeldElsewhereFinding(heldElsewhere.stale))
+			return prepareRefuseVerdict(reposetup.StateConflict, prepareHeldElsewhereFinding(f.MetadataWorktreeRef, heldElsewhere.stale))
 		default:
-			return prepareLocalUnknownVerdict()
+			return prepareLocalUnknownVerdict(f.MetadataWorktreeRef)
 		}
 	case reposetup.SyncAhead:
 		return prepareRefuseVerdict(reposetup.StateConflict, prepareAheadFinding())
 	case reposetup.SyncDiverged:
 		return prepareRefuseVerdict(reposetup.StateConflict, prepareDivergedFinding())
 	default:
-		return prepareLocalUnknownVerdict()
+		return prepareLocalUnknownVerdict(f.MetadataWorktreeRef)
 	}
 }
 
-// prepareHeldElsewhereFinding refuses an attach whose local docket branch another
-// worktree registration holds. A stale registration names `git worktree prune`, the
-// plain-Git cleanup; a live one is a human's to resolve.
-func prepareHeldElsewhereFinding(stale bool) reposetup.Finding {
+// prepareHeldElsewhereFinding refuses an attach whose local metadata branch another
+// worktree registration holds; worktree names the metadata worktree (the
+// shared `.docket` spelling or the private checkout path). A stale registration
+// names `git worktree prune`, the plain-Git cleanup; a live one is a human's to
+// resolve.
+func prepareHeldElsewhereFinding(worktree string, stale bool) reposetup.Finding {
 	f := reposetup.Finding{
 		Code:     string(FCDocketWorktreeAmbiguousRegistration),
 		Severity: reposetup.SeverityError,
-		Ref:      docketWorktreeName,
-		Message:  "The local docket branch is checked out in another worktree, so it cannot be attached at .docket.",
+		Ref:      worktree,
+		Message:  fmt.Sprintf("The local docket branch is checked out in another worktree, so it cannot be attached at %s.", worktree),
 		Remedy:   "Inspect the worktree holding the docket branch and resolve it manually with a human, then run `docket repository check`.",
 	}
 	if stale {
-		f.Message = "The local docket branch is still registered to a worktree whose directory is gone, so it cannot be attached at .docket."
+		f.Message = fmt.Sprintf("The local docket branch is still registered to a worktree whose directory is gone, so it cannot be attached at %s.", worktree)
 		f.Remedy = "Run `git worktree prune` to drop the stale worktree registration, then run `docket repository prepare`."
 	}
 	return f
@@ -487,13 +500,15 @@ func prepareUnresolvedTopology(f reposetup.Facts) []string {
 // prepareLocalUnknownVerdict is the shared refusal for a healthy-topology
 // repository whose local worktree/sync state could not be proven. It refuses
 // rather than guessing: an unproven local state never attaches or fast-forwards.
-func prepareLocalUnknownVerdict() prepareVerdict {
+// worktree names the metadata worktree (the shared `.docket` spelling or the
+// private checkout path).
+func prepareLocalUnknownVerdict(worktree string) prepareVerdict {
 	return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
 		Code:     string(FCPrepareLocalStateUnknown),
 		Severity: reposetup.SeverityError,
-		Ref:      docketWorktreeName,
-		Message:  "The local .docket worktree or its synchronization with the remote metadata branch could not be resolved.",
-		Remedy:   "Run `docket repository check` after ensuring the .docket worktree is readable and the remote is reachable.",
+		Ref:      worktree,
+		Message:  fmt.Sprintf("The local %s worktree or its synchronization with the remote metadata branch could not be resolved.", worktree),
+		Remedy:   fmt.Sprintf("Run `docket repository check` after ensuring the %s worktree is readable and the remote is reachable.", worktree),
 	})
 }
 
@@ -528,9 +543,11 @@ func buildPrepareContext(cfg config.Effective, sc setupContext, f reposetup.Fact
 		DefaultBranchRevision:     f.RemoteDefaultBranch.Tip,
 		IntegrationBranch:         sc.integrationBranch,
 		IntegrationBranchRevision: f.RemoteIntegration.Tip,
-		MetadataBranch:            layout.SharedName, // Task 4: resolve through sc.layout
+		MetadataBranch:            sc.layout.MetadataBranch,
 		MetadataBranchRevision:    f.RemoteMetadata.Tip,
-		MetadataWorktreePath:      filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName),
+		MetadataRemote:            sc.layout.MetadataRemote,
+		MetadataTrackingRef:       sc.layout.TrackingRef(),
+		MetadataWorktreePath:      sc.layout.MetadataWorktree,
 		ChangesDir:                cfg.ChangesDir.Value,
 		AdrsDir:                   cfg.ADRsDir.Value,
 		ResultsDir:                cfg.ResultsDir.Value,
@@ -609,7 +626,7 @@ func RunRepositoryPrepare(ctx context.Context, d SetupDeps, o PrepareOptions) Re
 // PresenceUnknown and never read. Every probe maps its own error to the safe Unknown
 // value so a probe that could not run can never let the router read healthy.
 func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts, sc setupContext) prepareHolder {
-	metaRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
+	metaRef := metadataRef(sc.layout)
 
 	// Metadata root shape at the FETCHED remote docket tip (fetch it first so the
 	// object is local on a clone that never fetched docket). The shared ownership
@@ -627,7 +644,7 @@ func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts,
 	// single authority the ownership proof is computed at.
 	metaTip := sc.metadataTip
 	if metaTip != "" {
-		rev, ferr := git.FetchBranch(ctx, sc.repo, setupRemote(), metaRef)
+		rev, ferr := git.FetchBranch(ctx, sc.repo, metadataRemote(sc.layout), metaRef)
 		if ferr != nil {
 			f.MetadataRoot = reposetup.RootUnknown
 		} else {
@@ -648,7 +665,7 @@ func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts,
 
 	// The .docket worktree clean state, probed only when the worktree is present.
 	if f.DocketWorktree.Presence == reposetup.PresencePresent {
-		f.DocketWorktree.Clean, f.DocketWorktree.UnfinishedOperation, f.DocketWorktree.InterruptedFastForward = worktreeCleanState(ctx, git, filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName))
+		f.DocketWorktree.Clean, f.DocketWorktree.UnfinishedOperation, f.DocketWorktree.InterruptedFastForward = worktreeCleanState(ctx, git, sc.layout.MetadataWorktree)
 	}
 
 	applyLocalMetadataSync(ctx, git, sc.repo, f)
@@ -660,7 +677,7 @@ func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts,
 	if err != nil {
 		return prepareHolder{presence: reposetup.PresenceUnknown}
 	}
-	worktreePath := filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName)
+	worktreePath := sc.layout.MetadataWorktree
 	for _, wt := range wts {
 		if wt.Branch == metaRef {
 			return prepareHolder{
@@ -683,8 +700,8 @@ func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts,
 // not re-applied on that path because nothing removed it. Both effects key on the
 // re-read remote state so a lost-response retry converges by re-reading topology.
 func prepareExecute(ctx context.Context, git *gitcli.Client, sc setupContext, verdict prepareVerdict) error {
-	worktreePath := filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName)
-	metaRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
+	worktreePath := sc.layout.MetadataWorktree
+	metaRef := metadataRef(sc.layout)
 	switch verdict.action {
 	case prepareActionAttach:
 		return prepareAttachFresh(ctx, git, sc.repo, worktreePath, metaRef, verdict)
@@ -713,6 +730,12 @@ func prepareExecute(ctx context.Context, git *gitcli.Client, sc setupContext, ve
 // hooks-off is applied right after the attach in every case.
 func prepareAttachFresh(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, worktreePath string, metaRef gitcli.RefName, v prepareVerdict) error {
 	target := gitcli.ObjectID(v.targetRev)
+	// A private checkout sits under the data-home store, whose checkouts
+	// directory may not exist yet; a shared `.docket` parent is the primary
+	// worktree, so this is a no-op there.
+	if err := os.MkdirAll(filepath.Dir(worktreePath), 0o755); err != nil {
+		return err
+	}
 	if v.observedTip == "" {
 		if err := git.AddBranchWorktreeNoHooks(ctx, repo, worktreePath, metaRef, target); err != nil {
 			return err

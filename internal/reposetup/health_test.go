@@ -826,7 +826,7 @@ func TestHealthDirtyMessageNamesTheCause(t *testing.T) {
 	}{
 		"files":       {files, "The .docket metadata worktree has uncommitted or untracked changes."},
 		"operation":   {op, "The .docket metadata worktree has an unfinished Git operation (a merge, cherry-pick, revert, rebase, am, or bisect)."},
-		"fastforward": {ff, InterruptedFastForwardMessage},
+		"fastforward": {ff, InterruptedFastForwardMessage(".docket")},
 	} {
 		var msg string
 		for _, fn := range EvaluateHealth(Classify(tc.f), tc.f, nil) {
@@ -1074,6 +1074,48 @@ func TestHealthPrimaryTipFindingByRelationship(t *testing.T) {
 		assertNoDestructiveCommand(t, fnd.Remedy)
 		if CheckExit(c, got) != 1 {
 			t.Errorf("%s: exit != 1", row.wantCode)
+		}
+	}
+}
+
+// TestFindingsUseResolvedWorktreeRef: every metadata-worktree finding names the
+// resolved worktree ref the gatherer recorded (a private checkout path here),
+// never the shared `.docket` spelling, in its Ref, Message, and Remedy.
+func TestFindingsUseResolvedWorktreeRef(t *testing.T) {
+	const ref = "/d/dckt/o-r/checkouts/r-12345678"
+	states := map[string]func(*Facts){
+		"missing":          func(f *Facts) { f.DocketWorktree = WorktreeFact{Presence: PresenceAbsent} },
+		"unverified":       func(f *Facts) { f.DocketWorktree = WorktreeFact{Presence: PresenceUnknown} },
+		"foreign":          func(f *Facts) { f.DocketWorktree.Foreign = true },
+		"unregistered":     func(f *Facts) { f.DocketWorktree.Registered = PresenceAbsent },
+		"registration-unk": func(f *Facts) { f.DocketWorktree.Registered = PresenceUnknown },
+		"dirty":            func(f *Facts) { f.DocketWorktree.Clean = PresenceAbsent },
+		"unfinished":       func(f *Facts) { f.DocketWorktree.Clean, f.DocketWorktree.UnfinishedOperation = PresenceAbsent, true },
+		"interrupted-ff":   func(f *Facts) { f.DocketWorktree.Clean, f.DocketWorktree.InterruptedFastForward = PresenceAbsent, true },
+		"clean-unverified": func(f *Facts) { f.DocketWorktree.Clean = PresenceUnknown },
+		"sync-unverified":  func(f *Facts) { f.DocketWorktree.Synchronized, f.LocalMetadataSync = PresenceUnknown, SyncUnknown },
+		"hooks-enabled":    func(f *Facts) { f.DocketWorktree.HooksOff = PresenceAbsent },
+		"hooks-unverified": func(f *Facts) { f.DocketWorktree.HooksOff = PresenceUnknown },
+	}
+	for name, mutate := range states {
+		f := healthyFacts()
+		f.MetadataWorktreeRef = ref
+		mutate(&f)
+		got := EvaluateHealth(Classify(f), f, nil)
+		var worktreeFindings int
+		for _, fn := range got {
+			if fn.Ref != "" {
+				worktreeFindings++
+				if fn.Ref != ref {
+					t.Errorf("%s: finding %s Ref = %q, want %q", name, fn.Code, fn.Ref, ref)
+				}
+			}
+			if strings.Contains(fn.Message, ".docket") || strings.Contains(fn.Remedy, ".docket") {
+				t.Errorf("%s: finding %s still spells .docket: %q / %q", name, fn.Code, fn.Message, fn.Remedy)
+			}
+		}
+		if worktreeFindings == 0 {
+			t.Errorf("%s: no worktree finding produced (findings %+v)", name, got)
 		}
 	}
 }
