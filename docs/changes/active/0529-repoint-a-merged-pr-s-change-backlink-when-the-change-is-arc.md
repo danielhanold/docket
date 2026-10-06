@@ -2,11 +2,11 @@
 id: 529
 slug: 'repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc'
 title: 'Repoint a merged PR''s change backlink when the change is archived'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-05'
-updated: '2026-10-05'
+updated: '2026-10-06'
 depends_on: []
 stacked_on:
 related: [337, 417, 530]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-06T00:31:08Z'
 ---
 
 ## Artifacts
