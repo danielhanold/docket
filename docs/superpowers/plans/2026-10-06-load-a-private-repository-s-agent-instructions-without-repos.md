@@ -6,196 +6,84 @@
 
 > **For agentic workers:** `docket-build` executes this plan. It routes each task to a tier agent running the `docket-build-task` contract. Each task carries its own focused test cycle and ends in one commit. The whole suite runs once at the end. Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** A private repository's parent-facing rules (the dispatch block plus promoted lessons) live in `<git-common-dir>/dckt/AGENTS.md`. A new read-only `docket instructions` command prints that file, and only that file, inside a private repository. `docket install` writes one content-free trigger per harness so every session loads it:
-- a Claude Code `SessionStart` hook;
-- a `dckt:` pointer block in the Codex and OpenCode user-level AGENTS.md;
-- an excluded `.cursor/rules/dckt-dispatch.mdc` for Cursor.
+**Goal:** A private repository's parent-facing rules (dispatch block plus promoted lessons) live in `<git-common-dir>/dckt/AGENTS.md`. A read-only `docket instructions` prints that file, or one section, only inside a private repository, optionally as Claude Code or Cursor session-start hook output. `docket install` writes one content-free trigger per harness, once per machine: two `SessionStart` entries in `~/.claude/settings.json`; a `sessionStart` entry in `~/.cursor/hooks.json`; the plugin `~/.config/opencode/plugins/dckt-instructions.js`; a `dckt:` pointer block in `~/.codex/AGENTS.md` (best effort). Nothing goes in a private working tree or `.git/info/exclude`.
 
-No AGENTS.md, CLAUDE.md, or docket-named rule file is written into a private working tree.
+**This revision** replaces the plan whose Task 1 spike halted the first build, following the re-groomed spec.
 
 **Architecture:**
-- `internal/document` learns a second, neutral marker namespace. `<!-- dckt:NAME:start … -->` blocks are addressed by the qualified name `dckt:NAME`. Bare names keep meaning `docket:`.
-- `internal/install` gains a fourth target kind, `settings-hook`: one exact matcher group inside `~/.claude/settings.json`'s `hooks.SessionStart` array. It is inserted and removed byte-precisely, and every other byte of the file is preserved. The installer also learns to retire one managed block and write a different one in the same file within one run.
-- `internal/harness/trigger.go` holds the trigger constants. The Claude, Codex, and OpenCode adapters plan the triggers.
-- `internal/reposeed.PlanPrivate` plans a private repository's surfaces. `app.ResolveRepoPhase` branches on the detected mode, so both `docket install`'s repository phase and `repository init --private` write the private file, the excluded Cursor rule, and nothing else.
-- `app.ReadPrivateInstructions` and the `instructions` command resolve the common directory from the filesystem alone (no git process), so they cost almost nothing in every session.
+- `internal/document` gains a neutral marker namespace: `<!-- dckt:NAME:start … -->` blocks are addressed as `dckt:NAME`; bare names stay `docket:`.
+- `internal/install`: a transaction may retire one managed block and write another in the same file, removal first (Codex's leftover `docket:dispatch` and the pointer share `~/.codex/AGENTS.md`). A new `hook-entries` kind: **one** target per hooks JSON file owns an ordered list of commands in one dialect (`claude`, `cursor`), because the state refuses two records on one path (`ValidateState`) and a transaction cannot apply two removals to one file (`applySteps` re-verifies each later removal's pre-image digest). Edits are byte splices.
+- `internal/harness/trigger.go` holds every trigger; all four adapters plan theirs.
+- `reposeed.PlanPrivate` plans the private file; `app.ResolveRepoPhase` branches on the detected mode, so install's repository phase and `repository init --private` write it and nothing else.
+- `app.ReadPrivateInstructions` resolves the common dir from the filesystem alone (no git process), so every session pays almost nothing.
 
-**Tech Stack:**
-- Go.
-- cobra.
-- Real-git tests behind `//go:build integration`, sharded by name prefix. This plan adds the shard `TestIntegrationPrivateInstructions`.
-- `go generate ./internal/assets/` for the embedded skill twins.
+**Tech Stack:** Go, cobra; real-git tests behind `//go:build integration`, sharded by name prefix (new shard `TestIntegrationPrivateInstructions`); `go generate ./internal/assets/` for skill twins.
 
-**Spec:** `docs/superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md`. It is already in the feature worktree. Read it first.
+**Spec:** `docs/superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md`, already in the feature worktree. Read it first, especially *Delivery spike (2026-10-06)* and *Design*.
 
 ## Global Constraints
 
-- **The private file** is `<git-common-dir>/dckt/AGENTS.md`. It holds the managed `docket:dispatch` block, with the same interior the repository-level block carries: `harness.DispatchInterior`, or `harness.CodexDispatchInterior` when `codex` is opted in. Promoted lessons are added to it by hand, outside the block.
-- **Nothing in a private worktree.** No AGENTS.md, CLAUDE.md, or `.cursor/rules/docket-dispatch.mdc`. Cursor gets `.cursor/rules/dckt-dispatch.mdc`, listed in the `# dckt:` block of `.git/info/exclude`.
-- **`docket instructions`:**
-  - In a private repository, it prints the private file verbatim from any worktree: primary, feature, or metadata checkout.
-  - Everywhere else (a shared repository, a non-docket repository, outside git) it prints **nothing** and exits 0.
-  - `--hook` wraps the content in Claude Code's `SessionStart` output, `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":…}}`, and also prints nothing outside private repositories.
-- **The triggers, verbatim:**
-  - Claude: the hook command is exactly `dckt instructions --hook`.
-  - Codex and OpenCode: the pointer block's qualified name is `dckt:private-instructions`, its annotation is `managed — do not hand-edit`, and its interior is exactly:
-    ```
-    ## Private repository instructions
-
-    At the start of a session inside a git repository, run `dckt instructions` once.
-    If it prints anything, treat that output as this repository's own AGENTS.md and
-    follow it for the rest of the session. If it prints nothing, ignore this section.
-    ```
-- **No rule text and no "docket" in any trigger.** This is pinned by a test (Task 5).
-- **Hook safety:**
-  - The entry is identified by its exact command.
-  - Install adds the entry only when the command is absent, and every other byte of `settings.json` survives.
-  - Uninstall removes only the exact canonical group, and reports, rather than touches, a modified one.
+- **The private file** is `<git-common-dir>/dckt/AGENTS.md`. It holds the managed `docket:dispatch` block, with the same interior the repository-level block carries: `harness.DispatchInterior`, or `harness.CodexDispatchInterior` when `codex` is opted in. Its owners are every opted-in harness (claude, codex, cursor, opencode); it is present iff at least one is opted in. Promoted lessons are added to it by hand, outside the block.
+- **Nothing in a private worktree.** No AGENTS.md, CLAUDE.md, `.cursor/rules/docket-dispatch.mdc`, or any other rule file, and no `.git/info/exclude` edit.
+- **`docket instructions`** (details in Task 7): prints the private file from any worktree of a private repository and **nothing**, exit 0, anywhere else; `--section dispatch|lessons`; `--hook claude|cursor` wraps the content, Cursor locating the repository from `CURSOR_PROJECT_DIR` or stdin `workspace_roots`, never the working directory. **Hook modes never fail a session:** a runtime error means no output and exit 0. An invalid flag value is an argument error, exit 2, in every mode.
+- **The triggers, verbatim,** are the constants in Task 4 (`internal/harness/trigger.go`): the spec's commands, entry shapes, plugin bytes, and pointer wording. Nothing else may spell them.
+- **No rule text and no "docket" in any trigger** (Task 4). **The dispatch block fits one Claude hook:** under 10,000 characters for every `agent_harnesses` selection (Task 7).
+- **JSON hook safety:** an entry is identified by its exact command; install adds only absent ones and every other byte survives; uninstall removes only exact entries and reports a modified one; an unparseable or wrong-typed file is a conflict, never "absent" (Task 3). **The OpenCode plugin** is a wholly owned `KindFile`: created when absent, no-op when identical, conflict when modified, removed only on an exact match.
 - **Shared repositories are unchanged:** their repository-level blocks stay as they are, and they get no private file.
 - **The triggers are installed whenever their harness is installed**, including on machines with no private repository yet.
 - **Docs:** command help and skills only. No `docs/` pages.
 - **AGENTS.md rules:**
   - Mutation-test every guard, restoring from a **backup copy** (never `git checkout --`), and run with `-count=1`.
   - Template every `mktemp` as `"${TMPDIR:-/tmp}/<name>.XXXXXX"`.
-  - Anchor cross-references on symbols.
-  - Never pipe into `grep -q` or `head`.
+  - Anchor cross-references on symbols, never line numbers.
+  - Never pipe into `grep -q` or `head`; capture into a variable first.
   - Run `go generate ./internal/assets/` after any skill edit.
-- **Hermetic home.** Every test that reaches the installer or `installAuthorizedSurfaces` pins `HOME`, `XDG_CONFIG_HOME`, and `XDG_DATA_HOME` to temp directories. This change adds a write to `~/.claude/settings.json`, so a leak now overwrites real settings.
+- **Hermetic home.** Every test that reaches the installer or `installAuthorizedSurfaces` pins `HOME`, `XDG_CONFIG_HOME`, and `XDG_DATA_HOME` to temp directories. This change adds writes to `~/.claude/settings.json`, `~/.cursor/hooks.json`, and `~/.config/opencode/plugins/`, so a leak now overwrites real user configuration.
 
 ## Review Focus
 
 Each item has a test in its owning task.
-1. **`settings.json` content docket did not write** (a user's own `SessionStart` group with a matcher, another event, unrelated keys, tab indentation, or a one-line compact file): install inserts exactly one group, and an install-then-uninstall round trip returns the original bytes (Task 4).
-2. **A malformed or non-object `settings.json`**, or `hooks` / `SessionStart` of the wrong JSON type: install refuses with `managed-block-invalid` and the file is untouched. It is never read as "hook absent" (Task 4).
-3. **A user-edited docket group** (for example, a `timeout` added): install is a no-op, and uninstall reports a conflict and leaves the group in place (Task 4).
-4. **A `~/.codex/AGENTS.md` that still carries a provable leftover `docket:dispatch` block:** one install retires it and adds the pointer, user text survives, and a failed later step rolls the file back byte-for-byte (Task 3).
-5. **`docket instructions` run from a subdirectory**, from a feature worktree whose `.git` is a file, and with an unreadable private file: it prints from the right file, and the unreadable case gives a stderr diagnostic and exit 1, never silence (Task 8).
+1. **Hooks-file content docket did not write** (a user group with a matcher, another event, unrelated keys, tabs, a compact one-line file, other Cursor entries): only missing entries are inserted, and install-then-uninstall returns the original bytes (Task 3).
+2. **A malformed, non-object, wrong-typed, or symlinked hooks file:** a conflict with the file untouched, never "entries absent" (Task 3).
+3. **A user-edited docket entry** (a `timeout` added): install is a no-op for it; uninstall reports a conflict and leaves the file byte-identical (Task 3).
+4. **A `~/.codex/AGENTS.md` with a provable leftover `docket:dispatch` block:** one install retires it and adds the pointer, user text survives, and a later failure rolls back byte-for-byte (Task 2).
+5. **`docket instructions` from a subdirectory, a `.git`-file worktree, an unreadable file, and `--hook cursor` with garbage stdin:** the right file; stderr plus exit 1 in plain mode and silence plus exit 0 in hook mode; nothing for garbage (Task 7).
 
 ## Learnings applied
 
-- **harness-behavior-is-mode-and-version-scoped:** each spike verdict carries the harness version, the mode (headless), and the flags.
-- **external-truth-needs-a-human-checkpoint:** a harness the spike cannot exercise, and delivery in an interactive session, become named human items phrased as states to reproduce.
-- **generated-artifact-loaded-at-process-start:** triggers load at session start. The spike uses fresh processes only.
-- **config-layer-write-and-read-hazards:** the new `~/.claude/settings.json` write makes any test that leaks `HOME` a data-loss bug. Task 5 audits them.
-- **probe-error-is-not-clean-absence:** an unreadable private file, a layout probe error, or an unparseable `settings.json` is reported, never treated as absent.
-- **shared-resource-keeps-first-owner-assumptions:** Task 3 has a two-block fixture for `~/.codex/AGENTS.md`. Task 7 has an owner-removal fixture for the co-owned private file.
-- **byte-pattern-guard-matches-a-spelling** and **assert-detects-removal-not-replacement:** the no-docket guard is a case-insensitive substring match over every byte a trigger writes, and it is mutation-tested.
-- **distributed-body-has-no-local-repo:** Task 9's prose is read in unknown repositories.
-- **intermediate-task-state-buildable:** every task leaves the tree green.
+- **harness-behavior-is-mode-and-version-scoped** / **external-truth-needs-a-human-checkpoint** / **generated-artifact-loaded-at-process-start:** Task 9 records version, mode, and flags per verdict, uses fresh processes only, and names human items for what it cannot run.
+- **config-layer-write-and-read-hazards:** new user-level writes make a `HOME` leak a data-loss bug (Task 4 audit).
+- **probe-error-is-not-clean-absence:** an unreadable private file, a layout probe error, or an unparseable hooks file is reported, never "absent".
+- **shared-resource-keeps-first-owner-assumptions:** two-block `~/.codex/AGENTS.md` (Task 2), the four-owner private file (Task 6), two entries in one `settings.json` target (Task 3).
+- **byte-pattern-guard-matches-a-spelling**, **assert-detects-removal-not-replacement**, **specified-but-unreachable**, **compensating-assert-must-exist-when-cited:** Task 4's guard renders through the producers and is mutation-tested; Task 7 parses every trigger command with the real CLI; `TestNoGlobalParentSurface` is narrowed only beside its replacement assert.
+- **plan-supplied-test-code-is-unverified**, **distributed-body-has-no-local-repo**, **intermediate-task-state-buildable.**
 
 ## ADRs to record
 
 The parent records this through `docket-adr`; it is not a build task.
 
-1. **A private repository's parent-facing rules live in `<git-common-dir>/dckt/AGENTS.md`.** They reach the agent through content-free user-level triggers: a Claude `SessionStart` hook running `dckt instructions --hook`, `dckt:` pointer blocks in the Codex and OpenCode user-level AGENTS.md, and an excluded per-repository Cursor rule. This narrowly revisits 0351's retirement of user-level parent-facing writes. It is acceptable because the triggers carry no rules, so the drift that retired the user-level copy cannot recur. Relates to ADR-0036 and ADR-0078.
+1. **A private repository's parent-facing rules live in `<git-common-dir>/dckt/AGENTS.md`.** They reach the agent through content-free user-level triggers: two Claude Code `SessionStart` hooks in `~/.claude/settings.json`, split by meaning (dispatch block, lessons) so each fits Claude Code's per-hook 10,000-character cap; a Cursor `sessionStart` hook in `~/.cursor/hooks.json`; an OpenCode system-prompt plugin; and a Codex pointer block (best effort). This narrowly revisits 0351's retirement of user-level parent-facing writes. It is acceptable because the triggers carry no rules, so the drift that retired the user-level copy cannot recur. Relates to ADR-0036 and ADR-0078.
+
+## Residuals (for the results file)
+
+- The triggers load in a session started **after** install; a running session keeps its old context.
+- A private repository whose git directory is not `<primary>/.git` (`--separate-git-dir`) refuses the repository phase.
+- A symlinked `settings.json` or `hooks.json` (dotfiles managers) is a conflict that stops `docket install`; the transaction publishes by rename and never writes through a link.
+- Uninstall leaves a hooks file docket created as `{}` / `{"version": 1}`, and removes a pre-existing empty `hooks` object or event array with docket's last entry.
+- An older binary cannot read the new `hook-entries` state fields (a downgrade reads the state as invalid).
+- OpenCode's hook is `experimental.`; Cursor documents `sessionStart` as fire-and-forget; only the Cursor CLI is exercised; lessons past 10,000 characters reach Claude as its path-plus-preview.
+- A foreign `dckt` (#534) makes the triggers fail harmlessly; `docket instructions` still works by hand.
 
 ---
 
-### Task 1: Spike: confirm each harness delivers the instructions in a fresh session
+### Task 1: The neutral `dckt:` marker namespace in `internal/document`
 
 **Build tier:** standard
 
-**Files:** none in the tree. This task prescribes one **empty** commit (`git commit --allow-empty`) whose message body carries the spike table.
+**Files:** Modify `internal/document/markers.go` (and `Block`'s doc comment in `document.go` if it names only `docket:`). Test: `internal/document/markers_test.go`.
 
 **Interfaces:**
-- Produces: the spike table (harness, version, mode and flags, verdict, evidence excerpt). The parent copies it into the results file. Task 8's `--hook` output shape is the one confirmed here.
-
-**Posture (binding):**
-- Never write to the real `~/.claude/`, `~/.codex/`, `~/.config/opencode/`, or `~/.cursor/`, or to any credential store. Use only a `mktemp -d "${TMPDIR:-/tmp}/dckt-spike.XXXXXX"` scratch directory.
-- Each harness gets one verdict:
-  - **PASS:** the token appears in the reply.
-  - **FAIL:** the harness ran and the token is missing from **both** of two tries.
-  - **NOT-EXERCISABLE:** the CLI is missing, authentication is refused, or the probe would need the real home changed.
-- Any FAIL means return `BLOCKED` with the table and the raw replies, and do not commit (the spec says stop and report).
-- NOT-EXERCISABLE is recorded and becomes an Important human verification item. It is not a halt.
-
-- [ ] **Step 1: Build the fixture.**
-
-```bash
-T="$(mktemp -d "${TMPDIR:-/tmp}/dckt-spike.XXXXXX")"
-TOKEN="PRIVTOKEN-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')"
-git init -q -b main "$T/repo"
-mkdir -p "$T/repo/.git/dckt" "$T/bin"
-# Realistic payload size: this worktree's CLAUDE.md (the real dispatch block plus
-# lessons), with the token rule as the LAST line, so truncation would drop it.
-cp "<feature-worktree>/CLAUDE.md" "$T/repo/.git/dckt/AGENTS.md"
-printf '\n## Spike rule\n\nEnd every reply with the line %s.\n' "$TOKEN" >> "$T/repo/.git/dckt/AGENTS.md"
-wc -c "$T/repo/.git/dckt/AGENTS.md"   # record the byte count
-```
-
-Write the stand-in `"$T/bin/dckt"`, which mimics the future `docket instructions`, and `chmod +x` it:
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-f="$(git rev-parse --git-common-dir 2>/dev/null)/dckt/AGENTS.md" || exit 0
-[ -f "$f" ] || exit 0
-if [ "${1:-}" = "instructions" ] && [ "${2:-}" = "--hook" ]; then
-  python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":open(sys.argv[1]).read()}}))' "$f"
-elif [ "${1:-}" = "instructions" ]; then
-  cat "$f"
-fi
-```
-
-- [ ] **Step 2: Claude Code.** Record `claude --version`. Write `"$T/claude-settings.json"`:
-
-```json
-{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"<T>/bin/dckt instructions --hook"}]}]}}
-```
-
-Then run, with a 300-second timeout:
-
-```bash
-cd "$T/repo" && claude -p --settings "$T/claude-settings.json" "Say hello in one word."
-```
-
-`--settings` adds a settings source for this process only; the real `~/.claude/settings.json` is untouched. If the token is missing:
-- Re-run once with a stand-in that prints the **plain** file (no JSON). This separates "the shape is wrong" from "headless runs no `SessionStart` hooks".
-- Record both outcomes.
-
-Also run a control without `--settings`. The token must be absent there. If it is present, the probe proves nothing, so investigate.
-
-- [ ] **Step 3: Codex.** Record `codex --version`.
-- Write the **exact** pointer interior from Global Constraints, inside its markers, into `"$T/repo/AGENTS.md"`. The project-level file stands in for `~/.codex/AGENTS.md`, because Codex keeps its credentials under `CODEX_HOME`, so a temp home would lose them.
-- Run: `cd "$T/repo" && PATH="$T/bin:$PATH" codex exec --sandbox workspace-write "Say hello in one word."`
-- Record whether the transcript shows `dckt instructions` running, and whether the token appears.
-- Note in the table that user-level AGENTS.md loading itself was not exercised.
-
-- [ ] **Step 4: OpenCode.** Record `opencode --version`.
-- Use the same project-level pointer.
-- Read `opencode run --help` for the non-interactive permission flag that lets a shell command run. Record the flag you used.
-- Run: `cd "$T/repo" && PATH="$T/bin:$PATH" opencode run <permission flag if needed> "Say hello in one word."`
-
-- [ ] **Step 5: Cursor.** Record `cursor-agent --version`.
-- Remove `"$T/repo/AGENTS.md"`.
-- Write `"$T/repo/.cursor/rules/dckt-dispatch.mdc"` with `alwaysApply: true` frontmatter and a body that is the AGENTS.md payload.
-- Add `.cursor/rules/dckt-dispatch.mdc` to `"$T/repo/.git/info/exclude"`, then confirm `git -C "$T/repo" status --porcelain` is empty.
-- Run: `cd "$T/repo" && cursor-agent -p --trust --output-format text "Say hello in one word."`
-- The question this answers is whether Cursor reads a rule file that git ignores.
-
-- [ ] **Step 6: Decide.**
-  - Any FAIL: return `BLOCKED` and do not commit.
-  - Otherwise, `rm -rf "$T"` and make the empty commit `test: spike private-instructions delivery per harness`. The body holds the table (one row per harness), the payload byte count, the hook shape that worked (JSON or plain), and each NOT-EXERCISABLE reason as a suggested human item phrased as a state to reproduce.
-  - Return `COMPLETE` with the table in NOTES.
-  - If only plain text worked for Claude, say so: Task 8 then emits plain text for `--hook`.
-
----
-
-### Task 2: The neutral `dckt:` marker namespace in `internal/document`
-
-**Build tier:** standard
-
-**Files:**
-- Modify: `internal/document/markers.go`
-- Modify: `internal/document/document.go` (`Block`'s doc comment only)
-- Test: `internal/document/markers_test.go`
-
-**Interfaces:**
-- Produces:
-  - A block whose markers are `<!-- dckt:NAME:start (…) -->` / `<!-- dckt:NAME:end -->` is located, patched, inserted, and removed under the **qualified name** `"dckt:NAME"`. `docket:` blocks keep their bare names.
-  - `document.MarkerSpelling(name string) string` returns `"docket:dispatch"` for `"dispatch"` and `"dckt:private-instructions"` for `"dckt:private-instructions"`.
-  - `const document.NeutralMarkerPrefix = "dckt:"`.
-  - All existing APIs (`Block`, `PatchSet.ReplaceBlock/InsertBlock/RemoveBlock`) accept a qualified name.
+- Produces: a block marked `<!-- dckt:NAME:start (…) -->` / `<!-- dckt:NAME:end -->` is located, patched, inserted, and removed under the **qualified name** `"dckt:NAME"` through the existing APIs (`Block`, `PatchSet.ReplaceBlock/InsertBlock/RemoveBlock`); `docket:` blocks keep bare names. `const document.NeutralMarkerPrefix = "dckt:"`. `document.MarkerSpelling(name) string` gives `"docket:dispatch"` for `"dispatch"` and returns `"dckt:private-instructions"` unchanged.
 
 - [ ] **Step 1: Write the failing tests** in `markers_test.go`:
 
@@ -223,25 +111,17 @@ func TestNeutralMarkerBlockRoundTrip(t *testing.T) {
 		t.Fatalf("remove: %q %v", out, err)
 	}
 }
-
 ```
 
-Add these four tests beside it:
-- **`TestNeutralMarkerInsertRendersDcktPrefix`:** `InsertBlock("dckt:private-instructions", "managed — do not hand-edit", "x", AtDocumentStart)` on `"keep\n"` renders `<!-- dckt:private-instructions:start (managed — do not hand-edit) -->\nx\n<!-- dckt:private-instructions:end -->\n`, and the output contains no `docket`.
-- **`TestMalformedNeutralMarkerRefuses`:** `Parse("<!-- dckt:Bad Name:start -->\n")` errors.
-- **`TestSameNameInBothNamespacesIsTwoBlocks`:** a `docket:x` pair followed by a `dckt:x` pair parses without error.
-- **`TestMarkerSpelling`:** `"dispatch"` gives `"docket:dispatch"`, and `"dckt:private-instructions"` is returned unchanged.
+  Beside it: `TestNeutralMarkerInsertRendersDcktPrefix` (`InsertBlock("dckt:private-instructions", "managed — do not hand-edit", "x", AtDocumentStart)` on `"keep\n"` renders the `dckt:` start line, `x`, and the end line ahead of `keep\n`, with no `docket` anywhere); `TestMalformedNeutralMarkerRefuses` (`<!-- dckt:Bad Name:start -->` fails `Parse`); `TestSameNameInBothNamespacesIsTwoBlocks` (a `docket:x` pair and a `dckt:x` pair parse; both `Block("x")` and `Block("dckt:x")` are found); `TestMarkerSpelling`.
 
-- [ ] **Step 2: Run the tests and confirm they fail.**
-  - Run: `go test ./internal/document/ -run 'Neutral|SameNameInBoth|MarkerSpelling' -count=1`
-  - Expected: FAIL, because `MarkerSpelling` is undefined and the `dckt:` lines are prose today.
+- [ ] **Step 2: Run and confirm they fail.** `go test ./internal/document/ -run 'Neutral|SameNameInBoth|MarkerSpelling' -count=1`. Expected: FAIL (`MarkerSpelling` undefined; `dckt:` lines are prose today).
 
 - [ ] **Step 3: Implement** in `markers.go`:
 
 ```go
 // NeutralMarkerPrefix qualifies a block in the neutral `dckt:` marker namespace,
-// used where nothing docket-named may appear (a private repository's user-level
-// triggers). A bare block name is in the `docket:` namespace.
+// used where nothing docket-named may appear. A bare name is in `docket:`.
 const NeutralMarkerPrefix = "dckt:"
 
 markerPrefixRE = regexp.MustCompile(`^<!-- (?:docket|dckt):`)
@@ -250,7 +130,6 @@ markerRE = regexp.MustCompile(
 
 var blockNameRE = regexp.MustCompile(`^(?:dckt:)?[a-z][a-z0-9-]*$`)
 
-// splitBlockName returns a block name's marker namespace and its bare name.
 func splitBlockName(name string) (namespace, bare string) {
 	if rest, ok := strings.CutPrefix(name, NeutralMarkerPrefix); ok {
 		return "dckt", rest
@@ -258,164 +137,114 @@ func splitBlockName(name string) (namespace, bare string) {
 	return "docket", name
 }
 
-// MarkerSpelling is how a block name appears inside its marker lines, for
-// diagnostics: "docket:dispatch", "dckt:private-instructions".
+// MarkerSpelling is how a block name appears inside its marker lines.
 func MarkerSpelling(name string) string {
 	ns, bare := splitBlockName(name)
 	return ns + ":" + bare
 }
-
-func startMarkerLine(name, annotation string) string {
-	ns, bare := splitBlockName(name)
-	if annotation == "" {
-		return "<!-- " + ns + ":" + bare + ":start -->"
-	}
-	return "<!-- " + ns + ":" + bare + ":start (" + annotation + ") -->"
-}
-
-func endMarkerLine(name string) string {
-	ns, bare := splitBlockName(name)
-	return "<!-- " + ns + ":" + bare + ":end -->"
-}
 ```
 
-In `scanMarkers`, the submatch indexes shift by one. Build the name as `m[2]` for `docket` and `NeutralMarkerPrefix + m[2]` for `dckt`. Kind is `m[3]` and annotation is `m[4]`. The `Msg` "line opens as a docket marker…" may stay. Pairing, duplicate detection, and `Block(name)` then work on the qualified name unchanged. Add `"strings"` to the imports.
+  `startMarkerLine` and `endMarkerLine` render `"<!-- " + MarkerSpelling(name) + ":start …"` / `":end -->"`. In `scanMarkers` the submatch indexes shift by one: the name is `m[2]` for `docket` and `NeutralMarkerPrefix + m[2]` for `dckt`, the kind `m[3]`, the annotation `m[4]`; error `Name` fields use the qualified name. Pairing, duplicates, and `Block(name)` then work unchanged. Update the regex comments to describe both namespaces.
 
-- [ ] **Step 4: Run the package and confirm it passes.** Run: `go test ./internal/document/ -count=1`. Expected: PASS, including the fuzz seeds.
+- [ ] **Step 4: Run the package.** `go test ./internal/document/ -count=1`. Expected: PASS, fuzz seeds included.
 
-- [ ] **Step 5: Run the dependants.** Run: `go test ./internal/install/ ./internal/render/ ./internal/app/ -count=1`. Expected: PASS. A `<!-- dckt:` line was prose before; nothing in the tree depends on that (`grep -rn '<!-- dckt:' --include='*' .` finds only the spec's fenced example).
+- [ ] **Step 5: Run the dependants.** First confirm nothing relies on a column-0 `<!-- dckt:` line being prose: `out="$(grep -rn -e '^<!-- dckt:' --include='*.md' --include='*.go' . || true)"` (only fenced examples may match). Then `go test ./internal/install/ ./internal/render/ ./internal/app/ -count=1`. Expected: PASS.
 
 - [ ] **Step 6: Commit.** Message: `feat(document): neutral dckt: marker namespace for managed blocks`.
 
 ---
 
-### Task 3: The installer writes one block and retires another in the same file
+### Task 2: The installer retires one block and writes another in the same file
 
 **Build tier:** premium. A wrong step order corrupts a user's instruction file or its rollback.
 
-**Files:**
-- Modify: `internal/install/inspect.go` (the remedy helpers)
-- Modify: `internal/install/txn.go` (`rejectDuplicateDestinations`, and the step ordering in the function that builds `ordered`)
-- Test: `internal/install/txn_test.go`, `internal/install/retire_test.go`
+**Files:** Modify `internal/install/inspect.go` (`remedyBlockMarkers`, `remedyForeignBlock`, `remedyDriftedBlock`) and `internal/install/txn.go` (`rejectDuplicateDestinations`; the `sort.SliceStable` in `planSteps`). Test: `internal/install/retire_test.go`, `internal/install/txn_test.go`.
 
 **Interfaces:**
-- Consumes: `document.MarkerSpelling` (Task 2).
-- Produces: one transaction may carry a managed-block **removal** and a managed-block **write** of a different block name in one file. The removal is applied first.
+- Consumes: `document.MarkerSpelling` (Task 1).
+- Produces: one transaction may carry a managed-block **removal** and writes of other block names in one file, removal first. Task 4 relies on it for `~/.codex/AGENTS.md`.
 
-- [ ] **Step 1: Write the failing test** `TestInstallRetiresLeftoverBlockAndWritesPointerInOneFile` in `retire_test.go`, using the existing test planners, temp roots, and a `RealFS`:
-  - **Arrange:** `<home>/.codex/AGENTS.md` = `"# mine\n\n"` plus a `docket:dispatch` block whose interior the prior `State` records (so the retirement is provable), plus `"tail\n"`.
-  - **Planner `codex`:** `Plan` returns one target: `Kind: KindManagedBlock`, `Path: <home>/.codex/AGENTS.md`, `BlockName: "dckt:private-instructions"`, `Annotation: "managed — do not hand-edit"`, `Content: []byte("pointer")`. `GlobalDispatchTarget` returns that file's `dispatch` block.
-  - **Assert after `Install`:** success; the file has no `docket:dispatch` block and has exactly one `dckt:private-instructions` block with interior `pointer`; `# mine` and `tail` survive; the actions include one `remove` and one `update` for that path.
-  - **Second case, `...RollsBackBothSteps`:** inject an FS failure on a step that sorts **after** that path (add a second planned file target at a later path whose staging write fails). Assert the AGENTS.md bytes equal the original exactly.
+Background: `applySteps` re-verifies the captured pre-image digest of every removal still ahead before each removal (and again in `applyStep`), so a removal after any other step on its path always fails as stale. A write is not re-verified; it re-reads the file (`renderManagedBlock`) and composes. `capturePreImage` already names each backup by `Seq`, so two steps on one path get two backups, and `Rollback` restores newest first, so both pre-images restore the original bytes.
 
-- [ ] **Step 2: Run it and confirm it fails.**
-  - Run: `go test ./internal/install/ -run 'RetiresLeftoverBlockAndWritesPointer' -count=1`
-  - Expected: FAIL with `is written by more than one step`.
+- [ ] **Step 1: Write the failing tests.**
+  - **`TestInstallRetiresLeftoverBlockAndWritesPointerInOneFile`** (`retire_test.go`, existing test planners, temp roots, `RealFS`): `<home>/.codex/AGENTS.md` = `"# mine\n\n"` + a `docket:dispatch` block whose interior the prior `State` records + `"tail\n"`. Planner `codex`'s `Plan` returns one `KindManagedBlock` target on that path (`BlockName: "dckt:private-instructions"`, `Annotation: "managed — do not hand-edit"`, `Content: []byte("pointer")`, `Role: "trigger"`); its `GlobalDispatchTarget` names that file's `dispatch` block. After `Install`: success; no `docket:dispatch` block; one `dckt:private-instructions` block with interior `pointer`; `# mine` and `tail` survive; one `remove` and one `update` action for the path; one state record for the path.
+  - **`…RollsBackBothSteps`:** the same, plus a planned `KindFile` target at a later-sorting path (`<home>/.codex/zz.txt`) whose staging write fails through the existing FS-failure injection: the AGENTS.md bytes equal the original.
+  - In `txn_test.go`, if absent: a removal and a write of the **same** block on one path refuse; two removals of different blocks on one path refuse.
+
+- [ ] **Step 2: Run and confirm the first fails.** `go test ./internal/install/ -run 'RetiresLeftoverBlockAndWritesPointer|RejectDuplicateDestinations' -count=1`. Expected: FAIL with `is written by more than one step`.
 
 - [ ] **Step 3: Implement.**
-  - In `rejectDuplicateDestinations`, allow `prev`/`planned` on one path when both are `KindManagedBlock` and their `BlockName`s differ, **whether or not one of them is a removal**. A removal and a write of the **same** block on one path stays refused.
-  - Make the ordering removal-first within one path. Replace the `sort.SliceStable` key with a sort by cleaned path, then by `remove` descending (removals first).
-  - Leave a comment explaining why: a removal re-verifies its pre-image, which an earlier write to the same file would invalidate. A write re-reads the file, so it composes after a removal. Rollback restores newest first, so both pre-images return the original bytes.
-  - Verify that `capturePreImage` handles two steps on one path (two backups). If it collides on the backup name, key the backup on `Seq`.
-  - In `inspect.go`, change the three block remedies to `"the " + document.MarkerSpelling(block) + " markers …"` (and likewise for `" block …"`), so a `dckt:` block's remedy names its own markers.
+  - `rejectDuplicateDestinations`: on a repeated path, allow the pair only when both are `KindManagedBlock` with different `BlockName`s and at most one step on that path is a removal (track removals per path). Comment why: a second removal on a path would fail its own pre-image re-verification; a same-block pair's outcome would depend on order.
+  - Ordering: cleaned path ascending, then removals before writes, stable. Comment why (the background above).
+  - `inspect.go`: the three block remedies say `"the " + document.MarkerSpelling(block) + " markers …"` / `" block …"`; the `docket:dispatch` text stays byte-identical.
 
-- [ ] **Step 4: Run the tests and confirm they pass.**
-  - Run: `go test ./internal/install/ -count=1`
-  - Expected: PASS, and the existing duplicate-destination tests still refuse a write+write and a same-block write+remove.
-  - Add `TestRejectDuplicateDestinationsSameBlockRemoveAndWriteRefuses` if no such test exists.
+- [ ] **Step 4: Run.** `go test ./internal/install/ -count=1`. Expected: PASS; a whole-file write+write still refuses.
 
-- [ ] **Step 5: Mutation-test.** Back up `txn.go`, revert only the removal-first ordering, and run the Step 1 test with `-count=1`. Expected: red with a pre-image error. Restore from the backup and confirm green.
+- [ ] **Step 5: Mutation-test.** Back up `txn.go`, sort by path alone, rerun the Step 1 test with `-count=1`: red with a stale pre-image error. Restore and confirm green.
 
 - [ ] **Step 6: Commit.** Message: `feat(install): retire one managed block and write another in the same file`.
 
 ---
 
-### Task 4: A `settings-hook` target kind for Claude Code's `settings.json`
+### Task 3: A `hook-entries` target kind for Claude Code and Cursor hooks files
 
 **Build tier:** premium. A defect here eats the user's settings.
 
 **Files:**
-- Create: `internal/install/settings_hook.go`
-- Create: `internal/install/settings_hook_test.go`
-- Modify:
-  - `internal/install/state.go`: `KindSettingsHook`, `TargetRecord.HookCommand`, `validateTarget`.
-  - `internal/install/target.go`: `Target.HookCommand`, `validate`, `RecordFor`.
-  - `internal/install/inspect.go`: the `InspectTarget` switch and `recordMatchesDisk`.
-  - `internal/install/txn.go`: the `applyStep` write and removal branches, and `removalTarget`.
-  - `internal/install/uninstall.go`: `proveUninstallRemoval`.
+- Create: `internal/install/hook_entries.go`, `internal/install/hook_entries_test.go`
+- Modify: `internal/install/state.go` (`KindHookEntries`, `TargetRecord` fields, `validateTarget`); `target.go` (`Target` fields, `validate`, `RecordFor`); `inspect.go` (`InspectTarget` switch, `recordMatchesDisk`, two remedies); `txn.go` (`applyStep` write and removal branches, `removalTarget`); `uninstall.go` (`proveUninstallRemoval`).
 
 **Interfaces:**
 - Produces:
-  - `install.KindSettingsHook TargetKind = "settings-hook"`
-  - `Target.HookCommand string` and `TargetRecord.HookCommand string` (`json:"hook_command,omitempty"`)
-  - A target `{Path: <home>/.claude/settings.json, Kind: KindSettingsHook, HookCommand: <cmd>, Role: <role>}` owns exactly one matcher group in `hooks.SessionStart`: `{"hooks":[{"type":"command","command":<cmd>}]}`, with no matcher, so it fires for every session source.
-  - Record identity: `SHA256 = hookGroupDigest(cmd)`, the sha256 of the compact canonical group.
+  - `install.KindHookEntries TargetKind = "hook-entries"`; `install.HookDialectClaude = "claude"`, `install.HookDialectCursor = "cursor"`.
+  - `Target.HookDialect string`, `Target.HookCommands []string`; `TargetRecord.HookDialect` (`json:"hook_dialect,omitempty"`), `TargetRecord.HookCommands` (`json:"hook_commands,omitempty"`).
+  - `func install.NewHookFileBytes(dialect string, commands []string) []byte`: what install writes when the file is absent. Task 4's guard renders through it.
+  - A target `{Path, Kind: KindHookEntries, HookDialect, HookCommands, Role}` owns one canonical entry per command under `hooks.<event>`:
+    - `claude`: event `SessionStart`, entry `{"hooks":[{"type":"command","command":C}]}` (no matcher, so every session source fires it); new file `{"hooks":{"SessionStart":[…]}}`.
+    - `cursor`: event `sessionStart`, entry `{"command":C}`; new file `{"version": 1, "hooks": {"sessionStart": […]}}`.
+  - Record identity: `SHA256 = hookEntriesDigest(dialect, commands)`, the sha256 (`hashBytes`) of `json.Marshal` of `{"dialect":…,"commands":[…]}`.
 
-- [ ] **Step 1: Write the failing tests** in `settings_hook_test.go`:
-  - **`TestInsertHookGroupRoundTrips`**: table-driven over these originals:
-    - `{}\n`
-    - `{\n  "model": "opus"\n}\n`
-    - `{\n\t"env": {\n\t\t"A": "1"\n\t}\n}\n` (tabs)
-    - `{"model":"opus"}` (compact, no newline)
-    - `{\n  "hooks": {\n    "Stop": [\n      {\n        "hooks": [\n          {\n            "type": "command",\n            "command": "say done"\n          }\n        ]\n      }\n    ]\n  }\n}\n` (hooks without `SessionStart`)
-    - A file whose `hooks.SessionStart` already holds a user group with `"matcher": "startup"`.
+- [ ] **Step 1: Write the failing tests** in `hook_entries_test.go`:
+  - **`TestInsertHookEntriesRoundTrips`**, table-driven over dialect × original, with commands `{"a --x", "a --y"}` (claude) and `{"a --z"}` (cursor). Originals: `{}\n`; `{\n  "model": "opus"\n}\n`; `{\n\t"env": {\n\t\t"A": "1"\n\t}\n}\n` (tabs); `{"model":"opus"}` (compact, no newline); a file whose `hooks` has another event (claude `Stop`, cursor `afterFileEdit`); a file whose event array already holds a user entry (claude: a group with `"matcher": "startup"`; cursor: `{"command": "./mine.sh"}`); a file with two `hooks` keys, the first `{}` and the last holding another event. For each:
+    - `ins, err := insertHookEntries(orig, dialect, cmds)` succeeds and `json.Valid(ins)`;
+    - `readHookEntries(ins, dialect)` holds one exact canonical entry per command plus every original entry;
+    - `removeHookEntries(ins, dialect, cmds)` returns bytes equal to `orig` (the byte-for-byte survival property).
+    - Separately, cursor `{\n  "version": 1,\n  "hooks": {}\n}\n` round-trips to `{\n  "version": 1\n}\n` (see *Residuals*).
+  - **`TestInsertHookEntriesAddsOnlyMissing`:** a claude file holding the exact `a --x` group gets only `a --y`; so does one whose `a --x` handler has `"timeout": 5` added.
+  - **`TestNewHookFileBytes`:** the claude form equals `json.MarshalIndent` (prefix `""`, two-space indent) of the new-file document plus `\n`; the cursor form starts `{\n  "version": 1,\n  "hooks": {` and decodes to `{"version":1,"hooks":{"sessionStart":[{"command":"a --z"}]}}`. `insertHookEntries(nil, …)` and `insertHookEntries([]byte(" \n"), …)` both equal `NewHookFileBytes`.
+  - **`TestHookEntriesInspect`** (temp dir, both dialects): absent → `create`; none of the commands → `update`; one of claude's two → `update`; all present, exact or with an added `timeout` → `no-op`; `{"hooks": []}`, a wrong-typed event value (claude `{"hooks": {"SessionStart": {}}}`, cursor `{"hooks": {"sessionStart": "x"}}`), `[1]`, `null`, and `not json` → `conflict`, reason `managed-block-invalid`, file untouched; a symlinked file → `conflict`, reason `ownership-conflict`, with the not-a-regular-file remedy.
+  - **`TestHookEntriesInstallUninstallLifecycle`**, both dialects, driving `Install` then `Uninstall` through `Options` with a stub planner, in a temp home seeded with a user hooks file:
+    - after uninstall the file equals the seed bytes;
+    - a second install is a no-op (`Applied == false`);
+    - with one docket entry edited (add `"timeout": 5`) between the two, uninstall reports a `conflict` for the path and leaves the file byte-identical;
+    - an injected later-step failure rolls the file back to the seed bytes;
+    - with no seed, uninstall leaves `{}\n` (claude) / `{\n  "version": 1\n}\n` (cursor).
+  - **`TestValidateTargetHookEntries`:** a `hook-entries` record without `hook_dialect`, with an unknown dialect, with no commands, with an empty or duplicate command, or without `sha256` is invalid; a `file` record carrying `hook_commands` is invalid; a `Target` with the same defects fails `validate` with `ErrInvalidTarget`.
 
-    For each one:
-    - `ins, err := insertHookGroup(orig, "dckt instructions --hook")` succeeds and is `json.Valid`.
-    - `readSessionStartGroups(ins)` holds exactly one exact canonical group and every original group.
-    - `out, removed, err := removeHookGroup(ins, "dckt instructions --hook")` gives `removed == true` and `bytes.Equal(out, orig)`. This is the byte-for-byte survival property.
-  - **`TestInsertHookGroupCreatesFile`**: `insertHookGroup(nil, cmd)` equals `json.MarshalIndent` (prefix `""`, indent two spaces) of `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":cmd}]}]}}`, plus `\n`.
-  - **`TestSettingsHookInspect`** (temp dir, real files):
-    - absent file → `create`
-    - file without the command → `update`
-    - exact group → `no-op`
-    - a group whose handler has the command plus `"timeout": 5` → `no-op` (present, so it is never re-added)
-    - `{"hooks": []}`, `[1]`, `not json` → `conflict` with reason `managed-block-invalid`
-    - a symlinked `settings.json` → `conflict`
-  - **`TestSettingsHookInstallUninstallLifecycle`**: drive `Install`, then `Uninstall`, through `Options` with a stub planner returning the settings-hook target, in a temp home seeded with a user `settings.json`. Assert:
-    - the file after uninstall equals the seed bytes;
-    - a second install is a no-op (no `Applied`);
-    - when the group is edited between install and uninstall to add `"timeout": 5`, uninstall reports a `conflict` for the path and leaves the file byte-identical;
-    - an injected later-step failure rolls `settings.json` back to the seed bytes.
-  - **`TestValidateTargetSettingsHook`**: a `settings-hook` record without `hook_command` or `sha256` is invalid. A `file` record carrying `hook_command` is invalid.
+- [ ] **Step 2: Run the tests and confirm they fail.** Run: `go test ./internal/install/ -run 'HookEntries|HookFile' -count=1`. Expected: FAIL to compile.
 
-- [ ] **Step 2: Run the tests and confirm they fail.** Run: `go test ./internal/install/ -run 'HookGroup|SettingsHook' -count=1`. Expected: FAIL to compile.
+- [ ] **Step 3: Implement `hook_entries.go`.** Package comment: a hook-entries target owns a fixed list of commands inside one JSON hooks file; one target per file because the state allows one record per path and a transaction one removal per path; every edit is a byte splice and nothing else is re-encoded. The code below is a starting point (plan-supplied code is unverified); the round-trip table is the oracle.
 
-- [ ] **Step 3: Implement `settings_hook.go`.** Precondition for every edit: `json.Valid(src)` is true and the top-level value is an object. That lets the span scanner assume valid input.
+  The dialect layer (write these from the description):
+  - `hookEvent(dialect) (string, bool)`: `SessionStart` / `sessionStart`; unknown → false.
+  - `canonicalHookEntry(dialect, command) any`: structs `claudeHookGroup{Hooks []claudeHookHandler}` with `claudeHookHandler{Type, Command}` (JSON `type`, `command`), and `cursorHookEntry{Command}`.
+  - `entryHasCommand(raw, dialect, command) bool`: claude — any handler in `.hooks` whose `command` equals it; cursor — `.command` equals it; a value that does not decode is false.
+  - `isExactEntry(raw, dialect, command) bool`: `reflect.DeepEqual` of `raw` decoded into `any` and the canonical entry round-tripped through JSON into `any`.
+  - `NewHookFileBytes`: `json.MarshalIndent(doc, "", "  ")` plus `\n`, where `doc` is a struct `{Hooks map[string][]any}` (claude) or `{Version int; Hooks map[string][]any}` with `Version: 1` (cursor), so `version` precedes `hooks`.
 
 ```go
-package install
+var errHookFileInvalid = errors.New("install: hooks file is not a JSON object whose hooks value is an object and whose event value is an array")
 
-// A settings-hook target owns one matcher group in settings.json's
-// hooks.SessionStart. Every edit is a byte splice; nothing else is re-encoded.
-
-const settingsHookEvent = "SessionStart"
-
-type hookHandler struct {
-	Type    string `json:"type"`
-	Command string `json:"command"`
-}
-
-type hookGroup struct {
-	Hooks []hookHandler `json:"hooks"`
-}
-
-func canonicalHookGroup(command string) hookGroup {
-	return hookGroup{Hooks: []hookHandler{{Type: "command", Command: command}}}
-}
-
-// hookGroupDigest is a settings-hook record's identity.
-func hookGroupDigest(command string) string {
-	b, _ := json.Marshal(canonicalHookGroup(command))
-	return hashBytes(b)
-}
-
-var errSettingsInvalid = errors.New("install: settings file is not a JSON object with an object `hooks` and an array `hooks.SessionStart`")
-
-// readSessionStartGroups returns the SessionStart groups. ok=false: not
-// editable (invalid JSON, non-object top level, or a wrong-typed hooks /
-// SessionStart) — never "absent".
-func readSessionStartGroups(src []byte) (groups []json.RawMessage, ok bool) {
+// readHookEntries returns the event entries. ok=false: not editable — never
+// "absent". A whitespace-only file is editable and empty.
+func readHookEntries(src []byte, dialect string) (entries []json.RawMessage, ok bool) {
+	event, known := hookEvent(dialect)
+	if !known {
+		return nil, false
+	}
+	if len(bytes.TrimSpace(src)) == 0 {
+		return nil, true
+	}
 	var top map[string]json.RawMessage
 	if json.Unmarshal(src, &top) != nil || top == nil {
 		return nil, false
@@ -428,308 +257,79 @@ func readSessionStartGroups(src []byte) (groups []json.RawMessage, ok bool) {
 	if json.Unmarshal(raw, &hooks) != nil || hooks == nil {
 		return nil, false
 	}
-	ss, has := hooks[settingsHookEvent]
+	ev, has := hooks[event]
 	if !has {
 		return nil, true
 	}
-	if json.Unmarshal(ss, &groups) != nil || groups == nil && string(bytes.TrimSpace(ss)) != "[]" {
+	if !bytes.HasPrefix(bytes.TrimSpace(ev), []byte("[")) || json.Unmarshal(ev, &entries) != nil {
 		return nil, false
 	}
-	return groups, true
-}
-
-// isExactGroup reports whether raw is, semantically, the canonical group.
-func isExactGroup(raw json.RawMessage, command string) bool {
-	var have, want any
-	if json.Unmarshal(raw, &have) != nil {
-		return false
-	}
-	b, _ := json.Marshal(canonicalHookGroup(command))
-	_ = json.Unmarshal(b, &want)
-	return reflect.DeepEqual(have, want)
-}
-
-// groupHasCommand reports whether any handler in raw runs command.
-func groupHasCommand(raw json.RawMessage, command string) bool {
-	var g struct {
-		Hooks []struct {
-			Command string `json:"command"`
-		} `json:"hooks"`
-	}
-	if json.Unmarshal(raw, &g) != nil {
-		return false
-	}
-	for _, h := range g.Hooks {
-		if h.Command == command {
-			return true
-		}
-	}
-	return false
+	return entries, true
 }
 ```
 
-Then add the span scanner and the splices:
+  The splicer. Every splice runs only after `readHookEntries` returned ok, so the input is valid JSON with an object top level; that is what lets the scanner skip error handling. Write:
+  - A byte-span scanner: `valueEnd(src, i)` (string with `\\` escapes, nested `{`/`[` with strings skipped, scalars up to `,}] \t\r\n`), `objectMembers(src, open) ([]jsonMember, close int)` where a member records its key, its whole span (key quote through value end), and its value span, and `arrayElements(src, open) ([]jsonSpan, close int)`. `findMember` returns the **last** member with a key, matching encoding/json's last-duplicate-wins rule that `readHookEntries` used.
+  - `insertHookEntries(src, dialect, commands) ([]byte, error)`: not editable is `errHookFileInvalid`; collect the commands no entry runs (`entryHasCommand`); none missing returns `src` unchanged; a blank `src` returns `NewHookFileBytes(dialect, missing)`; otherwise append each missing entry in order. One append: find `hooks` in the top object, then the event in it, then splice the entry in as the **last** element of the event array; when the event or `hooks` is absent, splice `"<event>": [entry]` or `"hooks": {"<event>": [entry]}` in as the last member of its parent instead. Splicing after the last entry writes `",\n" + pad + text`; into an empty container writes `"\n" + pad + text + "\n" + closingPad` right after the opening bracket. `pad` is the file's indent unit (the leading whitespace of the first indented line after line 1, else two spaces) repeated depth+1 times, and `text` is `json.MarshalIndent(v, pad, unit)`.
+  - `removeHookEntries(src, dialect, commands) ([]byte, error)`: not editable is `errHookFileInvalid`; for each command, **last command first** (the reverse of insertion, so a round trip splices back exact bytes), repeatedly remove the first `isExactEntry` element until none is left. Removing element k of n: n == 1 empties the container (keep `src[:open+1]` and `src[close:]`); k > 0 cuts from element k-1's end to element k's end; k == 0 cuts from element 0's start to element 1's start. When the event array was emptied, remove the event member the same way, and then the `hooks` member if that emptied `hooks`.
+  - Imports: `bytes`, `encoding/json`, `errors`, `reflect`, `strings`.
 
-```go
-type jsonSpan struct{ Start, End int }
-
-type jsonMember struct {
-	Key   string
-	Span  jsonSpan // key's opening quote through the value's end
-	Value jsonSpan
-}
-
-// skipWS skips ' ', '\t', '\n', '\r' from i.
-func skipWS(src []byte, i int) int
-
-// valueEnd is the end of the valid JSON value starting at i.
-func valueEnd(src []byte, i int) int {
-	switch src[i] {
-	case '"':
-		for i++; src[i] != '"'; i++ {
-			if src[i] == '\\' {
-				i++
-			}
-		}
-		return i + 1
-	case '{', '[':
-		depth := 0
-		for ; ; i++ {
-			switch src[i] {
-			case '"':
-				i = valueEnd(src, i) - 1
-			case '{', '[':
-				depth++
-			case '}', ']':
-				if depth--; depth == 0 {
-					return i + 1
-				}
-			}
-		}
-	default:
-		for i < len(src) && !bytes.ContainsRune([]byte(",}] \t\r\n"), rune(src[i])) {
-			i++
-		}
-		return i
-	}
-}
-
-func objectMembers(src []byte, open int) ([]jsonMember, int) {
-	var out []jsonMember
-	i := skipWS(src, open+1)
-	if src[i] == '}' {
-		return nil, i
-	}
-	for {
-		keyEnd := valueEnd(src, i)
-		var key string
-		_ = json.Unmarshal(src[i:keyEnd], &key)
-		v := skipWS(src, skipWS(src, keyEnd)+1)
-		end := valueEnd(src, v)
-		out = append(out, jsonMember{Key: key, Span: jsonSpan{i, end}, Value: jsonSpan{v, end}})
-		i = skipWS(src, end)
-		if src[i] == '}' {
-			return out, i
-		}
-		i = skipWS(src, i+1)
-	}
-}
-
-// arrayElements mirrors objectMembers over `[`…`]`: element spans, and the `]` offset.
-func arrayElements(src []byte, open int) ([]jsonSpan, int)
-
-// indentUnit is the file's own indentation step, or two spaces.
-func indentUnit(src []byte) string {
-	lines := bytes.Split(src, []byte("\n"))
-	for _, line := range lines[1:] {
-		trimmed := bytes.TrimLeft(line, " \t")
-		if len(trimmed) > 0 && len(trimmed) < len(line) {
-			return string(line[:len(line)-len(trimmed)])
-		}
-	}
-	return "  "
-}
-
-// appendInto splices text (an already-indented value or `"key": value`) as
-// the container's last entry. depth is the container's nesting depth.
-func appendInto(src []byte, open, close int, last *jsonSpan, text, unit string, depth int) []byte {
-	pad := strings.Repeat(unit, depth+1)
-	var out []byte
-	if last != nil {
-		out = append(out, src[:last.End]...)
-		out = append(out, ",\n"+pad+text...)
-		return append(out, src[last.End:]...)
-	}
-	out = append(out, src[:open+1]...)
-	out = append(out, "\n"+pad+text+"\n"+strings.Repeat(unit, depth)...)
-	return append(out, src[close:]...)
-}
-
-// removeEntry splices entry k out of a container with the given entry spans.
-func removeEntry(src []byte, open, close int, spans []jsonSpan, k int) []byte {
-	var out []byte
-	switch {
-	case len(spans) == 1:
-		out = append(out, src[:open+1]...)
-		return append(out, src[close:]...)
-	case k > 0:
-		out = append(out, src[:spans[k-1].End]...)
-		return append(out, src[spans[k].End:]...)
-	default:
-		out = append(out, src[:spans[0].Start]...)
-		return append(out, src[spans[1].Start:]...)
-	}
-}
-
-// indentJSON renders v as the value of an entry sitting inside a container of
-// nesting depth depth (so the entry line itself is indented depth+1 units).
-func indentJSON(v any, unit string, depth int) string {
-	b, _ := json.MarshalIndent(v, strings.Repeat(unit, depth+1), unit)
-	return string(b)
-}
-
-// insertHookGroup returns src with the canonical group appended to
-// hooks.SessionStart, creating either container as the last member of its
-// parent. A nil/blank src yields the canonical new file.
-func insertHookGroup(src []byte, command string) ([]byte, error) {
-	group := canonicalHookGroup(command)
-	if len(bytes.TrimSpace(src)) == 0 {
-		var doc struct {
-			Hooks struct {
-				SessionStart []hookGroup `json:"SessionStart"`
-			} `json:"hooks"`
-		}
-		doc.Hooks.SessionStart = []hookGroup{group}
-		b, _ := json.MarshalIndent(doc, "", "  ")
-		return append(b, '\n'), nil
-	}
-	if _, ok := readSessionStartGroups(src); !ok {
-		return nil, errSettingsInvalid
-	}
-	unit := indentUnit(src)
-	top := skipWS(src, 0)
-	members, closeTop := objectMembers(src, top)
-	hooksIdx := findMember(members, "hooks")
-	if hooksIdx < 0 {
-		v := map[string][]hookGroup{settingsHookEvent: {group}}
-		return appendInto(src, top, closeTop, lastSpan(members), `"hooks": `+indentJSON(v, unit, 0), unit, 0), nil
-	}
-	hv := members[hooksIdx].Value
-	hm, hclose := objectMembers(src, hv.Start)
-	ssIdx := findMember(hm, settingsHookEvent)
-	if ssIdx < 0 {
-		return appendInto(src, hv.Start, hclose, lastSpan(hm), `"`+settingsHookEvent+`": `+indentJSON([]hookGroup{group}, unit, 1), unit, 1), nil
-	}
-	av := hm[ssIdx].Value
-	elems, aclose := arrayElements(src, av.Start)
-	var last *jsonSpan
-	if len(elems) > 0 {
-		last = &elems[len(elems)-1]
-	}
-	return appendInto(src, av.Start, aclose, last, indentJSON(group, unit, 2), unit, 2), nil
-}
-
-// removeHookGroup removes the first exact canonical group, then drops a
-// SessionStart array and a hooks object that the removal left empty.
-// removed=false when no exact group exists.
-func removeHookGroup(src []byte, command string) ([]byte, bool, error) {
-	if _, ok := readSessionStartGroups(src); !ok {
-		return nil, false, errSettingsInvalid
-	}
-	top := skipWS(src, 0)
-	members, _ := objectMembers(src, top)
-	hooksIdx := findMember(members, "hooks")
-	if hooksIdx < 0 {
-		return src, false, nil
-	}
-	hv := members[hooksIdx].Value
-	hm, _ := objectMembers(src, hv.Start)
-	ssIdx := findMember(hm, settingsHookEvent)
-	if ssIdx < 0 {
-		return src, false, nil
-	}
-	av := hm[ssIdx].Value
-	elems, aclose := arrayElements(src, av.Start)
-	k := -1
-	for i, e := range elems {
-		if isExactGroup(src[e.Start:e.End], command) {
-			k = i
-			break
-		}
-	}
-	if k < 0 {
-		return src, false, nil
-	}
-	out := removeEntry(src, av.Start, aclose, elems, k)
-	if len(elems) > 1 {
-		return out, true, nil
-	}
-	// The array is now empty: drop SessionStart; then hooks if it emptied too.
-	members, _ = objectMembers(out, top)
-	hv = members[findMember(members, "hooks")].Value
-	hm, hclose := objectMembers(out, hv.Start)
-	out = removeEntry(out, hv.Start, hclose, memberSpans(hm), findMember(hm, settingsHookEvent))
-	if len(hm) > 1 {
-		return out, true, nil
-	}
-	members, closeTop := objectMembers(out, top)
-	return removeEntry(out, top, closeTop, memberSpans(members), findMember(members, "hooks")), true, nil
-}
-```
-
-Add the small helpers `findMember(ms []jsonMember, key string) int` (first match, else `-1`), `lastSpan(ms []jsonMember) *jsonSpan` (the last member's `Span`, or nil), and `memberSpans(ms) []jsonSpan`.
-
-Wire the kind through the installer:
-- **`state.go`:** the constant and the field. A settings-hook record needs `SHA256`, `HookCommand`, and an empty `BlockName`/`LinkTarget`. Every other kind requires an empty `HookCommand`.
-- **`target.go`:** `validate` requires `HookCommand`. `RecordFor` sets `HookCommand` and `SHA256 = hookGroupDigest(cmd)`.
-- **`inspect.go` (`inspectSettingsHook`):**
-  - non-regular file: `ReasonOwnershipConflict` with `remedyForPath`;
-  - not editable: `ReasonManagedBlockInvalid`, with the remedy "this settings file is not a JSON object docket can edit (hooks must be an object, hooks.SessionStart an array); repair it by hand, then re-run";
-  - any group with `groupHasCommand`: `DispositionNoop`;
-  - otherwise: `DispositionUpdate` (adding only appends).
-
-  `recordMatchesDisk` matches a regular, editable file holding an `isExactGroup` group.
-- **`txn.go`:**
-  - The write branch refuses `preSymlink`, then writes `insertHookGroup(<current bytes or nil>, cmd)` through `writeThroughStaging`.
-  - The removal branch `removeSettingsHook` mirrors `removeManagedBlock`: `preAbsent` is a no-op, `preSymlink` refuses, and the result is `removeHookGroup` through staging with `want == 0`.
-  - `removalTarget` maps the record to `Target{Path, Kind, HookCommand, Role}`.
-- **`uninstall.go` (`proveUninstallRemoval`):**
-  - not editable: `(false, false, ReasonManagedBlockInvalid, nil)`;
-  - no group carries the command: `(true, false, "", nil)`;
-  - otherwise `recordMatchesDisk` decides, so a modified group is a conflict.
+  Wire the kind through the installer:
+  - **`state.go`:** the constant and the two fields. `validateTarget`'s new case requires `SHA256`, a known `HookDialect`, at least one command, no empty or duplicate command, and empty `BlockName`/`LinkTarget`. Every existing case additionally requires an empty `HookDialect` and no `HookCommands`.
+  - **`target.go`:** `validate` applies the same structural checks to a `Target`, wrapping `ErrInvalidTarget`. `RecordFor` sets `HookDialect`, a copy of `HookCommands`, and `SHA256 = hookEntriesDigest(…)`.
+  - **`inspect.go`:**
+    - `InspectTarget` gains `case KindHookEntries: return inspectHookEntries(t, info)`; absence is already `create` above the switch.
+    - `inspectHookEntries`: a non-regular file is `conflict(t, ReasonOwnershipConflict, remedyHookFileNotRegular)`; a read error is returned; not editable is `conflict(t, ReasonManagedBlockInvalid, remedyHookFileInvalid)`; any command that no entry runs is `DispositionUpdate` (adding only appends, so no ownership proof is needed, as for a managed block); otherwise `DispositionNoop`.
+    - `remedyHookFileNotRegular = "this hooks file is not a regular file (a symlink or a directory), so docket cannot add its entries in place; make it a regular file, then re-run"`; `remedyHookFileInvalid = "this hooks file is not a JSON object docket can edit (hooks must be an object and each event an array); repair it by hand, then re-run"`.
+    - `recordMatchesDisk`, `case KindHookEntries`: true iff the file is regular, readable, and editable, `rec.SHA256 == hookEntriesDigest(rec.HookDialect, rec.HookCommands)`, and every entry that runs a recorded command is exact. All commands absent is a match: nothing is left to preserve, as for a vanished target.
+  - **`txn.go`:**
+    - Write branch `case KindHookEntries`: refuse `preSymlink` (as the managed-block branch does); read the file (absent reads as nil); `insertHookEntries`; `writeThroughStaging(step, out, target.Mode)`.
+    - Removal branch, beside the managed-block one: `removeHookEntriesStep(step, target)` mirrors `removeManagedBlock` (`preAbsent` no-op, `preSymlink` refuses, else read, `removeHookEntries`, and `writeThroughStaging(step, out, 0)` only when the bytes changed).
+    - `removalTarget` maps `KindHookEntries` to `Target{Path, Kind, HookDialect, HookCommands, Role}`, refusing a record with no commands.
+  - **`uninstall.go` (`proveUninstallRemoval`):** for `KindHookEntries` on a regular file: not editable is `(false, false, ReasonManagedBlockInvalid, nil)`; no entry runs any recorded command is `(true, false, "", nil)`; otherwise fall through to `recordMatchesDisk`, so a modified entry is a conflict. A non-regular file falls through too (no match, `ownership-conflict`).
 
 - [ ] **Step 4: Run the tests and confirm they pass.** Run: `go test ./internal/install/ -count=1`. Expected: PASS.
 
-- [ ] **Step 5: Mutation-test.** Restore from a backup copy each time, and use `-count=1`.
-  - Make `removeHookGroup` skip the empty-container cleanup. The round-trip table must go red.
-  - Make `inspectSettingsHook` treat a non-editable file as `DispositionUpdate`. The inspect test must go red.
+- [ ] **Step 5: Mutation-test.** Restore from a backup copy each time; use `-count=1`.
+  - Removal skips the empty-container cleanup: the round-trip table goes red.
+  - `inspectHookEntries` treats a non-editable file as `DispositionUpdate`: the inspect test goes red.
+  - `findMember` returns the first match: the duplicate-`hooks` round-trip case goes red (the entry lands where `readHookEntries` cannot see it).
 
-- [ ] **Step 6: Commit.** Message: `feat(install): settings-hook target kind for a Claude Code SessionStart entry`.
+- [ ] **Step 6: Commit.** Message: `feat(install): hook-entries target kind for Claude Code and Cursor hooks files`.
 
 ---
 
-### Task 5: The harness triggers and the no-rule-text guard
+### Task 4: The harness triggers and the no-rule-text guard
 
 **Build tier:** standard
 
 **Files:**
 - Create: `internal/harness/trigger.go`, `internal/harness/trigger_test.go`
-- Modify:
-  - `internal/harness/claude/claude.go` (`Plan`)
-  - `internal/harness/codex/codex.go` (`Plan`)
-  - `internal/harness/opencode/opencode.go` (`Plan`)
-  - their `_test.go` files and `testdata/golden`
-- Modify, if the audit finds a leak: any test that reaches the installer without pinning `HOME`
+- Modify: the four adapters' `Plan` (`internal/harness/{claude,cursor,codex,opencode}/*.go`), their tests and `testdata/golden`, and `internal/harness/cross_harness_test.go` (`TestNoGlobalParentSurface`); any test the hermeticity audit finds leaking `HOME`.
 
 **Interfaces:**
-- Consumes: `install.KindSettingsHook` and `Target.HookCommand` (Task 4); qualified block names (Task 2); same-file retirement (Task 3).
-- Produces, in package `harness`:
+- Consumes: `install.KindHookEntries`, the dialects, `install.NewHookFileBytes` (Task 3); qualified block names (Task 1); same-file retirement (Task 2).
+- Produces, in package `harness` (Task 7 parses the commands; Task 9 reads the installed bytes):
 
 ```go
 // User-level triggers: content-free by design — no rule text, no "docket".
 const (
-	TriggerRole            = "trigger"
-	TriggerHookCommand     = "dckt instructions --hook"
+	TriggerRole = "trigger"
+
+	ClaudeDispatchHookCommand = "dckt instructions --hook claude --section dispatch"
+	ClaudeLessonsHookCommand  = "dckt instructions --hook claude --section lessons"
+	CursorHookCommand         = "dckt instructions --hook cursor"
+
+	OpenCodePluginFile = "dckt-instructions.js"
+	OpenCodePlugin     = "// Adds a private repository's instructions to the system prompt.\n" +
+		"// `dckt instructions` prints nothing outside a private repository.\n" +
+		"export const DcktInstructions = async ({ $, directory }) => ({\n" +
+		"  \"experimental.chat.system.transform\": async (_input, output) => {\n" +
+		"    const text = await $`dckt instructions`.cwd(directory).quiet().nothrow().text()\n" +
+		"    if (text.trim()) output.system.push(text)\n" +
+		"  },\n" +
+		"})\n"
+
 	PointerBlockName       = "dckt:private-instructions"
 	PointerBlockAnnotation = "managed — do not hand-edit"
 	PointerInterior        = "## Private repository instructions\n\n" +
@@ -738,70 +338,58 @@ const (
 		"follow it for the rest of the session. If it prints nothing, ignore this section.\n"
 )
 
-// PointerTarget is the Codex/OpenCode pointer block in the given user-level AGENTS.md.
-func PointerTarget(path string) install.Target {
-	return install.Target{Path: path, Kind: install.KindManagedBlock, BlockName: PointerBlockName,
-		Annotation: PointerBlockAnnotation, Content: []byte(PointerInterior), Role: TriggerRole}
+func ClaudeHookTarget(settingsPath string) install.Target {
+	return install.Target{Path: settingsPath, Kind: install.KindHookEntries, HookDialect: install.HookDialectClaude,
+		HookCommands: []string{ClaudeDispatchHookCommand, ClaudeLessonsHookCommand}, Role: TriggerRole}
 }
 
-// HookTarget is Claude Code's SessionStart hook entry in the given settings.json.
-func HookTarget(path string) install.Target {
-	return install.Target{Path: path, Kind: install.KindSettingsHook, HookCommand: TriggerHookCommand, Role: TriggerRole}
+func CursorHookTarget(hooksPath string) install.Target {
+	return install.Target{Path: hooksPath, Kind: install.KindHookEntries, HookDialect: install.HookDialectCursor,
+		HookCommands: []string{CursorHookCommand}, Role: TriggerRole}
+}
+
+func OpenCodePluginTarget(pluginPath string) install.Target {
+	return install.Target{Path: pluginPath, Kind: install.KindFile, Content: []byte(OpenCodePlugin), Role: TriggerRole}
+}
+
+func CodexPointerTarget(agentsPath string) install.Target {
+	return install.Target{Path: agentsPath, Kind: install.KindManagedBlock, BlockName: PointerBlockName,
+		Annotation: PointerBlockAnnotation, Content: []byte(PointerInterior), Role: TriggerRole}
 }
 ```
 
-- Claude's `Plan` appends `harness.HookTarget(filepath.Join(home, ".claude", "settings.json"))`.
-- Codex's `Plan` appends `harness.PointerTarget(<home>/.codex/AGENTS.md)`.
-- OpenCode's `Plan` appends `harness.PointerTarget(<ConfigHome>/opencode/AGENTS.md)`.
-- Each uses the same path its `GlobalDispatchTarget` names, and keeps `Plan`'s sorted order.
+- Each `Plan` appends its trigger, keeping its sorted order: claude `ClaudeHookTarget(<Home>/.claude/settings.json)`; cursor `CursorHookTarget(<Home>/.cursor/hooks.json)`; opencode `OpenCodePluginTarget(<ConfigHome>/opencode/plugins/dckt-instructions.js)`; codex `CodexPointerTarget(<the path codex.GlobalDispatchTarget names>)`. Update each package comment: it plans one content-free trigger and still exports `GlobalDispatchTarget` for retirement.
 
 - [ ] **Step 1: Write the failing tests.**
-  - **`trigger_test.go`, `TestTriggersCarryNoRuleTextAndNoDocket`:**
-    - Render every byte a trigger writes:
-      - the pointer through `document.Parse(nil)` plus `InsertBlock(PointerBlockName, PointerBlockAnnotation, PointerInterior, AtDocumentStart)`;
-      - the hook through `install`'s new-file rendering. Reach it by running a temp-dir `install.InspectTarget`, then a real `Install`, with a stub planner. Alternatively, re-encode `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":TriggerHookCommand}]}]}}` with `json.MarshalIndent`, and say in a comment that Task 4's test pins that this equals the inserted bytes.
-    - Assert `!strings.Contains(strings.ToLower(text), "docket")`.
-    - Assert that, for every non-blank line `l` of `DispatchInterior(<real run tracker from assets.EmbeddedCatalog()>)` and of `CodexRootEntryClause` (trimmed, at least 20 characters), `!strings.Contains(text, l)`.
-    - Assert the population is not vacuous: the line count checked is ≥ 10. Pin it with a computed count, never a written one (**marker-scoped-guard-needs-a-population-floor**).
-  - **Adapter tests** (claude, codex, opencode):
-    - `Plan` contains exactly one target of role `trigger`, at the path above, with the fields above.
-    - Cursor's `Plan` contains none.
-    - Update each golden through the package's documented golden-refresh mechanism (read the test file's header), and review the diff. It must add only the trigger target.
+  - **`TestTriggersCarryNoRuleTextAndNoDocket`** (`trigger_test.go`): render every trigger byte through its producer: the three commands; `install.NewHookFileBytes` for both dialects with the targets' commands; `OpenCodePlugin`; the pointer via `document.Parse(nil)`, `InsertBlock(PointerBlockName, PointerBlockAnnotation, PointerInterior, document.AtDocumentStart)`, `Apply`. Assert none contains `docket` (case-insensitive). Build the rule population from `DispatchInterior(<real run tracker: assets.EmbeddedCatalog(), RunTracker>)` and `CodexRootEntryClause` (every trimmed line of at least 20 characters) and assert no rendering contains any of them. Non-vacuity: the computed population is at least 10 lines and includes the first `dispatchPreamble` line; never write the count down.
+  - **Adapter tests** (all four): exactly one `trigger`-role target, at the path and with the fields above. Refresh each golden through the package's documented mechanism (see the test file's header) and review the diff: only the trigger is added.
+  - **`TestNoGlobalParentSurface`:** narrow, never delete. A `KindManagedBlock` target stays an error unless `Role == harness.TriggerRole`, `BlockName == harness.PointerBlockName`, and `Content` equals `harness.PointerInterior`; a `dispatch`-role target stays an error. Add beside it: no `trigger`-role target's `Content` contains a rule-population line (share the helper with `trigger_test.go`).
 
-- [ ] **Step 2: Run the tests and confirm they fail.**
-  - Run: `go test ./internal/harness/... -count=1`
-  - Expected: FAIL (undefined constants, missing targets).
+- [ ] **Step 2: Run the tests and confirm they fail.** Run: `go test ./internal/harness/... -count=1`. Expected: FAIL (undefined constants, missing targets).
 
-- [ ] **Step 3: Implement** `trigger.go` and the three `Plan` appends. Then check `internal/harness/cross_harness_test.go` and `inventory_test.go` for invariants over target roles or sibling-name bans, and satisfy them without weakening them.
+- [ ] **Step 3: Implement** `trigger.go` and the four appends. Satisfy `inventory_test.go` and `TestNoCrossHarnessDelegation` without weakening them.
 
-- [ ] **Step 4: Audit hermeticity.** Grep `--include='*_test.go'` under `internal` and `tests` for `"install"`, `install.Install(`, `install.Uninstall(`, `DevelopmentInstall(`, `installAuthorizedSurfaces(`, and `runInitWith`. Confirm every test that reaches a real install pins `HOME` (with `pinInstallEnv`, `t.Setenv`, or temp `UserRoots`). Fix any that do not, and list them in NOTES.
+- [ ] **Step 4: Audit hermeticity.** `out="$(grep -rln --include='*_test.go' -e 'install.Install(' -e 'install.Uninstall(' -e 'DevelopmentInstall(' -e 'installAuthorizedSurfaces(' -e 'runInitWith' -e '"install"' internal tests || true)"; printf '%s\n' "$out"`. Each hit must pin `HOME`, `XDG_CONFIG_HOME`, and `XDG_DATA_HOME` (`pinInstallEnv`, `t.Setenv`, or temp `UserRoots`). Fix any that do not and list them in NOTES.
 
-- [ ] **Step 5: Run the dependants and confirm they pass.**
-  - Run: `go test ./internal/harness/... ./internal/install/ ./internal/app/ ./internal/cli/ -count=1`
-  - Expected: PASS.
-  - A full-install test in `internal/cli` that asserts an exact action list now sees the trigger creates. Update its expectation, and do not weaken the assertion.
+- [ ] **Step 5: Run the dependants.** Run: `go test ./internal/harness/... ./internal/install/ ./internal/app/ ./internal/cli/ -count=1`. Expected: PASS. A full-install test asserting an exact action list now sees the trigger creates: update the expectation, never weaken it.
 
-- [ ] **Step 6: Mutation-test the guard.**
-  - Back up `trigger.go`, change `PointerBlockAnnotation` to `managed by docket — do not hand-edit`, and confirm the guard goes red. Restore.
-  - Then append one dispatch-preamble sentence to `PointerInterior`, confirm red, and restore.
+- [ ] **Step 6: Mutation-test** (backup copy each time): `PointerBlockAnnotation` = `managed by docket — do not hand-edit` → the guard goes red; the first `dispatchPreamble` line appended to `PointerInterior` → the guard and `TestNoGlobalParentSurface` go red; `CursorHookCommand` spelled `docket instructions --hook cursor` → red.
 
-- [ ] **Step 7: Commit.** Message: `feat(harness): plan the private-instructions triggers for claude, codex, and opencode`.
+- [ ] **Step 7: Commit.** Message: `feat(harness): plan the private-instructions triggers for all four harnesses`.
 
 ---
 
-### Task 6: The private file's location, the private surface plan, and the Cursor exclusion
+### Task 5: The private file's location and the private surface plan
 
 **Build tier:** standard
 
 **Files:**
 - Modify: `internal/layout/layout.go`, `internal/layout/layout_test.go`
 - Modify: `internal/reposeed/plan.go`, `internal/reposeed/plan_test.go`
-- Modify: `internal/reposetup/exclude.go`, `internal/reposetup/exclude_test.go`
 
 **Interfaces:**
 - Produces:
-  - `layout.PrivateInstructionsFile = "AGENTS.md"`, `layout.PrivateInstructionsDisplay = ".git/dckt/AGENTS.md"`, and `func layout.PrivateInstructionsPath(commonDir string) string`, which returns `<commonDir>/dckt/AGENTS.md`.
-  - `reposeed.PrivateCursorRuleRel = ".cursor/rules/dckt-dispatch.mdc"`.
+  - `layout.PrivateInstructionsFile = "AGENTS.md"`, `layout.PrivateInstructionsDisplay = ".git/dckt/AGENTS.md"`, and `func layout.PrivateInstructionsPath(commonDir string) string` returning `<commonDir>/dckt/AGENTS.md`.
   - `func reposeed.PlanPrivate(in reposeed.PrivatePlanInput) ([]install.Target, map[string][]string, error)` with:
 
     ```go
@@ -813,92 +401,55 @@ func HookTarget(path string) install.Target {
     }
     ```
 
-  - It plans:
-    - `<CommonDir>/dckt/AGENTS.md` as `KindManagedBlock`, `BlockName "dispatch"`, the same annotation as the shared block, and `CodexDispatchInterior` when codex is selected (otherwise `DispatchInterior`). It is owned by whichever of claude, codex, and opencode are selected, and present iff at least one of them is.
-    - `<WorktreeRoot>/.cursor/rules/dckt-dispatch.mdc` as `KindFile` with `cursor.DispatchRuleContent`, owned by `cursor`.
-  - It errors on an unknown token, or when `filepath.Clean(CommonDir) != filepath.Join(filepath.Clean(WorktreeRoot), ".git")`. The error message names the unsupported separate-git-dir layout.
-  - The exclude block now lists `.worktrees/` and then `.cursor/rules/dckt-dispatch.mdc`.
+  - It plans exactly one target when any harness is selected, none otherwise: `<CommonDir>/dckt/AGENTS.md` as `KindManagedBlock`, `BlockName "dispatch"`, the shared `dispatchAnnotation`, `Role "dispatch"`, with `CodexDispatchInterior` when codex is selected and `DispatchInterior` otherwise. Its owners are every selected harness, sorted.
+  - It errors on an unknown token, or when `filepath.Clean(CommonDir) != filepath.Join(filepath.Clean(WorktreeRoot), ".git")`. The error names the unsupported separate-git-dir layout.
 
 - [ ] **Step 1: Write the failing tests.**
   - **layout:** `PrivateInstructionsPath("/r/.git") == "/r/.git/dckt/AGENTS.md"`.
   - **reposeed (`TestPlanPrivate`):**
-    - `[claude]` plans one target, the private file, with interior `harness.DispatchInterior(rt)`.
-    - `[claude, codex]` plans the private file with `CodexDispatchInterior` and owners `[claude, codex]`.
-    - `[cursor]` plans only the mdc file.
-    - `[opencode, cursor]` plans both.
-    - No target path, for any input, has base name `AGENTS.md` or `CLAUDE.md` outside `CommonDir`, or is `.cursor/rules/docket-dispatch.mdc`. Assert this over the union of every case.
-    - A `CommonDir` that is not `<root>/.git` errors.
-    - An unknown token errors.
-  - **exclude:**
-    - Update the `canonicalExclude` constant to `"# dckt:start\n.worktrees/\n.cursor/rules/dckt-dispatch.mdc\n# dckt:end\n"`.
-    - Add `TestExcludeBlockRewritesPreCursorBlock`: an old two-line block is reported `changed` and rewritten. `TestExcludeBlockNeutralSpelling` must still pass, since the line contains no "docket".
+    - `[claude]`: one target, the private file, interior `harness.DispatchInterior(rt)`, owners `[claude]`.
+    - `[claude, codex]`: `CodexDispatchInterior`, owners `[claude, codex]`.
+    - `[cursor]`: the private file, owners `[cursor]`.
+    - `[opencode, cursor, codex, claude]`: one target, owners all four sorted.
+    - `[]`: no targets.
+    - Over the union of every case: every target path equals `layout.PrivateInstructionsPath(CommonDir)`. No path has base name `CLAUDE.md`, lies under `.cursor/`, or is `<root>/AGENTS.md`.
+    - A `CommonDir` that is not `<root>/.git` errors; an unknown token errors.
 
-- [ ] **Step 2: Run the tests and confirm they fail.**
-  - Run: `go test ./internal/layout/ ./internal/reposeed/ ./internal/reposetup/ -count=1`
-  - Expected: FAIL.
+- [ ] **Step 2: Run the tests and confirm they fail.** Run: `go test ./internal/layout/ ./internal/reposeed/ -count=1`. Expected: FAIL.
 
-- [ ] **Step 3: Implement.**
-  - `PlanPrivate` reuses `Plan`'s token validation, `contained` check, and owner sorting. Factor the shared token switch into a helper instead of copying it.
-  - In `canonicalExcludeBytes`, add the line `.cursor/rules/dckt-dispatch.mdc\n` after `.worktrees/\n`.
+- [ ] **Step 3: Implement.** `PlanPrivate` reuses `Plan`'s token validation and `contained` check: factor the token switch into a helper (`selectHarnesses(tokens []string) (map[string]bool, error)`) that both call, instead of copying it. Keep `Plan`'s behavior byte-identical.
 
-- [ ] **Step 4: Run the tests and confirm they pass.**
-  - Run the Step 2 command, then `go test ./internal/app/ -count=1`.
-  - The private integration tests use `ValidExcludeBlock` rather than literal bytes. If any compares literal exclude bytes, update the expectation.
-  - Expected: PASS.
+- [ ] **Step 4: Run the tests and confirm they pass.** Run the Step 2 command, then `go test ./internal/app/ -count=1`. Expected: PASS.
 
-- [ ] **Step 5: Commit.** Message: `feat(reposeed): plan a private repository's instructions file and excluded Cursor rule`.
+- [ ] **Step 5: Commit.** Message: `feat(reposeed): plan a private repository's instructions file`.
 
 ---
 
-### Task 7: The repository phase writes the private surfaces in a private repository
+### Task 6: The repository phase writes only the private file in a private repository
 
 **Build tier:** premium. A mistake writes docket files into a private working tree or retires a user's file.
 
 **Files:**
-- Modify: `internal/app/repophase.go` (`ResolveRepoPhase`, `composeRecordBytes`, `computeRemovals`)
-- Modify: `internal/app/repository_init.go` (`installAuthorizedSurfaces`)
-- Modify: `internal/app/repository_init_private.go` (step 8; export the exclude helper)
-- Modify: `internal/cli/install.go` (ensure the exclude block before a mutating install)
-- Create:
-  - `internal/app/private_instructions_integration_test.go` (`//go:build integration`, blank line 2)
-  - `tests/test_go_integration_app_privateinstructions.sh`
-- Modify: `tests/runtime-budgets.tsv`
+- Modify: `internal/app/repophase.go` (`ResolveRepoPhase`, `composeRecordBytes`, `computeRemovals`), `internal/app/repository_init.go` (`installAuthorizedSurfaces`), `internal/app/repository_init_private.go` (`runPrivateInit` step 8), `tests/runtime-budgets.tsv`
+- Create: `internal/app/private_instructions_integration_test.go` (`//go:build integration`, blank line 2), `tests/test_go_integration_app_privateinstructions.sh`
 
 **Interfaces:**
-- Consumes: `reposeed.PlanPrivate`, `layout.PrivateInstructionsPath`, the exclude block (Task 6).
-- Produces:
-  - In a private repository, `ResolveRepoPhase` always plans against the **primary** worktree, publishes its record at `reposeed.RecordPath(commonDir, layout.PrivateName)`, and plans only `PlanPrivate`'s targets.
-  - `func EnsurePrivateExclude(ctx context.Context, git *gitcli.Client, repoDir string) (bool, error)` is a no-op (`false, nil`) outside a private repository. Inside one, it is `ensureExcludeFile(<common>/info/exclude)`, which this task renames and exports from the existing helper. A malformed block returns `*reposetup.MalformedExcludeError`.
+- Consumes: `reposeed.PlanPrivate`, `layout.PrivateInstructionsPath` (Task 5).
+- Produces: in a private repository, `ResolveRepoPhase` plans against the **primary** worktree, records at `reposeed.RecordPath(repo.CommonDir, layout.PrivateName)`, and plans only `PlanPrivate`'s target. Shared repositories are unchanged.
 
-- [ ] **Step 1: Create the shard.**
-  - Copy `tests/test_go_integration_app_reposetup.sh` to `tests/test_go_integration_app_privateinstructions.sh`. Set `SHARD_PREFIX="TestIntegrationPrivateInstructions"`, update the header comment, and keep the `# docket-suite: go` declaration in the first 10 lines.
-  - Add the row `tests/test_go_integration_app_privateinstructions.sh<TAB>30<TAB>parallel` to `tests/runtime-budgets.tsv`, in sorted position.
+- [ ] **Step 1: Create the shard.** Copy `tests/test_go_integration_app_reposetup.sh` to `tests/test_go_integration_app_privateinstructions.sh` with `SHARD_PREFIX="TestIntegrationPrivateInstructions"` and an updated header, keeping `# docket-suite: go` in the first 10 lines (no existing prefix starts `TestIntegrationPriv`). Add `tests/test_go_integration_app_privateinstructions.sh<TAB>30<TAB>parallel` to `tests/runtime-budgets.tsv` in the file's ordering.
 
-- [ ] **Step 2: Write the failing integration tests** in `private_instructions_integration_test.go`. Reuse the existing private and shared init helpers (`newPrivateInitRepo`, `runInitWith`). Pin `HOME` and `XDG_CONFIG_HOME` to temp dirs in each test.
-  - **`TestIntegrationPrivateInstructionsInitWritesPrivateFileOnly`** (acceptance 1):
-    - Private init, add `agent_harnesses: [claude, codex, cursor]` to `.git/dckt/config.yml`, then init again.
-    - `.git/dckt/AGENTS.md` holds a `docket:dispatch` block containing `### Codex root-coordinator entry`.
-    - `.cursor/rules/dckt-dispatch.mdc` exists.
-    - `AGENTS.md`, `CLAUDE.md`, and `.cursor/rules/docket-dispatch.mdc` are absent.
-    - `git status --porcelain` is empty, and `git check-ignore -q .cursor/rules/dckt-dispatch.mdc` exits 0.
-    - `PendingPaths` names no private path.
-  - **`…InstallPhaseFromFeatureWorktree`:** `ResolveRepoPhase` called from a `git worktree add` worktree plans against the primary: the private file plus the primary's mdc, with the record at `<common>/dckt/install.json`.
-  - **`…RetiresBuggyWorktreeSurfaces`:**
-    - Apply a phase built by the shared `reposeed.Plan` (`[claude, codex]`) to the private primary through `applyRepoPhaseSurfaces`, recording at `<common>/dckt/install.json`.
-    - Re-run `installAuthorizedSurfaces`.
-    - AGENTS.md and the CLAUDE.md link are gone, and the private file exists.
-  - **`…OwnerRemovalKeepsSharedFile`:**
-    - Change `[claude, codex]` to `[claude]`: the file keeps the plain interior.
-    - Change it to `[]`: the block is retired, and user lines outside it survive.
-  - **`…SharedRepositoryUnchanged`** (acceptance 6): a shared init with `agent_harnesses: [claude, codex]` writes AGENTS.md and the CLAUDE.md link, and no `.git/dckt` exists.
-  - **`…EnsureExcludeNoOpShared`:** `EnsurePrivateExclude` on a shared repository returns `false, nil`, with the exclude file byte-unchanged.
+- [ ] **Step 2: Write the failing integration tests**, reusing `newPrivateInitRepo`, `runInitWith`, and `privateLayoutOf` (`repository_private_integration_test.go`), with `HOME`, `XDG_CONFIG_HOME`, and `XDG_DATA_HOME` pinned to temp dirs:
+  - **`TestIntegrationPrivateInstructionsInitWritesPrivateFileOnly`** (acceptance 1): private init; record `.git/info/exclude`; add `agent_harnesses: [claude, codex, cursor, opencode]` to `.git/dckt/config.yml`; init again. Then `.git/dckt/AGENTS.md` holds a `docket:dispatch` block with `### Codex root-coordinator entry`; `AGENTS.md`, `CLAUDE.md`, and `.cursor/` are absent; `git status --porcelain` is empty; `.git/info/exclude` is byte-identical; `PendingPaths` names no surface.
+  - **`…InstallPhaseFromFeatureWorktree`:** `ResolveRepoPhase` invoked inside a `git worktree add` worktree plans exactly the private file, recorded at `<common>/dckt/install.json`.
+  - **`…RetiresBuggyWorktreeSurfaces`:** apply a phase from the shared `reposeed.Plan` (`[claude, codex, cursor]`) to the private primary via `applyRepoPhaseSurfaces`, recorded at `<common>/dckt/install.json` (what install wrote before this change); re-run `installAuthorizedSurfaces`; `AGENTS.md`, the `CLAUDE.md` link, and `.cursor/rules/docket-dispatch.mdc` are gone and the private file exists.
+  - **`…OwnerRemovalKeepsSharedFile`:** with a user lesson appended outside the block, `[claude, codex]` → `[claude]` keeps the plain interior and the lesson; → `[]` retires the block and keeps the lesson.
+  - **`…SharedRepositoryUnchanged`** (acceptance 7): a shared init with `[claude, codex]` writes AGENTS.md and the CLAUDE.md link, and no `.git/dckt` exists.
 
-- [ ] **Step 3: Run the shard and confirm it fails.**
-  - Run: `bash tests/test_go_integration_app_privateinstructions.sh`
-  - Expected: `NOT OK` lines, because worktree AGENTS.md is written and no private file exists.
+- [ ] **Step 3: Run the shard and confirm it fails.** Run: `bash tests/test_go_integration_app_privateinstructions.sh`. Expected: `NOT OK` lines.
 
 - [ ] **Step 4: Implement.**
-  - **`ResolveRepoPhase`:** after `CommonDirOf`, call `layout.Detect(common)`. An error returns `ReasonFilesystemFailed`. When the mode is private:
+  - **`ResolveRepoPhase`:** after `CommonDirOf`, `layout.Detect(common)`; an error is `&RepoResolutionError{Reason: install.ReasonFilesystemFailed, …}`, never guessed as shared. When private:
 
     ```go
     repo, derr := git.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: invocation})
@@ -909,169 +460,191 @@ func HookTarget(path string) install.Target {
     recordPath = reposeed.RecordPath(repo.CommonDir, layout.PrivateName)
     ```
 
-    Load the config from `root`; the authorization check is unchanged. Plan with `reposeed.PlanPrivate(…{WorktreeRoot: root, CommonDir: repo.CommonDir, Harnesses: effective, RunTracker: runTracker})`. A layout error from it maps to `ReasonInvalidRepoDir`.
-  - **Retiring leftovers in private mode.** Pass `planned map[string]bool` (the cleaned planned paths, nil in shared mode) to `composeRecordBytes` and `computeRemovals`. In private mode, an unplanned prior surface is never wanted and never carried, unless it has no in-scope owner, in which case it is carried untouched. Retirement stays proof-gated through `install.PlanGlobalRetirements`.
-  - **`installAuthorizedSurfaces`:** return nil pending paths when `layout.Detect(<primary common dir>)` is private.
-  - **`runPrivateInit`, step 8:** call `installAuthorizedSurfaces(ctx, d.Git, sc.repo.PrimaryWorktree)`, which authorizes itself. Wrap its error as `fail(mapSurfaceFailure(cls.State, serr))` and fold `changed` into the result. Keep the "no `.gitignore` edit" comment.
-  - **`internal/cli/install.go`:** on the install and development-install paths only (never check, uninstall, or a dry run), once the phase is `Authorized`, call `app.EnsurePrivateExclude(ctx, git, repoDir)` before the transaction. Any error refuses as `InstallRefusal{Reason: install.ReasonFilesystemFailed}`. A malformed block's message says to fix the `# dckt:` markers in `.git/info/exclude` by hand.
+    Load config from `root`; authorization is unchanged. Plan with `reposeed.PlanPrivate(reposeed.PrivatePlanInput{WorktreeRoot: root, CommonDir: repo.CommonDir, Harnesses: effective, RunTracker: runTracker})`; its layout error maps to `ReasonInvalidRepoDir`.
+  - **Leftovers in private mode.** Pass `planned map[string]bool` (cleaned planned paths; nil in shared mode) and the scope set to `composeRecordBytes` and `computeRemovals`. In private mode a prior surface is still wanted iff its path is planned: an unplanned one with an in-scope owner is retired (proof-gated through `install.PlanGlobalRetirements`) and not carried; one with no in-scope owner is carried untouched. Shared mode keeps today's opt-in rule exactly.
+  - **`installAuthorizedSurfaces`:** nil pending paths when the primary's common dir detects private.
+  - **`runPrivateInit` step 8:** call `installAuthorizedSurfaces(ctx, d.Git, sc.repo.PrimaryWorktree)` (it authorizes itself), wrap its error as `fail(mapSurfaceFailure(cls.State, serr))`, and fold `changed` in. Keep a comment that private init edits no `.gitignore` and writes nothing in the worktree.
 
-- [ ] **Step 5: Run the tests and confirm they pass.**
-  - Run: `bash tests/test_go_integration_app_privateinstructions.sh && bash tests/test_go_integration_app_reposetup.sh && go test ./internal/app/ ./internal/cli/ -count=1`
-  - Expected: all `ok`, exit 0.
-  - Run `bash tests/test_go_integration_contract.sh`. Expected: exit 0, with the new shard matched exactly once.
+- [ ] **Step 5: Run the tests and confirm they pass.** Run: `bash tests/test_go_integration_app_privateinstructions.sh && bash tests/test_go_integration_app_reposetup.sh && go test ./internal/app/ ./internal/cli/ -count=1`, then `bash tests/test_go_integration_contract.sh` (the new shard matched exactly once). Expected: all pass.
 
-- [ ] **Step 6: Mutation-test.** Restore from a backup copy each time.
-  - Force `mode = layout.Shared` in `ResolveRepoPhase`. `...InitWritesPrivateFileOnly` must go red.
-  - Pass `planned = nil` in private mode. `...RetiresBuggyWorktreeSurfaces` must go red.
+- [ ] **Step 6: Mutation-test** (backup copy): force shared mode in `ResolveRepoPhase` → `…InitWritesPrivateFileOnly` goes red; `planned = nil` in private mode → `…RetiresBuggyWorktreeSurfaces` goes red.
 
 - [ ] **Step 7: Commit.** Message: `feat(app): write a private repository's instructions to .git/dckt, never the working tree`.
 
 ---
 
-### Task 8: The `docket instructions` command
+### Task 7: The `docket instructions` command
 
 **Build tier:** standard
 
 **Files:**
-- Create: `internal/app/instructions.go`, `internal/app/instructions_test.go`
-- Create: `internal/cli/instructions.go`, `internal/cli/instructions_test.go`
-- Modify:
-  - `internal/cli/root.go`: register the command; add a raw-output path beside `devTestCode`.
-  - `internal/cli/install.go`: `assetIndependent["instructions"] = true`.
-  - `internal/app/schema_registry.go`: the binding `{ID: "instructions", Request: nil, Result: InstructionsResult{}}`, in sorted position, with the `// Instructions` derivation comment.
+- Create: `internal/app/instructions.go`, `internal/app/instructions_test.go`, `internal/cli/instructions.go`, `internal/cli/instructions_test.go`
+- Modify: `internal/cli/root.go` (register; a raw-output path beside `devTestCode`); `internal/cli/install.go` (`assetIndependent["instructions"] = true`, commented: session hooks must answer on a machine mid-install); `internal/app/schema_registry.go` (`{ID: "instructions", Request: nil, Result: InstructionsResult{}}, // Instructions`, sorted)
 - Test, extended: `internal/app/private_instructions_integration_test.go`
 
 **Interfaces:**
-- Consumes: `layout.CommonDirOf`, `layout.Detect`, `layout.PrivateInstructionsPath`.
+- Consumes: `layout.CommonDirOf`, `layout.Detect`, `layout.PrivateInstructionsPath`, `reposeed.PlanPrivate` (Task 5); the trigger commands (Task 4).
 - Produces:
 
 ```go
-// ReadPrivateInstructions walks up from dir to the first `.git` entry (no git
-// process) and returns the private instructions file. Outside git or in a
-// non-private repository: (nil, false, nil). Private without the file:
-// (nil, true, nil). Any other probe/read error is returned, never "nothing".
+const (
+	InstructionsSectionAll      = ""
+	InstructionsSectionDispatch = "dispatch"
+	InstructionsSectionLessons  = "lessons"
+)
+
+// Walks up from dir to the first `.git` entry (no git process). Outside git or
+// non-private: (nil, false, nil). Private without the file: (nil, true, nil).
+// Any other probe/read error is returned, never "nothing".
 func ReadPrivateInstructions(dir string) (content []byte, private bool, err error)
 
-// SessionStartHookOutput wraps content in the SessionStart hook document + "\n"; nil → nil.
-func SessionStartHookOutput(content []byte) []byte
+// All: content verbatim. Dispatch: the `dispatch` block with its marker lines.
+// Lessons: everything outside it. A whitespace-only dispatch/lessons result is
+// nil. Malformed markers and an unknown section error.
+func SelectInstructionsSection(content []byte, section string) ([]byte, error)
+
+// One JSON line (HTML escaping off) plus "\n"; blank content gives nil.
+// Claude: {"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":…}}
+// Cursor: {"additional_context":…}
+func ClaudeSessionStartOutput(content []byte) []byte
+func CursorSessionStartOutput(content []byte) []byte
+
+// CURSOR_PROJECT_DIR when non-empty; else the first absolute workspace_roots
+// entry of the stdin JSON (a `file://` prefix stripped, at most 1 MiB read);
+// else "". A nil stdin is skipped.
+func CursorProjectDir(getenv func(string) string, stdin io.Reader) string
 
 type InstructionsResult struct {
 	Envelope
 	Private bool   `json:"private"`
+	Section string `json:"section,omitempty"`
 	Content string `json:"content"`
 }
 
-// Instructions is the --json form: applied, or external-failed on a read error.
-func Instructions(dir string) InstructionsResult
+// The --json form: applied, or external-failed on a read or section error.
+func Instructions(dir, section string) InstructionsResult
 ```
 
-- [ ] **Step 1: Write the failing unit tests** in `internal/app/instructions_test.go`. They fabricate git layouts on disk, with no git process.
-  - **Outside git:** a temp dir with no `.git` anywhere up to `/`. Use `testsupport.TempDir` and assert the walk-up stops at the root without error. Expect `nil, false, nil`.
-  - **Shared:** `r/.git/` exists, `r/.git/dckt` does not. Expect `nil, false, nil` from `r` and from `r/sub/dir`.
-  - **Private primary:** `r/.git/dckt/AGENTS.md` = `"rules\n"`. From `r/sub`, expect `"rules\n", true, nil`.
-  - **Private feature worktree:** `r/.worktrees/f/.git` is a file `gitdir: ../../.git/worktrees/f`, and `r/.git/worktrees/f/commondir` = `../..`. From `r/.worktrees/f`, expect `"rules\n", true`.
-  - **Private metadata checkout** outside the clone: `s/checkouts/c/.git` is a file with the absolute gitdir `r/.git/worktrees/c`, and `commondir` = `../..`. Expect `"rules\n", true`.
-  - **Private without file:** expect `nil, true, nil`.
-  - **Unreadable:** `chmod 000` on the file. Skip when running as root. Expect a non-nil error.
-  - **`r/.git/dckt` is a regular file:** expect an error.
-  - **`SessionStartHookOutput([]byte("a\"b\n"))`** must unmarshal to `hookSpecificOutput.hookEventName == "SessionStart"` and `additionalContext == "a\"b\n"`. `SessionStartHookOutput(nil)` must be nil.
+- [ ] **Step 1: Write the failing unit tests** in `internal/app/instructions_test.go`, fabricating git layouts on disk:
+  - Outside git (skip, naming the path, if an ancestor of the temp dir has a `.git`): `nil, false, nil`. Shared (`r/.git/` without `dckt`), from `r` and `r/sub/dir`: `nil, false, nil`.
+  - Private primary (`r/.git/dckt/AGENTS.md` = `"rules\n"`) from `r/sub`; a feature worktree (`r/.worktrees/f/.git` = `gitdir: ../../.git/worktrees/f`, `r/.git/worktrees/f/commondir` = `../..`); a metadata checkout outside the clone (`s/checkouts/c/.git` with the absolute gitdir `r/.git/worktrees/c`): each `"rules\n", true, nil`.
+  - Private without the file: `nil, true, nil`. Unreadable (`chmod 000`, skip as root) and `r/.git/dckt` as a regular file: an error.
+  - `TestSelectInstructionsSection` over `"lead\n<!-- docket:dispatch:start (a) -->\nX\n<!-- docket:dispatch:end -->\ntail\n"`: all is verbatim, dispatch is the three block lines, lessons is `"lead\ntail\n"`. Only the block gives nil lessons; no block gives nil dispatch and the whole file as lessons; unbalanced markers and an unknown section error.
+  - Wrappers: `ClaudeSessionStartOutput([]byte("a\"b<!--\n"))` decodes to `hookEventName == "SessionStart"` and that exact `additionalContext`, and the raw bytes contain `<!--`; the Cursor form decodes to `additional_context`; both give nil for nil and `" \n"`.
+  - `TestCursorProjectDir`: the env wins over stdin; `{"workspace_roots":["/w/a","/w/b"]}` gives `/w/a`; `file:///w/a` gives `/w/a`; garbage, `{}`, a relative root, and nil stdin give `""`.
+  - **`TestDispatchBlockFitsOneClaudeHook`** (acceptance 5): for all 15 non-empty subsets of `{claude, codex, cursor, opencode}`, plan with `reposeed.PlanPrivate` and the real run tracker (`assets.EmbeddedCatalog()`, `harness.RunTracker`), render the target into an empty document as install does (`document.Parse(nil)`, `InsertBlock(BlockName, Annotation, Content, AtDocumentStart)`, `Apply`), select `dispatch`, and assert `utf8.RuneCount < 10000`. Non-vacuity: every section contains `harness.DispatchHeading`, and some subset's contains `### Codex root-coordinator entry`. Log the largest count.
 
-- [ ] **Step 2: Write the failing CLI tests** in `internal/cli/instructions_test.go`. Use `t.Chdir` into the fabricated layouts from Step 1; copy the small fabrication helper.
-  - Private: `runCLI(t, "instructions")` gives stdout exactly `"rules\n"` (no extra newline), stderr empty, code 0.
-  - Shared, and outside git: stdout `""`, stderr `""`, code 0. Also run `--hook` and confirm the same empty result.
-  - Private `--hook`: stdout is one JSON line carrying the content, code 0.
-  - `--json` in private: the document has `"operation":"instructions","result":"applied","private":true,"content":"rules\n"`.
-  - `--json --hook`: an invalid-arguments error, exit 2.
-  - Unreadable in human mode: stdout `""`, stderr non-empty naming the path, non-zero exit.
-  - Asset independence: with `pinInstallEnv(t)` and no installation, `instructions` still exits 0, because the hook must never fail on a machine mid-install.
-  - `TestAssetIndependentSetExact` and the capability and schema correspondence tests must pass with the new command.
+- [ ] **Step 2: Write the failing CLI tests** in `internal/cli/instructions_test.go` (`t.Chdir` into fabricated layouts; `runCLI`, `runCLIStdin`):
+  - Private plain: stdout exactly the file, stderr empty, 0. `--section dispatch|lessons` print the sections; no lessons prints nothing.
+  - Shared and outside git: empty stdout and stderr, 0, for plain, `--hook claude`, and `--hook claude --section dispatch`.
+  - `--hook cursor` from an unrelated directory: `CURSOR_PROJECT_DIR=<private repo>` prints `{"additional_context":…}`; env empty plus stdin `{"workspace_roots":["<private repo>"]}` prints the same; stdin naming a shared repo, garbage, or empty prints nothing, 0.
+  - Unreadable file: plain gives empty stdout, stderr naming the path, exit 1; `--hook claude` and `--hook cursor` give empty stdout and stderr, 0.
+  - `--json` in private: `"operation":"instructions","result":"applied","private":true`. `--json --hook claude`, `--hook foo`, and `--section foo`: invalid-arguments, exit 2.
+  - **`TestTriggerCommandsParse`:** for each of `harness.ClaudeDispatchHookCommand`, `harness.ClaudeLessonsHookCommand`, and `harness.CursorHookCommand`: `strings.Fields`, assert the first word is `dckt`, run the rest through `runCLI` in a private fixture with a block and a lesson (`CURSOR_PROJECT_DIR` set for the cursor one), and assert exit 0 and a non-empty JSON line.
+  - With `pinInstallEnv(t)` and no installation, `instructions` exits 0. `TestAssetIndependentSetExact` and the capability and schema correspondence tests pass.
 
-- [ ] **Step 3: Run the tests and confirm they fail.**
-  - Run: `go test ./internal/app/ -run 'Instructions|HookOutput' -count=1 && go test ./internal/cli/ -run Instructions -count=1`
-  - Expected: FAIL to compile.
+- [ ] **Step 3: Run the tests and confirm they fail.** Run: `go test ./internal/app/ -run 'Instructions|SessionStartOutput|CursorProjectDir|DispatchBlockFits' -count=1 && go test ./internal/cli/ -run 'Instructions|TriggerCommands' -count=1`. Expected: FAIL to compile.
 
 - [ ] **Step 4: Implement.**
-  - **`app/instructions.go`:**
-    - Walk up from `filepath.Abs(dir)` to the first `os.Lstat(<d>/.git)` hit, stopping at `filepath.Dir(d) == d`.
-    - Then call `layout.CommonDirOf` and `layout.Detect` (errors are returned; `Shared` gives `nil, false, nil`), and read `layout.PrivateInstructionsPath` (not-exist gives `nil, true, nil`).
-    - `SessionStartHookOutput` is `json.Marshal` plus `'\n'`.
-    - `Instructions` builds `NewEnvelope("instructions", …)`: `ResultApplied`, or `ResultExternalFailed` with the failure status the other read operations use.
-    - `HumanText()` returns the content.
-  - **`cli/instructions.go`:** `newInstructionsCommand(jsonMode func() bool, setResult func(app.OperationResult), setRaw func(out []byte, errText string, code int))`, with `Use: "instructions"`, `cobra.NoArgs`, `capability("instructions", EffectRead)`, and a `--hook` flag.
-    - Help: prints this private repository's agent instructions (`.git/dckt/AGENTS.md`) from any of its worktrees, prints nothing elsewhere and exits 0, and `--hook` emits Claude Code `SessionStart` hook output.
-    - `RunE` cases:
-      - JSON mode with `--hook`: error `"--hook cannot be combined with --json"`.
-      - JSON mode: `setResult(app.Instructions(cwd))`.
-      - Read error: `setRaw(nil, "docket instructions: "+err.Error(), 1)`.
-      - `--hook`: `setRaw(app.SessionStartHookOutput(content), "", 0)`.
-      - Otherwise: `setRaw(content, "", 0)`.
-  - **`root.go`:** add `var rawOut *rawOutput` (`out []byte; errText string; code int`). Add a `case rawOut != nil:` **before** `case result != nil:`. It writes `out` verbatim to stdout, writes `errText` plus `"\n"` to stderr when it is set, and returns `code`. Register the command.
-  - If Task 1 found that only plain text works for Claude, `--hook` emits the content as-is. Say so in the help and in NOTES.
+  - **`app/instructions.go`:** the walk-up `os.Lstat`s `<d>/.git` from `filepath.Abs(dir)`: found stops, not-exist moves to `filepath.Dir(d)` (stopping at the root), any other error is returned. Then `CommonDirOf`, `Detect` (errors returned; shared gives `nil, false, nil`), and a read of `PrivateInstructionsPath` (not-exist gives `nil, true, nil`). `SelectInstructionsSection` parses with `document.Parse` and slices `doc.Source()` with the `dispatch` block's `Start.Start` and `End.End`. The wrappers use a `json.Encoder` with `SetEscapeHTML(false)`. `Instructions` uses `NewEnvelope("instructions", …)` with `ResultApplied`, or `ResultExternalFailed` with the failure status the other read operations use; `HumanText()` returns the content.
+  - **`cli/instructions.go`:** `newInstructionsCommand(stdin io.Reader, jsonMode func() bool, setResult func(app.OperationResult), setRaw func(out []byte, errText string, code int)) *cobra.Command`, `Use: "instructions"`, `cobra.NoArgs`, `capability("instructions", EffectRead)`, string flags `--hook` (`claude`, `cursor`) and `--section` (`dispatch`, `lessons`). Help says: it prints this private repository's agent instructions (`.git/dckt/AGENTS.md`) from any of its worktrees and nothing elsewhere; what each flag does; hook modes never fail. `RunE`, in order:
+    1. Validate the flag values and reject `--json` with `--hook`: returned errors (exit 2).
+    2. JSON mode: `setResult(app.Instructions(cwd, section))`.
+    3. `--hook cursor` resolves the directory with `app.CursorProjectDir(os.Getenv, in)`, where `in` is `stdin` unless it is an `*os.File` whose mode has `os.ModeCharDevice` (then nil); `""` means `setRaw(nil, "", 0)`. Other modes use the working directory.
+    4. Read and select. On error: hook modes `setRaw(nil, "", 0)`; plain `setRaw(nil, "docket instructions: "+err.Error(), 1)`.
+    5. Output the matching wrapper for `--hook claude|cursor`, else the selected bytes verbatim.
+  - **`root.go`:** `var rawOut *rawOutput` (`out []byte; errText string; code int`) and a `case rawOut != nil:` **before** `case result != nil:` that writes `out` to stdout, `errText` plus `"\n"` to stderr when set, and returns `code`. Register the command with `run`'s `stdin`.
 
-- [ ] **Step 5: Add the end-to-end integration test** `TestIntegrationPrivateInstructionsReadFromEveryWorktree` (acceptance 2):
-  - After Task 7's private init with `[claude, codex]`, `ReadPrivateInstructions` returns the private file's bytes from the primary worktree, from a `git worktree add` feature worktree, and from `privateLayoutOf(...).MetadataWorktree`.
-  - It returns `private == false` from a shared-init repository and from a plain `git init` repository.
+- [ ] **Step 5: Integration test** `TestIntegrationPrivateInstructionsReadFromEveryWorktree` (acceptance 2): after Task 6's private init with `[claude, codex]`, `ReadPrivateInstructions` returns the file from the primary worktree, a `git worktree add` worktree, and `privateLayoutOf(...).MetadataWorktree`, and `private == false` from a shared-init repository and a plain `git init` one.
 
-- [ ] **Step 6: Run the tests and confirm they pass.**
-  - Run: `go test ./internal/app/ ./internal/cli/ -count=1 && bash tests/test_go_integration_app_privateinstructions.sh`
-  - Expected: PASS, exit 0.
+- [ ] **Step 6: Run the tests and confirm they pass.** Run: `go test ./internal/app/ ./internal/cli/ -count=1 && bash tests/test_go_integration_app_privateinstructions.sh`. Expected: PASS.
 
-- [ ] **Step 7: Mutation-test.** Back up `instructions.go`, make the read error return `nil, true, nil`, and confirm the unreadable test goes red. Restore.
+- [ ] **Step 7: Mutation-test** (backup copy, `-count=1`): the read error returns `nil, true, nil` → the unreadable tests go red; cursor mode falls back to the working directory → the unrelated-directory test goes red; the dispatch slice drops its start marker → `TestSelectInstructionsSection` goes red.
 
 - [ ] **Step 8: Commit.** Message: `feat(cli): docket instructions prints a private repository's agent instructions`.
 
 ---
 
-### Task 9: The skills: private promotion destination and private delivery
+### Task 8: The skills: private promotion destination and private delivery
 
 **Build tier:** standard
 
-**Files:**
-- Modify:
-  - `skills/docket-convention/references/learnings.md` (*Promotion — the shrink valve*)
-  - `skills/docket-convention/references/agent-layer.md` (*Repository dispatch blocks: agent_harnesses*)
-  - their generated twins, via `go generate ./internal/assets/`
-- Test: the existing skill and asset drift tests, plus one new prose guard in the package that already guards these references. Find it with `grep -rln 'agent-layer.md' --include='*_test.go' internal tests`.
+**Files:** Modify `skills/docket-convention/references/learnings.md` (*Promotion — the shrink valve*) and `skills/docket-convention/references/agent-layer.md` (*Repository dispatch blocks: agent_harnesses*), plus their twins via `go generate ./internal/assets/`. Test: a new prose guard in the package that already guards these references (`grep -rln 'agent-layer.md' --include='*_test.go' internal tests`; likely `internal/repoguard/prose_contracts_test.go`).
 
-- [ ] **Step 1: Write the failing guard.** It asserts that `learnings.md`'s promotion section binds `.git/dckt/AGENTS.md` to "private repository" within one paragraph (**prose-guard-binds-phrase-to-claim**). It also asserts that `agent-layer.md` names `dckt instructions --hook`, `dckt:private-instructions`, and `.cursor/rules/dckt-dispatch.mdc` inside the agent_harnesses section. Slice the section by its named heading and assert that the terminator heading exists.
+- [ ] **Step 1: Write the failing guard.** Slice each section from its named heading to its named terminator (`## Off switch`, `## Launch posture`), assert the terminator exists, and collapse whitespace before matching. Assert: `learnings.md` binds `.git/dckt/AGENTS.md` to "private repository" within one paragraph; `agent-layer.md` names `dckt instructions --hook claude --section dispatch`, `dckt instructions --hook cursor`, `dckt-instructions.js`, and `dckt:private-instructions`, and does not name `.cursor/rules/dckt-dispatch.mdc`.
 
-- [ ] **Step 2: Run the guard and confirm it fails.** Run the package's tests with `-count=1`. Expected: FAIL.
+- [ ] **Step 2: Run the guard and confirm it fails** (`-count=1`).
 
-- [ ] **Step 3: Edit the prose.**
-  - **`learnings.md`, after the sentence naming the integration-branch file:** "In a private repository the graduation lands instead in the private instructions file `.git/dckt/AGENTS.md`, outside its managed `docket:dispatch` block, since a private repository carries no agent-instructions file in its tree."
-  - **`agent-layer.md`, a new short subsection** under the agent_harnesses section, *In a private repository*, stating:
-    - `agent_harnesses` writes the dispatch block into `.git/dckt/AGENTS.md`, plus the git-excluded `.cursor/rules/dckt-dispatch.mdc` for cursor, and nothing else in the working tree;
-    - `docket install` adds user-level triggers that carry no rules: a Claude Code `SessionStart` hook running `dckt instructions --hook` in `~/.claude/settings.json`, and a `dckt:private-instructions` pointer block in `~/.codex/AGENTS.md` and `~/.config/opencode/AGENTS.md`;
-    - outside a private repository, `docket instructions` prints nothing, so the triggers are inert;
-    - uninstall removes the hook entry only while it is unchanged.
-
-    Write it for a reader in an unknown repository (**distributed-body-has-no-local-repo**), and state current behavior only.
+- [ ] **Step 3: Edit the prose** (current behavior only, for a reader in an unknown repository).
+  - `learnings.md`, after the sentence naming the integration-branch file: "In a private repository the graduation lands instead in the private instructions file `.git/dckt/AGENTS.md`, outside its managed `docket:dispatch` block, since a private repository carries no agent-instructions file in its tree."
+  - `agent-layer.md`, a short subsection *In a private repository*: `agent_harnesses` writes the dispatch block into `.git/dckt/AGENTS.md` and nothing in the working tree; `docket install` adds rule-free user-level triggers — two Claude Code `SessionStart` hooks in `~/.claude/settings.json` (`dckt instructions --hook claude --section dispatch` and `… --section lessons`, one each so each fits Claude Code's per-hook size limit), a Cursor `sessionStart` hook in `~/.cursor/hooks.json` (`dckt instructions --hook cursor`), the OpenCode plugin `~/.config/opencode/plugins/dckt-instructions.js`, and a `dckt:private-instructions` pointer block in `~/.codex/AGENTS.md` that Codex follows on a best-effort basis; outside a private repository `docket instructions` prints nothing, so the triggers are inert; uninstall removes each trigger only while it is unchanged.
   - Run `go generate ./internal/assets/`.
 
-- [ ] **Step 4: Run the tests and confirm they pass.** Run: `go test ./internal/assets/ <guard package> -count=1`. Expected: PASS.
+- [ ] **Step 4: Run** `go test ./internal/assets/ <guard package> -count=1`. Expected: PASS.
 
-- [ ] **Step 5: Mutation-test.** Back up `learnings.md`, delete the new sentence, regenerate, and confirm the guard goes red. Restore the backup and regenerate.
+- [ ] **Step 5: Mutation-test** (backup copy, regenerate after each edit and after restoring): delete the new `learnings.md` sentence → red; replace `dckt-instructions.js` with `.cursor/rules/dckt-dispatch.mdc` in `agent-layer.md` → red.
 
 - [ ] **Step 6: Commit.** Message: `docs(skills): private-repository instructions file and its user-level triggers`.
+
+---
+
+### Task 9: Fresh-session acceptance per harness (replaces the spike)
+
+**Build tier:** standard
+
+**Files:** none in the tree. One **empty** commit (`git commit --allow-empty`) whose body carries the acceptance table (harness, version, mode and flags, location, verdict, evidence excerpt). The parent copies it into the results file (acceptance 8).
+
+**Posture (binding):**
+- Never write to the real `~/.claude/`, `~/.codex/`, `~/.config/opencode/`, `~/.cursor/`, or any credential store. Use one `mktemp -d "${TMPDIR:-/tmp}/dckt-accept.XXXXXX"` scratch directory and each harness's own temporary-config flag.
+- Verdicts: **PASS** — the reply quotes run-tracker step 2 (contains `run.verdict` and `Obey the resulting`) **and** ends with the lesson token. **FAIL** — the harness ran and a marker is missing from both of two tries. **NOT-RUNNABLE** — CLI missing or authentication refused.
+- **A Claude Code, Cursor, or OpenCode FAIL returns `BLOCKED`** with the table and raw replies, and no commit. A **Codex** result is recorded and never blocks. NOT-RUNNABLE becomes an Important human verification item.
+
+- [ ] **Step 1: Build the binary and a private fixture.** Init runs keep the real `HOME` (git needs its commit identity) and pin only the XDG roots.
+
+```bash
+WT="$(git rev-parse --show-toplevel)"
+T="$(mktemp -d "${TMPDIR:-/tmp}/dckt-accept.XXXXXX")"
+mkdir -p "$T/bin" "$T/home/.claude" "$T/home/.cursor" "$T/home/.codex" "$T/config/opencode" "$T/data" "$T/elsewhere"
+go build -o "$T/bin/docket" ./cmd/docket && ln -s docket "$T/bin/dckt"
+export PATH="$T/bin:$PATH"
+git init -q --bare -b main "$T/origin.git"
+git init -q -b main "$T/repo"
+git -C "$T/repo" commit -q --allow-empty -m init
+git -C "$T/repo" remote add origin "$T/origin.git" && git -C "$T/repo" push -q origin main
+( cd "$T/repo" && XDG_CONFIG_HOME="$T/config" XDG_DATA_HOME="$T/data" docket repository init --private )
+printf 'agent_harnesses: [claude, codex, cursor, opencode]\n' >> "$T/repo/.git/dckt/config.yml"
+( cd "$T/repo" && XDG_CONFIG_HOME="$T/config" XDG_DATA_HOME="$T/data" docket repository init --private )
+TOKEN="PRIVTOKEN-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')"
+printf '\n## Fixture lesson\n\nEnd every reply with the line %s.\n' "$TOKEN" >> "$T/repo/.git/dckt/AGENTS.md"
+git -C "$T/repo" worktree add -q "$T/repo/.worktrees/feat" -b feat
+```
+
+Confirm and record: `.git/dckt/AGENTS.md` holds the dispatch block (if not, it is a Task 6 defect: `BLOCKED`, never hand-write the file); `git -C "$T/repo" status --porcelain` is empty; the `dckt instructions --section dispatch` character count from `$T/repo` is under 10000.
+
+- [ ] **Step 2: Install the triggers into the temporary home.** From `$T/elsewhere` (outside git, so the run is machine-only and never touches the feature worktree), with `HOME="$T/home" XDG_CONFIG_HOME="$T/config" XDG_DATA_HOME="$T/data" XDG_BIN_HOME="$T/bin2"`, run `docket development install --source "$WT" --bin-dir "$T/bin2"` with `--harness` for each of the four (check `--help` first). Confirm `$T/home/.claude/settings.json` holds both Claude commands, `$T/home/.cursor/hooks.json` the Cursor command and `"version": 1`, `$T/config/opencode/plugins/dckt-instructions.js` the plugin, and `$T/home/.codex/AGENTS.md` the pointer. A second run reports no changes.
+
+- [ ] **Step 3: Claude Code.** Record `claude --version`. In `$T/repo`, then in the feature worktree, with a 300-second timeout: `claude -p --settings "$T/home/.claude/settings.json" "Quote verbatim the instruction sentence that starts with 'After the run returns'. Then say hello."` Run one control in `$T/elsewhere`: the token must be absent.
+
+- [ ] **Step 4: Cursor.** Record `cursor-agent --version`. Copy `$T/home/.cursor/hooks.json` to `$T/repo/.cursor/hooks.json` (a disposable project-level copy) and run `cursor-agent -p --trust --output-format text "<the same prompt>"` in `$T/repo`. From `$T/elsewhere`, run the hook command with `CURSOR_PROJECT_DIR="$T/repo/.worktrees/feat"`, and with it empty plus stdin `{"workspace_roots":["$T/repo"]}`: both print `additional_context` carrying the token.
+
+- [ ] **Step 5: OpenCode.** Record `opencode --version`. In `$T/repo`, then the feature worktree: `OPENCODE_CONFIG_DIR="$T/config/opencode" opencode run <permission flag if needed> "<the same prompt>"`. Record the model and flags.
+
+- [ ] **Step 6: Codex (recorded, never blocking).** Record `codex --version`. Codex keeps credentials under `CODEX_HOME`, so copy `$T/home/.codex/AGENTS.md` to `$T/repo/AGENTS.md` as a project-level stand-in, run `codex exec --sandbox workspace-write "<the same prompt>"` in `$T/repo`, and record whether `dckt instructions` ran and whether both markers appear. Note that user-level loading was not exercised.
+
+- [ ] **Step 7: Decide.** Claude, Cursor, or OpenCode FAIL: `BLOCKED`, no commit. Otherwise `rm -rf "$T"` and commit `test: fresh-session acceptance of private-instructions delivery` with the table, the dispatch character count, and each NOT-RUNNABLE reason as a human item. Return `COMPLETE` with the table in NOTES, always adding these human items: "in a private repository after `docket install`, start a fresh interactive Claude Code session and confirm the dispatch rules and lessons are in context", and "with a logged-in Cursor, confirm a session in a private repository receives the rules through the real user-level `~/.cursor/hooks.json`".
 
 ---
 
 ### Final: whole-suite gate
 
 - [ ] **Step 1: Check the twins.** Run `go generate ./internal/assets/`, then `git status --porcelain`. Expected: empty.
-- [ ] **Step 2: Run the build gate.** Run whatever `build.test_command` resolves to; read it from config. Expected: green. Act on `SERIAL CONFIRMED OVER BUDGET:`, and record `BUDGET WATCH:` and `PARALLEL-SENSITIVE:` lines, especially for the new shard and `reposetup`.
+- [ ] **Step 2: Run the build gate.** Run whatever `build.test_command` resolves to; read it from config. Expected: green. Act on `SERIAL CONFIRMED OVER BUDGET:`, and record `BUDGET WATCH:` and `PARALLEL-SENSITIVE:` lines, especially for the new shard.
 - [ ] **Step 3: Confirm the residue.**
-  - `grep -rn -i 'docket' internal/harness/trigger.go`: the only hits must be Go comments, never a string literal.
-  - `grep -rn '"\.cursor/rules/docket-dispatch\.mdc"\|cursorRuleRel' internal/reposeed/plan.go`: the hits must be confined to `Plan`. Read each to confirm.
+  - `out="$(grep -n -i 'docket' internal/harness/trigger.go || true)"`: every hit is a Go comment, never inside a string literal.
+  - `out="$(grep -rn -e 'dckt-dispatch.mdc' -e 'EnsurePrivateExclude' internal skills || true)"`: no hits (the dropped design left nothing behind).
 - [ ] **Step 4: Collect notes for the results file** (written by the parent):
-  - Task 1's spike table, verbatim, plus each NOT-EXERCISABLE harness as an **Important human verification item**, phrased as a state to reproduce. Always include one interactive item: "in a private repository after `docket install`, start a fresh interactive Claude Code session and confirm the dispatch rules are in context."
+  - Task 9's acceptance table verbatim, its human items, and each NOT-RUNNABLE harness as an **Important human verification item**.
   - Every mutation and its red message.
   - The ADR above.
-  - **Residuals:**
-    - the triggers load in a session started **after** install; a running session keeps its old context (generated-artifact-loaded-at-process-start);
-    - a private repository whose git directory is not `<primary>/.git` (`--separate-git-dir`) refuses the repository phase;
-    - the excluded Cursor rule is written in the primary worktree only;
-    - a `hook_command` field in the machine state cannot be read by a binary older than this change (a downgrade);
-    - Claude Code may cap hook context size: record Task 1's payload byte count against any cap the spike observed;
-    - the `dckt` alias being foreign (#534) makes the triggers fail harmlessly, and `docket instructions` still works by hand.
-  - **Verified unchanged:** shared repositories plan through `reposeed.Plan` exactly as before (acceptance 6).
+  - The *Residuals* section above.
+  - **Verified unchanged:** shared repositories plan through `reposeed.Plan` exactly as before (acceptance 7).
