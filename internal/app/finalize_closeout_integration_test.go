@@ -5,10 +5,12 @@ package app
 import (
 	"context"
 	"errors"
-	"github.com/danielhanold/docket/internal/githubcli"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/githubcli"
 )
 
 // TestCloseoutBacklinkLegDocketMode proves the docket-mode split: the metadata
@@ -695,6 +697,27 @@ func TestIntegrationFinalizeArchiveRootCarry(t *testing.T) {
 		assertBothArchived(t, f, res)
 	})
 
+	t.Run("repoints-each-carried-pr-backlink", func(t *testing.T) {
+		f := seed(t, "stacked-merged")
+		childMerge := f.carryOntoRootFeature(t, map[string]string{"gadget.txt": "gadget work\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		f.fetchAllIntoInvocation(t)
+		pr := newFakePRBody(map[int]string{
+			closeoutPR: artifactWithBacklink(groomPath(5, "widget"), "Root", "root prose"),
+			8:          artifactWithBacklink(groomPath(6, "gadget"), "Child", "child prose"),
+		})
+		deps := f.closeoutDeps(rootFake(f, mergeCommit, childMerge))
+		deps.PRBody = pr
+		res := FinalizeCloseout(context.Background(), deps, f.repo.invocation, f.id, CloseoutNotes{})
+		assertBothArchived(t, f, res)
+		if got := pr.bodies[closeoutPR]; !strings.Contains(got, "docs/changes/archive/2026-08-18-0005-widget.md") {
+			t.Errorf("root PR not repointed to its own archive path:\n%s", got)
+		}
+		if got := pr.bodies[8]; !strings.Contains(got, "docs/changes/archive/2026-08-18-0006-gadget.md") || strings.Contains(got, "0005-widget") {
+			t.Errorf("descendant PR not repointed to ITS OWN archive path:\n%s", got)
+		}
+	})
+
 	t.Run("one-unproven-descendant-keeps-root-recoverable", func(t *testing.T) {
 		f := seed(t, "implemented") // NOT stacked-merged: carry unproven
 		mergeCommit := f.mergeIntoBase(t)
@@ -1327,4 +1350,93 @@ func TestIntegrationFinalizeCloseoutUnrelatedInvalidRecordCarriedDescendant(t *t
 			}
 		}
 	})
+}
+
+// TestIntegrationFinalizeCloseoutPRBacklinkRepointed proves close-out repoints
+// the merged PR's backlink block at the archive path, keeps every authored byte,
+// and is idempotent on replay.
+func TestIntegrationFinalizeCloseoutPRBacklinkRepointed(t *testing.T) {
+	requireRealGit(t)
+	f := setupCloseoutFixture(t, planRepoModes()[0])
+	mergeCommit := f.mergeIntoBase(t)
+	recPath := groomPath(f.id, f.slug)
+	before := artifactWithBacklink(recPath, "Summary", "Authored PR prose.")
+	pr := newFakePRBody(map[int]string{closeoutPR: before})
+	deps := f.closeoutDeps(f.baselineMergedFake(f.head, mergeCommit))
+	deps.PRBody = pr
+
+	res := FinalizeCloseout(context.Background(), deps, f.repo.invocation, f.id, CloseoutNotes{})
+	if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
+		t.Fatalf("closeout = %q disp %q (%s)", res.Result, res.Disposition, res.Message)
+	}
+	for _, fd := range res.Findings {
+		if fd.Code == ReasonPRBacklinkPending {
+			t.Fatalf("the PR-body leg did not land: %+v", fd)
+		}
+	}
+	after := pr.bodies[closeoutPR]
+	if !strings.Contains(after, res.ArchivePath) || strings.Contains(after, "`"+recPath+"`") {
+		t.Fatalf("PR body not repointed to %q:\n%s", res.ArchivePath, after)
+	}
+	if !strings.HasSuffix(after, "# Summary\n\nAuthored PR prose.\n") {
+		t.Fatalf("authored PR bytes changed:\n%s", after)
+	}
+	if pr.edits != 1 {
+		t.Fatalf("edits = %d, want 1", pr.edits)
+	}
+
+	// Replay: the promised state already holds; no further edit.
+	again := FinalizeCloseout(context.Background(), deps, f.repo.invocation, f.id, CloseoutNotes{})
+	if again.Disposition != CloseoutDispAlready || pr.edits != 1 {
+		t.Fatalf("replay = disp %q edits=%d, want already with no new edit", again.Disposition, pr.edits)
+	}
+}
+
+// TestIntegrationFinalizeCloseoutPRBacklinkFailureIsPendingOnly proves a failed
+// GitHub edit never changes close-out's disposition: the change is done and
+// archived, with one pr-backlink-pending warning.
+func TestIntegrationFinalizeCloseoutPRBacklinkFailureIsPendingOnly(t *testing.T) {
+	requireRealGit(t)
+	f := setupCloseoutFixture(t, planRepoModes()[0])
+	mergeCommit := f.mergeIntoBase(t)
+	pr := newFakePRBody(map[int]string{closeoutPR: artifactWithBacklink(groomPath(f.id, f.slug), "Summary", "p")})
+	pr.editErr = errors.New("gh: HTTP 502")
+	deps := f.closeoutDeps(f.baselineMergedFake(f.head, mergeCommit))
+	deps.PRBody = pr
+
+	res := FinalizeCloseout(context.Background(), deps, f.repo.invocation, f.id, CloseoutNotes{})
+	if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
+		t.Fatalf("a failed PR edit changed close-out: %q disp %q", res.Result, res.Disposition)
+	}
+	n := 0
+	for _, fd := range res.Findings {
+		if fd.Code == ReasonPRBacklinkPending {
+			n++
+			if fd.Severity != string(domain.SeverityWarning) {
+				t.Errorf("finding severity = %q, want warning", fd.Severity)
+			}
+		}
+	}
+	if n != 1 {
+		t.Fatalf("want exactly one %s finding, got %d: %+v", ReasonPRBacklinkPending, n, res.Findings)
+	}
+}
+
+// TestIntegrationFinalizeCloseoutPRBacklinkNoBlockUntouched proves a
+// hand-written PR body is never given a block and produces no finding.
+func TestIntegrationFinalizeCloseoutPRBacklinkNoBlockUntouched(t *testing.T) {
+	requireRealGit(t)
+	f := setupCloseoutFixture(t, planRepoModes()[0])
+	mergeCommit := f.mergeIntoBase(t)
+	pr := newFakePRBody(map[int]string{closeoutPR: "Hand-written, no docket block.\n"})
+	deps := f.closeoutDeps(f.baselineMergedFake(f.head, mergeCommit))
+	deps.PRBody = pr
+
+	res := FinalizeCloseout(context.Background(), deps, f.repo.invocation, f.id, CloseoutNotes{})
+	if res.Disposition != CloseoutDispDoneArchived || pr.edits != 0 {
+		t.Fatalf("disp %q edits=%d, want done-archived with no edit", res.Disposition, pr.edits)
+	}
+	if pr.bodies[closeoutPR] != "Hand-written, no docket block.\n" {
+		t.Fatalf("a block-less body was changed")
+	}
 }
