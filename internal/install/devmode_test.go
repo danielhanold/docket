@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -939,6 +940,18 @@ func TestDevInstallPreservesAForeignAlias(t *testing.T) {
 		{"directory", func(t *testing.T, alias string) {
 			writeFile(t, filepath.Join(alias, "keep"), "mine\n")
 		}},
+		{"self-looping link", func(t *testing.T, alias string) {
+			if err := os.Symlink(install.AliasName, alias); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"link through a regular file", func(t *testing.T, alias string) {
+			plain := filepath.Join(filepath.Dir(filepath.Dir(alias)), "plain")
+			writeFile(t, plain, "mine\n")
+			if err := os.Symlink(filepath.Join(plain, "x"), alias); err != nil {
+				t.Fatal(err)
+			}
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			w := newWorld(t)
@@ -968,6 +981,38 @@ func TestDevInstallPreservesAForeignAlias(t *testing.T) {
 			}
 		})
 	}
+
+	// A regular-file dckt the install cannot even read is still foreign: the
+	// unreadable bytes are no reason to fail the binary install.
+	t.Run("unreadable file", func(t *testing.T) {
+		if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+			t.Skip("permission bits do not deny root")
+		}
+		w := newWorld(t)
+		mkdirAll(t, w.path(".toy"))
+		bin := filepath.Join(w.home, "bin")
+		mkdirAll(t, bin)
+		alias := filepath.Join(bin, install.AliasName)
+		writeFile(t, alias, "#!/bin/sh\necho mine\n")
+		if err := os.Chmod(alias, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		aliasBefore := snapshot(t, alias)
+		if err := os.Chmod(alias, 0o000); err != nil {
+			t.Fatal(err)
+		}
+		out := install.DevelopmentInstall(w.devCandidate(t, newSource(t), bin))
+		if err := os.Chmod(alias, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if out.Err != nil || !out.Applied {
+			t.Fatalf("an unreadable alias failed the install: %+v", out)
+		}
+		if len(out.AliasFindings) != 1 || out.AliasFindings[0].Kind != install.AliasForeign {
+			t.Fatalf("alias findings = %+v, want one foreign finding", out.AliasFindings)
+		}
+		assertUnchanged(t, aliasBefore, snapshot(t, alias), "unreadable alias")
+	})
 
 	// An alias docket recorded once and the user has since replaced is no
 	// longer provably docket's: the record is no licence to overwrite it.
