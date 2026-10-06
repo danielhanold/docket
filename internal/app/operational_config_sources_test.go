@@ -9,16 +9,17 @@ import (
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/layout"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // privateOperationalRepo is a primary worktree whose common dir carries the
 // private config. The global layer is pinned to an empty temp home.
 func privateOperationalRepo(t *testing.T) (gitcli.Repository, layout.Layout) {
 	t.Helper()
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	t.Setenv("XDG_CONFIG_HOME", home)
 	t.Setenv("HOME", home)
-	primary := t.TempDir()
+	primary := testsupport.TempDir(t)
 	common := filepath.Join(primary, ".git")
 	if err := os.MkdirAll(filepath.Join(common, layout.PrivateName), 0o755); err != nil {
 		t.Fatal(err)

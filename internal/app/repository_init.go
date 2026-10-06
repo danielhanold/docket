@@ -366,43 +366,50 @@ func publishOrAdoptMetadataRoot(ctx context.Context, git *gitcli.Client, repo gi
 	case gitcli.PushApplied:
 		return root, true, nil
 	case gitcli.PushLeaseLost:
-		// The ref already exists at outcome.Remote. Fetch the object so the shared
-		// ownership verifier can inspect its lineage locally at the reread tip, then
-		// adopt a verified init-equivalent lineage (descendants preserved) or refuse
-		// a migration-seeded, foreign, or unreadable branch. The create-only push
-		// never overwrote it, and adoption of the reread tip must not either.
-		if _, ferr := git.FetchBranch(ctx, repo, remote, metaRef); ferr != nil {
-			r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateConflict, "reading the published metadata branch", ferr)
-			return "", false, &r
-		}
-		own := verifyMetadataOwnership(ctx, git, repo, outcome.Remote, gitcli.ObjectID(sourceRevision), defaultBranch)
-		switch own.Shape {
-		case reposetup.RootUnknown:
-			// Incomplete or unreadable evidence: an external failure retaining the
-			// probe error, never a fabricated foreign or a silent adoption.
-			r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateConflict, "inspecting the published metadata branch", own.Err)
-			return "", false, &r
-		case reposetup.RootForeign:
-			r := initRefusal(reposetup.StateConflict,
-				"the remote docket branch is not a verified docket metadata branch; inspect and resolve it manually, then run `docket repository check`")
-			return "", false, &r
-		}
-		// Verified (RootParentless). Only an init-equivalent lineage — a native
-		// OpInitRoot seed or a receiptless legacy-bootstrap empty root — is
-		// init-adoptable; a migration-seeded lineage is recognized but refused, so a
-		// broadened proof never becomes permission to initialize.
-		if !initEquivalent(own) {
-			r := initRefusal(reposetup.StateConflict,
-				"the remote docket branch is an established migrated metadata branch; `docket repository init` cannot adopt it — run `docket repository check`")
-			return "", false, &r
-		}
-		// Adopt the reread remote tip: descendants preserved, never re-pushed, never
-		// reset to the seed.
-		return outcome.Remote, false, nil
+		// The ref already exists at outcome.Remote: adopt it or refuse it.
+		tip, refusal := adoptPublishedMetadataRoot(ctx, git, repo, remote, metaRef, outcome.Remote, sourceRevision, defaultBranch)
+		return tip, false, refusal
 	default:
 		r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateFresh, "publishing the metadata branch", errors.New("create-only push failed"))
 		return "", false, &r
 	}
+}
+
+// adoptPublishedMetadataRoot adopts a metadata branch the remote already holds
+// at remoteTip, or refuses it. It fetches the branch so the shared ownership
+// verifier can inspect its lineage locally at that tip, then adopts a verified
+// init-equivalent lineage (descendants preserved) or refuses a
+// migration-seeded, foreign, or unreadable branch. It never pushes: adoption of
+// the reread tip must not overwrite or reset the branch to the seed.
+func adoptPublishedMetadataRoot(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, remote gitcli.RemoteName, metaRef gitcli.RefName, remoteTip gitcli.ObjectID, sourceRevision, defaultBranch string) (gitcli.ObjectID, *RepositoryOpResult) {
+	if _, ferr := git.FetchBranch(ctx, repo, remote, metaRef); ferr != nil {
+		r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateConflict, "reading the published metadata branch", ferr)
+		return "", &r
+	}
+	own := verifyMetadataOwnership(ctx, git, repo, remoteTip, gitcli.ObjectID(sourceRevision), defaultBranch)
+	switch own.Shape {
+	case reposetup.RootUnknown:
+		// Incomplete or unreadable evidence: an external failure retaining the
+		// probe error, never a fabricated foreign or a silent adoption.
+		r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateConflict, "inspecting the published metadata branch", own.Err)
+		return "", &r
+	case reposetup.RootForeign:
+		r := initRefusal(reposetup.StateConflict,
+			"the remote docket branch is not a verified docket metadata branch; inspect and resolve it manually, then run `docket repository check`")
+		return "", &r
+	}
+	// Verified (RootParentless). Only an init-equivalent lineage — a native
+	// OpInitRoot seed or a receiptless legacy-bootstrap empty root — is
+	// init-adoptable; a migration-seeded lineage is recognized but refused, so a
+	// broadened proof never becomes permission to initialize.
+	if !initEquivalent(own) {
+		r := initRefusal(reposetup.StateConflict,
+			"the remote docket branch is an established migrated metadata branch; `docket repository init` cannot adopt it — run `docket repository check`")
+		return "", &r
+	}
+	// Adopt the reread remote tip: descendants preserved, never re-pushed, never
+	// reset to the seed.
+	return remoteTip, nil
 }
 
 // initEquivalent reports whether a verified lineage is init-adoptable: its

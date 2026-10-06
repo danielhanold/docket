@@ -172,14 +172,32 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 			"the dckt git remote already points at %s, not %s; resolve it by hand (docket never rewrites a remote)", got, want)))
 	}
 
-	// 6. The metadata branch: created create-only, or a verified init lineage
-	// adopted at its tip (the second-clone path).
+	// 6. The metadata branch: a branch the store already holds is adopted at its
+	// tip when it is a verified init lineage (a re-run, or the second-clone path)
+	// and never republished; an absent one is created create-only. Probing first
+	// matters: a re-run inside the same second rebuilds a byte-identical root,
+	// and the create-only push reports that up-to-date ref as a success, so
+	// publishing would claim a branch this run did not create.
 	metaRef := metadataRef(lay)
-	tip, createdBranch, refusal := publishOrAdoptMetadataRoot(ctx, d.Git, sc.repo, remote, metaRef, sc.sourceRevision, sc.defaultBranch)
-	if refusal != nil {
-		return fail(*refusal)
+	published, err := d.Git.ProbeRemoteBranch(ctx, sc.repo, remote, metaRef)
+	if err != nil {
+		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "reading the dckt metadata branch", err))
 	}
-	changed = changed || createdBranch
+	var tip gitcli.ObjectID
+	if published.State == gitcli.RemoteRefFound {
+		adopted, refusal := adoptPublishedMetadataRoot(ctx, d.Git, sc.repo, remote, metaRef, published.Commit, sc.sourceRevision, sc.defaultBranch)
+		if refusal != nil {
+			return fail(*refusal)
+		}
+		tip = adopted
+	} else {
+		created, createdBranch, refusal := publishOrAdoptMetadataRoot(ctx, d.Git, sc.repo, remote, metaRef, sc.sourceRevision, sc.defaultBranch)
+		if refusal != nil {
+			return fail(*refusal)
+		}
+		tip = created
+		changed = changed || createdBranch
+	}
 
 	// 7. This clone's checkout under the store, hooks off.
 	if err := os.MkdirAll(lay.CheckoutsDir, 0o755); err != nil {
