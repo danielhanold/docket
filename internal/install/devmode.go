@@ -282,6 +282,20 @@ func developmentInstallCandidate(o DevOptions) Outcome {
 		Mode:    binaryMode,
 		Role:    roleBinary,
 	})
+	// The alias rides the same transaction as the binary it names, so a
+	// rollback removes an alias this run created and restores nothing it did
+	// not. A foreign dckt is left out of the plan and reported, never refused.
+	prior, err := LoadState(o.Roots.StatePath())
+	if err != nil {
+		return fail(out, ReasonStateInvalid, err)
+	}
+	aliasTarget, aliasFinding, err := planBinaryAlias(installedBinary, prior)
+	if err != nil {
+		return fail(out, ReasonFilesystemFailed, err)
+	}
+	if aliasTarget != nil {
+		targets = append(targets, *aliasTarget)
+	}
 
 	// The candidate re-resolved the repository phase itself (the parent passed
 	// --repo-dir through verbatim), so machine and repository writes ride one
@@ -296,6 +310,9 @@ func developmentInstallCandidate(o DevOptions) Outcome {
 		sourceRoot:    ds.source,
 		sourceDigest:  ds.digest,
 	}, o.RepoPhase, out)
+	if aliasFinding != nil {
+		out.AliasFindings = append(out.AliasFindings, *aliasFinding)
+	}
 	return collectPostCommitLocked(out, lock, func() CollectionOutcome {
 		return collectLocked(CollectOptions{Roots: o.Roots, FS: o.FS}, lock)
 	})

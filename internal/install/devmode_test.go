@@ -808,3 +808,219 @@ func TestDevCandidateRefusesDrift(t *testing.T) {
 	}
 	assertUnchanged(t, homeBefore, snapshot(t, w.home), "drifted candidate source")
 }
+
+// ---------------------------------------------------------------------------
+// The dckt alias
+// ---------------------------------------------------------------------------
+
+// The development install places dckt beside the binary it installs, as a
+// recorded, journaled target attributed to no harness.
+func TestDevInstallPlacesTheAlias(t *testing.T) {
+	w := newWorld(t)
+	mkdirAll(t, w.path(".toy"))
+	src := newSource(t)
+	bin := filepath.Join(w.home, "bin")
+
+	out := install.DevelopmentInstall(w.devCandidate(t, src, bin))
+	if out.Err != nil {
+		t.Fatalf("DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
+	}
+	alias := filepath.Join(bin, install.AliasName)
+	binary := filepath.Join(bin, "docket")
+	dest, err := os.Readlink(alias)
+	if err != nil {
+		t.Fatalf("alias not created: %v", err)
+	}
+	if dest != binary {
+		t.Errorf("alias -> %s, want %s", dest, binary)
+	}
+	if _, ok := findAction(out, install.OpCreate, alias); !ok {
+		t.Errorf("no create action reported for %s: %v", alias, out.Actions)
+	}
+	if len(out.AliasFindings) != 0 {
+		t.Errorf("a fresh install reported alias findings: %+v", out.AliasFindings)
+	}
+	var rec *install.TargetRecord
+	for _, r := range loadState(t, w.roots).Targets {
+		if r.Path == alias {
+			r := r
+			rec = &r
+		}
+	}
+	if rec == nil || rec.Kind != install.KindSymlink || rec.Harness != "" {
+		t.Fatalf("alias record = %+v, want an unattributed symlink record", rec)
+	}
+
+	// A second run converges: nothing applied, nothing changed on disk.
+	before := snapshot(t, w.home)
+	again := install.DevelopmentInstall(w.devCandidate(t, src, bin))
+	if again.Err != nil || again.Applied || len(again.AliasFindings) != 0 {
+		t.Fatalf("second run = %+v", again)
+	}
+	assertUnchanged(t, before, snapshot(t, w.home), "second development install")
+}
+
+// A dckt the release downloader left (a RELATIVE link to docket) is already
+// ours: the development install leaves it, reporting no finding.
+func TestDevInstallAcceptsTheDownloadersRelativeAlias(t *testing.T) {
+	w := newWorld(t)
+	mkdirAll(t, w.path(".toy"))
+	bin := filepath.Join(w.home, "bin")
+	mkdirAll(t, bin)
+	alias := filepath.Join(bin, install.AliasName)
+	if err := os.Symlink("docket", alias); err != nil {
+		t.Fatal(err)
+	}
+	out := install.DevelopmentInstall(w.devCandidate(t, newSource(t), bin))
+	if out.Err != nil || len(out.AliasFindings) != 0 {
+		t.Fatalf("outcome = %+v", out)
+	}
+	if dest, _ := os.Readlink(alias); dest != "docket" {
+		t.Errorf("the downloader's relative alias was rewritten to %q", dest)
+	}
+}
+
+// A dckt docket does not own is never touched; the install still succeeds and
+// reports the foreign alias as a finding, and the alias is not recorded.
+func TestDevInstallPreservesAForeignAlias(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		plant func(t *testing.T, alias string)
+	}{
+		{"file", func(t *testing.T, alias string) { writeFile(t, alias, "#!/bin/sh\necho mine\n") }},
+		{"link elsewhere", func(t *testing.T, alias string) {
+			if err := os.Symlink("/usr/bin/true", alias); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"dangling link", func(t *testing.T, alias string) {
+			if err := os.Symlink(filepath.Join(filepath.Dir(alias), "gone"), alias); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"directory", func(t *testing.T, alias string) {
+			writeFile(t, filepath.Join(alias, "keep"), "mine\n")
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := newWorld(t)
+			mkdirAll(t, w.path(".toy"))
+			bin := filepath.Join(w.home, "bin")
+			mkdirAll(t, bin)
+			alias := filepath.Join(bin, install.AliasName)
+			tc.plant(t, alias)
+			aliasBefore := snapshot(t, alias)
+
+			out := install.DevelopmentInstall(w.devCandidate(t, newSource(t), bin))
+			if out.Err != nil || !out.Applied {
+				t.Fatalf("a foreign alias failed the install: %+v", out)
+			}
+			if len(out.AliasFindings) != 1 || out.AliasFindings[0].Kind != install.AliasForeign ||
+				out.AliasFindings[0].Path != alias || out.AliasFindings[0].Remedy == "" {
+				t.Fatalf("alias findings = %+v, want one foreign finding with a remedy", out.AliasFindings)
+			}
+			assertUnchanged(t, aliasBefore, snapshot(t, alias), "foreign alias")
+			if _, err := os.Stat(filepath.Join(bin, "docket")); err != nil {
+				t.Errorf("the binary was not installed: %v", err)
+			}
+			for _, rec := range loadState(t, w.roots).Targets {
+				if rec.Path == alias {
+					t.Errorf("a foreign alias was recorded as docket's: %+v", rec)
+				}
+			}
+		})
+	}
+
+	// An alias docket recorded once and the user has since replaced is no
+	// longer provably docket's: the record is no licence to overwrite it.
+	t.Run("recorded alias replaced by the user", func(t *testing.T) {
+		w := newWorld(t)
+		mkdirAll(t, w.path(".toy"))
+		src := newSource(t)
+		bin := filepath.Join(w.home, "bin")
+		if out := install.DevelopmentInstall(w.devCandidate(t, src, bin)); out.Err != nil {
+			t.Fatalf("first DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
+		}
+		alias := filepath.Join(bin, install.AliasName)
+		if err := os.Remove(alias); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, alias, "#!/bin/sh\necho mine\n")
+		aliasBefore := snapshot(t, alias)
+
+		out := install.DevelopmentInstall(w.devCandidate(t, src, bin))
+		if out.Err != nil {
+			t.Fatalf("a replaced alias failed the install: %v (reason %q)", out.Err, out.Reason)
+		}
+		if len(out.AliasFindings) != 1 || out.AliasFindings[0].Kind != install.AliasForeign {
+			t.Fatalf("alias findings = %+v, want one foreign finding", out.AliasFindings)
+		}
+		assertUnchanged(t, aliasBefore, snapshot(t, alias), "replaced alias")
+	})
+}
+
+// A failed transaction rolls back an alias it created, and leaves a
+// pre-existing one exactly as it was.
+func TestDevInstallRollbackAndTheAlias(t *testing.T) {
+	const injected = "injected: state commit fails"
+	failCommit := func(w *world) install.FSOps {
+		return &failingFS{inner: install.RealFS{}, fail: func(op, path string) error {
+			if op == "Rename" && path == w.roots.StatePath() {
+				return errors.New(injected)
+			}
+			return nil
+		}}
+	}
+	t.Run("created alias is removed", func(t *testing.T) {
+		w := newWorld(t)
+		mkdirAll(t, w.path(".toy"))
+		bin := filepath.Join(w.home, "bin")
+		o := w.devCandidate(t, newSource(t), bin)
+		o.FS = failCommit(w)
+		out := install.DevelopmentInstall(o)
+		if out.Err == nil || !strings.Contains(out.Err.Error(), injected) {
+			t.Fatalf("err = %v, want the injected commit failure", out.Err)
+		}
+		if _, err := os.Lstat(filepath.Join(bin, install.AliasName)); !os.IsNotExist(err) {
+			t.Fatalf("rollback left the alias it created: %v", err)
+		}
+		if _, err := os.Lstat(filepath.Join(bin, "docket")); !os.IsNotExist(err) {
+			t.Fatalf("rollback left the binary it created: %v", err)
+		}
+	})
+	t.Run("pre-existing alias survives", func(t *testing.T) {
+		w := newWorld(t)
+		mkdirAll(t, w.path(".toy"))
+		bin := filepath.Join(w.home, "bin")
+		mkdirAll(t, bin)
+		alias := filepath.Join(bin, install.AliasName)
+		if err := os.Symlink("docket", alias); err != nil {
+			t.Fatal(err)
+		}
+		o := w.devCandidate(t, newSource(t), bin)
+		o.FS = failCommit(w)
+		out := install.DevelopmentInstall(o)
+		if out.Err == nil || !strings.Contains(out.Err.Error(), injected) {
+			t.Fatalf("err = %v, want the injected commit failure", out.Err)
+		}
+		if dest, err := os.Readlink(alias); err != nil || dest != "docket" {
+			t.Fatalf("rollback disturbed the pre-existing alias: %q, %v", dest, err)
+		}
+	})
+	t.Run("foreign alias survives", func(t *testing.T) {
+		w := newWorld(t)
+		mkdirAll(t, w.path(".toy"))
+		bin := filepath.Join(w.home, "bin")
+		alias := filepath.Join(bin, install.AliasName)
+		writeFile(t, alias, "#!/bin/sh\necho mine\n")
+		o := w.devCandidate(t, newSource(t), bin)
+		o.FS = failCommit(w)
+		out := install.DevelopmentInstall(o)
+		if out.Err == nil || !strings.Contains(out.Err.Error(), injected) {
+			t.Fatalf("err = %v, want the injected commit failure", out.Err)
+		}
+		if got := readFile(t, alias); got != "#!/bin/sh\necho mine\n" {
+			t.Fatalf("rollback disturbed the foreign alias: %q", got)
+		}
+	})
+}

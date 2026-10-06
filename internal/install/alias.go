@@ -76,3 +76,23 @@ func InspectBinaryAlias(binary string) (*AliasFinding, error) {
 	}
 	return &AliasFinding{Kind: AliasForeign, Path: path, Binary: binary, Remedy: remedyAliasForeign}, nil
 }
+
+// planBinaryAlias is the development install's alias step: the symlink target
+// it would own beside binary, or — when what is there is not provably docket's
+// — no target and a foreign finding. It inspects with the same ownership proofs
+// every other target gets, so "already owned" means exactly what it means for a
+// harness link: a link already resolving to binary, or one the prior state
+// recorded and that still matches its record. A conflict is reported rather
+// than returned as a refusal: the binary install must never be failed by the
+// alias.
+func planBinaryAlias(binary string, prior *State) (*Target, *AliasFinding, error) {
+	t := Target{Path: AliasPathFor(binary), Kind: KindSymlink, LinkTarget: binary, Role: roleBinaryAlias}
+	inspection, err := InspectTarget(t, prior, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	if inspection.Disposition == DispositionConflict {
+		return nil, &AliasFinding{Kind: AliasForeign, Path: t.Path, Binary: binary, Remedy: remedyAliasForeign}, nil
+	}
+	return &t, nil, nil
+}

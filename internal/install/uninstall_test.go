@@ -32,7 +32,7 @@ func newUninstallFixture(t *testing.T) uninstallFixture {
 		t.Fatal(err)
 	}
 	paths := map[string]string{}
-	records := make([]TargetRecord, 0, 5)
+	records := make([]TargetRecord, 0, 6)
 	for _, harness := range uninstallHarnesses {
 		path := filepath.Join(roots.Home, "."+harness, "agents", "docket.md")
 		body := harness + "\n"
@@ -43,6 +43,11 @@ func newUninstallFixture(t *testing.T) uninstallFixture {
 	binary := filepath.Join(roots.BinDir, "docket")
 	writeFileOrDie(t, binary, "binary\n")
 	records = append(records, TargetRecord{Path: binary, Kind: KindFile, SHA256: hashBytes([]byte("binary\n")), Role: roleBinary})
+	alias := filepath.Join(roots.BinDir, AliasName)
+	if err := os.Symlink(binary, alias); err != nil {
+		t.Fatal(err)
+	}
+	records = append(records, TargetRecord{Path: alias, Kind: KindSymlink, LinkTarget: binary, Role: roleBinaryAlias})
 	state := &State{FormatVersion: StateFormatVersion, ProductVersion: "v-test", AssetProtocol: 1,
 		AssetSetID: manifest.AssetSetID, Mode: ModeRelease, Harnesses: append([]string(nil), uninstallHarnesses...),
 		AgentDigest: "sha256:agents", Targets: records}
@@ -79,9 +84,22 @@ func TestUninstallAllAndScopedHarnesses(t *testing.T) {
 		if got := readOrDie(t, binary); got != "binary\n" {
 			t.Fatalf("unattributed binary = %q", got)
 		}
+		alias := filepath.Join(f.roots.BinDir, AliasName)
+		if dest, err := os.Readlink(alias); err != nil || dest != binary {
+			t.Fatalf("uninstall disturbed the alias: %q, %v", dest, err)
+		}
 		state, err := LoadState(f.roots.StatePath())
-		if err != nil || len(state.Harnesses) != 0 || state.AssetSetID != "" || len(state.Targets) != 1 {
+		if err != nil || len(state.Harnesses) != 0 || state.AssetSetID != "" || len(state.Targets) != 2 {
 			t.Fatalf("empty published state = %#v, %v", state, err)
+		}
+		// The installation's own binary and its alias are the two records an
+		// uninstall keeps: it retires harness material, never the installation.
+		kept := map[string]string{}
+		for _, rec := range state.Targets {
+			kept[rec.Path] = rec.Role
+		}
+		if kept[binary] != roleBinary || kept[alias] != roleBinaryAlias {
+			t.Fatalf("kept records = %v, want the binary and its alias", kept)
 		}
 		if _, err := os.Lstat(filepath.Dir(f.roots.VersionDir(f.state.AssetSetID))); !errors.Is(err, fs.ErrNotExist) {
 			t.Fatalf("unreferenced version tree remains: %v", err)
