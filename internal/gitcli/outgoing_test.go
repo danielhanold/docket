@@ -207,3 +207,71 @@ func TestParseAddedPaths(t *testing.T) {
 		})
 	}
 }
+
+// TestParseObjectIDLines proves the rev-list reader keeps every id in order,
+// reads empty output as no ids, and refuses an empty line or a malformed id
+// rather than skipping a commit.
+func TestParseObjectIDLines(t *testing.T) {
+	const a = "1111111111111111111111111111111111111111"
+	const b = "2222222222222222222222222222222222222222"
+	got, err := parseObjectIDLines([]byte(a + "\n" + b + "\n"))
+	if err != nil {
+		t.Fatalf("parseObjectIDLines: %v", err)
+	}
+	if want := []ObjectID{a, b}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("ids = %q, want %q", got, want)
+	}
+	if none, err := parseObjectIDLines(nil); err != nil || len(none) != 0 {
+		t.Fatalf("empty output = %q, %v; want no ids, no error", none, err)
+	}
+	for name, bad := range map[string]string{
+		"blank line":   a + "\n\n" + b + "\n",
+		"lone newline": "\n",
+		"malformed id": a + "\nabc\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if ids, err := parseObjectIDLines([]byte(bad)); err == nil {
+				t.Fatalf("parseObjectIDLines accepted %q: %q", bad, ids)
+			}
+		})
+	}
+}
+
+// TestMergeAdded proves every per-commit path and line is kept with its commit,
+// in commit order, and a merge-base entry is kept only when no commit already
+// adds the same path (and, for a line, the same text) — so a merge's own
+// content is still scanned while the branch's net content is not reported twice.
+func TestMergeAdded(t *testing.T) {
+	const a, b = ObjectID("1111111111111111111111111111111111111111"), ObjectID("2222222222222222222222222222222222222222")
+	perCommit := []Outgoing{
+		{
+			AddedPaths: []OutgoingPath{{Path: "notes.txt", Commit: a}},
+			AddedLines: []OutgoingLine{{Path: "notes.txt", Line: 1, Text: "see .docket/x", Commit: a}, {Path: "notes.txt", Line: 2, Text: "keep", Commit: a}},
+		},
+		{AddedLines: []OutgoingLine{{Path: "notes.txt", Line: 1, Text: "later", Commit: b}}},
+	}
+	net := Outgoing{
+		AddedPaths: []OutgoingPath{{Path: "notes.txt"}, {Path: "merged.txt"}},
+		AddedLines: []OutgoingLine{
+			{Path: "notes.txt", Line: 1, Text: "later"},
+			{Path: "notes.txt", Line: 2, Text: "keep"},
+			{Path: "merged.txt", Line: 1, Text: "from the merge"},
+			{Path: "other.txt", Line: 4, Text: "keep"},
+		},
+	}
+	paths, lines := mergeAdded(perCommit, net)
+	wantPaths := []OutgoingPath{{Path: "notes.txt", Commit: a}, {Path: "merged.txt"}}
+	if !reflect.DeepEqual(paths, wantPaths) {
+		t.Errorf("paths = %+v, want %+v", paths, wantPaths)
+	}
+	wantLines := []OutgoingLine{
+		{Path: "notes.txt", Line: 1, Text: "see .docket/x", Commit: a},
+		{Path: "notes.txt", Line: 2, Text: "keep", Commit: a},
+		{Path: "notes.txt", Line: 1, Text: "later", Commit: b},
+		{Path: "merged.txt", Line: 1, Text: "from the merge"},
+		{Path: "other.txt", Line: 4, Text: "keep"},
+	}
+	if !reflect.DeepEqual(lines, wantLines) {
+		t.Errorf("lines =\n  %+v\nwant\n  %+v", lines, wantLines)
+	}
+}

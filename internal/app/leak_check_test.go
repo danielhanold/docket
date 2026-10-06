@@ -75,8 +75,11 @@ func TestRunLeakCheckScansFetchedBaseToHead(t *testing.T) {
 		fetchRev: gitcli.Revision{Commit: leakBase},
 		out: gitcli.Outgoing{
 			Commits:    []gitcli.OutgoingCommit{{Commit: "c1", Message: "Fix it (0007)\n"}},
-			AddedPaths: []string{"a.go"},
-			AddedLines: []gitcli.OutgoingLine{{Path: "a.go", Line: 3, Text: "x := \".docket/y\""}},
+			AddedPaths: []gitcli.OutgoingPath{{Path: "a.go", Commit: "c1"}, {Path: "dckt.txt"}},
+			AddedLines: []gitcli.OutgoingLine{
+				{Path: "a.go", Line: 3, Text: "x := \".docket/y\""},
+				{Path: "b.go", Line: 1, Text: "gone .docket/z", Commit: "c1"},
+			},
 		},
 	}
 	hits, err := runLeakCheck(context.Background(), git, wc, target, leakHead, &leakscan.PRText{Title: "change 0007", Body: "ok\n"})
@@ -91,7 +94,9 @@ func TestRunLeakCheckScansFetchedBaseToHead(t *testing.T) {
 	}
 	want := []LeakHit{
 		{Source: "commit-message", Commit: "c1", Line: 1, Text: "(0007)", Rule: "change-ref"},
+		{Source: "added-path", File: "dckt.txt", Text: "dckt", Rule: "alias"},
 		{Source: "added-line", File: "a.go", Line: 3, Text: ".docket", Rule: "path"},
+		{Source: "added-line", Commit: "c1", File: "b.go", Line: 1, Text: ".docket", Rule: "path"},
 		{Source: "pr-title", Line: 1, Text: "change 0007", Rule: "change-ref"},
 	}
 	if !reflect.DeepEqual(hits, want) {
@@ -154,7 +159,7 @@ func TestLeakMessageBoundsAndNamesHits(t *testing.T) {
 	hits := []LeakHit{
 		{Source: "commit-message", Commit: "0123456789abcdef0123", Line: 2, Text: "(0007)", Rule: "change-ref"},
 		{Source: "added-line", File: "a.go", Line: 3, Text: ".docket", Rule: "path"},
-		{Source: "added-path", File: "x/.docket/y", Text: ".docket", Rule: "path"},
+		{Source: "added-path", Commit: "fedcba9876543210fedc", File: "x/.docket/y", Text: ".docket", Rule: "path"},
 		{Source: "pr-body", Line: 4, Text: "dckt", Rule: "alias"},
 		{Source: "pr-title", Line: 1, Text: "docket", Rule: "word"},
 		{Source: "added-line", File: "sixth.go", Line: 6, Text: "docket", Rule: "word"},
@@ -164,8 +169,8 @@ func TestLeakMessageBoundsAndNamesHits(t *testing.T) {
 	for _, want := range []string{
 		"7 docket fingerprint(s) would reach a shared surface; nothing was published: ",
 		`commit 0123456789ab message line 2 "(0007)" (change-ref)`,
-		`a.go:3 ".docket" (path)`,
-		`path x/.docket/y ".docket" (path)`,
+		`a.go:3 ".docket" (path)`, // an unattributed (merge-base) line names no commit
+		`path x/.docket/y in commit fedcba987654 ".docket" (path)`,
 		`pr-body line 4 "dckt" (alias)`,
 		`pr-title line 1 "docket" (word)`,
 		" … and 2 more (see leaks)",

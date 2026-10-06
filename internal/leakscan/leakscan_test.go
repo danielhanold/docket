@@ -69,15 +69,16 @@ func TestTextLineNumbersAndCRLF(t *testing.T) {
 func TestScanAttributesEverySource(t *testing.T) {
 	in := Input{
 		Commits:    []Commit{{ID: "c1", Message: "Add widget\n\nRefs (0612)\n"}},
-		AddedPaths: []string{"notes/.docket-old.md"},
-		AddedLines: []AddedLine{{Path: "a.go", Line: 7, Text: "// dckt"}},
+		AddedPaths: []AddedPath{{Path: "notes/.docket-old.md", Commit: "c1"}},
+		AddedLines: []AddedLine{{Path: "a.go", Line: 7, Text: "// dckt"}, {Path: "b.go", Line: 2, Text: "see .docket/x", Commit: "c1"}},
 		PR:         &PRText{Title: "change 0012", Body: "plain\n"},
 	}
 	got := Scan(in, Options{MatchWord: true, ChangeIDs: map[int]bool{12: true, 612: true}})
 	want := []Hit{
 		{Source: SourceCommitMessage, Commit: "c1", Line: 3, Text: "(0612)", Rule: RuleChangeRef},
-		{Source: SourceAddedPath, File: "notes/.docket-old.md", Text: ".docket", Rule: RulePath},
+		{Source: SourceAddedPath, Commit: "c1", File: "notes/.docket-old.md", Text: ".docket", Rule: RulePath},
 		{Source: SourceAddedLine, File: "a.go", Line: 7, Text: "dckt", Rule: RuleAlias},
+		{Source: SourceAddedLine, Commit: "c1", File: "b.go", Line: 2, Text: ".docket", Rule: RulePath},
 		{Source: SourcePRTitle, Line: 1, Text: "change 0012", Rule: RuleChangeRef},
 	}
 	if !reflect.DeepEqual(got, want) {

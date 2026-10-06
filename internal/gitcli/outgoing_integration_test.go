@@ -12,9 +12,11 @@ import (
 // TestIntegrationRepoReadOutgoing proves ReadOutgoing returns exactly what a
 // push of a feature branch exposes against real git: the branch's own commits
 // (the merge included, the merged-in upstream commit excluded), the paths it
-// adds (a space, non-ASCII, and a '"' kept verbatim), and its added lines from
-// the merge-base diff — so upstream content merged into the branch is never
-// attributed to it, even once the upstream base has moved on past the merge.
+// adds (a space, non-ASCII, and a '"' kept verbatim), and the lines each of its
+// commits adds, attributed to that commit — a line one commit adds and the next
+// replaces included — with the merge-base diff adding nothing those already
+// carry, so upstream content merged into the branch is never attributed to it,
+// even once the upstream base has moved on past the merge.
 // A file Git deems binary still has its lines read, and diff configuration in
 // the clone (no prefixes, forced color, inter-hunk context, copy detection)
 // changes nothing. An unrelated base (no merge base) is an error, never an empty result.
@@ -92,7 +94,13 @@ func TestIntegrationRepoReadOutgoing(t *testing.T) {
 			t.Errorf("commit (a) message = %q, want the raw body", msg)
 		}
 
-		paths := append([]string(nil), got.AddedPaths...)
+		var paths []string
+		for _, p := range got.AddedPaths {
+			if p.Commit != commitA {
+				t.Errorf("added path %+v not attributed to the adding commit %s", p, commitA)
+			}
+			paths = append(paths, p.Path)
+		}
 		sort.Strings(paths)
 		wantPaths := []string{"blob.bin", "café.txt", "has space.txt", "notes.txt", `we"ird.txt`}
 		sort.Strings(wantPaths)
@@ -108,17 +116,23 @@ func TestIntegrationRepoReadOutgoing(t *testing.T) {
 			}
 		}
 		want := []OutgoingLine{
-			{Path: "notes.txt", Line: 2, Text: "B"},
-			{Path: "notes.txt", Line: 3, Text: "c"},
-			{Path: "blob.bin", Line: 2, Text: "hidden line"},
+			{Path: "notes.txt", Line: 1, Text: "a", Commit: commitA},
+			{Path: "notes.txt", Line: 2, Text: "b", Commit: commitA}, // replaced by (b), still pushed
+			{Path: "notes.txt", Line: 2, Text: "B", Commit: commitB},
+			{Path: "notes.txt", Line: 3, Text: "c", Commit: commitB},
+			{Path: "blob.bin", Line: 1, Text: "\x00bin", Commit: commitA},
+			{Path: "blob.bin", Line: 2, Text: "hidden line", Commit: commitA},
 		}
 		for p, line := range odd {
-			want = append(want, OutgoingLine{Path: p, Line: 1, Text: line})
+			want = append(want, OutgoingLine{Path: p, Line: 1, Text: line, Commit: commitA})
 		}
 		for _, w := range want {
 			if !have[w] {
 				t.Errorf("added lines missing %+v; got %+v", w, got.AddedLines)
 			}
+		}
+		if len(got.AddedLines) != len(want) {
+			t.Errorf("added lines = %+v, want exactly %+v", got.AddedLines, want)
 		}
 	}
 
@@ -150,4 +164,93 @@ func TestIntegrationRepoReadOutgoing(t *testing.T) {
 		_, err = c.ReadOutgoing(ctx, repo, base, "HEAD")
 		assertKind(t, err, KindInvalidRequest)
 	})
+}
+
+// TestIntegrationRepoReadOutgoingTransientAdd proves a path and line one
+// outgoing commit adds and a later one deletes — absent from the net diff, yet
+// pushed with the adding commit — are read and attributed to that commit.
+func TestIntegrationRepoReadOutgoingTransientAdd(t *testing.T) {
+	ctx := context.Background()
+	r := newMainModeRepos(t)
+	c := newRealClient(t)
+	repo := mustDiscover(t, c, r.Invocation)
+	inv := r.Invocation
+
+	base := ObjectID(gitOut(t, inv, "rev-parse", "HEAD"))
+	gitOut(t, inv, "checkout", "-q", "-b", "feat")
+	writeWorktreeFile(t, inv, "notes.txt", "see .docket/x\n")
+	gitOut(t, inv, "add", "--", "notes.txt")
+	gitOut(t, inv, "commit", "-q", "-m", "Add notes")
+	added := ObjectID(gitOut(t, inv, "rev-parse", "HEAD"))
+	gitOut(t, inv, "rm", "-q", "--", "notes.txt")
+	gitOut(t, inv, "commit", "-q", "-m", "Drop notes")
+	head := ObjectID(gitOut(t, inv, "rev-parse", "HEAD"))
+
+	got, err := c.ReadOutgoing(ctx, repo, base, head)
+	if err != nil {
+		t.Fatalf("ReadOutgoing: %v", err)
+	}
+	if want := []OutgoingPath{{Path: "notes.txt", Commit: added}}; !reflect.DeepEqual(got.AddedPaths, want) {
+		t.Errorf("added paths = %+v, want %+v", got.AddedPaths, want)
+	}
+	if want := []OutgoingLine{{Path: "notes.txt", Line: 1, Text: "see .docket/x", Commit: added}}; !reflect.DeepEqual(got.AddedLines, want) {
+		t.Errorf("added lines = %+v, want %+v", got.AddedLines, want)
+	}
+}
+
+// TestIntegrationRepoReadOutgoingMergeOnlyContent proves content only a merge
+// commit introduces — no non-merge commit's own diff shows it — is still read,
+// from the merge-base diff and with no commit, while a merged-in side commit's
+// lines stay attributed to that commit.
+func TestIntegrationRepoReadOutgoingMergeOnlyContent(t *testing.T) {
+	ctx := context.Background()
+	r := newMainModeRepos(t)
+	c := newRealClient(t)
+	repo := mustDiscover(t, c, r.Invocation)
+	inv := r.Invocation
+
+	base := ObjectID(gitOut(t, inv, "rev-parse", "HEAD"))
+	gitOut(t, inv, "checkout", "-q", "-b", "side")
+	writeWorktreeFile(t, inv, "side.txt", "side\n")
+	gitOut(t, inv, "add", "--", "side.txt")
+	gitOut(t, inv, "commit", "-q", "-m", "Side work")
+	side := ObjectID(gitOut(t, inv, "rev-parse", "HEAD"))
+
+	gitOut(t, inv, "checkout", "-q", "-b", "feat", string(base))
+	writeWorktreeFile(t, inv, "feat.txt", "feat\n")
+	gitOut(t, inv, "add", "--", "feat.txt")
+	gitOut(t, inv, "commit", "-q", "-m", "Feature work")
+	gitOut(t, inv, "merge", "-q", "--no-ff", "--no-commit", "side")
+	writeWorktreeFile(t, inv, "evil.txt", "merge .docket/y\n")
+	gitOut(t, inv, "add", "--", "evil.txt")
+	gitOut(t, inv, "commit", "-q", "-m", "Merge side")
+	head := ObjectID(gitOut(t, inv, "rev-parse", "HEAD"))
+	feat := ObjectID(gitOut(t, inv, "rev-parse", "HEAD^1"))
+
+	got, err := c.ReadOutgoing(ctx, repo, base, head)
+	if err != nil {
+		t.Fatalf("ReadOutgoing: %v", err)
+	}
+	wantPaths := map[OutgoingPath]bool{{Path: "side.txt", Commit: side}: true, {Path: "feat.txt", Commit: feat}: true, {Path: "evil.txt"}: true}
+	if len(got.AddedPaths) != len(wantPaths) {
+		t.Errorf("added paths = %+v, want exactly %+v", got.AddedPaths, wantPaths)
+	}
+	for _, p := range got.AddedPaths {
+		if !wantPaths[p] {
+			t.Errorf("unexpected added path %+v; want %+v", p, wantPaths)
+		}
+	}
+	wantLines := map[OutgoingLine]bool{
+		{Path: "side.txt", Line: 1, Text: "side", Commit: side}: true,
+		{Path: "feat.txt", Line: 1, Text: "feat", Commit: feat}: true,
+		{Path: "evil.txt", Line: 1, Text: "merge .docket/y"}:    true,
+	}
+	if len(got.AddedLines) != len(wantLines) {
+		t.Errorf("added lines = %+v, want exactly %+v", got.AddedLines, wantLines)
+	}
+	for _, l := range got.AddedLines {
+		if !wantLines[l] {
+			t.Errorf("unexpected added line %+v; want %+v", l, wantLines)
+		}
+	}
 }
