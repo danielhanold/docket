@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 )
 
 const (
@@ -100,11 +101,12 @@ type manifest struct {
 }
 
 // transactionsRoot is the private root of all candidates for repo:
-// <CommonDir>/docket/transactions. It sits under the shared common directory so
+// transactions/ beneath the per-repo state folder (layout.StateDirOf). It sits
+// under the shared common directory so
 // it is invisible to any working-tree status and shared across every linked
 // worktree of the repository.
 func transactionsRoot(repo gitcli.Repository) string {
-	return filepath.Join(repo.CommonDir, "docket", "transactions")
+	return filepath.Join(layout.StateDirOf(repo.CommonDir), "transactions")
 }
 
 // newTransactionID mints a 32-character lowercase-hex id from 128 bits of

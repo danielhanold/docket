@@ -13,7 +13,7 @@
 // Git common directory, sharing every durability and privacy discipline the
 // drive store established (store.go):
 //
-//	<git-common-dir>/docket/gate-suite-budgets/v1/<id>/record.json
+//	<per-repo state folder>/gate-suite-budgets/v1/<id>/record.json
 //
 // where <id> is the lowercase-hex sha256 of RepoIdentity, ChangeID, and Phase
 // joined by NUL — path-safe by construction, mirroring capHash. The directory is

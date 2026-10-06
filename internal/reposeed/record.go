@@ -35,16 +35,17 @@ type SurfaceRecord struct {
 }
 
 // Record is the published per-worktree ownership document at
-// <git-dir>/docket/install.json.
+// <git-dir>/<state name>/install.json.
 type Record struct {
 	FormatVersion int             `json:"format_version"`
 	Surfaces      []SurfaceRecord `json:"surfaces"` // sorted by Path
 }
 
 // RecordPath is the per-working-tree ownership document location under a git
-// dir: <git-dir>/docket/install.json.
-func RecordPath(gitDir string) string {
-	return filepath.Join(gitDir, "docket", "install.json")
+// dir: <git-dir>/<stateName>/install.json, where stateName is the repository's
+// per-repo state folder name (layout.StateName of its common dir).
+func RecordPath(gitDir, stateName string) string {
+	return filepath.Join(gitDir, stateName, "install.json")
 }
 
 // LoadRecord reads the per-worktree ownership record. An absent file is "not

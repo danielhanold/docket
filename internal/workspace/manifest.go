@@ -25,6 +25,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 )
 
 const (
@@ -105,11 +106,12 @@ func workspaceID(ref gitcli.RefName) string {
 }
 
 // workspacesRoot is the root of all workspace state for a repository:
-// <commonDir>/docket/workspaces. It sits under the shared common directory so it
+// workspaces/ beneath the per-repo state folder (layout.StateDirOf). It sits
+// under the shared common directory so it
 // is invisible to any working-tree status and shared across every linked
 // worktree of the repository.
 func workspacesRoot(commonDir string) string {
-	return filepath.Join(commonDir, "docket", "workspaces")
+	return filepath.Join(layout.StateDirOf(commonDir), "workspaces")
 }
 
 // workspaceDir is the per-workspace directory root/<hex sha256(featureRef)>.

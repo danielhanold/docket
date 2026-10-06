@@ -4,7 +4,7 @@
 // outside every worktree yet stays reachable from any linked worktree of the
 // same repository (spec "Durable drive record → Location and privacy"):
 //
-//	<git-common-dir>/docket/gate-drives/v2/<opaque-drive-id>/record.json
+//	<per-repo state folder>/gate-drives/v2/<opaque-drive-id>/record.json
 //
 // The directory is owner-only (0700) and its files are private (0600). Writes go
 // through a sibling temp file, fsync, atomic rename, and a directory fsync, so a
@@ -37,6 +37,8 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/danielhanold/docket/internal/layout"
 )
 
 const (
@@ -149,19 +151,20 @@ type Store struct {
 	lockRoot        string
 }
 
-// OpenStore returns a Store rooted at <gitCommonDir>/docket/gate-drives/v2 with
-// a sibling recovery-scope root at <gitCommonDir>/docket/gate-scopes/v2, a
-// sibling suite-attempt-budget root at
-// <gitCommonDir>/docket/gate-suite-budgets/v1, and a sibling worktree-lock root
-// at <gitCommonDir>/docket/worktree-locks. It creates nothing; directories are
+// OpenStore returns a Store rooted at gate-drives/v2 beneath the per-repo state
+// folder (layout.StateDirOf of gitCommonDir, resolved once here) with a sibling
+// recovery-scope root at gate-scopes/v2, a sibling suite-attempt-budget root at
+// gate-suite-budgets/v1, and a sibling worktree-lock root at worktree-locks. It
+// creates nothing; directories are
 // minted lazily by NewDrive/PrepareScope/ReserveSuiteAttempt/TryWorktreeLock so
 // an unused store leaves no trace.
 func OpenStore(gitCommonDir string) *Store {
+	state := layout.StateDirOf(gitCommonDir)
 	return &Store{
-		root:            filepath.Join(gitCommonDir, "docket", "gate-drives", "v2"),
-		scopeRoot:       filepath.Join(gitCommonDir, "docket", "gate-scopes", "v2"),
-		suiteBudgetRoot: filepath.Join(gitCommonDir, "docket", "gate-suite-budgets", "v1"),
-		lockRoot:        filepath.Join(gitCommonDir, "docket", "worktree-locks"),
+		root:            filepath.Join(state, "gate-drives", "v2"),
+		scopeRoot:       filepath.Join(state, "gate-scopes", "v2"),
+		suiteBudgetRoot: filepath.Join(state, "gate-suite-budgets", "v1"),
+		lockRoot:        filepath.Join(state, "worktree-locks"),
 	}
 }
 

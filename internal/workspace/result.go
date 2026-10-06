@@ -1,5 +1,5 @@
 // Package workspace owns docket's local persistent feature-workspace state: the
-// manifest under <common-dir>/docket/workspaces/ and the checkout at
+// manifest under <per-repo state folder>/workspaces/ and the checkout at
 // <primary>/.worktrees/<slug>. It composes typed values from internal/domain
 // (effective-base/change-id/slug semantics) and drives Git through
 // internal/gitcli; it imports no other internal package.

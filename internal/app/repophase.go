@@ -11,6 +11,7 @@ import (
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposeed"
 )
 
@@ -82,7 +83,15 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 		return nil, "", nil, nil
 	}
 	root, gitDir := wt.Root, wt.GitDir
-	recordPath := reposeed.RecordPath(gitDir)
+	common, ok, err := layout.CommonDirOf(root)
+	if err != nil || !ok {
+		if err == nil {
+			err = fmt.Errorf("%s has no .git entry", root)
+		}
+		return nil, "", nil, &RepoResolutionError{Reason: install.ReasonInvalidRepoDir,
+			Err: fmt.Errorf("cannot resolve the Git common dir of %q: %w", root, err)}
+	}
+	recordPath := reposeed.RecordPath(gitDir, layout.StateName(common))
 
 	// The repository configuration layer. LoadFilesystemSources reads the global
 	// layer too — which is exactly what lets the provenance guard below tell a

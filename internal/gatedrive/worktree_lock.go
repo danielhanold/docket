@@ -2,7 +2,7 @@
 // slot). One canonical worktree admits at most one live top-level gate: every
 // launch site first takes a NON-BLOCKING exclusive flock on
 //
-//	<git-common-dir>/docket/worktree-locks/<key>/busy.lock
+//	<per-repo state folder>/worktree-locks/<key>/busy.lock
 //
 // and hands it to the gate supervisor (process.LaunchRequest.WorktreeLock), which
 // holds it for its whole life; the kernel releases it when the supervisor exits

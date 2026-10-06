@@ -4,7 +4,7 @@
 // directory, keyed by the run key, so the run key that already locates a
 // dispatch's attribution/retry state also locates its run.
 //
-// WHERE: <git-common-dir>/docket/run-tracker/<run-key>/run.json — the run record
+// WHERE: <per-repo state folder>/run-tracker/<run-key>/run.json — the run record
 // sits next to the run-tracker record.json the run start minted. Rooting under the git
 // COMMON dir (via runKeyDir, the shared preamble the claim-binding primitives
 // use) keeps it outside every worktree yet reachable from any linked worktree, is

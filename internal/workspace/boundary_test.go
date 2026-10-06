@@ -32,10 +32,12 @@ const modulePrefix = "github.com/danielhanold/docket/"
 
 // workspaceAllowedInModule is the exact set of in-module packages a workspace
 // production file may import. Derived from the spec's dependency direction; any
-// in-module import outside it fails.
+// in-module import outside it fails. internal/layout is the stdlib-only leaf
+// that spells the per-repo state folder the workspaces root lives beneath.
 var workspaceAllowedInModule = []string{
 	"internal/domain",
 	"internal/gitcli",
+	"internal/layout",
 }
 
 // moduleRoot walks up from the package directory to the directory holding go.mod.
@@ -125,8 +127,8 @@ func allProductionGoFilesUnder(t *testing.T, root string) []string {
 }
 
 // TestWorkspaceImportsOnlyDomainAndGitcli pins the OUTWARD boundary: every
-// in-module import a workspace production file declares must be internal/domain or
-// internal/gitcli. Adding an import of config/document/repository/etc. reddens.
+// in-module import a workspace production file declares must be internal/domain,
+// internal/gitcli, or the leaf internal/layout. Adding an import of config/document/repository/etc. reddens.
 func TestWorkspaceImportsOnlyDomainAndGitcli(t *testing.T) {
 	files := productionGoFiles(t, ".")
 	if len(files) == 0 {

@@ -9,7 +9,7 @@
 //
 // The store speaks the oracle's exact v1 format so a human reads both files with
 // one set of eyes — the ONLY deliberate divergence is the default PATH: the Go
-// runner writes <git-common-dir>/docket/development-test-budget-state.tsv, never
+// runner writes <per-repo state folder>/development-test-budget-state.tsv, never
 // the Bash runner's <git-dir>/docket/run-tests-budget-state.tsv. Two independent
 // writers on one advisory file would corrupt both histories, so the runners keep
 // separate files with the same schema (a documented intentional deviation, pinned
@@ -30,6 +30,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/danielhanold/docket/internal/layout"
 )
 
 // bsSchema is the budget-state store schema version, embedded in the context key
@@ -153,7 +155,8 @@ func relUnderRoot(root, path string) (string, bool) {
 }
 
 // DefaultStatePath resolves the Go runner's OWN advisory budget-state store:
-// <git-common-dir>/docket/development-test-budget-state.tsv. It is deliberately
+// development-test-budget-state.tsv beneath the per-repo state folder
+// (layout.StateDirOf of the git common dir). It is deliberately
 // NOT the Bash oracle's <git-dir>/docket/run-tests-budget-state.tsv — see the
 // file header and TestStorePathIsNotTheBashRunners. A relative git-common-dir is
 // anchored to repoRoot, mirroring the oracle's anchoring of a relative git dir.
@@ -169,7 +172,7 @@ func DefaultStatePath(repoRoot string) (string, error) {
 	if !filepath.IsAbs(gd) {
 		gd = filepath.Join(repoRoot, gd)
 	}
-	return filepath.Join(gd, "docket", storeBasename), nil
+	return filepath.Join(layout.StateDirOf(gd), storeBasename), nil
 }
 
 // ApplyScreenObservations folds this run's contended parallel measurements into
