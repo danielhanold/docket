@@ -2,7 +2,7 @@
 id: 534
 slug: 'install-an-alias-for-the-docket-binary'
 title: 'Install an alias for the docket binary'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-06'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/install-an-alias-for-the-docket-binary'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-06T13:47:45Z'
 ---
 
 ## Artifacts
@@ -29,7 +30,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-06-install-an-alias-for-the-docket-binary-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-06-install-an-alias-for-the-docket-binary-design.md) |
+| Spec | [2026-10-06-install-an-alias-for-the-docket-binary-design.md](../../superpowers/specs/2026-10-06-install-an-alias-for-the-docket-binary-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
