@@ -54,7 +54,8 @@ harness, after editing a config file, and after every version update). A single 
   `~/.config/opencode/plugins/dckt-instructions.js`, and a `dckt:private-instructions` pointer
   block in `~/.codex/AGENTS.md`. Each one only runs `dckt instructions`, which prints nothing
   outside a private repository, so a trigger is inert everywhere else. A hooks file docket cannot
-  edit in place (a symlink, for example) is left untouched, and the run warns about it.
+  edit in place (a symlink, or a file docket cannot parse, such as one with comments) is left
+  untouched, and the run warns about it.
 - **Retires the old global parent-facing dispatch blocks** that earlier docket versions wrote into
   your personal `~/.claude/CLAUDE.md` and the other harnesses' global instruction files, while
   keeping the global skills and agent wrappers. Removal is **proof-gated** — the engine deletes a

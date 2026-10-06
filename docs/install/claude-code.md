@@ -14,7 +14,8 @@ calling out, after a word on what the install writes.
   `dckt instructions --hook claude --section dispatch` and
   `dckt instructions --hook claude --section lessons`, which print nothing outside a private
   repository, so they are inert everywhere else. A `settings.json` docket cannot edit in place (a
-  symlink, for example) is left untouched, and the run warns about it. Uninstall removes the hooks
+  symlink, or a file docket cannot parse, such as one with comments) is left untouched, and the
+  run warns about it. Uninstall removes the hooks
   only while they are unchanged.
 - **The dispatch block in `CLAUDE.md`, on opt-in only.** When a repository's `.docket.yml` or
   `.docket.local.yml` lists `claude` in `agent_harnesses`, the install reconciles a

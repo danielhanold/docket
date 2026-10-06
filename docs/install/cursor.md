@@ -12,8 +12,8 @@ small, stable permission configuration, because docket must run **outside** Curs
   per repository for these.
 - **A `sessionStart` hook in `~/.cursor/hooks.json`.** This content-free hook runs
   `dckt instructions --hook cursor`, which prints nothing outside a private repository, so it is
-  inert everywhere else. A `hooks.json` docket cannot edit in place (a symlink, for example) is
-  left untouched, and the run warns about it. Uninstall removes the hook only while it is
+  inert everywhere else. A `hooks.json` docket cannot edit in place (a symlink, or a file docket
+  cannot parse, such as one with comments) is left untouched, and the run warns about it. Uninstall removes the hook only while it is
   unchanged.
 - **The dispatch rule, on opt-in only.** When a repository's `.docket.yml` or `.docket.local.yml`
   lists `cursor` in `agent_harnesses`, the install writes `.cursor/rules/docket-dispatch.mdc` in that

@@ -43,7 +43,7 @@ const (
 	DispositionUpdate   Disposition = "update"   // present, owned, differs
 	DispositionConflict Disposition = "conflict" // present, not provably ours
 	// DispositionSkip is a target docket cannot edit in place — a hooks file
-	// that is a symlink or a directory. Unlike a conflict it refuses nothing:
+	// that is a symlink or a directory, or one docket cannot parse. Unlike a conflict it refuses nothing:
 	// the path is left byte-untouched, no step or record is planned for it,
 	// every other target proceeds, and the outcome reports it with its remedy.
 	DispositionSkip Disposition = "skip"
