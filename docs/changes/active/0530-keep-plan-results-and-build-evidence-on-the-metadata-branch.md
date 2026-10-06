@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/keep-plan-results-and-build-evidence-on-the-metadata-branch'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-06T02:27:21Z'
+reconciled: true
+claimed_at: '2026-10-06T02:29:15Z'
 ---
 
 ## Artifacts
@@ -61,3 +61,9 @@ This change is also the foundation for a private-visibility mode in which nothin
 - Moving plan and results files already merged into `main`. They stay where they are, and their absolute links keep working.
 - Changing the content contract of the plan or results file.
 - A compatibility read of PR-description evidence for changes in flight at cutover. Those finish on the previous version first.
+
+## Reconcile log
+
+### 2026-10-06
+
+Reconciled 2026-10-06 against origin/main 4e823a301 (0529 merged). Spec facts re-verified in current code: plansPlanningRoot and the Docket-Results-Path constant in internal/app/change_attach.go, the finalize.skip_results_only_delta key, and the PR-body evidence readers. #529 landed the PR-body backlink repoint leg the spec says stays. No scope change; spec stands as groomed. Cutover note: this run itself uses the pre-change binary, per the spec Cutover section.
