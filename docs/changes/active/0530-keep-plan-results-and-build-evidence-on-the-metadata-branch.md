@@ -2,7 +2,7 @@
 id: 530
 slug: 'keep-plan-results-and-build-evidence-on-the-metadata-branch'
 title: 'Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/keep-plan-results-and-build-evidence-on-the-metadata-branch'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/398'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-06T07:06:18Z'
