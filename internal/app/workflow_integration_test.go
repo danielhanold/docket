@@ -233,6 +233,54 @@ func TestIntegrationWorkflowRepoChangeAttachPlanMetadataHappyPath(t *testing.T) 
 	}
 }
 
+// TestIntegrationWorkflowRepoChangeAttachRevertToEarlierContent proves the
+// attach idempotency key folds in the submitted record revision: attaching X,
+// then Y, then X again at the record's current revision writes X (the engine
+// scans the whole metadata ancestry, so a content-only key would replay the
+// first X receipt and leave Y stored), while a lost-response retry of the last
+// attach at its original revision still replays without a new commit.
+func TestIntegrationWorkflowRepoChangeAttachRevertToEarlierContent(t *testing.T) {
+	const resultsPath = "docs/results/2026-08-17-widget-results.md"
+	f := attachSetup(t)
+	bodyX := "# Widget — Results\n\n## Outcome\n\nFirst checkpoint X.\n"
+	bodyY := "# Widget — Results\n\n## Outcome\n\nSecond checkpoint Y.\n"
+	want := func(body string) string {
+		return attachBacklinkBlock(f.id, "A change", f.recPath, resultsPath) + "\n" + body
+	}
+	attach := func(rev, body string) ChangeAttachResult {
+		t.Helper()
+		res := ChangeAttachResults(f.ctx, f.deps, f.invocation,
+			ChangeAttachRequest{ID: f.id, Revision: rev, Path: resultsPath, Markdown: []byte(body)})
+		if res.Result != ResultApplied {
+			t.Fatalf("attach = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
+		}
+		return res
+	}
+	current := func() string { return blobRevisionAt(t, f.repo.origin, "docket", f.recPath) }
+
+	attach(f.revision, bodyX)
+	attach(current(), bodyY)
+	if got, _ := originFile(t, f.repo.origin, "docket", resultsPath); got != want(bodyY) {
+		t.Fatalf("after Y, stored results =\n%q\nwant\n%q", got, want(bodyY))
+	}
+	revBeforeX := current()
+	third := attach(revBeforeX, bodyX)
+	if got, _ := originFile(t, f.repo.origin, "docket", resultsPath); got != want(bodyX) {
+		t.Fatalf("re-attaching earlier content X left stored results =\n%q\nwant\n%q", got, want(bodyX))
+	}
+
+	// A lost-response retry of the third attach (same revision, same bytes)
+	// replays its receipt: same commit, no new metadata commit.
+	tip := originTip(t, f.repo.origin, "docket")
+	retry := attach(revBeforeX, bodyX)
+	if retry.Revision != third.Revision {
+		t.Errorf("retry committed %s, want the replayed %s", retry.Revision, third.Revision)
+	}
+	if got := originTip(t, f.repo.origin, "docket"); got != tip {
+		t.Errorf("a lost-response retry moved the metadata branch %s -> %s", tip, got)
+	}
+}
+
 // TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent proves
 // change.attach-results runs checkpoint-phase content validation: a raw template
 // scaffold refuses with results-content-invalid and writes nothing, while a
