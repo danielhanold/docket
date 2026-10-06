@@ -29,8 +29,10 @@ import (
 //
 //  1. gate the request shape, capability preflight, and canonical evidence bytes
 //     (bounded, and green for the EXACT requested head);
-//  2. read the owned rebase receipt and refuse a foreign attempt token BEFORE any
-//     push — the attempt is the authorization, and a mismatch never pushes;
+//  2. in a private repository, leak-check exactly the requested head (runLeakCheck)
+//     and refuse on any hit or an unverified scan; then read the owned rebase
+//     receipt and refuse a foreign attempt token BEFORE any push — the attempt
+//     is the authorization, and a mismatch never pushes;
 //  3. PublishRewrite probes the remote feature ref, is a no-op when it already
 //     equals the intended head, and otherwise pushes exactly that head under the
 //     receipt's exact old-remote-head lease and reprobes to equality; a divergent
@@ -162,6 +164,9 @@ type FinalizePublishResult struct {
 	Reason      string          `json:"reason,omitempty"`
 	Message     string          `json:"message,omitempty"`
 	Findings    []StatusFinding `json:"findings"`
+	// Leaks names the docket fingerprints behind a private repository's
+	// leak-detected refusal; absent on every other outcome.
+	Leaks []LeakHit `json:"leaks,omitempty"`
 }
 
 // HumanText renders a one-line summary naming identity, disposition, and the PR
@@ -252,6 +257,23 @@ func FinalizePublish(ctx context.Context, deps FinalizeDeps, repoDir string, req
 		return translateWorkspaceRefusalToPublish(*tref)
 	}
 	metaDir := workspace.MetaDir(wc.repo.CommonDir, target.FeatureRef)
+
+	// The private-repository leak check scans exactly the head this would push,
+	// before the receipt read and so before any push: a hit refuses with nothing
+	// pushed, and a scan that could not run is unverified, never clean. A shared
+	// repository never runs it.
+	if leakCheckApplies(wc.pin.Layout) {
+		hits, lerr := runLeakCheck(ctx, deps.Planning.Client, wc, target, gitcli.ObjectID(req.Head), nil)
+		if lerr != nil {
+			return publishRefusal(ResultExternalFailed, PublishDispBlocked, ReasonLeakCheckUnverified,
+				"the private-repository leak check could not run; nothing was pushed: "+lerr.Error(), id)
+		}
+		if len(hits) > 0 {
+			r := publishRefusal(ResultBlocked, PublishDispBlocked, ReasonLeakDetected, leakMessage(hits), id)
+			r.Leaks = hits
+			return r
+		}
+	}
 
 	// The owned receipt authorizes the rewrite. A foreign attempt token is refused
 	// BEFORE any push — the attempt, not the request, is the authorization.

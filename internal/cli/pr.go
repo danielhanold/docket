@@ -41,7 +41,7 @@ func newPRCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	publish := &cobra.Command{
 		Use:   "publish",
-		Short: "Publish (create or adopt) the pull request for a published feature head certified by its build evidence",
+		Short: "Publish (create or adopt) the pull request for a published feature head certified by its build evidence (leak-checked in a private repository)",
 		Args:  cobra.NoArgs,
 		// external-write only: PRPublish weaves the backlink block into the PR
 		// body on GitHub (the evidence only gates the head); the change record's

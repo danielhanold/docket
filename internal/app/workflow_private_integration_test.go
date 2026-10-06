@@ -10,7 +10,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/layout"
@@ -155,13 +157,46 @@ func privateLifecycleChecks(t *testing.T, created ChangeCreateResult, store stri
 			}
 		}
 
-		// A private finalize block posts no PR comment: the marker on the record
-		// is its only effect (acceptance 6).
 		svc, err := workspace.NewService(node.deps.Client)
 		if err != nil {
 			t.Fatalf("workspace service: %v", err)
 		}
 		gh := &fakeBlockGitHub{repo: prRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.invalid/c/1"}
+
+		// finalize.publish scans the exact head it would push before it reads the
+		// rebase receipt: a head whose own message carries a change reference is
+		// leak-detected, and the clean head passes the scan and reaches the
+		// receipt read (no-rebase-receipt). Neither moves the feature branch.
+		finalizePublish := func(head string) FinalizePublishResult {
+			rec, rerr := evidence.NewRecord("gate", head, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+			if rerr != nil {
+				t.Fatalf("evidence.NewRecord: %v", rerr)
+			}
+			return FinalizePublish(ctx, FinalizeDeps{Planning: node.deps, GitHub: gh, Workspace: svc}, node.dir, FinalizePublishRequest{
+				ID: created.ID, Attempt: "a1", Head: head, EvidenceRecord: []byte(evidence.Render(rec)),
+			})
+		}
+		leaky := runGit(t, node.dir, "commit-tree", insp.Head+"^{tree}", "-p", insp.Head, "-m", "Finalize (0001)")
+		fp := finalizePublish(leaky)
+		if fp.Result != ResultBlocked || fp.Reason != ReasonLeakDetected {
+			t.Fatalf("private finalize publish of a leaky head = %q/%q (msg %q), want blocked/%s", fp.Result, fp.Reason, fp.Message, ReasonLeakDetected)
+		}
+		if len(fp.Leaks) != 1 || fp.Leaks[0].Commit != leaky || fp.Leaks[0].Rule != "change-ref" || fp.Leaks[0].Source != "commit-message" {
+			t.Errorf("finalize publish leaks = %+v, want one change-ref hit in commit %s", fp.Leaks, leaky)
+		}
+		if !strings.Contains(fp.Message, shortCommit(leaky)) {
+			t.Errorf("finalize publish refusal does not name the leaky commit %s: %q", shortCommit(leaky), fp.Message)
+		}
+		if clean := finalizePublish(insp.Head); clean.Result != ResultBlocked || clean.Reason != ReasonPublishNoReceipt {
+			t.Errorf("private finalize publish of the clean head = %q/%q (msg %q, leaks %+v), want blocked/%s",
+				clean.Result, clean.Reason, clean.Message, clean.Leaks, ReasonPublishNoReceipt)
+		}
+		if got := runGit(t, node.dir, "rev-parse", insp.FeatureRef); got != insp.Head {
+			t.Errorf("finalize publish moved %s to %s, want %s", insp.FeatureRef, got, insp.Head)
+		}
+
+		// A private finalize block posts no PR comment: the marker on the record
+		// is its only effect (acceptance 6).
 		blocked := FinalizeBlock(ctx, FinalizeDeps{Planning: node.deps, GitHub: gh, Workspace: svc}, node.dir, BlockRequest{
 			ID:       created.ID,
 			Revision: blobRevisionAt(t, store, privateFixtureBranch, created.Path),

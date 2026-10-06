@@ -8,8 +8,10 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/evidence"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/layout"
+	"github.com/danielhanold/docket/internal/leakscan"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository"
 )
@@ -42,7 +44,9 @@ import (
 //     block. The evidence is a head gate only: it is never woven into
 //     the PR body — its durable home is the change record's "## Build evidence"
 //     section, written by `change mark-implemented`. The result never carries the
-//     PR body bytes — no Body/Title field exists on it.
+//     PR body bytes — no Body/Title field exists on it — and a private
+//     repository's leak-detected refusal names each hit by its matched token
+//     and line number only, never the title or body line around it.
 
 // OperationPRPublish is the operation key `pr publish` records in its envelope.
 const OperationPRPublish = "pr.publish"
@@ -151,6 +155,10 @@ type PRPublishResult struct {
 	// Findings names the relevant validation errors behind a record-invalid
 	// refusal; absent on every other outcome.
 	Findings []StatusFinding `json:"findings,omitempty"`
+	// Leaks names the docket fingerprints behind a private repository's
+	// leak-detected refusal — each the matched token and its line only, never
+	// the surrounding title or body line; absent on every other outcome.
+	Leaks []LeakHit `json:"leaks,omitempty"`
 }
 
 // HumanText renders the one-line human summary. It names identity, disposition,
@@ -246,6 +254,32 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		}
 		if body, err = assemblePRBody([]byte(req.Body), backlink, render.PRArtifactLinksContent(change, link)); err != nil {
 			return prRefusal(ResultInvalidState, ReasonPRBodyAssemblyFailed, err.Error(), req.ID)
+		}
+	}
+
+	// (7b) The private-repository leak check: the authored title and body, the
+	// outgoing commit messages, and the merge-base diff's added paths and lines of
+	// exactly the requested head are scanned before any run admission or GitHub
+	// write. A hit refuses with no PR created or edited; a scan that could not
+	// run is unverified, never clean. A shared repository never runs it.
+	if leakCheckApplies(pin.Layout) {
+		wc, wref := loadWorkspaceContext(ctx, deps, repoDir, req.ID, OperationPRPublish)
+		if wref != nil {
+			return prRefusal(wref.Result, wref.Reason, wref.Message, req.ID)
+		}
+		target, tref := resolveWorkspaceTarget(OperationPRPublish, wc)
+		if tref != nil {
+			return prRefusal(tref.Result, tref.Reason, tref.Message, req.ID)
+		}
+		hits, lerr := runLeakCheck(ctx, deps.Client, wc, target, gitcli.ObjectID(req.Head), &leakscan.PRText{Title: req.Title, Body: string(body)})
+		if lerr != nil {
+			return prRefusal(ResultExternalFailed, ReasonLeakCheckUnverified,
+				"the private-repository leak check could not run; no pull request was created or edited: "+lerr.Error(), req.ID)
+		}
+		if len(hits) > 0 {
+			r := prRefusal(ResultBlocked, ReasonLeakDetected, leakMessage(hits), req.ID)
+			r.Leaks = hits
+			return r
 		}
 	}
 
