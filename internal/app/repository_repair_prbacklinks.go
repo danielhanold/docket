@@ -52,6 +52,10 @@ const (
 	PRBacklinkRepairContended  = "contended"
 	PRBacklinkRepairUnreadable = "unreadable"
 	PRBacklinkRepairFailed     = "failed"
+	// PRBacklinkRepairSkipped: two or more done changes name the same PR, so
+	// which record its backlink belongs to is ambiguous; it is neither read nor
+	// edited.
+	PRBacklinkRepairSkipped = "skipped"
 )
 
 // prRepairCandidate is one done change with a PR and the archive interior its
@@ -158,12 +162,18 @@ func prRepairCandidates(snap domain.Snapshot, link render.LinkContext) ([]prRepa
 // planPRRepairs reads the candidates' PR bodies in ≤25-number batches and keeps
 // the ones whose block does not name the archive path. A failed batch, an
 // unresolved slot, or malformed markers is an `unreadable` row, never a silent drop.
+// A PR named by more than one candidate is a `skipped` row for each of them:
+// its backlink has no single owner, so it is never read or edited.
 func planPRRepairs(ctx context.Context, gh RepairGitHub, repo githubcli.Repository, cands []prRepairCandidate) ([]prRepairPlanned, []PRBacklinkRepair) {
 	byPR := map[int][]prRepairCandidate{}
 	var numbers []int
 	for _, c := range cands {
 		byPR[c.pr] = append(byPR[c.pr], c)
-		numbers = append(numbers, c.pr)
+	}
+	for n, cs := range byPR {
+		if len(cs) == 1 {
+			numbers = append(numbers, n)
+		}
 	}
 	read := map[int]githubcli.BatchPRResult{}
 	failMsg := map[int]string{}
@@ -183,6 +193,11 @@ func planPRRepairs(ctx context.Context, gh RepairGitHub, repo githubcli.Reposito
 	var planned []prRepairPlanned
 	var skipped []PRBacklinkRepair
 	for _, c := range cands {
+		if sharers := byPR[c.pr]; len(sharers) > 1 {
+			skipped = append(skipped, PRBacklinkRepair{ID: c.id, PR: c.pr, Outcome: PRBacklinkRepairSkipped,
+				Message: "the pull request is referenced by more than one change (" + prRepairSharerIDs(sharers) + "); it is left untouched"})
+			continue
+		}
 		br, ok := read[c.pr]
 		if !ok {
 			skipped = append(skipped, PRBacklinkRepair{ID: c.id, PR: c.pr, Outcome: PRBacklinkRepairUnreadable, Message: failMsg[c.pr]})
@@ -206,6 +221,15 @@ func planPRRepairs(ctx context.Context, gh RepairGitHub, repo githubcli.Reposito
 		})
 	}
 	return planned, skipped
+}
+
+// prRepairSharerIDs lists the ids of the candidates sharing one PR.
+func prRepairSharerIDs(cs []prRepairCandidate) string {
+	ids := make([]string, 0, len(cs))
+	for _, c := range cs {
+		ids = append(ids, fmt.Sprintf("%04d", c.id))
+	}
+	return strings.Join(ids, ", ")
 }
 
 func prRepairRows(planned []prRepairPlanned, skipped []PRBacklinkRepair) []PRBacklinkRepair {

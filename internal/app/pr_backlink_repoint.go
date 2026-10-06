@@ -125,7 +125,7 @@ func applyPRBacklinkRepoint(ctx context.Context, ed PRBodyEditor, repo githubcli
 	out, _, err := ed.EditPullRequestBody(ctx, repo, number, revision, string(updated))
 	switch {
 	case err != nil:
-		return prBacklinkResult{outcome: prBacklinkUnknown, current: current, detail: "the edit could not be verified: " + err.Error()}
+		return prBacklinkResult{outcome: prBacklinkUnknown, current: current, detail: "the edit was not applied or could not be verified: " + err.Error()}
 	case out == githubcli.BodyEdited || out == githubcli.BodyAlready:
 		return prBacklinkResult{outcome: prBacklinkRepointed, current: current}
 	case out == githubcli.BodyContended:
