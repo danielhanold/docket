@@ -358,6 +358,61 @@ func TestArtifactBlockLegacyDoneKeepsIntegrationRows(t *testing.T) {
 	}
 }
 
+// TestArtifactBlockLegacyKilledKeepsFeatureBranchRows pins the legacy killed
+// rule: a killed change with no "## Build evidence" section predates the
+// metadata-branch cutover, so its plan and results only ever lived on its
+// feature branch, and their rows stay absolute there, exactly as rendered
+// before the cutover (relative rows would be dead links). Its spec and ADR
+// rows are relative like every other record's. A killed change WITH the
+// section was built after the cutover: its plan and results rows are relative,
+// and it gets no "Spec (merged)" row.
+//
+// Mutation probe: drop the killed arm of the legacy predicate -> the absolute
+// Plan/Results asserts must redden.
+func TestArtifactBlockLegacyKilledKeepsFeatureBranchRows(t *testing.T) {
+	c := fullChange(domain.StatusKilled, false, domain.LocationArchive, deltaArchivePath)
+
+	got, err := render.ArtifactBlockContent(c, adrSnapshot(), githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent: %v", err)
+	}
+	want := "| Artifact | Link |\n|---|---|\n" +
+		"| Spec | [2026-08-16-delta-change-design.md](../../superpowers/specs/2026-08-16-delta-change-design.md) |\n" +
+		"| Plan | [2026-08-16-delta-change.md](https://github.com/danielhanold/docket/blob/fix/delta-change/docs/superpowers/plans/2026-08-16-delta-change.md) |\n" +
+		"| Results | [2026-08-16-delta-change-results.md](https://github.com/danielhanold/docket/blob/fix/delta-change/docs/results/2026-08-16-delta-change-results.md) |\n" +
+		"| ADRs | [ADR-0001](../../adrs/0001-first-decision.md), [ADR-0002](../../adrs/0002-second-decision.md) |\n"
+	if got != want {
+		t.Fatalf("legacy killed block mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+
+	gotNoWeb, err := render.ArtifactBlockContent(c, adrSnapshot(), relativeLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent(no web URL): %v", err)
+	}
+	wantNoWeb := "| Artifact | Link |\n|---|---|\n" +
+		"| Spec | [2026-08-16-delta-change-design.md](../../superpowers/specs/2026-08-16-delta-change-design.md) |\n" +
+		"| Plan | `docs/superpowers/plans/2026-08-16-delta-change.md` |\n" +
+		"| Results | `docs/results/2026-08-16-delta-change-results.md` |\n" +
+		"| ADRs | [ADR-0001](../../adrs/0001-first-decision.md), [ADR-0002](../../adrs/0002-second-decision.md) |\n"
+	if gotNoWeb != wantNoWeb {
+		t.Fatalf("legacy killed block (no web URL) mismatch:\n--- got ---\n%s\n--- want ---\n%s", gotNoWeb, wantNoWeb)
+	}
+
+	withEvidence := fullChange(domain.StatusKilled, true, domain.LocationArchive, deltaArchivePath)
+	gotEv, err := render.ArtifactBlockContent(withEvidence, adrSnapshot(), githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent(killed with evidence): %v", err)
+	}
+	wantEv := "| Artifact | Link |\n|---|---|\n" +
+		"| Spec | [2026-08-16-delta-change-design.md](../../superpowers/specs/2026-08-16-delta-change-design.md) |\n" +
+		"| Plan | [2026-08-16-delta-change.md](../../superpowers/plans/2026-08-16-delta-change.md) |\n" +
+		"| Results | [2026-08-16-delta-change-results.md](../../results/2026-08-16-delta-change-results.md) |\n" +
+		"| ADRs | [ADR-0001](../../adrs/0001-first-decision.md), [ADR-0002](../../adrs/0002-second-decision.md) |\n"
+	if gotEv != wantEv {
+		t.Fatalf("killed-with-evidence block mismatch:\n--- got ---\n%s\n--- want ---\n%s", gotEv, wantEv)
+	}
+}
+
 // TestArtifactBlockDoneWithEvidenceAddsSpecMerged: a done change that carries
 // the "## Build evidence" section was built after the cutover — its plan and
 // results stay on the metadata branch (relative rows), and its spec copy
