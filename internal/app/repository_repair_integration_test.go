@@ -4,11 +4,13 @@ package app
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -317,5 +319,196 @@ func TestIntegrationRepoRepairMalformedMarkerIsManualReview(t *testing.T) {
 	}
 	if got := showDocketFile(t, r, malformedPath); got != strings.TrimSpace(malformed) {
 		t.Errorf("malformed record changed:\n%s", got)
+	}
+}
+
+// fakeRepairGitHub is a scriptable RepairGitHub: bodies by PR number, a batch
+// failure switch, per-number edit outcomes, and call counters.
+type fakeRepairGitHub struct {
+	bodies     map[int]string
+	failBatch  bool
+	editOut    map[int]githubcli.BodyEditOutcome
+	batchCalls int
+	edits      int
+	t          *testing.T
+	forbidAll  bool // any call fails the test (routine-commands guard)
+}
+
+func (f *fakeRepairGitHub) rev(n int) string {
+	return "rev:" + strconv.Itoa(len(f.bodies[n])) + ":" + f.bodies[n][:min(8, len(f.bodies[n]))]
+}
+
+func (f *fakeRepairGitHub) DiscoverRepository(context.Context, string) (githubcli.Repository, error) {
+	if f.forbidAll {
+		f.t.Errorf("DiscoverRepository called by a command that must not touch GitHub")
+		return githubcli.Repository{}, errors.New("forbidden")
+	}
+	return githubcli.Repository{Host: "github.com", Owner: "acme", Name: "widget"}, nil
+}
+
+func (f *fakeRepairGitHub) ViewPullRequestsBatch(_ context.Context, _ githubcli.Repository, numbers []int) (map[int]githubcli.BatchPRResult, error) {
+	f.batchCalls++
+	if f.forbidAll {
+		f.t.Errorf("ViewPullRequestsBatch called by a command that must not read PR bodies")
+		return nil, errors.New("forbidden")
+	}
+	if f.failBatch {
+		return nil, errors.New("gh api graphql failed")
+	}
+	out := map[int]githubcli.BatchPRResult{}
+	for _, n := range numbers {
+		b, ok := f.bodies[n]
+		if !ok {
+			out[n] = githubcli.BatchPRResult{Found: false}
+			continue
+		}
+		out[n] = githubcli.BatchPRResult{Found: true, PR: githubcli.PullRequest{Number: n, State: githubcli.StateMerged, Body: b, Revision: f.rev(n)}}
+	}
+	return out, nil
+}
+
+func (f *fakeRepairGitHub) EditPullRequestBody(_ context.Context, _ githubcli.Repository, n int, rev, body string) (githubcli.BodyEditOutcome, githubcli.PullRequest, error) {
+	f.edits++
+	if f.forbidAll {
+		f.t.Errorf("EditPullRequestBody called by a command that must not touch GitHub")
+		return githubcli.BodyUnknown, githubcli.PullRequest{}, errors.New("forbidden")
+	}
+	if o, ok := f.editOut[n]; ok {
+		return o, githubcli.PullRequest{}, nil
+	}
+	if rev != f.rev(n) {
+		return githubcli.BodyContended, githubcli.PullRequest{}, nil
+	}
+	f.bodies[n] = body
+	return githubcli.BodyEdited, githubcli.PullRequest{Number: n, Body: body}, nil
+}
+
+const (
+	prRepairPath   = "docs/changes/archive/2026-08-29-0363-old-change.md"
+	prRepairActive = "docs/changes/active/0363-old-change.md"
+	prRepairOKPath = "docs/changes/archive/2026-08-30-0364-fixed-change.md"
+)
+
+// prArchivedRecord is a minimal valid archived done record carrying a PR URL.
+func prArchivedRecord(id int, slug string, pr int) string {
+	return "---\nid: " + strconv.Itoa(id) + "\nslug: " + slug + "\nstatus: done\ntitle: Change " + slug +
+		"\ntype: feature\npr: 'https://github.com/acme/widget/pull/" + strconv.Itoa(pr) + "'\n---\n\nBody for " + slug + ".\n"
+}
+
+func prBodyNaming(path string) string {
+	return "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
+		"> ↩ **Change — x** — `" + path + "`\n<!-- docket:backlink:end -->\n\nAuthored PR prose.\n"
+}
+
+// publishPRBacklinkRecords publishes one archived record whose PR still names
+// the active path (dead) and one whose PR already names its archive path.
+func (r *initRepo) publishPRBacklinkRecords(t *testing.T) {
+	t.Helper()
+	dotDocket := filepath.Join(r.invocation, ".docket")
+	writeRepoFile(t, dotDocket, prRepairPath, prArchivedRecord(363, "old-change", 250))
+	writeRepoFile(t, dotDocket, prRepairOKPath, prArchivedRecord(364, "fixed-change", 251))
+	runGit(t, dotDocket, "add", "--", prRepairPath, prRepairOKPath)
+	runGit(t, dotDocket, "commit", "-q", "-m", "publish archived PR-bearing records")
+	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
+}
+
+func (r *initRepo) runPRRepair(t *testing.T, gh RepairGitHub, o RepairOptions) RepositoryRepairResult {
+	t.Helper()
+	o.PRBacklinks = true
+	return RunRepositoryRepair(context.Background(), SetupDeps{Git: newGitClient(t), RepoDir: r.invocation, GitHub: gh}, o)
+}
+
+// TestIntegrationRepoRepairPRBacklinksPreviewApplyThenNothing covers spec
+// acceptance 3: the preview lists exactly the dead-link PR, --yes fixes it, and
+// a second run reports nothing to do.
+func TestIntegrationRepoRepairPRBacklinksPreviewApplyThenNothing(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.publishPRBacklinkRecords(t)
+	gh := &fakeRepairGitHub{t: t, bodies: map[int]string{250: prBodyNaming(prRepairActive), 251: prBodyNaming(prRepairOKPath)}}
+
+	preview := r.runPRRepair(t, gh, RepairOptions{})
+	if !preview.ConfirmationRequired() || len(preview.PRBacklinks) != 1 {
+		t.Fatalf("preview = %q state %q entries %+v, want one planned PR", preview.Result, preview.RepositoryState, preview.PRBacklinks)
+	}
+	e := preview.PRBacklinks[0]
+	if e.ID != 363 || e.PR != 250 || e.Outcome != PRBacklinkRepairPlanned ||
+		!strings.Contains(e.Current, prRepairActive) || !strings.Contains(e.Corrected, prRepairPath) {
+		t.Fatalf("preview entry = %+v", e)
+	}
+	if gh.edits != 0 {
+		t.Fatalf("a preview must edit nothing; edits=%d", gh.edits)
+	}
+
+	applied := r.runPRRepair(t, gh, RepairOptions{Authorized: true, ExpectedSource: preview.SourceRev()})
+	if applied.Result != ResultApplied || len(applied.PRBacklinks) != 1 || applied.PRBacklinks[0].Outcome != PRBacklinkRepairRepointed {
+		t.Fatalf("apply = %q %+v", applied.Result, applied.PRBacklinks)
+	}
+	if !strings.Contains(gh.bodies[250], prRepairPath) || !strings.HasSuffix(gh.bodies[250], "\n\nAuthored PR prose.\n") {
+		t.Fatalf("PR #250 not repointed with prose intact:\n%s", gh.bodies[250])
+	}
+	if gh.bodies[251] != prBodyNaming(prRepairOKPath) {
+		t.Fatalf("an already-correct PR was edited")
+	}
+
+	again := r.runPRRepair(t, gh, RepairOptions{})
+	if again.Result != ResultNoOp || len(again.PRBacklinks) != 0 {
+		t.Fatalf("second run = %q %+v, want nothing to do", again.Result, again.PRBacklinks)
+	}
+}
+
+// TestIntegrationRepoRepairPRBacklinksSkipsUnreadable: an unreadable PR (a
+// Found=false slot) and a malformed block are reported and skipped; a contended
+// edit is reported; none aborts the batch.
+func TestIntegrationRepoRepairPRBacklinksSkipsUnreadable(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.publishPRBacklinkRecords(t)
+	dotDocket := filepath.Join(r.invocation, ".docket")
+	third := "docs/changes/archive/2026-08-31-0365-third-change.md"
+	writeRepoFile(t, dotDocket, third, prArchivedRecord(365, "third-change", 252))
+	runGit(t, dotDocket, "add", "--", third)
+	runGit(t, dotDocket, "commit", "-q", "-m", "third")
+	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
+
+	gh := &fakeRepairGitHub{t: t, bodies: map[int]string{
+		250: prBodyNaming(prRepairActive),
+		252: "<!-- docket:backlink:start (generated — do not hand-edit) -->\ndangling\n",
+	}} // 251 absent: Found=false
+	preview := r.runPRRepair(t, gh, RepairOptions{})
+	byPR := map[int]PRBacklinkRepair{}
+	for _, e := range preview.PRBacklinks {
+		byPR[e.PR] = e
+	}
+	if byPR[250].Outcome != PRBacklinkRepairPlanned || byPR[251].Outcome != PRBacklinkRepairUnreadable || byPR[252].Outcome != PRBacklinkRepairUnreadable {
+		t.Fatalf("entries = %+v", preview.PRBacklinks)
+	}
+
+	gh.editOut = map[int]githubcli.BodyEditOutcome{250: githubcli.BodyContended}
+	applied := r.runPRRepair(t, gh, RepairOptions{Authorized: true, ExpectedSource: preview.SourceRev()})
+	for _, e := range applied.PRBacklinks {
+		if e.PR == 250 && e.Outcome != PRBacklinkRepairContended {
+			t.Fatalf("PR #250 outcome = %q, want contended", e.Outcome)
+		}
+	}
+	if gh.edits != 1 {
+		t.Fatalf("only the planned PR may be edited; edits=%d", gh.edits)
+	}
+}
+
+// TestIntegrationRepoRepairRoutineCommandsReadNoPRBodies pins spec acceptance 4:
+// with a GitHub fake that fails on ANY call wired into SetupDeps, routine
+// `repository repair` (preview and --yes), `check`, and `prepare` never call it.
+func TestIntegrationRepoRepairRoutineCommandsReadNoPRBodies(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.publishPRBacklinkRecords(t)
+	r.publishHealthyDrift(t)
+	gh := &fakeRepairGitHub{t: t, forbidAll: true}
+	d := SetupDeps{Git: newGitClient(t), RepoDir: r.invocation, GitHub: gh}
+
+	_ = RunRepositoryCheck(context.Background(), d)
+	_ = RunRepositoryPrepare(context.Background(), d, PrepareOptions{})
+	preview := RunRepositoryRepair(context.Background(), d, RepairOptions{})
+	_ = RunRepositoryRepair(context.Background(), d, RepairOptions{Authorized: true, ExpectedSource: preview.SourceRev()})
+	if gh.batchCalls != 0 || gh.edits != 0 {
+		t.Fatalf("routine commands touched GitHub: batch=%d edits=%d", gh.batchCalls, gh.edits)
 	}
 }

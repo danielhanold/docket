@@ -47,6 +47,9 @@ const repairConfirmationRequiredState = "confirmation-required"
 type RepairOptions struct {
 	Authorized     bool
 	ExpectedSource string
+	// PRBacklinks selects the PR-backlink repair instead of the metadata
+	// repairs; it requires SetupDeps.GitHub.
+	PRBacklinks bool
 }
 
 // RepositoryRepairResult is the protocol-v1 document `repository repair`
@@ -65,6 +68,8 @@ type RepositoryRepairResult struct {
 	RepairedFiles   []string                  `json:"repaired_files,omitempty"`
 	ManualReview    []string                  `json:"manual_review,omitempty"`
 	PendingLocal    []string                  `json:"pending_local,omitempty"`
+	// PRBacklinks is the --pr-backlinks preview or report, one row per PR.
+	PRBacklinks []PRBacklinkRepair `json:"pr_backlinks,omitempty"`
 	// Findings carries a resolver diagnosis lifted from a gather failure.
 	Findings []reposetup.Finding `json:"findings,omitempty"`
 	human    string
@@ -104,39 +109,12 @@ type repositoryRepairPlan struct {
 // check` reports on an already-migrated repository, under the two-pass
 // authorization model.
 func RunRepositoryRepair(ctx context.Context, d SetupDeps, o RepairOptions) RepositoryRepairResult {
-	facts, sc, err := GatherSetupFacts(ctx, d, true)
-	if err != nil {
-		return repairFromMigrateResult(migrateGatherFailure(err))
+	if o.PRBacklinks {
+		return runPRBacklinkRepair(ctx, d, o)
 	}
-	phase, refusal := migrateRoute(ctx, d.Git, facts, &sc)
+	sc, metadataTip, refusal := repairPreflight(ctx, d)
 	if refusal != nil {
-		if refusal.RepositoryState == string(reposetup.StateFresh) {
-			return repairRefusal(reposetup.StateFresh,
-				"the repository has no docket metadata branch; run `docket repository init` to create it")
-		}
-		return repairFromMigrateResult(*refusal)
-	}
-	switch phase {
-	case phaseAlreadyMigrated:
-		// proceed
-	case phaseLegacyFull:
-		return repairRefusal(reposetup.StateLegacy,
-			"the repository has a legacy single-branch planning surface; run `docket repository migrate` to convert it, then re-run `docket repository repair`")
-	case phaseResumePrune:
-		return repairRefusal(reposetup.StatePartial,
-			"an interrupted migration still has a live planning surface on the integration branch; run `docket repository migrate` to finish it, then re-run `docket repository repair`")
-	case phaseResumeLocal:
-		return repairRefusal(reposetup.StateNeedsReview,
-			"the local .docket metadata attachment is incomplete; run `docket repository migrate` to finish attaching it, then re-run `docket repository repair`")
-	default:
-		return repairInternalFailure(reposetup.StateUnknown, "routing the repository topology",
-			fmt.Errorf("unexpected topology phase %d", phase))
-	}
-
-	metadataTip := sc.metadataTip
-	if metadataTip == "" {
-		return repairExternalFailure(reposetup.StateHealthy, "pinning the metadata revision",
-			errors.New("no authoritative metadata tip is available"))
+		return *refusal
 	}
 	corpus, err := readCheckCorpus(ctx, d.Git, sc)
 	if err != nil {
@@ -158,6 +136,55 @@ func RunRepositoryRepair(ctx context.Context, d SetupDeps, o RepairOptions) Repo
 		return repairContended(metadataTip, o.ExpectedSource)
 	}
 	return executeRepositoryRepair(ctx, d.Git, sc, metadataTip, plan)
+}
+
+// repairPreflight runs the shared gather and topology routing every repair mode
+// starts with and returns the setup context and the pinned metadata tip, or the
+// refusal to return verbatim.
+func repairPreflight(ctx context.Context, d SetupDeps) (setupContext, string, *RepositoryRepairResult) {
+	facts, sc, err := GatherSetupFacts(ctx, d, true)
+	if err != nil {
+		r := repairFromMigrateResult(migrateGatherFailure(err))
+		return setupContext{}, "", &r
+	}
+	phase, refusal := migrateRoute(ctx, d.Git, facts, &sc)
+	if refusal != nil {
+		if refusal.RepositoryState == string(reposetup.StateFresh) {
+			r := repairRefusal(reposetup.StateFresh,
+				"the repository has no docket metadata branch; run `docket repository init` to create it")
+			return setupContext{}, "", &r
+		}
+		r := repairFromMigrateResult(*refusal)
+		return setupContext{}, "", &r
+	}
+	switch phase {
+	case phaseAlreadyMigrated:
+		// proceed
+	case phaseLegacyFull:
+		r := repairRefusal(reposetup.StateLegacy,
+			"the repository has a legacy single-branch planning surface; run `docket repository migrate` to convert it, then re-run `docket repository repair`")
+		return setupContext{}, "", &r
+	case phaseResumePrune:
+		r := repairRefusal(reposetup.StatePartial,
+			"an interrupted migration still has a live planning surface on the integration branch; run `docket repository migrate` to finish it, then re-run `docket repository repair`")
+		return setupContext{}, "", &r
+	case phaseResumeLocal:
+		r := repairRefusal(reposetup.StateNeedsReview,
+			"the local .docket metadata attachment is incomplete; run `docket repository migrate` to finish attaching it, then re-run `docket repository repair`")
+		return setupContext{}, "", &r
+	default:
+		r := repairInternalFailure(reposetup.StateUnknown, "routing the repository topology",
+			fmt.Errorf("unexpected topology phase %d", phase))
+		return setupContext{}, "", &r
+	}
+
+	metadataTip := sc.metadataTip
+	if metadataTip == "" {
+		r := repairExternalFailure(reposetup.StateHealthy, "pinning the metadata revision",
+			errors.New("no authoritative metadata tip is available"))
+		return setupContext{}, "", &r
+	}
+	return sc, metadataTip, nil
 }
 
 // planRepositoryRepair is the pure repair decision. Frontmatter repairs are
