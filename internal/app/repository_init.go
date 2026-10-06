@@ -565,6 +565,14 @@ func applyRepoPhaseSurfaces(phase *install.RepoPhase, roots install.UserRoots) (
 	if err != nil {
 		return false, err
 	}
+	for _, d := range phase.ExtraRecords {
+		if !recordSettled {
+			break
+		}
+		if recordSettled, err = repoRecordAlreadyOnDisk(d.Path, d.Bytes); err != nil {
+			return false, err
+		}
+	}
 	if steps == 0 && len(phase.Removals) == 0 && recordSettled {
 		return false, nil
 	}
@@ -579,6 +587,7 @@ func applyRepoPhaseSurfaces(phase *install.RepoPhase, roots install.UserRoots) (
 	var docs []install.StateDoc
 	if phase.RecordBytes != nil {
 		docs = append(docs, install.StateDoc{Path: phase.RecordPath, Bytes: phase.RecordBytes})
+		docs = append(docs, phase.ExtraRecords...)
 	}
 	if err := txn.CommitDocs(docs); err != nil {
 		return false, err

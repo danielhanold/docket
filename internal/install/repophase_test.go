@@ -285,6 +285,36 @@ func TestApplyPlanEmptyListRetiresAndPublishesEmptyRecord(t *testing.T) {
 	}
 }
 
+// TestApplyPlanPublishesExtraRecords proves a phase's further records publish
+// beside its main one, and that a run whose extra record is already on disk is
+// settled while one whose extra record differs is not.
+func TestApplyPlanPublishesExtraRecords(t *testing.T) {
+	w := newRepoWorld(t)
+	p := plannedInstallation{mode: ModeRelease, harnesses: []string{"claude"}, assetSetID: "sha256:x", assetProtocol: 1}
+	recordPath := filepath.Join(w.base, "gitdir", "dckt", "install.json")
+	extraPath := filepath.Join(w.base, "gitdir", "worktrees", "f", "dckt", "install.json")
+	writeFileOrDie(t, extraPath, "the old record\n")
+	emptyRecord := []byte("{\"format_version\":1,\"surfaces\":[]}\n")
+	repo := &RepoPhase{
+		Authorized: true, RecordPath: recordPath, RecordBytes: emptyRecord,
+		ExtraRecords: []StateDoc{{Path: extraPath, Bytes: emptyRecord}},
+		Worktree:     filepath.Join(w.base, "wt"),
+	}
+	writeFileOrDie(t, recordPath, string(emptyRecord))
+	if settled, err := repoRecordSettled(true, repo); err != nil || settled {
+		t.Fatalf("repoRecordSettled with a differing extra record = %v, %v; want unsettled", settled, err)
+	}
+	if out := applyPlan(w.options(), p, repo, w.applyOut()); out.Err != nil {
+		t.Fatalf("applyPlan: %v (reason %q)", out.Err, out.Reason)
+	}
+	if got := readOrDie(t, extraPath); got != string(emptyRecord) {
+		t.Errorf("extra record = %q, want %q", got, emptyRecord)
+	}
+	if settled, err := repoRecordSettled(true, repo); err != nil || !settled {
+		t.Errorf("repoRecordSettled after the publish = %v, %v; want settled", settled, err)
+	}
+}
+
 func TestApplyPlanEditedOwnedSurfaceBlocksEverything(t *testing.T) {
 	w := newRepoWorld(t)
 	machineFile := filepath.Join(w.base, "machine", "agent.md")

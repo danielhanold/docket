@@ -59,6 +59,10 @@ type RepoPhase struct {
 	// unauthorized. When authorized it is always non-nil — an authorized empty
 	// list publishes the encoded empty record rather than deleting it.
 	RecordBytes []byte
+	// ExtraRecords are further repository ownership records the commit
+	// publishes beside RecordPath: a private repository's linked-worktree record
+	// from an earlier install, rewritten once its surfaces (in Removals) retire.
+	ExtraRecords []StateDoc
 	// Worktree is the selected working-tree root, carried only so the "not
 	// authorized" no-op action can name where reconciliation would have happened.
 	// It is not otherwise consulted, and is empty for a machine-only run outside

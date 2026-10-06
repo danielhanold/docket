@@ -24,7 +24,11 @@ type Target struct {
 	// install order, whose entries the target owns in that one file.
 	HookDialect  string
 	HookCommands []string
-	Role         string
+	// retireHookCommands is set by inspection, never by a planner: commands a
+	// prior record owned that this target no longer carries, whose exact
+	// entries the apply cuts before adding HookCommands.
+	retireHookCommands []string
+	Role               string
 	// Mode overrides the permissions an applied KindFile target is published
 	// with. Zero means "the installer's policy": the mode an updated file
 	// already had, else 0o644. It exists for the one target whose usefulness

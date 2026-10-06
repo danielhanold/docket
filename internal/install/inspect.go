@@ -2,6 +2,7 @@ package install
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -85,7 +86,7 @@ func InspectTarget(t Target, prior *State, legacy LegacyReproducer) (Inspection,
 	case KindManagedBlock:
 		return inspectManagedBlock(t, info, rec, hasRec, legacy)
 	case KindHookEntries:
-		return inspectHookEntries(t, info)
+		return inspectHookEntries(t, info, rec, hasRec)
 	default:
 		// validate has already refused every other kind.
 		return Inspection{}, fmt.Errorf("%w: %s has unknown kind %q", ErrInvalidTarget, t.Path, t.Kind)
@@ -222,7 +223,13 @@ func inspectManagedBlock(t Target, info fs.FileInfo, rec TargetRecord, hasRec bo
 // byte, so — as for adding a managed block — writing into a file docket did not
 // author needs no ownership proof; a file docket cannot read as an editable
 // hooks document is reported, never treated as "entries absent".
-func inspectHookEntries(t Target, info fs.FileInfo) (Inspection, error) {
+//
+// A prior record at the same path whose commands the plan no longer carries (a
+// later release changed a trigger command) names entries to retire in the same
+// apply: an exact entry for such a command is cut before the new ones are
+// added, so the old and the new trigger never both fire. Only an exact entry is
+// cut, as on uninstall; one the user has edited is theirs and stays.
+func inspectHookEntries(t Target, info fs.FileInfo, rec TargetRecord, hasRec bool) (Inspection, error) {
 	if !info.Mode().IsRegular() {
 		// The transaction publishes by rename, which would replace a symlink (a
 		// dotfiles manager's link, say) with a regular file. A skip, not a
@@ -242,6 +249,10 @@ func inspectHookEntries(t Target, info fs.FileInfo) (Inspection, error) {
 		// repair, and refusing it would fail every other target over a trigger.
 		return skip(t, remedyHookFileInvalid), nil
 	}
+	t.retireHookCommands = staleHookCommands(t, entries, rec, hasRec)
+	if len(t.retireHookCommands) > 0 {
+		return Inspection{Target: t, Disposition: DispositionUpdate}, nil
+	}
 	for _, c := range t.HookCommands {
 		if !anyEntryRuns(entries, t.HookDialect, c) {
 			return Inspection{Target: t, Disposition: DispositionUpdate}, nil
@@ -250,6 +261,30 @@ func inspectHookEntries(t Target, info fs.FileInfo) (Inspection, error) {
 	// Every command already has an entry. One the user has since edited (a
 	// timeout added) still runs the command, so it is theirs and left alone.
 	return Inspection{Target: t, Disposition: DispositionNoop}, nil
+}
+
+// staleHookCommands lists the prior record's commands the plan no longer
+// carries and the file still holds an exact entry for. The record must be a
+// consistent hook-entries record in the same dialect — its digest is its
+// identity — or it proves nothing and nothing is retired.
+func staleHookCommands(t Target, entries []json.RawMessage, rec TargetRecord, hasRec bool) []string {
+	if !hasRec || rec.Kind != KindHookEntries || rec.HookDialect != t.HookDialect ||
+		rec.SHA256 == "" || rec.SHA256 != hookEntriesDigest(rec.HookDialect, rec.HookCommands) {
+		return nil
+	}
+	var stale []string
+	for _, c := range rec.HookCommands {
+		if containsString(t.HookCommands, c) {
+			continue
+		}
+		for _, e := range entries {
+			if isExactEntry(e, t.HookDialect, c) {
+				stale = append(stale, c)
+				break
+			}
+		}
+	}
+	return stale
 }
 
 func conflict(t Target, reason, remedy string) Inspection {

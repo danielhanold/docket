@@ -596,6 +596,83 @@ func TestHookEntriesInstallUninstallLifecycle(t *testing.T) {
 	}
 }
 
+// A later release that changes a trigger command must retire the recorded
+// command's entry in the same install, or both entries would fire at every
+// session start. Only an exact entry is retired: one the user has edited is
+// theirs and stays.
+func TestHookEntriesChangedCommandRetiresTheRecordedEntry(t *testing.T) {
+	for _, dialect := range []string{HookDialectClaude, HookDialectCursor} {
+		for _, edited := range []bool{false, true} {
+			name := dialect + "/exact old entry"
+			if edited {
+				name = dialect + "/edited old entry"
+			}
+			t.Run(name, func(t *testing.T) {
+				seed := userEntrySeed(t, dialect)
+				opts, uopts, path := hookWorld(t, dialect, nil)
+				oldCmds := hookCmdsFor(dialect)
+				newCmds := []string{"b --new"}
+				cmds := oldCmds
+				opts.Planners[0].Plan = func(Mode, string, assets.Catalog) ([]Target, error) {
+					return []Target{{Path: path, Kind: KindHookEntries, HookDialect: dialect,
+						HookCommands: append([]string(nil), cmds...), Role: "trigger"}}, nil
+				}
+				writeFileOrDie(t, path, seed)
+				if out := Install(opts); out.Err != nil || !out.Applied {
+					t.Fatalf("first Install: %v (applied %v)", out.Err, out.Applied)
+				}
+				if edited {
+					installed := readOrDie(t, path)
+					changed := strings.Replace(installed, `"command": "`+oldCmds[0]+`"`,
+						`"command": "`+oldCmds[0]+`", "timeout": 5`, 1)
+					if changed == installed {
+						t.Fatalf("the test could not edit the entry:\n%s", installed)
+					}
+					writeFileOrDie(t, path, changed)
+				}
+
+				cmds = newCmds
+				if out := Install(opts); out.Err != nil || !out.Applied {
+					t.Fatalf("second Install: %v (applied %v, actions %+v)", out.Err, out.Applied, out.Actions)
+				}
+				got := readOrDie(t, path)
+				entries, ok := readHookEntries([]byte(got), dialect)
+				if !ok {
+					t.Fatalf("the file is not editable:\n%s", got)
+				}
+				if countEntries(entries, func(e json.RawMessage) bool { return isExactEntry(e, dialect, newCmds[0]) }) != 1 {
+					t.Errorf("no exact entry runs the new command:\n%s", got)
+				}
+				for i, c := range oldCmds {
+					runs := countEntries(entries, func(e json.RawMessage) bool { return entryHasCommand(e, dialect, c) })
+					want := 0
+					if edited && i == 0 {
+						want = 1 // the user's edited entry is theirs
+					}
+					if runs != want {
+						t.Errorf("%d entries run the retired command %q, want %d:\n%s", runs, c, want, got)
+					}
+				}
+				rec := stateRecordAt(t, opts.Roots, path)
+				if rec == nil || !reflect.DeepEqual(rec.HookCommands, newCmds) {
+					t.Fatalf("state record = %+v, want the new commands only", rec)
+				}
+				if out := Install(opts); out.Err != nil || out.Applied {
+					t.Errorf("a third install: err %v, applied %v (want a no-op)", out.Err, out.Applied)
+				}
+				if !edited {
+					if out := Uninstall(uopts); out.Err != nil {
+						t.Fatalf("Uninstall: %v (actions %+v)", out.Err, out.Actions)
+					}
+					if got := readOrDie(t, path); got != seed {
+						t.Errorf("after uninstall =\n%q\nwant the seed\n%q", got, seed)
+					}
+				}
+			})
+		}
+	}
+}
+
 // skippedFor reports whether the outcome names path as a skipped target
 // carrying the not-a-regular-file remedy.
 func skippedFor(out Outcome, path string) bool {
