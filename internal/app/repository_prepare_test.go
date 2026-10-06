@@ -623,6 +623,33 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 	}
 }
 
+// TestBuildPrepareContextVisibility: the prepare context names the repository's
+// visibility mode, so a workflow knows whether it writes for a private
+// repository.
+func TestBuildPrepareContextVisibility(t *testing.T) {
+	sc := setupContext{
+		repo:              gitcli.Repository{PrimaryWorktree: "/repo", CommonDir: "/repo/.git"},
+		defaultBranch:     "main",
+		integrationBranch: "main",
+		layout:            layout.SharedLayout("/repo/.git", "/repo"),
+	}
+	if got := buildPrepareContext(sc.cfg, sc, preparableFacts(), "").Visibility; got != "shared" {
+		t.Errorf("shared layout visibility = %q, want shared", got)
+	}
+	sc.layout = layout.PrivateLayout("/repo/.git", "/repo", "/d", "o-r")
+	pc := buildPrepareContext(sc.cfg, sc, preparableFacts(), "")
+	if pc.Visibility != "private" {
+		t.Errorf("private layout visibility = %q, want private", pc.Visibility)
+	}
+	raw, err := json.Marshal(pc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"visibility":"private"`) {
+		t.Errorf("context JSON lacks \"visibility\":\"private\": %s", raw)
+	}
+}
+
 // TestRepositoryPrepareResolverCapAgreesWithConfigDiagnostics reads the resolver
 // cap (change 0349) from both surfaces off ONE resolved fixture and asserts they
 // agree (spec test 1): the prepare `context.finalize.resolver_max_attempts` and

@@ -99,6 +99,61 @@ func resolvedPrivateLayout(t *testing.T, dir string) layout.Layout {
 	return lay
 }
 
+// privateLifecycleChecks drives the whole claim-to-implemented run, then proves
+// what a private repository publishes on origin: the one open PR carries the
+// authored title and prose byte-for-byte (no backlink, no artifacts block), and
+// the spec copy at the feature head carries no change line.
+func privateLifecycleChecks(t *testing.T, created ChangeCreateResult) workflowEntry {
+	return func(node realNode, wdeps WorkspaceDeps, complete func(string) GitHubDeps) {
+		t.Helper()
+		ctx := context.Background()
+		gdeps := complete("")
+
+		insp := WorkspaceInspect(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: created.ID})
+		if insp.Result != ResultApplied || insp.FeatureRef == "" || insp.Head == "" {
+			t.Fatalf("workspace inspect = %q (reason %q), want a feature ref and head", insp.Result, insp.Reason)
+		}
+		headBranch := strings.TrimPrefix(insp.FeatureRef, "refs/heads/")
+		repo, err := gdeps.Service.DiscoverRepository(ctx, node.dir)
+		if err != nil {
+			t.Fatalf("discover repository: %v", err)
+		}
+		prs, err := gdeps.Service.FindOpenPullRequestsByHead(ctx, repo, headBranch)
+		if err != nil {
+			t.Fatalf("find open PRs for %s: %v", headBranch, err)
+		}
+		if len(prs) != 1 {
+			t.Fatalf("open PRs for %s = %d, want exactly one", headBranch, len(prs))
+		}
+		if want := "Authored PR prose for the widget.\n"; prs[0].Body != want {
+			t.Errorf("private PR body = %q, want the authored prose verbatim %q", prs[0].Body, want)
+		}
+		if prs[0].Title != "Add the widget" {
+			t.Errorf("private PR title = %q, want %q", prs[0].Title, "Add the widget")
+		}
+
+		// The spec copy at the feature head: present, and no change line.
+		var specs []string
+		for _, p := range strings.Split(runGit(t, node.dir, "ls-tree", "-r", "--name-only", insp.Head), "\n") {
+			if strings.HasSuffix(p, "-design.md") {
+				specs = append(specs, p)
+			}
+		}
+		if len(specs) != 1 {
+			t.Fatalf("spec copies at the feature head = %v, want exactly one", specs)
+		}
+		spec := runGit(t, node.dir, "show", insp.Head+":"+specs[0])
+		if !strings.Contains(spec, "Build the widget.") {
+			t.Fatalf("spec copy %s lacks the authored spec:\n%s", specs[0], spec)
+		}
+		for _, line := range strings.Split(spec, "\n") {
+			if strings.HasPrefix(line, "Change 0") {
+				t.Errorf("private spec copy %s carries a change line %q:\n%s", specs[0], line, spec)
+			}
+		}
+	}
+}
+
 // TestIntegrationWorkflowLifecyclePrivateInitToImplemented is acceptance 1: a
 // private repository goes from init through implemented, and afterwards the
 // clone holds nothing docket-named and origin holds nothing but the feature
@@ -162,7 +217,8 @@ func TestIntegrationWorkflowLifecyclePrivateInitToImplemented(t *testing.T) {
 	}
 
 	// Drive the whole run against the private store.
-	driveClaimToImplemented(t, repo, privateFixtureBranch, ghBin, created.ID, created.Slug, created.Path, groom.SpecPath)
+	driveClaimToImplemented(t, repo, privateFixtureBranch, ghBin, created.ID, created.Slug, created.Path, groom.SpecPath,
+		privateLifecycleChecks(t, created))
 
 	// Origin gained exactly one branch, and it is the feature branch.
 	originAfter := localHeads(t, r.origin)
