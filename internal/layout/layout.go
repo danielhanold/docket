@@ -30,6 +30,12 @@ const (
 	SharedWorktreeDir    = ".docket"
 	PrivateConfigFile    = "config.yml"
 	PrivateConfigDisplay = ".git/dckt/config.yml"
+
+	// PrivateInstructionsFile is a private repository's parent-facing rules
+	// file beneath <common>/dckt; PrivateInstructionsDisplay is its
+	// user-facing spelling.
+	PrivateInstructionsFile    = "AGENTS.md"
+	PrivateInstructionsDisplay = ".git/dckt/AGENTS.md"
 )
 
 // Detect decides the mode from state; a probe error is returned, never guessed.
@@ -65,6 +71,12 @@ func StateDirOf(commonDir string) string { return filepath.Join(commonDir, State
 // PrivateConfigPath is the private repository-layer config file.
 func PrivateConfigPath(commonDir string) string {
 	return filepath.Join(commonDir, PrivateName, PrivateConfigFile)
+}
+
+// PrivateInstructionsPath is a private repository's parent-facing rules file,
+// <commonDir>/dckt/AGENTS.md.
+func PrivateInstructionsPath(commonDir string) string {
+	return filepath.Join(commonDir, PrivateName, PrivateInstructionsFile)
 }
 
 // CommonDirOf resolves a working-tree root's common dir from the filesystem
