@@ -31,7 +31,7 @@ immediately.
    ```
 
    `--input` carries only the optional authored closeout notes (`verification_outcomes`,
-   `late_findings`; `-` for stdin); the `results:` file already sits on the `docket` branch and is
+   `late_findings`; `-` for stdin); the `results:` file already sits on the metadata branch and is
    never passed. Trust the typed outcome: `done-archived` (or `stacked-merged` / `root-archived` for a
    stack) ⇒ the change is marked done and relocated to the dated archive path — idempotent if
    already archived, including across a day boundary. This ONE metadata commit atomically owns the
