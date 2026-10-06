@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/private-visibility-keep-the-metadata-branch-on-a-local-remot'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-06T10:03:51Z'
+reconciled: true
+claimed_at: '2026-10-06T10:05:32Z'
 ---
 
 ## Artifacts
@@ -66,3 +66,9 @@ Keeping the metadata branch purely local and never pushing it would remove docke
 - Renaming the `docket` binary, its install paths, the global config path, agent files, or the `Docket-*` trailers on metadata commits.
 - Feature branch naming templates, fork-based workflows, and repositories without PR permissions.
 - Guide or concept pages describing private visibility.
+
+## Reconcile log
+
+### 2026-10-06
+
+Reconciled against main 37f3803 after #530 landed (done). Design still holds: originRemote has 56 non-test uses, MetadataBranchName 43, and about 21 Join(..., "docket") state-folder sites remain hard-coded, so the resolver work is still needed. #530 already made metadata file links relative; spec section 6 is unchanged. #532/#533 remain proposed and depend on this change. No scope change.
