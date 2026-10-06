@@ -13,10 +13,11 @@ import (
 )
 
 // This file is the private-repository leak check. Before a push or PR write in a
-// private repository, everything that write would expose — the outgoing commit
-// messages, the paths and lines each outgoing commit adds and the merge-base
-// diff adds, and any PR title and body — is scanned for docket fingerprints (internal/leakscan), and any hit
-// refuses the write with nothing published. A shared repository never runs it.
+// private repository, everything that write would expose — the feature branch
+// name, the outgoing commit messages, the paths and lines each outgoing commit
+// adds and the merge-base diff adds, and any PR title and body — is scanned for
+// docket fingerprints (internal/leakscan), and any hit refuses the write with
+// nothing published. A shared repository never runs it.
 // A failure to fetch the base or read the outgoing set is leak-check-unverified,
 // never a clean scan. Each caller scans the exact head it publishes.
 
@@ -71,7 +72,8 @@ func leakOptions(pin StatusPin, snap domain.Snapshot) leakscan.Options {
 }
 
 // runLeakCheck fetches target's base from origin and scans what publishing head
-// over it would expose, plus pr when non-nil. Any fetch or read failure is an
+// over it would expose — target's feature branch name included, since origin and
+// the PR show it — plus pr when non-nil. Any fetch or read failure is an
 // error — the caller refuses as unverified — and never an empty hit list.
 func runLeakCheck(ctx context.Context, git leakGit, wc workspaceContext, target workspace.Target, head gitcli.ObjectID, pr *leakscan.PRText) ([]LeakHit, error) {
 	base, err := git.FetchBranch(ctx, wc.repo, originRemote, target.BaseRef)
@@ -82,7 +84,7 @@ func runLeakCheck(ctx context.Context, git leakGit, wc workspaceContext, target 
 	if err != nil {
 		return nil, fmt.Errorf("reading what %s over %s would publish: %w", shortCommit(string(head)), shortCommit(string(base.Commit)), err)
 	}
-	in := leakscan.Input{PR: pr}
+	in := leakscan.Input{Branch: target.FeatureBranch(), PR: pr}
 	for _, c := range out.Commits {
 		in.Commits = append(in.Commits, leakscan.Commit{ID: string(c.Commit), Message: c.Message})
 	}
@@ -127,6 +129,8 @@ func leakWhere(h LeakHit) string {
 		in = " in commit " + shortCommit(h.Commit)
 	}
 	switch leakscan.Source(h.Source) {
+	case leakscan.SourceBranchName:
+		return "the feature branch name"
 	case leakscan.SourceCommitMessage:
 		return fmt.Sprintf("commit %s message line %d", shortCommit(h.Commit), h.Line)
 	case leakscan.SourceAddedLine:

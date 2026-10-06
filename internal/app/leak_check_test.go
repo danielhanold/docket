@@ -104,6 +104,33 @@ func TestRunLeakCheckScansFetchedBaseToHead(t *testing.T) {
 	}
 }
 
+// TestRunLeakCheckScansFeatureBranchName pins that the feature branch name —
+// shown on origin and the PR — is scanned even when every outgoing commit, path,
+// and line is clean.
+func TestRunLeakCheckScansFeatureBranchName(t *testing.T) {
+	wc, target := leakContext(t, true)
+	target.FeatureRef = "refs/heads/fix/fix-the-dckt-alias"
+	git := &fakeLeakGit{
+		fetchRev: gitcli.Revision{Commit: leakBase},
+		out: gitcli.Outgoing{
+			Commits:    []gitcli.OutgoingCommit{{Commit: "c1", Message: "Tidy the alias table\n"}},
+			AddedPaths: []gitcli.OutgoingPath{{Path: "aliases.txt", Commit: "c1"}},
+			AddedLines: []gitcli.OutgoingLine{{Path: "aliases.txt", Line: 1, Text: "tidy", Commit: "c1"}},
+		},
+	}
+	hits, err := runLeakCheck(context.Background(), git, wc, target, leakHead, nil)
+	if err != nil {
+		t.Fatalf("runLeakCheck: %v", err)
+	}
+	want := []LeakHit{{Source: "branch-name", Text: "dckt", Rule: "alias"}}
+	if !reflect.DeepEqual(hits, want) {
+		t.Errorf("hits = %+v, want %+v", hits, want)
+	}
+	if msg := leakMessage(hits); !strings.Contains(msg, `the feature branch name "dckt" (alias)`) {
+		t.Errorf("leak message does not name the branch-name hit: %q", msg)
+	}
+}
+
 func TestRunLeakCheckFetchFailureIsUnverified(t *testing.T) {
 	wc, target := leakContext(t, true)
 	git := &fakeLeakGit{fetchErr: errors.New("network down")}

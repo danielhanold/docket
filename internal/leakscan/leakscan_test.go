@@ -68,6 +68,7 @@ func TestTextLineNumbersAndCRLF(t *testing.T) {
 
 func TestScanAttributesEverySource(t *testing.T) {
 	in := Input{
+		Branch:     "fix/fix-the-dckt-alias",
 		Commits:    []Commit{{ID: "c1", Message: "Add widget\n\nRefs (0612)\n"}},
 		AddedPaths: []AddedPath{{Path: "notes/.docket-old.md", Commit: "c1"}},
 		AddedLines: []AddedLine{{Path: "a.go", Line: 7, Text: "// dckt"}, {Path: "b.go", Line: 2, Text: "see .docket/x", Commit: "c1"}},
@@ -75,6 +76,7 @@ func TestScanAttributesEverySource(t *testing.T) {
 	}
 	got := Scan(in, Options{MatchWord: true, ChangeIDs: map[int]bool{12: true, 612: true}})
 	want := []Hit{
+		{Source: SourceBranchName, Text: "dckt", Rule: RuleAlias},
 		{Source: SourceCommitMessage, Commit: "c1", Line: 3, Text: "(0612)", Rule: RuleChangeRef},
 		{Source: SourceAddedPath, Commit: "c1", File: "notes/.docket-old.md", Text: ".docket", Rule: RulePath},
 		{Source: SourceAddedLine, File: "a.go", Line: 7, Text: "dckt", Rule: RuleAlias},
