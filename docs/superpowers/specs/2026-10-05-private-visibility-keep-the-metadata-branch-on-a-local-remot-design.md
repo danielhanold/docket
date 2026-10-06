@@ -1,8 +1,8 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0531 — Private visibility: keep the metadata branch on a local remote with neutral naming](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md)**
+> ↩ **[Change 0531 — Keep the metadata branch on a local remote with neutral naming](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md)**
 <!-- docket:backlink:end -->
 
-# Private visibility: keep the metadata branch on a local remote with neutral naming: design
+# Keep the metadata branch on a local remote with neutral naming: design
 
 Change #531, groomed interactively on 2026-10-05. Second in the private-visibility series (#529–#533). It builds in parallel with #530; #532 and #533 depend on both.
 

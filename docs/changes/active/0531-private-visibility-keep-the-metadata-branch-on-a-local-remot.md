@@ -1,12 +1,12 @@
 ---
 id: 531
 slug: 'private-visibility-keep-the-metadata-branch-on-a-local-remot'
-title: 'Private visibility: keep the metadata branch on a local remote with neutral naming'
+title: 'Keep the metadata branch on a local remote with neutral naming'
 status: 'proposed'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
-updated: '2026-10-05'
+updated: '2026-10-06'
 depends_on: []
 stacked_on:
 related: [352, 363, 530, 532, 533]

@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0531](active/0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md) | Private visibility: keep the metadata branch on a local remote with neutral naming | `medium` | `feat` | [spec](../superpowers/specs/2026-10-05-private-visibility-keep-the-metadata-branch-on-a-local-remot-design.md) |
+| [0531](active/0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md) | Keep the metadata branch on a local remote with neutral naming | `medium` | `feat` | [spec](../superpowers/specs/2026-10-05-private-visibility-keep-the-metadata-branch-on-a-local-remot-design.md) |
 | [0530](active/0530-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) | Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR | `medium` | `feat` | [spec](../superpowers/specs/2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch-design.md) |
 | [0529](active/0529-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) | Repoint a merged PR's change backlink when the change is archived | `medium` | `fix` | [spec](../superpowers/specs/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
