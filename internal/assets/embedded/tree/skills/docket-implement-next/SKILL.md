@@ -121,7 +121,7 @@ The results artifact is **required for every change, trivial included** — ther
 1. Verify ownership and quiescence — no live gate, running worker, or transferred drive.
 2. Read and **preserve** the prior results content — after a re-sync, from `.docket/<results path>` when `results:` is set; a checkpoint updates it, never truncates it — except final consolidation, which condenses the review findings (*Review findings* below).
 3. Write the update into the scratch file.
-4. Attach it: the `change.attach-results` operation with `--id <id> --revision <revision> --path <results path> --markdown <file>` writes the file with its backlink and sets `results:` in one metadata commit that never moves the feature head; later checkpoints keep the **same path**.
+4. Attach it: the `change.attach-results` operation with `--id <id> --revision <revision> --path <results path> --markdown <file>`, at a revision re-read after a re-sync (the `context.implementation` operation with `--id <id>`) because the claim refresh, plan attach, and every earlier checkpoint move the record, writes the file with its backlink and sets `results:` in one metadata commit that never moves the feature head; later checkpoints keep the **same path**.
 
 **Evidence sequencing.** Results prose is **never gate evidence**, and a results checkpoint never moves HEAD, so it never stales evidence. Obtain gate evidence for the final code head through the gate driver; any code commit (a fix) still invalidates it. **Never** rewrite results solely to paste the final gate's SHA or timestamp. A new material finding surfaced by the final gate is preserved in results, the fix/halt policy applies, and evidence is re-established after any commit.
 
