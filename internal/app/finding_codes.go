@@ -148,6 +148,13 @@ const (
 	// collection surfaces when a version tree could not be reclaimed; the primary
 	// install/uninstall result is unaffected.
 	FCCollectionPending FindingCode = "collection-pending"
+
+	// binary-alias-missing / binary-alias-foreign are the warning codes an
+	// install check or development install surfaces for the dckt alias beside
+	// an installed binary. They are warnings only: the primary result is
+	// unaffected.
+	FCBinaryAliasForeign FindingCode = "binary-alias-foreign"
+	FCBinaryAliasMissing FindingCode = "binary-alias-missing"
 )
 
 // AllFindingCodes is the authoritative, sorted, deduplicated vocabulary of every
@@ -189,6 +196,8 @@ var AllFindingCodes = []FindingCode{
 	FindingCode(ReasonAttachPathOccupied),
 	FCArtifactRenderFailed,
 	FCAuthoredInputTooLarge,
+	FCBinaryAliasForeign,
+	FCBinaryAliasMissing,
 	FCBranchMalformed,
 	FindingCode("branch-still-exists"),
 	FCCollectionPending,
