@@ -8,6 +8,7 @@ package app
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"testing"
 )
@@ -33,6 +34,26 @@ func TestIntegrationRecordOpsMarkImplementedAcceptsSkippedEvidence(t *testing.T)
 	res := ChangeMarkImplemented(context.Background(), deps, wdeps, gdeps, inv, req)
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want applied — skipped evidence at the exact head must certify implemented (findings %v)", res.Result, res.Findings)
+	}
+
+	// Through the production engine, the committed record carries the skipped
+	// evidence it verified as its "## Build evidence" section.
+	recPath := groomPath(3, miSlug)
+	real := newWorkingRepo(t, map[string]string{recPath: miRecord(3, miSlug, miPlanPath(), miResultsPath, true, false)})
+	realHead := miAdvanceHead(t, real)
+	if res := miRealRunWith(t, real, recPath, realHead, prSkippedEvidenceBytes(t, realHead)); res.Result != ResultApplied {
+		t.Fatalf("real-engine result = %q, want applied (findings %v)", res.Result, res.Findings)
+	}
+	recordBytes, ok := originFile(t, real.origin, "docket", recPath)
+	if !ok {
+		t.Fatalf("implemented record %s absent on origin docket", recPath)
+	}
+	gotEv, err := ReadRecordEvidence([]byte(recordBytes))
+	if err != nil {
+		t.Fatalf("implemented record carries no readable build evidence: %v\n%s", err, recordBytes)
+	}
+	if gotEv.Result != evidence.ResultSkipped || gotEv.Reason != evidence.ReasonBuildGateOff || gotEv.Head != realHead {
+		t.Fatalf("recorded evidence = %+v, want skipped/%s at %s", gotEv, evidence.ReasonBuildGateOff, realHead)
 	}
 }
 
