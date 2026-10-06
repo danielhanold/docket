@@ -126,6 +126,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0140](0140-cleanup-finishes-a-worktree-removal-git-already-committed-to.md) — Cleanup finishes a worktree removal Git already committed to (Accepted) ← change #525 · relates to ADR-0035
 - [ADR-0141](0141-build-artifacts-plan-results-evidence-live-on-the-metadata-b.md) — Build artifacts (plan, results, evidence) live on the metadata branch; the spec ships with the PR (Accepted) ← change #530 · relates to ADR-0001, ADR-0066
 - [ADR-0142](0142-private-visibility-keeps-the-single-metadata-layout-and-vari.md) — Private visibility keeps the single metadata layout and varies only where the metadata branch is published and how per-repo paths are spelled (Accepted) ← change #531 · relates to ADR-0001, ADR-0099, ADR-0019
+- [ADR-0143](0143-a-gated-claim-s-request-id-carries-its-run-context-identity.md) — A gated claim's request id carries its run-context identity (Accepted) ← change #531 · relates to ADR-0142
 
 ## Superseded / Reversed
 
