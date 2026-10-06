@@ -128,6 +128,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0142](0142-private-visibility-keeps-the-single-metadata-layout-and-vari.md) — Private visibility keeps the single metadata layout and varies only where the metadata branch is published and how per-repo paths are spelled (Accepted) ← change #531 · relates to ADR-0001, ADR-0099, ADR-0019
 - [ADR-0143](0143-a-gated-claim-s-request-id-carries-its-run-context-identity.md) — A gated claim's request id carries its run-context identity (Accepted) ← change #531 · relates to ADR-0142
 - [ADR-0144](0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md) — Private-visibility leak check blocks outgoing pushes and PR edits carrying docket fingerprints (Accepted) ← change #532 · relates to ADR-0142
+- [ADR-0145](0145-private-repository-parent-facing-rules-load-through-content.md) — Private repository parent-facing rules load through content-free user-level triggers (Accepted) ← change #535 · relates to ADR-0036, ADR-0078
 
 ## Superseded / Reversed
 

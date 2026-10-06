@@ -11,7 +11,7 @@ depends_on: [531, 534]
 stacked_on:
 related: [532, 533, 334, 351]
 discovered_from: [531]
-adrs: [36, 78]
+adrs: [36, 78, 145]
 spec: 'docs/superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md'
 plan: 'docs/superpowers/plans/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos.md'
 results: 'docs/results/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-results.md'
@@ -33,7 +33,7 @@ claimed_at: '2026-10-06T20:40:42Z'
 | Spec | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md](../../superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) |
 | Plan | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos.md](../../superpowers/plans/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos.md) |
 | Results | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-results.md](../../results/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-results.md) |
-| ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](../../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
+| ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](../../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md), [ADR-0145](../../adrs/0145-private-repository-parent-facing-rules-load-through-content.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
