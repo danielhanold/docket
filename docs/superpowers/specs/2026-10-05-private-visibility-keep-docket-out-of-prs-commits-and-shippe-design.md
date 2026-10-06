@@ -1,8 +1,8 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0532 — Private visibility: keep docket out of PRs, commits, and shipped files](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md)**
+> ↩ **[Change 0532 — Implement private visibility for PRs, commits, and shipped files](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md)**
 <!-- docket:backlink:end -->
 
-# Private visibility: keep docket out of PRs, commits, and shipped files: design
+# Implement private visibility for PRs, commits, and shipped files: design
 
 Change #532, groomed interactively on 2026-10-05. Third in the private-visibility series (#529–#533). Depends on #530, which moves build artifacts off the feature branch, and #531, which adds private mode itself.
 

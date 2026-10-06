@@ -1,12 +1,12 @@
 ---
 id: 532
 slug: 'private-visibility-keep-docket-out-of-prs-commits-and-shippe'
-title: 'Private visibility: keep docket out of PRs, commits, and shipped files'
+title: 'Implement private visibility for PRs, commits, and shipped files'
 status: 'proposed'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
-updated: '2026-10-05'
+updated: '2026-10-06'
 depends_on: [530, 531]
 stacked_on:
 related: [529, 533]

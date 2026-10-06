@@ -16,8 +16,8 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0532](active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | `medium` | `feat` | ⏳ waiting on #530 — not yet built |
 | [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | ⏳ waiting on #530 — not yet built |
-| [0532](active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Private visibility: keep docket out of PRs, commits, and shipped files | `medium` | `feat` | ⏳ waiting on #530 — not yet built |
 | [0528](active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | `medium` | `fix` | needs-grooming |
 | [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | needs-grooming |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | needs-grooming |
