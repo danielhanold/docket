@@ -22,7 +22,7 @@ branch: 'feat/load-a-private-repository-s-agent-instructions-without-repos'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-06T17:58:44Z'
+claimed_at: '2026-10-06T19:54:19Z'
 ---
 
 ## Artifacts
@@ -43,13 +43,14 @@ A private-visibility repository can't carry those files, so docket must not writ
 
 ## What changes
 
-- In private repositories, the dispatch block and promoted lessons live in a private instructions file under `.git/dckt/`. Docket writes no AGENTS.md, CLAUDE.md, or docket-named rule file in the worktree.
-- A new read-only `docket instructions` command prints that file in a private repository and nothing anywhere else. `--hook` emits Claude Code's session-start hook shape.
-- `docket install` sets up delivery once per machine. Neither user-level surface contains rule text or the word "docket":
-  - Claude Code: a user-level `SessionStart` hook running `dckt instructions --hook`.
-  - Codex and OpenCode: a static pointer block (markers `dckt:`) in their user-level AGENTS.md.
-- Cursor, which reads rules only from the project, gets `.cursor/rules/dckt-dispatch.mdc`, excluded through `.git/info/exclude`.
-- The first plan task checks each harness in a fresh session.
+- In private repositories, the dispatch block and promoted lessons live in a private instructions file under `.git/dckt/`. Docket writes nothing in the worktree: no AGENTS.md, CLAUDE.md, or rule file, and no `.git/info/exclude` entry.
+- A new read-only `docket instructions` command prints that file in a private repository and nothing anywhere else. It can print the dispatch block or the lessons on their own, and can wrap its output in Claude Code's or Cursor's session-start hook format.
+- `docket install` sets up delivery once per machine. No user-level surface contains rule text or the word "docket":
+  - Claude Code: two user-level `SessionStart` hooks in `settings.json`, one for the dispatch block and one for the lessons, so each fits Claude Code's per-hook size cap.
+  - Cursor: a user-level `sessionStart` hook in `~/.cursor/hooks.json`.
+  - OpenCode: a user-level plugin that adds the file to the system prompt.
+  - Codex: a static pointer block (markers `dckt:`) in its user-level AGENTS.md, best effort.
+- The build re-checks each harness in a fresh session against the real binary. The grooming spike already proved the mechanisms with a stub.
 - `docket install` in a private repository writes no instruction file into the repository root: no AGENTS.md, CLAUDE.md, or docket-named rule file (found during change 531's build, where install could still write them). It routes the content to the private instructions file instead.
 
 ## Out of scope
@@ -66,6 +67,17 @@ A private-visibility repository can't carry those files, so docket must not writ
 Reconciled 2026-10-06 against main d997c1210 (after #532's private-visibility PR commits landed). Dependencies #531 and #534 are done. The cited code still matches the spec: `GlobalDispatchTarget` adapters in `internal/harness/*` and `internal/install/service.go`, private layout under `.git/dckt/` (`internal/layout`, `internal/app/repository_init_private.go`), and `.git/info/exclude` handling in `internal/reposetup/exclude.go`. No `docket instructions` command or private instructions file exists yet. #533 is still proposed and depends on this. Scope unchanged.
 
 Spike posture for an autonomous build: the per-harness fresh-session check runs non-interactively where a harness CLI allows it without touching the user's real configuration; any harness that cannot be exercised that way is recorded in the results file as an Important human verification item rather than halting the run. A harness that is exercised and fails still stops the build, as the spec says.
+
+### 2026-10-06
+
+Re-groomed with the human after the run halted at the delivery spike. The human had alternatives re-tested for Claude Code, Cursor, and OpenCode, and settled the design (spec *Delivery spike* and *Decisions*):
+
+- **Claude Code:** two `SessionStart` hooks in `settings.json`, split into dispatch block and lessons, managed by install and uninstall. A plugin was ruled out because it does not lift the per-hook cap.
+- **Cursor:** a user-level `sessionStart` hook, replacing the excluded per-repository rule file.
+- **OpenCode:** a user-level system-prompt plugin, replacing the pointer.
+- **Codex:** the pointer, unchanged, as best effort.
+
+The spec's *Summary*, *Evidence*, *Decisions*, *Design*, *Acceptance criteria*, and *ADRs expected* sections were replaced, and *What changes* was updated. Plan Task 1 (the spike) is superseded by the spec's fresh-session acceptance. The plan is rewritten against the revised spec before the halted run resumes.
 
 ## Run halted
 

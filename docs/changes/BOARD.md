@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0535](active/0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | `medium` | `feat` | [spec](../superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) | `feat/load-a-private-repository-s-agent-instructions-without-repos` |  |
+| [0535](active/0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | `medium` | `feat` | [spec](../superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) | `feat/load-a-private-repository-s-agent-instructions-without-repos` | run halted — needs you |
 
 ## 🟣 Groomed (2)
 
