@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -444,4 +445,51 @@ func TestIntegrationFinalizeCleanupWorkspaceBlockedNamesPath(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(f.wp, "stray-notes.txt")); err != nil {
 		t.Fatalf("the blocking file must survive: %v", err)
 	}
+}
+
+// TestIntegrationFinalizeCleanupPRBacklinkRetry proves cleanup is the retry for
+// a PR backlink close-out left pending: a done change whose PR still names the
+// active path is repointed; a failing edit makes the cleanup pending (retryable)
+// without blocking the independent legs; a replay over a repointed PR issues no
+// edit.
+func TestIntegrationFinalizeCleanupPRBacklinkRetry(t *testing.T) {
+	requireRealGit(t)
+
+	t.Run("repoints-a-pending-pr", func(t *testing.T) {
+		f := setupCloseoutFixture(t, planRepoModeDocket())
+		head, mergeCommit := f.archiveClosed(t)
+		deps := f.cleanupDeps(f.mergedCleanupFake(head, mergeCommit), f.deps.Client, f.svc)
+		recPath := groomPath(f.id, f.slug)
+		pr := newFakePRBody(map[int]string{closeoutPR: artifactWithBacklink(recPath, "Summary", "prose")})
+		deps.PRBody = pr
+
+		res := FinalizeCleanup(context.Background(), deps, f.repo.invocation, f.id)
+		if res.Disposition != CleanupDispCleaned {
+			t.Fatalf("cleanup = %q disp %q (%s) findings=%+v", res.Result, res.Disposition, res.Message, res.Findings)
+		}
+		if got := pr.bodies[closeoutPR]; strings.Contains(got, "`"+recPath+"`") || !strings.Contains(got, "docs/changes/archive/") {
+			t.Fatalf("cleanup did not repoint the PR backlink:\n%s", got)
+		}
+		replay := FinalizeCleanup(context.Background(), deps, f.repo.invocation, f.id)
+		if replay.Disposition == CleanupDispPending || pr.edits != 1 {
+			t.Fatalf("replay disp %q edits=%d, want clean with no new edit", replay.Disposition, pr.edits)
+		}
+	})
+
+	t.Run("failing-edit-is-pending-and-retryable", func(t *testing.T) {
+		f := setupCloseoutFixture(t, planRepoModeDocket())
+		head, mergeCommit := f.archiveClosed(t)
+		deps := f.cleanupDeps(f.mergedCleanupFake(head, mergeCommit), f.deps.Client, f.svc)
+		pr := newFakePRBody(map[int]string{closeoutPR: artifactWithBacklink(groomPath(f.id, f.slug), "Summary", "prose")})
+		pr.editErr = errors.New("gh: HTTP 502")
+		deps.PRBody = pr
+
+		res := FinalizeCleanup(context.Background(), deps, f.repo.invocation, f.id)
+		if res.Disposition != CleanupDispPending || res.Reason != ReasonPRBacklinkPending {
+			t.Fatalf("cleanup = disp %q reason %q, want pending/%s", res.Disposition, res.Reason, ReasonPRBacklinkPending)
+		}
+		if f.remoteBranchPresent(t) {
+			t.Fatalf("a PR-body failure must not block the independent ref legs")
+		}
+	})
 }
