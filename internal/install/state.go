@@ -162,8 +162,8 @@ func ValidateState(s *State) error {
 		if err := validateTarget(target); err != nil {
 			return fmt.Errorf("target %q: %w", target.Path, err)
 		}
-		if target.Role == roleBinary && target.Harness != "" {
-			return fmt.Errorf("binary target %q is attributed to harness %q", target.Path, target.Harness)
+		if (target.Role == roleBinary || target.Role == roleBinaryAlias) && target.Harness != "" {
+			return fmt.Errorf("installation target %q (role %s) is attributed to harness %q", target.Path, target.Role, target.Harness)
 		}
 		if target.Harness != "" {
 			if !harnesses[target.Harness] {
