@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/install-an-alias-for-the-docket-binary'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-06T13:47:45Z'
+reconciled: true
+claimed_at: '2026-10-06T13:49:30Z'
 ---
 
 ## Artifacts
@@ -55,3 +55,9 @@ There are two install paths, and both must produce the alias:
 - Renaming the binary, or changing the capability catalog's spelling (`docket`) that skills resolve commands from.
 - Shell aliases, completions, or package-manager formulas.
 - Using the alias anywhere other than the user-level surfaces that need it (a separate change in this series).
+
+## Reconcile log
+
+### 2026-10-06
+
+Reconciled against main 8ee926604. Traced internal/release/downloader/install.sh, internal/install/devmode.go, uninstall.go: no dckt alias exists anywhere yet; #529-#531 private-visibility work landed but touches neither installer. #532 (related) still proposed and is the consumer. Scope unchanged.
