@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/private-visibility-keep-docket-out-of-prs-commits-and-shippe'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-06T15:02:40Z'
+reconciled: true
+claimed_at: '2026-10-06T15:03:33Z'
 ---
 
 ## Artifacts
@@ -62,3 +62,9 @@ Once a leak is pushed it cannot be undone, and a rebase-merge would carry it int
 - Rewriting history that is already pushed.
 - Shared-mode PR descriptions and comments, which are unchanged.
 - Scanning for references to the host repository's own ADRs or tickets.
+
+## Reconcile log
+
+### 2026-10-06
+
+Reconciled against current main (dc3559810) after #530, #531, #534 landed. Anchors still hold: assemblePRBody in internal/app/pr_publish.go, finalizeBlockedCommentMarker in internal/app/finalize_block.go, workspace.Service.PublishHead in internal/workspace/publish.go, private findings in internal/app/repository_private_findings.go, and finalize rebase anchors under refs/docket/ (internal/gitcli/rebase.go ownedRefRequiredPrefix). No leak scanner exists yet. Scope unchanged.
