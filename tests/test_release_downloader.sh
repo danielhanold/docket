@@ -8,8 +8,10 @@
 # forbidden-interpreter spelling. Sections B–F are the Task 7 hermetic behavior tests — a genuinely
 # fresh /bin/sh runs the downloader under a locked-down PATH sandbox against a file:// "release"
 # built inline, proving the checksum-verified install path with BOTH hash providers (sha256sum and
-# OpenSSL), under umask 077, with an argument-capturing fake docket. Tasks 8–9 add the refusal and
-# convergence sibling FILES.
+# OpenSSL), under umask 077, with an argument-capturing fake docket. Section G covers the dckt
+# alias: created relative, converged on rerun and on the development installer's absolute link,
+# and never taken from a foreign owner (a file, a link elsewhere, a dangling link). Section F, the
+# mutation pass, stays last. Tasks 8–9 add the refusal and convergence sibling FILES.
 #
 # THE SPELLING BAN (Section A) MATCHES SPELLINGS, NOT THE PROPERTY. Section A's final assertion greps
 # install.sh for the whole words bash|python|perl|shasum|jq|eval. That is a byte-pattern check: it
@@ -149,8 +151,9 @@ chmod 755 "$TRIPWIRE_SRC"
 # it is not symlinked; dirname IS used by the record path and is required). gzip is required for
 # tar's `-z`: GNU tar (Linux) execs the external gzip binary, so its absence from the sandbox reddens
 # `tar -tzf`/`tar -xzf`; BSD tar (macOS) links libz internally and needs none, which is why omitting
-# it only fails on Linux. The banned set gets a tripwire each.
-DL_REAL_TOOLS='curl tar gzip uname mktemp mkdir mv cp chmod rm grep sed cat dirname'
+# it only fails on Linux. ln is the dckt alias step's one new tool (ln -s). The banned set gets a
+# tripwire each.
+DL_REAL_TOOLS='curl tar gzip uname mktemp mkdir mv cp chmod rm grep sed cat dirname ln'
 DL_BANNED='bash python python3 perl shasum jq'
 
 # Build $SANDBOX/bin: real symlinks for the needed tools + a tripwire for each banned tool. $1
@@ -336,6 +339,73 @@ if have sha256sum; then
   if [ -s "$TRIP_LOG" ]; then nok "idempotent: a banned tool was invoked on rerun"; else ok "idempotent: tripwire log empty on rerun"; fi
 else
   ok "sha256sum absent on host — idempotent-rerun case skipped"
+fi
+
+# --- (G) the dckt alias: created, converged, and never taken from its owner ----------------------
+# Uses the host's readlink in the OUTER shell only (test scaffolding); the downloader itself
+# decides with `[ -L ]` / `[ -ef ]` builtins and creates with `ln -s`.
+if have sha256sum; then PROV_G=sha256sum; elif have openssl; then PROV_G=openssl; else PROV_G=''; fi
+if [ -n "$PROV_G" ]; then
+  ALIAS_ERR="$WORK/alias.err"
+
+  # (G1) fresh install creates a RELATIVE dckt -> docket and records it.
+  dl_build_sandbox "$PROV_G" || nok "G1: sandbox build failed"
+  dl_case; VER=v0.1.0; dl_mk_release "$RELEASES" "$VER"
+  ALIAS="$RUN_BIN/dckt"
+  dl_run --version "$VER" --harness claude 2>"$ALIAS_ERR"; rc=$?
+  if [ "$rc" = 0 ]; then ok "alias: fresh install exits 0"; else nok "alias: fresh install exit $rc"; fi
+  if [ -L "$ALIAS" ] && [ "$(readlink "$ALIAS")" = docket ]; then ok "alias: dckt is a relative symlink to docket"; else nok "alias: dckt missing or not -> docket ($(readlink "$ALIAS" 2>/dev/null))"; fi
+  if [ "$ALIAS" -ef "$DEST" ]; then ok "alias: dckt resolves to the installed binary"; else nok "alias: dckt does not resolve to $DEST"; fi
+  if grep -qxF "alias=$ALIAS" "$RECORD"; then ok "alias: ownership record names the alias"; else nok "alias: record lacks alias=: $(tr '\n' '|' < "$RECORD" 2>/dev/null)"; fi
+  if grep -qF warning "$ALIAS_ERR"; then nok "alias: fresh install warned: $(cat "$ALIAS_ERR")"; else ok "alias: fresh install printed no warning"; fi
+  if [ -s "$TRIP_LOG" ]; then nok "alias: a banned tool was invoked"; else ok "alias: tripwire log empty"; fi
+
+  # (G2) rerun converges: the link and the record are unchanged, no warning.
+  link_before=$(readlink "$ALIAS"); rec_before=$(cat "$RECORD")
+  : > "$FAKE_DOCKET_LOG"
+  dl_run --version "$VER" --harness claude 2>"$ALIAS_ERR"; rc=$?
+  if [ "$rc" = 0 ] && [ "$(readlink "$ALIAS")" = "$link_before" ] && [ "$(cat "$RECORD")" = "$rec_before" ]; then
+    ok "alias: rerun converges (exit 0, link and record unchanged)"
+  else
+    nok "alias: rerun did not converge (exit $rc)"
+  fi
+  if grep -qF warning "$ALIAS_ERR"; then nok "alias: converging rerun warned"; else ok "alias: converging rerun printed no warning"; fi
+
+  # (G3) a foreign regular file named dckt: untouched, install succeeds with a warning, not recorded.
+  dl_build_sandbox "$PROV_G" || nok "G3: sandbox build failed"
+  dl_case; dl_mk_release "$RELEASES" "$VER"
+  ALIAS="$RUN_BIN/dckt"
+  printf '#!/bin/sh\necho mine\n' > "$ALIAS"; foreign_sha=$(dl_sha "$ALIAS")
+  dl_run --version "$VER" --harness claude 2>"$ALIAS_ERR"; rc=$?
+  if [ "$rc" = 0 ]; then ok "alias-foreign-file: install exits 0"; else nok "alias-foreign-file: exit $rc"; fi
+  if [ ! -L "$ALIAS" ] && [ "$(dl_sha "$ALIAS")" = "$foreign_sha" ]; then ok "alias-foreign-file: foreign dckt byte-identical"; else nok "alias-foreign-file: foreign dckt was modified"; fi
+  if grep -qF "warning" "$ALIAS_ERR" && grep -qF -- "$ALIAS" "$ALIAS_ERR"; then ok "alias-foreign-file: warning names the path"; else nok "alias-foreign-file: no warning naming $ALIAS (got: $(tr '\n' ' ' < "$ALIAS_ERR"))"; fi
+  if grep -q '^alias=' "$RECORD"; then nok "alias-foreign-file: a foreign dckt was recorded as owned"; else ok "alias-foreign-file: record carries no alias="; fi
+  if [ -f "$DEST" ]; then ok "alias-foreign-file: the binary was still installed"; else nok "alias-foreign-file: binary missing"; fi
+
+  # (G4) an ABSOLUTE link to the binary (the development installer's spelling) converges silently.
+  dl_build_sandbox "$PROV_G" || nok "G4: sandbox build failed"
+  dl_case; dl_mk_release "$RELEASES" "$VER"
+  ALIAS="$RUN_BIN/dckt"
+  ln -s "$DEST" "$ALIAS"
+  dl_run --version "$VER" --harness claude 2>"$ALIAS_ERR"; rc=$?
+  if [ "$rc" = 0 ] && [ "$(readlink "$ALIAS")" = "$DEST" ]; then ok "alias-absolute: absolute link to docket left as is"; else nok "alias-absolute: exit $rc, link now $(readlink "$ALIAS" 2>/dev/null)"; fi
+  if grep -qF warning "$ALIAS_ERR"; then nok "alias-absolute: an owned absolute alias was warned about"; else ok "alias-absolute: no warning"; fi
+  if grep -qxF "alias=$ALIAS" "$RECORD"; then ok "alias-absolute: record names the alias"; else nok "alias-absolute: record lacks alias="; fi
+
+  # (G5) a symlink elsewhere, and a dangling one: both foreign, both untouched.
+  for _kind in elsewhere dangling; do
+    dl_build_sandbox "$PROV_G" || nok "G5: sandbox build failed"
+    dl_case; dl_mk_release "$RELEASES" "$VER"
+    ALIAS="$RUN_BIN/dckt"
+    case $_kind in elsewhere) _tgt="$SANDBOX/bin/cat" ;; dangling) _tgt="$RUN_BIN/gone" ;; esac
+    ln -s "$_tgt" "$ALIAS"
+    dl_run --version "$VER" --harness claude 2>"$ALIAS_ERR"; rc=$?
+    if [ "$rc" = 0 ] && [ "$(readlink "$ALIAS")" = "$_tgt" ]; then ok "alias-$_kind: install exits 0 and the link is untouched"; else nok "alias-$_kind: exit $rc, link now $(readlink "$ALIAS" 2>/dev/null)"; fi
+    if grep -qF warning "$ALIAS_ERR"; then ok "alias-$_kind: warned"; else nok "alias-$_kind: no warning"; fi
+  done
+else
+  ok "no hash provider on host — alias cases skipped"
 fi
 
 # --- (F) mutation pass: the tripwire assert is non-vacuous, and verification precedes install ----
