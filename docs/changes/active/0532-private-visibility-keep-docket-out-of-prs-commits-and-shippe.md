@@ -51,7 +51,10 @@ Once a leak is pushed it cannot be undone, and a rebase-merge would carry it int
 - Writing rules for grooming, the plan-writer, build and fix workers, and the PR author: no docket or `dckt` vocabulary and no change ids in specs, commits, code, or PR text.
 - A leak check, in private repositories only, scans commit messages, added lines (the spec copy included), and the PR title and description for docket and `dckt` fingerprints. Matching the bare word "docket" can be switched off. The check **blocks** the feature-branch push and the PR create or edit, and the run halts with a report naming the commit or line. This is a deliberate exception to report-only checks, because a pushed leak is irreversible.
 - `repository check` and `prepare` report a `docket` or `dckt` branch appearing on `origin` in a private repository. Report only.
-- Repository-level dispatch blocks (AGENTS.md, CLAUDE.md, the Cursor rule file) are not written in private repositories.
+- Repository-level dispatch blocks (AGENTS.md, CLAUDE.md) are not written in private repositories. Instead, each private repository gets a private instructions file under `.git/dckt/` holding the dispatch and run-tracker rules plus promoted lessons. A new `docket instructions` command prints it.
+- Delivery is set up once per machine by `docket install`, with no rule text in either surface:
+  - **Claude Code:** a user-level `SessionStart` hook loads the private instructions file automatically.
+  - **Codex and OpenCode:** a static pointer block in their user-level AGENTS.md.
 
 ## Out of scope
 
