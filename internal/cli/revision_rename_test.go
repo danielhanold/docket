@@ -160,7 +160,7 @@ func TestRevisionFlagReachesRequest(t *testing.T) {
 		{"", []string{"change", "reclaim", "--id", "1"}},
 		{"", []string{"change", "resume-halted", "--id", "1"}},
 		{"# Plan\n\nSteps.\n", []string{"change", "attach-plan", "--id", "1", "--path", "p.md", "--markdown", "-"}},
-		{"", []string{"change", "attach-results", "--id", "1", "--path", "r.md", "--commit", head}},
+		{"# R\n\n## Outcome\n\nDone.\n", []string{"change", "attach-results", "--id", "1", "--path", "r.md", "--markdown", "-"}},
 		{"", []string{"change", "mark-implemented", "--id", "1", "--head", head, "--pr", "https://github.com/o/r/pull/1", "--evidence", ev}},
 		{"{}", []string{"change", "halt", "--id", "1", "--input", "-"}},
 		{"{}", []string{"finalize", "block", "--id", "1", "--pr-number", "1", "--attempt", "x", "--reason", "rebase-stuck", "--head", head, "--input", "-"}},

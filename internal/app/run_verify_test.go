@@ -25,19 +25,24 @@ const (
 	rvPlanPath           = "docs/superpowers/plans/2026-08-17-widget-plan.md"
 	rvResultsPath        = "docs/changes/results/0003-widget-results.md"
 	rvResultsInvalidPath = "docs/changes/results/0003-widget-invalid-results.md"
+	// rvResultsHeadOnlyPath is a valid results file committed ONLY at the feature
+	// head and absent from the metadata branch: a record linking it has broken
+	// results identity, proving run verify never reads results at the head.
+	rvResultsHeadOnlyPath = "docs/changes/results/0003-widget-head-only-results.md"
 )
 
 // rvResultsValidContent is a minimal FINAL-valid results artifact: an H1 title
 // and a substantive ## Outcome. ValidateResultsContent(..., ResultsPhaseFinal)
 // accepts it, so run verify's results content check adds no condition — the
-// fixture head must carry a genuinely valid results file now that a linked
+// metadata branch must carry a genuinely valid results file now that a linked
 // results path is content-validated at the final boundary (change 0410).
 const rvResultsValidContent = "# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the widget behavior; the run now refuses the old path.\n"
 
 // rvResultsInvalidContent is a FINAL-invalid artifact: a whole-section filler
 // body (`None.`) under a real section, which ValidateResultsContent reports as
 // results-filler-section. The linked-but-invalid results path resolves to a
-// tracked regular file, so identity holds and only the content contract fails.
+// file on the metadata branch, so identity holds and only the content contract
+// fails.
 const rvResultsInvalidContent = "# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome prose describing the delivered behavior.\n\n## Findings and limitations\n\nNone.\n"
 
 func rvRecordedPR() string { return prRepo().Spec() + "#42" }
@@ -89,8 +94,8 @@ func rvPR(head, body string) githubcli.PullRequest {
 }
 
 // rvFixture is a real repo whose invocation clone holds a local feature commit
-// (head) carrying the plan and results artifacts, optionally published to the
-// bare origin as refs/heads/feat/widget.
+// (head), optionally published to the bare origin as refs/heads/feat/widget.
+// The plan and results artifacts live on the metadata branch (the fake reader).
 type rvFixture struct {
 	repo   *gitRepo
 	client *gitcli.Client
@@ -98,9 +103,10 @@ type rvFixture struct {
 	head   string
 }
 
-// newRunVerifyFixture builds the real-git fixture. The plan and results blobs are
-// committed at head so run verify's blob reads succeed; when publish is true the
-// feature head is pushed to origin so the remote-head postcondition holds.
+// newRunVerifyFixture builds the real-git fixture. The feature head carries the
+// implementation plus a results file that exists ONLY there
+// (rvResultsHeadOnlyPath); when publish is true the feature head is pushed to
+// origin so the remote-head postcondition holds.
 func newRunVerifyFixture(t *testing.T, publish bool) *rvFixture {
 	t.Helper()
 	requireRealGit(t)
@@ -108,9 +114,8 @@ func newRunVerifyFixture(t *testing.T, publish bool) *rvFixture {
 	client := newGitClient(t)
 
 	runGit(t, repo.invocation, "checkout", "-q", "-b", "feat/"+rvSlug)
-	writeRepoFile(t, repo.invocation, rvPlanPath, "# plan\n")
-	writeRepoFile(t, repo.invocation, rvResultsPath, rvResultsValidContent)
-	writeRepoFile(t, repo.invocation, rvResultsInvalidPath, rvResultsInvalidContent)
+	writeRepoFile(t, repo.invocation, "widget.go", "package widget\n")
+	writeRepoFile(t, repo.invocation, rvResultsHeadOnlyPath, rvResultsValidContent)
 	runGit(t, repo.invocation, "add", "-A")
 	runGit(t, repo.invocation, "commit", "-q", "-m", "feature work")
 	head := runGit(t, repo.invocation, "rev-parse", "HEAD")
@@ -122,22 +127,30 @@ func newRunVerifyFixture(t *testing.T, publish bool) *rvFixture {
 }
 
 // deps assembles the run-verify deps over a fixture: the fake reader supplies the
-// implemented corpus record and the plan on the metadata branch, the fake
-// workspace service reports the local head, the fake GitHub adapter reports the
-// PR, and the real client performs the remote probe and the head blob reads.
+// implemented corpus record and the plan and results files on the metadata
+// branch, the fake workspace service reports the local head, the fake GitHub
+// adapter reports the PR, and the real client performs the remote probe.
 func (f *rvFixture) deps(record []byte, pr githubcli.PullRequest) (PlanningDeps, WorkspaceDeps, GitHubDeps) {
 	reader := &fakeReader{
-		pin:    f.pin,
-		corpus: []StatusBlob{{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, rvSlug), Revision: miRevision, Data: record}},
-		facts:  domain.NewBranchFacts(nil),
-		artifactData: map[string]StatusArtifact{
-			sourceMetadata + "|" + rvPlanPath: {Found: true, Revision: "planblob", Data: []byte("# plan\n")},
-		},
+		pin:          f.pin,
+		corpus:       []StatusBlob{{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, rvSlug), Revision: miRevision, Data: record}},
+		facts:        domain.NewBranchFacts(nil),
+		artifactData: rvMetadataArtifacts(),
 	}
 	deps := PlanningDeps{Client: f.client, Reader: reader, Clock: testClock()}
 	wdeps := WorkspaceDeps{Service: &fakeWorkspaceService{inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(f.head)}}}
 	gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{pr}}}
 	return deps, wdeps, gdeps
+}
+
+// rvMetadataArtifacts is the metadata-branch file set every run-verify fixture
+// reader serves: the plan, a FINAL-valid results file, and a FINAL-invalid one.
+func rvMetadataArtifacts() map[string]StatusArtifact {
+	return map[string]StatusArtifact{
+		sourceMetadata + "|" + rvPlanPath:           {Found: true, Revision: "planblob", Data: []byte("# plan\n")},
+		sourceMetadata + "|" + rvResultsPath:        {Found: true, Revision: "resultsblob", Data: []byte(rvResultsValidContent)},
+		sourceMetadata + "|" + rvResultsInvalidPath: {Found: true, Revision: "invalidblob", Data: []byte(rvResultsInvalidContent)},
+	}
 }
 
 // unmetReasons projects the result's condition list onto its stable reason

@@ -42,9 +42,9 @@ import (
 //	    effective-base branch, names that head, and matches the supplied PR number
 //	    (parsePRRef reads the --pr assertion as either the full URL or shorthand);
 //	(5) a results artifact is attached (required since change 0410, trivial
-//	    changes included) and, at that head, resolves to a tracked regular file
-//	    that carries this change's backlink and satisfies the final results
-//	    content contract.
+//	    changes included) and resolves to a file on the metadata branch that
+//	    carries this change's backlink and satisfies the final results content
+//	    contract.
 //
 // The transaction records the verified PR's canonical URL (pr.URL) as the manifest
 // pr:, the board-safe form; the --pr assertion may be either form. A response-loss
@@ -111,15 +111,15 @@ const (
 	// caller supplied by reference (condition 4); maps to invalid-state.
 	ReasonImplementedPRReferenceMismatch = "pr-reference-mismatch"
 	// ReasonImplementedResultsIdentity: the attached results path no longer resolves
-	// to a tracked regular file at the supplied head, or its docket:backlink no
-	// longer targets this change (condition 5); invalid-state.
+	// to a file on the metadata branch, or its docket:backlink no longer targets
+	// this change (condition 5); invalid-state.
 	ReasonImplementedResultsIdentity = "results-identity-broken"
 	// ReasonImplementedResultsMissing: the change carries no attached results path;
 	// a results artifact is REQUIRED at the implemented boundary — trivial changes
 	// included (change 0410, condition 5); maps to invalid-state.
 	ReasonImplementedResultsMissing = "results-missing"
 	// ReasonImplementedResultsInvalid: the attached results artifact fails the FINAL
-	// results content contract at the supplied head (change 0410, condition 5);
+	// results content contract on the metadata branch (change 0410, condition 5);
 	// invalid-state.
 	ReasonImplementedResultsInvalid = "results-content-invalid"
 )
@@ -301,14 +301,14 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 
 	// (Condition 5) a results artifact is REQUIRED at the implemented boundary
 	// (change 0410) — for trivial changes too. The attached path must resolve to a
-	// tracked regular file at the supplied head, carry THIS change's backlink, and
-	// satisfy the FINAL results content contract.
+	// file on the pinned metadata tip, carry THIS change's backlink, and satisfy
+	// the FINAL results content contract. The feature head is never consulted.
 	resultsPath := strings.TrimSpace(c.Results().Value)
 	if resultsPath == "" {
 		return implementedRefusal(ResultInvalidState, ReasonImplementedResultsMissing,
 			fmt.Sprintf("change %04d has no attached results artifact; author and attach the final results before marking implemented", req.ID), req.ID)
 	}
-	if r := verifyImplementedResults(ctx, deps, repo, req.Head, resultsPath, c, linkContextOf(pin), req.ID); r != nil {
+	if r := verifyImplementedResults(ctx, deps, pin, resultsPath, c, linkContextOf(pin), req.ID); r != nil {
 		return *r
 	}
 
@@ -402,45 +402,40 @@ func resolveImplementedChange(ctx context.Context, deps PlanningDeps, pin Status
 	return c, c.Path(), revision, nil
 }
 
-// verifyImplementedResults reprobes the attached results artifact at the supplied
-// head against the FINAL results contract (change 0410). It confirms, in order:
-// the path still resolves to a tracked, regular file at that head
+// verifyImplementedResults reprobes the attached results artifact on the pinned
+// metadata tip against the FINAL results contract (change 0410). It confirms, in
+// order: the path still resolves to a file on the metadata branch
 // (results-identity-broken); the artifact still carries THIS change's backlink —
 // a missing/mismatched block or a malformed managed-block population is broken
 // results identity, not a prose defect (results-identity-broken); and the artifact
 // satisfies the final results content contract (results-content-invalid, naming
-// the first finding). The tracked-file reprobe catches a later fix that deleted or
-// replaced the recorded artifact; the backlink and content reprobes catch a head
-// whose results were edited away from the revision attach-results validated.
-func verifyImplementedResults(ctx context.Context, deps PlanningDeps, repo gitcli.Repository, head, resultsPath string, ch domain.Change, link render.LinkContext, id int) *ChangeLifecycleResult {
-	src, err := deps.Client.OpenObjectSource(ctx, repo, gitcli.Revision{Commit: gitcli.ObjectID(head)})
+// the first finding). The presence reprobe catches a record whose results file
+// was deleted or never written; the backlink and content reprobes catch results
+// edited away from the checkpoint attach-results validated.
+func verifyImplementedResults(ctx context.Context, deps PlanningDeps, pin StatusPin, resultsPath string, ch domain.Change, link render.LinkContext, id int) *ChangeLifecycleResult {
+	art, err := deps.Reader.ReadArtifact(ctx, pin, sourceMetadata, resultsPath)
 	if err != nil {
 		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsIdentity, err.Error(), id)
 		return &r
 	}
-	results, err := src.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(resultsPath)})
-	if err != nil {
-		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsIdentity, err.Error(), id)
-		return &r
-	}
-	if len(results) != 1 || !results[0].Found || results[0].Blob.Mode == "120000" {
+	if !art.Found {
 		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsIdentity,
-			fmt.Sprintf("the attached results path %q is not a tracked regular file at the supplied head", resultsPath), id)
+			fmt.Sprintf("the attached results path %q is not a file on the metadata branch", resultsPath), id)
 		return &r
 	}
 
-	artifactBytes := results[0].Blob.Bytes
+	artifactBytes := art.Data
 
-	// The artifact must still carry this change's backlink at the head.
+	// The artifact must still carry this change's backlink.
 	targets, err := backlinkTargets(artifactBytes, ch, link)
 	if err != nil {
 		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsIdentity,
-			fmt.Sprintf("the attached results artifact %q has a malformed or unreadable backlink at the supplied head: %v", resultsPath, err), id)
+			fmt.Sprintf("the attached results artifact %q has a malformed or unreadable backlink on the metadata branch: %v", resultsPath, err), id)
 		return &r
 	}
 	if !targets {
 		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsIdentity,
-			fmt.Sprintf("the attached results artifact %q does not carry this change's backlink at the supplied head", resultsPath), id)
+			fmt.Sprintf("the attached results artifact %q does not carry this change's backlink on the metadata branch", resultsPath), id)
 		return &r
 	}
 

@@ -304,10 +304,10 @@ func TestChangeClaimCommandsReachOperation(t *testing.T) {
 }
 
 // TestChangeAttachCommandsRegistered proves attach-plan and attach-results are
-// wired as change subcommands carrying their kind's flag set: attach-plan takes
-// the scalar --id/--revision/--path plus the --markdown body file (the plan is
-// written on the metadata branch) and no --commit; attach-results still names a
-// verified feature commit with --commit.
+// wired as change subcommands carrying one shared flag set: the scalar
+// --id/--revision/--path plus the --markdown body file (both artifacts are
+// written on the metadata branch) and no --commit (the feature head is never
+// part of an attach).
 func TestChangeAttachCommandsRegistered(t *testing.T) {
 	root := captureTree(t)
 	cases := []struct {
@@ -316,7 +316,7 @@ func TestChangeAttachCommandsRegistered(t *testing.T) {
 		without []string
 	}{
 		{"attach-plan", []string{"id", "revision", "path", "markdown", "repo-dir"}, []string{"commit"}},
-		{"attach-results", []string{"id", "revision", "path", "commit", "repo-dir"}, []string{"markdown"}},
+		{"attach-results", []string{"id", "revision", "path", "markdown", "repo-dir"}, []string{"commit"}},
 	}
 	for _, c := range cases {
 		cmd, _, err := root.Find([]string{"change", c.sub})
@@ -395,18 +395,24 @@ func TestChangeMarkImplementedReachesOperation(t *testing.T) {
 	}
 }
 
-// TestChangeAttachFlagsRequired proves the scalar flags are required: omitting
-// them is an argument error (exit 2) before any operation runs.
+// TestChangeAttachFlagsRequired proves the scalar flags and the artifact body
+// are required on both attach verbs: omitting them is an argument error (exit 2)
+// before any operation runs.
 func TestChangeAttachFlagsRequired(t *testing.T) {
-	_, errS, code := runCLI(t, "change", "attach-plan")
-	if code != 2 || errS == "" {
-		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
-	}
-	// The plan body is required: every scalar present but no --markdown.
-	_, errS, code = runCLI(t, "change", "attach-plan", "--id", "7",
-		"--revision", "1234123412341234123412341234123412341234", "--path", "docs/superpowers/plans/x.md")
-	if code != 2 || !strings.Contains(errS, "markdown") {
-		t.Fatalf("err=%q code=%d, want a required --markdown argument error", errS, code)
+	for _, c := range []struct{ sub, path string }{
+		{"attach-plan", "docs/superpowers/plans/x.md"},
+		{"attach-results", "docs/results/x-results.md"},
+	} {
+		_, errS, code := runCLI(t, "change", c.sub)
+		if code != 2 || errS == "" {
+			t.Fatalf("%s: err=%q code=%d, want a required-flag argument error", c.sub, errS, code)
+		}
+		// The artifact body is required: every scalar present but no --markdown.
+		_, errS, code = runCLI(t, "change", c.sub, "--id", "7",
+			"--revision", "1234123412341234123412341234123412341234", "--path", c.path)
+		if code != 2 || !strings.Contains(errS, "markdown") {
+			t.Fatalf("%s: err=%q code=%d, want a required --markdown argument error", c.sub, errS, code)
+		}
 	}
 }
 
@@ -420,12 +426,16 @@ func TestChangeAttachCommandsReachOperation(t *testing.T) {
 	if err := os.WriteFile(planFile, []byte("# Plan\n\n## Task 1\n\nDo it.\n"), 0o644); err != nil {
 		t.Fatalf("seed plan: %v", err)
 	}
+	resultsFile := filepath.Join(dir, "results.md")
+	if err := os.WriteFile(resultsFile, []byte("# Widget — Results\n\n## Outcome\n\nDelivered.\n"), 0o644); err != nil {
+		t.Fatalf("seed results: %v", err)
+	}
 	cases := []struct {
 		sub, op string
 		args    []string
 	}{
 		{"attach-plan", "change.attach-plan", []string{"--path", "docs/superpowers/plans/x.md", "--markdown", planFile}},
-		{"attach-results", "change.attach-results", []string{"--path", "docs/results/x-results.md", "--commit", "1234123412341234123412341234123412341234"}},
+		{"attach-results", "change.attach-results", []string{"--path", "docs/results/x-results.md", "--markdown", resultsFile}},
 	}
 	for _, c := range cases {
 		args := append([]string{"change", c.sub, "--id", "7", "--revision", "1234123412341234123412341234123412341234"}, c.args...)

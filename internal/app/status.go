@@ -516,10 +516,10 @@ func readinessReason(r domain.Readiness) string {
 }
 
 // artifactChecks verifies each non-empty artifact link of an active change
-// against the sources its kind lives on, in order: the spec and the plan on the
-// metadata branch — a plan absent there falls back to the integration branch,
-// where a record closed before plans moved to the metadata branch keeps it —
-// and results on the integration branch. A target absent from every source is
+// against the sources its kind lives on, in order: the spec, the plan, and the
+// results on the metadata branch — a plan or results absent there falls back to
+// the integration branch, where a record closed before they moved to the
+// metadata branch keeps them. A target absent from every source is
 // an error finding; an empty link produces no finding (a distinct, benign
 // state). An ArtifactExists error propagates as an operation failure.
 func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, c domain.Change) ([]StatusFinding, error) {
@@ -531,7 +531,7 @@ func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, c d
 	}{
 		{"spec", c.Spec(), []string{sourceMetadata}},
 		{"plan", c.Plan(), []string{sourceMetadata, sourceIntegration}},
-		{"results", c.Results(), []string{sourceIntegration}},
+		{"results", c.Results(), []string{sourceMetadata, sourceIntegration}},
 	}
 	for _, link := range links {
 		if link.value.State != domain.FieldPresent || link.value.Value == "" {

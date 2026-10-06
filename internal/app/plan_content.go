@@ -40,7 +40,8 @@ func isPlanFillerBody(body string) bool {
 // fenced lines never parse as headings but DO count as slot content (code is
 // substantive). The returned slot names the offending section for the refusal
 // message. A non-parsing document returns not-found: at the attach seam the
-// backlink guard (verifyBacklink) has already refused it before this runs.
+// body's parse check (checkAttachMarkdown) has already refused it before this
+// runs.
 func planPlaceholderSlot(source []byte) (string, bool) {
 	doc, err := document.Parse(source)
 	if err != nil {

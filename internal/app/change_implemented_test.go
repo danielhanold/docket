@@ -134,14 +134,17 @@ func TestMarkImplementedApplies(t *testing.T) {
 
 // --- reprobe fixture --------------------------------------------------------
 
-// The results artifact paths the mark-implemented fixtures commit at the feature
-// head. A results artifact is REQUIRED at the implemented boundary since change
+// The results artifact paths the mark-implemented fixtures place on the metadata
+// branch. A results artifact is REQUIRED at the implemented boundary since change
 // 0410, so every happy fixture attaches miResultsPath; the -invalid / -mismatch
-// variants ride the same head so a condition-5 row can point k.results at them.
+// variants sit beside it so a condition-5 row can point k.results at them. The
+// -head-only path is committed ONLY at the feature head (miHeadFiles) and never
+// on the metadata branch, so a row linking it proves the head is not consulted.
 const (
 	miResultsPath         = "docs/results/2026-08-17-widget-results.md"
 	miResultsInvalidPath  = "docs/results/2026-08-17-widget-invalid.md"
 	miResultsMismatchPath = "docs/results/2026-08-17-widget-mismatch.md"
+	miResultsHeadOnlyPath = "docs/results/2026-08-17-widget-head-only.md"
 )
 
 // miResultsArtifact is a FINAL-valid results artifact for change 3: the correct
@@ -163,7 +166,7 @@ func miResultsFinalInvalid() string {
 }
 
 // miResultsBacklinkMismatch carries a well-formed backlink that targets a DIFFERENT
-// change id, so its results identity is broken at the head (results-identity-broken)
+// change id, so its results identity is broken (results-identity-broken)
 // even though its prose would satisfy the final content contract.
 func miResultsBacklinkMismatch() string {
 	return attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md") +
@@ -171,23 +174,28 @@ func miResultsBacklinkMismatch() string {
 }
 
 // miHeadFiles is the feature-head file set the happy mark-implemented fixtures
-// commit: the implementation file plus every results artifact variant the
-// condition-5 rows reference.
+// commit: the implementation file plus a valid results file that exists ONLY at
+// the head (results live on the metadata branch, so it never satisfies a link).
 func miHeadFiles() map[string]string {
 	return map[string]string{
 		"impl.go":             "package impl\n",
+		miResultsHeadOnlyPath: miResultsArtifact(),
+	}
+}
+
+// miMetadataResults is the results artifact set the mark-implemented fixtures
+// place on the metadata branch: every variant the condition-5 rows reference.
+func miMetadataResults() map[string]string {
+	return map[string]string{
 		miResultsPath:         miResultsArtifact(),
 		miResultsInvalidPath:  miResultsFinalInvalid(),
 		miResultsMismatchPath: miResultsBacklinkMismatch(),
 	}
 }
 
-// miAdvanceHead commits the happy feature head (the implementation file plus the
-// results artifact variants) in the writer clone, pushes it to origin, and fetches
-// it into the invocation clone so the mark-implemented client can read the results
-// blob at that head LOCALLY — as the primary tree can in a real run. The invocation
-// clone is created before writerAdvance's push, so without this fetch the head's
-// objects are remote-only and OpenObjectSource fails ref-unavailable.
+// miAdvanceHead commits the happy feature head (miHeadFiles) in the writer
+// clone, pushes it to origin, and fetches it into the invocation clone so the
+// head's objects are local to the primary tree, as they are in a real run.
 func miAdvanceHead(t *testing.T, repo *gitRepo) string {
 	t.Helper()
 	head := repo.writerAdvance(t, "feat/"+miSlug, miHeadFiles())
@@ -228,7 +236,11 @@ func buildMI(t *testing.T, client *gitcli.Client, invocation string, k miKit) (
 		Revision: k.revision,
 		Data:     []byte(miRecord(3, miSlug, k.plan, k.results, k.reconciled, k.trivial)),
 	}
-	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{blob}, facts: domain.NewBranchFacts(nil)}
+	artifacts := map[string]StatusArtifact{}
+	for p, content := range miMetadataResults() {
+		artifacts[sourceMetadata+"|"+p] = StatusArtifact{Found: true, Revision: "resultsblob", Data: []byte(content)}
+	}
+	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{blob}, facts: domain.NewBranchFacts(nil), artifactData: artifacts}
 	engine := &recordingEngine{result: transaction.Result{
 		Disposition:   transaction.DispositionApplied,
 		AppliedCommit: "cafebabecafebabecafebabecafebabecafebabe",
@@ -273,7 +285,10 @@ func firstStatusFindingCode(findings []StatusFinding) string {
 // unparseable record; the GitHub and workspace seams stay scripted.
 
 // miRealRun runs mark-implemented through the production planning seams over
-// repo, with every reprobe condition satisfied for head.
+// repo, with every reprobe condition satisfied for head. The repo's metadata
+// branch must carry the results (seed it with advanceDocketOrigin and
+// miMetadataResults AFTER miAdvanceHead, which branches from the writer's
+// current checkout).
 func miRealRun(t *testing.T, repo *gitRepo, recPath, head string) ChangeLifecycleResult {
 	t.Helper()
 	return miRealRunWith(t, repo, recPath, head, prEvidenceBytes(t, head))

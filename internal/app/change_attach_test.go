@@ -377,27 +377,110 @@ func assertNothingAttempted(t *testing.T, res ChangeAttachResult, engine *record
 	}
 }
 
-// --- TestChangeAttachResultsPatch ------------------------------------------
+// --- attach-results: results are written on the metadata branch -------------
 
-// TestChangeAttachResultsPatch proves the results transaction stores the results
-// path in the owned results: field, leaving plan: untouched, and (until results
-// move to the metadata branch) declares no artifact file.
-func TestChangeAttachResultsPatch(t *testing.T) {
+// attachTestResultsPath is the canonical results path the results-kind unit
+// tests attach (inside the configured results root).
+const attachTestResultsPath = "docs/results/2026-08-17-widget-results.md"
+
+// attachTestResultsMarkdown is a truthful checkpoint results body (no backlink
+// block): a title and one real Outcome paragraph.
+const attachTestResultsMarkdown = "# Widget — Results\n\n## Outcome\n\nDelivered the in-progress slice; behavior X now refuses Y.\n"
+
+// resultsAttachOp is baseAttachOp for the results kind carrying the stored
+// artifact bytes the driver assembles for change 3, built by the production
+// metadataArtifactBytes.
+func resultsAttachOp(t *testing.T, surfaces []string, markdown string) changeAttachOp {
+	t.Helper()
+	op := baseAttachOp(surfaces, 3, attachKindResults, attachTestResultsPath)
+	artifact, err := metadataArtifactBytes([]byte(markdown), attachBacklinkBlock(3, "A change", groomPath(3, "widget")))
+	if err != nil {
+		t.Fatalf("metadataArtifactBytes: %v", err)
+	}
+	op.artifactBytes = artifact
+	return op
+}
+
+// TestAttachResultsWritesFileAndField proves one metadata transaction stores the
+// results path in the owned results: field (plan: untouched) AND creates the
+// results file whose bytes are the rendered backlink prepended to the authored
+// Markdown.
+func TestAttachResultsWritesFileAndField(t *testing.T) {
 	recPath := groomPath(3, "widget")
-	resultsPath := "docs/results/2026-08-17-widget-results.md"
 	files := map[string]string{recPath: lifecycleChange(3, "widget", "in-progress")}
-	plan, opRes := attachPlanFor(t, files, baseAttachOp(nil, 3, attachKindResults, resultsPath))
+	plan, opRes := attachPlanFor(t, files, resultsAttachOp(t, nil, attachTestResultsMarkdown))
 	if opRes.Refused {
 		t.Fatalf("unexpected refusal: %v", opRes.Findings)
 	}
-	assertPlanPaths(t, plan, map[string]transaction.MutationKind{recPath: transaction.MutationReplace})
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		recPath:               transaction.MutationReplace,
+		attachTestResultsPath: transaction.MutationCreate,
+	})
 	rec := lifecycleRecordBytes(t, plan, recPath)
-	if !strings.Contains(rec, "results: '"+resultsPath+"'") {
+	if !strings.Contains(rec, "results: '"+attachTestResultsPath+"'") {
 		t.Errorf("attached record missing results field:\n%s", rec)
 	}
 	if strings.Contains(rec, "plan: '") {
 		t.Errorf("attach-results wrote a plan field:\n%s", rec)
 	}
+	want := assembleSpecFile(attachBacklinkBlock(3, "A change", recPath), attachTestResultsMarkdown)
+	if got := plannedFile(t, plan, attachTestResultsPath).Bytes; string(got) != string(want) {
+		t.Errorf("results file bytes =\n%q\nwant\n%q", got, want)
+	}
+}
+
+// TestAttachResultsCheckpointContentRefuses proves a raw template scaffold (an
+// unfilled H1 and Outcome body) refuses results-content-invalid before any pin
+// or engine work, while a plan-only rule (a placeholder-token slot) is never
+// applied to results.
+func TestAttachResultsCheckpointContentRefuses(t *testing.T) {
+	scaffold := "# <Change title> — Results\n\n## Outcome\n\n<The original problem, the delivered behavior, and any material departure from the\nagreed design — lead with observable effects.>\n"
+	res, engine, reader := runAttachResultsUnit(t, ChangeAttachRequest{ID: 3, Revision: blobV, Path: attachTestResultsPath, Markdown: []byte(scaffold)})
+	if res.Result != ResultInvalidState || res.Reason != ReasonAttachResultsContent {
+		t.Fatalf("result/reason = %q/%q, want invalid-state/%q (msg %q)", res.Result, res.Reason, ReasonAttachResultsContent, res.Message)
+	}
+	if res.Kind != attachKindResults || res.Envelope.Operation != OperationChangeAttachResults {
+		t.Errorf("refusal names kind %q operation %q, want results/%s", res.Kind, res.Envelope.Operation, OperationChangeAttachResults)
+	}
+	assertNothingAttempted(t, res, engine, reader)
+}
+
+// TestAttachResultsLaterCheckpointReplacesContent proves a later checkpoint at
+// the already linked results path replaces the file's content in one
+// MutationReplace and leaves the record undeclared (same day, field already
+// set) — every checkpoint is a metadata commit, never a feature commit.
+func TestAttachResultsLaterCheckpointReplacesContent(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	files := map[string]string{recPath: lifecycleChange(3, "widget", "in-progress")}
+	first, opRes := attachPlanFor(t, files, resultsAttachOp(t, nil, attachTestResultsMarkdown))
+	if opRes.Refused {
+		t.Fatalf("first checkpoint refused: %v", opRes.Findings)
+	}
+	files[recPath] = lifecycleRecordBytes(t, first, recPath)
+	files[attachTestResultsPath] = string(plannedFile(t, first, attachTestResultsPath).Bytes)
+
+	later := "# Widget — Results\n\n## Outcome\n\nDelivered the whole widget; the gate certifies the head.\n"
+	second, opRes := attachPlanFor(t, files, resultsAttachOp(t, nil, later))
+	if opRes.Refused {
+		t.Fatalf("later checkpoint refused: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, second, map[string]transaction.MutationKind{
+		attachTestResultsPath: transaction.MutationReplace,
+	})
+	if got := string(plannedFile(t, second, attachTestResultsPath).Bytes); !strings.Contains(got, "the gate certifies the head") {
+		t.Errorf("later checkpoint did not write the revised content:\n%s", got)
+	}
+}
+
+// runAttachResultsUnit drives ChangeAttachResults over a recording engine and a
+// reader that records whether it was pinned, with no git client and no
+// workspace seam at all: the results attach never consults the feature head.
+func runAttachResultsUnit(t *testing.T, req ChangeAttachRequest) (ChangeAttachResult, *recordingEngine, *fakeChangeReader) {
+	t.Helper()
+	engine := &recordingEngine{}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+	return ChangeAttachResults(context.Background(), deps, "", req), engine, reader
 }
 
 // --- TestChangeAttachContention --------------------------------------------
@@ -420,40 +503,41 @@ func TestChangeAttachContention(t *testing.T) {
 
 // --- TestChangeAttachResultsRejectsBadShape --------------------------------
 
-// TestChangeAttachResultsRejectsBadShape proves the results request-shape check
-// refuses a malformed request before any pin/engine work, for every missing
-// scalar (results still verify a feature commit, so commit is required).
+// TestChangeAttachResultsRejectsBadShape proves the results request-shape checks
+// refuse before any pin or engine work: every missing scalar, and an empty or
+// oversized Markdown body. The request carries no commit — the feature head is
+// never part of a results attach.
 func TestChangeAttachResultsRejectsBadShape(t *testing.T) {
-	valid := ChangeAttachRequest{ID: 3, Revision: blobV, Path: "docs/results/x-results.md", Commit: blobV}
+	valid := ChangeAttachRequest{ID: 3, Revision: blobV, Path: attachTestResultsPath, Markdown: []byte(attachTestResultsMarkdown)}
 	cases := []struct {
-		name string
-		mut  func(*ChangeAttachRequest)
-		code string
+		name   string
+		mut    func(*ChangeAttachRequest)
+		code   string
+		reason string
 	}{
-		{"non-positive id", func(r *ChangeAttachRequest) { r.ID = 0 }, "invalid-id"},
-		{"empty path", func(r *ChangeAttachRequest) { r.Path = "" }, "empty-path"},
-		{"empty revision", func(r *ChangeAttachRequest) { r.Revision = "" }, "empty-revision"},
-		{"empty commit", func(r *ChangeAttachRequest) { r.Commit = " " }, "empty-commit"},
+		{name: "non-positive id", mut: func(r *ChangeAttachRequest) { r.ID = 0 }, code: "invalid-id"},
+		{name: "empty path", mut: func(r *ChangeAttachRequest) { r.Path = "" }, code: "empty-path"},
+		{name: "empty revision", mut: func(r *ChangeAttachRequest) { r.Revision = "" }, code: "empty-revision"},
+		{name: "empty markdown", mut: func(r *ChangeAttachRequest) { r.Markdown = nil }, reason: ReasonAttachEmptyMarkdown},
+		{name: "too large", mut: func(r *ChangeAttachRequest) {
+			r.Markdown = []byte("# R\n\n" + strings.Repeat("x", maxAuthoredMarkdownBytes) + "\n")
+		}, reason: ReasonAttachMarkdownTooLarge},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			req := valid
 			c.mut(&req)
-			engine := &recordingEngine{}
-			reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
-			deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
-
-			res := ChangeAttachResults(context.Background(), deps, WorkspaceDeps{}, "", req)
-
+			res, engine, reader := runAttachResultsUnit(t, req)
 			if res.Result != ResultInvalidInput {
-				t.Fatalf("result = %q, want invalid-input", res.Result)
+				t.Fatalf("result = %q, want invalid-input (reason %q)", res.Result, res.Reason)
 			}
-			if len(engine.calls) != 0 {
-				t.Errorf("engine called %d times on a shape failure, want 0", len(engine.calls))
-			}
-			if !hasFindingCode(res.Findings, c.code) {
+			if c.code != "" && !hasFindingCode(res.Findings, c.code) {
 				t.Errorf("missing finding %q; got %v", c.code, res.Findings)
 			}
+			if c.reason != "" && res.Reason != c.reason {
+				t.Errorf("reason = %q, want %q", res.Reason, c.reason)
+			}
+			assertNothingAttempted(t, res, engine, reader)
 		})
 	}
 }
@@ -461,21 +545,24 @@ func TestChangeAttachResultsRejectsBadShape(t *testing.T) {
 // --- TestChangeAttachResultsIdenticalReattachIsNoOp ------------------------
 
 // TestChangeAttachResultsIdenticalReattachIsNoOp pins the same-path same-day
-// results re-attach (change 0458): an identical re-attach declares NO files.
+// results re-attach (change 0458): once the record stores the path with today's
+// date and the results file holds the same bytes, an identical re-attach
+// declares NO files.
 func TestChangeAttachResultsIdenticalReattachIsNoOp(t *testing.T) {
 	recPath := groomPath(3, "widget")
 	files := map[string]string{
 		recPath:                 lifecycleChange(3, "widget", "in-progress"),
 		"docs/changes/BOARD.md": "# Backlog\n\nold\n",
 	}
-	op := baseAttachOp([]string{"inline"}, 3, attachKindResults, "docs/results/2026-09-25-widget-results.md")
+	op := resultsAttachOp(t, []string{"inline"}, attachTestResultsMarkdown)
 
 	first, opRes := attachPlanFor(t, files, op)
 	if opRes.Refused {
 		t.Fatalf("first attach refused: %v", opRes.Findings)
 	}
-	files[recPath] = lifecycleRecordBytes(t, first, recPath)
-	files["docs/changes/BOARD.md"] = lifecycleRecordBytes(t, first, "docs/changes/BOARD.md")
+	for _, f := range first.Files {
+		files[string(f.Path)] = string(f.Bytes)
+	}
 
 	second, opRes := attachPlanFor(t, files, op)
 	if opRes.Refused {

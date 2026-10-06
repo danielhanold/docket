@@ -576,8 +576,8 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 
 	// Retitle gate (change 0461). A proposed change revived from a deferred
 	// in-progress claim keeps its feature-branch artifacts; their backlinks embed
-	// the title and are identity-checked (attach's backlink-mismatch,
-	// mark-implemented's results-identity-broken), so renaming it here would
+	// the title and are identity-checked (mark-implemented's
+	// results-identity-broken), so renaming it here would
 	// silently break the later build. A title equal to the current one is no
 	// retitle and passes.
 	if o.req.Title != "" && o.req.Title != c.Title() &&

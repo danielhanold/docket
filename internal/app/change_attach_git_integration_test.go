@@ -5,39 +5,23 @@ package app
 import (
 	"context"
 	"github.com/danielhanold/docket/internal/workspace"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
-// symlinkRepoFile creates a symlink at a repo-relative path (creating parents)
-// pointing at target, so a committed artifact can be a symlink (mode 120000).
-func symlinkRepoFile(t *testing.T, root, rel, target string) {
-	t.Helper()
-	p := filepath.Join(root, rel)
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(target, p); err != nil {
-		t.Fatal(err)
-	}
-}
-
 // These are the real-git attach fixtures: they drive the real ChangeAttachPlan
 // and ChangeAttachResults operations over a real prepared workspace and a real
-// bare metadata remote. attach-plan writes the plan on the metadata branch, so
-// its guards (path containment, body shape, a field naming another path, an
-// occupied path) are exercised against the remote; attach-results still
-// verifies an artifact committed at the feature head, so its rows commit first.
+// bare metadata remote. Both write their artifact on the metadata branch, so
+// their guards (path containment, body shape, a field naming another path, an
+// occupied path) are exercised against the remote; the prepared workspace is
+// only there to prove the feature branch is never touched.
 // Each refusal row asserts its own stable reason string — proof the guard
 // reddens for the reason it names, not merely that something failed (learning
 // assert-pins-outcome-not-mechanism).
 
 // attachSetup builds a repo with one in-progress change, prepares its feature
 // workspace against the resolved base, and returns everything a row needs. The
-// workspace sits on the feature ref at the base tip; a results row commits its
-// own artifact variant before attaching.
+// workspace sits on the feature ref at the base tip.
 type attachFixture struct {
 	ctx        context.Context
 	deps       PlanningDeps
@@ -103,7 +87,7 @@ func (f *attachFixture) reset(t *testing.T) {
 }
 
 // commitArtifact writes files into the feature workspace and commits them,
-// returning the new head (the results artifact a results row attaches).
+// returning the new head.
 func (f *attachFixture) commitArtifact(t *testing.T, files map[string]string) string {
 	t.Helper()
 	for rel, content := range files {

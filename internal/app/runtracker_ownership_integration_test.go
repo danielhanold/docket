@@ -31,8 +31,8 @@ import (
 // run-complete against the one branch the fixture published.
 
 // mxImplementedRecord renders an implemented change (id, slug) whose linkage
-// verifies against the shared rv fixture: plan/results at the fixture head, the
-// recorded PR, and branch feat/widget (the branch newRunVerifyFixture pushed), so
+// verifies against the shared rv fixture: plan/results on the metadata branch
+// (rvMetadataArtifacts), the recorded PR, and branch feat/widget (the branch newRunVerifyFixture pushed), so
 // RunVerify reports run-complete for any id that reuses that one feature branch.
 func mxImplementedRecord(id int, slug string) []byte {
 	src := lifecycleChange(id, slug, "in-progress")
@@ -77,15 +77,16 @@ func mxBlob(id int, slug string, record []byte) StatusBlob {
 
 // mxDeps assembles run-verify deps over the rv fixture for a single change (id,
 // slug), mirroring rvFixture.deps but generalized off change 3: the reader supplies
-// one record, the fake workspace reports the fixture head, the fake GitHub reports
-// the fixture PR, and the real client performs the remote/blob probes. The caller
-// attaches wdeps.ClaimProofs.
+// one record and the plan and results files on the metadata branch, the fake
+// workspace reports the fixture head, the fake GitHub reports the fixture PR, and
+// the real client performs the remote probe. The caller attaches wdeps.ClaimProofs.
 func mxDeps(t *testing.T, f *rvFixture, id int, slug string, record []byte) (PlanningDeps, WorkspaceDeps, GitHubDeps) {
 	t.Helper()
 	reader := &fakeReader{
-		pin:    f.pin,
-		corpus: []StatusBlob{mxBlob(id, slug, rvWithEvidence(t, record, prEvidenceBytes(t, f.head)))},
-		facts:  domain.NewBranchFacts(nil),
+		pin:          f.pin,
+		corpus:       []StatusBlob{mxBlob(id, slug, rvWithEvidence(t, record, prEvidenceBytes(t, f.head)))},
+		facts:        domain.NewBranchFacts(nil),
+		artifactData: rvMetadataArtifacts(),
 	}
 	deps := PlanningDeps{Client: f.client, Reader: reader, Clock: testClock()}
 	wdeps := WorkspaceDeps{Service: &fakeWorkspaceService{inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(f.head)}}}
@@ -219,7 +220,7 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 	mxBind(t, f.repo.invocation, key, 3, "claim-3-v", "rA")
 
 	verdict := func(proofs []ClaimProof, corpus []StatusBlob) RunVerdictResult {
-		reader := &fakeReader{pin: f.pin, corpus: corpus, facts: domain.NewBranchFacts(nil)}
+		reader := &fakeReader{pin: f.pin, corpus: corpus, facts: domain.NewBranchFacts(nil), artifactData: rvMetadataArtifacts()}
 		deps := PlanningDeps{Client: f.client, Reader: reader, Clock: testClock()}
 		wdeps := WorkspaceDeps{
 			Service:     &fakeWorkspaceService{inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(f.head)}},

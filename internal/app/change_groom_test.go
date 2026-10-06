@@ -1783,8 +1783,8 @@ func revivedReviseFiles() map[string]string {
 // TestChangeGroomPlanRetitleRefusedWithFeatureArtifacts pins that a retitle of a
 // proposed change still carrying branch:/plan:/results: refuses not-retitleable
 // and writes nothing: those artifacts' backlinks embed the title and are
-// identity-checked by attach (backlink-mismatch) and mark-implemented
-// (results-identity-broken), so a retitle would silently break them. A request
+// identity-checked by mark-implemented (results-identity-broken), so a retitle
+// would silently break them. A request
 // repeating the current title changes nothing and is not refused.
 func TestChangeGroomPlanRetitleRefusedWithFeatureArtifacts(t *testing.T) {
 	plan, opRes := groomPlanFor(t, revivedReviseFiles(), baseGroomOp([]string{}, titleOnlyReviseRequest("Renamed widget")))
