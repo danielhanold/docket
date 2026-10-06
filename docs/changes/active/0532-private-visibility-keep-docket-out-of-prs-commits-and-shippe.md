@@ -9,7 +9,7 @@ created: '2026-10-05'
 updated: '2026-10-06'
 depends_on: [530, 531]
 stacked_on:
-related: [529, 533]
+related: [529, 533, 334, 351]
 discovered_from: []
 adrs: [36, 78]
 spec: 'docs/superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md'

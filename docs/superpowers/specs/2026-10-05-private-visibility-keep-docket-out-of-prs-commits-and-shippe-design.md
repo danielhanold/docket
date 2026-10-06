@@ -12,6 +12,8 @@ In a private repository, other people see what docket ships: feature branches, P
 
 This change removes those traces and adds a **blocking** leak check as the backstop, in private repositories only. The goal is that nothing reaching `origin` through a private repository's feature branch or PR contains a docket or `dckt` fingerprint.
 
+It also gives private repositories their own **instructions file**, `<git-common-dir>/dckt/AGENTS.md`. That file holds the dispatch and run-tracker rules and any promoted lessons: the role the repository's own AGENTS.md plays in shared repositories. It is delivered to each harness without any file in the repository.
+
 ## Evidence gathered at grooming
 
 - **PR body.**
@@ -25,6 +27,10 @@ This change removes those traces and adds a **blocking** leak check as the backs
   - Observed `docs(plan): change 0507 …` subjects are inherited habit, not a template, and change ids leak into commit subjects through plan text.
 - **Spec copy.** #530 ships the spec as the feature branch's first commit. Specs habitually carry `Change #N, groomed …`, `.docket/` paths, ADR numbers, and backlog references.
 - **Repository-level instruction files.** The `agent_harnesses` repository phase (`reposeed.Plan`, `installAuthorizedSurfaces` in `internal/app/repository_init.go`, `internal/app/repophase.go`) writes the AGENTS.md and CLAUDE.md dispatch blocks and `.cursor/rules/docket-dispatch.mdc`.
+- **The dispatch rules exist only in the repository's own instructions file.** Since changes 0334 and 0351, the dispatch block (dispatch the named agent, bracket each implement-next run with `run.start` / `run.verdict`) is written only to a repository's own CLAUDE.md or AGENTS.md. `docket install` writes no user-level copy and retires old ones (`GlobalDispatchTarget` in `internal/harness/claude/claude.go`; the same pattern holds for codex and opencode). 0334 removed the user-level copy because a **second copy of the rules drifted**.
+  - At grooming, `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, and `~/.config/opencode/AGENTS.md` contained no docket text.
+  - Simply suppressing the repository-level block in a private repository would therefore leave the parent agent with **no** dispatch or run-tracker rules.
+- **Learnings promotion** lands a graduated rule in the integration-branch AGENTS.md or CLAUDE.md by hand (`skills/docket-convention/references/learnings.md`, *Promotion*). A restricted repository does not allow that edit.
 - **Feature-branch pushes** go through `workspace.Service.PublishHead` (`internal/workspace/publish.go`). PR create and edit go through `pr.publish`. Finalize's force-push after a rebase goes through `finalize.publish`.
 
 ## Decisions (settled with the human)
@@ -36,6 +42,11 @@ This change removes those traces and adds a **blocking** leak check as the backs
 5. The check also matches `dckt`. Matching the bare word "docket" can be switched off for codebases where it is an ordinary domain word (court or shipping dockets).
 6. A `docket` or `dckt` branch appearing on `origin` in a private repository is reported, never blocked.
 7. Sparse documentation: `.docket.example.yml`, command help, and skills only.
+8. **A private repository's parent-facing rules live in `<git-common-dir>/dckt/AGENTS.md`**: the dispatch block plus promoted lessons. They are loaded per harness as follows:
+   - **Claude Code** runs `docket instructions --hook` automatically at session start, through a user-level `SessionStart` hook in `~/.claude/settings.json`. The rules are always loaded.
+   - **Codex and OpenCode** get a short, static pointer block in their user-level AGENTS.md telling the model to run `docket instructions` once per session and follow its output. The human chose this hybrid over a pointer for every harness: the hook is mechanical where a harness offers one, and the pointer is the best available elsewhere.
+   - Neither user-level surface carries any rule text, so the drift that made 0334 retire the user-level copy cannot recur. The rules have one source.
+9. **In private repositories, promoted lessons land in that private instructions file,** not the integration-branch AGENTS.md.
 
 ## Design
 
@@ -83,13 +94,59 @@ The repository's mode reaches each worker through the payload or context it alre
 
 In a private repository, `repository check` and `repository prepare` probe `origin` for a `docket` or `dckt` branch and report a warning finding (`metadata-on-shared-remote`). The remedy says to delete the branch, or, once #533 lands, to use `set-visibility private --delete-shared-branch`. The finding is report-only.
 
-### 5. Repository-level instruction files
+### 5. Instructions for agents in private repositories
 
-In private repositories, `init` and `install`'s repository phase write no AGENTS.md or CLAUDE.md dispatch block and no `.cursor/rules/docket-dispatch.mdc`. They print one note saying that dispatch rules come from the user-level surfaces `docket install` already maintains. Blocks committed before the repository went private are #533's `--remove-shared-files` concern.
+**No repository-level instruction file.** In private repositories, `init` and `install`'s repository phase write no AGENTS.md or CLAUDE.md dispatch block and no `.cursor/rules/docket-dispatch.mdc`. Blocks committed before the repository went private are #533's `--remove-shared-files` concern.
+
+**The private instructions file.** In private repositories, `<git-common-dir>/dckt/AGENTS.md` takes the role the repository's own AGENTS.md plays in shared repositories.
+- `init --private`, and `install`'s repository phase in a private repository, write the managed dispatch block into it. It is the same interior the repository-level block carries today, selected by `agent_harnesses` exactly as today, Codex clause included.
+- The file also holds promoted lessons. In private repositories the learnings promotion destination is this file, and the learnings reference says so.
+- It lives under `.git/`, so it is never committed and never visible in the worktree.
+
+**`docket instructions`**, a new read-only operation in the catalog:
+- In a private repository, it prints the private instructions file from any worktree of the clone, resolving `.git` through the git common directory, since a feature worktree's `.git` is a file.
+- Anywhere else (a shared repository, a non-docket repository, outside git), it prints **nothing** and exits 0.
+- It never fails noisily, because it runs in every session.
+- `--hook` wraps the same content in Claude Code's `SessionStart` hook output shape (additional context), and prints nothing outside private repositories.
+
+**Delivery per harness.** These are user-level surfaces written by `docket install`. They are static, carry no rule text, and are identical on every machine:
+
+| Harness | User-level surface | What it does |
+|---|---|---|
+| Claude Code | `SessionStart` hook entry in `~/.claude/settings.json` running `docket instructions --hook` | Loads the private rules automatically at session start; adds nothing outside private repositories. |
+| Codex | managed pointer block in `~/.codex/AGENTS.md` | Tells the model to run `docket instructions` once per session and treat its output as the repository's AGENTS.md. |
+| OpenCode | managed pointer block in `~/.config/opencode/AGENTS.md` | Same as Codex. |
+| Cursor | out of reach at user level | Cursor reads rules only from the repository: in private repositories the rule file is written as `.cursor/rules/dckt-dispatch.mdc` and excluded through `.git/info/exclude`. |
+
+Pointer block wording (final wording is set in the plan, but it must stay rule-free):
+
+```markdown
+## Private repository instructions
+
+At the start of a session inside a git repository, run `docket instructions` once.
+If it prints anything, treat that output as this repository's own AGENTS.md and
+follow it for the rest of the session. If it prints nothing, ignore this section.
+```
+
+**Safety requirements for the user-level writes:**
+- The `settings.json` hook entry is identified by its exact command string. Install adds it only when absent and merges without reformatting or dropping any other setting. Uninstall removes only an exact match, and refuses (reporting) on a modified entry.
+- The pointer blocks use the existing managed-block machinery (closed-block guard, outside bytes preserved, ownership-proved retirement).
+- These surfaces are installed whenever the harness is installed, because a private repository can appear on the machine at any time. They are no-ops everywhere else.
+- This is a deliberate, narrow return of user-level parent-facing writes, which 0351 retired. It is acceptable because the surfaces carry only a trigger, never rules.
+
+**First plan task (spike).** In a fresh session for each harness, confirm that:
+- Claude Code's user-level `SessionStart` hook delivers the output as context;
+- Codex and OpenCode follow the pointer and run the command;
+- Cursor reads an excluded rule file.
+
+Record the results in the results file before building on them.
 
 ### 6. Documentation
 
-`leak_check.match_word` is documented in `.docket.example.yml` and its twin. Skills carry the writing rule and the leak-check halt handling. No `docs/` pages.
+- `leak_check.match_word` is documented in `.docket.example.yml` and its twin.
+- `docket instructions` is documented in its command help.
+- Skills carry the writing rule, the leak-check halt handling, and the private promotion destination.
+- No `docs/` pages.
 
 ## Acceptance criteria
 
@@ -108,10 +165,22 @@ In private repositories, `init` and `install`'s repository phase write no AGENTS
 6. **Finalize block.** In a private repository it posts no PR comment and records `## Finalize blocked`.
 7. **Shared-remote finding.** A `docket` or `dckt` branch on `origin` of a private repository produces the warning finding, with no refusal.
 8. **Mutation.** Removing the scanner call before a push turns a test red.
+9. **Private instructions file.** In a private repository, `<git-common-dir>/dckt/AGENTS.md` carries the dispatch block, and no AGENTS.md, CLAUDE.md, or docket-named Cursor rule is written in the worktree.
+   - `docket instructions` prints the file from the primary worktree, a feature worktree, and the metadata worktree.
+   - It prints nothing (and exits 0) in a shared repository, a non-docket repository, and outside git.
+   - `--hook` emits valid `SessionStart` output in private repositories only.
+10. **User-level surfaces.**
+    - `install` adds the `settings.json` hook entry and the two pointer blocks.
+    - A second install is a no-op.
+    - An unrelated `settings.json` key and hook survive byte-for-byte.
+    - `uninstall` removes only docket's exact entries.
+    - The surfaces contain no rule text, pinned by a test that fails if any dispatch-block sentence appears in them.
+11. **Fresh-session acceptance per harness** (the spike) is recorded in the results file. A private repository's Claude session receives the dispatch rules without any repository file.
 
 ## ADRs expected
 
-The private-repository leak check blocks: a deliberate, scoped exception to report-only checks, justified because a pushed leak is irreversible and outward-facing. Relates to ADR-0036 and ADR-0078, the repository-level dispatch surfaces it suppresses in private repositories.
+- **The leak check blocks.** It is a deliberate, scoped exception to report-only checks, justified because a pushed leak is irreversible and outward-facing.
+- **Where a private repository's parent-facing rules live.** They are in `<git-common-dir>/dckt/AGENTS.md`, reached through content-free user-level triggers: a Claude `SessionStart` hook, and pointer blocks for Codex and OpenCode. This narrowly revisits 0351's retirement of user-level parent-facing writes: the triggers carry no rules, so the drift problem does not return. Relates to ADR-0036 and ADR-0078.
 
 ## Out of scope
 
