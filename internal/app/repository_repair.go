@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
@@ -68,6 +70,9 @@ type RepositoryRepairResult struct {
 	RepairedFiles   []string                  `json:"repaired_files,omitempty"`
 	ManualReview    []string                  `json:"manual_review,omitempty"`
 	PendingLocal    []string                  `json:"pending_local,omitempty"`
+	// OrphanCheckouts are the orphaned private-store checkouts the repair
+	// removes (on a preview) or removed.
+	OrphanCheckouts []string `json:"orphaned_checkouts,omitempty"`
 	// PRBacklinks is the --pr-backlinks preview or report, one row per PR.
 	PRBacklinks []PRBacklinkRepair `json:"pr_backlinks,omitempty"`
 	// Findings carries a resolver diagnosis lifted from a gather failure.
@@ -103,7 +108,11 @@ type repositoryRepairPlan struct {
 	manual      []string
 	files       []string          // sorted, de-duplicated union of written paths
 	contents    map[string][]byte // final composed bytes per file in files
+	orphans     []string          // orphaned private-store checkouts to remove (scanOrphanedCheckouts)
 }
+
+// empty reports whether the plan changes nothing.
+func (p repositoryRepairPlan) empty() bool { return len(p.files) == 0 && len(p.orphans) == 0 }
 
 // RunRepositoryRepair repairs every mechanically repairable finding `repository
 // check` reports on an already-migrated repository, under the two-pass
@@ -124,7 +133,12 @@ func RunRepositoryRepair(ctx context.Context, d SetupDeps, o RepairOptions) Repo
 	if err != nil {
 		return repairInternalFailure(reposetup.StateHealthy, "planning the repairs", err)
 	}
-	if len(plan.files) == 0 {
+	// The orphan prune: a scan that cannot complete refuses rather than reading
+	// as "no orphans".
+	if plan.orphans, err = scanOrphanedCheckouts(sc.layout); err != nil {
+		return repairExternalFailure(reposetup.StateHealthy, "scanning the metadata store for orphaned checkouts", err)
+	}
+	if plan.empty() {
 		return repairNoOp(metadataTip, plan.manual)
 	}
 	if !o.Authorized {
@@ -135,7 +149,39 @@ func RunRepositoryRepair(ctx context.Context, d SetupDeps, o RepairOptions) Repo
 	if migrateSourceMoved(o.ExpectedSource, metadataTip) {
 		return repairContended(metadataTip, o.ExpectedSource)
 	}
+	// The orphan prune is independent of the metadata publish: it runs first and
+	// acts only on checkouts it re-proves orphaned now.
+	pruned, err := pruneOrphanedCheckouts(plan.orphans)
+	if err != nil {
+		return repairExternalFailure(reposetup.StateHealthy, "removing an orphaned checkout", err)
+	}
+	plan.orphans = pruned
+	if len(plan.files) == 0 {
+		return repairApplied("", metadataTip, plan)
+	}
 	return executeRepositoryRepair(ctx, d.Git, sc, metadataTip, plan)
+}
+
+// pruneOrphanedCheckouts removes each previewed checkout that is still an
+// orphan, re-verifying it on the copy it acts on (learning
+// decide-and-act-on-the-same-copy): a checkout whose gitdir reappeared, or that
+// is already gone, is left alone. It returns the paths it removed.
+func pruneOrphanedCheckouts(previewed []string) ([]string, error) {
+	var removed []string
+	for _, dir := range previewed {
+		orphan, err := checkoutOrphaned(dir)
+		if err != nil {
+			return removed, err
+		}
+		if !orphan {
+			continue
+		}
+		if err := os.RemoveAll(dir); err != nil {
+			return removed, fmt.Errorf("removing %s: %w", dir, err)
+		}
+		removed = append(removed, dir)
+	}
+	return removed, nil
 }
 
 // repairPreflight runs the shared gather and topology routing every repair mode
@@ -169,6 +215,13 @@ func repairPreflight(ctx context.Context, d SetupDeps) (setupContext, string, *R
 			"an interrupted migration still has a live planning surface on the integration branch; run `docket repository migrate` to finish it, then re-run `docket repository repair`")
 		return setupContext{}, "", &r
 	case phaseResumeLocal:
+		// A private repository's metadata repairs publish from the repository
+		// itself, never through its checkout, and a moved clone's missing checkout
+		// is exactly what the orphan prune clears the way for, so an incomplete
+		// local attachment does not block it.
+		if sc.layout.Mode == layout.Private {
+			break
+		}
 		r := repairRefusal(reposetup.StateNeedsReview,
 			"the local .docket metadata attachment is incomplete; run `docket repository migrate` to finish attaching it, then re-run `docket repository repair`")
 		return setupContext{}, "", &r
@@ -404,6 +457,9 @@ func repairPreviewText(sc setupContext, metadataTip string, plan repositoryRepai
 	for _, f := range plan.derived {
 		fmt.Fprintf(&b, "    [%s] %s\n", f.Code, f.Path)
 	}
+	for _, o := range plan.orphans {
+		fmt.Fprintf(&b, "    remove orphaned checkout: %s\n", o)
+	}
 	writeManualReview(&b, plan.manual)
 	return b.String()
 }
@@ -430,6 +486,7 @@ func repairConfirmationRequired(sc setupContext, metadataTip string, plan reposi
 		RepairedViews:   derivedRepairFiles(plan.derived),
 		RepairedFiles:   plan.files,
 		ManualReview:    plan.manual,
+		OrphanCheckouts: plan.orphans,
 	})
 	out.human = repairPreviewText(sc, metadataTip, plan) +
 		"\nconfirmation required: re-run with --yes to authorize these repairs"
@@ -438,10 +495,14 @@ func repairConfirmationRequired(sc setupContext, metadataTip string, plan reposi
 
 // repairApplied is the success document: new and prior tips, the repaired file
 // set, and the local sync remedy (the remote advanced; .docket fast-forwards on
-// the next `docket repository prepare`).
+// the next `docket repository prepare`), plus any orphaned checkouts removed.
+// An orphan-only repair publishes nothing (newTip "") and needs no local sync.
 func repairApplied(newTip, priorTip string, plan repositoryRepairPlan) RepositoryRepairResult {
-	pending := []string{
-		"fast-forward your local .docket metadata worktree: re-run `docket repository prepare` to sync it to the repaired metadata revision",
+	var pending []string
+	if len(plan.files) > 0 {
+		pending = []string{
+			"fast-forward your local .docket metadata worktree: re-run `docket repository prepare` to sync it to the repaired metadata revision",
+		}
 	}
 	out := newRepairResult(ResultApplied, RepositoryRepairResult{
 		RepositoryState: string(reposetup.StateNeedsReview),
@@ -452,10 +513,16 @@ func repairApplied(newTip, priorTip string, plan repositoryRepairPlan) Repositor
 		RepairedFiles:   plan.files,
 		ManualReview:    plan.manual,
 		PendingLocal:    pending,
+		OrphanCheckouts: plan.orphans,
 	})
 	var b strings.Builder
-	fmt.Fprintf(&b, "repository repaired: metadata %s (%d file(s))\npending local sync: %s\n",
-		newTip, len(plan.files), strings.Join(pending, "; "))
+	if len(plan.files) > 0 {
+		fmt.Fprintf(&b, "repository repaired: metadata %s (%d file(s))\npending local sync: %s\n",
+			newTip, len(plan.files), strings.Join(pending, "; "))
+	}
+	for _, o := range plan.orphans {
+		fmt.Fprintf(&b, "removed orphaned checkout: %s\n", o)
+	}
 	writeManualReview(&b, plan.manual)
 	out.human = strings.TrimRight(b.String(), "\n")
 	return out

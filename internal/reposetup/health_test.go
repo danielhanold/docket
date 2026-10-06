@@ -1119,3 +1119,35 @@ func TestFindingsUseResolvedWorktreeRef(t *testing.T) {
 		}
 	}
 }
+
+// TestPrivateIgnoreFindingNamesExcludeFile proves a private repository's
+// ignore-guarantee findings name .git/info/exclude and the init remedy, never
+// the committed .gitignore, and that a private probe is reported even with no
+// resolved integration tip (the exclude file is read from the filesystem).
+func TestPrivateIgnoreFindingNamesExcludeFile(t *testing.T) {
+	for _, tc := range []struct {
+		presence Presence
+		code     string
+	}{
+		{PresenceAbsent, "committed-ignore-invalid"},
+		{PresenceUnknown, "committed-ignore-unverified"},
+	} {
+		f := healthyFacts()
+		f.Private = true
+		f.CommittedIgnoreBlock = tc.presence
+		f.RemoteIntegration = BranchFact{Presence: PresenceUnknown}
+		fnd := conditionFinding(CondCommittedIgnoreValid, f)
+		if fnd == nil {
+			t.Fatalf("%v: no finding", tc.presence)
+		}
+		if fnd.Code != tc.code || fnd.Ref != ".git/info/exclude" || strings.Contains(fnd.Message+fnd.Remedy, ".gitignore") {
+			t.Errorf("%v: finding = %+v, want code %s naming .git/info/exclude only", tc.presence, fnd, tc.code)
+		}
+	}
+	f := healthyFacts()
+	f.Private = true
+	f.CommittedIgnoreBlock = PresenceAbsent
+	if fnd := conditionFinding(CondCommittedIgnoreValid, f); fnd.Remedy != "Run `docket repository init` to restore it." {
+		t.Errorf("remedy = %q, want the init remedy", fnd.Remedy)
+	}
+}

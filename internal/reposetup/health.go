@@ -581,6 +581,11 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 			Remedy:   fmt.Sprintf("Re-run `docket repository check` once the %s config read succeeds.", f.MetadataWorktreeRef),
 		}
 	case CondCommittedIgnoreValid:
+		if f.Private {
+			// A private repository's guarantee is the clone-local exclude block,
+			// read from the filesystem rather than the integration tree.
+			return excludeIgnoreFinding(f.CommittedIgnoreBlock)
+		}
 		if !integrationResolved(f) {
 			return nil // the unknown-authority diagnostic explains the skipped read
 		}
@@ -726,6 +731,33 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 // .gitignore needs: leading whitespace is part of the pattern (change 0500).
 func withCanonicalBlock(instruction string) string {
 	return instruction + "\n" + strings.TrimSuffix(string(GitignoreBlock()), "\n")
+}
+
+// excludeFileRef is how a private repository's ignore findings name the file
+// that carries its `# dckt:` block.
+const excludeFileRef = ".git/info/exclude"
+
+// excludeIgnoreFinding is a private repository's ignore-guarantee finding: the
+// `# dckt:` block in .git/info/exclude is missing (or malformed, or stale), or
+// the file could not be read. Init writes the block idempotently, so re-running
+// it is a remedy valid in exactly this state.
+func excludeIgnoreFinding(p Presence) *Finding {
+	if p == PresenceUnknown {
+		return &Finding{
+			Code:     "committed-ignore-unverified",
+			Severity: SeverityWarning,
+			Ref:      excludeFileRef,
+			Message:  "The .git/info/exclude file could not be read, so the `# dckt:` ignore block cannot be verified (unverified, not proven absent).",
+			Remedy:   "Restore read access to .git/info/exclude, then re-run `docket repository check`.",
+		}
+	}
+	return &Finding{
+		Code:     "committed-ignore-invalid",
+		Severity: SeverityError,
+		Ref:      excludeFileRef,
+		Message:  "The `# dckt:` ignore block is missing from .git/info/exclude.",
+		Remedy:   "Run `docket repository init` to restore it.",
+	}
 }
 
 // committedIgnoreFinding renders the preserved ignore detail into the one
