@@ -288,6 +288,8 @@ docket change claim --id 412 --revision <that-revision>
 A derived view is anything rendered from the change files rather than authored: the board, each
 change's `## Artifacts` link block, and the `docket:backlink` block stamped at the top of every
 spec, plan, results file, and PR body. Each has exactly one writer and is never hand-edited.
+When a change closes out, every one of these backlinks, the one in the merged PR's description
+included, is repointed to the archived record.
 
 **Used for:** keeping links between a change and its artifacts correct in both directions.
 
@@ -1491,6 +1493,15 @@ mechanically repairable finding `check` reports, and applies them in one commit 
 docket repository check
 docket repository migrate        # legacy repository only
 docket repository repair         # preview; add --yes to apply
+```
+
+`--pr-backlinks` repairs a different thing: merged pull requests whose description backlink still
+names a change path that no longer exists. It reads those PR descriptions on GitHub, previews each
+PR with its current and corrected link, and edits them one at a time only with `--yes`. A PR it
+cannot read or edit is reported and skipped.
+
+```sh
+docket repository repair --pr-backlinks         # preview; add --yes to apply
 ```
 
 ### Status
