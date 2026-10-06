@@ -30,12 +30,12 @@ before the first read; every commit pushes immediately.
    ```
 
    `--input` carries only the optional authored closeout notes (`verification_outcomes`,
-   `late_findings`; `-` for stdin); the merged `results:` file is read from the verified merge, not
-   passed. Trust the typed outcome: `done-archived` (or `stacked-merged` / `root-archived` for a
+   `late_findings`; `-` for stdin); the `results:` file already sits on the `docket` branch and is
+   never passed. Trust the typed outcome: `done-archived` (or `stacked-merged` / `root-archived` for a
    stack) ⇒ the change is marked done and relocated to the dated archive path — idempotent if
    already archived, including across a day boundary. This ONE metadata commit atomically owns the
-   archive move, the `## Artifacts` re-render, the re-stamp of **every metadata-resident back-link
-   including the spec** (which lives on the metadata ref), and the inline board render; a typed
+   archive move, the `## Artifacts` re-render, the re-stamp of **every metadata-resident back-link**
+   (spec, plan, and results all live on the metadata ref), and the inline board render; a typed
    refusal or process failure writes nothing and aborts per the caller's posture, with **no partial
    caller-owned follow-up**. It still relocates the change file in its own step, so concurrent done
    drivers converge tree-identically (see *Determinism invariant*). The frozen step-2 re-render and
@@ -58,28 +58,27 @@ before the first read; every commit pushes immediately.
    Trust the typed outcome: `applied` ⇒ archived — an idempotent no-op if already archived,
    including across a day boundary (it reuses the existing dated filename). This ONE metadata commit
    atomically owns the archive move, the refreshed `updated:` date, the spliced `## Why killed`
-   section, the `## Artifacts` re-render, the retargeted spec back-link, and the inline board render
+   section, the `## Artifacts` re-render, the retargeted spec, plan, and results back-links, and the inline board render
    — so the step-2 re-render and step-4 board pass below carry **nothing** for the kill path, exactly
    as `finalize.closeout` owns them for the done path. A wrong `revision` or an illegal source status
    returns a typed refusal that writes nothing (a lost conflict-checked write is `contended`; see
    *Determinism invariant*).
 
-2. **Artifact block + spec back-link — owned atomically by step 1, no separate caller commit.**
-   Both close-out transactions re-render the archived record's `## Artifacts` block (plan/results
-   re-point to the integration branch at final state) **and** re-stamp every metadata-resident
-   back-link — the spec's `docket:backlink` block included — retargeted to the
+2. **Artifact block + back-links — owned atomically by step 1, no separate caller commit.**
+   Both close-out transactions re-render the archived record's `## Artifacts` block (relative
+   same-branch rows, plus an absolute `Spec (merged)` row for a merged change) **and** re-stamp every
+   metadata-resident back-link — spec, plan, and results — retargeted to the
    now-**archived** change path, **in the same step-1 metadata commit** as the archive:
 
    - On the **done** path the step-1 `finalize.closeout` operation transaction owns this restamp
      atomically.
    - On the **kill** path the step-1 `change.kill` operation transaction owns it identically — it
-     re-renders the `## Artifacts` block and retargets the linked spec's `docket:backlink` block in
-     its one commit.
+     re-renders the `## Artifacts` block and retargets the linked spec, plan, and results
+     `docket:backlink` blocks in its one commit.
 
    So **no separate caller re-render or back-link commit runs for either path** — the skill never
-   invokes a facade renderer and never hand-edits a managed block. Nothing is copied onto the
-   integration branch; a spec that lives on the metadata ref is restamped in that same step-1
-   commit. A typed refusal (malformed markers,
+   invokes a facade renderer and never hand-edits a managed block. Nothing touches the integration
+   branch. A typed refusal (malformed markers,
    missing artifact) leaves the file untouched and aborts per the caller's posture — surface it,
    never hand-edit the block.
 

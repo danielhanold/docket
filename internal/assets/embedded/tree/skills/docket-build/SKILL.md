@@ -20,7 +20,7 @@ gets exactly one fresh worker dispatch unless that worker requests its single al
 ## Inputs
 
 - The **plan** `docket-implement-next` Step 4 wrote, at the path recorded in the change's `plan:`
-  field and committed on the feature branch.
+  field, read from the metadata worktree at `.docket/<plan path>`.
 - The **feature branch and worktree** already cut for this change, plus that repo's own
   instruction files (`AGENTS.md`, `CLAUDE.md`, nested equivalents).
 - The plan's `### Task N` headings, the **unit of dispatch** — one heading, one worker, one
@@ -250,8 +250,8 @@ ran_at:   <UTC ISO-8601>
 `head_sha` and `ran_at`.
 
 The record certifies the branch so the review step need not re-run the suite; `docket-implement-next`
-Step 6 validates it and Step 7 writes it into the PR body, then runs the review role (`docket-review`)
-once over the whole branch. Only a green run — or an explicit `build_gate: off` — mints a
+Step 6 validates it, then runs the review role (`docket-review`)
+once over the whole branch; Step 7's `change.mark-implemented` records it in the change record. Only a green run — or an explicit `build_gate: off` — mints a
 record: a red suite mints no evidence record at all, and enters the repair path below.
 
 **Red** → the build **never invokes review**. `build_max_attempts` (from the implementation context,
@@ -350,8 +350,7 @@ When docket-build runs as the invoked build role for a coordinator that owns a r
 the controller **may** perform the build-findings checkpoint on that coordinator's behalf, under
 the explicit caller contract that grants it that authority — consolidating the build findings
 available at this point (the material TDD exceptions, residual risks, and worker-surfaced findings
-above) before the final full-suite gate where the ordering permits, so the gate certifies the
-checkpoint-containing head. **Task workers never edit the results file**, there are **never
+above) through `change.attach-results`, a metadata commit that never moves the feature head. **Task workers never edit the results file**, there are **never
 concurrent writers**, and **a checkpoint never independently launches tests** — it records what is
 already known and moves no gate of its own. A custom build skill bound in this role's place owns
 none of this: it returns its findings through its own contract, and the coordinator captures them at
@@ -380,5 +379,5 @@ Emit concise, stable lines and nothing more: task-to-tier selection and reason; 
 reason; worker outcome and commit; focused verification; full-suite command and result; the
 build-evidence record on green; the terminal build disposition (**role-scoped** — a build
 disposition, never a run disposition). Write no verbose task artifact; material TDD exceptions,
-residual risks, and worker-surfaced findings flow to the coordinator's results artifact (and the PR description where evidence belongs), not into per-task
+residual risks, and worker-surfaced findings flow to the coordinator's results artifact (and the change record's build evidence), not into per-task
 files.

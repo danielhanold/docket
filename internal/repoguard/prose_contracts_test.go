@@ -123,9 +123,9 @@ var proseContracts = []proseContract{
 	// tests/test_plan_writer_step4.sh — Step 4 plan-writer dispatch.
 	{sentinel: "test_plan_writer_step4", file: "skills/docket-implement-next/SKILL.md",
 		present: []string{"docket-plan-writer"}},
-	// tests/test_results_artifact.sh — merged plan/results freeze rule.
+	// tests/test_results_artifact.sh — closed-out plan/results freeze rule.
 	{sentinel: "test_results_artifact", file: "skills/docket-convention/SKILL.md",
-		present: []string{"Merged plans and results are frozen build records."}},
+		present: []string{"Closed-out plans and results are frozen build records."}},
 	// tests/test_skill_fork_dispatch.sh — fork-dispatch README contract.
 	{sentinel: "test_skill_fork_dispatch", file: "docs/install/models-and-effort.md",
 		present: []string{"completed (forked execution)"}},
@@ -282,7 +282,7 @@ var proseContracts = []proseContract{
 	// change 0410 — the convention now describes results as a REQUIRED close-out
 	// artifact in both the directory-map row and the lifecycle paragraph. (The
 	// existing frozen-records row above — sentinel test_results_artifact — is left
-	// untouched and still pins "Merged plans and results are frozen build records.")
+	// untouched and still pins "Closed-out plans and results are frozen build records.")
 	{sentinel: "change_0410_convention_results", file: "skills/docket-convention/SKILL.md",
 		present: []string{
 			"required close-out artifacts (one per implemented change, trivial included)",
