@@ -9,6 +9,7 @@ import (
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/workspace"
 )
@@ -338,7 +339,7 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, sc
 			// advertisement, one worktree list, one batched PR-body read) — and only
 			// when a done candidate needs them — then resolve every historical record locally, enqueuing only the
 			// records that warrant a fresh cleanup attempt.
-			shared := gatherSweepSharedFacts(ctx, deps, repoDir, inv, historical)
+			shared := gatherSweepSharedFacts(ctx, deps, repoDir, pin.Layout, inv, historical)
 			return sweepAssessHistorical(ctx, deps, wdeps, inv, pin, shared, historical)
 		},
 		syncIntegration: func(ctx context.Context) *SyncOutcome {
@@ -538,7 +539,7 @@ func sweepBuildSnapshot(ctx context.Context, reader StatusReader, pin StatusPin,
 // recorded as the leg's error (a failed shared inventory is unknown, never a clean
 // absence and never a fan-out into per-ref probes); a missing git client/repository
 // makes both inventories unknown rather than silently empty.
-func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir string, inv sweepInventory, historical []sweepWorkItem) sweepSharedFacts {
+func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir string, lay layout.Layout, inv sweepInventory, historical []sweepWorkItem) sweepSharedFacts {
 	needsShared := false
 	for _, it := range historical {
 		if c, out := inv.snap.Change(domain.ChangeID(it.id)); out == domain.LookupFound && c.Status() == domain.StatusDone {
@@ -550,31 +551,35 @@ func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir stri
 		return sweepSharedFacts{}
 	}
 	var shared sweepSharedFacts
-	// One batched PR-body read over every done candidate's PR (≤25 per process)
-	// for the PR-backlink leg. A number the read could not resolve is unknown.
-	var numbers []int
-	for _, it := range historical {
-		c, out := inv.snap.Change(domain.ChangeID(it.id))
-		if out != domain.LookupFound || c.Status() != domain.StatusDone {
-			continue
+	// A private repository's PR descriptions carry no backlink: no body is read,
+	// so the PR-backlink leg is not assessed.
+	if prBacklinksApply(lay) {
+		// One batched PR-body read over every done candidate's PR (≤25 per process)
+		// for the PR-backlink leg. A number the read could not resolve is unknown.
+		var numbers []int
+		for _, it := range historical {
+			c, out := inv.snap.Change(domain.ChangeID(it.id))
+			if out != domain.LookupFound || c.Status() != domain.StatusDone {
+				continue
+			}
+			if n, ok := parsePRNumber(c.PR().Value); ok {
+				numbers = append(numbers, n)
+			}
 		}
-		if n, ok := parsePRNumber(c.PR().Value); ok {
-			numbers = append(numbers, n)
-		}
-	}
-	shared.prBodiesGathered = true
-	shared.prBodies = map[int]string{}
-	shared.prBodiesUnknown = map[int]bool{}
-	if len(numbers) > 0 {
-		var bodies map[int]string
-		if deps.PRBatch != nil {
-			bodies = deps.PRBatch.ProbePRSet(ctx, repoDir, numbers).Bodies
-		}
-		for _, n := range numbers {
-			if b, ok := bodies[n]; ok {
-				shared.prBodies[n] = b
-			} else {
-				shared.prBodiesUnknown[n] = true
+		shared.prBodiesGathered = true
+		shared.prBodies = map[int]string{}
+		shared.prBodiesUnknown = map[int]bool{}
+		if len(numbers) > 0 {
+			var bodies map[int]string
+			if deps.PRBatch != nil {
+				bodies = deps.PRBatch.ProbePRSet(ctx, repoDir, numbers).Bodies
+			}
+			for _, n := range numbers {
+				if b, ok := bodies[n]; ok {
+					shared.prBodies[n] = b
+				} else {
+					shared.prBodiesUnknown[n] = true
+				}
 			}
 		}
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
@@ -38,6 +39,9 @@ import (
 //     heading (the section splice validates owned-heading uniqueness before any
 //     rewrite). The inline board is rerendered atomically in the same
 //     transaction.
+//
+// A private repository posts no PR comment at all: step 1 is skipped, the marker
+// carries no comment URL, and the marker transaction is the only effect.
 //
 // A crash between the comment and the marker replays cleanly: the comment ensure
 // finds the owned marker and reuses it, and the marker transaction — keyed on
@@ -233,7 +237,8 @@ type blockReceipt struct {
 
 // FinalizeBlock ensures the owned PR comment first, then upserts the single
 // durable "## Finalize blocked" section in one exact-revision transaction. A
-// comment that cannot be established is unknown and writes no marker.
+// comment that cannot be established is unknown and writes no marker. A private
+// repository posts no comment; the marker transaction is its only effect.
 func FinalizeBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req BlockRequest) BlockResult {
 	if findings := validateBlockShape(req); len(findings) > 0 {
 		return newBlockResult(OperationFinalizeBlock, ResultInvalidInput, BlockResult{ID: req.ID, Findings: findings})
@@ -271,30 +276,35 @@ func FinalizeBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req B
 	}
 
 	// Ensure the owned PR comment FIRST. It is idempotent by its attempt marker;
-	// an unresolved probe is unknown and writes no marker.
-	ghRepo, err := deps.GitHub.DiscoverRepository(ctx, repoDir)
-	if err != nil {
-		return newBlockResult(OperationFinalizeBlock, ResultExternalFailed, BlockResult{
-			ID: req.ID, Disposition: BlockDispUnknown, Reason: ReasonBlockRepoUnresolved, Message: err.Error(),
-		})
-	}
-	marker := finalizeBlockedCommentMarker(req.Attempt)
-	commentBody := marker + "\n\n" + strings.TrimRight(req.Report, "\r\n") + "\n"
-	outcome, url, cerr := deps.GitHub.EnsureComment(ctx, ghRepo, req.PRNumber, marker, commentBody)
-	if cerr != nil {
-		return newBlockResult(OperationFinalizeBlock, ResultExternalFailed, BlockResult{
-			ID: req.ID, Disposition: BlockDispUnknown, Reason: ReasonBlockCommentUnknown, Message: cerr.Error(),
-		})
-	}
-	if outcome == githubcli.CommentUnknown {
-		return newBlockResult(OperationFinalizeBlock, ResultExternalFailed, BlockResult{
-			ID: req.ID, Disposition: BlockDispUnknown, Reason: ReasonBlockCommentUnknown,
-			Message: "the owned pull-request comment could not be established; no finalize-blocked marker was written",
-		})
+	// an unresolved probe is unknown and writes no marker. A private repository
+	// posts no comment: the marker transaction is its only effect.
+	url := ""
+	if pin.Layout.Mode != layout.Private {
+		ghRepo, err := deps.GitHub.DiscoverRepository(ctx, repoDir)
+		if err != nil {
+			return newBlockResult(OperationFinalizeBlock, ResultExternalFailed, BlockResult{
+				ID: req.ID, Disposition: BlockDispUnknown, Reason: ReasonBlockRepoUnresolved, Message: err.Error(),
+			})
+		}
+		marker := finalizeBlockedCommentMarker(req.Attempt)
+		commentBody := marker + "\n\n" + strings.TrimRight(req.Report, "\r\n") + "\n"
+		outcome, curl, cerr := deps.GitHub.EnsureComment(ctx, ghRepo, req.PRNumber, marker, commentBody)
+		if cerr != nil {
+			return newBlockResult(OperationFinalizeBlock, ResultExternalFailed, BlockResult{
+				ID: req.ID, Disposition: BlockDispUnknown, Reason: ReasonBlockCommentUnknown, Message: cerr.Error(),
+			})
+		}
+		if outcome == githubcli.CommentUnknown {
+			return newBlockResult(OperationFinalizeBlock, ResultExternalFailed, BlockResult{
+				ID: req.ID, Disposition: BlockDispUnknown, Reason: ReasonBlockCommentUnknown,
+				Message: "the owned pull-request comment could not be established; no finalize-blocked marker was written",
+			})
+		}
+		url = curl
 	}
 
-	// The comment is present. Open the exact-revision transaction that upserts the
-	// single marker section.
+	// The comment is present (or, privately, not wanted). Open the exact-revision
+	// transaction that upserts the single marker section.
 	repo, err := deps.Planning.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
 	if err != nil {
 		result, reason := classifyStatusError(ctx, classifyGitFailure(err))

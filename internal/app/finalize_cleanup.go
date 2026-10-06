@@ -392,6 +392,9 @@ func finalizeCleanupResult(id int, disp string, removed []string, findings []Sta
 // reads the PR and issues no edit; when close-out left the leg pending it lands
 // the block-only edit. No editor wired runs nothing.
 func finalizeCleanupPRBacklinkRepair(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, ghRepo githubcli.Repository, number int) *StatusFinding {
+	if !prBacklinksApply(cc.pin.Layout) {
+		return nil
+	}
 	ed := prBodyEditor(deps)
 	if ed == nil {
 		return nil

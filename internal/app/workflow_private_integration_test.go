@@ -12,7 +12,9 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/layout"
+	"github.com/danielhanold/docket/internal/workspace"
 )
 
 // This file is the private-visibility acceptance slice of the workflow
@@ -102,8 +104,9 @@ func resolvedPrivateLayout(t *testing.T, dir string) layout.Layout {
 // privateLifecycleChecks drives the whole claim-to-implemented run, then proves
 // what a private repository publishes on origin: the one open PR carries the
 // authored title and prose byte-for-byte (no backlink, no artifacts block), and
-// the spec copy at the feature head carries no change line.
-func privateLifecycleChecks(t *testing.T, created ChangeCreateResult) workflowEntry {
+// the spec copy at the feature head carries no change line. A finalize block
+// then records its marker on the store's record and posts no PR comment.
+func privateLifecycleChecks(t *testing.T, created ChangeCreateResult, store string) workflowEntry {
 	return func(node realNode, wdeps WorkspaceDeps, complete func(string) GitHubDeps) {
 		t.Helper()
 		ctx := context.Background()
@@ -150,6 +153,36 @@ func privateLifecycleChecks(t *testing.T, created ChangeCreateResult) workflowEn
 			if strings.HasPrefix(line, "Change 0") {
 				t.Errorf("private spec copy %s carries a change line %q:\n%s", specs[0], line, spec)
 			}
+		}
+
+		// A private finalize block posts no PR comment: the marker on the record
+		// is its only effect (acceptance 6).
+		svc, err := workspace.NewService(node.deps.Client)
+		if err != nil {
+			t.Fatalf("workspace service: %v", err)
+		}
+		gh := &fakeBlockGitHub{repo: prRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.invalid/c/1"}
+		blocked := FinalizeBlock(ctx, FinalizeDeps{Planning: node.deps, GitHub: gh, Workspace: svc}, node.dir, BlockRequest{
+			ID:       created.ID,
+			Revision: blobRevisionAt(t, store, privateFixtureBranch, created.Path),
+			PRNumber: prs[0].Number,
+			Attempt:  "a1",
+			Reason:   "gate-failed",
+			Head:     insp.Head,
+			Report:   "The gate failed.\n",
+		})
+		if blocked.Result != ResultApplied || blocked.Disposition != BlockDispRecorded {
+			t.Fatalf("private finalize block = %q/%q (%s), want applied/recorded", blocked.Result, blocked.Disposition, blocked.HumanText())
+		}
+		if gh.ensureCalls != 0 || blocked.CommentURL != "" {
+			t.Errorf("private finalize block posted a PR comment: ensureCalls=%d url=%q", gh.ensureCalls, blocked.CommentURL)
+		}
+		record := runGit(t, store, "show", privateFixtureBranch+":"+created.Path)
+		if !strings.Contains(record, "## Finalize blocked") {
+			t.Errorf("the record at the store tip lacks the finalize-blocked marker:\n%s", record)
+		}
+		if strings.Contains(record, "- Comment:") {
+			t.Errorf("the private finalize-blocked marker names a comment:\n%s", record)
 		}
 	}
 }
@@ -218,7 +251,7 @@ func TestIntegrationWorkflowLifecyclePrivateInitToImplemented(t *testing.T) {
 
 	// Drive the whole run against the private store.
 	driveClaimToImplemented(t, repo, privateFixtureBranch, ghBin, created.ID, created.Slug, created.Path, groom.SpecPath,
-		privateLifecycleChecks(t, created))
+		privateLifecycleChecks(t, created, repo.meta))
 
 	// Origin gained exactly one branch, and it is the feature branch.
 	originAfter := localHeads(t, r.origin)
