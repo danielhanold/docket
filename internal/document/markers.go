@@ -5,31 +5,57 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
+// NeutralMarkerPrefix qualifies a block in the neutral `dckt:` marker namespace,
+// used where nothing docket-named may appear. A bare name is in `docket:`.
+const NeutralMarkerPrefix = "dckt:"
+
 var (
-	// markerPrefixRE matches a line that BEGINS like a Docket marker. It is what
+	// markerPrefixRE matches a line that BEGINS like a marker in either
+	// namespace (`docket:` or the neutral `dckt:`). It is what
 	// separates "malformed marker" from ordinary authored prose: a line opening
 	// with this prefix is claiming to be a marker, so failing the grammar is a
 	// defect rather than content. The prefix is column-zero exact, so an
 	// indented marker-shaped line stays prose.
-	markerPrefixRE = regexp.MustCompile(`^<!-- docket:`)
-	// markerRE is the exact marker grammar: a lower-case hyphenated name, the
-	// start/end kind, and — on a start marker only — a parenthesized annotation
-	// carrying no closing paren of its own.
+	markerPrefixRE = regexp.MustCompile(`^<!-- (?:docket|dckt):`)
+	// markerRE is the exact marker grammar: the namespace (`docket` or `dckt`),
+	// a lower-case hyphenated name, the start/end kind, and — on a start marker
+	// only — a parenthesized annotation carrying no closing paren of its own. A
+	// `docket:` block is addressed by its bare name, a `dckt:` block by the
+	// qualified name NeutralMarkerPrefix + name.
 	markerRE = regexp.MustCompile(
-		`^<!-- docket:([a-z][a-z0-9-]*):(start|end)(?: \(([^)]*)\))? -->$`)
+		`^<!-- (docket|dckt):([a-z][a-z0-9-]*):(start|end)(?: \(([^)]*)\))? -->$`)
 	// codeFenceRE matches a CommonMark fenced-code-block delimiter: up to three
 	// leading spaces, then a run of at least three backticks or tildes.
 	codeFenceRE = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})")
 )
 
-// blockNameRE is markerRE's name group on its own, so a block a patch CREATES
-// is held to exactly the grammar the scanner will later have to recognize. It
-// is deliberately not validKey: marker names are hyphenated, field keys are
-// underscored.
-var blockNameRE = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+// blockNameRE is markerRE's name group on its own, optionally qualified by
+// NeutralMarkerPrefix, so a block a patch CREATES is held to exactly the
+// grammar the scanner will later have to recognize. It is deliberately not
+// validKey: marker names are hyphenated, field keys are underscored.
+var blockNameRE = regexp.MustCompile(`^(?:dckt:)?[a-z][a-z0-9-]*$`)
+
+// splitBlockName splits a block name into its marker namespace and its bare
+// marker name: a NeutralMarkerPrefix-qualified name is in `dckt`, any other
+// name in `docket`.
+func splitBlockName(name string) (namespace, bare string) {
+	if rest, ok := strings.CutPrefix(name, NeutralMarkerPrefix); ok {
+		return "dckt", rest
+	}
+	return "docket", name
+}
+
+// MarkerSpelling is how a block name appears inside its marker lines:
+// "dispatch" is spelled "docket:dispatch", and a qualified
+// "dckt:private-instructions" is spelled as given.
+func MarkerSpelling(name string) string {
+	ns, bare := splitBlockName(name)
+	return ns + ":" + bare
+}
 
 // validBlockName reports whether name may appear in a Docket marker line.
 func validBlockName(name string) bool { return blockNameRE.MatchString(name) }
@@ -61,12 +87,12 @@ func validAnnotation(s string) error {
 // terminator; the caller supplies the document's own.
 func startMarkerLine(name, annotation string) string {
 	if annotation == "" {
-		return "<!-- docket:" + name + ":start -->"
+		return "<!-- " + MarkerSpelling(name) + ":start -->"
 	}
-	return "<!-- docket:" + name + ":start (" + annotation + ") -->"
+	return "<!-- " + MarkerSpelling(name) + ":start (" + annotation + ") -->"
 }
 
-func endMarkerLine(name string) string { return "<!-- docket:" + name + ":end -->" }
+func endMarkerLine(name string) string { return "<!-- " + MarkerSpelling(name) + ":end -->" }
 
 // Block is one located managed marker block.
 type Block struct {
@@ -130,17 +156,21 @@ func scanMarkers(src []byte, lines []sourceLine, firstLine int) ([]marker, error
 					Offset: lines[i].span.Start,
 					Line:   i + 1,
 					Column: 1,
-					Msg:    "line opens as a docket marker but does not match the marker grammar",
+					Msg:    "line opens as a marker but does not match the marker grammar",
 				}
 			}
 			continue
 		}
-		isStart := string(m[2]) == "start"
-		annotation := string(m[3])
+		name := string(m[2])
+		if string(m[1]) == "dckt" {
+			name = NeutralMarkerPrefix + name
+		}
+		isStart := string(m[3]) == "start"
+		annotation := string(m[4])
 		if !isStart && annotation != "" {
 			return nil, &Error{
 				Kind:   KindMalformedMarker,
-				Name:   string(m[1]),
+				Name:   name,
 				Offset: lines[i].span.Start,
 				Line:   i + 1,
 				Column: 1,
@@ -148,7 +178,7 @@ func scanMarkers(src []byte, lines []sourceLine, firstLine int) ([]marker, error
 			}
 		}
 		markers = append(markers, marker{
-			name:       string(m[1]),
+			name:       name,
 			isStart:    isStart,
 			annotation: annotation,
 			span:       lines[i].span,
