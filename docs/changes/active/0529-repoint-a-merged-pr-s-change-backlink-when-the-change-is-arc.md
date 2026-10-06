@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-06T00:31:08Z'
+reconciled: true
+claimed_at: '2026-10-06T00:32:43Z'
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ Roughly 250 merged PRs in this repository carry a dead link today, and every fut
 - Changing the backlink's wording or adding new links to the PR description.
 - PRs of changes killed before they merged.
 - Private-visibility repositories, whose PRs carry no backlink at all (a separate change in this series).
+
+## Reconcile log
+
+### 2026-10-06
+
+2026-10-06: Reconciled against current main (6b02ad8bb). The code sites the spec cites (assemblePRBody in internal/app/pr_publish.go, runCloseoutBacklinkLeg in internal/app/finalize_closeout.go, sweepAssessBacklinkLeg in internal/app/maintenance_assess.go, EnsurePullRequest in internal/githubcli/ensure.go) all still exist as described. Related #530 is still proposed, so the integration-branch backlink legs remain in place. No scope change.
