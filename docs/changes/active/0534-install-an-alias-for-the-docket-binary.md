@@ -14,7 +14,7 @@ discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-06-install-an-alias-for-the-docket-binary-design.md'
 plan: 'docs/superpowers/plans/2026-10-06-install-an-alias-for-the-docket-binary.md'
-results:
+results: 'docs/results/2026-10-06-install-an-alias-for-the-docket-binary-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-06T14:04:47Z'
 |---|---|
 | Spec | [2026-10-06-install-an-alias-for-the-docket-binary-design.md](../../superpowers/specs/2026-10-06-install-an-alias-for-the-docket-binary-design.md) |
 | Plan | [2026-10-06-install-an-alias-for-the-docket-binary.md](../../superpowers/plans/2026-10-06-install-an-alias-for-the-docket-binary.md) |
+| Results | [2026-10-06-install-an-alias-for-the-docket-binary-results.md](../../results/2026-10-06-install-an-alias-for-the-docket-binary-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
