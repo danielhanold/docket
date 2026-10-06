@@ -1151,3 +1151,42 @@ func TestPrivateIgnoreFindingNamesExcludeFile(t *testing.T) {
 		t.Errorf("remedy = %q, want the init remedy", fnd.Remedy)
 	}
 }
+
+// TestAttachmentRemedyFollowsLayout proves the missing-attachment remedies name
+// the command that restores the attachment in each layout: shared repositories
+// keep the idempotent migrate remedy byte-for-byte, while a private repository
+// (where migrate refuses) names `docket repository prepare`, which attaches an
+// absent private checkout, and never migrate.
+func TestAttachmentRemedyFollowsLayout(t *testing.T) {
+	const store = "/data/docket/store/proj-abc/checkout"
+	for _, tc := range []struct {
+		name    string
+		cond    HealthCondition
+		private bool
+		mutate  func(*Facts)
+		want    string
+	}{
+		{"shared worktree", CondWorktreePresent, false, func(f *Facts) { f.DocketWorktree.Presence = PresenceAbsent },
+			"Run `docket repository migrate` to restore the .docket worktree attachment; it is idempotent."},
+		{"shared local metadata", CondLocalMetadataPresent, false, func(f *Facts) { f.LocalMetadata = BranchFact{Presence: PresenceAbsent} },
+			"Run `docket repository migrate` to restore the local metadata attachment; it is idempotent."},
+		{"private worktree", CondWorktreePresent, true, func(f *Facts) { f.DocketWorktree.Presence = PresenceAbsent },
+			"Run `docket repository prepare` to restore the " + store + " worktree attachment; it is idempotent."},
+		{"private local metadata", CondLocalMetadataPresent, true, func(f *Facts) { f.LocalMetadata = BranchFact{Presence: PresenceAbsent} },
+			"Run `docket repository prepare` to restore the local metadata attachment; it is idempotent."},
+	} {
+		f := healthyFacts()
+		if tc.private {
+			f.Private = true
+			f.MetadataWorktreeRef = store
+		}
+		tc.mutate(&f)
+		fnd := conditionFinding(tc.cond, f)
+		if fnd == nil {
+			t.Fatalf("%s: no finding", tc.name)
+		}
+		if fnd.Remedy != tc.want {
+			t.Errorf("%s: remedy = %q, want %q", tc.name, fnd.Remedy, tc.want)
+		}
+	}
+}

@@ -157,7 +157,7 @@ func RunRepositoryRepair(ctx context.Context, d SetupDeps, o RepairOptions) Repo
 	}
 	plan.orphans = pruned
 	if len(plan.files) == 0 {
-		return repairApplied("", metadataTip, plan)
+		return repairApplied("", metadataTip, plan, sc.layout)
 	}
 	return executeRepositoryRepair(ctx, d.Git, sc, metadataTip, plan)
 }
@@ -349,7 +349,7 @@ func executeRepositoryRepair(ctx context.Context, git *gitcli.Client, sc setupCo
 	if rev.Commit != commit {
 		return repairContended(string(rev.Commit), metadataTip)
 	}
-	return repairApplied(string(commit), metadataTip, plan)
+	return repairApplied(string(commit), metadataTip, plan, sc.layout)
 }
 
 // splitDerivedFindings partitions derived-view findings into the mechanically
@@ -494,14 +494,15 @@ func repairConfirmationRequired(sc setupContext, metadataTip string, plan reposi
 }
 
 // repairApplied is the success document: new and prior tips, the repaired file
-// set, and the local sync remedy (the remote advanced; .docket fast-forwards on
-// the next `docket repository prepare`), plus any orphaned checkouts removed.
+// set, and the local sync remedy (the remote advanced; the layout's metadata
+// worktree — `.docket`, or the private checkout — fast-forwards on the next
+// `docket repository prepare`), plus any orphaned checkouts removed.
 // An orphan-only repair publishes nothing (newTip "") and needs no local sync.
-func repairApplied(newTip, priorTip string, plan repositoryRepairPlan) RepositoryRepairResult {
+func repairApplied(newTip, priorTip string, plan repositoryRepairPlan, l layout.Layout) RepositoryRepairResult {
 	var pending []string
 	if len(plan.files) > 0 {
 		pending = []string{
-			"fast-forward your local .docket metadata worktree: re-run `docket repository prepare` to sync it to the repaired metadata revision",
+			fmt.Sprintf("fast-forward your local %s metadata worktree: re-run `docket repository prepare` to sync it to the repaired metadata revision", metadataWorktreeRef(l)),
 		}
 	}
 	out := newRepairResult(ResultApplied, RepositoryRepairResult{
