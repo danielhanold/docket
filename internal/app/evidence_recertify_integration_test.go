@@ -91,33 +91,40 @@ func recertifyFixture(t *testing.T, gate FinalizeGate) (*rebaseFixture, *fakePub
 	return f, gh, deps, WorkspaceDeps{Service: f.svc}
 }
 
+// requireRecordUnchanged fails when a refused recertify wrote the change record
+// — the only durable write recertify makes, since it never edits the PR.
+func requireRecordUnchanged(t *testing.T, f *rebaseFixture, before string) {
+	t.Helper()
+	if got := f.remoteRecordBytes(t); got != before {
+		t.Fatalf("a refused recertify wrote the change record:\n%s", got)
+	}
+}
+
 // TestIntegrationEvidenceEvidenceRecertifyRefusesNotImplemented: any non-implemented status is
-// blocked before any probe of the gate or PR edit (acceptance 3).
+// blocked before any probe of the gate or record write (acceptance 3).
 func TestIntegrationEvidenceEvidenceRecertifyRefusesNotImplemented(t *testing.T) {
 	f := setupRebaseFixtureStatus(t, planRepoModes()[0], "in-progress")
 	gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
+	before := f.remoteRecordBytes(t)
 	res := EvidenceRecertify(context.Background(), f.finalizeDeps(gh, &fakeGate{}), WorkspaceDeps{Service: f.svc},
 		f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
 	if res.Result != ResultBlocked || res.Reason != ReasonRecertifyNotImplemented {
 		t.Fatalf("result = %s/%s; want blocked/%s", res.Result, res.Reason, ReasonRecertifyNotImplemented)
 	}
-	if gh.ensNext != 0 {
-		t.Fatalf("a refused recertify edited the PR")
-	}
+	requireRecordUnchanged(t, f, before)
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyRefusesDirtyWorkspace: uncommitted work blocks (never
-// gated over, never published) — acceptance 3.
+// gated over, never recorded) — acceptance 3.
 func TestIntegrationEvidenceEvidenceRecertifyRefusesDirtyWorkspace(t *testing.T) {
-	f, gh, deps, wdeps := recertifyFixture(t, &fakeGate{})
+	f, _, deps, wdeps := recertifyFixture(t, &fakeGate{})
+	before := f.remoteRecordBytes(t)
 	writeRepoFile(t, f.wp, "dirty.txt", "uncommitted\n")
 	res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
 	if res.Result != ResultBlocked || res.Reason != ReasonRecertifyWorkspaceDirty {
 		t.Fatalf("result = %s/%s; want blocked/%s", res.Result, res.Reason, ReasonRecertifyWorkspaceDirty)
 	}
-	if gh.ensNext != 0 {
-		t.Fatalf("a refused recertify edited the PR")
-	}
+	requireRecordUnchanged(t, f, before)
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyRefusesUnpublishedFollowUp: a local follow-up commit
@@ -125,7 +132,8 @@ func TestIntegrationEvidenceEvidenceRecertifyRefusesDirtyWorkspace(t *testing.T)
 // refuses (publish first through the existing workflow) rather than certify a
 // head the PR does not hold.
 func TestIntegrationEvidenceEvidenceRecertifyRefusesUnpublishedFollowUp(t *testing.T) {
-	f, gh, deps, wdeps := recertifyFixture(t, &fakeGate{})
+	f, _, deps, wdeps := recertifyFixture(t, &fakeGate{})
+	before := f.remoteRecordBytes(t)
 	writeRepoFile(t, f.wp, "followup.txt", "review fix\n")
 	runGit(t, f.wp, "add", "-A")
 	runGit(t, f.wp, "commit", "-q", "-m", "review fix")
@@ -133,9 +141,7 @@ func TestIntegrationEvidenceEvidenceRecertifyRefusesUnpublishedFollowUp(t *testi
 	if res.Result == ResultApplied || res.Reason != ReasonRecertifyHeadDisagreement {
 		t.Fatalf("result = %s/%s; want a %s refusal", res.Result, res.Reason, ReasonRecertifyHeadDisagreement)
 	}
-	if gh.ensNext != 0 {
-		t.Fatalf("a refused recertify edited the PR")
-	}
+	requireRecordUnchanged(t, f, before)
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyRefusesClosedOrMismatchedPR: no open PR for the feature
@@ -227,7 +233,7 @@ func TestIntegrationEvidenceEvidenceRecertifyAdvancesOneDriveAcrossWaiting(t *te
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyGateFailureAndHalt: a red suite is gate-failed (repair
-// work) and a halt is blocked — neither touches the PR (acceptance 3), and a
+// work) and a halt is blocked — neither writes the record (acceptance 3), and a
 // WAITING with no continuation fails closed instead of spinning.
 func TestIntegrationEvidenceEvidenceRecertifyGateFailureAndHalt(t *testing.T) {
 	cases := []struct {
@@ -245,14 +251,13 @@ func TestIntegrationEvidenceEvidenceRecertifyGateFailureAndHalt(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			gate := &fakeGate{result: tc.result, err: tc.err}
-			f, gh, deps, wdeps := recertifyFixture(t, gate)
+			f, _, deps, wdeps := recertifyFixture(t, gate)
+			before := f.remoteRecordBytes(t)
 			res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
 			if res.Result != tc.want || res.Reason != tc.reason {
 				t.Fatalf("result = %s/%s; want %s/%s", res.Result, res.Reason, tc.want, tc.reason)
 			}
-			if gh.ensNext != 0 {
-				t.Fatalf("a non-passed gate edited the PR")
-			}
+			requireRecordUnchanged(t, f, before)
 		})
 	}
 }
@@ -288,24 +293,26 @@ func TestIntegrationEvidenceEvidenceRecertifyGateOffRecordsSkipped(t *testing.T)
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyRefusesUnconfiguredGate: a local build gate with no
-// build.test_command refuses; no suite, no PR edit (acceptance 2).
+// build.test_command refuses; no suite, no record write (acceptance 2).
 func TestIntegrationEvidenceEvidenceRecertifyRefusesUnconfiguredGate(t *testing.T) {
 	gate := &fakeGate{}
-	f, gh, deps, wdeps := recertifyFixture(t, gate)
+	f, _, deps, wdeps := recertifyFixture(t, gate)
 	// Config resolves from the pinned default-branch tip (origin/main), never the
 	// invocation working tree, so the build-command-absent policy (gate defaults
 	// local) must be published to origin/main.
 	f.repo.writerAdvance(t, "main", map[string]string{
 		".docket.yml": "integration_branch: main\nfinalize:\n  test_command: 'go test ./...'\n",
 	})
+	before := f.remoteRecordBytes(t)
 
 	res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
 	if res.Result != ResultUnsupportedConfig || res.Reason != ReasonEvidenceUnconfiguredGate {
 		t.Fatalf("result = %s/%s; want unsupported-config/%s", res.Result, res.Reason, ReasonEvidenceUnconfiguredGate)
 	}
-	if gate.calls != 0 || gh.ensNext != 0 {
-		t.Fatalf("an unconfigured gate ran the suite or edited the PR")
+	if gate.calls != 0 {
+		t.Fatalf("an unconfigured gate ran the suite")
 	}
+	requireRecordUnchanged(t, f, before)
 }
 
 // movingGate commits to the feature worktree DURING the gate and then reports
@@ -329,6 +336,7 @@ func TestIntegrationEvidenceEvidenceRecertifyRefusesHeadMovedUnderGate(t *testin
 	f := setupRebaseFixture(t, planRepoModes()[0])
 	gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
 	gate := &movingGate{f: f, ev: greenBlockFor(t, f.head)}
+	before := f.remoteRecordBytes(t)
 	res := EvidenceRecertify(context.Background(), f.finalizeDeps(gh, gate), WorkspaceDeps{Service: f.svc},
 		f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
 	if res.Result == ResultApplied || res.Result == ResultNoOp {
@@ -337,9 +345,7 @@ func TestIntegrationEvidenceEvidenceRecertifyRefusesHeadMovedUnderGate(t *testin
 	if res.Reason != ReasonRecertifyHeadDisagreement && res.Reason != ReasonRecertifyCertifiedInputChanged {
 		t.Fatalf("reason = %q; want a head-disagreement/certified-input-changed refusal", res.Reason)
 	}
-	if gh.ensNext != 0 {
-		t.Fatalf("a moved head reached the PR edit")
-	}
+	requireRecordUnchanged(t, f, before)
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyRefusesForeignCommandEvidence: evidence recording a
@@ -347,34 +353,32 @@ func TestIntegrationEvidenceEvidenceRecertifyRefusesHeadMovedUnderGate(t *testin
 // the changed-configuration face of acceptance 3.
 func TestIntegrationEvidenceEvidenceRecertifyRefusesForeignCommandEvidence(t *testing.T) {
 	gate := &fakeGate{}
-	f, gh, deps, wdeps := recertifyFixture(t, gate)
+	f, _, deps, wdeps := recertifyFixture(t, gate)
 	foreign, err := evidence.NewRecord("make other-suite", f.head, time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("evidence.NewRecord: %v", err)
 	}
 	gate.result = LocalGateResult{Outcome: FinalizeGatePassed, Evidence: evidence.Render(foreign), RunDir: "/run/x"}
+	before := f.remoteRecordBytes(t)
 	res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
 	if res.Result != ResultBlocked || res.Reason != "certified-input-changed" {
 		t.Fatalf("result = %s/%s; want blocked/certified-input-changed", res.Result, res.Reason)
 	}
-	if gh.ensNext != 0 {
-		t.Fatalf("foreign-command evidence reached the PR edit")
-	}
+	requireRecordUnchanged(t, f, before)
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyRefusesWrongHeadEvidence: gate evidence naming another
-// head is stale at verification and never published.
+// head is stale at verification and never recorded.
 func TestIntegrationEvidenceEvidenceRecertifyRefusesWrongHeadEvidence(t *testing.T) {
 	gate := &fakeGate{}
-	f, gh, deps, wdeps := recertifyFixture(t, gate)
+	f, _, deps, wdeps := recertifyFixture(t, gate)
 	gate.result = LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.baseTip), RunDir: "/run/x"}
+	before := f.remoteRecordBytes(t)
 	res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
 	if res.Result != ResultInvalidState || res.Reason != ReasonRecertifyEvidenceUnverified {
 		t.Fatalf("result = %s/%s; want invalid-state/%s", res.Result, res.Reason, ReasonRecertifyEvidenceUnverified)
 	}
-	if gh.ensNext != 0 {
-		t.Fatalf("unverified evidence reached the PR edit")
-	}
+	requireRecordUnchanged(t, f, before)
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyRecordContended: a PASSED gate whose
@@ -384,7 +388,7 @@ func TestIntegrationEvidenceEvidenceRecertifyRefusesWrongHeadEvidence(t *testing
 // concurrent writer's record untouched.
 func TestIntegrationEvidenceEvidenceRecertifyRecordContended(t *testing.T) {
 	gate := &fakeGate{}
-	f, gh, deps, wdeps := recertifyFixture(t, gate)
+	f, _, deps, wdeps := recertifyFixture(t, gate)
 	gate.result = LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.head), RunDir: "/run/x"}
 	var advanced string
 	deps.Planning.Engine = &recordWriteInterposer{inner: f.deps.Engine, before: func() {
@@ -403,9 +407,6 @@ func TestIntegrationEvidenceEvidenceRecertifyRecordContended(t *testing.T) {
 	}
 	if got := f.remoteRecordBytes(t); got != advanced {
 		t.Fatalf("the contended recertify touched the concurrent writer's record:\n%s", got)
-	}
-	if gh.ensNext != 0 {
-		t.Fatalf("recertify edited the PR description")
 	}
 }
 
@@ -443,20 +444,19 @@ func (g *dirtyingGate) RunLocalGate(context.Context, LocalGateRequest) (LocalGat
 // TestIntegrationEvidenceEvidenceRecertifyRefusesDirtyAfterGate: an untracked, non-ignored file the
 // build command leaves in the worktree during a PASSED gate flips the
 // pre-publish cleanliness recheck to workspace-dirty and refuses to publish; the
-// PR is never edited. Pins the whole-predicate recheck's clean-worktree leg
+// record is never written. Pins the whole-predicate recheck's clean-worktree leg
 // (documented as the clean-worktree caveat in the guide).
 func TestIntegrationEvidenceEvidenceRecertifyRefusesDirtyAfterGate(t *testing.T) {
 	f := setupRebaseFixture(t, planRepoModes()[0])
 	gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
 	gate := &dirtyingGate{f: f, ev: greenBlockFor(t, f.head)}
+	before := f.remoteRecordBytes(t)
 	res := EvidenceRecertify(context.Background(), f.finalizeDeps(gh, gate), WorkspaceDeps{Service: f.svc},
 		f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
 	if res.Result != ResultBlocked || res.Reason != ReasonRecertifyWorkspaceDirty {
 		t.Fatalf("result = %s/%s; want blocked/%s", res.Result, res.Reason, ReasonRecertifyWorkspaceDirty)
 	}
-	if gh.ensNext != 0 {
-		t.Fatalf("a dirty post-gate worktree reached the PR edit")
-	}
+	requireRecordUnchanged(t, f, before)
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyRecordFailureThenRetry: a record write
