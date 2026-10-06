@@ -93,8 +93,10 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Rerun the build gate for an implemented change and refresh its open PR's evidence block in place",
 		Args:  cobra.NoArgs,
 		// external-write: the operation edits the existing pull request's
-		// build-evidence block (and only that block) on GitHub.
-		Annotations: capability("evidence.recertify", EffectExternalWrite),
+		// build-evidence block (and only that block) on GitHub; metadata-write:
+		// one exact-revision metadata transaction records the evidence in the
+		// change record's "## Build evidence" section.
+		Annotations: capability("evidence.recertify", EffectExternalWrite, EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {

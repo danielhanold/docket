@@ -17,7 +17,8 @@ import (
 // This file is the `finalize publish` operation: the narrow, receipt-scoped
 // publication of a rebased (rewritten) feature head onto its remote feature ref,
 // followed by the loss-preserving update of the Docket build-evidence block on
-// the existing pull request. It owns the ORDER and the closed-outcome mapping;
+// the existing pull request and the record of that evidence in the change
+// record's "## Build evidence" section. It owns the ORDER and the closed-outcome mapping;
 // every mechanic it composes is landed: the receipt-scoped force-with-lease push
 // lives in internal/workspace (PublishRewrite, Task 5), the evidence-block
 // replacement lives in internal/evidence (Upsert, the same writer `pr publish`
@@ -41,15 +42,21 @@ import (
 //     requested head;
 //  5. the current PR body's build-evidence block is loss-preservingly replaced
 //     with the exact current-head green record (every authored byte, the title,
-//     and every other block preserved); and
+//     and every other block preserved);
 //  6. EnsurePullRequest converges the PR onto that body under the exact expected
-//     head and revision, never creating a second PR.
+//     head and revision, never creating a second PR (a skipped record is never
+//     woven into a PR body, so steps 5 and 6 are skipped for it); and
+//  7. only a converged PR proceeds to write the record into the change record's
+//     "## Build evidence" section (recordBuildEvidence) in one exact-revision
+//     metadata transaction keyed on the record blob it reads — a record that
+//     moved under the write is contended and left untouched.
 //
 // Crash replay is ordinary. A crash after the push but before the PR update is a
 // no-op rewrite (the remote already holds the head) that resumes the PR update. A
-// crash after both is a no-op rewrite plus an already-equal PR body — a full
-// no-op. An unknown probe never authorizes a second mutation or a merge-enabling
-// success.
+// crash after the PR update but before the record write resumes only that write.
+// A crash after all three is a no-op rewrite, an already-equal PR body, and an
+// unchanged record section — a full no-op. An unknown probe never authorizes a
+// second mutation or a merge-enabling success.
 
 // OperationFinalizePublish is the operation key `finalize publish` records in its
 // result envelope.
@@ -57,11 +64,14 @@ const OperationFinalizePublish = "finalize.publish"
 
 // The closed set of `finalize publish` dispositions.
 const (
-	// PublishDispPublished: the rewrite reached the remote (or was already there)
-	// AND the PR build-evidence block was converged to the current head.
+	// PublishDispPublished: the rewrite reached the remote (or was already there),
+	// the PR build-evidence block was converged to the current head, and the
+	// change record's build-evidence section records it — at least one of them
+	// doing work this run.
 	PublishDispPublished = "published"
-	// PublishDispNoop: the remote already held the head and the PR already carried
-	// the exact current-head evidence — a full idempotent replay.
+	// PublishDispNoop: the remote already held the head, and the PR and the change
+	// record already carried the exact current-head evidence — a full idempotent
+	// replay.
 	PublishDispNoop = "noop"
 	// PublishDispContended: a lost race the caller resolves by re-reading context —
 	// a diverged remote, or a PR at an unexpected head/revision. Nothing was forced.
@@ -123,6 +133,13 @@ const (
 	// ReasonPublishEnsurerUnavailable: the wired GitHub seam does not provide the
 	// PR create-or-edit face; an internal wiring error.
 	ReasonPublishEnsurerUnavailable = "pr-editor-unavailable"
+	// ReasonPublishRecordContended: the change record moved between the publish's
+	// read and its build-evidence write; the record is untouched — re-read and
+	// retry.
+	ReasonPublishRecordContended = "record-evidence-contended"
+	// ReasonPublishRecordFailed: the change record's build-evidence write did not
+	// apply for any other reason; retained, never a merge-enabling success.
+	ReasonPublishRecordFailed = "record-evidence-failed"
 )
 
 // FinalizePublishRequest is the closed request for `finalize publish`. ID names
@@ -208,8 +225,9 @@ type finalizePublishEnsurer interface {
 }
 
 // FinalizePublish publishes a rewritten feature head onto its remote ref under
-// the owned receipt's exact lease and converges the PR build-evidence block onto
-// the exact current head, idempotently and in that order. It never forces past
+// the owned receipt's exact lease, converges the PR build-evidence block onto
+// the exact current head, and records that evidence in the change record,
+// idempotently and in that order. It never forces past
 // the recorded lease, never creates a second PR, and treats every unknown probe
 // as retain — no second mutation and no merge-enabling success.
 func FinalizePublish(ctx context.Context, deps FinalizeDeps, repoDir string, req FinalizePublishRequest) FinalizePublishResult {
@@ -358,6 +376,17 @@ func FinalizePublish(ctx context.Context, deps FinalizeDeps, repoDir string, req
 		})
 	}
 
+	// A skipped (build.gate: off) record is never woven into a PR body — the PR
+	// evidence block is green-only — so the change record's section is its only
+	// home: the PR is left untouched and the record write alone decides.
+	if rec.Result == evidence.ResultSkipped {
+		prRes := newPublishResult(ResultNoOp, publishSuccess(id, req.Head, rout, repo, pr, PublishDispNoop))
+		if rout == workspace.RewritePublished {
+			prRes = newPublishResult(ResultApplied, publishSuccess(id, req.Head, rout, repo, pr, PublishDispPublished))
+		}
+		return publishRecordEvidence(ctx, deps, repoDir, id, rec, prRes)
+	}
+
 	// Replace ONLY the build-evidence block in the current PR body — every authored
 	// byte, the title, and every other block are preserved.
 	newBody, err := evidence.Upsert([]byte(pr.Body), rec)
@@ -382,7 +411,41 @@ func FinalizePublish(ctx context.Context, deps FinalizeDeps, repoDir string, req
 	if eerr != nil {
 		return mapPublishEnsureFailure(id, req.Head, string(rout), eerr)
 	}
-	return publishResultFromEnsure(id, req.Head, rout, repo, eres)
+	return publishRecordEvidence(ctx, deps, repoDir, id, rec, publishResultFromEnsure(id, req.Head, rout, repo, eres))
+}
+
+// publishRecordEvidence runs the last step of the order: only a converged PR (a
+// published or noop result) proceeds to record rec in the change record's
+// "## Build evidence" section through one exact-revision metadata transaction.
+// A record write that applied after a noop PR edit makes the publication
+// `published`; a no-op write keeps the PR result; a record that moved under the
+// write is contended (untouched, re-read and retry); any other outcome is
+// unknown — never a merge-enabling success.
+func publishRecordEvidence(ctx context.Context, deps FinalizeDeps, repoDir string, id int, rec evidence.Record, prRes FinalizePublishResult) FinalizePublishResult {
+	if prRes.Result != ResultApplied && prRes.Result != ResultNoOp {
+		return prRes
+	}
+	out := recordBuildEvidence(ctx, deps.Planning, repoDir, OperationFinalizePublish, id, rec)
+	switch out.Result {
+	case ResultApplied:
+		if prRes.Result == ResultNoOp {
+			prRes.Envelope = NewEnvelope(OperationFinalizePublish, ResultApplied)
+			prRes.Disposition = PublishDispPublished
+		}
+		return prRes
+	case ResultNoOp:
+		return prRes
+	case ResultContended:
+		return newPublishResult(ResultContended, FinalizePublishResult{
+			ID: id, Disposition: PublishDispContended, Head: prRes.Head, Number: prRes.Number, Rewrite: prRes.Rewrite,
+			Reason: ReasonPublishRecordContended, Message: out.Message,
+		})
+	default:
+		return newPublishResult(out.Result, FinalizePublishResult{
+			ID: id, Disposition: PublishDispUnknown, Head: prRes.Head, Number: prRes.Number, Rewrite: prRes.Rewrite,
+			Reason: ReasonPublishRecordFailed, Message: out.Message,
+		})
+	}
 }
 
 // translateWorkspaceRefusalToPublish maps a workspace-shaped pre-delegation

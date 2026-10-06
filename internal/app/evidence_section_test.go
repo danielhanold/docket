@@ -1,12 +1,15 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/evidence"
+	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
 const esHead = "0123456789abcdef0123456789abcdef01234567"
@@ -109,4 +112,65 @@ func TestRecordEvidenceFacts(t *testing.T) {
 	if h, cmd, green := recordEvidenceFacts([]byte(esRecord())); h != "" || cmd != "" || green {
 		t.Fatalf("absent facts = %q %q %v", h, cmd, green)
 	}
+}
+
+// TestRecordBuildEvidenceIsIdempotent drives recordEvidenceOp's Plan closure over
+// a fake tree: the first write replaces the change record with the section
+// appended (and renders the absent inline board), and replaying the same record
+// over the written bytes declares no files — the engine's clean no-op path,
+// never a second commit.
+func TestRecordBuildEvidenceIsIdempotent(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	files := map[string]string{recPath: lifecycleChange(3, "widget", "in-progress")}
+	eff := planningTestConfig([]string{"inline"})
+	op := recordEvidenceOp{opKey: OperationFinalizePublish, changeID: 3, rec: esGreen(t), eff: eff, inline: true, changesDir: "docs/changes"}
+
+	first, opRes := recordEvidencePlanFor(t, eff, files, op)
+	if opRes.Refused {
+		t.Fatalf("first write refused: %v", opRes.Findings)
+	}
+	if got := planPaths(first); len(got) != 2 {
+		t.Fatalf("first write files = %v, want the change record and the absent board", got)
+	}
+	got, err := ReadRecordEvidence([]byte(lifecycleRecordBytes(t, first, recPath)))
+	if err != nil || got != op.rec {
+		t.Fatalf("written section = %+v, %v; want %+v", got, err, op.rec)
+	}
+	if len(first.Receipt) == 0 || first.CommitSubject == "" {
+		t.Fatalf("first write carries no receipt/subject: %+v", first)
+	}
+
+	files[recPath] = lifecycleRecordBytes(t, first, recPath)
+	files["docs/changes/BOARD.md"] = lifecycleRecordBytes(t, first, "docs/changes/BOARD.md")
+	second, opRes := recordEvidencePlanFor(t, eff, files, op)
+	if opRes.Refused {
+		t.Fatalf("replay refused: %v", opRes.Findings)
+	}
+	if len(second.Files) != 0 {
+		t.Fatalf("replay declared %v, want no files (a clean no-op)", planPaths(second))
+	}
+
+	// An unknown change is a state refusal, never a write.
+	missing := op
+	missing.changeID = 9
+	if _, opRes := recordEvidencePlanFor(t, eff, files, missing); !opRes.Refused {
+		t.Fatalf("an unknown change was not refused")
+	}
+}
+
+func recordEvidencePlanFor(t *testing.T, eff config.Effective, files map[string]string, op recordEvidenceOp) (transaction.MutationPlan, transaction.OperationResult) {
+	t.Helper()
+	tree := newFakeTree(files)
+	before, err := newPlanningLoader(eff).Load(context.Background(), tree)
+	if err != nil {
+		t.Fatalf("loader.Load: %v", err)
+	}
+	if before.Report.HasErrors() {
+		t.Fatalf("before-state has errors: %v", before.Report.Findings())
+	}
+	plan, opRes, err := op.Plan(context.Background(), transaction.AttemptState{Base: tree.Revision(), State: before, Tree: tree})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	return plan, opRes
 }

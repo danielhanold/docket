@@ -7,6 +7,7 @@ import (
 	"errors"
 	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/repository/transaction"
 	"github.com/danielhanold/docket/internal/workspace"
 	"strings"
 	"testing"
@@ -368,10 +369,11 @@ func TestIntegrationFinalizeStateNoForeignWrites(t *testing.T) {
 	}
 }
 
-// TestFinalizePublishCrashReplay proves the two replay faces. A crash after the
-// push but before the PR update is a no-op rewrite (the remote already holds the
-// rewritten head) that still resumes the PR update. A crash after both is a full
-// no-op.
+// TestFinalizePublishCrashReplay proves the replay faces. A crash after the push
+// but before the PR update is a no-op rewrite (the remote already holds the
+// rewritten head) that still resumes the PR update. A crash after the PR update
+// resumes only the record write; a crash after all three is a full no-op with
+// no new metadata commit.
 func TestIntegrationFinalizeStatePublishCrashReplay(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]
@@ -401,7 +403,7 @@ func TestIntegrationFinalizeStatePublishCrashReplay(t *testing.T) {
 		}
 	})
 
-	t.Run("after-both-is-full-noop", func(t *testing.T) {
+	t.Run("after-all-is-full-noop", func(t *testing.T) {
 		f := setupPublishFixture(t, main)
 		runGit(t, f.wp, "push", "--force", "-q", "origin", "HEAD:refs/heads/feat/"+f.slug)
 		evRec, evBytes := recFor(t, f.rewritten)
@@ -411,12 +413,27 @@ func TestIntegrationFinalizeStatePublishCrashReplay(t *testing.T) {
 			t.Fatalf("evidence.Upsert: %v", err)
 		}
 		gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, string(converged))}
+		// A crash after the record write: a first publish over the already-pushed
+		// head and already-converged PR does only the record write (published).
+		prime := FinalizePublish(context.Background(), f.publishDeps(gh), f.repo.invocation,
+			FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes})
+		if prime.Result != ResultApplied || prime.Disposition != PublishDispPublished {
+			t.Fatalf("record-only publish = %q disp %q (reason %q), want applied/published", prime.Result, prime.Disposition, prime.Reason)
+		}
+		if got := f.remoteRecordEvidence(t); got != evRec {
+			t.Fatalf("recorded evidence = %+v, want %+v", got, evRec)
+		}
+		metaTip := originTip(t, f.repo.origin, f.branch)
 
 		res := FinalizePublish(context.Background(), f.publishDeps(gh), f.repo.invocation,
 			FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes})
 
 		if res.Result != ResultNoOp || res.Disposition != PublishDispNoop {
 			t.Fatalf("full replay = %q disp %q (reason %q), want no-op/noop", res.Result, res.Disposition, res.Reason)
+		}
+		// The record write was a clean no-op: no new metadata commit.
+		if tip := originTip(t, f.repo.origin, f.branch); tip != metaTip {
+			t.Errorf("a full replay committed to the metadata branch: tip %s, want %s", tip, metaTip)
 		}
 		if res.Rewrite != "noop" {
 			t.Errorf("rewrite outcome = %q, want noop", res.Rewrite)
@@ -495,7 +512,62 @@ func TestIntegrationFinalizeStatePublishOrder(t *testing.T) {
 			if res.Number != 7 || !strings.HasSuffix(res.Reference, "#7") {
 				t.Errorf("result PR identity = number %d ref %q, want #7", res.Number, res.Reference)
 			}
+			// The published record is durable in the change record's evidence
+			// section at the metadata remote tip.
+			if got := f.remoteRecordEvidence(t); got != evRec {
+				t.Errorf("recorded evidence = %+v, want the published record %+v", got, evRec)
+			}
 		})
+	}
+}
+
+// recordWriteInterposer delegates to the real engine, running before exactly
+// once ahead of the first record-evidence transaction — the window between the
+// publish's own corpus read and its exact-revision transaction.
+type recordWriteInterposer struct {
+	inner interface {
+		Execute(ctx context.Context, req transaction.Request) (transaction.Result, error)
+	}
+	before func()
+	fired  bool
+}
+
+func (e *recordWriteInterposer) Execute(ctx context.Context, req transaction.Request) (transaction.Result, error) {
+	if _, ok := req.Operation.(recordEvidenceOp); ok && !e.fired {
+		e.fired = true
+		e.before()
+	}
+	return e.inner.Execute(ctx, req)
+}
+
+// TestIntegrationFinalizeStatePublishRecordEvidenceContended proves the record
+// write is a CAS on the record blob the publish read: a concurrent writer that
+// moves the change record between that read and the transaction makes the
+// publish contended, and the concurrent writer's record is left untouched.
+func TestIntegrationFinalizeStatePublishRecordEvidenceContended(t *testing.T) {
+	requireRealGit(t)
+	f := setupPublishFixture(t, planRepoModes()[0])
+	_, evBytes := recFor(t, f.rewritten)
+	gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, authoredPRBody(t, f.origHead))}
+
+	var advanced string
+	deps := f.publishDeps(gh)
+	deps.Planning.Engine = &recordWriteInterposer{inner: f.deps.Engine, before: func() {
+		advanced = f.remoteRecordBytes(t) + "\nA concurrent writer's prose.\n"
+		f.repo.writerAdvance(t, f.branch, map[string]string{groomPath(f.id, f.slug): advanced})
+	}}
+
+	res := FinalizePublish(context.Background(), deps, f.repo.invocation,
+		FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes})
+
+	if res.Result != ResultContended || res.Disposition != PublishDispContended || res.Reason != ReasonPublishRecordContended {
+		t.Fatalf("publish = %q disp %q reason %q (msg %q), want contended/contended/%s", res.Result, res.Disposition, res.Reason, res.Message, ReasonPublishRecordContended)
+	}
+	if advanced == "" {
+		t.Fatalf("the record write was never attempted")
+	}
+	if got := f.remoteRecordBytes(t); got != advanced {
+		t.Fatalf("the contended publish touched the concurrent writer's record:\n%s", got)
 	}
 }
 

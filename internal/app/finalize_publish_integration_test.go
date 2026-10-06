@@ -55,6 +55,13 @@ func TestIntegrationFinalizeOpsFinalizePublishAcceptsSkippedEvidence(t *testing.
 	if res.Reason == ReasonPublishEvidenceUnverified {
 		t.Fatalf("skipped evidence at the exact head was refused at the evidence condition: %q", res.Message)
 	}
+	if res.Result != ResultApplied || res.Disposition != PublishDispPublished {
+		t.Fatalf("skipped publish = %q disp %q (reason %q msg %q), want applied/published", res.Result, res.Disposition, res.Reason, res.Message)
+	}
+	// The skipped record is durable in the change record's evidence section.
+	if got := f.remoteRecordEvidence(t); got != skipped {
+		t.Fatalf("recorded evidence = %+v, want the published skipped record %+v", got, skipped)
+	}
 }
 
 // TestIntegrationFinalizeOpsFinalizePublishAfterCheckpointResume proves the reuse path end to end:
