@@ -58,5 +58,5 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
 - **`docket uninstall`** — remove recorded harness integrations while retaining the CLI and
   repository setup. Verbs: `docket uninstall --help`.
 - **`docket version`** — report the binary's build identity. Verbs: `docket version --help`.
-- **`docket workspace`** — prepare, inspect, and publish feature workspaces for in-progress
-  changes. Verbs: `docket workspace --help`.
+- **`docket workspace`** — prepare, commit the spec copy onto, inspect, and publish feature
+  workspaces for in-progress changes. Verbs: `docket workspace --help`.
