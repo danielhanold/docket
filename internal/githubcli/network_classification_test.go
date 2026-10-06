@@ -40,6 +40,7 @@ func TestEveryNetworkSiteIsReadWriteClassified(t *testing.T) {
 		"ViewPullRequest":            false, // pr view
 		"FindOpenPullRequestsByHead": false, // pr list --head
 		"RetargetPullRequest":        true,  // pr edit --base
+		"EditPullRequestBody":        true,  // pr edit --body-file -
 		"DiscoverRepository":         false, // repo view
 	}
 	assertNetworkSitesClassified(t, classified)
