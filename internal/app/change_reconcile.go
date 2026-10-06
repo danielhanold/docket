@@ -617,6 +617,23 @@ type topHeading struct {
 // yields agrees with the splice that consumes it.
 func scanTopHeadings(src []byte) []topHeading {
 	var heads []topHeading
+	walkUnfencedLines(src, func(text []byte, start, lineEnd int) bool {
+		if strings.HasPrefix(string(text), "## ") {
+			heads = append(heads, topHeading{heading: string(text), start: start, lineEnd: lineEnd})
+		}
+		return true
+	})
+	return heads
+}
+
+// walkUnfencedLines calls visit, in source order, for every physical line of
+// src that sits outside fenced code and is not itself a fence delimiter line:
+// the line's text without its terminator, the offset where the line begins, and
+// the offset just past its terminator (or EOF). visit returns false to stop the
+// walk. It is the single fence-aware line scanner behind scanTopHeadings and
+// the spec copy's title search (firstTitleLineEnd), so both agree on what is
+// fenced content.
+func walkUnfencedLines(src []byte, visit func(text []byte, start, lineEnd int) bool) {
 	fence := ""
 	fenceChar := byte(0)
 	start := 0
@@ -642,15 +659,14 @@ func scanTopHeadings(src []byte) []topHeading {
 			case run[0] == fenceChar && len(run) >= len(fence) && bareFence(text, run):
 				fence, fenceChar = "", 0
 			}
-		} else if fence == "" && strings.HasPrefix(string(text), "## ") {
-			heads = append(heads, topHeading{heading: string(text), start: start, lineEnd: lineEnd})
+		} else if fence == "" && !visit(text, start, lineEnd) {
+			return
 		}
 		start = i + 1
 		if i >= len(src) {
 			break
 		}
 	}
-	return heads
 }
 
 // fenceRunBytes returns the leading fence delimiter run (three or more backticks

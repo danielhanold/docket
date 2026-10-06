@@ -60,6 +60,7 @@ var assetIndependent = map[string]bool{
 	"artifact backlink":       true,
 	"workspace":               true, // the group itself; it reports a missing command
 	"workspace prepare":       true,
+	"workspace commit-spec":   true,
 	"workspace inspect":       true,
 	"workspace publish":       true,
 	"evidence":                true, // the group itself; it reports a missing command

@@ -7,7 +7,7 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// TestWorkspaceCommandsRegistered: the three `workspace` subcommands are
+// TestWorkspaceCommandsRegistered: the four `workspace` subcommands are
 // registered under the group with their scalar flags, and the bare group reports
 // a missing command.
 func TestWorkspaceCommandsRegistered(t *testing.T) {
@@ -20,6 +20,7 @@ func TestWorkspaceCommandsRegistered(t *testing.T) {
 		{[]string{"workspace", "prepare"}, []string{"id", "revision", "repo-dir"}},
 		{[]string{"workspace", "inspect"}, []string{"id", "repo-dir"}},
 		{[]string{"workspace", "publish"}, []string{"id", "head", "repo-dir"}},
+		{[]string{"workspace", "commit-spec"}, []string{"id", "repo-dir"}},
 	}
 	for _, tc := range cases {
 		cmd, _, err := root.Find(tc.path)
@@ -74,6 +75,24 @@ func TestWorkspacePrepareRoutesFlags(t *testing.T) {
 	}
 }
 
+// TestWorkspaceCommitSpecRoutesFlags: `docket workspace commit-spec` routes --id
+// into app.WorkspaceCommitSpec; against a non-repository directory the pin
+// fails, still yielding one document naming the commit-spec operation. Omitting
+// --id is an argument error (exit 2).
+func TestWorkspaceCommitSpecRoutesFlags(t *testing.T) {
+	root := testsupport.TempDir(t)
+	out, errS, _ := runCLI(t, "workspace", "commit-spec", "--id", "7", "--repo-dir", root, "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"workspace.commit-spec"`) {
+		t.Fatalf("commit-spec document did not name the operation: %q", out)
+	}
+	if _, errS, code := runCLI(t, "workspace", "commit-spec"); code != 2 || !strings.Contains(errS, "id") {
+		t.Errorf("missing --id not rejected: err=%q code=%d", errS, code)
+	}
+}
+
 // TestWorkspaceRequiredFlags: prepare requires --id and --revision; publish
 // requires --head — omitting one is an argument error (exit 2).
 func TestWorkspaceRequiredFlags(t *testing.T) {
@@ -99,7 +118,7 @@ func TestWorkspaceInspectHumanMode(t *testing.T) {
 // workspace commands read the repository and drive Git, never installed assets,
 // so they must be asset-independent.
 func TestWorkspaceCommandsAssetIndependent(t *testing.T) {
-	for _, key := range []string{"workspace", "workspace prepare", "workspace inspect", "workspace publish"} {
+	for _, key := range []string{"workspace", "workspace prepare", "workspace inspect", "workspace publish", "workspace commit-spec"} {
 		if !assetIndependent[key] {
 			t.Errorf("%q is not registered asset-independent", key)
 		}

@@ -59,6 +59,30 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = prepare.MarkFlagRequired("id")
 	_ = prepare.MarkFlagRequired("revision")
 
+	commitSpec := &cobra.Command{
+		Use:         "commit-spec",
+		Short:       "Commit the change's spec copy onto its feature branch (the branch's first commit)",
+		Args:        cobra.NoArgs,
+		Annotations: capability("workspace.commit-spec", EffectLocalWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			id, _ := c.Flags().GetInt("id")
+			deps, wdeps, err := newWorkspaceDeps(repoDir)
+			if err != nil {
+				return err
+			}
+			setResult(app.WorkspaceCommitSpec(c.Context(), deps, wdeps, repoDir,
+				app.WorkspaceIDRequest{ID: id}))
+			return nil
+		},
+	}
+	commitSpec.Flags().Int("id", 0, "change `id` whose spec copy to commit (required)")
+	commitSpec.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	_ = commitSpec.MarkFlagRequired("id")
+
 	inspect := &cobra.Command{
 		Use:         "inspect",
 		Short:       "Classify a change's feature workspace state (read-only)",
@@ -110,7 +134,7 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = publish.MarkFlagRequired("id")
 	_ = publish.MarkFlagRequired("head")
 
-	workspaceCmd.AddCommand(prepare, inspect, publish)
+	workspaceCmd.AddCommand(prepare, commitSpec, inspect, publish)
 	return workspaceCmd
 }
 

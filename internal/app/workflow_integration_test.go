@@ -1621,3 +1621,328 @@ func TestIntegrationWorkflowLifecycleWorkspacePublishPassesThroughDispositions(t
 		})
 	}
 }
+
+// --- workspace commit-spec ---------------------------------------------------
+
+const commitSpecPath = "docs/superpowers/specs/2026-08-17-copyme-design.md"
+
+// commitSpecMetadataSpec is a metadata spec as the docket branch stores it: a
+// docket:backlink block above the authored title.
+func commitSpecMetadataSpec(body string) string {
+	return "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
+		"> ↩ **[Change 0031 — A change](https://example.invalid/blob/docket/docs/changes/active/0031-copyme.md)**\n" +
+		"<!-- docket:backlink:end -->\n\n" +
+		"# Copy me: design\n\n" + body
+}
+
+// commitSpecRecord is change 31 in-progress, its spec: field set to specPath
+// ("" leaves it empty — a trivial change).
+func commitSpecRecord(specPath string) string {
+	rec := lifecycleChange(31, "copyme", "in-progress")
+	if specPath != "" {
+		rec = strings.Replace(rec, "spec:\n", "spec: "+specPath+"\n", 1)
+	}
+	return rec
+}
+
+// commitSpecEnv is one prepared change-31 workspace over a real docket-mode repo.
+type commitSpecEnv struct {
+	repo      *gitRepo
+	deps      PlanningDeps
+	wdeps     WorkspaceDeps
+	workspace string
+	base      string
+}
+
+// newCommitSpecEnv builds a docket-mode repo (mainFiles on main, records on
+// docket), prepares change 31's workspace, and returns it.
+func newCommitSpecEnv(t *testing.T, mainFiles, docketRecords map[string]string) commitSpecEnv {
+	t.Helper()
+	repo := newDocketModeRepo(t, mainFiles, docketRecords)
+	recPath := groomPath(31, "copyme")
+	revision := blobRevisionAt(t, repo.origin, "docket", recPath)
+	deps := planningDepsFor(t, repo.invocation).deps
+	svc, err := workspace.NewService(deps.Client)
+	if err != nil {
+		t.Fatalf("workspace.NewService: %v", err)
+	}
+	wdeps := WorkspaceDeps{Service: svc}
+	prep := WorkspacePrepare(context.Background(), deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: 31, Revision: revision})
+	if prep.Result != ResultApplied {
+		t.Fatalf("prepare = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
+	}
+	return commitSpecEnv{repo: repo, deps: deps, wdeps: wdeps, workspace: prep.Path, base: prep.BaseCommit}
+}
+
+func (e commitSpecEnv) commitSpec(t *testing.T) WorkspaceOpResult {
+	t.Helper()
+	return WorkspaceCommitSpec(context.Background(), e.deps, e.wdeps, e.repo.invocation, WorkspaceIDRequest{ID: 31})
+}
+
+func (e commitSpecEnv) head(t *testing.T) string {
+	t.Helper()
+	return runGit(t, e.workspace, "rev-parse", "HEAD")
+}
+
+// commitsSinceBase is the workspace's commit list since the prepared base,
+// oldest first.
+func (e commitSpecEnv) commitsSinceBase(t *testing.T) []string {
+	t.Helper()
+	out := runGit(t, e.workspace, "rev-list", "--reverse", e.base+"..HEAD")
+	if out == "" {
+		return nil
+	}
+	return strings.Split(out, "\n")
+}
+
+// assertClean fails unless the workspace has no tracked, staged, or untracked change.
+func (e commitSpecEnv) assertClean(t *testing.T) {
+	t.Helper()
+	if st := runGit(t, e.workspace, "status", "--porcelain", "--untracked-files=all"); st != "" {
+		t.Fatalf("workspace not clean after commit-spec:\n%s", st)
+	}
+}
+
+// expectedSpecCopy is the copy specCopyBytes renders for change 31 from the
+// metadata spec bytes.
+func expectedSpecCopy(t *testing.T, metadataSpec string) string {
+	t.Helper()
+	snap := snapshotOf(t, []StatusBlob{{
+		Kind: repository.KindChange, Location: repository.LocationActive,
+		Path: groomPath(31, "copyme"), Revision: "blobcopyme", Data: []byte(commitSpecRecord(commitSpecPath)),
+	}})
+	want, err := specCopyBytes([]byte(metadataSpec), mustChange(t, snap, 31))
+	if err != nil {
+		t.Fatalf("specCopyBytes: %v", err)
+	}
+	return string(want)
+}
+
+// TestIntegrationWorkflowLifecycleCommitSpecFirstCommit: the spec copy is the
+// feature branch's first commit — exactly one commit, one path, the rendered
+// copy's bytes, a clean worktree — and a second call is a no-op.
+func TestIntegrationWorkflowLifecycleCommitSpecFirstCommit(t *testing.T) {
+	spec := commitSpecMetadataSpec("Body.\n")
+	env := newCommitSpecEnv(t, nil, map[string]string{
+		groomPath(31, "copyme"): commitSpecRecord(commitSpecPath),
+		commitSpecPath:          spec,
+	})
+
+	res := env.commitSpec(t)
+	if res.Result != ResultApplied || res.Disposition != SpecCopyCommitted {
+		t.Fatalf("commit-spec = (%q, %q), want applied/committed (reason %q msg %q)", res.Result, res.Disposition, res.Reason, res.Message)
+	}
+	commits := env.commitsSinceBase(t)
+	if len(commits) != 1 {
+		t.Fatalf("commits since base = %v, want exactly one", commits)
+	}
+	if res.Head != commits[0] || env.head(t) != commits[0] {
+		t.Fatalf("reported head %q, workspace HEAD %q, want the new commit %q", res.Head, env.head(t), commits[0])
+	}
+	if res.Path != commitSpecPath {
+		t.Errorf("result path = %q, want %q", res.Path, commitSpecPath)
+	}
+	if subj := runGit(t, env.workspace, "log", "-1", "--format=%s", commits[0]); subj != "Add design spec: A change" {
+		t.Errorf("subject = %q, want %q", subj, "Add design spec: A change")
+	}
+	if paths := runGit(t, env.workspace, "diff-tree", "--no-commit-id", "--name-only", "-r", commits[0]); paths != commitSpecPath {
+		t.Errorf("commit paths = %q, want only %q", paths, commitSpecPath)
+	}
+	got, err := os.ReadFile(filepath.Join(env.workspace, filepath.FromSlash(commitSpecPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := expectedSpecCopy(t, spec); string(got) != want {
+		t.Fatalf("spec copy bytes:\n%q\nwant\n%q", got, want)
+	}
+	if strings.Contains(string(got), "docket:backlink") {
+		t.Fatalf("the metadata backlink rode into the copy:\n%s", got)
+	}
+	env.assertClean(t)
+
+	again := env.commitSpec(t)
+	if again.Result != ResultNoOp || again.Disposition != SpecCopyCurrent {
+		t.Fatalf("second commit-spec = (%q, %q), want no-op/current (reason %q)", again.Result, again.Disposition, again.Reason)
+	}
+	if env.head(t) != commits[0] || again.Head != commits[0] {
+		t.Fatalf("a current copy moved the head: %q (reported %q), want %q", env.head(t), again.Head, commits[0])
+	}
+}
+
+// TestIntegrationWorkflowLifecycleCommitSpecRefreshesRevisedSpec: a spec revised
+// on the metadata branch after the first copy refreshes it with a second commit.
+func TestIntegrationWorkflowLifecycleCommitSpecRefreshesRevisedSpec(t *testing.T) {
+	env := newCommitSpecEnv(t, nil, map[string]string{
+		groomPath(31, "copyme"): commitSpecRecord(commitSpecPath),
+		commitSpecPath:          commitSpecMetadataSpec("Body.\n"),
+	})
+	if res := env.commitSpec(t); res.Disposition != SpecCopyCommitted {
+		t.Fatalf("first commit-spec = (%q, %q), want committed (reason %q msg %q)", res.Result, res.Disposition, res.Reason, res.Message)
+	}
+
+	revised := commitSpecMetadataSpec("Revised body.\n")
+	env.repo.writerAdvance(t, "docket", map[string]string{commitSpecPath: revised})
+
+	res := env.commitSpec(t)
+	if res.Result != ResultApplied || res.Disposition != SpecCopyRefreshed {
+		t.Fatalf("refresh = (%q, %q), want applied/refreshed (reason %q msg %q)", res.Result, res.Disposition, res.Reason, res.Message)
+	}
+	commits := env.commitsSinceBase(t)
+	if len(commits) != 2 || res.Head != commits[1] {
+		t.Fatalf("commits since base = %v (reported head %q), want two ending at the refresh", commits, res.Head)
+	}
+	if subj := runGit(t, env.workspace, "log", "-1", "--format=%s", commits[1]); subj != "Update design spec: A change" {
+		t.Errorf("subject = %q, want %q", subj, "Update design spec: A change")
+	}
+	got, err := os.ReadFile(filepath.Join(env.workspace, filepath.FromSlash(commitSpecPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := expectedSpecCopy(t, revised); string(got) != want {
+		t.Fatalf("refreshed copy:\n%q\nwant\n%q", got, want)
+	}
+	env.assertClean(t)
+}
+
+// TestIntegrationWorkflowLifecycleCommitSpecTrivialNoSpec: a change with no
+// spec has no copy — a no-op that commits nothing.
+func TestIntegrationWorkflowLifecycleCommitSpecTrivialNoSpec(t *testing.T) {
+	env := newCommitSpecEnv(t, nil, map[string]string{
+		groomPath(31, "copyme"): commitSpecRecord(""),
+	})
+	before := env.head(t)
+	res := env.commitSpec(t)
+	if res.Result != ResultNoOp || res.Disposition != SpecCopyNoSpec {
+		t.Fatalf("commit-spec = (%q, %q), want no-op/no-spec (reason %q)", res.Result, res.Disposition, res.Reason)
+	}
+	if env.head(t) != before {
+		t.Fatalf("a no-spec change moved the head")
+	}
+}
+
+// TestIntegrationWorkflowLifecycleCommitSpecRefusesDirtyWorkspace: an untracked
+// file makes the workspace not ready — refused, nothing committed, the file
+// untouched.
+func TestIntegrationWorkflowLifecycleCommitSpecRefusesDirtyWorkspace(t *testing.T) {
+	env := newCommitSpecEnv(t, nil, map[string]string{
+		groomPath(31, "copyme"): commitSpecRecord(commitSpecPath),
+		commitSpecPath:          commitSpecMetadataSpec("Body.\n"),
+	})
+	before := env.head(t)
+	writeRepoFile(t, env.workspace, "scratch.txt", "local work\n")
+
+	res := env.commitSpec(t)
+	if res.Result != ResultInvalidState || res.Reason != ReasonSpecCopyNotReady {
+		t.Fatalf("commit-spec = (%q, %q), want invalid-state/%s (msg %q)", res.Result, res.Reason, ReasonSpecCopyNotReady, res.Message)
+	}
+	if strings.Contains(res.Message, "scratch.txt") {
+		t.Errorf("refusal message names a dirty path: %q", res.Message)
+	}
+	if env.head(t) != before {
+		t.Fatalf("a refused commit-spec moved the head")
+	}
+	if got, err := os.ReadFile(filepath.Join(env.workspace, "scratch.txt")); err != nil || string(got) != "local work\n" {
+		t.Fatalf("untracked file disturbed: %q, %v", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(env.workspace, filepath.FromSlash(commitSpecPath))); !os.IsNotExist(err) {
+		t.Fatalf("a refused commit-spec wrote the spec copy (stat err %v)", err)
+	}
+}
+
+// TestIntegrationWorkflowLifecycleCommitSpecRefusesOccupiedIntegrationPath: the
+// integration branch already holds different bytes at the spec path — refused,
+// nothing committed.
+func TestIntegrationWorkflowLifecycleCommitSpecRefusesOccupiedIntegrationPath(t *testing.T) {
+	env := newCommitSpecEnv(t, map[string]string{
+		commitSpecPath: "# Someone else's file\n",
+	}, map[string]string{
+		groomPath(31, "copyme"): commitSpecRecord(commitSpecPath),
+		commitSpecPath:          commitSpecMetadataSpec("Body.\n"),
+	})
+	before := env.head(t)
+	res := env.commitSpec(t)
+	if res.Result != ResultInvalidState || res.Reason != ReasonSpecCopyPathOccupied {
+		t.Fatalf("commit-spec = (%q, %q), want invalid-state/%s (msg %q)", res.Result, res.Reason, ReasonSpecCopyPathOccupied, res.Message)
+	}
+	if env.head(t) != before {
+		t.Fatalf("a refused commit-spec moved the head")
+	}
+	env.assertClean(t)
+}
+
+// TestIntegrationWorkflowLifecycleCommitSpecMissingSpecFile: spec: names a path
+// absent on the metadata branch — refused spec-missing, nothing committed.
+func TestIntegrationWorkflowLifecycleCommitSpecMissingSpecFile(t *testing.T) {
+	env := newCommitSpecEnv(t, nil, map[string]string{
+		groomPath(31, "copyme"): commitSpecRecord(commitSpecPath),
+	})
+	before := env.head(t)
+	res := env.commitSpec(t)
+	if res.Result != ResultInvalidState || res.Reason != ReasonSpecCopyMissing {
+		t.Fatalf("commit-spec = (%q, %q), want invalid-state/%s (msg %q)", res.Result, res.Reason, ReasonSpecCopyMissing, res.Message)
+	}
+	if env.head(t) != before {
+		t.Fatalf("a refused commit-spec moved the head")
+	}
+}
+
+// TestIntegrationWorkflowLifecycleCommitSpecRefusesMalformedSpec: a metadata
+// spec whose backlink markers do not parse is refused spec-malformed — never
+// copied with a dangling marker.
+func TestIntegrationWorkflowLifecycleCommitSpecRefusesMalformedSpec(t *testing.T) {
+	env := newCommitSpecEnv(t, nil, map[string]string{
+		groomPath(31, "copyme"): commitSpecRecord(commitSpecPath),
+		commitSpecPath:          "<!-- docket:backlink:start (generated — do not hand-edit) -->\n# Copy me\n",
+	})
+	before := env.head(t)
+	res := env.commitSpec(t)
+	if res.Result != ResultInvalidState || res.Reason != ReasonSpecCopyMalformed {
+		t.Fatalf("commit-spec = (%q, %q), want invalid-state/%s (msg %q)", res.Result, res.Reason, ReasonSpecCopyMalformed, res.Message)
+	}
+	if env.head(t) != before {
+		t.Fatalf("a refused commit-spec moved the head")
+	}
+	env.assertClean(t)
+}
+
+// staleInspectService reports a ready workspace at a fixed, stale head — the
+// view of a caller that inspected before another commit landed on the branch.
+type staleInspectService struct {
+	WorkspaceService
+	head gitcli.ObjectID
+}
+
+func (s staleInspectService) Inspect(ctx context.Context, req workspace.InspectRequest) (workspace.Inspection, error) {
+	insp, err := s.WorkspaceService.Inspect(ctx, req)
+	insp.HeadCommit = s.head
+	return insp, err
+}
+
+// TestIntegrationWorkflowLifecycleCommitSpecRefusesMovedBranch: a branch that
+// moved past the inspected head is never overwritten — the in-place
+// fast-forward's compare-and-swap refuses, the result is workspace-not-ready,
+// and the branch, its newer commit, and the worktree are untouched.
+func TestIntegrationWorkflowLifecycleCommitSpecRefusesMovedBranch(t *testing.T) {
+	env := newCommitSpecEnv(t, nil, map[string]string{
+		groomPath(31, "copyme"): commitSpecRecord(commitSpecPath),
+		commitSpecPath:          commitSpecMetadataSpec("Body.\n"),
+	})
+	writeRepoFile(t, env.workspace, "feature.txt", "newer work\n")
+	runGit(t, env.workspace, "add", "feature.txt")
+	runGit(t, env.workspace, "commit", "-q", "-m", "newer work")
+	moved := env.head(t)
+
+	stale := env
+	stale.wdeps = WorkspaceDeps{Service: staleInspectService{WorkspaceService: env.wdeps.Service, head: gitcli.ObjectID(env.base)}}
+	res := stale.commitSpec(t)
+	if res.Result != ResultInvalidState || res.Reason != ReasonSpecCopyNotReady {
+		t.Fatalf("commit-spec over a moved branch = (%q, %q), want invalid-state/%s (msg %q)", res.Result, res.Reason, ReasonSpecCopyNotReady, res.Message)
+	}
+	if env.head(t) != moved {
+		t.Fatalf("the moved branch was rewritten: HEAD %q, want %q", env.head(t), moved)
+	}
+	if _, err := os.Stat(filepath.Join(env.workspace, filepath.FromSlash(commitSpecPath))); !os.IsNotExist(err) {
+		t.Fatalf("a refused commit-spec wrote the spec copy (stat err %v)", err)
+	}
+	env.assertClean(t)
+}
