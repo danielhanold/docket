@@ -475,6 +475,37 @@ func TestInstallResultNoWarningsOmitsField(t *testing.T) {
 	}
 }
 
+// A skipped target — a hooks file docket cannot edit in place — is a warning
+// naming the path and its remedy: it never changes the result class, so an
+// install that skipped one trigger still reports applied.
+func TestInstallResultRendersSkippedTargetsAsWarnings(t *testing.T) {
+	out := install.Outcome{
+		Mode:    install.ModeRelease,
+		Applied: true,
+		Skipped: []install.Inspection{{
+			Target:      install.Target{Path: "/h/.claude/settings.json", Kind: install.KindHookEntries},
+			Disposition: install.DispositionSkip,
+			Remedy:      "make it a regular file, then re-run",
+		}},
+	}
+	r := NewInstallResult(OperationInstall, out)
+	if r.Result != ResultApplied {
+		t.Fatalf("result = %q, want %q: a skipped target must not change the class", r.Result, ResultApplied)
+	}
+	if len(r.Warnings) != 1 {
+		t.Fatalf("warnings = %+v", r.Warnings)
+	}
+	got := r.Warnings[0]
+	if got.Code != string(FCHookFileNotEditable) || got.Path != "/h/.claude/settings.json" ||
+		got.Remedy != "make it a regular file, then re-run" || got.Severity != config.SeverityWarning || got.Message == "" {
+		t.Errorf("warning = %+v", got)
+	}
+	human := r.HumanText()
+	if !strings.Contains(human, "warning: /h/.claude/settings.json") || !strings.Contains(human, "make it a regular file") {
+		t.Errorf("human text does not show the skipped hooks file with its remedy:\n%s", human)
+	}
+}
+
 // A dckt finding is a warning: it never changes the result class, so a check
 // that only finds an alias problem still exits clean.
 func TestInstallResultRendersAliasFindingsAsWarnings(t *testing.T) {
