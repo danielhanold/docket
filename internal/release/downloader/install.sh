@@ -16,7 +16,8 @@
 #     beyond the list above). An absent dckt is created; a dckt already resolving to the binary is
 #     left as is; anything else is left UNTOUCHED with a warning, and the install still succeeds —
 #     the binary install is never failed by the alias. The record gains alias= only when the
-#     alias is in place and ours.
+#     alias is in place and ours, but that line is informational only: nothing reads it. Alias
+#     ownership is decided by the link resolving to the installed binary, never by the record.
 #   - Exit codes: 0 success; 2 usage error (bad flag / non-absolute bin dir / bad version); 1
 #     every other failure. Every failure prints a one-line actionable diagnostic to stderr.
 set -u
@@ -303,6 +304,7 @@ record_tmp="$record.tmp.$$"
 {
 	printf 'path=%s\n' "$dest"
 	printf 'version=%s\n' "$version"
+	# alias= is informational only; ownership is decided by the link resolving to the binary.
 	if [ "$alias_owned" = yes ]; then printf 'alias=%s\n' "$alias_path"; fi
 	printf 'sha256=%s\n' "$bin_sha"
 } > "$record_tmp" || { rm -f "$record_tmp"; die "cannot write the ownership record"; }
