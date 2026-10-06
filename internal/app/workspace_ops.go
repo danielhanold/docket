@@ -11,7 +11,8 @@ import (
 )
 
 // This file is the `workspace prepare`, `workspace inspect`, and
-// `workspace publish` operations: the thin app-layer wiring that reloads the
+// `workspace publish` operations (`workspace commit-spec` lives in
+// workspace_spec.go): the thin app-layer wiring that reloads the
 // authoritative snapshot, resolves the change's effective base through the
 // domain, builds a validated workspace.Target, and delegates the Git mechanics
 // to the landed workspace.Service. The app layer decides NO base-selection or
@@ -172,6 +173,10 @@ type workspaceContext struct {
 	record []byte
 	base   domain.EffectiveBase
 	repo   gitcli.Repository
+	// pin is the authoritative context the corpus was read under, so a caller
+	// reads an artifact (the metadata spec, the integration branch's copy) from
+	// the same pinned tips the change was resolved from.
+	pin StatusPin
 	// snap is the authoritative corpus snapshot the context was resolved from. The
 	// carried-descendant preservation gate (proveCarriedOnHead) reads the live
 	// stacked_on graph from it, so a caller need not rebuild the snapshot.
@@ -249,6 +254,7 @@ func loadWorkspaceContext(ctx context.Context, deps PlanningDeps, repoDir string
 		record:   record,
 		base:     domain.ResolveEffectiveBase(snap, c, facts),
 		repo:     repo,
+		pin:      pin,
 		snap:     snap,
 	}, nil
 }
@@ -463,8 +469,15 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 // accurate reason-aware message (via fenceRefusalReasonMessage), and no push. It
 // carries no credential — only the bounded reason token.
 func workspaceFenceRefusal(id int, ferr error) WorkspaceOpResult {
+	return workspaceFenceRefusalFor(OperationWorkspacePublish, id, ferr)
+}
+
+// workspaceFenceRefusalFor is workspaceFenceRefusal for any workspace operation
+// that admits through the run mutation fence (publish, commit-spec): the
+// refusal is stamped with that operation's key.
+func workspaceFenceRefusalFor(opKey string, id int, ferr error) WorkspaceOpResult {
 	reason, message := fenceRefusalReasonMessage(ferr, "workspace")
-	return newWorkspaceResult(OperationWorkspacePublish, ResultBlocked, WorkspaceOpResult{
+	return newWorkspaceResult(opKey, ResultBlocked, WorkspaceOpResult{
 		ID:      id,
 		Reason:  reason,
 		Message: message,
