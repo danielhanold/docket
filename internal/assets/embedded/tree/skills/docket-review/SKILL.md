@@ -11,7 +11,7 @@ says.
 
 ## Scope
 
-You touch **no docket metadata**: no `.docket/`, no metadata branch, no change file, no board, no
+You touch **no docket metadata**: no metadata worktree, no metadata branch, no change file, no board, no
 ADR, no learnings ledger. You do not open, update, or comment on a PR. You read the feature branch
 and return findings — the controller that dispatched you owns every write that follows from them.
 

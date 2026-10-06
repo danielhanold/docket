@@ -22,7 +22,9 @@ import (
 	"go/printer"
 	"go/token"
 	"io/fs"
+	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -227,5 +229,119 @@ func TestNoInlineStateFolderSpelling(t *testing.T) {
 		sort.Strings(offenders)
 		t.Errorf("per-repo state folder spelled inline (build it from layout.StateDirOf / layout.StateName):\n  %s",
 			strings.Join(offenders, "\n  "))
+	}
+}
+
+// skillMetadataLiterals are the shared-mode spellings a skill or agent must not
+// hard-code: the metadata worktree path and remote vary with the repository's
+// visibility, so prose names them through the repository.prepare context keys
+// metadata_worktree_path and metadata_remote instead.
+var skillMetadataLiterals = []struct {
+	re   *regexp.Regexp
+	name string
+}{
+	{regexp.MustCompile(`--repo-dir \.docket([^.\w]|$)`), "--repo-dir .docket"},
+	{regexp.MustCompile(`git -C \.docket([^.\w]|$)`), "git -C .docket"},
+	{regexp.MustCompile(`origin/docket`), "origin/docket"},
+	{regexp.MustCompile(`\.docket/`), ".docket/"},
+}
+
+// skillMetadataLiteralViolations returns one "label: literal" entry per
+// forbidden literal on each line of body. In skills/docket-convention/SKILL.md a
+// single ".docket/" on a line that also says "shared" is exempt: it is the
+// directory-layout sentence describing where a shared repository keeps the
+// metadata worktree.
+func skillMetadataLiteralViolations(rel, body string) []string {
+	var out []string
+	exemptUsed := false
+	for i, line := range strings.Split(body, "\n") {
+		for _, lit := range skillMetadataLiterals {
+			n := len(lit.re.FindAllStringIndex(line, -1))
+			if n == 0 {
+				continue
+			}
+			if lit.name == ".docket/" && rel == "skills/docket-convention/SKILL.md" &&
+				!exemptUsed && n == 1 && strings.Contains(line, "shared") {
+				exemptUsed = true
+				continue
+			}
+			out = append(out, rel+":"+strconv.Itoa(i+1)+": "+lit.name)
+		}
+	}
+	return out
+}
+
+// TestSkillsSpellNoMetadataLiterals pins that no skill or agent body spells the
+// shared-mode metadata worktree (.docket/, --repo-dir .docket, git -C .docket)
+// or remote (origin/docket) inline. A private repository keeps its metadata
+// checkout outside the clone and pushes to a local dckt remote, so the
+// literals would send a worker to the wrong place.
+//
+// Mutation-tested: re-adding `--repo-dir .docket` to docket-new-change reddens it.
+func TestSkillsSpellNoMetadataLiterals(t *testing.T) {
+	root := guardRoot(t)
+	var files []string
+	err := filepath.WalkDir(filepath.Join(root, "skills"), func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && strings.HasSuffix(p, ".md") {
+			files = append(files, p)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk skills: %v", err)
+	}
+	agents, err := filepath.Glob(filepath.Join(root, "agents", "*.md"))
+	if err != nil {
+		t.Fatalf("glob agents: %v", err)
+	}
+	files = append(files, agents...)
+	if len(files) < 13 {
+		t.Fatalf("population floor: scanned only %d skill/agent files", len(files))
+	}
+	var offenders []string
+	for _, p := range files {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatalf("read %s: %v", p, err)
+		}
+		rel, err := filepath.Rel(root, p)
+		if err != nil {
+			t.Fatalf("rel %s: %v", p, err)
+		}
+		offenders = append(offenders, skillMetadataLiteralViolations(filepath.ToSlash(rel), string(b))...)
+	}
+	if len(offenders) > 0 {
+		t.Errorf("skill prose spells a shared-mode metadata literal (use <metadata_worktree_path> / the metadata remote from the repository.prepare context):\n  %s",
+			strings.Join(offenders, "\n  "))
+	}
+}
+
+// TestSkillMetadataLiteralViolationsDetects proves the matcher's shape,
+// including the single convention exemption and its limits.
+func TestSkillMetadataLiteralViolationsDetects(t *testing.T) {
+	const conv = "skills/docket-convention/SKILL.md"
+	cases := []struct {
+		rel, body string
+		want      int
+	}{
+		{"skills/x/SKILL.md", "run with `--repo-dir .docket --json`", 1},
+		{"skills/x/SKILL.md", "run `git -C .docket rev-parse HEAD`", 1},
+		{"skills/x/SKILL.md", "pushed to `origin/docket`", 1},
+		{"skills/x/SKILL.md", "read `.docket/<plan path>`", 1},
+		{"skills/x/SKILL.md", "edit `.docket.yml` or `.docket.local.yml`", 0},
+		{"skills/x/SKILL.md", "`--repo-dir <metadata_worktree_path>`", 0},
+		{"skills/x/SKILL.md", "`<primary>/.docket/` in a shared repository", 1},
+		{conv, "`<primary>/.docket/` in a shared repository", 0},
+		{conv, "`<primary>/.docket/` in a private repository", 1},
+		{conv, "`.docket/` and `.docket/` in a shared repository", 1},
+		{conv, "`.docket/` shared\n`.docket/` shared", 1},
+	}
+	for _, c := range cases {
+		if got := len(skillMetadataLiteralViolations(c.rel, c.body)); got != c.want {
+			t.Errorf("%s %q: got %d violations, want %d", c.rel, c.body, got, c.want)
+		}
 	}
 }

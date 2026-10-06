@@ -20,7 +20,8 @@ gets exactly one fresh worker dispatch unless that worker requests its single al
 ## Inputs
 
 - The **plan** `docket-implement-next` Step 4 wrote, at the path recorded in the change's `plan:`
-  field, read from the metadata worktree at `.docket/<plan path>`.
+  field, read from the metadata worktree (`metadata_worktree_path` in the `repository.prepare` context) at
+  `<metadata_worktree_path>/<plan path>`.
 - The **feature branch and worktree** already cut for this change, plus that repo's own
   instruction files (`AGENTS.md`, `CLAUDE.md`, nested equivalents).
 - The plan's `### Task N` headings, the **unit of dispatch** — one heading, one worker, one

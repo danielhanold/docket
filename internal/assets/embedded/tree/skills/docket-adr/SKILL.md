@@ -19,7 +19,7 @@ agent: docket-adr
 
 ## Convention (load first — blocking)
 
-Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check* (load the convention; run the capability bootstrap; run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context forward as literals; act on the verdict). Everything below uses its vocabulary without redefinition. All ADR reads and writes land in the `.docket/` worktree on the `docket` branch, pushed to its remote immediately.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check* (load the convention; run the capability bootstrap; run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context forward as literals; act on the verdict). Everything below uses its vocabulary without redefinition. All ADR reads and writes land in the metadata worktree (`metadata_worktree_path` in the `repository.prepare` context) on the metadata branch, pushed to the metadata remote (`metadata_remote`) immediately.
 
 ## Actions
 
@@ -63,7 +63,7 @@ One transaction lands atomically: the new ADR (carrying its `supersedes:`/`rever
 
 ### Update note
 
-For a non-reversing material change in context — where the decision still stands but important surrounding information has changed — append a dated `## Update` section to the ADR body. The `## Decision` section itself is never edited. Commit the updated ADR file in `.docket/` and push `origin/docket`; regenerate the index only if the update changes how the entry reads in the index.
+For a non-reversing material change in context — where the decision still stands but important surrounding information has changed — append a dated `## Update` section to the ADR body. The `## Decision` section itself is never edited. Commit the updated ADR file in the metadata worktree and run `git -C <metadata_worktree_path> push <metadata_remote> HEAD`; regenerate the index only if the update changes how the entry reads in the index.
 
 ### Index / validate
 
