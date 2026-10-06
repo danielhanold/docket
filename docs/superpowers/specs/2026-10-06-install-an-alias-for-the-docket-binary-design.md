@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0534 — Install an alias for the docket binary](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0534-install-an-alias-for-the-docket-binary.md)**
+> ↩ **[Change 0534 — Install an alias for the docket binary](../../changes/archive/2026-10-06-0534-install-an-alias-for-the-docket-binary.md)**
 <!-- docket:backlink:end -->
 
 # Install an alias for the docket binary: design

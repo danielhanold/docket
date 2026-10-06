@@ -1,26 +1,20 @@
 # Backlog
 
-**535 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 370 done · 🗑️ 139 killed
+**535 changes** — 🟣 4 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 371 done · 🗑️ 139 killed
 
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0534](active/0534-install-an-alias-for-the-docket-binary.md) | Install an alias for the docket binary | `medium` | `feat` | [#400](https://github.com/danielhanold/docket/pull/400) | awaiting merge |
-
-## 🟣 Groomed (3)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0535](active/0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | `medium` | `feat` | [spec](../superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) |
 | [0532](active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | `medium` | `feat` | [spec](../superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0535](active/0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | `medium` | `feat` | ⏳ waiting on #534 — needs your merge |
 | [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | ⏳ waiting on #535 — not yet built |
 | [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | needs-grooming |
 | [0528](active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | `medium` | `fix` | needs-grooming |
@@ -78,7 +72,6 @@ graph TD
   0530 --> 0533
   0531 --> 0533
   0535 --> 0533
-  0534
   0531 --> 0535
   0534 --> 0535
   0192:::done
@@ -89,13 +82,15 @@ graph TD
   0511:::done
   0530:::done
   0531:::done
+  0534:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (509)</summary>
+<details><summary>✅🗑️ Archive — done + killed (510)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0534](archive/2026-10-06-0534-install-an-alias-for-the-docket-binary.md) | Install an alias for the docket binary | 2026-10-06 |
 | [0531](archive/2026-10-06-0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md) | Keep the metadata branch on a local remote with neutral naming | 2026-10-06 |
 | [0530](archive/2026-10-06-0530-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) | Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR | 2026-10-06 |
 | [0529](archive/2026-10-06-0529-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) | Repoint a merged PR's change backlink when the change is archived | 2026-10-06 |
@@ -112,7 +107,6 @@ graph TD
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0517](archive/2026-10-04-0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | 2026-10-04 |
 | [0516](archive/2026-10-04-0516-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) | Remove stale auto_groom comments and fix TestSkillHandoffSites' 'cannot be invoked' match | 2026-10-04 |
-| [0515](archive/2026-10-04-0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0380](archive/2026-10-04-0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | 2026-10-04 |
@@ -255,7 +249,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 27 done |
+| [2026-10](archive/) | 28 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
