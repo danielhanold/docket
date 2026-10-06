@@ -426,13 +426,17 @@ func mirrorInstallBinary(t *testing.T, c *upgradeCase, st *runState, body string
 
 // installHandoff mirrors internal/release/downloader/install.sh from the point it
 // has a verified binary: stage it beside the destination, run the staged binary's
-// `install --harness claude`, and only on success move it into place, write the
-// ownership record, and run `docket install check`.
+// `install --harness claude`, and only on success move it into place, place the
+// relative dckt alias beside it, write the ownership record (naming the alias), and
+// run `docket install check`.
 func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
 	t.Helper()
 	dest := filepath.Join(c.BinDir, "docket")
-	if _, err := os.Lstat(dest); err == nil {
-		t.Fatalf("%s already exists; the mirror covers only the downloader's fresh-install path", dest)
+	alias := filepath.Join(c.BinDir, "dckt")
+	for _, p := range []string{dest, alias} {
+		if _, err := os.Lstat(p); err == nil {
+			t.Fatalf("%s already exists; the mirror covers only the downloader's fresh-install path", p)
+		}
 	}
 	if err := os.MkdirAll(c.BinDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -506,12 +510,16 @@ func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
 	if err := os.Rename(stage, dest); err != nil {
 		t.Fatal(err)
 	}
+	// The downloader's fresh-install alias step: `ln -s docket "$bin_dir/dckt"`.
+	if err := os.Symlink("docket", alias); err != nil {
+		t.Fatal(err)
+	}
 	sum := sha256.Sum256(bin)
 	recDir := filepath.Join(c.Home, ".local", "state", "docket")
 	if err := os.MkdirAll(recDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	rec := "path=" + dest + "\nversion=development\nsha256=" + hex.EncodeToString(sum[:]) + "\n"
+	rec := "path=" + dest + "\nversion=development\nalias=" + alias + "\nsha256=" + hex.EncodeToString(sum[:]) + "\n"
 	if err := os.WriteFile(filepath.Join(recDir, "release-binary.record"), []byte(rec), 0o644); err != nil {
 		t.Fatal(err)
 	}
