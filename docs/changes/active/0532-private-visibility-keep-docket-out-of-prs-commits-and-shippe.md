@@ -11,7 +11,7 @@ depends_on: [530, 531]
 stacked_on:
 related: [529, 533, 534, 535]
 discovered_from: [531]
-adrs: [36, 78]
+adrs: [36, 78, 144]
 spec: 'docs/superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md'
 plan: 'docs/superpowers/plans/2026-10-06-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md'
 results: 'docs/results/2026-10-06-private-visibility-keep-docket-out-of-prs-commits-and-shippe-results.md'
@@ -33,7 +33,7 @@ claimed_at: '2026-10-06T15:32:33Z'
 | Spec | [2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md](../../superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md) |
 | Plan | [2026-10-06-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md](../../superpowers/plans/2026-10-06-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) |
 | Results | [2026-10-06-private-visibility-keep-docket-out-of-prs-commits-and-shippe-results.md](../../results/2026-10-06-private-visibility-keep-docket-out-of-prs-commits-and-shippe-results.md) |
-| ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](../../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
+| ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](../../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md), [ADR-0144](../../adrs/0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
