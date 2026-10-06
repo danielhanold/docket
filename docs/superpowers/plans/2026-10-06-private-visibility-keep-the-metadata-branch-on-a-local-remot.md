@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0531 — Keep the metadata branch on a local remote with neutral naming](../../changes/active/0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md)**
+> ↩ **[Change 0531 — Keep the metadata branch on a local remote with neutral naming](../../changes/archive/2026-10-06-0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md)**
 <!-- docket:backlink:end -->
 
 # Keep the Metadata Branch on a Local Remote with Neutral Naming: Implementation Plan
