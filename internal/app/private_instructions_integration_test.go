@@ -298,6 +298,45 @@ func TestIntegrationPrivateInstructionsOwnerRemovalKeepsSharedFile(t *testing.T)
 	assertNoWorktreeSurfaces(t, primary)
 }
 
+// TestIntegrationPrivateInstructionsScopedRunKeepsCodexClause proves a run
+// scoped to one harness picks the shared file's interior from every opted-in
+// harness: with claude and codex opted in, a claude-only run rewrites the block
+// with the Codex clause still in it, because codex still owns the file.
+func TestIntegrationPrivateInstructionsScopedRunKeepsCodexClause(t *testing.T) {
+	_, primary, common := newPrivateInstructionsRepo(t)
+	privatePath := layout.PrivateInstructionsPath(common)
+	const codexClause = "### Codex root-coordinator entry"
+
+	setPrivateHarnesses(t, common, "[claude, codex]")
+	installSurfacesIn(t, primary)
+	if got := string(mustReadFile(t, privatePath)); !strings.Contains(got, codexClause) {
+		t.Fatalf("precondition: %s = %q, want the Codex clause", layout.PrivateInstructionsDisplay, got)
+	}
+
+	rt, err := buildRunTracker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	scoped, _, _, err := ResolveRepoPhase(context.Background(), newGitClient(t), primary, []string{"claude"}, rt, nil, config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		t.Fatalf("claude-scoped ResolveRepoPhase: %v", err)
+	}
+	if len(scoped.Targets) != 1 || !strings.Contains(string(scoped.Targets[0].Content), codexClause) {
+		t.Fatalf("claude-scoped plan: %d targets, want one private target carrying the Codex clause", len(scoped.Targets))
+	}
+	roots, err := install.ResolveRoots(os.UserHomeDir, os.Getenv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := applyRepoPhaseSurfaces(scoped, roots); err != nil {
+		t.Fatalf("applying the claude-scoped phase: %v", err)
+	}
+	if got := string(mustReadFile(t, privatePath)); !strings.Contains(got, dispatchStartMarker) || !strings.Contains(got, codexClause) {
+		t.Errorf("after a claude-scoped run: %s = %q, want the block with the Codex clause kept", layout.PrivateInstructionsDisplay, got)
+	}
+	assertNoWorktreeSurfaces(t, primary)
+}
+
 // TestIntegrationPrivateInstructionsSharedRepositoryUnchanged is acceptance 7:
 // a shared init writes the repository-level AGENTS.md block and the CLAUDE.md
 // link, and no private file (no .git/dckt at all).

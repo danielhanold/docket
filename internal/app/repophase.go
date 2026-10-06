@@ -152,6 +152,7 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 			WorktreeRoot: root,
 			CommonDir:    commonDir,
 			Harnesses:    effective,
+			OptIns:       optIns,
 			RunTracker:   runTracker,
 		})
 		if err != nil {

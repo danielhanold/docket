@@ -505,6 +505,22 @@ func TestPlanPrivate(t *testing.T) {
 		}
 	})
 
+	t.Run("scoped selection keeps the opted-in codex interior", func(t *testing.T) {
+		targets, owners, err := PlanPrivate(PrivatePlanInput{
+			WorktreeRoot: worktreeRoot, CommonDir: commonDir,
+			Harnesses: []string{"claude"}, OptIns: []string{"claude", "codex"}, RunTracker: runTracker,
+		})
+		if err != nil || len(targets) != 1 {
+			t.Fatalf("PlanPrivate = (%d targets, %v), want one target", len(targets), err)
+		}
+		if !bytes.Equal(targets[0].Content, codex) {
+			t.Fatalf("interior = %q, want the Codex interior codex still owns", targets[0].Content)
+		}
+		if !reflect.DeepEqual(owners[privateFile], []string{"claude"}) {
+			t.Fatalf("owners = %v, want only the in-scope claude", owners)
+		}
+	})
+
 	t.Run("separate git dir errors", func(t *testing.T) {
 		_, _, err := PlanPrivate(PrivatePlanInput{
 			WorktreeRoot: worktreeRoot, CommonDir: "/elsewhere/repo.git",

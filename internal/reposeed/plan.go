@@ -214,18 +214,24 @@ func selectHarnesses(tokens []string) (map[string]bool, error) {
 
 // PrivatePlanInput is the pure input to PlanPrivate. WorktreeRoot is the
 // PRIMARY worktree, a canonical absolute path; CommonDir is its git common dir
-// and must be WorktreeRoot/.git. Harnesses are the repository's validated
-// opt-in tokens; RunTracker is the run-tracker payload the interior carries.
+// and must be WorktreeRoot/.git. Harnesses are the validated opt-in tokens this
+// run plans for (a --harness scope narrows them); OptIns is the repository's
+// full opt-in set, which picks the shared file's interior, and nil means
+// Harnesses is already the full set. RunTracker is the run-tracker payload the
+// interior carries.
 type PrivatePlanInput struct {
 	WorktreeRoot string
 	CommonDir    string
 	Harnesses    []string
+	OptIns       []string
 	RunTracker   []byte
 }
 
 // PlanPrivate renders a private repository's single parent-facing target: the
 // dispatch managed block in <CommonDir>/dckt/AGENTS.md, owned by every selected
-// harness, carrying the Codex interior when codex is selected. It plans nothing
+// harness, carrying the Codex interior when codex is opted in. The interior
+// follows the full opt-in set, not the selection: the file is shared, so a run
+// scoped away from codex must not strip the clause codex still owns. It plans nothing
 // in the working tree and nothing at all when no harness is selected. A
 // CommonDir other than WorktreeRoot/.git (a separate git dir) is an error.
 func PlanPrivate(in PrivatePlanInput) ([]install.Target, map[string][]string, error) {
@@ -243,8 +249,14 @@ func PlanPrivate(in PrivatePlanInput) ([]install.Target, map[string][]string, er
 		return nil, nil, nil
 	}
 
+	interiorSet := selected
+	if in.OptIns != nil {
+		if interiorSet, err = selectHarnesses(in.OptIns); err != nil {
+			return nil, nil, err
+		}
+	}
 	content := harness.DispatchInterior(in.RunTracker)
-	if selected[harnessCodex] {
+	if interiorSet[harnessCodex] {
 		content = harness.CodexDispatchInterior(in.RunTracker)
 	}
 	path := filepath.Clean(layout.PrivateInstructionsPath(common))
