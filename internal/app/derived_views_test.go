@@ -11,6 +11,7 @@ import (
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
@@ -365,7 +366,7 @@ func TestDerivedViewFindingsAcceptsNoticeBearingBoard(t *testing.T) {
 	if !strings.Contains(string(withNotice), "0099-broken.md") {
 		t.Fatalf("fixture board lacks the notice:\n%s", withNotice)
 	}
-	link := render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}
+	link := render.LinkContext{MetadataBranch: layout.SharedName}
 	for _, f := range derivedViewFindings(cfg, checkCorpus{records: recs, link: link, board: corpusFile{present: true, bytes: withNotice}}) {
 		if f.Code == reposetup.CodeBoardStale {
 			t.Errorf("notice-bearing board reported stale: %+v", f)
@@ -464,7 +465,7 @@ func TestDerivedViewFindingsAcceptsNoticeBearingADRIndex(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	link := render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}
+	link := render.LinkContext{MetadataBranch: layout.SharedName}
 	for _, f := range derivedViewFindings(cfg, checkCorpus{records: recs, link: link, adrIndex: corpusFile{present: true, bytes: withNotice}}) {
 		if f.Code == reposetup.CodeADRIndexStale {
 			t.Errorf("notice-bearing ADR index reported stale: %+v", f)

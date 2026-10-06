@@ -5,8 +5,10 @@ package repoguard
 // every non-test Go file under internal/app:
 //
 //  1. Every transaction.Request composite literal's TargetRef expression must
-//     mention MetadataBranchName — the engine may only commit to the metadata
-//     branch.
+//     be a call of metadataRef — the accessor over the pinned layout's
+//     metadata branch — so the engine may only commit to the metadata branch.
+//     Its Remote twin is TestTransactionRequestsUseResolvedMetadataRemote
+//     (layout_guard_test.go).
 //  2. Every direct PushLease / PushCreateLease call must sit in a function on
 //     pushAllowlist. Each entry names why it may push; only migrateExecute
 //     touches the integration branch, for the one-time human-run legacy
@@ -82,9 +84,10 @@ func analyzeIntegrationPush(fset *token.FileSet, files map[string]*ast.File) int
 				rep.violations = append(rep.violations, rel+": a transaction.Request literal at line "+strconv.Itoa(pos.Line)+" sets no TargetRef, so its target cannot be proven to be the metadata branch")
 				return true
 			}
-			var buf bytes.Buffer
-			if err := printer.Fprint(&buf, fset, target); err != nil || !strings.Contains(buf.String(), "MetadataBranchName") {
-				rep.violations = append(rep.violations, rel+": a transaction.Request targets "+buf.String()+", not the metadata branch (MetadataBranchName)")
+			if !isMetadataRefCall(target) {
+				var buf bytes.Buffer
+				_ = printer.Fprint(&buf, fset, target)
+				rep.violations = append(rep.violations, rel+": a transaction.Request targets "+buf.String()+", not the metadata branch (metadataRef(<pinned layout>))")
 			}
 			return true
 		})
@@ -114,6 +117,16 @@ func analyzeIntegrationPush(fset *token.FileSet, files map[string]*ast.File) int
 		}
 	}
 	return rep
+}
+
+// isMetadataRefCall reports whether e is a call of the metadataRef accessor.
+func isMetadataRefCall(e ast.Expr) bool {
+	call, ok := e.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	fn, ok := call.Fun.(*ast.Ident)
+	return ok && fn.Name == "metadataRef"
 }
 
 // isTransactionRequest reports whether a composite literal's type is the
@@ -166,7 +179,7 @@ func TestNoIntegrationPushOutsidePRMergeDetects(t *testing.T) {
 	src := `package app
 
 func good() {
-	_ = transaction.Request{TargetRef: gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)}
+	_ = transaction.Request{TargetRef: metadataRef(pin.Layout)}
 }
 
 func bad() {

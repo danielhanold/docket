@@ -10,6 +10,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -82,6 +83,10 @@ func testConfig(t *testing.T) config.Snapshot {
 	return *snap
 }
 
+// testSharedLayout is the shared-mode layout every hand-built test pin carries,
+// as PinContext would resolve it for a repository without <common>/dckt.
+func testSharedLayout() layout.Layout { return layout.SharedLayout("/repo/.git", "/repo") }
+
 func docketPin(t *testing.T) StatusPin {
 	t.Helper()
 	return StatusPin{
@@ -91,6 +96,7 @@ func docketPin(t *testing.T) StatusPin {
 		IntegrationRevision: "2222222222222222222222222222222222222222",
 		MetadataRevision:    "3333333333333333333333333333333333333333",
 		Config:              testConfig(t),
+		Layout:              testSharedLayout(),
 	}
 }
 
@@ -103,6 +109,7 @@ func mainPin(t *testing.T) StatusPin {
 		IntegrationRevision: "4444444444444444444444444444444444444444",
 		MetadataRevision:    "4444444444444444444444444444444444444444",
 		Config:              testConfig(t),
+		Layout:              testSharedLayout(),
 	}
 }
 

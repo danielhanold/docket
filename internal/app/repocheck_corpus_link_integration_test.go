@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
-	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -147,8 +147,8 @@ func TestIntegrationRepoCheckCorpusPinsDoneChangeToIntegrationBranch(t *testing.
 		t.Errorf("a legacy done record rendered a Spec (merged) row; rendered block:\n%s", body)
 	}
 	// Guard the assertion itself: Plan/Results must not sit on the metadata branch.
-	if strings.Contains(body, "/blob/"+reposetup.MetadataBranchName+"/docs/superpowers/plans/") ||
-		strings.Contains(body, "/blob/"+reposetup.MetadataBranchName+"/docs/results/") {
+	if strings.Contains(body, "/blob/"+layout.SharedName+"/docs/superpowers/plans/") ||
+		strings.Contains(body, "/blob/"+layout.SharedName+"/docs/results/") {
 		t.Errorf("Plan/Results resolved onto the metadata branch; rendered block:\n%s", body)
 	}
 	// A done change built on the metadata-branch flow: Plan/Results relative,

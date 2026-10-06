@@ -10,6 +10,7 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
@@ -263,7 +264,7 @@ func manualReviewLine(code, path, message string) string {
 // carried forward from the pinned tree.
 func executeRepositoryRepair(ctx context.Context, git *gitcli.Client, sc setupContext, metadataTip string, plan repositoryRepairPlan) RepositoryRepairResult {
 	tipOID := gitcli.ObjectID(metadataTip)
-	docketRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
+	docketRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
 
 	ops := make([]gitcli.TreeOp, 0, len(plan.files))
 	for _, f := range plan.files {
@@ -394,7 +395,7 @@ func repairPreviewText(sc setupContext, metadataTip string, plan repositoryRepai
 	fmt.Fprintf(&b, "docket repository repair — preview\n")
 	fmt.Fprintf(&b, "  repository:  %s\n", sc.repo.PrimaryWorktree)
 	fmt.Fprintf(&b, "  remote:      %s\n", setupRemote())
-	fmt.Fprintf(&b, "  metadata:    %s @ %s\n", reposetup.MetadataBranchName, metadataTip)
+	fmt.Fprintf(&b, "  metadata:    %s @ %s\n", layout.SharedName, metadataTip) // Task 4: resolve through sc.layout
 	fmt.Fprintf(&b, "  repairs:\n")
 	for _, f := range plan.frontmatter {
 		fmt.Fprintf(&b, "    [%s] %s\n", f.Code, f.Path)

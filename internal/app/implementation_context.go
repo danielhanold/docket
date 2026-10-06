@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/danielhanold/docket/internal/domain"
-	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -302,7 +301,7 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 
 	changeBlob := blobByPath[selected.Path()]
 	bundle := &ImplementationContext{
-		MetadataRef:    reposetup.MetadataBranchName,
+		MetadataRef:    pin.Layout.MetadataBranch,
 		MetadataCommit: metadataRevision(pin),
 		Change: ContextEntity{
 			Path:     selected.Path(),

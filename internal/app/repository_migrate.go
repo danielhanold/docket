@@ -12,6 +12,7 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 )
@@ -250,7 +251,7 @@ func migrateRoute(ctx context.Context, git *gitcli.Client, facts reposetup.Facts
 		// Fetch the published metadata branch so its object is local, then re-read
 		// its tip authoritatively (ls-remote gave only the id at gather time). The
 		// branch decision keys on this re-read, never a local proxy.
-		rev, ferr := git.FetchBranch(ctx, sc.repo, setupRemote(), gitcli.RefName(branchRefPrefix+reposetup.MetadataBranchName))
+		rev, ferr := git.FetchBranch(ctx, sc.repo, setupRemote(), gitcli.RefName(branchRefPrefix+layout.SharedName)) // Task 4: resolve through sc.layout
 		if ferr != nil {
 			r := migrateExternalFailure(reposetup.StateConflict, "re-reading the published metadata branch", ferr)
 			return phaseRefuse, &r
@@ -484,7 +485,7 @@ func repairedCandidateErrors(cfg config.Effective, mr migrationRepairs) []string
 func migrateExecute(ctx context.Context, git *gitcli.Client, hooks setupHooks, facts reposetup.Facts, sc setupContext, plan reposetup.MigrationPlan, mr migrationRepairs, phase migratePhase) RepositoryMigrateResult {
 	sourceRevision := sc.sourceRevision
 	sourceOID := gitcli.ObjectID(sourceRevision)
-	docketRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
+	docketRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
 	integrationRef := gitcli.RefName(branchRefPrefix + sc.integrationBranch)
 
 	// Full-corpus validation BEFORE any branch change. A non-repairable error in
@@ -749,7 +750,7 @@ func migrateResumeLocal(ctx context.Context, git *gitcli.Client, hooks setupHook
 	}
 	metadataTip := gitcli.ObjectID(sc.metadataTip)
 	integrationTip := gitcli.ObjectID(sc.sourceRevision)
-	docketRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
+	docketRef := gitcli.RefName(branchRefPrefix + layout.SharedName) // Task 4: resolve through sc.layout
 	pendingLocal := migrateLocalFinish(ctx, git, facts, sc, docketRef, metadataTip, integrationTip, integrationTip)
 	return migrateApplied(sc, metadataTip, integrationTip, sc.sourceRevision, []string{}, []string{}, nil, pendingLocal)
 }
@@ -974,7 +975,7 @@ func migratePreviewText(sc setupContext, plan reposetup.MigrationPlan, mr migrat
 	fmt.Fprintf(&b, "  repository:  %s\n", sc.repo.PrimaryWorktree)
 	fmt.Fprintf(&b, "  remote:      %s\n", setupRemote())
 	fmt.Fprintf(&b, "  integration: %s @ %s\n", sc.integrationBranch, sourceRevision)
-	fmt.Fprintf(&b, "  destination: %s (orphan metadata branch)\n", reposetup.MetadataBranchName)
+	fmt.Fprintf(&b, "  destination: %s (orphan metadata branch)\n", layout.SharedName) // Task 4: resolve through sc.layout
 	fmt.Fprintf(&b, "  copy set:    %s\n", strings.Join(plan.Copy.Prefixes, ", "))
 	fmt.Fprintf(&b, "  removal set: %s/, %s, %s\n", plan.Removal.ActiveDir, plan.Removal.BoardPath, plan.Removal.ReadmePath)
 	fmt.Fprintf(&b, "  config edit: %s\n", migrateConfigEditText(plan.ConfigEdit))

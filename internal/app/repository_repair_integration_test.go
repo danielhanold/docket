@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -46,21 +47,21 @@ func (r *initRepo) publishHealthyDrift(t *testing.T) {
 	writeRepoFile(t, dotDocket, "docs/changes/active/0001-example.md", staleRepairRecord())
 	runGit(t, dotDocket, "add", "--", "docs/changes/BOARD.md", "docs/changes/active/0001-example.md")
 	runGit(t, dotDocket, "commit", "-q", "-m", "publish stale derived views")
-	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
+	runGit(t, dotDocket, "push", "-q", "origin", string(layout.SharedName))
 }
 
 // currentDocketTip returns the remote docket branch tip via an independent git
 // oracle.
 func currentDocketTip(t *testing.T, r *initRepo) string {
 	t.Helper()
-	runGit(t, r.invocation, "fetch", "-q", "origin", string(reposetup.MetadataBranchName))
+	runGit(t, r.invocation, "fetch", "-q", "origin", string(layout.SharedName))
 	return strings.TrimSpace(runGit(t, r.invocation, "rev-parse", "FETCH_HEAD"))
 }
 
 // showDocketFile reads a file from the remote docket branch tip.
 func showDocketFile(t *testing.T, r *initRepo, relPath string) string {
 	t.Helper()
-	runGit(t, r.invocation, "fetch", "-q", "origin", string(reposetup.MetadataBranchName))
+	runGit(t, r.invocation, "fetch", "-q", "origin", string(layout.SharedName))
 	return runGit(t, r.invocation, "show", "FETCH_HEAD:"+relPath)
 }
 
@@ -105,7 +106,7 @@ func (r *initRepo) publishFrontmatterDrift(t *testing.T) {
 	writeRepoFile(t, dotDocket, repairEmptyPath, repairArchivedRecord(4, "archived-empty", "claimed_at:"))
 	runGit(t, dotDocket, "add", "--", repairStampPath, repairEmptyPath)
 	runGit(t, dotDocket, "commit", "-q", "-m", "publish archived claim stamps")
-	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
+	runGit(t, dotDocket, "push", "-q", "origin", string(layout.SharedName))
 }
 
 // TestIntegrationRepoRepairPreviewListsBothKindsAndWritesNothing proves the
@@ -284,7 +285,7 @@ func TestIntegrationRepoRepairConvertsAbsoluteSameBranchLinksOnce(t *testing.T) 
 	writeRepoFile(t, dotDocket, convertLegacyPath, convertLegacyRecord())
 	runGit(t, dotDocket, "add", "--", convertADRPath, convertActivePath, convertLegacyPath)
 	runGit(t, dotDocket, "commit", "-q", "-m", "publish records with absolute same-branch links")
-	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
+	runGit(t, dotDocket, "push", "-q", "origin", string(layout.SharedName))
 
 	stale := map[string]bool{}
 	for _, f := range r.runCheck(t).Findings {
@@ -383,7 +384,7 @@ func TestIntegrationRepoRepairRefusesLegacyRepository(t *testing.T) {
 	if !strings.Contains(res.HumanText(), "docket repository migrate") {
 		t.Errorf("legacy refusal must name `docket repository migrate`: %q", res.HumanText())
 	}
-	if _, err := tryGit(r.origin, "rev-parse", "--verify", "refs/heads/"+string(reposetup.MetadataBranchName)); err == nil {
+	if _, err := tryGit(r.origin, "rev-parse", "--verify", "refs/heads/"+string(layout.SharedName)); err == nil {
 		t.Errorf("a legacy refusal must not create the docket branch")
 	}
 }
@@ -543,7 +544,7 @@ func (r *initRepo) publishPRBacklinkRecords(t *testing.T) {
 	writeRepoFile(t, dotDocket, prRepairOKPath, prArchivedRecord(364, "fixed-change", 251))
 	runGit(t, dotDocket, "add", "--", prRepairPath, prRepairOKPath)
 	runGit(t, dotDocket, "commit", "-q", "-m", "publish archived PR-bearing records")
-	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
+	runGit(t, dotDocket, "push", "-q", "origin", string(layout.SharedName))
 }
 
 func (r *initRepo) runPRRepair(t *testing.T, gh RepairGitHub, o RepairOptions) RepositoryRepairResult {
@@ -601,7 +602,7 @@ func TestIntegrationRepoRepairPRBacklinksSkipsUnreadable(t *testing.T) {
 	writeRepoFile(t, dotDocket, third, prArchivedRecord(365, "third-change", 252))
 	runGit(t, dotDocket, "add", "--", third)
 	runGit(t, dotDocket, "commit", "-q", "-m", "third")
-	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
+	runGit(t, dotDocket, "push", "-q", "origin", string(layout.SharedName))
 
 	gh := &fakeRepairGitHub{t: t, bodies: map[int]string{
 		250: prBodyNaming(prRepairActive),

@@ -136,6 +136,7 @@ func TestStatusCorpusFrozenSemantics(t *testing.T) {
 		MetadataRevision:    "cccccccccccccccccccccccccccccccccccccccc",
 		Config:              cfg,
 		ConfigDiags:         cfgDiags,
+		Layout:              testSharedLayout(),
 	}
 	fake := &fakeReader{pin: pin, corpus: blobs, facts: domain.NewBranchFacts(nil)}
 

@@ -3,8 +3,8 @@ package app
 import (
 	"strings"
 
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
-	"github.com/danielhanold/docket/internal/reposetup"
 )
 
 // This file owns the app layer's link-context derivation (change 0341). The
@@ -46,8 +46,10 @@ func githubWebURL(remoteURL string) string {
 // linkContextOf is the sole constructor of the LinkContext app operations hand
 // to render: the repository web URL and the branch names travel together, so
 // no call site can silently omit a field again — the exact defect 0341 fixes.
-// The metadata records always live on the fixed docket branch; the integration
-// branch (0417: the ref for a done change's Plan/Results rows) comes from the
+// The metadata records live on the pin's resolved metadata branch; a private
+// repository's metadata branch has no web page, so PrivateMetadata makes its
+// blob links render repo-relative (render.LinkContext.PrivateMetadata). The
+// integration branch (0417: the ref for a done change's Plan/Results rows) comes from the
 // pin, falling back to the default branch exactly as finalize's
 // closeoutContext resolves it for git operations.
 func linkContextOf(pin StatusPin) render.LinkContext {
@@ -57,7 +59,8 @@ func linkContextOf(pin StatusPin) render.LinkContext {
 	}
 	return render.LinkContext{
 		RepoWebURL:        pin.RepoWebURL,
-		MetadataBranch:    reposetup.MetadataBranchName,
+		MetadataBranch:    pin.Layout.MetadataBranch,
 		IntegrationBranch: integration,
+		PrivateMetadata:   pin.Layout.Mode == layout.Private,
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
@@ -37,7 +38,7 @@ func TestRepairableFamilyRemediesNameRepairNotMigrate(t *testing.T) {
 			// non-repairable derived: an unbalanced managed marker
 			{path: "docs/changes/active/0004-malformed.md", bytes: []byte("---\n" + malformedFM + "---\n\n## Artifacts\n\n<!-- docket:artifacts:start (generated — do not hand-edit) -->\n| Artifact | Link |\n\n## Why\n\nbody\n"), kind: repository.KindChange, location: repository.LocationActive},
 		},
-		link:  render.LinkContext{MetadataBranch: reposetup.MetadataBranchName},
+		link:  render.LinkContext{MetadataBranch: layout.SharedName},
 		board: corpusFile{present: true, bytes: []byte("# Backlog\n\nstale bytes\n")},
 	}
 	fm, extra := checkCorpusOutcome(cfg, corpus, nil)

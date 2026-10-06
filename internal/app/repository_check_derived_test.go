@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/document"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
@@ -63,7 +64,7 @@ func canonicalChangeRecord(t *testing.T, cfg config.Effective) (path string, can
 	if out != 0 { // domain.LookupFound == 0
 		t.Fatalf("example change absent from snapshot (outcome %d)", out)
 	}
-	body, err := render.ArtifactBlockContent(c, snap, render.LinkContext{MetadataBranch: reposetup.MetadataBranchName})
+	body, err := render.ArtifactBlockContent(c, snap, render.LinkContext{MetadataBranch: layout.SharedName})
 	if err != nil {
 		t.Fatalf("render artifact block: %v", err)
 	}
@@ -91,7 +92,7 @@ func TestDerivedViewFindingsCleanCorpus(t *testing.T) {
 
 	corpus := checkCorpus{
 		records:  []corpusRecord{rec},
-		link:     render.LinkContext{MetadataBranch: reposetup.MetadataBranchName},
+		link:     render.LinkContext{MetadataBranch: layout.SharedName},
 		board:    corpusFile{present: true, bytes: board},
 		adrIndex: corpusFile{present: true, bytes: adr},
 	}
@@ -109,7 +110,7 @@ func TestDerivedViewFindingsStaleBoard(t *testing.T) {
 	rec := corpusRecord{path: path, bytes: canonical, kind: repository.KindChange, location: repository.LocationActive}
 	corpus := checkCorpus{
 		records: []corpusRecord{rec},
-		link:    render.LinkContext{MetadataBranch: reposetup.MetadataBranchName},
+		link:    render.LinkContext{MetadataBranch: layout.SharedName},
 		board:   corpusFile{present: true, bytes: []byte("# Backlog\n\nstale bytes\n")},
 	}
 	got := findingByCode(derivedViewFindings(cfg, corpus), reposetup.CodeBoardStale)
@@ -132,7 +133,7 @@ func TestDerivedViewFindingsStaleArtifactLinks(t *testing.T) {
 		kind:     repository.KindChange,
 		location: repository.LocationActive,
 	}
-	corpus := checkCorpus{records: []corpusRecord{rec}, link: render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}}
+	corpus := checkCorpus{records: []corpusRecord{rec}, link: render.LinkContext{MetadataBranch: layout.SharedName}}
 	got := findingByCode(derivedViewFindings(cfg, corpus), reposetup.CodeArtifactLinksStale)
 	if got == nil {
 		t.Fatal("stale artifact-links block did not produce an artifact-links-stale finding")
@@ -152,7 +153,7 @@ func TestDerivedViewFindingsMissingArtifactLinks(t *testing.T) {
 		kind:     repository.KindChange,
 		location: repository.LocationActive,
 	}
-	corpus := checkCorpus{records: []corpusRecord{rec}, link: render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}}
+	corpus := checkCorpus{records: []corpusRecord{rec}, link: render.LinkContext{MetadataBranch: layout.SharedName}}
 	got := findingByCode(derivedViewFindings(cfg, corpus), reposetup.CodeArtifactLinksMissing)
 	if got == nil {
 		t.Fatal("missing artifact-links block did not produce an artifact-links-missing finding")
@@ -170,7 +171,7 @@ func TestDerivedViewFindingsMalformedMarkers(t *testing.T) {
 	// A start marker with no matching end: document.Parse rejects it.
 	src := []byte("---\n" + derivedChangeFM + "---\n\n## Artifacts\n\n<!-- docket:artifacts:start (generated — do not hand-edit) -->\n| Artifact | Link |\n\n## Why\n\nbody\n")
 	rec := corpusRecord{path: "docs/changes/active/0001-example.md", bytes: src, kind: repository.KindChange, location: repository.LocationActive}
-	corpus := checkCorpus{records: []corpusRecord{rec}, link: render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}}
+	corpus := checkCorpus{records: []corpusRecord{rec}, link: render.LinkContext{MetadataBranch: layout.SharedName}}
 	got := findingByCode(derivedViewFindings(cfg, corpus), reposetup.CodeArtifactLinksMalformed)
 	if got == nil {
 		t.Fatal("unbalanced markers did not produce an artifact-links-malformed finding")

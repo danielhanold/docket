@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -84,7 +85,8 @@ type operationalContext struct {
 	defaultRevision     string
 	integrationBranch   string
 	integrationRevision string
-	metadataRevision    string // pinned tip of the fixed docket metadata branch
+	metadataRevision    string // pinned tip of the resolved metadata branch
+	layout              layout.Layout
 	repoWebURL          string
 	snapshot            config.Snapshot
 	diags               []config.Diagnostic
@@ -92,15 +94,17 @@ type operationalContext struct {
 }
 
 // loadOperationalContext performs the spec's one ordered read: discover the
-// canonical repository and resolve the remote default branch → resolve
+// canonical repository and resolve its layout (resolveLayout) and the remote
+// default branch → resolve
 // configuration from the pinned repository blob plus the machine layers (the
 // obsolete tombstone is diagnostic-only and cannot influence the result; an
 // invalid configuration fails closed here, BEFORE any topology classification)
 // → fetch and pin the integration revision → probe the classifier facts and
 // classify ONCE → refuse a legacy repository with the typed refusal → fetch
-// and pin the fixed remote docket revision. The whole read is pinned against
-// exact commit ids so a later concurrent fetch cannot change what any concern
-// observes.
+// and pin the metadata revision through the layout's metadata remote and
+// branch (origin/docket in a shared repository, the bare dckt remote's dckt
+// branch in a private one). The whole read is pinned against exact commit ids
+// so a later concurrent fetch cannot change what any concern observes.
 func loadOperationalContext(ctx context.Context, client *gitcli.Client, repoDir string) (operationalContext, error) {
 	var oc operationalContext
 
@@ -119,6 +123,11 @@ func loadOperationalContext(ctx context.Context, client *gitcli.Client, repoDir 
 	}
 	oc.repo = repo
 
+	oc.layout, err = resolveLayout(ctx, client, repo)
+	if err != nil {
+		return oc, err
+	}
+
 	ref, err := client.RemoteDefaultBranch(ctx, repo, originRemote)
 	if err != nil {
 		return oc, classifyGitFailure(err)
@@ -129,7 +138,7 @@ func loadOperationalContext(ctx context.Context, client *gitcli.Client, repoDir 
 	}
 	oc.defaultBranch = defaultBranch
 
-	defaultRev, err := fetchPinnedRevision(ctx, client, repo, ref)
+	defaultRev, err := fetchPinnedRevision(ctx, client, repo, originRemote, ref)
 	if err != nil {
 		return oc, err
 	}
@@ -171,7 +180,7 @@ func loadOperationalContext(ctx context.Context, client *gitcli.Client, repoDir 
 	oc.integrationBranch = eff.IntegrationBranch.Value
 	oc.integrationRevision = defaultRev
 	if oc.integrationBranch != defaultBranch {
-		oc.integrationRevision, err = fetchPinnedRevision(ctx, client, repo, gitcli.RefName(branchRefPrefix+oc.integrationBranch))
+		oc.integrationRevision, err = fetchPinnedRevision(ctx, client, repo, originRemote, gitcli.RefName(branchRefPrefix+oc.integrationBranch))
 		if err != nil {
 			return oc, err
 		}
@@ -192,22 +201,23 @@ func loadOperationalContext(ctx context.Context, client *gitcli.Client, repoDir 
 		return oc, rerr
 	}
 
-	// Pin the fixed metadata branch. For any admitted state without a remote
-	// docket branch (fresh, or an unproven probe), the fetch fails exactly the
+	// Pin the resolved metadata branch. For any admitted state without a remote
+	// metadata branch (fresh, or an unproven probe), the fetch fails exactly the
 	// way the pre-gate PinContext failed — the gate adds no acceptance the
 	// single-pin contract did not already have.
-	oc.metadataRevision, err = fetchPinnedRevision(ctx, client, repo, gitcli.RefName(branchRefPrefix+reposetup.MetadataBranchName))
+	oc.metadataRevision, err = fetchPinnedRevision(ctx, client, repo, metadataRemote(oc.layout), metadataRef(oc.layout))
 	if err != nil {
 		return oc, err
 	}
 	return oc, nil
 }
 
-// fetchPinnedRevision fetches one fully-qualified branch through origin and
+// fetchPinnedRevision fetches one fully-qualified branch through remote and
 // returns its pinned commit id, mapping any adapter failure to a status
-// classification.
-func fetchPinnedRevision(ctx context.Context, client *gitcli.Client, repo gitcli.Repository, branch gitcli.RefName) (string, error) {
-	rev, err := client.FetchBranch(ctx, repo, originRemote, branch)
+// classification. Code branches come through origin; the metadata branch
+// through metadataRemote of the resolved layout.
+func fetchPinnedRevision(ctx context.Context, client *gitcli.Client, repo gitcli.Repository, remote gitcli.RemoteName, branch gitcli.RefName) (string, error) {
+	rev, err := client.FetchBranch(ctx, repo, remote, branch)
 	if err != nil {
 		return "", classifyGitFailure(err)
 	}

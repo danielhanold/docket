@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
-	"github.com/danielhanold/docket/internal/reposetup"
 )
 
 // This file is the maintenance sweep's metadata-observation seam. The sweep no
@@ -56,12 +55,13 @@ func newSweepSession(client *gitcli.Client, repo gitcli.Repository, base StatusP
 }
 
 // Prepare produces one fresh metadata observation: exactly one fetch of the
-// fixed metadata branch, a pin that copies the captured setup with only its
-// metadata tip replaced, and one corpus read at that revision. No pre-fetch
+// captured pin's resolved metadata branch (through its metadata remote), a pin
+// that copies the captured setup with only its metadata tip replaced, and one
+// corpus read at that revision. No pre-fetch
 // probe, no cache, no TTL — the bounded failure-classification behavior is
 // FetchBranch's own (its diagnostic probe rides inside the same call).
 func (s *sweepSession) Prepare(ctx context.Context) (*sweepObservation, error) {
-	rev, err := fetchPinnedRevision(ctx, s.client, s.repo, gitcli.RefName(branchRefPrefix+reposetup.MetadataBranchName))
+	rev, err := fetchPinnedRevision(ctx, s.client, s.repo, metadataRemote(s.base.Layout), metadataRef(s.base.Layout))
 	if err != nil {
 		// A failed metadata fetch is the classified error, never a stale
 		// fallback and never an inferred absence.

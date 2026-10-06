@@ -10,6 +10,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -568,8 +569,8 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 	if c.IntegrationBranchRevision != "i0" {
 		t.Errorf("integration_branch_revision = %q, want the pinned i0", c.IntegrationBranchRevision)
 	}
-	if c.MetadataBranch != reposetup.MetadataBranchName {
-		t.Errorf("metadata_branch = %q, want %q", c.MetadataBranch, reposetup.MetadataBranchName)
+	if c.MetadataBranch != layout.SharedName {
+		t.Errorf("metadata_branch = %q, want %q", c.MetadataBranch, layout.SharedName)
 	}
 	if c.MetadataBranchRevision != "m9" {
 		t.Errorf("metadata_branch_revision = %q, want the pinned m9", c.MetadataBranchRevision)

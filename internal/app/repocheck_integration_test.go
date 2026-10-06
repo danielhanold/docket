@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -216,7 +217,7 @@ func (r *initRepo) writeDocketFileAndPush(t *testing.T, relPath, content, messag
 	writeRepoFile(t, dotDocket, relPath, content)
 	runGit(t, dotDocket, "add", "--", relPath)
 	runGit(t, dotDocket, "commit", "-q", "-m", message)
-	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
+	runGit(t, dotDocket, "push", "-q", "origin", string(layout.SharedName))
 }
 
 // TestIntegrationRepoCheckDerivedViewDrift proves a healthy repository whose
