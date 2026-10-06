@@ -106,6 +106,7 @@ type ChangeSpec struct {
 	HasAutoGroomBlocked bool // "## Auto-groom blocked" present
 	HasFinalizeBlocked  bool
 	HasPublishDeferred  bool
+	HasBuildEvidence    bool // "## Build evidence" body section present
 }
 
 // Change is an immutable change manifest. Every caller-owned slice is copied
@@ -221,6 +222,12 @@ func (c Change) ArchiveDate() OptionalTime { return c.spec.ArchiveDate }
 
 // HasRunHalted reports whether the body carries a "## Run halted" section.
 func (c Change) HasRunHalted() bool { return c.spec.HasRunHalted }
+
+// HasBuildEvidence reports whether the body carries the operation-owned
+// "## Build evidence" section — the durable build-evidence record that
+// change.mark-implemented first writes. Its presence also marks a change built
+// by the metadata-branch artifact flow (render's legacy-link rule keys on it).
+func (c Change) HasBuildEvidence() bool { return c.spec.HasBuildEvidence }
 
 // HasAutoGroomBlocked reports whether the body carries an
 // "## Auto-groom blocked" section.
