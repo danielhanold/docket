@@ -37,6 +37,9 @@ const (
 	KindFile         TargetKind = "file"
 	KindSymlink      TargetKind = "symlink"
 	KindManagedBlock TargetKind = "managed-block"
+	// KindHookEntries is a fixed list of hook commands inside a JSON hooks file
+	// the user also owns (see hook_entries.go).
+	KindHookEntries TargetKind = "hook-entries"
 )
 
 // TargetRecord is the ownership proof for one installed target: enough to
@@ -48,6 +51,10 @@ type TargetRecord struct {
 	SHA256     string     `json:"sha256,omitempty"`      // file: whole file; managed-block: block interior
 	BlockName  string     `json:"block_name,omitempty"`  // managed-block only, e.g. "dispatch"
 	Role       string     `json:"role"`                  //
+	// HookDialect and HookCommands are hook-entries only: the hooks-file shape
+	// and the exact commands docket's entries run, in install order.
+	HookDialect  string   `json:"hook_dialect,omitempty"`
+	HookCommands []string `json:"hook_commands,omitempty"`
 	// Harness attributes the target to the harness whose planner produced it.
 	// It is what makes a scoped run a scope rather than an uninstall: a run
 	// that plans for one harness prunes only that harness's stale targets and
@@ -181,6 +188,9 @@ func ValidateState(s *State) error {
 }
 
 func validateTarget(target TargetRecord) error {
+	if target.Kind != KindHookEntries && (target.HookDialect != "" || len(target.HookCommands) > 0) {
+		return fmt.Errorf("a %s target carries hook-entries fields", target.Kind)
+	}
 	switch target.Kind {
 	case KindFile:
 		if target.SHA256 == "" || target.LinkTarget != "" || target.BlockName != "" {
@@ -193,6 +203,13 @@ func validateTarget(target TargetRecord) error {
 	case KindManagedBlock:
 		if target.SHA256 == "" || target.BlockName == "" || target.LinkTarget != "" {
 			return errors.New("invalid managed-block fields")
+		}
+	case KindHookEntries:
+		if target.SHA256 == "" || target.BlockName != "" || target.LinkTarget != "" {
+			return errors.New("invalid hook-entries fields")
+		}
+		if err := checkHookFields(target.HookDialect, target.HookCommands); err != nil {
+			return fmt.Errorf("invalid hook-entries fields: %w", err)
 		}
 	default:
 		return fmt.Errorf("unsupported target kind %q", target.Kind)

@@ -325,6 +325,22 @@ func proveUninstallRemoval(rec TargetRecord) (bool, bool, string, error) {
 			return true, false, "", nil
 		}
 	}
+	if rec.Kind == KindHookEntries && info.Mode().IsRegular() {
+		data, err := os.ReadFile(rec.Path)
+		if err != nil {
+			return false, false, "", fmt.Errorf("install: reading %s: %w", rec.Path, err)
+		}
+		editable, anyPresent, _ := hookEntriesState(data, rec.HookDialect, rec.HookCommands)
+		if !editable {
+			return false, false, ReasonManagedBlockInvalid, nil
+		}
+		if !anyPresent {
+			// No entry runs a recorded command: the user's file holds nothing of
+			// docket's, so there is nothing to remove.
+			return true, false, "", nil
+		}
+		// Otherwise recordMatchesDisk decides: a modified entry is a conflict.
+	}
 	matches, err := recordMatchesDisk(rec)
 	if err != nil {
 		return false, false, "", err

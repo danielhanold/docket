@@ -84,6 +84,8 @@ func InspectTarget(t Target, prior *State, legacy LegacyReproducer) (Inspection,
 		return inspectSymlink(t, info, rec, hasRec, legacy)
 	case KindManagedBlock:
 		return inspectManagedBlock(t, info, rec, hasRec, legacy)
+	case KindHookEntries:
+		return inspectHookEntries(t, info)
 	default:
 		// validate has already refused every other kind.
 		return Inspection{}, fmt.Errorf("%w: %s has unknown kind %q", ErrInvalidTarget, t.Path, t.Kind)
@@ -215,6 +217,35 @@ func inspectManagedBlock(t Target, info fs.FileInfo, rec TargetRecord, hasRec bo
 	return conflict(t, ReasonOwnershipConflict, remedyForeignBlock(t.BlockName)), nil
 }
 
+// inspectHookEntries classifies a hook-entries target inside a hooks file the
+// user also owns. Adding an entry only splices one in and keeps every other
+// byte, so — as for adding a managed block — writing into a file docket did not
+// author needs no ownership proof; a file docket cannot read as an editable
+// hooks document is reported, never treated as "entries absent".
+func inspectHookEntries(t Target, info fs.FileInfo) (Inspection, error) {
+	if !info.Mode().IsRegular() {
+		// The transaction publishes by rename, which would replace a symlink (a
+		// dotfiles manager's link, say) with a regular file.
+		return conflict(t, ReasonOwnershipConflict, remedyHookFileNotRegular), nil
+	}
+	data, err := os.ReadFile(t.Path)
+	if err != nil {
+		return Inspection{}, fmt.Errorf("install: reading %s: %w", t.Path, err)
+	}
+	entries, ok := readHookEntries(data, t.HookDialect)
+	if !ok {
+		return conflict(t, ReasonManagedBlockInvalid, remedyHookFileInvalid), nil
+	}
+	for _, c := range t.HookCommands {
+		if !anyEntryRuns(entries, t.HookDialect, c) {
+			return Inspection{Target: t, Disposition: DispositionUpdate}, nil
+		}
+	}
+	// Every command already has an entry. One the user has since edited (a
+	// timeout added) still runs the command, so it is theirs and left alone.
+	return Inspection{Target: t, Disposition: DispositionNoop}, nil
+}
+
 func conflict(t Target, reason, remedy string) Inspection {
 	return Inspection{Target: t, Disposition: DispositionConflict, Reason: reason, Remedy: remedy}
 }
@@ -226,6 +257,10 @@ const (
 	remedyForeignPath = "docket did not write what is at this path; move or delete it, then re-run"
 	remedyDriftedPath = "this path no longer matches the recorded install, so docket cannot prove it may overwrite it; " +
 		"restore the recorded content, or move it aside, then re-run"
+	remedyHookFileNotRegular = "this hooks file is not a regular file (a symlink or a directory), so docket cannot add its entries in place; " +
+		"make it a regular file, then re-run"
+	remedyHookFileInvalid = "this hooks file is not a JSON object docket can edit (hooks must be an object and each event an array); " +
+		"repair it by hand, then re-run"
 )
 
 // remedyLinkDestination names the destination the plan wants, which is the one
@@ -356,6 +391,21 @@ func recordMatchesDisk(rec TargetRecord) (bool, error) {
 			return false, nil
 		}
 		return interiorDigest(doc.Source()[block.Interior.Start:block.Interior.End]) == rec.SHA256, nil
+
+	case KindHookEntries:
+		// Every entry that runs a recorded command must be exactly docket's. A
+		// file holding none of them is a match too: nothing of docket's is left
+		// to preserve, as for a vanished target.
+		if !info.Mode().IsRegular() || rec.SHA256 == "" ||
+			rec.SHA256 != hookEntriesDigest(rec.HookDialect, rec.HookCommands) {
+			return false, nil
+		}
+		data, err := os.ReadFile(rec.Path)
+		if err != nil {
+			return false, fmt.Errorf("install: reading %s: %w", rec.Path, err)
+		}
+		editable, _, allExact := hookEntriesState(data, rec.HookDialect, rec.HookCommands)
+		return editable && allExact, nil
 
 	default:
 		return false, nil
