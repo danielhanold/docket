@@ -195,6 +195,16 @@ fi
 [ -f "$S_RECORD" ] || die "install: no ownership record after a successful install"
 grep -qxF "version=$VERSION" "$S_RECORD" \
 	|| die "install: ownership record does not name the installed version: $(tr '\n' '|' < "$S_RECORD")"
+S_ALIAS="$S_BIN/dckt"
+[ -L "$S_ALIAS" ] && [ "$S_ALIAS" -ef "$S_DEST" ] \
+	|| die "install: no dckt alias resolving to the installed binary at $S_ALIAS"
+grep -qxF "alias=$S_ALIAS" "$S_RECORD" \
+	|| die "install: ownership record does not name the dckt alias: $(tr '\n' '|' < "$S_RECORD")"
+alias_ver=$(env HOME="$S_HOME" XDG_STATE_HOME="$S_STATE" XDG_BIN_HOME="$S_BIN" \
+	XDG_DATA_HOME="$S_DATA" XDG_CONFIG_HOME="$S_CONFIG" TMPDIR="$S_TMP" "$S_ALIAS" version --json) \
+	|| die "install: '$S_ALIAS version --json' exited non-zero"
+[ "$alias_ver" = "$(run_docket version --json)" ] \
+	|| die "install: dckt version --json differs from docket version --json"
 
 # --- Block E: read-only install check must be clean ----------------------------------------------
 step "block E: install check --json"
@@ -204,6 +214,9 @@ check_result=$(json_str result "$check_json")
 case $check_result in
 	applied|no-op) ;;
 	*) die "check: install check result '$check_result' is not clean (expected applied or no-op)" ;;
+esac
+case $check_json in
+	*'"binary-alias-'*) die "check: install check reports a dckt alias warning after a clean install" ;;
 esac
 
 # --- Block F: same-version rerun is idempotent ---------------------------------------------------

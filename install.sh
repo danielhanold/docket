@@ -14,6 +14,8 @@
 #
 # The heavy lifting (building the binary, linking harnesses, adopting legacy artifacts,
 # the journaled install transaction) lives in the Go engine reached through that command.
+# An install leaves the docket binary plus dckt, a symlink to it, in the bin directory; a dckt
+# docket did not create is never replaced (the install warns and leaves it alone).
 #
 # DOCKET_BOOTSTRAP_DRY_RUN=1 prints the resolved command to stdout and exits 0 without
 # running it — the test seam this file's own tests key on.
