@@ -1958,7 +1958,7 @@ func TestIntegrationChangeRuntimeMarkImplementedConditions(t *testing.T) {
 			},
 			reason: ReasonImplementedResultsMissing,
 		},
-		{ // condition 5 — the attached path is a tracked regular file with the correct
+		{ // condition 5 — the attached path is a metadata file with the correct
 			// backlink, but its FINAL content is filler (## Findings and limitations → None.).
 			name:   "attached results fail the final content contract",
 			mutate: func(k *miKit) { k.results = miResultsInvalidPath },
@@ -1970,9 +1970,15 @@ func TestIntegrationChangeRuntimeMarkImplementedConditions(t *testing.T) {
 			mutate: func(k *miKit) { k.results = miResultsMismatchPath },
 			reason: ReasonImplementedResultsIdentity,
 		},
-		{ // condition 5
-			name:   "attached results path no longer tracked at head",
+		{ // condition 5 — results: names a path with no file on the metadata branch.
+			name:   "attached results path absent on the metadata branch",
 			mutate: func(k *miKit) { k.results = "docs/changes/results/0003-widget-ghost.md" },
+			reason: ReasonImplementedResultsIdentity,
+		},
+		{ // condition 5 — a valid results file committed only at the feature head
+			// never satisfies the link: results live on the metadata branch.
+			name:   "attached results exist only at the feature head",
+			mutate: func(k *miKit) { k.results = miResultsHeadOnlyPath },
 			reason: ReasonImplementedResultsIdentity,
 		},
 	}
@@ -4134,6 +4140,15 @@ func TestIntegrationChangeRuntimeRunVerifyIncompleteEnumeratesConditions(t *test
 		{
 			name:   "results identity broken",
 			record: rvWithEvidence(t, rvRecord(rvPlanPath, ghostResults, recordedPR, "feat/"+rvSlug), ev),
+			pr:     rvPR(pub.head, prBodyNoEvidence),
+			want:   ReasonRunResultsIdentity,
+		},
+		{
+			// A results file committed at the feature head but absent from the
+			// metadata branch: results live on the metadata branch, so the head
+			// copy never satisfies the link.
+			name:   "results only at the feature head",
+			record: rvWithEvidence(t, rvRecord(rvPlanPath, rvResultsHeadOnlyPath, recordedPR, "feat/"+rvSlug), ev),
 			pr:     rvPR(pub.head, prBodyNoEvidence),
 			want:   ReasonRunResultsIdentity,
 		},

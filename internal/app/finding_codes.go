@@ -17,7 +17,6 @@ const (
 	FCAuthoredInputTooLarge       FindingCode = "authored-input-too-large"
 	FCEmptyAttempt                FindingCode = "empty-attempt"
 	FCEmptyChildPRRevision        FindingCode = "empty-child_pr_revision"
-	FCEmptyCommit                 FindingCode = "empty-commit"
 	FCEmptyEvidence               FindingCode = "empty-evidence"
 	FCEmptyNoteEntry              FindingCode = "empty-note-entry"
 	FCEmptyPath                   FindingCode = "empty-path"
@@ -210,7 +209,6 @@ var AllFindingCodes = []FindingCode{
 	FCEmptyChangePath,
 	FCEmptyChangeRevision,
 	FCEmptyChildPRRevision,
-	FCEmptyCommit,
 	FCEmptyConsequences,
 	FCEmptyContext,
 	FCEmptyDecision,

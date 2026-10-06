@@ -234,47 +234,42 @@ func TestIntegrationWorkflowRepoChangeAttachPlanMetadataHappyPath(t *testing.T) 
 }
 
 // TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent proves
-// change.attach-results runs checkpoint-phase content validation AFTER the
-// backlink guard: a raw template scaffold (angle-bracket placeholders behind a
-// correct backlink) refuses with results-content-invalid and writes nothing,
-// while a truthful in-progress artifact (title + backlink + one real Outcome
-// paragraph and no other sections) attaches — the checkpoint phase never demands
-// the final content contract.
+// change.attach-results runs checkpoint-phase content validation: a raw template
+// scaffold refuses with results-content-invalid and writes nothing, while a
+// truthful in-progress artifact (title + one real Outcome paragraph and no other
+// sections) is written on the metadata branch with its backlink and linked — the
+// checkpoint phase never demands the final content contract.
 func TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent(t *testing.T) {
 	const resultsPath = "docs/results/2026-08-17-widget-results.md"
 
 	t.Run("raw template scaffold refuses with results-content-invalid", func(t *testing.T) {
 		f := attachSetup(t)
-		// A correct backlink (so the backlink guard passes) fronting the unfilled
-		// authoring template: the H1 and the Outcome body are unfilled emitted
-		// template prompts (change 0414 — derived from the shipped template).
-		scaffold := attachBacklinkBlock(f.id, "A change", f.recPath) +
-			"\n# <Change title> — Results\n\n## Outcome\n\n<The original problem, the delivered behavior, and any material departure from the\nagreed design — lead with observable effects. Explain unfamiliar Docket concepts when\nnecessary; include method names, stored fields, or internal identifiers only when they\nhelp the reader understand a consequence or take action.>\n"
-		head := f.commitArtifact(t, map[string]string{resultsPath: scaffold})
-		res := ChangeAttachResults(f.ctx, f.deps, f.wdeps, f.invocation,
-			ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: resultsPath, Commit: head})
+		// The unfilled authoring template: the H1 and the Outcome body are
+		// unfilled emitted template prompts (change 0414 — derived from the
+		// shipped template).
+		scaffold := "# <Change title> — Results\n\n## Outcome\n\n<The original problem, the delivered behavior, and any material departure from the\nagreed design — lead with observable effects. Explain unfamiliar Docket concepts when\nnecessary; include method names, stored fields, or internal identifiers only when they\nhelp the reader understand a consequence or take action.>\n"
+		tip := originTip(t, f.repo.origin, "docket")
+		res := ChangeAttachResults(f.ctx, f.deps, f.invocation,
+			ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: resultsPath, Markdown: []byte(scaffold)})
 		if res.Result == ResultApplied {
 			t.Fatalf("scaffold attach applied, want a refusal")
 		}
 		if res.Reason != ReasonAttachResultsContent {
 			t.Fatalf("reason = %q, want %q (msg %q)", res.Reason, ReasonAttachResultsContent, res.Message)
 		}
-		// A refusal opens no transaction: the remote record keeps no results field.
-		final, ok := originFile(t, f.repo.origin, "docket", f.recPath)
-		if ok && strings.Contains(final, "results: '") {
-			t.Errorf("a refused attach wrote the results field to the remote:\n%s", final)
+		// A refusal opens no transaction: the metadata remote did not move.
+		if got := originTip(t, f.repo.origin, "docket"); got != tip {
+			t.Errorf("a refused attach moved the metadata branch %s -> %s", tip, got)
 		}
 	})
 
 	t.Run("truthful in-progress artifact attaches", func(t *testing.T) {
 		f := attachSetup(t)
-		// Title + backlink + one real Outcome paragraph, no other sections: a
-		// checkpoint artifact must not be held to the final content contract.
-		artifact := attachBacklinkBlock(f.id, "A change", f.recPath) +
-			"\n# Widget — Results\n\n## Outcome\n\nDelivered the in-progress slice; behavior X now refuses Y.\n"
-		head := f.commitArtifact(t, map[string]string{resultsPath: artifact})
-		res := ChangeAttachResults(f.ctx, f.deps, f.wdeps, f.invocation,
-			ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: resultsPath, Commit: head})
+		// Title + one real Outcome paragraph, no other sections: a checkpoint
+		// artifact must not be held to the final content contract.
+		body := "# Widget — Results\n\n## Outcome\n\nDelivered the in-progress slice; behavior X now refuses Y.\n"
+		res := ChangeAttachResults(f.ctx, f.deps, f.invocation,
+			ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: resultsPath, Markdown: []byte(body)})
 		if res.Result != ResultApplied {
 			t.Fatalf("checkpoint attach = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
 		}
@@ -285,7 +280,48 @@ func TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent(t *testing.
 		if !strings.Contains(final, "results: '"+resultsPath+"'") {
 			t.Errorf("committed record missing the results field:\n%s", final)
 		}
+		stored, ok := originFile(t, f.repo.origin, "docket", resultsPath)
+		if want := attachBacklinkBlock(f.id, "A change", f.recPath) + "\n" + body; !ok || stored != want {
+			t.Errorf("stored results =\n%q\nwant\n%q", stored, want)
+		}
+		// One metadata commit: the results file and the record (the board too
+		// when inline) — never a feature-branch path.
+		for _, p := range originCommitPaths(t, f.repo.origin, res.Revision) {
+			if p != resultsPath && p != f.recPath && p != "docs/changes/BOARD.md" {
+				t.Errorf("results attach commit changed unexpected path %q", p)
+			}
+		}
 	})
+}
+
+// TestIntegrationWorkflowRepoChangeAttachResultsFeatureHeadNeverConsulted proves
+// a results attach neither reads nor writes the feature branch: with a
+// DIFFERENT (and checkpoint-invalid) results file committed at the feature head
+// under the same path, the attach still applies, the metadata branch stores
+// exactly the submitted body behind its backlink, and the feature head and the
+// feature-head file are untouched.
+func TestIntegrationWorkflowRepoChangeAttachResultsFeatureHeadNeverConsulted(t *testing.T) {
+	const resultsPath = "docs/results/2026-08-17-widget-results.md"
+	f := attachSetup(t)
+	headFile := "# <Change title> — Results\n\n## Outcome\n\n<unfilled>\n"
+	head := f.commitArtifact(t, map[string]string{resultsPath: headFile})
+
+	body := "# Widget — Results\n\n## Outcome\n\nDelivered the slice the metadata branch records.\n"
+	res := ChangeAttachResults(f.ctx, f.deps, f.invocation,
+		ChangeAttachRequest{ID: f.id, Revision: f.revision, Path: resultsPath, Markdown: []byte(body)})
+	if res.Result != ResultApplied {
+		t.Fatalf("attach = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
+	}
+	stored, ok := originFile(t, f.repo.origin, "docket", resultsPath)
+	if want := attachBacklinkBlock(f.id, "A change", f.recPath) + "\n" + body; !ok || stored != want {
+		t.Errorf("stored results =\n%q\nwant\n%q", stored, want)
+	}
+	if got := runGit(t, f.wp, "rev-parse", "HEAD"); got != head {
+		t.Errorf("a results attach moved the feature head %s -> %s", head, got)
+	}
+	if got := runGit(t, f.wp, "show", "HEAD:"+resultsPath); got+"\n" != headFile {
+		t.Errorf("a results attach changed the feature-head file:\n%q", got)
+	}
 }
 
 // TestClaimRaceLosesCleanly proves a claimant working from a context revision that

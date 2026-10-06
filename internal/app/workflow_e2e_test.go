@@ -132,26 +132,29 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 			t.Fatalf("planning moved the feature head %s -> %s", prepHead, got)
 		}
 
-		// (7) The implementation commit advances the feature head. A results artifact is
-		// REQUIRED at the implemented boundary (change 0410), so it rides this commit
-		// with its deterministic backlink stamped through the artifact-backlink
-		// operation, and is attached below.
+		// (7) The implementation commit advances the feature head; it carries only
+		// the code.
 		writeRepoFile(t, wp, "widget.go", "package widget\n")
-		writeRepoFile(t, wp, resultsPath, "# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the widget end to end; the gate certifies this head.\n")
-		blR := ArtifactBacklink(ctx, node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: resultsPath, ChangePath: recPath})
-		if blR.Result != ResultApplied {
-			t.Fatalf("artifact backlink (results) = %q (reason %q msg %q)", blR.Result, blR.Reason, blR.Message)
-		}
 		runGit(t, wp, "add", "-A")
 		runGit(t, wp, "commit", "-q", "-m", "implement the widget")
 		head := runGit(t, wp, "rev-parse", "HEAD")
+		if got := runGit(t, wp, "show", "--name-only", "--format=", head); got != "widget.go" {
+			t.Fatalf("the implementation commit changed %q, want only widget.go", got)
+		}
 
-		// (7b) Attach the results artifact so the record carries results: — the
+		// (7b) A results checkpoint: attach-results writes the results on the
+		// metadata branch with its backlink and sets results: — the
 		// mark-implemented results condition (change 0410) requires it.
-		attachR := ChangeAttachResults(ctx, node.deps, wdeps, node.dir,
-			ChangeAttachRequest{ID: id, Revision: ver(), Path: resultsPath, Commit: head})
+		attachR := ChangeAttachResults(ctx, node.deps, node.dir, ChangeAttachRequest{
+			ID: id, Revision: ver(), Path: resultsPath,
+			Markdown: []byte("# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nImplementation in progress; the gate has not run yet.\n"),
+		})
 		if attachR.Result != ResultApplied {
 			t.Fatalf("attach results = %q (reason %q msg %q findings %v)", attachR.Result, attachR.Reason, attachR.Message, attachR.Findings)
+		}
+		storedResults, ok := originFile(t, repo.origin, m.branch, resultsPath)
+		if !ok || !strings.Contains(storedResults, "docket:backlink:start") {
+			t.Fatalf("results file at the metadata remote tip is missing or lacks its backlink:\n%s", storedResults)
 		}
 
 		// (8) Launch the real trivially-passing gate through the gate supervisor and
@@ -174,6 +177,26 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		// (10) Verify the record against the exact head (the invalidate-on-fix pin).
 		if v := EvidenceVerify(EvidenceVerifyRequest{RecordFile: evidenceBytes, Head: head}); v.Result != ResultApplied {
 			t.Fatalf("evidence verify = %q (verdict %q reason %q)", v.Result, v.Verdict, v.Reason)
+		}
+
+		// (10a) A later results checkpoint after the gate certified the head is a
+		// metadata commit only: the feature head does not move, so the evidence
+		// still verifies against it.
+		attachR2 := ChangeAttachResults(ctx, node.deps, node.dir, ChangeAttachRequest{
+			ID: id, Revision: ver(), Path: resultsPath,
+			Markdown: []byte("# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the widget end to end; the gate certifies this head.\n"),
+		})
+		if attachR2.Result != ResultApplied {
+			t.Fatalf("second attach results = %q (reason %q msg %q findings %v)", attachR2.Result, attachR2.Reason, attachR2.Message, attachR2.Findings)
+		}
+		if got := runGit(t, wp, "rev-parse", "HEAD"); got != head {
+			t.Fatalf("a results checkpoint moved the feature head %s -> %s", head, got)
+		}
+		if v := EvidenceVerify(EvidenceVerifyRequest{RecordFile: evidenceBytes, Head: head}); v.Result != ResultApplied {
+			t.Fatalf("evidence verify after a results checkpoint = %q (verdict %q reason %q)", v.Result, v.Verdict, v.Reason)
+		}
+		if got, _ := originFile(t, repo.origin, m.branch, resultsPath); !strings.Contains(got, "the gate certifies this head") {
+			t.Fatalf("the later checkpoint did not replace the results on the metadata branch:\n%s", got)
 		}
 
 		// (10b) Tear the observed gate down the way a real run's gate lifecycle does.
@@ -246,10 +269,11 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 
 		// Negative half: every metadata-remote commit past the fixture base is an
 		// engine transaction (carries Docket-Transaction-ID), and the durable
-		// transitions are exactly the operations that ran — no direct skill-owned
-		// metadata write slipped in.
+		// transitions are exactly the operations that ran — two results
+		// checkpoints included — and no direct skill-owned metadata write slipped
+		// in.
 		assertEngineOnlyMetadataCommits(t, repo.origin, m.branch, baseTip,
-			[]string{"change.attach-plan", "change.attach-results", "change.claim", "change.mark-implemented", "change.reconcile"})
+			[]string{"change.attach-plan", "change.attach-results", "change.attach-results", "change.claim", "change.mark-implemented", "change.reconcile"})
 		return gdeps
 	}
 	if len(entries) == 0 {

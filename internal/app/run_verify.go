@@ -91,10 +91,10 @@ const (
 	// results. This condition needs no blob read.
 	ReasonRunResultsUnlinked = "results-unlinked"
 	// ReasonRunResultsIdentity: an attached results path no longer resolves to a
-	// tracked regular file at the current feature head.
+	// file on the metadata branch.
 	ReasonRunResultsIdentity = "results-identity-broken"
-	// ReasonRunResultsInvalid: an attached results path resolves to a tracked
-	// regular file whose FINAL results content contract is not satisfied
+	// ReasonRunResultsInvalid: an attached results path resolves to a file on the
+	// metadata branch whose FINAL results content contract is not satisfied
 	// (ValidateResultsContent, ResultsPhaseFinal). Observed names the path and the
 	// first content finding; it is diagnostic and must not be parsed.
 	ReasonRunResultsInvalid = "results-content-invalid"
@@ -347,8 +347,8 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		add(ReasonRunLeaseContended, b.Value)
 	}
 
-	// Plan link, and plan-file identity on the metadata branch (the plan lives
-	// there; the feature head is never consulted for it).
+	// Plan and results links, and their file identity on the metadata branch
+	// (both live there; the feature head is never consulted for either).
 	planPath := strings.TrimSpace(c.Plan().Value)
 	resultsPath := strings.TrimSpace(c.Results().Value)
 	if planPath == "" {
@@ -363,32 +363,20 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		}
 	}
 	// A results artifact is REQUIRED at the implemented boundary (change 0410):
-	// an absent link is an unmet condition on its own. It needs no blob read, so it
-	// is added OUTSIDE the object-source guard below — a run with no results still
-	// reports results-unlinked without opening the head source.
+	// an absent link is an unmet condition on its own, needing no read.
 	if resultsPath == "" {
 		add(ReasonRunResultsUnlinked, "")
-	}
-	// Open the head's object source when the results blob read is needed.
-	if resultsPath != "" {
-		src, err := deps.Client.OpenObjectSource(ctx, repo, gitcli.Revision{Commit: gitcli.ObjectID(head)})
+	} else {
+		art, err := deps.Reader.ReadArtifact(ctx, pin, sourceMetadata, resultsPath)
 		if err != nil {
-			result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-			if reason == ReasonStatusInternalError {
-				reason = ReasonRunArtifactRead
-			}
-			return runOperationalRefusal(result, reason, err.Error(), req.ID)
+			return runOperationalRefusal(ResultExternalFailed, ReasonRunArtifactRead, err.Error(), req.ID)
 		}
-		blob, okFile, rerr := trackedRegularBlobBytes(ctx, src, resultsPath)
-		if rerr != nil {
-			return runOperationalRefusal(ResultExternalFailed, ReasonRunArtifactRead, rerr.Error(), req.ID)
-		}
-		if !okFile {
-			// The linked path is absent or a symlink: identity, not prose.
+		if !art.Found {
+			// The linked path is not on the metadata branch: identity, not prose.
 			add(ReasonRunResultsIdentity, resultsPath)
-		} else if fs := ValidateResultsContent(blob, ResultsPhaseFinal); len(fs) > 0 {
-			// The path resolves to a tracked regular file whose FINAL content
-			// contract fails. Observed names the path and the first finding.
+		} else if fs := ValidateResultsContent(art.Data, ResultsPhaseFinal); len(fs) > 0 {
+			// The file's FINAL content contract fails. Observed names the path
+			// and the first finding.
 			add(ReasonRunResultsInvalid, resultsPath+": "+fs[0].Reason)
 		}
 	}
@@ -525,24 +513,4 @@ func evaluateRunWaiting(changeID int, c domain.Change, workspaceHead string, r W
 		return "", "", false
 	}
 	return r.DriveID, r.Phase, true
-}
-
-// trackedRegularBlobBytes reports whether path resolves to a tracked, regular
-// (non symlink) file at the source's pinned commit and, when it does, returns the
-// blob's bytes. A read-infrastructure error is returned as an error
-// (operational); a missing path or a symlink is a clean (nil, false, nil) — the
-// caller maps that to the relevant postcondition miss. It is the probe behind
-// the results identity and content checks.
-func trackedRegularBlobBytes(ctx context.Context, src gitcli.ObjectSource, path string) ([]byte, bool, error) {
-	results, err := src.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(path)})
-	if err != nil {
-		return nil, false, err
-	}
-	if len(results) != 1 || !results[0].Found {
-		return nil, false, nil
-	}
-	if results[0].Blob.Mode == "120000" {
-		return nil, false, nil
-	}
-	return results[0].Blob.Bytes, true, nil
 }

@@ -257,14 +257,13 @@ func TestIntegrationNamedImplementationFlowIsolation(t *testing.T) {
 
 	// (6) Implementation + results attach.
 	writeRepoFile(t, wp, "widget.go", "package widget\n")
-	writeRepoFile(t, wp, resultsPath, "# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the widget end to end; the gate certifies this head.\n")
-	if bl := ArtifactBacklink(ctx, node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: resultsPath, ChangePath: recPath}); bl.Result != ResultApplied {
-		t.Fatalf("results backlink = %q (reason %q msg %q)", bl.Result, bl.Reason, bl.Message)
-	}
 	runGit(t, wp, "add", "-A")
 	runGit(t, wp, "commit", "-q", "-m", "implement the widget")
 	head := runGit(t, wp, "rev-parse", "HEAD")
-	attachR := ChangeAttachResults(ctx, node.deps, wdeps, node.dir, ChangeAttachRequest{ID: id, Revision: ver(), Path: resultsPath, Commit: head})
+	attachR := ChangeAttachResults(ctx, node.deps, node.dir, ChangeAttachRequest{
+		ID: id, Revision: ver(), Path: resultsPath,
+		Markdown: []byte("# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the widget end to end; the gate certifies this head.\n"),
+	})
 	if attachR.Result != ResultApplied {
 		t.Fatalf("attach results = %q (reason %q msg %q findings %v), want applied", attachR.Result, attachR.Reason, attachR.Message, attachR.Findings)
 	}

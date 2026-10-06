@@ -202,15 +202,17 @@ func TestStatusRecordsOptIn(t *testing.T) {
 }
 
 // TestStatusSourceDistinction is the artifact-source-distinction probe target:
-// the operation asks the metadata source for a spec and the integration source
-// for a plan, so the recorded source names diverge.
+// the operation asks the metadata source for the spec, the plan, and the
+// results, and asks the integration source for a plan or results only when the
+// metadata branch lacks it, so the recorded source names diverge.
 func TestStatusSourceDistinction(t *testing.T) {
 	pin := docketPin(t)
 	specPath := "docs/changes/specs/spec-a.md"
 	planPath := "docs/changes/plans/plan-a.md"
+	resultsPath := "docs/changes/results/results-a.md"
 	corpus := []StatusBlob{
 		changeBlob(11, "alpha", "feat", "high",
-			fmt.Sprintf("spec: %s\nplan: %s\n", specPath, planPath)),
+			fmt.Sprintf("spec: %s\nplan: %s\nresults: %s\n", specPath, planPath, resultsPath)),
 		changeBlob(12, "beta", "fix", "low", "spec: docs/changes/specs/spec-b.md\n"),
 	}
 	fake := &fakeReader{
@@ -220,6 +222,7 @@ func TestStatusSourceDistinction(t *testing.T) {
 		artifacts: map[string]bool{
 			"metadata|" + specPath:                  true,
 			"metadata|" + planPath:                  true,
+			"metadata|" + resultsPath:               true,
 			"metadata|docs/changes/specs/spec-b.md": true,
 		},
 	}
@@ -236,54 +239,66 @@ func TestStatusSourceDistinction(t *testing.T) {
 	if !asked["metadata|"+specPath] {
 		t.Errorf("spec was not checked against the metadata source; asks=%v", fake.artifactAsks)
 	}
-	if !asked["metadata|"+planPath] {
-		t.Errorf("plan was not checked against the metadata source; asks=%v", fake.artifactAsks)
-	}
-	if asked["integration|"+planPath] {
-		t.Errorf("a plan present on the metadata branch was also asked of the integration source; asks=%v", fake.artifactAsks)
+	for _, p := range []string{planPath, resultsPath} {
+		if !asked["metadata|"+p] {
+			t.Errorf("%s was not checked against the metadata source; asks=%v", p, fake.artifactAsks)
+		}
+		if asked["integration|"+p] {
+			t.Errorf("%s present on the metadata branch was also asked of the integration source; asks=%v", p, fake.artifactAsks)
+		}
 	}
 	if hasFindingCode(got.Findings, string(FCArtifactMissing)) {
-		t.Errorf("a plan present on the metadata branch reported artifact-missing: %v", got.Findings)
+		t.Errorf("artifacts present on the metadata branch reported artifact-missing: %v", got.Findings)
 	}
 
-	// A plan absent on the metadata branch falls back to the integration source
-	// (a record closed before plans moved there), and is missing only when both
-	// sources lack it.
-	for _, c := range []struct {
-		name        string
-		integration bool
-		wantMissing bool
-	}{
-		{"integration fallback", true, false},
-		{"absent on both", false, true},
+	// A plan or results file absent on the metadata branch falls back to the
+	// integration source (a record closed before they moved there), and is
+	// missing only when both sources lack it.
+	for _, kind := range []struct{ field, path, sibling string }{
+		{"plan", planPath, resultsPath},
+		{"results", resultsPath, planPath},
 	} {
-		t.Run(c.name, func(t *testing.T) {
-			fb := &fakeReader{
-				pin:    pin,
-				corpus: corpus,
-				facts:  domain.NewBranchFacts(nil),
-				artifacts: map[string]bool{
-					"metadata|" + specPath:                  true,
-					"integration|" + planPath:               c.integration,
-					"metadata|docs/changes/specs/spec-b.md": true,
-				},
-			}
-			res := Status(context.Background(), fb, StatusOptions{})
-			if res.Result != ResultApplied {
-				t.Fatalf("result = %q, want applied; message=%q", res.Result, res.Message)
-			}
-			var sawMeta, sawIntegration bool
-			for _, ask := range fb.artifactAsks {
-				sawMeta = sawMeta || ask == "metadata|"+planPath
-				sawIntegration = sawIntegration || ask == "integration|"+planPath
-			}
-			if !sawMeta || !sawIntegration {
-				t.Errorf("plan absent on metadata must be asked of metadata then integration; asks=%v", fb.artifactAsks)
-			}
-			if got := hasFindingCode(res.Findings, string(FCArtifactMissing)); got != c.wantMissing {
-				t.Errorf("artifact-missing reported = %v, want %v (findings %v)", got, c.wantMissing, res.Findings)
-			}
-		})
+		for _, c := range []struct {
+			name        string
+			integration bool
+			wantMissing bool
+		}{
+			{"integration fallback", true, false},
+			{"absent on both", false, true},
+		} {
+			t.Run(kind.field+"/"+c.name, func(t *testing.T) {
+				fb := &fakeReader{
+					pin:    pin,
+					corpus: corpus,
+					facts:  domain.NewBranchFacts(nil),
+					artifacts: map[string]bool{
+						"metadata|" + specPath:                  true,
+						"metadata|" + kind.sibling:              true,
+						"integration|" + kind.path:              c.integration,
+						"metadata|docs/changes/specs/spec-b.md": true,
+					},
+				}
+				res := Status(context.Background(), fb, StatusOptions{})
+				if res.Result != ResultApplied {
+					t.Fatalf("result = %q, want applied; message=%q", res.Result, res.Message)
+				}
+				var sawMeta, sawIntegration bool
+				for _, ask := range fb.artifactAsks {
+					sawMeta = sawMeta || ask == "metadata|"+kind.path
+					sawIntegration = sawIntegration || ask == "integration|"+kind.path
+				}
+				if !sawMeta || !sawIntegration {
+					t.Errorf("%s absent on metadata must be asked of metadata then integration; asks=%v", kind.field, fb.artifactAsks)
+				}
+				var missing bool
+				for _, f := range res.Findings {
+					missing = missing || (f.Code == string(FCArtifactMissing) && f.Field == kind.field)
+				}
+				if missing != c.wantMissing {
+					t.Errorf("%s artifact-missing reported = %v, want %v (findings %v)", kind.field, missing, c.wantMissing, res.Findings)
+				}
+			})
+		}
 	}
 
 	// The pin is threaded verbatim into every post-pin reader call.

@@ -22,27 +22,24 @@ import (
 )
 
 // This file is the `change attach-plan` and `change attach-results` operations:
-// two exact-revision metadata transitions that link an authored artifact (a
-// plan, or a results record) to its change and re-render every affected v1-owned
-// derived view (the change record's plan:/results: field, its refreshed updated
-// date, its artifact block, and the inline board) as one atomic transaction.
-// The two kinds run under different profiles:
+// two exact-revision metadata transitions that carry an authored artifact (a
+// plan, or a results record), WRITE it on the metadata branch, and link it to
+// its change, re-rendering every affected v1-owned derived view (the change
+// record's plan:/results: field, its refreshed updated date, its artifact
+// block, and the inline board) in one atomic transaction (changeAttachMetadata).
+// The feature branch is never read or written: a results checkpoint is a
+// metadata commit, so it never moves the tested feature head.
 //
-//   - attach-plan (changeAttachMetadata) carries the plan Markdown itself and
-//     WRITES the plan file on the metadata branch in the same transaction, the
-//     way change.groom writes a spec: any submitted docket:backlink block is
-//     replaced by the freshly rendered one, the body must be non-empty, bounded,
-//     parse cleanly, and carry no placeholder-only slot (change 0414), and the
-//     path must sit inside the planning root. Inside the transaction a field that
-//     already names a different path refuses, and a file already at the path
-//     that does not point home to THIS change is never overwritten. A re-plan at
-//     the linked path replaces the content.
-//   - attach-results (changeAttach) verifies an artifact already committed on
-//     the feature branch from Git, never from the child agent's return: the
-//     writer commit must be the current feature head, the results file a regular
-//     tracked file inside the configured results root carrying a balanced
-//     backlink that targets THIS change and passing checkpoint-phase content
-//     validation. Only after every check passes does the transaction open.
+// Both kinds share one profile, the way change.groom writes a spec: any
+// submitted docket:backlink block is replaced by the freshly rendered one, the
+// body must be non-empty, bounded, and parse cleanly, and the path must sit
+// inside the kind's planning root (the plans directory, or the configured
+// results root). The content rule is kind-specific: a plan carries no
+// placeholder-only slot (change 0414); results pass checkpoint-phase content
+// validation (the FINAL contract binds at mark-implemented). Inside the
+// transaction a field that already names a different path refuses, and a file
+// already at the path that does not point home to THIS change is never
+// overwritten. A later attach at the linked path replaces the content.
 //
 // Idempotency is keyed on the PROMISED state — the (id, path, artifact bytes)
 // triple — so a lost-response retry replays the original applied receipt rather
@@ -55,9 +52,7 @@ const (
 )
 
 // The two artifact kinds an attach operation links. Kind selects the owned
-// frontmatter field, the allowed planning root, and the verification profile
-// (the plan is written on the metadata branch; results are verified at the
-// feature head).
+// frontmatter field, the allowed planning root, and the content rule.
 const (
 	attachKindPlan    = "plan"
 	attachKindResults = "results"
@@ -87,18 +82,9 @@ const (
 	// than one; the operation never chooses.
 	ReasonAttachUnknownChange = "unknown-change"
 	ReasonAttachAmbiguousID   = "ambiguous-change"
-	// ReasonAttachCommitNotHead: the verified commit is not the current feature
-	// head, so it does not describe the checkout the change owns (results).
-	ReasonAttachCommitNotHead = "commit-not-head"
-	// ReasonAttachUntrackedFile: the artifact path is not a tracked file at the
-	// verified commit (results).
-	ReasonAttachUntrackedFile = "untracked-file"
-	// ReasonAttachSymlinkedPlan: the artifact path is a symlink at the commit, not
-	// a regular file (results).
-	ReasonAttachSymlinkedPlan = "symlinked-plan"
-	// ReasonAttachUnbalancedBacklink: the artifact's managed backlink markers are
-	// malformed (dangling/out-of-order/nested) — the body will not parse. For a
-	// plan it is the submitted Markdown that refuses, before anything is read.
+	// ReasonAttachUnbalancedBacklink: the submitted Markdown's managed backlink
+	// markers are malformed (dangling/out-of-order/nested) — the body will not
+	// parse, so it refuses before anything is read.
 	ReasonAttachUnbalancedBacklink = "unbalanced-backlink"
 	// ReasonAttachEmptyMarkdown: the submitted artifact Markdown is empty or
 	// whitespace-only.
@@ -113,19 +99,11 @@ const (
 	// metadata branch and its backlink does not point home to this change, so
 	// the attach refuses rather than overwrite another change's artifact.
 	ReasonAttachPathOccupied = "artifact-path-occupied"
-	// ReasonAttachMissingBacklink: the artifact carries no docket:backlink block.
-	ReasonAttachMissingBacklink = "missing-backlink"
-	// ReasonAttachBacklinkMismatch: the artifact's backlink targets a different
-	// change than the one being attached.
-	ReasonAttachBacklinkMismatch = "backlink-mismatch"
 	// ReasonAttachPlaceholderToken: a plan slot — a section body or the
 	// pre-heading preamble — contains only a bare placeholder token (an
 	// unfilled slot; change 0414). A token mentioned inside substantive
 	// content never refuses.
 	ReasonAttachPlaceholderToken = "placeholder-token"
-	// ReasonAttachArtifactUnreadable: the verified commit or its blob could not be
-	// read for a reason other than plain absence.
-	ReasonAttachArtifactUnreadable = "artifact-unreadable"
 	// ReasonAttachResultsContent: a results artifact fails checkpoint-phase content
 	// validation (raw template scaffolding, a missing title, or a malformed
 	// document). The FINAL content contract binds at mark-implemented, not here.
@@ -134,23 +112,20 @@ const (
 
 // ChangeAttachRequest is the closed request for one attach. ID and Revision pin
 // the change record (exact submitted blob); Path is the canonical repo-relative
-// artifact path; Commit is the exact feature commit the writer reported
-// (results only); Markdown is the authored plan body (plan only).
+// artifact path; Markdown is the authored artifact body the operation writes.
 type ChangeAttachRequest struct {
 	ID       int    `json:"id" docket:"required"`
 	Revision string `json:"revision" docket:"required"`
 	Path     string `json:"path" docket:"required"`
-	Commit   string `json:"commit"` // results only
 	// Markdown is the authored artifact body, read from --markdown at the CLI
 	// boundary (a non-JSON file input, ADR-0138), never a JSON key.
 	Markdown []byte `json:"-"`
 }
 
 // attachDigestPayload is the idempotency digest payload: the promised state a
-// retry must match — the change id, the artifact path, and the artifact's
-// identity: for a plan, the sha256 of the stored artifact bytes; for results,
-// the exact blob object id at the verified commit. Keying on the content (not
-// merely the path) means a retry after the content changed is NOT a replay.
+// retry must match — the change id, the artifact path, and Blob, the sha256 of
+// the stored artifact bytes. Keying on the content (not merely the path) means a
+// retry after the content changed is NOT a replay.
 type attachDigestPayload struct {
 	Blob string `json:"blob"`
 	ID   int    `json:"id"`
@@ -206,17 +181,15 @@ func ChangeAttachPlan(ctx context.Context, deps PlanningDeps, repoDir string, re
 	return changeAttachMetadata(ctx, deps, repoDir, req, attachKindPlan)
 }
 
-// ChangeAttachResults verifies an authored results record (required at
-// completion since change 0410) from Git and links it to the change. It applies
-// the canonical-path, containment, tracked-file, backlink, exact-head, and
-// revision rules — a results document is never gate evidence, so it carries no
-// single-artifact/trailer/descent proof; checkpoint attaches validate
-// checkpoint-phase content.
-func ChangeAttachResults(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req ChangeAttachRequest) ChangeAttachResult {
-	return changeAttach(ctx, deps, wdeps, repoDir, req, attachKindResults)
+// ChangeAttachResults writes an authored results record (required at completion
+// since change 0410) on the metadata branch with its backlink and links it to
+// the change, in one metadata transaction. Each checkpoint is checked against
+// the checkpoint-phase content contract; the feature head is never consulted.
+func ChangeAttachResults(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeAttachRequest) ChangeAttachResult {
+	return changeAttachMetadata(ctx, deps, repoDir, req, attachKindResults)
 }
 
-// changeAttachMetadata is the metadata-profile driver: it validates the request
+// changeAttachMetadata is the attach driver for both kinds: it validates the request
 // and the authored body, pins context, assembles the stored artifact (the
 // freshly rendered backlink prepended to the body), then drives one atomic,
 // idempotency-keyed exact-revision transaction that writes the artifact file and
@@ -227,8 +200,9 @@ func changeAttachMetadata(ctx context.Context, deps PlanningDeps, repoDir string
 	opKey := attachOpKey(kind)
 
 	// (1) Request shape: the pinned-entity scalars, then the authored body —
-	// non-empty, bounded, parsing cleanly (balanced managed markers), and free
-	// of placeholder-only slots. All of it is decided before anything is read.
+	// non-empty, bounded, parsing cleanly (balanced managed markers), and
+	// passing the kind's content rule. All of it is decided before anything is
+	// read.
 	if findings := validateLifecycleShape("id", req.ID, req.Path, req.Revision); len(findings) > 0 {
 		return newAttachResult(opKey, ResultInvalidInput, ChangeAttachResult{Kind: kind, Findings: findings})
 	}
@@ -327,12 +301,15 @@ func changeAttachMetadata(ctx context.Context, deps PlanningDeps, repoDir string
 	return attachResultFromOutcome(opKey, kind, req.Path, res, execErr)
 }
 
-// checkAttachMarkdown applies the authored-body request checks shared by the
-// metadata profile: non-empty, within the authored-input bound, a clean parse
-// (balanced managed markers), and — for a plan — no slot whose whole body is a
-// bare placeholder token (change 0414). Managed blocks are not author content,
-// so the slot check reads the submitted body exactly as it reads the stored
-// artifact. It returns nil when the body is usable.
+// checkAttachMarkdown applies the authored-body request checks both kinds
+// share — non-empty, within the authored-input bound, a clean parse (balanced
+// managed markers) — then the kind's content rule: a plan has no slot whose
+// whole body is a bare placeholder token (change 0414); results pass
+// checkpoint-phase content validation (raw template scaffolding, a missing
+// title, or a malformed document refuses; the FINAL content contract binds at
+// mark-implemented, so a checkpoint can never claim it). Managed blocks are not
+// author content, so both rules read the submitted body exactly as they read
+// the stored artifact. It returns nil when the body is usable.
 func checkAttachMarkdown(opKey, kind string, markdown []byte) *ChangeAttachResult {
 	refuse := func(result Result, reason, msg string) *ChangeAttachResult {
 		r := attachRefusal(opKey, result, kind, reason, msg)
@@ -350,14 +327,19 @@ func checkAttachMarkdown(opKey, kind string, markdown []byte) *ChangeAttachResul
 		return refuse(ResultInvalidInput, ReasonAttachUnbalancedBacklink,
 			fmt.Sprintf("the submitted Markdown has a malformed managed-block population: %v", err))
 	}
-	if kind == attachKindPlan {
-		// A plan that merely MENTIONS a token — an instruction, a code example,
-		// ambiguous prose — is build-actionable and attaches; completeness
-		// judgment stays with plan authoring and review.
-		if slot, found := planPlaceholderSlot(markdown); found {
-			return refuse(ResultInvalidState, ReasonAttachPlaceholderToken,
-				fmt.Sprintf("%s of the plan contains only a placeholder token; fill the slot with real content", slot))
+	if kind == attachKindResults {
+		if fs := ValidateResultsContent(markdown, ResultsPhaseCheckpoint); len(fs) > 0 {
+			return refuse(ResultInvalidState, ReasonAttachResultsContent,
+				fmt.Sprintf("the results artifact fails checkpoint content validation: %s: %s", fs[0].Reason, fs[0].Message))
 		}
+		return nil
+	}
+	// A plan that merely MENTIONS a token — an instruction, a code example,
+	// ambiguous prose — is build-actionable and attaches; completeness
+	// judgment stays with plan authoring and review.
+	if slot, found := planPlaceholderSlot(markdown); found {
+		return refuse(ResultInvalidState, ReasonAttachPlaceholderToken,
+			fmt.Sprintf("%s of the plan contains only a placeholder token; fill the slot with real content", slot))
 	}
 	return nil
 }
@@ -398,132 +380,12 @@ func pathMismatchMessage(kind, linked, requested string) string {
 	return fmt.Sprintf("the change's %s: field already names %q; attach the %s at that path rather than %q", kind, linked, kind, requested)
 }
 
-// changeAttach is the feature-head driver attach-results still runs. It
-// validates the request shape, pins context, verifies the committed artifact
-// from Git, then drives one atomic, idempotency-keyed exact-revision
-// transaction.
-func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req ChangeAttachRequest, kind string) ChangeAttachResult {
-	opKey := attachOpKey(kind)
-
-	// (1) Request shape.
-	findings := validateLifecycleShape("id", req.ID, req.Path, req.Revision)
-	if strings.TrimSpace(req.Commit) == "" {
-		findings = append(findings, lifecycleFinding(FCEmptyCommit, "commit must be the exact feature commit the writer reported"))
-	}
-	if len(findings) > 0 {
-		return newAttachResult(opKey, ResultInvalidInput, ChangeAttachResult{Kind: kind, Findings: findings})
-	}
-
-	// (2) Pin context, check the board surface, discover the repository.
-	pin, err := deps.Reader.PinContext(ctx, repoDir)
-	if err != nil {
-		result, reason := classifyStatusError(ctx, err)
-		return attachRefusal(opKey, result, kind, reason, err.Error())
-	}
-	eff := pin.Config.Effective
-	inline, err := resolveBoardSurface(eff)
-	if err != nil {
-		if pe, ok := asPlanningError(err); ok {
-			return attachRefusal(opKey, pe.Result, kind, pe.Reason, pe.Message)
-		}
-		return attachRefusal(opKey, ResultInternalError, kind, ReasonStatusInternalError, err.Error())
-	}
-	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
-	if err != nil {
-		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		return attachRefusal(opKey, result, kind, reason, err.Error())
-	}
-
-	// (3) Resolve the change record (path, backlink target) from one corpus read.
-	ac, refusal := resolveAttachChange(ctx, deps, pin, eff, req.ID, opKey, kind)
-	if refusal != nil {
-		return *refusal
-	}
-
-	// (4) Canonical-path containment inside the kind's allowed planning root.
-	if r := verifyAttachPath(opKey, kind, req.Path, eff); r != nil {
-		return *r
-	}
-
-	// (5) The commit is the current feature head (workspace inspection).
-	insp := WorkspaceInspect(ctx, deps, wdeps, repoDir, WorkspaceIDRequest{ID: req.ID})
-	if insp.Result != ResultApplied {
-		return attachRefusal(opKey, insp.Result, kind, insp.Reason, insp.Message)
-	}
-	if req.Commit != insp.Head {
-		return attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachCommitNotHead,
-			"the verified commit is not the current feature head; re-read the workspace head before attaching")
-	}
-
-	// (6) Read the artifact blob AT THE VERIFIED COMMIT — tracked, regular, no
-	// symlink — and keep its exact bytes and object id (never the working tree).
-	blob, r := readAttachBlob(ctx, deps, repo, req.Commit, req.Path, opKey, kind)
-	if r != nil {
-		return *r
-	}
-
-	// (7) The artifact carries a balanced backlink targeting THIS change.
-	if r := verifyBacklink(opKey, kind, blob.Blob.Bytes, ac); r != nil {
-		return *r
-	}
-
-	// (8) Checkpoint-phase content sanity: a truthful in-progress artifact
-	// passes; raw template scaffolding, a missing title, or a malformed document
-	// refuses. The FINAL content contract binds at mark-implemented, not here —
-	// the phase is explicit so checkpoint attachment can never claim it.
-	if fs := ValidateResultsContent(blob.Blob.Bytes, ResultsPhaseCheckpoint); len(fs) > 0 {
-		return attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachResultsContent,
-			fmt.Sprintf("the results artifact fails checkpoint content validation: %s: %s", fs[0].Reason, fs[0].Message))
-	}
-
-	// (9) Every verification passed: open the exact-revision, idempotency-keyed
-	// transaction that stores the artifact path and re-renders the derived views.
-	digest, derr := canonicalDigest(opKey, attachDigestPayload{Blob: string(blob.Blob.ObjectID), ID: req.ID, Path: req.Path})
-	if derr != nil {
-		return attachRefusal(opKey, ResultInternalError, kind, ReasonStatusInternalError, derr.Error())
-	}
-
-	op := changeAttachOp{
-		opKey:      opKey,
-		kind:       kind,
-		changeID:   req.ID,
-		artifact:   req.Path,
-		eff:        eff,
-		clock:      deps.Clock,
-		inline:     inline,
-		link:       linkContextOf(pin),
-		changesDir: eff.ChangesDir.Value,
-	}
-
-	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
-		Repository: repo,
-		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
-		Expected: []transaction.EntityExpectation{{
-			Path:     gitcli.RepoPath(ac.recPath),
-			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
-		}},
-		Idempotency: &transaction.IdempotencyKey{RequestID: attachRequestID(kind, req), Digest: digest},
-		Loader:      newPlanningLoader(eff),
-		Scope:       changeScope(req.ID, ac.recPath, false),
-		Operation:   op,
-	})
-
-	return attachResultFromOutcome(opKey, kind, req.Path, res, execErr)
-}
-
 // attachOpKey maps an artifact kind to its operation key.
 func attachOpKey(kind string) string {
 	if kind == attachKindResults {
 		return OperationChangeAttachResults
 	}
 	return OperationChangeAttachPlan
-}
-
-// attachRequestID derives the idempotency request id from the kind and the
-// (id, commit) pair, so a lost-response retry of the same request replays.
-func attachRequestID(kind string, req ChangeAttachRequest) string {
-	return fmt.Sprintf("attach-%s-%d-%s", kind, req.ID, req.Commit)
 }
 
 // attachChange bundles the resolved change with its current record path and the
@@ -620,40 +482,12 @@ func withinPlanningRoot(root, p string) bool {
 	return strings.HasPrefix(p, root+"/")
 }
 
-// readAttachBlob opens the verified commit and reads the artifact blob: absent is
-// untracked-file, a symlink (mode 120000) is symlinked-plan, anything else
-// unreadable. On success it returns the BlobResult carrying exact bytes and oid.
-func readAttachBlob(ctx context.Context, deps PlanningDeps, repo gitcli.Repository, commit, artifactPath, opKey, kind string) (gitcli.BlobResult, *ChangeAttachResult) {
-	src, err := deps.Client.OpenObjectSource(ctx, repo, gitcli.Revision{Commit: gitcli.ObjectID(commit)})
-	if err != nil {
-		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		r := attachRefusal(opKey, result, kind, reason, err.Error())
-		return gitcli.BlobResult{}, &r
-	}
-	results, err := src.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(artifactPath)})
-	if err != nil {
-		// A directory/gitlink requested as a blob, or an unreadable object store.
-		r := attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachArtifactUnreadable, err.Error())
-		return gitcli.BlobResult{}, &r
-	}
-	if len(results) != 1 || !results[0].Found {
-		r := attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachUntrackedFile,
-			fmt.Sprintf("no tracked file at %q in the verified commit", artifactPath))
-		return gitcli.BlobResult{}, &r
-	}
-	if results[0].Blob.Mode == "120000" {
-		r := attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachSymlinkedPlan,
-			fmt.Sprintf("the artifact at %q is a symlink at the verified commit, not a regular file", artifactPath))
-		return gitcli.BlobResult{}, &r
-	}
-	return results[0], nil
-}
-
 // backlinkTargets reports whether artifactBytes carries a balanced docket:backlink
 // managed block whose interior equals the backlink rendered for ch under link. It
-// is the shared backlink-identity check both change.attach-results (verifyBacklink)
-// and change.mark-implemented (verifyImplementedResults) apply to an artifact's own
-// bytes. A malformed managed-block population or a backlink-render failure is
+// is the shared backlink-identity check the attach transaction (does a file
+// already at the path point home to this change?) and change.mark-implemented
+// (verifyImplementedResults) apply to an artifact's own bytes. A malformed
+// managed-block population or a backlink-render failure is
 // returned as the error (the caller classifies it); an artifact with no backlink
 // block, or one whose interior names a DIFFERENT change, is (false, nil).
 func backlinkTargets(artifactBytes []byte, ch domain.Change, link render.LinkContext) (bool, error) {
@@ -671,40 +505,6 @@ func backlinkTargets(artifactBytes []byte, ch domain.Change, link render.LinkCon
 	}
 	got := strings.TrimRight(string(artifactBytes[block.Interior.Start:block.Interior.End]), "\n")
 	return got == backlinkInterior(expected), nil
-}
-
-// verifyBacklink proves the artifact carries a balanced docket:backlink block
-// whose interior targets THIS change. A malformed managed-block population fails
-// the parse (unbalanced-backlink); an absent block is missing-backlink; a block
-// naming a different change is backlink-mismatch. It classifies the parse and
-// presence cases here — each is its own stable attach reason — before delegating
-// the interior comparison to backlinkTargets (which re-parses; the redundant parse
-// is cheap and keeps the shared helper self-contained for the mark-implemented
-// caller that wants a single yes/no).
-func verifyBacklink(opKey, kind string, artifactBytes []byte, ac attachChange) *ChangeAttachResult {
-	doc, err := document.Parse(artifactBytes)
-	if err != nil {
-		r := attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachUnbalancedBacklink,
-			fmt.Sprintf("the artifact has a malformed managed-block population: %v", err))
-		return &r
-	}
-	if _, ok := doc.Block(backlinkBlockName); !ok {
-		r := attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachMissingBacklink,
-			"the artifact carries no docket:backlink block")
-		return &r
-	}
-	ok, err := backlinkTargets(artifactBytes, ac.change, ac.link)
-	if err != nil {
-		// The parse above already succeeded, so this is a backlink-render failure.
-		r := attachRefusal(opKey, ResultInternalError, kind, ReasonStatusInternalError, err.Error())
-		return &r
-	}
-	if !ok {
-		r := attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachBacklinkMismatch,
-			"the artifact's backlink targets a different change than the one being attached")
-		return &r
-	}
-	return nil
 }
 
 // changeAttachReceipt is the canonical receipt persisted with an attach commit.
@@ -757,9 +557,8 @@ type changeAttachOp struct {
 	kind     string
 	changeID int
 	artifact string
-	// artifactBytes is the stored artifact the metadata profile writes at
-	// artifact in the same commit (backlink + authored body); nil for the
-	// feature-head profile, which links a file already committed elsewhere.
+	// artifactBytes is the stored artifact written at artifact in the same
+	// commit (backlink + authored body).
 	artifactBytes []byte
 	eff           config.Effective
 	clock         transaction.Clock
@@ -773,8 +572,7 @@ func (o changeAttachOp) Key() transaction.OperationKey { return transaction.Oper
 // Plan stores the artifact path in the owned frontmatter field (plan or
 // results), refreshes the updated date, re-renders the artifact block, and
 // assembles the closed plan: the mutated change record, the re-rendered board
-// when inline is enabled, and — for the metadata profile — the artifact file
-// itself.
+// when inline is enabled, and the artifact file itself.
 func (o changeAttachOp) Plan(ctx context.Context, st transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
 	snap := st.State.Snapshot
 
@@ -798,33 +596,31 @@ func (o changeAttachOp) Plan(ctx context.Context, st transaction.AttemptState) (
 		field = attachKindResults
 	}
 
-	// The metadata profile writes the artifact file, so it decides on this
+	// The artifact file is written here, so the decision is made on this
 	// attempt's own tree: a field already naming another path never re-points,
 	// and a file already at the path is overwritten only when the link already
 	// names it or its backlink points home to THIS change (a prior attach of
 	// this change). Anything else belongs to someone else and refuses.
+	linked := attachFieldValue(c, o.kind)
+	if linked != "" && linked != o.artifact {
+		return refuseLifecycle(FindingCode(ReasonAttachPathMismatch), pathMismatchMessage(o.kind, linked, o.artifact))
+	}
+	existing, _, exists, err := treeBlob(ctx, st.Tree, o.artifact)
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change attach: %w", err)
+	}
+	if exists && linked != o.artifact {
+		if home, berr := backlinkTargets(existing, c, o.link); berr != nil || !home {
+			return refuseLifecycle(FindingCode(ReasonAttachPathOccupied),
+				fmt.Sprintf("a file already exists at %q on the metadata branch and its backlink does not point to change %04d; refusing to overwrite it", o.artifact, o.changeID))
+		}
+	}
 	var artifactFile *transaction.FileMutation
-	if o.artifactBytes != nil {
-		linked := attachFieldValue(c, o.kind)
-		if linked != "" && linked != o.artifact {
-			return refuseLifecycle(FindingCode(ReasonAttachPathMismatch), pathMismatchMessage(o.kind, linked, o.artifact))
-		}
-		existing, _, exists, err := treeBlob(ctx, st.Tree, o.artifact)
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change attach: %w", err)
-		}
-		if exists && linked != o.artifact {
-			if home, berr := backlinkTargets(existing, c, o.link); berr != nil || !home {
-				return refuseLifecycle(FindingCode(ReasonAttachPathOccupied),
-					fmt.Sprintf("a file already exists at %q on the metadata branch and its backlink does not point to change %04d; refusing to overwrite it", o.artifact, o.changeID))
-			}
-		}
-		switch {
-		case !exists:
-			artifactFile = &transaction.FileMutation{Path: gitcli.RepoPath(o.artifact), Kind: transaction.MutationCreate, Bytes: o.artifactBytes}
-		case !bytes.Equal(existing, o.artifactBytes):
-			artifactFile = &transaction.FileMutation{Path: gitcli.RepoPath(o.artifact), Kind: transaction.MutationReplace, Bytes: o.artifactBytes}
-		}
+	switch {
+	case !exists:
+		artifactFile = &transaction.FileMutation{Path: gitcli.RepoPath(o.artifact), Kind: transaction.MutationCreate, Bytes: o.artifactBytes}
+	case !bytes.Equal(existing, o.artifactBytes):
+		artifactFile = &transaction.FileMutation{Path: gitcli.RepoPath(o.artifact), Kind: transaction.MutationReplace, Bytes: o.artifactBytes}
 	}
 
 	// First patch pass: the owned artifact field plus the refreshed updated date.

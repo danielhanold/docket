@@ -41,6 +41,7 @@ func TestIntegrationRecordOpsMarkImplementedAcceptsSkippedEvidence(t *testing.T)
 	recPath := groomPath(3, miSlug)
 	real := newWorkingRepo(t, map[string]string{recPath: miRecord(3, miSlug, miPlanPath(), miResultsPath, true, false)})
 	realHead := miAdvanceHead(t, real)
+	advanceDocketOrigin(t, real, miMetadataResults())
 	if res := miRealRunWith(t, real, recPath, realHead, prSkippedEvidenceBytes(t, realHead)); res.Result != ResultApplied {
 		t.Fatalf("real-engine result = %q, want applied (findings %v)", res.Result, res.Findings)
 	}
@@ -65,6 +66,7 @@ func TestIntegrationRecordOpsMarkImplementedUnrelatedInvalidRecordProgress(t *te
 		unrelatedBrokenPath: unrelatedBrokenBytes,
 	})
 	head := miAdvanceHead(t, repo)
+	advanceDocketOrigin(t, repo, miMetadataResults())
 
 	res := miRealRun(t, repo, recPath, head)
 	if res.Result != ResultApplied || res.Status != "implemented" {
@@ -82,6 +84,7 @@ func TestIntegrationRecordOpsMarkImplementedUnrelatedInvalidRecordRefusals(t *te
 		t.Run(c.name, func(t *testing.T) {
 			repo := newWorkingRepo(t, c.files)
 			head := miAdvanceHead(t, repo)
+			advanceDocketOrigin(t, repo, miMetadataResults())
 			tip := originTip(t, repo.origin, "docket")
 
 			res := miRealRun(t, repo, recPath, head)
