@@ -237,6 +237,7 @@ func effectiveLines(eff *config.Effective) []effectiveLine {
 		// orphan `docket` branch), so metadata_branch is not effective
 		// configuration — it is a decode-only obsolete tombstone (change 0363).
 		leafLine("integration_branch", textValue(eff.IntegrationBranch.Value), eff.IntegrationBranch.Provenance),
+		leafLine("visibility", textValue(eff.Visibility.Value), eff.Visibility.Provenance),
 		leafLine("changes_dir", textValue(eff.ChangesDir.Value), eff.ChangesDir.Provenance),
 		leafLine("adrs_dir", textValue(eff.ADRsDir.Value), eff.ADRsDir.Provenance),
 		leafLine("results_dir", textValue(eff.ResultsDir.Value), eff.ResultsDir.Provenance),

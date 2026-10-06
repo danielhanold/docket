@@ -15,7 +15,7 @@ import (
 // loop would miss the addition).
 func TestRegistryPathSetMatchesV092(t *testing.T) {
 	want := []string{
-		"runtime.bash", "metadata_branch", "integration_branch",
+		"runtime.bash", "metadata_branch", "visibility", "integration_branch",
 		"changes_dir", "adrs_dir", "results_dir",
 		"finalize.gate", "finalize.test_command", "finalize.require_pr_approval",
 		"finalize.resolver_max_attempts", "finalize.repair_max_attempts",
@@ -108,6 +108,7 @@ func TestRegistryRepoOnlySet(t *testing.T) {
 func TestRegistryDefaults(t *testing.T) {
 	want := map[string]any{
 		// metadata_branch has no default: it is an obsolete tombstone (change 0363).
+		"visibility":                     "shared",
 		"integration_branch":             "auto",
 		"changes_dir":                    "docs/changes",
 		"adrs_dir":                       "docs/adrs",
@@ -174,6 +175,7 @@ func TestRegistryDefaults(t *testing.T) {
 func TestRegistryEnumRows(t *testing.T) {
 	want := map[string][]string{
 		// metadata_branch carries no enum now: it is an obsolete tombstone (0363).
+		"visibility":                   {"shared", "private"},
 		"finalize.gate":                {"local", "ci", "both", "off"},
 		"build.gate":                   {"local", "off"},
 		"review.min_fix_severity":      {"minor", "important", "blocker"},

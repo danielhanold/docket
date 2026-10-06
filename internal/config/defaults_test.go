@@ -140,6 +140,7 @@ func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 	eff := builtinEffective()
 	leaves := map[string]any{
 		// metadata_branch is gone from Effective (obsolete tombstone, 0363).
+		"visibility":                     eff.Visibility.Value,
 		"integration_branch":             eff.IntegrationBranch.Value,
 		"changes_dir":                    eff.ChangesDir.Value,
 		"adrs_dir":                       eff.ADRsDir.Value,

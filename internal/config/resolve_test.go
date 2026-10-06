@@ -60,6 +60,8 @@ func diagsWithCode(res *resolution, code string) []Diagnostic {
 func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, bool) {
 	t.Helper()
 	switch path {
+	case "visibility":
+		return eff.Visibility.Value, eff.Visibility.Provenance, eff.Visibility.Explicit
 	case "integration_branch":
 		return eff.IntegrationBranch.Value, eff.IntegrationBranch.Provenance, eff.IntegrationBranch.Explicit
 	case "changes_dir":

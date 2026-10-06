@@ -51,6 +51,8 @@ func decodeAcceptanceCases() []decodeCase {
 
 		{row: "metadata_branch", path: "metadata_branch",
 			block: "metadata_branch: main\n", obsolete: true},
+		{row: "visibility", path: "visibility",
+			block: "visibility: private\n", value: "private"},
 		{row: "integration_branch", path: "integration_branch",
 			block: "integration_branch: develop\n", value: "develop"},
 		{row: "changes_dir", path: "changes_dir",

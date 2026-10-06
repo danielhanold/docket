@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -154,12 +155,17 @@ func loadOperationalContext(ctx context.Context, client *gitcli.Client, repoDir 
 	oc.repoWebURL = githubWebURL(remoteURL)
 
 	// Configuration is read from the pinned default-branch source (never the
-	// working tree), then layered under the filesystem-only machine layers.
-	docketYML, err := readPinnedOptionalBlob(ctx, client, repo, defaultRev, ".docket.yml")
-	if err != nil {
-		return oc, err
+	// working tree), then layered under the filesystem-only machine layers. A
+	// private repository never reads .docket.yml, so the pinned blob read is
+	// skipped there.
+	var docketYML []byte
+	if oc.layout.Mode != layout.Private {
+		docketYML, err = readPinnedOptionalBlob(ctx, client, repo, defaultRev, ".docket.yml")
+		if err != nil {
+			return oc, err
+		}
 	}
-	sources, err := operationalConfigSources(repo, docketYML)
+	sources, err := operationalConfigSources(repo, oc.layout, docketYML)
 	if err != nil {
 		return oc, err
 	}
@@ -250,7 +256,12 @@ func readPinnedOptionalBlob(ctx context.Context, client *gitcli.Client, repo git
 // LoadFilesystemSources is not called wholesale because its repository
 // .docket.yml read would come from the working tree, which the
 // read-from-pinned-Git contract forbids.
-func operationalConfigSources(repo gitcli.Repository, docketYML []byte) ([]config.Source, error) {
+//
+// A private repository (lay.Mode == layout.Private) has no committed file: its
+// stack is the global layer plus config.LoadPrivateRepositorySource, and
+// docketYML is ignored. A .docket.local.yml beside the private config is a
+// configuration refusal (errInvalidConfiguration), not an external failure.
+func operationalConfigSources(repo gitcli.Repository, lay layout.Layout, docketYML []byte) ([]config.Source, error) {
 	var sources []config.Source
 
 	globalSources, err := config.LoadGlobalSource("")
@@ -258,6 +269,18 @@ func operationalConfigSources(repo gitcli.Repository, docketYML []byte) ([]confi
 		return nil, fmt.Errorf("%w: %v", ErrStatusExternal, err)
 	}
 	sources = append(sources, globalSources...)
+
+	if lay.Mode == layout.Private {
+		private, err := config.LoadPrivateRepositorySource(repo.CommonDir, repo.PrimaryWorktree)
+		var conflict *config.ConflictingLocalConfigError
+		switch {
+		case errors.As(err, &conflict):
+			return nil, &errInvalidConfiguration{err: err}
+		case err != nil:
+			return nil, fmt.Errorf("%w: %v", ErrStatusExternal, err)
+		}
+		return append(sources, private...), nil
+	}
 
 	if docketYML != nil {
 		sources = append(sources, config.Source{Layer: config.LayerRepository, Name: ".docket.yml", Data: docketYML})
