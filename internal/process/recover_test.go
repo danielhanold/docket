@@ -263,12 +263,32 @@ func TestRecoverLeavesUnprovableGroupForInspection(t *testing.T) {
 	svc := newTestService(t)
 	root := testsupport.TempDir(t)
 	out := launchHelper(t, svc, root, "sleep")
-	m, _ := readManifest(out.RunDir)
-	signalGroup(m.PGID, syscall.SIGKILL)
+	m, err := readManifest(out.RunDir)
+	if err != nil || m == nil || m.SupervisorPID <= 1 || m.PGID <= 1 {
+		t.Fatalf("manifest: %+v (err %v)", m, err)
+	}
+	// Kill the supervisor ALONE and wait until it is reaped, and only then end
+	// its command. One group-wide SIGKILL is not atomic across the group's
+	// processes: the command can die first while a supervisor thread, parked in
+	// cmd.Wait, returns and writes terminal.json before its own SIGKILL lands —
+	// a run Recover then correctly classifies "terminal", never reaching the
+	// group probe this test exists to exercise. A supervisor that is gone
+	// before its command dies can never record that death.
+	if err := syscall.Kill(m.SupervisorPID, syscall.SIGKILL); err != nil {
+		t.Fatalf("kill the supervisor: %v", err)
+	}
+	waitFor(t, "the killed supervisor to be reaped", 30*time.Second, func() bool {
+		return processAlive(m.SupervisorPID) == probeAbsent
+	})
+	_ = signalGroup(m.PGID, syscall.SIGKILL) // end the orphaned command
 	waitFor(t, "lock release", 30*time.Second, func() bool {
 		held, _ := probeFlock(filepath.Join(out.RunDir, liveLockFile))
 		return !held
 	})
+	// Setup, not the code under test: the run must reach the group probe.
+	if term, terr := readTerminal(out.RunDir); terr != nil || term != nil {
+		t.Fatalf("setup: terminal record present (%+v, err %v); the group probe is unreachable", term, terr)
+	}
 	// A probe error is not clean absence: the recorded group is unprovable, so
 	// the run must be left for inspection and never marked abandoned.
 	prev := recoverGroupProbe
