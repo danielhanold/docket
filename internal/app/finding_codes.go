@@ -175,9 +175,9 @@ const (
 // ctorLit, plus the composite-literal and FindingCode("…") backstops) reddens
 // on any unregistered mint.
 //
-// KNOWN GAPS (still deferred): the app-local ReasonBacklink*/ReasonCloseout*
-// reason families surface through fail.Reason rather than a literal Code:/
-// constructor mint the shape guard reaches, so they are not enumerated here.
+// KNOWN GAPS (still deferred): the app-local ReasonCloseout* reason family
+// surfaces through fail.Reason rather than a literal Code:/
+// constructor mint the shape guard reaches, so it is not enumerated here.
 // AllFindingCodes is authoritative for the const-backed vocabulary the AST
 // completeness guard covers.
 var AllFindingCodes = []FindingCode{
