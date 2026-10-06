@@ -76,7 +76,7 @@ func decodeAcceptanceCases() []decodeCase {
 			flow:  "finalize: {repair_max_attempts: 9}\n", value: 9},
 		{row: "finalize.skip_results_only_delta", path: "finalize.skip_results_only_delta",
 			block: "finalize:\n  skip_results_only_delta: true\n",
-			flow:  "finalize: {skip_results_only_delta: true}\n", value: true},
+			flow:  "finalize: {skip_results_only_delta: true}\n", obsolete: true},
 
 		{row: "learnings.enabled", path: "learnings.enabled",
 			block: "learnings:\n  enabled: false\n", flow: "learnings: {enabled: false}\n", value: false},
@@ -411,6 +411,51 @@ func TestDecodeUnknownSubtreeIsNotDescended(t *testing.T) {
 	}
 	if diags[0].Path != "agents.cluade" {
 		t.Errorf("path %q, want agents.cluade", diags[0].Path)
+	}
+}
+
+// TestSkipResultsOnlyDeltaIsObsoleteTombstone: finalize.skip_results_only_delta
+// armed a post-gate skip for a results-only commit that no longer exists, so
+// in every layer it is one obsolete-setting warning naming its removal, never
+// a resolved value, and never a mutation blocker — even when set to true.
+func TestSkipResultsOnlyDeltaIsObsoleteTombstone(t *testing.T) {
+	const path = "finalize.skip_results_only_delta"
+	for _, src := range []Source{
+		srcR("finalize:\n  skip_results_only_delta: true\n"),
+		srcR("finalize: {skip_results_only_delta: false}\n"),
+		srcL("finalize:\n  skip_results_only_delta: true\n"),
+		srcG("finalize:\n  skip_results_only_delta: true\n"),
+	} {
+		t.Run(string(src.Layer), func(t *testing.T) {
+			res := mustResolve(t, []Source{src}, mainCtx)
+			if _, ok := res.declared[path]; ok {
+				t.Fatalf("%s resolved to a honored declaration; it must be excluded", path)
+			}
+			obs := diagsWithCode(res, CodeObsoleteSetting)
+			if len(obs) != 1 || obs[0].Path != path {
+				t.Fatalf("want exactly one obsolete-setting diagnostic on %s, got %v", path, diagSummary(res))
+			}
+			if obs[0].Severity != SeverityWarning || obs[0].Classification != Obsolete {
+				t.Errorf("diagnostic = %s/%s, want warning/obsolete", obs[0].Severity, obs[0].Classification)
+			}
+			if want := "remove " + path + " from " + src.Name; obs[0].Remedy != want {
+				t.Errorf("remedy = %q, want %q", obs[0].Remedy, want)
+			}
+			for _, code := range []string{CodeDeferredSetting, CodeDeferredCapRequested, CodeSharedSettingIgnored} {
+				if got := diagsWithCode(res, code); len(got) != 0 {
+					t.Errorf("unexpected %s diagnostic: %v", code, diagSummary(res))
+				}
+			}
+			snap := mustSnapshot(t, src)
+			if d := PreflightMutation(snap); !d.Allowed {
+				t.Errorf("preflight blocked on an obsolete setting: %+v", d.Blockers)
+			}
+			for _, c := range snap.Capabilities {
+				if c.Path == path && (c.Classification != Obsolete || c.Active || c.MutationBlock) {
+					t.Errorf("capability = %+v, want inactive non-blocking obsolete", c)
+				}
+			}
+		})
 	}
 }
 

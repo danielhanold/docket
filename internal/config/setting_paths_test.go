@@ -52,9 +52,9 @@ func TestSettingPathsSupportSplit(t *testing.T) {
 	}
 	// One sample per unsupported disposition family.
 	for _, p := range []string{
-		"metadata_branch", "runtime.bash", // obsolete
+		"metadata_branch", "runtime.bash", "finalize.skip_results_only_delta", // obsolete
 		"learnings.cap", "delegation_observation_budget", "github_project", // inert
-		"build.checkpoint", "terminal_publish", "auto_groom", "finalize.skip_results_only_delta", // deferred
+		"build.checkpoint", "terminal_publish", "auto_groom", // deferred
 		"auto_capture.types", "dummy_mode.persona", "runners.*.shim_model", // inert companion
 		"skills.build", "agents.*.*.runner", // deferred-active
 	} {

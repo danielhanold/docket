@@ -165,6 +165,18 @@ func (d *layerDecoder) decodeLeaf(path string, spec *pathSpec, key, val *yaml.No
 		}
 		d.diags = append(d.diags, diag)
 		return
+	case "finalize.skip_results_only_delta":
+		// Obsolete in EVERY layer: the results file lives on the metadata branch,
+		// so there is no results-only feature-branch commit left to skip. It is
+		// recognized so inspection can attribute it, and excluded from resolution
+		// rather than guarded — even `true` blocks nothing.
+		diag := leafDiag(d.src, path, CodeObsoleteSetting, key,
+			"armed a post-gate skip for a results-only commit, which docket no longer makes; it is ignored")
+		diag.Severity = SeverityWarning
+		diag.Classification = Obsolete
+		diag.Remedy = "remove finalize.skip_results_only_delta from " + d.src.Name
+		d.diags = append(d.diags, diag)
+		return
 	case "board_surfaces":
 		value = d.keepKnownSurfaces(path, val, value.([]string))
 	case "board.section_order":

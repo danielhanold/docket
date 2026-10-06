@@ -1,0 +1,5 @@
+# The machine-global half of the docket-self fixture: one deferred capability
+# requested from outside the repository, so the blocker envelope spans layers.
+
+auto_capture:
+  enabled: true

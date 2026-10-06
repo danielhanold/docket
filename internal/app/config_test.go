@@ -38,7 +38,7 @@ func blockedSources() []config.Source {
 				"metadata_branch: docket\n" +
 				"integration_branch: main\n" +
 				"terminal_publish: true\n" +
-				"finalize:\n  skip_results_only_delta: true\n" +
+				"auto_groom: true\n" +
 				"build:\n  checkpoint: true\n"),
 		},
 	}
@@ -156,7 +156,7 @@ func TestPreflightUnsupported(t *testing.T) {
 		}
 	}
 	sort.Strings(blockers)
-	want := []string{"auto_capture.enabled", "build.checkpoint", "finalize.skip_results_only_delta", "terminal_publish"}
+	want := []string{"auto_capture.enabled", "auto_groom", "build.checkpoint", "terminal_publish"}
 	if strings.Join(blockers, ",") != strings.Join(want, ",") {
 		t.Errorf("blockers = %v, want %v", blockers, want)
 	}
@@ -534,7 +534,7 @@ func TestMigrationHostContraction(t *testing.T) {
 		Data:  []byte("agents:\n  claude:\n    implement-next:\n      model: m\n      effort: low\n"),
 	}
 	// The committed repository file with the three owned switches at chosen states.
-	repoSwitches := func(terminalPublish, skipResultsOnly, checkpoint bool) config.Source {
+	repoSwitches := func(terminalPublish, autoGroom, checkpoint bool) config.Source {
 		return config.Source{
 			Layer: config.LayerRepository,
 			Name:  ".docket.yml",
@@ -542,9 +542,9 @@ func TestMigrationHostContraction(t *testing.T) {
 				"metadata_branch: docket\n"+
 					"integration_branch: main\n"+
 					"terminal_publish: %v\n"+
-					"finalize:\n  skip_results_only_delta: %v\n"+
+					"auto_groom: %v\n"+
 					"build:\n  checkpoint: %v\n",
-				terminalPublish, skipResultsOnly, checkpoint)),
+				terminalPublish, autoGroom, checkpoint)),
 		}
 	}
 	// The repository-local layer the migration drops: an auto_capture request and
@@ -587,7 +587,7 @@ func TestMigrationHostContraction(t *testing.T) {
 	preBlockers := blockerSet(pre)
 	for _, want := range []string{
 		"terminal_publish",
-		"finalize.skip_results_only_delta",
+		"auto_groom",
 		"build.checkpoint",
 		"auto_capture.enabled",
 	} {
@@ -622,7 +622,7 @@ func TestMigrationHostContraction(t *testing.T) {
 		sources []config.Source
 	}{
 		{"build.checkpoint", []config.Source{globalAgentPin, repoSwitches(false, false, true)}},
-		{"finalize.skip_results_only_delta", []config.Source{globalAgentPin, repoSwitches(false, true, false)}},
+		{"auto_groom", []config.Source{globalAgentPin, repoSwitches(false, true, false)}},
 		{"terminal_publish", []config.Source{globalAgentPin, repoSwitches(true, false, false)}},
 		{"auto_capture.enabled", []config.Source{globalAgentPin, repoSwitches(false, false, false), repoLocal(true, false)}},
 		{"repo-local agents pin", []config.Source{globalAgentPin, repoSwitches(false, false, false), repoLocal(false, true)}},

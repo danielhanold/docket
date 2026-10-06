@@ -568,14 +568,12 @@ func guardCases() []guardCase {
 	return []guardCase{
 		// metadata_branch is no longer guarded — it is an obsolete tombstone
 		// (change 0363), excluded at decode. Its tombstone behavior is covered by
-		// TestMetadataBranchIsObsoleteTombstone.
+		// TestMetadataBranchIsObsoleteTombstone. finalize.skip_results_only_delta
+		// is likewise a tombstone (TestSkipResultsOnlyDeltaIsObsoleteTombstone).
 		{"integration_branch", "integration_branch: develop\n", "integration_branch: trunk\n", "develop"},
 		{"changes_dir", "changes_dir: docs/a\n", "changes_dir: docs/b\n", "docs/a"},
 		{"adrs_dir", "adrs_dir: docs/a\n", "adrs_dir: docs/b\n", "docs/a"},
 		{"results_dir", "results_dir: docs/a\n", "results_dir: docs/b\n", "docs/a"},
-		{"finalize.skip_results_only_delta",
-			"finalize:\n  skip_results_only_delta: true\n",
-			"finalize:\n  skip_results_only_delta: false\n", true},
 		{"github_project", "github_project: {owner: acme, number: 7}\n", "github_project: auto\n",
 			githubProject{Owner: "acme", Number: 7}},
 		{"terminal_publish", "terminal_publish: true\n", "terminal_publish: false\n", true},

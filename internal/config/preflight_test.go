@@ -13,7 +13,7 @@ func blockedSnapshot(t *testing.T) *Snapshot {
 	t.Helper()
 	return mustSnapshot(t,
 		srcG("auto_capture:\n  enabled: true\n"),
-		srcR("build:\n  checkpoint: true\nterminal_publish: true\nfinalize:\n  skip_results_only_delta: true\n"),
+		srcR("build:\n  checkpoint: true\nterminal_publish: true\nauto_groom: true\n"),
 	)
 }
 
@@ -36,8 +36,8 @@ func TestPreflightBlockedComplete(t *testing.T) {
 	}
 	want := []string{
 		"auto_capture.enabled",
+		"auto_groom",
 		"build.checkpoint",
-		"finalize.skip_results_only_delta",
 		"terminal_publish",
 	}
 	var paths []string

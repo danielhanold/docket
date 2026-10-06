@@ -257,8 +257,13 @@ func buildRegistry() []pathSpec {
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: intLeaf(1)},
 		{path: "finalize.repair_max_attempts", kind: kindInt, def: 6,
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: intLeaf(1)},
-		{path: "finalize.skip_results_only_delta", kind: kindBool, def: false,
-			merge: mergeScalar, scope: scopeRepoOnly, disp: dispDeferred, validate: boolLeaf()},
+		// finalize.skip_results_only_delta is an obsolete tombstone: it armed a
+		// post-gate skip for a results-only commit on the feature branch, and the
+		// results file no longer rides that branch. Like metadata_branch it decodes
+		// in every layer (default scopeAny) and decode excludes it as obsolete
+		// before any guard runs, so it never resolves and never blocks.
+		{path: "finalize.skip_results_only_delta", kind: kindBool, merge: mergeScalar,
+			disp: dispObsolete, validate: boolLeaf()},
 
 		// 11-12: learnings.
 		{path: "learnings.enabled", kind: kindBool, def: true,

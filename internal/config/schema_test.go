@@ -72,14 +72,14 @@ func TestRegistryEveryRowHasValidator(t *testing.T) {
 	}
 }
 
-// TestRegistryRepoOnlySet pins both guard directions exactly: the eight
+// TestRegistryRepoOnlySet pins both guard directions exactly: the six
 // shared-setting-guarded (repo-owned) paths and the single machine-only path.
 // Both compares are whole-set, so a row silently gaining or losing a guard
 // reddens this test.
 func TestRegistryRepoOnlySet(t *testing.T) {
 	wantRepoOnly := []string{
 		"integration_branch", "changes_dir", "adrs_dir",
-		"results_dir", "finalize.skip_results_only_delta", "github_project",
+		"results_dir", "github_project",
 		"terminal_publish",
 	}
 	wantLocalOnly := []string{"runtime.bash"}
@@ -108,39 +108,38 @@ func TestRegistryRepoOnlySet(t *testing.T) {
 func TestRegistryDefaults(t *testing.T) {
 	want := map[string]any{
 		// metadata_branch has no default: it is an obsolete tombstone (change 0363).
-		"integration_branch":               "auto",
-		"changes_dir":                      "docs/changes",
-		"adrs_dir":                         "docs/adrs",
-		"results_dir":                      "docs/results",
-		"finalize.gate":                    "local",
-		"finalize.test_command":            "",
-		"finalize.require_pr_approval":     false,
-		"finalize.resolver_max_attempts":   10,
-		"finalize.repair_max_attempts":     6,
-		"finalize.skip_results_only_delta": false,
-		"learnings.enabled":                true,
-		"learnings.cap":                    300,
-		"reclaim.lease_ttl":                72,
-		"reclaim.auto":                     false,
-		"build.checkpoint":                 false,
-		"build.gate":                       "local",
-		"build.test_command":               "",
-		"build.max_attempts":               4,
-		"run.max_attempts":                 2,
-		"review.min_fix_severity":          "minor",
-		"review.max_fix_tasks":             10,
-		"gate_observation_budget":          30,
-		"delegation_observation_budget":    60,
-		"board_surfaces":                   []string{"inline"},
-		"github_project":                   "auto",
-		"terminal_publish":                 false,
-		"auto_groom":                       false,
-		"change_types":                     []string{"chore", "docs", "feat", "fix", "refactor", "perf"},
-		"auto_capture.enabled":             false,
-		"auto_capture.types":               "all",
-		"dummy_mode.enabled":               false,
-		"dummy_mode.persona":               "",
-		"dummy_mode.surfaces":              "all",
+		"integration_branch":             "auto",
+		"changes_dir":                    "docs/changes",
+		"adrs_dir":                       "docs/adrs",
+		"results_dir":                    "docs/results",
+		"finalize.gate":                  "local",
+		"finalize.test_command":          "",
+		"finalize.require_pr_approval":   false,
+		"finalize.resolver_max_attempts": 10,
+		"finalize.repair_max_attempts":   6,
+		"learnings.enabled":              true,
+		"learnings.cap":                  300,
+		"reclaim.lease_ttl":              72,
+		"reclaim.auto":                   false,
+		"build.checkpoint":               false,
+		"build.gate":                     "local",
+		"build.test_command":             "",
+		"build.max_attempts":             4,
+		"run.max_attempts":               2,
+		"review.min_fix_severity":        "minor",
+		"review.max_fix_tasks":           10,
+		"gate_observation_budget":        30,
+		"delegation_observation_budget":  60,
+		"board_surfaces":                 []string{"inline"},
+		"github_project":                 "auto",
+		"terminal_publish":               false,
+		"auto_groom":                     false,
+		"change_types":                   []string{"chore", "docs", "feat", "fix", "refactor", "perf"},
+		"auto_capture.enabled":           false,
+		"auto_capture.types":             "all",
+		"dummy_mode.enabled":             false,
+		"dummy_mode.persona":             "",
+		"dummy_mode.surfaces":            "all",
 	}
 	// The board presentation block (change 0367): the section-order list default
 	// and every per-section sort default, derived from BoardSectionTokens.

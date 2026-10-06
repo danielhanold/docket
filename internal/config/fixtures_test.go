@@ -446,13 +446,14 @@ func TestFixtureGuardedMachineKeys(t *testing.T) {
 	eff := snap.Effective
 	def := builtinEffective()
 
-	// metadata_branch is no longer guarded — it is an obsolete tombstone (0363),
-	// excluded at decode rather than guarded, so the machine-layer declaration
-	// produces an obsolete-setting warning, not a shared-setting-ignored one.
+	// metadata_branch and finalize.skip_results_only_delta are no longer
+	// guarded — they are obsolete tombstones, excluded at decode rather than
+	// guarded, so a machine-layer declaration produces an obsolete-setting
+	// warning, not a shared-setting-ignored one.
 	guarded := diagPathSet(snap, CodeSharedSettingIgnored)
 	for _, path := range []string{
 		"integration_branch", "changes_dir", "adrs_dir", "results_dir",
-		"finalize.skip_results_only_delta", "github_project", "terminal_publish", "board_surfaces",
+		"github_project", "terminal_publish", "board_surfaces",
 	} {
 		if !guarded[path] {
 			t.Errorf("%s is declared in a machine layer but produced no shared-setting-ignored warning", path)
@@ -512,8 +513,10 @@ func TestFixtureDocketSelf(t *testing.T) {
 	// `go run ./cmd/docket development test` (the whole-suite gate cutover). Change
 	// 0468 cut v0.9.8 for a comment-only rewording (ADR-0129 row 64). v0.9.10
 	// adds the explicit agent_harnesses opt-in, which requests no deferred
-	// capability and so leaves the blocker set below unchanged.
-	const docketSelfRoot = "../../testdata/repositories/v0.9.10"
+	// capability and so leaves the blocker set below unchanged. v0.9.12 drops the
+	// explicit `finalize.skip_results_only_delta: false` (now an obsolete
+	// tombstone), which requested nothing either.
+	const docketSelfRoot = "../../testdata/repositories/v0.9.12"
 
 	assertFrozenCopyMatchesLive(t,
 		filepath.Join(docketSelfRoot, "docket-self", "repo", ".docket.yml"),
@@ -533,7 +536,7 @@ func TestFixtureDocketSelf(t *testing.T) {
 	}
 
 	decision := PreflightMutation(snap)
-	// After the contraction the three committed switches are explicitly false, so
+	// After the contraction the two committed switches are explicitly false, so
 	// they no longer request anything. The machine-global auto-capture request in
 	// this fixture's xdg layer is untouched and remains the sole blocker: the
 	// configuration is still refused, now on one deferred capability from one

@@ -1373,7 +1373,7 @@ func mergeMaps(a, b map[string]string) map[string]string {
 
 // TestE2EUnsupportedConfigRefused loads the capability requests Docket refused
 // before 0326 — repository-local `agents.*`, `auto_capture.enabled`,
-// `build.checkpoint`, `finalize.skip_results_only_delta`, and `terminal_publish`
+// `build.checkpoint`, `auto_groom`, and `terminal_publish`
 // — into the invocation clone's OWN `.docket.yml` (a tempdir file, never a frozen
 // fixture tree), and proves every mutating 0316 operation that reruns the
 // capability preflight returns `unsupported-config` naming the blockers, with the
@@ -1396,7 +1396,8 @@ func TestE2EUnsupportedConfigRefused(t *testing.T) {
 	// the working tree). The file body is authored here in the test's own space,
 	// never copied into a frozen fixture tree.
 	deferred := "metadata_branch: " + m.branch + "\n" +
-		"finalize:\n  test_command: 'exit 0'\n  skip_results_only_delta: true\n" +
+		"finalize:\n  test_command: 'exit 0'\n" +
+		"auto_groom: true\n" +
 		"auto_capture:\n  enabled: true\n" +
 		"build:\n  test_command: 'exit 0'\n  checkpoint: true\n" +
 		"terminal_publish: true\n" +
@@ -1439,7 +1440,7 @@ func TestE2EUnsupportedConfigRefused(t *testing.T) {
 				t.Fatalf("%s under deferred caps = %q, want unsupported-config\n%s", op.name, r.result(), r.stdout)
 			}
 			if !strings.Contains(r.stdout, "terminal_publish") && !strings.Contains(r.stdout, "build.checkpoint") &&
-				!strings.Contains(r.stdout, "auto_capture") && !strings.Contains(r.stdout, "skip_results_only_delta") &&
+				!strings.Contains(r.stdout, "auto_capture") && !strings.Contains(r.stdout, "auto_groom") &&
 				!strings.Contains(r.stdout, "agents.claude.adr.model") {
 				t.Errorf("%s refusal named no blocker path:\n%s", op.name, r.stdout)
 			}
