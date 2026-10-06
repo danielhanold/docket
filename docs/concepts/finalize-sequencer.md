@@ -84,7 +84,11 @@ to it.
 - Closeout proves the merge landed, then marks the change `done` and archives it
   on the `docket` branch (a stacked change merged into its parent is marked
   `stacked-merged` instead), and retargets the backlinks in the change's spec, plan,
-  and results files to the archived record. Nothing is copied to the
+  and results files to the archived record. It also repoints the backlink at the
+  top of the merged pull request's description to the archived record. A
+  description edit that fails leaves a `pr-backlink-pending` finding (the change
+  stays `done`), and `docket finalize cleanup` and the maintenance sweep retry it.
+  Nothing is copied to the
   integration branch. A backlink retarget that fails leaves a
   `final-backlink-pending` finding (the change stays `done`), which
   `docket finalize cleanup` repairs.
