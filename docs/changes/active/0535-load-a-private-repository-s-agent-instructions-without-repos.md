@@ -2,7 +2,7 @@
 id: 535
 slug: 'load-a-private-repository-s-agent-instructions-without-repos'
 title: 'Load a private repository''s agent instructions without repository files'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-06'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/load-a-private-repository-s-agent-instructions-without-repos'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/402'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-06T20:40:42Z'
@@ -80,3 +80,11 @@ Re-groomed with the human after the run halted at the delivery spike. The human 
 
 The spec's *Summary*, *Evidence*, *Decisions*, *Design*, *Acceptance criteria*, and *ADRs expected* sections were replaced, and *What changes* was updated. Plan Task 1 (the spike) is superseded by the spec's fresh-session acceptance. The plan is rewritten against the revised spec before the halted run resumes.
 
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 6d50d0a4592233ce36f9f251833bee325a910143
+ran_at:   2026-10-06T22:40:12Z
+<!-- docket:build-evidence:end -->
