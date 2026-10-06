@@ -23,9 +23,9 @@ import (
 //
 // `finalize cleanup` runs an ordered suffix over one final change: it reloads
 // the archived/stacked state and the verified merge destination; repairs the
-// final backlinks first when needed; removes the feature checkout through the
-// landed manifest-fact-driven workspace.Cleanup (never a base recomputed from the
-// now-archived record); deletes the LOCAL feature ref only when the exact
+// final backlinks (and the merged PR's description backlink) first when needed;
+// removes the feature checkout through the landed manifest-fact-driven
+// workspace.Cleanup (never a base recomputed from the now-archived record); deletes the LOCAL feature ref only when the exact
 // recorded tip is detached from every worktree AND contained in the verified
 // merge chain; deletes the REMOTE feature ref only under an exact old-value lease
 // AND only after a fresh probe proves no open child PR still targets it; and
@@ -304,6 +304,13 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 		findings = append(findings, *f)
 	}
 
+	// Leg 1b: repoint the merged PR's description backlink at the archived record
+	// when close-out left it pending. Best-effort and independent: a failure is a
+	// retryable pr-backlink-pending finding and never blocks the other legs.
+	if f := finalizeCleanupPRBacklinkRepair(ctx, deps, cc, ghRepo, number); f != nil {
+		findings = append(findings, *f)
+	}
+
 	// Leg 2: remove the feature checkout through the landed manifest-fact-driven
 	// Cleanup. A blocked workspace or an unanswerable inspection retains the
 	// workspace and — because the branch may still be checked out — skips the ref
@@ -378,6 +385,24 @@ func finalizeCleanupResult(id int, disp string, removed []string, findings []Sta
 	return newCleanupResult(OperationFinalizeCleanup, result, CleanupOpResult{
 		ID: id, Disposition: disp, RemovedRefs: removed, Findings: findings, Reason: reason, Message: msg,
 	})
+}
+
+// finalizeCleanupPRBacklinkRepair re-runs the PR-body repoint idempotently for a
+// done, archived change. In the normal flow (close-out already repointed it) it
+// reads the PR and issues no edit; when close-out left the leg pending it lands
+// the block-only edit. No editor wired runs nothing.
+func finalizeCleanupPRBacklinkRepair(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, ghRepo githubcli.Repository, number int) *StatusFinding {
+	ed := prBodyEditor(deps)
+	if ed == nil {
+		return nil
+	}
+	id := int(cc.change.ID())
+	interior, err := archivedBacklinkInterior(cc.eff, cc.change.Path(), cc.body, cc.link)
+	if err != nil {
+		f := cleanupWarning(ReasonPRBacklinkPending, "the archived backlink could not be rendered; retry cleanup")
+		return &f
+	}
+	return prBacklinkFinding(id, number, repointPRBacklink(ctx, ed, ghRepo, number, cc.change.Path(), interior))
 }
 
 // finalizeCleanupBacklinkRepair re-runs the integration-ref backlink retarget
