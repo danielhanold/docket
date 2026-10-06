@@ -96,6 +96,7 @@ var operationBindings = []OperationBinding{
 	{ID: "install", Request: nil, Result: InstallResult{}},                                                 // RunInstall
 	{ID: "install.check", Request: nil, Result: InstallResult{}},                                           // RunInstallCheck
 	{ID: "install.collect", Request: nil, Result: InstallResult{}},                                         // RunInstallCollect
+	{ID: "instructions", Request: nil, Result: InstructionsResult{}},                                       // Instructions
 	{ID: "learning.record", Request: LearningRecordRequest{}, Result: LearningResult{}},                    // LearningRecordOp
 	{ID: "learning.update", Request: LearningUpdateRequest{}, Result: LearningResult{}},                    // LearningUpdate
 	{ID: "maintenance.preflight", Request: nil, Result: MaintenancePreflightResult{}},                      // MaintenancePreflight

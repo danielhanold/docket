@@ -58,6 +58,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	// code is the verdict, so it is threaded straight to the process exit below,
 	// bypassing the presenter (change 0318).
 	var devTestCode *int
+	// rawOut carries `instructions` output in its plain and hook forms: raw
+	// bytes a harness consumes verbatim, never a result document, so it bypasses
+	// the presenter the way devTestCode does.
+	var rawOut *rawOutput
 
 	root := &cobra.Command{
 		Use:   "docket",
@@ -416,11 +420,16 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	maintenanceCmd := newMaintenanceCommand(func(r app.OperationResult) { result = r })
 	repositoryCmd := newRepositoryCommand(func(r app.OperationResult) { result = r })
 	agentCmd := newAgentCommand(info, func(r app.OperationResult) { result = r })
+	instructionsCmd := newInstructionsCommand(stdin, jsonMode,
+		func(r app.OperationResult) { result = r },
+		func(out []byte, errText string, code int) {
+			rawOut = &rawOutput{out: out, errText: errText, code: code}
+		})
 
 	installCmd.AddCommand(installCheckCmd, installCollectCmd)
 	developmentCmd.AddCommand(developmentInstallCmd, developmentTestCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(capabilitiesCmd, schemaCmd, versionCmd, statusCmd, changeCmd, contextCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, agentCmd, diagnosticCmd, installCmd, uninstallCmd, developmentCmd)
+	root.AddCommand(capabilitiesCmd, schemaCmd, versionCmd, statusCmd, changeCmd, contextCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, agentCmd, instructionsCmd, diagnosticCmd, installCmd, uninstallCmd, developmentCmd)
 	root.AddCommand(extra...)
 
 	// The asset-dependence guard. Commands that do not read installed assets
@@ -474,6 +483,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		// its exit code is the verdict; present nothing and return that code
 		// directly, the way a relayed development-install child does (change 0318).
 		return *devTestCode
+	case rawOut != nil:
+		// `instructions` in its plain or hook form: the bytes are the output,
+		// an error is one stderr line, and the code is the verdict.
+		_, _ = stdout.Write(rawOut.out)
+		if rawOut.errText != "" {
+			fmt.Fprintln(stderr, rawOut.errText)
+		}
+		return rawOut.code
 	case result != nil:
 		// A development-install parent that handed off to its candidate has no
 		// document of its own: the candidate already wrote the one result to the
@@ -505,6 +522,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		fmt.Fprintln(stderr, "docket: internal error: command produced no result")
 		return app.ExitCode(app.ResultInternalError)
 	}
+}
+
+// rawOutput is a command's verbatim output: bytes for stdout, an optional
+// stderr line, and the exit code.
+type rawOutput struct {
+	out     []byte
+	errText string
+	code    int
 }
 
 // rejectHiddenCompletionCommand refuses Cobra's hidden shell-completion

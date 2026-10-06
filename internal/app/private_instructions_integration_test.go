@@ -321,3 +321,46 @@ func TestIntegrationPrivateInstructionsSharedRepositoryUnchanged(t *testing.T) {
 		t.Errorf(".git/dckt exists in a shared repository (err=%v)", err)
 	}
 }
+
+// TestIntegrationPrivateInstructionsReadFromEveryWorktree is acceptance 2: after
+// a private init with [claude, codex], ReadPrivateInstructions returns the
+// private file from the primary worktree, a `git worktree add` worktree, and the
+// metadata checkout outside the clone; a shared-init repository and a plain
+// `git init` one are not private.
+func TestIntegrationPrivateInstructionsReadFromEveryWorktree(t *testing.T) {
+	r, primary, common := newPrivateInstructionsRepo(t)
+	setPrivateHarnesses(t, common, "[claude, codex]")
+	if res := r.runInitWith(t, InitOptions{}); res.Result != ResultApplied {
+		t.Fatalf("init with harnesses = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	want := mustReadFile(t, layout.PrivateInstructionsPath(common))
+	if !strings.Contains(string(want), dispatchStartMarker) {
+		t.Fatalf("precondition: %s = %q, want the dispatch block", layout.PrivateInstructionsDisplay, want)
+	}
+	feature := filepath.Join(r.root, "feature")
+	runGit(t, r.invocation, "worktree", "add", "-q", "-b", "feat/read", feature)
+	metadata := privateLayoutOf(t, r.invocation, os.Getenv("XDG_DATA_HOME")).MetadataWorktree
+	sub := filepath.Join(primary, "sub", "dir")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{primary, sub, feature, metadata} {
+		got, private, err := ReadPrivateInstructions(dir)
+		if err != nil || !private || string(got) != string(want) {
+			t.Errorf("ReadPrivateInstructions(%s) = (%d bytes, %v, %v), want the private file", dir, len(got), private, err)
+		}
+	}
+
+	t.Setenv("XDG_DATA_HOME", testsupport.TempDir(t))
+	shared := newInitRepo(t, defaultSetupYML+"agent_harnesses: [claude, codex]\n", nil)
+	if res := shared.runInit(t); res.Result != ResultApplied {
+		t.Fatalf("shared init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	plain := testsupport.TempDir(t)
+	runGit(t, plain, "init", "-q")
+	for _, dir := range []string{shared.invocation, plain} {
+		if got, private, err := ReadPrivateInstructions(dir); err != nil || private || got != nil {
+			t.Errorf("ReadPrivateInstructions(%s) = (%q, %v, %v), want (nil, false, nil)", dir, got, private, err)
+		}
+	}
+}
