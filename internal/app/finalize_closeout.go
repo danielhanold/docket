@@ -58,27 +58,19 @@ import (
 //      renders one board over the final population. A single unproven descendant
 //      keeps the whole root recoverable — zero descendant writes.
 //
-// Backlinks across the one topology: the metadata transaction lands first and
-// retargets every backlink block resident ON the metadata ref (the spec). The
-// merged plan and results live on the integration ref, so a FOLLOW-UP isolated
-// integration-ref transaction patches only their existing docket:backlink blocks
-// under the integration ref's exact lease. That second leg is generated-link maintenance,
-// not terminal publishing: it copies no metadata record and edits no authored
-// bytes. A failed or contended second leg leaves the change truthfully `done` and
-// emits a typed final-backlink-pending finding; its idempotency is keyed on the
-// remote block bytes (a block already pointing at the archive path is a no-op). A
-// third, GitHub-side leg repoints each archived target's merged PR description
-// block at its archive path (runCloseoutPRBacklinkLeg); a failed edit leaves the
-// change truthfully `done` with a pr-backlink-pending warning that cleanup and
-// the sweep retry.
+// Backlinks: every spec, plan, and results file lives on the metadata branch,
+// so the one metadata transaction retargets every backlink block resident ON the
+// metadata ref (retargetArtifactBacklinks) — nothing is ever committed to the
+// integration branch after the merge. A legacy plan or results file that rode an
+// earlier PR onto the integration branch keeps the backlink it had. A second,
+// GitHub-side leg repoints each archived target's merged PR description block at
+// its archive path (runCloseoutPRBacklinkLeg); a failed edit leaves the change
+// truthfully `done` with a pr-backlink-pending warning that cleanup and the sweep
+// retry.
 
 // OperationFinalizeCloseout is the operation key the metadata closeout
 // transaction records in its result envelope and trailer.
 const OperationFinalizeCloseout = "finalize.closeout"
-
-// OperationFinalizeCloseoutBacklink is the operation key the docket-mode
-// integration-ref backlink leg records in its trailer.
-const OperationFinalizeCloseoutBacklink = "finalize.closeout-backlink"
 
 // The closed set of `finalize closeout` dispositions.
 const (
@@ -146,10 +138,6 @@ const (
 	// ReasonCloseoutChildUnproven: a descendant's carry into the root could not be
 	// proven; the root stays recoverable.
 	ReasonCloseoutChildUnproven = "descendant-carry-unproven"
-	// ReasonCloseoutBacklinkPending: the metadata transaction landed (the change is
-	// done) but the follow-up integration-ref backlink leg did not; a retryable
-	// health/maintenance finding.
-	ReasonCloseoutBacklinkPending = "final-backlink-pending"
 	// ReasonCloseoutNotesFrozen: the change is already final (or stacked-merged in
 	// place) and the request
 	// carries notes that differ from the archived record; refused — an archived
@@ -161,7 +149,7 @@ const (
 	ReasonCloseoutStackedUnpreserved = "stacked-merge-not-preserved"
 )
 
-// closeoutBacklinkArtifactHeadings is the marker heading set the closeout record
+// closeoutBlockedHeadingSet is the marker heading set the closeout record
 // splice manages when it clears a stale finalize-blocked section from a record it
 // is terminating. It reuses finalize_block.go's finalizeBlockedSectionHeading.
 var closeoutBlockedHeadingSet = []string{finalizeBlockedSectionHeading}
@@ -170,7 +158,7 @@ var closeoutBlockedHeadingSet = []string{finalizeBlockedSectionHeading}
 // names identity, the closed disposition, the root archive path and any carried
 // descendant ids on a final archive, and — on a refusal — a stable reason and
 // message. Findings carries validation diagnostics and the retryable
-// final-backlink-pending finding. It leaks no authored artifact bytes.
+// pr-backlink-pending warning. It leaks no authored artifact bytes.
 type CloseoutResult struct {
 	Envelope
 	ID          int             `json:"id,omitempty"`
@@ -228,15 +216,6 @@ type closeoutReceipt struct {
 	Root        int    `json:"root"`
 }
 
-// closeoutBacklinkReceipt is the receipt the docket-mode integration-ref backlink
-// leg persists — the stable closeout request trailer that keys a lost-response
-// recovery alongside the remote block bytes.
-type closeoutBacklinkReceipt struct {
-	ArchiveDate string `json:"archive_date"`
-	Op          string `json:"op"`
-	Root        int    `json:"root"`
-}
-
 // closeoutTarget is one change the closeout transaction terminates: its resolved
 // id, its active record path, its slug, and the archive path it relocates to.
 type closeoutTarget struct {
@@ -249,8 +228,8 @@ type closeoutTarget struct {
 // FinalizeCloseout reloads the metadata, reprobes the recorded PR and its merge
 // destination, and applies the one verified closeout shape the destination
 // selects. It never asserts done without a merge-commit reachability proof, never
-// leaves a remotely partial metadata outcome, and (in docket mode) retargets the
-// merged plan/results backlinks in an isolated retryable follow-up leg.
+// leaves a remotely partial metadata outcome, and repoints each archived
+// target's merged PR description backlink in a retryable follow-up leg.
 func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id int, notes CloseoutNotes) CloseoutResult {
 	if id <= 0 {
 		return newCloseoutResult(ResultInvalidInput, CloseoutResult{
@@ -496,7 +475,7 @@ func reprobeMerged(ctx context.Context, deps FinalizeDeps, ghRepo githubcli.Repo
 // closeoutIntegrationDestination handles a merge whose destination is the
 // integration branch: it proves reachability, derives the stack-root closeout
 // set, and drives the archive transaction (ordinary or root carry) plus the
-// docket-mode backlink leg.
+// PR-description backlink leg.
 func closeoutIntegrationDestination(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, ghRepo githubcli.Repository, canonicalN int, facts githubcli.MergedFacts, notes CloseoutNotes) CloseoutResult {
 	id := int(cc.change.ID())
 
@@ -617,12 +596,6 @@ func closeoutIntegrationDestination(ctx context.Context, deps FinalizeDeps, cc *
 		return res
 	}
 
-	// Follow-up: retarget the merged plan/results backlinks on the integration
-	// ref. A failed/contended leg leaves the change truthfully done and emits a
-	// retryable finding.
-	if finding := runCloseoutBacklinkLeg(ctx, deps, cc, targets, archiveDate); finding != nil {
-		res.Findings = append(res.Findings, *finding)
-	}
 	// Follow-up: repoint each archived target's merged PR backlink block at its
 	// archive path (a GitHub edit, best-effort). A failed edit leaves the change
 	// truthfully done and emits a retryable pr-backlink-pending warning.
@@ -861,55 +834,9 @@ func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *c
 	return r
 }
 
-// runCloseoutBacklinkLeg retargets the merged plan/results backlinks on the
-// integration ref in docket mode. It returns a final-backlink-pending finding
-// when the leg did not land — the change stays truthfully done and the sweep
-// retries the leg — or nil when the leg landed (or had nothing to do).
-func runCloseoutBacklinkLeg(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, targets []closeoutTarget, archiveDate string) *StatusFinding {
-	backlinkTargets, err := closeoutBacklinkTargets(cc, targets)
-	if err != nil {
-		return &StatusFinding{Code: ReasonCloseoutBacklinkPending, Severity: string(domain.SeverityWarning), Message: err.Error()}
-	}
-	if len(backlinkTargets) == 0 {
-		return nil
-	}
-
-	op := closeoutBacklinkOp{
-		rootID:      cc.rootIDOf(targets),
-		archiveDate: archiveDate,
-		targets:     backlinkTargets,
-	}
-	res, execErr := deps.Planning.Engine.Execute(ctx, transaction.Request{
-		Repository: cc.repo,
-		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + cc.integrationBranch),
-		Loader:     newBacklinkArtifactLoader(backlinkTargets),
-		Operation:  op,
-	})
-	// Best-effort secondary leg: the change stays truthfully done and the sweep
-	// retries. The finding carries the transaction's typed cause — the failure's
-	// stage/kind/detail, or a refusal's finding codes and paths — so a stuck leg
-	// is self-diagnosing (change 0337); after the scoped loader, an in-scope
-	// artifact-level problem is the only refusal left, and this names it.
-	result, _ := mapOutcome(res, execErr, ResultInvalidState)
-	if result == ResultApplied || result == ResultNoOp {
-		return nil
-	}
-	msg := fmt.Sprintf("the change is done, but the integration-ref backlink leg did not land (%s)", result)
-	if d := backlinkLegDetail(res, execErr); d != "" {
-		msg += ": " + d
-	}
-	msg += "; the sweep will retry it"
-	return &StatusFinding{
-		Code:     ReasonCloseoutBacklinkPending,
-		Severity: string(domain.SeverityWarning),
-		Message:  msg,
-	}
-}
-
 // runCloseoutPRBacklinkLeg repoints, for every archived target (the root and
 // each carried descendant), its own merged PR's docket:backlink block at its own
-// archive path. It is independent of the integration-ref backlink leg and never
+// archive path. It runs after the metadata transaction landed and never
 // changes the close-out disposition: each target that did not reach its promised
 // state contributes one pr-backlink-pending warning. No editor wired (a test
 // GitHub fake) runs nothing.
@@ -945,55 +872,13 @@ func runCloseoutPRBacklinkLeg(ctx context.Context, deps FinalizeDeps, cc *closeo
 	return out
 }
 
-// rootIDOf returns the root target's id.
-func (cc *closeoutContext) rootIDOf(targets []closeoutTarget) int {
-	if len(targets) > 0 {
-		return targets[0].id
-	}
-	return 0
-}
-
-// closeoutBacklinkTargets renders, per target, the archived backlink interior and
-// the plan/results artifact paths that carry a backlink block. It is computed in
-// the app layer so the integration-ref operation carries only the exact interior
-// bytes and the exact paths, never a metadata record.
-func closeoutBacklinkTargets(cc *closeoutContext, targets []closeoutTarget) ([]closeoutBacklinkTarget, error) {
-	out := make([]closeoutBacklinkTarget, 0, len(targets))
-	for _, tg := range targets {
-		c, out2 := cc.snap.Change(domain.ChangeID(tg.id))
-		if out2 != domain.LookupFound {
-			continue
-		}
-		var paths []string
-		if p := c.Plan().Value; p != "" {
-			paths = append(paths, p)
-		}
-		if p := c.Results().Value; p != "" {
-			paths = append(paths, p)
-		}
-		if len(paths) == 0 {
-			continue
-		}
-		src, ok := cc.sources[tg.activePath]
-		if !ok {
-			return nil, fmt.Errorf("closeout backlink: no source bytes for change %04d at %q", tg.id, tg.activePath)
-		}
-		interior, err := archivedBacklinkInterior(cc.eff, tg.archivePath, src, cc.link)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, closeoutBacklinkTarget{artifactPaths: paths, interior: interior})
-	}
-	return out, nil
-}
-
 // archivedBacklinkInterior renders the docket:backlink interior a merged
 // artifact must carry after closeout: it points at the change's ARCHIVE path. It
 // builds a one-record snapshot at the archive path from the record bytes already
 // in hand so render.BacklinkContent renders the canonical line. The line is the
-// absolute metadata-branch form: a legacy merged artifact on the integration
-// branch and a PR description have no metadata record beside them to link
-// relatively (the metadata-ref retarget uses render.ArtifactBacklinkContent).
+// absolute metadata-branch form: a PR description has no metadata record beside
+// it to link relatively (the metadata-ref retarget uses
+// render.ArtifactBacklinkContent).
 func archivedBacklinkInterior(eff config.Effective, archivePath string, srcBytes []byte, link render.LinkContext) (string, error) {
 	doc, err := document.Parse(srcBytes)
 	if err != nil {
@@ -1018,14 +903,6 @@ func archivedBacklinkInterior(eff config.Effective, archivePath string, srcBytes
 		}
 	}
 	return "", fmt.Errorf("closeout backlink: archived record absent from its own one-record snapshot (%q)", archivePath)
-}
-
-// closeoutBacklinkTarget is one change's share of the integration-ref backlink
-// leg: the exact plan/results paths to patch and the exact backlink interior to
-// write into each.
-type closeoutBacklinkTarget struct {
-	artifactPaths []string
-	interior      string
 }
 
 // archiveDateFromMerge parses an RFC3339 mergedAt into a UTC YYYY-MM-DD date.
@@ -1257,111 +1134,6 @@ func (o closeoutStackedOp) Plan(ctx context.Context, st transaction.AttemptState
 		CommitSubject: fmt.Sprintf("change %04d stacked-merged into %s", o.id, o.parentBranch),
 		Receipt:       receipt,
 	}, transaction.OperationResult{}, nil
-}
-
-// --- closeoutBacklinkOp (integration-ref leg) -----------------------------
-
-// closeoutBacklinkOp patches the docket:backlink block of each merged plan/results
-// artifact on the integration ref to point at the archive path. It declares a
-// file only when its block actually changes, so a replay against already-retargeted
-// remote bytes is an empty-plan no-op (idempotency keyed on the promised state).
-type closeoutBacklinkOp struct {
-	rootID      int
-	archiveDate string
-	targets     []closeoutBacklinkTarget
-}
-
-func (o closeoutBacklinkOp) Key() transaction.OperationKey {
-	return transaction.OperationKey(OperationFinalizeCloseoutBacklink)
-}
-
-func (o closeoutBacklinkOp) Plan(ctx context.Context, st transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
-	var files []transaction.FileMutation
-	for _, tg := range o.targets {
-		for _, p := range tg.artifactPaths {
-			original, present, err := readTreeBlob(ctx, st.Tree, p)
-			if err != nil {
-				return transaction.MutationPlan{}, transaction.OperationResult{}, err
-			}
-			if !present {
-				// The merged artifact is not on the integration ref; nothing to patch.
-				continue
-			}
-			// The "would the final backlink block's bytes change" computation is
-			// the shared backlinkLegRetarget: a missing block is never conjured, and
-			// already-retargeted bytes are a no-op (the promised state).
-			updated, hasBlock, changed, err := backlinkLegRetarget(original, tg.interior)
-			if err != nil {
-				return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout backlink: retargeting artifact %q: %w", p, err)
-			}
-			if !hasBlock || !changed {
-				continue
-			}
-			files = append(files, transaction.FileMutation{Path: gitcli.RepoPath(p), Kind: transaction.MutationReplace, Bytes: updated})
-		}
-	}
-	if len(files) == 0 {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, nil
-	}
-	receipt, err := json.Marshal(closeoutBacklinkReceipt{ArchiveDate: o.archiveDate, Op: OperationFinalizeCloseoutBacklink, Root: o.rootID})
-	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout backlink: encoding receipt: %w", err)
-	}
-	return transaction.MutationPlan{
-		Files:         files,
-		CommitSubject: fmt.Sprintf("change %04d final backlinks retargeted to archive", o.rootID),
-		Receipt:       receipt,
-	}, transaction.OperationResult{}, nil
-}
-
-// backlinkLegRetarget is the single source of the per-artifact "would the final
-// backlink block's bytes change" computation the final backlink legs share: the
-// cleanup transaction (cleanupBacklinkOp.Plan), the closeout follow-up leg
-// (closeoutBacklinkOp.Plan), and the maintenance sweep's snapshot assessment
-// (backlinkLegHasWork) all read it, so no copy of the byte comparison drifts. It
-// parses one artifact blob, retargets its docket:backlink block interior to
-// renderedInterior, and reports:
-//
-//   - present — whether the blob carries a managed docket:backlink block at all; a
-//     blob without one is never conjured a block, so present=false is "nothing to
-//     retarget", not an error;
-//   - changed — whether applying renderedInterior produces different bytes (false
-//     is the idempotent already-retargeted no-op keyed on the promised state);
-//   - updated — the retargeted bytes, valid only when present && changed.
-//
-// A parse or patch failure — malformed, unbalanced, or nested backlink markers, or
-// an unrenderable interior — is a hard error, NEVER a silent no-work
-// (learning probe-error-is-not-clean-absence): the assessment maps it to an
-// unresolved leg and the transactions to a refusal, so a broken block is never
-// mistaken for an already-clean one.
-func backlinkLegRetarget(blob []byte, renderedInterior string) (updated []byte, present, changed bool, err error) {
-	doc, err := document.Parse(blob)
-	if err != nil {
-		return nil, false, false, err
-	}
-	if _, ok := doc.Block(backlinkBlockName); !ok {
-		return nil, false, false, nil
-	}
-	var ps document.PatchSet
-	ps.ReplaceBlock(backlinkBlockName, renderedInterior)
-	out, err := doc.Apply(ps)
-	if err != nil {
-		return nil, true, false, err
-	}
-	return out, true, string(out) != string(blob), nil
-}
-
-// backlinkLegHasWork reports whether retargeting one artifact blob's
-// docket:backlink block to renderedInterior would change its bytes — the sweep
-// assessment's read of backlinkLegRetarget. A blob with no managed block is no
-// work; already-retargeted bytes are no work; a malformed/unbalanced block is an
-// error (an unresolved leg), never a false "no work".
-func backlinkLegHasWork(blob []byte, renderedInterior string) (bool, error) {
-	_, present, changed, err := backlinkLegRetarget(blob, renderedInterior)
-	if err != nil {
-		return false, err
-	}
-	return present && changed, nil
 }
 
 // --- shared helpers -------------------------------------------------------

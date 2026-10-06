@@ -179,10 +179,10 @@ func matrixMerge(t *testing.T, m planRepoMode) {
 	}
 }
 
-// matrixCloseout covers "Metadata closeout push" and (docket mode) "Integration
-// backlink push": the closeout transaction lands once, and a replay keyed on the
-// canonical archive record is a verified no-op — never a second commit, never a
-// false-second-done.
+// matrixCloseout covers "Metadata closeout push": the closeout transaction lands
+// once and commits nothing to the integration branch, and a replay keyed on the
+// canonical archive record is a verified no-op — never a second commit on either
+// ref, never a false-second-done.
 func matrixCloseout(t *testing.T, m planRepoMode) {
 	f := setupCloseoutFixture(t, m)
 	mergeCommit := f.mergeIntoBase(t)
@@ -193,16 +193,8 @@ func matrixCloseout(t *testing.T, m planRepoMode) {
 		t.Fatalf("first closeout = %q disp %q (reason %q)", first.Result, first.Disposition, first.Reason)
 	}
 	metaTip := originTip(t, f.repo.origin, f.branch)
-	var intBranch, intTip string
-	if m.name == "docket" {
-		intBranch = "main"
-		intTip = originTip(t, f.repo.origin, intBranch)
-		// No final-backlink-pending finding: the integration leg landed.
-		for _, fd := range first.Findings {
-			if fd.Code == ReasonCloseoutBacklinkPending {
-				t.Fatalf("the docket-mode backlink leg did not land: %+v", fd)
-			}
-		}
+	if tip := originTip(t, f.repo.origin, "main"); tip != mergeCommit {
+		t.Errorf("close-out committed to the integration branch: main = %q, want the merge commit %q", tip, mergeCommit)
 	}
 
 	// The response was lost; the replay is keyed on the promised archive record, not
@@ -217,10 +209,8 @@ func matrixCloseout(t *testing.T, m planRepoMode) {
 	if tip := originTip(t, f.repo.origin, f.branch); tip != metaTip {
 		t.Errorf("replay produced a second metadata commit: %q -> %q", metaTip, tip)
 	}
-	if m.name == "docket" {
-		if tip := originTip(t, f.repo.origin, intBranch); tip != intTip {
-			t.Errorf("replay produced a second integration-backlink commit: %q -> %q", intTip, tip)
-		}
+	if tip := originTip(t, f.repo.origin, "main"); tip != mergeCommit {
+		t.Errorf("replay committed to the integration branch: %q -> %q", mergeCommit, tip)
 	}
 }
 

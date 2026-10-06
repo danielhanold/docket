@@ -125,7 +125,7 @@ func newMaintenancePreflightSubcommand(setResult func(app.OperationResult)) *cob
 
 // newMaintenanceSweepSubcommand builds `maintenance sweep`: one pinned inventory,
 // processed in a deterministic order, that closes out merged changes (stacked
-// children before ancestors), retries final backlink repair and ownership-safe
+// children before ancestors), retries PR backlink repair and ownership-safe
 // cleanup for archived/done records and completed stacks, and reclaims expired
 // claims when reclaim.auto is on. It reloads fresh authority before every
 // mutation and reports every item as a structured entry. Two flags ride on it —

@@ -2,9 +2,11 @@ package app
 
 import (
 	"context"
-	"github.com/danielhanold/docket/internal/githubcli"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/render"
 )
 
 // This file drives `finalize closeout` over a REAL metadata topology in BOTH
@@ -80,10 +82,10 @@ const (
 )
 
 // closeoutFixture is a real published feature workspace whose parent record is
-// implemented, carries the canonical PR reference, and points at a spec (on the
-// metadata ref) plus a plan and results (on the integration ref in docket mode,
-// on the shared ref in main mode) that each carry a docket:backlink block. It is
-// exactly the state `finalize closeout` consumes after a verified merge.
+// implemented, carries the canonical PR reference, and points at a spec, a plan,
+// and results — all on the metadata ref beside the record — that each carry a
+// docket:backlink block. It is exactly the state `finalize closeout` consumes
+// after a verified merge.
 type closeoutFixture struct {
 	*rebaseFixture
 	specPath    string
@@ -122,6 +124,17 @@ func artifactWithBacklink(activePath, heading, body string) string {
 		"# " + heading + "\n\n" + body + "\n"
 }
 
+// artifactWithRelativeBacklink renders a minimal metadata-resident artifact whose
+// docket:backlink block links the change record relatively, the form a
+// same-branch backlink takes, then an authored body whose bytes must survive
+// closeout unchanged.
+func artifactWithRelativeBacklink(artifactPath, recordPath, heading, body string) string {
+	return "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
+		"> ↩ **[Change 0005 — A change](" + render.RelativeLink(artifactPath, recordPath) + ")**\n" +
+		"<!-- docket:backlink:end -->\n\n" +
+		"# " + heading + "\n\n" + body + "\n"
+}
+
 // setupCloseoutFixture builds the real published feature workspace, patches the
 // parent record to carry the PR reference + artifact pointers, and seeds the
 // spec/plan/results artifacts on their mode-correct refs.
@@ -135,20 +148,15 @@ func setupCloseoutFixture(t *testing.T, m planRepoMode) *closeoutFixture {
 		resultsPath:   "docs/changes/results/0005-widget-results.md",
 	}
 	recPath := groomPath(f.id, f.slug)
-	// The record and the spec live on the metadata branch. The plan and results
-	// live on the integration branch (main) — a genuinely different ref, so a
-	// read from the wrong source is observable.
+	// The record, the spec, the plan, and the results all live on the metadata
+	// branch; nothing of the change's paperwork is on the integration branch.
 	metaFiles := map[string]string{
-		recPath:     closeoutRecord(f.id, f.slug, "implemented", closeoutRef, cf.specPath, cf.planPath, cf.resultsPath),
-		cf.specPath: artifactWithBacklink(recPath, "Design", "The widget design."),
+		recPath:        closeoutRecord(f.id, f.slug, "implemented", closeoutRef, cf.specPath, cf.planPath, cf.resultsPath),
+		cf.specPath:    artifactWithBacklink(recPath, "Design", "The widget design."),
+		cf.planPath:    artifactWithRelativeBacklink(cf.planPath, recPath, "Plan", "The widget plan."),
+		cf.resultsPath: artifactWithRelativeBacklink(cf.resultsPath, recPath, "Results", "The widget results."),
 	}
 	f.repo.writerAdvance(t, f.branch, metaFiles)
-
-	integrationFiles := map[string]string{
-		cf.planPath:    artifactWithBacklink(recPath, "Plan", "The widget plan."),
-		cf.resultsPath: artifactWithBacklink(recPath, "Results", "The widget results."),
-	}
-	f.repo.writerAdvance(t, "main", integrationFiles)
 
 	cf.revision = blobRevisionAt(t, f.repo.origin, f.branch, recPath)
 	return cf
@@ -194,8 +202,6 @@ func (f *closeoutFixture) baselineMergedFake(head, mergeCommit string) *fakeClos
 
 // --- TestCloseoutRootCarry ------------------------------------------------
 
-// --- TestCloseoutBacklinkLegDocketMode ------------------------------------
-
 // --- TestCloseoutNeverEditsAuthoredBytes ----------------------------------
 
 // --- closeout notes -------------------------------------------------------
@@ -213,7 +219,3 @@ const closeoutWantNotesSection = "## Closeout notes\n\n" +
 	"- Production health check passed after deployment\n\n" +
 	"### Late findings\n\n" +
 	"- The upgrade guide should mention the legacy config cleanup\n"
-
-	// --- TestCloseoutBacklinkLegIgnoresUnrelatedCorpusErrors ------------------
-
-	// --- TestCloseoutBacklinkPendingFindingNamesTheCause ----------------------
