@@ -143,9 +143,20 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 		return fail(repositoryInternalFailure(OperationRepositoryInit, cls.State, "resolving the private layout", errors.New("the repository does not detect as private after the config write")))
 	}
 
-	// 4. The bare remote: the flag URL as given, or the default store, created
-	// when absent. A flag URL never creates the default store.
+	// 4. The bare remote: the flag URL as given; else, on a repository that
+	// already detected private before this run, the dckt remote it configured
+	// (a flagless re-run after --metadata-remote); else the default store,
+	// created when absent. Only that last case ever creates the default store.
+	remote := metadataRemote(lay)
+	got, err := d.Git.RemoteURL(ctx, sc.repo, remote)
+	unconfigured := isRemoteUnconfigured(err)
+	if err != nil && !unconfigured {
+		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "reading the dckt git remote", err))
+	}
 	want := o.MetadataRemote
+	if want == "" && !unconfigured && sc.layout.Mode == layout.Private {
+		want = got
+	}
 	if want == "" {
 		want = lay.DefaultBareRemote
 		_, statErr := os.Stat(want)
@@ -157,16 +168,12 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 
 	// 5. The dckt git remote: added when absent, kept when it already points at
 	// want, refused otherwise. Docket never rewrites a remote.
-	remote := metadataRemote(lay)
-	got, err := d.Git.RemoteURL(ctx, sc.repo, remote)
 	switch {
-	case isRemoteUnconfigured(err):
+	case unconfigured:
 		if aerr := d.Git.AddRemote(ctx, sc.repo, remote, want); aerr != nil {
 			return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "adding the dckt git remote", aerr))
 		}
 		changed = true
-	case err != nil:
-		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "reading the dckt git remote", err))
 	case got != want:
 		return fail(initRefusal(reposetup.StateConflict, fmt.Sprintf(
 			"the dckt git remote already points at %s, not %s; resolve it by hand (docket never rewrites a remote)", got, want)))

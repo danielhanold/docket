@@ -311,6 +311,38 @@ func TestIntegrationRepoSetupPrivateMetadataRemoteFlag(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoSetupPrivateMetadataRemoteRerunIsNoOp proves a flagless
+// re-run on a repository set up with --metadata-remote keeps the configured
+// dckt remote: it reports no-op, never creates the default store, and never
+// refuses a healthy repository with a false remote conflict.
+func TestIntegrationRepoSetupPrivateMetadataRemoteRerunIsNoOp(t *testing.T) {
+	r, data := newPrivateInitRepo(t, nil)
+	backup := filepath.Join(testsupport.TempDir(t), "backup.git")
+	runGit(t, r.root, "init", "--bare", "-q", backup)
+	if res := r.runInitWith(t, InitOptions{Private: true, MetadataRemote: backup}); res.Result != ResultApplied {
+		t.Fatalf("first init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	tip := runGit(t, backup, "rev-parse", "refs/heads/dckt")
+
+	res := r.runInitWith(t, InitOptions{})
+	if res.Result != ResultNoOp {
+		t.Fatalf("flagless re-run = %q (%s), want no-op", res.Result, res.HumanText())
+	}
+	if res.RepositoryState != string(reposetup.StateHealthy) {
+		t.Errorf("RepositoryState = %q, want healthy", res.RepositoryState)
+	}
+	if res.MetadataTip != tip {
+		t.Errorf("re-run MetadataTip = %q, want the published tip %q", res.MetadataTip, tip)
+	}
+	if url := runGit(t, r.invocation, "config", "--get", "remote.dckt.url"); url != backup {
+		t.Errorf("dckt remote URL = %q, want the flag %q", url, backup)
+	}
+	lay := privateLayoutOf(t, r.invocation, data)
+	if _, err := os.Stat(lay.DefaultBareRemote); !os.IsNotExist(err) {
+		t.Errorf("default bare remote %s was created on re-run (err=%v)", lay.DefaultBareRemote, err)
+	}
+}
+
 func TestIntegrationRepoSetupInitModeFlagsRefuseSwitch(t *testing.T) {
 	r := newInitRepo(t, defaultSetupYML, nil)
 	if res := r.runInit(t); res.Result != ResultApplied {
