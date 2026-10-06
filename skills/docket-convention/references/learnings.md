@@ -44,7 +44,7 @@ promoted_to:                        # set only when promoted: the agent-instruct
 The `learning.record` operation **creates** a new finding (`slug`, `hook`, `topics`, `changes`,
 `## Apply`, `## War story`) under its `request_id` idempotency key; the `learning.update`
 operation **extends** an existing one, pinned by its exact record revision (append a dated
-`## War story` entry, add the change id to `changes:`). Both write only the one finding file on the `docket` branch and refuse
+`## War story` entry, add the change id to `changes:`). Both write only the one finding file on the metadata branch and refuse
 when `learnings.enabled` is not `true`. Neither **merges two distinct findings** — that is a human
 act. Zero findings is normal; kills are not recorded.
 
@@ -52,7 +52,7 @@ act. Zero findings is normal; kills are not recorded.
 
 Tiering criterion: *"will the agent know to search for this?"* A rule that must fire
 **unprompted** graduates; a war story stays in retrieval. A candidate carries
-`promotion_state: candidate` on the `docket` branch and **never touches the integration branch**
+`promotion_state: candidate` on the metadata branch and **never touches the integration branch**
 (ADR-0005). A human lands the graduation in the integration-branch agent-instructions file
 (`AGENTS.md`/`CLAUDE.md`, symlink-aware; `AGENTS.md` is the neutral spelling when neither
 exists) and flips `promoted` + `promoted_to:`. A promoted finding leaves the topic groups for a

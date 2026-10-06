@@ -43,7 +43,7 @@ One validated transaction lands atomically, in a single metadata commit: the nex
 
 **Return the number** — read the allocated ADR id from the operation's result envelope so the caller (e.g. `docket-implement-next` step 6) can cite it in the change's `adrs:` field.
 
-**Where an ADR lives** — the ADR and its index live on the `docket` branch; no ADR, change-tied or standalone, is copied to the integration branch.
+**Where an ADR lives** — the ADR and its index live on the metadata branch; no ADR, change-tied or standalone, is copied to the integration branch.
 
 ### Supersede / reverse
 
@@ -59,7 +59,7 @@ adr.supersede  --request -   # resolve argv from the capability catalog
 - `target` — the ADR being replaced, as `{id, path, revision}`. The target must be `Accepted`, else the transaction refuses.
 - `successor` — the new ADR, as a full record request (the same fields as *Create*'s `ADRRecordRequest`; give it its own producing `change` if one exists).
 
-One transaction lands atomically: the new ADR (carrying its `supersedes:`/`reverses:` edge to the old one), the old ADR's `status:` line flipped to `"Superseded by ADR-NN"` / `"Reversed by ADR-NN"` (its frozen body otherwise byte-for-byte unchanged — that status value is the **only** change to the old file), and the re-rendered index. There is no separate index commit. In the index the old ADR's row shows its `Superseded by ADR-NN` / `Reversed by ADR-NN` status, and the new ADR's row (in the Active group) shows `→ supersedes ADR-NN` / `→ reverses ADR-NN`. A typed conflict or refusal returns without writing — re-read and retry rather than hand-editing. The status flip lands on the `docket` branch with the re-rendered index.
+One transaction lands atomically: the new ADR (carrying its `supersedes:`/`reverses:` edge to the old one), the old ADR's `status:` line flipped to `"Superseded by ADR-NN"` / `"Reversed by ADR-NN"` (its frozen body otherwise byte-for-byte unchanged — that status value is the **only** change to the old file), and the re-rendered index. There is no separate index commit. In the index the old ADR's row shows its `Superseded by ADR-NN` / `Reversed by ADR-NN` status, and the new ADR's row (in the Active group) shows `→ supersedes ADR-NN` / `→ reverses ADR-NN`. A typed conflict or refusal returns without writing — re-read and retry rather than hand-editing. The status flip lands on the metadata branch with the re-rendered index.
 
 ### Update note
 
@@ -81,6 +81,6 @@ surfaces the drift as a structured finding (`adr-index-stale` when the bytes dif
 repository.repair   # resolve argv from the capability catalog; previews only
 ```
 
-Repair re-renders only the canonical derived bytes it owns (marker order and balance validated first — a malformed index refuses and leaves the file untouched) and never edits an authored ADR body. It re-proves the pinned revision before writing and commits on the `docket` branch. On a git conflict on the index, re-run the repair rather than hand-merging (the regenerate-don't-3-way-merge rule).
+Repair re-renders only the canonical derived bytes it owns (marker order and balance validated first — a malformed index refuses and leaves the file untouched) and never edits an authored ADR body. It re-proves the pinned revision before writing and commits on the metadata branch. On a git conflict on the index, re-run the repair rather than hand-merging (the regenerate-don't-3-way-merge rule).
 
 Validate the ledger the same way — the `repository.check` operation runs the ADR-ledger consistency findings (numbering gaps, dangling `supersedes:`/`reverses:`/`relates_to:` links, status inconsistencies) alongside the derived-view drift findings, each as one structured finding; a non-`Repairable` finding (illegal ADR evolution, a missing referenced record) is left for manual review.

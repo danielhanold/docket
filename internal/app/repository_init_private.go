@@ -170,7 +170,10 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 	if err != nil && !unconfigured {
 		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "reading the dckt git remote", err))
 	}
-	want := o.MetadataRemote
+	want, err := absMetadataRemote(o.MetadataRemote)
+	if err != nil {
+		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "resolving the --metadata-remote path", err))
+	}
 	if want == "" && !unconfigured && sc.layout.Mode == layout.Private {
 		want = got
 	}
@@ -411,4 +414,19 @@ func ensurePrivateConfig(path, primaryWorktree string, cfg config.Effective) (bo
 		}
 		return edited, nil
 	})
+}
+
+// absMetadataRemote makes a local-path --metadata-remote absolute and clean:
+// metadata git operations run from a checkout outside the clone, so a relative
+// path stored as typed would resolve against the wrong directory. A URL
+// ("scheme://...") or an scp-style "host:path" (a colon before any slash, as
+// git reads it) is returned unchanged, as is the empty value.
+func absMetadataRemote(v string) (string, error) {
+	if v == "" || strings.Contains(v, "://") {
+		return v, nil
+	}
+	if c := strings.Index(v, ":"); c >= 0 && !strings.Contains(v[:c], "/") {
+		return v, nil
+	}
+	return filepath.Abs(v)
 }
