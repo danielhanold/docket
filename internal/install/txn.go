@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -430,6 +431,11 @@ func (t *Txn) applyStep(i int) error {
 			// deletion.
 			return t.removeManagedBlock(step)
 		}
+		if step.Kind == KindHookEntries {
+			// Likewise a hook-entries removal cuts only docket's entries out of a
+			// hooks file the user also owns.
+			return t.removeHookEntriesStep(step, target)
+		}
 		// Nothing is created on the way to a deletion, so the destination's
 		// directory is left exactly as it was found — including absent.
 		return removeIfPresent(t.fs, step.Path)
@@ -458,6 +464,24 @@ func (t *Txn) applyStep(i int) error {
 			return err
 		}
 		return t.writeThroughStaging(step, data, target.Mode)
+
+	case KindHookEntries:
+		// The same reasoning as a managed block: publishing by rename would
+		// replace a link with a regular file, so a link found here appeared after
+		// the inspection and the transaction refuses.
+		if step.PreImage.State == preSymlink {
+			return fmt.Errorf("%w: %s is a symlink, which docket never edits a hooks file through",
+				ErrInvalidTarget, step.Path)
+		}
+		existing, err := os.ReadFile(step.Path)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("reading %s: %w", step.Path, err)
+		}
+		out, err := insertHookEntries(existing, target.HookDialect, target.HookCommands)
+		if err != nil {
+			return fmt.Errorf("adding hook entries to %s: %w", step.Path, err)
+		}
+		return t.writeThroughStaging(step, out, target.Mode)
 
 	case KindSymlink:
 		// Symlink refuses an occupied path, so an update clears the old one
@@ -584,6 +608,33 @@ func (t *Txn) removeManagedBlock(step *journalStep) error {
 	}
 	// want == 0 keeps the file's recorded pre-image mode: the surrounding bytes
 	// are the user's, and so is the mode.
+	return t.writeThroughStaging(step, out, 0)
+}
+
+// removeHookEntriesStep retires docket's hook entries from a hooks file the
+// user also owns, cutting exactly those entries and keeping every other byte.
+// It mirrors removeManagedBlock, and rewrites the file only when a cut was made.
+func (t *Txn) removeHookEntriesStep(step *journalStep, target Target) error {
+	switch step.PreImage.State {
+	case preAbsent:
+		// The hooks file is already gone: nothing is left to retire.
+		return nil
+	case preSymlink:
+		return fmt.Errorf("%w: %s is a symlink, which docket never edits a hooks file through",
+			ErrInvalidTarget, step.Path)
+	}
+	existing, err := os.ReadFile(step.Path)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", step.Path, err)
+	}
+	out, err := removeHookEntries(existing, target.HookDialect, target.HookCommands)
+	if err != nil {
+		return fmt.Errorf("removing hook entries from %s: %w", step.Path, err)
+	}
+	if bytes.Equal(out, existing) {
+		return nil
+	}
+	// want == 0 keeps the file's pre-image mode: the file is the user's.
 	return t.writeThroughStaging(step, out, 0)
 }
 
@@ -1037,6 +1088,20 @@ func removalTarget(rec TargetRecord) (Target, error) {
 			Kind:      rec.Kind,
 			BlockName: rec.BlockName,
 			Role:      rec.Role,
+		}, nil
+	case KindHookEntries:
+		// The commands are what the removal cuts, so a record without them
+		// describes no deletable thing.
+		if len(rec.HookCommands) == 0 {
+			return Target{}, fmt.Errorf("%w: %s is recorded as hook entries with no commands",
+				ErrInvalidTarget, rec.Path)
+		}
+		return Target{
+			Path:         rec.Path,
+			Kind:         rec.Kind,
+			HookDialect:  rec.HookDialect,
+			HookCommands: append([]string(nil), rec.HookCommands...),
+			Role:         rec.Role,
 		}, nil
 	default:
 		return Target{}, fmt.Errorf("%w: %s is recorded as %q, which a transaction never deletes",

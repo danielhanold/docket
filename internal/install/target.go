@@ -19,7 +19,12 @@ type Target struct {
 	LinkTarget string // KindSymlink: desired destination (canonicalised by the planner)
 	BlockName  string // KindManagedBlock: marker name ("dispatch")
 	Annotation string // KindManagedBlock: start-marker annotation
-	Role       string
+	// HookDialect and HookCommands are KindHookEntries only: the hooks-file
+	// shape (HookDialectClaude, HookDialectCursor) and the exact commands, in
+	// install order, whose entries the target owns in that one file.
+	HookDialect  string
+	HookCommands []string
+	Role         string
 	// Mode overrides the permissions an applied KindFile target is published
 	// with. Zero means "the installer's policy": the mode an updated file
 	// already had, else 0o644. It exists for the one target whose usefulness
@@ -60,6 +65,9 @@ func (t Target) validate() error {
 	case !filepath.IsAbs(t.Path):
 		return fmt.Errorf("%w: path %q is not absolute", ErrInvalidTarget, t.Path)
 	}
+	if t.Kind != KindHookEntries && (t.HookDialect != "" || len(t.HookCommands) > 0) {
+		return fmt.Errorf("%w: %s is a %s target carrying hook-entries fields", ErrInvalidTarget, t.Path, t.Kind)
+	}
 	switch t.Kind {
 	case KindFile:
 		return nil
@@ -74,6 +82,14 @@ func (t Target) validate() error {
 	case KindManagedBlock:
 		if t.BlockName == "" {
 			return fmt.Errorf("%w: %s is a managed block with no block name", ErrInvalidTarget, t.Path)
+		}
+		return nil
+	case KindHookEntries:
+		if t.BlockName != "" || t.LinkTarget != "" {
+			return fmt.Errorf("%w: %s is a hook-entries target carrying a block name or link target", ErrInvalidTarget, t.Path)
+		}
+		if err := checkHookFields(t.HookDialect, t.HookCommands); err != nil {
+			return fmt.Errorf("%w: %s: %v", ErrInvalidTarget, t.Path, err)
 		}
 		return nil
 	default:
@@ -105,6 +121,10 @@ func RecordFor(t Target) (TargetRecord, error) {
 	case KindManagedBlock:
 		rec.BlockName = t.BlockName
 		rec.SHA256 = interiorDigest(t.Content)
+	case KindHookEntries:
+		rec.HookDialect = t.HookDialect
+		rec.HookCommands = append([]string(nil), t.HookCommands...)
+		rec.SHA256 = hookEntriesDigest(t.HookDialect, t.HookCommands)
 	}
 	return rec, nil
 }
