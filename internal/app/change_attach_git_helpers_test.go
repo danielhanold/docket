@@ -6,6 +6,7 @@ package app
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/domain"
@@ -32,12 +33,18 @@ func changeByPath(t *testing.T, pin StatusPin, corpus []StatusBlob, path string)
 }
 
 // attachBacklinkBlock renders the docket:backlink block the operation expects at
-// the head of an artifact, targeting change id/title at recPath. It mirrors
-// render.BacklinkContent's repo-relative shape exactly (no RepoWebURL is
-// configured in these fixtures), so a happy plan round-trips through verification.
-func attachBacklinkBlock(id int, title, recPath string) string {
+// the head of the metadata-branch artifact at artifactPath, targeting change
+// id/title at recPath: the link is recPath relative to the artifact's own
+// directory (render.ArtifactBacklinkContent's shape). The relative path comes
+// from the standard library's filepath.Rel, an oracle independent of the
+// renderer, so a happy plan round-trips through verification.
+func attachBacklinkBlock(id int, title, recPath, artifactPath string) string {
+	rel, err := filepath.Rel(filepath.Dir(artifactPath), recPath)
+	if err != nil {
+		panic(fmt.Sprintf("attachBacklinkBlock: %v", err))
+	}
 	return "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
-		fmt.Sprintf("> ↩ **Change %04d — %s** — `%s`\n", id, title, recPath) +
+		fmt.Sprintf("> ↩ **[Change %04d — %s](%s)**\n", id, title, filepath.ToSlash(rel)) +
 		"<!-- docket:backlink:end -->\n"
 }
 
@@ -46,8 +53,8 @@ func attachBacklinkBlock(id int, title, recPath string) string {
 // acceptance — a plan that instructs about a token, and the human-approved
 // ambiguous decision sentence, both attach; only a whole-slot bare-token filler
 // refuses). Every slot here holds substantive content.
-func attachHappyPlan(id int, title, recPath string) string {
-	return attachBacklinkBlock(id, title, recPath) + "\n" + attachHappyPlanBody()
+func attachHappyPlan(id int, title, recPath, planPath string) string {
+	return attachBacklinkBlock(id, title, recPath, planPath) + "\n" + attachHappyPlanBody()
 }
 
 // attachHappyPlanBody is attachHappyPlan's authored body without the backlink

@@ -236,8 +236,8 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	}
 
 	// (7) Assemble the PR body: authored prose preserved byte-for-byte, only the
-	// backlink block inserted/replaced.
-	body, err := assemblePRBody([]byte(req.Body), backlink)
+	// backlink block and the plan/results links block inserted/replaced.
+	body, err := assemblePRBody([]byte(req.Body), backlink, render.PRArtifactLinksContent(change, link))
 	if err != nil {
 		return prRefusal(ResultInvalidState, ReasonPRBodyAssemblyFailed, err.Error(), req.ID)
 	}
@@ -350,30 +350,65 @@ func resolvePRChange(ctx context.Context, deps PlanningDeps, repoDir string, id 
 	return c, linkContextOf(pin), nil
 }
 
-// assemblePRBody weaves the Docket-owned backlink block into the authored PR
-// prose: inserted at the top (or replaced in place if already present) through
-// the loss-preserving document patch API, so every authored byte outside that
-// block — including any build-evidence block the author wrote — is preserved
-// exactly. A malformed managed-block population in the authored body fails the
-// parse and returns no bytes.
-func assemblePRBody(authored []byte, backlink string) ([]byte, error) {
+// assemblePRBody weaves the Docket-owned blocks into the authored PR prose
+// through the loss-preserving document patch API: the backlink block at the top
+// (or replaced in place if already present), followed by the docket:artifacts
+// block carrying artifacts — the absolute plan/results links — when it is not
+// "" (an existing artifacts block is replaced in place). Every authored byte
+// outside those blocks is preserved exactly. A malformed managed-block
+// population in the authored body fails the parse and returns no bytes.
+//
+// The patch API inserts only at the document's top, so a new artifacts block
+// lands there first and the backlink is then inserted above it; a body that
+// already carries a backlink but no artifacts block has its backlink lifted
+// back to the top above the new artifacts block.
+func assemblePRBody(authored []byte, backlink, artifacts string) ([]byte, error) {
 	doc, err := document.Parse(authored)
 	if err != nil {
 		return nil, err
 	}
-	interior := backlinkInterior(backlink)
-	var ps document.PatchSet
-	if _, ok := doc.Block(backlinkBlockName); ok {
-		ps.ReplaceBlock(backlinkBlockName, interior)
-	} else {
-		at := document.AtDocumentStart
-		if doc.HasFrontmatter() {
-			at = document.AfterFrontmatter
-		}
-		ps.InsertBlock(backlinkBlockName, backlinkBlockAnnotation, interior, at)
+	top := document.AtDocumentStart
+	if doc.HasFrontmatter() {
+		top = document.AfterFrontmatter
 	}
-	return doc.Apply(ps)
+	interior := backlinkInterior(backlink)
+	_, hasBacklink := doc.Block(backlinkBlockName)
+	_, hasArtifacts := doc.Block(prArtifactsBlockName)
+	insertArtifacts := !hasArtifacts && artifacts != ""
+
+	var ps document.PatchSet
+	switch {
+	case hasArtifacts:
+		ps.ReplaceBlock(prArtifactsBlockName, artifacts)
+	case insertArtifacts:
+		ps.InsertBlock(prArtifactsBlockName, backlinkBlockAnnotation, artifacts, top)
+	}
+	insertBacklink := !hasBacklink
+	if hasBacklink {
+		if insertArtifacts {
+			ps.RemoveBlock(backlinkBlockName)
+			insertBacklink = true
+		} else {
+			ps.ReplaceBlock(backlinkBlockName, interior)
+		}
+	}
+	out, err := doc.Apply(ps)
+	if err != nil || !insertBacklink {
+		return out, err
+	}
+
+	doc2, err := document.Parse(out)
+	if err != nil {
+		return nil, err
+	}
+	var ps2 document.PatchSet
+	ps2.InsertBlock(backlinkBlockName, backlinkBlockAnnotation, interior, top)
+	return doc2.Apply(ps2)
 }
+
+// prArtifactsBlockName is the PR description's managed block that links the
+// change's plan and results on the metadata branch (render.PRArtifactLinksContent).
+const prArtifactsBlockName = "artifacts"
 
 // prResultFromEnsure maps a value disposition onto the protocol taxonomy, carrying
 // the verified PR snapshot's canonical fields (never its body). created/updated are

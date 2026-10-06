@@ -57,7 +57,7 @@ const attachTestPlanMarkdown = "# Plan\n\n## Task 1\n\nDo it.\n"
 func planAttachOp(t *testing.T, surfaces []string, markdown string) changeAttachOp {
 	t.Helper()
 	op := baseAttachOp(surfaces, 3, attachKindPlan, attachTestPlanPath)
-	artifact, err := metadataArtifactBytes([]byte(markdown), attachBacklinkBlock(3, "A change", groomPath(3, "widget")))
+	artifact, err := metadataArtifactBytes([]byte(markdown), attachBacklinkBlock(3, "A change", groomPath(3, "widget"), attachTestPlanPath))
 	if err != nil {
 		t.Fatalf("metadataArtifactBytes: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestAttachPlanWritesFileFieldAndBacklink(t *testing.T) {
 	if strings.Contains(rec, "results: '") {
 		t.Errorf("attach-plan wrote a results field:\n%s", rec)
 	}
-	want := assembleSpecFile(attachBacklinkBlock(3, "A change", recPath), attachTestPlanMarkdown)
+	want := assembleSpecFile(attachBacklinkBlock(3, "A change", recPath, attachTestPlanPath), attachTestPlanMarkdown)
 	if got := plannedFile(t, plan, attachTestPlanPath).Bytes; string(got) != string(want) {
 		t.Errorf("plan file bytes =\n%q\nwant\n%q", got, want)
 	}
@@ -134,8 +134,8 @@ func TestAttachPlanWritesFileFieldAndBacklink(t *testing.T) {
 // exactly one backlink block, the freshly rendered one — and that re-assembling
 // the stored bytes is a fixed point, so a read-back resubmission is no change.
 func TestAttachPlanStripsSubmittedBacklink(t *testing.T) {
-	fresh := attachBacklinkBlock(3, "A change", groomPath(3, "widget"))
-	stale := attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md")
+	fresh := attachBacklinkBlock(3, "A change", groomPath(3, "widget"), attachTestPlanPath)
+	stale := attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md", attachTestPlanPath)
 	got, err := metadataArtifactBytes([]byte(stale+"\n"+attachTestPlanMarkdown), fresh)
 	if err != nil {
 		t.Fatalf("metadataArtifactBytes: %v", err)
@@ -163,7 +163,7 @@ func TestAttachPlanStripsSubmittedBacklink(t *testing.T) {
 // or engine work — nothing is declared.
 func TestAttachPlanRefusesMalformedBacklink(t *testing.T) {
 	bad := "<!-- docket:backlink:start (generated — do not hand-edit) -->\n> ↩ dangling\n\n# Plan\n\nSteps.\n"
-	if _, err := metadataArtifactBytes([]byte(bad), attachBacklinkBlock(3, "A change", groomPath(3, "widget"))); err == nil {
+	if _, err := metadataArtifactBytes([]byte(bad), attachBacklinkBlock(3, "A change", groomPath(3, "widget"), attachTestPlanPath)); err == nil {
 		t.Errorf("metadataArtifactBytes accepted malformed backlink markers")
 	}
 	res, engine, reader := runAttachPlanUnit(t, ChangeAttachRequest{ID: 3, Revision: blobV, Path: attachTestPlanPath, Markdown: []byte(bad)})
@@ -222,7 +222,7 @@ func TestAttachPlanRefusesOccupiedPath(t *testing.T) {
 	t.Run("another change's file refuses", func(t *testing.T) {
 		files := map[string]string{
 			recPath:            lifecycleChange(3, "widget", "in-progress"),
-			attachTestPlanPath: attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md") + "\n# Other plan\n",
+			attachTestPlanPath: attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md", attachTestPlanPath) + "\n# Other plan\n",
 		}
 		_, opRes := attachPlanFor(t, files, planAttachOp(t, nil, attachTestPlanMarkdown))
 		if code := refusalCode(t, opRes); code != ReasonAttachPathOccupied {
@@ -242,7 +242,7 @@ func TestAttachPlanRefusesOccupiedPath(t *testing.T) {
 	t.Run("this change's own file is replaced", func(t *testing.T) {
 		files := map[string]string{
 			recPath:            lifecycleChange(3, "widget", "in-progress"),
-			attachTestPlanPath: attachBacklinkBlock(3, "A change", recPath) + "\n# Older plan\n",
+			attachTestPlanPath: attachBacklinkBlock(3, "A change", recPath, attachTestPlanPath) + "\n# Older plan\n",
 		}
 		plan, opRes := attachPlanFor(t, files, planAttachOp(t, nil, attachTestPlanMarkdown))
 		if opRes.Refused {
@@ -393,7 +393,7 @@ const attachTestResultsMarkdown = "# Widget — Results\n\n## Outcome\n\nDeliver
 func resultsAttachOp(t *testing.T, surfaces []string, markdown string) changeAttachOp {
 	t.Helper()
 	op := baseAttachOp(surfaces, 3, attachKindResults, attachTestResultsPath)
-	artifact, err := metadataArtifactBytes([]byte(markdown), attachBacklinkBlock(3, "A change", groomPath(3, "widget")))
+	artifact, err := metadataArtifactBytes([]byte(markdown), attachBacklinkBlock(3, "A change", groomPath(3, "widget"), attachTestResultsPath))
 	if err != nil {
 		t.Fatalf("metadataArtifactBytes: %v", err)
 	}
@@ -423,7 +423,7 @@ func TestAttachResultsWritesFileAndField(t *testing.T) {
 	if strings.Contains(rec, "plan: '") {
 		t.Errorf("attach-results wrote a plan field:\n%s", rec)
 	}
-	want := assembleSpecFile(attachBacklinkBlock(3, "A change", recPath), attachTestResultsMarkdown)
+	want := assembleSpecFile(attachBacklinkBlock(3, "A change", recPath, attachTestResultsPath), attachTestResultsMarkdown)
 	if got := plannedFile(t, plan, attachTestResultsPath).Bytes; string(got) != string(want) {
 		t.Errorf("results file bytes =\n%q\nwant\n%q", got, want)
 	}

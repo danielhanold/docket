@@ -211,6 +211,140 @@ func TestIntegrationRepoRepairAppliesOneDescendantCommit(t *testing.T) {
 	}
 }
 
+// --- one-time relative-link conversion --------------------------------------
+
+const (
+	convertActivePath = "docs/changes/active/0001-example.md"
+	convertLegacyPath = "docs/changes/archive/2026-01-02-0002-legacy.md"
+	convertADRPath    = "docs/adrs/0001-first-decision.md"
+	convertWebBase    = "https://github.com/acme/widgets/blob/"
+)
+
+// convertActiveRecord is an active change whose ## Artifacts block was written
+// before same-branch links became relative: its spec and ADR rows are absolute
+// metadata-branch URLs.
+func convertActiveRecord() string {
+	return "---\n" +
+		"id: 1\nslug: example\ntitle: Example change\nstatus: proposed\npriority: medium\n" +
+		"type: feature\ncreated: 2026-08-30\nupdated: 2026-08-30\nadrs: [1]\n" +
+		"spec: docs/superpowers/specs/2026-08-30-example-design.md\n" +
+		"---\n\n## Artifacts\n\n" +
+		"<!-- docket:artifacts:start (generated — do not hand-edit) -->\n" +
+		"| Artifact | Link |\n|---|---|\n" +
+		"| Spec | [2026-08-30-example-design.md](" + convertWebBase + "docket/docs/superpowers/specs/2026-08-30-example-design.md) |\n" +
+		"| ADRs | [ADR-0001](" + convertWebBase + "docket/docs/adrs/0001-first-decision.md) |\n" +
+		"<!-- docket:artifacts:end -->\n\n## Why\n\n" + repairAuthoredSentinel + "\n"
+}
+
+// convertLegacyPlanRow and convertLegacyResultsRow are a legacy done record's
+// Plan/Results rows: its files merged to the integration branch, so the rows are
+// absolute there and must survive the conversion byte-identical.
+const (
+	convertLegacyPlanRow    = "| Plan | [2026-01-02-legacy.md](" + convertWebBase + "main/docs/superpowers/plans/2026-01-02-legacy.md) |"
+	convertLegacyResultsRow = "| Results | [2026-01-02-legacy-results.md](" + convertWebBase + "main/docs/results/2026-01-02-legacy-results.md) |"
+)
+
+// convertLegacyRecord is a legacy done archived record (no "## Build evidence"
+// section) whose block carries the old absolute spec/ADR rows and its
+// integration-branch Plan/Results rows.
+func convertLegacyRecord() string {
+	return "---\n" +
+		"id: 2\nslug: legacy\ntitle: Legacy change\nstatus: done\npriority: medium\n" +
+		"type: feature\ncreated: 2026-01-01\nupdated: 2026-01-02\nadrs: [1]\n" +
+		"spec: docs/superpowers/specs/2026-01-02-legacy-design.md\n" +
+		"plan: docs/superpowers/plans/2026-01-02-legacy.md\n" +
+		"results: docs/results/2026-01-02-legacy-results.md\n" +
+		"---\n\n## Artifacts\n\n" +
+		"<!-- docket:artifacts:start (generated — do not hand-edit) -->\n" +
+		"| Artifact | Link |\n|---|---|\n" +
+		"| Spec | [2026-01-02-legacy-design.md](" + convertWebBase + "docket/docs/superpowers/specs/2026-01-02-legacy-design.md) |\n" +
+		convertLegacyPlanRow + "\n" +
+		convertLegacyResultsRow + "\n" +
+		"| ADRs | [ADR-0001](" + convertWebBase + "docket/docs/adrs/0001-first-decision.md) |\n" +
+		"<!-- docket:artifacts:end -->\n\n## Why\n\nLegacy body.\n"
+}
+
+// TestIntegrationRepoRepairConvertsAbsoluteSameBranchLinksOnce is the one-time
+// conversion (spec acceptance 6) against real git with a GitHub-shaped origin:
+// check reports both records' absolute same-branch rows as artifact-links-stale,
+// one authorized repair lands exactly one metadata commit that makes the active
+// record's rows relative and the legacy record's spec/ADR rows relative while
+// its Plan/Results rows keep pointing at the integration branch, and a second
+// repair is a clean no-op.
+func TestIntegrationRepoRepairConvertsAbsoluteSameBranchLinksOnce(t *testing.T) {
+	r := newHealthyRepo(t)
+	// origin's CONFIGURED url is the GitHub spelling (so the link context carries
+	// a web URL); insteadOf routes every fetch/push to the local bare origin.
+	runGit(t, r.invocation, "remote", "set-url", "origin", "https://github.com/acme/widgets.git")
+	runGit(t, r.invocation, "config", "url."+r.origin+".insteadOf", "https://github.com/acme/widgets.git")
+
+	dotDocket := filepath.Join(r.invocation, ".docket")
+	writeRepoFile(t, dotDocket, convertADRPath, "---\nid: 1\nslug: first-decision\nstatus: Accepted\ntitle: First decision\n---\nContext.\n")
+	writeRepoFile(t, dotDocket, convertActivePath, convertActiveRecord())
+	writeRepoFile(t, dotDocket, convertLegacyPath, convertLegacyRecord())
+	runGit(t, dotDocket, "add", "--", convertADRPath, convertActivePath, convertLegacyPath)
+	runGit(t, dotDocket, "commit", "-q", "-m", "publish records with absolute same-branch links")
+	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
+
+	stale := map[string]bool{}
+	for _, f := range r.runCheck(t).Findings {
+		if f.Code == reposetup.CodeArtifactLinksStale {
+			stale[f.Ref] = true
+		}
+	}
+	for _, p := range []string{convertActivePath, convertLegacyPath} {
+		if !stale[p] {
+			t.Errorf("check did not report artifact-links-stale for %s; stale refs: %v", p, keysOf(stale))
+		}
+	}
+
+	before := currentDocketTip(t, r)
+	res := r.runRepair(t, RepairOptions{Authorized: true})
+	if res.Result != ResultApplied {
+		t.Fatalf("repair = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	after := currentDocketTip(t, r)
+	if parent := runGit(t, r.invocation, "rev-parse", after+"^"); parent != before {
+		t.Errorf("repair commit parent = %s, want the pinned tip %s (exactly one metadata commit)", parent, before)
+	}
+
+	active := showDocketFile(t, r, convertActivePath)
+	for _, row := range []string{
+		"| Spec | [2026-08-30-example-design.md](../../superpowers/specs/2026-08-30-example-design.md) |",
+		"| ADRs | [ADR-0001](../../adrs/0001-first-decision.md) |",
+	} {
+		if !strings.Contains(active, row) {
+			t.Errorf("active record missing relative row %q:\n%s", row, active)
+		}
+	}
+	if strings.Contains(active, "/blob/") || !strings.Contains(active, repairAuthoredSentinel) {
+		t.Errorf("active record must carry no absolute row and its untouched prose:\n%s", active)
+	}
+
+	legacy := showDocketFile(t, r, convertLegacyPath)
+	for _, row := range []string{
+		"| Spec | [2026-01-02-legacy-design.md](../../superpowers/specs/2026-01-02-legacy-design.md) |",
+		convertLegacyPlanRow,
+		convertLegacyResultsRow,
+		"| ADRs | [ADR-0001](../../adrs/0001-first-decision.md) |",
+	} {
+		if !strings.Contains(legacy, row) {
+			t.Errorf("legacy record missing row %q:\n%s", row, legacy)
+		}
+	}
+	if strings.Contains(legacy, convertWebBase+"docket/") {
+		t.Errorf("legacy record still carries an absolute metadata-branch row:\n%s", legacy)
+	}
+
+	second := r.runRepair(t, RepairOptions{Authorized: true})
+	if second.Result != ResultNoOp {
+		t.Errorf("second repair = %q (%s), want no-op", second.Result, second.HumanText())
+	}
+	if got := currentDocketTip(t, r); got != after {
+		t.Errorf("the second repair moved the docket branch %s -> %s", after, got)
+	}
+}
+
 // TestIntegrationRepoRepairMovedTipIsContended proves an authorized run pinned to
 // a preview's tip, after a concurrent write moved the docket branch, is contended
 // and overwrites nothing.

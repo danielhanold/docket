@@ -201,15 +201,58 @@ func TestChangeKillPlanRetargetsSpecBacklink(t *testing.T) {
 	})
 
 	spec := killRecordBytes(t, plan, specPath)
-	if !strings.Contains(spec, archivePath) {
-		t.Errorf("spec backlink not retargeted to the archive path:\n%s", spec)
+	if want := "> ↩ **[Change 0003 — A change](../../changes/archive/2026-08-16-0003-widget.md)**"; !strings.Contains(spec, want) {
+		t.Errorf("spec backlink not retargeted to the archive path (want %q):\n%s", want, spec)
 	}
-	if strings.Contains(spec, recPath) {
+	if strings.Contains(spec, "0003-widget.md`") || strings.Contains(spec, "active/") {
 		t.Errorf("spec backlink still points at the active path:\n%s", spec)
 	}
 	// The authored spec body survives byte-identically.
 	if !strings.Contains(spec, "# Design\n\nBody.\n") {
 		t.Errorf("spec body not preserved:\n%s", spec)
+	}
+}
+
+// TestChangeKillPlanRetargetsPlanAndResultsBacklinks: a killed change's plan and
+// results live on the metadata branch beside its spec, so the kill retargets
+// their backlinks to the archive path in the same plan, each relative to its own
+// file's directory; an artifact whose block is already current is not declared.
+func TestChangeKillPlanRetargetsPlanAndResultsBacklinks(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	planPath := "docs/superpowers/plans/2026-08-01-widget.md"
+	resultsPath := "docs/results/2026-08-01-widget-results.md"
+	src := lifecycleChange(3, "widget", "in-progress")
+	src = strings.Replace(src, "plan:\n", "plan: '"+planPath+"'\n", 1)
+	src = strings.Replace(src, "results:\n", "results: '"+resultsPath+"'\n", 1)
+
+	activeBlock := func(rel string) string {
+		return "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
+			"> ↩ **[Change 0003 — A change](" + rel + ")**\n" +
+			"<!-- docket:backlink:end -->\n"
+	}
+	files := map[string]string{
+		recPath:     src,
+		planPath:    activeBlock("../../changes/active/0003-widget.md") + "\n# Plan\n\nSteps.\n",
+		resultsPath: activeBlock("../changes/active/0003-widget.md") + "\n# Results\n\nOutcome.\n",
+	}
+	plan, opRes := killPlanFor(t, files, baseKillOp([]string{}, 3, recPath, "Superseded.\n"))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	archivePath := killArchivePath(3, "widget")
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		archivePath: transaction.MutationCreate,
+		recPath:     transaction.MutationDelete,
+		planPath:    transaction.MutationReplace,
+		resultsPath: transaction.MutationReplace,
+	})
+	for p, want := range map[string]string{
+		planPath:    activeBlock("../../changes/archive/2026-08-16-0003-widget.md") + "\n# Plan\n\nSteps.\n",
+		resultsPath: activeBlock("../changes/archive/2026-08-16-0003-widget.md") + "\n# Results\n\nOutcome.\n",
+	} {
+		if got := killRecordBytes(t, plan, p); got != want {
+			t.Errorf("%s after kill =\n%q\nwant\n%q", p, got, want)
+		}
 	}
 }
 

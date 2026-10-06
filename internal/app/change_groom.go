@@ -765,10 +765,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	}
 
 	if o.req.Outcome == GroomSpec {
-		backlink, err := render.BacklinkContent(gc, o.link)
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: rendering spec backlink: %w", err)
-		}
+		backlink := render.ArtifactBacklinkContent(gc, specPath)
 		specBytes := assembleSpecFile(backlink, o.req.SpecMarkdown)
 		files = append(files, transaction.FileMutation{
 			Path: gitcli.RepoPath(specPath), Kind: transaction.MutationCreate, Bytes: specBytes,
@@ -777,10 +774,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	if reviseSpec {
 		// Whole-body replace at the change's existing linked spec path; the
 		// backlink block is re-rendered exactly as the spec outcome writes it.
-		backlink, err := render.BacklinkContent(gc, o.link)
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: rendering spec backlink: %w", err)
-		}
+		backlink := render.ArtifactBacklinkContent(gc, c.Spec().Value)
 		// An identical spec body is not an actual change; skip the declaration.
 		if specBytes := assembleSpecFile(backlink, o.req.SpecMarkdown); !bytes.Equal(specBytes, existingSpec) {
 			files = append(files, transaction.FileMutation{
@@ -794,7 +788,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	// actually changed, the change links a spec, and nothing else writes that
 	// spec in this plan — declaring the spec path at most once.
 	if gc.Title() != c.Title() && c.Spec().Value != "" && o.req.Outcome != GroomSpec && !reviseSpec {
-		updated, changed, code, msg, err := restampSpecBacklink(ctx, st.Tree, c.Spec().Value, gc, o.link)
+		updated, changed, code, msg, err := restampSpecBacklink(ctx, st.Tree, c.Spec().Value, gc)
 		if err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, err
 		}
@@ -897,7 +891,7 @@ func assembleSpecFile(backlink, markdown string) []byte {
 // spec-backlink-malformed; a spec without the block refuses
 // spec-backlink-missing — a block is never silently inserted. changed reports
 // whether the bytes differ, so an unchanged spec is never declared.
-func restampSpecBacklink(ctx context.Context, tree transaction.Tree, specPath string, gc domain.Change, link render.LinkContext) (updated []byte, changed bool, refuseCode, refuseMsg string, err error) {
+func restampSpecBacklink(ctx context.Context, tree transaction.Tree, specPath string, gc domain.Change) (updated []byte, changed bool, refuseCode, refuseMsg string, err error) {
 	blob, _, exists, err := treeBlob(ctx, tree, specPath)
 	if err != nil {
 		return nil, false, "", "", err
@@ -915,10 +909,7 @@ func restampSpecBacklink(ctx context.Context, tree transaction.Tree, specPath st
 		return nil, false, "spec-backlink-missing",
 			fmt.Sprintf("spec %q has no docket:backlink block to re-stamp with the new title; revise the spec body (send spec_markdown with the current body plus spec_revision and title together) to rebuild the backlink block in one transaction", specPath), nil
 	}
-	block, err := render.BacklinkContent(gc, link)
-	if err != nil {
-		return nil, false, "", "", fmt.Errorf("change groom: rendering spec backlink: %w", err)
-	}
+	block := render.ArtifactBacklinkContent(gc, specPath)
 	var ps document.PatchSet
 	ps.ReplaceBlock(backlinkBlockName, backlinkInterior(block))
 	out, aerr := doc.Apply(ps)

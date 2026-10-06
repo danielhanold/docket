@@ -330,7 +330,7 @@ func TestChangeCreatePlanFillsArtifactBlockForADRs(t *testing.T) {
 	if !strings.Contains(body, "| ADRs |") {
 		t.Errorf("artifact block missing ADRs row:\n%s", body)
 	}
-	if !strings.Contains(body, "docs/adrs/0001-a-decision.md") {
+	if !strings.Contains(body, "| ADRs | [ADR-0001](../../adrs/0001-a-decision.md) |") {
 		t.Errorf("ADR reference not resolved into the artifact block:\n%s", body)
 	}
 }

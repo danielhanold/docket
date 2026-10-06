@@ -308,7 +308,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		return implementedRefusal(ResultInvalidState, ReasonImplementedResultsMissing,
 			fmt.Sprintf("change %04d has no attached results artifact; author and attach the final results before marking implemented", req.ID), req.ID)
 	}
-	if r := verifyImplementedResults(ctx, deps, pin, resultsPath, c, linkContextOf(pin), req.ID); r != nil {
+	if r := verifyImplementedResults(ctx, deps, pin, resultsPath, c, req.ID); r != nil {
 		return *r
 	}
 
@@ -412,7 +412,7 @@ func resolveImplementedChange(ctx context.Context, deps PlanningDeps, pin Status
 // the first finding). The presence reprobe catches a record whose results file
 // was deleted or never written; the backlink and content reprobes catch results
 // edited away from the checkpoint attach-results validated.
-func verifyImplementedResults(ctx context.Context, deps PlanningDeps, pin StatusPin, resultsPath string, ch domain.Change, link render.LinkContext, id int) *ChangeLifecycleResult {
+func verifyImplementedResults(ctx context.Context, deps PlanningDeps, pin StatusPin, resultsPath string, ch domain.Change, id int) *ChangeLifecycleResult {
 	art, err := deps.Reader.ReadArtifact(ctx, pin, sourceMetadata, resultsPath)
 	if err != nil {
 		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsIdentity, err.Error(), id)
@@ -427,7 +427,7 @@ func verifyImplementedResults(ctx context.Context, deps PlanningDeps, pin Status
 	artifactBytes := art.Data
 
 	// The artifact must still carry this change's backlink.
-	targets, err := backlinkTargets(artifactBytes, ch, link)
+	targets, err := backlinkTargets(artifactBytes, ch, resultsPath)
 	if err != nil {
 		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsIdentity,
 			fmt.Sprintf("the attached results artifact %q has a malformed or unreadable backlink on the metadata branch: %v", resultsPath, err), id)

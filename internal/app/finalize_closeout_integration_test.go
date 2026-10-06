@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -504,9 +505,14 @@ func TestIntegrationFinalizeArchiveOrdinary(t *testing.T) {
 				t.Errorf("archived record dropped its historical PR field:\n%s", archived)
 			}
 
-			// The spec backlink (metadata ref) retargets to the archive path.
+			// The spec backlink (metadata ref) retargets to the archive path,
+			// relative to the spec's own directory.
 			spec, _ := originFile(t, f.repo.origin, f.branch, f.specPath)
-			if !strings.Contains(spec, archivePath) || strings.Contains(spec, "`"+recPath+"`") {
+			relArchive, err := filepath.Rel(filepath.Dir(f.specPath), archivePath)
+			if err != nil {
+				t.Fatalf("relative archive path: %v", err)
+			}
+			if !strings.Contains(spec, "]("+filepath.ToSlash(relArchive)+")**") || strings.Contains(spec, "`"+recPath+"`") {
 				t.Errorf("spec backlink not retargeted to the archive path:\n%s", spec)
 			}
 
