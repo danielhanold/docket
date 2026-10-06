@@ -2,11 +2,11 @@
 id: 530
 slug: 'keep-plan-results-and-build-evidence-on-the-metadata-branch'
 title: 'Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
-updated: '2026-10-05'
+updated: '2026-10-06'
 depends_on: []
 stacked_on:
 related: [417, 415, 410, 391, 337, 330, 529, 531, 532, 533]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/keep-plan-results-and-build-evidence-on-the-metadata-branch'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-06T02:27:21Z'
 ---
 
 ## Artifacts
