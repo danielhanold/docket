@@ -1,12 +1,12 @@
 # Backlog
 
-**535 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 370 done · 🗑️ 139 killed
+**535 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 370 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0534](active/0534-install-an-alias-for-the-docket-binary.md) | Install an alias for the docket binary | `medium` | `feat` | [spec](../superpowers/specs/2026-10-06-install-an-alias-for-the-docket-binary-design.md) | `feat/install-an-alias-for-the-docket-binary` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0534](active/0534-install-an-alias-for-the-docket-binary.md) | Install an alias for the docket binary | `medium` | `feat` | [#400](https://github.com/danielhanold/docket/pull/400) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -20,7 +20,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0535](active/0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | `medium` | `feat` | ⏳ waiting on #534 — not yet built |
+| [0535](active/0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | `medium` | `feat` | ⏳ waiting on #534 — needs your merge |
 | [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | ⏳ waiting on #535 — not yet built |
 | [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | needs-grooming |
 | [0528](active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | `medium` | `fix` | needs-grooming |

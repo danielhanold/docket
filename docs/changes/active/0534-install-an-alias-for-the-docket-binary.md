@@ -2,7 +2,7 @@
 id: 534
 slug: 'install-an-alias-for-the-docket-binary'
 title: 'Install an alias for the docket binary'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-06'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/install-an-alias-for-the-docket-binary'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/400'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-06T14:04:47Z'
@@ -63,3 +63,12 @@ There are two install paths, and both must produce the alias:
 ### 2026-10-06
 
 Reconciled against main 8ee926604. Traced internal/release/downloader/install.sh, internal/install/devmode.go, uninstall.go: no dckt alias exists anywhere yet; #529-#531 private-visibility work landed but touches neither installer. #532 (related) still proposed and is the consumer. Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 1b77b8390146ffad6503a869bf0b475fdeda8b18
+ran_at:   2026-10-06T14:46:43Z
+<!-- docket:build-evidence:end -->
