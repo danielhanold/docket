@@ -18,7 +18,7 @@ all the pieces are assembled — and leave proof that they did, so the next read
 trusts a record rather than a claim.
 
 Docket answers both halves with routing and a gate. The **plan** — the
-task-by-task breakdown a build follows, written on the feature branch — is a
+task-by-task breakdown a build follows, written on the metadata branch — is a
 list of tasks, and each is routed to a **build tier**: one of four workers
 (economy, standard, premium, max) chosen by risk. After
 the last task lands, the **build gate** — the full test-suite run at the end of a
@@ -83,10 +83,10 @@ build that must be green before review — runs the whole suite once and records
   build halts with the remedy `docket repository configure-tests` (add
   `--command "<cmd>"` when discovery cannot find the suite).
 - Build evidence is minted by `docket evidence record` from the passed run and
-  checked by `docket evidence verify`. It lives in the pull request body's
-  build-evidence block and is never committed, so the reviewer reads a durable
-  record of the gate run instead of trusting a worker's word that the suite
-  passed.
+  checked by `docket evidence verify`. The reviewer reads that record of the
+  gate run instead of trusting a worker's word that the suite passed, and when
+  the change is marked implemented the record lands in the change file's
+  `## Build evidence` section on the metadata branch, never in the code.
 
 ## The invariants
 
@@ -100,8 +100,8 @@ build that must be green before review — runs the whole suite once and records
   only the tests a single task enumerated.
 - The gate's suite command is read from configuration (`build.test_command`),
   never from a second copy, so it tests the exact checkout under review.
-- Build evidence is recorded in the pull request body before review begins, so
-  review rests on a recorded gate run rather than a claim.
+- Build evidence is recorded before review begins, so review rests on a
+  recorded gate run rather than a claim.
 - An empty test command never reads as a red suite: it halts with a remedy
   instead of manufacturing a repair task.
 

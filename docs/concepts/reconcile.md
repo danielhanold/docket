@@ -55,7 +55,9 @@ taken — and the first line of code.
   and not just in the builder's head.
 - The refreshed spec is read from the **metadata branch** — the `docket`
   git branch where the backlog, specs, and decisions are stored, separate
-  from the code — during the build, never carried on the feature branch.
+  from the code — during the build. The feature branch carries only a copy
+  of it, its first commit, so the spec reaches the integration branch with
+  the pull request.
 
 Reconcile is docket's one addition to the standard build chain that other
 AI-native workflows do not describe. The

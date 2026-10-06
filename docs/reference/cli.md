@@ -24,7 +24,6 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
 - **`docket adr`** — record, supersede, and reverse architecture decisions. Verbs: `docket adr --help`.
 - **`docket agent`** — enter harness agent roles (`docket agent enter` starts a Codex role as a
   foreground root thread). Verbs: `docket agent --help`.
-- **`docket artifact`** — render docket-managed blocks into workflow artifacts. Verbs: `docket artifact --help`.
 - **`docket capabilities`** — emit the binary's complete executable command catalog (read-only,
   repository-independent). Verbs: `docket capabilities --help`.
 - **`docket change`** — create and transition changes in the backlog. Verbs: `docket change --help`.

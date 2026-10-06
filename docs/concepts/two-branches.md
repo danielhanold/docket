@@ -49,13 +49,16 @@ before building, live under `.docket/` on the metadata branch. So does every
 accepted; the **board**, the generated overview of every change and its state,
 never edited by hand; and the **learnings**, the learnings ledger of lessons from
 past builds, curated by a human. Where changes and ADRs sit inside `.docket/`
-follows the `changes_dir` and `adrs_dir` settings. Your code checkout never sees
-any of them.
+follows the `changes_dir` and `adrs_dir` settings. The implementation plan, the
+results file, and the build evidence a build produces are written there too.
+Your code checkout sees none of them, except a copy of the change's spec, which
+the feature branch carries as its first commit so the spec merges with the code.
 
-When a change closes out, it is archived on the metadata branch only. Nothing is
-copied to the integration branch; the plan and results files that reached it
-through the feature branch's pull request keep a backlink to the change's record
-on the `docket` branch.
+Links between files on the metadata branch are relative paths. When a change
+closes out, it is archived on the metadata branch only, and the same metadata
+commit retargets the backlinks in its spec, plan, and results files to the
+archived record. Nothing is pushed to the integration branch: it receives only
+what a pull request merges.
 
 There is one metadata layout. A repository that has never used docket has no
 metadata branch, and docket refuses to work in it rather than half-initialize

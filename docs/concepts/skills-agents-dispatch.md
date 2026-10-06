@@ -59,9 +59,8 @@ and review (`docket-build`, `docket-review`). The roles are fixed.
 
 A workflow step names the agent it wants and dispatches it. Most dispatches hand
 their result back in the dispatch return. Three do not: the ADR, status, and
-plan-writer agents record their result in git — an ADR or a board refresh on the
-`docket` branch, a plan committed on the feature branch — and the caller reads
-it from there.
+plan-writer agents record their result in git — an ADR, a board refresh, or a
+plan on the `docket` branch — and the caller reads it from there.
 
 Whether a dispatch capability actually exists is resolved on the machine,
 by trying it, never guessed from a tool name. Where dispatch is genuinely

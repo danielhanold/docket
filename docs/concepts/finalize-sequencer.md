@@ -38,7 +38,7 @@ to it.
         │            └─(red)─► integration repair: minimal fix, then retest
         │                       (at most finalize.repair_max_attempts)
         ▼
-  finalize publish: push the rebased head, update the PR's build evidence
+  finalize publish: push the rebased head, record its build evidence
         │
         ▼
   finalize merge: rebase, merge commit, or squash
@@ -63,8 +63,8 @@ to it.
   test by combining two correct changes. A red suite here goes to a bounded
   integration-repair step — a minimal fix, never a weakened test — and the suite
   is re-run, at most `finalize.repair_max_attempts` times, before the sequence
-  continues. When the rebase was a no-op and the branch already carries green
-  build evidence for that exact head, produced by the same test command, the
+  continues. When the rebase was a no-op and the change record already carries
+  green build evidence for that exact head, produced by the same test command, the
   suite is not run again.
 - A repair that turns the suite green merges like any other green change; the
   run report and the archived record's closeout notes name what broke and the
@@ -73,8 +73,9 @@ to it.
   repair removes the approval and the merge waits for a fresh one.
 - `finalize.gate: off` skips the rebase and the retest entirely; the remaining
   steps still run in order.
-- Publish pushes the rebased head and updates the build-evidence block in the
-  pull request body, so the evidence names the exact commit that will merge.
+- Publish pushes the rebased head and records its build evidence in the change
+  record's `## Build evidence` section on the `docket` branch, so the evidence
+  names the exact commit that will merge. The pull request body is not touched.
 - The merge is a policy gate, kept separate from the mechanical ones: whether a
   human approval is required is configured ahead of time
   (`finalize.require_pr_approval`), and the single-maintainer path is branch
@@ -83,19 +84,18 @@ to it.
   squash.
 - Closeout proves the merge landed, then marks the change `done` and archives it
   on the `docket` branch (a stacked change merged into its parent is marked
-  `stacked-merged` instead), and retargets the backlinks in the change's spec, plan,
-  and results files to the archived record. It also repoints the backlink at the
-  top of the merged pull request's description to the archived record. A
+  `stacked-merged` instead), and in that same metadata commit retargets the
+  backlinks in the change's spec, plan, and results files to the archived record.
+  It also repoints the backlink at the top of the merged pull request's
+  description to the archived record, best-effort. A
   description edit that fails leaves a `pr-backlink-pending` finding (the change
   stays `done`), and `docket finalize cleanup` and the maintenance sweep retry it.
   The full maintenance sweep (`--scope full`) also repoints, without a preview, any
   merged pull request whose description backlink still names a change's old
   `active/` path, however long ago that change was archived;
   `docket repository repair --pr-backlinks` is the explicit way to preview and
-  repoint them all at once. Nothing is copied to the
-  integration branch. A backlink retarget that fails leaves a
-  `final-backlink-pending` finding (the change stays `done`), which
-  `docket finalize cleanup` repairs.
+  repoint them all at once. Nothing is pushed to the integration branch at
+  close-out: it receives only what a pull request merges.
 - Cleanup removes the feature branch and its worktree, and is fail-closed: it
   never leaves the repository half-destroyed, so an interrupted close-out is
   recoverable rather than a worktree gone with its change not closed out.

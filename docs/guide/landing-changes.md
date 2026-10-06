@@ -16,24 +16,27 @@ its pull request is approved or merged, `docket-finalize-change`:
    branch. A conflict goes to a conflict resolver;
 2. re-runs the test suite on the rebased branch (the finalize gate). A red suite goes to a repair
    pass, capped by `finalize.repair_max_attempts`;
-3. pushes the rebased head and updates the build evidence in the pull request
-   (`docket finalize publish`);
+3. pushes the rebased head and records its build evidence in the change record's
+   `## Build evidence` section (`docket finalize publish`);
 4. merges the pull request with the first merge method the repository permits: rebase, then merge
    commit, then squash. On a private repository whose GitHub plan has no branch rules, the method
    comes from the repository settings alone;
-5. marks the change `done` and archives it on the `docket` branch, refreshing the **board** (the
-   generated overview of every change and its state, never edited by hand);
+5. marks the change `done` and archives it on the `docket` branch in one commit that also retargets
+   the backlinks in its spec, plan, and results files, refreshing the **board** (the generated
+   overview of every change and its state, never edited by hand). The backlink at the top of the
+   merged pull request's description is repointed best-effort;
 6. cleans up the change's worktree and feature branch.
 
-Nothing is copied onto the integration branch at close-out: the change record, its spec, and its
-decisions stay on the `docket` branch.
+Nothing is pushed to the integration branch at close-out: it already holds what the pull request
+merged (the spec copy and the code), and the change record, its plan, results, and decisions stay on
+the `docket` branch.
 
 The retest is the load-bearing step. The build's own tests certified the branch as it stood when the
 build finished; the rebase re-checks it against whatever merged in the meantime, so a branch that was
 green in isolation but conflicts with newer work cannot land a broken integration. `finalize.gate` is
 the on/off switch for that finalize gate — leave it `local` (the default) unless you trust each pull
 request's own continuous-integration checks, in which case `off` skips the local rebase-and-retest.
-When the rebase changed nothing and the pull request already carries green build evidence for that
+When the rebase changed nothing and the change record already carries green build evidence for that
 exact head, recorded with the same test command, the retest is skipped.
 The step-by-step mechanism, and what happens when the rebased suite reds, is
 [Finalize as a sequencer](../concepts/finalize-sequencer.md); re-greening after the rebase is covered

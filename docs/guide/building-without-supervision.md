@@ -75,8 +75,10 @@ A single implement-next run walks a fixed path and then stops:
    stuck — see [Keeping the backlog honest](./keeping-the-backlog-honest.md).
 3. **Reconcile.** The step above — freshen the change against reality, or kill or escalate it.
 4. **Plan.** It cuts a feature branch, creates an isolated working copy of the repo on that branch
-   (a *worktree*), and authors a **plan** on that branch (the task-by-task breakdown a build
-   follows, written on the feature branch). The plan lives with the code, not with the backlog.
+   (a *worktree*), commits a copy of the change's spec as the branch's first commit, and authors a
+   **plan** (the task-by-task breakdown a build follows). The plan lives with the backlog on the
+   metadata branch, not with the code; so do the results file and the build evidence, so the pull
+   request carries only the spec copy and the code.
 5. **Build.** It works the plan task by task, test-first, committing as it goes (the next section
    covers how it decides how hard to work on each task).
 6. **Review.** Before the pull request opens, a bounded reviewer reads the whole branch — see
