@@ -347,3 +347,190 @@ func TestIntegrationRepoSetupPrivateMigrateRefuses(t *testing.T) {
 		t.Error("migrate published a docket branch to origin")
 	}
 }
+
+// initPrivateHealthy inits a private repository and sets its test policy with
+// configure-tests --command true, the path to a healthy private repository.
+func initPrivateHealthy(t *testing.T) (*initRepo, string) {
+	t.Helper()
+	r, data := newPrivateInitRepo(t, nil)
+	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	cmd := "true"
+	ct := r.runConfigureTestsWith(t, ConfigureTestsOptions{Command: &cmd})
+	if ct.Result != ResultApplied {
+		t.Fatalf("configure-tests = %q (%s), want applied", ct.Result, ct.HumanText())
+	}
+	if len(ct.PendingPaths) != 0 || !strings.Contains(ct.HumanText(), "wrote "+layout.PrivateConfigDisplay) {
+		t.Errorf("private configure-tests = pending %v, %q; want no pending path and the private config named", ct.PendingPaths, ct.HumanText())
+	}
+	return r, data
+}
+
+// checkIn runs RunRepositoryCheck from dir.
+func checkIn(t *testing.T, dir string) RepositoryCheckResult {
+	t.Helper()
+	return RunRepositoryCheck(context.Background(), SetupDeps{Git: newGitClient(t), RepoDir: dir})
+}
+
+// findingsWithCode returns the findings carrying code.
+func findingsWithCode(fs []reposetup.Finding, code string) []reposetup.Finding {
+	var out []reposetup.Finding
+	for _, f := range fs {
+		if f.Code == code {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func TestIntegrationRepoSetupPrivateCheckHealthy(t *testing.T) {
+	r, _ := initPrivateHealthy(t)
+	chk := r.runCheck(t)
+	if chk.RepositoryState != string(reposetup.StateHealthy) {
+		t.Fatalf("check state = %q, want healthy:\n%s", chk.RepositoryState, chk.HumanText())
+	}
+	for _, f := range chk.Findings {
+		text := f.Ref + " " + f.Message + " " + f.Remedy
+		for _, name := range []string{".gitignore", ".docket.yml", ".docket"} {
+			if strings.Contains(text, name) {
+				t.Errorf("finding %+v names %s; a private repository has none", f, name)
+			}
+		}
+	}
+	if len(chk.Findings) != 0 || chk.CheckExitCode() != 0 {
+		t.Errorf("healthy private check = exit %d, findings %+v; want 0 and none", chk.CheckExitCode(), chk.Findings)
+	}
+}
+
+func TestIntegrationRepoSetupPrivateCheckFlagsMissingExclude(t *testing.T) {
+	r, _ := initPrivateHealthy(t)
+	exclude := filepath.Join(r.gitDir(t), "info", "exclude")
+	if err := os.WriteFile(exclude, []byte("# a user line\n*.swp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	chk := r.runCheck(t)
+	if chk.RepositoryState == string(reposetup.StateHealthy) {
+		t.Fatalf("check is healthy with the # dckt: block stripped:\n%s", chk.HumanText())
+	}
+	got := findingsWithCode(chk.Findings, "committed-ignore-invalid")
+	if len(got) != 1 {
+		t.Fatalf("committed-ignore findings = %+v, want exactly one:\n%s", got, chk.HumanText())
+	}
+	if got[0].Ref != ".git/info/exclude" || !strings.Contains(got[0].Message, ".git/info/exclude") ||
+		!strings.Contains(got[0].Remedy, "docket repository init") {
+		t.Errorf("finding = %+v, want it to name .git/info/exclude and the init remedy", got[0])
+	}
+}
+
+func TestIntegrationRepoSetupPrivateVisibilityMismatch(t *testing.T) {
+	r, _ := initPrivateHealthy(t)
+	before := r.runCheck(t)
+	cfgPath := filepath.Join(r.gitDir(t), "dckt", "config.yml")
+	raw, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "visibility: private\n") {
+		t.Fatalf("private config %q lacks visibility: private", raw)
+	}
+	edited := strings.Replace(string(raw), "visibility: private\n", "visibility: shared\n", 1)
+	if err := os.WriteFile(cfgPath, []byte(edited), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	chk := r.runCheck(t)
+	got := findingsWithCode(chk.Findings, FindingVisibilityMismatch)
+	if len(got) != 1 || got[0].Ref != layout.PrivateConfigDisplay || !strings.Contains(got[0].Message, layout.PrivateConfigDisplay) {
+		t.Fatalf("mismatch findings = %+v, want one naming %s:\n%s", got, layout.PrivateConfigDisplay, chk.HumanText())
+	}
+	if chk.RepositoryState != before.RepositoryState {
+		t.Errorf("state moved from %q to %q; the mismatch never changes the state", before.RepositoryState, chk.RepositoryState)
+	}
+	if _, err := os.Stat(filepath.Join(r.gitDir(t), "dckt")); err != nil {
+		t.Errorf(".git/dckt is gone (%v); config never moves a repository", err)
+	}
+}
+
+func TestIntegrationRepoSetupPrivateBothLocalConfigsRefuse(t *testing.T) {
+	r, _ := newPrivateInitRepo(t, nil)
+	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	local := filepath.Join(r.invocation, ".docket.local.yml")
+	if err := os.WriteFile(local, []byte("board_presentation: classic\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	privatePath := filepath.Join(r.gitDir(t), "dckt", "config.yml")
+
+	chk := r.runCheck(t)
+	if chk.Result != ResultUnsupportedConfig {
+		t.Errorf("check result = %q (%s), want unsupported-config", chk.Result, chk.HumanText())
+	}
+	if text := chk.HumanText(); !strings.Contains(text, local) || !strings.Contains(text, privatePath) {
+		t.Errorf("check text %q must name both %s and %s", text, local, privatePath)
+	}
+
+	st := Status(context.Background(), NewGitStatusReader(newGitClient(t)), StatusOptions{RepoDir: r.invocation})
+	if st.Result != ResultInvalidInput {
+		t.Errorf("status result = %q (%s), want invalid-input", st.Result, st.Message)
+	}
+	if !strings.Contains(st.Message, local) || !strings.Contains(st.Message, privatePath) {
+		t.Errorf("status message %q must name both %s and %s", st.Message, local, privatePath)
+	}
+}
+
+// TestIntegrationRepoSetupPrivateMovedCloneOrphanPruned moves a private clone:
+// its old checkout under the store now points at a gitdir that no longer
+// exists, so check reports it orphaned and repair removes it.
+func TestIntegrationRepoSetupPrivateMovedCloneOrphanPruned(t *testing.T) {
+	r, data := newPrivateInitRepo(t, nil)
+	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	old := privateLayoutOf(t, r.invocation, data).MetadataWorktree
+	moved := filepath.Join(r.root, "moved")
+	if err := os.Rename(r.invocation, moved); err != nil {
+		t.Fatal(err)
+	}
+
+	chk := checkIn(t, moved)
+	orphans := findingsWithCode(chk.Findings, FindingOrphanedCheckout)
+	if len(orphans) != 1 || orphans[0].Ref != old {
+		t.Fatalf("orphaned-checkout findings = %+v, want one for %s:\n%s", orphans, old, chk.HumanText())
+	}
+
+	d := SetupDeps{Git: newGitClient(t), RepoDir: moved}
+	preview := RunRepositoryRepair(context.Background(), d, RepairOptions{})
+	if !preview.ConfirmationRequired() || !strings.Contains(preview.HumanText(), "remove orphaned checkout: "+old) {
+		t.Fatalf("repair preview = %q (%s), want it to list the orphan", preview.Result, preview.HumanText())
+	}
+	if _, err := os.Stat(old); err != nil {
+		t.Fatalf("the preview touched the orphan: %v", err)
+	}
+	applied := RunRepositoryRepair(context.Background(), d, RepairOptions{Authorized: true, ExpectedSource: preview.SourceRevision})
+	if applied.Result != ResultApplied {
+		t.Fatalf("repair = %q (%s), want applied", applied.Result, applied.HumanText())
+	}
+	if _, err := os.Lstat(old); !os.IsNotExist(err) {
+		t.Errorf("the orphaned checkout %s survived the repair (err=%v)", old, err)
+	}
+	if again := findingsWithCode(checkIn(t, moved).Findings, FindingOrphanedCheckout); len(again) != 0 {
+		t.Errorf("re-check still reports orphans: %+v", again)
+	}
+
+	// Prepare does NOT attach the new checkout directly: the moved clone's worktree
+	// registration still names the removed checkout, so the dckt branch is held
+	// by a now-prunable registration. Prepare refuses with the held-elsewhere
+	// finding and names `git worktree prune`; after the prune it attaches.
+	d = SetupDeps{Git: newGitClient(t), RepoDir: moved}
+	prep := RunRepositoryPrepare(context.Background(), d, PrepareOptions{})
+	if prep.Disposition != PrepareDispositionRefused || !strings.Contains(prep.HumanText(), "git worktree prune") {
+		t.Fatalf("prepare = %q (%s), want the held-elsewhere refusal naming git worktree prune", prep.Disposition, prep.HumanText())
+	}
+	runGit(t, moved, "worktree", "prune")
+	newCheckout := privateLayoutOf(t, moved, data).MetadataWorktree
+	prep = RunRepositoryPrepare(context.Background(), d, PrepareOptions{})
+	if prep.Disposition != PrepareDispositionApplied || prep.Context == nil || prep.Context.MetadataWorktreePath != newCheckout {
+		t.Fatalf("prepare after prune = %q (%s), want the new checkout %s attached", prep.Disposition, prep.HumanText(), newCheckout)
+	}
+}

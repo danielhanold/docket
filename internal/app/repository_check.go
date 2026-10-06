@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
@@ -97,8 +99,9 @@ func RunRepositoryCheck(ctx context.Context, d SetupDeps) RepositoryCheckResult 
 		// legacy `auto`) is a setup gap, not a topology fault: it surfaces here with
 		// the `docket repository configure-tests` remedy. Read the committed
 		// repository-layer `.docket.yml` bytes so the legacy-`auto` signal keys on
-		// exactly what the resolver read.
-		testConfig = reposetup.TestConfigFinding(sc.cfg, readCommittedDocketYML(sc.repo.PrimaryWorktree))
+		// exactly what the resolver read (a private repository's
+		// .git/dckt/config.yml, through repoConfigTarget).
+		testConfig = reposetup.TestConfigFinding(sc.cfg, readRepoConfigBytes(sc))
 	}
 
 	cls := reposetup.Classify(facts)
@@ -107,16 +110,24 @@ func RunRepositoryCheck(ctx context.Context, d SetupDeps) RepositoryCheckResult 
 	if testConfig != nil {
 		findings = append(findings, *testConfig)
 	}
+	// The visibility findings explain; they never change the classified state.
+	// A mismatch is meaningful only once the repository is set up (a fresh
+	// repository's setting is what init will use).
+	if facts.RemoteMetadata.Presence == reposetup.PresencePresent {
+		findings = append(findings, privateCheckFindings(sc)...)
+	}
 	return newCheckResult(cls, facts, findings)
 }
 
-// readCommittedDocketYML returns the primary worktree's `.docket.yml` bytes —
-// the repository-layer config the resolver reads — or nil when it is absent or
+// readRepoConfigBytes returns the repository-layer config bytes the resolver
+// read — the primary worktree's `.docket.yml`, or a private repository's
+// .git/dckt/config.yml (repoConfigTarget) — or nil when it is absent or
 // unreadable. The health finding tolerates nil (it then rests on the resolved
 // config alone), so an absent or transiently unreadable file is never an error
 // here.
-func readCommittedDocketYML(primaryWorktree string) []byte {
-	b, err := os.ReadFile(filepath.Join(primaryWorktree, docketYMLRel))
+func readRepoConfigBytes(sc setupContext) []byte {
+	abs, _, _ := repoConfigTarget(sc)
+	b, err := os.ReadFile(abs)
 	if err != nil {
 		return nil
 	}
@@ -234,8 +245,15 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 	}
 
 	// Committed guarantees and surface facts proven from the integration COMMIT
-	// tree, never the working tree.
-	if sc.sourceRevision != "" {
+	// tree, never the working tree. A private repository commits nothing: its
+	// ignore guarantee is the `# dckt:` block in the clone-local
+	// .git/info/exclude, and it never reads a .docket.yml, so it has no legacy
+	// key (the spec overrides gitignore-guarantee-must-be-committed there).
+	switch {
+	case sc.layout.Mode == layout.Private:
+		f.CommittedIgnoreBlock, f.CommittedIgnoreDetail = excludeBlockPresence(sc.repo.CommonDir)
+		f.LegacyConfigKey = reposetup.PresenceAbsent
+	case sc.sourceRevision != "":
 		f.CommittedIgnoreBlock, f.CommittedIgnoreDetail = committedIgnorePresence(ctx, git, sc.repo, sc.sourceRevision)
 		f.LegacyConfigKey = committedLegacyKeyPresence(ctx, git, sc.repo, sc.sourceRevision)
 	}
@@ -254,7 +272,7 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 	if f.PrimaryAtRemoteTip == reposetup.PresenceAbsent && sc.sourceRevision != "" {
 		f.PrimaryTipRelation = syncRelationship(ctx, git, sc.repo, sc.primaryHead, sc.sourceRevision)
 	}
-	f.PendingReviewPaths = pendingReviewPaths(ctx, git, sc.repo, f.CommittedIgnoreBlock)
+	f.PendingReviewPaths = pendingReviewPaths(ctx, git, sc.repo, sc.layout.Mode, f.CommittedIgnoreBlock)
 
 	// Authorized parent-facing surfaces: absent a drift probe (Task 11 owns the
 	// surfaces-drift determination), an authorized declaration is reported as
@@ -318,6 +336,25 @@ func hooksOffPresence(ctx context.Context, git *gitcli.Client, worktreeDir strin
 func committedIgnorePresence(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, rev string) (reposetup.Presence, reposetup.IgnoreDetail) {
 	blob, found, err := readCommitBlob(ctx, git, repo, rev, gitignoreRel)
 	return reposetup.CommittedIgnoreOutcome(blob, found, err)
+}
+
+// excludeBlockPresence proves a private repository's ignore guarantee: the
+// `# dckt:` block in <common>/info/exclude. An absent file has no block; a read
+// error is the safe Unknown, carried as an Unreadable detail. The other
+// IgnoreDetail defects describe a committed .gitignore, so an absent block
+// carries none (the private finding names the exclude file on its own).
+func excludeBlockPresence(commonDir string) (reposetup.Presence, reposetup.IgnoreDetail) {
+	raw, err := os.ReadFile(filepath.Join(commonDir, "info", "exclude"))
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return reposetup.PresenceAbsent, reposetup.IgnoreDetail{}
+	case err != nil:
+		return reposetup.PresenceUnknown, reposetup.IgnoreDetail{Defect: reposetup.IgnoreDefectUnreadable}
+	case reposetup.ValidExcludeBlock(raw):
+		return reposetup.PresencePresent, reposetup.IgnoreDetail{}
+	default:
+		return reposetup.PresenceAbsent, reposetup.IgnoreDetail{}
+	}
 }
 
 // committedLegacyKeyPresence reports whether the integration COMMIT tree's
@@ -391,13 +428,17 @@ func primaryOnIntegrationPresence(ctx context.Context, git *gitcli.Client, repo 
 // the pending path too. The parent-facing dispatch surfaces are pending when they
 // differ from HEAD in the working tree. A status error yields no surface pending
 // paths (the safe empty), leaving the split to the other postconditions.
-func pendingReviewPaths(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, committedIgnore reposetup.Presence) []string {
+//
+// A private repository writes neither .gitignore nor .docket.yml, so neither is
+// ever one of its pending paths.
+func pendingReviewPaths(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, mode layout.Mode, committedIgnore reposetup.Presence) []string {
 	seen := map[string]bool{}
 	var pending []string
+	private := mode == layout.Private
 
 	// The .gitignore edit: pending iff its managed block is present in the working
 	// tree but the integration commit does not yet carry it.
-	if committedIgnore != reposetup.PresencePresent {
+	if !private && committedIgnore != reposetup.PresencePresent {
 		wt, err := os.ReadFile(filepath.Join(repo.PrimaryWorktree, gitignoreRel))
 		if err == nil && reposetup.ValidGitignoreBlock(wt) {
 			seen[gitignoreRel] = true
@@ -413,6 +454,9 @@ func pendingReviewPaths(ctx context.Context, git *gitcli.Client, repo gitcli.Rep
 			rel := string(ch.Path)
 			if rel == gitignoreRel {
 				continue // the .gitignore is decided by the committed-ignore fact above
+			}
+			if private && rel == docketYMLRel {
+				continue // a private repository's config is .git/dckt/config.yml
 			}
 			if docketManagedWorktreePaths[rel] && !seen[rel] {
 				seen[rel] = true
