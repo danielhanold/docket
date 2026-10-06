@@ -75,31 +75,19 @@ proposed-only allowlist filtering; a normal invocation that merely names an alre
 id still skips it (it may belong to a live concurrent run — the run tracker's
 before-set/dispatch attribution is what distinguishes a resume from claim theft). Then:
 
-1. `plan:` already set and its committed artifact + backlink verify → reuse it and continue at
+1. `plan:` set → planning is complete (the attach wrote file and field together); continue at
    Step 5; **never dispatch a second planner**.
-2. `plan:` empty, but the feature branch's latest commit is a clean, single-file plan commit whose
-   `Docket-Plan-Path:` trailer and backlink agree → recover that path, land it under the normal
-   field-write rule, and continue at Step 5.
-3. The persisted path, commit delta, backlink, and manifest disagree or are ambiguous → halt with
-   the exact mismatch. **Never guess a plan location and never re-plan** merely because the
-   parent stopped after the child returned. The trailer is evidence only — subject it to the same
-   git and backlink verification as a live return.
+2. `plan:` unset → re-dispatch the plan-writer.
+
+Before building continues, re-run `workspace.commit-spec`: after a mid-flight spec revision it
+refreshes the copy; otherwise it is a no-op.
 
 **The results seam.** The results artifact is required for every change, so a resume
-must not lose it. On resume, **load the committed results before starting new work**, and reuse the
-`results:` field whenever it is already set — a changed authoring date **never mints a second
-file**; the canonical path is chosen once and reused.
-
-1. `results:` already set and its committed artifact + backlink verify → reuse that path and
-   continue; **never author a second results file**.
-2. `results:` empty, but the owned feature branch holds **exactly one** safe, correctly
-   backlinked results candidate at the canonical `<results_dir>/<YYYY-MM-DD>-<slug>-results.md`
-   location (a commit-before-attach interruption) → recover that path and reattach it under the
-   normal field-write rule.
-3. Zero such candidates, more than one, or any that fails path/backlink verification → **surface
-   the ambiguity and halt**; never guess a path and never fabricate a file. **Never overwrite newer
-   remote work** — a resume that finds the remote ahead re-reads authority rather than force-writing
-   its local view.
+must not lose it. On resume, **load the attached results from `.docket/<results path>` (after a
+re-sync) before starting new work**, and reuse the `results:` path whenever it is set — a changed
+authoring date **never mints a second file**; the canonical path is chosen once and reused.
+**Never overwrite newer remote work** — a resume that finds the remote ahead re-reads authority
+rather than force-writing its local view.
 
 **Pre-workspace halt or unsafe-write pause.** When a run halts before the feature workspace exists,
 or a checkpoint boundary is reached while the ownership or gate-drive contract forbids a safe write,
@@ -115,4 +103,6 @@ to force a workspace, a commit, or a HEAD move.
 
 **PR-body back-link.** When docket authors the PR body, prepend a **back-link line** pointing home to the change on the `docket` branch — a first body line of the shape `↩ Change <padded-id> — <title>` linking to the change file on `docket` (built with the same blob-or-bare-path logic; skill-side, since the renderer's contract excludes the PR body). Best-effort — never block the PR on it.
 
-**Build-evidence block.** Write the current evidence record into the PR body, marker-bounded, alongside the review outcome — the tier that reviewed, and the **findings disposition table**: one row per finding, each marked fixed (with its commit SHA), deferred, reverted, or recorded. The table's states are defined in `fix-pass.md`; do not redefine them here. The PR body is the block's durable home: `docket-finalize-change` reads it to decide whether its post-rebase suite run can be skipped. Validate marker order and balance before rewriting an existing block. A step-6.5 results commit — now **required** for every change, like any post-gate commit — moves branch HEAD after the evidence was minted, so a stale `head_sha` on that path is EXPECTED, not a defect: write the block anyway with that stale SHA. `docket-finalize-change`'s gate skips its suite run **only** when the rebase was a no-op **and** the PR body carries green build-evidence for the exact current head recorded against the resolved `finalize.test_command`. As that skill states, "**There is no strict-ancestor or results-only skip**." A post-gate results commit moves HEAD past the evidence head, so **expect finalize's suite to run** for it exactly as for any other post-gate commit.
+**Review outcome.** The authored body names the tier that reviewed and carries the **findings disposition table**: one row per finding, each marked fixed (with its commit SHA), deferred, reverted, recorded, or reported. The table's states are defined in `fix-pass.md`; do not redefine them here.
+
+**Plan/results links.** `pr.publish` adds a Docket-owned links block pointing at the plan and results files on the `docket` branch; never author it by hand.
