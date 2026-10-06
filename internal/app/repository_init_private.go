@@ -110,6 +110,23 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 	common := sc.repo.CommonDir
 	changed := false
 
+	// 0. A .docket.local.yml beside the private config refuses before any write:
+	// once .git/dckt/ exists every operation, an init re-run included, reads the
+	// repository as private and refuses on that conflict, so writing first would
+	// wedge it. The refusal is the same one config.LoadPrivateRepositorySource
+	// gives every private operation.
+	if _, err := config.LoadPrivateRepositorySource(common, sc.repo.PrimaryWorktree); err != nil {
+		var conflict *config.ConflictingLocalConfigError
+		if errors.As(err, &conflict) {
+			out := newRepositoryOpResult(OperationRepositoryInit, ResultUnsupportedConfig, RepositoryOpResult{
+				RepositoryState: string(cls.State),
+			})
+			out.human = fmt.Sprintf("%s: %s: %s", OperationRepositoryInit, ResultUnsupportedConfig, err.Error())
+			return out
+		}
+		return repositoryExternalFailure(OperationRepositoryInit, cls.State, "inspecting the repository config", err)
+	}
+
 	// 1. The neutral ignore block in the clone-local exclude file. A malformed
 	// block refuses with the file untouched.
 	wroteExclude, err := ensureExcludeFile(filepath.Join(common, "info", "exclude"))
