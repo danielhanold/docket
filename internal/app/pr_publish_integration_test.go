@@ -8,10 +8,12 @@ package app
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/repository"
 )
@@ -19,12 +21,10 @@ import (
 // TestIntegrationFinalizeOpsPRPublishAcceptsSkippedEvidenceAtExactHead: a build.gate: off repository's
 // truthful skipped evidence certifying the exact feature head passes PRPublish's
 // evidence condition — the operation proceeds PAST it (VerdictSkipped is accepted
-// exactly as VerdictVerified). Any later refusal is not the evidence condition;
-// reverting the green-or-skipped acceptance would refuse here with
-// ReasonPREvidenceUnverified, so this pins the verify-site change. (PR-body
-// weaving of a skipped block is a separate concern: evidence.Upsert is green-only
-// today, so the operation still fails later at body assembly — see the change
-// notes.)
+// exactly as VerdictVerified) and publishes the PR. Reverting the green-or-skipped
+// acceptance would refuse here with ReasonPREvidenceUnverified, so this pins the
+// verify-site change. The evidence is a head gate only: no build-evidence block
+// is woven into the PR body.
 func TestIntegrationFinalizeOpsPRPublishAcceptsSkippedEvidenceAtExactHead(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	reader := prReader(t)
@@ -34,6 +34,15 @@ func TestIntegrationFinalizeOpsPRPublishAcceptsSkippedEvidenceAtExactHead(t *tes
 		repoDir, PRPublishRequest{ID: 7, Head: prHead, Title: "Add widget", Body: "Authored prose.\n", EvidenceRecord: prSkippedEvidenceBytes(t, prHead)})
 	if res.Reason == ReasonPREvidenceUnverified {
 		t.Fatalf("skipped evidence at the exact head was refused at the evidence condition: %q", res.Message)
+	}
+	if res.Result != ResultApplied {
+		t.Fatalf("skipped publish = %q (reason %q msg %q), want applied", res.Result, res.Reason, res.Message)
+	}
+	if len(gh.ensureCalls) != 1 {
+		t.Fatalf("EnsurePullRequest called %d times, want 1", len(gh.ensureCalls))
+	}
+	if _, err := evidence.Extract([]byte(gh.ensureCalls[0].Body)); !errors.Is(err, evidence.ErrMissing) {
+		t.Fatalf("published PR body evidence err = %v, want evidence.ErrMissing (no block in the body)", err)
 	}
 }
 

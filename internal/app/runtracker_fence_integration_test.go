@@ -914,7 +914,7 @@ func TestIntegrationRunFencePRPublishJournalsPublicationIdentity(t *testing.T) {
 		t.Fatal("BodyDigest must digest the fully assembled body handed to the adapter")
 	}
 	if p.BodyDigest == publicationDigest("pr-body", secretBody) {
-		// The assembled body (backlink + evidence woven in) differs from the raw prose.
+		// The assembled body (backlink woven in) differs from the raw prose.
 		t.Fatal("BodyDigest must digest the assembled body, not the raw authored prose")
 	}
 

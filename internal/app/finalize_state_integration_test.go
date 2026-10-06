@@ -5,7 +5,6 @@ package app
 import (
 	"context"
 	"errors"
-	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -386,36 +385,39 @@ func TestIntegrationFinalizeStateNoForeignWrites(t *testing.T) {
 }
 
 // TestFinalizePublishCrashReplay proves the replay faces. A crash after the push
-// but before the PR update is a no-op rewrite (the remote already holds the
-// rewritten head) that still resumes the PR update. A crash after the PR update
-// resumes only the record write; a crash after all three is a full no-op with
-// no new metadata commit.
+// but before the record write is a no-op rewrite (the remote already holds the
+// rewritten head) that still resumes the record write; a crash after both is a
+// full no-op with no new metadata commit. The PR description is never edited:
+// build evidence lives only in the change record.
 func TestIntegrationFinalizeStatePublishCrashReplay(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]
 
-	t.Run("after-push-before-pr-update", func(t *testing.T) {
+	t.Run("after-push-before-record-write", func(t *testing.T) {
 		f := setupPublishFixture(t, main)
 		// The push already landed: force the rewritten head onto the remote out of band.
 		runGit(t, f.wp, "push", "--force", "-q", "origin", "HEAD:refs/heads/feat/"+f.slug)
 		if tip := f.remoteFeatureTip(t); tip != f.rewritten {
 			t.Fatalf("precondition: remote tip = %q, want the rewritten head", tip)
 		}
-		_, evBytes := recFor(t, f.rewritten)
-		prBody := authoredPRBody(t, f.origHead) // the PR still carries the old-head evidence
+		evRec, evBytes := recFor(t, f.rewritten)
+		prBody := authoredPRBody(t, f.origHead)
 		gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, prBody)}
 
 		res := FinalizePublish(context.Background(), f.publishDeps(gh), f.repo.invocation,
 			FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes})
 
 		if res.Result != ResultApplied || res.Disposition != PublishDispPublished {
-			t.Fatalf("replay = %q disp %q, want applied/published (the PR update resumes)", res.Result, res.Disposition)
+			t.Fatalf("replay = %q disp %q (reason %q), want applied/published (the record write resumes)", res.Result, res.Disposition, res.Reason)
 		}
 		if res.Rewrite != "noop" {
 			t.Errorf("rewrite outcome = %q, want noop (the remote already held the head)", res.Rewrite)
 		}
-		if gh.ensNext != 1 {
-			t.Errorf("EnsurePullRequest called %d time(s), want 1 (the PR update resumes)", gh.ensNext)
+		if gh.ensNext != 0 {
+			t.Errorf("EnsurePullRequest called %d time(s), want 0 (the PR description is never edited)", gh.ensNext)
+		}
+		if got := f.remoteRecordEvidence(t); got != evRec {
+			t.Errorf("recorded evidence = %+v, want %+v", got, evRec)
 		}
 	})
 
@@ -423,14 +425,10 @@ func TestIntegrationFinalizeStatePublishCrashReplay(t *testing.T) {
 		f := setupPublishFixture(t, main)
 		runGit(t, f.wp, "push", "--force", "-q", "origin", "HEAD:refs/heads/feat/"+f.slug)
 		evRec, evBytes := recFor(t, f.rewritten)
-		// The PR already carries the exact current-head evidence.
-		converged, err := evidence.Upsert([]byte(authoredPRBody(t, f.origHead)), evRec)
-		if err != nil {
-			t.Fatalf("evidence.Upsert: %v", err)
-		}
-		gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, string(converged))}
+		prBody := authoredPRBody(t, f.origHead)
+		gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, prBody)}
 		// A crash after the record write: a first publish over the already-pushed
-		// head and already-converged PR does only the record write (published).
+		// head does only the record write (published).
 		prime := FinalizePublish(context.Background(), f.publishDeps(gh), f.repo.invocation,
 			FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes})
 		if prime.Result != ResultApplied || prime.Disposition != PublishDispPublished {
@@ -454,18 +452,19 @@ func TestIntegrationFinalizeStatePublishCrashReplay(t *testing.T) {
 		if res.Rewrite != "noop" {
 			t.Errorf("rewrite outcome = %q, want noop", res.Rewrite)
 		}
-		// The PR body was not mutated (the edit was a no-op).
-		if gh.pr.Body != string(converged) {
-			t.Errorf("a full replay mutated the PR body")
+		// The PR description was never touched by either publish.
+		if gh.ensNext != 0 || gh.pr.Body != prBody {
+			t.Errorf("a publish edited the PR (%d EnsurePullRequest calls)", gh.ensNext)
 		}
 	})
 }
 
 // TestFinalizePublishOrder proves the ordered composition: the rewrite is pushed
 // under the receipt lease (the remote moves from the original head to the
-// rewritten head), then the PR build-evidence block is loss-preservingly replaced
-// with the exact current-head record — every authored byte and the title
-// preserved — and no second PR is ever created.
+// rewritten head), the PR is reprobed at the rewritten head, and the exact
+// current-head record is written into the change record's build-evidence
+// section — the publication. The PR description is never edited and no second
+// PR is ever created.
 func TestIntegrationFinalizeStatePublishOrder(t *testing.T) {
 	for _, m := range planRepoModes() {
 		m := m
@@ -476,7 +475,7 @@ func TestIntegrationFinalizeStatePublishOrder(t *testing.T) {
 			}
 
 			evRec, evBytes := recFor(t, f.rewritten)
-			prBody := authoredPRBody(t, f.origHead) // the PR still carries evidence for the old head
+			prBody := authoredPRBody(t, f.origHead) // authored bytes, including an old-head block
 			gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, prBody)}
 
 			res := FinalizePublish(context.Background(), f.publishDeps(gh), f.repo.invocation,
@@ -492,37 +491,12 @@ func TestIntegrationFinalizeStatePublishOrder(t *testing.T) {
 			if res.Rewrite != "published" {
 				t.Errorf("rewrite outcome = %q, want published", res.Rewrite)
 			}
-			// Exactly one PR edit; never a create.
-			if gh.ensNext != 1 {
-				t.Fatalf("EnsurePullRequest called %d time(s), want exactly 1", gh.ensNext)
+			// No PR edit and no create: the PR description is not an evidence home.
+			if gh.ensNext != 0 {
+				t.Fatalf("EnsurePullRequest called %d time(s), want 0", gh.ensNext)
 			}
-			// The edit converged the exact expected head and revision.
-			if gh.ensLast.ExpectedHead != f.rewritten {
-				t.Errorf("edit expected head = %q, want the rewritten head %q", gh.ensLast.ExpectedHead, f.rewritten)
-			}
-			// Loss preservation: the full body equals the authored body with ONLY its
-			// evidence block replaced, and the title and base are byte-identical.
-			wantBody, err := evidence.Upsert([]byte(prBody), evRec)
-			if err != nil {
-				t.Fatalf("evidence.Upsert: %v", err)
-			}
-			if gh.ensLast.Body != string(wantBody) {
-				t.Errorf("edited body mismatch:\n got %q\nwant %q", gh.ensLast.Body, string(wantBody))
-			}
-			if gh.ensLast.Title != publishPRTitle {
-				t.Errorf("edited title = %q, want the authored title unchanged %q", gh.ensLast.Title, publishPRTitle)
-			}
-			if gh.ensLast.BaseBranch != "main" {
-				t.Errorf("edited base = %q, want the authored base unchanged", gh.ensLast.BaseBranch)
-			}
-			// The replaced block certifies the exact rewritten head, and the authored
-			// prose survived.
-			got, err := evidence.Extract([]byte(gh.ensLast.Body))
-			if err != nil || got.Head != f.rewritten {
-				t.Errorf("edited body evidence head = %q (err %v), want the rewritten head %q", got.Head, err, f.rewritten)
-			}
-			if !strings.Contains(gh.ensLast.Body, "Authored intro prose.") || !strings.Contains(gh.ensLast.Body, "Authored outro prose.") {
-				t.Errorf("the authored prose was not preserved in the edited body: %q", gh.ensLast.Body)
+			if gh.pr.Body != prBody || gh.pr.Title != publishPRTitle {
+				t.Errorf("the PR title or body changed under publish")
 			}
 			// The result names the PR without leaking a body byte.
 			if res.Number != 7 || !strings.HasSuffix(res.Reference, "#7") {

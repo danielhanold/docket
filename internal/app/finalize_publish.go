@@ -16,15 +16,14 @@ import (
 
 // This file is the `finalize publish` operation: the narrow, receipt-scoped
 // publication of a rebased (rewritten) feature head onto its remote feature ref,
-// followed by the loss-preserving update of the Docket build-evidence block on
-// the existing pull request and the record of that evidence in the change
-// record's "## Build evidence" section. It owns the ORDER and the closed-outcome mapping;
-// every mechanic it composes is landed: the receipt-scoped force-with-lease push
-// lives in internal/workspace (PublishRewrite, Task 5), the evidence-block
-// replacement lives in internal/evidence (Upsert, the same writer `pr publish`
-// uses), and the probe/act/verify PR edit lives in internal/githubcli
-// (EnsurePullRequest). This layer wires them and holds no force-push escape hatch
-// of its own — the only non-fast-forward push is the one the receipt authorizes.
+// followed by the record of its build evidence in the change record's
+// "## Build evidence" section — the evidence's only durable home; the pull
+// request's description is never edited. It owns the ORDER and the
+// closed-outcome mapping; every mechanic it composes is landed: the
+// receipt-scoped force-with-lease push lives in internal/workspace
+// (PublishRewrite), and the exact-revision record write is recordBuildEvidence.
+// This layer wires them and holds no force-push escape hatch of its own — the
+// only non-fast-forward push is the one the receipt authorizes.
 //
 // The order (spec §"Rewritten-head publication and PR evidence"):
 //
@@ -38,25 +37,18 @@ import (
 //     remote is contended (untouched) and an unobservable remote is unknown
 //     (retain — never a second, forced push);
 //  4. only a published-or-noop rewrite proceeds — the PR is reprobed for the
-//     feature head, its revision captured, and its head required to equal the
-//     requested head;
-//  5. the current PR body's build-evidence block is loss-preservingly replaced
-//     with the exact current-head green record (every authored byte, the title,
-//     and every other block preserved);
-//  6. EnsurePullRequest converges the PR onto that body under the exact expected
-//     head and revision, never creating a second PR (a skipped record is never
-//     woven into a PR body, so steps 5 and 6 are skipped for it); and
-//  7. only a converged PR proceeds to write the record into the change record's
+//     feature head and its head required to equal the requested head (exactly
+//     one open PR; never a create); and
+//  5. the record (green or skipped) is written into the change record's
 //     "## Build evidence" section (recordBuildEvidence) in one exact-revision
 //     metadata transaction keyed on the record blob it reads — a record that
 //     moved under the write is contended and left untouched.
 //
-// Crash replay is ordinary. A crash after the push but before the PR update is a
-// no-op rewrite (the remote already holds the head) that resumes the PR update. A
-// crash after the PR update but before the record write resumes only that write.
-// A crash after all three is a no-op rewrite, an already-equal PR body, and an
-// unchanged record section — a full no-op. An unknown probe never authorizes a
-// second mutation or a merge-enabling success.
+// Crash replay is ordinary. A crash after the push but before the record write
+// is a no-op rewrite (the remote already holds the head) that resumes the record
+// write. A crash after both is a no-op rewrite and an unchanged record section —
+// a full no-op. An unknown probe never authorizes a second mutation or a
+// merge-enabling success.
 
 // OperationFinalizePublish is the operation key `finalize publish` records in its
 // result envelope.
@@ -64,17 +56,16 @@ const OperationFinalizePublish = "finalize.publish"
 
 // The closed set of `finalize publish` dispositions.
 const (
-	// PublishDispPublished: the rewrite reached the remote (or was already there),
-	// the PR build-evidence block was converged to the current head, and the
-	// change record's build-evidence section records it — at least one of them
-	// doing work this run.
+	// PublishDispPublished: the rewrite reached the remote (or was already there)
+	// and the change record's build-evidence section records the current head —
+	// at least one of them doing work this run.
 	PublishDispPublished = "published"
-	// PublishDispNoop: the remote already held the head, and the PR and the change
-	// record already carried the exact current-head evidence — a full idempotent
-	// replay.
+	// PublishDispNoop: the remote already held the head and the change record
+	// already carried the exact current-head evidence — a full idempotent replay.
 	PublishDispNoop = "noop"
 	// PublishDispContended: a lost race the caller resolves by re-reading context —
-	// a diverged remote, or a PR at an unexpected head/revision. Nothing was forced.
+	// a diverged remote, a PR at an unexpected head, or a change record that moved
+	// under the evidence write. Nothing was forced.
 	PublishDispContended = "contended"
 	// PublishDispUnknown: an external effect could not be established (a remote or
 	// PR probe error). Retained; never a second mutation and never a merge-enabling
@@ -127,12 +118,6 @@ const (
 	// ReasonPublishPRHeadMismatch: the open PR names a head other than the
 	// requested (rewritten) head; contended.
 	ReasonPublishPRHeadMismatch = "pr-head-mismatch"
-	// ReasonPublishBodyAssembly: the build-evidence block could not be woven into
-	// the current PR body (a malformed managed-block population); predates the edit.
-	ReasonPublishBodyAssembly = "body-assembly-failed"
-	// ReasonPublishEnsurerUnavailable: the wired GitHub seam does not provide the
-	// PR create-or-edit face; an internal wiring error.
-	ReasonPublishEnsurerUnavailable = "pr-editor-unavailable"
 	// ReasonPublishRecordContended: the change record moved between the publish's
 	// read and its build-evidence write; the record is untouched — re-read and
 	// retry.
@@ -162,8 +147,8 @@ type FinalizePublishRequest struct {
 // names identity, the closed disposition, the exact head/base the publication
 // certified, the PR reference/number/url, and the rewrite outcome token; a
 // refusal carries a stable reason and message, and a shape refusal carries
-// findings. It holds NO authored PR body bytes (redaction: the body crosses only
-// through the evidence writer and the gh stdin, never a result).
+// findings. It holds NO authored PR body bytes (the operation never reads or
+// writes the PR description).
 type FinalizePublishResult struct {
 	Envelope
 	ID          int             `json:"id,omitempty"`
@@ -213,23 +198,11 @@ func publishRefusal(result Result, disposition, reason, message string, id int) 
 	})
 }
 
-// finalizePublishEnsurer is the PR create-or-edit face `finalize publish` needs
-// to converge the build-evidence block on the existing pull request. The shared
-// FinalizeGitHub seam deliberately does not name it — it is `pr publish`'s
-// idempotent adapter — so this operation resolves it from the concrete GitHub
-// client through a narrow local interface rather than growing that shared seam
-// for one operation. *githubcli.Client satisfies it; a unit-test fake implements
-// FinalizeGitHub and this face together.
-type finalizePublishEnsurer interface {
-	EnsurePullRequest(ctx context.Context, req githubcli.EnsurePullRequestRequest) (githubcli.EnsureResult, error)
-}
-
 // FinalizePublish publishes a rewritten feature head onto its remote ref under
-// the owned receipt's exact lease, converges the PR build-evidence block onto
-// the exact current head, and records that evidence in the change record,
-// idempotently and in that order. It never forces past
-// the recorded lease, never creates a second PR, and treats every unknown probe
-// as retain — no second mutation and no merge-enabling success.
+// the owned receipt's exact lease and records the exact current-head evidence in
+// the change record, idempotently and in that order. It never forces past the
+// recorded lease, never edits or creates a PR, and treats every unknown probe as
+// retain — no second mutation and no merge-enabling success.
 func FinalizePublish(ctx context.Context, deps FinalizeDeps, repoDir string, req FinalizePublishRequest) FinalizePublishResult {
 	if findings := validatePublishShape(req); len(findings) > 0 {
 		return newPublishResult(ResultInvalidInput, FinalizePublishResult{ID: req.ID, Findings: findings})
@@ -339,14 +312,16 @@ func FinalizePublish(ctx context.Context, deps FinalizeDeps, repoDir string, req
 			Message: "the remote feature ref could not be observed; retained, no forced push",
 		})
 	case workspace.RewritePublished, workspace.RewriteNoop:
-		// The remote holds exactly the intended head; resume the PR update. A noop
-		// here is the crash-after-push replay face — the PR update still runs.
+		// The remote holds exactly the intended head; resume the record write. A
+		// noop here is the crash-after-push replay face — the record write still
+		// runs.
 	default:
 		return publishRefusal(ResultInternalError, PublishDispBlocked, ReasonStatusInternalError,
 			fmt.Sprintf("unexpected rewrite outcome %q", rout), id)
 	}
 
-	// Reprobe the existing PR for the feature head and converge its evidence block.
+	// Reprobe the existing PR for the feature head: exactly one open PR whose head
+	// is the requested head.
 	repo, err := deps.GitHub.DiscoverRepository(ctx, repoDir)
 	if err != nil {
 		return newPublishResult(ResultExternalFailed, FinalizePublishResult{
@@ -376,76 +351,9 @@ func FinalizePublish(ctx context.Context, deps FinalizeDeps, repoDir string, req
 		})
 	}
 
-	// A skipped (build.gate: off) record is never woven into a PR body — the PR
-	// evidence block is green-only — so the change record's section is its only
-	// home: the PR is left untouched and the record write alone decides.
-	if rec.Result == evidence.ResultSkipped {
-		prRes := newPublishResult(ResultNoOp, publishSuccess(id, req.Head, rout, repo, pr, PublishDispNoop))
-		if rout == workspace.RewritePublished {
-			prRes = newPublishResult(ResultApplied, publishSuccess(id, req.Head, rout, repo, pr, PublishDispPublished))
-		}
-		return publishRecordEvidence(ctx, deps, repoDir, id, rec, prRes)
-	}
-
-	// Replace ONLY the build-evidence block in the current PR body — every authored
-	// byte, the title, and every other block are preserved.
-	newBody, err := evidence.Upsert([]byte(pr.Body), rec)
-	if err != nil {
-		return publishRefusal(ResultInvalidState, PublishDispBlocked, ReasonPublishBodyAssembly, err.Error(), id)
-	}
-
-	ensurer, ok := deps.GitHub.(finalizePublishEnsurer)
-	if !ok {
-		return publishRefusal(ResultInternalError, PublishDispBlocked, ReasonPublishEnsurerUnavailable,
-			"the wired GitHub seam does not provide the pull-request edit face", id)
-	}
-	eres, eerr := ensurer.EnsurePullRequest(ctx, githubcli.EnsurePullRequestRequest{
-		Repository:       repo,
-		HeadBranch:       featureBranch,
-		ExpectedHead:     req.Head,
-		BaseBranch:       pr.BaseBranch,
-		Title:            pr.Title,
-		Body:             string(newBody),
-		ExpectedRevision: pr.Revision,
-	})
-	if eerr != nil {
-		return mapPublishEnsureFailure(id, req.Head, string(rout), eerr)
-	}
-	return publishRecordEvidence(ctx, deps, repoDir, id, rec, publishResultFromEnsure(id, req.Head, rout, repo, eres))
-}
-
-// publishRecordEvidence runs the last step of the order: only a converged PR (a
-// published or noop result) proceeds to record rec in the change record's
-// "## Build evidence" section through one exact-revision metadata transaction.
-// A record write that applied after a noop PR edit makes the publication
-// `published`; a no-op write keeps the PR result; a record that moved under the
-// write is contended (untouched, re-read and retry); any other outcome is
-// unknown — never a merge-enabling success.
-func publishRecordEvidence(ctx context.Context, deps FinalizeDeps, repoDir string, id int, rec evidence.Record, prRes FinalizePublishResult) FinalizePublishResult {
-	if prRes.Result != ResultApplied && prRes.Result != ResultNoOp {
-		return prRes
-	}
+	// The change record's build-evidence section is the publication.
 	out := recordBuildEvidence(ctx, deps.Planning, repoDir, OperationFinalizePublish, id, rec)
-	switch out.Result {
-	case ResultApplied:
-		if prRes.Result == ResultNoOp {
-			prRes.Envelope = NewEnvelope(OperationFinalizePublish, ResultApplied)
-			prRes.Disposition = PublishDispPublished
-		}
-		return prRes
-	case ResultNoOp:
-		return prRes
-	case ResultContended:
-		return newPublishResult(ResultContended, FinalizePublishResult{
-			ID: id, Disposition: PublishDispContended, Head: prRes.Head, Number: prRes.Number, Rewrite: prRes.Rewrite,
-			Reason: ReasonPublishRecordContended, Message: out.Message,
-		})
-	default:
-		return newPublishResult(out.Result, FinalizePublishResult{
-			ID: id, Disposition: PublishDispUnknown, Head: prRes.Head, Number: prRes.Number, Rewrite: prRes.Rewrite,
-			Reason: ReasonPublishRecordFailed, Message: out.Message,
-		})
-	}
+	return publishResultFromRecord(id, req.Head, rout, repo, pr, out)
 }
 
 // translateWorkspaceRefusalToPublish maps a workspace-shaped pre-delegation
@@ -462,35 +370,31 @@ func translateWorkspaceRefusalToPublish(w WorkspaceOpResult) FinalizePublishResu
 	return publishRefusal(w.Result, disp, w.Reason, w.Message, w.ID)
 }
 
-// publishResultFromEnsure maps the PR edit disposition onto the publish taxonomy.
-// created/updated are applied work (published). adopted/unchanged are idempotent:
-// they are `published`/applied when the rewrite itself did work this run, and a
-// full `noop`/no-op only when the rewrite was already in place too. contended and
-// unknown pass through; nothing is forced and no second PR is created.
-func publishResultFromEnsure(id int, head string, rewrite workspace.RewriteOutcome, repo githubcli.Repository, eres githubcli.EnsureResult) FinalizePublishResult {
-	switch eres.Disposition {
-	case githubcli.EnsureCreated, githubcli.EnsureUpdated:
-		return newPublishResult(ResultApplied, publishSuccess(id, head, rewrite, repo, eres.PR, PublishDispPublished))
-	case githubcli.EnsureAdopted, githubcli.EnsureUnchanged:
+// publishResultFromRecord maps the rewrite outcome and the record-evidence
+// write onto the publish taxonomy. An applied record write is `published`; a
+// no-op write is `published` when the rewrite itself did work this run and a
+// full `noop` only when the rewrite was already in place too. A record that
+// moved under the write is contended (untouched — re-read and retry); any other
+// outcome is unknown, never a merge-enabling success.
+func publishResultFromRecord(id int, head string, rewrite workspace.RewriteOutcome, repo githubcli.Repository, pr githubcli.PullRequest, out recordEvidenceOutcome) FinalizePublishResult {
+	switch out.Result {
+	case ResultApplied:
+		return newPublishResult(ResultApplied, publishSuccess(id, head, rewrite, repo, pr, PublishDispPublished))
+	case ResultNoOp:
 		if rewrite == workspace.RewritePublished {
-			return newPublishResult(ResultApplied, publishSuccess(id, head, rewrite, repo, eres.PR, PublishDispPublished))
+			return newPublishResult(ResultApplied, publishSuccess(id, head, rewrite, repo, pr, PublishDispPublished))
 		}
-		return newPublishResult(ResultNoOp, publishSuccess(id, head, rewrite, repo, eres.PR, PublishDispNoop))
-	case githubcli.EnsureContended:
+		return newPublishResult(ResultNoOp, publishSuccess(id, head, rewrite, repo, pr, PublishDispNoop))
+	case ResultContended:
 		return newPublishResult(ResultContended, FinalizePublishResult{
-			ID: id, Disposition: PublishDispContended, Head: head, Rewrite: string(rewrite),
-			Reason:  ReasonPublishPRHeadMismatch,
-			Message: "the pull request diverged under the update; re-read context finalize",
-		})
-	case githubcli.EnsureUnknown:
-		return newPublishResult(ResultExternalFailed, FinalizePublishResult{
-			ID: id, Disposition: PublishDispUnknown, Head: head, Rewrite: string(rewrite),
-			Reason:  ReasonPublishPRProbeFailed,
-			Message: "the pull-request update could not be verified; retained, no second mutation",
+			ID: id, Disposition: PublishDispContended, Head: head, Number: pr.Number, Rewrite: string(rewrite),
+			Reason: ReasonPublishRecordContended, Message: out.Message,
 		})
 	default:
-		return publishRefusal(ResultInternalError, PublishDispBlocked, ReasonStatusInternalError,
-			fmt.Sprintf("unexpected pull-request edit disposition %q", eres.Disposition), id)
+		return newPublishResult(out.Result, FinalizePublishResult{
+			ID: id, Disposition: PublishDispUnknown, Head: head, Number: pr.Number, Rewrite: string(rewrite),
+			Reason: ReasonPublishRecordFailed, Message: out.Message,
+		})
 	}
 }
 
@@ -531,33 +435,6 @@ func mapPublishRewriteFailure(id int, head string, err error) FinalizePublishRes
 	return newPublishResult(result, FinalizePublishResult{
 		ID: id, Disposition: PublishDispBlocked, Head: head,
 		Reason: ReasonPublishRewriteFailed, Message: message,
-	})
-}
-
-// mapPublishEnsureFailure folds a githubcli EnsureFailed error onto the publish
-// taxonomy. The failure's kind is the stable reason and its detail is already
-// bounded and redacted.
-func mapPublishEnsureFailure(id int, head, rewrite string, err error) FinalizePublishResult {
-	result := ResultInternalError
-	reason := ReasonStatusInternalError
-	message := err.Error()
-	if f, ok := githubcli.AsFailure(err); ok {
-		reason = string(f.Kind)
-		message = f.Error()
-		switch f.Kind {
-		case githubcli.KindInvalidInput:
-			result = ResultInvalidInput
-		case githubcli.KindInvalidState:
-			result = ResultInvalidState
-		case githubcli.KindExternal, githubcli.KindInvalidOutput, githubcli.KindTimedOut:
-			result = ResultExternalFailed
-		case githubcli.KindCancelled:
-			result = ResultInterrupted
-		}
-	}
-	return newPublishResult(result, FinalizePublishResult{
-		ID: id, Disposition: PublishDispBlocked, Head: head, Rewrite: rewrite,
-		Reason: reason, Message: message,
 	})
 }
 

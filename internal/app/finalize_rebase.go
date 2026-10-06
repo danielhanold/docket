@@ -78,7 +78,7 @@ const (
 
 // The closed gate-composition sub-outcomes reported in GateReport.
 const (
-	gateComposeSkipped = "skipped" // no-op rebase + exact-head green PR evidence whose command is byte-equal to the resolved finalize.test_command
+	gateComposeSkipped = "skipped" // no-op rebase + exact-head green record evidence whose command is byte-equal to the resolved finalize.test_command
 	gateComposeRan     = "ran"     // the full suite was launched and observed
 )
 
@@ -834,7 +834,7 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 	if err != nil {
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed, err.Error(), id)
 	}
-	// The fresh path may skip on exact-head green PR evidence (gateDecision).
+	// The fresh path may skip on exact-head green record evidence (gateDecision).
 	return mapBegunRebase(ctx, deps, repoDir, op, rc, pr, receipt, status, rebaseMapOptions{evidenceSkip: true})
 }
 
@@ -1535,7 +1535,7 @@ func mapContinuedRebase(ctx context.Context, deps FinalizeDeps, repoDir, op stri
 		if pr.Number == 0 {
 			pr = githubcli.PullRequest{}
 		}
-		// A completed continue is never a no-op and never skips on PR evidence.
+		// A completed continue is never a no-op and never skips on record evidence.
 		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, status.HeadOID, false, false)
 	default: // RebaseInProgressForeign / RebaseFailed
 		return rebaseRefusal(op, ResultBlocked, RebaseDispFailed, ReasonRebaseGitFailed,

@@ -506,18 +506,17 @@ func newFinalizeResolverReserveSubcommand(setResult func(app.OperationResult)) *
 }
 
 // newFinalizePublishSubcommand builds `finalize publish`: it publishes a rewritten
-// feature head onto its remote ref under the owned rebase receipt's exact lease,
-// converges the PR build-evidence block onto that head, and records the evidence
-// in the change record. The scalar identity (id,
+// feature head onto its remote ref under the owned rebase receipt's exact lease
+// and records the evidence in the change record. The scalar identity (id,
 // attempt token, expected head) rides on flags; the canonical evidence bytes ride
 // in --evidence (a request file or stdin), never a shell-escaped flag.
 func newFinalizePublishSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "publish",
-		Short: "Publish a rebased feature head under its receipt lease and update the PR build-evidence block",
+		Short: "Publish a rebased feature head under its receipt lease and record its build evidence",
 		Args:  cobra.NoArgs,
 		// external-write: force-with-lease pushes the rewritten feature head
-		// (remote ref) and converges the PR evidence block on GitHub;
+		// (remote ref); the pull request is only probed, never edited;
 		// metadata-write: one exact-revision metadata transaction records the
 		// evidence in the change record's "## Build evidence" section.
 		Annotations: capability("finalize.publish", EffectExternalWrite, EffectMetadataWrite),

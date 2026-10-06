@@ -14,11 +14,11 @@ import (
 // This file drives `finalize publish` over a REAL feature workspace (the same
 // bare-remote topology, gitcli.Client, and workspace.Service the rebase tests
 // use, including its owned rebase receipt and its receipt-scoped PublishRewrite)
-// plus a faithful-enough fake FinalizeGitHub that also implements the PR
-// create-or-edit face. The receipt-scoped force-with-lease push and the
-// loss-preserving PR body update are only meaningful against real Git and a real
-// receipt, so nothing about the rewrite publication is stubbed; only the GitHub
-// PR effect a hermetic suite cannot reach is injected.
+// plus a faithful-enough fake FinalizeGitHub. The receipt-scoped
+// force-with-lease push and the change-record evidence write are only
+// meaningful against real Git and a real receipt, so nothing about the rewrite
+// publication is stubbed; only the GitHub PR reprobe a hermetic suite cannot
+// reach is injected.
 
 // --- TestFinalizePublishCrashReplay ---------------------------------------
 
@@ -33,14 +33,13 @@ import (
 // FinalizePublish's evidence condition — the operation proceeds PAST it
 // (VerdictSkipped is accepted exactly as VerdictVerified). Reverting the
 // green-or-skipped acceptance would refuse here with ReasonPublishEvidenceUnverified,
-// so this pins the verify-site change. (PR-body weaving of a skipped block is a
-// separate concern: evidence.Upsert is green-only today, so the operation still
-// fails later at body assembly — see the change notes.)
+// so this pins the verify-site change. The skipped record's home is the change
+// record's build-evidence section; the PR description is never edited.
 func TestIntegrationFinalizeOpsFinalizePublishAcceptsSkippedEvidence(t *testing.T) {
 	requireRealGit(t)
 	f := setupPublishFixture(t, planRepoModes()[0])
-	// Land the push out of band so publish resumes only the PR update, exactly as
-	// the green after-push replay case does.
+	// Land the push out of band so publish resumes only the record write, exactly
+	// as the green after-push replay case does.
 	runGit(t, f.wp, "push", "--force", "-q", "origin", "HEAD:refs/heads/feat/"+f.slug)
 	if tip := f.remoteFeatureTip(t); tip != f.rewritten {
 		t.Fatalf("precondition: remote tip = %q, want the rewritten head", tip)
@@ -58,6 +57,9 @@ func TestIntegrationFinalizeOpsFinalizePublishAcceptsSkippedEvidence(t *testing.
 	if res.Result != ResultApplied || res.Disposition != PublishDispPublished {
 		t.Fatalf("skipped publish = %q disp %q (reason %q msg %q), want applied/published", res.Result, res.Disposition, res.Reason, res.Message)
 	}
+	if gh.ensNext != 0 {
+		t.Errorf("EnsurePullRequest called %d time(s), want 0", gh.ensNext)
+	}
 	// The skipped record is durable in the change record's evidence section.
 	if got := f.remoteRecordEvidence(t); got != skipped {
 		t.Fatalf("recorded evidence = %+v, want the published skipped record %+v", got, skipped)
@@ -69,8 +71,8 @@ func TestIntegrationFinalizeOpsFinalizePublishAcceptsSkippedEvidence(t *testing.
 // denied publish (nothing pushed, PR untouched), a finalize resume that reuses
 // the checkpoint WITHOUT re-running the suite, and a FinalizePublish driven by
 // the reused evidence that lands the rewritten head under the exact lease and
-// converges the PR body while preserving every authored byte outside the
-// managed evidence block.
+// records the evidence in the change record's build-evidence section without
+// editing the PR description.
 func TestIntegrationFinalizeOpsFinalizePublishAfterCheckpointResume(t *testing.T) {
 	requireRealGit(t)
 	f := setupRebaseFixture(t, planRepoModes()[0])
@@ -115,13 +117,12 @@ func TestIntegrationFinalizeOpsFinalizePublishAfterCheckpointResume(t *testing.T
 	if tip := runGit(t, f.repo.origin, "rev-parse", "refs/heads/feat/"+f.slug); tip != rewritten {
 		t.Errorf("origin feature tip = %q, want the rewritten head %q", tip, rewritten)
 	}
-	// The authored bytes survived; the managed block certifies the rewritten head.
-	body := pubGH.lastEnsuredBody()
-	if !strings.Contains(body, "Authored intro prose.") || !strings.Contains(body, "Authored outro prose.") {
-		t.Errorf("authored PR-body bytes were not preserved:\n%s", body)
+	// The PR description is untouched; the change record's build-evidence
+	// section certifies the rewritten head.
+	if pubGH.ensNext != 0 || pubGH.pr.Body != authored {
+		t.Errorf("publish edited the PR description (%d EnsurePullRequest calls)", pubGH.ensNext)
 	}
-	got, err := evidence.Extract([]byte(body))
-	if err != nil || got.Head != rewritten {
-		t.Errorf("converged evidence head = %q err=%v, want %q", got.Head, err, rewritten)
+	if got := f.remoteRecordEvidence(t); got.Head != rewritten {
+		t.Errorf("recorded evidence head = %q, want %q", got.Head, rewritten)
 	}
 }

@@ -18,13 +18,13 @@ import (
 
 // --- fake FinalizeGitHub + PR editor --------------------------------------
 
-// fakePublishGitHub answers the GitHub calls `finalize publish` makes
-// (DiscoverRepository, FindOpenPullRequestsByHead, EnsurePullRequest) from a
-// single in-memory PR. It models EnsurePullRequest's load-bearing behaviors — the
-// expected-head gate, the already-equal no-op, the revision CAS, and the edit —
-// so one fake serves the happy, replay, and no-op cases, and records every edit
-// so a test can assert the full body it received. Every other finalize-half
-// GitHub method panics so an accidental call is loud.
+// fakePublishGitHub answers the GitHub calls `finalize publish` and `evidence
+// recertify` make (DiscoverRepository, FindOpenPullRequestsByHead) from a single
+// in-memory PR. Neither operation edits the PR description — build evidence
+// lives in the change record — so it also implements EnsurePullRequest only to
+// count calls (ensNext) and model the edit faithfully, letting a test pin that
+// no call is made. Every other finalize-half GitHub method panics so an
+// accidental call is loud.
 type fakePublishGitHub struct {
 	repo    githubcli.Repository
 	pr      githubcli.PullRequest // the single open PR for the feature head
@@ -89,12 +89,6 @@ func (f *fakePublishGitHub) FindComment(context.Context, githubcli.Repository, i
 }
 func (f *fakePublishGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
 	panic("MergePullRequest: publish must not call this")
-}
-
-// lastEnsuredBody returns the body of the most recent EnsurePullRequest call
-// (captured in ensLast), so a test can assert the full converged PR body.
-func (f *fakePublishGitHub) lastEnsuredBody() string {
-	return f.ensLast.Body
 }
 
 // --- publish fixture ------------------------------------------------------
@@ -163,7 +157,7 @@ func recFor(t *testing.T, head string) (evidence.Record, []byte) {
 }
 
 // authoredPRBody builds a PR body with authored prose surrounding a build-evidence
-// block that certifies head — the loss-preservation target.
+// block that certifies head — authored bytes no publication ever edits.
 func authoredPRBody(t *testing.T, head string) string {
 	t.Helper()
 	rec, err := evidence.NewRecord("go test ./...", head, time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC))

@@ -104,17 +104,17 @@ func matrixRebaseCompletion(t *testing.T, m planRepoMode) {
 	assertNoHiddenPhaseState(t, f.metaDir)
 }
 
-// matrixPublish covers "Force-with-lease push" and "PR evidence update": after both
-// effects land, a replay finds the remote already at the rewritten head and the PR
-// body already carrying the exact-head evidence, so it is a full no-op — never a
-// second push and never a second PR.
+// matrixPublish covers "Force-with-lease push" and "record evidence write": after
+// both effects land, a replay finds the remote already at the rewritten head and
+// the change record already carrying the exact-head evidence, so it is a full
+// no-op — never a second push, never a PR edit, and never a second PR.
 func matrixPublish(t *testing.T, m planRepoMode) {
 	f := setupPublishFixture(t, m)
 	if tip := f.remoteFeatureTip(t); tip != f.origHead {
 		t.Fatalf("precondition: remote feature tip = %q, want the original head %q", tip, f.origHead)
 	}
-	_, evBytes := recFor(t, f.rewritten)
-	prBody := authoredPRBody(t, f.origHead) // the PR still carries evidence for the old head
+	evRec, evBytes := recFor(t, f.rewritten)
+	prBody := authoredPRBody(t, f.origHead)
 	gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, prBody)}
 	req := FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes}
 
@@ -125,8 +125,9 @@ func matrixPublish(t *testing.T, m planRepoMode) {
 	if tip := f.remoteFeatureTip(t); tip != f.rewritten {
 		t.Fatalf("the push did not reach the rewritten head: remote tip %q", tip)
 	}
-	updatedBody := gh.pr.Body
-	editsAfterFirst := gh.ensNext
+	if got := f.remoteRecordEvidence(t); got != evRec {
+		t.Fatalf("recorded evidence = %+v, want %+v", got, evRec)
+	}
 
 	// The response was lost; the identical request is replayed.
 	second := FinalizePublish(context.Background(), f.publishDeps(gh), f.repo.invocation, req)
@@ -139,13 +140,8 @@ func matrixPublish(t *testing.T, m planRepoMode) {
 	if tip := f.remoteFeatureTip(t); tip != f.rewritten {
 		t.Errorf("a replay moved the remote feature ref: %q", tip)
 	}
-	if gh.pr.Body != updatedBody {
-		t.Errorf("a replay mutated the PR body a second time")
-	}
-	if gh.ensNext <= editsAfterFirst {
-		// The replay may still probe, but must not issue a mutating edit; the body
-		// invariance above is the load-bearing check. ensNext counting up is fine.
-		_ = editsAfterFirst
+	if gh.ensNext != 0 || gh.pr.Body != prBody {
+		t.Errorf("publish edited the PR description (%d EnsurePullRequest calls)", gh.ensNext)
 	}
 }
 
