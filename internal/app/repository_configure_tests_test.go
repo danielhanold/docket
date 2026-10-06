@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
@@ -233,7 +235,10 @@ func TestEnsureExplicitTestCommandRefusesUnsplicableFileUntouched(t *testing.T) 
 	if err := os.WriteFile(abs, orig, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	pending, wrote, err := ensureExplicitTestCommand(dir, "make test")
+	pending, wrote, err := ensureExplicitTestCommand(setupContext{
+		repo:   gitcli.Repository{PrimaryWorktree: dir, CommonDir: filepath.Join(dir, ".git")},
+		layout: layout.SharedLayout(filepath.Join(dir, ".git"), dir),
+	}, "make test")
 	if err == nil {
 		t.Fatalf("expected a refusal; got pending=%q wrote=%v", pending, wrote)
 	}

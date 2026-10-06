@@ -46,7 +46,7 @@ func TestRaceIntegrationRepoSetupConcurrentInitRace(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			results[i] = RunRepositoryInit(context.Background(), SetupDeps{Git: clients[i], RepoDir: dirs[i]})
+			results[i] = RunRepositoryInit(context.Background(), SetupDeps{Git: clients[i], RepoDir: dirs[i]}, InitOptions{})
 		}()
 	}
 	close(start)

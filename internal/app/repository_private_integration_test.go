@@ -1,0 +1,349 @@
+//go:build integration
+
+package app
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/danielhanold/docket/internal/layout"
+	"github.com/danielhanold/docket/internal/reposetup"
+	"github.com/danielhanold/docket/internal/testsupport"
+)
+
+// This file is the private-visibility slice of the real-Git init/setup shard
+// (prefix TestIntegrationRepoSetup). A private repository keeps the metadata
+// branch `dckt` on a bare `dckt` remote under the data home, its checkout under
+// that store, and its config in .git/dckt/config.yml — nothing docket-named in
+// the repository and nothing pushed to origin.
+
+// newPrivateInitRepo builds the newInitRepo topology but commits NO .docket.yml
+// (a private repository never reads one), points XDG_DATA_HOME at a fresh temp
+// dir, and returns that data home.
+func newPrivateInitRepo(t *testing.T, files map[string]string) (*initRepo, string) {
+	t.Helper()
+	requireRealGit(t)
+	root := testsupport.TempDir(t)
+	r := &initRepo{
+		root:       root,
+		origin:     filepath.Join(root, "origin.git"),
+		writer:     filepath.Join(root, "writer"),
+		invocation: filepath.Join(root, "invocation"),
+	}
+	runGit(t, root, "init", "--bare", "-b", "main", r.origin)
+	runGit(t, root, "init", "-b", "main", r.writer)
+	gitIdentity(t, r.writer)
+	writeRepoFile(t, r.writer, "README.md", "readme\n")
+	for rel, content := range files {
+		writeRepoFile(t, r.writer, rel, content)
+	}
+	runGit(t, r.writer, "add", "-A")
+	runGit(t, r.writer, "commit", "-q", "-m", "integration content")
+	runGit(t, r.writer, "remote", "add", "origin", r.origin)
+	runGit(t, r.writer, "push", "-q", "-u", "origin", "main")
+
+	runGit(t, root, "clone", "-q", r.origin, r.invocation)
+	gitIdentity(t, r.invocation)
+
+	data := testsupport.TempDir(t)
+	t.Setenv("XDG_DATA_HOME", data)
+	return r, data
+}
+
+// runInitWith runs RunRepositoryInit against the invocation clone with o.
+func (r *initRepo) runInitWith(t *testing.T, o InitOptions) RepositoryOpResult {
+	t.Helper()
+	client := newGitClient(t)
+	return RunRepositoryInit(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation}, o)
+}
+
+// runInitWithGlobal runs init with a global config layer holding globalYML.
+// newGitClient isolates XDG_CONFIG_HOME, so the global layer is installed after
+// the client is built.
+func (r *initRepo) runInitWithGlobal(t *testing.T, globalYML string, o InitOptions) RepositoryOpResult {
+	t.Helper()
+	client := newGitClient(t)
+	cfgHome := testsupport.TempDir(t)
+	if err := os.MkdirAll(filepath.Join(cfgHome, "docket"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfgHome, "docket", "config.yml"), []byte(globalYML), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	return RunRepositoryInit(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation}, o)
+}
+
+// privateLayoutOf resolves the clone's private layout from its origin URL and
+// the test's data home, independently of the code under test's own resolution.
+func privateLayoutOf(t *testing.T, dir, data string) layout.Layout {
+	t.Helper()
+	common := runGit(t, dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	top := runGit(t, dir, "rev-parse", "--show-toplevel")
+	slug, err := layout.OwnerRepo(runGit(t, dir, "config", "--get", "remote.origin.url"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonical, err := filepath.EvalSymlinks(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return layout.PrivateLayout(common, top, canonical, slug)
+}
+
+func TestIntegrationRepoSetupPrivateFreshInitCreatesNeutralLayout(t *testing.T) {
+	r, data := newPrivateInitRepo(t, nil)
+	res := r.runInitWith(t, InitOptions{Private: true})
+	if res.Result != ResultApplied {
+		t.Fatalf("Result = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	lay := privateLayoutOf(t, r.invocation, data)
+	gitDir := r.gitDir(t)
+
+	cfg, err := os.ReadFile(filepath.Join(gitDir, "dckt", "config.yml"))
+	if err != nil || !strings.Contains(string(cfg), "visibility: private") {
+		t.Errorf(".git/dckt/config.yml = %q (%v), want it to hold visibility: private", cfg, err)
+	}
+	exclude, err := os.ReadFile(filepath.Join(gitDir, "info", "exclude"))
+	if err != nil || !reposetup.ValidExcludeBlock(exclude) {
+		t.Errorf(".git/info/exclude = %q (%v), want a valid # dckt: block", exclude, err)
+	}
+
+	url := runGit(t, r.invocation, "config", "--get", "remote.dckt.url")
+	if url != lay.DefaultBareRemote || !strings.HasSuffix(url, filepath.Join("dckt", filepath.Base(lay.StoreDir), "remote.git")) {
+		t.Errorf("dckt remote URL = %q, want %q", url, lay.DefaultBareRemote)
+	}
+	if _, err := tryGit(url, "rev-parse", "--verify", "--quiet", "refs/heads/dckt"); err != nil {
+		t.Errorf("the bare store has no refs/heads/dckt: %v", err)
+	}
+	if r.remoteBranchExists(t, "docket") || r.remoteBranchExists(t, "dckt") {
+		t.Error("origin gained a docket or dckt branch; private metadata must never reach origin")
+	}
+	wts := runGit(t, r.invocation, "worktree", "list", "--porcelain")
+	if !strings.Contains(wts, "worktree "+lay.MetadataWorktree+"\n") || !strings.HasPrefix(lay.MetadataWorktree, filepath.Dir(lay.StoreDir)) {
+		t.Errorf("worktree list has no checkout %s under the data home:\n%s", lay.MetadataWorktree, wts)
+	}
+	for _, name := range []string{".docket", ".docket.yml", ".gitignore", ".docket.local.yml"} {
+		if _, err := os.Lstat(filepath.Join(r.invocation, name)); !os.IsNotExist(err) {
+			t.Errorf("%s exists in the repository root (err=%v); private init writes nothing there", name, err)
+		}
+	}
+	if st := runGit(t, r.invocation, "status", "--porcelain"); st != "" {
+		t.Errorf("git status --porcelain = %q, want empty", st)
+	}
+}
+
+func TestIntegrationRepoSetupPrivateRerunIsNoOp(t *testing.T) {
+	r, data := newPrivateInitRepo(t, nil)
+	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("first init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	res := r.runInitWith(t, InitOptions{})
+	if res.Result != ResultNoOp {
+		t.Fatalf("re-run = %q (%s), want no-op", res.Result, res.HumanText())
+	}
+	lay := privateLayoutOf(t, r.invocation, data)
+	prep := RunRepositoryPrepare(context.Background(), SetupDeps{Git: newGitClient(t), RepoDir: r.invocation}, PrepareOptions{})
+	if prep.Disposition != PrepareDispositionNoOp {
+		t.Fatalf("prepare disposition = %q (%s), want no-op", prep.Disposition, prep.HumanText())
+	}
+	if prep.Context == nil || prep.Context.MetadataRemote != "dckt" || prep.Context.MetadataWorktreePath != lay.MetadataWorktree {
+		t.Errorf("prepare context = %+v, want MetadataRemote dckt and MetadataWorktreePath %q", prep.Context, lay.MetadataWorktree)
+	}
+}
+
+// TestIntegrationRepoSetupPrivateInterruptedAfterConfigResumes proves the
+// presence-encoded-state recovery: a run that died right after writing
+// .git/dckt/ (so the repository reads as private) but before registering the
+// dckt remote finishes on a plain re-run.
+func TestIntegrationRepoSetupPrivateInterruptedAfterConfigResumes(t *testing.T) {
+	r, data := newPrivateInitRepo(t, nil)
+	gitDir := r.gitDir(t)
+	if err := os.MkdirAll(filepath.Join(gitDir, "dckt"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gitDir, "dckt", "config.yml"), []byte("visibility: private\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res := r.runInitWith(t, InitOptions{})
+	if res.Result != ResultApplied {
+		t.Fatalf("resumed init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	lay := privateLayoutOf(t, r.invocation, data)
+	if url := runGit(t, r.invocation, "config", "--get", "remote.dckt.url"); url != lay.DefaultBareRemote {
+		t.Errorf("dckt remote URL = %q, want %q", url, lay.DefaultBareRemote)
+	}
+}
+
+func TestIntegrationRepoSetupPrivateSecondCloneAdoptsSharedStore(t *testing.T) {
+	r, data := newPrivateInitRepo(t, nil)
+	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("clone A init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	node := planningDepsFor(t, r.invocation)
+	created := ChangeCreate(context.Background(), node.deps, r.invocation, validChangeCreateRequest())
+	if created.Result != ResultApplied {
+		t.Fatalf("ChangeCreate in clone A = %q (%s)", created.Result, created.HumanText())
+	}
+	layA := privateLayoutOf(t, r.invocation, data)
+	headA := runGit(t, layA.MetadataWorktree, "rev-parse", "HEAD")
+
+	b := r.freshClone(t)
+	bRepo := &initRepo{root: r.root, origin: r.origin, writer: r.writer, invocation: b}
+	if res := bRepo.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("clone B init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	layB := privateLayoutOf(t, b, data)
+
+	urlA := runGit(t, r.invocation, "config", "--get", "remote.dckt.url")
+	urlB := runGit(t, b, "config", "--get", "remote.dckt.url")
+	if urlA != urlB {
+		t.Errorf("dckt URLs differ: A %q, B %q; both clones must share one store", urlA, urlB)
+	}
+	if layA.MetadataWorktree == layB.MetadataWorktree {
+		t.Errorf("both clones resolved the same checkout %q", layA.MetadataWorktree)
+	}
+	if _, err := os.Stat(filepath.Join(layB.MetadataWorktree, created.Path)); err != nil {
+		t.Errorf("clone B's checkout lacks A's change file %s: %v", created.Path, err)
+	}
+	if got := runGit(t, layA.MetadataWorktree, "rev-parse", "HEAD"); got != headA {
+		t.Errorf("clone A's checkout HEAD moved from %s to %s", headA, got)
+	}
+}
+
+func TestIntegrationRepoSetupPrivateRemoteURLConflictRefuses(t *testing.T) {
+	r, _ := newPrivateInitRepo(t, nil)
+	elsewhere := filepath.Join(r.root, "elsewhere.git")
+	runGit(t, r.invocation, "remote", "add", "dckt", elsewhere)
+	res := r.runInitWith(t, InitOptions{Private: true})
+	if res.Result == ResultApplied || res.Result == ResultNoOp {
+		t.Fatalf("init = %q (%s), want a refusal", res.Result, res.HumanText())
+	}
+	text := res.HumanText()
+	if !strings.Contains(text, elsewhere) || !strings.Contains(text, "remote.git") {
+		t.Errorf("refusal %q must name both the existing URL %q and the wanted store", text, elsewhere)
+	}
+	if !strings.Contains(text, "re-run `docket repository init`") {
+		t.Errorf("refusal %q must name the presence-encoded recovery", text)
+	}
+	if url := runGit(t, r.invocation, "config", "--get", "remote.dckt.url"); url != elsewhere {
+		t.Errorf("dckt remote rewritten to %q; docket never rewrites a remote", url)
+	}
+}
+
+func TestIntegrationRepoSetupPrivateMetadataRemoteFlag(t *testing.T) {
+	r, data := newPrivateInitRepo(t, nil)
+	backup := filepath.Join(testsupport.TempDir(t), "backup.git")
+	runGit(t, r.root, "init", "--bare", "-q", backup)
+	res := r.runInitWith(t, InitOptions{Private: true, MetadataRemote: backup})
+	if res.Result != ResultApplied {
+		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	if url := runGit(t, r.invocation, "config", "--get", "remote.dckt.url"); url != backup {
+		t.Errorf("dckt remote URL = %q, want the flag %q", url, backup)
+	}
+	if _, err := tryGit(backup, "rev-parse", "--verify", "--quiet", "refs/heads/dckt"); err != nil {
+		t.Errorf("the flag remote has no refs/heads/dckt: %v", err)
+	}
+	lay := privateLayoutOf(t, r.invocation, data)
+	if _, err := os.Stat(lay.DefaultBareRemote); !os.IsNotExist(err) {
+		t.Errorf("default bare remote %s was created (err=%v); a flag URL never creates it", lay.DefaultBareRemote, err)
+	}
+}
+
+func TestIntegrationRepoSetupInitModeFlagsRefuseSwitch(t *testing.T) {
+	r := newInitRepo(t, defaultSetupYML, nil)
+	if res := r.runInit(t); res.Result != ResultApplied {
+		t.Fatalf("shared init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	res := r.runInitWith(t, InitOptions{Private: true})
+	if res.Result != ResultInvalidState {
+		t.Fatalf("--private on a shared repository = %q (%s), want invalid-state", res.Result, res.HumanText())
+	}
+	if _, err := os.Lstat(filepath.Join(r.gitDir(t), "dckt")); !os.IsNotExist(err) {
+		t.Errorf(".git/dckt exists after a refused switch (err=%v)", err)
+	}
+}
+
+func TestIntegrationRepoSetupGlobalPrivateDefault(t *testing.T) {
+	const global = "visibility: private\n"
+
+	t.Run("fresh with no flags inits private", func(t *testing.T) {
+		r, _ := newPrivateInitRepo(t, nil)
+		res := r.runInitWithGlobal(t, global, InitOptions{})
+		if res.Result != ResultApplied {
+			t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+		}
+		if _, err := os.Stat(filepath.Join(r.gitDir(t), "dckt")); err != nil {
+			t.Errorf("no .git/dckt after a global-private init: %v", err)
+		}
+		if r.remoteBranchExists(t, "docket") {
+			t.Error("origin gained a docket branch")
+		}
+	})
+
+	t.Run("committed visibility shared wins", func(t *testing.T) {
+		r := newInitRepo(t, defaultSetupYML+"visibility: shared\n", nil)
+		t.Setenv("XDG_DATA_HOME", testsupport.TempDir(t))
+		res := r.runInitWithGlobal(t, global, InitOptions{})
+		if res.Result != ResultApplied {
+			t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+		}
+		if !r.remoteBranchExists(t, "docket") {
+			t.Error("committed visibility: shared did not init shared")
+		}
+		if _, err := os.Lstat(filepath.Join(r.gitDir(t), "dckt")); !os.IsNotExist(err) {
+			t.Errorf(".git/dckt exists (err=%v)", err)
+		}
+	})
+
+	t.Run("--shared wins", func(t *testing.T) {
+		r := newInitRepo(t, defaultSetupYML, nil)
+		t.Setenv("XDG_DATA_HOME", testsupport.TempDir(t))
+		res := r.runInitWithGlobal(t, global, InitOptions{Shared: true})
+		if res.Result != ResultApplied {
+			t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+		}
+		if !r.remoteBranchExists(t, "docket") {
+			t.Error("--shared did not init shared")
+		}
+	})
+
+	t.Run("healthy shared stays shared", func(t *testing.T) {
+		t.Setenv("XDG_DATA_HOME", testsupport.TempDir(t))
+		r := newHealthyRepo(t)
+		res := r.runInitWithGlobal(t, global, InitOptions{})
+		if res.Result != ResultNoOp && res.Result != ResultApplied {
+			t.Fatalf("re-init = %q (%s), want it admitted as shared", res.Result, res.HumanText())
+		}
+		if _, err := os.Lstat(filepath.Join(r.gitDir(t), "dckt")); !os.IsNotExist(err) {
+			t.Errorf(".git/dckt exists after re-init (err=%v); config never moves a repository", err)
+		}
+		chk := r.runCheck(t)
+		for _, f := range chk.Findings {
+			if f.Code == "visibility-mismatch" {
+				t.Errorf("check reported %+v; a global visibility never mismatches", f)
+			}
+		}
+	})
+}
+
+// TestIntegrationRepoSetupPrivateMigrateRefuses proves migrate refuses a
+// private repository before any phase logic: it converts legacy repositories
+// to the shared layout, and a private one has nothing to migrate.
+func TestIntegrationRepoSetupPrivateMigrateRefuses(t *testing.T) {
+	r, _ := newPrivateInitRepo(t, nil)
+	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	res := r.runMigrate(t, MigrateOptions{Authorized: true})
+	if res.Result != ResultInvalidState || !strings.Contains(res.HumanText(), "this repository is private and has nothing to migrate") {
+		t.Fatalf("migrate = %q (%s), want the private refusal", res.Result, res.HumanText())
+	}
+	if r.remoteBranchExists(t, "docket") {
+		t.Error("migrate published a docket branch to origin")
+	}
+}

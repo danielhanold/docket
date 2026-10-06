@@ -61,7 +61,11 @@ func TestResolveLayoutPrivateUsesOriginAndDataHome(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolveLayout: %v", err)
 	}
-	if want := layout.PrivateLayout(common, "/r", data, "o-r"); got != want {
+	canonicalData, err := filepath.EvalSymlinks(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := layout.PrivateLayout(common, "/r", canonicalData, "o-r"); got != want {
 		t.Fatalf("layout = %+v, want %+v", got, want)
 	}
 	if got := metadataRemote(got); got != "dckt" {
@@ -101,5 +105,26 @@ func TestResolveLayoutUnprobeableStateFails(t *testing.T) {
 	_, err := resolveLayout(context.Background(), &fakeURLReader{url: "git@github.com:o/r.git"}, gitcli.Repository{CommonDir: common, PrimaryWorktree: "/r"})
 	if !errors.Is(err, ErrStatusExternal) {
 		t.Fatalf("err = %v, want ErrStatusExternal", err)
+	}
+}
+
+// TestCanonicalExistingPrefix proves the data home is spelled the way git
+// records worktree paths: symlinks in the existing ancestor resolved, and a
+// not-yet-existing remainder kept.
+func TestCanonicalExistingPrefix(t *testing.T) {
+	real := testsupport.TempDir(t)
+	canonicalReal, err := filepath.EvalSymlinks(real)
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(testsupport.TempDir(t), "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	if got := canonicalExistingPrefix(link); got != canonicalReal {
+		t.Errorf("existing link = %q, want %q", got, canonicalReal)
+	}
+	if got, want := canonicalExistingPrefix(filepath.Join(link, "a", "b")), filepath.Join(canonicalReal, "a", "b"); got != want {
+		t.Errorf("missing remainder = %q, want %q", got, want)
 	}
 }

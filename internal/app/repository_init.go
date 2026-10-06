@@ -14,6 +14,7 @@ import (
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -80,11 +81,24 @@ func newRepositoryOpResult(operation string, result Result, out RepositoryOpResu
 // unstaged managed .gitignore edit plus (only when authorized) the parent-facing
 // dispatch surfaces, and the ownership record for the surfaces it owns. It never
 // prompts and never reads stdin.
-func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
+//
+// o selects the visibility a fresh repository is set up in (decideInitMode):
+// the effective `visibility` value, overridden by --private / --shared. A
+// private result runs runPrivateInit; an already-set-up repository keeps its
+// mode, and a flag that would switch it refuses.
+func RunRepositoryInit(ctx context.Context, d SetupDeps, o InitOptions) RepositoryOpResult {
+	// Validate the flags before any repository read.
+	if o.Private && o.Shared {
+		out := newRepositoryOpResult(OperationRepositoryInit, ResultInvalidInput, RepositoryOpResult{})
+		out.human = fmt.Sprintf("%s: %s: --private and --shared are mutually exclusive", OperationRepositoryInit, ResultInvalidInput)
+		return out
+	}
+
 	facts, sc, err := GatherSetupFacts(ctx, d, true)
 	if err != nil {
 		return repositoryGatherFailure(OperationRepositoryInit, err)
 	}
+	recoverUnconfiguredPrivateRemote(ctx, d.Git, &facts, sc)
 
 	cls, refusal := initGuard(facts)
 	if refusal != nil {
@@ -96,6 +110,14 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 	// worktree or ambiguous registration is preserved and reported). Its report
 	// rides back on the pending review paths.
 	debris := sweepSetupDebris(ctx, d.Git, sc.repo)
+
+	mode, why := decideInitMode(sc.layout.Mode, cls.State, o, sc.cfg.Visibility.Value)
+	if why != "" {
+		return initRefusal(cls.State, why)
+	}
+	if mode == layout.Private {
+		return runPrivateInit(ctx, d, sc, cls, o, debris)
+	}
 
 	// Effects 1–2: build a parentless empty-tree root with the OpInitRoot receipt
 	// and publish it under create-only protection. The create-only push is the
@@ -149,7 +171,7 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 	// exactly the managed-.gitignore posture. Generated config is human-gated, so
 	// init never stages it; an ambiguous outcome writes nothing and rides back as
 	// a note rather than failing init.
-	docketYMLPending, wroteDocketYML, discovery, derr := ensureTestPolicyConfig(sc.repo.PrimaryWorktree, sc.cfg)
+	docketYMLPending, wroteDocketYML, discovery, derr := ensureTestPolicyConfig(sc, sc.cfg)
 	if derr != nil {
 		return repositoryInternalFailure(OperationRepositoryInit, cls.State, "generating the test-policy config", derr)
 	}
@@ -183,41 +205,56 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 	return out
 }
 
-// writePendingDocketYML reads the primary worktree's .docket.yml (nil when
-// absent), asks render for the edited bytes, and writes them UNSTAGED when
-// render returns non-nil — the managed-.gitignore posture: generated config is
-// human-gated, never staged. It returns the pending review path ("" when nothing
-// was written). A read fault, a render error (malformed config, probe fault,
-// invalid command), or a write fault is an error with the file untouched.
-func writePendingDocketYML(primaryWorktree string, render func(existing []byte) ([]byte, error)) (pendingPath string, wrote bool, err error) {
-	abs := filepath.Join(primaryWorktree, docketYMLRel)
-	existing, rerr := os.ReadFile(abs)
+// writeRepoConfig reads the repository config file at absPath (nil when
+// absent), asks render for the edited bytes, and writes them when render returns
+// non-nil, creating the parent directory. For a shared repository that is the
+// root .docket.yml, written UNSTAGED — the managed-.gitignore posture: generated
+// config is human-gated, never staged. A read fault, a render error (malformed
+// config, probe fault, invalid command), or a write fault is an error with the
+// file untouched.
+func writeRepoConfig(absPath string, render func(existing []byte) ([]byte, error)) (wrote bool, err error) {
+	existing, rerr := os.ReadFile(absPath)
 	if rerr != nil {
 		if !os.IsNotExist(rerr) {
-			return "", false, rerr
+			return false, rerr
 		}
 		existing = nil
 	}
 	edited, perr := render(existing)
 	if perr != nil {
-		return "", false, perr
+		return false, perr
 	}
 	if edited == nil {
-		return "", false, nil
+		return false, nil
 	}
-	if werr := os.WriteFile(abs, edited, 0o644); werr != nil {
-		return "", false, werr
+	if merr := os.MkdirAll(filepath.Dir(absPath), 0o755); merr != nil {
+		return false, merr
 	}
-	return docketYMLRel, true, nil
+	if werr := os.WriteFile(absPath, edited, 0o644); werr != nil {
+		return false, werr
+	}
+	return true, nil
+}
+
+// writeTargetConfig writes through writeRepoConfig to the repository's config
+// target (repoConfigTarget) and returns the pending review path: the target's
+// display name when it is a pending path and was written, else "".
+func writeTargetConfig(sc setupContext, render func(existing []byte) ([]byte, error)) (pendingPath string, wrote bool, err error) {
+	abs, display, pending := repoConfigTarget(sc)
+	wrote, err = writeRepoConfig(abs, render)
+	if err != nil || !wrote || !pending {
+		return "", wrote, err
+	}
+	return display, true, nil
 }
 
 // ensureTestPolicyConfig discovers the suite from the primary worktree and
-// writes the generated test-policy edit through writePendingDocketYML,
+// writes the generated test-policy edit to the repository's config target,
 // returning the discovery outcome so the caller can report it. A malformed
 // existing config or a probe fault is an error with the file untouched.
-func ensureTestPolicyConfig(primaryWorktree string, cfg config.Effective) (pendingPath string, wrote bool, outcome reposetup.DiscoveryOutcome, err error) {
-	tree := newOSTree(primaryWorktree)
-	pendingPath, wrote, err = writePendingDocketYML(primaryWorktree, func(existing []byte) ([]byte, error) {
+func ensureTestPolicyConfig(sc setupContext, cfg config.Effective) (pendingPath string, wrote bool, outcome reposetup.DiscoveryOutcome, err error) {
+	tree := newOSTree(sc.repo.PrimaryWorktree)
+	pendingPath, wrote, err = writeTargetConfig(sc, func(existing []byte) ([]byte, error) {
 		edited, oc, perr := reposetup.TestPolicyEdit(cfg, existing, tree)
 		outcome = oc
 		return edited, perr
@@ -229,10 +266,10 @@ func ensureTestPolicyConfig(primaryWorktree string, cfg config.Effective) (pendi
 }
 
 // ensureExplicitTestCommand writes the explicit-command policy (both gates
-// local, both commands cmd) through writePendingDocketYML. No discovery runs.
-// cmd must already have passed reposetup.ExplicitTestCommand.
-func ensureExplicitTestCommand(primaryWorktree, cmd string) (pendingPath string, wrote bool, err error) {
-	return writePendingDocketYML(primaryWorktree, func(existing []byte) ([]byte, error) {
+// local, both commands cmd) to the repository's config target. No discovery
+// runs. cmd must already have passed reposetup.ExplicitTestCommand.
+func ensureExplicitTestCommand(sc setupContext, cmd string) (pendingPath string, wrote bool, err error) {
+	return writeTargetConfig(sc, func(existing []byte) ([]byte, error) {
 		edited, changed, rerr := reposetup.RenderExplicitTestCommandEdit(existing, cmd)
 		if rerr != nil || !changed {
 			return nil, rerr
