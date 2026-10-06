@@ -288,3 +288,20 @@ func TestWriteStateAtomicNoTorn(t *testing.T) {
 		}
 	}
 }
+
+func TestStateRejectsHarnessAttributedAlias(t *testing.T) {
+	s := sampleState()
+	unattributed := TargetRecord{Path: "/home/u/.local/bin/dckt", Kind: KindSymlink,
+		LinkTarget: "/home/u/.local/bin/docket", Role: roleBinaryAlias}
+	s.Targets = append(s.Targets, unattributed)
+	if err := ValidateState(s); err != nil {
+		t.Fatalf("an unattributed alias record was rejected: %v", err)
+	}
+	s = sampleState()
+	attributed := unattributed
+	attributed.Harness = s.Harnesses[0]
+	s.Targets = append(s.Targets, attributed)
+	if err := ValidateState(s); err == nil {
+		t.Fatal("a harness-attributed alias record validated")
+	}
+}
