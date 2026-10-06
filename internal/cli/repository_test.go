@@ -51,7 +51,7 @@ func (r fakeInitResult) HumanText() string { return "human" }
 // transport for the repository command's result.
 func TestRepositoryInitJSONFlowsToPresenter(t *testing.T) {
 	old := repositoryInitRunner
-	repositoryInitRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
+	repositoryInitRunner = func(ctx context.Context, d app.SetupDeps, o app.InitOptions) app.OperationResult {
 		return fakeInitResult{Envelope: app.NewEnvelope("repository.init", app.ResultApplied)}
 	}
 	defer func() { repositoryInitRunner = old }()

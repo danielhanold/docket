@@ -12,6 +12,7 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 )
@@ -123,6 +124,10 @@ func RunRepositoryMigrate(ctx context.Context, d SetupDeps, o MigrateOptions) Re
 	facts, sc, err := GatherSetupFacts(ctx, d, true)
 	if err != nil {
 		return migrateGatherFailure(err)
+	}
+	if sc.layout.Mode == layout.Private {
+		return migrateRefusal(reposetup.Classify(facts).State,
+			"migrate converts a legacy repository to the shared layout; this repository is private and has nothing to migrate")
 	}
 	// Before any phase logic, remove exactly the owned transient worktrees/refs an
 	// abrupt death of a prior invocation may have left (recognized by ownership

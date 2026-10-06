@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/layout"
@@ -46,7 +47,30 @@ func resolveLayout(ctx context.Context, r remoteURLReader, repo gitcli.Repositor
 	if err != nil {
 		return layout.Layout{}, fmt.Errorf("%w: private repository: locating the metadata store: %v", ErrStatusExternal, err)
 	}
-	return layout.PrivateLayout(repo.CommonDir, repo.PrimaryWorktree, dataHome, ownerRepo), nil
+	return layout.PrivateLayout(repo.CommonDir, repo.PrimaryWorktree, canonicalExistingPrefix(dataHome), ownerRepo), nil
+}
+
+// canonicalExistingPrefix resolves every symlink in the longest existing
+// ancestor of p and rejoins the not-yet-existing remainder. Git records
+// worktree paths symlink-canonical (as Discover does the repository's own), so
+// the store's checkout path must be spelled the same way for a re-run to
+// recognize its own registration — on macOS the temp and data dirs sit behind
+// the /var -> /private/var link. A path with no resolvable ancestor is returned
+// cleaned.
+func canonicalExistingPrefix(p string) string {
+	p = filepath.Clean(p)
+	rest := ""
+	for dir := p; ; {
+		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+			return filepath.Join(resolved, rest)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return p
+		}
+		rest = filepath.Join(filepath.Base(dir), rest)
+		dir = parent
+	}
 }
 
 // metadataRemote is the remote the metadata branch is fetched from and

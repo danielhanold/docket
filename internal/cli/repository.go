@@ -31,8 +31,8 @@ import (
 // the app entry points the repository subcommands dispatch to. They are package
 // variables so a test can stub them without a real repository.
 var (
-	repositoryInitRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
-		return app.RunRepositoryInit(ctx, d)
+	repositoryInitRunner = func(ctx context.Context, d app.SetupDeps, o app.InitOptions) app.OperationResult {
+		return app.RunRepositoryInit(ctx, d, o)
 	}
 	repositoryCheckRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
 		return app.RunRepositoryCheck(ctx, d)
@@ -91,9 +91,13 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 
 	initCmd := repositorySubcommand("init",
-		"Initialize the docket metadata branch and persistent .docket worktree",
+		"Initialize the docket metadata branch and its metadata worktree (shared by default; --private keeps it on this machine)",
 		func(c *cobra.Command, deps app.SetupDeps) {
-			setResult(repositoryInitRunner(c.Context(), deps))
+			var o app.InitOptions
+			o.Private, _ = c.Flags().GetBool("private")
+			o.Shared, _ = c.Flags().GetBool("shared")
+			o.MetadataRemote, _ = c.Flags().GetString("metadata-remote")
+			setResult(repositoryInitRunner(c.Context(), deps, o))
 		},
 		// metadata-write (the parentless metadata root, published create-only to
 		// the metadata branch) + local-write (local branch, .docket worktree,
@@ -101,6 +105,14 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 		// metadata-write, not external — external is only remote refs OUTSIDE the
 		// metadata branch.
 		EffectMetadataWrite, EffectLocalWrite)
+	// Bool usages carry no backticks: pflag reads a backticked word as the
+	// flag's value name, which a bool flag does not take.
+	initCmd.Flags().Bool("private", false,
+		"keep docket's metadata on this machine: a dckt branch pushed to a bare repository under ~/.local/share/dckt, with nothing docket-named in the repository (overrides the visibility setting)")
+	initCmd.Flags().Bool("shared", false,
+		"keep docket's metadata on a docket branch pushed to origin with a .docket/ worktree (overrides the visibility setting)")
+	initCmd.Flags().String("metadata-remote", "",
+		"with --private: push the dckt branch to this git `url` instead of the default bare repository")
 	checkCmd := repositorySubcommand("check",
 		"Report repository health with machine-readable findings (read-only)",
 		func(c *cobra.Command, deps app.SetupDeps) {

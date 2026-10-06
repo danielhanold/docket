@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -82,21 +83,29 @@ func RunRepositoryConfigureTests(ctx context.Context, d SetupDeps, o ConfigureTe
 		werr        error
 	)
 	if o.Command != nil {
-		pendingPath, wrote, werr = ensureExplicitTestCommand(sc.repo.PrimaryWorktree, explicit)
+		pendingPath, wrote, werr = ensureExplicitTestCommand(sc, explicit)
 	} else {
-		pendingPath, wrote, discovery, werr = ensureTestPolicyConfig(sc.repo.PrimaryWorktree, sc.cfg)
+		pendingPath, wrote, discovery, werr = ensureTestPolicyConfig(sc, sc.cfg)
 	}
 	if werr != nil {
 		return repositoryInternalFailure(OperationRepositoryConfigureTests, cls.State, "generating the test-policy config", werr)
 	}
 
+	// A shared repository's .docket.yml edit is a pending review path that moves
+	// the state to needs-review; a private repository's .git/dckt/config.yml is
+	// clone-local, so it is written with nothing to review and the state stands.
 	result := ResultNoOp
 	state := cls.State
 	var pending []string
+	written := pendingPath
 	if wrote {
 		result = ResultApplied
-		state = reposetup.StateNeedsReview
-		pending = []string{pendingPath}
+		if pendingPath != "" {
+			state = reposetup.StateNeedsReview
+			pending = []string{pendingPath}
+		} else {
+			_, written, _ = repoConfigTarget(sc)
+		}
 	}
 
 	out := newRepositoryOpResult(OperationRepositoryConfigureTests, result, RepositoryOpResult{
@@ -105,18 +114,29 @@ func RunRepositoryConfigureTests(ctx context.Context, d SetupDeps, o ConfigureTe
 		SourceRevision:  sc.sourceRevision,
 	})
 	if o.Command != nil {
-		out.human = configureTestsExplicitText(state, wrote, pendingPath, explicit)
+		out.human = configureTestsExplicitText(state, wrote, written, explicit)
 	} else {
-		out.human = configureTestsDiscoveryText(state, wrote, pendingPath, discovery, sc.cfg)
+		out.human = configureTestsDiscoveryText(state, wrote, written, discovery, sc.cfg)
 	}
 	return out
 }
 
-// configureTestsExplicitText renders the --command outcome.
-func configureTestsExplicitText(state reposetup.State, wrote bool, pendingPath, cmd string) string {
+// configWrittenText names where a written test policy landed: the pending
+// review path a shared repository commits, or the clone-local private config,
+// which has nothing to review.
+func configWrittenText(written string) string {
+	if written == layout.PrivateConfigDisplay {
+		return "wrote " + written
+	}
+	return "review and commit the pending path: " + written
+}
+
+// configureTestsExplicitText renders the --command outcome. written is the
+// path the policy was written to (configWrittenText).
+func configureTestsExplicitText(state reposetup.State, wrote bool, written, cmd string) string {
 	if wrote {
-		return fmt.Sprintf("test policy set: build and finalize gates `local` running `%s` (%s); review and commit the pending path: %s",
-			cmd, state, pendingPath)
+		return fmt.Sprintf("test policy set: build and finalize gates `local` running `%s` (%s); %s",
+			cmd, state, configWrittenText(written))
 	}
 	return fmt.Sprintf("%s: %s (%s): build and finalize gates are already `local` running `%s`; nothing to write",
 		OperationRepositoryConfigureTests, ResultNoOp, state, cmd)
@@ -128,10 +148,10 @@ func configureTestsExplicitText(state reposetup.State, wrote bool, pendingPath, 
 // so the gates are not assumed off); ambiguous names every candidate's command;
 // configured names both resolved commands plus any per-gate gap; detected with
 // no change names the command already in place.
-func configureTestsDiscoveryText(state reposetup.State, wrote bool, pendingPath string, outcome reposetup.DiscoveryOutcome, cfg config.Effective) string {
+func configureTestsDiscoveryText(state reposetup.State, wrote bool, written string, outcome reposetup.DiscoveryOutcome, cfg config.Effective) string {
 	noneRemedy := fmt.Sprintf("re-run with `%s` to set both gates to `local` with your suite command", reposetup.ConfigureTestsCommandRemedy)
 	if wrote {
-		text := fmt.Sprintf("test policy generated (%s); review and commit the pending path: %s", state, pendingPath)
+		text := fmt.Sprintf("test policy generated (%s); %s", state, configWrittenText(written))
 		if outcome.Kind == reposetup.DiscoveryNone {
 			text += "\nno supported test suite was found, so no test command was written; after committing, " + noneRemedy
 		}

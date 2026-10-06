@@ -71,7 +71,7 @@ func newInitRepo(t *testing.T, docketYML string, integrationFiles map[string]str
 func (r *initRepo) runInit(t *testing.T) RepositoryOpResult {
 	t.Helper()
 	client := newGitClient(t)
-	return RunRepositoryInit(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation})
+	return RunRepositoryInit(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation}, InitOptions{})
 }
 
 // gitDir returns the absolute git dir of the invocation clone.
@@ -318,7 +318,7 @@ func TestIntegrationRepoSetupInitDoesNotPrompt(t *testing.T) {
 	// The service signature carries no input reader, so it structurally cannot
 	// prompt; run it and confirm it completes without consulting stdin.
 	client := newGitClient(t)
-	res := RunRepositoryInit(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation})
+	res := RunRepositoryInit(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation}, InitOptions{})
 	if res.Result != ResultApplied {
 		t.Fatalf("init did not complete without a prompt: %q (%s)", res.Result, res.HumanText())
 	}

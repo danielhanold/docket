@@ -186,7 +186,11 @@ func TestGatherSetupFactsThreadsResolvedLayout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("gatherSetupFacts: %v", err)
 	}
-	want := layout.PrivateLayout(common, root, data, "o-r")
+	canonicalData, err := filepath.EvalSymlinks(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := layout.PrivateLayout(common, root, canonicalData, "o-r")
 	if sc.layout != want {
 		t.Errorf("sc.layout = %+v, want %+v", sc.layout, want)
 	}
