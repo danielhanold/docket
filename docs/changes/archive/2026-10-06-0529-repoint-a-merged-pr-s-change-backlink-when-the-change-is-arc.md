@@ -2,7 +2,7 @@
 id: 529
 slug: 'repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc'
 title: 'Repoint a merged PR''s change backlink when the change is archived'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-05'
@@ -22,7 +22,7 @@ branch: 'fix/repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc'
 pr: 'https://github.com/danielhanold/docket/pull/397'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-06T00:51:00Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-10-06T00:51:00Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md) |
-| Plan | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md](https://github.com/danielhanold/docket/blob/fix/repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc/docs/superpowers/plans/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) |
-| Results | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-results.md](https://github.com/danielhanold/docket/blob/fix/repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc/docs/results/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-results.md) |
+| Plan | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) |
+| Results | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

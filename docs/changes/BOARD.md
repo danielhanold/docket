@@ -1,12 +1,6 @@
 # Backlog
 
-**533 changes** — 🔵 1 built · 🟣 4 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 367 done · 🗑️ 139 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0529](active/0529-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) | Repoint a merged PR's change backlink when the change is archived | `medium` | `fix` | [#397](https://github.com/danielhanold/docket/pull/397) | awaiting merge |
+**533 changes** — 🟣 4 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 368 done · 🗑️ 139 killed
 
 ## 🟣 Groomed (4)
 
@@ -74,7 +68,6 @@ graph TD
   0511 --> 0514
   0527
   0528
-  0529
   0530
   0531
   0530 --> 0532
@@ -90,10 +83,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (506)</summary>
+<details><summary>✅🗑️ Archive — done + killed (507)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0529](archive/2026-10-06-0529-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) | Repoint a merged PR's change backlink when the change is archived | 2026-10-06 |
 | [0526](archive/2026-10-05-0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | 2026-10-05 |
 | [0525](archive/2026-10-05-0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | 2026-10-05 |
 | [0524](archive/2026-10-05-0524-release-candidate-evidence-json-drops-the-trailing-newline-f.md) | Release-candidate evidence.json drops the trailing newline from its checksums copy | 2026-10-05 |
@@ -110,7 +104,6 @@ graph TD
 | [0515](archive/2026-10-04-0515-make-finalize-merge-honor-the-repair-sign-off-block-when-an.md) | Retire the finalize repair sign-off so a green repair merges | 2026-10-04 |
 | [0511](archive/2026-10-04-0511-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa.md) | Upgrade guide from Bash docket to the Go binary, proven on saved v0.9.2 and v0.9.3 installs | 2026-10-04 |
 | [0510](archive/2026-10-04-0510-match-reported-follow-ups-against-proposed-and-deferred-chan.md) | Match reported follow-ups against proposed and deferred changes | 2026-10-04 |
-| [0509](archive/2026-10-04-0509-edit-an-ungroomed-stub-through-a-typed-operation.md) | Edit an ungroomed stub through a typed operation | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0380](archive/2026-10-04-0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | 2026-10-04 |
@@ -253,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 24 done |
+| [2026-10](archive/) | 25 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
