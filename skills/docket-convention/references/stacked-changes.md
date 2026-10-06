@@ -110,7 +110,7 @@ A change whose base does not resolve is **not build-ready**: the board reads
 
 At the branch cut, the resolved effective base replaces `origin/<integration_branch>` — and only
 there. Everything else about the feature branch is unchanged: it is cut after claim and reconcile,
-carries only plan + results + code, and never modifies docket metadata.
+carries only the spec copy and code, and never modifies docket metadata.
 
 ```
 workspace.prepare  --id <id> --revision <revision>   # cuts <type>/<slug> from the effective base; resolve argv from the capability catalog
