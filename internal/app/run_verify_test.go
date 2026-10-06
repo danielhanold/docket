@@ -122,14 +122,17 @@ func newRunVerifyFixture(t *testing.T, publish bool) *rvFixture {
 }
 
 // deps assembles the run-verify deps over a fixture: the fake reader supplies the
-// implemented corpus record, the fake workspace service reports the local head,
-// the fake GitHub adapter reports the PR, and the real client performs the remote
-// probe and blob reads.
+// implemented corpus record and the plan on the metadata branch, the fake
+// workspace service reports the local head, the fake GitHub adapter reports the
+// PR, and the real client performs the remote probe and the head blob reads.
 func (f *rvFixture) deps(record []byte, pr githubcli.PullRequest) (PlanningDeps, WorkspaceDeps, GitHubDeps) {
 	reader := &fakeReader{
 		pin:    f.pin,
 		corpus: []StatusBlob{{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, rvSlug), Revision: miRevision, Data: record}},
 		facts:  domain.NewBranchFacts(nil),
+		artifactData: map[string]StatusArtifact{
+			sourceMetadata + "|" + rvPlanPath: {Found: true, Revision: "planblob", Data: []byte("# plan\n")},
+		},
 	}
 	deps := PlanningDeps{Client: f.client, Reader: reader, Clock: testClock()}
 	wdeps := WorkspaceDeps{Service: &fakeWorkspaceService{inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(f.head)}}}

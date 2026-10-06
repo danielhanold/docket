@@ -163,8 +163,8 @@ func (r *gitStatusReader) BranchFacts(ctx context.Context, pin StatusPin, branch
 }
 
 // ArtifactExists reports whether a repo-relative path exists on the named
-// pinned source: "metadata" for specs, "integration" for plans and results. An
-// absent path is a clean (false, nil).
+// pinned source: "metadata" or "integration". An absent path is a clean
+// (false, nil).
 func (r *gitStatusReader) ArtifactExists(ctx context.Context, pin StatusPin, source, artifactPath string) (bool, error) {
 	rev, err := sourceRevision(pin, source)
 	if err != nil {

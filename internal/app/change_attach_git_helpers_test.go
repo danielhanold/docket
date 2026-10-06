@@ -22,8 +22,14 @@ func attachBacklinkBlock(id int, title, recPath string) string {
 // ambiguous decision sentence, both attach; only a whole-slot bare-token filler
 // refuses). Every slot here holds substantive content.
 func attachHappyPlan(id int, title, recPath string) string {
-	return attachBacklinkBlock(id, title, recPath) +
-		"\n# Implementation Plan\n\n## Task 1\n\nRemove the " + tok("todo") +
+	return attachBacklinkBlock(id, title, recPath) + "\n" + attachHappyPlanBody()
+}
+
+// attachHappyPlanBody is attachHappyPlan's authored body without the backlink
+// block — the Markdown change.attach-plan receives; the operation renders and
+// prepends the backlink itself.
+func attachHappyPlanBody() string {
+	return "# Implementation Plan\n\n## Task 1\n\nRemove the " + tok("todo") +
 		" in retry.go and replace it with bounded retry logic.\n\n" +
 		"## Error handling\n" + tok("todo") + ": decide whether failed requests should retry or stop.\n"
 }

@@ -71,8 +71,8 @@ const (
 	ReasonRunNotImplemented = "not-implemented"
 	// ReasonRunPlanUnlinked: the change carries no linked plan.
 	ReasonRunPlanUnlinked = "plan-unlinked"
-	// ReasonRunPlanMissing: the linked plan no longer resolves to a tracked regular
-	// file at the current feature head.
+	// ReasonRunPlanMissing: the linked plan no longer resolves to a file on the
+	// metadata branch.
 	ReasonRunPlanMissing = "plan-file-missing"
 	// ReasonRunRemoteHeadMismatch: the remote feature ref is absent or names a
 	// commit other than the current local feature head.
@@ -347,21 +347,30 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		add(ReasonRunLeaseContended, b.Value)
 	}
 
-	// Plan link and plan-file identity at the feature head.
+	// Plan link, and plan-file identity on the metadata branch (the plan lives
+	// there; the feature head is never consulted for it).
 	planPath := strings.TrimSpace(c.Plan().Value)
 	resultsPath := strings.TrimSpace(c.Results().Value)
 	if planPath == "" {
 		add(ReasonRunPlanUnlinked, "")
+	} else {
+		art, err := deps.Reader.ReadArtifact(ctx, pin, sourceMetadata, planPath)
+		if err != nil {
+			return runOperationalRefusal(ResultExternalFailed, ReasonRunArtifactRead, err.Error(), req.ID)
+		}
+		if !art.Found {
+			add(ReasonRunPlanMissing, planPath)
+		}
 	}
 	// A results artifact is REQUIRED at the implemented boundary (change 0410):
 	// an absent link is an unmet condition on its own. It needs no blob read, so it
-	// is added OUTSIDE the object-source guard below — a run with neither a plan
-	// nor results still reports results-unlinked without opening the head source.
+	// is added OUTSIDE the object-source guard below — a run with no results still
+	// reports results-unlinked without opening the head source.
 	if resultsPath == "" {
 		add(ReasonRunResultsUnlinked, "")
 	}
-	// Open the head's object source once when a blob read is needed.
-	if planPath != "" || resultsPath != "" {
+	// Open the head's object source when the results blob read is needed.
+	if resultsPath != "" {
 		src, err := deps.Client.OpenObjectSource(ctx, repo, gitcli.Revision{Commit: gitcli.ObjectID(head)})
 		if err != nil {
 			result, reason := classifyStatusError(ctx, classifyGitFailure(err))
@@ -370,28 +379,17 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 			}
 			return runOperationalRefusal(result, reason, err.Error(), req.ID)
 		}
-		if planPath != "" {
-			okFile, rerr := trackedRegularBlob(ctx, src, planPath)
-			if rerr != nil {
-				return runOperationalRefusal(ResultExternalFailed, ReasonRunArtifactRead, rerr.Error(), req.ID)
-			}
-			if !okFile {
-				add(ReasonRunPlanMissing, planPath)
-			}
+		blob, okFile, rerr := trackedRegularBlobBytes(ctx, src, resultsPath)
+		if rerr != nil {
+			return runOperationalRefusal(ResultExternalFailed, ReasonRunArtifactRead, rerr.Error(), req.ID)
 		}
-		if resultsPath != "" {
-			blob, okFile, rerr := trackedRegularBlobBytes(ctx, src, resultsPath)
-			if rerr != nil {
-				return runOperationalRefusal(ResultExternalFailed, ReasonRunArtifactRead, rerr.Error(), req.ID)
-			}
-			if !okFile {
-				// The linked path is absent or a symlink: identity, not prose.
-				add(ReasonRunResultsIdentity, resultsPath)
-			} else if fs := ValidateResultsContent(blob, ResultsPhaseFinal); len(fs) > 0 {
-				// The path resolves to a tracked regular file whose FINAL content
-				// contract fails. Observed names the path and the first finding.
-				add(ReasonRunResultsInvalid, resultsPath+": "+fs[0].Reason)
-			}
+		if !okFile {
+			// The linked path is absent or a symlink: identity, not prose.
+			add(ReasonRunResultsIdentity, resultsPath)
+		} else if fs := ValidateResultsContent(blob, ResultsPhaseFinal); len(fs) > 0 {
+			// The path resolves to a tracked regular file whose FINAL content
+			// contract fails. Observed names the path and the first finding.
+			add(ReasonRunResultsInvalid, resultsPath+": "+fs[0].Reason)
 		}
 	}
 
@@ -533,8 +531,8 @@ func evaluateRunWaiting(changeID int, c domain.Change, workspaceHead string, r W
 // (non symlink) file at the source's pinned commit and, when it does, returns the
 // blob's bytes. A read-infrastructure error is returned as an error
 // (operational); a missing path or a symlink is a clean (nil, false, nil) — the
-// caller maps that to the relevant postcondition miss. It is the single probe
-// behind both trackedRegularBlob (identity only) and the results-content check.
+// caller maps that to the relevant postcondition miss. It is the probe behind
+// the results identity and content checks.
 func trackedRegularBlobBytes(ctx context.Context, src gitcli.ObjectSource, path string) ([]byte, bool, error) {
 	results, err := src.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(path)})
 	if err != nil {
@@ -547,12 +545,4 @@ func trackedRegularBlobBytes(ctx context.Context, src gitcli.ObjectSource, path 
 		return nil, false, nil
 	}
 	return results[0].Blob.Bytes, true, nil
-}
-
-// trackedRegularBlob reports whether path resolves to a tracked, regular (non
-// symlink) file at the source's pinned commit, discarding the bytes. It is the
-// identity-only view of trackedRegularBlobBytes.
-func trackedRegularBlob(ctx context.Context, src gitcli.ObjectSource, path string) (bool, error) {
-	_, ok, err := trackedRegularBlobBytes(ctx, src, path)
-	return ok, err
 }

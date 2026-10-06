@@ -110,10 +110,11 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			setResult(app.ChangeReconcile(c.Context(), deps, repoDir, req))
 		}, EffectMetadataWrite)
 
-	attachPlan := changeAttachSubcommand("attach-plan",
-		"Verify a written plan from Git and link it to an in-progress change",
-		func(c *cobra.Command, deps app.PlanningDeps, wdeps app.WorkspaceDeps, repoDir string, req app.ChangeAttachRequest) {
-			setResult(app.ChangeAttachPlan(c.Context(), deps, wdeps, repoDir, req))
+	attachPlan := changeAttachMarkdownSubcommand("attach-plan",
+		"Write a plan on the metadata branch and link it to an in-progress change",
+		"plan Markdown `file`, or - for stdin; the operation writes it on the metadata branch with its backlink (required)",
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeAttachRequest) {
+			setResult(app.ChangeAttachPlan(c.Context(), deps, repoDir, req))
 		}, EffectMetadataWrite)
 
 	attachResults := changeAttachSubcommand("attach-results",
@@ -342,11 +343,57 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 	return cmd
 }
 
+// changeAttachMarkdownSubcommand builds one `change <verb>` command that writes
+// an authored artifact on the metadata branch and links it: the (id, revision,
+// path) scalars ride flags, and the artifact body is the raw Markdown read from
+// `--markdown <file>` (or `-` for stdin) — a non-JSON file input (ADR-0138) the
+// operation stores verbatim behind its rendered backlink. It needs only the
+// planning seams: nothing reads the feature workspace.
+func changeAttachMarkdownSubcommand(verb, short, markdownUsage string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeAttachRequest), effects ...Effect) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:         verb,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: capability("change."+verb, effects...),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			id, _ := c.Flags().GetInt("id")
+			revision, _ := c.Flags().GetString("revision")
+			artifactPath, _ := c.Flags().GetString("path")
+			src, _ := c.Flags().GetString("markdown")
+			markdown, err := readRecordSource(c.InOrStdin(), src)
+			if err != nil {
+				return err
+			}
+			deps, err := newPlanningDeps(repoDir)
+			if err != nil {
+				return err
+			}
+			run(c, deps, repoDir, app.ChangeAttachRequest{ID: id, Revision: revision, Path: artifactPath, Markdown: markdown})
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "change `id` to attach the artifact to (required)")
+	cmd.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
+	cmd.Flags().String("path", "", "canonical repository-relative artifact `path` (required)")
+	cmd.Flags().String("markdown", "", markdownUsage)
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("revision")
+	_ = cmd.MarkFlagRequired("path")
+	_ = cmd.MarkFlagRequired("markdown")
+	return cmd
+}
+
 // changeAttachSubcommand builds one `change <verb>` command whose input is the
-// (id, revision, path, commit) tuple: an attach verifies a written artifact from
-// Git and links it, so it takes scalar flags (Global Constraints: request files
-// are for authored Markdown, never these). It builds the workspace-backed deps
-// the attach operation needs to inspect the owned checkout.
+// (id, revision, path, commit) tuple: attach-results verifies an artifact
+// committed at the feature head from Git and links it, so it takes scalar flags
+// (Global Constraints: request files are for authored Markdown, never these). It
+// builds the workspace-backed deps the attach operation needs to inspect the
+// owned checkout.
 func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, wdeps app.WorkspaceDeps, repoDir string, req app.ChangeAttachRequest), effects ...Effect) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         verb,

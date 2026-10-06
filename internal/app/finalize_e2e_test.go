@@ -379,17 +379,11 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 	}
 	wp := prep.Path
 
-	writeRepoFile(t, wp, planPath, "# Implementation Plan\n\nConcrete steps here.\n")
-	bl := ArtifactBacklink(e.ctx, e.node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: planPath, ChangePath: recPath})
-	if bl.Result != ResultApplied {
-		t.Fatalf("artifact backlink id %d = %q (reason %q)", id, bl.Result, bl.Reason)
-	}
-	runGit(t, wp, "add", "-A")
-	runGit(t, wp, "commit", "-q", "-m", "write plan", "--trailer", "Docket-Plan-Path: "+planPath)
-	planHead := runGit(t, wp, "rev-parse", "HEAD")
-
-	attach := ChangeAttachPlan(e.ctx, e.node.deps, e.wdeps, e.node.dir,
-		ChangeAttachRequest{ID: id, Revision: ver(), Path: planPath, Commit: planHead})
+	// The plan is written on the metadata branch; nothing lands on the feature
+	// branch for it.
+	attach := ChangeAttachPlan(e.ctx, e.node.deps, e.node.dir, ChangeAttachRequest{
+		ID: id, Revision: ver(), Path: planPath, Markdown: []byte("# Implementation Plan\n\nConcrete steps here.\n"),
+	})
 	if attach.Result != ResultApplied {
 		t.Fatalf("attach plan id %d = %q (reason %q findings %v)", id, attach.Result, attach.Reason, attach.Findings)
 	}

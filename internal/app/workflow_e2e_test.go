@@ -114,24 +114,22 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		}
 		wp := prep.Path
 
-		// (5) The plan-writer half: author the plan body, stamp the deterministic
-		// backlink through the artifact-backlink operation (writing a feature-tree
-		// file, not a metadata transaction), then commit with the ADR-0094 single
-		// artifact and plan-path trailer.
-		writeRepoFile(t, wp, planPath, "# Implementation Plan\n\nConcrete steps here.\n")
-		bl := ArtifactBacklink(ctx, node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: planPath, ChangePath: recPath})
-		if bl.Result != ResultApplied {
-			t.Fatalf("artifact backlink = %q (reason %q msg %q)", bl.Result, bl.Reason, bl.Message)
-		}
-		runGit(t, wp, "add", "-A")
-		runGit(t, wp, "commit", "-q", "-m", "write plan", "--trailer", "Docket-Plan-Path: "+planPath)
-		planHead := runGit(t, wp, "rev-parse", "HEAD")
-
-		// (6) Attach the verified plan.
-		attach := ChangeAttachPlan(ctx, node.deps, wdeps, node.dir,
-			ChangeAttachRequest{ID: id, Revision: ver(), Path: planPath, Commit: planHead})
+		// (5)–(6) The plan-writer half: author the plan body and hand it to
+		// attach-plan, which writes it on the metadata branch with its backlink
+		// in one transaction. Nothing is committed on the feature branch.
+		prepHead := runGit(t, wp, "rev-parse", "HEAD")
+		attach := ChangeAttachPlan(ctx, node.deps, node.dir, ChangeAttachRequest{
+			ID: id, Revision: ver(), Path: planPath, Markdown: []byte("# Implementation Plan\n\nConcrete steps here.\n"),
+		})
 		if attach.Result != ResultApplied {
 			t.Fatalf("attach plan = %q (reason %q msg %q findings %v)", attach.Result, attach.Reason, attach.Message, attach.Findings)
+		}
+		storedPlan, ok := originFile(t, repo.origin, m.branch, planPath)
+		if !ok || !strings.Contains(storedPlan, "docket:backlink:start") || !strings.Contains(storedPlan, "Concrete steps here.") {
+			t.Fatalf("plan file at the metadata remote tip is missing or lacks its backlink:\n%s", storedPlan)
+		}
+		if got := runGit(t, wp, "rev-parse", "HEAD"); got != prepHead {
+			t.Fatalf("planning moved the feature head %s -> %s", prepHead, got)
 		}
 
 		// (7) The implementation commit advances the feature head. A results artifact is

@@ -24,20 +24,20 @@ func symlinkRepoFile(t *testing.T, root, rel, target string) {
 	}
 }
 
-// These are the real-git pre-transaction verification tests for change
-// attach-plan: they drive the real ChangeAttachPlan operation over a real
-// prepared workspace and a real bare metadata remote, so the from-Git guards
-// (head, descent, single-artifact delta, trailer, tracked/regular file,
-// balanced-and-targeted backlink, no placeholder token) are exercised end-to-end
-// rather than faked. The guard table is a MUTATION test: every row is the happy
-// fixture with exactly one property corrupted, and each asserts its own stable
-// reason string — proof the guard reddens for the reason it names, not merely
-// that something failed (learning assert-pins-outcome-not-mechanism).
+// These are the real-git attach fixtures: they drive the real ChangeAttachPlan
+// and ChangeAttachResults operations over a real prepared workspace and a real
+// bare metadata remote. attach-plan writes the plan on the metadata branch, so
+// its guards (path containment, body shape, a field naming another path, an
+// occupied path) are exercised against the remote; attach-results still
+// verifies an artifact committed at the feature head, so its rows commit first.
+// Each refusal row asserts its own stable reason string — proof the guard
+// reddens for the reason it names, not merely that something failed (learning
+// assert-pins-outcome-not-mechanism).
 
-// attachSetup builds a main-mode repo with one in-progress change, prepares its
-// feature workspace against the resolved base, and returns everything a
-// verification row needs. The workspace sits on the feature ref at the base tip;
-// a row commits its own plan variant, then runs ChangeAttachPlan.
+// attachSetup builds a repo with one in-progress change, prepares its feature
+// workspace against the resolved base, and returns everything a row needs. The
+// workspace sits on the feature ref at the base tip; a results row commits its
+// own artifact variant before attaching.
 type attachFixture struct {
 	ctx        context.Context
 	deps       PlanningDeps
@@ -102,19 +102,15 @@ func (f *attachFixture) reset(t *testing.T) {
 	runGit(t, f.wp, "clean", "-fdq")
 }
 
-// commitPlan writes files into the workspace and commits them, optionally adding
-// the plan-path trailer, and returns the new head.
-func (f *attachFixture) commitPlan(t *testing.T, files map[string]string, trailerPath string) string {
+// commitArtifact writes files into the feature workspace and commits them,
+// returning the new head (the results artifact a results row attaches).
+func (f *attachFixture) commitArtifact(t *testing.T, files map[string]string) string {
 	t.Helper()
 	for rel, content := range files {
 		writeRepoFile(t, f.wp, rel, content)
 	}
 	runGit(t, f.wp, "add", "-A")
-	args := []string{"commit", "-q", "-m", "write plan"}
-	if trailerPath != "" {
-		args = append(args, "--trailer", "Docket-Plan-Path: "+trailerPath)
-	}
-	runGit(t, f.wp, args...)
+	runGit(t, f.wp, "commit", "-q", "-m", "write artifact")
 	return runGit(t, f.wp, "rev-parse", "HEAD")
 }
 
@@ -140,10 +136,10 @@ func advanceDocketOrigin(t *testing.T, repo *gitRepo, files map[string]string) {
 
 func TestIntegrationRecordOpsChangeAttachUnrelatedInvalidRecordProgress(t *testing.T) {
 	f := attachSetupWith(t, map[string]string{unrelatedBrokenPath: unrelatedBrokenBytes})
-	head := f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
 
-	res := ChangeAttachPlan(f.ctx, f.deps, f.wdeps, f.invocation, ChangeAttachRequest{
-		ID: f.id, Revision: blobRevisionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath, Commit: head,
+	res := ChangeAttachPlan(f.ctx, f.deps, f.invocation, ChangeAttachRequest{
+		ID: f.id, Revision: blobRevisionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath,
+		Markdown: []byte(attachHappyPlanBody()),
 	})
 	if res.Result != ResultApplied {
 		t.Fatalf("attach-plan beside an unrelated unparseable record = %q (reason %q findings %v), want applied",
@@ -163,12 +159,12 @@ func TestIntegrationRecordOpsChangeAttachUnrelatedInvalidRecordRefusals(t *testi
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			f := attachSetupWith(t, map[string]string{unrelatedBrokenPath: unrelatedBrokenBytes})
-			head := f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
 			advanceDocketOrigin(t, f.repo, c.files)
 			tip := originTip(t, f.repo.origin, "docket")
 
-			res := ChangeAttachPlan(f.ctx, f.deps, f.wdeps, f.invocation, ChangeAttachRequest{
-				ID: f.id, Revision: blobRevisionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath, Commit: head,
+			res := ChangeAttachPlan(f.ctx, f.deps, f.invocation, ChangeAttachRequest{
+				ID: f.id, Revision: blobRevisionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath,
+				Markdown: []byte(attachHappyPlanBody()),
 			})
 			if res.Result == ResultApplied {
 				t.Fatalf("attach-plan applied despite %s; want a refusal", c.name)

@@ -219,7 +219,7 @@ func TestStatusSourceDistinction(t *testing.T) {
 		facts:  domain.NewBranchFacts(nil),
 		artifacts: map[string]bool{
 			"metadata|" + specPath:                  true,
-			"integration|" + planPath:               true,
+			"metadata|" + planPath:                  true,
 			"metadata|docs/changes/specs/spec-b.md": true,
 		},
 	}
@@ -229,20 +229,61 @@ func TestStatusSourceDistinction(t *testing.T) {
 		t.Fatalf("result = %q, want applied; message=%q", got.Result, got.Message)
 	}
 
-	var sawMetaSpec, sawIntegrationPlan bool
+	asked := map[string]bool{}
 	for _, ask := range fake.artifactAsks {
-		if ask == "metadata|"+specPath {
-			sawMetaSpec = true
-		}
-		if ask == "integration|"+planPath {
-			sawIntegrationPlan = true
-		}
+		asked[ask] = true
 	}
-	if !sawMetaSpec {
+	if !asked["metadata|"+specPath] {
 		t.Errorf("spec was not checked against the metadata source; asks=%v", fake.artifactAsks)
 	}
-	if !sawIntegrationPlan {
-		t.Errorf("plan was not checked against the integration source; asks=%v", fake.artifactAsks)
+	if !asked["metadata|"+planPath] {
+		t.Errorf("plan was not checked against the metadata source; asks=%v", fake.artifactAsks)
+	}
+	if asked["integration|"+planPath] {
+		t.Errorf("a plan present on the metadata branch was also asked of the integration source; asks=%v", fake.artifactAsks)
+	}
+	if hasFindingCode(got.Findings, string(FCArtifactMissing)) {
+		t.Errorf("a plan present on the metadata branch reported artifact-missing: %v", got.Findings)
+	}
+
+	// A plan absent on the metadata branch falls back to the integration source
+	// (a record closed before plans moved there), and is missing only when both
+	// sources lack it.
+	for _, c := range []struct {
+		name        string
+		integration bool
+		wantMissing bool
+	}{
+		{"integration fallback", true, false},
+		{"absent on both", false, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			fb := &fakeReader{
+				pin:    pin,
+				corpus: corpus,
+				facts:  domain.NewBranchFacts(nil),
+				artifacts: map[string]bool{
+					"metadata|" + specPath:                  true,
+					"integration|" + planPath:               c.integration,
+					"metadata|docs/changes/specs/spec-b.md": true,
+				},
+			}
+			res := Status(context.Background(), fb, StatusOptions{})
+			if res.Result != ResultApplied {
+				t.Fatalf("result = %q, want applied; message=%q", res.Result, res.Message)
+			}
+			var sawMeta, sawIntegration bool
+			for _, ask := range fb.artifactAsks {
+				sawMeta = sawMeta || ask == "metadata|"+planPath
+				sawIntegration = sawIntegration || ask == "integration|"+planPath
+			}
+			if !sawMeta || !sawIntegration {
+				t.Errorf("plan absent on metadata must be asked of metadata then integration; asks=%v", fb.artifactAsks)
+			}
+			if got := hasFindingCode(res.Findings, string(FCArtifactMissing)); got != c.wantMissing {
+				t.Errorf("artifact-missing reported = %v, want %v (findings %v)", got, c.wantMissing, res.Findings)
+			}
+		})
 	}
 
 	// The pin is threaded verbatim into every post-pin reader call.

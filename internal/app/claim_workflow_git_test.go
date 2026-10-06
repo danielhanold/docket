@@ -33,17 +33,6 @@ func buildReadyChange(id int, slug string) string {
 	return strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: true\n", 1)
 }
 
-// commitPlanFile writes one plan artifact into a feature workspace and commits it
-// with the ADR-0094 plan-path trailer, returning the new head. It is the writer
-// half every attach test needs — the plan-writer's single-artifact commit.
-func commitPlanFile(t *testing.T, wp, planPath, content, trailerPath string) string {
-	t.Helper()
-	writeRepoFile(t, wp, planPath, content)
-	runGit(t, wp, "add", "-A")
-	runGit(t, wp, "commit", "-q", "-m", "write plan", "--trailer", "Docket-Plan-Path: "+trailerPath)
-	return runGit(t, wp, "rev-parse", "HEAD")
-}
-
 // --- claim race: two claimants, same context revision, one loses cleanly -----
 
 // --- claim retry after a lost response: replay, never a second claim --------
