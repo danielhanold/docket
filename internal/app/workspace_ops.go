@@ -137,6 +137,9 @@ type WorkspaceOpResult struct {
 	State       string `json:"state,omitempty"`
 	Reason      string `json:"reason,omitempty"`
 	Message     string `json:"message,omitempty"`
+	// Leaks lists every fingerprint a leak-detected publish refused on (each
+	// hit's matched text only); empty otherwise.
+	Leaks []LeakHit `json:"leaks,omitempty"`
 }
 
 // HumanText renders the one-line human summary. It names identity, disposition,
@@ -370,7 +373,9 @@ func WorkspaceInspect(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 }
 
 // WorkspacePublish reinspects the workspace's current head and refuses when it
-// differs from the caller's expected head, then delegates to the service's
+// differs from the caller's expected head. In a private repository it then runs
+// the leak check (runLeakCheck) over that head and refuses on any hit or on a
+// check that could not run. Only then does it delegate to the service's
 // idempotent PublishHead. The service's disposition passes through verbatim —
 // contended and unknown are never forced or retried-with-force.
 func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req WorkspacePublishRequest) WorkspaceOpResult {
@@ -400,6 +405,31 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 			Reason:  ReasonWorkspaceHeadMismatch,
 			Message: "the workspace head differs from the expected head; publish nothing",
 		})
+	}
+
+	// Private-repository leak check: before the fence admission and the push,
+	// scan exactly req.Head — the head PublishHead re-proves under its lock as
+	// ExpectedHead — so the commits and lines checked are the ones pushed. A hit
+	// or a check that cannot run publishes nothing.
+	if leakCheckApplies(wc.pin.Layout) {
+		hits, lerr := runLeakCheck(ctx, deps.Client, wc, target, gitcli.ObjectID(req.Head), nil)
+		if lerr != nil {
+			return newWorkspaceResult(OperationWorkspacePublish, ResultExternalFailed, WorkspaceOpResult{
+				ID:      req.ID,
+				Head:    req.Head,
+				Reason:  ReasonLeakCheckUnverified,
+				Message: "the private-repository leak check could not run; nothing was pushed: " + lerr.Error(),
+			})
+		}
+		if len(hits) > 0 {
+			return newWorkspaceResult(OperationWorkspacePublish, ResultBlocked, WorkspaceOpResult{
+				ID:      req.ID,
+				Head:    req.Head,
+				Reason:  ReasonLeakDetected,
+				Message: leakMessage(hits),
+				Leaks:   hits,
+			})
+		}
 	}
 
 	// Run mutation fence (change 0375 Task 11): before the feature-head push —
