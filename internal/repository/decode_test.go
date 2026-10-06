@@ -420,6 +420,30 @@ func TestDecodeChangePresenceMarkers(t *testing.T) {
 	}
 }
 
+// TestDecodeChangeBuildEvidenceMarker — the "## Build evidence" section counts
+// only as a whole bare heading line outside fenced code.
+func TestDecodeChangeBuildEvidenceMarker(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want bool
+	}{
+		{"bare heading", "## Build evidence\n\nblock\n", true},
+		{"CRLF bare heading", "## Build evidence\r\n", true},
+		{"fenced heading does not count", "```\n## Build evidence\n```\n", false},
+		{"annotated heading does not count", "## Build evidence — note\n", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			source := "---\nid: 1\nslug: s\n---\n\n" + tc.body
+			change, _ := decodeChange(input(t, KindChange, LocationActive, "docs/changes/active/0001-s.md", source))
+			if got := change.HasBuildEvidence(); got != tc.want {
+				t.Errorf("HasBuildEvidence = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 // TestDecodeChangeMarkerInFrontmatterNotScanned — only the body is scanned.
 func TestDecodeChangeMarkerInFrontmatterNotScanned(t *testing.T) {
 	const source = `---

@@ -438,6 +438,7 @@ const (
 	markerAutoGroomBlocked = "## Auto-groom blocked"
 	markerFinalizeBlocked  = "## Finalize blocked"
 	markerPublishDeferred  = "## Publish deferred"
+	markerBuildEvidence    = "## Build evidence"
 )
 
 // hasHeading reports whether text carries heading as a whole line, matched
@@ -578,6 +579,7 @@ func decodeChange(in InputDocument) (domain.Change, []domain.Finding) {
 	spec.HasAutoGroomBlocked = hasHeading(text, markerAutoGroomBlocked)
 	spec.HasFinalizeBlocked = hasHeading(text, markerFinalizeBlocked)
 	spec.HasPublishDeferred = hasHeading(text, markerPublishDeferred)
+	spec.HasBuildEvidence = hasHeading(text, markerBuildEvidence)
 
 	return domain.NewChange(spec), d.findings
 }
