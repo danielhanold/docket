@@ -7,9 +7,9 @@ priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
 updated: '2026-10-06'
-depends_on: [530, 531]
+depends_on: [530, 531, 535]
 stacked_on:
-related: [532, 352, 363]
+related: [532, 534, 352, 363]
 discovered_from: []
 adrs: [1, 99]
 spec: 'docs/superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md'

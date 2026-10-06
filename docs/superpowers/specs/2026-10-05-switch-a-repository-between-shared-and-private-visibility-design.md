@@ -4,7 +4,7 @@
 
 # Switch a repository between shared and private visibility: design
 
-Change #533, groomed interactively on 2026-10-05. Last in the private-visibility series (#529–#533). It depends on #530 (relative links, artifacts on the metadata branch) and #531 (private mode). It is best built after #532.
+Change #533, groomed interactively on 2026-10-05. Last in the private-visibility series (#529–#535). It depends on #530 (relative links, artifacts on the metadata branch), #531 (private mode), and #535 (the private instructions file it moves). It is best built after #532.
 
 ## Summary
 
@@ -72,7 +72,7 @@ The preview lists every phase below that will run and every flag's effect, and p
 7. **Metadata worktree.**
    - `git worktree move` it from `<primary>/.docket` to the private checkout path.
    - Switch it to `dckt`, re-scope its hooks setting, and delete the local `docket` branch.
-8. **Agent instructions.** When `agent_harnesses` is set, write the dispatch block into the private instructions file `<git-common-dir>/dckt/AGENTS.md` (#532). The repository's committed AGENTS.md keeps loading as before, promoted lessons included. Only docket's managed block is removed from it, and only with `--remove-shared-files`.
+8. **Agent instructions.** When `agent_harnesses` is set, write the dispatch block into the private instructions file `<git-common-dir>/dckt/AGENTS.md` (#535). The repository's committed AGENTS.md keeps loading as before, promoted lessons included. Only docket's managed block is removed from it, and only with `--remove-shared-files`.
 9. **`--delete-shared-branch`** (optional).
    - Verify that the bare `dckt` tip equals `origin/docket`'s tip.
    - Delete `origin`'s `docket` with an exact-tip lease.
