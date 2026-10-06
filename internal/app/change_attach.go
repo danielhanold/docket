@@ -134,13 +134,17 @@ type ChangeAttachRequest struct {
 }
 
 // attachDigestPayload is the idempotency digest payload: the promised state a
-// retry must match — the change id, the artifact path, and Blob, the sha256 of
-// the stored artifact bytes. Keying on the content (not merely the path) means a
-// retry after the content changed is NOT a replay.
+// retry must match — the change id, the artifact path, Blob (the sha256 of the
+// stored artifact bytes), and Revision, the submitted record revision. Keying on
+// the content means a retry after the content changed is NOT a replay; keying on
+// the revision means re-attaching earlier content at a later record revision is a
+// new request rather than a replay of the earlier receipt (the engine scans the
+// whole metadata ancestry for a matching request).
 type attachDigestPayload struct {
-	Blob string `json:"blob"`
-	ID   int    `json:"id"`
-	Path string `json:"path"`
+	Blob     string `json:"blob"`
+	ID       int    `json:"id"`
+	Path     string `json:"path"`
+	Revision string `json:"revision"`
 }
 
 // ChangeAttachResult is the protocol-v1 document both attach operations return.
@@ -270,11 +274,17 @@ func changeAttachMetadata(ctx context.Context, deps PlanningDeps, repoDir string
 	}
 
 	// (7) Open the exact-revision, idempotency-keyed transaction. The promised
-	// state is (id, path, stored bytes), so a lost-response retry of the same
-	// body replays and a different body is a new request.
+	// state is (id, path, stored bytes, submitted revision), so a lost-response
+	// retry of the same body at the same revision replays, while a different
+	// body, or earlier bytes resubmitted at a later revision, is a new request.
 	sum := sha256.Sum256(artifact)
 	contentID := hex.EncodeToString(sum[:])
-	digest, derr := canonicalDigest(opKey, attachDigestPayload{Blob: contentID, ID: req.ID, Path: req.Path})
+	// The request id carries a hash of the submitted revision, never the raw
+	// string: the revision is only checked non-empty here (the CAS decides the
+	// rest), and the request id must stay within the engine's id charset.
+	revSum := sha256.Sum256([]byte(req.Revision))
+	revisionID := hex.EncodeToString(revSum[:])
+	digest, derr := canonicalDigest(opKey, attachDigestPayload{Blob: contentID, ID: req.ID, Path: req.Path, Revision: req.Revision})
 	if derr != nil {
 		return attachRefusal(opKey, ResultInternalError, kind, ReasonStatusInternalError, derr.Error())
 	}
@@ -299,7 +309,7 @@ func changeAttachMetadata(ctx context.Context, deps PlanningDeps, repoDir string
 			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Idempotency: &transaction.IdempotencyKey{
-			RequestID: fmt.Sprintf("attach-%s-%d-%s", kind, req.ID, contentID[:16]),
+			RequestID: fmt.Sprintf("attach-%s-%d-%s-%s", kind, req.ID, revisionID[:16], contentID[:16]),
 			Digest:    digest,
 		},
 		Loader:    newPlanningLoader(eff),
