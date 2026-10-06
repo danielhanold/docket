@@ -140,6 +140,9 @@ type WorkspaceOpResult struct {
 	// Leaks lists every fingerprint a leak-detected publish refused on (each
 	// hit's matched text only); empty otherwise.
 	Leaks []LeakHit `json:"leaks,omitempty"`
+	// Findings carries report-only warnings a successful operation surfaces (a
+	// docket-named ref on a private repository's origin); they never block.
+	Findings []StatusFinding `json:"findings,omitempty"`
 }
 
 // HumanText renders the one-line human summary. It names identity, disposition,
@@ -410,7 +413,9 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 	// Private-repository leak check: before the fence admission and the push,
 	// scan exactly req.Head — the head PublishHead re-proves under its lock as
 	// ExpectedHead — so the commits and lines checked are the ones pushed. A hit
-	// or a check that cannot run publishes nothing.
+	// or a check that cannot run publishes nothing. Once it passes, a docket-named
+	// ref already on origin is reported (warn), never blocked.
+	var warn []StatusFinding
 	if leakCheckApplies(wc.pin.Layout) {
 		hits, lerr := runLeakCheck(ctx, deps.Client, wc, target, gitcli.ObjectID(req.Head), nil)
 		if lerr != nil {
@@ -430,6 +435,7 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 				Leaks:   hits,
 			})
 		}
+		warn = sharedRemoteMetadataStatusFindings(ctx, deps.Client, wc.pin.Layout, wc.repo)
 	}
 
 	// Run mutation fence (change 0375 Task 11): before the feature-head push —
@@ -475,10 +481,12 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 				Message: "the workspace head moved past the expected head before the push; publish nothing",
 			})
 		}
+		out.Findings = warn
 		done(mutationJournalOutcome(out.Result))
 		return out
 	}
 	out := publishResult(OperationWorkspacePublish, req.ID, target, res)
+	out.Findings = warn
 	// PublishHead re-proves req.Head under its own lock (ExpectedHead, change
 	// 0451), so a head that moved after the Inspect above is refused before any
 	// push. The verified flag still independently requires the acted-on head to

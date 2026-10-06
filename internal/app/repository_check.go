@@ -115,6 +115,7 @@ func RunRepositoryCheck(ctx context.Context, d SetupDeps) RepositoryCheckResult 
 	// repository's setting is what init will use).
 	if facts.RemoteMetadata.Presence == reposetup.PresencePresent {
 		findings = append(findings, privateCheckFindings(sc)...)
+		findings = append(findings, sharedRemoteMetadataFindings(ctx, d.Git, sc.layout, sc.repo)...)
 	}
 	return newCheckResult(cls, facts, findings)
 }
