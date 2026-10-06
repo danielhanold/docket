@@ -416,6 +416,21 @@ func TestChangeAttachFlagsRequired(t *testing.T) {
 	}
 }
 
+// TestChangeAttachUnreadableMarkdownNamesFlag proves an unreadable artifact body
+// is reported against the flag the caller passed (--markdown), never another
+// command's flag name from the shared raw-file reader.
+func TestChangeAttachUnreadableMarkdownNamesFlag(t *testing.T) {
+	missing := filepath.Join(testsupport.TempDir(t), "absent.md")
+	for _, sub := range []string{"attach-plan", "attach-results"} {
+		_, errS, code := runCLI(t, "change", sub, "--id", "7",
+			"--revision", "1234123412341234123412341234123412341234",
+			"--path", "docs/x.md", "--markdown", missing)
+		if code == 0 || !strings.Contains(errS, "reading --markdown") || strings.Contains(errS, "--record") {
+			t.Fatalf("%s: err=%q code=%d, want a read error naming --markdown", sub, errS, code)
+		}
+	}
+}
+
 // TestChangeAttachCommandsReachOperation proves both attach commands decode their
 // flags and reach the operation, which returns exactly one protocol-v1 document
 // naming it. A bare tempdir is no docket repo, so the operation fails past its

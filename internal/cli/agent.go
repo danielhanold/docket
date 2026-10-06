@@ -42,7 +42,7 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			if err != nil || !st.IsDir() {
 				return fmt.Errorf("--cwd must name an existing directory")
 			}
-			request, err := readRecordSource(c.InOrStdin(), requestSource)
+			request, err := readRecordSource(c.InOrStdin(), "request", requestSource)
 			if err != nil {
 				return err
 			}

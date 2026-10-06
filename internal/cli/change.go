@@ -312,7 +312,7 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 			prRef, _ := c.Flags().GetString("pr")
 			evSource, _ := c.Flags().GetString("evidence")
 
-			record, err := readRecordSource(c.InOrStdin(), evSource)
+			record, err := readRecordSource(c.InOrStdin(), "evidence", evSource)
 			if err != nil {
 				return err
 			}
@@ -366,7 +366,7 @@ func changeAttachSubcommand(verb, short, markdownUsage string, run func(c *cobra
 			revision, _ := c.Flags().GetString("revision")
 			artifactPath, _ := c.Flags().GetString("path")
 			src, _ := c.Flags().GetString("markdown")
-			markdown, err := readRecordSource(c.InOrStdin(), src)
+			markdown, err := readRecordSource(c.InOrStdin(), "markdown", src)
 			if err != nil {
 				return err
 			}

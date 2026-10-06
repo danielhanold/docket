@@ -63,7 +63,7 @@ func newPRCommand(setResult func(app.OperationResult)) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		evidence, err := readRecordSource(c.InOrStdin(), evSource)
+		evidence, err := readRecordSource(c.InOrStdin(), "evidence", evSource)
 		if err != nil {
 			return err
 		}

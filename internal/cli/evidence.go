@@ -75,7 +75,7 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 		RunE: func(c *cobra.Command, _ []string) error {
 			source, _ := c.Flags().GetString("record")
 			head, _ := c.Flags().GetString("head")
-			body, err := readRecordSource(c.InOrStdin(), source)
+			body, err := readRecordSource(c.InOrStdin(), "record", source)
 			if err != nil {
 				return err
 			}
@@ -119,21 +119,22 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 	return evidenceCmd
 }
 
-// readRecordSource reads the raw evidence-record bytes from source — "-" for
-// stdin, any other value a filesystem path. Unlike the JSON request decoders,
-// the record file is authored Markdown bytes the evidence codec reparses, so it
-// is read verbatim with no decoding.
-func readRecordSource(stdin io.Reader, source string) ([]byte, error) {
+// readRecordSource reads the raw bytes of a non-JSON file input from source —
+// "-" for stdin, any other value a filesystem path. Unlike the JSON request
+// decoders, the file is authored bytes its operation reparses or stores, so it
+// is read verbatim with no decoding. flag is the caller's own flag name, so a
+// read error names the flag the caller actually passed.
+func readRecordSource(stdin io.Reader, flag, source string) ([]byte, error) {
 	if source == "-" {
 		body, err := io.ReadAll(stdin)
 		if err != nil {
-			return nil, fmt.Errorf("reading --record from stdin: %w", err)
+			return nil, fmt.Errorf("reading --%s from stdin: %w", flag, err)
 		}
 		return body, nil
 	}
 	body, err := os.ReadFile(source)
 	if err != nil {
-		return nil, fmt.Errorf("reading --record %q: %w", source, err)
+		return nil, fmt.Errorf("reading --%s %q: %w", flag, source, err)
 	}
 	return body, nil
 }
