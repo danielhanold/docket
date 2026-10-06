@@ -12,7 +12,7 @@ stacked_on:
 related: [532, 533, 334, 351]
 discovered_from: []
 adrs: [36, 78]
-spec:
+spec: 'docs/superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) |
 | ADRs | [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
 
