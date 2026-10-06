@@ -13,7 +13,7 @@ related: [352, 363, 530, 532, 533]
 discovered_from: []
 adrs: [1, 19, 20, 25, 34, 89, 99]
 spec: 'docs/superpowers/specs/2026-10-05-private-visibility-keep-the-metadata-branch-on-a-local-remot-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-06-private-visibility-keep-the-metadata-branch-on-a-local-remot.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-06T10:06:51Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-private-visibility-keep-the-metadata-branch-on-a-local-remot-design.md](../../superpowers/specs/2026-10-05-private-visibility-keep-the-metadata-branch-on-a-local-remot-design.md) |
+| Plan | [2026-10-06-private-visibility-keep-the-metadata-branch-on-a-local-remot.md](../../superpowers/plans/2026-10-06-private-visibility-keep-the-metadata-branch-on-a-local-remot.md) |
 | ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0019](../../adrs/0019-global-config-fence-classification.md), [ADR-0020](../../adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0025](../../adrs/0025-docket-worktrees-disable-git-hooks.md), [ADR-0034](../../adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0089](../../adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
