@@ -536,6 +536,64 @@ func TestIntegrationRepoSetupPrivateBothLocalConfigsRefuse(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoSetupPrivateRecloneSamePathReattaches deletes a private
+// clone and re-clones it at the same path. The store survives and the clone id
+// is the same, so the old checkout still sits at the new clone's checkout path,
+// its .git file naming a gitdir the new clone no longer has. Init must treat
+// that stale checkout as replaceable and attach a fresh one; prepare must do
+// the same when a checkout loses its registration.
+func TestIntegrationRepoSetupPrivateRecloneSamePathReattaches(t *testing.T) {
+	r, data := newPrivateInitRepo(t, nil)
+	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("first init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	checkout := privateLayoutOf(t, r.invocation, data).MetadataWorktree
+	if err := os.RemoveAll(r.invocation); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, r.root, "clone", "-q", r.origin, r.invocation)
+	gitIdentity(t, r.invocation)
+	if got := privateLayoutOf(t, r.invocation, data).MetadataWorktree; got != checkout {
+		t.Fatalf("re-clone resolved checkout %q, want the same path %q", got, checkout)
+	}
+	if _, err := os.Stat(checkout); err != nil {
+		t.Fatalf("the old checkout should survive the clone deletion: %v", err)
+	}
+
+	res := r.runInitWith(t, InitOptions{Private: true})
+	if res.Result != ResultApplied {
+		t.Fatalf("re-clone init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	wts := runGit(t, r.invocation, "worktree", "list", "--porcelain")
+	if !strings.Contains(wts, "worktree "+checkout+"\n") {
+		t.Fatalf("re-clone init did not attach %s:\n%s", checkout, wts)
+	}
+	d := SetupDeps{Git: newGitClient(t), RepoDir: r.invocation}
+	if prep := RunRepositoryPrepare(context.Background(), d, PrepareOptions{}); prep.Disposition != PrepareDispositionNoOp {
+		t.Fatalf("prepare after re-clone init = %q (%s), want no-op", prep.Disposition, prep.HumanText())
+	}
+
+	// The checkout loses its registration (its gitdir is gone): prepare replaces
+	// the stale checkout and attaches a live one.
+	gitdir, ok := checkoutGitdir(checkout)
+	if !ok {
+		t.Fatalf("cannot read the gitdir of %s", checkout)
+	}
+	if err := os.RemoveAll(gitdir); err != nil {
+		t.Fatal(err)
+	}
+	prep := RunRepositoryPrepare(context.Background(), d, PrepareOptions{})
+	if prep.Disposition != PrepareDispositionApplied || prep.Context == nil || prep.Context.MetadataWorktreePath != checkout {
+		t.Fatalf("prepare over a stale checkout = %q (%s), want %s attached", prep.Disposition, prep.HumanText(), checkout)
+	}
+	if prep = RunRepositoryPrepare(context.Background(), d, PrepareOptions{}); prep.Disposition != PrepareDispositionNoOp {
+		t.Fatalf("prepare re-run = %q (%s), want no-op", prep.Disposition, prep.HumanText())
+	}
+	if orphans := findingsWithCode(checkIn(t, r.invocation).Findings, FindingOrphanedCheckout); len(orphans) != 0 {
+		t.Errorf("check reports orphans after the re-attach: %+v", orphans)
+	}
+}
+
 // TestIntegrationRepoSetupPrivateMovedCloneOrphanPruned moves a private clone:
 // its old checkout under the store now points at a gitdir that no longer
 // exists, so check reports it orphaned and repair removes it.

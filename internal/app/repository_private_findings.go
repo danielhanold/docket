@@ -110,6 +110,39 @@ func checkoutOrphaned(dir string) (bool, error) {
 	}
 }
 
+// staleOwnCheckout reports whether this clone's own private checkout path holds
+// a stale checkout: one whose .git file names a gitdir that no longer exists.
+// Deleting a private clone and re-cloning it at the same path leaves exactly
+// that (the clone id depends only on the path, and the store survives). A
+// stale checkout is no live worktree of anything, so it reads as absent and is
+// replaced on attach. An unreadable .git file or a probe error is not proven
+// stale. A shared layout never has one.
+func staleOwnCheckout(lay layout.Layout) bool {
+	if lay.Mode != layout.Private || lay.MetadataWorktree == "" {
+		return false
+	}
+	stale, err := checkoutOrphaned(lay.MetadataWorktree)
+	return err == nil && stale
+}
+
+// removeStaleOwnCheckout removes this clone's own private checkout when it is
+// proven stale now, re-verified on the copy it acts on (learning
+// decide-and-act-on-the-same-copy): a live checkout, an absent one, or one whose
+// .git file cannot be read is left alone. Its data lives in the metadata remote.
+func removeStaleOwnCheckout(lay layout.Layout) error {
+	if lay.Mode != layout.Private || lay.MetadataWorktree == "" {
+		return nil
+	}
+	stale, err := checkoutOrphaned(lay.MetadataWorktree)
+	if err != nil || !stale {
+		return err
+	}
+	if err := os.RemoveAll(lay.MetadataWorktree); err != nil {
+		return fmt.Errorf("removing the stale checkout %s: %w", lay.MetadataWorktree, err)
+	}
+	return nil
+}
+
 // checkoutGitdir parses the gitdir a checkout's .git file names, resolving a
 // relative path against the checkout. ok is false when the file cannot be
 // read or names no gitdir.
