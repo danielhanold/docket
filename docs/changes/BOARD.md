@@ -1,27 +1,21 @@
 # Backlog
 
-**537 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 372 done · 🗑️ 139 killed
+**537 changes** — 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 373 done · 🗑️ 139 killed
 
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0535](active/0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | `medium` | `feat` | [#402](https://github.com/danielhanold/docket/pull/402) | awaiting merge |
-
-## 🟣 Groomed (2)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | [spec](../superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0537](active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | `low` | `fix` | needs-grooming |
 | [0536](active/0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) | Split the private leak-check tests out of the workflow lifecycle shard | `low` | `fix` | needs-grooming |
-| [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | ⏳ waiting on #535 — needs your merge |
 | [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | needs-grooming |
 | [0528](active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | `medium` | `fix` | needs-grooming |
 | [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | needs-grooming |
@@ -76,8 +70,6 @@ graph TD
   0530 --> 0533
   0531 --> 0533
   0535 --> 0533
-  0531 --> 0535
-  0534 --> 0535
   0536
   0537
   0192:::done
@@ -88,14 +80,15 @@ graph TD
   0511:::done
   0530:::done
   0531:::done
-  0534:::done
+  0535:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (511)</summary>
+<details><summary>✅🗑️ Archive — done + killed (512)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0535](archive/2026-10-06-0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | 2026-10-06 |
 | [0534](archive/2026-10-06-0534-install-an-alias-for-the-docket-binary.md) | Install an alias for the docket binary | 2026-10-06 |
 | [0532](archive/2026-10-06-0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | 2026-10-06 |
 | [0531](archive/2026-10-06-0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md) | Keep the metadata branch on a local remote with neutral naming | 2026-10-06 |
@@ -112,7 +105,6 @@ graph TD
 | [0520](archive/2026-10-04-0520-make-the-published-finalize-request-schemas-match-what-input.md) | Make every published request schema match the JSON file the operation reads | 2026-10-04 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
-| [0517](archive/2026-10-04-0517-make-evidence-record-certify-a-finalize-re-test-with-the-fin.md) | Make evidence.record certify a finalize re-test with the finalize gate settings | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
 | [0499](archive/2026-10-04-0499-a-cancelled-publish-s-git-push-or-gh-child-can-still-land-af.md) | A cancelled publish's git push or gh child can still land after cancel | 2026-10-04 |
 | [0380](archive/2026-10-04-0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | 2026-10-04 |
@@ -255,7 +247,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 29 done |
+| [2026-10](archive/) | 30 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

@@ -2,7 +2,7 @@
 id: 535
 slug: 'load-a-private-repository-s-agent-instructions-without-repos'
 title: 'Load a private repository''s agent instructions without repository files'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-06'
@@ -22,7 +22,7 @@ branch: 'feat/load-a-private-repository-s-agent-instructions-without-repos'
 pr: 'https://github.com/danielhanold/docket/pull/402'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-06T20:40:42Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-06T20:40:42Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md](../../superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) |
+| Spec (merged) | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) |
 | Plan | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos.md](../../superpowers/plans/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos.md) |
 | Results | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-results.md](../../results/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-results.md) |
 | ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](../../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md), [ADR-0145](../../adrs/0145-private-repository-parent-facing-rules-load-through-content.md) |

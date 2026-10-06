@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0535 — Load a private repository's agent instructions without repository files](../../changes/active/0535-load-a-private-repository-s-agent-instructions-without-repos.md)**
+> ↩ **[Change 0535 — Load a private repository's agent instructions without repository files](../../changes/archive/2026-10-06-0535-load-a-private-repository-s-agent-instructions-without-repos.md)**
 <!-- docket:backlink:end -->
 
 # Load a Private Repository's Agent Instructions Without Repository Files: Implementation Plan
