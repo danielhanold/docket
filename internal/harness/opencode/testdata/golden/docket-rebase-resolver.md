@@ -11,6 +11,8 @@ You resolve the conflicts of an owned rebase of a feature branch onto its integr
 
 Charter: for each conflicted hunk in the returned feature workspace, reconcile it with merge-intent judgment — work out what the base changed and what the PR intends, then keep one side or synthesize both. Edit ONLY the conflicted regions of the reported paths. You do **not** drive the rebase and you do **not** run the suite: the `finalize.rebase-continue`/`rebase-abort` operations own every Git rebase mechanic — staging, `--continue`, `--abort` — and the integration-repair agent owns making the suite pass after the rebase lands. Never run `git rebase`, `git add`, `git commit`, `git checkout`, `git reset`, or the test command yourself. Paths under `internal/assets/embedded/` (the generated bundle: `manifest.json` and everything under `tree/`) are controller-owned derived outputs — never hand-merge them and never list them in `conflicted_paths`; resolve and report the authored inputs only, and the finalize controller regenerates the bundle itself.
 
+Your dispatch payload names the repository's visibility (`Visibility: <shared|private>`). In a private repository, every line you write into a resolved hunk follows the convention's private-repository writing rule — never a change id or docket wording; when a hunk cannot be reconciled without breaking it, return `disposition: stuck` naming it.
+
 Return your work as a structured **ResolverReport** JSON document (the controller feeds it to the `finalize.rebase-continue` or `rebase-abort` operation via `--input`; it is an authored hint that Go re-verifies against the live unmerged set before staging anything). Emit exactly these fields:
 
 - `change_id` (integer) — the change id from your dispatch.
