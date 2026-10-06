@@ -230,9 +230,12 @@ func gateClaimDeps(t *testing.T, engine *claimGateEngine, corpus []StatusBlob) P
 
 // TestClaimSameIDDifferentContextDigestDiffers: two dispatches submitting the
 // SAME (id, revision) under different contexts must not share the idempotency
-// path — their digests differ while their request ids match, so the engine's
-// replay scan refuses the second as id-reuse rather than replaying the first's
-// receipt (criterion 3).
+// path (change 0407 criterion 3) — neither their digests nor their request ids
+// match, so the second never replays the first's receipt. Distinct request ids
+// also keep the second off the engine's request-id-reused refusal: it reaches the
+// exact-revision expectation and loses as `contended` (change 0531), which
+// TestIntegrationWorkflowRepoClaimForeignRunContextSameRevisionContends proves
+// against a real engine.
 func TestClaimSameIDDifferentContextDigestDiffers(t *testing.T) {
 	h1 := runTrackerHashToken("tokA")
 	h2 := runTrackerHashToken("tokB")
@@ -249,8 +252,30 @@ func TestClaimSameIDDifferentContextDigestDiffers(t *testing.T) {
 	}
 	reqA := claimRequestID(ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tokA"})
 	reqB := claimRequestID(ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tokB"})
-	if reqA != reqB {
-		t.Errorf("request ids differ (%q vs %q); they must match so the engine's replay scan sees id-reuse", reqA, reqB)
+	if reqA == reqB {
+		t.Errorf("request ids match across differing contexts (%q); the loser would hit the winner's receipt and fail request-id-reused instead of contending", reqA)
+	}
+}
+
+// TestClaimRequestIDIdentity pins the claim request id's identity: the same
+// keyed request always derives the same id (a lost-response retry replays), an
+// ungated claim keeps the bare (id, revision) id it had before run contexts
+// existed (so its committed receipts still replay), and the keyed id stays
+// inside the engine's request-id grammar for a 64-hex revision.
+func TestClaimRequestIDIdentity(t *testing.T) {
+	keyed := ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tokA"}
+	if a, b := claimRequestID(keyed), claimRequestID(keyed); a != b {
+		t.Errorf("the same keyed request derived %q then %q; a lost-response retry would not replay", a, b)
+	}
+	if got, want := claimRequestID(ChangeClaimRequest{ID: 3, Revision: gateClaimRevision}), "claim-3-"+gateClaimRevision; got != want {
+		t.Errorf("ungated request id = %q, want %q", got, want)
+	}
+	if got := claimRequestID(keyed); strings.Contains(got, "tokA") {
+		t.Errorf("request id %q carries the raw run context; only its hash may enter the key", got)
+	}
+	wide := ChangeClaimRequest{ID: 99999, Revision: strings.Repeat("ab", 32), RunContext: "tokA"}
+	if id := claimRequestID(wide); !validRequestID(id) {
+		t.Errorf("keyed request id %q (%d bytes) for a 64-hex revision breaks the request-id grammar", id, len(id))
 	}
 }
 
