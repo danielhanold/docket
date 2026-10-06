@@ -235,7 +235,25 @@ func NewInstallResult(operation string, out install.Outcome) InstallResult {
 	if collectionNeedsAttention(out.Collection) {
 		r.Warnings = append(r.Warnings, collectionWarning(out.Collection))
 	}
+	r.Warnings = append(r.Warnings, aliasWarnings(out.AliasFindings)...)
 	return r
+}
+
+// aliasWarnings renders the dckt alias findings as warnings. The alias is a
+// convenience beside the binary, so its absence or a foreign occupant is
+// reported with its remedy and never reclassifies the operation.
+func aliasWarnings(findings []install.AliasFinding) []InstallWarning {
+	var out []InstallWarning
+	for _, f := range findings {
+		code, msg := FCBinaryAliasMissing, "the dckt alias for "+f.Binary+" is missing"
+		if f.Kind == install.AliasForeign {
+			code, msg = FCBinaryAliasForeign, "dckt here is not docket's alias for "+f.Binary+"; left untouched"
+		}
+		out = append(out, InstallWarning{Diagnostic: config.Diagnostic{
+			Code: string(code), Severity: config.SeverityWarning, Path: f.Path, Message: msg, Remedy: f.Remedy,
+		}})
+	}
+	return out
 }
 
 // classifyInstall maps the service's stable reason to the protocol result.

@@ -474,3 +474,37 @@ func TestInstallResultNoWarningsOmitsField(t *testing.T) {
 		t.Fatalf("human text has a phantom warning line:\n%s", r.HumanText())
 	}
 }
+
+// A dckt finding is a warning: it never changes the result class, so a check
+// that only finds an alias problem still exits clean.
+func TestInstallResultRendersAliasFindingsAsWarnings(t *testing.T) {
+	out := install.Outcome{
+		Mode: install.ModeRelease,
+		AliasFindings: []install.AliasFinding{
+			{Kind: install.AliasMissing, Path: "/b/dckt", Binary: "/b/docket", Remedy: "re-run"},
+			{Kind: install.AliasForeign, Path: "/c/dckt", Binary: "/c/docket", Remedy: "move it"},
+		},
+	}
+	r := NewInstallResult(OperationInstallCheck, out)
+	if r.Result != ResultNoOp {
+		t.Fatalf("result = %q, want %q: an alias finding must not change the class", r.Result, ResultNoOp)
+	}
+	if len(r.Warnings) != 2 {
+		t.Fatalf("warnings = %+v", r.Warnings)
+	}
+	want := []struct{ code, path, remedy string }{
+		{string(FCBinaryAliasMissing), "/b/dckt", "re-run"},
+		{string(FCBinaryAliasForeign), "/c/dckt", "move it"},
+	}
+	for i, w := range want {
+		got := r.Warnings[i]
+		if got.Code != w.code || got.Path != w.path || got.Remedy != w.remedy ||
+			got.Severity != config.SeverityWarning || got.Message == "" {
+			t.Errorf("warning[%d] = %+v, want code %s path %s remedy %s", i, got, w.code, w.path, w.remedy)
+		}
+	}
+	human := r.HumanText()
+	if !strings.Contains(human, "warning: /c/dckt") || !strings.Contains(human, "move it") {
+		t.Errorf("human text does not show the foreign alias warning with its remedy:\n%s", human)
+	}
+}
