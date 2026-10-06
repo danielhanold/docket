@@ -22,7 +22,7 @@ branch: 'feat/load-a-private-repository-s-agent-instructions-without-repos'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-06T19:54:19Z'
+claimed_at: '2026-10-06T20:39:19Z'
 ---
 
 ## Artifacts
@@ -79,25 +79,3 @@ Re-groomed with the human after the run halted at the delivery spike. The human 
 
 The spec's *Summary*, *Evidence*, *Decisions*, *Design*, *Acceptance criteria*, and *ADRs expected* sections were replaced, and *What changes* was updated. Plan Task 1 (the spike) is superseded by the spec's fresh-session acceptance. The plan is rewritten against the revised spec before the halted run resumes.
 
-## Run halted
-
-### 2026-10-06
-
-Build halted at plan Task 1, the per-harness delivery spike. The worker returned BLOCKED with no commit; Tasks 2 to 9 were not started. The spec says a failing harness stops the build for a human decision instead of inventing another mechanism. The feature branch holds only the spec commit (c8dfa8bb8), and the worktree is clean.
-
-### Spike results (headless, fresh processes, temp config only)
-
-| Harness | Version | Mode | Verdict | Evidence |
-|---|---|---|---|---|
-| Claude Code | 2.1.291 | `-p --settings <tmp>` with a SessionStart command hook | FAIL | The hook runs and its output carries the token. Claude Code moves hook context over its size cap into a file and injects only a 2KB preview, so the token on the last line never reaches the model. Both JSON `additionalContext` and plain stdout behave this way. Under the cap the JSON shape works: payloads of the rule alone and of 9067 bytes passed. The cap is between 9067 and 12832 bytes, and this repository's own dispatch block plus lessons is 12832 bytes. |
-| Codex | codex-cli 0.154.0 | `exec --sandbox workspace-write`, pointer in project AGENTS.md | FAIL | Twice the model saw the pointer but did not run `dckt instructions` on a trivial prompt. On a real task ("List the files") it did run it. |
-| OpenCode | 1.18.31 | `run --auto`, pointer in project AGENTS.md (model deepseek-v4-flash) | FAIL | Twice it saw the pointer and did not run it. A stronger "MUST run before your first reply" wording did work. |
-| Cursor | 2026.08.04 | `-p --trust`, excluded alwaysApply rule | NOT-EXERCISABLE | Authentication was refused (`agent login` required). |
-
-### Decisions needed
-
-1. **Claude payload size.** Choose one: cap the private file's size, have `--hook` emit a short pointer instead of the full content, or accept the 2KB preview. Task 8's `--hook` design depends on this.
-2. **Codex/OpenCode pointer.** Following the pointer is up to the model. Decide whether that is acceptable, and whether the verbatim pointer wording in the spec and plan should become stronger. The stronger wording passed for OpenCode but not for Codex on a trivial prompt.
-3. **Cursor.** A human with a logged-in cursor-agent should confirm that an alwaysApply rule listed in `.git/info/exclude` is followed.
-
-After the spec and plan are revised, resume with `change.resume-halted --acknowledge-quiescent`. The raw transcripts are in the worker's temp fixture (`$TMPDIR/dckt-spike.G1J0Dt`).
