@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -14,147 +14,52 @@ import (
 	"github.com/danielhanold/docket/internal/githubcli"
 )
 
-// TestCloseoutBacklinkLegDocketMode proves the docket-mode split: the metadata
-// transaction lands the archived record + spec + board on the metadata ref, and a
-// SEPARATE isolated integration-ref commit patches only the merged plan/results
-// backlinks — never a metadata record, never an authored byte.
-func TestIntegrationFinalizeCloseoutBacklinkLegDocketMode(t *testing.T) {
+// TestIntegrationFinalizeCloseoutArchiveRetargetsAllArtifactBacklinks proves the
+// one-commit close-out: the single archive commit on the metadata ref retargets
+// the spec, plan, and results backlinks at the archived record, and the
+// integration ref's tip after close-out is still the merge commit — nothing is
+// committed to the integration branch after the merge.
+func TestIntegrationFinalizeCloseoutArchiveRetargetsAllArtifactBacklinks(t *testing.T) {
 	requireRealGit(t)
-	m := planRepoModes()[0] // docket
-	f := setupCloseoutFixture(t, m)
+	f := setupCloseoutFixture(t, planRepoModeDocket())
 	mergeCommit := f.mergeIntoBase(t)
 	gh := f.baselineMergedFake(f.head, mergeCommit)
-
 	metaBefore := originTip(t, f.repo.origin, "docket")
-	mainBefore := originTip(t, f.repo.origin, "main")
 
 	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 	if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
 		t.Fatalf("closeout = %q disp %q (reason %q)", res.Result, res.Disposition, res.Reason)
 	}
-	// No final-backlink-pending finding: the leg landed.
-	for _, fd := range res.Findings {
-		if fd.Code == ReasonCloseoutBacklinkPending {
-			t.Fatalf("the backlink leg did not land: %+v", fd)
-		}
+
+	// No integration commit: main's tip is exactly the merge commit.
+	if tip := originTip(t, f.repo.origin, "main"); tip != mergeCommit {
+		t.Errorf("origin/main = %q after close-out, want the merge commit %q (no integration commit)", tip, mergeCommit)
 	}
 
-	// Both refs advanced, on separate commits.
+	// Exactly one metadata commit, and it carries the archive move plus every
+	// artifact backlink retarget.
 	metaAfter := originTip(t, f.repo.origin, "docket")
-	mainAfter := originTip(t, f.repo.origin, "main")
-	if metaAfter == metaBefore {
-		t.Errorf("the metadata ref did not advance")
+	if parent := runGit(t, f.repo.origin, "rev-parse", metaAfter+"^"); parent != metaBefore {
+		t.Errorf("close-out landed more than one metadata commit: %q^ = %q, want %q", metaAfter, parent, metaBefore)
 	}
-	if mainAfter == mainBefore {
-		t.Errorf("the integration ref did not advance (no backlink leg)")
-	}
-
-	// The integration-ref commit touched ONLY the merged plan/results — no metadata
-	// record crossed onto the integration branch.
-	got := originCommitPaths(t, f.repo.origin, mainAfter)
-	want := []string{f.planPath, f.resultsPath}
-	sort.Strings(want)
-	if strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Errorf("integration-ref commit changed %v, want exactly %v", got, want)
-	}
-}
-
-// TestCloseoutBacklinkLegIgnoresUnrelatedCorpusErrors is the 0337 regression:
-// the integration branch carries a pre-existing corpus record the mutation
-// never touches whose bytes fail document.Parse (an ADR with an unquoted
-// colon-space title — the live ADR-0024 trigger). The backlink-only patch must
-// LAND anyway: the leg's gate is scoped to the artifacts it patches, not the
-// health of the integration branch's partial corpus.
-func TestIntegrationFinalizeCloseoutBacklinkLegIgnoresUnrelatedCorpusErrors(t *testing.T) {
-	requireRealGit(t)
-	f := setupCloseoutFixture(t, planRepoModeDocket())
-	// Pre-existing, mutation-unrelated corpus error on the integration branch.
-	f.repo.writerAdvance(t, "main", map[string]string{
-		"docs/adrs/0099-malformed.md": "---\n" +
-			"id: 99\n" +
-			"title: uses `context: fork` dispatch\n" +
-			"status: Accepted\n" +
-			"date: 2026-08-22\n" +
-			"---\n\n# 99. Malformed on purpose\n",
-	})
-	mergeCommit := f.mergeIntoBase(t)
-	gh := f.baselineMergedFake(f.head, mergeCommit)
-	mainBefore := originTip(t, f.repo.origin, "main")
-
-	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
-	if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
-		t.Fatalf("closeout = %q disp %q (reason %q)", res.Result, res.Disposition, res.Reason)
-	}
-	// The leg LANDED: no pending finding, and the integration ref advanced.
-	for _, fd := range res.Findings {
-		if fd.Code == ReasonCloseoutBacklinkPending {
-			t.Fatalf("unrelated corpus error refused the backlink leg: %+v", fd)
+	paths := originCommitPaths(t, f.repo.origin, metaAfter)
+	for _, want := range []string{groomPath(f.id, f.slug), res.ArchivePath, f.specPath, f.planPath, f.resultsPath} {
+		if !slices.Contains(paths, want) {
+			t.Errorf("the archive commit did not touch %q; it changed %v", want, paths)
 		}
 	}
-	mainAfter := originTip(t, f.repo.origin, "main")
-	if mainAfter == mainBefore {
-		t.Fatalf("the integration ref did not advance (no backlink leg)")
-	}
-	// The leg's commit touched exactly the plan/results — the malformed record
-	// and every other corpus byte are untouched.
-	got := originCommitPaths(t, f.repo.origin, mainAfter)
-	want := []string{f.planPath, f.resultsPath}
-	sort.Strings(want)
-	if strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Errorf("integration-ref commit changed %v, want exactly %v", got, want)
-	}
-	// The retarget itself happened: the plan now backlinks the archive path.
-	plan, ok := originFile(t, f.repo.origin, "main", f.planPath)
-	if !ok {
-		t.Fatalf("plan artifact vanished from main")
-	}
-	if !strings.Contains(plan, res.ArchivePath) {
-		t.Errorf("plan backlink does not point at the archive path %q:\n%s", res.ArchivePath, plan)
-	}
-	if !strings.Contains(plan, "# Plan\n\nThe widget plan.") {
-		t.Errorf("authored plan body disturbed:\n%s", plan)
-	}
-}
-
-// TestCloseoutBacklinkPendingFindingNamesTheCause is the 0337 diagnosability
-// proof (spec D): when the leg still cannot land — here an IN-SCOPE failure,
-// the targeted plan artifact's own bytes fail document.Parse — the
-// final-backlink-pending finding carries the typed cause (the offending
-// artifact path), never a bare coarse token. The change itself still closes
-// out done+archived: the leg stays best-effort.
-func TestIntegrationFinalizeCloseoutBacklinkPendingFindingNamesTheCause(t *testing.T) {
-	requireRealGit(t)
-	f := setupCloseoutFixture(t, planRepoModeDocket())
-	// Corrupt the targeted plan artifact on the integration branch: malformed
-	// frontmatter fails document.Parse, an in-scope condition even after the
-	// gate is scoped to the patched artifacts.
-	f.repo.writerAdvance(t, "main", map[string]string{
-		f.planPath: "---\ntitle: uses `context: fork` dispatch\n---\n\n" +
-			artifactWithBacklink(groomPath(f.id, f.slug), "Plan", "The widget plan."),
-	})
-	mergeCommit := f.mergeIntoBase(t)
-	gh := f.baselineMergedFake(f.head, mergeCommit)
-
-	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
-	if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
-		t.Fatalf("closeout = %q disp %q (reason %q)", res.Result, res.Disposition, res.Reason)
-	}
-	var pending *StatusFinding
-	for i, fd := range res.Findings {
-		if fd.Code == ReasonCloseoutBacklinkPending {
-			pending = &res.Findings[i]
+	for _, p := range []string{f.specPath, f.planPath, f.resultsPath} {
+		got, ok := originFile(t, f.repo.origin, "docket", p)
+		if !ok {
+			t.Fatalf("artifact %q vanished from the metadata branch", p)
 		}
-	}
-	if pending == nil {
-		t.Fatalf("an in-scope malformed artifact did not leave the leg pending: %+v", res.Findings)
-	}
-	// The finding names the cause: the exact offending artifact path, and the
-	// typed detail separator — proof it carries more than the old coarse token.
-	if !strings.Contains(pending.Message, f.planPath) {
-		t.Errorf("pending finding does not name the offending artifact:\n%s", pending.Message)
-	}
-	if !strings.Contains(pending.Message, "): ") {
-		t.Errorf("pending finding carries no typed detail (still cause-free): %q", pending.Message)
+		rel, err := filepath.Rel(filepath.Dir(p), res.ArchivePath)
+		if err != nil {
+			t.Fatalf("relative archive path: %v", err)
+		}
+		if !strings.Contains(got, "]("+filepath.ToSlash(rel)+")**") || strings.Contains(got, "active/") {
+			t.Errorf("artifact %q does not backlink the archived record only:\n%s", p, got)
+		}
 	}
 }
 
@@ -202,12 +107,8 @@ func TestIntegrationFinalizeArchiveNeverEditsAuthoredBytes(t *testing.T) {
 				t.Fatalf("closeout did not apply: %q (reason %q)", res.Result, res.Reason)
 			}
 
-			integrationBranch := f.branch
-			if m.name == "docket" {
-				integrationBranch = "main"
-			}
 			for _, p := range []string{f.planPath, f.resultsPath} {
-				got, ok := originFile(t, f.repo.origin, integrationBranch, p)
+				got, ok := originFile(t, f.repo.origin, f.branch, p)
 				if !ok {
 					t.Fatalf("artifact %q vanished", p)
 				}
@@ -516,17 +417,18 @@ func TestIntegrationFinalizeArchiveOrdinary(t *testing.T) {
 				t.Errorf("spec backlink not retargeted to the archive path:\n%s", spec)
 			}
 
-			// The plan/results backlinks (integration ref in docket mode) retarget too.
-			integrationBranch := f.branch
-			if m.name == "docket" {
-				integrationBranch = "main"
-			}
+			// The plan/results backlinks (metadata ref, beside the record) retarget
+			// too, each relative to its own directory.
 			for _, p := range []string{f.planPath, f.resultsPath} {
-				got, ok := originFile(t, f.repo.origin, integrationBranch, p)
+				got, ok := originFile(t, f.repo.origin, f.branch, p)
 				if !ok {
 					t.Fatalf("artifact %q vanished", p)
 				}
-				if !strings.Contains(got, archivePath) || strings.Contains(got, "`"+recPath+"`") {
+				rel, err := filepath.Rel(filepath.Dir(p), archivePath)
+				if err != nil {
+					t.Fatalf("relative archive path: %v", err)
+				}
+				if !strings.Contains(got, "]("+filepath.ToSlash(rel)+")**") || strings.Contains(got, "active/") {
 					t.Errorf("artifact %q backlink not retargeted:\n%s", p, got)
 				}
 			}

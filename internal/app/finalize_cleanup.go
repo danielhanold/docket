@@ -10,7 +10,6 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
-	"github.com/danielhanold/docket/internal/repository/transaction"
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
@@ -23,7 +22,7 @@ import (
 //
 // `finalize cleanup` runs an ordered suffix over one final change: it reloads
 // the archived/stacked state and the verified merge destination; repairs the
-// final backlinks (and the merged PR's description backlink) first when needed;
+// merged PR's description backlink first when needed;
 // removes the feature checkout through the landed manifest-fact-driven
 // workspace.Cleanup (never a base recomputed from the now-archived record); deletes the LOCAL feature ref only when the exact
 // recorded tip is detached from every worktree AND contained in the verified
@@ -110,7 +109,6 @@ const (
 	ReasonCleanupRemoteProbe      = "remote-ref-probe-failed"
 	ReasonCleanupRemoteMoved      = "remote-ref-moved"
 	ReasonCleanupLeaseRejected    = "remote-lease-rejected"
-	ReasonCleanupBacklinkPending  = "final-backlink-pending"
 	ReasonCleanupReceiptRead      = "receipt-read-failed"
 	// gate cleanup reasons
 	ReasonGateCleanupUnownable = "run-unownable"
@@ -279,7 +277,7 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 			"the pull request is not merged; cleanup preserves the resources", id)
 	}
 
-	// Leg 1b: repoint the merged PR's description backlink at the archived record
+	// Leg 1: repoint the merged PR's description backlink at the archived record
 	// when close-out left it pending. Best-effort and independent: a failure is a
 	// retryable pr-backlink-pending finding and never blocks the other legs. It is
 	// non-destructive and needs only the PR number and the archived record, so it
@@ -312,13 +310,6 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 	git := cleanupGit(deps)
 
 	var removed []string
-
-	// Leg 1: repair the final backlinks when needed (docket mode). A
-	// failed/contended leg is a pending finding; it never blocks the independent
-	// ref-deletion legs.
-	if f := finalizeCleanupBacklinkRepair(ctx, deps, cc, facts); f != nil {
-		findings = append(findings, *f)
-	}
 
 	// Leg 2: remove the feature checkout through the landed manifest-fact-driven
 	// Cleanup. A blocked workspace or an unanswerable inspection retains the
@@ -412,107 +403,6 @@ func finalizeCleanupPRBacklinkRepair(ctx context.Context, deps FinalizeDeps, cc 
 		return &f
 	}
 	return prBacklinkFinding(id, number, repointPRBacklink(ctx, ed, ghRepo, number, cc.change.Path(), interior))
-}
-
-// finalizeCleanupBacklinkRepair re-runs the integration-ref backlink retarget
-// idempotently. In the normal flow (closeout already retargeted the blocks) it
-// is a clean no-op; when closeout left the leg pending it lands the exact
-// generated-only patch. A failed/contended leg is a retryable
-// final-backlink-pending finding — the change stays truthfully done.
-func finalizeCleanupBacklinkRepair(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, facts githubcli.MergedFacts) *StatusFinding {
-	archiveDate, ok := archiveDateFromMerge(facts.MergedAtUTC)
-	if !ok {
-		return nil
-	}
-	targets := []closeoutTarget{{
-		id: int(cc.change.ID()), activePath: cc.change.Path(), slug: cc.change.Slug(), archivePath: cc.change.Path(),
-	}}
-	backlinkTargets, err := closeoutBacklinkTargets(cc, targets)
-	if err != nil {
-		f := cleanupWarning(ReasonCleanupBacklinkPending, "the final backlink interior could not be rendered; retry cleanup")
-		return &f
-	}
-	if len(backlinkTargets) == 0 {
-		return nil
-	}
-	op := cleanupBacklinkOp{rootID: int(cc.change.ID()), archiveDate: archiveDate, targets: backlinkTargets}
-	res, execErr := deps.Planning.Engine.Execute(ctx, transaction.Request{
-		Repository: cc.repo,
-		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + cc.integrationBranch),
-		Loader:     newBacklinkArtifactLoader(backlinkTargets),
-		Operation:  op,
-	})
-	// Best-effort secondary leg: the change stays truthfully done and the sweep
-	// retries. The finding carries the transaction's typed cause — the failure's
-	// stage/kind/detail, or a refusal's finding codes and paths — so a stuck leg
-	// is self-diagnosing (change 0337); after the scoped loader, an in-scope
-	// artifact-level problem is the only refusal left, and this names it.
-	result, _ := mapOutcome(res, execErr, ResultInvalidState)
-	if result == ResultApplied || result == ResultNoOp {
-		return nil
-	}
-	msg := "the integration-ref backlink leg did not land (" + string(result) + ")"
-	if d := backlinkLegDetail(res, execErr); d != "" {
-		msg += ": " + d
-	}
-	msg += "; the sweep will retry it"
-	f := cleanupWarning(ReasonCleanupBacklinkPending, msg)
-	return &f
-}
-
-// cleanupBacklinkOp patches the docket:backlink block of each merged
-// plan/results artifact on the integration ref to point at the archive path. It
-// mirrors closeoutBacklinkOp but returns a VALID no-op plan (a commit subject on
-// an empty file set) so an already-retargeted replay reaches the engine's
-// empty-plan no-op path rather than an empty-commit-subject refusal — the
-// idempotent case a standalone cleanup replay exercises that closeout never does.
-type cleanupBacklinkOp struct {
-	rootID      int
-	archiveDate string
-	targets     []closeoutBacklinkTarget
-}
-
-func (o cleanupBacklinkOp) Key() transaction.OperationKey {
-	return transaction.OperationKey(OperationFinalizeCloseoutBacklink)
-}
-
-func (o cleanupBacklinkOp) Plan(ctx context.Context, st transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
-	var files []transaction.FileMutation
-	for _, tg := range o.targets {
-		for _, p := range tg.artifactPaths {
-			original, present, err := readTreeBlob(ctx, st.Tree, p)
-			if err != nil {
-				return transaction.MutationPlan{}, transaction.OperationResult{}, err
-			}
-			if !present {
-				continue
-			}
-			// The byte comparison lives once in backlinkLegRetarget; a missing block
-			// is never conjured and already-retargeted bytes are a no-op.
-			updated, hasBlock, changed, err := backlinkLegRetarget(original, tg.interior)
-			if err != nil {
-				return transaction.MutationPlan{}, transaction.OperationResult{}, err
-			}
-			if !hasBlock || !changed {
-				continue
-			}
-			files = append(files, transaction.FileMutation{Path: gitcli.RepoPath(p), Kind: transaction.MutationReplace, Bytes: updated})
-		}
-	}
-	subject := "change " + itoa(o.rootID) + " final backlinks verified (cleanup)"
-	receipt, err := json.Marshal(closeoutBacklinkReceipt{ArchiveDate: o.archiveDate, Op: OperationFinalizeCloseoutBacklink, Root: o.rootID})
-	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, err
-	}
-	if len(files) == 0 {
-		// A valid no-op plan carries a commit subject AND a receipt (validatePlan
-		// requires both before the engine's len(Files)==0 no-op branch is reached),
-		// so an already-retargeted replay is a clean no-op rather than an
-		// empty-subject/empty-receipt refusal.
-		return transaction.MutationPlan{CommitSubject: subject, Receipt: receipt}, transaction.OperationResult{}, nil
-	}
-	return transaction.MutationPlan{Files: files, CommitSubject: subject, Receipt: receipt}, transaction.OperationResult{}, nil
 }
 
 // finalizeCleanupWorkspace removes the feature checkout through workspace.Cleanup.

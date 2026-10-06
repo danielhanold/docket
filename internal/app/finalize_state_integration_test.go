@@ -93,20 +93,21 @@ func TestIntegrationFinalizeStateBytePreservation(t *testing.T) {
 		t.Run(m.name, func(t *testing.T) {
 			f := setupCloseoutFixture(t, m)
 
-			integrationBranch := f.branch
-			if m.name == "docket" {
-				integrationBranch = "main"
-			}
-			// Pre-images of files the closeout must not disturb outside its owned blocks.
-			planBefore, _ := originFile(t, f.repo.origin, integrationBranch, f.planPath)
-			resultsBefore, _ := originFile(t, f.repo.origin, integrationBranch, f.resultsPath)
-			readmeBefore, hadReadme := originFile(t, f.repo.origin, integrationBranch, "README.md")
+			// Pre-images of files the closeout must not disturb outside its owned
+			// blocks: the plan and results on the metadata branch, and a file on
+			// the integration branch the closeout never targets.
+			planBefore, _ := originFile(t, f.repo.origin, f.branch, f.planPath)
+			resultsBefore, _ := originFile(t, f.repo.origin, f.branch, f.resultsPath)
+			readmeBefore, hadReadme := originFile(t, f.repo.origin, "main", "README.md")
 
 			mergeCommit := f.mergeIntoBase(t)
 			gh := f.baselineMergedFake(f.head, mergeCommit)
 			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 			if res.Result != ResultApplied {
 				t.Fatalf("closeout did not apply: %q (reason %q)", res.Result, res.Reason)
+			}
+			if tip := originTip(t, f.repo.origin, "main"); tip != mergeCommit {
+				t.Errorf("closeout committed to the integration branch: main = %q, want the merge commit %q", tip, mergeCommit)
 			}
 
 			// The authored body after the backlink block is byte-identical.
@@ -117,7 +118,7 @@ func TestIntegrationFinalizeStateBytePreservation(t *testing.T) {
 				{f.planPath, planBefore},
 				{f.resultsPath, resultsBefore},
 			} {
-				after, ok := originFile(t, f.repo.origin, integrationBranch, tc.path)
+				after, ok := originFile(t, f.repo.origin, f.branch, tc.path)
 				if !ok {
 					t.Fatalf("artifact %q vanished after closeout", tc.path)
 				}
@@ -129,7 +130,7 @@ func TestIntegrationFinalizeStateBytePreservation(t *testing.T) {
 
 			// A file the closeout never targets is byte-identical in full.
 			if hadReadme {
-				readmeAfter, ok := originFile(t, f.repo.origin, integrationBranch, "README.md")
+				readmeAfter, ok := originFile(t, f.repo.origin, "main", "README.md")
 				if !ok || readmeAfter != readmeBefore {
 					t.Errorf("README.md was disturbed by closeout:\n--before--\n%q\n--after--\n%q", readmeBefore, readmeAfter)
 				}

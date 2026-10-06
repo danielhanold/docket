@@ -188,8 +188,6 @@ func (f *closeoutFixture) remoteBranchPresent(t *testing.T) bool {
 // constant names.
 func TestFinalLifecycleCodeSpellings(t *testing.T) {
 	for _, c := range []struct{ name, got, want string }{
-		{"ReasonCloseoutBacklinkPending", string(ReasonCloseoutBacklinkPending), "final-backlink-pending"},
-		{"ReasonCleanupBacklinkPending", string(ReasonCleanupBacklinkPending), "final-backlink-pending"},
 		{"ReasonCloseoutNotesFrozen", string(ReasonCloseoutNotesFrozen), "final-notes-frozen"},
 		{"ReasonCleanupNotFinal", string(ReasonCleanupNotFinal), "not-final"},
 		{"ReasonCleanupKilledRetained", string(ReasonCleanupKilledRetained), "killed-retained"},
@@ -349,9 +347,9 @@ func gateRunLogsPresent(t *testing.T, dir string) bool {
 	return err == nil
 }
 
-// planRepoModeDocket returns the docket metadata mode (the mode where the plan
-// and results live on a genuinely different integration ref, exercising the
-// backlink-repair leg).
+// planRepoModeDocket returns the docket metadata mode, the one supported
+// topology, where the metadata branch is a genuinely different ref from the
+// integration branch.
 func planRepoModeDocket() planRepoMode {
 	for _, m := range planRepoModes() {
 		if m.name == "docket" {
@@ -360,8 +358,6 @@ func planRepoModeDocket() planRepoMode {
 	}
 	panic("docket mode not found")
 }
-
-// --- TestCleanupBacklinkRepairIgnoresUnrelatedCorpusErrors ----------------
 
 // TestCleanupHumanTextNamesWorkspaceRemnant: the human one-liner of a cleaned
 // result must still name a workspace-remnant warning and its leftover path.

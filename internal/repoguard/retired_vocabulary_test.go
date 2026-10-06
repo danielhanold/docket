@@ -246,7 +246,7 @@ var retiredVocabulary = []retiredToken{
 	{Row: "54", Kind: kindToken, Old: "rearm", New: "re-enable"},
 	{Row: "55", Kind: kindToken, Old: "nothing-to-rearm", New: "nothing-to-re-enable"},
 	{Row: "56", Kind: kindToken, Old: "fenced-setting-ignored", New: "shared-setting-ignored"},
-	{Row: "57", Kind: kindToken, Old: "terminal-backlink-pending", New: "final-backlink-pending"},
+	{Row: "57", Kind: kindToken, Old: "terminal-backlink-pending", New: "none — no backlink is committed to the integration branch after a merge (its successor final-backlink-pending is retired too)"},
 	{Row: "57", Kind: kindToken, Old: "terminal-notes-frozen", New: "final-notes-frozen"},
 	{Row: "58", Kind: kindToken, Old: "change-terminal-claim-stamp", New: "change-final-claim-stamp"},
 	{Row: "58", Kind: kindToken, Old: "drop-terminal-claimed-at", New: "drop-final-claimed-at"},
@@ -1140,7 +1140,7 @@ func testRetiredNegativeControls(t *testing.T) {
 		"the claim digest payload keeps its version key",
 		// Change 0474 — the new spellings and the kept namesakes (spec §D).
 		"apply `change.groom` with `outcome: re-enable`; a `nothing-to-re-enable` refusal writes nothing",
-		"`final-backlink-pending`, `final-notes-frozen`, `not-final`, `skipped-final`, `adr-update-after-final`",
+		"`final-notes-frozen`, `not-final`, `skipped-final`, `adr-update-after-final`",
 		"`change-final-claim-stamp` and `drop-final-claimed-at`; the warning is `shared-setting-ignored`",
 		"read `../docket-convention/references/close-out.md` now — blocking",
 		"terminal_publish: false stays parseable; terminal publication is deferred from Go v1",

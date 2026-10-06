@@ -34,8 +34,8 @@ import (
 // and must not be parsed.
 const (
 	// ReasonSweepSnapshotNoWork: every destructive leg is provably a no-op at the
-	// pinned inventory — a cleaned tombstone, absent local/remote refs, and
-	// already-correct final and PR backlinks. Nothing was dispatched.
+	// pinned inventory — a cleaned tombstone, absent local/remote refs, and an
+	// already-correct PR backlink. Nothing was dispatched.
 	ReasonSweepSnapshotNoWork = "snapshot-no-work"
 	// ReasonSweepSnapshotRetained: a stacked-merged record is retained until its
 	// stack root reaches the integration branch; a cleanup is never dispatched
@@ -47,7 +47,7 @@ const (
 	// the blocker.
 	ReasonSweepSnapshotBlocked = "snapshot-blocked"
 	// ReasonSweepSnapshotUnknown: an inspection could not be resolved (a failed
-	// shared remote inventory, an unreadable workspace probe, or a malformed
+	// shared remote inventory, an unreadable workspace probe, or a malformed PR
 	// backlink block), so absence could not be proven and no leg established work.
 	// Nothing was dispatched; the message names the unresolved leg(s).
 	ReasonSweepSnapshotUnknown = "snapshot-unknown"
@@ -81,7 +81,6 @@ type sweepSharedFacts struct {
 // The leg names the assessment reports in its diagnostic messages. They are
 // explanatory labels, not a parsed vocabulary.
 const (
-	sweepLegBacklink   = "backlink"
 	sweepLegWorkspace  = "workspace"
 	sweepLegLocalRef   = "local-ref"
 	sweepLegRemoteRef  = "remote-ref"
@@ -94,8 +93,7 @@ const (
 // observation, never a fabricated cleanup result) and the subset of candidates
 // that warrant one normal fresh cleanup attempt. It dispatches no metadata, PR, or
 // remote-ref read of its own: the remote/worktree inventories and the batched
-// PR-body inventory arrive in shared, the backlink leg reads the pinned
-// integration artifacts through the reader, and the workspace leg is a local-only
+// PR-body inventory arrive in shared, and the workspace leg is a local-only
 // inspection.
 func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps WorkspaceDeps,
 	inv sweepInventory, pin StatusPin, shared sweepSharedFacts,
@@ -161,7 +159,6 @@ func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps Workspa
 		// unresolved leg never launders into a clean no-op.
 		featureRef := gitcli.RefName(branchRefPrefix + branch)
 		var a sweepLegAssessment
-		sweepAssessBacklinkLeg(ctx, deps, pin, c, link, &a)
 		sweepAssessPRBacklinkLeg(shared, c, link, &a)
 		sweepAssessWorkspaceLeg(ctx, wdeps, repo, target, &a)
 		sweepAssessLocalRefLeg(shared, featureRef, &a)
@@ -229,59 +226,6 @@ func (a sweepLegAssessment) verdict() (disposition, reason, message string) {
 	}
 	return SweepDispSkipped, ReasonSweepSnapshotNoWork,
 		"every destructive leg is provably a no-op at the pinned inventory"
-}
-
-// sweepAssessBacklinkLeg resolves the final-backlink leg: for each of the
-// record's plan/results artifacts on the integration ref, it reads the pinned
-// bytes and asks the shared backlinkLegHasWork whether the rendered interior would
-// change. An already-correct block and a missing artifact are no-effect (the exact
-// cases the existing cleanup planner treats as a no-op); a read error or a
-// malformed/unbalanced backlink block is unresolved, never a clean no-op.
-func sweepAssessBacklinkLeg(ctx context.Context, deps FinalizeDeps, pin StatusPin, c domain.Change, link render.LinkContext, a *sweepLegAssessment) {
-	block, err := render.BacklinkContent(c, link)
-	if err != nil {
-		a.markUnknown(sweepLegBacklink, "the record's final backlink could not be rendered")
-		return
-	}
-	interior := backlinkInterior(block)
-	for _, p := range sweepBacklinkArtifactPaths(c) {
-		art, err := deps.Planning.Reader.ReadArtifact(ctx, pin, sourceIntegration, p)
-		if err != nil {
-			// A probe error is unknown, never the clean absence ReadArtifact reports
-			// with Found=false.
-			a.markUnknown(sweepLegBacklink, "artifact "+p+" could not be read on the integration ref")
-			return
-		}
-		if !art.Found {
-			// The merged artifact is not on the integration ref; the cleanup planner
-			// treats a missing artifact as a no-op.
-			continue
-		}
-		has, herr := backlinkLegHasWork(art.Data, interior)
-		if herr != nil {
-			a.markUnknown(sweepLegBacklink, "artifact "+p+" carries a malformed final backlink block")
-			return
-		}
-		if has {
-			a.markWork()
-			return
-		}
-	}
-}
-
-// sweepBacklinkArtifactPaths returns the record's plan and results pointer paths,
-// empties omitted — the integration-resident artifacts the final backlink leg
-// retargets (the spec is metadata-resident and never on the integration ref). It
-// mirrors closeoutBacklinkTargets' path selection.
-func sweepBacklinkArtifactPaths(c domain.Change) []string {
-	var out []string
-	if p := c.Plan().Value; p != "" {
-		out = append(out, p)
-	}
-	if p := c.Results().Value; p != "" {
-		out = append(out, p)
-	}
-	return out
 }
 
 // sweepAssessPRBacklinkLeg resolves the PR-backlink leg from the shared, batched

@@ -51,8 +51,8 @@ func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 // newFinalizeCleanupSubcommand builds `finalize cleanup`: the ownership-safe
 // destructive suffix over one final change. It reloads the archived/stacked
-// state and the verified merge destination, repairs the final backlinks,
-// removes the feature checkout, and deletes the local and remote feature refs
+// state and the verified merge destination, repairs the merged PR
+// description's backlink, removes the feature checkout, and deletes the local and remote feature refs
 // under exact proof — retaining any resource whose proof it cannot answer. Only
 // the change id and the target directory ride on flags; there is no authored
 // request body.
@@ -62,9 +62,9 @@ func newFinalizeCleanupSubcommand(setResult func(app.OperationResult)) *cobra.Co
 		Short: "Clean a final change's workspace and feature refs under exact ownership proof",
 		Args:  cobra.NoArgs,
 		// local-write (delete local ref + remove worktree), external-write
-		// (delete the remote feature ref under lease), metadata-write (the
-		// closeout-backlink transaction leg on the metadata branch).
-		Annotations: capability("finalize.cleanup", EffectLocalWrite, EffectExternalWrite, EffectMetadataWrite),
+		// (delete the remote feature ref under lease, repoint the merged PR
+		// description's backlink). It commits nothing.
+		Annotations: capability("finalize.cleanup", EffectLocalWrite, EffectExternalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {

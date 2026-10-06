@@ -70,7 +70,7 @@ func wsState(id int, kind workspace.StateKind) *assessWS {
 }
 
 // assessDoneBlob builds a done record in the pinned corpus, optionally carrying a
-// plan pointer whose integration artifact the backlink leg reads.
+// plan pointer.
 func assessDoneBlob(id int, slug, planPath string) StatusBlob {
 	extra := ""
 	if planPath != "" {
@@ -108,9 +108,9 @@ func (f assessFixture) assess(t *testing.T, ws WorkspaceService, shared sweepSha
 	return sweepAssessHistorical(context.Background(), deps, wdeps, f.inv, f.pin, shared, cands)
 }
 
-// assessInterior renders the exact final-backlink interior a record's already-
-// correct integration artifact must carry — so a test can build an artifact whose
-// backlink block is already retargeted (no work).
+// assessInterior renders the exact archived backlink interior a record's
+// already-correct PR description must carry — so a test can build a body whose
+// backlink block is already repointed (no work).
 func assessInterior(t *testing.T, f assessFixture, id int) string {
 	t.Helper()
 	c, out := f.inv.snap.Change(domain.ChangeID(id))
@@ -132,15 +132,6 @@ func assessArtifactWithBacklink(interior string) StatusArtifact {
 		interior + "\n" +
 		"<!-- docket:backlink:end -->\n"
 	return StatusArtifact{Found: true, Revision: "artv1", Data: []byte(body)}
-}
-
-// artifactDanglingMarker is a plan artifact whose backlink block has a start
-// marker but no end marker — a dangling managed block the parser refuses.
-func artifactDanglingMarker() StatusArtifact {
-	body := "## Plan\n\n" +
-		"<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
-		"> ↩ dangling with no end marker\n"
-	return StatusArtifact{Found: true, Revision: "artbad", Data: []byte(body)}
 }
 
 func integrationArtifactKey(path string) string { return sourceIntegration + "|" + path }
@@ -201,15 +192,16 @@ func TestAssessStackedMergedIsSnapshotRetainedNoDispatch(t *testing.T) {
 }
 
 // TestAssessCleanTombstoneAbsentRefsCorrectBacklinksIsNoWork: a cleaned workspace
-// tombstone, absent local and remote refs, and an already-correct final
-// backlink is snapshot-no-work. It asserts the absence of ALL mutations: nothing
-// enqueued, and the workspace service was only inspected, never mutated.
+// tombstone and absent local and remote refs are snapshot-no-work — even when a
+// legacy plan on the integration branch still backlinks the active path, because
+// nothing retargets an integration-branch artifact after the merge. It asserts
+// the absence of ALL mutations: nothing enqueued, and the workspace service was
+// only inspected, never mutated.
 func TestAssessCleanTombstoneAbsentRefsCorrectBacklinksIsNoWork(t *testing.T) {
 	planPath := "docs/changes/plans/plan-41.md"
-	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", planPath)}, nil)
-	// Build the artifact so its backlink block is already correct: no work.
-	interior := assessInterior(t, f, 41)
-	f.reader.artifactData = map[string]StatusArtifact{integrationArtifactKey(planPath): assessArtifactWithBacklink(interior)}
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", planPath)}, map[string]StatusArtifact{
+		integrationArtifactKey(planPath): assessArtifactWithBacklink("> ↩ **stale — points at the active path**"),
+	})
 
 	ws := cleanWS()
 	// Empty non-nil advertisement + no worktrees: absent refs are PROVEN.
@@ -256,40 +248,6 @@ func TestAssessAbsentManifestIsBlockedNotClean(t *testing.T) {
 	assertEntry(t, findEntry(entries, 41), SweepDispBlocked, ReasonSweepSnapshotBlocked)
 }
 
-// TestAssessMissingManifestWithStaleBacklinkIsActionable: the backlink leg is
-// INDEPENDENT of the workspace blocker — a stale backlink makes the record
-// actionable even though the workspace manifest is foreign.
-func TestAssessMissingManifestWithStaleBacklinkIsActionable(t *testing.T) {
-	planPath := "docs/changes/plans/plan-41.md"
-	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", planPath)}, map[string]StatusArtifact{
-		integrationArtifactKey(planPath): assessArtifactWithBacklink("> ↩ **stale — points at the active path**"),
-	})
-	ws := wsState(41, workspace.StateForeign)
-	shared := sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}
-	entries, actionable := f.assess(t, ws, shared, 41)
-
-	if !actionableHas(actionable, 41) {
-		t.Fatalf("a stale backlink must make the record actionable despite the workspace blocker; actionable=%v", actionable)
-	}
-	if findEntry(entries, 41) != nil {
-		t.Fatalf("an actionable record produces no pre-dispatch entry, got %+v", findEntry(entries, 41))
-	}
-}
-
-// TestAssessStaleBacklinkLegIsActionable: a stale final backlink alone makes
-// the record actionable (workspace clean, refs absent).
-func TestAssessStaleBacklinkLegIsActionable(t *testing.T) {
-	planPath := "docs/changes/plans/plan-41.md"
-	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", planPath)}, map[string]StatusArtifact{
-		integrationArtifactKey(planPath): assessArtifactWithBacklink("> ↩ **stale line**"),
-	})
-	shared := sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}
-	_, actionable := f.assess(t, cleanWS(), shared, 41)
-	if !actionableHas(actionable, 41) {
-		t.Fatalf("stale backlink leg must be actionable; actionable=%v", actionable)
-	}
-}
-
 // TestAssessReadyWorkspaceLegIsActionable: an owned ready checkout is possible
 // cleanup work (workspace removal) → actionable.
 func TestAssessReadyWorkspaceLegIsActionable(t *testing.T) {
@@ -329,26 +287,6 @@ func TestAssessLeftoverRemoteRefLegIsActionable(t *testing.T) {
 	}
 }
 
-// TestAssessMalformedMarkersAreUnknownNeverNoWork: a malformed/unbalanced final
-// backlink block is unresolved — unknown/snapshot-unknown — never a clean no-op.
-func TestAssessMalformedMarkersAreUnknownNeverNoWork(t *testing.T) {
-	planPath := "docs/changes/plans/plan-41.md"
-	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", planPath)}, map[string]StatusArtifact{
-		integrationArtifactKey(planPath): artifactDanglingMarker(),
-	})
-	shared := sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}
-	entries, actionable := f.assess(t, cleanWS(), shared, 41)
-
-	if len(actionable) != 0 {
-		t.Fatalf("a malformed block must not be actionable; actionable=%v", actionable)
-	}
-	e := findEntry(entries, 41)
-	assertEntry(t, e, SweepDispUnknown, ReasonSweepSnapshotUnknown)
-	if !strings.Contains(e.Message, sweepLegBacklink) {
-		t.Fatalf("the unknown message must name the backlink leg, got %q", e.Message)
-	}
-}
-
 // TestAssessInvalidRecordDataIsSnapshotInvalid: a done record whose canonical PR
 // reference does not parse is snapshot-invalid — distinguishable from clean
 // absence — and nothing is dispatched.
@@ -366,25 +304,22 @@ func TestAssessInvalidRecordDataIsSnapshotInvalid(t *testing.T) {
 // TestAssessFailedRemoteHeadsBlocksNoWorkButNotLocalLegs: a failed shared remote
 // advertisement makes the remote-ref absence UNPROVABLE — a record with no
 // locally-established work becomes unknown (never no-work) — but a record whose
-// local backlink leg already established work still dispatches.
+// local workspace leg already established work still dispatches.
 func TestAssessFailedRemoteHeadsBlocksNoWorkButNotLocalLegs(t *testing.T) {
-	planPath := "docs/changes/plans/plan-42.md"
 	corpus := []StatusBlob{
-		assessDoneBlob(41, "cleanarchived", ""),       // clean everywhere except the failed remote
-		assessDoneBlob(42, "stalearchived", planPath), // stale backlink = local work
+		assessDoneBlob(41, "cleanarchived", ""), // clean everywhere except the failed remote
+		assessDoneBlob(42, "readyarchived", ""), // ready owned workspace = local work
 	}
-	f := newAssessFixture(t, corpus, map[string]StatusArtifact{
-		integrationArtifactKey(planPath): assessArtifactWithBacklink("> ↩ **stale**"),
-	})
+	f := newAssessFixture(t, corpus, nil)
 	shared := sweepSharedFacts{remoteHeadsErr: errors.New("ls-remote transport failed")}
-	entries, actionable := f.assess(t, cleanWS(), shared, 41, 42)
+	entries, actionable := f.assess(t, wsState(42, workspace.StateReady), shared, 41, 42)
 
 	// 41: only the remote leg could speak, and it is unknown → no-work is blocked.
 	if actionableHas(actionable, 41) {
 		t.Fatalf("41 has no local work and an unprovable remote absence; it must not dispatch")
 	}
 	assertEntry(t, findEntry(entries, 41), SweepDispUnknown, ReasonSweepSnapshotUnknown)
-	// 42: local backlink work stands regardless of the remote inventory failure.
+	// 42: local workspace work stands regardless of the remote inventory failure.
 	if !actionableHas(actionable, 42) {
 		t.Fatalf("42's locally-established work must still dispatch despite the failed remote read; actionable=%v", actionable)
 	}
