@@ -10,7 +10,7 @@ updated: '2026-10-06'
 depends_on: [530, 531]
 stacked_on:
 related: [529, 533, 534, 535]
-discovered_from: []
+discovered_from: [531]
 adrs: [36, 78]
 spec: 'docs/superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md'
 plan:
@@ -29,8 +29,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md) |
-| ADRs | [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
+| Spec | [2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md](../../superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md) |
+| ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](../../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -47,11 +47,13 @@ Once a leak is pushed it cannot be undone, and a rebase-merge would carry it int
 
 ## What changes
 
-- PR descriptions in private repositories are plain prose, with no docket blocks and no change line. A finalize block is recorded on the change only, with no PR comment.
+- PR descriptions in private repositories are plain prose, with no docket blocks, no `docket:backlink` block, and no change line. The backlink repointing that finalize close-out does after merge (`finalize.closeout`, `finalize.cleanup`, `maintenance.sweep`, `repository.repair --pr-backlinks`) skips private repositories. A finalize block is recorded on the change only, with no PR comment.
 - Writing rules for grooming, the plan-writer, build and fix workers, and the PR author: no docket or `dckt` vocabulary and no change ids in specs, commits, code, or PR text.
 - A leak check, in private repositories only, scans commit messages, added lines (the spec copy included), and the PR title and description for docket and `dckt` fingerprints. Matching the bare word "docket" can be switched off. The check **blocks** the feature-branch push and the PR create or edit, and the run halts with a report naming the commit or line. This is a deliberate exception to report-only checks, because a pushed leak is irreversible.
 - `repository check` and `prepare` report a `docket` or `dckt` branch appearing on `origin` in a private repository. Report only.
 - Split out to their own changes: agent instructions for private repositories (#535) and the `dckt` binary alias (#534).
+- Finalize creates no `refs/docket/…` refs on the remote in private repositories (found during change 531's build, which left them in place). Keep any ref a private repository needs out of the docket-named ref namespace, or keep it local.
+- The leak check and `repository check` also report a `refs/docket/…` ref on `origin` in a private repository. Report only.
 
 ## Out of scope
 
