@@ -3,12 +3,15 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
@@ -416,5 +419,116 @@ func TestAssessUnknownLegNamedInMessageEvenWhenBlocked(t *testing.T) {
 	assertEntry(t, e, SweepDispUnknown, ReasonSweepSnapshotUnknown)
 	if !strings.Contains(e.Message, sweepLegRemoteRef) {
 		t.Fatalf("the unknown remote-ref leg must stay named even when the workspace is blocked, got %q", e.Message)
+	}
+}
+
+// prShared builds shared facts whose PR-body inventory was gathered, carrying
+// the given bodies (and nothing unknown).
+func prShared(bodies map[int]string) sweepSharedFacts {
+	return sweepSharedFacts{
+		remoteHeads:      map[gitcli.RefName]gitcli.ObjectID{},
+		prBodiesGathered: true,
+		prBodies:         bodies,
+		prBodiesUnknown:  map[int]bool{},
+	}
+}
+
+// assessArchivedDoneBlob is assessDoneBlob relocated to the archive, as close-out
+// leaves every done record: the PR-backlink leg keys on the record's own path, so
+// a stale body (naming the active path) is distinguishable from a repointed one.
+func assessArchivedDoneBlob(id int, slug string) StatusBlob {
+	b := assessDoneBlob(id, slug, "")
+	b.Location = repository.LocationArchive
+	b.Path = fmt.Sprintf("docs/changes/archive/2026-01-03-%04d-%s.md", id, slug)
+	return b
+}
+
+func prNumberOf(t *testing.T, f assessFixture, id int) int {
+	t.Helper()
+	c, _ := f.inv.snap.Change(domain.ChangeID(id))
+	n, ok := parsePRNumber(c.PR().Value)
+	if !ok {
+		t.Fatalf("record %d carries no parsable PR", id)
+	}
+	return n
+}
+
+// TestAssessStalePRBacklinkIsActionable: a done record whose PR body still names
+// the active path has work — it is dispatched to cleanup, which repoints it.
+func TestAssessStalePRBacklinkIsActionable(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessArchivedDoneBlob(41, "archived")}, nil)
+	n := prNumberOf(t, f, 41)
+	shared := prShared(map[int]string{n: prBodyWithActiveBacklink("docs/changes/active/0041-archived.md", "prose")})
+	_, actionable := f.assess(t, cleanWS(), shared, 41)
+	if !actionableHas(actionable, 41) {
+		t.Fatalf("a stale PR backlink must make the record actionable; actionable=%v", actionable)
+	}
+}
+
+// TestAssessCorrectPRBacklinkIsNoWork: a PR body already naming the archive path
+// adds no work.
+func TestAssessCorrectPRBacklinkIsNoWork(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessArchivedDoneBlob(41, "archived")}, nil)
+	n := prNumberOf(t, f, 41)
+	body := "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" + assessInterior(t, f, 41) + "\n<!-- docket:backlink:end -->\n\nprose\n"
+	entries, actionable := f.assess(t, cleanWS(), prShared(map[int]string{n: body}), 41)
+	if len(actionable) != 0 {
+		t.Fatalf("an already-correct PR backlink must add no work; actionable=%v", actionable)
+	}
+	assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
+}
+
+// TestAssessUnreadPRBodyIsUnknownNeverNoWork: a gathered inventory missing this
+// PR (a failed batch or a Found=false slot) is unknown, never certified no-work.
+func TestAssessUnreadPRBodyIsUnknownNeverNoWork(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessArchivedDoneBlob(41, "archived")}, nil)
+	n := prNumberOf(t, f, 41)
+	shared := prShared(map[int]string{})
+	shared.prBodiesUnknown[n] = true
+	entries, actionable := f.assess(t, cleanWS(), shared, 41)
+	if len(actionable) != 0 {
+		t.Fatalf("an unread PR body must not dispatch; actionable=%v", actionable)
+	}
+	e := findEntry(entries, 41)
+	assertEntry(t, e, SweepDispUnknown, ReasonSweepSnapshotUnknown)
+	if !strings.Contains(e.Message, sweepLegPRBacklink) {
+		t.Fatalf("the unknown leg must be named; msg=%q", e.Message)
+	}
+}
+
+// TestAssessPRBacklinkMalformedIsUnknown: malformed backlink markers in the PR
+// body are unknown, never no-work and never work.
+func TestAssessPRBacklinkMalformedIsUnknown(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessArchivedDoneBlob(41, "archived")}, nil)
+	n := prNumberOf(t, f, 41)
+	shared := prShared(map[int]string{n: "<!-- docket:backlink:start (generated — do not hand-edit) -->\ndangling\n"})
+	entries, actionable := f.assess(t, cleanWS(), shared, 41)
+	if len(actionable) != 0 {
+		t.Fatalf("malformed markers must not dispatch; actionable=%v", actionable)
+	}
+	assertEntry(t, findEntry(entries, 41), SweepDispUnknown, ReasonSweepSnapshotUnknown)
+}
+
+// TestGatherSweepSharedFactsMarksUnreadPRBodiesUnknown: every done candidate's PR
+// number lands in exactly one of prBodies or prBodiesUnknown, so no done record
+// is silently unassessed; one batched read serves them all.
+func TestGatherSweepSharedFactsMarksUnreadPRBodiesUnknown(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "a", ""), assessDoneBlob(42, "b", "")}, nil)
+	n41, n42 := prNumberOf(t, f, 41), prNumberOf(t, f, 42)
+	batch := &fakeSweepBatchReader{result: SweepPRSetResult{
+		Facts:  map[int]domain.PRFacts{n41: {Number: strconv.Itoa(n41), State: "merged"}},
+		Bodies: map[int]string{n41: "body"},
+	}}
+	deps := FinalizeDeps{Planning: PlanningDeps{Reader: f.reader, Clock: testClock()}, PRBatch: batch}
+	items := []sweepWorkItem{{id: 41, kind: sweepKindCleanup}, {id: 42, kind: sweepKindCleanup}}
+	shared := gatherSweepSharedFacts(context.Background(), deps, "repo", f.inv, items)
+	if !shared.prBodiesGathered || batch.calls != 1 {
+		t.Fatalf("gathered=%v calls=%d, want one batched read", shared.prBodiesGathered, batch.calls)
+	}
+	if shared.prBodies[n41] != "body" || shared.prBodiesUnknown[n41] {
+		t.Errorf("PR #%d should be read", n41)
+	}
+	if _, ok := shared.prBodies[n42]; ok || !shared.prBodiesUnknown[n42] {
+		t.Errorf("PR #%d was not returned, so it must be unknown", n42)
 	}
 }

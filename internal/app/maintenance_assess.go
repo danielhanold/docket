@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/domain"
@@ -34,7 +35,7 @@ import (
 const (
 	// ReasonSweepSnapshotNoWork: every destructive leg is provably a no-op at the
 	// pinned inventory — a cleaned tombstone, absent local/remote refs, and
-	// already-correct final backlinks. Nothing was dispatched.
+	// already-correct final and PR backlinks. Nothing was dispatched.
 	ReasonSweepSnapshotNoWork = "snapshot-no-work"
 	// ReasonSweepSnapshotRetained: a stacked-merged record is retained until its
 	// stack root reaches the integration branch; a cleanup is never dispatched
@@ -69,15 +70,22 @@ type sweepSharedFacts struct {
 	remoteHeadsErr error // set ⇒ remote-ref absence is unprovable this invocation
 	worktrees      []gitcli.WorktreeInfo
 	worktreesErr   error // set ⇒ local-ref absence is unprovable this invocation
+	// prBodiesGathered is set when the invocation read its done candidates' PR
+	// bodies (one batched pass). When set, a number in neither prBodies nor
+	// prBodiesUnknown is still unknown — the leg never reads absence as no-work.
+	prBodiesGathered bool
+	prBodies         map[int]string // PR number -> body (never logged)
+	prBodiesUnknown  map[int]bool   // PR numbers the batched read could not resolve
 }
 
 // The leg names the assessment reports in its diagnostic messages. They are
 // explanatory labels, not a parsed vocabulary.
 const (
-	sweepLegBacklink  = "backlink"
-	sweepLegWorkspace = "workspace"
-	sweepLegLocalRef  = "local-ref"
-	sweepLegRemoteRef = "remote-ref"
+	sweepLegBacklink   = "backlink"
+	sweepLegWorkspace  = "workspace"
+	sweepLegLocalRef   = "local-ref"
+	sweepLegRemoteRef  = "remote-ref"
+	sweepLegPRBacklink = "pr-backlink"
 )
 
 // sweepAssessHistorical resolves every full-scope done/stacked-merged candidate
@@ -85,9 +93,10 @@ const (
 // entries (Disposition skipped/blocked/unknown, EMPTY Operation — a pre-dispatch
 // observation, never a fabricated cleanup result) and the subset of candidates
 // that warrant one normal fresh cleanup attempt. It dispatches no metadata, PR, or
-// remote-ref read of its own: the remote/worktree inventories arrive in shared,
-// the backlink leg reads the pinned integration artifacts through the reader, and
-// the workspace leg is a local-only inspection.
+// remote-ref read of its own: the remote/worktree inventories and the batched
+// PR-body inventory arrive in shared, the backlink leg reads the pinned
+// integration artifacts through the reader, and the workspace leg is a local-only
+// inspection.
 func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps WorkspaceDeps,
 	inv sweepInventory, pin StatusPin, shared sweepSharedFacts,
 	candidates []sweepWorkItem) (entries []MaintenanceEntry, actionable []sweepWorkItem) {
@@ -153,6 +162,7 @@ func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps Workspa
 		featureRef := gitcli.RefName(branchRefPrefix + branch)
 		var a sweepLegAssessment
 		sweepAssessBacklinkLeg(ctx, deps, pin, c, link, &a)
+		sweepAssessPRBacklinkLeg(shared, c, link, &a)
 		sweepAssessWorkspaceLeg(ctx, wdeps, repo, target, &a)
 		sweepAssessLocalRefLeg(shared, featureRef, &a)
 		sweepAssessRemoteRefLeg(shared, featureRef, &a)
@@ -272,6 +282,40 @@ func sweepBacklinkArtifactPaths(c domain.Change) []string {
 		out = append(out, p)
 	}
 	return out
+}
+
+// sweepAssessPRBacklinkLeg resolves the PR-backlink leg from the shared, batched
+// PR-body inventory: a body whose docket:backlink block does not name the
+// archived record path has work (cleanup repoints it). A body already naming it,
+// or with no block, is no-effect. An unread body or malformed markers is
+// unresolved, never a clean no-op. Not gathered (an orchestration seam) is not
+// assessed.
+func sweepAssessPRBacklinkLeg(shared sweepSharedFacts, c domain.Change, link render.LinkContext, a *sweepLegAssessment) {
+	if !shared.prBodiesGathered {
+		return
+	}
+	n, ok := parsePRNumber(c.PR().Value)
+	if !ok {
+		return // identity already validated by the caller
+	}
+	body, read := shared.prBodies[n]
+	if !read || shared.prBodiesUnknown[n] {
+		a.markUnknown(sweepLegPRBacklink, fmt.Sprintf("PR #%d's body could not be read in the shared batch", n))
+		return
+	}
+	block, err := render.BacklinkContent(c, link)
+	if err != nil {
+		a.markUnknown(sweepLegPRBacklink, "the record's archived backlink could not be rendered")
+		return
+	}
+	_, _, _, needs, err := planPRBacklinkRepoint([]byte(body), c.Path(), backlinkInterior(block))
+	if err != nil {
+		a.markUnknown(sweepLegPRBacklink, fmt.Sprintf("PR #%d carries a malformed docket:backlink block", n))
+		return
+	}
+	if needs {
+		a.markWork()
+	}
 }
 
 // sweepAssessWorkspaceLeg resolves the workspace leg from a local-only inspection
