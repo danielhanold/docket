@@ -479,7 +479,9 @@ func ensureManagedGitignore(primaryWorktree string) (bool, error) {
 // against the repository's own ownership record, refuses an unprovable surface,
 // writes the reconciled surfaces UNSTAGED to the working tree, and publishes the
 // ownership record — all in one journaled transaction. It returns the surface
-// paths to name as pending review and whether anything changed.
+// paths to name as pending review and whether anything changed. A private
+// repository's one surface lives under its git dir, never in the working tree,
+// so there it names no pending path.
 func installAuthorizedSurfaces(ctx context.Context, git *gitcli.Client, primaryWorktree string) ([]string, bool, error) {
 	runTracker, err := buildRunTracker()
 	if err != nil {
@@ -498,9 +500,17 @@ func installAuthorizedSurfaces(ctx context.Context, git *gitcli.Client, primaryW
 		return nil, false, err
 	}
 
+	private, err := isPrivateRepository(primaryWorktree)
+	if err != nil {
+		return nil, false, err
+	}
+
 	changed, err := applyRepoPhaseSurfaces(phase, roots)
 	if err != nil {
 		return nil, false, err
+	}
+	if private {
+		return nil, changed, nil
 	}
 
 	pending := make([]string, 0, len(phase.Targets))
@@ -512,6 +522,21 @@ func installAuthorizedSurfaces(ctx context.Context, git *gitcli.Client, primaryW
 		pending = append(pending, filepath.ToSlash(rel))
 	}
 	return pending, changed, nil
+}
+
+// isPrivateRepository reports whether the repository whose primary worktree is
+// primaryWorktree detects as private. A probe error is returned, never read as
+// shared.
+func isPrivateRepository(primaryWorktree string) (bool, error) {
+	common, ok, err := layout.CommonDirOf(primaryWorktree)
+	if err != nil || !ok {
+		return false, err
+	}
+	mode, err := layout.Detect(common)
+	if err != nil {
+		return false, err
+	}
+	return mode == layout.Private, nil
 }
 
 // applyRepoPhaseSurfaces inspects and writes the repository phase's surfaces and
