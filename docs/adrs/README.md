@@ -124,6 +124,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0138](0138-a-published-request-schema-is-exactly-the-json-file-an-opera.md) — A published request schema is exactly the JSON file an operation decodes (Accepted) ← change #520 · relates to ADR-0109
 - [ADR-0139](0139-finalize-adds-no-human-gate-of-its-own.md) — Finalize adds no human gate of its own (Accepted) ← change #515 · relates to ADR-0010, ADR-0011, ADR-0043, ADR-0008
 - [ADR-0140](0140-cleanup-finishes-a-worktree-removal-git-already-committed-to.md) — Cleanup finishes a worktree removal Git already committed to (Accepted) ← change #525 · relates to ADR-0035
+- [ADR-0141](0141-build-artifacts-plan-results-evidence-live-on-the-metadata-b.md) — Build artifacts (plan, results, evidence) live on the metadata branch; the spec ships with the PR (Accepted) ← change #530 · relates to ADR-0001, ADR-0066
 
 ## Superseded / Reversed
 
