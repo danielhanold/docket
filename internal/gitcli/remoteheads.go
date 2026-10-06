@@ -69,3 +69,66 @@ func (c *Client) ListRemoteHeads(ctx context.Context, repo Repository, remote Re
 	}
 	return heads, nil
 }
+
+// Operation label for the named remote-refs listing.
+const listRemoteRefsOp Operation = "list-remote-refs"
+
+// ListRemoteRefs reads the remote refs matching patterns via
+// `git ls-remote --refs <remote> <patterns...>` (a network READ on the read
+// budget) and returns each as a map from its fully qualified RefName to the full
+// ObjectID it points at. Patterns use ls-remote's own matching (a pattern
+// matches a ref equal to it or ending in "/" plus it, and may carry globs), so a
+// caller that needs exact names filters the result. Unlike ListRemoteHeads, any
+// refs/ name may be returned. At least one pattern is required (no patterns
+// would list every ref), and each must be non-empty and must not begin with "-".
+//
+// A clean exit with no match returns an empty NON-NIL map — a proven absence.
+// The advertisement is parsed as strictly as ListRemoteHeads': a malformed line,
+// a malformed id or ref name, or a ref advertised twice is invalid-output, and
+// any non-zero exit (an unreachable remote included) is command-failed — never
+// a partial or empty map a caller could misread as "no such refs".
+func (c *Client) ListRemoteRefs(ctx context.Context, repo Repository, remote RemoteName, patterns []string) (map[RefName]ObjectID, error) {
+	if err := validateRemoteName(remote); err != nil {
+		return nil, newFailure(listRemoteRefsOp, KindInvalidRequest, "invalid remote name", err)
+	}
+	if len(patterns) == 0 {
+		return nil, newFailure(listRemoteRefsOp, KindInvalidRequest, "at least one ref pattern is required", nil)
+	}
+	for _, p := range patterns {
+		if p == "" || strings.HasPrefix(p, "-") {
+			return nil, newFailure(listRemoteRefsOp, KindInvalidRequest, "invalid ref pattern", nil)
+		}
+	}
+	res, f := c.run(ctx, runRequest{
+		op:      listRemoteRefsOp,
+		dir:     repo.PrimaryWorktree,
+		args:    append([]string{"ls-remote", "--refs", string(remote)}, patterns...),
+		network: true,
+	})
+	if f != nil {
+		return nil, f
+	}
+	if res.exitCode != 0 {
+		return nil, newFailure(listRemoteRefsOp, KindCommandFailed, "ls-remote --refs failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
+	}
+
+	refs := make(map[RefName]ObjectID)
+	for _, line := range stdoutLines(res.stdout) {
+		id, name, ok := splitLsRemoteLine(line)
+		if !ok {
+			return nil, newFailure(listRemoteRefsOp, KindInvalidOutput, "malformed ls-remote line", nil)
+		}
+		if err := validateObjectID(id); err != nil {
+			return nil, newFailure(listRemoteRefsOp, KindInvalidOutput, "ls-remote produced a malformed object id", err)
+		}
+		ref := RefName(name)
+		if err := validateRefName(ref); err != nil {
+			return nil, newFailure(listRemoteRefsOp, KindInvalidOutput, "ls-remote produced an invalid ref name", err)
+		}
+		if _, dup := refs[ref]; dup {
+			return nil, newFailure(listRemoteRefsOp, KindInvalidOutput, "ls-remote advertised a ref more than once", nil)
+		}
+		refs[ref] = id
+	}
+	return refs, nil
+}
