@@ -19,39 +19,61 @@ type OutgoingCommit struct {
 	Message string
 }
 
-// OutgoingLine is one added line: its path, its 1-based line number in head's
-// version of the file, and its text without the leading '+'.
+// OutgoingLine is one added line: its path, its 1-based line number in the
+// version of the file that added it, and its text without the leading '+'.
+// Commit is the outgoing commit that added it, or empty for a line read only
+// from the merge-base diff (such as one a merge commit introduced).
 type OutgoingLine struct {
-	Path string
-	Line int
-	Text string
+	Path   string
+	Line   int
+	Text   string
+	Commit ObjectID
+}
+
+// OutgoingPath is one added path. Commit is the outgoing commit that added it,
+// or empty for a path read only from the merge-base diff.
+type OutgoingPath struct {
+	Path   string
+	Commit ObjectID
 }
 
 // Outgoing is everything a push of head over base exposes that base does not
-// already carry: the commits in base..head, plus the paths added and the lines
-// added in the merge-base diff base...head.
+// already carry: the commits in base..head, plus the paths and lines added —
+// by each non-merge commit in base..head, and in the merge-base diff
+// base...head.
 type Outgoing struct {
 	Commits    []OutgoingCommit
-	AddedPaths []string
+	AddedPaths []OutgoingPath
 	AddedLines []OutgoingLine
 }
 
-// ReadOutgoing reads what pushing head exposes beyond base, from three local
-// reads in the primary worktree:
+// ReadOutgoing reads what pushing head exposes beyond base, from local reads in
+// the primary worktree:
 //
 //   - `log -z --format=%H%x01%B <base>..<head>` — every commit head carries that
 //     base does not, a merge commit included;
-//   - `diff --name-status -z --diff-filter=A <base>...<head>` — the added paths;
-//   - `diff -U0 <base>...<head>` — the added lines, attributed to their file.
+//   - `rev-list --no-merges --reverse <base>..<head>` — the non-merge commits
+//     among them, and for each one `diff-tree --root <commit>` (against its
+//     parent) read twice: `--name-status -z --diff-filter=A` for the paths it
+//     adds and `-p -U0` for the lines it adds, each attributed to that commit;
+//   - the same two reads as a three-dot `diff <base>...<head>`.
 //
-// The diffs are three-dot (merge-base) diffs on purpose: they compare head with
-// the merge base of base and head, so upstream content merged into the branch —
-// or rewritten upstream after that merge — is never reported as the branch's own
-// added lines, while a two-tree diff against base would report it. Every diff
-// option that user or repository configuration could otherwise change (quoting,
-// prefixes, renames, external or textconv drivers, inter-hunk context, binary
-// detection, submodule rendering) is pinned on the command line, and replace refs
-// and grafts are ignored, so the lines read are the objects a push sends.
+// The per-commit reads are what a push carries: a line one outgoing commit adds
+// and a later one removes is absent from any net diff, yet the adding commit is
+// pushed (and shown in a PR's commits) all the same. The three-dot (merge-base)
+// diff adds what no non-merge commit's own diff shows — content a merge commit
+// introduced — while comparing head with the merge base of base and head, so
+// upstream content merged into the branch, or rewritten upstream after that
+// merge, is never reported as the branch's own; a two-tree diff against base
+// would report it. A merge-base path or line some outgoing commit already adds
+// (same path, and same text for a line) is reported once, attributed to that
+// commit.
+//
+// Every diff option that user or repository configuration could otherwise
+// change (quoting, prefixes, renames, external or textconv drivers, inter-hunk
+// context, binary detection, submodule rendering) is pinned on the command line,
+// identically for every diff, and replace refs and grafts are ignored, so the
+// lines read are the objects a push sends.
 //
 // Every failure is an error and never an empty or partial result: an invalid id
 // is invalid-request, a non-zero exit — including base and head sharing no merge
@@ -77,21 +99,60 @@ func (c *Client) ReadOutgoing(ctx context.Context, repo Repository, base, head O
 		return Outgoing{}, newFailure(readOutgoingOp, KindInvalidOutput, "malformed outgoing log output", perr)
 	}
 
-	namesOut, err := c.readOutgoingRun(ctx, repo, "git diff --name-status",
-		"diff", "--name-status", "-z", "--no-renames", "--no-relative", "--diff-filter=A", threeDot)
+	revOut, err := c.readOutgoingRun(ctx, repo, "git rev-list",
+		"rev-list", "--no-merges", "--reverse", twoDot)
 	if err != nil {
 		return Outgoing{}, err
 	}
-	paths, perr := parseAddedPaths(namesOut)
+	nonMerge, perr := parseObjectIDLines(revOut)
+	if perr != nil {
+		return Outgoing{}, newFailure(readOutgoingOp, KindInvalidOutput, "malformed outgoing rev-list output", perr)
+	}
+
+	var perCommit []Outgoing
+	for _, id := range nonMerge {
+		added, err := c.readAdded(ctx, repo, []string{"diff-tree", "-r", "--root", "--no-commit-id"}, string(id))
+		if err != nil {
+			return Outgoing{}, err
+		}
+		for i := range added.AddedPaths {
+			added.AddedPaths[i].Commit = id
+		}
+		for i := range added.AddedLines {
+			added.AddedLines[i].Commit = id
+		}
+		perCommit = append(perCommit, added)
+	}
+
+	net, err := c.readAdded(ctx, repo, []string{"diff"}, threeDot)
+	if err != nil {
+		return Outgoing{}, err
+	}
+
+	paths, lines := mergeAdded(perCommit, net)
+	return Outgoing{Commits: commits, AddedPaths: paths, AddedLines: lines}, nil
+}
+
+// readAdded reads the added paths and added lines of one diff — cmd (a diff
+// subcommand and its own flags) over rev — with every configurable diff option
+// pinned. The returned paths and lines carry no commit.
+func (c *Client) readAdded(ctx context.Context, repo Repository, cmd []string, rev string) (Outgoing, error) {
+	nameArgs := append(append([]string{}, cmd...),
+		"--name-status", "-z", "--no-renames", "--no-relative", "--diff-filter=A", rev)
+	namesOut, err := c.readOutgoingRun(ctx, repo, "git "+cmd[0]+" --name-status", nameArgs...)
+	if err != nil {
+		return Outgoing{}, err
+	}
+	names, perr := parseAddedPaths(namesOut)
 	if perr != nil {
 		return Outgoing{}, newFailure(readOutgoingOp, KindInvalidOutput, "malformed added-paths output", perr)
 	}
 
-	patchOut, err := c.readOutgoingRun(ctx, repo, "git diff",
-		"-c", "core.quotePath=false", "-c", "diff.suppressBlankEmpty=false",
-		"diff", "--no-renames", "--no-color", "--no-ext-diff", "--no-textconv", "--no-relative",
+	patchArgs := append(append([]string{"-c", "core.quotePath=false", "-c", "diff.suppressBlankEmpty=false"}, cmd...),
+		"-p", "--no-renames", "--no-color", "--no-ext-diff", "--no-textconv", "--no-relative",
 		"--text", "--submodule=short", "--inter-hunk-context=0",
-		"--src-prefix=a/", "--dst-prefix=b/", "-U0", threeDot)
+		"--src-prefix=a/", "--dst-prefix=b/", "-U0", rev)
+	patchOut, err := c.readOutgoingRun(ctx, repo, "git "+cmd[0], patchArgs...)
 	if err != nil {
 		return Outgoing{}, err
 	}
@@ -100,7 +161,64 @@ func (c *Client) ReadOutgoing(ctx context.Context, repo Repository, base, head O
 		return Outgoing{}, newFailure(readOutgoingOp, KindInvalidOutput, "malformed patch output", perr)
 	}
 
-	return Outgoing{Commits: commits, AddedPaths: paths, AddedLines: lines}, nil
+	paths := make([]OutgoingPath, 0, len(names))
+	for _, p := range names {
+		paths = append(paths, OutgoingPath{Path: p})
+	}
+	return Outgoing{AddedPaths: paths, AddedLines: lines}, nil
+}
+
+// mergeAdded joins the per-commit reads (in commit order) with the merge-base
+// read: every per-commit path and line is kept, and a merge-base path or line
+// is kept only when no commit already adds the same path (and, for a line, the
+// same text) — the scan of a dropped entry would repeat a kept one's exactly.
+func mergeAdded(perCommit []Outgoing, net Outgoing) ([]OutgoingPath, []OutgoingLine) {
+	type lineKey struct{ path, text string }
+	var (
+		paths     []OutgoingPath
+		lines     []OutgoingLine
+		seenPaths = map[string]bool{}
+		seenLines = map[lineKey]bool{}
+	)
+	for _, o := range perCommit {
+		for _, p := range o.AddedPaths {
+			paths = append(paths, p)
+			seenPaths[p.Path] = true
+		}
+		for _, l := range o.AddedLines {
+			lines = append(lines, l)
+			seenLines[lineKey{l.Path, l.Text}] = true
+		}
+	}
+	for _, p := range net.AddedPaths {
+		if !seenPaths[p.Path] {
+			paths = append(paths, p)
+		}
+	}
+	for _, l := range net.AddedLines {
+		if !seenLines[lineKey{l.Path, l.Text}] {
+			lines = append(lines, l)
+		}
+	}
+	return paths, lines
+}
+
+// parseObjectIDLines parses newline-terminated object ids (rev-list output);
+// empty output is no ids. An empty line or a malformed id is an error, never a
+// skipped commit.
+func parseObjectIDLines(out []byte) ([]ObjectID, error) {
+	if len(out) == 0 {
+		return nil, nil
+	}
+	var ids []ObjectID
+	for _, l := range strings.Split(strings.TrimSuffix(string(out), "\n"), "\n") {
+		id := ObjectID(l)
+		if err := validateObjectID(id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
 
 // readOutgoingRun runs one local read for ReadOutgoing with replace refs and

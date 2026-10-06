@@ -14,8 +14,8 @@ import (
 
 // This file is the private-repository leak check. Before a push or PR write in a
 // private repository, everything that write would expose — the outgoing commit
-// messages, the added paths and lines of the merge-base diff, and any PR title
-// and body — is scanned for docket fingerprints (internal/leakscan), and any hit
+// messages, the paths and lines each outgoing commit adds and the merge-base
+// diff adds, and any PR title and body — is scanned for docket fingerprints (internal/leakscan), and any hit
 // refuses the write with nothing published. A shared repository never runs it.
 // A failure to fetch the base or read the outgoing set is leak-check-unverified,
 // never a clean scan. Each caller scans the exact head it publishes.
@@ -32,8 +32,8 @@ const (
 )
 
 // LeakHit is one fingerprint a publish would expose. Commit is set for a
-// commit-message hit and File for an added line or path; Line is 1-based (0 for
-// a path). Text is the matched text only, never the surrounding line, so a hit
+// commit-message hit, and for an added line or path that a known outgoing commit
+// added; File is set for an added line or path; Line is 1-based (0 for a path). Text is the matched text only, never the surrounding line, so a hit
 // never carries the rest of a PR body or a file.
 type LeakHit struct {
 	Source string `json:"source"`
@@ -82,12 +82,15 @@ func runLeakCheck(ctx context.Context, git leakGit, wc workspaceContext, target 
 	if err != nil {
 		return nil, fmt.Errorf("reading what %s over %s would publish: %w", shortCommit(string(head)), shortCommit(string(base.Commit)), err)
 	}
-	in := leakscan.Input{AddedPaths: out.AddedPaths, PR: pr}
+	in := leakscan.Input{PR: pr}
 	for _, c := range out.Commits {
 		in.Commits = append(in.Commits, leakscan.Commit{ID: string(c.Commit), Message: c.Message})
 	}
+	for _, p := range out.AddedPaths {
+		in.AddedPaths = append(in.AddedPaths, leakscan.AddedPath{Path: p.Path, Commit: string(p.Commit)})
+	}
 	for _, l := range out.AddedLines {
-		in.AddedLines = append(in.AddedLines, leakscan.AddedLine{Path: l.Path, Line: l.Line, Text: l.Text})
+		in.AddedLines = append(in.AddedLines, leakscan.AddedLine{Path: l.Path, Line: l.Line, Text: l.Text, Commit: string(l.Commit)})
 	}
 	var hits []LeakHit
 	for _, h := range leakscan.Scan(in, leakOptions(wc.pin, wc.snap)) {
@@ -116,15 +119,20 @@ func leakMessage(hits []LeakHit) string {
 	return b.String()
 }
 
-// leakWhere names where a hit sits.
+// leakWhere names where a hit sits, with the adding commit for an added line or
+// path when it is known.
 func leakWhere(h LeakHit) string {
+	in := ""
+	if h.Commit != "" {
+		in = " in commit " + shortCommit(h.Commit)
+	}
 	switch leakscan.Source(h.Source) {
 	case leakscan.SourceCommitMessage:
 		return fmt.Sprintf("commit %s message line %d", shortCommit(h.Commit), h.Line)
 	case leakscan.SourceAddedLine:
-		return fmt.Sprintf("%s:%d", h.File, h.Line)
+		return fmt.Sprintf("%s:%d%s", h.File, h.Line, in)
 	case leakscan.SourceAddedPath:
-		return "path " + h.File
+		return "path " + h.File + in
 	default:
 		return fmt.Sprintf("%s line %d", h.Source, h.Line)
 	}

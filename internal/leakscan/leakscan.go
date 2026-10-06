@@ -46,9 +46,10 @@ type Match struct {
 	Rule Rule
 }
 
-// Hit is an attributed match. Commit is set for a commit-message hit, File for
-// an added line or path; Line is 1-based (0 for a path); Text is the matched
-// text only, never the whole line.
+// Hit is an attributed match. Commit is set for a commit-message hit, and for an
+// added line or path that a known commit added; File is set for an added line or
+// path; Line is 1-based (0 for a path); Text is the matched text only, never the
+// whole line.
 type Hit struct {
 	Source Source
 	Commit string
@@ -61,12 +62,17 @@ type Hit struct {
 // Commit is one outgoing commit's id and full message.
 type Commit struct{ ID, Message string }
 
-// AddedLine is one line a push adds, with its file and 1-based line number.
+// AddedLine is one line a push adds, with its file and 1-based line number, and
+// the commit that added it when known.
 type AddedLine struct {
-	Path string
-	Line int
-	Text string
+	Path   string
+	Line   int
+	Text   string
+	Commit string
 }
+
+// AddedPath is one path a push adds, and the commit that added it when known.
+type AddedPath struct{ Path, Commit string }
 
 // PRText is a pull request's title and body.
 type PRText struct{ Title, Body string }
@@ -74,7 +80,7 @@ type PRText struct{ Title, Body string }
 // Input is everything one publish exposes. PR is nil when no PR text is written.
 type Input struct {
 	Commits    []Commit
-	AddedPaths []string
+	AddedPaths []AddedPath
 	AddedLines []AddedLine
 	PR         *PRText
 }
@@ -90,13 +96,13 @@ func Scan(in Input, opts Options) []Hit {
 		}
 	}
 	for _, p := range in.AddedPaths {
-		if m, ok := Line(p, opts); ok {
-			hits = append(hits, Hit{Source: SourceAddedPath, File: p, Text: m.Text, Rule: m.Rule})
+		if m, ok := Line(p.Path, opts); ok {
+			hits = append(hits, Hit{Source: SourceAddedPath, Commit: p.Commit, File: p.Path, Text: m.Text, Rule: m.Rule})
 		}
 	}
 	for _, l := range in.AddedLines {
 		if m, ok := Line(l.Text, opts); ok {
-			hits = append(hits, Hit{Source: SourceAddedLine, File: l.Path, Line: l.Line, Text: m.Text, Rule: m.Rule})
+			hits = append(hits, Hit{Source: SourceAddedLine, Commit: l.Commit, File: l.Path, Line: l.Line, Text: m.Text, Rule: m.Rule})
 		}
 	}
 	if in.PR != nil {

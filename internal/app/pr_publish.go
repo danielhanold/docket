@@ -258,8 +258,8 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	}
 
 	// (7b) The private-repository leak check: the authored title and body, the
-	// outgoing commit messages, and the merge-base diff's added paths and lines of
-	// exactly the requested head are scanned before any run admission or GitHub
+	// outgoing commit messages, and the paths and lines each outgoing commit and
+	// the merge-base diff add, of exactly the requested head, are scanned before any run admission or GitHub
 	// write. A hit refuses with no PR created or edited; a scan that could not
 	// run is unverified, never clean. A shared repository never runs it.
 	if leakCheckApplies(pin.Layout) {

@@ -259,6 +259,25 @@ func TestIntegrationWorkflowLifecyclePrivateLeakCheckBlocksSeededLeaks(t *testin
 		})
 	}
 
+	// A fingerprint one outgoing commit adds and a later one removes is absent
+	// from the net diff, yet the push still carries the adding commit: the
+	// refusal names that commit.
+	t.Run("added-then-removed-docket-path", func(t *testing.T) {
+		resetWorkspace(t, lw.wp, lw.specCommit)
+		added := commitInWorkspace(t, lw.wp, "Add notes", map[string]string{"notes.txt": "see .docket/x\n"})
+		runGit(t, lw.wp, "rm", "-q", "notes.txt")
+		head := commitInWorkspace(t, lw.wp, "Drop notes", nil)
+		pub := lw.publish(t, head)
+		requireLeakRefusal(t, pub,
+			LeakHit{Source: "added-line", Commit: added, File: "notes.txt", Line: 1, Text: ".docket", Rule: "path"})
+		if !strings.Contains(pub.Message, shortCommit(added)) {
+			t.Errorf("refusal message does not name the adding commit %s: %q", shortCommit(added), pub.Message)
+		}
+		if originHasBranch(t, lw.origin, lw.featureRef) {
+			t.Errorf("a refused publish left %s on origin", lw.featureRef)
+		}
+	})
+
 	var cleanHead string
 	t.Run("clean-year-and-adr-publishes", func(t *testing.T) {
 		resetWorkspace(t, lw.wp, lw.specCommit)
