@@ -43,9 +43,10 @@ It also gives private repositories their own **instructions file**, `<git-common
 6. A `docket` or `dckt` branch appearing on `origin` in a private repository is reported, never blocked.
 7. Sparse documentation: `.docket.example.yml`, command help, and skills only.
 8. **A private repository's parent-facing rules live in `<git-common-dir>/dckt/AGENTS.md`**: the dispatch block plus promoted lessons. They are loaded per harness as follows:
-   - **Claude Code** runs `docket instructions --hook` automatically at session start, through a user-level `SessionStart` hook in `~/.claude/settings.json`. The rules are always loaded.
-   - **Codex and OpenCode** get a short, static pointer block in their user-level AGENTS.md telling the model to run `docket instructions` once per session and follow its output. The human chose this hybrid over a pointer for every harness: the hook is mechanical where a harness offers one, and the pointer is the best available elsewhere.
+   - **Claude Code** runs `dckt instructions --hook` automatically at session start, through a user-level `SessionStart` hook in `~/.claude/settings.json`. The rules are always loaded.
+   - **Codex and OpenCode** get a short, static pointer block in their user-level AGENTS.md telling the model to run `dckt instructions` once per session and follow its output. The human chose this hybrid over a pointer for every harness: the hook is mechanical where a harness offers one, and the pointer is the best available elsewhere.
    - Neither user-level surface carries any rule text, so the drift that made 0334 retire the user-level copy cannot recur. The rules have one source.
+   - **Both surfaces are spelled neutrally.** The pointer block's managed markers use the `dckt:` prefix, and both surfaces invoke `dckt`, a new alias for the `docket` binary. So nothing in them reads "docket", even in the user's home directory or a published dotfiles repository.
 9. **In private repositories, promoted lessons land in that private instructions file,** not the integration-branch AGENTS.md.
 
 ## Design
@@ -113,20 +114,30 @@ In a private repository, `repository check` and `repository prepare` probe `orig
 
 | Harness | User-level surface | What it does |
 |---|---|---|
-| Claude Code | `SessionStart` hook entry in `~/.claude/settings.json` running `docket instructions --hook` | Loads the private rules automatically at session start; adds nothing outside private repositories. |
-| Codex | managed pointer block in `~/.codex/AGENTS.md` | Tells the model to run `docket instructions` once per session and treat its output as the repository's AGENTS.md. |
+| Claude Code | `SessionStart` hook entry in `~/.claude/settings.json` running `dckt instructions --hook` | Loads the private rules automatically at session start; adds nothing outside private repositories. |
+| Codex | managed pointer block (markers `dckt:`) in `~/.codex/AGENTS.md` | Tells the model to run `dckt instructions` once per session and treat its output as the repository's AGENTS.md. |
 | OpenCode | managed pointer block in `~/.config/opencode/AGENTS.md` | Same as Codex. |
 | Cursor | out of reach at user level | Cursor reads rules only from the repository: in private repositories the rule file is written as `.cursor/rules/dckt-dispatch.mdc` and excluded through `.git/info/exclude`. |
 
-Pointer block wording (final wording is set in the plan, but it must stay rule-free):
+Pointer block wording, including its `dckt:` markers (final wording is set in the plan, but it must stay rule-free and must not contain the word "docket"):
 
 ```markdown
+<!-- dckt:private-instructions:start (managed — do not hand-edit) -->
 ## Private repository instructions
 
-At the start of a session inside a git repository, run `docket instructions` once.
+At the start of a session inside a git repository, run `dckt instructions` once.
 If it prints anything, treat that output as this repository's own AGENTS.md and
 follow it for the rest of the session. If it prints nothing, ignore this section.
+<!-- dckt:private-instructions:end -->
 ```
+
+The managed-block machinery must accept the `dckt` marker prefix for these user-level blocks: install, idempotence, outside-bytes preservation, and ownership-proved removal, with the same guarantees as today's `docket:` blocks.
+
+**The `dckt` alias.**
+- `docket development install`, the Go installer that `install.sh` delegates to, creates `dckt` as a symlink to the installed `docket` binary in the same bin directory (`--bin-dir`, default `XDG_BIN_HOME` or `~/.local/bin`). This happens inside the same journaled install transaction. So `install.sh` installs the alias with no change of its own beyond the header comment listing what an install produces. The bootstrapper does not place binaries itself.
+- A re-install is a no-op. `docket uninstall` removes `dckt` only when it is a symlink resolving to the installed `docket` binary.
+- An existing `dckt` that docket does not own (another tool's binary or link) is **never** overwritten. Install reports it as a finding, and skips the user-level hook and pointer blocks, which depend on the alias. `docket instructions` still works by hand.
+- Invoked as `dckt`, the binary behaves exactly as `docket`. The capability catalog keeps spelling `docket`, and skills keep resolving argv from the catalog, so only the user-level hook and pointer use the alias.
 
 **Safety requirements for the user-level writes:**
 - The `settings.json` hook entry is identified by its exact command string. Install adds it only when absent and merges without reformatting or dropping any other setting. Uninstall removes only an exact match, and refuses (reporting) on a modified entry.
@@ -145,6 +156,7 @@ Record the results in the results file before building on them.
 
 - `leak_check.match_word` is documented in `.docket.example.yml` and its twin.
 - `docket instructions` is documented in its command help.
+- The `dckt` alias appears in the install summary output and in `install.sh`'s header comment, not in `docs/`.
 - Skills carry the writing rule, the leak-check halt handling, and the private promotion destination.
 - No `docs/` pages.
 
@@ -170,7 +182,11 @@ Record the results in the results file before building on them.
    - It prints nothing (and exits 0) in a shared repository, a non-docket repository, and outside git.
    - `--hook` emits valid `SessionStart` output in private repositories only.
 10. **User-level surfaces.**
-    - `install` adds the `settings.json` hook entry and the two pointer blocks.
+    - `install` adds the `settings.json` hook entry and the two pointer blocks. All three invoke `dckt`, and none contains the word "docket": the pointer blocks' markers are `dckt:` (pinned by a test).
+    - `install.sh` (through the Go installer) creates the `dckt` symlink beside `docket`.
+    - `dckt instructions` and `docket instructions` produce identical output.
+    - `uninstall` removes the alias only with ownership proof.
+    - A foreign pre-existing `dckt` is left untouched, reported, and the hook and pointers are skipped.
     - A second install is a no-op.
     - An unrelated `settings.json` key and hook survive byte-for-byte.
     - `uninstall` removes only docket's exact entries.
