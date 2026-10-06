@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0530 — Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0530-keep-plan-results-and-build-evidence-on-the-metadata-branch.md)**
+> ↩ **[Change 0530 — Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-06-0530-keep-plan-results-and-build-evidence-on-the-metadata-branch.md)**
 <!-- docket:backlink:end -->
 # Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR — Results
 
