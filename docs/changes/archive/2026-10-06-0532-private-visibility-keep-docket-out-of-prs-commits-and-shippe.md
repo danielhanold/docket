@@ -2,7 +2,7 @@
 id: 532
 slug: 'private-visibility-keep-docket-out-of-prs-commits-and-shippe'
 title: 'Implement private visibility for PRs, commits, and shipped files'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
@@ -22,7 +22,7 @@ branch: 'feat/private-visibility-keep-docket-out-of-prs-commits-and-shippe'
 pr: 'https://github.com/danielhanold/docket/pull/401'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-06T15:32:33Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-06T15:32:33Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md](../../superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md) |
+| Spec (merged) | [2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md) |
 | Plan | [2026-10-06-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md](../../superpowers/plans/2026-10-06-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) |
 | Results | [2026-10-06-private-visibility-keep-docket-out-of-prs-commits-and-shippe-results.md](../../results/2026-10-06-private-visibility-keep-docket-out-of-prs-commits-and-shippe-results.md) |
 | ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](../../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md), [ADR-0144](../../adrs/0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md) |

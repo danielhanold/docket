@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0532 — Implement private visibility for PRs, commits, and shipped files](../../changes/active/0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md)**
+> ↩ **[Change 0532 — Implement private visibility for PRs, commits, and shipped files](../../changes/archive/2026-10-06-0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md)**
 <!-- docket:backlink:end -->
 
 # Implement Private Visibility for PRs, Commits, and Shipped Files: Implementation Plan
