@@ -46,7 +46,9 @@ that). Hand it:
 - relevant learnings findings, drawn from the learnings index;
 - the compact brief: the spec path and expected format, the PM-altitude boundary
   (design detail belongs in the spec; intent and scope stay in the change), and the
-  requirement for an explicit `## Assumptions` section.
+  requirement for an explicit `## Assumptions` section. In a private repository the spec ships
+  with the PR, so its body follows the private-repository writing rule: no `Change #N, groomed …`
+  line, no change or ADR numbers, no backlog references.
 
 The consultant performs zero docket operations (no git, no status writes, no board)
 and returns **in-context** exactly one of:

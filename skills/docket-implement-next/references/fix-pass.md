@@ -83,7 +83,9 @@ three** suite runs across Step 6; the bound below is scoped to the gate and is u
 
 Every fix runs the **`docket-build-task`** contract (focused test → implement → verify →
 self-review → one commit), dispatched by tier name, **foreground and sequential** — fixes share
-one worktree, so two concurrent workers would collide.
+one worktree, so two concurrent workers would collide. The fix-worker payload carries `Visibility`
+(the prepare context's `visibility`); in a private repository fix commits follow the
+private-repository writing rule.
 
 A fix worker that returns without a schema-valid outcome may still be **running**: never discard
 the worktree and dispatch a fresh worker for that finding, however dead the first one looks. Halt
