@@ -10,7 +10,7 @@ updated: '2026-10-06'
 depends_on: [531, 534]
 stacked_on:
 related: [532, 533, 334, 351]
-discovered_from: []
+discovered_from: [531]
 adrs: [36, 78]
 spec: 'docs/superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md'
 plan:
@@ -29,8 +29,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) |
-| ADRs | [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
+| Spec | [2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md](../../superpowers/specs/2026-10-06-load-a-private-repository-s-agent-instructions-without-repos-design.md) |
+| ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0078](../../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -48,6 +48,7 @@ A private-visibility repository can't carry those files, so docket must not writ
   - Codex and OpenCode: a static pointer block (markers `dckt:`) in their user-level AGENTS.md.
 - Cursor, which reads rules only from the project, gets `.cursor/rules/dckt-dispatch.mdc`, excluded through `.git/info/exclude`.
 - The first plan task checks each harness in a fresh session.
+- `docket install` in a private repository writes no instruction file into the repository root: no AGENTS.md, CLAUDE.md, or docket-named rule file (found during change 531's build, where install could still write them). It routes the content to the private instructions file instead.
 
 ## Out of scope
 
