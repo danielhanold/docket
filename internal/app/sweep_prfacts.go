@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"sync"
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/githubcli"
@@ -35,6 +36,10 @@ type SweepPRBatchReader interface {
 type SweepPRSetResult struct {
 	Facts    map[int]domain.PRFacts
 	Failures []SweepPRBatchFailure // one per failed batch (incl. identity resolution: one failure covering all numbers)
+	// Bodies carries each Found slot's PR body, for the sweep's PR-backlink leg.
+	// It is never logged or reported. A number absent here is unread (a failed
+	// batch or an unresolved slot).
+	Bodies map[int]string
 }
 
 // SweepPRBatchFailure names the numbers a single failed batch (or a failed
@@ -61,11 +66,38 @@ type sweepGitHub interface {
 const sweepPRBatchCap = 25
 
 // sweepPRBatchReader is the production SweepPRBatchReader. It resolves the
-// repository once per invocation (memoizing a resolution failure as one Failure
-// covering every number — no per-consumer retry), then reads the deduped, sorted
-// numbers in ≤25-number batches, one ViewPullRequestsBatch process per batch.
+// repository once per reader and repository directory — the CLI builds one reader
+// per process, and a sweep reads twice (the finalize population's facts, then the
+// done candidates' PR bodies) — memoizing a resolution failure too, reported as
+// one Failure covering each read's numbers (no per-consumer retry). It then reads
+// the deduped, sorted numbers in ≤25-number batches, one ViewPullRequestsBatch
+// process per batch.
 type sweepPRBatchReader struct {
 	gh sweepGitHub
+
+	mu         sync.Mutex
+	identities map[string]sweepIdentity // repoDir -> memoized resolution
+}
+
+// sweepIdentity is one memoized repository resolution, success or failure.
+type sweepIdentity struct {
+	repo githubcli.Repository
+	err  error
+}
+
+// identity resolves repoDir's repository once per reader, memoizing the outcome.
+func (r *sweepPRBatchReader) identity(ctx context.Context, repoDir string) (githubcli.Repository, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if id, ok := r.identities[repoDir]; ok {
+		return id.repo, id.err
+	}
+	repo, err := r.gh.DiscoverRepository(ctx, repoDir)
+	if r.identities == nil {
+		r.identities = make(map[string]sweepIdentity)
+	}
+	r.identities[repoDir] = sweepIdentity{repo: repo, err: err}
+	return repo, err
 }
 
 // NewSweepPRBatchReader builds the production batched PR reader over a GitHub
@@ -83,14 +115,15 @@ func NewSweepPRBatchReader(gh *githubcli.Client) SweepPRBatchReader {
 func (r *sweepPRBatchReader) ProbePRSet(ctx context.Context, repoDir string, numbers []int) SweepPRSetResult {
 	sorted := sweepDedupeSortAsc(numbers)
 	facts := make(map[int]domain.PRFacts)
+	bodies := make(map[int]string)
 	if len(sorted) == 0 {
-		return SweepPRSetResult{Facts: facts}
+		return SweepPRSetResult{Facts: facts, Bodies: bodies}
 	}
 	// One shared identity for the whole invocation. A resolution failure is
 	// memoized as a single Failure over every number — no consumer re-resolves.
-	repo, err := r.gh.DiscoverRepository(ctx, repoDir)
+	repo, err := r.identity(ctx, repoDir)
 	if err != nil {
-		return SweepPRSetResult{Facts: facts, Failures: []SweepPRBatchFailure{{Numbers: sorted, Message: err.Error()}}}
+		return SweepPRSetResult{Facts: facts, Bodies: bodies, Failures: []SweepPRBatchFailure{{Numbers: sorted, Message: err.Error()}}}
 	}
 	var failures []SweepPRBatchFailure
 	for _, chunk := range sweepChunkInts(sorted, sweepPRBatchCap) {
@@ -106,9 +139,10 @@ func (r *sweepPRBatchReader) ProbePRSet(ctx context.Context, repoDir string, num
 				continue // unknown: omitted, never a fabricated absence
 			}
 			facts[n] = sweepBatchResultToFacts(n, br)
+			bodies[n] = br.PR.Body
 		}
 	}
-	return SweepPRSetResult{Facts: facts, Failures: failures}
+	return SweepPRSetResult{Facts: facts, Bodies: bodies, Failures: failures}
 }
 
 // sweepBatchResultToFacts maps one resolved batch slot to domain.PRFacts with the

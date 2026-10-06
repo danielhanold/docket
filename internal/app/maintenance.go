@@ -335,10 +335,10 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, sc
 		},
 		assessHistorical: func(ctx context.Context, inv sweepInventory, pin StatusPin, historical []sweepWorkItem) ([]MaintenanceEntry, []sweepWorkItem) {
 			// Gather the invocation-shared read-only inventories ONCE (one remote-heads
-			// advertisement, one worktree list) — and only when a done candidate needs
-			// them — then resolve every historical record locally, enqueuing only the
+			// advertisement, one worktree list, one batched PR-body read) — and only
+			// when a done candidate needs them — then resolve every historical record locally, enqueuing only the
 			// records that warrant a fresh cleanup attempt.
-			shared := gatherSweepSharedFacts(ctx, deps, inv, historical)
+			shared := gatherSweepSharedFacts(ctx, deps, repoDir, inv, historical)
 			return sweepAssessHistorical(ctx, deps, wdeps, inv, pin, shared, historical)
 		},
 		syncIntegration: func(ctx context.Context) *SyncOutcome {
@@ -530,14 +530,15 @@ func sweepBuildSnapshot(ctx context.Context, reader StatusReader, pin StatusPin,
 }
 
 // gatherSweepSharedFacts reads the invocation-shared read-only inventories the
-// snapshot assessment reasons over: one complete remote-heads advertisement and
-// one worktree list. It is LAZY — only a `done` candidate consumes the remote/
-// local-ref legs, so a historical worklist carrying only stacked-merged (retained)
-// records fetches neither inventory (zero ListRemoteHeads calls). A failed read is
+// snapshot assessment reasons over: one complete remote-heads advertisement, one
+// worktree list, and one batched read of the done candidates' PR bodies. It is
+// LAZY — only a `done` candidate consumes the remote/local-ref and PR-backlink
+// legs, so a historical worklist carrying only stacked-merged (retained) records
+// fetches no inventory (zero ListRemoteHeads or ProbePRSet calls). A failed read is
 // recorded as the leg's error (a failed shared inventory is unknown, never a clean
 // absence and never a fan-out into per-ref probes); a missing git client/repository
 // makes both inventories unknown rather than silently empty.
-func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, inv sweepInventory, historical []sweepWorkItem) sweepSharedFacts {
+func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir string, inv sweepInventory, historical []sweepWorkItem) sweepSharedFacts {
 	needsShared := false
 	for _, it := range historical {
 		if c, out := inv.snap.Change(domain.ChangeID(it.id)); out == domain.LookupFound && c.Status() == domain.StatusDone {
@@ -548,12 +549,41 @@ func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, inv sweepInv
 	if !needsShared {
 		return sweepSharedFacts{}
 	}
+	var shared sweepSharedFacts
+	// One batched PR-body read over every done candidate's PR (≤25 per process)
+	// for the PR-backlink leg. A number the read could not resolve is unknown.
+	var numbers []int
+	for _, it := range historical {
+		c, out := inv.snap.Change(domain.ChangeID(it.id))
+		if out != domain.LookupFound || c.Status() != domain.StatusDone {
+			continue
+		}
+		if n, ok := parsePRNumber(c.PR().Value); ok {
+			numbers = append(numbers, n)
+		}
+	}
+	shared.prBodiesGathered = true
+	shared.prBodies = map[int]string{}
+	shared.prBodiesUnknown = map[int]bool{}
+	if len(numbers) > 0 {
+		var bodies map[int]string
+		if deps.PRBatch != nil {
+			bodies = deps.PRBatch.ProbePRSet(ctx, repoDir, numbers).Bodies
+		}
+		for _, n := range numbers {
+			if b, ok := bodies[n]; ok {
+				shared.prBodies[n] = b
+			} else {
+				shared.prBodiesUnknown[n] = true
+			}
+		}
+	}
 	repo := sweepAssessRepo(deps)
 	if deps.Planning.Client == nil || repo.PrimaryWorktree == "" {
 		err := fmt.Errorf("no git client or repository is wired to read the shared sweep inventories")
-		return sweepSharedFacts{remoteHeadsErr: err, worktreesErr: err}
+		shared.remoteHeadsErr, shared.worktreesErr = err, err
+		return shared
 	}
-	var shared sweepSharedFacts
 	if heads, err := deps.Planning.Client.ListRemoteHeads(ctx, repo, originRemote); err != nil {
 		shared.remoteHeadsErr = err
 	} else {

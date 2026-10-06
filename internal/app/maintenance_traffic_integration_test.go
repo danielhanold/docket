@@ -314,9 +314,11 @@ func TestIntegrationSweepDiscoveryTrafficAccounting(t *testing.T) {
 	if got := countPrefix(ghl, "repo view"); got > 1 {
 		t.Errorf("GitHub identity resolved %d times, want at most 1", got)
 	}
-	// One batched PR read per 25 unique numbers.
-	if got := countPrefix(ghl, "api graphql"); got != 2 {
-		t.Errorf("api graphql invocations = %d, want 2 (ceil(30/25)); no per-PR fallback\n%s", got, strings.Join(ghl, "\n"))
+	// One batched PR read per 25 unique numbers: ceil(30/25) = 2 for the finalize
+	// population, plus ONE batched PR-body read over the three done records for the
+	// PR-backlink leg — never a per-PR fallback.
+	if got := countPrefix(ghl, "api graphql"); got != 3 {
+		t.Errorf("api graphql invocations = %d, want 3 (ceil(30/25) population + ceil(3/25) PR-body); no per-PR fallback\n%s", got, strings.Join(ghl, "\n"))
 	}
 	// At most one shared inventory advertisement — never one per historical record.
 	if got := countMatching(gl, "ls-remote", "--heads"); got != 1 {
@@ -363,11 +365,12 @@ func TestIntegrationSweepDiscoveryTrafficAccounting(t *testing.T) {
 	}
 }
 
-// TestIntegrationSweepZeroPRsNoGitHubTraffic: a corpus whose only records are
-// final (done) — hence outside the PR-bearing finalize population — issues ZERO
-// gh processes. An empty number set never resolves the identity and never opens a
-// batch.
-func TestIntegrationSweepZeroPRsNoGitHubTraffic(t *testing.T) {
+// TestIntegrationSweepDoneOnlyCorpusReadsOnlyPRBodies: a corpus whose only
+// records are final (done) — hence outside the PR-bearing finalize population —
+// opens no finalize-population batch. Its only GitHub traffic is the PR-backlink
+// leg's read: one identity resolution and ONE batched PR-body read naming exactly
+// the done records' numbers.
+func TestIntegrationSweepDoneOnlyCorpusReadsOnlyPRBodies(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{
 		"docs/changes/active/0041-a.md": trafficDoneRecord(41, "a"),
@@ -379,8 +382,14 @@ func TestIntegrationSweepZeroPRsNoGitHubTraffic(t *testing.T) {
 
 	res := MaintenanceSweep(context.Background(), deps, r.invocation, SweepScopeFull)
 
-	if got := ghLogLines(t, ghLog); len(got) != 0 {
-		t.Fatalf("zero PR numbers must spawn zero gh processes, got %d:\n%s", len(got), strings.Join(got, "\n"))
+	ghl := ghLogLines(t, ghLog)
+	if len(ghl) != 2 || countPrefix(ghl, "repo view") != 1 || countPrefix(ghl, "api graphql") != 1 {
+		t.Fatalf("a done-only corpus must spawn exactly one identity resolution and one PR-body batch, got %d:\n%s", len(ghl), strings.Join(ghl, "\n"))
+	}
+	for _, want := range []string{"pullRequest(number: 41)", "pullRequest(number: 42)"} {
+		if !strings.Contains(strings.Join(ghl, "\n"), want) {
+			t.Errorf("the PR-body batch must read %s:\n%s", want, strings.Join(ghl, "\n"))
+		}
 	}
 	if len(res.Entries) != 2 {
 		t.Fatalf("want two historical entries, got %d", len(res.Entries))
@@ -449,10 +458,13 @@ func sweepRemoteCounts(t *testing.T, gitLog, ghLog string) remoteCounts {
 
 // TestIntegrationSweepAssessmentTrafficConstantAcrossHistory is the scaling proof:
 // growing the final (done) population 1 -> 25 -> 250 at fixed active/pending
-// work must NOT change any remote-call count. The assessment reasons from ONE
-// shared advertisement and ONE worktree list plus local per-record inspection, so
-// its remote footprint is history-independent; a reintroduced per-history refresh
-// or per-ref probe would make one of these counts grow with the population.
+// work must NOT change any git remote-call count or the GitHub identity count.
+// The assessment reasons from ONE shared advertisement and ONE worktree list plus
+// local per-record inspection, so its git footprint is history-independent; a
+// reintroduced per-history refresh or per-ref probe would make one of these counts
+// grow with the population. The one history-proportional read is the PR-backlink
+// leg's batched PR-body read, pinned to exactly ceil(history/25) GraphQL
+// processes — batched, never one per record.
 func TestIntegrationSweepAssessmentTrafficConstantAcrossHistory(t *testing.T) {
 	requireRealGit(t)
 	measure := func(t *testing.T, history int) (remoteCounts, MaintenanceResult) {
@@ -480,8 +492,16 @@ func TestIntegrationSweepAssessmentTrafficConstantAcrossHistory(t *testing.T) {
 	if base.sharedHeads != 1 {
 		t.Fatalf("history=1 shared-inventory count = %d, want 1", base.sharedHeads)
 	}
+	if base.graphql != 1 {
+		t.Fatalf("history=1 PR-body batches = %d, want 1", base.graphql)
+	}
 	for _, history := range []int{25, 250} {
 		got, res := measure(t, history)
+		wantBatches := (history + sweepPRBatchCap - 1) / sweepPRBatchCap
+		if got.graphql != wantBatches {
+			t.Errorf("history=%d PR-body batches = %d, want ceil(%d/25) = %d (batched, never per record)", history, got.graphql, history, wantBatches)
+		}
+		got.graphql = base.graphql // pinned above; every other count is history-independent
 		if got != base {
 			t.Errorf("history=%d amplified remote work: got %+v, base %+v", history, got, base)
 		}

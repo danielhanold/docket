@@ -316,3 +316,69 @@ func sweepTestSnapshot(t *testing.T, blobs []StatusBlob) domain.Snapshot {
 	}
 	return build.Snapshot
 }
+
+// TestSweepPRSetCarriesBodiesForFoundSlotsOnly: ProbePRSet returns each Found
+// slot's body and nothing for an unresolved slot (Found=false or a failed batch).
+func TestSweepPRSetCarriesBodiesForFoundSlotsOnly(t *testing.T) {
+	gh := &countingSweepGitHub{repo: sweepTestRepo(), results: map[int]githubcli.BatchPRResult{
+		1: {Found: true, PR: githubcli.PullRequest{Number: 1, State: githubcli.StateMerged, Body: "body one"}},
+	}}
+	r := &sweepPRBatchReader{gh: gh}
+	res := r.ProbePRSet(context.Background(), "repo", []int{1, 2})
+	if res.Bodies[1] != "body one" {
+		t.Errorf("found PR #1 carries body %q, want %q", res.Bodies[1], "body one")
+	}
+	if _, ok := res.Bodies[2]; ok {
+		t.Errorf("unresolved PR #2 (Found=false) must carry no body")
+	}
+	for n, f := range res.Facts {
+		if _, ok := res.Bodies[n]; !ok {
+			t.Errorf("found PR #%d (%+v) carries no body", n, f)
+		}
+	}
+	for n := range res.Bodies {
+		if _, ok := res.Facts[n]; !ok {
+			t.Errorf("PR #%d has a body but no facts (an unresolved slot must carry neither)", n)
+		}
+	}
+
+	// A failed batch and a failed identity resolution carry no bodies, and the
+	// map is non-nil on every return path.
+	for _, gh := range []*countingSweepGitHub{
+		{repo: sweepTestRepo(), failBatchFor: map[int]bool{1: true}},
+		{repo: sweepTestRepo(), discoverErr: fmt.Errorf("no identity")},
+	} {
+		res := (&sweepPRBatchReader{gh: gh}).ProbePRSet(context.Background(), "repo", []int{1})
+		if res.Bodies == nil || len(res.Bodies) != 0 {
+			t.Errorf("an unresolved read must return an empty, non-nil Bodies; got %v", res.Bodies)
+		}
+	}
+	if res := (&sweepPRBatchReader{gh: &countingSweepGitHub{repo: sweepTestRepo()}}).ProbePRSet(context.Background(), "repo", nil); res.Bodies == nil {
+		t.Errorf("an empty request must return a non-nil Bodies")
+	}
+}
+
+// TestSweepPRSetResolvesIdentityOncePerReader: the sweep issues two batched reads
+// per invocation (the finalize population's facts, then the done candidates' PR
+// bodies), so the reader resolves the repository once and reuses it — success or
+// failure — rather than once per ProbePRSet call.
+func TestSweepPRSetResolvesIdentityOncePerReader(t *testing.T) {
+	gh := &countingSweepGitHub{repo: sweepTestRepo()}
+	r := &sweepPRBatchReader{gh: gh}
+	r.ProbePRSet(context.Background(), "repo", []int{1})
+	r.ProbePRSet(context.Background(), "repo", []int{2})
+	if gh.discovers != 1 {
+		t.Errorf("identity resolved %d times across two reads, want exactly 1", gh.discovers)
+	}
+
+	failing := &countingSweepGitHub{discoverErr: fmt.Errorf("no identity")}
+	fr := &sweepPRBatchReader{gh: failing}
+	first := fr.ProbePRSet(context.Background(), "repo", []int{1})
+	second := fr.ProbePRSet(context.Background(), "repo", []int{2})
+	if failing.discovers != 1 {
+		t.Errorf("a failed identity resolved %d times across two reads, want exactly 1 (memoized)", failing.discovers)
+	}
+	if len(first.Failures) != 1 || len(second.Failures) != 1 || !reflect.DeepEqual(second.Failures[0].Numbers, []int{2}) {
+		t.Errorf("each read must report its own numbers as one failure; first=%+v second=%+v", first.Failures, second.Failures)
+	}
+}
