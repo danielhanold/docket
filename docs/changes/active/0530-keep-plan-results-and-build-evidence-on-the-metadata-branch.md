@@ -13,7 +13,7 @@ related: [417, 415, 410, 391, 337, 330, 529, 531, 532, 533]
 discovered_from: []
 adrs: [1, 12, 66, 99]
 spec: 'docs/superpowers/specs/2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-06T02:32:31Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch-design.md) |
+| Plan | [2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch.md](https://github.com/danielhanold/docket/blob/feat/keep-plan-results-and-build-evidence-on-the-metadata-branch/docs/superpowers/plans/2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
