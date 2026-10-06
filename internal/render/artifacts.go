@@ -35,19 +35,19 @@ const (
 // record, so their rows link relatively from the record file (RelativeLink).
 // docs/changes/active and docs/changes/archive are siblings, so the block is
 // byte-identical before and after archiving, and it renders the same with or
-// without a web URL. Two rows are absolute on the integration branch, because
-// their files are there:
+// without a web URL. Some rows are absolute on another branch, because their
+// files are there:
 //
-//   - Spec (merged): the spec copy that merged with the PR, for a done change
-//     that carries the "## Build evidence" section (built on the
-//     metadata-branch flow).
-//   - Plan and Results of a legacy record (see legacyIntegrationArtifacts),
-//     whose files merged to the integration branch before plan and results
-//     moved to the metadata branch.
+//   - Spec (merged): the spec copy that merged with the PR, on the integration
+//     branch, for a done change that carries the "## Build evidence" section
+//     (built on the metadata-branch flow).
+//   - Plan and Results of a legacy record (see legacyArtifactBranch), whose
+//     files stayed on the integration or feature branch because the change
+//     closed out before plan and results moved to the metadata branch.
 func ArtifactBlockContent(c domain.Change, snap domain.Snapshot, link LinkContext) (string, error) {
 	var rows []string
 	recPath := c.Path()
-	legacy := legacyIntegrationArtifacts(c)
+	legacyBranch, legacy := legacyArtifactBranch(c, link)
 
 	if p := c.Spec().Value; p != "" {
 		rows = append(rows, relativeRow("Spec", recPath, p))
@@ -62,7 +62,7 @@ func ArtifactBlockContent(c domain.Change, snap domain.Snapshot, link LinkContex
 		switch {
 		case a.path == "":
 		case legacy:
-			rows = append(rows, absoluteRow(a.label, a.path, link.IntegrationBranch, link))
+			rows = append(rows, absoluteRow(a.label, a.path, legacyBranch, link))
 		default:
 			rows = append(rows, relativeRow(a.label, recPath, a.path))
 		}
@@ -89,13 +89,25 @@ func ArtifactBlockContent(c domain.Change, snap domain.Snapshot, link LinkContex
 	return b.String(), nil
 }
 
-// legacyIntegrationArtifacts reports whether a change's plan and results live
-// on the integration branch: a done change WITHOUT the "## Build evidence"
-// section closed out before plan and results moved to the metadata branch, so
-// its files merged with its PR and never move again. Every other change's plan
-// and results are on the metadata branch.
-func legacyIntegrationArtifacts(c domain.Change) bool {
-	return c.Status() == domain.StatusDone && !c.HasBuildEvidence()
+// legacyArtifactBranch reports whether a change's plan and results live off
+// the metadata branch, and on which branch. A closed change WITHOUT the
+// "## Build evidence" section closed out before plan and results moved to the
+// metadata branch, so its files never move again: a done change's merged with
+// its PR to the integration branch; a killed change's stayed on its feature
+// branch (an unset branch: yields "", which BlobURLOnBranch resolves to the
+// metadata branch, the rendering such a record has always had). Every other
+// change's plan and results are on the metadata branch.
+func legacyArtifactBranch(c domain.Change, link LinkContext) (string, bool) {
+	if c.HasBuildEvidence() {
+		return "", false
+	}
+	switch c.Status() {
+	case domain.StatusDone:
+		return link.IntegrationBranch, true
+	case domain.StatusKilled:
+		return c.Branch().Value, true
+	}
+	return "", false
 }
 
 // relativeRow renders a same-branch Spec/Plan/Results row: the link text is the
