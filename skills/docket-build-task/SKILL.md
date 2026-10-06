@@ -21,8 +21,8 @@ subagent, and never load a review skill.
   commit, never by amending: another agent's work may already be inside it, and you cannot
   observe that.
 - Stay **inside the feature worktree, on its branch**, performing **no docket metadata operations**:
-  never write to `.docket/`, the metadata branch, change files, ADRs, the board, or the
-  learnings ledger; never push, force-push, `reset --hard`, or rebase — `docket-implement-next`
+  never write to the metadata worktree (`metadata_worktree_path`), the metadata branch, change
+  files, ADRs, the board, or the learnings ledger; never push, force-push, `reset --hard`, or rebase — `docket-implement-next`
   owns that.
 - A plan's `- [ ]` checkboxes are **not** progress state — do not tick them. Your commit is the
   record of what you finished; nothing reads the marks.

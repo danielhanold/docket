@@ -13,8 +13,9 @@ Contents: [The sequence](#the-sequence) · [Failure posture](#failure-posture--p
 
 ## The sequence
 
-All metadata writes happen in the metadata working tree (`.docket/`), synced to `origin/docket`
-before the first read; every commit pushes immediately.
+All metadata writes happen in the metadata worktree (`metadata_worktree_path` in the `repository.prepare` context),
+synced to the metadata remote (`metadata_remote`) before the first read; every commit pushes
+immediately.
 
 1. **Archive on `docket` first.** The two final outcomes split here: `done` runs the Go
    `finalize.closeout` transaction; `killed` runs the Go `change.kill` transaction (`finalize.closeout`
@@ -52,7 +53,7 @@ before the first read; every commit pushes immediately.
    ```
    # request-file: { "change_id": <id>, "path": "<changes_dir>/active/<UTC-birth>-<id>-<slug>.md",
    #                 "revision": "<revision>", "why_killed": "<why>" }
-   change.kill  --repo-dir .docket --input <request-file> --json   # resolve argv from the capability catalog
+   change.kill  --repo-dir <metadata_worktree_path> --input <request-file> --json   # resolve argv from the capability catalog
    ```
 
    Trust the typed outcome: `applied` ⇒ archived — an idempotent no-op if already archived,
@@ -92,7 +93,7 @@ before the first read; every commit pushes immediately.
    workspaces and feature refs proven owned by *this* closed change are removed — the local ref
    only when its recorded tip is detached from every worktree AND contained in the verified merge
    chain, the remote ref only under an exact old-value lease with no open child PR still targeting
-   it — never the `.docket/` metadata worktree, the primary tree, or any out-of-tree path. Any
+   it — never the metadata worktree, the primary tree, or any out-of-tree path. Any
    resource whose ownership it cannot prove is **retained**, not force-removed. A failure aborts
    per the caller's posture.
 

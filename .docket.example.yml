@@ -9,6 +9,9 @@
 #   2. committed      <repo>/.docket.yml                               (every clone)
 #   3. global         ${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml  (every repository on this machine)
 #   4. built-in       the defaults compiled into docket
+# A private repository (`.git/dckt/` present; see `visibility` below) reads `.git/dckt/config.yml`
+# in place of layers 1 and 2, honoring the repo-only keys there; it never reads `.docket.yml`, and
+# it refuses while a `.docket.local.yml` also exists.
 # Nested blocks merge key by key: setting one key in a block leaves its other keys resolving from
 # the layers below. A malformed file, an unknown key, or a bad value in any layer makes the whole
 # configuration invalid, and docket refuses to change the repository until it is fixed.
