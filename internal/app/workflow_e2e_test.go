@@ -2,12 +2,15 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/testsupport"
 	"github.com/danielhanold/docket/internal/workspace"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
@@ -53,6 +56,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 	recPath := groomPath(id, slug)
 	planPath := "docs/superpowers/plans/2026-08-17-widget-plan.md"
 	resultsPath := "docs/results/2026-08-17-" + slug + "-results.md"
+	specPath := "docs/superpowers/specs/2026-08-17-" + slug + "-design.md"
 
 	// A resolved build.test_command is required so EvidenceRecord (build-owned
 	// since change 0374) records a real observed gate command rather than
@@ -60,7 +64,13 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 	// so the finalize path stays configured. Both are set in the config layer
 	// each mode reads: on main in main mode, on main (the integration branch) in
 	// docket mode.
-	repo := buildConfiguredRepo(t, m, recPath, buildReadyChange(id, slug))
+	// The record links a spec seeded on the metadata branch with its backlink
+	// block, so the run commits the spec copy as the feature branch's first
+	// commit and the PR carries exactly that copy plus the code.
+	repo := buildConfiguredRepoWith(t, m, map[string]string{
+		recPath:  specLinkedBuildReadyChange(id, slug, specPath),
+		specPath: workflowMetadataSpec(id, slug),
+	})
 	ctx := context.Background()
 
 	node := planningDepsFor(t, repo.invocation)
@@ -113,6 +123,13 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 			t.Fatalf("workspace prepare = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
 		}
 		wp := prep.Path
+
+		// (4b) The spec copy is the feature branch's first commit.
+		cs := WorkspaceCommitSpec(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: id})
+		if cs.Result != ResultApplied || cs.Disposition != SpecCopyCommitted {
+			t.Fatalf("workspace commit-spec = (%q, %q) (reason %q msg %q), want applied/committed", cs.Result, cs.Disposition, cs.Reason, cs.Message)
+		}
+		specCommit := cs.Head
 
 		// (5)–(6) The plan-writer half: author the plan body and hand it to
 		// attach-plan, which writes it on the metadata branch with its backlink
@@ -246,6 +263,17 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 			t.Fatalf("pr snapshot did not round-trip: %+v", pr)
 		}
 
+		// (12a) The PR carries exactly the spec copy and the code — no plan, no
+		// results, no evidence file — and the spec copy is its first commit.
+		diff := runGit(t, wp, "diff", "--name-only", "--no-renames", prep.BaseCommit+".."+head)
+		if got := strings.Fields(diff); !reflect.DeepEqual(got, []string{specPath, "widget.go"}) {
+			t.Fatalf("PR diff = %v, want exactly the spec copy and the code", got)
+		}
+		first := runGit(t, wp, "rev-list", "--reverse", prep.BaseCommit+".."+head)
+		if commits := strings.Fields(first); len(commits) == 0 || commits[0] != specCommit {
+			t.Fatalf("the spec copy %s is not the feature branch's first commit: %v", specCommit, commits)
+		}
+
 		// (13) Mark implemented after reprobing every published effect.
 		mi := ChangeMarkImplemented(ctx, node.deps, wdeps, gdeps, node.dir, MarkImplementedRequest{
 			ID:             id,
@@ -256,6 +284,25 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		})
 		if mi.Result != ResultApplied || mi.Status != string("implemented") {
 			t.Fatalf("mark implemented = %q (status %q findings %v)", mi.Result, mi.Status, mi.Findings)
+		}
+
+		// (13a) The plan, the results, and the record's build evidence all live
+		// at the metadata remote tip, and the record evidence — written after the
+		// post-gate results checkpoint — still verifies against the head.
+		for _, p := range []string{planPath, resultsPath} {
+			if _, ok := originFile(t, repo.origin, m.branch, p); !ok {
+				t.Errorf("%s is missing at the metadata remote tip", p)
+			}
+		}
+		record, ok := originFile(t, repo.origin, m.branch, recPath)
+		if !ok {
+			t.Fatalf("change record %s is missing at the metadata remote tip", recPath)
+		}
+		if _, present, err := recordEvidenceSection([]byte(record)); err != nil || !present {
+			t.Fatalf("the change record carries no %q section at the metadata remote tip (err %v):\n%s", buildEvidenceHeading, err, record)
+		}
+		if v := VerifyRecordEvidence([]byte(record), head); v != evidence.VerdictVerified {
+			t.Fatalf("record evidence against head %s = %q, want verified", head, v)
 		}
 
 		// (14) Read-only run verification: every postcondition holds ⇒ run-complete.
@@ -288,12 +335,34 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 // plus the one build-ready change record on the metadata branch.
 func buildConfiguredRepo(t *testing.T, m planRepoMode, recPath, record string) *gitRepo {
 	t.Helper()
+	return buildConfiguredRepoWith(t, m, map[string]string{recPath: record})
+}
+
+// buildConfiguredRepoWith is buildConfiguredRepo over an arbitrary set of
+// metadata-branch files (a record plus, say, the spec it links).
+func buildConfiguredRepoWith(t *testing.T, m planRepoMode, metadata map[string]string) *gitRepo {
+	t.Helper()
 	if m.name != "docket" {
 		t.Fatalf("unknown repository topology %q", m.name)
 	}
 	return newDocketModeRepo(t,
 		map[string]string{".docket.yml": "integration_branch: main\nbuild:\n  test_command: 'go test ./...'\nfinalize:\n  test_command: 'go test ./...'\n"},
-		map[string]string{recPath: record})
+		metadata)
+}
+
+// specLinkedBuildReadyChange is a proposed, build-ready change record whose
+// design is the spec at specPath (not a trivial verdict).
+func specLinkedBuildReadyChange(id int, slug, specPath string) string {
+	return strings.Replace(groomableChange(id, slug), "spec:\n", "spec: "+specPath+"\n", 1)
+}
+
+// workflowMetadataSpec is a spec as the metadata branch stores it: a
+// docket:backlink block above the authored title.
+func workflowMetadataSpec(id int, slug string) string {
+	return "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
+		"> ↩ **[Change " + fmt.Sprintf("%04d", id) + " — A change](../../changes/active/" + fmt.Sprintf("%04d", id) + "-" + slug + ".md)**\n" +
+		"<!-- docket:backlink:end -->\n\n" +
+		"# Widget: design\n\nBuild the widget.\n"
 }
 
 // assertDeferredCapabilityBlocksClaim proves a `.docket.yml` that actively

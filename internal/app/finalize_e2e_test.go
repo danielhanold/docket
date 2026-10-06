@@ -71,6 +71,8 @@ type e2eState struct {
 	stateFile string
 	xdgHome   string
 	env       []string
+	// rebase is the last finalize rebase document rebaseAndPublish observed.
+	rebase dkResult
 }
 
 // e2eXDGOnce isolates the in-process git client's global-config layer exactly
@@ -551,12 +553,42 @@ func TestE2EOrdinaryFinalize(t *testing.T) {
 		m := m
 		t.Run(m.name, func(t *testing.T) {
 			s := reachImplemented(t, m, docketBin, ghBin)
-			runOrdinaryFinalize(t, s)
+
+			// A post-gate results checkpoint: a metadata commit only. The feature
+			// head does not move, so finalize's rebase still takes the no-op skip
+			// on the record's exact-head evidence.
+			resultsPath := "docs/results/2026-08-17-" + s.slug + "-results.md"
+			ck := ChangeAttachResults(context.Background(), s.node.deps, s.node.dir, ChangeAttachRequest{
+				ID: s.id, Revision: s.ver(t), Path: resultsPath,
+				Markdown: []byte("# Add the widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nA post-gate checkpoint before finalize.\n"),
+			})
+			if ck.Result != ResultApplied {
+				t.Fatalf("post-gate attach results = %q (reason %q msg %q findings %v)", ck.Result, ck.Reason, ck.Message, ck.Findings)
+			}
+
+			mainBefore := runGit(t, s.repo.origin, "rev-parse", "refs/heads/main")
+			mg := runOrdinaryFinalize(t, s)
+
+			gate, _ := s.rebase.doc["gate"].(map[string]any)
+			if compose, _ := gate["compose"].(string); compose != gateComposeSkipped {
+				t.Errorf("rebase gate compose after a post-gate results checkpoint = %q, want %q\n%s", compose, gateComposeSkipped, s.rebase.stdout)
+			}
+
+			// Close-out writes nothing to the integration branch: origin/main ends
+			// at the merge's own commit, with no backlink commit on top.
+			mc := mergeCommitField(t, mg)
+			if mainAfter := runGit(t, s.repo.origin, "rev-parse", "refs/heads/main"); mainAfter != mc {
+				extra := runGit(t, s.repo.origin, "log", "--format=%H %s", mc+"..refs/heads/main")
+				t.Errorf("origin/main after close-out = %s, want the merge commit %s and nothing else; extra commits:\n%s", mainAfter, mc, extra)
+			}
+			if _, err := tryGit(s.repo.origin, "merge-base", "--is-ancestor", mainBefore, mc); err != nil {
+				t.Errorf("the merge commit %s does not descend from the pre-merge base %s", mc, mainBefore)
+			}
 		})
 	}
 }
 
-func runOrdinaryFinalize(t *testing.T, s *e2eState) {
+func runOrdinaryFinalize(t *testing.T, s *e2eState) dkResult {
 	t.Helper()
 	head, revision := rebaseAndPublish(t, s)
 
@@ -587,6 +619,7 @@ func runOrdinaryFinalize(t *testing.T, s *e2eState) {
 	if cl.result() != "applied" {
 		t.Fatalf("finalize cleanup = %q\n%s", cl.result(), cl.stdout)
 	}
+	return mg
 }
 
 // rebaseAndPublish drives the shared context->rebase->publish preamble and
@@ -628,6 +661,7 @@ func rebaseAndPublish(t *testing.T, s *e2eState) (head, revision string) {
 	// so a real rewrite happens and the local gate genuinely runs and passes. Both
 	// are valid ordinary outcomes; the subsequent steps thread the resulting head.
 	rb := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", s.head)
+	s.rebase = rb
 	if rb.result() != "applied" && rb.result() != "no-op" {
 		t.Fatalf("finalize rebase = %q\n%s", rb.result(), rb.stdout)
 	}
