@@ -19,7 +19,10 @@ one pull request, tracked as one markdown file) has its pull request merged, som
 it to `done` and archive it. The deliberate way is to close the change out yourself right after
 the merge — see [Landing changes safely](./landing-changes.md). But you do not have to: the sweep
 is the safety net. In one pass it closes out every change whose pull request already merged,
-retries any close-out cleanup that did not finish, and reclaims expired claims (below). Every
+retries any close-out cleanup that did not finish, and reclaims expired claims (below). That
+cleanup retry also repoints the backlink in a merged pull request's description when it still
+names the change's old `active/` path, even for a change archived long ago; to preview every such
+pull request first and repoint them all at once, run `docket repository repair --pr-backlinks`. Every
 change it touches re-renders the **board** (the generated overview of every change and its state,
 never edited by hand) in the same commit.
 

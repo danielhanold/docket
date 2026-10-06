@@ -10,6 +10,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -531,4 +532,53 @@ func TestGatherSweepSharedFactsMarksUnreadPRBodiesUnknown(t *testing.T) {
 	if _, ok := shared.prBodies[n42]; ok || !shared.prBodiesUnknown[n42] {
 		t.Errorf("PR #%d was not returned, so it must be unknown", n42)
 	}
+}
+
+// TestLegacyArchivedPRBacklinkIsFullSweepWorkOnly pins the full sweep's bulk
+// reach: a legacy done record — archived long ago, with a PR whose description
+// backlink still names the old active/ path and no close-out ever attempted the
+// repoint — is enqueued and assessed as PR-backlink work by the FULL sweep, and
+// the dispatched cleanup's PR-backlink leg repoints it (after which the record
+// assesses as no work). The implementation-scope sweep never enqueues it: it
+// defers the record as an unprobed historical count.
+func TestLegacyArchivedPRBacklinkIsFullSweepWorkOnly(t *testing.T) {
+	blob := assessArchivedDoneBlob(41, "legacy")
+	f := newAssessFixture(t, []StatusBlob{blob}, nil)
+	n := prNumberOf(t, f, 41)
+	c, _ := f.inv.snap.Change(domain.ChangeID(41))
+	eff := f.pin.Config.Effective
+	now := testClock().Now()
+
+	// Implementation scope: deferred, never enqueued, never assessed.
+	implItems, implDeferred := sweepWorklist(f.inv.snap, nil, eff, now, SweepScopeImplementation)
+	if len(implItems) != 0 || implDeferred != 1 {
+		t.Fatalf("implementation scope must defer the legacy record untouched: items=%v deferred=%d", implItems, implDeferred)
+	}
+
+	// Full scope: enqueued as a cleanup and assessed as PR-backlink work.
+	fullItems, fullDeferred := sweepWorklist(f.inv.snap, nil, eff, now, SweepScopeFull)
+	if fullDeferred != 0 || len(fullItems) != 1 || fullItems[0].id != 41 || fullItems[0].kind != sweepKindCleanup {
+		t.Fatalf("full scope must enqueue the legacy record as a cleanup: items=%v deferred=%d", fullItems, fullDeferred)
+	}
+	stale := prBodyWithActiveBacklink("docs/changes/active/0041-legacy.md", "prose")
+	_, actionable := f.assess(t, cleanWS(), prShared(map[int]string{n: stale}), 41)
+	if !actionableHas(actionable, 41) {
+		t.Fatalf("the full sweep must assess the legacy PR backlink as work; actionable=%v", actionable)
+	}
+
+	// The dispatched cleanup's PR-backlink leg repoints it — no prior attempt needed.
+	pr := newFakePRBody(map[int]string{n: stale})
+	cc := &closeoutContext{eff: eff, change: c, body: blob.Data, link: linkContextOf(f.pin)}
+	if fnd := finalizeCleanupPRBacklinkRepair(context.Background(), FinalizeDeps{PRBody: pr}, cc, githubcli.Repository{}, n); fnd != nil {
+		t.Fatalf("cleanup's PR-backlink leg returned a finding: %+v", *fnd)
+	}
+	got := pr.bodies[n]
+	if pr.edits != 1 || strings.Contains(got, "docs/changes/active/") || !strings.Contains(got, "`"+c.Path()+"`") || !strings.Contains(got, "prose") {
+		t.Fatalf("cleanup did not repoint the legacy PR backlink at %s (edits=%d):\n%s", c.Path(), pr.edits, got)
+	}
+	entries, again := f.assess(t, cleanWS(), prShared(map[int]string{n: got}), 41)
+	if len(again) != 0 {
+		t.Fatalf("a repointed PR backlink must assess as no work; actionable=%v", again)
+	}
+	assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
 }

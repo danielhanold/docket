@@ -88,7 +88,11 @@ to it.
   top of the merged pull request's description to the archived record. A
   description edit that fails leaves a `pr-backlink-pending` finding (the change
   stays `done`), and `docket finalize cleanup` and the maintenance sweep retry it.
-  Nothing is copied to the
+  The full maintenance sweep (`--scope full`) also repoints, without a preview, any
+  merged pull request whose description backlink still names a change's old
+  `active/` path, however long ago that change was archived;
+  `docket repository repair --pr-backlinks` is the explicit way to preview and
+  repoint them all at once. Nothing is copied to the
   integration branch. A backlink retarget that fails leaves a
   `final-backlink-pending` finding (the change stays `done`), which
   `docket finalize cleanup` repairs.
