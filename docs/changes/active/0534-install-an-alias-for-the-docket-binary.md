@@ -13,7 +13,7 @@ related: [532]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-06-install-an-alias-for-the-docket-binary-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-06-install-an-alias-for-the-docket-binary.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-06T13:50:52Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-06-install-an-alias-for-the-docket-binary-design.md](../../superpowers/specs/2026-10-06-install-an-alias-for-the-docket-binary-design.md) |
+| Plan | [2026-10-06-install-an-alias-for-the-docket-binary.md](../../superpowers/plans/2026-10-06-install-an-alias-for-the-docket-binary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
