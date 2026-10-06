@@ -296,19 +296,24 @@ func developmentInstallCandidate(o DevOptions) Outcome {
 	if aliasTarget != nil {
 		targets = append(targets, *aliasTarget)
 	}
+	var foreignAliases []string
+	if aliasFinding != nil && aliasFinding.Kind == AliasForeign {
+		foreignAliases = append(foreignAliases, aliasFinding.Path)
+	}
 
 	// The candidate re-resolved the repository phase itself (the parent passed
 	// --repo-dir through verbatim), so machine and repository writes ride one
 	// transaction here exactly as a release install does.
 	out = applyPlan(o.Options, plannedInstallation{
-		mode:          ModeDevelopment,
-		harnesses:     out.Harnesses,
-		targets:       targets,
-		owner:         owner,
-		assetSetID:    ds.digest,
-		assetProtocol: ds.manifest.AssetProtocol,
-		sourceRoot:    ds.source,
-		sourceDigest:  ds.digest,
+		mode:           ModeDevelopment,
+		harnesses:      out.Harnesses,
+		targets:        targets,
+		owner:          owner,
+		assetSetID:     ds.digest,
+		assetProtocol:  ds.manifest.AssetProtocol,
+		sourceRoot:     ds.source,
+		sourceDigest:   ds.digest,
+		foreignAliases: foreignAliases,
 	}, o.RepoPhase, out)
 	if aliasFinding != nil {
 		out.AliasFindings = append(out.AliasFindings, *aliasFinding)
