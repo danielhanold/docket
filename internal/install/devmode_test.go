@@ -1039,7 +1039,53 @@ func TestDevInstallPreservesAForeignAlias(t *testing.T) {
 			t.Fatalf("alias findings = %+v, want one foreign finding", out.AliasFindings)
 		}
 		assertUnchanged(t, aliasBefore, snapshot(t, alias), "replaced alias")
+		// The old record grants nothing any more, so the state this run
+		// publishes must not keep claiming the path as docket's alias.
+		for _, rec := range loadState(t, w.roots).Targets {
+			if rec.Path == alias {
+				t.Errorf("the replaced alias's stale record was carried forward: %+v", rec)
+			}
+		}
 	})
+}
+
+// When the installed binary itself is gone, docket's own alias beside it
+// resolves to nothing — but it is still docket's. Check reports the missing
+// binary as drift and says nothing about the alias, rather than calling it
+// something docket did not create.
+func TestCheckVanishedBinaryIsDriftNotAForeignAlias(t *testing.T) {
+	w := newWorld(t)
+	mkdirAll(t, w.path(".toy"))
+	bin := filepath.Join(w.home, "bin")
+	dev := w.devCandidate(t, newSource(t), bin)
+	if out := install.DevelopmentInstall(dev); out.Err != nil {
+		t.Fatalf("DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
+	}
+	binary := filepath.Join(bin, "docket")
+	alias := filepath.Join(bin, install.AliasName)
+	// The downloader's relative spelling: docket's own link either way.
+	if err := os.Remove(alias); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("docket", alias); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(binary); err != nil {
+		t.Fatal(err)
+	}
+
+	check := dev.Options
+	check.FS = panicFS{}
+	out := install.Check(check)
+	if out.Err != nil && out.Reason == "" {
+		t.Fatalf("check failed outright: %v", out.Err)
+	}
+	if _, ok := findAction(out, install.OpDrift, binary); !ok {
+		t.Errorf("the vanished binary was not reported as drift: %v", out.Actions)
+	}
+	if len(out.AliasFindings) != 0 {
+		t.Errorf("alias findings = %+v; a link to a vanished binary is binary drift, not a foreign alias", out.AliasFindings)
+	}
 }
 
 // A failed transaction rolls back an alias it created, and leaves a

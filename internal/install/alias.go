@@ -150,7 +150,8 @@ func readReleaseBinaryPath(recordPath string) (string, error) {
 
 // checkBinaryAliases classifies the alias beside every binary an installer
 // owns: the development installation's recorded binary, and the binary the
-// release downloader's record names. It only reads.
+// release downloader's record names. A binary that is absent is skipped: its
+// alias cannot be judged against nothing. It only reads.
 func checkBinaryAliases(state *State, roots UserRoots) ([]AliasFinding, error) {
 	var binaries []string
 	seen := map[string]bool{}
@@ -179,6 +180,14 @@ func checkBinaryAliases(state *State, roots UserRoots) ([]AliasFinding, error) {
 
 	var findings []AliasFinding
 	for _, binary := range binaries {
+		// A binary that has vanished is binary drift (or a re-install) to
+		// report; docket's own link to it resolving to nothing is no evidence
+		// that someone else put it there, so the alias is not probed at all.
+		if _, err := os.Lstat(binary); errors.Is(err, fs.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return nil, fmt.Errorf("install: inspecting %s: %w", binary, err)
+		}
 		f, err := InspectBinaryAlias(binary)
 		if err != nil {
 			return nil, err

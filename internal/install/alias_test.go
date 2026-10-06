@@ -149,7 +149,10 @@ func TestInspectBinaryAlias(t *testing.T) {
 			t.Fatalf("finding = %+v with nil error; an unreadable bin dir must not read as a clean absence", f)
 		}
 	})
-	t.Run("link to a vanished binary is foreign", func(t *testing.T) {
+	// The primitive cannot prove a link to nothing is docket's; it is
+	// checkBinaryAliases that keeps this from surfacing as a foreign finding
+	// (see TestCheckBinaryAliasesSkipsAVanishedBinary).
+	t.Run("link to a vanished binary is foreign to the primitive", func(t *testing.T) {
 		bin, binary := aliasBin(t)
 		if err := os.Symlink("docket", filepath.Join(bin, AliasName)); err != nil {
 			t.Fatal(err)
@@ -161,6 +164,35 @@ func TestInspectBinaryAlias(t *testing.T) {
 			t.Fatalf("finding = %+v, err %v; want foreign (the alias resolves to nothing)", f, err)
 		}
 	})
+}
+
+// A binary that has vanished is binary drift (or a re-install) to report, not
+// an alias to classify: docket's own link to it must not read as foreign —
+// whether the binary was the development record's or the release downloader's.
+func TestCheckBinaryAliasesSkipsAVanishedBinary(t *testing.T) {
+	bin, binary := aliasBin(t)
+	if err := os.Symlink("docket", filepath.Join(bin, AliasName)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(binary); err != nil {
+		t.Fatal(err)
+	}
+	state := &State{Targets: []TargetRecord{{Path: binary, Kind: KindFile, Role: roleBinary}}}
+	if got, err := checkBinaryAliases(state, UserRoots{StateHome: testsupport.TempDir(t)}); err != nil || len(got) != 0 {
+		t.Fatalf("recorded binary: findings %+v, err %v; want none", got, err)
+	}
+
+	stateHome := testsupport.TempDir(t)
+	rec := (UserRoots{StateHome: stateHome}).ReleaseBinaryRecordPath()
+	if err := os.MkdirAll(filepath.Dir(rec), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(rec, []byte("path="+binary+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := checkBinaryAliases(nil, UserRoots{StateHome: stateHome}); err != nil || len(got) != 0 {
+		t.Fatalf("release binary: findings %+v, err %v; want none", got, err)
+	}
 }
 
 func TestReadReleaseBinaryPath(t *testing.T) {

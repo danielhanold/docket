@@ -514,6 +514,10 @@ type plannedInstallation struct {
 	assetProtocol int
 	sourceRoot    string
 	sourceDigest  string
+	// foreignAliases are alias paths this run found occupied by something
+	// docket cannot prove it owns. A prior roleBinaryAlias record for one of
+	// them grants nothing, so it is not carried into the published state.
+	foreignAliases []string
 }
 
 // applyPlan is the shared tail of Install and DevelopmentInstall: classify,
@@ -824,8 +828,15 @@ func desiredState(o Options, p plannedInstallation, prior *State) (*State, error
 		rec.Path = path
 		records = append(records, rec)
 	}
+	foreignAlias := make(map[string]bool, len(p.foreignAliases))
+	for _, path := range p.foreignAliases {
+		foreignAlias[filepath.Clean(path)] = true
+	}
 	if prior != nil {
 		for _, rec := range prior.Targets {
+			if rec.Role == roleBinaryAlias && foreignAlias[filepath.Clean(rec.Path)] {
+				continue // replaced by the user: no longer docket's to record.
+			}
 			if !selected[rec.Harness] {
 				carry(rec)
 			}
