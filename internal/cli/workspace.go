@@ -109,7 +109,7 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	publish := &cobra.Command{
 		Use:         "publish",
-		Short:       "Publish a change's ready workspace head to the remote feature ref",
+		Short:       "Publish a change's ready workspace head to the remote feature ref (leak-checked in a private repository)",
 		Args:        cobra.NoArgs,
 		Annotations: capability("workspace.publish", EffectExternalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {

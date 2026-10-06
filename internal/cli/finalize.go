@@ -513,7 +513,7 @@ func newFinalizeResolverReserveSubcommand(setResult func(app.OperationResult)) *
 func newFinalizePublishSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "publish",
-		Short: "Publish a rebased feature head under its receipt lease and record its build evidence",
+		Short: "Publish a rebased feature head under its receipt lease and record its build evidence (leak-checked in a private repository)",
 		Args:  cobra.NoArgs,
 		// external-write: force-with-lease pushes the rewritten feature head
 		// (remote ref); the pull request is only probed, never edited;

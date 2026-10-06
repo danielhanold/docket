@@ -4,11 +4,13 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/workspace"
 )
@@ -366,6 +368,81 @@ func TestIntegrationWorkflowLifecyclePrivateLeakCheckUnverifiedPushesNothing(t *
 	if originHasBranch(t, lw.origin, lw.featureRef) {
 		t.Errorf("an unverified scan still pushed %s to origin", lw.featureRef)
 	}
+}
+
+// TestIntegrationWorkflowLifecyclePrivateLeakCheckGatesPR proves a private
+// repository's pr.publish scans the authored title and body (as well as the
+// outgoing commits) before any GitHub write: a change reference in the title or
+// a .docket path in the body refuses with nothing ensured and the body never
+// echoed back, while clean prose is ensured byte-for-byte.
+func TestIntegrationWorkflowLifecyclePrivateLeakCheckGatesPR(t *testing.T) {
+	lw, _ := newPrivateLeakWorkspace(t)
+	head := commitInWorkspace(t, lw.wp, "Add the widget", map[string]string{"widget.go": "package widget\n"})
+	if pub := lw.publish(t, head); pub.Result != ResultApplied {
+		t.Fatalf("publish of the clean head = %q/%q (msg %q, leaks %+v), want applied", pub.Result, pub.Reason, pub.Message, pub.Leaks)
+	}
+	evidenceBytes := prEvidenceBytes(t, head)
+
+	prPublish := func(gh *fakeGitHub, title, body string) PRPublishResult {
+		return PRPublish(context.Background(), lw.node.deps, lw.wdeps, GitHubDeps{Service: gh}, lw.node.dir, PRPublishRequest{
+			ID: lw.id, Head: head, Title: title, Body: body, EvidenceRecord: evidenceBytes,
+		})
+	}
+	newGH := func() *fakeGitHub {
+		return &fakeGitHub{repo: prRepo(), ensureRes: githubcli.EnsureResult{Disposition: githubcli.EnsureCreated, PR: prMatchPR("x")}}
+	}
+	requirePRLeak := func(t *testing.T, gh *fakeGitHub, res PRPublishResult, want LeakHit) {
+		t.Helper()
+		if res.Result != ResultBlocked || res.Reason != ReasonLeakDetected {
+			t.Fatalf("pr publish = %q/%q (msg %q), want blocked/%s", res.Result, res.Reason, res.Message, ReasonLeakDetected)
+		}
+		if len(gh.ensureCalls) != 0 {
+			t.Errorf("a leak-refused pr publish still ensured a PR: %+v", gh.ensureCalls)
+		}
+		if len(res.Leaks) != 1 {
+			t.Fatalf("leaks = %+v, want exactly one hit %+v", res.Leaks, want)
+		}
+		got := res.Leaks[0]
+		if got.Source != want.Source || got.Line != want.Line || got.Rule != want.Rule || (want.Text != "" && got.Text != want.Text) {
+			t.Errorf("leak hit = %+v, want %+v", got, want)
+		}
+		if !strings.Contains(res.Message, "("+want.Rule+")") {
+			t.Errorf("refusal message does not show the rule %s: %q", want.Rule, res.Message)
+		}
+	}
+
+	t.Run("change-id-in-title", func(t *testing.T) {
+		gh := newGH()
+		requirePRLeak(t, gh, prPublish(gh, "Add the widget for change 0001", "Plain prose.\n"),
+			LeakHit{Source: "pr-title", Line: 1, Rule: "change-ref"})
+	})
+
+	t.Run("docket-path-in-body", func(t *testing.T) {
+		gh := newGH()
+		res := prPublish(gh, "Add the widget", "Plain.\nSee .docket/notes for more.\n")
+		requirePRLeak(t, gh, res, LeakHit{Source: "pr-body", Line: 2, Rule: "path", Text: ".docket"})
+		doc, err := json.Marshal(res)
+		if err != nil {
+			t.Fatalf("marshal the refusal: %v", err)
+		}
+		if strings.Contains(string(doc), "See .docket/notes for more") {
+			t.Errorf("the refusal carries the PR body line; a hit holds only the matched token:\n%s", doc)
+		}
+	})
+
+	t.Run("clean-prose-is-ensured-verbatim", func(t *testing.T) {
+		gh := newGH()
+		res := prPublish(gh, "Add the widget", "Plain prose.\n")
+		if res.Result != ResultApplied {
+			t.Fatalf("pr publish of clean prose = %q/%q (msg %q, leaks %+v), want applied", res.Result, res.Reason, res.Message, res.Leaks)
+		}
+		if len(gh.ensureCalls) != 1 {
+			t.Fatalf("ensure calls = %d, want 1", len(gh.ensureCalls))
+		}
+		if got := gh.ensureCalls[0]; got.Body != "Plain prose.\n" || got.Title != "Add the widget" {
+			t.Errorf("ensured title/body = %q/%q, want the authored prose verbatim", got.Title, got.Body)
+		}
+	})
 }
 
 // TestIntegrationWorkflowLifecycleSharedPublishRunsNoLeakCheck pins that a
