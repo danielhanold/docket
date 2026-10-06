@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:ee29ff00a74f9f875c35fcb72b4ab9ca4e1f93d383163a2efbaa95d9ceb60a3d",
+  "asset_set_id": "sha256:eb96161ad81b8b1f8eb968a79bfb652d521b7737ea8077a712d1296597fbc033",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -378,29 +378,29 @@
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 58219,
-      "sha256": "f2b93b5516e1418a93806df34c82e95cfd92fb54d3e380ac7d4161a0b3ad5cfd"
+      "size": 56301,
+      "sha256": "ecbdb78ff2a8474d1594b4ada9f67ce1872aa3ea8842c78357b8f07feafcb0d2"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",
       "role": "skill",
       "mode": 420,
-      "size": 10120,
-      "sha256": "e7a745822ea8ce6be2811cd722eac776999c529677794541127a169b361cf0ad"
+      "size": 8312,
+      "sha256": "d189ca4a4c4de2548e3514ae5ee29e430e6119f9e4fe06621cafee0176b5ee86"
     },
     {
       "path": "skills/docket-implement-next/references/fix-pass.md",
       "role": "skill",
       "mode": 420,
-      "size": 12346,
-      "sha256": "b1e32a57a6a2c450ecc2122a8b35785edf36fa869408d09a123618cee9b65455"
+      "size": 12335,
+      "sha256": "895f5c2a1e030e8591ab02a48a8f82b8d48b5a778a66699f170011ad3abd7c11"
     },
     {
       "path": "skills/docket-implement-next/results-template.md",
       "role": "skill",
       "mode": 420,
-      "size": 3748,
-      "sha256": "66f8b754c4ae282ae3b099ad7e478e9d9e56d2371d71235e8f0d2665564ca43e"
+      "size": 3760,
+      "sha256": "a5f1d87a0d63f764551c6e3301e019886c83b541507b22eb0e935ebc881bed8c"
     },
     {
       "path": "skills/docket-new-change/SKILL.md",
