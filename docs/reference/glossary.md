@@ -1498,7 +1498,9 @@ docket repository repair         # preview; add --yes to apply
 `--pr-backlinks` repairs a different thing: merged pull requests whose description backlink still
 names a change path that no longer exists. It reads those PR descriptions on GitHub, previews each
 PR with its current and corrected link, and edits them one at a time only with `--yes`. A PR it
-cannot read or edit is reported and skipped.
+cannot read or edit is reported and skipped. The full maintenance sweep makes the same repair,
+without a preview, as it retries each `done` change's cleanup; `--pr-backlinks` is the way to see
+every affected PR first and repoint them all at once.
 
 ```sh
 docket repository repair --pr-backlinks         # preview; add --yes to apply
