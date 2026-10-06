@@ -268,7 +268,8 @@ func TestChangeGroomPlanSpecOutcomeFileSet(t *testing.T) {
 	if !strings.Contains(spec, "The design body.") {
 		t.Errorf("spec file missing the submitted markdown:\n%s", spec)
 	}
-	if !strings.Contains(spec, groomPath(2, "add-a-widget")) {
+	// The spec backlink links the record relatively from the spec's directory.
+	if !strings.Contains(spec, "](../../changes/active/0002-add-a-widget.md)**") {
 		t.Errorf("spec backlink does not target the change record path:\n%s", spec)
 	}
 }

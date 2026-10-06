@@ -16,9 +16,10 @@ type LinkContext struct {
 	// records point at, e.g. "docket".
 	MetadataBranch string
 	// IntegrationBranch is the branch PR merges land on, e.g. "main". It is
-	// consulted only for rows whose file reaches the integration branch (the
-	// Plan/Results rows of a done change); empty falls back to MetadataBranch
-	// at the BlobURLOnBranch boundary, so a malformed URL is unrepresentable.
+	// consulted only for rows whose file is on the integration branch (a done
+	// change's "Spec (merged)" row, and a legacy done change's Plan/Results
+	// rows); empty falls back to MetadataBranch at the BlobURLOnBranch
+	// boundary, so a malformed URL is unrepresentable.
 	IntegrationBranch string
 }
 
@@ -31,8 +32,8 @@ func (l LinkContext) BlobURL(repoRelPath string) string {
 
 // BlobURLOnBranch returns RepoWebURL + "/blob/" + branch + "/" + repoRelPath,
 // or "" when RepoWebURL is empty. An empty branch falls back to
-// MetadataBranch: the defensive default for callers whose lifecycle ref is
-// unresolvable (change 0417), never a malformed "/blob//" URL.
+// MetadataBranch: the defensive default for a caller whose branch is
+// unresolvable, never a malformed "/blob//" URL.
 func (l LinkContext) BlobURLOnBranch(repoRelPath, branch string) string {
 	if l.RepoWebURL == "" {
 		return ""

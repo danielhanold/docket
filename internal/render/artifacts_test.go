@@ -3,6 +3,7 @@ package render_test
 import (
 	"bytes"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,10 +12,9 @@ import (
 	"github.com/danielhanold/docket/internal/render"
 )
 
-// readArtifactGolden loads a frozen block/backlink snapshot from
-// testdata/artifacts. These are historical snapshots of the Bash renderers
-// (see testdata/artifacts/PROVENANCE.md); the byte-equality asserts below are
-// their drift guard.
+// readArtifactGolden loads a block/backlink snapshot from testdata/artifacts
+// (see testdata/artifacts/PROVENANCE.md for each golden's source); the
+// byte-equality asserts below are their drift guard.
 func readArtifactGolden(t *testing.T, name string) []byte {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join("testdata", "artifacts", name))
@@ -126,14 +126,15 @@ func TestArtifactBlockContentEmpty(t *testing.T) {
 }
 
 // TestArtifactBlockContentADRLinksCommaSeparated pins the comma-separated ADR
-// cell in GitHub mode independently of the golden.
+// cell independently of the golden: each entry keeps its ADR-NNNN label and
+// links the ADR relatively from the record.
 func TestArtifactBlockContentADRLinksCommaSeparated(t *testing.T) {
 	got, err := render.ArtifactBlockContent(alphaChange(), adrSnapshot(), githubLink)
 	if err != nil {
 		t.Fatalf("ArtifactBlockContent: %v", err)
 	}
-	wantCell := "| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-first-decision.md), " +
-		"[ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-second-decision.md) |"
+	wantCell := "| ADRs | [ADR-0001](../../adrs/0001-first-decision.md), " +
+		"[ADR-0002](../../adrs/0002-second-decision.md) |"
 	if !strings.Contains(got, wantCell) {
 		t.Fatalf("ADR cell not comma-separated as expected:\n%s", got)
 	}
@@ -218,148 +219,242 @@ func TestBacklinkContentDeterministic(t *testing.T) {
 	}
 }
 
-// gammaChange is fixture C: beta's spec/plan/results paths, plus the in-flight
-// lifecycle state 0417 pins on — status implemented, feature branch set.
-func gammaChange() domain.Change {
+// fullChange is a change carrying every artifact kind — spec, plan, results,
+// and two ADRs — at the given lifecycle state, location, and record path.
+func fullChange(status domain.Status, evidence bool, loc domain.RecordLocation, recPath string) domain.Change {
 	return domain.NewChange(domain.ChangeSpec{
-		ID:       9,
-		Slug:     "gamma-change",
-		Title:    "Gamma change",
-		Status:   domain.StatusImplemented,
-		Branch:   optString("fix/gamma-change"),
-		Spec:     optString("docs/superpowers/specs/2026-08-16-beta-change-design.md"),
-		Plan:     optString("docs/superpowers/plans/2026-08-16-beta-change.md"),
-		Results:  optString("docs/results/2026-08-16-beta-change-results.md"),
-		Location: domain.LocationActive,
-		Path:     "docs/changes/active/0009-gamma-change.md",
+		ID:               10,
+		Slug:             "delta-change",
+		Title:            "Delta change",
+		Status:           status,
+		Branch:           optString("fix/delta-change"),
+		ADRs:             adrIDs(1, 2),
+		Spec:             optString("docs/superpowers/specs/2026-08-16-delta-change-design.md"),
+		Plan:             optString("docs/superpowers/plans/2026-08-16-delta-change.md"),
+		Results:          optString("docs/results/2026-08-16-delta-change-results.md"),
+		HasBuildEvidence: evidence,
+		Location:         loc,
+		Path:             recPath,
 	})
 }
 
-// deltaChange is fixture D: gamma after merge — done, archived.
-func deltaChange() domain.Change {
-	return domain.NewChange(domain.ChangeSpec{
-		ID:       10,
-		Slug:     "delta-change",
-		Title:    "Delta change",
-		Status:   domain.StatusDone,
-		Branch:   optString("fix/delta-change"),
-		Spec:     optString("docs/superpowers/specs/2026-08-16-beta-change-design.md"),
-		Plan:     optString("docs/superpowers/plans/2026-08-16-beta-change.md"),
-		Results:  optString("docs/results/2026-08-16-beta-change-results.md"),
-		Location: domain.LocationArchive,
-		Path:     "docs/changes/archive/2026-09-14-0010-delta-change.md",
-	})
+const (
+	deltaActivePath  = "docs/changes/active/0010-delta-change.md"
+	deltaArchivePath = "docs/changes/archive/2026-09-14-0010-delta-change.md"
+)
+
+// markdownLinkTargets returns every Markdown link target "(...)" following a
+// "](" in s, in order.
+func markdownLinkTargets(s string) []string {
+	var out []string
+	for {
+		i := strings.Index(s, "](")
+		if i < 0 {
+			return out
+		}
+		s = s[i+2:]
+		j := strings.IndexByte(s, ')')
+		if j < 0 {
+			return out
+		}
+		out = append(out, s[:j])
+		s = s[j+1:]
+	}
 }
 
-// TestArtifactBlockLifecyclePinsPlanResults is 0417's core assert and its
-// mutation-tested guard (guards-are-code): the Plan/Results rows of a
-// not-yet-done change resolve onto the FEATURE branch, of a done change onto
-// the INTEGRATION branch, while the Spec row stays on the metadata branch in
-// every state. Asserts pin the exact produced URL, positive and negative
-// (assert-pins-outcome-not-mechanism / assert-detects-removal-not-replacement):
-// each case also proves the docket-pinned spelling is GONE for Plan/Results.
+// TestArtifactBlockRelativeRowsSurviveArchive: every row of a change whose
+// artifacts live on the metadata branch is a link relative to the record, and
+// docs/changes/active and docs/changes/archive are siblings, so the block is
+// byte-identical before and after archiving. Every link resolves, from the
+// record's own directory, to the field's path; no row is an absolute blob URL;
+// and the rows render the same with or without a web URL.
+func TestArtifactBlockRelativeRowsSurviveArchive(t *testing.T) {
+	active := fullChange(domain.StatusInProgress, false, domain.LocationActive, deltaActivePath)
+	archived := fullChange(domain.StatusInProgress, false, domain.LocationArchive, deltaArchivePath)
+
+	gotActive, err := render.ArtifactBlockContent(active, adrSnapshot(), githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent(active): %v", err)
+	}
+	gotArchived, err := render.ArtifactBlockContent(archived, adrSnapshot(), githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent(archived): %v", err)
+	}
+	if gotActive != gotArchived {
+		t.Fatalf("block differs across the archive move:\n--- active ---\n%s\n--- archived ---\n%s", gotActive, gotArchived)
+	}
+	gotNoWeb, err := render.ArtifactBlockContent(active, adrSnapshot(), relativeLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent(no web URL): %v", err)
+	}
+	if gotNoWeb != gotActive {
+		t.Fatalf("relative rows depend on the web URL:\n--- github ---\n%s\n--- none ---\n%s", gotActive, gotNoWeb)
+	}
+	if strings.Contains(gotActive, "/blob/") {
+		t.Fatalf("a same-branch row is still an absolute blob URL:\n%s", gotActive)
+	}
+
+	want := map[string]bool{
+		"docs/superpowers/specs/2026-08-16-delta-change-design.md": true,
+		"docs/superpowers/plans/2026-08-16-delta-change.md":        true,
+		"docs/results/2026-08-16-delta-change-results.md":          true,
+		"docs/adrs/0001-first-decision.md":                         true,
+		"docs/adrs/0002-second-decision.md":                        true,
+	}
+	for _, recPath := range []string{deltaActivePath, deltaArchivePath} {
+		targets := markdownLinkTargets(gotActive)
+		if len(targets) != len(want) {
+			t.Fatalf("got %d links, want %d:\n%s", len(targets), len(want), gotActive)
+		}
+		seen := map[string]bool{}
+		for _, link := range targets {
+			resolved := path.Join(path.Dir(recPath), link)
+			if !want[resolved] {
+				t.Errorf("link %q from %q resolves to %q, which is no artifact field", link, recPath, resolved)
+			}
+			seen[resolved] = true
+		}
+		if len(seen) != len(want) {
+			t.Errorf("links from %q resolve to %d distinct artifacts, want %d", recPath, len(seen), len(want))
+		}
+	}
+}
+
+// TestArtifactBlockLegacyDoneKeepsIntegrationRows pins the legacy rule: a done
+// change with no "## Build evidence" section predates the metadata-branch
+// cutover, so its plan and results live on the integration branch and their
+// rows stay absolute there. Its spec and ADR rows are relative like every
+// other record's, and it gets no "Spec (merged)" row.
 //
-// Mutation probes (run with -count=1; cp-backup artifacts.go first):
-//
-//	(a) in ArtifactBlockContent, pass link.MetadataBranch instead of
-//	    lifecycleBranch(c, link) for the Plan and Results rows (the pre-0417
-//	    hardcoding) -> the implemented and done cases must redden;
-//	(b) in lifecycleBranch, delete the StatusDone arm -> the done case must
-//	    redden;
-//	(c) in lifecycleBranch, delete the empty-branch fallback -> the
-//	    fallback case must redden.
-func TestArtifactBlockLifecyclePinsPlanResults(t *testing.T) {
-	const base = "https://github.com/danielhanold/docket/blob/"
+// Mutation probe (Step 7): make the legacy predicate always false -> the
+// absolute Plan/Results asserts must redden.
+func TestArtifactBlockLegacyDoneKeepsIntegrationRows(t *testing.T) {
+	c := fullChange(domain.StatusDone, false, domain.LocationArchive, deltaArchivePath)
+
+	got, err := render.ArtifactBlockContent(c, adrSnapshot(), githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent: %v", err)
+	}
+	want := "| Artifact | Link |\n|---|---|\n" +
+		"| Spec | [2026-08-16-delta-change-design.md](../../superpowers/specs/2026-08-16-delta-change-design.md) |\n" +
+		"| Plan | [2026-08-16-delta-change.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-16-delta-change.md) |\n" +
+		"| Results | [2026-08-16-delta-change-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-16-delta-change-results.md) |\n" +
+		"| ADRs | [ADR-0001](../../adrs/0001-first-decision.md), [ADR-0002](../../adrs/0002-second-decision.md) |\n"
+	if got != want {
+		t.Fatalf("legacy done block mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+
+	gotNoWeb, err := render.ArtifactBlockContent(c, adrSnapshot(), relativeLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent(no web URL): %v", err)
+	}
+	wantNoWeb := "| Artifact | Link |\n|---|---|\n" +
+		"| Spec | [2026-08-16-delta-change-design.md](../../superpowers/specs/2026-08-16-delta-change-design.md) |\n" +
+		"| Plan | `docs/superpowers/plans/2026-08-16-delta-change.md` |\n" +
+		"| Results | `docs/results/2026-08-16-delta-change-results.md` |\n" +
+		"| ADRs | [ADR-0001](../../adrs/0001-first-decision.md), [ADR-0002](../../adrs/0002-second-decision.md) |\n"
+	if gotNoWeb != wantNoWeb {
+		t.Fatalf("legacy done block (no web URL) mismatch:\n--- got ---\n%s\n--- want ---\n%s", gotNoWeb, wantNoWeb)
+	}
+}
+
+// TestArtifactBlockDoneWithEvidenceAddsSpecMerged: a done change that carries
+// the "## Build evidence" section was built after the cutover — its plan and
+// results stay on the metadata branch (relative rows), and its spec copy
+// merged with the PR, so a "Spec (merged)" row links that copy absolutely on
+// the integration branch, right after the Spec row. A not-yet-done change with
+// the section gets no "Spec (merged)" row: nothing has merged.
+func TestArtifactBlockDoneWithEvidenceAddsSpecMerged(t *testing.T) {
+	c := fullChange(domain.StatusDone, true, domain.LocationArchive, deltaArchivePath)
+
+	got, err := render.ArtifactBlockContent(c, adrSnapshot(), githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent: %v", err)
+	}
+	want := "| Artifact | Link |\n|---|---|\n" +
+		"| Spec | [2026-08-16-delta-change-design.md](../../superpowers/specs/2026-08-16-delta-change-design.md) |\n" +
+		"| Spec (merged) | [2026-08-16-delta-change-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-08-16-delta-change-design.md) |\n" +
+		"| Plan | [2026-08-16-delta-change.md](../../superpowers/plans/2026-08-16-delta-change.md) |\n" +
+		"| Results | [2026-08-16-delta-change-results.md](../../results/2026-08-16-delta-change-results.md) |\n" +
+		"| ADRs | [ADR-0001](../../adrs/0001-first-decision.md), [ADR-0002](../../adrs/0002-second-decision.md) |\n"
+	if got != want {
+		t.Fatalf("done-with-evidence block mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+
+	gotNoWeb, err := render.ArtifactBlockContent(c, adrSnapshot(), relativeLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent(no web URL): %v", err)
+	}
+	if row := "| Spec (merged) | `docs/superpowers/specs/2026-08-16-delta-change-design.md` |\n"; !strings.Contains(gotNoWeb, row) {
+		t.Fatalf("no-web-URL Spec (merged) row missing %q:\n%s", row, gotNoWeb)
+	}
+
+	implemented := fullChange(domain.StatusImplemented, true, domain.LocationActive, deltaActivePath)
+	gotImpl, err := render.ArtifactBlockContent(implemented, adrSnapshot(), githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent(implemented): %v", err)
+	}
+	if strings.Contains(gotImpl, "Spec (merged)") {
+		t.Fatalf("a not-yet-done change rendered a Spec (merged) row:\n%s", gotImpl)
+	}
+}
+
+// TestArtifactBacklinkContentRelative: a file on the metadata branch links back
+// to its record relatively from the file's own directory, so the link follows
+// the record when it is archived (the archive transaction re-stamps it).
+func TestArtifactBacklinkContentRelative(t *testing.T) {
+	const plan = "docs/superpowers/plans/p.md"
 	cases := []struct {
-		name    string
-		c       domain.Change
-		wantRef string // branch the Plan/Results URLs must use
+		name string
+		c    domain.Change
+		want string
 	}{
-		{"implemented pins the feature branch", gammaChange(), "fix/gamma-change"},
-		{"done pins the integration branch", deltaChange(), "main"},
+		{"active", alphaChange(), "../../changes/active/0007-alpha-change.md"},
+		{"archived", domain.NewChange(domain.ChangeSpec{
+			ID: 7, Slug: "alpha-change", Title: "Alpha change",
+			Location: domain.LocationArchive,
+			Path:     "docs/changes/archive/2026-08-16-0007-alpha-change.md",
+		}), "../../changes/archive/2026-08-16-0007-alpha-change.md"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := render.ArtifactBlockContent(tc.c, domain.Snapshot{}, githubLink)
-			if err != nil {
-				t.Fatalf("ArtifactBlockContent: %v", err)
+			got := render.ArtifactBacklinkContent(tc.c, plan)
+			want := "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
+				"> ↩ **[Change 0007 — Alpha change](" + tc.want + ")**\n" +
+				"<!-- docket:backlink:end -->\n"
+			if got != want {
+				t.Fatalf("backlink mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
 			}
-			wantPlan := "| Plan | [2026-08-16-beta-change.md](" + base + tc.wantRef + "/docs/superpowers/plans/2026-08-16-beta-change.md) |"
-			wantResults := "| Results | [2026-08-16-beta-change-results.md](" + base + tc.wantRef + "/docs/results/2026-08-16-beta-change-results.md) |"
-			wantSpec := "| Spec | [2026-08-16-beta-change-design.md](" + base + "docket/docs/superpowers/specs/2026-08-16-beta-change-design.md) |"
-			for _, want := range []string{wantPlan, wantResults, wantSpec} {
-				if !strings.Contains(got, want) {
-					t.Errorf("block missing row %q\ngot:\n%s", want, got)
-				}
-			}
-			for _, banned := range []string{
-				base + "docket/docs/superpowers/plans/",
-				base + "docket/docs/results/",
-			} {
-				if strings.Contains(got, banned) {
-					t.Errorf("Plan/Results row still pinned to the metadata branch (%q present)\ngot:\n%s", banned, got)
-				}
+			if resolved := path.Join(path.Dir(plan), tc.want); resolved != tc.c.Path() {
+				t.Fatalf("backlink resolves to %q, not the record %q", resolved, tc.c.Path())
 			}
 		})
 	}
 }
 
-// TestArtifactBlockStackedMergedUsesFeatureBranch documents the spec's
-// explicit choice: stacked-merged is NOT done, so it takes the feature-branch
-// leg of the same test — no special handling.
-func TestArtifactBlockStackedMergedUsesFeatureBranch(t *testing.T) {
-	spec := domain.ChangeSpec{
-		ID: 11, Slug: "stacked-change", Title: "Stacked change",
-		Status:   domain.StatusStackedMerged,
-		Branch:   optString("fix/stacked-change"),
-		Plan:     optString("docs/superpowers/plans/2026-08-16-beta-change.md"),
-		Location: domain.LocationActive,
-		Path:     "docs/changes/active/0011-stacked-change.md",
+// TestPRArtifactLinksContent: the PR description links the plan and results
+// absolutely on the metadata branch (a PR body has no branch to be relative
+// to); nothing renders without a web URL or without either field.
+func TestPRArtifactLinksContent(t *testing.T) {
+	got := render.PRArtifactLinksContent(betaChange(), githubLink)
+	want := "- Plan: [2026-08-16-beta-change.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-16-beta-change.md)\n" +
+		"- Results: [2026-08-16-beta-change-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-16-beta-change-results.md)\n"
+	if got != want {
+		t.Fatalf("PR artifact links mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
 	}
-	got, err := render.ArtifactBlockContent(domain.NewChange(spec), domain.Snapshot{}, githubLink)
-	if err != nil {
-		t.Fatalf("ArtifactBlockContent: %v", err)
+	if got := render.PRArtifactLinksContent(betaChange(), relativeLink); got != "" {
+		t.Fatalf("no web URL rendered %q, want empty", got)
 	}
-	want := "https://github.com/danielhanold/docket/blob/fix/stacked-change/docs/superpowers/plans/2026-08-16-beta-change.md"
-	if !strings.Contains(got, want) {
-		t.Errorf("stacked-merged Plan row does not use the feature branch\ngot:\n%s", got)
+	if got := render.PRArtifactLinksContent(alphaChange(), githubLink); got != "" {
+		t.Fatalf("a change with neither plan nor results rendered %q, want empty", got)
 	}
-}
-
-// TestArtifactBlockMissingBranchFallsBackToMetadata pins the defensive
-// default: a Plan path present with no branch: renders today's metadata-branch
-// URL, never a malformed one. (betaChange — no status, no branch — exercises
-// the same path via the frozen golden; this case makes the implemented-state
-// variant explicit.)
-func TestArtifactBlockMissingBranchFallsBackToMetadata(t *testing.T) {
-	spec := domain.ChangeSpec{
-		ID: 12, Slug: "branchless-change", Title: "Branchless change",
-		Status:   domain.StatusImplemented,
-		Plan:     optString("docs/superpowers/plans/2026-08-16-beta-change.md"),
-		Location: domain.LocationActive,
-		Path:     "docs/changes/active/0012-branchless-change.md",
-	}
-	got, err := render.ArtifactBlockContent(domain.NewChange(spec), domain.Snapshot{}, githubLink)
-	if err != nil {
-		t.Fatalf("ArtifactBlockContent: %v", err)
-	}
-	want := "https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-16-beta-change.md"
-	if !strings.Contains(got, want) {
-		t.Errorf("branchless Plan row did not fall back to the metadata branch\ngot:\n%s", got)
-	}
-}
-
-// TestArtifactBlockRelativeModeIgnoresLifecycle: relative rendering embeds no
-// branch, so an implemented change with a feature branch must produce the
-// exact bytes of the frozen relative golden (which was generated from a
-// lifecycle-free fixture with the same artifact paths).
-func TestArtifactBlockRelativeModeIgnoresLifecycle(t *testing.T) {
-	got, err := render.ArtifactBlockContent(gammaChange(), domain.Snapshot{}, relativeLink)
-	if err != nil {
-		t.Fatalf("ArtifactBlockContent: %v", err)
-	}
-	want := readArtifactGolden(t, "block-spec-plan-results.relative.golden")
-	if !bytes.Equal([]byte(got), want) {
-		t.Errorf("relative-mode output diverged from frozen golden\ngot:\n%s\nwant:\n%s", got, want)
+	planOnly := domain.NewChange(domain.ChangeSpec{
+		ID: 8, Slug: "beta-change", Title: "Beta change",
+		Plan: optString("docs/superpowers/plans/2026-08-16-beta-change.md"),
+		Path: "docs/changes/active/0008-beta-change.md",
+	})
+	wantPlan := "- Plan: [2026-08-16-beta-change.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-16-beta-change.md)\n"
+	if got := render.PRArtifactLinksContent(planOnly, githubLink); got != wantPlan {
+		t.Fatalf("plan-only PR links = %q, want %q", got, wantPlan)
 	}
 }

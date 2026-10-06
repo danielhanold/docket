@@ -13,10 +13,11 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// doneCorpusChangeRecord is a `done` archived change carrying Spec, Plan, and
-// Results rows. Under change 0417 a done change's Plan/Results rows pin the
-// INTEGRATION branch while its Spec row stays on the metadata branch — the
-// distinction the corpus link context (readCheckCorpus) must carry.
+// doneCorpusChangeRecord is a LEGACY `done` archived change (no "## Build
+// evidence" section) carrying Spec, Plan, and Results rows. Its plan and results
+// merged to the INTEGRATION branch, so their rows stay absolute there while its
+// Spec row is relative on the metadata branch — the distinction the corpus link
+// context (readCheckCorpus) must carry.
 const doneCorpusChangeRecord = "---\n" +
 	"id: 1\n" +
 	"slug: example\n" +
@@ -33,6 +34,27 @@ const doneCorpusChangeRecord = "---\n" +
 	"pr: https://github.com/acme/widgets/pull/7\n" +
 	"reconciled: true\n" +
 	"---\n\n## Why\n\nbody\n"
+
+// doneWithEvidenceCorpusChangeRecord is a `done` archived change built on the
+// metadata-branch flow: it carries the "## Build evidence" section, so its plan
+// and results rows are relative and its merged spec copy gets an absolute
+// "Spec (merged)" row on the integration branch.
+const doneWithEvidenceCorpusChangeRecord = "---\n" +
+	"id: 2\n" +
+	"slug: modern\n" +
+	"title: Modern change\n" +
+	"status: done\n" +
+	"priority: medium\n" +
+	"type: feature\n" +
+	"created: 2026-10-06\n" +
+	"updated: 2026-10-06\n" +
+	"spec: docs/superpowers/specs/2026-10-06-modern-design.md\n" +
+	"plan: docs/superpowers/plans/2026-10-06-modern.md\n" +
+	"results: docs/results/2026-10-06-modern-results.md\n" +
+	"branch: feat/modern\n" +
+	"pr: https://github.com/acme/widgets/pull/8\n" +
+	"reconciled: true\n" +
+	"---\n\n## Why\n\nbody\n\n## Build evidence\n\nevidence\n"
 
 // TestIntegrationRepoCheckCorpusPinsDoneChangeToIntegrationBranch guards the
 // readCheckCorpus link-context wiring against a destructive regression (change
@@ -59,6 +81,7 @@ func TestIntegrationRepoCheckCorpusPinsDoneChangeToIntegrationBranch(t *testing.
 	runGit(t, dir, "remote", "add", "origin", "https://github.com/acme/widgets.git")
 
 	writeRepoFile(t, dir, "docs/changes/archive/2026-08-30-0001-example.md", doneCorpusChangeRecord)
+	writeRepoFile(t, dir, "docs/changes/archive/2026-10-06-0002-modern.md", doneWithEvidenceCorpusChangeRecord)
 	runGit(t, dir, "add", "-A")
 	runGit(t, dir, "commit", "-q", "-m", "corpus with a done change")
 	tip := runGit(t, dir, "rev-parse", "HEAD")
@@ -114,14 +137,38 @@ func TestIntegrationRepoCheckCorpusPinsDoneChangeToIntegrationBranch(t *testing.
 		t.Errorf("Results row does not resolve onto the integration branch (want %q); rendered block:\n%s", resultsURL, body)
 	}
 
-	// The Spec row stays on the metadata branch, where the record lives.
-	specURL := "/blob/" + reposetup.MetadataBranchName + "/docs/superpowers/specs/2026-08-30-example-design.md"
-	if !strings.Contains(body, specURL) {
-		t.Errorf("Spec row does not resolve onto the metadata branch (want %q); rendered block:\n%s", specURL, body)
+	// The Spec row links the spec relatively on the metadata branch, where the
+	// record lives; a legacy record gets no Spec (merged) row.
+	specRow := "| Spec | [2026-08-30-example-design.md](../../superpowers/specs/2026-08-30-example-design.md) |"
+	if !strings.Contains(body, specRow) {
+		t.Errorf("Spec row is not the relative metadata-branch link (want %q); rendered block:\n%s", specRow, body)
+	}
+	if strings.Contains(body, "Spec (merged)") {
+		t.Errorf("a legacy done record rendered a Spec (merged) row; rendered block:\n%s", body)
 	}
 	// Guard the assertion itself: Plan/Results must not sit on the metadata branch.
 	if strings.Contains(body, "/blob/"+reposetup.MetadataBranchName+"/docs/superpowers/plans/") ||
 		strings.Contains(body, "/blob/"+reposetup.MetadataBranchName+"/docs/results/") {
 		t.Errorf("Plan/Results resolved onto the metadata branch; rendered block:\n%s", body)
+	}
+	// A done change built on the metadata-branch flow: Plan/Results relative,
+	// and the merged spec copy absolute on the integration branch.
+	modern, outcome := snap.Change(2)
+	if outcome != 0 {
+		t.Fatalf("done-with-evidence change absent from snapshot (lookup outcome %d)", outcome)
+	}
+	modernBody, err := render.ArtifactBlockContent(modern, snap, corpus.link)
+	if err != nil {
+		t.Fatalf("render artifact block (done with evidence): %v", err)
+	}
+	for _, row := range []string{
+		"| Spec | [2026-10-06-modern-design.md](../../superpowers/specs/2026-10-06-modern-design.md) |",
+		"| Spec (merged) | [2026-10-06-modern-design.md](https://github.com/acme/widgets/blob/main/docs/superpowers/specs/2026-10-06-modern-design.md) |",
+		"| Plan | [2026-10-06-modern.md](../../superpowers/plans/2026-10-06-modern.md) |",
+		"| Results | [2026-10-06-modern-results.md](../../results/2026-10-06-modern-results.md) |",
+	} {
+		if !strings.Contains(modernBody, row) {
+			t.Errorf("done-with-evidence block missing row %q; rendered block:\n%s", row, modernBody)
+		}
 	}
 }

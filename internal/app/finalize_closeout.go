@@ -990,8 +990,10 @@ func closeoutBacklinkTargets(cc *closeoutContext, targets []closeoutTarget) ([]c
 // archivedBacklinkInterior renders the docket:backlink interior a merged
 // artifact must carry after closeout: it points at the change's ARCHIVE path. It
 // builds a one-record snapshot at the archive path from the record bytes already
-// in hand so render.BacklinkContent renders the canonical line — the exact form
-// the metadata-ref spec retarget uses, so both legs stay consistent.
+// in hand so render.BacklinkContent renders the canonical line. The line is the
+// absolute metadata-branch form: a legacy merged artifact on the integration
+// branch and a PR description have no metadata record beside them to link
+// relatively (the metadata-ref retarget uses render.ArtifactBacklinkContent).
 func archivedBacklinkInterior(eff config.Effective, archivePath string, srcBytes []byte, link render.LinkContext) (string, error) {
 	doc, err := document.Parse(srcBytes)
 	if err != nil {
@@ -1146,7 +1148,7 @@ func (o closeoutArchiveOp) Plan(ctx context.Context, st transaction.AttemptState
 			transaction.FileMutation{Path: gitcli.RepoPath(p.tg.archivePath), Kind: transaction.MutationCreate, Bytes: finalBytes},
 			transaction.FileMutation{Path: gitcli.RepoPath(p.tg.activePath), Kind: transaction.MutationDelete},
 		)
-		files, err = retargetArtifactBacklinks(ctx, st.Tree, gc, o.link, files)
+		files, err = retargetArtifactBacklinks(ctx, st.Tree, gc, files)
 		if err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, err
 		}
@@ -1451,19 +1453,14 @@ func buildInPlaceCandidate(eff config.Effective, docs map[string]document.Docume
 }
 
 // retargetArtifactBacklinks retargets, on the metadata tree, the docket:backlink
-// block of each of the archived change's spec/plan/results artifacts that is
-// present ON that tree and carries a block. A metadata-resident artifact (the
-// spec) is retargeted here; an integration-resident one (the plan/results) is
-// absent from st.Tree and
-// left to the follow-up leg. It never conjures a block a hand-authored artifact
-// lacks, matching the kill path's spec-retarget contract.
-func retargetArtifactBacklinks(ctx context.Context, tree transaction.Tree, gc domain.Change, link render.LinkContext, files []transaction.FileMutation) ([]transaction.FileMutation, error) {
-	backlink, err := render.BacklinkContent(gc, link)
-	if err != nil {
-		return nil, fmt.Errorf("closeout: rendering backlink for %04d: %w", int(gc.ID()), err)
-	}
-	interior := backlinkInterior(backlink)
-
+// block of each of the relocated change's spec/plan/results artifacts that is
+// present ON that tree and carries a block, so its relative link names gc's
+// CURRENT record path. Each block is rendered from the artifact's own path. A
+// legacy plan/results file on the integration branch is absent from the tree
+// and skipped. It never conjures a block a hand-authored artifact lacks, and an
+// artifact whose bytes would not change is not declared. Close-out and kill
+// both relocate a record and share this loop.
+func retargetArtifactBacklinks(ctx context.Context, tree transaction.Tree, gc domain.Change, files []transaction.FileMutation) ([]transaction.FileMutation, error) {
 	for _, p := range artifactPathsOf(gc) {
 		bytesAt, present, err := readTreeBlob(ctx, tree, p)
 		if err != nil {
@@ -1474,16 +1471,16 @@ func retargetArtifactBacklinks(ctx context.Context, tree transaction.Tree, gc do
 		}
 		doc, err := document.Parse(bytesAt)
 		if err != nil {
-			return nil, fmt.Errorf("closeout: parsing linked artifact %q: %w", p, err)
+			return nil, fmt.Errorf("backlink retarget: parsing linked artifact %q: %w", p, err)
 		}
 		if _, ok := doc.Block(backlinkBlockName); !ok {
 			continue
 		}
 		var ps document.PatchSet
-		ps.ReplaceBlock(backlinkBlockName, interior)
+		ps.ReplaceBlock(backlinkBlockName, backlinkInterior(render.ArtifactBacklinkContent(gc, p)))
 		updated, err := doc.Apply(ps)
 		if err != nil {
-			return nil, fmt.Errorf("closeout: retargeting backlink in %q: %w", p, err)
+			return nil, fmt.Errorf("backlink retarget: rewriting the backlink in %q: %w", p, err)
 		}
 		if string(updated) == string(bytesAt) {
 			continue

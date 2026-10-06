@@ -1,12 +1,32 @@
 # Provenance — artifact-block and spec-backlink goldens (change 0312, task 3)
 
-These goldens are **historical snapshots** frozen once from the live Bash
+These goldens were **historical snapshots** frozen once from the live Bash
 renderers `scripts/render-change-links.sh` and `scripts/render-artifact-backlink.sh`.
 Under docket's frozen-golden contract they must **NOT** track those scripts:
 the scripts die in the 0316+ cutover, and a human decides whether the canonical
 Go shape should change and updates the golden and its `internal/render`
 serializer together. The byte-equality tests in `artifacts_test.go` are the
 drift assert.
+
+## The artifact-block goldens are now Go renderer output (change 0530)
+
+Change 0530 deliberately changed the canonical `## Artifacts` shape: plan,
+results, spec, and ADRs all live on the metadata branch, so every row of a
+non-legacy record is a link **relative to the record file** (spec acceptance 6
+— the links survive the active-to-archive move unchanged and resolve both on
+GitHub and in a local checkout).
+
+The four `block-*.golden` files were therefore replaced with the Go
+renderer's (`render.ArtifactBlockContent`) output for the same two fixtures,
+and the Go renderer is now their source. Relative rows render identically
+with or without a web URL, so each `.github.golden` / `.relative.golden` pair
+is byte-identical; both are kept so the two link contexts stay pinned
+separately. The fixture-to-golden mapping below is unchanged; the Bash
+commands are kept as the record of the original freeze. The `backlink-*`
+goldens are untouched: `render.BacklinkContent` keeps the absolute form for
+PR descriptions (a PR body has no branch to be relative to), and the
+metadata-branch file backlink is the separate `render.ArtifactBacklinkContent`,
+pinned by explicit strings in `artifacts_test.go`.
 
 ## Generating commit
 
@@ -57,15 +77,17 @@ render-artifact-backlink.sh --artifact-file <spec> --change-file <change> [--rep
   shape: the link TARGET is the archive path).
 - `backlink-active.relative.golden` — repo-relative (empty `RepoWebURL`).
 
-## Notable Bash behaviors these goldens pin
+## Notable behaviors these goldens pin
 
-- In GitHub mode an ADR cell is `[ADR-NNNN](blob-url-to-the-resolved-file)`,
-  comma-joined. In repo-relative mode the `ADR-NNNN` label is **dropped**: the
-  cell is the backtick-quoted repo-relative path, comma-joined.
-- Spec/Plan/Results link **text** is the path basename; the URL is the full
-  repo-relative path.
+- An ADR cell is `[ADR-NNNN](relative-path-to-the-resolved-file)`,
+  comma-joined, with or without a web URL. (The Bash renderer dropped the
+  `ADR-NNNN` label in repo-relative mode; the relative form keeps it.)
+- Spec/Plan/Results link **text** is the path basename; the link is the path
+  relative to the record file.
 - Rows appear in fixed order Spec, Plan, Results, ADRs; a row is omitted when
-  its field is unset/empty. The `## Artifacts` block's PR row and the derived
+  its field is unset/empty. (The Go renderer's done-only `Spec (merged)` row
+  and the legacy absolute Plan/Results rows are pinned in `artifacts_test.go`,
+  not here.) The `## Artifacts` block's PR row and the derived
   "Stacked children" row are **out of scope** for the v1 typed renderer (PR is a
   later slice; stacked children is a render-time directory scan) and are not
   frozen here.

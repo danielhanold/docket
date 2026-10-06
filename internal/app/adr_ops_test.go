@@ -236,7 +236,8 @@ func TestADRRecordPlanWithProducingChange(t *testing.T) {
 	if !strings.Contains(change, "updated: '2026-08-16'") {
 		t.Errorf("producing change updated date not bumped:\n%s", change)
 	}
-	if !strings.Contains(change, "| ADRs |") || !strings.Contains(change, adrPath("0002", "record-the-widget-decision")) {
+	// The ADR row links the ADR relatively from the record (docs/changes/active).
+	if row := "| ADRs | [ADR-0002](../../adrs/0002-record-the-widget-decision.md) |"; !strings.Contains(change, row) {
 		t.Errorf("producing change artifact block missing the new ADR row:\n%s", change)
 	}
 
@@ -546,7 +547,7 @@ func TestADRSupersedePlanWithProducingChange(t *testing.T) {
 	if !strings.Contains(change, "adrs: [2]") {
 		t.Errorf("producing change adrs not updated to [2]:\n%s", change)
 	}
-	if !strings.Contains(change, "| ADRs |") || !strings.Contains(change, adrPath("0002", "supersede-the-widget-decision")) {
+	if row := "| ADRs | [ADR-0002](../../adrs/0002-supersede-the-widget-decision.md) |"; !strings.Contains(change, row) {
 		t.Errorf("producing change artifact block missing the new ADR row:\n%s", change)
 	}
 }

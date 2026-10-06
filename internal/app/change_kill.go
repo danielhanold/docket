@@ -320,41 +320,15 @@ func (o changeKillOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 		{Path: gitcli.RepoPath(o.path), Kind: transaction.MutationDelete},
 	}
 
-	// Retarget a metadata-resident linked spec's backlink to the archive path. A
-	// spec outside the metadata tree or absent from it yields no spec mutation and
-	// no failure.
-	if specPath := gc.Spec().Value; specPath != "" {
-		specBytes, present, err := readTreeBlob(ctx, st.Tree, specPath)
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, err
-		}
-		if present {
-			specDoc, err := document.Parse(specBytes)
-			if err != nil {
-				return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change kill: parsing linked spec %q: %w", specPath, err)
-			}
-			// A spec present but carrying no docket:backlink managed block (a
-			// hand-authored or Bash-era spec) has no block to retarget:
-			// ReplaceBlock would fail KindMissingPatchTarget, surfacing as a
-			// misleading internal-error. Skip the spec mutation instead, matching
-			// the absent-spec contract — no spec mutation, no failure. The kill
-			// still archives the change and updates the board.
-			if _, ok := specDoc.Block("backlink"); ok {
-				backlink, err := render.BacklinkContent(gc, o.link)
-				if err != nil {
-					return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change kill: rendering spec backlink: %w", err)
-				}
-				var sps document.PatchSet
-				sps.ReplaceBlock("backlink", backlinkInterior(backlink))
-				specFinal, err := specDoc.Apply(sps)
-				if err != nil {
-					return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change kill: retargeting spec backlink in %q: %w", specPath, err)
-				}
-				files = append(files, transaction.FileMutation{
-					Path: gitcli.RepoPath(specPath), Kind: transaction.MutationReplace, Bytes: specFinal,
-				})
-			}
-		}
+	// Retarget the backlink of every metadata-resident linked artifact — spec,
+	// plan, and results — to the archive path, through the same per-artifact
+	// loop close-out uses. An artifact absent from the metadata tree, or present
+	// but carrying no docket:backlink block (a hand-authored or Bash-era file),
+	// yields no mutation and no failure; the kill still archives the change and
+	// updates the board.
+	files, err = retargetArtifactBacklinks(ctx, st.Tree, gc, files)
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, err
 	}
 
 	if o.inline {
@@ -436,8 +410,9 @@ func readTreeBlob(ctx context.Context, tree transaction.Tree, p string) ([]byte,
 
 // backlinkInterior extracts the interior of a rendered docket:backlink block —
 // the "> ↩ ..." line(s) between the two marker lines — so it can feed
-// PatchSet.ReplaceBlock, which owns the markers. render.BacklinkContent emits the
-// complete block; ReplaceBlock rewrites only the interior.
+// PatchSet.ReplaceBlock, which owns the markers. render.BacklinkContent and
+// render.ArtifactBacklinkContent emit the complete block; ReplaceBlock rewrites
+// only the interior.
 func backlinkInterior(block string) string {
 	lines := strings.Split(strings.TrimRight(block, "\n"), "\n")
 	if len(lines) < 2 {

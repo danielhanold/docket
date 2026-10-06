@@ -61,7 +61,8 @@ const (
 // backlinkBlockName and backlinkBlockAnnotation are the docket:backlink managed
 // block's marker identity, shared by every writer of an artifact's or PR body's
 // backlink (attach, groom, kill, close-out, PR publish, the spec copy). They
-// mirror render.BacklinkContent's marker spelling exactly, so an inserted block
+// mirror the marker spelling render.BacklinkContent and
+// render.ArtifactBacklinkContent emit exactly, so an inserted block
 // round-trips through render on the next write and the write is idempotent.
 const (
 	backlinkBlockName       = "backlink"
@@ -259,10 +260,7 @@ func changeAttachMetadata(ctx context.Context, deps PlanningDeps, repoDir string
 
 	// (6) Assemble the stored artifact: the submitted body with any backlink
 	// block it carries replaced by the freshly rendered one for this change.
-	backlink, err := render.BacklinkContent(ac.change, ac.link)
-	if err != nil {
-		return attachRefusal(opKey, ResultInternalError, kind, ReasonStatusInternalError, err.Error())
-	}
+	backlink := render.ArtifactBacklinkContent(ac.change, req.Path)
 	artifact, err := metadataArtifactBytes(req.Markdown, backlink)
 	if err != nil {
 		// Unreachable after checkAttachMarkdown parsed the same body; kept so a
@@ -398,17 +396,15 @@ func attachOpKey(kind string) string {
 	return OperationChangeAttachPlan
 }
 
-// attachChange bundles the resolved change with its current record path and the
-// link context its backlink renders under.
+// attachChange bundles the resolved change with its current record path.
 type attachChange struct {
 	change  domain.Change
 	recPath string
-	link    render.LinkContext
 }
 
 // resolveAttachChange pins-adjacent: it reads the corpus once, builds the
 // snapshot, and returns the change named by id (a typed unknown/ambiguous refusal
-// otherwise) with its current path and backlink link context.
+// otherwise) with its current path.
 func resolveAttachChange(ctx context.Context, deps PlanningDeps, pin StatusPin, eff config.Effective, id int, opKey, kind string) (attachChange, *ChangeAttachResult) {
 	blobs, err := deps.Reader.ReadCorpus(ctx, pin)
 	if err != nil {
@@ -436,7 +432,6 @@ func resolveAttachChange(ctx context.Context, deps PlanningDeps, pin StatusPin, 
 	return attachChange{
 		change:  c,
 		recPath: c.Path(),
-		link:    linkContextOf(pin),
 	}, nil
 }
 
@@ -492,15 +487,16 @@ func withinPlanningRoot(root, p string) bool {
 	return strings.HasPrefix(p, root+"/")
 }
 
-// backlinkTargets reports whether artifactBytes carries a balanced docket:backlink
-// managed block whose interior equals the backlink rendered for ch under link. It
+// backlinkTargets reports whether artifactBytes, the bytes of the metadata-branch
+// file at artifactPath, carries a balanced docket:backlink managed block whose
+// interior equals the backlink rendered for ch from that path. It
 // is the shared backlink-identity check the attach transaction (does a file
 // already at the path point home to this change?) and change.mark-implemented
 // (verifyImplementedResults) apply to an artifact's own bytes. A malformed
-// managed-block population or a backlink-render failure is
-// returned as the error (the caller classifies it); an artifact with no backlink
-// block, or one whose interior names a DIFFERENT change, is (false, nil).
-func backlinkTargets(artifactBytes []byte, ch domain.Change, link render.LinkContext) (bool, error) {
+// managed-block population is returned as the error (the caller classifies it);
+// an artifact with no backlink block, or one whose interior names a DIFFERENT
+// change, is (false, nil).
+func backlinkTargets(artifactBytes []byte, ch domain.Change, artifactPath string) (bool, error) {
 	doc, err := document.Parse(artifactBytes)
 	if err != nil {
 		return false, err
@@ -509,10 +505,7 @@ func backlinkTargets(artifactBytes []byte, ch domain.Change, link render.LinkCon
 	if !ok {
 		return false, nil
 	}
-	expected, err := render.BacklinkContent(ch, link)
-	if err != nil {
-		return false, err
-	}
+	expected := render.ArtifactBacklinkContent(ch, artifactPath)
 	got := strings.TrimRight(string(artifactBytes[block.Interior.Start:block.Interior.End]), "\n")
 	return got == backlinkInterior(expected), nil
 }
@@ -620,7 +613,7 @@ func (o changeAttachOp) Plan(ctx context.Context, st transaction.AttemptState) (
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change attach: %w", err)
 	}
 	if exists && linked != o.artifact {
-		if home, berr := backlinkTargets(existing, c, o.link); berr != nil || !home {
+		if home, berr := backlinkTargets(existing, c, o.artifact); berr != nil || !home {
 			return refuseLifecycle(FindingCode(ReasonAttachPathOccupied),
 				fmt.Sprintf("a file already exists at %q on the metadata branch and its backlink does not point to change %04d; refusing to overwrite it", o.artifact, o.changeID))
 		}

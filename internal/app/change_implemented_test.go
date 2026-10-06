@@ -148,12 +148,12 @@ const (
 )
 
 // miResultsArtifact is a FINAL-valid results artifact for change 3: the correct
-// repo-relative backlink (mainPin carries no RepoWebURL, so the block matches
-// render.BacklinkContent's repo-relative form via attachBacklinkBlock) fronting a
+// relative backlink from a docs/results file (every mi results path sits there,
+// so one rendering serves them all) fronting a
 // title and a substantive ## Outcome. It passes ValidateResultsContent at both
 // phases.
 func miResultsArtifact() string {
-	return attachBacklinkBlock(3, "A change", groomPath(3, miSlug)) +
+	return attachBacklinkBlock(3, "A change", groomPath(3, miSlug), miResultsPath) +
 		"\n# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the widget; behavior X now refuses Y.\n"
 }
 
@@ -161,7 +161,7 @@ func miResultsArtifact() string {
 // whole-section filler body (## Findings and limitations → None.): it passes the
 // checkpoint phase yet fails the FINAL content contract (results-content-invalid).
 func miResultsFinalInvalid() string {
-	return attachBacklinkBlock(3, "A change", groomPath(3, miSlug)) +
+	return attachBacklinkBlock(3, "A change", groomPath(3, miSlug), miResultsInvalidPath) +
 		"\n# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome prose.\n\n## Findings and limitations\n\nNone.\n"
 }
 
@@ -169,7 +169,7 @@ func miResultsFinalInvalid() string {
 // change id, so its results identity is broken (results-identity-broken)
 // even though its prose would satisfy the final content contract.
 func miResultsBacklinkMismatch() string {
-	return attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md") +
+	return attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md", miResultsMismatchPath) +
 		"\n# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome prose.\n"
 }
 

@@ -83,7 +83,7 @@ func attachOutcomeCode(res ChangeAttachResult) string {
 // and leaves the plan unlinked and the plan path untouched on the remote.
 func TestIntegrationWorkflowRepoChangeAttachPlanMetadataRefusals(t *testing.T) {
 	otherPlan := "docs/superpowers/plans/2026-08-17-decoy.md"
-	foreign := attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md") + "\n# Other plan\n\nSteps.\n"
+	foreign := attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md", otherPlan) + "\n# Other plan\n\nSteps.\n"
 
 	rows := []struct {
 		name string
@@ -213,7 +213,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanMetadataHappyPath(t *testing.T) 
 	if !ok {
 		t.Fatalf("plan file missing at the metadata remote tip")
 	}
-	if want := attachHappyPlan(f.id, "A change", f.recPath); plan != want {
+	if want := attachHappyPlan(f.id, "A change", f.recPath, f.planPath); plan != want {
 		t.Errorf("stored plan =\n%q\nwant\n%q", plan, want)
 	}
 	if got := runGit(t, f.wp, "rev-parse", "HEAD"); got != headBefore {
@@ -281,7 +281,7 @@ func TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent(t *testing.
 			t.Errorf("committed record missing the results field:\n%s", final)
 		}
 		stored, ok := originFile(t, f.repo.origin, "docket", resultsPath)
-		if want := attachBacklinkBlock(f.id, "A change", f.recPath) + "\n" + body; !ok || stored != want {
+		if want := attachBacklinkBlock(f.id, "A change", f.recPath, resultsPath) + "\n" + body; !ok || stored != want {
 			t.Errorf("stored results =\n%q\nwant\n%q", stored, want)
 		}
 		// One metadata commit: the results file and the record (the board too
@@ -313,7 +313,7 @@ func TestIntegrationWorkflowRepoChangeAttachResultsFeatureHeadNeverConsulted(t *
 		t.Fatalf("attach = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
 	}
 	stored, ok := originFile(t, f.repo.origin, "docket", resultsPath)
-	if want := attachBacklinkBlock(f.id, "A change", f.recPath) + "\n" + body; !ok || stored != want {
+	if want := attachBacklinkBlock(f.id, "A change", f.recPath, resultsPath) + "\n" + body; !ok || stored != want {
 		t.Errorf("stored results =\n%q\nwant\n%q", stored, want)
 	}
 	if got := runGit(t, f.wp, "rev-parse", "HEAD"); got != head {
@@ -1006,10 +1006,15 @@ func TestIntegrationWorkflowLifecyclePlanningKillEndToEnd(t *testing.T) {
 			if !ok {
 				t.Fatalf("spec file vanished")
 			}
-			if !strings.Contains(specFinal, archivePath) {
+			// The link is the archive path relative to the spec's own directory.
+			relArchive, err := filepath.Rel(filepath.Dir(specPath), archivePath)
+			if err != nil {
+				t.Fatalf("relative archive path: %v", err)
+			}
+			if !strings.Contains(specFinal, "]("+filepath.ToSlash(relArchive)+")**") {
 				t.Errorf("spec backlink not retargeted to the archive path:\n%s", specFinal)
 			}
-			if strings.Contains(specFinal, "`"+widgetPath+"`") {
+			if strings.Contains(specFinal, "`"+widgetPath+"`") || strings.Contains(specFinal, "changes/active/0003-widget.md)") {
 				t.Errorf("spec backlink still points at the vacated active path:\n%s", specFinal)
 			}
 
