@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0529 — Repoint a merged PR's change backlink when the change is archived](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0529-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md)**
+> ↩ **[Change 0529 — Repoint a merged PR's change backlink when the change is archived](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-06-0529-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md)**
 <!-- docket:backlink:end -->
 # Repoint a Merged PR's Change Backlink on Archive — Implementation Plan
 
