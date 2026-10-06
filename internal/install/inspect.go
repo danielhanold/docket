@@ -239,18 +239,22 @@ func remedyLinkDestination(want string) string {
 // remedyBlockMarkers is the only remedy docket cannot offer to perform itself:
 // the markers delimit somebody's own file, and guessing where a dangling range
 // was meant to end would eat their content.
+//
+// Each block remedy spells the block the way its own marker lines do
+// (document.MarkerSpelling), so a neutral dckt: block is never misnamed as a
+// docket: one.
 func remedyBlockMarkers(block string) string {
-	return "the docket:" + block + " markers in this file are malformed, unbalanced, or out of order; " +
+	return "the " + document.MarkerSpelling(block) + " markers in this file are malformed, unbalanced, or out of order; " +
 		"repair them by hand, then re-run"
 }
 
 func remedyForeignBlock(block string) string {
-	return "the docket:" + block + " block in this file holds content docket did not write; " +
+	return "the " + document.MarkerSpelling(block) + " block in this file holds content docket did not write; " +
 		"delete the block, or move the file aside, then re-run"
 }
 
 func remedyDriftedBlock(block string) string {
-	return "the docket:" + block + " block no longer matches the recorded install, " +
+	return "the " + document.MarkerSpelling(block) + " block no longer matches the recorded install, " +
 		"so docket cannot prove it may rewrite it; restore its recorded content, or delete the block, then re-run"
 }
 

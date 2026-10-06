@@ -933,8 +933,9 @@ func pruneCreatedDirs(fsops FSOps, j journal) {
 
 // planSteps turns inspections into the ordered, validated step list. Ordering is
 // by destination path so the same plan always applies in the same sequence
-// whatever order the harness adapters produced it in; the sort is stable, so two
-// blocks in one file keep the order their planner chose.
+// whatever order the harness adapters produced it in, then removals before
+// writes within one path; the sort is stable, so two written blocks in one file
+// keep the order their planner chose.
 func planSteps(txnID string, inspections []Inspection, removals []TargetRecord) ([]journalStep, []Target, error) {
 	ordered := make([]plannedStep, 0, len(inspections)+len(removals))
 	for _, insp := range inspections {
@@ -960,8 +961,19 @@ func planSteps(txnID string, inspections []Inspection, removals []TargetRecord) 
 		}
 		ordered = append(ordered, plannedStep{target: target, remove: true})
 	}
+	// Within one path a removal runs before every write. applySteps re-verifies
+	// the captured pre-image of each removal still ahead before running it, and
+	// every pre-image is captured at BeginTxn, so a removal placed after any
+	// other step on its path would always fail as stale. A write is never
+	// re-verified: renderManagedBlock re-reads the file and composes onto
+	// whatever the removal left. Rollback needs no special order either way —
+	// each step's backup holds the original bytes and restores run newest first.
 	sort.SliceStable(ordered, func(i, j int) bool {
-		return filepath.Clean(ordered[i].target.Path) < filepath.Clean(ordered[j].target.Path)
+		pi, pj := filepath.Clean(ordered[i].target.Path), filepath.Clean(ordered[j].target.Path)
+		if pi != pj {
+			return pi < pj
+		}
+		return ordered[i].remove && !ordered[j].remove
 	})
 	if err := rejectDuplicateDestinations(ordered); err != nil {
 		return nil, nil, err
@@ -1032,29 +1044,45 @@ func removalTarget(rec TargetRecord) (Target, error) {
 	}
 }
 
-// rejectDuplicateDestinations refuses a plan that writes the same destination
-// twice. Two managed blocks in one file are legitimate — they touch disjoint
-// bytes — but anything else is a planner defect whose outcome would depend on
-// step order.
+// rejectDuplicateDestinations refuses a plan that touches the same destination
+// twice, with one exception: several steps on one file are legitimate when every
+// one of them is a managed block, each a different block, and at most one of
+// them is a removal. Distinct blocks touch disjoint bytes, so retiring one block
+// and writing others — or writing several — composes in any order planSteps
+// picks. Anything else is a planner defect:
 //
-// A removal and a write of one destination in the same plan is a defect of the
-// same kind, and is refused for the same reason.
+//   - a whole-file or symlink step beside any other step on its path has an
+//     outcome that depends on step order;
+//   - a removal and a write of the SAME block, or two writes of one block, have
+//     an outcome that depends on step order;
+//   - a second removal on one path would re-verify a pre-image the first removal
+//     had already rewritten, so it could only ever fail as stale (applySteps
+//     re-verifies every removal still ahead against the bytes captured at
+//     BeginTxn).
 func rejectDuplicateDestinations(ordered []plannedStep) error {
 	seen := map[string]plannedStep{}
+	removals := map[string]bool{}
 	blocks := map[string]bool{}
 	for _, planned := range ordered {
 		path := filepath.Clean(planned.target.Path)
 		prev, ok := seen[path]
 		if !ok {
 			seen[path] = planned
+			removals[path] = planned.remove
 			if planned.target.Kind == KindManagedBlock {
 				blocks[path+"\x00"+planned.target.BlockName] = true
 			}
 			continue
 		}
-		if prev.remove || planned.remove ||
-			prev.target.Kind != KindManagedBlock || planned.target.Kind != KindManagedBlock {
+		if prev.target.Kind != KindManagedBlock || planned.target.Kind != KindManagedBlock {
 			return fmt.Errorf("%w: %s is written by more than one step", ErrInvalidTarget, path)
+		}
+		if planned.remove {
+			if removals[path] {
+				return fmt.Errorf("%w: %s has more than one managed block removed in one transaction",
+					ErrInvalidTarget, path)
+			}
+			removals[path] = true
 		}
 		key := path + "\x00" + planned.target.BlockName
 		if blocks[key] {

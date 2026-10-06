@@ -1795,3 +1795,170 @@ func TestTxnModesAreUmaskProof(t *testing.T) {
 	}
 	assertMode(existing, 0o644, "rollback under umask 077")
 }
+
+// ---------------------------------------------------------------------------
+// One file, one block retired and another written
+// ---------------------------------------------------------------------------
+
+// retireAndWritePlan writes a neutral-namespace block into managed.md, which
+// newFixture seeds with a docket:dispatch block, while a removal retires that
+// dispatch block; a later-sorting create follows so a failure after both
+// managed.md steps has something to fail on. The write is listed first, so the
+// engine — not the caller — must put the removal ahead of it.
+func retireAndWritePlan(f *fixture) ([]Inspection, []TargetRecord) {
+	insp := []Inspection{
+		{
+			Target: Target{
+				Path: f.path("dispatch", "managed.md"), Kind: KindManagedBlock,
+				BlockName: "dckt:pointer", Annotation: "managed — do not hand-edit",
+				Content: []byte("pointer\n"), Role: "trigger",
+			},
+			Disposition: DispositionUpdate,
+		},
+		{
+			Target: Target{
+				Path: f.path("dispatch", "zzz.md"), Kind: KindFile,
+				Content: []byte("later\n"), Role: "agent",
+			},
+			Disposition: DispositionCreate,
+		},
+	}
+	rem := []TargetRecord{{
+		Path: f.path("dispatch", "managed.md"), Kind: KindManagedBlock,
+		BlockName: "dispatch", Role: "dispatch",
+	}}
+	return insp, rem
+}
+
+func TestTxnRetiresOneBlockAndWritesAnotherInOneFile(t *testing.T) {
+	f := newFixture(t)
+	insp, rem := retireAndWritePlan(f)
+	path := f.path("dispatch", "managed.md")
+
+	txn, err := BeginTxnWithRemovals(RealFS{}, f.roots, insp, rem)
+	if err != nil {
+		t.Fatalf("BeginTxnWithRemovals: %v", err)
+	}
+	// The removal is journaled ahead of the write on the same path: a removal
+	// re-verifies its captured pre-image before it runs, so behind the write it
+	// would always be stale.
+	var onPath []journalStep
+	for _, step := range txn.journal.Steps {
+		if step.Path == filepath.Clean(path) {
+			onPath = append(onPath, step)
+		}
+	}
+	if len(onPath) != 2 || !onPath[0].Remove || onPath[1].Remove {
+		t.Fatalf("steps on %s = %+v, want the removal then the write", path, onPath)
+	}
+	if err := txn.Apply(); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	got := readOrDie(t, path)
+	if strings.Contains(got, "docket:dispatch") {
+		t.Errorf("the retired block survived:\n%s", got)
+	}
+	if !strings.Contains(got, "<!-- dckt:pointer:start (managed — do not hand-edit) -->\npointer\n<!-- dckt:pointer:end -->\n") {
+		t.Errorf("the pointer block was not written:\n%s", got)
+	}
+	for _, kept := range []string{"user prose above\n", "user prose below\n"} {
+		if !strings.Contains(got, kept) {
+			t.Errorf("the user's %q did not survive:\n%s", kept, got)
+		}
+	}
+	assertNoStaging(t, f.targets)
+}
+
+func TestTxnRetiresOneBlockAndWritesAnotherInOneFileRollsBack(t *testing.T) {
+	// Every mutation the pair performs gets an injected failure, and every one
+	// must restore managed.md byte-for-byte: two steps on one path take two
+	// backups, both of the original bytes, and the rollback restores newest first.
+	var ops []string
+	func() {
+		f := newFixture(t)
+		insp, rem := retireAndWritePlan(f)
+		ifs := &injectFS{inner: RealFS{}}
+		txn, err := BeginTxnWithRemovals(ifs, f.roots, insp, rem)
+		if err != nil {
+			t.Fatalf("BeginTxnWithRemovals: %v", err)
+		}
+		ifs.fail = recordCalls(&ops)
+		if err := txn.Apply(); err != nil {
+			t.Fatalf("clean Apply: %v", err)
+		}
+	}()
+	if len(ops) == 0 {
+		t.Fatal("a clean apply performed no mutations; the table would be vacuous")
+	}
+
+	for n := 1; n <= len(ops); n++ {
+		t.Run(fmt.Sprintf("fail-at-%02d-%s", n, ops[n-1]), func(t *testing.T) {
+			f := newFixture(t)
+			insp, rem := retireAndWritePlan(f)
+			before := snapshotWorld(t, f.targets)
+
+			ifs := &injectFS{inner: RealFS{}}
+			txn, err := BeginTxnWithRemovals(ifs, f.roots, insp, rem)
+			if err != nil {
+				t.Fatalf("BeginTxnWithRemovals: %v", err)
+			}
+			ifs.fail = failAtCall(n)
+
+			if err := txn.Apply(); err == nil {
+				t.Fatal("Apply succeeded despite an injected filesystem failure")
+			}
+			assertWorld(t, before, snapshotWorld(t, f.targets), "after rollback")
+			assertNoStaging(t, f.targets)
+			if _, found, err := DetectRecovery(f.roots); err != nil || found {
+				t.Errorf("DetectRecovery after rollback = (found %v, err %v), want (false, nil)", found, err)
+			}
+		})
+	}
+}
+
+func TestRejectDuplicateDestinationsRefusesRemovalAndWriteOfOneBlock(t *testing.T) {
+	f := newFixture(t)
+	// f.plan already writes the dispatch block in managed.md; retiring that same
+	// block in the same plan has an outcome that depends on step order.
+	_, err := BeginTxnWithRemovals(RealFS{}, f.roots, f.plan, []TargetRecord{{
+		Path: f.path("dispatch", "managed.md"), Kind: KindManagedBlock, BlockName: "dispatch", Role: "dispatch",
+	}})
+	if !errors.Is(err, ErrInvalidTarget) {
+		t.Fatalf("err = %v, want ErrInvalidTarget", err)
+	}
+	if journalCount(t, f.roots) != 0 {
+		t.Errorf("a refused plan left a journal behind")
+	}
+}
+
+func TestRejectDuplicateDestinationsRefusesTwoBlockRemovalsInOneFile(t *testing.T) {
+	f := newFixture(t)
+	// The second removal would re-verify a pre-image the first one had already
+	// rewritten, so it could only ever fail as stale.
+	path := f.path("dispatch", "managed.md")
+	_, err := BeginTxnWithRemovals(RealFS{}, f.roots, nil, []TargetRecord{
+		{Path: path, Kind: KindManagedBlock, BlockName: "dispatch", Role: "dispatch"},
+		{Path: path, Kind: KindManagedBlock, BlockName: "dckt:pointer", Role: "trigger"},
+	})
+	if !errors.Is(err, ErrInvalidTarget) {
+		t.Fatalf("err = %v, want ErrInvalidTarget", err)
+	}
+	if journalCount(t, f.roots) != 0 {
+		t.Errorf("a refused plan left a journal behind")
+	}
+}
+
+func TestRejectDuplicateDestinationsRefusesAWholeFileBesideABlock(t *testing.T) {
+	f := newFixture(t)
+	// A block removal only frees disjoint bytes; a whole-file write on the same
+	// path is still two writers of one file.
+	path := f.path("dispatch", "managed.md")
+	_, err := BeginTxnWithRemovals(RealFS{}, f.roots, []Inspection{{
+		Target:      Target{Path: path, Kind: KindFile, Content: []byte("whole\n"), Role: "agent"},
+		Disposition: DispositionUpdate,
+	}}, []TargetRecord{{Path: path, Kind: KindManagedBlock, BlockName: "dispatch", Role: "dispatch"}})
+	if !errors.Is(err, ErrInvalidTarget) {
+		t.Fatalf("err = %v, want ErrInvalidTarget", err)
+	}
+}
