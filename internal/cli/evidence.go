@@ -39,7 +39,7 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Args:  cobra.NoArgs,
 		// read: EvidenceRecord observes an existing gate terminal and returns the
 		// rendered evidence block as bytes — it writes no evidence store; the
-		// block becomes the durable record only later, at `pr publish`.
+		// block becomes the durable record only later, at `change mark-implemented`.
 		Annotations: capability("evidence.record", EffectRead),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
@@ -90,13 +90,12 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	recertify := &cobra.Command{
 		Use:   "recertify",
-		Short: "Rerun the build gate for an implemented change and refresh its open PR's evidence block in place",
+		Short: "Rerun the build gate for an implemented change and refresh its recorded build evidence in place",
 		Args:  cobra.NoArgs,
-		// external-write: the operation edits the existing pull request's
-		// build-evidence block (and only that block) on GitHub; metadata-write:
-		// one exact-revision metadata transaction records the evidence in the
-		// change record's "## Build evidence" section.
-		Annotations: capability("evidence.recertify", EffectExternalWrite, EffectMetadataWrite),
+		// metadata-write: one exact-revision metadata transaction records the
+		// evidence in the change record's "## Build evidence" section; the pull
+		// request is only probed, never edited.
+		Annotations: capability("evidence.recertify", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {

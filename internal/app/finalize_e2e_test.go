@@ -570,7 +570,7 @@ func runOrdinaryFinalize(t *testing.T, s *e2eState) {
 	head, revision := rebaseAndPublish(t, s)
 
 	// (5) Merge: the attended --id invocation supplies approval; the gate is
-	// satisfied by the exact-head evidence now in the PR body. A REAL merge
+	// satisfied by the exact-head evidence now in the change record. A REAL merge
 	// commit lands on the origin base branch and is proven reachable.
 	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", head)
 	if mg.result() != "applied" {
@@ -633,7 +633,7 @@ func rebaseAndPublish(t *testing.T, s *e2eState) (head, revision string) {
 
 	// (3) Rebase onto the effective base. In docket mode the integration branch
 	// never moved, so the rebase is a no-op and the gate is SKIPPED on the exact-
-	// head PR evidence; in main mode the metadata transactions advanced the base,
+	// head record evidence; in main mode the metadata transactions advanced the base,
 	// so a real rewrite happens and the local gate genuinely runs and passes. Both
 	// are valid ordinary outcomes; the subsequent steps thread the resulting head.
 	rb := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", s.head)
@@ -652,7 +652,7 @@ func rebaseAndPublish(t *testing.T, s *e2eState) (head, revision string) {
 		t.Fatalf("rebase returned no head: %s", rb.stdout)
 	}
 	// Evidence for publish is the gate's fresh block when the suite ran, else the
-	// exact-head evidence already carried into the PR body on the skip path.
+	// exact-head evidence already recorded in the change record on the skip path.
 	evidence := string(s.evidence)
 	if gate, _ := rb.doc["gate"].(map[string]any); gate != nil {
 		if ev, _ := gate["evidence"].(string); ev != "" {
@@ -661,7 +661,7 @@ func rebaseAndPublish(t *testing.T, s *e2eState) (head, revision string) {
 	}
 
 	// (4) Publish: push the (possibly rewritten) head under the receipt lease and
-	// ensure the exact-head evidence block in the PR body.
+	// record the exact-head evidence in the change record.
 	evPath := s.writeInput(t, "evidence.txt", evidence)
 	pubRes := s.dk(t, "", "finalize", "publish", "--id", strconv.Itoa(s.id),
 		"--attempt", attempt, "--head", head, "--evidence", evPath)
@@ -1598,7 +1598,7 @@ func soleCandidate(t *testing.T, r dkResult) map[string]any {
 // finalizeFakeGHSource is the extended stateful fake `gh`. It tracks a LIST of
 // pull requests (a stack needs several open at once) in one JSON state file, and
 // speaks gh's documented `--json` shapes for the whole finalize vocabulary:
-// create/view/list, `pr edit --base` (retarget) and `--body-file` (evidence),
+// create/view/list, `pr edit --base` (retarget) and `--body-file`,
 // `pr comment` (idempotent marker comment), and `pr merge --match-head-commit`
 // (a REAL merge commit pushed to the bare origin's base branch, recording
 // mergedAt/mergeCommit). headRefOid and baseRef are read LIVE from the origin so

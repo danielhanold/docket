@@ -20,8 +20,8 @@ import (
 // The decision is path-keyed: a block whose interior already names the archive
 // path is a no-op whatever its title wording, and a body with no block is never
 // given one. Only the docket-owned block is replaced, through the loss-preserving
-// document patch path, so every authored byte (CRLF endings and the build-
-// evidence block included) survives. The leg is best-effort: a failure is a
+// document patch path, so every authored byte (CRLF endings and any authored
+// build-evidence block included) survives. The leg is best-effort: a failure is a
 // pr-backlink-pending warning, never a stop. PR body bytes never reach a finding.
 
 // ReasonPRBacklinkPending: a merged PR's backlink block could not be repointed at

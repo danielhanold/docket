@@ -14,8 +14,8 @@ import (
 )
 
 // This file is the `pr publish` operation: the thin app-layer wiring that turns a
-// published feature head, a reparsed build-evidence record, and authored PR prose
-// into exactly one ready-for-review pull request, through the landed
+// published feature head certified by a reparsed build-evidence record, and
+// authored PR prose, into exactly one ready-for-review pull request, through the landed
 // githubcli.EnsurePullRequest probe/act/verify adapter. The GitHub mechanics
 // (the fixed list→decide→create-or-edit→requery sequence, the adoption rules, the
 // ExpectedHead gate, the redaction of gh stderr) all stay in internal/githubcli
@@ -35,9 +35,11 @@ import (
 //     requested == published-remote is established transitively. A broken condition
 //     is a typed refusal and gh is never invoked.
 //   - Redaction. The authored PR prose is preserved byte-for-byte while only the
-//     Docket-owned backlink and build-evidence blocks are inserted/replaced (via
-//     the evidence upsert helper's loss-preserving document patch). The result
-//     never carries the PR body bytes — no Body/Title field exists on it.
+//     Docket-owned backlink block is inserted/replaced (via the loss-preserving
+//     document patch). The evidence is a head gate only: it is never woven into
+//     the PR body — its durable home is the change record's "## Build evidence"
+//     section, written by `change mark-implemented`. The result never carries the
+//     PR body bytes — no Body/Title field exists on it.
 
 // OperationPRPublish is the operation key `pr publish` records in its envelope.
 const OperationPRPublish = "pr.publish"
@@ -67,8 +69,8 @@ const (
 	ReasonPRAmbiguousID   = "ambiguous-change"
 	// ReasonPRBodyTooLarge: the authored PR body exceeds the authored-input bound.
 	ReasonPRBodyTooLarge = "authored-input-too-large"
-	// ReasonPRBodyAssemblyFailed: the backlink/evidence blocks could not be woven
-	// into the authored body (a malformed managed-block population, e.g.); maps to
+	// ReasonPRBodyAssemblyFailed: the backlink block could not be woven into the
+	// authored body (a malformed managed-block population, e.g.); maps to
 	// invalid-state and predates any gh call.
 	ReasonPRBodyAssemblyFailed = "body-assembly-failed"
 	// ReasonPRRecordInvalid: the change's own record, or a record it
@@ -173,8 +175,8 @@ func prRefusal(result Result, reason, message string, id int) PRPublishResult {
 }
 
 // PRPublish verifies every identity condition from authoritative sources, assembles
-// the PR body by weaving the Docket-owned backlink and evidence blocks into the
-// authored prose without disturbing a byte of it, and delegates to the idempotent
+// the PR body by weaving the Docket-owned backlink block into the authored prose
+// without disturbing a byte of it, and delegates to the idempotent
 // EnsurePullRequest adapter. contended and unknown dispositions pass through
 // verbatim — no force, no compensating close, no second create.
 func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps, repoDir string, req PRPublishRequest) PRPublishResult {
@@ -192,13 +194,13 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 
 	// (3) Reparse the evidence bytes — never a prior command result — and require
 	// them to verify against the requested head: a missing, malformed, or
-	// stale-head record means the gate no longer certifies this commit.
+	// stale-head record means the gate no longer certifies this commit. The
+	// record gates the publication only; it is written nowhere here.
 	if verdict := evidence.Verify(req.EvidenceRecord, req.Head); verdict != evidence.VerdictVerified && verdict != evidence.VerdictSkipped {
 		return prRefusal(ResultInvalidState, ReasonPREvidenceUnverified,
 			"the reparsed evidence does not verify (green or skipped) against the requested head ("+string(verdict)+")", req.ID)
 	}
-	rec, err := evidence.Extract(req.EvidenceRecord)
-	if err != nil {
+	if _, err := evidence.Extract(req.EvidenceRecord); err != nil {
 		// Unreachable after a verified verdict, but fail closed rather than trust it.
 		return prRefusal(ResultInvalidState, ReasonPREvidenceUnverified, err.Error(), req.ID)
 	}
@@ -234,8 +236,8 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	}
 
 	// (7) Assemble the PR body: authored prose preserved byte-for-byte, only the
-	// backlink and evidence blocks inserted/replaced.
-	body, err := assemblePRBody([]byte(req.Body), backlink, rec)
+	// backlink block inserted/replaced.
+	body, err := assemblePRBody([]byte(req.Body), backlink)
 	if err != nil {
 		return prRefusal(ResultInvalidState, ReasonPRBodyAssemblyFailed, err.Error(), req.ID)
 	}
@@ -348,13 +350,13 @@ func resolvePRChange(ctx context.Context, deps PlanningDeps, repoDir string, id 
 	return c, linkContextOf(pin), nil
 }
 
-// assemblePRBody weaves the Docket-owned backlink and build-evidence blocks into
-// the authored PR prose. The backlink block is inserted at the top (or replaced in
-// place if already present), then the evidence block is upserted through the
-// loss-preserving document patch API — so every authored byte outside the two
-// managed blocks is preserved exactly. A malformed managed-block population in the
-// authored body fails the parse and returns no bytes.
-func assemblePRBody(authored []byte, backlink string, rec evidence.Record) ([]byte, error) {
+// assemblePRBody weaves the Docket-owned backlink block into the authored PR
+// prose: inserted at the top (or replaced in place if already present) through
+// the loss-preserving document patch API, so every authored byte outside that
+// block — including any build-evidence block the author wrote — is preserved
+// exactly. A malformed managed-block population in the authored body fails the
+// parse and returns no bytes.
+func assemblePRBody(authored []byte, backlink string) ([]byte, error) {
 	doc, err := document.Parse(authored)
 	if err != nil {
 		return nil, err
@@ -370,11 +372,7 @@ func assemblePRBody(authored []byte, backlink string, rec evidence.Record) ([]by
 		}
 		ps.InsertBlock(backlinkBlockName, backlinkBlockAnnotation, interior, at)
 	}
-	withBacklink, err := doc.Apply(ps)
-	if err != nil {
-		return nil, err
-	}
-	return evidence.Upsert(withBacklink, rec)
+	return doc.Apply(ps)
 }
 
 // prResultFromEnsure maps a value disposition onto the protocol taxonomy, carrying

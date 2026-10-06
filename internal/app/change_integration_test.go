@@ -2274,63 +2274,71 @@ func TestIntegrationChangeRuntimePRPublishAgreementChecks(t *testing.T) {
 func TestIntegrationChangeRuntimePRPublishBodyAssembly(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	reader := prReader(t)
-
-	// Authored prose already carrying a STALE build-evidence block. Publishing
-	// must preserve the prose, replace the evidence block deterministically, and
-	// insert the backlink exactly once.
-	staleRec, _ := evidence.NewRecord("old command", prOtherHead, time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
-	authored := "Authored prose before.\n\n" + evidence.Render(staleRec) + "\n\nAuthored prose after.\n"
-
-	gh := &fakeGitHub{repo: prRepo(), ensureRes: githubcli.EnsureResult{Disposition: githubcli.EnsureCreated, PR: prMatchPR("verified")}}
-	deps := workspaceDepsFor(t, reader)
-	res := PRPublish(context.Background(), deps, WorkspaceDeps{Service: readyService(prHead)}, GitHubDeps{Service: gh},
-		repoDir, PRPublishRequest{ID: 7, Head: prHead, Title: "Add widget", Body: authored, EvidenceRecord: prEvidenceBytes(t, prHead)})
-	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied (reason %q)", res.Result, res.Reason)
-	}
-	if len(gh.ensureCalls) != 1 {
-		t.Fatalf("EnsurePullRequest called %d times, want 1", len(gh.ensureCalls))
-	}
-	gotBody := gh.ensureCalls[0].Body
-
-	// Independent golden: parse authored, insert the backlink at the top, upsert
-	// the fresh evidence — the exact deterministic composition the operation owns.
 	change := prSnapshotChange(t, reader, 7)
 	backlink, err := render.BacklinkContent(change, render.LinkContext{MetadataBranch: "main"})
 	if err != nil {
 		t.Fatalf("BacklinkContent: %v", err)
 	}
-	doc, err := document.Parse([]byte(authored))
-	if err != nil {
-		t.Fatalf("parse authored: %v", err)
+	// withBacklink is the independent golden: parse authored and insert the
+	// backlink at the top — the only managed block `pr publish` owns. Build
+	// evidence never rides the PR description; its home is the change record.
+	withBacklink := func(authored string) string {
+		t.Helper()
+		doc, err := document.Parse([]byte(authored))
+		if err != nil {
+			t.Fatalf("parse authored: %v", err)
+		}
+		var ps document.PatchSet
+		ps.InsertBlock("backlink", "generated — do not hand-edit", backlinkInterior(backlink), document.AtDocumentStart)
+		out, err := doc.Apply(ps)
+		if err != nil {
+			t.Fatalf("insert backlink: %v", err)
+		}
+		return string(out)
 	}
-	var ps document.PatchSet
-	ps.InsertBlock("backlink", "generated — do not hand-edit", backlinkInterior(backlink), document.AtDocumentStart)
-	withBacklink, err := doc.Apply(ps)
-	if err != nil {
-		t.Fatalf("insert backlink: %v", err)
-	}
-	freshRec, _ := evidence.NewRecord("go test ./...", prHead, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
-	wantBody, err := evidence.Upsert(withBacklink, freshRec)
-	if err != nil {
-		t.Fatalf("upsert evidence: %v", err)
-	}
-	if gotBody != string(wantBody) {
-		t.Fatalf("assembled body mismatch:\n got: %q\nwant: %q", gotBody, string(wantBody))
+	publish := func(authored string) string {
+		t.Helper()
+		gh := &fakeGitHub{repo: prRepo(), ensureRes: githubcli.EnsureResult{Disposition: githubcli.EnsureCreated, PR: prMatchPR("verified")}}
+		deps := workspaceDepsFor(t, reader)
+		res := PRPublish(context.Background(), deps, WorkspaceDeps{Service: readyService(prHead)}, GitHubDeps{Service: gh},
+			repoDir, PRPublishRequest{ID: 7, Head: prHead, Title: "Add widget", Body: authored, EvidenceRecord: prEvidenceBytes(t, prHead)})
+		if res.Result != ResultApplied {
+			t.Fatalf("result = %q, want applied (reason %q)", res.Result, res.Reason)
+		}
+		if len(gh.ensureCalls) != 1 {
+			t.Fatalf("EnsurePullRequest called %d times, want 1", len(gh.ensureCalls))
+		}
+		return gh.ensureCalls[0].Body
 	}
 
-	// Spot invariants that the full-byte golden also encodes.
-	if !strings.Contains(gotBody, "Authored prose before.") || !strings.Contains(gotBody, "Authored prose after.") {
-		t.Errorf("authored prose not preserved: %q", gotBody)
+	// Plain authored prose: the body is the prose plus the backlink block, and it
+	// carries no build-evidence block at all.
+	plain := "Authored prose before.\n\nAuthored prose after.\n"
+	gotBody := publish(plain)
+	if want := withBacklink(plain); gotBody != want {
+		t.Fatalf("assembled body mismatch:\n got: %q\nwant: %q", gotBody, want)
+	}
+	if _, err := evidence.Extract([]byte(gotBody)); !errors.Is(err, evidence.ErrMissing) {
+		t.Fatalf("evidence.Extract(body) err = %v, want evidence.ErrMissing (no evidence rides the PR body)", err)
 	}
 	if strings.Count(gotBody, "<!-- docket:backlink:start") != 1 {
 		t.Errorf("backlink block not inserted exactly once: %q", gotBody)
 	}
-	if strings.Contains(gotBody, prOtherHead) {
-		t.Errorf("stale evidence head survived the replace: %q", gotBody)
+
+	// Authored prose already carrying a STALE build-evidence block: that block is
+	// authored bytes, so it survives untouched — never replaced with the fresh
+	// record, which lives only in the change record.
+	staleRec, _ := evidence.NewRecord("old command", prOtherHead, time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
+	stale := "Authored prose before.\n\n" + evidence.Render(staleRec) + "\n\nAuthored prose after.\n"
+	gotBody = publish(stale)
+	if want := withBacklink(stale); gotBody != want {
+		t.Fatalf("assembled body mismatch (stale authored block):\n got: %q\nwant: %q", gotBody, want)
 	}
-	if !strings.Contains(gotBody, prHead) {
-		t.Errorf("fresh evidence head absent from body: %q", gotBody)
+	if got, err := evidence.Extract([]byte(gotBody)); err != nil || got != staleRec {
+		t.Fatalf("authored stale block = %+v err=%v, want it untouched %+v", got, err, staleRec)
+	}
+	if strings.Contains(gotBody, prHead) {
+		t.Errorf("the fresh evidence head leaked into the PR body: %q", gotBody)
 	}
 }
 

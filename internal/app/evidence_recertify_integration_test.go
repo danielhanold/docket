@@ -11,6 +11,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
 // buildVsFinalizeYAML declares DIVERGENT build/finalize commands so a test can
@@ -174,32 +175,24 @@ func TestIntegrationEvidenceEvidenceRecertifyShape(t *testing.T) {
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyHappyPath: stale evidence at an older head becomes
-// verified evidence for the exact current head on the SAME open PR; authored
-// body bytes survive; the result is applied/green (acceptance 1).
+// verified evidence for the exact current head in the change record's
+// build-evidence section; the open PR's description is never edited; the
+// result is applied/green on the SAME open PR (acceptance 1).
 func TestIntegrationEvidenceEvidenceRecertifyHappyPath(t *testing.T) {
 	gate := &fakeGate{}
 	f, gh, deps, wdeps := recertifyFixture(t, gate)
 	gate.result = LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.head), RunDir: "/run/x"}
+	prBody := gh.pr.Body
 
 	res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
 	if res.Result != ResultApplied || res.Outcome != RecertifyOutcomeGreen {
 		t.Fatalf("result = %s/%s outcome %q (reason %q: %s); want applied green", res.Result, res.Reason, res.Outcome, res.Reason, res.Message)
 	}
-	if res.Head != f.head || res.Number != 1 {
-		t.Fatalf("result names head %q PR %d; want %q PR 1", res.Head, res.Number, f.head)
+	if res.Head != f.head || res.Number != 1 || !strings.HasSuffix(res.Reference, "#1") {
+		t.Fatalf("result names head %q PR %d (%q); want %q PR 1", res.Head, res.Number, res.Reference, f.head)
 	}
-	if gh.ensNext != 1 {
-		t.Fatalf("EnsurePullRequest calls = %d; want exactly 1", gh.ensNext)
-	}
-	body := gh.lastEnsuredBody()
-	if evidence.Verify([]byte(body), f.head) != evidence.VerdictVerified {
-		t.Fatalf("converged PR body does not verify green for the current head:\n%s", body)
-	}
-	if !strings.Contains(body, "Authored prose.") || !strings.Contains(body, "More prose.") {
-		t.Fatalf("authored PR body bytes were not preserved:\n%s", body)
-	}
-	if gh.ensLast.ExpectedHead != f.head || gh.ensLast.ExpectedRevision == "" {
-		t.Fatalf("PR edit was not pinned to head+revision: %+v", gh.ensLast)
+	if gh.ensNext != 0 || gh.pr.Body != prBody {
+		t.Fatalf("recertify edited the PR description (%d EnsurePullRequest calls)", gh.ensNext)
 	}
 	// The recertified record is durable in the change record's evidence section.
 	want, err := evidence.Extract([]byte(greenBlockFor(t, f.head)))
@@ -265,9 +258,8 @@ func TestIntegrationEvidenceEvidenceRecertifyGateFailureAndHalt(t *testing.T) {
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyGateOffRecordsSkipped: build.gate off mints truthful
-// skipped evidence and completes as skipped WITHOUT editing the PR block —
-// evidence.Upsert is green-only by design and this change preserves evidence
-// rendering (acceptance 2).
+// skipped evidence, records it in the change record, and completes as skipped
+// WITHOUT editing the PR (acceptance 2).
 func TestIntegrationEvidenceEvidenceRecertifyGateOffRecordsSkipped(t *testing.T) {
 	gate := &fakeGate{}
 	f, gh, deps, wdeps := recertifyFixture(t, gate)
@@ -385,76 +377,54 @@ func TestIntegrationEvidenceEvidenceRecertifyRefusesWrongHeadEvidence(t *testing
 	}
 }
 
-// flakyEnsureGitHub reports the first N EnsurePullRequest calls as UNKNOWN
-// (an unverifiable external effect) and then delegates to the real fake.
-type flakyEnsureGitHub struct {
-	*fakePublishGitHub
-	unknowns int
-}
-
-func (f *flakyEnsureGitHub) EnsurePullRequest(ctx context.Context, req githubcli.EnsurePullRequestRequest) (githubcli.EnsureResult, error) {
-	if f.unknowns > 0 {
-		f.unknowns--
-		return githubcli.EnsureResult{Disposition: githubcli.EnsureUnknown}, nil
+// TestIntegrationEvidenceEvidenceRecertifyRecordContended: a PASSED gate whose
+// record write races a concurrent writer that moved the change record between
+// recertify's read and its exact-revision transaction is refused as
+// contended/record-evidence-contended, reports NO completion, and leaves the
+// concurrent writer's record untouched.
+func TestIntegrationEvidenceEvidenceRecertifyRecordContended(t *testing.T) {
+	gate := &fakeGate{}
+	f, gh, deps, wdeps := recertifyFixture(t, gate)
+	gate.result = LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.head), RunDir: "/run/x"}
+	var advanced string
+	deps.Planning.Engine = &recordWriteInterposer{inner: f.deps.Engine, before: func() {
+		advanced = f.remoteRecordBytes(t) + "\nA concurrent writer's prose.\n"
+		f.repo.writerAdvance(t, f.branch, map[string]string{groomPath(f.id, f.slug): advanced})
+	}}
+	res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
+	if res.Result != ResultContended || res.Reason != ReasonRecertifyRecordContended {
+		t.Fatalf("result = %s/%s (%s); want %s/%s", res.Result, res.Reason, res.Message, ResultContended, ReasonRecertifyRecordContended)
 	}
-	return f.fakePublishGitHub.EnsurePullRequest(ctx, req)
-}
-
-// dispositionEnsureGitHub forces every EnsurePullRequest call to report a fixed
-// disposition (with no error), letting a test drive publishRecertifiedEvidence's
-// terminal disposition mapping directly.
-type dispositionEnsureGitHub struct {
-	*fakePublishGitHub
-	disp githubcli.EnsureDisposition
-}
-
-func (f *dispositionEnsureGitHub) EnsurePullRequest(_ context.Context, req githubcli.EnsurePullRequestRequest) (githubcli.EnsureResult, error) {
-	f.fakePublishGitHub.ensNext++
-	f.fakePublishGitHub.ensLast = req
-	return githubcli.EnsureResult{Disposition: f.disp}, nil
-}
-
-// TestIntegrationEvidenceEvidenceRecertifyEditContended: a PASSED gate whose PR edit comes back
-// EnsureContended (the PR diverged under the update) is refused as
-// contended/pr-edit-contended and reports NO completion — the contended arm of
-// publishRecertifiedEvidence's disposition mapping. Swapping the mapped result
-// to applied/green reddens the assert.
-func TestIntegrationEvidenceEvidenceRecertifyEditContended(t *testing.T) {
-	f := setupRebaseFixture(t, planRepoModes()[0])
-	inner := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
-	gh := &dispositionEnsureGitHub{fakePublishGitHub: inner, disp: githubcli.EnsureContended}
-	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.head), RunDir: "/run/x"}}
-	res := EvidenceRecertify(context.Background(), f.finalizeDeps(gh, gate), WorkspaceDeps{Service: f.svc},
-		f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
-	if res.Result != ResultContended || res.Reason != ReasonRecertifyEditContended {
-		t.Fatalf("result = %s/%s; want %s/%s", res.Result, res.Reason, ResultContended, ReasonRecertifyEditContended)
+	if res.Outcome != "" {
+		t.Fatalf("a contended record write reported completion: outcome %q", res.Outcome)
 	}
-	if res.Result == ResultApplied || res.Result == ResultNoOp || res.Outcome != "" {
-		t.Fatalf("a contended edit reported completion: %s/%s outcome %q", res.Result, res.Reason, res.Outcome)
+	if advanced == "" {
+		t.Fatalf("the record write was never attempted")
 	}
-	if inner.ensNext != 1 {
-		t.Fatalf("EnsurePullRequest calls = %d; want exactly 1 (no second mutation)", inner.ensNext)
+	if got := f.remoteRecordBytes(t); got != advanced {
+		t.Fatalf("the contended recertify touched the concurrent writer's record:\n%s", got)
+	}
+	if gh.ensNext != 0 {
+		t.Fatalf("recertify edited the PR description")
 	}
 }
 
-// TestIntegrationEvidenceEvidenceRecertifyEditUnrecognizedDisposition: a PASSED gate whose PR edit
-// returns an unrecognized (zero-value) disposition falls to the mapping's
-// default arm — internal-error/status-internal-error — and reports NO
-// completion. Deleting the default arm (so it fell through to applied) reddens
-// the assert.
-func TestIntegrationEvidenceEvidenceRecertifyEditUnrecognizedDisposition(t *testing.T) {
-	f := setupRebaseFixture(t, planRepoModes()[0])
-	inner := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
-	gh := &dispositionEnsureGitHub{fakePublishGitHub: inner, disp: githubcli.EnsureDisposition("")}
-	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.head), RunDir: "/run/x"}}
-	res := EvidenceRecertify(context.Background(), f.finalizeDeps(gh, gate), WorkspaceDeps{Service: f.svc},
-		f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
-	if res.Result != ResultInternalError || res.Reason != ReasonStatusInternalError {
-		t.Fatalf("result = %s/%s; want %s/%s", res.Result, res.Reason, ResultInternalError, ReasonStatusInternalError)
+// failingRecordWriteEngine fails the first N record-evidence transactions
+// without touching the metadata branch and delegates every other call to the
+// real engine.
+type failingRecordWriteEngine struct {
+	inner interface {
+		Execute(ctx context.Context, req transaction.Request) (transaction.Result, error)
 	}
-	if res.Result == ResultApplied || res.Result == ResultNoOp || res.Outcome != "" {
-		t.Fatalf("an unrecognized disposition reported completion: %s/%s outcome %q", res.Result, res.Reason, res.Outcome)
+	failures int
+}
+
+func (e *failingRecordWriteEngine) Execute(ctx context.Context, req transaction.Request) (transaction.Result, error) {
+	if _, ok := req.Operation.(recordEvidenceOp); ok && e.failures > 0 {
+		e.failures--
+		return transaction.Result{Disposition: transaction.DispositionFailed}, errors.New("record write boom")
 	}
+	return e.inner.Execute(ctx, req)
 }
 
 // dirtyingGate leaves an untracked, non-ignored file in the feature worktree
@@ -489,34 +459,37 @@ func TestIntegrationEvidenceEvidenceRecertifyRefusesDirtyAfterGate(t *testing.T)
 	}
 }
 
-// TestIntegrationEvidenceEvidenceRecertifyEditFailureThenRetry: an uncertain PR edit is NOT
-// completion; a later invocation converges the SAME PR and preserves authored
-// content (acceptance 4).
-func TestIntegrationEvidenceEvidenceRecertifyEditFailureThenRetry(t *testing.T) {
-	f := setupRebaseFixture(t, planRepoModes()[0])
-	inner := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
-	gh := &flakyEnsureGitHub{fakePublishGitHub: inner, unknowns: 1}
-	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.head), RunDir: "/run/x"}}
-	deps := f.finalizeDeps(gh, gate)
-	wdeps := WorkspaceDeps{Service: f.svc}
+// TestIntegrationEvidenceEvidenceRecertifyRecordFailureThenRetry: a record write
+// that does not apply is NOT completion; a later invocation converges the
+// change record's build-evidence section for the same head on the same PR
+// (acceptance 4).
+func TestIntegrationEvidenceEvidenceRecertifyRecordFailureThenRetry(t *testing.T) {
+	gate := &fakeGate{}
+	f, _, deps, wdeps := recertifyFixture(t, gate)
+	gate.result = LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.head), RunDir: "/run/x"}
+	deps.Planning.Engine = &failingRecordWriteEngine{inner: f.deps.Engine, failures: 1}
+	before := f.remoteRecordBytes(t)
 
 	first := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
 	if first.Result == ResultApplied || first.Result == ResultNoOp {
-		t.Fatalf("an unverified PR edit was reported as completion: %s/%s", first.Result, first.Reason)
+		t.Fatalf("a failed record write was reported as completion: %s/%s", first.Result, first.Reason)
 	}
-	if first.Reason != ReasonRecertifyEditUnknown {
-		t.Fatalf("first reason = %q; want %s", first.Reason, ReasonRecertifyEditUnknown)
+	if first.Reason != ReasonRecertifyRecordFailed {
+		t.Fatalf("first reason = %q; want %s", first.Reason, ReasonRecertifyRecordFailed)
+	}
+	if got := f.remoteRecordBytes(t); got != before {
+		t.Fatalf("a failed record write changed the record:\n%s", got)
 	}
 
 	second := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
 	if second.Result != ResultApplied || second.Number != 1 {
 		t.Fatalf("retry = %s/%s PR %d: %s; want applied on the same PR 1", second.Result, second.Reason, second.Number, second.Message)
 	}
-	body := inner.pr.Body
-	if evidence.Verify([]byte(body), f.head) != evidence.VerdictVerified {
-		t.Fatalf("retried PR body does not verify for the current head:\n%s", body)
+	want, err := evidence.Extract([]byte(greenBlockFor(t, f.head)))
+	if err != nil {
+		t.Fatalf("evidence.Extract: %v", err)
 	}
-	if !strings.Contains(body, "Authored prose.") || !strings.Contains(body, "More prose.") {
-		t.Fatalf("authored PR content was not preserved across the retry:\n%s", body)
+	if got := f.remoteRecordEvidence(t); got != want {
+		t.Fatalf("recorded evidence after retry = %+v, want %+v", got, want)
 	}
 }
