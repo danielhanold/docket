@@ -93,6 +93,26 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 	}
 	recordPath := reposeed.RecordPath(gitDir, layout.StateName(common))
 
+	// A private repository's parent-facing surface is one file under the common
+	// dir, shared by every worktree, so the phase plans against the PRIMARY
+	// worktree and records beside that file whichever worktree invoked it. A
+	// mode probe error refuses; it is never guessed as shared.
+	mode, err := layout.Detect(common)
+	if err != nil {
+		return nil, "", nil, &RepoResolutionError{Reason: install.ReasonFilesystemFailed,
+			Err: fmt.Errorf("cannot decide the visibility of %q: %w", root, err)}
+	}
+	private := mode == layout.Private
+	var commonDir string
+	if private {
+		repo, derr := git.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: invocation})
+		if derr != nil {
+			return nil, "", nil, &RepoResolutionError{Reason: install.ReasonInvalidRepoDir, Err: derr}
+		}
+		root, commonDir = repo.PrimaryWorktree, repo.CommonDir
+		recordPath = reposeed.RecordPath(repo.CommonDir, layout.PrivateName)
+	}
+
 	// The repository configuration layer. LoadFilesystemSources reads the global
 	// layer too — which is exactly what lets the provenance guard below tell a
 	// repository-declared opt-in from a global one that must never grant authority.
@@ -120,14 +140,37 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 	inScope := scopeSet(harnessScope)
 	effective := reconciledHarnesses(optIns, inScope)
 
-	targets, owners, err := reposeed.Plan(reposeed.PlanInput{
-		WorktreeRoot:  root,
-		Harnesses:     effective,
-		RunTracker:    runTracker,
-		ClaudeMDState: classifyClaudeMD(root),
-	})
-	if err != nil {
-		return nil, "", nil, &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
+	var (
+		targets []install.Target
+		owners  map[string][]string
+		planned map[string]bool // private mode only: the cleaned planned paths
+	)
+	if private {
+		// Only the private file; a CommonDir that is not <primary>/.git (a
+		// separate git dir) is an unsupported repository layout.
+		targets, owners, err = reposeed.PlanPrivate(reposeed.PrivatePlanInput{
+			WorktreeRoot: root,
+			CommonDir:    commonDir,
+			Harnesses:    effective,
+			RunTracker:   runTracker,
+		})
+		if err != nil {
+			return nil, "", nil, &RepoResolutionError{Reason: install.ReasonInvalidRepoDir, Err: err}
+		}
+		planned = make(map[string]bool, len(targets))
+		for _, t := range targets {
+			planned[filepath.Clean(t.Path)] = true
+		}
+	} else {
+		targets, owners, err = reposeed.Plan(reposeed.PlanInput{
+			WorktreeRoot:  root,
+			Harnesses:     effective,
+			RunTracker:    runTracker,
+			ClaudeMDState: classifyClaudeMD(root),
+		})
+		if err != nil {
+			return nil, "", nil, &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
+		}
 	}
 
 	prior, err := reposeed.LoadRecord(recordPath)
@@ -139,12 +182,12 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 		priorState = prior.ToState(root)
 	}
 
-	recordBytes, err := composeRecordBytes(targets, owners, prior, root, optIns)
+	recordBytes, err := composeRecordBytes(targets, owners, prior, root, optIns, planned, inScope)
 	if err != nil {
 		return nil, "", nil, &RepoResolutionError{Reason: install.ReasonInternal, Err: err}
 	}
 
-	removals, err := computeRemovals(prior, root, optIns, inScope, priorState, legacy)
+	removals, err := computeRemovals(prior, root, optIns, inScope, planned, priorState, legacy)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -239,7 +282,13 @@ func classifyClaudeMD(root string) reposeed.ClaudeMDState {
 // by a scoped run, whose record must survive verbatim (change 0351 / Task 7
 // carry-forward). A prior surface whose owners have all dropped out of the opt-in
 // set is not carried; it is retired through computeRemovals instead.
-func composeRecordBytes(targets []install.Target, owners map[string][]string, prior *reposeed.Record, root string, optIns []string) ([]byte, error) {
+//
+// planned is non-nil only for a private repository, whose one wanted surface is
+// the private file: there a prior surface this run did not plan is still wanted
+// by no one, whatever its owners' opt-ins. One with an in-scope owner is retired
+// (and not carried); one with no in-scope owner is carried untouched for a later
+// unscoped run to retire.
+func composeRecordBytes(targets []install.Target, owners map[string][]string, prior *reposeed.Record, root string, optIns []string, planned map[string]bool, scope map[string]bool) ([]byte, error) {
 	desired, err := reposeed.DesiredRecord(targets, owners, root)
 	if err != nil {
 		return nil, err
@@ -257,7 +306,7 @@ func composeRecordBytes(targets []install.Target, owners map[string][]string, pr
 	if prior != nil {
 		for _, s := range prior.Surfaces {
 			surviving := intersectSorted(s.Harnesses, optSet)
-			if len(surviving) == 0 {
+			if len(surviving) == 0 && planned == nil {
 				continue // every owner dropped: retired, never carried.
 			}
 			if idx, ok := byPath[s.Path]; ok {
@@ -265,6 +314,15 @@ func composeRecordBytes(targets []install.Target, owners map[string][]string, pr
 				// so a future run still sees it (a shared AGENTS.md under a scope that
 				// names only one of its owners).
 				desired.Surfaces[idx].Harnesses = unionSorted(desired.Surfaces[idx].Harnesses, surviving)
+				continue
+			}
+			if planned != nil {
+				// Private mode, an unplanned surface: retired when any owner is in
+				// scope, else carried untouched.
+				if !anyInScope(s.Harnesses, scope) {
+					byPath[s.Path] = len(desired.Surfaces)
+					desired.Surfaces = append(desired.Surfaces, s)
+				}
 				continue
 			}
 			// Not reconciled but still wanted: carry the prior surface forward with
@@ -284,10 +342,13 @@ func composeRecordBytes(targets []install.Target, owners map[string][]string, pr
 // drops. A surface is retired when NO opted-in owner still requires it AND at
 // least one of its owners is in scope — so a shared AGENTS.md is retired only when
 // none of its remaining owners is opted in, and a scoped run never touches an
-// out-of-scope surface. The proof is delegated to install.PlanGlobalRetirements,
-// which removes only an artifact byte-provably docket's (prior record or frozen
-// legacy) and refuses the whole run on anything it cannot prove.
-func computeRemovals(prior *reposeed.Record, root string, optIns []string, scope map[string]bool, priorState *install.State, legacy install.LegacyReproducer) ([]install.TargetRecord, error) {
+// out-of-scope surface. In a private repository (planned non-nil) a surface is
+// still required only when this run planned its path, so a working-tree surface
+// an earlier install wrote is retired even while its owners stay opted in. The
+// proof is delegated to install.PlanGlobalRetirements, which removes only an
+// artifact byte-provably docket's (prior record or frozen legacy) and refuses
+// the whole run on anything it cannot prove.
+func computeRemovals(prior *reposeed.Record, root string, optIns []string, scope map[string]bool, planned map[string]bool, priorState *install.State, legacy install.LegacyReproducer) ([]install.TargetRecord, error) {
 	if prior == nil {
 		return nil, nil
 	}
@@ -299,20 +360,20 @@ func computeRemovals(prior *reposeed.Record, root string, optIns []string, scope
 	var historical []install.Target
 	harnessByPath := map[string]string{}
 	for _, s := range prior.Surfaces {
+		abs := filepath.Clean(filepath.Join(root, filepath.FromSlash(s.Path)))
 		stillWanted := false
-		hasInScopeOwner := false
-		for _, owner := range s.Harnesses {
-			if optSet[owner] {
-				stillWanted = true
-			}
-			if inScope(scope, owner) {
-				hasInScopeOwner = true
+		if planned != nil {
+			stillWanted = planned[abs]
+		} else {
+			for _, owner := range s.Harnesses {
+				if optSet[owner] {
+					stillWanted = true
+				}
 			}
 		}
-		if stillWanted || !hasInScopeOwner {
+		if stillWanted || !anyInScope(s.Harnesses, scope) {
 			continue // kept by a remaining owner, or entirely out of scope.
 		}
-		abs := filepath.Clean(filepath.Join(root, filepath.FromSlash(s.Path)))
 		tgt := install.Target{
 			Path:      abs,
 			Kind:      s.Kind,
@@ -348,6 +409,16 @@ func computeRemovals(prior *reposeed.Record, root string, optIns []string, scope
 		}
 	}
 	return removals, nil
+}
+
+// anyInScope reports whether any of owners may be touched this run.
+func anyInScope(owners []string, scope map[string]bool) bool {
+	for _, h := range owners {
+		if inScope(scope, h) {
+			return true
+		}
+	}
+	return false
 }
 
 // intersectSorted returns the members of list that are in set, sorted and

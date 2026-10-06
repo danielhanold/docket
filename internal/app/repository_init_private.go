@@ -273,9 +273,16 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "disabling metadata-checkout hooks", err))
 	}
 
-	// 8. No .gitignore edit and no parent-facing dispatch surfaces: both are
-	// committed root files. Surfaces in a private repository belong to the
-	// follow-up change that keeps docket out of commits.
+	// 8. The parent-facing instructions: when the private config's
+	// agent_harnesses authorizes them, the dispatch block goes into
+	// .git/dckt/AGENTS.md through the installer's repository phase (which
+	// authorizes itself). Private init edits no .gitignore and writes nothing in
+	// the working tree.
+	_, wroteSurfaces, serr := installAuthorizedSurfaces(ctx, d.Git, sc.repo.PrimaryWorktree)
+	if serr != nil {
+		return fail(mapSurfaceFailure(cls.State, serr))
+	}
+	changed = changed || wroteSurfaces
 
 	// 9. Report the state the repository now classifies in.
 	facts, sc2, err := GatherSetupFacts(ctx, d, false)
