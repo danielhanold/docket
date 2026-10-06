@@ -34,6 +34,7 @@ func TestEveryNetworkSiteIsReadWriteClassified(t *testing.T) {
 		"classifyFetchFailure":  false, // ls-remote failure-classification probe
 		"ProbeRemoteBranch":     false, // ls-remote <ref>
 		"ListRemoteHeads":       false, // ls-remote --heads
+		"ListRemoteRefs":        false, // ls-remote --refs <patterns>
 		"PushLease":             true,  // push --force-with-lease
 		"PushCreateLease":       true,  // push (create)
 		"DeleteRemoteRefLease":  true,  // push --delete (lease)

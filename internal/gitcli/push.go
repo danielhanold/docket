@@ -12,6 +12,11 @@ const (
 	isAncestorOp      Operation = "is-ancestor"
 )
 
+// branchOnlyPushDetail is the refusal both lease pushes give a ref outside
+// refs/heads/: docket publishes branches only, so its local refs/docket/ scratch
+// refs (and tags, notes, or any other namespace) can never reach a remote.
+const branchOnlyPushDetail = "docket pushes branches only; a ref outside refs/heads/ (its local refs/docket/ scratch refs included) never leaves the clone"
+
 // PushDisposition is the structural outcome of a lease push.
 type PushDisposition string
 
@@ -50,6 +55,9 @@ func (c *Client) PushLease(ctx context.Context, repo Repository, remote RemoteNa
 	}
 	if err := validateRefName(ref); err != nil {
 		return PushOutcome{}, newFailure(pushLeaseOp, KindInvalidRequest, "invalid ref name", err)
+	}
+	if !strings.HasPrefix(string(ref), "refs/heads/") {
+		return PushOutcome{}, newFailure(pushLeaseOp, KindInvalidRequest, branchOnlyPushDetail, nil)
 	}
 	if err := validateObjectID(commit); err != nil {
 		return PushOutcome{}, newFailure(pushLeaseOp, KindInvalidRequest, "invalid commit id", err)
@@ -122,6 +130,9 @@ func (c *Client) PushCreateLease(ctx context.Context, repo Repository, remote Re
 	}
 	if err := validateRefName(ref); err != nil {
 		return PushOutcome{}, newFailure(pushCreateLeaseOp, KindInvalidRequest, "invalid ref name", err)
+	}
+	if !strings.HasPrefix(string(ref), "refs/heads/") {
+		return PushOutcome{}, newFailure(pushCreateLeaseOp, KindInvalidRequest, branchOnlyPushDetail, nil)
 	}
 	if err := validateObjectID(commit); err != nil {
 		return PushOutcome{}, newFailure(pushCreateLeaseOp, KindInvalidRequest, "invalid commit id", err)

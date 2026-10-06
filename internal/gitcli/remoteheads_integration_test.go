@@ -6,6 +6,7 @@ import (
 	"context"
 	"github.com/danielhanold/docket/internal/testsupport"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -124,4 +125,55 @@ func TestIntegrationListRemoteHeadsTransportFailureIsError(t *testing.T) {
 		t.Fatalf("transport failure produced a map: %+v", got)
 	}
 	assertKind(t, err, KindCommandFailed)
+}
+
+// TestIntegrationRepoListRemoteRefs proves ListRemoteRefs returns exactly the
+// remote refs its patterns name, each at the exact object id the origin holds
+// (oracle read straight from origin): docket-named branches and a refs/docket/
+// namespace ref match, while an unrelated feature branch does not. An
+// unreachable remote is an error, never an empty map a caller could read as
+// "no such refs", and a dash-led pattern is refused before git runs.
+func TestIntegrationRepoListRemoteRefs(t *testing.T) {
+	requireGit(t)
+	ctx := context.Background()
+	c := newRealClient(t)
+	r := newMainModeRepos(t)
+	r.writerCommit(t, "docket", map[string]string{"d.md": "d\n"})
+	r.writerCommit(t, "dckt", map[string]string{"k.md": "k\n"})
+	r.writerCommit(t, "feature/q", map[string]string{"q.md": "q\n"})
+	gitOut(t, r.Writer, "push", "-q", "origin", "HEAD:refs/docket/x/y")
+	repo := mustDiscover(t, c, r.Invocation)
+
+	want := map[RefName]ObjectID{
+		"refs/heads/docket": ObjectID(gitOut(t, r.Origin, "rev-parse", "refs/heads/docket")),
+		"refs/heads/dckt":   ObjectID(gitOut(t, r.Origin, "rev-parse", "refs/heads/dckt")),
+		"refs/docket/x/y":   ObjectID(gitOut(t, r.Origin, "rev-parse", "refs/docket/x/y")),
+	}
+	got, err := c.ListRemoteRefs(ctx, repo, "origin", []string{"refs/heads/docket", "refs/heads/dckt", "refs/docket/*"})
+	if err != nil {
+		t.Fatalf("ListRemoteRefs: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ListRemoteRefs = %+v, want %+v", got, want)
+	}
+
+	none, err := c.ListRemoteRefs(ctx, repo, "origin", []string{"refs/heads/no-such-branch"})
+	if err != nil {
+		t.Fatalf("ListRemoteRefs with no match: %v", err)
+	}
+	if none == nil || len(none) != 0 {
+		t.Fatalf("no match = %#v, want an empty non-nil map", none)
+	}
+
+	gitOut(t, r.Invocation, "remote", "add", "gone", filepath.Join(testsupport.TempDir(t), "missing.git"))
+	unreachable, err := c.ListRemoteRefs(ctx, repo, "gone", []string{"refs/heads/docket"})
+	if unreachable != nil {
+		t.Fatalf("unreachable remote produced a map: %+v", unreachable)
+	}
+	assertKind(t, err, KindCommandFailed)
+
+	for _, bad := range [][]string{{"-x"}, {""}, nil} {
+		_, err := c.ListRemoteRefs(ctx, repo, "origin", bad)
+		assertKind(t, err, KindInvalidRequest)
+	}
 }
