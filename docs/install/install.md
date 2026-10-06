@@ -46,6 +46,15 @@ harness, after editing a config file, and after every version update). A single 
   global agent wrappers** — the model/effort-pinned subagent copies, resolved from your global
   config over docket's built-in defaults. Wrappers are user-level only; no repository carries its
   own copies.
+- **Installs one content-free session trigger per harness**, so a private repository's agent
+  instructions load without any file in that repository: two Claude Code `SessionStart` hooks in
+  `~/.claude/settings.json` (`dckt instructions --hook claude --section dispatch` and
+  `dckt instructions --hook claude --section lessons`), a Cursor `sessionStart` hook in
+  `~/.cursor/hooks.json` (`dckt instructions --hook cursor`), the OpenCode plugin
+  `~/.config/opencode/plugins/dckt-instructions.js`, and a `dckt:private-instructions` pointer
+  block in `~/.codex/AGENTS.md`. Each one only runs `dckt instructions`, which prints nothing
+  outside a private repository, so a trigger is inert everywhere else. A hooks file docket cannot
+  edit in place (a symlink, for example) is left untouched, and the run warns about it.
 - **Retires the old global parent-facing dispatch blocks** that earlier docket versions wrote into
   your personal `~/.claude/CLAUDE.md` and the other harnesses' global instruction files, while
   keeping the global skills and agent wrappers. Removal is **proof-gated** — the engine deletes a
@@ -75,7 +84,9 @@ Claude-Code-only user can stop here. To pin a model or change a default on this 
 ## Uninstalling docket
 
 `docket uninstall` removes the harness integrations docket recorded for you — the
-global `skills/` symlinks and `agents/` wrappers it wrote — and nothing else. With
+global `skills/` symlinks, the `agents/` wrappers, and the session triggers it wrote
+(the hook entries, the OpenCode plugin, and the Codex pointer block, each removed only
+while it is unchanged) — and nothing else. With
 no flag it removes **every recorded harness**; a repeatable **`--harness <name>`**
 limits the run to the harness(es) you name, and duplicate `--harness` values are
 de-duplicated before anything is touched. **`--dry-run`** reports exactly what a
