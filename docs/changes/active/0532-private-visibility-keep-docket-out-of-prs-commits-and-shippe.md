@@ -9,7 +9,7 @@ created: '2026-10-05'
 updated: '2026-10-06'
 depends_on: [530, 531]
 stacked_on:
-related: [529, 533, 334, 351]
+related: [529, 533, 534, 535]
 discovered_from: []
 adrs: [36, 78]
 spec: 'docs/superpowers/specs/2026-10-05-private-visibility-keep-docket-out-of-prs-commits-and-shippe-design.md'
@@ -51,12 +51,7 @@ Once a leak is pushed it cannot be undone, and a rebase-merge would carry it int
 - Writing rules for grooming, the plan-writer, build and fix workers, and the PR author: no docket or `dckt` vocabulary and no change ids in specs, commits, code, or PR text.
 - A leak check, in private repositories only, scans commit messages, added lines (the spec copy included), and the PR title and description for docket and `dckt` fingerprints. Matching the bare word "docket" can be switched off. The check **blocks** the feature-branch push and the PR create or edit, and the run halts with a report naming the commit or line. This is a deliberate exception to report-only checks, because a pushed leak is irreversible.
 - `repository check` and `prepare` report a `docket` or `dckt` branch appearing on `origin` in a private repository. Report only.
-- Repository-level dispatch blocks (AGENTS.md, CLAUDE.md) are not written in private repositories. Instead, each private repository gets a private instructions file under `.git/dckt/` holding the dispatch and run-tracker rules plus promoted lessons. A new `docket instructions` command prints it.
-- Delivery is set up once per machine by `docket install`, with no rule text in either surface:
-  - **Claude Code:** a user-level `SessionStart` hook loads the private instructions file automatically.
-  - **Codex and OpenCode:** a static pointer block in their user-level AGENTS.md.
-  - Both invoke `dckt`, a new alias for the binary that both installers (the public release downloader and the development installer) create beside `docket`. The pointer's markers are `dckt:`, so neither surface contains the word "docket".
-  - **Cursor:** Cursor reads rules only from the project, so a private repository gets `.cursor/rules/dckt-dispatch.mdc`, hidden from git through `.git/info/exclude`. This is the one visible trace in a private repository's working tree, and the human accepted it.
+- Split out to their own changes: agent instructions for private repositories (#535) and the `dckt` binary alias (#534).
 
 ## Out of scope
 

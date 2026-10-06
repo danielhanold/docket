@@ -8,11 +8,11 @@ Change #532, groomed interactively on 2026-10-05. Third in the private-visibilit
 
 ## Summary
 
-In a private repository, other people see what docket ships: feature branches, PRs, commits, the spec copy, and code. None of them use docket. After #530 and #531, the remaining traces are PR-description blocks and lines, finalize's PR comments, model habits (change ids in commit subjects and PR titles, docket vocabulary in shipped text), and repository-level instruction files.
+In a private repository, other people see what docket ships: feature branches, PRs, commits, the spec copy, and code. None of them use docket. After #530 and #531, the remaining traces are PR-description blocks and lines, finalize's PR comments, and model habits (change ids in commit subjects and PR titles, docket vocabulary in shipped text). Repository-level instruction files are #535's concern.
 
 This change removes those traces and adds a **blocking** leak check as the backstop, in private repositories only. The goal is that nothing reaching `origin` through a private repository's feature branch or PR contains a docket or `dckt` fingerprint.
 
-It also gives private repositories their own **instructions file**, `<git-common-dir>/dckt/AGENTS.md`. That file holds the dispatch and run-tracker rules and any promoted lessons: the role the repository's own AGENTS.md plays in shared repositories. It is delivered to each harness without any file in the repository.
+Two related pieces were split out of this change: #535 loads a private repository's agent instructions without repository files, and #534 installs the `dckt` alias it relies on.
 
 ## Evidence gathered at grooming
 
@@ -26,11 +26,6 @@ It also gives private repositories their own **instructions file**, `<git-common
   - The fix-pass reference (`skills/docket-implement-next/references/fix-pass.md`) produces fix commits.
   - Observed `docs(plan): change 0507 …` subjects are inherited habit, not a template, and change ids leak into commit subjects through plan text.
 - **Spec copy.** #530 ships the spec as the feature branch's first commit. Specs habitually carry `Change #N, groomed …`, `.docket/` paths, ADR numbers, and backlog references.
-- **Repository-level instruction files.** The `agent_harnesses` repository phase (`reposeed.Plan`, `installAuthorizedSurfaces` in `internal/app/repository_init.go`, `internal/app/repophase.go`) writes the AGENTS.md and CLAUDE.md dispatch blocks and `.cursor/rules/docket-dispatch.mdc`.
-- **The dispatch rules exist only in the repository's own instructions file.** Since changes 0334 and 0351, the dispatch block (dispatch the named agent, bracket each implement-next run with `run.start` / `run.verdict`) is written only to a repository's own CLAUDE.md or AGENTS.md. `docket install` writes no user-level copy and retires old ones (`GlobalDispatchTarget` in `internal/harness/claude/claude.go`; the same pattern holds for codex and opencode). 0334 removed the user-level copy because a **second copy of the rules drifted**.
-  - At grooming, `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, and `~/.config/opencode/AGENTS.md` contained no docket text.
-  - Simply suppressing the repository-level block in a private repository would therefore leave the parent agent with **no** dispatch or run-tracker rules.
-- **Learnings promotion** lands a graduated rule in the integration-branch AGENTS.md or CLAUDE.md by hand (`skills/docket-convention/references/learnings.md`, *Promotion*). A restricted repository does not allow that edit.
 - **Feature-branch pushes** go through `workspace.Service.PublishHead` (`internal/workspace/publish.go`). PR create and edit go through `pr.publish`. Finalize's force-push after a rebase goes through `finalize.publish`.
 
 ## Decisions (settled with the human)
@@ -42,13 +37,6 @@ It also gives private repositories their own **instructions file**, `<git-common
 5. The check also matches `dckt`. Matching the bare word "docket" can be switched off for codebases where it is an ordinary domain word (court or shipping dockets).
 6. A `docket` or `dckt` branch appearing on `origin` in a private repository is reported, never blocked.
 7. Sparse documentation: `.docket.example.yml`, command help, and skills only.
-8. **A private repository's parent-facing rules live in `<git-common-dir>/dckt/AGENTS.md`**: the dispatch block plus promoted lessons. They are loaded per harness as follows:
-   - **Claude Code** runs `dckt instructions --hook` automatically at session start, through a user-level `SessionStart` hook in `~/.claude/settings.json`. The rules are always loaded.
-   - **Codex and OpenCode** get a short, static pointer block in their user-level AGENTS.md telling the model to run `dckt instructions` once per session and follow its output. The human chose this hybrid over a pointer for every harness: the hook is mechanical where a harness offers one, and the pointer is the best available elsewhere.
-   - Neither user-level surface carries any rule text, so the drift that made 0334 retire the user-level copy cannot recur. The rules have one source.
-   - **Both surfaces are spelled neutrally.** The pointer block's managed markers use the `dckt:` prefix, and both surfaces invoke `dckt`, a new alias for the `docket` binary. So nothing in them reads "docket", even in the user's home directory or a published dotfiles repository.
-9. **In private repositories, promoted lessons land in that private instructions file,** not the integration-branch AGENTS.md.
-
 ## Design
 
 ### 1. PR text and comments
@@ -95,76 +83,10 @@ The repository's mode reaches each worker through the payload or context it alre
 
 In a private repository, `repository check` and `repository prepare` probe `origin` for a `docket` or `dckt` branch and report a warning finding (`metadata-on-shared-remote`). The remedy says to delete the branch, or, once #533 lands, to use `set-visibility private --delete-shared-branch`. The finding is report-only.
 
-### 5. Instructions for agents in private repositories
-
-**No repository-level instruction file.** In private repositories, `init` and `install`'s repository phase write no AGENTS.md or CLAUDE.md dispatch block and no `.cursor/rules/docket-dispatch.mdc`. Blocks committed before the repository went private are #533's `--remove-shared-files` concern.
-
-**The private instructions file.** In private repositories, `<git-common-dir>/dckt/AGENTS.md` takes the role the repository's own AGENTS.md plays in shared repositories.
-- `init --private`, and `install`'s repository phase in a private repository, write the managed dispatch block into it. It is the same interior the repository-level block carries today, selected by `agent_harnesses` exactly as today, Codex clause included.
-- The file also holds promoted lessons. In private repositories the learnings promotion destination is this file, and the learnings reference says so.
-- It lives under `.git/`, so it is never committed and never visible in the worktree.
-
-**`docket instructions`**, a new read-only operation in the catalog:
-- In a private repository, it prints the private instructions file from any worktree of the clone, resolving `.git` through the git common directory, since a feature worktree's `.git` is a file.
-- Anywhere else (a shared repository, a non-docket repository, outside git), it prints **nothing** and exits 0.
-- It never fails noisily, because it runs in every session.
-- `--hook` wraps the same content in Claude Code's `SessionStart` hook output shape (additional context), and prints nothing outside private repositories.
-
-**Delivery per harness.** These are user-level surfaces written by `docket install`. They are static, carry no rule text, and are identical on every machine:
-
-| Harness | User-level surface | What it does |
-|---|---|---|
-| Claude Code | `SessionStart` hook entry in `~/.claude/settings.json` running `dckt instructions --hook` | Loads the private rules automatically at session start; adds nothing outside private repositories. |
-| Codex | managed pointer block (markers `dckt:`) in `~/.codex/AGENTS.md` | Tells the model to run `dckt instructions` once per session and treat its output as the repository's AGENTS.md. |
-| OpenCode | managed pointer block in `~/.config/opencode/AGENTS.md` | Same as Codex. |
-| Cursor | out of reach at user level | Cursor reads rules only from the repository: in private repositories the rule file is written as `.cursor/rules/dckt-dispatch.mdc` and excluded through `.git/info/exclude`. |
-
-Pointer block wording, including its `dckt:` markers (final wording is set in the plan, but it must stay rule-free and must not contain the word "docket"):
-
-```markdown
-<!-- dckt:private-instructions:start (managed — do not hand-edit) -->
-## Private repository instructions
-
-At the start of a session inside a git repository, run `dckt instructions` once.
-If it prints anything, treat that output as this repository's own AGENTS.md and
-follow it for the rest of the session. If it prints nothing, ignore this section.
-<!-- dckt:private-instructions:end -->
-```
-
-The managed-block machinery must accept the `dckt` marker prefix for these user-level blocks: install, idempotence, outside-bytes preservation, and ownership-proved removal, with the same guarantees as today's `docket:` blocks.
-
-**The `dckt` alias.** `dckt` is a symlink to the `docket` binary in the same bin directory (`--bin-dir`, default `${XDG_BIN_HOME:-~/.local/bin}`). It is created by **whichever installer places the binary**, so both install paths get it.
-
-| Install path | Who places the binary | Where the alias is added |
-|---|---|---|
-| **Public release install (v1.0 and later; the path users take)** | the release downloader `internal/release/downloader/install.sh`, rendered into every release bundle and published as a release asset | the downloader creates `dckt` beside `$bin_dir/docket` and records it in its ownership record (`release-binary.record`) next to the binary |
-| Development install from a checkout | the Go development installer (`docket development install`), reached through the repository-root `install.sh` bootstrapper | the Go development installer creates it beside the binary, inside the same journaled transaction |
-
-Rules:
-- **The alias follows the binary.** Install creates or refreshes it only when the existing `dckt` is absent or already owned (a symlink resolving to the installed `docket`). `docket uninstall` leaves it in place, exactly as it already leaves the binary itself (`internal/install/uninstall.go`: "The installation's own binary … remain recorded and untouched").
-- **A foreign `dckt`** (another tool's binary or link) is never overwritten, and there is no force path, matching the downloader's existing refusal posture for a binary it does not own. The installer warns and finishes the rest of the install. `docket install check` reports a missing or foreign `dckt` with its remedy. The user-level hook and pointer are installed regardless; without the alias they fail harmlessly, and `docket instructions` still works by hand.
-- **Downloader contract.** The downloader's contract comment lists its runtime dependencies, and its tests (`tests/test_release_downloader.sh`, `tests/test_release_downloader_refusals.sh`, `tests/test_release_downloader_converge.sh`, plus `scripts/release-smoke.sh`) pin its command spellings and PATH sandbox. They must admit the one added POSIX `ln -s` and cover the alias: created, converged on re-run, and refused when foreign.
-- **Invoked as `dckt`, the binary behaves exactly as `docket`.** The capability catalog keeps spelling `docket`, and skills keep resolving argv from the catalog, so only the user-level hook and pointer use the alias.
-
-**Safety requirements for the user-level writes:**
-- The `settings.json` hook entry is identified by its exact command string. Install adds it only when absent and merges without reformatting or dropping any other setting. Uninstall removes only an exact match, and refuses (reporting) on a modified entry.
-- The pointer blocks use the existing managed-block machinery (closed-block guard, outside bytes preserved, ownership-proved retirement).
-- These surfaces are installed whenever the harness is installed, because a private repository can appear on the machine at any time. They are no-ops everywhere else.
-- This is a deliberate, narrow return of user-level parent-facing writes, which 0351 retired. It is acceptable because the surfaces carry only a trigger, never rules.
-
-**First plan task (spike).** In a fresh session for each harness, confirm that:
-- Claude Code's user-level `SessionStart` hook delivers the output as context;
-- Codex and OpenCode follow the pointer and run the command;
-- Cursor reads an excluded rule file.
-
-Record the results in the results file before building on them.
-
-### 6. Documentation
+### 5. Documentation
 
 - `leak_check.match_word` is documented in `.docket.example.yml` and its twin.
-- `docket instructions` is documented in its command help.
-- The `dckt` alias appears in both installers' summary output and in the downloader's usage text, not in `docs/`.
-- Skills carry the writing rule, the leak-check halt handling, and the private promotion destination.
+- Skills carry the writing rule and the leak-check halt handling.
 - No `docs/` pages.
 
 ## Acceptance criteria
@@ -180,29 +102,13 @@ Record the results in the results file before building on them.
    The run halts with the hit list.
 3. **`leak_check.match_word: false`** lets the bare word "docket" through, and still blocks markers, trailers, paths, `dckt`, and change ids.
 4. **Year and ADR safety.** A year such as "(2026)" and a host repository's own ADR references are not matched.
-5. **Shared mode unchanged.** Shared-mode PR bodies, finalize comments, and instruction files are unchanged, and no scan runs (pinned).
+5. **Shared mode unchanged.** Shared-mode PR bodies and finalize comments are unchanged, and no scan runs (pinned).
 6. **Finalize block.** In a private repository it posts no PR comment and records `## Finalize blocked`.
 7. **Shared-remote finding.** A `docket` or `dckt` branch on `origin` of a private repository produces the warning finding, with no refusal.
 8. **Mutation.** Removing the scanner call before a push turns a test red.
-9. **Private instructions file.** In a private repository, `<git-common-dir>/dckt/AGENTS.md` carries the dispatch block, and no AGENTS.md, CLAUDE.md, or docket-named Cursor rule is written in the worktree.
-   - `docket instructions` prints the file from the primary worktree, a feature worktree, and the metadata worktree.
-   - It prints nothing (and exits 0) in a shared repository, a non-docket repository, and outside git.
-   - `--hook` emits valid `SessionStart` output in private repositories only.
-10. **User-level surfaces.**
-    - `install` adds the `settings.json` hook entry and the two pointer blocks. All three invoke `dckt`, and none contains the word "docket": the pointer blocks' markers are `dckt:` (pinned by a test).
-    - Both the release downloader and the development installer create the `dckt` symlink beside `docket`. A re-run converges, and `uninstall` leaves the alias with the binary.
-    - `dckt instructions` and `docket instructions` produce identical output.
-    - A foreign pre-existing `dckt` is left untouched, the install completes with a warning, and `install check` reports it.
-    - A second install is a no-op.
-    - An unrelated `settings.json` key and hook survive byte-for-byte.
-    - `uninstall` removes only docket's exact entries.
-    - The surfaces contain no rule text, pinned by a test that fails if any dispatch-block sentence appears in them.
-11. **Fresh-session acceptance per harness** (the spike) is recorded in the results file. A private repository's Claude session receives the dispatch rules without any repository file.
-
 ## ADRs expected
 
-- **The leak check blocks.** It is a deliberate, scoped exception to report-only checks, justified because a pushed leak is irreversible and outward-facing.
-- **Where a private repository's parent-facing rules live.** They are in `<git-common-dir>/dckt/AGENTS.md`, reached through content-free user-level triggers: a Claude `SessionStart` hook, and pointer blocks for Codex and OpenCode. This narrowly revisits 0351's retirement of user-level parent-facing writes: the triggers carry no rules, so the drift problem does not return. Relates to ADR-0036 and ADR-0078.
+The leak check blocks: a deliberate, scoped exception to report-only checks, justified because a pushed leak is irreversible and outward-facing.
 
 ## Out of scope
 
@@ -210,3 +116,4 @@ Record the results in the results file before building on them.
 - Rewriting already-pushed history.
 - Shared-mode PR bodies and comments.
 - Scanning for references to the host repository's own ADRs or tickets.
+- Agent instructions for private repositories (#535) and the `dckt` alias (#534).
