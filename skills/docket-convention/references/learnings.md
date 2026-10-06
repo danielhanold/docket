@@ -55,7 +55,10 @@ Tiering criterion: *"will the agent know to search for this?"* A rule that must 
 `promotion_state: candidate` on the metadata branch and **never touches the integration branch**
 (ADR-0005). A human lands the graduation in the integration-branch agent-instructions file
 (`AGENTS.md`/`CLAUDE.md`, symlink-aware; `AGENTS.md` is the neutral spelling when neither
-exists) and flips `promoted` + `promoted_to:`. A promoted finding leaves the topic groups for a
+exists) and flips `promoted` + `promoted_to:`. In a private repository the graduation lands
+instead in the private instructions file `.git/dckt/AGENTS.md`, outside its managed
+`docket:dispatch` block, since a private repository carries no agent-instructions file in its
+tree. A promoted finding leaves the topic groups for a
 compressed `## Promoted` appendix — but its file is **kept**, never deleted: it is the graduated rule's receipt, the dedup memory against
 re-recording a duplicate, and a one-line-reversible demotion path.
 

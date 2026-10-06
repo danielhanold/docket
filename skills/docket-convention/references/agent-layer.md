@@ -89,6 +89,22 @@ The install also retires the global dispatch blocks earlier docket versions wrot
 (`~/.claude/CLAUDE.md` and the other harnesses' globals). The removal is proof-gated: a block is removed only while
 it still matches docket's exact ownership marker; a modified or foreign block is left untouched and reported.
 
+### In a private repository
+
+In a private repository, `agent_harnesses` writes the `docket:dispatch` block into the private instructions file
+`.git/dckt/AGENTS.md` and nothing in the working tree. Promoted lessons sit in the same file, outside the block.
+`docket install` delivers that file through user-level triggers that carry no rules themselves:
+
+- two Claude Code `SessionStart` hooks in `~/.claude/settings.json`,
+  `dckt instructions --hook claude --section dispatch` and `dckt instructions --hook claude --section lessons`, one
+  per section so each fits Claude Code's per-hook size limit;
+- a Cursor `sessionStart` hook in `~/.cursor/hooks.json`, `dckt instructions --hook cursor`;
+- the OpenCode plugin `~/.config/opencode/plugins/dckt-instructions.js`;
+- a `dckt:private-instructions` pointer block in `~/.codex/AGENTS.md`, which Codex follows on a best-effort basis.
+
+Outside a private repository `docket instructions` prints nothing, so the triggers are inert there. Uninstall
+removes each trigger only while it is unchanged.
+
 ## Launch posture
 
 Agent-source frontmatter may declare `launch: root-coordinator`; absence means the closed default
