@@ -24,7 +24,7 @@ func TestSettingPathsSupportSplit(t *testing.T) {
 		}
 	}
 	want := []string{
-		"integration_branch", "changes_dir", "adrs_dir", "results_dir",
+		"visibility", "integration_branch", "changes_dir", "adrs_dir", "results_dir",
 		"finalize.gate", "finalize.test_command", "finalize.require_pr_approval",
 		"finalize.resolver_max_attempts", "finalize.repair_max_attempts",
 		"build.gate", "build.test_command", "build.max_attempts",

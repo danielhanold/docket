@@ -52,6 +52,11 @@ type resolution struct {
 	allDecls []leafDecl
 
 	diags []Diagnostic
+
+	// repoSourceName is the LayerRepository source's Name: ".docket.yml" in a
+	// shared repository, layout.PrivateConfigDisplay in a private one. The
+	// shared-setting guard's remedies name it (committedConfigName).
+	repoSourceName string
 }
 
 // Resolve parses and resolves sources supplied in low-to-high precedence order
@@ -89,6 +94,9 @@ func resolve(sources []Source, rctx ResolveContext) (*resolution, error) {
 	// Every layer is parsed and decoded before any is judged: one broken layer
 	// must not hide what the others say.
 	for _, src := range sources {
+		if src.Layer == LayerRepository {
+			res.repoSourceName = src.Name
+		}
 		root, diags := parseLayer(src)
 		res.diags = append(res.diags, diags...)
 		if root == nil {
@@ -220,7 +228,7 @@ func (r *resolution) applySharedSettingGuard(decl leafDecl) (leafDecl, bool) {
 	case decl.spec.scope == scopeRepoOnly && isMachineLayer(decl.prov.Layer):
 		r.ignoreSharedSetting(decl, decl.path,
 			"coordinates the whole repository and may only be declared in the committed configuration",
-			fmt.Sprintf("move %s to the committed .docket.yml, or remove it here", decl.path))
+			fmt.Sprintf("move %s to %s, or remove it here", decl.path, r.committedConfigName()))
 		return decl, false
 	}
 
@@ -246,7 +254,7 @@ func (r *resolution) keepUnguardedSurfaces(decl leafDecl) []string {
 		}
 		r.ignoreSharedSetting(decl, decl.path,
 			fmt.Sprintf("names the %q surface, which coordinates the whole repository and may only be requested by the committed configuration", boardSurfaceGitHub),
-			fmt.Sprintf("declare %q in the committed .docket.yml, or drop the token here", boardSurfaceGitHub))
+			fmt.Sprintf("declare %q in %s, or drop the token here", boardSurfaceGitHub, r.committedConfigName()))
 	}
 	return kept
 }
@@ -261,6 +269,17 @@ func (r *resolution) ignoreSharedSetting(decl leafDecl, path, why, remedy string
 		Message:    fmt.Sprintf("%s: %s %s; the declaration is ignored", prov.Source, path, why),
 		Remedy:     remedy,
 	})
+}
+
+// committedConfigName is the file a guarded remedy sends a setting to: "the
+// committed .docket.yml" (byte-identical shared text) unless the repository
+// layer came from a differently named source, such as a private repository's
+// .git/dckt/config.yml.
+func (r *resolution) committedConfigName() string {
+	if r.repoSourceName == "" || r.repoSourceName == ".docket.yml" {
+		return "the committed .docket.yml"
+	}
+	return r.repoSourceName
 }
 
 func isMachineLayer(layer LayerKind) bool {
@@ -282,6 +301,7 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 	// metadata_branch has no effective leaf: it is an obsolete tombstone
 	// (change 0363), excluded at decode and never assigned here.
 	set(assign(&eff.IntegrationBranch, r.declared, "integration_branch"))
+	set(assign(&eff.Visibility, r.declared, "visibility"))
 	set(assign(&eff.ChangesDir, r.declared, "changes_dir"))
 	set(assign(&eff.ADRsDir, r.declared, "adrs_dir"))
 	set(assign(&eff.ResultsDir, r.declared, "results_dir"))

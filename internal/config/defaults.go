@@ -27,6 +27,7 @@ func builtinEffective() Effective {
 		// No metadata_branch: it is an obsolete tombstone (change 0363), never a
 		// resolved default.
 		IntegrationBranch: builtinValue("auto"),
+		Visibility:        builtinValue("shared"),
 		ChangesDir:        builtinValue("docs/changes"),
 		ADRsDir:           builtinValue("docs/adrs"),
 		ResultsDir:        builtinValue("docs/results"),

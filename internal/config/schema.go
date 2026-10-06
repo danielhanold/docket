@@ -232,6 +232,13 @@ func buildRegistry() []pathSpec {
 		{path: "metadata_branch", kind: kindString, merge: mergeScalar,
 			disp: dispObsolete, validate: stringLeaf(false, false, false)},
 
+		// visibility is an ordinary key (any layer, normal precedence): it picks
+		// the mode `docket repository init` sets a NEW repository up in. The mode
+		// of an existing repository is its state (layout.Detect), never config.
+		{path: "visibility", kind: kindString, enum: []string{"shared", "private"}, def: "shared",
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported,
+			validate: enumLeaf("shared", "private")},
+
 		// 3-6: repository identity — shared-setting-guarded, so a machine layer
 		// cannot silently relocate one clone's planning surfaces.
 		{path: "integration_branch", kind: kindString, def: "auto",

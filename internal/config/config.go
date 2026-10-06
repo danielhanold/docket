@@ -120,6 +120,7 @@ type Effective struct {
 	// resolved policy. The metadata branch comes from the repository's layout
 	// (layout.Layout.MetadataBranch), decided from state, never from config.
 	IntegrationBranch Value[string]   `json:"integration_branch"` // auto already resolved
+	Visibility        Value[string]   `json:"visibility"`         // the mode a new repository is set up in; never moves one
 	ChangesDir        Value[string]   `json:"changes_dir"`
 	ADRsDir           Value[string]   `json:"adrs_dir"`
 	ResultsDir        Value[string]   `json:"results_dir"`

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/danielhanold/docket/internal/layout"
 )
 
 // FSOptions selects the files the adapter reads. It performs no Git discovery
@@ -17,6 +19,11 @@ type FSOptions struct {
 // LoadFilesystemSources reads DIR/.docket.yml (repository), DIR/.docket.local.yml
 // (repository-local), and the global config, returning present layers in
 // low→high order. A missing file is an absent layer, not an error.
+//
+// A private repository (DIR/.git resolves to a common dir that layout.Detect
+// calls private) reads the global config plus LoadPrivateRepositorySource
+// instead: it never reads .docket.yml. The mode probe needs no git process;
+// any probe error is returned, never guessed.
 func LoadFilesystemSources(opts FSOptions) ([]Source, error) {
 	if opts.RepoDir == "" {
 		return nil, errors.New("config: FSOptions.RepoDir is required")
@@ -46,6 +53,20 @@ func LoadFilesystemSources(opts FSOptions) ([]Source, error) {
 	globalPath := opts.GlobalPath
 	if globalPath == "" {
 		globalPath = defaultGlobalPath()
+	}
+
+	common, ok, err := layout.CommonDirOf(repoDir)
+	if err != nil {
+		return nil, fmt.Errorf("config: %w", err)
+	}
+	if ok {
+		mode, err := layout.Detect(common)
+		if err != nil {
+			return nil, fmt.Errorf("config: %w", err)
+		}
+		if mode == layout.Private {
+			return loadPrivateSources(globalPath, common, repoDir)
+		}
 	}
 
 	type candidate struct {
@@ -112,4 +133,56 @@ func defaultGlobalPath() string {
 		return filepath.Join(home, ".config", "docket", "config.yml")
 	}
 	return ""
+}
+
+// ConflictingLocalConfigError is a private repository that also carries a
+// .docket.local.yml: a private repository reads only its private config.
+type ConflictingLocalConfigError struct{ LocalPath, PrivatePath string }
+
+func (e *ConflictingLocalConfigError) Error() string {
+	return fmt.Sprintf("config: both %s and %s exist; a private repository reads only %s — move any settings you need into it and delete %s",
+		e.LocalPath, e.PrivatePath, e.PrivatePath, e.LocalPath)
+}
+
+// LoadPrivateRepositorySource reads a private repository's repository layer,
+// layout.PrivateConfigPath(commonDir), returning zero or one Source named
+// layout.PrivateConfigDisplay. A missing file is an absent layer. A
+// <primaryWorktree>/.docket.local.yml beside it is a *ConflictingLocalConfigError:
+// a private repository reads only its private config, and silently ignoring
+// the local file would drop settings the user believes are in force.
+func LoadPrivateRepositorySource(commonDir, primaryWorktree string) ([]Source, error) {
+	privatePath := layout.PrivateConfigPath(commonDir)
+	localPath := filepath.Join(primaryWorktree, ".docket.local.yml")
+	if _, err := os.Stat(localPath); err == nil {
+		return nil, &ConflictingLocalConfigError{LocalPath: localPath, PrivatePath: privatePath}
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("config: inspecting %s: %w", localPath, err)
+	}
+
+	data, err := os.ReadFile(privatePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("config: reading %s: %w", privatePath, err)
+	}
+	return []Source{{Layer: LayerRepository, Name: layout.PrivateConfigDisplay, Data: data}}, nil
+}
+
+// loadPrivateSources is a private repository's full layer stack: the global
+// config, then its private repository layer.
+func loadPrivateSources(globalPath, commonDir, primaryWorktree string) ([]Source, error) {
+	var sources []Source
+	if globalPath != "" {
+		global, err := LoadGlobalSource(globalPath)
+		if err != nil {
+			return nil, err
+		}
+		sources = append(sources, global...)
+	}
+	repo, err := LoadPrivateRepositorySource(commonDir, primaryWorktree)
+	if err != nil {
+		return nil, err
+	}
+	return append(sources, repo...), nil
 }

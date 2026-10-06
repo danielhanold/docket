@@ -43,6 +43,16 @@
 # scope: repo-only (shared-setting guarded)
 integration_branch: auto
 
+# visibility — where docket keeps this repository's planning data. `shared` (the default) keeps it
+# on a `docket` branch pushed to origin, beside a `.docket/` worktree, so everyone with the
+# repository sees the backlog. `private` keeps it on your machine only: a `dckt` branch pushed to a
+# bare repository under ~/.local/share/dckt, with nothing docket-named inside the repository — for
+# repositories that must not carry any docket files. `docket repository init` sets a new
+# repository up in this mode (`--private` / `--shared` override it); changing it later does not
+# move a repository that is already set up.
+# scope: any layer
+visibility: shared
+
 # changes_dir / adrs_dir / results_dir — where the change files (and the board), the ADR ledger,
 # and the results records live on the `docket` branch, relative to its root. Each must be a clean
 # relative path inside the repository.
