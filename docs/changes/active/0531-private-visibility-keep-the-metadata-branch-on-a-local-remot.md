@@ -22,7 +22,7 @@ branch: 'feat/private-visibility-keep-the-metadata-branch-on-a-local-remot'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-06T10:06:51Z'
+claimed_at: '2026-10-06T10:39:10Z'
 ---
 
 ## Artifacts
