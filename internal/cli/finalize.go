@@ -529,7 +529,7 @@ func newFinalizePublishSubcommand(setResult func(app.OperationResult)) *cobra.Co
 			attempt, _ := c.Flags().GetString("attempt")
 			head, _ := c.Flags().GetString("head")
 			evSource, _ := c.Flags().GetString("evidence")
-			ev, err := readRecordSource(c.InOrStdin(), evSource)
+			ev, err := readRecordSource(c.InOrStdin(), "evidence", evSource)
 			if err != nil {
 				return err
 			}
