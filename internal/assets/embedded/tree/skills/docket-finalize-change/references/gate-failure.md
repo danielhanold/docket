@@ -12,6 +12,7 @@ or tests; `docket-integration-repair` owns the **red suite** *after* the rebase 
 cause. Neither wraps a skill (only `docket-convention`); both are dispatched **foreground at the
 model/effort its wrapper resolves** — never a literal model or effort. Either dispatch payload includes:
 Feature worktree: <absolute canonical feature-worktree root>
+Visibility: <shared|private>
 This harness-neutral input serves the feature-scoped role; Codex enters it through its installed
 contract, other harnesses through their native worktree mechanism.
 

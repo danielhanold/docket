@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:5d0136e7d91b740646f0a5837ba0d599d8b5eccc2267252b0d269edeccf0ecba",
+  "asset_set_id": "sha256:54fb90cc80ae3642203dd0b106f9f4671b5fd393bbcce731b1fede565391724d",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -84,8 +84,8 @@
       "path": "agents/docket-integration-repair.md",
       "role": "agent-source",
       "mode": 420,
-      "size": 2582,
-      "sha256": "54a86258b4997f7af763b40f70ae5d7b54d90f5f8083ef3e821fb3a319d8efbe"
+      "size": 2988,
+      "sha256": "772bdc58376698701f00e328753181b7fcbd660f66e69287bfaf4914a585443b"
     },
     {
       "path": "agents/docket-plan-writer.md",
@@ -98,8 +98,8 @@
       "path": "agents/docket-rebase-resolver.md",
       "role": "agent-source",
       "mode": 420,
-      "size": 3225,
-      "sha256": "262c7832f0a85ce4f81276a0183e80d2ef3017d73bde4c6b59508c86fbadc47b"
+      "size": 3574,
+      "sha256": "3ffa4798cb1e0d4478596ddee285be806467234e78976aea4c2297507348b25e"
     },
     {
       "path": "agents/docket-review-deep.md",
@@ -357,15 +357,15 @@
       "path": "skills/docket-finalize-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 41759,
-      "sha256": "cf26a62323d1437a36e422491d13f3660b4be666feaf92649f8c7389a340d569"
+      "size": 41898,
+      "sha256": "38d691d52b4a0cc0dd5513101e0f935750b9f48c4f17b261594cf274969a0a8f"
     },
     {
       "path": "skills/docket-finalize-change/references/gate-failure.md",
       "role": "skill",
       "mode": 420,
-      "size": 14803,
-      "sha256": "deda0bf0adfade52197583059ef7f2965100a48e1a38df00b1cecfe820e0e3c7"
+      "size": 14832,
+      "sha256": "7f531866048e6275c2c80097f9970f5d9224e4b04c2d552f6f85c2e36059c668"
     },
     {
       "path": "skills/docket-groom-next/SKILL.md",

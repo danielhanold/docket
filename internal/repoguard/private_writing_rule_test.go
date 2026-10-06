@@ -4,6 +4,9 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/harness"
 )
 
 // TestPrivateWritingRuleReachesEveryWriter guards the private-repository writing
@@ -101,4 +104,100 @@ func TestPrivateWritingRuleReachesEveryWriter(t *testing.T) {
 			t.Errorf("%s: no paragraph holds all of %q", p.file, p.tokens)
 		}
 	}
+}
+
+// visibilityDispatchLine is the payload line that hands a feature-branch writer
+// the repository's visibility.
+const visibilityDispatchLine = "Visibility: <shared|private>"
+
+// TestPrivateWritingRuleReachesEveryFeatureWriter derives the writer set rather
+// than listing it: every feature-scoped role whose description does not declare
+// it read-only writes text that ships through the feature branch. Each such role
+// must state the rule and the `Visibility:` payload field in one source of its
+// own instructions (its body, or one preloaded skill — docket-convention alone
+// defines the rule but never tells a role to read its payload), and every
+// marker-delimited dispatch naming it must carry the raw visibility line.
+func TestPrivateWritingRuleReachesEveryFeatureWriter(t *testing.T) {
+	catalog, err := assets.EmbeddedCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources, err := harness.ParseInventory(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writers := map[string]bool{}
+	scoped := map[string]bool{}
+	for _, src := range sources {
+		if src.WorktreeScope != harness.WorktreeScopeFeature {
+			continue
+		}
+		scoped[src.Name] = true
+		if strings.Contains(strings.ToLower(src.Description), "read-only") {
+			continue
+		}
+		writers[src.Name] = true
+		ownTexts := []string{readRepoFile(t, "agents/"+src.Name+".md")}
+		for _, skill := range src.Skills {
+			ownTexts = append(ownTexts, readRepoFile(t, "skills/"+skill+"/SKILL.md"))
+		}
+		if !namesRuleAndVisibility(ownTexts) {
+			t.Errorf("%s writes on the feature branch but no single source of its instructions names both %q and the %s", src.Name, "Visibility:", privateRulePhrase)
+		}
+	}
+	if len(writers) < 4 {
+		t.Fatalf("derived feature-writer set shrank to %d roles: %v", len(writers), writers)
+	}
+
+	root := guardRoot(t)
+	dispatched := map[string]bool{}
+	for _, rel := range maintainedPop(t, root) {
+		if !strings.HasPrefix(rel, "skills/") || !strings.HasSuffix(rel, ".md") {
+			continue
+		}
+		sites, _ := parseFeatureDispatches(rel, readMaintained(t, root, rel), scoped)
+		for _, site := range sites {
+			for _, target := range site.targets {
+				if !writers[target] {
+					continue
+				}
+				dispatched[target] = true
+				if !hasExactLine(site.lines, visibilityDispatchLine) {
+					t.Errorf("%s:%d-%d dispatch of %s lacks raw line %q", site.rel, site.start, site.end, target, visibilityDispatchLine)
+				}
+			}
+		}
+	}
+	for w := range writers {
+		if !dispatched[w] {
+			t.Errorf("feature writer %s has no marker-delimited dispatch to check", w)
+		}
+	}
+
+	t.Run("non_vacuity", func(t *testing.T) {
+		if namesRuleAndVisibility([]string{"Visibility: private", "the " + privateRulePhrase}) {
+			t.Error("rule and payload field split across sources was accepted")
+		}
+		if !namesRuleAndVisibility([]string{"Payload says `Visibility: private`; follow the Private-Repository\nwriting rule."}) {
+			t.Error("hard-wrapped rule beside the payload field was rejected")
+		}
+	})
+}
+
+func namesRuleAndVisibility(texts []string) bool {
+	for _, text := range texts {
+		if strings.Contains(text, "Visibility:") && strings.Contains(normalizeProse(text), privateRulePhrase) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasExactLine(lines []string, want string) bool {
+	for _, line := range lines {
+		if line == want {
+			return true
+		}
+	}
+	return false
 }
