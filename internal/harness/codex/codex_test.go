@@ -639,7 +639,9 @@ func TestCodexPlanHasNoGlobalDispatch(t *testing.T) {
 		if tg.Role == "dispatch" {
 			t.Errorf("plan still carries a dispatch-role target at %q", tg.Path)
 		}
-		if tg.Kind == install.KindManagedBlock {
+		// The content-free pointer (TestCodexPlanTrigger pins it exactly) is
+		// the one managed block the plan may carry.
+		if tg.Kind == install.KindManagedBlock && tg.Role != harness.TriggerRole {
 			t.Errorf("plan still carries a managed-block target at %q", tg.Path)
 		}
 	}
@@ -827,11 +829,34 @@ func TestCodexInventoryAdditionPropagates(t *testing.T) {
 		if tg.Path == wantPath && tg.Kind == install.KindFile {
 			found = true
 		}
-		if tg.Role == "dispatch" || tg.Kind == install.KindManagedBlock {
+		if tg.Role == "dispatch" || (tg.Kind == install.KindManagedBlock && tg.Role != harness.TriggerRole) {
 			t.Errorf("the grown plan carries a global dispatch surface at %q", tg.Path)
 		}
 	}
 	if !found {
 		t.Errorf("the grown plan carries no agent file at %s", wantPath)
+	}
+}
+
+// The plan carries exactly one trigger: the pointer block in the same
+// ~/.codex/AGENTS.md GlobalDispatchTarget names for retirement, at the exact
+// target harness.CodexPointerTarget names.
+func TestCodexPlanTrigger(t *testing.T) {
+	path := GlobalDispatchTarget(fixtureRoots()).Path
+	if want := filepath.Join(fakeHome, ".codex", "AGENTS.md"); path != want {
+		t.Fatalf("pointer path = %q, want %q", path, want)
+	}
+	want := harness.CodexPointerTarget(path)
+	var got []install.Target
+	for _, tg := range planFixture(t) {
+		if tg.Role == harness.TriggerRole {
+			got = append(got, tg)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("plan carries %d trigger-role targets, want 1: %+v", len(got), got)
+	}
+	if !reflect.DeepEqual(got[0], want) {
+		t.Errorf("trigger = %+v, want %+v", got[0], want)
 	}
 }

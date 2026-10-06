@@ -1,5 +1,7 @@
-// Package cursor renders Docket's installation for Cursor: skill symlinks and
-// one native custom-agent document per agent source. It no longer plans a
+// Package cursor renders Docket's installation for Cursor: skill symlinks, one
+// native custom-agent document per agent source, and one content-free trigger
+// (the private-instructions sessionStart hook in hooks.json,
+// harness.CursorHookTarget). It no longer plans a
 // user-global dispatch rule (change 0351) — parent-facing routing belongs to a
 // repository's own .cursor/rules, not a personal global one — but it still
 // exports GlobalDispatchTarget so the installer can retire a leftover a prior
@@ -34,6 +36,7 @@ const (
 	agentsDir    = "agents"
 	rulesDir     = "rules"
 	dispatchFile = "docket-dispatch.mdc"
+	hooksFile    = "hooks.json"
 
 	// Target roles, as recorded in the installed state.
 	roleSkill    = "skill"
@@ -115,6 +118,8 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 			Role:    roleAgent,
 		})
 	}
+
+	targets = append(targets, harness.CursorHookTarget(filepath.Join(root, hooksFile)))
 
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Path < targets[j].Path })
 	return targets, nil

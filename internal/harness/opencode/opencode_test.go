@@ -637,3 +637,21 @@ func TestOpencodeInventoryAdditionPropagates(t *testing.T) {
 		t.Errorf("the grown plan carries no agent file at %s", wantPath)
 	}
 }
+
+// The plan carries exactly one trigger: the system-prompt plugin under the XDG
+// config root, at the exact target harness.OpenCodePluginTarget names.
+func TestOpencodePlanTrigger(t *testing.T) {
+	want := harness.OpenCodePluginTarget(filepath.Join(fakeConfig, "opencode", "plugins", "dckt-instructions.js"))
+	var got []install.Target
+	for _, tg := range planFixture(t) {
+		if tg.Role == harness.TriggerRole {
+			got = append(got, tg)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("plan carries %d trigger-role targets, want 1: %+v", len(got), got)
+	}
+	if !reflect.DeepEqual(got[0], want) {
+		t.Errorf("trigger = %+v, want %+v", got[0], want)
+	}
+}

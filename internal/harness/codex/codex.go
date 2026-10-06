@@ -1,6 +1,8 @@
 // Package codex renders Docket's installation for Codex: skill symlinks under
-// the harness-neutral agents root and one native TOML agent definition per
-// agent source. It no longer plans a user-global dispatch block (change
+// the harness-neutral agents root, one native TOML agent definition per agent
+// source, and one content-free trigger (the private-instructions pointer block
+// in the same AGENTS.md GlobalDispatchTarget names, harness.CodexPointerTarget).
+// It no longer plans a user-global dispatch block (change
 // 0351) — parent-facing routing belongs to a repository's own AGENTS.md, not a
 // personal global one — but it still exports GlobalDispatchTarget so the
 // installer can retire a leftover a prior install owns. It plans only: nothing
@@ -177,6 +179,8 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 			Role:    roleAgent,
 		})
 	}
+
+	targets = append(targets, harness.CodexPointerTarget(GlobalDispatchTarget(in.Roots).Path))
 
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Path < targets[j].Path })
 	return targets, nil
