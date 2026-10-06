@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/load-a-private-repository-s-agent-instructions-without-repos'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-06T17:36:50Z'
+reconciled: true
+claimed_at: '2026-10-06T17:38:37Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,11 @@ A private-visibility repository can't carry those files, so docket must not writ
 - What ships through PRs and commits: writing rules and the leak check (#532).
 - Installing the `dckt` alias itself (#534).
 - Moving the instructions when switching modes (#533).
+
+## Reconcile log
+
+### 2026-10-06
+
+Reconciled 2026-10-06 against main d997c1210 (after #532's private-visibility PR commits landed). Dependencies #531 and #534 are done. The cited code still matches the spec: `GlobalDispatchTarget` adapters in `internal/harness/*` and `internal/install/service.go`, private layout under `.git/dckt/` (`internal/layout`, `internal/app/repository_init_private.go`), and `.git/info/exclude` handling in `internal/reposetup/exclude.go`. No `docket instructions` command or private instructions file exists yet. #533 is still proposed and depends on this. Scope unchanged.
+
+Spike posture for an autonomous build: the per-harness fresh-session check runs non-interactively where a harness CLI allows it without touching the user's real configuration; any harness that cannot be exercised that way is recorded in the results file as an Important human verification item rather than halting the run. A harness that is exercised and fails still stops the build, as the spec says.
