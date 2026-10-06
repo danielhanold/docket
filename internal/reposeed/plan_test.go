@@ -11,6 +11,7 @@ import (
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/harness/cursor"
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/layout"
 )
 
 // runTracker is a stand-in run-tracker payload. Plan is pure and never parses it, so
@@ -421,4 +422,106 @@ func TestPlanRunnerFreeAndByteStable(t *testing.T) {
 			t.Errorf("target %q is not byte-stable across renders", first[i].Path)
 		}
 	}
+}
+
+func TestPlanPrivate(t *testing.T) {
+	commonDir := filepath.Join(worktreeRoot, ".git")
+	privateFile := layout.PrivateInstructionsPath(commonDir)
+	plain := []byte(harness.DispatchInterior(runTracker))
+	codex := []byte(harness.CodexDispatchInterior(runTracker))
+
+	cases := []struct {
+		name      string
+		harnesses []string
+		interior  []byte
+		owners    []string
+	}{
+		{"claude", []string{"claude"}, plain, []string{"claude"}},
+		{"claude+codex", []string{"claude", "codex"}, codex, []string{"claude", "codex"}},
+		{"cursor", []string{"cursor"}, plain, []string{"cursor"}},
+		{"opencode", []string{"opencode"}, plain, []string{"opencode"}},
+		{"all four", []string{"opencode", "cursor", "codex", "claude"}, codex, []string{"claude", "codex", "cursor", "opencode"}},
+	}
+
+	var union []install.Target
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			targets, owners, err := PlanPrivate(PrivatePlanInput{
+				WorktreeRoot: worktreeRoot,
+				CommonDir:    commonDir,
+				Harnesses:    tc.harnesses,
+				RunTracker:   runTracker,
+			})
+			if err != nil {
+				t.Fatalf("PlanPrivate: %v", err)
+			}
+			if len(targets) != 1 {
+				t.Fatalf("got %d targets, want exactly 1: %+v", len(targets), targets)
+			}
+			tg := targets[0]
+			if tg.Path != privateFile {
+				t.Fatalf("path = %q, want %q", tg.Path, privateFile)
+			}
+			if tg.Kind != install.KindManagedBlock || tg.BlockName != dispatchBlockName ||
+				tg.Annotation != dispatchAnnotation || tg.Role != roleDispatch {
+				t.Fatalf("target identity = %+v, want the shared dispatch managed block", tg)
+			}
+			if !bytes.Equal(tg.Content, tc.interior) {
+				t.Fatalf("interior mismatch:\n got %q\nwant %q", tg.Content, tc.interior)
+			}
+			if len(owners) != 1 || !reflect.DeepEqual(owners[privateFile], tc.owners) {
+				t.Fatalf("owners = %v, want {%q: %v}", owners, privateFile, tc.owners)
+			}
+			union = append(union, targets...)
+		})
+	}
+
+	t.Run("no harnesses", func(t *testing.T) {
+		targets, owners, err := PlanPrivate(PrivatePlanInput{
+			WorktreeRoot: worktreeRoot, CommonDir: commonDir, RunTracker: runTracker,
+		})
+		if err != nil || len(targets) != 0 || len(owners) != 0 {
+			t.Fatalf("PlanPrivate([]) = (%v, %v, %v), want nothing", targets, owners, err)
+		}
+	})
+
+	t.Run("never a working-tree surface", func(t *testing.T) {
+		if len(union) == 0 {
+			t.Fatal("no targets collected")
+		}
+		for _, tg := range union {
+			if tg.Path != privateFile {
+				t.Errorf("target %q is not the private file", tg.Path)
+			}
+			if filepath.Base(tg.Path) == "CLAUDE.md" {
+				t.Errorf("target %q is a CLAUDE.md", tg.Path)
+			}
+			if strings.Contains(tg.Path, string(filepath.Separator)+".cursor"+string(filepath.Separator)) {
+				t.Errorf("target %q lies under .cursor/", tg.Path)
+			}
+			if tg.Path == filepath.Join(worktreeRoot, "AGENTS.md") {
+				t.Errorf("target %q is the working-tree AGENTS.md", tg.Path)
+			}
+		}
+	})
+
+	t.Run("separate git dir errors", func(t *testing.T) {
+		_, _, err := PlanPrivate(PrivatePlanInput{
+			WorktreeRoot: worktreeRoot, CommonDir: "/elsewhere/repo.git",
+			Harnesses: []string{"claude"}, RunTracker: runTracker,
+		})
+		if err == nil || !strings.Contains(err.Error(), "separate-git-dir") {
+			t.Fatalf("err = %v, want a separate-git-dir layout error", err)
+		}
+	})
+
+	t.Run("unknown token errors", func(t *testing.T) {
+		_, _, err := PlanPrivate(PrivatePlanInput{
+			WorktreeRoot: worktreeRoot, CommonDir: commonDir,
+			Harnesses: []string{"claude", "vim"}, RunTracker: runTracker,
+		})
+		if err == nil || !strings.Contains(err.Error(), "unknown harness token") {
+			t.Fatalf("err = %v, want an unknown-token error", err)
+		}
+	})
 }

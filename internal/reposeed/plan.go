@@ -17,6 +17,7 @@ import (
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/harness/cursor"
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/layout"
 )
 
 // The four harness tokens this planner answers to. They mirror the validated
@@ -86,14 +87,9 @@ type PlanInput struct {
 // several. Every planned path must resolve inside WorktreeRoot after
 // filepath.Clean; a path that escapes is an error.
 func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
-	selected := map[string]bool{}
-	for _, h := range in.Harnesses {
-		switch h {
-		case harnessClaude, harnessCodex, harnessOpencode, harnessCursor:
-			selected[h] = true
-		default:
-			return nil, nil, fmt.Errorf("reposeed: unknown harness token %q", h)
-		}
+	selected, err := selectHarnesses(in.Harnesses)
+	if err != nil {
+		return nil, nil, err
 	}
 	if len(selected) == 0 {
 		return nil, nil, nil
@@ -199,6 +195,75 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 	}
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Path < targets[j].Path })
 	return targets, owners, nil
+}
+
+// selectHarnesses validates the opt-in tokens and returns them as a set. An
+// unknown token is an error (defense in depth; see the harness constants).
+func selectHarnesses(tokens []string) (map[string]bool, error) {
+	selected := map[string]bool{}
+	for _, h := range tokens {
+		switch h {
+		case harnessClaude, harnessCodex, harnessOpencode, harnessCursor:
+			selected[h] = true
+		default:
+			return nil, fmt.Errorf("reposeed: unknown harness token %q", h)
+		}
+	}
+	return selected, nil
+}
+
+// PrivatePlanInput is the pure input to PlanPrivate. WorktreeRoot is the
+// PRIMARY worktree, a canonical absolute path; CommonDir is its git common dir
+// and must be WorktreeRoot/.git. Harnesses are the repository's validated
+// opt-in tokens; RunTracker is the run-tracker payload the interior carries.
+type PrivatePlanInput struct {
+	WorktreeRoot string
+	CommonDir    string
+	Harnesses    []string
+	RunTracker   []byte
+}
+
+// PlanPrivate renders a private repository's single parent-facing target: the
+// dispatch managed block in <CommonDir>/dckt/AGENTS.md, owned by every selected
+// harness, carrying the Codex interior when codex is selected. It plans nothing
+// in the working tree and nothing at all when no harness is selected. A
+// CommonDir other than WorktreeRoot/.git (a separate git dir) is an error.
+func PlanPrivate(in PrivatePlanInput) ([]install.Target, map[string][]string, error) {
+	selected, err := selectHarnesses(in.Harnesses)
+	if err != nil {
+		return nil, nil, err
+	}
+	root := filepath.Clean(in.WorktreeRoot)
+	common := filepath.Clean(in.CommonDir)
+	if common != filepath.Join(root, ".git") {
+		return nil, nil, fmt.Errorf("reposeed: unsupported separate-git-dir layout: git common dir %q is not %q",
+			common, filepath.Join(root, ".git"))
+	}
+	if len(selected) == 0 {
+		return nil, nil, nil
+	}
+
+	content := harness.DispatchInterior(in.RunTracker)
+	if selected[harnessCodex] {
+		content = harness.CodexDispatchInterior(in.RunTracker)
+	}
+	path := filepath.Clean(layout.PrivateInstructionsPath(common))
+	if !contained(root, path) {
+		return nil, nil, fmt.Errorf("reposeed: planned path %q escapes worktree root %q", path, root)
+	}
+	owners := make([]string, 0, len(selected))
+	for h := range selected {
+		owners = append(owners, h)
+	}
+	sort.Strings(owners)
+	return []install.Target{{
+		Path:       path,
+		Kind:       install.KindManagedBlock,
+		Content:    []byte(content),
+		BlockName:  dispatchBlockName,
+		Annotation: dispatchAnnotation,
+		Role:       roleDispatch,
+	}}, map[string][]string{path: owners}, nil
 }
 
 // contained reports whether cleaned path p lies at or under cleaned root. Both

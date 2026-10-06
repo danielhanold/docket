@@ -190,3 +190,12 @@ func TestCommonDirOf(t *testing.T) {
 		}
 	})
 }
+
+func TestPrivateInstructionsPath(t *testing.T) {
+	if got, want := PrivateInstructionsPath("/r/.git"), "/r/.git/dckt/AGENTS.md"; got != want {
+		t.Fatalf("PrivateInstructionsPath = %q, want %q", got, want)
+	}
+	if got, want := PrivateInstructionsDisplay, ".git/dckt/AGENTS.md"; got != want {
+		t.Fatalf("PrivateInstructionsDisplay = %q, want %q", got, want)
+	}
+}
