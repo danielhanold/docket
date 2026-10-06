@@ -2,7 +2,7 @@
 id: 531
 slug: 'private-visibility-keep-the-metadata-branch-on-a-local-remot'
 title: 'Keep the metadata branch on a local remote with neutral naming'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/private-visibility-keep-the-metadata-branch-on-a-local-remot'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/399'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-06T10:39:10Z'
@@ -74,3 +74,12 @@ Keeping the metadata branch purely local and never pushing it would remove docke
 ### 2026-10-06
 
 Reconciled against main 37f3803 after #530 landed (done). Design still holds: originRemote has 56 non-test uses, MetadataBranchName 43, and about 21 Join(..., "docket") state-folder sites remain hard-coded, so the resolver work is still needed. #530 already made metadata file links relative; spec section 6 is unchanged. #532/#533 remain proposed and depend on this change. No scope change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: c4d4e122199f62a8cb85347679ea0938fe9009f5
+ran_at:   2026-10-06T13:03:07Z
+<!-- docket:build-evidence:end -->
