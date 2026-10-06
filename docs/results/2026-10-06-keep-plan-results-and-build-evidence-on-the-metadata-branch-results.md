@@ -47,20 +47,13 @@ Expected: the PR diff holds only the spec copy and code; the plan, the results f
 - Full suite (`go run ./cmd/docket development test`) green at the build-gate head; the final head is certified again before the PR opens. The budget report showed only `PARALLEL-SENSITIVE` screening lines (finalize e2e, app-merge integration, race), no serial-confirmed breach.
 - Each task added focused tests, and the new gates (record-evidence readers, the integration-push guard, the attach replay key, the legacy link rule) were mutation-tested: removing the guarded behavior turned the test red.
 - Whole-branch review (deep tier): 5 findings (2 important, 3 minor), all fixed in-branch.
+- Follow-up fixes after the PR opened, for leftovers this change caused: the results-checkpoint step now says to re-read the record revision; the `evidence.recertify` refusal tests now assert that the change record was not written, in place of PR-edit asserts that could no longer fail (mutation-tested: a refusal that writes the record turns them red); a raw-file read error now names the flag the caller passed (`--markdown`, `--evidence`, `--request`, `--record`), pinned by a new attach-verb test that was mutation-tested; and the caller-less `gitcli.Client.CommitChangedPaths` is deleted with its test.
 
 ## Known issues and follow-ups
 
 ### Old absolute backlinks inside metadata spec files are not converted
 
-`repository repair` converts `## Artifacts` blocks, not the backlink block at the top of spec files already on the `docket` branch. Those keep working as links, but code that checks whether an artifact "points home" no longer recognizes the absolute form. A plan or results re-attach over such a file, or a mark-implemented on results whose backlink was never re-stamped, could refuse. Neither should happen after cutover, because attach, groom, kill, and close-out all stamp relative backlinks. Suspected, not observed. Workaround: re-groom or re-attach the artifact so its backlink is re-stamped.
-
-### Step 6.5 checkpoint prose may pass a stale revision
-
-The implement-next skill now re-reads the record revision after the plan and build dispatches, because those steps commit to the record. The results-checkpoint mechanics (item 4) still say `--revision <revision>` without saying to re-read it. An agent following the text literally could get `contended` and need to re-read. Suspected. Suggested next action: tighten that line in a later edit to the skill.
-
-### Minor test and message leftovers
-
-Some older `evidence.recertify` refusal tests still assert that no PR edit happened. Recertify can no longer edit a PR, so those assertions can never fail. A `--markdown` read error is reported as "reading --record". `gitcli.Client.CommitChangedPaths` no longer has a caller. None of these affects behavior.
+`repository repair` converts `## Artifacts` blocks, not the backlink block at the top of spec files already on the `docket` branch. Those keep working as links, but code that checks whether an artifact "points home" no longer recognizes the absolute form. A plan or results re-attach over such a file, or a mark-implemented on results whose backlink was never re-stamped, could refuse. Neither should happen after cutover, because attach, groom, kill, and close-out all stamp relative backlinks. Suspected, not observed. Workaround: re-groom or re-attach the artifact so its backlink is re-stamped. Backlog match: Fits #533, whose switch between shared and private visibility assumes every metadata link is already relative. The finding is recorded in #533 for its build.
 
 ### This change was built on the previous flow
 
