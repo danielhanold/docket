@@ -472,6 +472,74 @@ func TestIntegrationWorkflowRepoClaimRaceLosesCleanly(t *testing.T) {
 	}
 }
 
+// TestIntegrationWorkflowRepoClaimForeignRunContextSameRevisionContends is the
+// keyed-dispatch twin of TestIntegrationWorkflowRepoClaimRaceLosesCleanly, run
+// deterministically: two dispatches,
+// each with its own run context, claim the SAME change at the SAME revision. The
+// second arrives after the first landed — exactly what a concurrent loser sees on
+// its retry after losing the lease push. A foreign claim is `contended`, never a
+// request-id-reused failure: the run context is part of the claim's request
+// identity, so the loser misses the winner's receipt and the exact-revision
+// expectation reports the moved record. The winner's own identical retry still
+// replays as `already-claimed`.
+func TestIntegrationWorkflowRepoClaimForeignRunContextSameRevisionContends(t *testing.T) {
+	requireRealGit(t)
+	const (
+		id   = 3
+		slug = "widget"
+	)
+	recPath := groomPath(id, slug)
+	for _, m := range planRepoModes() {
+		m := m
+		t.Run(m.name, func(t *testing.T) {
+			repo := m.build(t, map[string]string{
+				recPath: buildReadyChange(id, slug),
+			})
+			ctx := context.Background()
+			nodeA := planningDepsFor(t, cloneOrigin(t, repo.origin))
+			nodeB := planningDepsFor(t, cloneOrigin(t, repo.origin))
+			keyA := mintRunTrackerWithHash(t, nodeA.dir, runTrackerHashToken("ctx-a"), false)
+			keyB := mintRunTrackerWithHash(t, nodeB.dir, runTrackerHashToken("ctx-b"), false)
+			revision := blobRevisionAt(t, repo.origin, m.branch, recPath)
+			beforeTip := originTip(t, repo.origin, m.branch)
+
+			won := ChangeClaim(ctx, nodeA.deps, nodeA.dir, ChangeClaimRequest{ID: id, Revision: revision, RunContext: "ctx-a"})
+			if won.Result != ResultApplied || won.Disposition != ClaimDispositionApplied {
+				t.Fatalf("first claim = (%q, %q), want applied/applied (findings %v, failure %+v)", won.Result, won.Disposition, won.Findings, won.Failure)
+			}
+			wonTip := originTip(t, repo.origin, m.branch)
+
+			lost := ChangeClaim(ctx, nodeB.deps, nodeB.dir, ChangeClaimRequest{ID: id, Revision: revision, RunContext: "ctx-b"})
+			if lost.Result != ResultContended || lost.Disposition != ClaimDispositionContended || lost.Failure != nil {
+				t.Fatalf("foreign-context claim = (%q, %q), want contended/contended with no failure (findings %v, failure %+v)", lost.Result, lost.Disposition, lost.Findings, lost.Failure)
+			}
+			if got := originTip(t, repo.origin, m.branch); got != wonTip {
+				t.Errorf("the contended claim moved the metadata remote: %q -> %q", wonTip, got)
+			}
+			// The loser's reservation never became ownership.
+			if b, ok, err := LoadRunTrackerClaimBinding(nodeB.dir, keyB); err != nil || (ok && b.Confirmed) {
+				t.Errorf("loser's claim binding = (%+v, present %v, err %v); a contended claim must confirm nothing", b, ok, err)
+			}
+
+			// The winner's lost-response retry — same context, same revision — is
+			// an idempotent replay of its own receipt, committing nothing.
+			replay := ChangeClaim(ctx, nodeA.deps, nodeA.dir, ChangeClaimRequest{ID: id, Revision: revision, RunContext: "ctx-a"})
+			if replay.Result != ResultApplied || replay.Disposition != ClaimDispositionAlreadyClaimed {
+				t.Fatalf("winner's retry = (%q, %q), want applied/already-claimed (findings %v, failure %+v)", replay.Result, replay.Disposition, replay.Findings, replay.Failure)
+			}
+			if got := originTip(t, repo.origin, m.branch); got != wonTip {
+				t.Errorf("the replay committed: %q -> %q", wonTip, got)
+			}
+			if n := runGit(t, repo.origin, "rev-list", "--count", beforeTip+".."+wonTip); n != "1" {
+				t.Errorf("metadata remote carries %s claim commits, want exactly 1", n)
+			}
+			if b, ok, err := LoadRunTrackerClaimBinding(nodeA.dir, keyA); err != nil || !ok || !b.Confirmed || b.Revision != wonTip {
+				t.Errorf("winner's claim binding = (%+v, present %v, err %v); want confirmed at %s", b, ok, err, wonTip)
+			}
+		})
+	}
+}
+
 // TestClaimRetryAfterLostResponse proves the idempotency key makes a lost-response
 // retry safe: the identical claim request, re-run after its receipt was discarded,
 // replays the original applied claim as `already-claimed` and commits nothing new,

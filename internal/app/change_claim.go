@@ -80,8 +80,9 @@ type ChangeClaimRequest struct {
 	// RunContext is the run-tracker run context token from run.start. It
 	// is optional — an ungated claim omits it. When present it is hashed at this
 	// boundary (runTrackerHashToken), so the raw token never enters the transaction, the
-	// receipt, or any finding; only its hash is folded into the idempotency digest
-	// and recorded as the durable claim proof (change 0407).
+	// receipt, or any finding; only its hash is folded into the idempotency key
+	// (the digest, and a prefix in the request id — see claimRequestID) and
+	// recorded as the durable claim proof (change 0407).
 	RunContext string `json:"run_context,omitempty"`
 }
 
@@ -439,12 +440,29 @@ func resolveClaimTarget(ctx context.Context, deps PlanningDeps, pin StatusPin, e
 	return c.Path(), c.Slug(), facts, nil
 }
 
+// claimRequestIDContextLen is how many hex characters of the hashed run context
+// a keyed claim's request id carries. With a 64-hex (SHA-256) revision the
+// composed id still fits the engine's 128-byte request-id grammar.
+const claimRequestIDContextLen = 16
+
 // claimRequestID derives the idempotency request id for a claim from its own
-// (id, revision) content, so a lost-response retry of the same request reuses the
-// key and replays the original receipt. Revision is a full-hex blob id, so the
-// composed id satisfies the engine's request-id grammar.
+// identity — (id, revision) and, for a keyed dispatch, its run context — so a
+// lost-response retry of the same request reuses the key and replays the
+// original receipt. A claim of the same (id, revision) under ANOTHER run context
+// carries a different key: it misses the winner's receipt, and the exact-revision
+// expectation then reports the moved record as `contended`, the disposition a
+// foreign claim owes its caller. Sharing the key would instead hit the winner's
+// receipt with a different digest and fail as request-id-reused. An ungated claim
+// keeps the bare (id, revision) key, its identity before run contexts existed.
+// The context term is a prefix of the hashed context; the digest binds the full
+// hash, so a prefix collision degrades to the engine's request-id-reused refusal,
+// never a cross-context replay. Revision is a full-hex blob id, so the composed
+// id satisfies the engine's request-id grammar.
 func claimRequestID(req ChangeClaimRequest) string {
-	return fmt.Sprintf("claim-%d-%s", req.ID, req.Revision)
+	if req.RunContext == "" {
+		return fmt.Sprintf("claim-%d-%s", req.ID, req.Revision)
+	}
+	return fmt.Sprintf("claim-%d-%s-%s", req.ID, req.Revision, runTrackerHashToken(req.RunContext)[:claimRequestIDContextLen])
 }
 
 // claimResultFromOutcome folds a transaction outcome into the claim result. On
