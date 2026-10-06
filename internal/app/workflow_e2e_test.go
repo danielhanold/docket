@@ -54,8 +54,6 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		slug = "widget"
 	)
 	recPath := groomPath(id, slug)
-	planPath := "docs/superpowers/plans/2026-08-17-widget-plan.md"
-	resultsPath := "docs/results/2026-08-17-" + slug + "-results.md"
 	specPath := "docs/superpowers/specs/2026-08-17-" + slug + "-design.md"
 
 	// A resolved build.test_command is required so EvidenceRecord (build-owned
@@ -71,6 +69,21 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		recPath:  specLinkedBuildReadyChange(id, slug, specPath),
 		specPath: workflowMetadataSpec(id, slug),
 	})
+	driveClaimToImplemented(t, repo, m.branch, ghBin, id, slug, recPath, specPath, entries...)
+}
+
+// driveClaimToImplemented is the post-build half of runClaimToImplemented: from
+// the implementation context through run.verify, for an already build-ready,
+// spec-linked change. Every metadata read goes to repo.meta on branch — the
+// bare repository that holds the metadata branch, which is origin only in a
+// shared repository — while feature-branch reads stay in the workspace.
+func driveClaimToImplemented(t *testing.T, repo *gitRepo, branch, ghBin string, id int, slug, recPath, specPath string, entries ...workflowEntry) {
+	t.Helper()
+	if repo.meta == "" {
+		t.Fatal("driveClaimToImplemented: repo.meta is unset; every builder names the metadata remote explicitly")
+	}
+	planPath := "docs/superpowers/plans/2026-08-17-" + slug + "-plan.md"
+	resultsPath := "docs/results/2026-08-17-" + slug + "-results.md"
 	ctx := context.Background()
 
 	node := planningDepsFor(t, repo.invocation)
@@ -82,11 +95,11 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 
 	// The metadata remote tip BEFORE the run: every commit past it must be an
 	// engine transaction.
-	baseTip := originTip(t, repo.origin, m.branch)
+	baseTip := originTip(t, repo.meta, branch)
 
 	// ver reads the change record's current record revision from the bare origin —
 	// the independent oracle each exact-revision request submits.
-	ver := func() string { return blobRevisionAt(t, repo.origin, m.branch, recPath) }
+	ver := func() string { return blobRevisionAt(t, repo.meta, branch, recPath) }
 
 	complete := func(runContext string) GitHubDeps {
 		// (1) Authoritative implementation context.
@@ -141,7 +154,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		if attach.Result != ResultApplied {
 			t.Fatalf("attach plan = %q (reason %q msg %q findings %v)", attach.Result, attach.Reason, attach.Message, attach.Findings)
 		}
-		storedPlan, ok := originFile(t, repo.origin, m.branch, planPath)
+		storedPlan, ok := originFile(t, repo.meta, branch, planPath)
 		if !ok || !strings.Contains(storedPlan, "docket:backlink:start") || !strings.Contains(storedPlan, "Concrete steps here.") {
 			t.Fatalf("plan file at the metadata remote tip is missing or lacks its backlink:\n%s", storedPlan)
 		}
@@ -169,7 +182,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		if attachR.Result != ResultApplied {
 			t.Fatalf("attach results = %q (reason %q msg %q findings %v)", attachR.Result, attachR.Reason, attachR.Message, attachR.Findings)
 		}
-		storedResults, ok := originFile(t, repo.origin, m.branch, resultsPath)
+		storedResults, ok := originFile(t, repo.meta, branch, resultsPath)
 		if !ok || !strings.Contains(storedResults, "docket:backlink:start") {
 			t.Fatalf("results file at the metadata remote tip is missing or lacks its backlink:\n%s", storedResults)
 		}
@@ -212,7 +225,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		if v := EvidenceVerify(EvidenceVerifyRequest{RecordFile: evidenceBytes, Head: head}); v.Result != ResultApplied {
 			t.Fatalf("evidence verify after a results checkpoint = %q (verdict %q reason %q)", v.Result, v.Verdict, v.Reason)
 		}
-		if got, _ := originFile(t, repo.origin, m.branch, resultsPath); !strings.Contains(got, "the gate certifies this head") {
+		if got, _ := originFile(t, repo.meta, branch, resultsPath); !strings.Contains(got, "the gate certifies this head") {
 			t.Fatalf("the later checkpoint did not replace the results on the metadata branch:\n%s", got)
 		}
 
@@ -290,11 +303,11 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		// at the metadata remote tip, and the record evidence — written after the
 		// post-gate results checkpoint — still verifies against the head.
 		for _, p := range []string{planPath, resultsPath} {
-			if _, ok := originFile(t, repo.origin, m.branch, p); !ok {
+			if _, ok := originFile(t, repo.meta, branch, p); !ok {
 				t.Errorf("%s is missing at the metadata remote tip", p)
 			}
 		}
-		record, ok := originFile(t, repo.origin, m.branch, recPath)
+		record, ok := originFile(t, repo.meta, branch, recPath)
 		if !ok {
 			t.Fatalf("change record %s is missing at the metadata remote tip", recPath)
 		}
@@ -319,7 +332,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		// transitions are exactly the operations that ran — two results
 		// checkpoints included — and no direct skill-owned metadata write slipped
 		// in.
-		assertEngineOnlyMetadataCommits(t, repo.origin, m.branch, baseTip,
+		assertEngineOnlyMetadataCommits(t, repo.meta, branch, baseTip,
 			[]string{"change.attach-plan", "change.attach-results", "change.attach-results", "change.claim", "change.mark-implemented", "change.reconcile"})
 		return gdeps
 	}

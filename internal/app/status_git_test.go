@@ -168,10 +168,14 @@ func changeRecord(id int, slug, title string) string {
 		"---\n\nBody of " + slug + ".\n"
 }
 
-// gitRepo is the bare origin plus writer and invocation clones.
+// gitRepo is the bare origin plus writer and invocation clones. meta is the
+// bare repository that holds the metadata branch: origin in a shared
+// repository, the private store's remote.git in a private one. Every builder
+// sets it explicitly, so a metadata read never silently defaults to origin.
 type gitRepo struct {
 	root       string
 	origin     string
+	meta       string
 	writer     string
 	invocation string
 }
@@ -191,6 +195,7 @@ func newLegacyRepo(t *testing.T, files map[string]string) *gitRepo {
 	r := &gitRepo{
 		root:       root,
 		origin:     filepath.Join(root, "origin.git"),
+		meta:       filepath.Join(root, "origin.git"),
 		writer:     filepath.Join(root, "writer"),
 		invocation: filepath.Join(root, "invocation"),
 	}
@@ -255,6 +260,7 @@ func newDocketModeRepo(t *testing.T, mainFiles, docketRecords map[string]string)
 	r := &gitRepo{
 		root:       root,
 		origin:     filepath.Join(root, "origin.git"),
+		meta:       filepath.Join(root, "origin.git"),
 		writer:     filepath.Join(root, "writer"),
 		invocation: filepath.Join(root, "invocation"),
 	}
