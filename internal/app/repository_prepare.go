@@ -704,6 +704,10 @@ func prepareExecute(ctx context.Context, git *gitcli.Client, sc setupContext, ve
 	metaRef := metadataRef(sc.layout)
 	switch verdict.action {
 	case prepareActionAttach:
+		// A stale private checkout at the path reads as absent; replace it.
+		if err := removeStaleOwnCheckout(sc.layout); err != nil {
+			return err
+		}
 		return prepareAttachFresh(ctx, git, sc.repo, worktreePath, metaRef, verdict)
 	case prepareActionFastForward:
 		return git.FastForwardCheckedOutBranch(ctx, worktreePath, metaRef, gitcli.ObjectID(verdict.observedTip), gitcli.ObjectID(verdict.targetRev))

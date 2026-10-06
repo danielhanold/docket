@@ -199,9 +199,13 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 		changed = changed || createdBranch
 	}
 
-	// 7. This clone's checkout under the store, hooks off.
+	// 7. This clone's checkout under the store, hooks off. A stale checkout at
+	// this clone's path (a same-path re-clone's leftover) is replaced first.
 	if err := os.MkdirAll(lay.CheckoutsDir, 0o755); err != nil {
 		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "creating the checkouts folder", err))
+	}
+	if err := removeStaleOwnCheckout(lay); err != nil {
+		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "replacing the stale metadata checkout", err))
 	}
 	createdWorktree, err := ensureMetadataWorktree(ctx, d.Git, sc.repo, lay.MetadataWorktree, metaRef, tip)
 	if err != nil {

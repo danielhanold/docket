@@ -310,7 +310,13 @@ func gatherRepoFacts(ctx context.Context, p setupProber, in repoFactsInput) (rep
 
 	// The metadata worktree path: absent, a correctly registered owned worktree
 	// on the metadata branch, or a foreign directory / conflicting registration.
-	f.DocketWorktree = docketWorktreeFact(ctx, p, in.repo, in.layout.MetadataWorktree, metaRef)
+	// A stale private checkout (its gitdir gone, e.g. after a same-path re-clone)
+	// is no worktree at all: it reads as absent, and attach replaces it.
+	if staleOwnCheckout(in.layout) {
+		f.DocketWorktree = reposetup.WorktreeFact{Presence: reposetup.PresenceAbsent}
+	} else {
+		f.DocketWorktree = docketWorktreeFact(ctx, p, in.repo, in.layout.MetadataWorktree, metaRef)
+	}
 
 	return f, sc
 }
