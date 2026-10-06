@@ -38,8 +38,9 @@ type leakWorkspace struct {
 
 // prepareLeakWorkspace runs the opening steps of driveClaimToImplemented in
 // order — context, claim, reconcile, workspace prepare, and the spec-copy commit
-// — and fails unless each applies.
-func prepareLeakWorkspace(t *testing.T, repo *gitRepo, branch string, id int, recPath string) *leakWorkspace {
+// — and fails unless each applies. A change without a spec (spec false) must
+// report no-spec instead, and its prepared head stands in for the spec commit.
+func prepareLeakWorkspace(t *testing.T, repo *gitRepo, branch string, id int, recPath string, spec bool) *leakWorkspace {
 	t.Helper()
 	ctx := context.Background()
 	node := planningDepsFor(t, repo.invocation)
@@ -69,6 +70,17 @@ func prepareLeakWorkspace(t *testing.T, repo *gitRepo, branch string, id int, re
 		t.Fatalf("workspace prepare = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
 	}
 	cs := WorkspaceCommitSpec(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: id})
+	if !spec {
+		if cs.Result != ResultNoOp || cs.Disposition != SpecCopyNoSpec {
+			t.Fatalf("workspace commit-spec = (%q, %q) (reason %q msg %q), want no-op/no-spec", cs.Result, cs.Disposition, cs.Reason, cs.Message)
+		}
+		return &leakWorkspace{
+			node: node, wdeps: wdeps, id: id,
+			wp: prep.Path, specCommit: runGit(t, prep.Path, "rev-parse", "HEAD"),
+			featureRef: prep.FeatureRef,
+			origin:     repo.origin, writer: repo.writer, invocation: repo.invocation,
+		}
+	}
 	if cs.Result != ResultApplied || cs.Disposition != SpecCopyCommitted {
 		t.Fatalf("workspace commit-spec = (%q, %q) (reason %q msg %q), want applied/committed", cs.Result, cs.Disposition, cs.Reason, cs.Message)
 	}
@@ -94,6 +106,13 @@ func prepareLeakWorkspace(t *testing.T, repo *gitRepo, branch string, id int, re
 // a spec — and prepares its workspace against the dckt store.
 func newPrivateLeakWorkspace(t *testing.T) (*leakWorkspace, layout.Layout) {
 	t.Helper()
+	return newPrivateLeakWorkspaceFor(t, validChangeCreateRequest(), true)
+}
+
+// newPrivateLeakWorkspaceFor is newPrivateLeakWorkspace for the given create
+// request, groomed with a spec (spec true) or as trivial (no spec copy).
+func newPrivateLeakWorkspaceFor(t *testing.T, create ChangeCreateRequest, spec bool) (*leakWorkspace, layout.Layout) {
+	t.Helper()
 	ctx := context.Background()
 	r, _ := newPrivateInitRepo(t, nil)
 	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
@@ -107,24 +126,29 @@ func newPrivateLeakWorkspace(t *testing.T) (*leakWorkspace, layout.Layout) {
 	repo := &gitRepo{root: r.root, origin: r.origin, meta: lay.DefaultBareRemote, writer: r.writer, invocation: r.invocation}
 
 	node := planningDepsFor(t, r.invocation)
-	created := ChangeCreate(ctx, node.deps, node.dir, validChangeCreateRequest())
+	created := ChangeCreate(ctx, node.deps, node.dir, create)
 	if created.Result != ResultApplied {
 		t.Fatalf("change create = %q (%s, findings %v)", created.Result, created.HumanText(), created.Findings)
 	}
 	if created.ID != 1 {
 		t.Fatalf("created change id = %d, want 1 (the seeded change references name 0001)", created.ID)
 	}
-	groom := ChangeGroom(ctx, node.deps, node.dir, ChangeGroomRequest{
+	req := ChangeGroomRequest{
 		ChangeID:     created.ID,
 		Path:         created.Path,
 		Revision:     blobRevisionAt(t, repo.meta, privateFixtureBranch, created.Path),
 		Outcome:      GroomSpec,
 		SpecMarkdown: "# Widget: design\n\nBuild the widget.\n",
-	})
-	if groom.Result != ResultApplied || groom.SpecPath == "" {
-		t.Fatalf("change groom = %q (%s, findings %v), want applied with a spec", groom.Result, groom.HumanText(), groom.Findings)
 	}
-	return prepareLeakWorkspace(t, repo, privateFixtureBranch, created.ID, created.Path), lay
+	if !spec {
+		req.Outcome, req.SpecMarkdown = GroomTrivial, ""
+		req.Sections = []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}}
+	}
+	groom := ChangeGroom(ctx, node.deps, node.dir, req)
+	if groom.Result != ResultApplied || (spec && groom.SpecPath == "") {
+		t.Fatalf("change groom = %q (%s, findings %v), want applied (with a spec: %v)", groom.Result, groom.HumanText(), groom.Findings, spec)
+	}
+	return prepareLeakWorkspace(t, repo, privateFixtureBranch, created.ID, created.Path, spec), lay
 }
 
 // newSharedLeakWorkspace builds the shared (docket-branch) fixture
@@ -142,7 +166,7 @@ func newSharedLeakWorkspace(t *testing.T) *leakWorkspace {
 		recPath:  specLinkedBuildReadyChange(id, slug, specPath),
 		specPath: workflowMetadataSpec(id, slug),
 	})
-	return prepareLeakWorkspace(t, repo, m.branch, id, recPath)
+	return prepareLeakWorkspace(t, repo, m.branch, id, recPath, true)
 }
 
 // commitInWorkspace writes files into the worktree, commits everything with
@@ -409,6 +433,25 @@ func TestIntegrationWorkflowLifecyclePrivateLeakCheckUnverifiedPushesNothing(t *
 	}
 	if originHasBranch(t, lw.origin, lw.featureRef) {
 		t.Errorf("an unverified scan still pushed %s to origin", lw.featureRef)
+	}
+}
+
+// TestIntegrationWorkflowLifecyclePrivateLeakCheckScansBranchName proves the
+// pushed feature branch name is scanned like any other published text: a
+// trivial change titled "Fix the dckt alias" — no spec copy, clean commits —
+// still refuses, because its slug puts dckt in the branch origin would show.
+func TestIntegrationWorkflowLifecyclePrivateLeakCheckScansBranchName(t *testing.T) {
+	create := validChangeCreateRequest()
+	create.Title, create.Type = "Fix the dckt alias", "fix"
+	lw, _ := newPrivateLeakWorkspaceFor(t, create, false)
+	if lw.featureRef != "refs/heads/fix/fix-the-dckt-alias" {
+		t.Fatalf("feature ref = %q, want refs/heads/fix/fix-the-dckt-alias", lw.featureRef)
+	}
+
+	head := commitInWorkspace(t, lw.wp, "Tidy the alias table", map[string]string{"aliases.txt": "tidy\n"})
+	requireLeakRefusal(t, lw.publish(t, head), LeakHit{Source: "branch-name", Text: "dckt", Rule: "alias"})
+	if originHasBranch(t, lw.origin, lw.featureRef) {
+		t.Errorf("a refused publish left %s on origin", lw.featureRef)
 	}
 }
 

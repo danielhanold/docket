@@ -1,7 +1,8 @@
 // Package leakscan holds the fingerprint rules for text a private repository
-// publishes: commit messages, added paths and lines, and PR text. It is pure
-// and stdlib-only. Each line yields at most one hit; the rules are tried in a
-// fixed order (marker, trailer, path, alias, change-ref, word).
+// publishes: the feature branch name, commit messages, added paths and lines,
+// and PR text. It is pure and stdlib-only. Each line yields at most one hit;
+// the rules are tried in a fixed order (marker, trailer, path, alias,
+// change-ref, word).
 package leakscan
 
 import (
@@ -25,6 +26,7 @@ const (
 type Source string
 
 const (
+	SourceBranchName    Source = "branch-name"
 	SourceCommitMessage Source = "commit-message"
 	SourceAddedLine     Source = "added-line"
 	SourceAddedPath     Source = "added-path"
@@ -77,18 +79,24 @@ type AddedPath struct{ Path, Commit string }
 // PRText is a pull request's title and body.
 type PRText struct{ Title, Body string }
 
-// Input is everything one publish exposes. PR is nil when no PR text is written.
+// Input is everything one publish exposes. Branch is the short name of the
+// branch the publish pushes or opens a PR from; PR is nil when no PR text is
+// written.
 type Input struct {
+	Branch     string
 	Commits    []Commit
 	AddedPaths []AddedPath
 	AddedLines []AddedLine
 	PR         *PRText
 }
 
-// Scan checks every input in order: each commit message, each added path, each
-// added line, then the PR title and body when PR is non-nil.
+// Scan checks every input in order: the branch name, each commit message, each
+// added path, each added line, then the PR title and body when PR is non-nil.
 func Scan(in Input, opts Options) []Hit {
 	var hits []Hit
+	if m, ok := Line(in.Branch, opts); ok {
+		hits = append(hits, Hit{Source: SourceBranchName, Text: m.Text, Rule: m.Rule})
+	}
 	for _, c := range in.Commits {
 		for _, h := range Text(SourceCommitMessage, c.Message, opts) {
 			h.Commit = c.ID
