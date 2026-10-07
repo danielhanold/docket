@@ -176,14 +176,14 @@ func detectHarnesses() []string {
 }
 
 // harnessApplied reports what applyHarnessChoice changed: the config's pending
-// path (if any), whether the config was written, the surface paths pending
-// review, whether any surface changed, and the warnings to show.
+// path (if any), whether the config was written, whether any surface changed,
+// and the warnings to show. The surfaces pending review are read from git
+// status by the caller, never from the planned targets.
 type harnessApplied struct {
-	pendingConfig  string
-	wroteConfig    bool
-	surfacePending []string
-	wroteSurfaces  bool
-	warnings       []string
+	pendingConfig string
+	wroteConfig   bool
+	wroteSurfaces bool
+	warnings      []string
 }
 
 // harnessConfigError marks a failure writing or re-reading agent_harnesses in
@@ -222,7 +222,7 @@ func applyHarnessChoice(ctx context.Context, git *gitcli.Client, sc setupContext
 		out.pendingConfig, out.wroteConfig = pending, wrote
 	}
 	var err error
-	if out.surfacePending, out.wroteSurfaces, err = installAuthorizedSurfaces(ctx, git, sc.repo.PrimaryWorktree); err != nil {
+	if _, out.wroteSurfaces, err = installAuthorizedSurfaces(ctx, git, sc.repo.PrimaryWorktree); err != nil {
 		return out, err
 	}
 	if choice.warning != "" {

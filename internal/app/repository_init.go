@@ -191,7 +191,14 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps, o InitOptions) Reposito
 		return harnessApplyFailure(OperationRepositoryInit, cls.State, herr)
 	}
 	pending = appendPending(pending, applied.pendingConfig)
-	pending = appendPending(pending, applied.surfacePending...)
+	// The surfaces pending review come from git status, as configure-harnesses
+	// reads them: a planned target that is gitignored (the Cursor rule) or
+	// unchanged is not something to commit.
+	surfacePending, serr := workingTreePendingPaths(ctx, d.Git, sc)
+	if serr != nil {
+		return repositoryExternalFailure(OperationRepositoryInit, cls.State, "listing the pending review paths", serr)
+	}
+	pending = appendPending(pending, surfacePending...)
 
 	// Test policy: discover the suite from the primary worktree and write the
 	// generated `.docket.yml` edit as another pending, UNSTAGED review path —
