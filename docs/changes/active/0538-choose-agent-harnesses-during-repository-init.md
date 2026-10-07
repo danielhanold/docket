@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/choose-agent-harnesses-during-repository-init'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-07T00:56:53Z'
+reconciled: true
+claimed_at: '2026-10-07T00:58:33Z'
 ---
 
 ## Artifacts
@@ -60,3 +60,9 @@ The result is the same in both modes: no instructions and no message saying why.
 - Changing 0351's rule that only a repository-level `agent_harnesses` authorizes repository writes.
 - Relaxing init's clean-checkout and at-remote-tip precondition.
 - Converting the existing y/N prompts or other commands to `huh`.
+
+## Reconcile log
+
+### 2026-10-07
+
+2026-10-07: Groomed the same day against main ed335f07d. Re-traced the spec's anchors on current code (installAuthorizedSurfaces, writeTargetConfig, the SurfacesAuthorized init gate, RemoveMetadataBranchKey's splice helpers, the health conditions); all present as described. No related change moved (531, 351 done; 533 still proposed). Scope unchanged.
