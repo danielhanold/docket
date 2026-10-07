@@ -154,11 +154,40 @@ func stripDispatchBlock(src []byte) (out []byte, remove bool, err error) {
 	return out, len(bytes.TrimSpace(out)) == 0, nil
 }
 
-// disownWorkingTreeSurfaces rewrites the ownership record without surfaces outside
-// .git/, so a private-mode install never retires them. Absent record -> (false, nil).
-// A record left with no surface is removed.
-func disownWorkingTreeSurfaces(recordPath string) (bool, error) {
-	return disownSurfaces(recordPath, func(p string) bool { return !isWorkingTreeSurface(p) })
+// disownWorkingTreeSurfaces rewrites the ownership record without the surfaces
+// outside .git/ that tracked names, so a private-mode install never retires a
+// committed file; every other working-tree surface (an ignored, generated one)
+// stays owned for that install to retire. Absent record -> (false, nil). A
+// record left with no surface is removed.
+func disownWorkingTreeSurfaces(recordPath string, tracked map[string]bool) (bool, error) {
+	return disownSurfaces(recordPath, func(p string) bool { return !isWorkingTreeSurface(p) || !tracked[p] })
+}
+
+// trackedSharedPaths returns which of the switch's shared paths head holds. An
+// empty head (an unborn branch) tracks nothing.
+func trackedSharedPaths(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, head string) (map[string]bool, error) {
+	tracked := map[string]bool{}
+	if head == "" {
+		return tracked, nil
+	}
+	src, err := git.OpenObjectSource(ctx, repo, gitcli.Revision{Commit: gitcli.ObjectID(head)})
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]gitcli.RepoPath, 0, len(visibilityCommitPaths))
+	for _, p := range visibilityCommitPaths {
+		paths = append(paths, gitcli.RepoPath(p))
+	}
+	blobs, err := src.ReadBlobs(ctx, paths)
+	if err != nil {
+		return nil, err
+	}
+	for _, b := range blobs {
+		if b.Found {
+			tracked[string(b.Path)] = true
+		}
+	}
+	return tracked, nil
 }
 
 // isWorkingTreeSurface reports whether a record path lies outside .git/.
@@ -443,11 +472,17 @@ func privateMetadataWorktreePhase(ctx context.Context, x *visibilityRun) error {
 	return git.DeleteLocalBranchChecked(ctx, repo, shared, gitcli.ObjectID(tip))
 }
 
-// privateInstructionsPhase disowns the committed working-tree surfaces (a
-// private install would otherwise retire them), then installs the dispatch
-// block into the private instructions file when agent_harnesses authorizes it.
+// privateInstructionsPhase disowns the working-tree surfaces committed at the
+// primary checkout's HEAD (a private install would otherwise retire them; the
+// removal commit owns them), then installs the dispatch block into the private
+// instructions file when agent_harnesses authorizes it. That install retires
+// every surface left owned, such as the ignored Cursor dispatch rule.
 func privateInstructionsPhase(ctx context.Context, x *visibilityRun) error {
-	if _, err := disownWorkingTreeSurfaces(reposeed.RecordPath(x.st.common, layout.PrivateName)); err != nil {
+	tracked, err := trackedSharedPaths(ctx, x.d.Git, x.st.sc.repo, x.st.primaryHead)
+	if err != nil {
+		return fmt.Errorf("reading the committed surfaces: %w", err)
+	}
+	if _, err := disownWorkingTreeSurfaces(reposeed.RecordPath(x.st.common, layout.PrivateName), tracked); err != nil {
 		return fmt.Errorf("rewriting the ownership record: %w", err)
 	}
 	if _, _, err := installAuthorizedSurfaces(ctx, x.d.Git, x.st.primary); err != nil {
