@@ -11,7 +11,7 @@ depends_on: [530, 531, 535]
 stacked_on:
 related: [532, 534, 352, 363]
 discovered_from: []
-adrs: [1, 99]
+adrs: [1, 99, 147]
 spec: 'docs/superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md'
 plan: 'docs/superpowers/plans/2026-10-07-switch-a-repository-between-shared-and-private-visibility.md'
 results: 'docs/results/2026-10-07-switch-a-repository-between-shared-and-private-visibility-results.md'
@@ -33,7 +33,7 @@ claimed_at: '2026-10-07T11:29:37Z'
 | Spec | [2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md](../../superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) |
 | Plan | [2026-10-07-switch-a-repository-between-shared-and-private-visibility.md](../../superpowers/plans/2026-10-07-switch-a-repository-between-shared-and-private-visibility.md) |
 | Results | [2026-10-07-switch-a-repository-between-shared-and-private-visibility-results.md](../../results/2026-10-07-switch-a-repository-between-shared-and-private-visibility-results.md) |
-| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0147](../../adrs/0147-a-visibility-switch-republishes-the-identical-metadata-histo.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

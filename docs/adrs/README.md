@@ -130,6 +130,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0144](0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md) — Private-visibility leak check blocks outgoing pushes and PR edits carrying docket fingerprints (Accepted) ← change #532 · relates to ADR-0142
 - [ADR-0145](0145-private-repository-parent-facing-rules-load-through-content.md) — Private repository parent-facing rules load through content-free user-level triggers (Accepted) ← change #535 · relates to ADR-0036, ADR-0078
 - [ADR-0146](0146-adopt-charmbracelet-huh-as-the-interactive-terminal-ui-depen.md) — Adopt charmbracelet/huh as the interactive terminal UI dependency (Accepted) ← change #538
+- [ADR-0147](0147-a-visibility-switch-republishes-the-identical-metadata-histo.md) — A visibility switch republishes the identical metadata history under the target branch name (Accepted) ← change #533 · relates to ADR-0001, ADR-0099
 
 ## Superseded / Reversed
 
