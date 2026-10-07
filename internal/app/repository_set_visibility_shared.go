@@ -443,8 +443,12 @@ func sharedMetadataWorktreePhase(ctx context.Context, x *visibilityRun) error {
 
 // sharedCommitPhase installs the repository-level dispatch surfaces
 // agent_harnesses authorizes (exactly as install's repository phase would),
-// journals them, and commits every journaled path with the add subject. The
-// commit stays local.
+// journals the ones git status reports as changed, and commits every journaled
+// path with the add subject. The commit stays local. A surface status does not
+// report is either unchanged or ignored by the shared layout (the Cursor
+// dispatch rule the managed .gitignore block covers): it is dropped from the
+// journal, so `git add` never sees an ignored path and a journal left by an
+// earlier failed run cannot wedge the re-run.
 func sharedCommitPhase(ctx context.Context, x *visibilityRun) error {
 	git, st := x.d.Git, x.st
 	cs, err := git.WorktreeCheckoutState(ctx, st.primary)
@@ -458,7 +462,21 @@ func sharedCommitPhase(ctx context.Context, x *visibilityRun) error {
 	if err != nil {
 		return fmt.Errorf("installing the dispatch instructions: %w", err)
 	}
+	changes, err := git.ChangedPaths(ctx, st.primary)
+	if err != nil {
+		return err
+	}
+	changed := make(map[string]bool, len(changes))
+	for _, c := range changes {
+		changed[string(c.Path)] = true
+	}
 	for _, rel := range surfaces {
+		if !changed[rel] {
+			if err := unjournalSwitchPath(st.common, rel); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := journalSwitchPath(st.common, st.primary, visibilityAddSubject, rel); err != nil {
 			return err
 		}
