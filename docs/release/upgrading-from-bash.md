@@ -127,6 +127,7 @@ On a Bash repository it exits with an error and lists some of these findings:
 | `harnesses-unset` | No coding agents are chosen for this repository, so docket writes no instructions for them. | `docket repository configure-harnesses`, below. |
 | `board-stale` | `BOARD.md` on the `docket` branch is in the Bash format. | `docket repository repair`, below. |
 | `artifact-links-stale` | A change record's links block is in the Bash format. | `docket repository repair`, below. |
+| `artifact-backlink-stale` | A spec, plan, or results file's link back to its change is not the relative link docket writes. | `docket repository repair`, below. |
 
 Start with `.gitignore`. Replace everything from its `# docket:start` line to its `# docket:end`
 line with exactly these lines, which `docket repository check` also prints:
