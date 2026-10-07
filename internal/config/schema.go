@@ -203,6 +203,19 @@ func SettingPaths() []SettingPath {
 	return out
 }
 
+// RepoOnlyPaths returns every registry path a machine layer may not declare
+// (scopeRepoOnly), in registry order: the repository-identity leaves a
+// visibility switch never carries out of the local file.
+func RepoOnlyPaths() []string {
+	var out []string
+	for _, s := range registryTable {
+		if s.scope == scopeRepoOnly {
+			out = append(out, s.path)
+		}
+	}
+	return out
+}
+
 // dispositionSupported reports whether a disposition family is supported
 // configuration. finalize.gate (refused only for some values), board_surfaces
 // (one token dropped), and the agents model/effort leaves (honoured only from
