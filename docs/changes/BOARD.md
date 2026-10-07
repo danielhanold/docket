@@ -1,6 +1,6 @@
 # Backlog
 
-**538 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 374 done · 🗑️ 139 killed
+**539 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 374 done · 🗑️ 139 killed
 
 ## 🔵 Built (1)
 
@@ -15,10 +15,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | List the artifact-backlink finding codes in the docket-status skill | `low` | `docs` | needs-grooming |
 | [0537](active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | `low` | `fix` | needs-grooming |
 | [0536](active/0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) | Split the private leak-check tests out of the workflow lifecycle shard | `low` | `fix` | needs-grooming |
 | [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | needs-grooming |
@@ -77,6 +78,7 @@ graph TD
   0535 --> 0533
   0536
   0537
+  0539
   0192:::done
   0251:::done
   0366:::done
