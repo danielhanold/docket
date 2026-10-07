@@ -551,6 +551,69 @@ func TestIntegrationRepoVisibilityPrivateRemoveSharedFilesLater(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoVisibilityPrivateRerunIgnoresOriginAfterDivergence proves
+// a later run on a repository that already went private judges the publish by
+// its own progress, not origin's docket branch: after a teammate advanced
+// origin's branch and this clone made a private commit, adding
+// --remove-shared-files succeeds, pulls none of origin's commits into the dckt
+// branch, and --delete-shared-branch keeps origin's branch, naming both tips.
+func TestIntegrationRepoVisibilityPrivateRerunIgnoresOriginAfterDivergence(t *testing.T) {
+	r, data := newPrivateSwitchRepo(t)
+	before := runGit(t, r.invocation, "rev-parse", "HEAD")
+	requireSwitchApplied(t, r.switchVisibility(t, SetVisibilityOptions{Target: "private"}), "private")
+	bareRemote := expectedPrivateLayout(t, r.invocation, data).DefaultBareRemote
+	advanced := r.advanceRemoteDocketChild(t, "a teammate's later write")
+	createSwitchChange(t, r.invocation)
+	privateTip := runGit(t, bareRemote, "rev-parse", "refs/heads/dckt")
+	if _, err := tryGit(bareRemote, "merge-base", "--is-ancestor", advanced, privateTip); err == nil {
+		t.Fatal("the fixture's private commit already holds the teammate's write")
+	}
+
+	res := r.switchVisibility(t, SetVisibilityOptions{Target: "private", RemoveSharedFiles: true})
+	requireSwitchApplied(t, res, "private")
+	requireRemovalCommit(t, r, before)
+	if got := phaseStatus(res, "publish"); got != visibilityPhaseDone {
+		t.Errorf("publish = %q, want done on the later run", got)
+	}
+	if got := runGit(t, bareRemote, "rev-parse", "refs/heads/dckt"); got != privateTip {
+		t.Errorf("the dckt branch moved to %s, want it kept at the private tip %s", got, privateTip)
+	}
+
+	del := r.switchVisibility(t, SetVisibilityOptions{Target: "private", DeleteSharedBranch: true})
+	requireSwitchApplied(t, del, "private")
+	if got := r.originTip(t, layout.SharedName); got != advanced {
+		t.Errorf("origin's docket = %s, want it kept at the teammate's tip %s", got, advanced)
+	}
+	if got := phaseStatus(del, "delete-shared-branch"); got != visibilityPhaseKept {
+		t.Errorf("delete-shared-branch = %q, want kept", got)
+	}
+	pending := strings.Join(del.PendingLocal, "\n")
+	if !strings.Contains(pending, advanced) || !strings.Contains(pending, privateTip) {
+		t.Errorf("PendingLocal = %q, want both tips (origin %s, dckt %s)", del.PendingLocal, advanced, privateTip)
+	}
+	if got := runGit(t, bareRemote, "rev-parse", "refs/heads/dckt"); got != privateTip {
+		t.Errorf("the dckt branch moved to %s, want it kept at the private tip %s", got, privateTip)
+	}
+}
+
+// TestIntegrationRepoVisibilityPrivateRerunKeepsTeammateWritesOut proves a
+// later run on a repository that already went private, with no private commit
+// since, never fast-forwards a teammate's write to origin's docket branch into
+// the dckt branch.
+func TestIntegrationRepoVisibilityPrivateRerunKeepsTeammateWritesOut(t *testing.T) {
+	r, data := newPrivateSwitchRepo(t)
+	requireSwitchApplied(t, r.switchVisibility(t, SetVisibilityOptions{Target: "private"}), "private")
+	bareRemote := expectedPrivateLayout(t, r.invocation, data).DefaultBareRemote
+	privateTip := runGit(t, bareRemote, "rev-parse", "refs/heads/dckt")
+	r.advanceRemoteDocketChild(t, "a teammate's later write")
+
+	res := r.switchVisibility(t, SetVisibilityOptions{Target: "private", RemoveSharedFiles: true})
+	requireSwitchApplied(t, res, "private")
+	if got := runGit(t, bareRemote, "rev-parse", "refs/heads/dckt"); got != privateTip {
+		t.Errorf("the dckt branch moved to %s, want it kept at %s without the teammate's write", got, privateTip)
+	}
+}
+
 // TestIntegrationRepoVisibilityPrivateRetiresIgnoredCursorRule proves going
 // private with cursor opted in retires the generated Cursor dispatch rule,
 // which shared mode ignores rather than commits, so stripping the managed
