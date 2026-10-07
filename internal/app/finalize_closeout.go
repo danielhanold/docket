@@ -1243,18 +1243,15 @@ func retargetArtifactBacklinks(ctx context.Context, tree transaction.Tree, gc do
 		if !present {
 			continue
 		}
-		doc, err := document.Parse(bytesAt)
+		updated, hasBlock, err := canonicalArtifactBacklink(bytesAt, gc, p)
 		if err != nil {
+			if hasBlock {
+				return nil, fmt.Errorf("backlink retarget: rewriting the backlink in %q: %w", p, err)
+			}
 			return nil, fmt.Errorf("backlink retarget: parsing linked artifact %q: %w", p, err)
 		}
-		if _, ok := doc.Block(backlinkBlockName); !ok {
+		if !hasBlock {
 			continue
-		}
-		var ps document.PatchSet
-		ps.ReplaceBlock(backlinkBlockName, backlinkInterior(render.ArtifactBacklinkContent(gc, p)))
-		updated, err := doc.Apply(ps)
-		if err != nil {
-			return nil, fmt.Errorf("backlink retarget: rewriting the backlink in %q: %w", p, err)
 		}
 		if string(updated) == string(bytesAt) {
 			continue

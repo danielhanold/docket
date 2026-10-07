@@ -1,6 +1,9 @@
 package reposetup
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestDerivedFindingLiftRepairable proves a repairable derived-view difference
 // lifts to a warning Finding that carries the code, the file ref, a non-nil
@@ -22,6 +25,28 @@ func TestDerivedFindingLiftRepairable(t *testing.T) {
 	}
 	if f.Ref != "docs/changes/BOARD.md" {
 		t.Errorf("Ref = %q, want the file path", f.Ref)
+	}
+	if f.Repairable == nil || !*f.Repairable {
+		t.Errorf("Repairable = %v, want a non-nil true", f.Repairable)
+	}
+}
+
+// TestDerivedFindingLiftsBacklinkView proves a repairable stale artifact
+// backlink lifts to a warning whose remedy names the repository repair.
+func TestDerivedFindingLiftsBacklinkView(t *testing.T) {
+	df := DerivedFinding{
+		View:       DerivedViewArtifactBacklinks,
+		Code:       CodeArtifactBacklinkStale,
+		Path:       "docs/superpowers/specs/x.md",
+		Repairable: true,
+		Message:    "the generated backlink differs from the canonical relative link to its change.",
+	}
+	f := df.Finding()
+	if f.Severity != SeverityWarning || f.Code != CodeArtifactBacklinkStale || f.Ref != df.Path {
+		t.Errorf("finding = %+v, want a warning %s on %s", f, CodeArtifactBacklinkStale, df.Path)
+	}
+	if !strings.Contains(f.Remedy, "docket repository repair") {
+		t.Errorf("Remedy = %q, want it to name `docket repository repair`", f.Remedy)
 	}
 	if f.Repairable == nil || !*f.Repairable {
 		t.Errorf("Repairable = %v, want a non-nil true", f.Repairable)

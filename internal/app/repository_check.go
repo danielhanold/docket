@@ -485,14 +485,17 @@ func collectPendingReviewPaths(ctx context.Context, git *gitcli.Client, repo git
 
 // checkCorpus is everything the report-only check reads from the pinned metadata
 // corpus: the classified records, the two whole-file derived views (board and
-// ADR index), and the link context the artifact-links renderer needs. A view's
-// present flag distinguishes an absent file (no drift possible) from an empty
-// one.
+// ADR index), the link context the artifact-links renderer needs, and the
+// metadata artifacts (spec, plan, results) the changes link. A view's present
+// flag distinguishes an absent file (no drift possible) from an empty one; an
+// artifact absent from artifacts is not on the pinned tip (a legacy file on the
+// integration branch).
 type checkCorpus struct {
-	records  []corpusRecord
-	link     render.LinkContext
-	board    corpusFile
-	adrIndex corpusFile
+	records   []corpusRecord
+	link      render.LinkContext
+	board     corpusFile
+	adrIndex  corpusFile
+	artifacts map[string][]byte
 }
 
 // corpusFile is one whole-file derived view read from the corpus: its bytes and
@@ -566,6 +569,17 @@ func readCheckCorpus(ctx context.Context, git *gitcli.Client, sc setupContext) (
 		corpus.adrIndex = corpusFile{present: viewBlobs[1].Found, bytes: viewBlobs[1].Blob.Bytes}
 	}
 
+	// The linked metadata artifacts, read in one batch on the same pinned source.
+	// A corpus whose snapshot does not build reads none (the frontmatter path
+	// surfaces the blocking errors, and no backlink can be rendered).
+	if snap, ok := buildCorpusSnapshot(sc.cfg, corpus.records); ok {
+		artifacts, aerr := readLinkedArtifacts(ctx, src, snap)
+		if aerr != nil {
+			return corpus, aerr
+		}
+		corpus.artifacts = artifacts
+	}
+
 	// The link context, derived from origin exactly as the authoritative writers
 	// derive it (link_context.go), so the artifact-links comparison renders the
 	// same bytes a mutation would have written. A RemoteURL failure is a read
@@ -583,6 +597,37 @@ func readCheckCorpus(ctx context.Context, git *gitcli.Client, sc setupContext) (
 		Layout:            sc.layout,
 	})
 	return corpus, nil
+}
+
+// readLinkedArtifacts reads every artifact path any change in snap links
+// (deduplicated, sorted) with one ReadBlobs, keeping the ones found. A read
+// error is returned, never a clean absence.
+func readLinkedArtifacts(ctx context.Context, src gitcli.ObjectSource, snap domain.Snapshot) (map[string][]byte, error) {
+	seen := map[string]bool{}
+	var paths []gitcli.RepoPath
+	for _, c := range snap.Changes() {
+		for _, p := range artifactPathsOf(c) {
+			if !seen[p] {
+				seen[p] = true
+				paths = append(paths, gitcli.RepoPath(p))
+			}
+		}
+	}
+	if len(paths) == 0 {
+		return nil, nil
+	}
+	sort.Slice(paths, func(i, j int) bool { return paths[i] < paths[j] })
+	blobs, err := src.ReadBlobs(ctx, paths)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]byte{}
+	for _, br := range blobs {
+		if br.Found {
+			out[string(br.Path)] = br.Blob.Bytes
+		}
+	}
+	return out, nil
 }
 
 // boardCorpusPath and adrIndexCorpusPath name the two whole-file derived views
@@ -675,7 +720,95 @@ func derivedViewFindings(cfg config.Effective, corpus checkCorpus) []reposetup.D
 	}
 
 	out = append(out, artifactLinkFindings(snap, corpus)...)
+	out = append(out, artifactBacklinkFindings(snap, corpus)...)
 	return out
+}
+
+// artifactBacklinkFindings compares the generated docket:backlink block of each
+// linked metadata artifact present in corpus.artifacts with the canonical
+// relative link canonicalArtifactBacklink renders, visiting paths in sorted
+// order. A path linked by several changes has no single canonical target and is
+// manual review; malformed markers are manual review (the automatic rewrite
+// never touches an unbalanced block); an artifact with no block is left alone (a
+// block is never inserted); a differing block is a repairable stale finding.
+func artifactBacklinkFindings(snap domain.Snapshot, corpus checkCorpus) []reposetup.DerivedFinding {
+	owners := map[string][]domain.Change{}
+	for _, c := range snap.Changes() {
+		for _, p := range artifactPathsOf(c) {
+			owners[p] = append(owners[p], c)
+		}
+	}
+	paths := make([]string, 0, len(owners))
+	for p := range owners {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+
+	var out []reposetup.DerivedFinding
+	for _, p := range paths {
+		stored, present := corpus.artifacts[p]
+		if !present {
+			continue
+		}
+		if len(owners[p]) > 1 {
+			out = append(out, reposetup.DerivedFinding{
+				View:       reposetup.DerivedViewArtifactBacklinks,
+				Code:       reposetup.CodeArtifactBacklinkShared,
+				Path:       p,
+				Repairable: false,
+				Message:    "the artifact is linked by more than one change, so its generated backlink has no single canonical target.",
+			})
+			continue
+		}
+		canonical, hasBlock, err := canonicalArtifactBacklink(stored, owners[p][0], p)
+		if err != nil {
+			if markerMalformed(err) {
+				out = append(out, reposetup.DerivedFinding{
+					View:       reposetup.DerivedViewArtifactBacklinks,
+					Code:       reposetup.CodeArtifactBacklinkMalformed,
+					Path:       p,
+					Repairable: false,
+					Message:    "the generated backlink markers are unbalanced or malformed: " + err.Error(),
+				})
+			}
+			continue
+		}
+		if !hasBlock {
+			continue
+		}
+		if derivedBytesDiffer(canonical, stored) {
+			out = append(out, reposetup.DerivedFinding{
+				View:       reposetup.DerivedViewArtifactBacklinks,
+				Code:       reposetup.CodeArtifactBacklinkStale,
+				Path:       p,
+				Repairable: true,
+				Message:    "the generated backlink differs from the canonical relative link to its change.",
+			})
+		}
+	}
+	return out
+}
+
+// canonicalArtifactBacklink renders src with its docket:backlink block replaced
+// by the canonical relative link from path to c's current record. A parse error
+// is returned; a src with no block returns (src, false, nil) — a block is never
+// inserted. It is the one renderer behind check, repair, and the close-out/kill
+// retarget (retargetArtifactBacklinks).
+func canonicalArtifactBacklink(src []byte, c domain.Change, path string) (out []byte, hasBlock bool, err error) {
+	doc, err := document.Parse(src)
+	if err != nil {
+		return nil, false, err
+	}
+	if _, ok := doc.Block(backlinkBlockName); !ok {
+		return src, false, nil
+	}
+	var ps document.PatchSet
+	ps.ReplaceBlock(backlinkBlockName, backlinkInterior(render.ArtifactBacklinkContent(c, path)))
+	out, err = doc.Apply(ps)
+	if err != nil {
+		return nil, true, err
+	}
+	return out, true, nil
 }
 
 // artifactLinkFindings compares each change record's managed artifact-links block

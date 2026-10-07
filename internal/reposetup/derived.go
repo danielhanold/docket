@@ -4,7 +4,8 @@ package reposetup
 //
 // A derived view is a file whose bytes are a pure function of the metadata
 // corpus: the inline board (docs/changes/BOARD.md), the managed artifact-link
-// block inside each change record, and the ADR index (docs/adrs/README.md).
+// block inside each change record, the ADR index (docs/adrs/README.md), and the
+// generated backlink block inside each metadata artifact a change links.
 // `repository check` renders each view's canonical bytes from the pinned corpus
 // snapshot and byte-compares them against the stored file; a difference is a
 // drift finding here. `repository repair` repairs exactly the deterministic
@@ -17,7 +18,7 @@ package reposetup
 //     which the automatic rewrite must never touch (AGENTS.md marker rule), and a
 //     missing referenced artifact are NOT repairable — a human resolves them.
 
-// DerivedView names one of the three canonical derived views a drift finding is
+// DerivedView names one of the canonical derived views a drift finding is
 // about. It is a stable machine token carried in the finding.
 type DerivedView string
 
@@ -25,6 +26,9 @@ const (
 	DerivedViewBoard         DerivedView = "board"
 	DerivedViewArtifactLinks DerivedView = "artifact-links"
 	DerivedViewADRIndex      DerivedView = "adr-index"
+	// DerivedViewArtifactBacklinks is the generated docket:backlink block inside
+	// each metadata artifact (spec, plan, results) a change links.
+	DerivedViewArtifactBacklinks DerivedView = "artifact-backlinks"
 )
 
 // Derived-view finding codes — the closed extension to the check vocabulary.
@@ -39,6 +43,12 @@ const (
 	CodeArtifactLinksMalformed = "artifact-links-malformed"
 	CodeADRIndexStale          = "adr-index-stale"
 	CodeADRIndexMalformed      = "adr-index-malformed"
+	// CodeArtifactBacklinkStale is repairable; CodeArtifactBacklinkMalformed
+	// (unbalanced markers) and CodeArtifactBacklinkShared (one artifact path
+	// linked by several changes, so no single canonical target) are manual review.
+	CodeArtifactBacklinkStale     = "artifact-backlink-stale"
+	CodeArtifactBacklinkMalformed = "artifact-backlink-malformed"
+	CodeArtifactBacklinkShared    = "artifact-backlink-shared"
 	// CodeCorpusUnreadable names a corpus read failure: the check could not read
 	// the metadata corpus, so it reports an error rather than fabricating a clean
 	// absence (learning probe-error-is-not-clean-absence).
