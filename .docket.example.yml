@@ -243,7 +243,11 @@ change_types: [chore, docs, feat, fix, refactor, perf]
 # no default: while it is absent, install touches no repository surface. Listing harnesses
 # (claude, codex, cursor, opencode) installs the managed block in CLAUDE.md / AGENTS.md and, for
 # cursor, .cursor/rules/docket-dispatch.mdc. Only .docket.yml or .docket.local.yml can opt a
-# repository in; the installer ignores a value in the global config.
+# repository in; the installer ignores a value in the global config. `docket repository init` asks
+# for it (a checklist on a terminal, or `--harnesses claude,cursor` / `--harnesses none`),
+# `docket repository configure-harnesses` changes it later and refreshes the instructions in the
+# same run, and `docket repository check` warns `harnesses-unset` while it is not set.
+# `agent_harnesses: []` records that no agents are used.
 # scope: any layer
 # agent_harnesses: [claude]
 

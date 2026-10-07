@@ -82,6 +82,10 @@ blocks that route a requested docket workflow to its wrapper. Only a value decla
 - **an explicit empty list** (`agent_harnesses: []`) — the install retires every docket-owned repository surface the
   repository had.
 
+`repository.init` asks for the value on a terminal or takes `--harnesses <list>|none`; the
+`repository.configure-harnesses` operation changes it later and refreshes the dispatch blocks in the same run, with
+no clean checkout needed; `repository.check` reports `harnesses-unset` while no repository-level value exists.
+
 `--repo-dir <path>` targets another repository. `agent_harnesses` decides which harnesses get dispatch blocks; it
 never decides which pins a wrapper carries.
 

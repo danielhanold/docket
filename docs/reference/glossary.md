@@ -47,9 +47,10 @@ or from `--command "<cmd>"` when discovery cannot find the suite.
 
 ```sh
 cd <target-repo>
-docket repository init               # a repository that has never used docket
+docket repository init               # a repository that has never used docket (--harnesses picks the agents up front)
 docket repository migrate            # a legacy single-branch repository (human-typed)
 docket repository configure-tests    # set the build and finalize test commands
+docket repository configure-harnesses    # choose which coding agents get docket's instructions
 docket repository configure-tests --command "sh ./test.sh"   # set both gates to local with this command
 ```
 
@@ -1889,7 +1890,8 @@ exactly those harnesses), or `[]` (retire every docket-owned repository surface)
 
 **Used for:** opting a repository in to dispatch surfaces. Only `.docket.yml` or `.docket.local.yml`
 can opt a repository in; the installer ignores a global value, and an unknown token is an error.
-Re-run the install after changing it.
+`docket repository init` asks for it; `docket repository configure-harnesses` changes it and
+refreshes the surfaces; `docket repository check` warns `harnesses-unset` while it is unset.
 
 ```yaml
 # .docket.yml (whole team) or .docket.local.yml (this clone)

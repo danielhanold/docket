@@ -109,7 +109,10 @@ All of these operate on the repository in your current directory (or the one `--
   `docket` branch, pushes it, and attaches the `.docket/` worktree. It also writes the managed
   `.gitignore` block (which ignores `.docket/`, `.worktrees/`, `.docket.local.yml`, and docket's
   other machine-local files) and a starting `.docket.yml` test policy, and leaves those edits
-  unstaged for you to review and commit.
+  unstaged for you to review and commit. It also asks which coding agents get docket's instructions
+  (`--harnesses` answers up front).
+- **`docket repository configure-harnesses`** — changes that choice any time, without a clean
+  checkout, and leaves the `.docket.yml` edit unstaged.
 - **`docket repository migrate`** — only for a repository on the old single-branch layout, where
   the planning records still live on the integration branch. It prints its plan and asks for
   confirmation before changing anything (pass `--yes` to authorize it without the prompt). It then
