@@ -194,7 +194,7 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps, o InitOptions) Reposito
 	// The surfaces pending review come from git status, as configure-harnesses
 	// reads them: a planned target that is gitignored (the Cursor rule) or
 	// unchanged is not something to commit.
-	surfacePending, serr := workingTreePendingPaths(ctx, d.Git, sc)
+	surfacePending, serr := workingTreePendingPaths(ctx, d.Git, sc, facts.CommittedIgnoreBlock)
 	if serr != nil {
 		return repositoryExternalFailure(OperationRepositoryInit, cls.State, "listing the pending review paths", serr)
 	}

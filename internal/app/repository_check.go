@@ -440,6 +440,14 @@ func primaryOnIntegrationPresence(ctx context.Context, git *gitcli.Client, repo 
 // A private repository writes neither .gitignore nor .docket.yml, so neither is
 // ever one of its pending paths.
 func pendingReviewPaths(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, mode layout.Mode, committedIgnore reposetup.Presence) []string {
+	pending, _ := collectPendingReviewPaths(ctx, git, repo, mode, committedIgnore)
+	return pending
+}
+
+// collectPendingReviewPaths is pendingReviewPaths that also returns the status
+// read error; on that error the paths decided so far (the .gitignore) are still
+// returned.
+func collectPendingReviewPaths(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, mode layout.Mode, committedIgnore reposetup.Presence) ([]string, error) {
 	seen := map[string]bool{}
 	var pending []string
 	private := mode == layout.Private
@@ -457,24 +465,22 @@ func pendingReviewPaths(ctx context.Context, git *gitcli.Client, repo gitcli.Rep
 	// The parent-facing dispatch surfaces: pending when changed in the working
 	// tree relative to HEAD.
 	changes, err := git.ChangedPaths(ctx, repo.PrimaryWorktree)
-	if err == nil {
-		for _, ch := range changes {
-			rel := string(ch.Path)
-			if rel == gitignoreRel {
-				continue // the .gitignore is decided by the committed-ignore fact above
-			}
-			if private && rel == docketYMLRel {
-				continue // a private repository's config is .git/dckt/config.yml
-			}
-			if docketManagedWorktreePaths[rel] && !seen[rel] {
-				seen[rel] = true
-				pending = append(pending, rel)
-			}
+	for _, ch := range changes {
+		rel := string(ch.Path)
+		if rel == gitignoreRel {
+			continue // the .gitignore is decided by the committed-ignore fact above
+		}
+		if private && rel == docketYMLRel {
+			continue // a private repository's config is .git/dckt/config.yml
+		}
+		if docketManagedWorktreePaths[rel] && !seen[rel] {
+			seen[rel] = true
+			pending = append(pending, rel)
 		}
 	}
 
 	sort.Strings(pending)
-	return pending
+	return pending, err
 }
 
 // checkCorpus is everything the report-only check reads from the pinned metadata
