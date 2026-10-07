@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0538 — Choose agent harnesses during init and with configure-harnesses](../../changes/active/0538-choose-agent-harnesses-during-repository-init.md)**
+> ↩ **[Change 0538 — Choose agent harnesses during init and with configure-harnesses](../../changes/archive/2026-10-07-0538-choose-agent-harnesses-during-repository-init.md)**
 <!-- docket:backlink:end -->
 
 # Choose agent harnesses during init and with configure-harnesses: design

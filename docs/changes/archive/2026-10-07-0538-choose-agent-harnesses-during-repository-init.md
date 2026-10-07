@@ -2,7 +2,7 @@
 id: 538
 slug: 'choose-agent-harnesses-during-repository-init'
 title: 'Choose agent harnesses during init and with configure-harnesses'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-07'
@@ -22,7 +22,7 @@ branch: 'feat/choose-agent-harnesses-during-repository-init'
 pr: 'https://github.com/danielhanold/docket/pull/403'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-07T02:09:36Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-07T02:09:36Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-07-choose-agent-harnesses-during-repository-init-design.md](../../superpowers/specs/2026-10-07-choose-agent-harnesses-during-repository-init-design.md) |
+| Spec (merged) | [2026-10-07-choose-agent-harnesses-during-repository-init-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-07-choose-agent-harnesses-during-repository-init-design.md) |
 | Plan | [2026-10-07-choose-agent-harnesses-during-repository-init.md](../../superpowers/plans/2026-10-07-choose-agent-harnesses-during-repository-init.md) |
 | Results | [2026-10-07-choose-agent-harnesses-during-repository-init-results.md](../../results/2026-10-07-choose-agent-harnesses-during-repository-init-results.md) |
 | ADRs | [ADR-0146](../../adrs/0146-adopt-charmbracelet-huh-as-the-interactive-terminal-ui-depen.md) |
