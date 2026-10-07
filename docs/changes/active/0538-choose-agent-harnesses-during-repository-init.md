@@ -22,7 +22,7 @@ branch: 'feat/choose-agent-harnesses-during-repository-init'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-07T00:59:52Z'
+claimed_at: '2026-10-07T01:31:45Z'
 ---
 
 ## Artifacts
