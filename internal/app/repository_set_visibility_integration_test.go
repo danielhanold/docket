@@ -540,6 +540,79 @@ func TestIntegrationRepoVisibilityPrivateRemoveSharedFiles(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoVisibilityPrivateRemovalPreviewIsTheCommit proves the
+// removal preview lists exactly what the removal commit does — a .gitignore and
+// AGENTS.md left empty by the removal are deletions, not writes — and that a
+// user's uncommitted edit to a path the commit never touches (a committed
+// CLAUDE.md with no dispatch block) neither refuses the switch nor is swept in.
+func TestIntegrationRepoVisibilityPrivateRemovalPreviewIsTheCommit(t *testing.T) {
+	r, _ := newPrivateSwitchRepo(t)
+	writeRepoFile(t, r.invocation, "CLAUDE.md", "my notes\n")
+	commitAndPushAll(t, r.invocation, "add my notes")
+	writeRepoFile(t, r.invocation, "CLAUDE.md", "my notes\nmore notes\n")
+	before := runGit(t, r.invocation, "rev-parse", "HEAD")
+
+	o := SetVisibilityOptions{Target: "private", RemoveSharedFiles: true}
+	preview := r.runSetVisibility(t, o)
+	if !preview.ConfirmationRequired() {
+		t.Fatalf("preview = %q state %q (%s), want confirmation-required", preview.Result, preview.RepositoryState, preview.HumanText())
+	}
+	if len(preview.Commits) != 1 {
+		t.Fatalf("preview commits = %+v, want one planned row", preview.Commits)
+	}
+	rows := preview.Commits[0].Paths
+	if want := []string{".docket.yml (delete)", ".gitignore (delete)", "AGENTS.md (delete)"}; strings.Join(rows, ",") != strings.Join(want, ",") {
+		t.Errorf("preview rows = %q, want %q", rows, want)
+	}
+	o.Authorized, o.ExpectedSource = true, preview.SourceRev()
+	requireSwitchApplied(t, r.runSetVisibility(t, o), "private")
+
+	got := commitNameStatus(t, r.invocation, "HEAD")
+	if len(got) != len(rows) {
+		t.Errorf("the commit holds %v, the preview listed %q", got, rows)
+	}
+	for _, row := range rows {
+		rel, action, _ := strings.Cut(strings.TrimSuffix(row, ")"), " (")
+		wantStatus := "M"
+		if action == "delete" {
+			wantStatus = "D"
+		}
+		if got[rel] != wantStatus {
+			t.Errorf("the commit's %s = %q, the preview said %s", rel, got[rel], action)
+		}
+	}
+	if n := runGit(t, r.invocation, "rev-list", "--count", before+"..HEAD"); n != "1" {
+		t.Errorf("%s new commits, want the one removal commit", n)
+	}
+	if b := string(mustReadFile(t, filepath.Join(r.invocation, "CLAUDE.md"))); b != "my notes\nmore notes\n" {
+		t.Errorf("CLAUDE.md = %q, want the uncommitted edit kept", b)
+	}
+	if diff := runGit(t, r.invocation, "diff", "--name-only", "--", "CLAUDE.md"); diff != "CLAUDE.md" {
+		t.Errorf("unstaged diff = %q, want CLAUDE.md still modified", diff)
+	}
+	if staged := runGit(t, r.invocation, "diff", "--cached", "--name-only"); staged != "" {
+		t.Errorf("staged = %q, want nothing staged", staged)
+	}
+}
+
+// TestIntegrationRepoVisibilityPrivateUnlocatableStoreIsUnknown proves a
+// repository with no metadata branch on origin and no dckt remote, whose
+// default store cannot be located (no data home and no home directory), is an
+// unknown probe, never a confident "run init first".
+func TestIntegrationRepoVisibilityPrivateUnlocatableStoreIsUnknown(t *testing.T) {
+	r := newInitRepo(t, defaultSetupYML, nil)
+	client := newGitClient(t)
+	t.Setenv("HOME", "")
+	t.Setenv("XDG_DATA_HOME", "relative-data-home")
+	res := RunRepositorySetVisibility(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation}, SetVisibilityOptions{Target: "private"})
+	if res.Result != ResultInvalidState || res.RepositoryState != string(reposetup.StateUnknown) {
+		t.Fatalf("Result = %q state %q (%s), want invalid-state unknown", res.Result, res.RepositoryState, res.HumanText())
+	}
+	if !strings.Contains(res.HumanText(), "private-store") {
+		t.Errorf("refusal text lacks the private-store probe:\n%s", res.HumanText())
+	}
+}
+
 // TestIntegrationRepoVisibilityPrivateRemoveSharedFilesLater proves the flag
 // on a repository that already went private makes the same one commit.
 func TestIntegrationRepoVisibilityPrivateRemoveSharedFilesLater(t *testing.T) {
@@ -950,6 +1023,16 @@ func TestIntegrationRepoVisibilitySharedCommitsOnlyTrackedSurfaces(t *testing.T)
 	}
 	before := runGit(t, r.invocation, "rev-parse", "HEAD")
 
+	// The preview lists the commit's real paths: the tracked surfaces, never
+	// the ignored Cursor rule.
+	preview := r.runSetVisibility(t, SetVisibilityOptions{Target: "shared"})
+	if !preview.ConfirmationRequired() || len(preview.Commits) != 1 {
+		t.Fatalf("preview = %q (%s), want confirmation-required with one planned commit", preview.Result, preview.HumanText())
+	}
+	if want := []string{".docket.yml (write)", ".gitignore (write)", "AGENTS.md (write)", "CLAUDE.md (write)"}; strings.Join(preview.Commits[0].Paths, ",") != strings.Join(want, ",") {
+		t.Errorf("preview rows = %q, want %q", preview.Commits[0].Paths, want)
+	}
+
 	res := r.switchVisibility(t, SetVisibilityOptions{Target: "shared"})
 	requireSwitchApplied(t, res, "shared")
 
@@ -986,7 +1069,14 @@ func TestIntegrationRepoVisibilitySharedIdentityKeysStopThenResume(t *testing.T)
 	before := runGit(t, r.invocation, "rev-parse", "HEAD")
 
 	run1 := r.switchVisibility(t, SetVisibilityOptions{Target: "shared"})
-	requireSwitchApplied(t, run1, "private")
+	// The stop is a needs-review refusal naming the remedy, never applied: the
+	// repository is still private.
+	if run1.Result != ResultInvalidState || run1.RepositoryState != string(reposetup.StateNeedsReview) {
+		t.Fatalf("run 1 = %q state %q (%s), want invalid-state needs-review", run1.Result, run1.RepositoryState, run1.HumanText())
+	}
+	if len(run1.Commits) != 1 || run1.Commits[0].Status != visibilityCommitCommitted || run1.Commits[0].Commit == "" {
+		t.Errorf("run 1 commits = %+v, want the one committed identity commit", run1.Commits)
+	}
 	if got := phaseStatus(run1, "identity-keys"); got != visibilityPhaseApplied {
 		t.Errorf("identity-keys = %q, want applied", got)
 	}
@@ -997,13 +1087,16 @@ func TestIntegrationRepoVisibilitySharedIdentityKeysStopThenResume(t *testing.T)
 		t.Fatalf("%s new commits after run 1, want exactly one", n)
 	}
 	identityCommit := runGit(t, r.invocation, "rev-parse", "HEAD")
+	if len(run1.Commits) == 1 && run1.Commits[0].Commit != identityCommit {
+		t.Errorf("run 1 reports commit %s, want HEAD %s", run1.Commits[0].Commit, identityCommit)
+	}
 	requireAddCommit(t, r.invocation, identityCommit, ".docket.yml")
 	if yml := runGit(t, r.invocation, "show", "HEAD:.docket.yml"); !strings.Contains(yml, "integration_branch: main") {
 		t.Errorf("the identity commit's .docket.yml lacks integration_branch:\n%s", yml)
 	}
 	remedy := "get this commit onto main on origin"
-	if !strings.Contains(strings.Join(run1.PendingLocal, "\n"), remedy) {
-		t.Errorf("PendingLocal = %q, want the push remedy", run1.PendingLocal)
+	if !strings.Contains(run1.HumanText(), remedy) {
+		t.Errorf("run 1 text = %q, want the push remedy", run1.HumanText())
 	}
 	if r.remoteBranchExists(t, layout.SharedName) {
 		t.Error("origin gained a docket branch before the identity keys reached it")
@@ -1168,8 +1261,7 @@ func (r *initRepo) driveVisibility(t *testing.T, o SetVisibilityOptions) Reposit
 		if res.Result == ResultApplied && res.RepositoryState == o.Target {
 			return res
 		}
-		if (res.Result == ResultApplied && strings.Contains(strings.Join(res.PendingLocal, "\n"), visibilityIdentityRemedy)) ||
-			(res.Result == ResultInvalidState && strings.Contains(res.HumanText(), visibilityIdentityRemedy)) {
+		if res.Result == ResultInvalidState && strings.Contains(res.HumanText(), visibilityIdentityRemedy) {
 			runGit(t, r.invocation, "push", "-q", "origin", "main")
 			continue
 		}

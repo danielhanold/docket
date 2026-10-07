@@ -77,7 +77,6 @@ type visibilityState struct {
 	recordGitDir              bool // the ownership record lists a surface under .git/
 	privateInstructions       bool // .git/dckt/AGENTS.md exists
 	headSharedFiles           bool // HEAD still holds a file the shared layout commits
-	headPresentCommitPaths    []string
 	headGitignoreValid        bool
 	worktreeGitignoreValid    bool
 	commitPathsDirty          bool
@@ -276,7 +275,6 @@ func (st *visibilityState) readHeadFiles(ctx context.Context, git *gitcli.Client
 		}
 		if held {
 			st.headSharedFiles = true
-			st.headPresentCommitPaths = append(st.headPresentCommitPaths, rel)
 		}
 	}
 	return nil
@@ -343,6 +341,9 @@ func (st *visibilityState) readConfigFacts(ctx context.Context, git *gitcli.Clie
 		committed, _, err := reposetup.SplitPrivateConfig(pending, localKeys, config.RepoOnlyPaths())
 		if err != nil {
 			return fmt.Errorf("splitting %s: %w", st.pendingConfig, err)
+		}
+		if committed, err = keepOnDiskCommitted(st.primary, committed); err != nil {
+			return err
 		}
 		onDisk, _, err := readOptionalFile(filepath.Join(st.primary, ".docket.yml"))
 		if err != nil {

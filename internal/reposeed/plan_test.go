@@ -541,3 +541,41 @@ func TestPlanPrivate(t *testing.T) {
 		}
 	})
 }
+
+// TestSurfacePathsCoverPlan derives the surface set from Plan itself: every
+// harness subset under every CLAUDE.md state, relativized to the worktree, must
+// together emit exactly SurfacePaths — no path SurfacePaths misses, and none it
+// lists that Plan never emits.
+func TestSurfacePathsCoverPlan(t *testing.T) {
+	all := []string{harnessClaude, harnessCodex, harnessOpencode, harnessCursor}
+	states := []ClaudeMDState{ClaudeMDAbsent, ClaudeMDRegularFile, ClaudeMDLinkToAgents, ClaudeMDOther, ClaudeMDForeignLink}
+	emitted := map[string]bool{}
+	for mask := 1; mask < 1<<len(all); mask++ {
+		var hs []string
+		for i, h := range all {
+			if mask&(1<<i) != 0 {
+				hs = append(hs, h)
+			}
+		}
+		for _, st := range states {
+			targets, _ := mustPlan(t, PlanInput{WorktreeRoot: worktreeRoot, Harnesses: hs, RunTracker: runTracker, ClaudeMDState: st})
+			for _, tg := range targets {
+				rel, err := filepath.Rel(worktreeRoot, tg.Path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				emitted[filepath.ToSlash(rel)] = true
+			}
+		}
+	}
+	var got []string
+	for p := range emitted {
+		got = append(got, p)
+	}
+	sort.Strings(got)
+	want := append([]string(nil), SurfacePaths()...)
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Plan emits %v, SurfacePaths lists %v", got, want)
+	}
+}
