@@ -123,6 +123,11 @@ var (
 	agentHarnessTokens = []string{"claude", "codex", "cursor", "opencode"}
 )
 
+// AgentHarnessTokens returns a fresh copy of the closed agent_harnesses token
+// set: the accept set every writer of the key validates against, so a writer
+// can never accept a token the reader refuses.
+func AgentHarnessTokens() []string { return append([]string(nil), agentHarnessTokens...) }
+
 // changeTypeToken is the shape of a change type; `all` and `untyped` match it
 // but are reserved selector words, so they are rejected separately.
 var changeTypeToken = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)

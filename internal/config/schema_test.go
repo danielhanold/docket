@@ -494,3 +494,16 @@ func TestDiagnosticsNeverEchoTheDocument(t *testing.T) {
 		}
 	}
 }
+
+// TestAgentHarnessTokensIsACopy pins the exported accept set and proves a
+// caller mutating the returned slice cannot change the package's own set.
+func TestAgentHarnessTokensIsACopy(t *testing.T) {
+	got := AgentHarnessTokens()
+	if strings.Join(got, ",") != "claude,codex,cursor,opencode" {
+		t.Fatalf("AgentHarnessTokens() = %v", got)
+	}
+	got[0] = "mutated"
+	if again := AgentHarnessTokens(); again[0] != "claude" {
+		t.Fatalf("mutation leaked into the next call: %v", again)
+	}
+}
