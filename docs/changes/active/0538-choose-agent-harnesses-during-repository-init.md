@@ -2,7 +2,7 @@
 id: 538
 slug: 'choose-agent-harnesses-during-repository-init'
 title: 'Choose agent harnesses during init and with configure-harnesses'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-07'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/choose-agent-harnesses-during-repository-init'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/403'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-07T02:09:36Z'
@@ -73,3 +73,12 @@ The result is the same in both modes: no instructions and no message saying why.
 ### 2026-10-07
 
 2026-10-07: Recorded ADR-0146 (adopt charmbracelet/huh as the interactive terminal UI dependency) during review; added to adrs.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: ee11acbc2bbeb312e794da339642fdf516dae7db
+ran_at:   2026-10-07T02:29:35Z
+<!-- docket:build-evidence:end -->
