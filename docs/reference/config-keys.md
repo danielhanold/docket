@@ -64,7 +64,9 @@ Each key has one scope:
 managed block in `CLAUDE.md` / `AGENTS.md` and, for Cursor, `.cursor/rules/docket-dispatch.mdc`.
 It takes `claude`, `codex`, `cursor`, and `opencode`. While it is absent, `docket install` touches
 no repository surface. Only `.docket.yml` or `.docket.local.yml` can opt a repository in; the
-installer ignores a value in the global config.
+installer ignores a value in the global config. `docket repository init` asks for it (or takes
+`--harnesses <list>|none`), `docket repository configure-harnesses` changes it later and refreshes
+the surfaces in the same run, and `docket repository check` warns `harnesses-unset` while it is unset.
 
 **`agents`** pins apply per agent and per field; anything you leave out keeps its built-in value.
 The built-in table is compiled into the binary, and `agents/harness-defaults.yml` ships the same
