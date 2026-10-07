@@ -13,7 +13,7 @@ related: [532, 534, 352, 363]
 discovered_from: []
 adrs: [1, 99]
 spec: 'docs/superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-07-switch-a-repository-between-shared-and-private-visibility.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-07T10:59:10Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md](../../superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) |
+| Plan | [2026-10-07-switch-a-repository-between-shared-and-private-visibility.md](../../superpowers/plans/2026-10-07-switch-a-repository-between-shared-and-private-visibility.md) |
 | ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
