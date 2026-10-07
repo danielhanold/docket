@@ -459,6 +459,23 @@ func TestIntegrationRepoSetupConfigureHarnessesTwiceInNeedsReview(t *testing.T) 
 	}
 }
 
+// An uncommitted .gitignore edit unrelated to docket is not a pending review
+// path once the managed block is committed: configure-harnesses decides the
+// .gitignore from the committed-ignore fact, as repository check does, so a
+// healthy repository stays healthy.
+func TestIntegrationRepoSetupConfigureHarnessesIgnoresUnrelatedGitignoreEdit(t *testing.T) {
+	r := newHarnessRepo(t, "claude")
+	gi := filepath.Join(r.invocation, ".gitignore")
+	writeRepoFile(t, r.invocation, ".gitignore", string(mustReadFile(t, gi))+"unrelated-build-output/\n")
+	res := r.runConfigureHarnesses(t, ConfigureHarnessesOptions{Harnesses: harnessFlag("claude")})
+	if res.Result != ResultNoOp {
+		t.Fatalf("Result = %q (%s), want no-op", res.Result, res.HumanText())
+	}
+	if contains(res.PendingPaths, ".gitignore") || res.RepositoryState != string(reposetup.StateHealthy) {
+		t.Errorf("PendingPaths = %v state %q, want no .gitignore and healthy", res.PendingPaths, res.RepositoryState)
+	}
+}
+
 func TestIntegrationRepoSetupConfigureHarnessesLocalOverrideWarns(t *testing.T) {
 	r := newHarnessRepo(t, "claude")
 	writeRepoFile(t, r.invocation, ".docket.local.yml", "agent_harnesses: [cursor]\n")

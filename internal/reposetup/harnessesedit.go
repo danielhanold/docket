@@ -81,15 +81,22 @@ func RenderAgentHarnessesEdit(existing []byte, harnesses []string) (edited []byt
 		if harnessSequenceEquals(val, harnesses) {
 			return existing, false, nil
 		}
+		starts := lineOffsets(existing)
 		start, end := root.Content[keyIdx].Line, maxNodeLine(val)
 		if end < start || val.Kind == yaml.ScalarNode && val.Tag == "!!null" && val.Value == "" {
 			end = start // an empty value lives on the key's own line
+		}
+		// A flow sequence's node stops at its last item; its closing ] may sit on
+		// a later line.
+		if val.Kind == yaml.SequenceNode && val.Style&yaml.FlowStyle != 0 {
+			if closing := flowSequenceEndLine(existing, starts, val); closing > end {
+				end = closing
+			}
 		}
 		if keyIdx > 0 && maxNodeLine(root.Content[keyIdx-1]) >= start ||
 			keyIdx+2 < len(root.Content) && root.Content[keyIdx+2].Line <= end {
 			return nil, false, fmt.Errorf("reposetup: %q shares a line with another setting%s", agentHarnessesKey, byHand)
 		}
-		starts := lineOffsets(existing)
 		from, to := starts[start-1], lineEndByte(existing, starts, end)
 		text := line
 		if !(to == len(existing) && (to == 0 || existing[to-1] != '\n')) {
@@ -101,6 +108,57 @@ func RenderAgentHarnessesEdit(existing []byte, harnesses []string) (edited []byt
 		return nil, false, verr
 	}
 	return out, true, nil
+}
+
+// flowSequenceEndLine returns the 1-based line holding the ] that closes the
+// flow sequence n, whose [ is at n's own position in src, skipping quoted
+// scalars and comments. It returns 0 when that bracket cannot be matched; the
+// post-edit re-parse then refuses any splice that cut the value short.
+func flowSequenceEndLine(src []byte, starts []int, n *yaml.Node) int {
+	if n.Line < 1 || n.Line > len(starts) || n.Column < 1 {
+		return 0
+	}
+	i := starts[n.Line-1] + n.Column - 1
+	if i >= len(src) || src[i] != '[' {
+		return 0
+	}
+	line, depth := n.Line, 0
+	for ; i < len(src); i++ {
+		switch c := src[i]; c {
+		case '\n':
+			line++
+		case '[', '{':
+			depth++
+		case ']', '}':
+			if depth--; depth == 0 {
+				return line
+			}
+		case '#':
+			if i > 0 && src[i-1] != ' ' && src[i-1] != '\t' && src[i-1] != '\n' {
+				continue
+			}
+			for i+1 < len(src) && src[i+1] != '\n' {
+				i++
+			}
+		case '"', '\'':
+			for i++; i < len(src); i++ {
+				if src[i] == '\n' {
+					line++
+				} else if c == '"' && src[i] == '\\' {
+					if i++; i < len(src) && src[i] == '\n' {
+						line++
+					}
+				} else if src[i] == c {
+					if c == '\'' && i+1 < len(src) && src[i+1] == '\'' {
+						i++
+						continue
+					}
+					break
+				}
+			}
+		}
+	}
+	return 0
 }
 
 // harnessSequenceEquals reports whether n is a sequence of exactly the string

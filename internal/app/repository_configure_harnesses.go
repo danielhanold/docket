@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/gitcli"
@@ -78,7 +77,7 @@ func RunRepositoryConfigureHarnesses(ctx context.Context, d SetupDeps, o Configu
 	if herr != nil {
 		return harnessApplyFailure(op, cls.State, herr)
 	}
-	pending, perr := workingTreePendingPaths(ctx, d.Git, sc)
+	pending, perr := workingTreePendingPaths(ctx, d.Git, sc, facts.CommittedIgnoreBlock)
 	if perr != nil {
 		return repositoryExternalFailure(op, cls.State, "listing the pending review paths", perr)
 	}
@@ -109,8 +108,9 @@ func RunRepositoryConfigureHarnesses(ctx context.Context, d SetupDeps, o Configu
 	return out
 }
 
-// configureHarnessesGuard classifies once and admits healthy, needs-review, or
-// either once init's clean-checkout and at-tip preconditions are set aside;
+// configureHarnessesGuard classifies once and admits healthy, needs-review with
+// the primary checkout on the integration branch, or either once init's
+// clean-checkout and at-tip preconditions are set aside;
 // every other state is an invalid-state refusal whose remedy is valid there.
 // Pure over the gathered facts.
 func configureHarnessesGuard(facts reposetup.Facts) (reposetup.Classification, *RepositoryOpResult) {
@@ -121,8 +121,16 @@ func configureHarnessesGuard(facts reposetup.Facts) (reposetup.Classification, *
 		return cls, &out
 	}
 	switch cls.State {
-	case reposetup.StateHealthy, reposetup.StateNeedsReview:
+	case reposetup.StateHealthy:
 		return cls, nil
+	case reposetup.StateNeedsReview:
+		// Needs-review is decided before the healthy postconditions, so it does not
+		// prove the primary checkout is on the integration branch; require that as
+		// the healthy path does (an unknown probe is not a proven absence).
+		if facts.PrimaryOnIntegration != reposetup.PresenceAbsent {
+			return cls, nil
+		}
+		return refuse("the primary checkout is not on the integration branch; run `docket repository check` and resolve the reported findings first")
 	case reposetup.StateFresh:
 		return refuse("repository is not initialized; run `docket repository init` (it takes --harnesses too)")
 	case reposetup.StateLegacy:
@@ -136,24 +144,15 @@ func configureHarnessesGuard(facts reposetup.Facts) (reposetup.Classification, *
 	return refuse("repository is not in a healthy state; run `docket repository check` and resolve the reported findings first")
 }
 
-// workingTreePendingPaths lists, sorted, every docket-managed working-tree path
-// that differs from HEAD in the primary worktree — read from git status, so a
-// surface removed this run counts as pending too. A private repository has
-// none: its config and surfaces live outside the working tree.
-func workingTreePendingPaths(ctx context.Context, git *gitcli.Client, sc setupContext) ([]string, error) {
+// workingTreePendingPaths lists, sorted, the docket-managed working-tree paths
+// pending review in the primary worktree — the set repository check names
+// (collectPendingReviewPaths), so a surface removed this run counts as pending
+// too and an unrelated .gitignore edit does not once the managed block is
+// committed. Unlike check, a status read error is returned. A private
+// repository has none: its config and surfaces live outside the working tree.
+func workingTreePendingPaths(ctx context.Context, git *gitcli.Client, sc setupContext, committedIgnore reposetup.Presence) ([]string, error) {
 	if sc.layout.Mode == layout.Private {
 		return nil, nil
 	}
-	changes, err := git.ChangedPaths(ctx, sc.repo.PrimaryWorktree)
-	if err != nil {
-		return nil, err
-	}
-	var pending []string
-	for _, ch := range changes {
-		if rel := string(ch.Path); docketManagedWorktreePaths[rel] {
-			pending = appendPending(pending, rel)
-		}
-	}
-	sort.Strings(pending)
-	return pending, nil
+	return collectPendingReviewPaths(ctx, git, sc.repo, sc.layout.Mode, committedIgnore)
 }

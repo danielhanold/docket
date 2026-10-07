@@ -14,8 +14,12 @@ import (
 // valid there.
 func TestConfigureHarnessesGuard(t *testing.T) {
 	admitted := map[string]func(*reposetup.Facts){
-		"healthy":        func(*reposetup.Facts) {},
-		"needs-review":   func(f *reposetup.Facts) { f.PendingReviewPaths = []string{".docket.yml"} },
+		"healthy":      func(*reposetup.Facts) {},
+		"needs-review": func(f *reposetup.Facts) { f.PendingReviewPaths = []string{".docket.yml"} },
+		"needs-review, branch probe unknown": func(f *reposetup.Facts) {
+			f.PendingReviewPaths = []string{".docket.yml"}
+			f.PrimaryOnIntegration = reposetup.PresenceUnknown
+		},
 		"dirty primary":  func(f *reposetup.Facts) { f.PrimaryClean = reposetup.PresenceAbsent },
 		"behind the tip": func(f *reposetup.Facts) { f.PrimaryAtRemoteTip = reposetup.PresenceAbsent },
 	}
@@ -44,6 +48,11 @@ func TestConfigureHarnessesGuard(t *testing.T) {
 		}, "docket repository migrate"},
 		{"foreign worktree", func(f *reposetup.Facts) { f.DocketWorktree.Foreign = true }, "docket repository check"},
 		{"hooks on", func(f *reposetup.Facts) { f.DocketWorktree.HooksOff = reposetup.PresenceAbsent }, "docket repository check"},
+		{"healthy off the integration branch", func(f *reposetup.Facts) { f.PrimaryOnIntegration = reposetup.PresenceAbsent }, "docket repository check"},
+		{"needs-review off the integration branch", func(f *reposetup.Facts) {
+			f.PendingReviewPaths = []string{".docket.yml"}
+			f.PrimaryOnIntegration = reposetup.PresenceAbsent
+		}, "docket repository check"},
 	}
 	for _, tc := range refused {
 		t.Run("refuses "+tc.name, func(t *testing.T) {
