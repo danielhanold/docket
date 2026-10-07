@@ -532,12 +532,13 @@ func TestIntegrationRepoSetupPrivateMigrateRefuses(t *testing.T) {
 	}
 }
 
-// initPrivateHealthy inits a private repository and sets its test policy with
-// configure-tests --command true, the path to a healthy private repository.
+// initPrivateHealthy inits a private repository recording no agents
+// (--harnesses none) and sets its test policy with configure-tests --command
+// true, the path to a healthy private repository.
 func initPrivateHealthy(t *testing.T) (*initRepo, string) {
 	t.Helper()
 	r, data := newPrivateInitRepo(t, nil)
-	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+	if res := r.runInitWith(t, InitOptions{Private: true, Harnesses: harnessFlag("none")}); res.Result != ResultApplied {
 		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
 	}
 	cmd := "true"

@@ -26,8 +26,9 @@ import (
 
 // healthySetupYML is docket-mode config WITHOUT the legacy metadata_branch key:
 // the metadata branch resolves to its default (docket). A healthy repository
-// carries no metadata_branch key.
-const healthySetupYML = "integration_branch: main\n"
+// carries no metadata_branch key. The healthy baseline records "no agents"
+// (agent_harnesses: []), so check raises no harnesses-unset warning.
+const healthySetupYML = "integration_branch: main\nagent_harnesses: []\n"
 
 // runCheck runs RunRepositoryCheck against the invocation clone with a fresh
 // isolated client.

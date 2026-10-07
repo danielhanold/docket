@@ -69,6 +69,7 @@ var stepRegistry = map[string]stepAction{
 	"config-cleanup":        mirrorConfigCleanup,
 	"commit-fixes":          runCommitFixes,
 	"configure-tests":       runPlain,
+	"configure-harnesses":   runPlain,
 	"commit-config":         runCommit,
 	"repair-preview":        observeRepairPreview,
 	"repair-apply":          runRepairApply,

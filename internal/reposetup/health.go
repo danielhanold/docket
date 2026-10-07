@@ -279,6 +279,24 @@ func TestConfigFinding(cfg config.Effective, committedYML []byte) *Finding {
 	}
 }
 
+// HarnessesUnsetCode: no repository-level layer declares agent_harnesses, so
+// docket writes no dispatch instructions here. `[]` is a recorded decision and
+// silences it.
+const HarnessesUnsetCode = "harnesses-unset"
+
+// HarnessesUnsetFinding explains; it never changes the classified state.
+func HarnessesUnsetFinding(f Facts) *Finding {
+	if f.SurfacesAuthorized {
+		return nil
+	}
+	return &Finding{
+		Code:     HarnessesUnsetCode,
+		Severity: SeverityWarning,
+		Message:  "docket writes no agent dispatch instructions in this repository because agent_harnesses is not set in its repository config.",
+		Remedy:   "Run `" + ConfigureHarnessesCommand + "` to choose the coding agents, or `" + ConfigureHarnessesCommand + " --harnesses " + HarnessesNone + "` to record that none are used.",
+	}
+}
+
 // localGateNeedsCommand reports whether a gate owner is a local gate with no
 // resolved command — the configuration gap a setup-time edit must close.
 func localGateNeedsCommand(gate, command string) bool {

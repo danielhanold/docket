@@ -124,6 +124,7 @@ On a Bash repository it exits with an error and lists some of these findings:
 | `committed-ignore-invalid` | The docket block in `.gitignore` is the Bash version. | Replace the block, below. |
 | `legacy-config-key-present` | `.docket.yml` still sets `metadata_branch`. | Remove the setting, below. |
 | `test-config-missing` | No test command is set up for docket's build checks. | `docket repository configure-tests`, below. |
+| `harnesses-unset` | No coding agents are chosen for this repository, so docket writes no instructions for them. | `docket repository configure-harnesses`, below. |
 | `board-stale` | `BOARD.md` on the `docket` branch is in the Bash format. | `docket repository repair`, below. |
 | `artifact-links-stale` | A change record's links block is in the Bash format. | `docket repository repair`, below. |
 
@@ -166,17 +167,30 @@ git push
 ```
 
 Now set up the test command. `docket repository configure-tests` writes the test settings into
-`.docket.yml`. Review them, then commit and push.
+`.docket.yml`. Review them.
 
 <!-- upgrade-step: configure-tests -->
 ```sh
 docket repository configure-tests
 ```
 
+Next, choose the coding agents docket writes instructions for. On a terminal,
+`docket repository configure-harnesses` shows a checklist. The command below records "none yet",
+because Bash docket's `CLAUDE.md` block would get in the way. After you remove that block (the last
+step), run `docket repository configure-harnesses --harnesses claude` (or your agents) and commit
+the result.
+
+<!-- upgrade-step: configure-harnesses -->
+```sh
+docket repository configure-harnesses --harnesses none
+```
+
+Commit and push both settings in `.docket.yml`, the test command and the agents:
+
 <!-- upgrade-step: commit-config -->
 ```sh
 git add .docket.yml
-git commit -m "Configure docket's test command"
+git commit -m "Configure docket's test command and agents"
 git push
 ```
 

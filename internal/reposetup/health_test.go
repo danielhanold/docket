@@ -1190,3 +1190,30 @@ func TestAttachmentRemedyFollowsLayout(t *testing.T) {
 		}
 	}
 }
+
+// TestHarnessesUnsetFinding: with no repository-level agent_harnesses the
+// finding warns and points at configure-harnesses (including the explicit
+// "none" spelling); a declared value, `[]` included, silences it.
+func TestHarnessesUnsetFinding(t *testing.T) {
+	got := HarnessesUnsetFinding(Facts{})
+	if got == nil {
+		t.Fatal("HarnessesUnsetFinding(Facts{}) = nil, want a finding")
+	}
+	if HarnessesUnsetCode != "harnesses-unset" || got.Code != HarnessesUnsetCode {
+		t.Errorf("Code = %q, want %q", got.Code, "harnesses-unset")
+	}
+	if got.Severity != SeverityWarning {
+		t.Errorf("Severity = %q, want %q", got.Severity, SeverityWarning)
+	}
+	if !strings.Contains(got.Message, "agent_harnesses") {
+		t.Errorf("Message = %q, want it to name agent_harnesses", got.Message)
+	}
+	for _, want := range []string{ConfigureHarnessesCommand, "--harnesses none"} {
+		if !strings.Contains(got.Remedy, want) {
+			t.Errorf("Remedy = %q, want it to contain %q", got.Remedy, want)
+		}
+	}
+	if got := HarnessesUnsetFinding(Facts{SurfacesAuthorized: true}); got != nil {
+		t.Errorf("HarnessesUnsetFinding(SurfacesAuthorized) = %+v, want nil", got)
+	}
+}
