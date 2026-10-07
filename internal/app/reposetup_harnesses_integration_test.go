@@ -111,7 +111,7 @@ func TestIntegrationRepoSetupPrivateInitHarnessesFlag(t *testing.T) {
 	if status := runGit(t, r.invocation, "status", "--porcelain"); status != "" {
 		t.Errorf("git status --porcelain = %q, want a clean working tree", status)
 	}
-	lay := privateLayoutOf(t, r.invocation, data)
+	lay := expectedPrivateLayout(t, r.invocation, data)
 	if got := string(mustReadFile(t, lay.ConfigPath)); !strings.Contains(got, "agent_harnesses: [claude]\n") {
 		t.Errorf("%s = %q, want agent_harnesses: [claude]", lay.ConfigPath, got)
 	}
@@ -509,7 +509,7 @@ func TestIntegrationRepoSetupPrivateConfigureHarnesses(t *testing.T) {
 	if !strings.Contains(res.HumanText(), ".git/dckt/config.yml") {
 		t.Errorf("human text %q does not name .git/dckt/config.yml", res.HumanText())
 	}
-	lay := privateLayoutOf(t, r.invocation, data)
+	lay := expectedPrivateLayout(t, r.invocation, data)
 	if got := string(mustReadFile(t, lay.ConfigPath)); !strings.Contains(got, "agent_harnesses: [claude]\n") {
 		t.Errorf("%s = %q, want agent_harnesses: [claude]", lay.ConfigPath, got)
 	}

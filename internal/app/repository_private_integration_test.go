@@ -98,9 +98,9 @@ func (r *initRepo) runInitWithGlobal(t *testing.T, globalYML string, o InitOptio
 	return RunRepositoryInit(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation}, o)
 }
 
-// privateLayoutOf resolves the clone's private layout from its origin URL and
+// expectedPrivateLayout resolves the clone's private layout from its origin URL and
 // the test's data home, independently of the code under test's own resolution.
-func privateLayoutOf(t *testing.T, dir, data string) layout.Layout {
+func expectedPrivateLayout(t *testing.T, dir, data string) layout.Layout {
 	t.Helper()
 	common := runGit(t, dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	top := runGit(t, dir, "rev-parse", "--show-toplevel")
@@ -121,7 +121,7 @@ func TestIntegrationRepoSetupPrivateFreshInitCreatesNeutralLayout(t *testing.T) 
 	if res.Result != ResultApplied {
 		t.Fatalf("Result = %q (%s), want applied", res.Result, res.HumanText())
 	}
-	lay := privateLayoutOf(t, r.invocation, data)
+	lay := expectedPrivateLayout(t, r.invocation, data)
 	gitDir := r.gitDir(t)
 
 	cfg, err := os.ReadFile(filepath.Join(gitDir, "dckt", "config.yml"))
@@ -177,7 +177,7 @@ func TestIntegrationRepoSetupPrivateRerunIsNoOp(t *testing.T) {
 			if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 				t.Fatalf("first init = %q (%s), want applied", res.Result, res.HumanText())
 			}
-			lay := privateLayoutOf(t, r.invocation, data)
+			lay := expectedPrivateLayout(t, r.invocation, data)
 			tip := runGit(t, lay.DefaultBareRemote, "rev-parse", "refs/heads/dckt")
 			pinCommitDate(t, tc.rerun)
 			res := r.runInitWith(t, InitOptions{})
@@ -227,7 +227,7 @@ func TestIntegrationRepoSetupPrivateInterruptedAfterConfigResumes(t *testing.T) 
 	if res.Result != ResultApplied {
 		t.Fatalf("resumed init = %q (%s), want applied", res.Result, res.HumanText())
 	}
-	lay := privateLayoutOf(t, r.invocation, data)
+	lay := expectedPrivateLayout(t, r.invocation, data)
 	if url := runGit(t, r.invocation, "config", "--get", "remote.dckt.url"); url != lay.DefaultBareRemote {
 		t.Errorf("dckt remote URL = %q, want %q", url, lay.DefaultBareRemote)
 	}
@@ -243,7 +243,7 @@ func TestIntegrationRepoSetupPrivateSecondCloneAdoptsSharedStore(t *testing.T) {
 	if created.Result != ResultApplied {
 		t.Fatalf("ChangeCreate in clone A = %q (%s)", created.Result, created.HumanText())
 	}
-	layA := privateLayoutOf(t, r.invocation, data)
+	layA := expectedPrivateLayout(t, r.invocation, data)
 	headA := runGit(t, layA.MetadataWorktree, "rev-parse", "HEAD")
 
 	b := r.freshClone(t)
@@ -251,7 +251,7 @@ func TestIntegrationRepoSetupPrivateSecondCloneAdoptsSharedStore(t *testing.T) {
 	if res := bRepo.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("clone B init = %q (%s), want applied", res.Result, res.HumanText())
 	}
-	layB := privateLayoutOf(t, b, data)
+	layB := expectedPrivateLayout(t, b, data)
 
 	urlA := runGit(t, r.invocation, "config", "--get", "remote.dckt.url")
 	urlB := runGit(t, b, "config", "--get", "remote.dckt.url")
@@ -279,7 +279,7 @@ func TestIntegrationRepoSetupPrivateStoreOriginCollisionRefuses(t *testing.T) {
 	if res := a.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("repo A init = %q (%s), want applied", res.Result, res.HumanText())
 	}
-	layA := privateLayoutOf(t, a.invocation, data)
+	layA := expectedPrivateLayout(t, a.invocation, data)
 	recordPath := filepath.Join(layA.StoreDir, storeOriginRecordName)
 	record, err := os.ReadFile(recordPath)
 	if err != nil || strings.TrimSpace(string(record)) != a.origin {
@@ -294,7 +294,7 @@ func TestIntegrationRepoSetupPrivateStoreOriginCollisionRefuses(t *testing.T) {
 	collider := filepath.Join(testsupport.TempDir(t), filepath.Base(a.root), "origin.git")
 	runGit(t, b.root, "clone", "-q", "--bare", b.origin, collider)
 	runGit(t, b.invocation, "remote", "set-url", "origin", collider)
-	if layB := privateLayoutOf(t, b.invocation, data); layB.StoreDir != layA.StoreDir {
+	if layB := expectedPrivateLayout(t, b.invocation, data); layB.StoreDir != layA.StoreDir {
 		t.Fatalf("fixture: B's store %q does not collide with A's %q", layB.StoreDir, layA.StoreDir)
 	}
 
@@ -328,7 +328,7 @@ func TestIntegrationRepoSetupPrivateUnrecordedStoreAdoptsAndRecords(t *testing.T
 	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("clone A init = %q (%s), want applied", res.Result, res.HumanText())
 	}
-	lay := privateLayoutOf(t, r.invocation, data)
+	lay := expectedPrivateLayout(t, r.invocation, data)
 	recordPath := filepath.Join(lay.StoreDir, storeOriginRecordName)
 	if err := os.Remove(recordPath); err != nil {
 		t.Fatal(err)
@@ -400,7 +400,7 @@ func TestIntegrationRepoSetupPrivateMetadataRemoteFlag(t *testing.T) {
 	if _, err := tryGit(backup, "rev-parse", "--verify", "--quiet", "refs/heads/dckt"); err != nil {
 		t.Errorf("the flag remote has no refs/heads/dckt: %v", err)
 	}
-	lay := privateLayoutOf(t, r.invocation, data)
+	lay := expectedPrivateLayout(t, r.invocation, data)
 	if _, err := os.Stat(lay.DefaultBareRemote); !os.IsNotExist(err) {
 		t.Errorf("default bare remote %s was created (err=%v); a flag URL never creates it", lay.DefaultBareRemote, err)
 	}
@@ -432,7 +432,7 @@ func TestIntegrationRepoSetupPrivateMetadataRemoteRerunIsNoOp(t *testing.T) {
 	if url := runGit(t, r.invocation, "config", "--get", "remote.dckt.url"); url != backup {
 		t.Errorf("dckt remote URL = %q, want the flag %q", url, backup)
 	}
-	lay := privateLayoutOf(t, r.invocation, data)
+	lay := expectedPrivateLayout(t, r.invocation, data)
 	if _, err := os.Stat(lay.DefaultBareRemote); !os.IsNotExist(err) {
 		t.Errorf("default bare remote %s was created on re-run (err=%v)", lay.DefaultBareRemote, err)
 	}
@@ -703,7 +703,7 @@ func TestIntegrationRepoSetupPrivateInitRefusesBesideLocalConfig(t *testing.T) {
 	if _, err := tryGit(r.invocation, "config", "--get", "remote.dckt.url"); err == nil {
 		t.Error("a dckt remote was added; init must write nothing")
 	}
-	lay := privateLayoutOf(t, r.invocation, data)
+	lay := expectedPrivateLayout(t, r.invocation, data)
 	if _, err := os.Lstat(lay.StoreDir); !os.IsNotExist(err) {
 		t.Errorf("store %s exists after the refusal (err=%v); init must write nothing", lay.StoreDir, err)
 	}
@@ -726,13 +726,13 @@ func TestIntegrationRepoSetupPrivateRecloneSamePathReattaches(t *testing.T) {
 	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("first init = %q (%s), want applied", res.Result, res.HumanText())
 	}
-	checkout := privateLayoutOf(t, r.invocation, data).MetadataWorktree
+	checkout := expectedPrivateLayout(t, r.invocation, data).MetadataWorktree
 	if err := os.RemoveAll(r.invocation); err != nil {
 		t.Fatal(err)
 	}
 	runGit(t, r.root, "clone", "-q", r.origin, r.invocation)
 	gitIdentity(t, r.invocation)
-	if got := privateLayoutOf(t, r.invocation, data).MetadataWorktree; got != checkout {
+	if got := expectedPrivateLayout(t, r.invocation, data).MetadataWorktree; got != checkout {
 		t.Fatalf("re-clone resolved checkout %q, want the same path %q", got, checkout)
 	}
 	if _, err := os.Stat(checkout); err != nil {
@@ -781,7 +781,7 @@ func TestIntegrationRepoSetupPrivateMovedCloneOrphanPruned(t *testing.T) {
 	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
 	}
-	old := privateLayoutOf(t, r.invocation, data).MetadataWorktree
+	old := expectedPrivateLayout(t, r.invocation, data).MetadataWorktree
 	moved := filepath.Join(r.root, "moved")
 	if err := os.Rename(r.invocation, moved); err != nil {
 		t.Fatal(err)
@@ -822,7 +822,7 @@ func TestIntegrationRepoSetupPrivateMovedCloneOrphanPruned(t *testing.T) {
 		t.Fatalf("prepare = %q (%s), want the held-elsewhere refusal naming git worktree prune", prep.Disposition, prep.HumanText())
 	}
 	runGit(t, moved, "worktree", "prune")
-	newCheckout := privateLayoutOf(t, moved, data).MetadataWorktree
+	newCheckout := expectedPrivateLayout(t, moved, data).MetadataWorktree
 	prep = RunRepositoryPrepare(context.Background(), d, PrepareOptions{})
 	if prep.Disposition != PrepareDispositionApplied || prep.Context == nil || prep.Context.MetadataWorktreePath != newCheckout {
 		t.Fatalf("prepare after prune = %q (%s), want the new checkout %s attached", prep.Disposition, prep.HumanText(), newCheckout)

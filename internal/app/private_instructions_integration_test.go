@@ -150,7 +150,7 @@ func TestIntegrationPrivateInstructionsInstallPhaseFromFeatureWorktree(t *testin
 	setPrivateHarnesses(t, common, "[claude, cursor]")
 	feature := filepath.Join(r.root, "feature")
 	runGit(t, r.invocation, "worktree", "add", "-q", "-b", "feat/x", feature)
-	metadata := privateLayoutOf(t, r.invocation, os.Getenv("XDG_DATA_HOME")).MetadataWorktree
+	metadata := expectedPrivateLayout(t, r.invocation, os.Getenv("XDG_DATA_HOME")).MetadataWorktree
 	if _, err := os.Stat(metadata); err != nil {
 		t.Fatalf("precondition: metadata checkout %s: %v", metadata, err)
 	}
@@ -463,7 +463,7 @@ func TestIntegrationPrivateInstructionsReadFromEveryWorktree(t *testing.T) {
 	}
 	feature := filepath.Join(r.root, "feature")
 	runGit(t, r.invocation, "worktree", "add", "-q", "-b", "feat/read", feature)
-	metadata := privateLayoutOf(t, r.invocation, os.Getenv("XDG_DATA_HOME")).MetadataWorktree
+	metadata := expectedPrivateLayout(t, r.invocation, os.Getenv("XDG_DATA_HOME")).MetadataWorktree
 	sub := filepath.Join(primary, "sub", "dir")
 	if err := os.MkdirAll(sub, 0o755); err != nil {
 		t.Fatal(err)

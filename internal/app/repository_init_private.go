@@ -164,74 +164,22 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 		return fail(repositoryInternalFailure(OperationRepositoryInit, cls.State, "resolving the private layout", errors.New("the repository does not detect as private after the config write")))
 	}
 
-	// 4. The bare remote: the flag URL as given; else, on a repository that
-	// already detected private before this run, the dckt remote it configured
-	// (a flagless re-run after --metadata-remote); else the default store,
-	// created when absent. Only that last case ever creates the default store.
-	remote := metadataRemote(lay)
-	got, err := d.Git.RemoteURL(ctx, sc.repo, remote)
-	unconfigured := isRemoteUnconfigured(err)
-	if err != nil && !unconfigured {
-		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "reading the dckt git remote", err))
-	}
-	want, err := absMetadataRemote(o.MetadataRemote)
+	// 4-5. The bare remote and the dckt git remote. A repository that already
+	// detected private before this run reuses the dckt remote it configured (a
+	// flagless re-run after --metadata-remote).
+	want, remoteChanged, err := ensurePrivateMetadataRemote(ctx, d.Git, sc.repo, lay, o.MetadataRemote, sc.layout.Mode == layout.Private)
 	if err != nil {
-		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "resolving the --metadata-remote path", err))
-	}
-	if want == "" && !unconfigured && sc.layout.Mode == layout.Private {
-		want = got
-	}
-	createStore := want == ""
-	if createStore {
-		want = lay.DefaultBareRemote
-	}
-	// The default store's name is derived from origin's URL and can collide
-	// across distinct origins, so the store records the origin that created it
-	// and a repository with a different origin refuses before attaching to it.
-	var recordOrigin func() (bool, error)
-	if want == lay.DefaultBareRemote {
-		origin, oerr := d.Git.RemoteURL(ctx, sc.repo, originRemote)
-		if oerr != nil {
-			return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "reading origin's URL", oerr))
+		var mre *metadataRemoteError
+		if !errors.As(err, &mre) {
+			return fail(repositoryInternalFailure(OperationRepositoryInit, cls.State, "setting up the dckt git remote", err))
 		}
-		record, rerr := checkStoreOrigin(lay.StoreDir, origin)
-		if rerr != nil {
-			return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "reading the metadata store's origin record", rerr))
+		if mre.Conflict {
+			return fail(initRefusal(reposetup.StateConflict, mre.Err.Error()))
 		}
-		if record.foreign != "" {
-			return fail(initRefusal(reposetup.StateConflict, fmt.Sprintf(
-				"the metadata store %s belongs to origin %s, not this repository's origin %s (both derive the store name %s); re-run `docket repository init --metadata-remote <url>` with a bare repository of this repository's own",
-				lay.StoreDir, record.foreign, origin, filepath.Base(lay.StoreDir))))
-		}
-		recordOrigin = record.write
+		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, mre.Stage, mre.Err))
 	}
-	if createStore {
-		_, statErr := os.Stat(want)
-		if err := d.Git.InitBare(ctx, want); err != nil {
-			return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "creating the bare metadata store", err))
-		}
-		changed = changed || os.IsNotExist(statErr)
-	}
-	if recordOrigin != nil {
-		wrote, werr := recordOrigin()
-		if werr != nil {
-			return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "recording the metadata store's origin", werr))
-		}
-		changed = changed || wrote
-	}
-
-	// 5. The dckt git remote: added when absent, kept when it already points at
-	// want, refused otherwise. Docket never rewrites a remote.
-	switch {
-	case unconfigured:
-		if aerr := d.Git.AddRemote(ctx, sc.repo, remote, want); aerr != nil {
-			return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "adding the dckt git remote", aerr))
-		}
-		changed = true
-	case got != want:
-		return fail(initRefusal(reposetup.StateConflict, fmt.Sprintf(
-			"the dckt git remote already points at %s, not %s; resolve it by hand (docket never rewrites a remote)", got, want)))
-	}
+	changed = changed || remoteChanged
+	remote := metadataRemote(lay)
 
 	// 6. The metadata branch: a branch the store already holds is adopted at its
 	// tip when it is a verified init lineage (a re-run, or the second-clone path)
@@ -323,6 +271,105 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 	}
 	setHarnessResult(&out, choice, applied)
 	return out
+}
+
+// metadataRemoteError is ensurePrivateMetadataRemote's failure. Conflict marks
+// a refusal a human resolves (a foreign default store, or a dckt remote that
+// points elsewhere); otherwise it is an external failure at Stage.
+type metadataRemoteError struct {
+	Conflict bool
+	Stage    string
+	Err      error
+}
+
+func (e *metadataRemoteError) Error() string {
+	if e.Conflict {
+		return e.Err.Error()
+	}
+	return e.Stage + ": " + e.Err.Error()
+}
+
+func (e *metadataRemoteError) Unwrap() error { return e.Err }
+
+// ensurePrivateMetadataRemote sets up the bare remote a private repository's
+// metadata branch is pushed to, and the dckt git remote naming it. The URL is
+// flagURL as given; else, when reuseConfigured, the dckt remote already
+// configured; else the default store, created when absent. Only that last case
+// ever creates the default store. The default store's name is derived from
+// origin's URL and can collide across distinct origins, so the store records
+// the origin that created it and a repository with a different origin refuses
+// before attaching to it. The dckt git remote is added when absent, kept when
+// it already points at the URL, and refused otherwise: docket never rewrites a
+// remote. It returns the URL and whether it changed anything; every failure is
+// a *metadataRemoteError.
+func ensurePrivateMetadataRemote(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, lay layout.Layout, flagURL string, reuseConfigured bool) (string, bool, error) {
+	external := func(stage string, err error) (string, bool, error) {
+		return "", false, &metadataRemoteError{Stage: stage, Err: err}
+	}
+	conflict := func(msg string) (string, bool, error) {
+		return "", false, &metadataRemoteError{Conflict: true, Err: errors.New(msg)}
+	}
+	changed := false
+	remote := metadataRemote(lay)
+	got, err := git.RemoteURL(ctx, repo, remote)
+	unconfigured := isRemoteUnconfigured(err)
+	if err != nil && !unconfigured {
+		return external("reading the dckt git remote", err)
+	}
+	want, err := absMetadataRemote(flagURL)
+	if err != nil {
+		return external("resolving the --metadata-remote path", err)
+	}
+	if want == "" && !unconfigured && reuseConfigured {
+		want = got
+	}
+	createStore := want == ""
+	if createStore {
+		want = lay.DefaultBareRemote
+	}
+	var recordOrigin func() (bool, error)
+	if want == lay.DefaultBareRemote {
+		origin, oerr := git.RemoteURL(ctx, repo, originRemote)
+		if oerr != nil {
+			return external("reading origin's URL", oerr)
+		}
+		record, rerr := checkStoreOrigin(lay.StoreDir, origin)
+		if rerr != nil {
+			return external("reading the metadata store's origin record", rerr)
+		}
+		if record.foreign != "" {
+			return conflict(fmt.Sprintf(
+				"the metadata store %s belongs to origin %s, not this repository's origin %s (both derive the store name %s); re-run `docket repository init --metadata-remote <url>` with a bare repository of this repository's own",
+				lay.StoreDir, record.foreign, origin, filepath.Base(lay.StoreDir)))
+		}
+		recordOrigin = record.write
+	}
+	if createStore {
+		_, statErr := os.Stat(want)
+		if err := git.InitBare(ctx, want); err != nil {
+			return external("creating the bare metadata store", err)
+		}
+		changed = changed || os.IsNotExist(statErr)
+	}
+	if recordOrigin != nil {
+		wrote, werr := recordOrigin()
+		if werr != nil {
+			return external("recording the metadata store's origin", werr)
+		}
+		changed = changed || wrote
+	}
+
+	switch {
+	case unconfigured:
+		if aerr := git.AddRemote(ctx, repo, remote, want); aerr != nil {
+			return external("adding the dckt git remote", aerr)
+		}
+		changed = true
+	case got != want:
+		return conflict(fmt.Sprintf(
+			"the dckt git remote already points at %s, not %s; resolve it by hand (docket never rewrites a remote)", got, want))
+	}
+	return want, changed, nil
 }
 
 // ensureExcludeFile writes the neutral `# dckt:` block into the exclude file at

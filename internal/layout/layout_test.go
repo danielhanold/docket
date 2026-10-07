@@ -199,3 +199,9 @@ func TestPrivateInstructionsPath(t *testing.T) {
 		t.Fatalf("PrivateInstructionsDisplay = %q, want %q", got, want)
 	}
 }
+
+func TestPrivateLocalKeysPath(t *testing.T) {
+	if got, want := PrivateLocalKeysPath("/r/.git"), "/r/.git/dckt/local-keys.yml"; got != want {
+		t.Fatalf("PrivateLocalKeysPath = %q, want %q", got, want)
+	}
+}
