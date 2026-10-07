@@ -1,12 +1,17 @@
 # Backlog
 
-**538 changes** — 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 374 done · 🗑️ 139 killed
+**538 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 374 done · 🗑️ 139 killed
 
-## 🟣 Groomed (3)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | [spec](../superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) | `feat/switch-a-repository-between-shared-and-private-visibility` |  |
+
+## 🟣 Groomed (2)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | [spec](../superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 

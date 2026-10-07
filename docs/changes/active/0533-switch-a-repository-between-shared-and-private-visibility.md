@@ -2,7 +2,7 @@
 id: 533
 slug: 'switch-a-repository-between-shared-and-private-visibility'
 title: 'Switch a repository between shared and private visibility'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/switch-a-repository-between-shared-and-private-visibility'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-07T10:55:39Z'
 ---
 
 ## Artifacts
