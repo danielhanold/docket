@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [1, 99]
 spec: 'docs/superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md'
 plan: 'docs/superpowers/plans/2026-10-07-switch-a-repository-between-shared-and-private-visibility.md'
-results:
+results: 'docs/results/2026-10-07-switch-a-repository-between-shared-and-private-visibility-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-07T11:29:37Z'
 |---|---|
 | Spec | [2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md](../../superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) |
 | Plan | [2026-10-07-switch-a-repository-between-shared-and-private-visibility.md](../../superpowers/plans/2026-10-07-switch-a-repository-between-shared-and-private-visibility.md) |
+| Results | [2026-10-07-switch-a-repository-between-shared-and-private-visibility-results.md](../../results/2026-10-07-switch-a-repository-between-shared-and-private-visibility-results.md) |
 | ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
