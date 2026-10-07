@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -678,4 +679,326 @@ func TestIntegrationRepoVisibilityPrivateSecondCloneAfterCleanup(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(checkout, filepath.FromSlash(created.Path))); err != nil {
 		t.Errorf("the second clone's checkout lacks the first clone's change %s: %v", created.Path, err)
 	}
+}
+
+// --- going shared ------------------------------------------------------------
+
+// sharedSwitchLessons is the promoted-lessons paragraph a born-private
+// repository's instructions file carries outside its dispatch block.
+const sharedSwitchLessons = "## Lessons\n\n- Prefer the narrow fix over the clever one.\n"
+
+// newBornPrivateRepo is a repository set up private from the start, with the
+// codex harness opted in so its dispatch block lives in the private
+// instructions file. It returns the repository and the pinned data home.
+func newBornPrivateRepo(t *testing.T) (*initRepo, string) {
+	t.Helper()
+	r, data := newPrivateInitRepo(t, nil)
+	if res := r.runInitWith(t, InitOptions{Private: true, Harnesses: harnessFlag("codex")}); res.Result != ResultApplied {
+		t.Fatalf("private init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	return r, data
+}
+
+// commitNameStatus maps each path of commit to its --name-status letter.
+func commitNameStatus(t *testing.T, dir, commit string) map[string]string {
+	t.Helper()
+	got := map[string]string{}
+	for _, line := range strings.Split(runGit(t, dir, "show", "--name-status", "--format=", commit), "\n") {
+		if f := strings.Fields(line); len(f) == 2 {
+			got[f[1]] = f[0]
+		}
+	}
+	return got
+}
+
+// requireAddCommit asserts commit carries exactly the fixed add subject with no
+// body, and touches exactly the paths in want.
+func requireAddCommit(t *testing.T, dir, commit string, want ...string) {
+	t.Helper()
+	if msg := runGit(t, dir, "log", "-1", "--format=%B", commit); msg != visibilityAddSubject {
+		t.Errorf("commit %s message = %q, want exactly %q", commit, msg, visibilityAddSubject)
+	}
+	got := commitNameStatus(t, dir, commit)
+	if len(got) != len(want) {
+		t.Errorf("commit %s holds %v, want exactly %v", commit, got, want)
+	}
+	for _, p := range want {
+		if _, ok := got[p]; !ok {
+			t.Errorf("commit %s lacks %s (%v)", commit, p, got)
+		}
+	}
+}
+
+// requireSharedLayoutRestored asserts the clone holds only the shared state
+// folder, the .docket checkout on the docket branch with hooks off, no dckt
+// remote or branch, and no exclude block.
+func requireSharedLayoutRestored(t *testing.T, r *initRepo) {
+	t.Helper()
+	gitDir := r.gitDir(t)
+	if _, err := os.Stat(filepath.Join(gitDir, layout.PrivateName)); !os.IsNotExist(err) {
+		t.Errorf("the private state folder is still present (stat err %v)", err)
+	}
+	if fi, err := os.Stat(filepath.Join(gitDir, layout.SharedName)); err != nil || !fi.IsDir() {
+		t.Errorf("the shared state folder is missing (err %v)", err)
+	}
+	dotDocket := filepath.Join(r.invocation, layout.SharedWorktreeDir)
+	if got := runGit(t, dotDocket, "rev-parse", "--abbrev-ref", "HEAD"); got != layout.SharedName {
+		t.Errorf(".docket is on %q, want docket", got)
+	}
+	if off := runGit(t, dotDocket, "config", "--worktree", "core.hooksPath"); off == "" {
+		t.Error("the .docket checkout's hooks are not disabled")
+	}
+	if _, err := tryGit(r.invocation, "config", "--get", "remote.dckt.url"); err == nil {
+		t.Error("the dckt remote is still configured")
+	}
+	if localBranchExists(r.invocation, layout.PrivateName) {
+		t.Error("the local dckt branch is still present")
+	}
+	if exclude, err := os.ReadFile(filepath.Join(gitDir, "info", "exclude")); err == nil && strings.Contains(string(exclude), reposetup.ExcludeStart) {
+		t.Errorf(".git/info/exclude still carries the managed block:\n%s", exclude)
+	}
+	for _, name := range []string{layout.PrivateConfigFile, layout.PrivateLocalKeysFile, switchJournalFile} {
+		if _, err := os.Stat(filepath.Join(gitDir, layout.SharedName, name)); !os.IsNotExist(err) {
+			t.Errorf("%s is left in the shared state folder (stat err %v)", name, err)
+		}
+	}
+}
+
+// TestIntegrationRepoVisibilitySharedFromBornPrivate proves the whole
+// going-shared switch of a repository that was never shared: the identical
+// history on origin, the shared layout, the bare store kept as the backup, one
+// local commit holding .docket.yml, the .gitignore block, and the dispatch
+// block, the promoted lessons reported, and origin's main never pushed.
+func TestIntegrationRepoVisibilitySharedFromBornPrivate(t *testing.T) {
+	r, data := newBornPrivateRepo(t)
+	createSwitchChange(t, r.invocation)
+	gitDir := r.gitDir(t)
+	insPath := filepath.Join(gitDir, layout.PrivateName, layout.PrivateInstructionsFile)
+	if err := os.WriteFile(insPath, append(mustReadFile(t, insPath), []byte("\n"+sharedSwitchLessons)...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lay := expectedPrivateLayout(t, r.invocation, data)
+	bareTip := runGit(t, lay.DefaultBareRemote, "rev-parse", "refs/heads/dckt")
+	originMain := r.originTip(t, "main")
+	before := runGit(t, r.invocation, "rev-parse", "HEAD")
+
+	res := r.switchVisibility(t, SetVisibilityOptions{Target: "shared"})
+	requireSwitchApplied(t, res, "shared")
+
+	if got := r.originTip(t, layout.SharedName); got != bareTip {
+		t.Errorf("origin's docket = %s, want the bare dckt tip %s", got, bareTip)
+	}
+	requireSharedLayoutRestored(t, r)
+	if got := runGit(t, lay.DefaultBareRemote, "rev-parse", "refs/heads/dckt"); got != bareTip {
+		t.Errorf("the backup store's dckt moved to %s, want it kept at %s", got, bareTip)
+	}
+	canonicalStore, _ := filepath.EvalSymlinks(lay.DefaultBareRemote)
+	if res.BackupRemote != lay.DefaultBareRemote && res.BackupRemote != canonicalStore {
+		t.Errorf("BackupRemote = %q, want the store %s", res.BackupRemote, lay.DefaultBareRemote)
+	}
+	if !strings.Contains(res.HumanText(), res.BackupRemote) || res.BackupRemote == "" {
+		t.Errorf("the output does not name the backup remote:\n%s", res.HumanText())
+	}
+
+	if n := runGit(t, r.invocation, "rev-list", "--count", before+"..HEAD"); n != "1" {
+		t.Fatalf("%s new commits on main, want exactly one", n)
+	}
+	requireAddCommit(t, r.invocation, "HEAD", ".docket.yml", ".gitignore", "AGENTS.md")
+	if yml := runGit(t, r.invocation, "show", "HEAD:.docket.yml"); !strings.Contains(yml, "visibility: shared") {
+		t.Errorf("the committed .docket.yml lacks visibility: shared:\n%s", yml)
+	}
+	if ign := runGit(t, r.invocation, "show", "HEAD:.gitignore"); !reposetup.ValidGitignoreBlock([]byte(ign + "\n")) {
+		t.Errorf("the committed .gitignore lacks the valid block:\n%s", ign)
+	}
+	if agents := runGit(t, r.invocation, "show", "HEAD:AGENTS.md"); !strings.Contains(agents, document.MarkerSpelling(instructionsBlockName)+":start") {
+		t.Errorf("the committed AGENTS.md lacks the dispatch block:\n%s", agents)
+	}
+	if len(res.Commits) != 1 || res.Commits[0].Status != visibilityCommitCommitted || res.Commits[0].Subject != visibilityAddSubject ||
+		res.Commits[0].Commit != runGit(t, r.invocation, "rev-parse", "HEAD") {
+		t.Errorf("Commits = %+v, want the one committed add row", res.Commits)
+	}
+	if !strings.Contains(res.Lessons, "Prefer the narrow fix over the clever one.") {
+		t.Errorf("Lessons = %q, want the promoted lessons paragraph", res.Lessons)
+	}
+	if strings.Contains(res.Lessons, document.MarkerSpelling(instructionsBlockName)) {
+		t.Errorf("Lessons = %q, want the dispatch block left out", res.Lessons)
+	}
+	if ins := Instructions(r.invocation, InstructionsSectionAll); ins.Private || ins.Content != "" {
+		t.Errorf("Instructions = %+v, want a shared repository with nothing printed", ins)
+	}
+	if got := r.originTip(t, "main"); got != originMain {
+		t.Errorf("origin's main moved to %s; the switch must never push it", got)
+	}
+	if out := runGit(t, r.invocation, "status", "--porcelain", "--untracked-files=all"); out != "" {
+		t.Errorf("the working tree is not clean after the switch:\n%s", out)
+	}
+	if again := r.runSetVisibility(t, SetVisibilityOptions{Target: "shared"}); again.Result != ResultNoOp {
+		t.Errorf("re-preview = %q (%s), want no-op", again.Result, again.HumanText())
+	}
+}
+
+// TestIntegrationRepoVisibilitySharedIdentityKeysStopThenResume proves a
+// private config that sets a repository-identity key first commits .docket.yml
+// and stops (nothing published), refuses until that commit reaches origin's
+// default branch, then completes without recommitting .docket.yml.
+func TestIntegrationRepoVisibilitySharedIdentityKeysStopThenResume(t *testing.T) {
+	r, _ := newBornPrivateRepo(t)
+	cfgPath := filepath.Join(r.gitDir(t), layout.PrivateName, layout.PrivateConfigFile)
+	if err := os.WriteFile(cfgPath, append(mustReadFile(t, cfgPath), []byte("integration_branch: main\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	before := runGit(t, r.invocation, "rev-parse", "HEAD")
+
+	run1 := r.switchVisibility(t, SetVisibilityOptions{Target: "shared"})
+	requireSwitchApplied(t, run1, "private")
+	if got := phaseStatus(run1, "identity-keys"); got != visibilityPhaseApplied {
+		t.Errorf("identity-keys = %q, want applied", got)
+	}
+	if got := phaseStatus(run1, "publish"); got != visibilityPhasePending {
+		t.Errorf("publish = %q, want still pending after the stop", got)
+	}
+	if n := runGit(t, r.invocation, "rev-list", "--count", before+"..HEAD"); n != "1" {
+		t.Fatalf("%s new commits after run 1, want exactly one", n)
+	}
+	identityCommit := runGit(t, r.invocation, "rev-parse", "HEAD")
+	requireAddCommit(t, r.invocation, identityCommit, ".docket.yml")
+	if yml := runGit(t, r.invocation, "show", "HEAD:.docket.yml"); !strings.Contains(yml, "integration_branch: main") {
+		t.Errorf("the identity commit's .docket.yml lacks integration_branch:\n%s", yml)
+	}
+	remedy := "get this commit onto main on origin"
+	if !strings.Contains(strings.Join(run1.PendingLocal, "\n"), remedy) {
+		t.Errorf("PendingLocal = %q, want the push remedy", run1.PendingLocal)
+	}
+	if r.remoteBranchExists(t, layout.SharedName) {
+		t.Error("origin gained a docket branch before the identity keys reached it")
+	}
+
+	run2 := r.switchVisibility(t, SetVisibilityOptions{Target: "shared"})
+	requireVisibilityRefusal(t, run2, remedy)
+	if got := runGit(t, r.invocation, "rev-parse", "HEAD"); got != identityCommit {
+		t.Errorf("run 2 moved HEAD to %s, want it kept at the identity commit", got)
+	}
+	if r.remoteBranchExists(t, layout.SharedName) {
+		t.Error("run 2 published origin's docket branch")
+	}
+
+	runGit(t, r.invocation, "push", "-q", "origin", "main")
+	run3 := r.switchVisibility(t, SetVisibilityOptions{Target: "shared"})
+	requireSwitchApplied(t, run3, "shared")
+	if got := phaseStatus(run3, "identity-keys"); got != visibilityPhaseDone {
+		t.Errorf("identity-keys = %q on run 3, want done", got)
+	}
+	if n := runGit(t, r.invocation, "rev-list", "--count", identityCommit+"..HEAD"); n != "1" {
+		t.Fatalf("%s new commits on run 3, want exactly one", n)
+	}
+	requireAddCommit(t, r.invocation, "HEAD", ".gitignore", "AGENTS.md")
+	requireSharedLayoutRestored(t, r)
+}
+
+// TestIntegrationRepoVisibilitySharedFastForwardsLeftBehindBranch proves a
+// round trip without --delete-shared-branch, with a private write in between,
+// fast-forwards the docket branch origin kept instead of refusing it.
+func TestIntegrationRepoVisibilitySharedFastForwardsLeftBehindBranch(t *testing.T) {
+	r, data := newPrivateSwitchRepo(t)
+	leftBehind := r.originTip(t, layout.SharedName)
+	requireSwitchApplied(t, r.switchVisibility(t, SetVisibilityOptions{Target: "private"}), "private")
+	createSwitchChange(t, r.invocation)
+	bareTip := runGit(t, expectedPrivateLayout(t, r.invocation, data).DefaultBareRemote, "rev-parse", "refs/heads/dckt")
+	if bareTip == leftBehind {
+		t.Fatal("the private write did not advance the dckt branch")
+	}
+
+	res := r.switchVisibility(t, SetVisibilityOptions{Target: "shared"})
+	requireSwitchApplied(t, res, "shared")
+	if got := r.originTip(t, layout.SharedName); got != bareTip {
+		t.Errorf("origin's docket = %s, want it fast-forwarded to %s", got, bareTip)
+	}
+	if _, err := tryGit(r.origin, "merge-base", "--is-ancestor", leftBehind, bareTip); err != nil {
+		t.Errorf("the left-behind tip %s is not an ancestor of the published tip %s", leftBehind, bareTip)
+	}
+	requireSharedLayoutRestored(t, r)
+}
+
+// TestIntegrationRepoVisibilitySharedRefusesUnrelatedOriginBranch proves an
+// unrelated docket branch already on origin refuses the publish, and nothing
+// is renamed or pushed.
+func TestIntegrationRepoVisibilitySharedRefusesUnrelatedOriginBranch(t *testing.T) {
+	r, _ := newBornPrivateRepo(t)
+	foreign := filepath.Join(r.root, "foreign")
+	runGit(t, r.root, "init", "-q", "-b", layout.SharedName, foreign)
+	gitIdentity(t, foreign)
+	writeRepoFile(t, foreign, "other.md", "another backlog\n")
+	runGit(t, foreign, "add", "-A")
+	runGit(t, foreign, "commit", "-q", "-m", "another backlog")
+	runGit(t, foreign, "push", "-q", r.origin, layout.SharedName+":refs/heads/"+layout.SharedName)
+	foreignTip := runGit(t, foreign, "rev-parse", "HEAD")
+	privateDir := filepath.Join(r.gitDir(t), layout.PrivateName)
+	stateBefore := treeListing(t, privateDir)
+	before := runGit(t, r.invocation, "rev-parse", "HEAD")
+
+	res := r.switchVisibility(t, SetVisibilityOptions{Target: "shared"})
+	requireVisibilityRefusal(t, res, "two backlogs are never merged", foreignTip)
+	if got := r.originTip(t, layout.SharedName); got != foreignTip {
+		t.Errorf("origin's docket moved to %s, want the unrelated tip %s kept", got, foreignTip)
+	}
+	if after := treeListing(t, privateDir); after != stateBefore {
+		t.Errorf("the private state folder changed:\nbefore:\n%s\nafter:\n%s", stateBefore, after)
+	}
+	if _, err := os.Stat(filepath.Join(r.gitDir(t), layout.SharedName)); !os.IsNotExist(err) {
+		t.Errorf("the shared state folder exists after the refusal (stat err %v)", err)
+	}
+	if got := runGit(t, r.invocation, "rev-parse", "HEAD"); got != before {
+		t.Errorf("HEAD moved to %s after the refusal", got)
+	}
+}
+
+// TestIntegrationRepoVisibilitySharedRestoresLocalKeys proves a clone-local key
+// survives shared -> private -> shared in .docket.local.yml (with no
+// visibility), and never lands in .docket.yml. The going-shared run is
+// interrupted while the repository still reads private, after .docket.yml is
+// written: no .docket.local.yml may exist yet (a private repository refuses
+// one beside its config), so the re-run resumes and completes.
+func TestIntegrationRepoVisibilitySharedRestoresLocalKeys(t *testing.T) {
+	r, _ := newPrivateSwitchRepo(t)
+	writeRepoFile(t, r.invocation, localConfigRel, privateSwitchLocalYML)
+	requireSwitchApplied(t, r.switchVisibility(t, SetVisibilityOptions{Target: "private"}), "private")
+	interrupted := r.switchVisibilityWithHooks(t, SetVisibilityOptions{Target: "shared"}, setupHooks{
+		afterVisibilityPhase: func(phase string) error {
+			if phase == "config-committed" {
+				return errors.New("killed after config-committed")
+			}
+			return nil
+		},
+	})
+	if interrupted.Result != ResultExternalFailed {
+		t.Fatalf("interrupted run = %q (%s), want external-failed", interrupted.Result, interrupted.HumanText())
+	}
+	requireSwitchApplied(t, r.switchVisibility(t, SetVisibilityOptions{Target: "shared"}), "shared")
+
+	local := mustReadFile(t, filepath.Join(r.invocation, localConfigRel))
+	vals, err := reposetup.ConfigLeafValues(local, []string{"reclaim.auto", "visibility"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if vals["reclaim.auto"] != "true" {
+		t.Errorf(".docket.local.yml = %q, want reclaim.auto: true restored", local)
+	}
+	if _, ok := vals["visibility"]; ok {
+		t.Errorf(".docket.local.yml = %q, want no visibility", local)
+	}
+	for _, yml := range []string{
+		string(mustReadFile(t, filepath.Join(r.invocation, ".docket.yml"))),
+		runGit(t, r.invocation, "show", "HEAD:.docket.yml"),
+	} {
+		if strings.Contains(yml, "reclaim") {
+			t.Errorf(".docket.yml carries the clone-local key:\n%s", yml)
+		}
+	}
+	if tracked := runGit(t, r.invocation, "ls-files", "--", localConfigRel); tracked != "" {
+		t.Errorf(".docket.local.yml is tracked: %q", tracked)
+	}
+	if out := runGit(t, r.invocation, "status", "--porcelain", "--untracked-files=all"); out != "" {
+		t.Errorf("the working tree is not clean after the round trip:\n%s", out)
+	}
+	requireSharedLayoutRestored(t, r)
 }
