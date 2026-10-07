@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/switch-a-repository-between-shared-and-private-visibility'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-07T10:55:39Z'
+reconciled: true
+claimed_at: '2026-10-07T10:57:45Z'
 ---
 
 ## Artifacts
@@ -39,6 +39,7 @@ claimed_at: '2026-10-07T10:55:39Z'
 Once private visibility exists, a repository's mode is chosen at `init` and is then fixed. Editing the config never moves a repository, because switching moves real data: the metadata branch history, the state folder, and the metadata worktree. A user who starts privately and later gets a team on board, or who needs to pull docket out of a shared repository, has no supported way to switch. Every record must survive the switch: change files, specs, plans, results, ADRs, learnings, and the commit history that carries claim and idempotency receipts.
 
 ## What changes
+
 
 - A dedicated command, `docket repository set-visibility <shared|private>`. It previews its plan, applies it with `--yes` pinned to what the preview showed, is resumable after interruption, and refuses while any run is live.
 - It pushes the identical metadata history under the other branch name. Receipts don't record the branch name, and links are relative, so no record is rewritten.
@@ -62,6 +63,8 @@ Once private visibility exists, a repository's mode is chosen at `init` and is t
   - no message ever says "shared", "public", "private", or "visibility"
   - each commit holds only the switch's own files, and the switch never pushes it
 - It rewrites `visibility` in the local file it manages, so file and state agree. Re-running it in a second clone only updates that clone.
+- `docket repository repair` also re-stamps the generated backlink block at the top of spec files as a relative link, the same way it already re-renders `## Artifacts` blocks. Spec files groomed before #530 still carry absolute `https://github.com/<owner>/<repo>/blob/docket/...` backlinks (288 of 395 specs in this repository at reconcile), and those stop resolving once `origin/docket` is deleted.
+- The `set-visibility` preview lists, as a warning only (never a refusal), any metadata files that still carry absolute same-branch links, with `docket repository repair` as the remedy.
 
 ## Out of scope
 
@@ -72,4 +75,11 @@ Once private visibility exists, a repository's mode is chosen at `init` and is t
 
 ## Open questions
 
-- **Old spec backlinks are still absolute links (found while building #530, 2026-10-06).** The spec says that after #530, links between metadata files are relative, so no record needs rewriting. That holds for `## Artifacts` blocks once `docket repository repair` has run. It does not hold for the backlink block at the top of spec files groomed before #530: those still carry full `https://github.com/<owner>/<repo>/blob/docket/...` links, and `repository repair` does not rewrite them (it re-renders only `## Artifacts` blocks, the board, and the ADR index). This change's own spec is one of them. After a switch to private with `--delete-shared-branch`, those links stop resolving. Settle at build: the suggested route is to extend `repository repair` to re-stamp spec backlinks as relative links, and have the `set-visibility` preview list any absolute same-branch links that remain.
+
+None open. The absolute spec-backlink question found while building #530 was settled at reconcile (2026-10-07): take the suggested route. `repository repair` re-stamps spec backlinks as relative links, and the `set-visibility` preview warns about any absolute same-branch links left. The warning is visibility-only, never a gate.
+
+## Reconcile log
+
+### 2026-10-07
+
+2026-10-07 — Claimed by docket-implement-next. Dependencies #530, #531, #535 are done; related #532 and #534 are done. Traced current code: `repository set-visibility` does not exist yet (only the remedy text in `internal/app/repository_private_findings.go` names it); `internal/app/repository_migrate.go` is still the pattern to follow; `repository repair` re-renders `## Artifacts`, the board, and the ADR index, and repairs PR backlinks with `--pr-backlinks`, but never re-stamps spec-file backlinks. 288 of 395 specs on `docket` still carry absolute `blob/docket` backlinks. Settled the open question by taking its suggested route: extend `repository repair` to re-stamp spec backlinks as relative links, and have the `set-visibility` preview warn (never refuse) about absolute same-branch links left. Scope otherwise unchanged.
