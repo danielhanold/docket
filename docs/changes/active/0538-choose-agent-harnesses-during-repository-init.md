@@ -14,7 +14,7 @@ discovered_from: [535]
 adrs: [146]
 spec: 'docs/superpowers/specs/2026-10-07-choose-agent-harnesses-during-repository-init-design.md'
 plan: 'docs/superpowers/plans/2026-10-07-choose-agent-harnesses-during-repository-init.md'
-results:
+results: 'docs/results/2026-10-07-choose-agent-harnesses-during-repository-init-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-07T02:09:36Z'
 |---|---|
 | Spec | [2026-10-07-choose-agent-harnesses-during-repository-init-design.md](../../superpowers/specs/2026-10-07-choose-agent-harnesses-during-repository-init-design.md) |
 | Plan | [2026-10-07-choose-agent-harnesses-during-repository-init.md](../../superpowers/plans/2026-10-07-choose-agent-harnesses-during-repository-init.md) |
+| Results | [2026-10-07-choose-agent-harnesses-during-repository-init-results.md](../../results/2026-10-07-choose-agent-harnesses-during-repository-init-results.md) |
 | ADRs | [ADR-0146](../../adrs/0146-adopt-charmbracelet-huh-as-the-interactive-terminal-ui-depen.md) |
 <!-- docket:artifacts:end -->
 
