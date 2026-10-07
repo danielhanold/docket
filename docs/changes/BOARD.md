@@ -1,12 +1,12 @@
 # Backlog
 
-**538 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 374 done · 🗑️ 139 killed
+**538 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 374 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | [spec](../superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) | `feat/switch-a-repository-between-shared-and-private-visibility` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | [#404](https://github.com/danielhanold/docket/pull/404) | awaiting merge |
 
 ## 🟣 Groomed (2)
 

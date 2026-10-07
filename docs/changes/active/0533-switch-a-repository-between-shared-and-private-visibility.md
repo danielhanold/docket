@@ -2,7 +2,7 @@
 id: 533
 slug: 'switch-a-repository-between-shared-and-private-visibility'
 title: 'Switch a repository between shared and private visibility'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/switch-a-repository-between-shared-and-private-visibility'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/404'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-07T11:29:37Z'
@@ -85,3 +85,12 @@ None open. The absolute spec-backlink question found while building #530 was set
 ### 2026-10-07
 
 2026-10-07 — Claimed by docket-implement-next. Dependencies #530, #531, #535 are done; related #532 and #534 are done. Traced current code: `repository set-visibility` does not exist yet (only the remedy text in `internal/app/repository_private_findings.go` names it); `internal/app/repository_migrate.go` is still the pattern to follow; `repository repair` re-renders `## Artifacts`, the board, and the ADR index, and repairs PR backlinks with `--pr-backlinks`, but never re-stamps spec-file backlinks. 288 of 395 specs on `docket` still carry absolute `blob/docket` backlinks. Settled the open question by taking its suggested route: extend `repository repair` to re-stamp spec backlinks as relative links, and have the `set-visibility` preview warn (never refuse) about absolute same-branch links left. Scope otherwise unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 936f36b59fa28bfef64039a240dd2608dd42c99f
+ran_at:   2026-10-07T14:34:17Z
+<!-- docket:build-evidence:end -->
