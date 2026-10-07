@@ -401,6 +401,12 @@ func planToPrivate(st visibilityState, o SetVisibilityOptions) []visibilityStep 
 	if st.originDocket.State == gitcli.RemoteRefFound {
 		sourceName = "origin's docket branch"
 	}
+	// Once the state folder has moved, the publish (which precedes it) is
+	// behind the repository: origin's docket branch is a teammate's from then
+	// on, so a later run neither refuses on its divergence nor pulls its
+	// writes into the dckt branch.
+	passedPublish := st.privateStateDir && !st.sharedStateDir &&
+		st.dcktURL != "" && st.dcktURL == wantURL && st.bareDckt.State == gitcli.RemoteRefFound
 	steps := []visibilityStep{
 		{
 			name:   "metadata-remote",
@@ -413,7 +419,7 @@ func planToPrivate(st visibilityState, o SetVisibilityOptions) []visibilityStep 
 			// A clone that has not configured its dckt remote yet reads the
 			// default store directly: another clone on this machine may already
 			// have published the history there.
-			done:   st.bareHoldsOrigin || (st.dcktURL == "" && wantURL == st.private.DefaultBareRemote && st.storeHoldsOrigin),
+			done:   passedPublish || st.bareHoldsOrigin || (st.dcktURL == "" && wantURL == st.private.DefaultBareRemote && st.storeHoldsOrigin),
 			detail: "push the identical metadata history of " + sourceName + " to the dckt branch at " + wantURL,
 			run:    privatePublishPhase,
 		},
