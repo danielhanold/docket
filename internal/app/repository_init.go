@@ -49,7 +49,12 @@ type RepositoryOpResult struct {
 	MetadataTip     string              `json:"metadata_revision,omitempty"`
 	SourceRevision  string              `json:"source_revision,omitempty"`
 	Findings        []reposetup.Finding `json:"findings,omitempty"`
-	human           string
+	// AgentHarnesses is the agent_harnesses selection written or confirmed this
+	// run; an empty list is a recorded "no agents". Nil when no choice was made.
+	AgentHarnesses *[]string `json:"agent_harnesses,omitempty"`
+	// Warnings carries non-fatal notices the operation wants a human to read.
+	Warnings []string `json:"warnings,omitempty"`
+	human    string
 }
 
 // HumanText renders the one-line human summary; a refusal carries its remedy in
@@ -691,25 +696,31 @@ func repositoryInternalFailure(operation string, state reposetup.State, stage st
 	return out
 }
 
-// mapSurfaceFailure maps a surface-installation failure to its result: an
-// unprovable surface or ownership conflict is invalid-state (a human must
-// resolve it), a resolution error carries its own reason, and everything else is
-// an external failure.
+// mapSurfaceFailure maps an init surface-installation failure to its result;
+// it delegates to mapSurfaceFailureFor with the init operation.
 func mapSurfaceFailure(state reposetup.State, err error) RepositoryOpResult {
+	return mapSurfaceFailureFor(OperationRepositoryInit, state, err)
+}
+
+// mapSurfaceFailureFor maps a surface-installation failure to operation's
+// result: an unprovable surface or ownership conflict is invalid-state (a human
+// must resolve it), a resolution error carries its own reason, and everything
+// else is an external failure.
+func mapSurfaceFailureFor(operation string, state reposetup.State, err error) RepositoryOpResult {
 	var rre *RepoResolutionError
 	if errors.As(err, &rre) {
-		out := newRepositoryOpResult(OperationRepositoryInit, ResultInvalidState, RepositoryOpResult{
+		out := newRepositoryOpResult(operation, ResultInvalidState, RepositoryOpResult{
 			RepositoryState: string(state),
 		})
-		out.human = fmt.Sprintf("%s: %s: %s", OperationRepositoryInit, ResultInvalidState, rre.Error())
+		out.human = fmt.Sprintf("%s: %s: %s", operation, ResultInvalidState, rre.Error())
 		return out
 	}
 	if strings.Contains(err.Error(), "not provably docket's") {
-		out := newRepositoryOpResult(OperationRepositoryInit, ResultInvalidState, RepositoryOpResult{
+		out := newRepositoryOpResult(operation, ResultInvalidState, RepositoryOpResult{
 			RepositoryState: string(state),
 		})
-		out.human = fmt.Sprintf("%s: %s: %s", OperationRepositoryInit, ResultInvalidState, err.Error())
+		out.human = fmt.Sprintf("%s: %s: %s", operation, ResultInvalidState, err.Error())
 		return out
 	}
-	return repositoryExternalFailure(OperationRepositoryInit, state, "installing parent-facing surfaces", err)
+	return repositoryExternalFailure(operation, state, "installing parent-facing surfaces", err)
 }
