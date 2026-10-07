@@ -6,7 +6,7 @@ status: 'proposed'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
-updated: '2026-10-06'
+updated: '2026-10-07'
 depends_on: [530, 531, 535]
 stacked_on:
 related: [532, 534, 352, 363]
@@ -29,8 +29,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
+| Spec | [2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md](../../superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -48,13 +48,18 @@ Once private visibility exists, a repository's mode is chosen at `init` and is t
   - moves ignore entries into `.git/info/exclude`
   - moves the metadata worktree out of the clone
   - optional `--delete-shared-branch` deletes `origin/docket` only after verifying the bare remote holds the same tip
-  - optional `--remove-shared-files` turns removing `.docket.yml` and the managed blocks into uncommitted edits
+  - optional `--remove-shared-files` removes `.docket.yml` and the managed blocks in one local commit
 - To shared:
   - refuses if `origin` already has a `docket` branch
   - publishes the history to `origin` as `docket`
-  - writes `.docket.yml` and the `.gitignore` block as uncommitted edits for review
+  - writes `.docket.yml`, the `.gitignore` block, and the dispatch blocks in one local commit for review
   - restores the shared layout
   - keeps the bare remote as a backup
+- Integration-branch commits use fixed messages, so what stays visible in the repository's history is never typed by hand:
+  - going private: `Remove docket configurations from repository`
+  - going shared: `Add docket configurations to repository`
+  - no message ever says "shared", "public", "private", or "visibility"
+  - each commit holds only the switch's own files, and the switch never pushes it
 - It rewrites `visibility` in the local file it manages, so file and state agree. Re-running it in a second clone only updates that clone.
 
 ## Out of scope
