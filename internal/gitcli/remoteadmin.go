@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	initBareOp  Operation = "init-bare"
-	addRemoteOp Operation = "add-remote"
+	initBareOp     Operation = "init-bare"
+	addRemoteOp    Operation = "add-remote"
+	removeRemoteOp Operation = "remove-remote"
 )
 
 // InitBare creates a bare repository at path, creating missing parent
@@ -77,4 +78,29 @@ func (c *Client) AddRemote(ctx context.Context, repo Repository, name RemoteName
 		return newFailure(addRemoteOp, KindCommandFailed, "git remote add failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
 	}
 	return nil
+}
+
+// RemoveRemote deletes remote name and its remote-tracking refs from repo
+// (`git remote remove`). An unconfigured remote is remote-unavailable: git
+// documents exit status 2 for a remote that does not exist.
+func (c *Client) RemoveRemote(ctx context.Context, repo Repository, name RemoteName) error {
+	if err := validateRemoteName(name); err != nil {
+		return newFailure(removeRemoteOp, KindInvalidRequest, "invalid remote name", err)
+	}
+	res, f := c.run(ctx, runRequest{
+		op:   removeRemoteOp,
+		dir:  repo.PrimaryWorktree,
+		args: []string{"remote", "remove", string(name)},
+	})
+	if f != nil {
+		return f
+	}
+	switch res.exitCode {
+	case 0:
+		return nil
+	case 2:
+		return newFailure(removeRemoteOp, KindRemoteUnavailable, "remote is not configured", nil).withExitCode(res.exitCode)
+	default:
+		return newFailure(removeRemoteOp, KindCommandFailed, "git remote remove failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
+	}
 }

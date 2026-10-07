@@ -5,12 +5,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
 
 // commitPathsOp labels every Failure raised by the explicit-path commit surface.
 const commitPathsOp Operation = "commit-paths"
+
+// commitOwnPathsOp labels every Failure raised by CommitOwnPaths.
+const commitOwnPathsOp Operation = "commit-own-paths"
 
 // Trailer is one engine-owned commit trailer. Key is a token (letters, digits,
 // and hyphens, beginning with a letter or digit); Value is a single line with no
@@ -139,6 +144,105 @@ func (c *Client) CommitPaths(ctx context.Context, repo Repository, req CommitReq
 		return "", newFailure(commitPathsOp, KindInvalidOutput, "rev-parse produced a malformed object id", err)
 	}
 	return id, nil
+}
+
+// CommitOwnPaths commits exactly paths on dir's current branch with the one-line
+// message subject and returns the new HEAD. dir is the absolute root of a
+// non-bare worktree; paths are relative to it. Every other staged or unstaged
+// change stays put (`git commit --only`). The repository's own hooks and signing
+// apply, as for any commit a person makes: unlike CommitPaths there is no
+// core.hooksPath override, no --no-verify, and no signing override. A path
+// absent from the index but present in the working tree is first registered
+// with `git add --intent-to-add` so the commit can carry it; a named path
+// deleted from the working tree is committed as a removal. Detached HEAD is
+// invalid-request; a hook or other failure is command-failed with a stderr
+// excerpt.
+func (c *Client) CommitOwnPaths(ctx context.Context, dir string, paths []RepoPath, subject string) (ObjectID, error) {
+	if !filepath.IsAbs(dir) {
+		return "", newFailure(commitOwnPathsOp, KindInvalidRequest, "worktree path must be absolute", nil)
+	}
+	if len(paths) == 0 {
+		return "", newFailure(commitOwnPathsOp, KindInvalidRequest, "no paths to commit", nil)
+	}
+	if err := validateCommitSubject(subject); err != nil {
+		return "", newFailure(commitOwnPathsOp, KindInvalidRequest, "invalid commit subject", err)
+	}
+	for _, p := range paths {
+		if err := validateRepoPath(p, false); err != nil {
+			return "", newFailure(commitOwnPathsOp, KindInvalidRequest, "invalid commit path", err)
+		}
+	}
+
+	sym, f := c.run(ctx, runRequest{op: commitOwnPathsOp, dir: dir, args: []string{"symbolic-ref", "--quiet", "HEAD"}})
+	if f != nil {
+		return "", f
+	}
+	switch sym.exitCode {
+	case 0:
+	case 1: // --quiet: exit 1 IS the clean detached answer
+		return "", newFailure(commitOwnPathsOp, KindInvalidRequest, "HEAD is detached; no branch to commit on", nil)
+	default:
+		return "", newFailure(commitOwnPathsOp, KindCommandFailed,
+			"symbolic-ref HEAD failed: "+stderrExcerpt(sym.stderr), nil).withExitCode(sym.exitCode)
+	}
+
+	// Register untracked-but-present paths so `commit --only` can name them.
+	var intent bytes.Buffer
+	for _, p := range paths {
+		res, f := c.run(ctx, runRequest{op: commitOwnPathsOp, dir: dir, args: []string{"ls-files", "--error-unmatch", "--", string(p)}})
+		if f != nil {
+			return "", f
+		}
+		if res.exitCode == 0 {
+			continue
+		}
+		if _, err := os.Lstat(filepath.Join(dir, filepath.FromSlash(string(p)))); err != nil {
+			if os.IsNotExist(err) {
+				continue // absent everywhere but HEAD: committed as a removal
+			}
+			return "", newFailure(commitOwnPathsOp, KindCommandFailed, "stat commit path", err)
+		}
+		intent.WriteString(string(p))
+		intent.WriteByte(0)
+	}
+	if intent.Len() > 0 {
+		res, f := c.run(ctx, runRequest{
+			op:    commitOwnPathsOp,
+			dir:   dir,
+			args:  []string{"add", "--intent-to-add", "--pathspec-from-file=-", "--pathspec-file-nul"},
+			stdin: intent.Bytes(),
+		})
+		if f != nil {
+			return "", f
+		}
+		if res.exitCode != 0 {
+			return "", newFailure(commitOwnPathsOp, KindCommandFailed, "git add --intent-to-add failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
+		}
+	}
+
+	var spec bytes.Buffer
+	for _, p := range paths {
+		spec.WriteString(string(p))
+		spec.WriteByte(0)
+	}
+	cres, f := c.run(ctx, runRequest{
+		op:    commitOwnPathsOp,
+		dir:   dir,
+		args:  []string{"commit", "--only", "-m", subject, "--pathspec-from-file=-", "--pathspec-file-nul"},
+		stdin: spec.Bytes(),
+	})
+	if f != nil {
+		return "", f
+	}
+	if cres.exitCode != 0 {
+		return "", newFailure(commitOwnPathsOp, KindCommandFailed, "git commit failed: "+stderrExcerpt(cres.stderr), nil).withExitCode(cres.exitCode)
+	}
+
+	head, hf := c.worktreeHead(ctx, commitOwnPathsOp, dir)
+	if hf != nil {
+		return "", hf
+	}
+	return head, nil
 }
 
 // composeCommitMessage renders the subject followed, when trailers are present,
