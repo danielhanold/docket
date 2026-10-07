@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0409 — Document remote-agent session setup using a locally built Docket binary](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md)**
+> ↩ **[Change 0409 — Document remote-agent session setup using a locally built Docket binary](../../changes/active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md)**
 <!-- docket:backlink:end -->
 
 # Remote-agent session setup and connector publication

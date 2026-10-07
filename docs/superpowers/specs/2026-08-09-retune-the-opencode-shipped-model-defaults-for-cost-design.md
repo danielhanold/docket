@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0195 — Retune the opencode shipped model defaults for cost](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md)**
+> ↩ **[Change 0195 — Retune the opencode shipped model defaults for cost](../../changes/active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md)**
 <!-- docket:backlink:end -->
 
 # Retune the opencode shipped model defaults for cost — design

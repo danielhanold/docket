@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0263 — Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0263-guard-the-remaining-agents-md-shell-rules-across-scripts-tes.md)**
+> ↩ **[Change 0263 — Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown](../../changes/active/0263-guard-the-remaining-agents-md-shell-rules-across-scripts-tes.md)**
 <!-- docket:backlink:end -->
 
 # Design: guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown (0263)

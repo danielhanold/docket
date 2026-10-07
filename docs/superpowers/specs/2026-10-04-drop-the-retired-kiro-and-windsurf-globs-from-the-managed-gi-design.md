@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0506 — Drop the retired-harness globs from the managed .gitignore block](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md)**
+> ↩ **[Change 0506 — Drop the retired-harness globs from the managed .gitignore block](../../changes/archive/2026-10-04-0506-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md)**
 <!-- docket:backlink:end -->
 
 # Drop the retired-harness globs from the managed .gitignore block — design

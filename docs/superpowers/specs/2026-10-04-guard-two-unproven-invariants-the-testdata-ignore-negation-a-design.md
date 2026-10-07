@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0504 — Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md)**
+> ↩ **[Change 0504 — Guard two unproven invariants: the testdata ignore negation and the root-anchored receipt read](../../changes/archive/2026-10-04-0504-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md)**
 <!-- docket:backlink:end -->
 
 # Guard two unproven invariants — design

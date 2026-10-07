@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0345 — Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0345-slash-command-implement-dispatch-attribution-gap.md)**
+> ↩ **[Change 0345 — Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop](../../changes/active/0345-slash-command-implement-dispatch-attribution-gap.md)**
 <!-- docket:backlink:end -->
 
 # Change 0345: attributed command entry across all supported harnesses

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0511 — Upgrade guide from Bash docket to the Go binary, proven on saved v0.9.2 and v0.9.3 installs](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0511-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa.md)**
+> ↩ **[Change 0511 — Upgrade guide from Bash docket to the Go binary, proven on saved v0.9.2 and v0.9.3 installs](../../changes/archive/2026-10-04-0511-upgrade-guide-from-bash-docket-to-the-go-binary-proven-on-sa.md)**
 <!-- docket:backlink:end -->
 
 # Upgrade guide from Bash docket to the Go binary — design

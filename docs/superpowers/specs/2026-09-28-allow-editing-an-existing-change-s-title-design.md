@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0461 — Allow editing an existing change's title](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-28-0461-allow-editing-an-existing-change-s-title.md)**
+> ↩ **[Change 0461 — Allow editing an existing change's title](../../changes/archive/2026-09-28-0461-allow-editing-an-existing-change-s-title.md)**
 <!-- docket:backlink:end -->
 
 # Retitle an existing change — design

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0526 — repository configure-tests takes the test command as input](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-05-0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md)**
+> ↩ **[Change 0526 — repository configure-tests takes the test command as input](../../changes/archive/2026-10-05-0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md)**
 <!-- docket:backlink:end -->
 
 # configure-tests takes the test command as input — design

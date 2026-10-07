@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0487 — Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-02-0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md)**
+> ↩ **[Change 0487 — Bring test_go_race, rebaserecovery, and closeout back under budget, fix the repoguard concurrent-gate timeout, and gofmt comment_integration_test.go](../../changes/archive/2026-10-02-0487-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md)**
 <!-- docket:backlink:end -->
 
 # Bring the race gate and two integration shards back under budget — design

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0257 — Clear the residual review findings from 0193 and 0201](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0257-clear-the-residual-review-findings-from-0193-and-0201.md)**
+> ↩ **[Change 0257 — Clear the residual review findings from 0193 and 0201](../../changes/active/0257-clear-the-residual-review-findings-from-0193-and-0201.md)**
 <!-- docket:backlink:end -->
 
 # Clear the residual review findings from 0193 and 0201 — design

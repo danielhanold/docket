@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0498 — Results file puts the whole-branch review under Human actions and testing](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0498-results-file-puts-the-whole-branch-review-under-human-action.md)**
+> ↩ **[Change 0498 — Results file puts the whole-branch review under Human actions and testing](../../changes/archive/2026-10-04-0498-results-file-puts-the-whole-branch-review-under-human-action.md)**
 <!-- docket:backlink:end -->
 
 # Results file: name the home for whole-branch review outcomes — design

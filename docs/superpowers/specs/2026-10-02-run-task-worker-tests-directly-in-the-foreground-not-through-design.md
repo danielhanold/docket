@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0488 — Run task-worker tests directly in the foreground, not through gate drives](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-02-0488-run-task-worker-tests-directly-in-the-foreground-not-through.md)**
+> ↩ **[Change 0488 — Run task-worker tests directly in the foreground, not through gate drives](../../changes/archive/2026-10-02-0488-run-task-worker-tests-directly-in-the-foreground-not-through.md)**
 <!-- docket:backlink:end -->
 
 # Run task-worker tests directly in the foreground, not through gate drives — design

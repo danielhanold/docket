@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0248 — Role self-description: enforce the positive half and harden the guard](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0248-role-self-description-enforce-the-positive-half-and-harden-t.md)**
+> ↩ **[Change 0248 — Role self-description: enforce the positive half and harden the guard](../../changes/active/0248-role-self-description-enforce-the-positive-half-and-harden-t.md)**
 <!-- docket:backlink:end -->
 
 # Design: Role self-description — enforce the positive half and harden the guard (change 0248)

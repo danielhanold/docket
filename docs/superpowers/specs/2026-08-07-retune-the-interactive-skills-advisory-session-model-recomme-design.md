@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0166 — Retune the interactive skills' advisory session-model recommendation](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md)**
+> ↩ **[Change 0166 — Retune the interactive skills' advisory session-model recommendation](../../changes/active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md)**
 <!-- docket:backlink:end -->
 
 # Retune the interactive skills' advisory session-model recommendation — design

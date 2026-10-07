@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0469 — Replace opaque docket terms with clearer names](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-01-0469-replace-opaque-docket-terms-with-clearer-names.md)**
+> ↩ **[Change 0469 — Replace opaque docket terms with clearer names](../../changes/archive/2026-10-01-0469-replace-opaque-docket-terms-with-clearer-names.md)**
 <!-- docket:backlink:end -->
 
 # Replace opaque docket terms with clearer names — design

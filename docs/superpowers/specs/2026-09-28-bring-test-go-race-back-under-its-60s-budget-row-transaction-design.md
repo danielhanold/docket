@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0466 — Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive)](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-29-0466-bring-test-go-race-back-under-its-60s-budget-row-transaction.md)**
+> ↩ **[Change 0466 — Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive)](../../changes/archive/2026-09-29-0466-bring-test-go-race-back-under-its-60s-budget-row-transaction.md)**
 <!-- docket:backlink:end -->
 
 # Change 0466 — Bring test_go_race back under its 60s row by partitioning transaction, workspace, and gatedrive

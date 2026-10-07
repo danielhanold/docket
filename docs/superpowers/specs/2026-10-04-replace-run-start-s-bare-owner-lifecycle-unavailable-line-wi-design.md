@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0501 — Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-10-04-0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md)**
+> ↩ **[Change 0501 — Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note](../../changes/archive/2026-10-04-0501-replace-run-start-s-bare-owner-lifecycle-unavailable-line-wi.md)**
 <!-- docket:backlink:end -->
 
 # Replace run.start's bare owner-lifecycle-unavailable line with a plain stop note — design
