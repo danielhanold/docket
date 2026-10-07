@@ -13,7 +13,7 @@ related: [531, 533, 351]
 discovered_from: [535]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-07-choose-agent-harnesses-during-repository-init-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-07-choose-agent-harnesses-during-repository-init.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-07T00:59:52Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-07-choose-agent-harnesses-during-repository-init-design.md](../../superpowers/specs/2026-10-07-choose-agent-harnesses-during-repository-init-design.md) |
+| Plan | [2026-10-07-choose-agent-harnesses-during-repository-init.md](../../superpowers/plans/2026-10-07-choose-agent-harnesses-during-repository-init.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
