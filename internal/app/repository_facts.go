@@ -44,9 +44,11 @@ func setupRemote() gitcli.RemoteName { return originRemote }
 type SetupDeps struct {
 	Git     *gitcli.Client
 	RepoDir string // invocation dir; Discover resolves the canonical primary
-	// GitHub is set ONLY by `repository repair --pr-backlinks` (the one
-	// repository command that reads and edits merged PR bodies). Every other
-	// repository command leaves it nil and never consults it.
+	// GitHub is set by `repository repair --pr-backlinks` (which reads and
+	// edits merged PR bodies) and by `repository set-visibility` (which only
+	// reads open PR bodies, to list the ones carrying docket text; nil there
+	// means the preview says they were not checked). Every other repository
+	// command leaves it nil and never consults it.
 	GitHub RepairGitHub
 	hooks  setupHooks
 }
@@ -66,6 +68,9 @@ type SetupDeps struct {
 // published and re-read and before the local finish — the seam the
 // LocalMovedAfterPublish scenario advances the local primary through (returning
 // nil so the finish still runs and reports the pending local sync).
+// afterVisibilityPhase fires after each phase a `repository set-visibility` run
+// applies, named by the phase; an error stops the run there, as a death after
+// that phase would.
 type setupHooks struct {
 	beforeSeedPush          func() error
 	afterSeedPush           func() error
@@ -73,6 +78,7 @@ type setupHooks struct {
 	beforePrunePush         func() error
 	afterPrunePush          func() error
 	beforeLocalFinish       func() error
+	afterVisibilityPhase    func(phase string) error
 }
 
 // fire invokes hook when it is non-nil, returning its error (nil hook → nil).

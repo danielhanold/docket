@@ -55,6 +55,14 @@ var (
 		}
 		return gh, nil
 	}
+	repositorySetVisibilityRunner = func(ctx context.Context, d app.SetupDeps, o app.SetVisibilityOptions) app.OperationResult {
+		return app.RunRepositorySetVisibility(ctx, d, o)
+	}
+	// repositorySetVisibilityGitHub constructs the GitHub client `repository
+	// set-visibility` reads open PR bodies through; an error leaves it unwired
+	// and the preview says the PRs were not checked. Tests replace it.
+	repositorySetVisibilityGitHub = func() (app.RepairGitHub, error) { return repositoryRepairGitHub() }
+
 	repositoryPrepareRunner = func(ctx context.Context, d app.SetupDeps, o app.PrepareOptions) app.OperationResult {
 		return app.RunRepositoryPrepare(ctx, d, o)
 	}
@@ -166,6 +174,7 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 		EffectRead)
 	migrateCmd := newRepositoryMigrateCommand(setResult)
 	repairCmd := newRepositoryRepairCommand(setResult)
+	setVisibilityCmd := newRepositorySetVisibilityCommand(setResult)
 	prepareCmd := repositorySubcommand("prepare",
 		"Prepare the repository for a workflow: pin topology and attach or fast-forward the .docket worktree (the startup check)",
 		func(c *cobra.Command, deps app.SetupDeps) {
@@ -215,7 +224,7 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 		// the primary checkout; it never pushes and changes no planning metadata.
 		EffectLocalWrite)
 
-	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, repairCmd, prepareCmd, configureTestsCmd, configureHarnessesCmd, syncIntegrationCmd)
+	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, repairCmd, setVisibilityCmd, prepareCmd, configureTestsCmd, configureHarnessesCmd, syncIntegrationCmd)
 	return repositoryCmd
 }
 
@@ -352,6 +361,92 @@ func newRepositoryRepairCommand(setResult func(app.OperationResult)) *cobra.Comm
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	cmd.Flags().Bool("yes", false, "authorize the previewed repairs without an interactive confirmation")
 	cmd.Flags().Bool("pr-backlinks", false, "repoint merged pull requests whose change backlink names a path that no longer exists (reads and edits PR descriptions on GitHub)")
+	return cmd
+}
+
+// newRepositorySetVisibilityCommand builds `docket repository set-visibility
+// <shared|private>` with the two-pass confirm flow `repair` uses: --yes applies
+// directly; without it the service previews, and a terminal confirmation
+// re-invokes authorized, pinned to exactly the state the preview showed.
+func newRepositorySetVisibilityCommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set-visibility <shared|private>",
+		Short: "Move an existing repository between shared and private visibility, keeping every record",
+		Long: `Move an existing repository between shared and private visibility, keeping every record.
+
+Without --yes it previews every phase and the composite revision it pinned; on a
+terminal it asks for confirmation, and --yes applies the switch directly. Each
+phase reads its completion from the repository's state, so re-running after an
+interruption resumes where the last run stopped. It refuses while any run or gate
+is live in this repository.
+
+Going private publishes the identical metadata history to the dckt branch of a
+bare repository on this machine and moves the configuration, the metadata
+checkout, and the dispatch instructions under .git/. Origin's docket branch and
+the committed files stay unless --delete-shared-branch or --remove-shared-files
+asks to remove them.
+
+Going shared publishes the history to origin's docket branch, restores
+.docket.yml, .gitignore, and the dispatch instructions, and keeps the bare
+repository as a backup.
+
+Commits on the integration branch are local and hold only the switch's own
+paths; they are never pushed.`,
+		Args: cobra.ExactArgs(1),
+		// local-write (state folder, config, ignore files, metadata checkout,
+		// dispatch surfaces, local commits) + metadata-write (the identical
+		// history published under the target branch name) + external-write
+		// (origin's docket branch deleted under --delete-shared-branch).
+		Annotations: capability("repository.set-visibility", EffectLocalWrite, EffectMetadataWrite, EffectExternalWrite),
+		RunE: func(c *cobra.Command, args []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			client, err := gitcli.NewClient()
+			if err != nil {
+				return err
+			}
+			deps := app.SetupDeps{Git: client, RepoDir: repoDir}
+			if gh, err := repositorySetVisibilityGitHub(); err == nil && gh != nil {
+				deps.GitHub = gh
+			}
+			o := app.SetVisibilityOptions{Target: args[0]}
+			o.MetadataRemote, _ = c.Flags().GetString("metadata-remote")
+			o.DeleteSharedBranch, _ = c.Flags().GetBool("delete-shared-branch")
+			o.RemoveSharedFiles, _ = c.Flags().GetBool("remove-shared-files")
+
+			if yes, _ := c.Flags().GetBool("yes"); yes {
+				o.Authorized = true
+				setResult(repositorySetVisibilityRunner(c.Context(), deps, o))
+				return nil
+			}
+			preview := repositorySetVisibilityRunner(c.Context(), deps, o)
+			jsonMode, _ := c.Flags().GetBool("json")
+			confirmable, ok := preview.(interface{ ConfirmationRequired() bool })
+			if jsonMode || !repositoryConfirmInteractive() || !ok || !confirmable.ConfirmationRequired() {
+				setResult(preview)
+				return nil
+			}
+			fmt.Fprintln(c.OutOrStdout(), preview.HumanText())
+			fmt.Fprint(c.OutOrStdout(), "switch? [y/N] ")
+			if !repositoryReadYes(c.InOrStdin()) {
+				setResult(preview)
+				return nil
+			}
+			if p, ok := preview.(interface{ SourceRev() string }); ok {
+				o.ExpectedSource = p.SourceRev()
+			}
+			o.Authorized = true
+			setResult(repositorySetVisibilityRunner(c.Context(), deps, o))
+			return nil
+		},
+	}
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	cmd.Flags().Bool("yes", false, "authorize the previewed switch without an interactive confirmation")
+	cmd.Flags().String("metadata-remote", "", "going private: push the dckt branch to this git `url` instead of the default bare repository")
+	cmd.Flags().Bool("delete-shared-branch", false, "going private: delete origin's docket branch once the bare remote holds the same tip")
+	cmd.Flags().Bool("remove-shared-files", false, "going private: remove .docket.yml, the .gitignore block, and the dispatch instructions in one local commit")
 	return cmd
 }
 
