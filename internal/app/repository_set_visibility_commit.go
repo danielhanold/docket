@@ -226,6 +226,20 @@ func journalSwitchPath(commonDir, primary, subject, rel string) error {
 	return recordSwitchDigest(commonDir, subject, rel, digest)
 }
 
+// unjournalSwitchPath drops rel from the journal; an absent journal or entry
+// is already clear.
+func unjournalSwitchPath(commonDir, rel string) error {
+	j, ok, err := loadSwitchJournal(commonDir)
+	if err != nil || !ok {
+		return err
+	}
+	if _, has := j.Paths[rel]; !has {
+		return nil
+	}
+	delete(j.Paths, rel)
+	return saveSwitchJournal(commonDir, j)
+}
+
 // writeFileReplacing writes content to p through a same-directory temp file and
 // a rename, creating p's state folder when it is missing.
 func writeFileReplacing(p string, content []byte, mode fs.FileMode) error {

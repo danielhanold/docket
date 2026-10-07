@@ -838,6 +838,40 @@ func TestIntegrationRepoVisibilitySharedFromBornPrivate(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoVisibilitySharedCommitsOnlyTrackedSurfaces proves going
+// shared with claude and cursor opted in completes: the add commit carries the
+// tracked surfaces (CLAUDE.md, AGENTS.md) but never the Cursor dispatch rule,
+// which the managed .gitignore block ignores, and a re-run is a no-op.
+func TestIntegrationRepoVisibilitySharedCommitsOnlyTrackedSurfaces(t *testing.T) {
+	r, _ := newPrivateInitRepo(t, nil)
+	if res := r.runInitWith(t, InitOptions{Private: true, Harnesses: harnessFlag("codex", "claude", "cursor")}); res.Result != ResultApplied {
+		t.Fatalf("private init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	before := runGit(t, r.invocation, "rev-parse", "HEAD")
+
+	res := r.switchVisibility(t, SetVisibilityOptions{Target: "shared"})
+	requireSwitchApplied(t, res, "shared")
+
+	if n := runGit(t, r.invocation, "rev-list", "--count", before+"..HEAD"); n != "1" {
+		t.Fatalf("%s new commits on main, want exactly one", n)
+	}
+	requireAddCommit(t, r.invocation, "HEAD", ".docket.yml", ".gitignore", "AGENTS.md", "CLAUDE.md")
+	const cursorRule = ".cursor/rules/docket-dispatch.mdc"
+	if _, err := os.Stat(filepath.Join(r.invocation, cursorRule)); err != nil {
+		t.Errorf("the Cursor dispatch rule is not installed: %v", err)
+	}
+	if _, err := tryGit(r.invocation, "check-ignore", "-q", cursorRule); err != nil {
+		t.Errorf("the Cursor dispatch rule is not ignored: %v", err)
+	}
+	requireSharedLayoutRestored(t, r)
+	if out := runGit(t, r.invocation, "status", "--porcelain", "--untracked-files=all"); out != "" {
+		t.Errorf("the working tree is not clean after the switch:\n%s", out)
+	}
+	if again := r.runSetVisibility(t, SetVisibilityOptions{Target: "shared"}); again.Result != ResultNoOp {
+		t.Errorf("re-preview = %q (%s), want no-op", again.Result, again.HumanText())
+	}
+}
+
 // TestIntegrationRepoVisibilitySharedIdentityKeysStopThenResume proves a
 // private config that sets a repository-identity key first commits .docket.yml
 // and stops (nothing published), refuses until that commit reaches origin's
