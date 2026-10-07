@@ -132,12 +132,15 @@ type visibilityStep struct {
 	run     func(ctx context.Context, x *visibilityRun) error
 }
 
-// visibilityRun is what an executing phase reads and reports into.
+// visibilityRun is what an executing phase reads and reports into. An
+// executor sets stop to end the run successfully after its phase, leaving the
+// later phases pending for a re-run.
 type visibilityRun struct {
-	d   SetupDeps
-	o   SetVisibilityOptions
-	st  visibilityState
-	res *RepositorySetVisibilityResult
+	d    SetupDeps
+	o    SetVisibilityOptions
+	st   visibilityState
+	res  *RepositorySetVisibilityResult
+	stop bool
 }
 
 // markPhase sets the status (and, when non-empty, the detail) of the named
@@ -214,6 +217,15 @@ func RunRepositorySetVisibility(ctx context.Context, d SetupDeps, o SetVisibilit
 		return visibilityRefusalResult(o.Target, current, reposetup.StateNeedsReview, msg)
 	}
 
+	// Going shared, the commit phase is complete only when every dispatch
+	// surface agent_harnesses authorizes is already settled on disk, which is
+	// decidable only once the repository reads shared.
+	if o.Target == string(layout.Shared) && st.current == layout.Shared {
+		if st.sharedSurfacesSettled, err = repoSurfacesSettled(ctx, d.Git, st.primary); err != nil {
+			return visibilityExternalFailure(o.Target, current, reposetup.StateUnknown, "reading the dispatch instructions", err)
+		}
+	}
+
 	// 7. Plan; refuse the user's own edits to a path a pending commit holds.
 	steps := planVisibility(st, o)
 	if visibilityCommitsPending(steps) {
@@ -274,6 +286,15 @@ func RunRepositorySetVisibility(ctx context.Context, d SetupDeps, o SetVisibilit
 		res.RepositoryState = string(reposetup.StateUnknown)
 	} else {
 		res.RepositoryState = string(mode)
+	}
+	if mode == layout.Shared && o.Target == string(layout.Shared) && res.BackupRemote == "" {
+		// A resumed run whose dckt remote was already removed still names the
+		// backup it kept, when that bare repository is on disk.
+		if url := visibilityBackupURL(st); url != "" {
+			if ok, _ := isDirAt(url); ok {
+				res.BackupRemote = url
+			}
+		}
 	}
 	res.human = visibilityAppliedText(res)
 	return res
@@ -458,57 +479,63 @@ func planToPrivate(st visibilityState, o SetVisibilityOptions) []visibilityStep 
 // planToShared is the going-shared phase list, each with its done predicate
 // read from state; a step without an executor stops an authorized run.
 func planToShared(st visibilityState, _ SetVisibilityOptions) []visibilityStep {
-	backup := st.dcktURL
-	if backup == "" {
-		backup = st.private.DefaultBareRemote
-	}
+	backup := visibilityBackupURL(st)
 	return []visibilityStep{
 		{
 			name:    "identity-keys",
 			done:    st.identityKeysAligned,
 			detail:  "commit the repository identity keys to .docket.yml and get that commit onto origin's " + st.sc.defaultBranch + " first",
 			commits: !st.identityKeysAligned,
+			run:     sharedIdentityKeysPhase,
 		},
 		{
 			name:   "publish",
 			done:   st.originHoldsBare,
 			detail: "push the identical metadata history of the dckt branch to origin's docket branch",
+			run:    sharedPublishPhase,
 		},
 		{
 			name:   "instructions",
 			done:   !st.privateInstructions && !st.recordGitDir,
 			detail: "retire " + layout.PrivateInstructionsDisplay + " (its promoted lessons are reported)",
+			run:    sharedInstructionsPhase,
 		},
 		{
 			name:   "config-committed",
 			done:   st.sharedConfigWritten,
 			detail: "write .docket.yml from the private configuration",
+			run:    sharedConfigCommittedPhase,
 		},
 		{
 			name:   "state-folder",
 			done:   st.sharedStateDir && !st.privateStateDir,
 			detail: "rename " + st.private.StateDir + " to " + st.shared.StateDir,
+			run:    sharedStateFolderPhase,
 		},
 		{
 			name:   "config-local",
 			done:   st.sharedStateDir && !st.privateStateDir && st.pendingConfig == "",
 			detail: "restore the clone-local keys to .docket.local.yml and retire the private configuration",
+			run:    sharedConfigLocalPhase,
 		},
 		{
 			name:   "ignore",
 			done:   !st.excludeBlockPresent && st.worktreeGitignoreValid,
 			detail: "move the managed ignore block from .git/info/exclude to .gitignore",
+			run:    sharedIgnorePhase,
 		},
 		{
 			name:   "metadata-worktree",
 			done:   st.sharedCheckoutReady && !st.privateCheckoutRegistered && st.localDckt == "" && st.dcktURL == "",
 			detail: "move the metadata checkout to " + st.shared.MetadataWorktree + " and remove the dckt remote",
+			run:    sharedMetadataWorktreePhase,
 		},
 		{
 			name:    "commit",
-			done:    !st.journalPresent && st.headGitignoreValid && !st.commitPathsDirty && st.current == layout.Shared,
+			done:    !st.journalPresent && st.headGitignoreValid && !st.commitPathsDirty && st.current == layout.Shared && st.sharedSurfacesSettled,
 			detail:  "commit .docket.yml, .gitignore, and the dispatch instructions in one local commit",
 			commits: true,
+			run:     sharedCommitPhase,
 		},
 		{
 			name:   "backup",
@@ -519,6 +546,7 @@ func planToShared(st visibilityState, _ SetVisibilityOptions) []visibilityStep {
 			name:   "align-visibility",
 			done:   st.sharedVisibilityAligned,
 			detail: "set visibility: shared in .docket.local.yml",
+			run:    sharedAlignVisibilityPhase,
 		},
 	}
 }
@@ -552,6 +580,9 @@ func runVisibilitySteps(ctx context.Context, x *visibilityRun, steps []visibilit
 			return hook(name)
 		}); err != nil {
 			return err
+		}
+		if x.stop {
+			return nil
 		}
 	}
 	return nil
@@ -675,7 +706,7 @@ func visibilityAppliedText(res RepositorySetVisibilityResult) string {
 		fmt.Fprintf(&b, "  backup remote kept: %s\n", res.BackupRemote)
 	}
 	if res.Lessons != "" {
-		fmt.Fprintf(&b, "  lessons:\n%s\n", res.Lessons)
+		fmt.Fprintf(&b, "  %s\n", lessonsText(res.Lessons))
 	}
 	writeVisibilityWarnings(&b, res.Warnings)
 	writeVisibilityPending(&b, res.PendingLocal)
@@ -704,6 +735,11 @@ func visibilityStopped(res RepositorySetVisibilityResult, err error) RepositoryS
 	b.WriteString(res.human + "\n")
 	for _, p := range res.Phases {
 		fmt.Fprintf(&b, "  [%s] %s\n", p.Status, p.Name)
+	}
+	if res.Lessons != "" {
+		// The private instructions file is already gone: report its lessons
+		// even though a later phase stopped the run.
+		fmt.Fprintf(&b, "  %s\n", lessonsText(res.Lessons))
 	}
 	writeVisibilityPending(&b, res.PendingLocal)
 	res.human = strings.TrimRight(b.String(), "\n")

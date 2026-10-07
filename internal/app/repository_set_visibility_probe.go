@@ -86,6 +86,7 @@ type visibilityState struct {
 	sharedConfigWritten       bool
 	privateVisibilityAligned  bool
 	sharedVisibilityAligned   bool
+	sharedSurfacesSettled     bool // every authorized dispatch surface is settled on disk (read only going shared, once shared)
 }
 
 // probeVisibility reads the switch's state. Every probe error is returned:

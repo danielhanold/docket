@@ -158,13 +158,23 @@ func stripDispatchBlock(src []byte) (out []byte, remove bool, err error) {
 // .git/, so a private-mode install never retires them. Absent record -> (false, nil).
 // A record left with no surface is removed.
 func disownWorkingTreeSurfaces(recordPath string) (bool, error) {
+	return disownSurfaces(recordPath, func(p string) bool { return !isWorkingTreeSurface(p) })
+}
+
+// isWorkingTreeSurface reports whether a record path lies outside .git/.
+func isWorkingTreeSurface(p string) bool { return !strings.HasPrefix(p, ".git/") }
+
+// disownSurfaces rewrites the ownership record keeping only the surfaces keep
+// accepts. Absent record, or nothing dropped -> (false, nil). A record left
+// with no surface is removed.
+func disownSurfaces(recordPath string, keep func(path string) bool) (bool, error) {
 	rec, err := reposeed.LoadRecord(recordPath)
 	if err != nil || rec == nil {
 		return false, err
 	}
 	kept := make([]reposeed.SurfaceRecord, 0, len(rec.Surfaces))
 	for _, s := range rec.Surfaces {
-		if strings.HasPrefix(s.Path, ".git/") {
+		if keep(s.Path) {
 			kept = append(kept, s)
 		}
 	}
