@@ -21,8 +21,9 @@ import (
 )
 
 // This file is the real-Git `repository set-visibility` shard (prefix
-// TestIntegrationRepoVisibility): the preview, and every refusal that stops a
-// switch before it writes.
+// TestIntegrationRepoVisibility): the preview, every refusal that stops a
+// switch before it writes, each direction's switch, and the acceptance proofs
+// (round trip, resume after every phase, the private result, commit messages).
 
 // runSetVisibility runs RunRepositorySetVisibility against the invocation clone
 // with the user's machine roots pinned to temp dirs.
@@ -1001,4 +1002,490 @@ func TestIntegrationRepoVisibilitySharedRestoresLocalKeys(t *testing.T) {
 		t.Errorf("the working tree is not clean after the round trip:\n%s", out)
 	}
 	requireSharedLayoutRestored(t, r)
+}
+
+// --- acceptance --------------------------------------------------------------
+
+// visibilityIdentityRemedy is the remedy a going-shared run names when its
+// identity-keys commit must reach origin's default branch first.
+const visibilityIdentityRemedy = "get this commit onto main on origin"
+
+// driveVisibility switches r to o.Target, pushing main whenever the switch stops
+// for its identity-keys commit, until the repository lands in the target mode.
+// A preview that is already a no-op counts as landed.
+func (r *initRepo) driveVisibility(t *testing.T, o SetVisibilityOptions) RepositorySetVisibilityResult {
+	t.Helper()
+	for i := 0; i < 4; i++ {
+		preview := r.runSetVisibility(t, o)
+		if preview.Result == ResultNoOp {
+			return preview
+		}
+		if !preview.ConfirmationRequired() {
+			if strings.Contains(preview.HumanText(), visibilityIdentityRemedy) {
+				runGit(t, r.invocation, "push", "-q", "origin", "main")
+				continue
+			}
+			t.Fatalf("preview = %q state %q (%s), want confirmation-required", preview.Result, preview.RepositoryState, preview.HumanText())
+		}
+		run := o
+		run.Authorized, run.ExpectedSource = true, preview.SourceRev()
+		res := r.runSetVisibility(t, run)
+		if res.Result == ResultApplied && res.RepositoryState == o.Target {
+			return res
+		}
+		if (res.Result == ResultApplied && strings.Contains(strings.Join(res.PendingLocal, "\n"), visibilityIdentityRemedy)) ||
+			(res.Result == ResultInvalidState && strings.Contains(res.HumanText(), visibilityIdentityRemedy)) {
+			runGit(t, r.invocation, "push", "-q", "origin", "main")
+			continue
+		}
+		t.Fatalf("switch = %q state %q, want applied %s:\n%s", res.Result, res.RepositoryState, o.Target, res.HumanText())
+	}
+	t.Fatalf("the switch to %s did not land in four runs", o.Target)
+	return RepositorySetVisibilityResult{}
+}
+
+// metadataTreeAt lists every path and blob of commit in dir's repository.
+func metadataTreeAt(t *testing.T, dir, commit string) string {
+	t.Helper()
+	return runGit(t, dir, "ls-tree", "-r", commit)
+}
+
+// TestIntegrationRepoVisibilityRoundTripPreservesRecords proves shared ->
+// private (both flags) -> shared publishes back the identical metadata history:
+// origin's docket tip and tree are what they were, and replaying an earlier
+// change create and claim returns their original outcomes without a commit.
+func TestIntegrationRepoVisibilityRoundTripPreservesRecords(t *testing.T) {
+	r, _ := newPrivateSwitchRepo(t)
+	ctx := context.Background()
+	created := createSwitchChange(t, r.invocation)
+	claimID := created.ID + 1
+	recPath := groomPath(claimID, "widget")
+	dotDocket := filepath.Join(r.invocation, layout.SharedWorktreeDir)
+	runGit(t, dotDocket, "fetch", "-q", "origin", layout.SharedName)
+	runGit(t, dotDocket, "merge", "-q", "--ff-only", "FETCH_HEAD")
+	r.writeDocketFileAndPush(t, recPath, buildReadyChange(claimID, "widget"), "a build-ready change to claim")
+	node := planningDepsFor(t, r.invocation)
+	bundle := ContextImplementation(ctx, node.deps, node.dir, ImplementationContextRequest{ID: claimID})
+	if bundle.Result != ResultApplied || bundle.Context == nil {
+		t.Fatalf("context read = %q (reason %q); want a bundle", bundle.Result, bundle.Reason)
+	}
+	claimReq := ChangeClaimRequest{ID: claimID, Revision: bundle.Context.Change.Revision}
+	if claim := ChangeClaim(ctx, node.deps, node.dir, claimReq); claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
+		t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
+	}
+	tip := r.originTip(t, layout.SharedName)
+	tree := metadataTreeAt(t, r.origin, tip)
+
+	r.driveVisibility(t, SetVisibilityOptions{Target: "private", DeleteSharedBranch: true, RemoveSharedFiles: true})
+	runGit(t, r.invocation, "push", "-q", "origin", "main")
+	if r.remoteBranchExists(t, layout.SharedName) {
+		t.Fatal("origin still has the docket branch after going private with --delete-shared-branch")
+	}
+	r.driveVisibility(t, SetVisibilityOptions{Target: "shared"})
+
+	if got := r.originTip(t, layout.SharedName); got != tip {
+		t.Fatalf("origin's docket = %s after the round trip, want the original tip %s", got, tip)
+	}
+	if got := metadataTreeAt(t, r.origin, tip); got != tree {
+		t.Errorf("the metadata tree changed:\nbefore:\n%s\nafter:\n%s", tree, got)
+	}
+
+	node = planningDepsFor(t, r.invocation)
+	replay := ChangeCreate(ctx, node.deps, node.dir, validChangeCreateRequest())
+	if replay.Result != ResultApplied || !replay.Replayed || replay.ID != created.ID {
+		t.Errorf("create replay = %q replayed=%v id=%d (findings %v), want a replay of %d", replay.Result, replay.Replayed, replay.ID, replay.Findings, created.ID)
+	}
+	claimReplay := ChangeClaim(ctx, node.deps, node.dir, claimReq)
+	if claimReplay.Result != ResultApplied || claimReplay.Disposition != ClaimDispositionAlreadyClaimed {
+		t.Errorf("claim replay = (%q, %q), want applied/already-claimed (findings %v)", claimReplay.Result, claimReplay.Disposition, claimReplay.Findings)
+	}
+	if got := r.originTip(t, layout.SharedName); got != tip {
+		t.Errorf("a replay moved origin's docket %s -> %s", tip, got)
+	}
+}
+
+// visibilityFinalState summarizes what an uninterrupted switch and a resumed
+// one must agree on, independent of the fixture's temp paths and object ids:
+// which state folders exist, the worktree registrations, every local branch,
+// remote, and origin/store branch, how often each fixed subject is on main, the
+// working tree status, and whether the metadata tip is still metaTip.
+func visibilityFinalState(t *testing.T, r *initRepo, data, metaTip string) string {
+	t.Helper()
+	gitDir := r.gitDir(t)
+	var b strings.Builder
+	for _, name := range []string{layout.SharedName, layout.PrivateName} {
+		_, err := os.Stat(filepath.Join(gitDir, name))
+		b.WriteString("state-folder " + name + " " + strconv.FormatBool(err == nil) + "\n")
+	}
+	worktrees := 0
+	for _, line := range strings.Split(runGit(t, r.invocation, "worktree", "list", "--porcelain"), "\n") {
+		if strings.HasPrefix(line, "worktree ") {
+			worktrees++
+		}
+	}
+	b.WriteString("worktrees " + strconv.Itoa(worktrees) + "\n")
+	b.WriteString("local " + runGit(t, r.invocation, "for-each-ref", "--format=%(refname:short)", "refs/heads") + "\n")
+	b.WriteString("remotes " + runGit(t, r.invocation, "remote") + "\n")
+	b.WriteString("origin " + runGit(t, r.origin, "for-each-ref", "--format=%(refname:short)", "refs/heads") + "\n")
+	store := expectedPrivateLayout(t, r.invocation, data).DefaultBareRemote
+	if _, err := os.Stat(store); err == nil {
+		b.WriteString("store " + runGit(t, store, "for-each-ref", "--format=%(refname:short)", "refs/heads") + "\n")
+		if got, err := tryGit(store, "rev-parse", "--verify", "--quiet", "refs/heads/"+layout.PrivateName); err == nil {
+			b.WriteString("store-tip-unchanged " + strconv.FormatBool(got == metaTip) + "\n")
+		}
+	}
+	if r.remoteBranchExists(t, layout.SharedName) {
+		b.WriteString("origin-tip-unchanged " + strconv.FormatBool(r.originTip(t, layout.SharedName) == metaTip) + "\n")
+	}
+	subjects := strings.Split(runGit(t, r.invocation, "log", "--format=%s", "main"), "\n")
+	for _, s := range []string{visibilityRemoveSubject, visibilityAddSubject} {
+		n := 0
+		for _, got := range subjects {
+			if got == s {
+				n++
+			}
+		}
+		b.WriteString("subject " + s + " " + strconv.Itoa(n) + "\n")
+	}
+	b.WriteString("status " + runGit(t, r.invocation, "status", "--porcelain", "--untracked-files=all") + "\n")
+	return b.String()
+}
+
+// requireNoSwitchDebris asserts the state folders are never both present, no
+// journal is left, and the shared state folder holds no private config files.
+func requireNoSwitchDebris(t *testing.T, r *initRepo) {
+	t.Helper()
+	gitDir := r.gitDir(t)
+	_, serr := os.Stat(filepath.Join(gitDir, layout.SharedName))
+	_, perr := os.Stat(filepath.Join(gitDir, layout.PrivateName))
+	if serr == nil && perr == nil {
+		t.Error("both state folders exist")
+	}
+	for _, folder := range []string{layout.SharedName, layout.PrivateName} {
+		if _, err := os.Stat(filepath.Join(gitDir, folder, switchJournalFile)); !os.IsNotExist(err) {
+			t.Errorf("the journal is left in %s (stat err %v)", folder, err)
+		}
+	}
+	for _, name := range []string{layout.PrivateConfigFile, layout.PrivateLocalKeysFile} {
+		if _, err := os.Stat(filepath.Join(gitDir, layout.SharedName, name)); !os.IsNotExist(err) {
+			t.Errorf("%s is left in the shared state folder (stat err %v)", name, err)
+		}
+	}
+}
+
+// interruptAt is a hook that fails the run right after phase.
+func interruptAt(phase string) setupHooks {
+	return setupHooks{afterVisibilityPhase: func(p string) error {
+		if p == phase {
+			return errors.New("killed after " + phase)
+		}
+		return nil
+	}}
+}
+
+// visibilityDirection is one direction of the interruption table: a fixture
+// builder returning the repository, its data home, and its metadata tip, and
+// the options of the switch.
+type visibilityDirection struct {
+	name    string
+	fixture func(t *testing.T) (*initRepo, string, string)
+	o       SetVisibilityOptions
+}
+
+// TestIntegrationRepoVisibilityInterruptedPhasesResume proves a switch killed
+// right after any phase, in either direction, completes on the next run and
+// lands in exactly the state an uninterrupted switch does: the same folders,
+// worktree registrations, branches, and remotes, each fixed subject once, the
+// metadata tip unchanged, and no switch debris.
+func TestIntegrationRepoVisibilityInterruptedPhasesResume(t *testing.T) {
+	directions := []visibilityDirection{
+		{
+			name: "private",
+			fixture: func(t *testing.T) (*initRepo, string, string) {
+				r, data := newPrivateSwitchRepo(t)
+				return r, data, r.originTip(t, layout.SharedName)
+			},
+			o: SetVisibilityOptions{Target: "private", DeleteSharedBranch: true, RemoveSharedFiles: true},
+		},
+		{
+			name: "shared",
+			fixture: func(t *testing.T) (*initRepo, string, string) {
+				r, data := newBornPrivateRepo(t)
+				return r, data, runGit(t, expectedPrivateLayout(t, r.invocation, data).DefaultBareRemote, "rev-parse", "refs/heads/"+layout.PrivateName)
+			},
+			o: SetVisibilityOptions{Target: "shared"},
+		},
+	}
+	for _, dir := range directions {
+		t.Run(dir.name, func(t *testing.T) {
+			var want string
+			var pending []string
+			t.Run("uninterrupted", func(t *testing.T) {
+				r, data, tip := dir.fixture(t)
+				preview := r.runSetVisibility(t, dir.o)
+				for _, p := range preview.Phases {
+					if p.Status == visibilityPhasePending {
+						pending = append(pending, p.Name)
+					}
+				}
+				requireSwitchApplied(t, r.switchVisibility(t, dir.o), dir.o.Target)
+				requireNoSwitchDebris(t, r)
+				want = visibilityFinalState(t, r, data, tip)
+			})
+			if want == "" || len(pending) < 5 {
+				t.Fatalf("the uninterrupted switch left no reference state (pending phases %q)", pending)
+			}
+			for _, phase := range pending {
+				t.Run(phase, func(t *testing.T) {
+					r, data, tip := dir.fixture(t)
+					first := r.switchVisibilityWithHooks(t, dir.o, interruptAt(phase))
+					if first.Result != ResultExternalFailed {
+						t.Fatalf("run 1 = %q (%s), want external-failed at %s", first.Result, first.HumanText(), phase)
+					}
+					requireNoSwitchDebrisFolders(t, r)
+					r.driveVisibility(t, dir.o)
+					requireNoSwitchDebris(t, r)
+					if got := visibilityFinalState(t, r, data, tip); got != want {
+						t.Errorf("resumed after %s:\n%s\nwant (uninterrupted):\n%s", phase, got, want)
+					}
+				})
+			}
+		})
+	}
+
+	// identity-keys is pending only when the private config sets a repository
+	// identity key; a kill right after its commit still resumes once that
+	// commit reaches origin.
+	t.Run("shared/identity-keys", func(t *testing.T) {
+		r, _ := newBornPrivateRepo(t)
+		cfgPath := filepath.Join(r.gitDir(t), layout.PrivateName, layout.PrivateConfigFile)
+		if err := os.WriteFile(cfgPath, append(mustReadFile(t, cfgPath), []byte("integration_branch: main\n")...), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		before := runGit(t, r.invocation, "rev-parse", "HEAD")
+		first := r.switchVisibilityWithHooks(t, SetVisibilityOptions{Target: "shared"}, interruptAt("identity-keys"))
+		if first.Result != ResultExternalFailed {
+			t.Fatalf("run 1 = %q (%s), want external-failed", first.Result, first.HumanText())
+		}
+		r.driveVisibility(t, SetVisibilityOptions{Target: "shared"})
+		requireNoSwitchDebris(t, r)
+		requireSharedLayoutRestored(t, r)
+		if n := runGit(t, r.invocation, "rev-list", "--count", before+"..HEAD"); n != "2" {
+			t.Errorf("%s new commits, want the identity commit and the final commit", n)
+		}
+	})
+}
+
+// requireNoSwitchDebrisFolders asserts an interrupted run never leaves both
+// state folders.
+func requireNoSwitchDebrisFolders(t *testing.T, r *initRepo) {
+	t.Helper()
+	gitDir := r.gitDir(t)
+	_, serr := os.Stat(filepath.Join(gitDir, layout.SharedName))
+	_, perr := os.Stat(filepath.Join(gitDir, layout.PrivateName))
+	if serr == nil && perr == nil {
+		t.Error("both state folders exist after the interrupted run")
+	}
+}
+
+// TestIntegrationRepoVisibilityPrivateResultIsClean proves a repository that
+// went private with both flags checks clean: no error, no metadata on the
+// shared remote, no visibility mismatch, nothing docket-named at the root, and
+// the metadata checkout outside the primary checkout.
+func TestIntegrationRepoVisibilityPrivateResultIsClean(t *testing.T) {
+	r, data := newPrivateSwitchRepo(t)
+	createSwitchChange(t, r.invocation)
+	r.driveVisibility(t, SetVisibilityOptions{Target: "private", DeleteSharedBranch: true, RemoveSharedFiles: true})
+	// The removal commit is the user's to publish; check reads an unpushed
+	// local commit as its own finding.
+	runGit(t, r.invocation, "push", "-q", "origin", "main")
+
+	chk := r.runCheck(t)
+	for _, f := range chk.Findings {
+		if f.Severity == reposetup.SeverityError || f.Code == FindingMetadataOnSharedRemote || f.Code == FindingVisibilityMismatch {
+			t.Errorf("check reported %+v", f)
+		}
+	}
+	entries, err := os.ReadDir(r.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() != ".git" && strings.Contains(strings.ToLower(e.Name()), "docket") {
+			t.Errorf("the root still holds %s", e.Name())
+		}
+	}
+	checkout := expectedPrivateLayout(t, r.invocation, data).MetadataWorktree
+	if rel, err := filepath.Rel(r.invocation, checkout); err != nil || !strings.HasPrefix(rel, "..") {
+		t.Errorf("the metadata checkout %s is inside the primary checkout %s", checkout, r.invocation)
+	}
+	if rel, err := filepath.Rel(canonicalDir(t, r.invocation), canonicalDir(t, checkout)); err != nil || !strings.HasPrefix(rel, "..") {
+		t.Errorf("the metadata checkout %s resolves inside the primary checkout %s", checkout, r.invocation)
+	}
+}
+
+// canonicalDir resolves dir's symlinks.
+func canonicalDir(t *testing.T, dir string) string {
+	t.Helper()
+	out, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// TestIntegrationRepoVisibilityCommitMessages proves every commit a switch makes
+// carries one of the two fixed subjects and no body, a hand-edited .gitignore
+// refuses the going-shared preview, a detached HEAD refuses a committing plan,
+// and a commit hook that fails once leaves the edits for a re-run that makes
+// exactly one commit.
+func TestIntegrationRepoVisibilityCommitMessages(t *testing.T) {
+	t.Run("round trip subjects", func(t *testing.T) {
+		r, _ := newPrivateSwitchRepo(t)
+		before := runGit(t, r.invocation, "rev-parse", "HEAD")
+		r.driveVisibility(t, SetVisibilityOptions{Target: "private", RemoveSharedFiles: true})
+		r.driveVisibility(t, SetVisibilityOptions{Target: "shared"})
+		commits := strings.Fields(runGit(t, r.invocation, "rev-list", before+"..HEAD"))
+		if len(commits) < 2 {
+			t.Fatalf("%d switch commits, want at least the removal and the addition", len(commits))
+		}
+		for _, c := range commits {
+			subject := runGit(t, r.invocation, "log", "-1", "--format=%s", c)
+			if subject != visibilityRemoveSubject && subject != visibilityAddSubject {
+				t.Errorf("commit %s subject = %q, want one of the two fixed subjects", c, subject)
+			}
+			if body := runGit(t, r.invocation, "log", "-1", "--format=%b", c); body != "" {
+				t.Errorf("commit %s body = %q, want none", c, body)
+			}
+		}
+	})
+
+	t.Run("hand-edited gitignore refuses", func(t *testing.T) {
+		r, _ := newPrivateSwitchRepo(t)
+		r.driveVisibility(t, SetVisibilityOptions{Target: "private"})
+		ign := filepath.Join(r.invocation, ".gitignore")
+		if err := os.WriteFile(ign, append(mustReadFile(t, ign), []byte("scratch/\n")...), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		res := r.runSetVisibility(t, SetVisibilityOptions{Target: "shared"})
+		requireVisibilityRefusal(t, res, "commit or set aside these edits", ".gitignore")
+	})
+
+	t.Run("detached HEAD refuses", func(t *testing.T) {
+		r, _ := newPrivateSwitchRepo(t)
+		runGit(t, r.invocation, "checkout", "-q", "--detach")
+		res := r.runSetVisibility(t, SetVisibilityOptions{Target: "private", RemoveSharedFiles: true})
+		requireVisibilityRefusal(t, res, "detached HEAD")
+	})
+
+	t.Run("hook fails once", func(t *testing.T) {
+		r, _ := newPrivateSwitchRepo(t)
+		gitDir := r.gitDir(t)
+		marker := filepath.Join(testsupport.TempDir(t), "rejected-once")
+		hook := "#!/bin/sh\nif [ -e '" + marker + "' ]; then exit 0; fi\n: > '" + marker + "'\nexit 1\n"
+		if err := os.MkdirAll(filepath.Join(gitDir, "hooks"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(gitDir, "hooks", "commit-msg"), []byte(hook), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		before := runGit(t, r.invocation, "rev-parse", "HEAD")
+		o := SetVisibilityOptions{Target: "private", RemoveSharedFiles: true}
+		first := r.switchVisibility(t, o)
+		if first.Result != ResultExternalFailed {
+			t.Fatalf("run 1 = %q (%s), want external-failed on the hook's rejection", first.Result, first.HumanText())
+		}
+		if _, err := os.Stat(marker); err != nil {
+			t.Fatalf("the commit hook did not run: %v", err)
+		}
+		if got := runGit(t, r.invocation, "rev-parse", "HEAD"); got != before {
+			t.Fatalf("HEAD moved to %s on a rejected commit", got)
+		}
+		if _, err := os.Stat(filepath.Join(r.invocation, ".docket.yml")); !os.IsNotExist(err) {
+			t.Errorf("the journaled deletion of .docket.yml was not kept (stat err %v)", err)
+		}
+		if len(first.Commits) != 1 || first.Commits[0].Status != visibilityCommitFailed {
+			t.Errorf("Commits = %+v, want one failed row", first.Commits)
+		}
+		requireSwitchApplied(t, r.switchVisibility(t, o), "private")
+		requireRemovalCommit(t, r, before)
+	})
+}
+
+// TestIntegrationRepoVisibilityUserEditsSurvive proves a staged unrelated file
+// and an unstaged edit to a tracked file outside the switch's paths survive
+// both directions, never entering a switch commit.
+func TestIntegrationRepoVisibilityUserEditsSurvive(t *testing.T) {
+	r, _ := newPrivateSwitchRepo(t)
+	writeRepoFile(t, r.invocation, "notes.txt", "mine\n")
+	runGit(t, r.invocation, "add", "--", "notes.txt")
+	writeRepoFile(t, r.invocation, "README.md", "readme\nmy unstaged edit\n")
+	before := runGit(t, r.invocation, "rev-parse", "HEAD")
+
+	requireEdits := func(when string) {
+		t.Helper()
+		if staged := runGit(t, r.invocation, "diff", "--cached", "--name-only"); staged != "notes.txt" {
+			t.Errorf("%s: staged = %q, want notes.txt", when, staged)
+		}
+		if unstaged := runGit(t, r.invocation, "diff", "--name-only"); unstaged != "README.md" {
+			t.Errorf("%s: unstaged = %q, want README.md", when, unstaged)
+		}
+		if got := string(mustReadFile(t, filepath.Join(r.invocation, "README.md"))); got != "readme\nmy unstaged edit\n" {
+			t.Errorf("%s: README.md = %q, want the user's edit", when, got)
+		}
+		for _, c := range strings.Fields(runGit(t, r.invocation, "rev-list", before+"..HEAD")) {
+			for p := range commitNameStatus(t, r.invocation, c) {
+				if p == "notes.txt" || p == "README.md" {
+					t.Errorf("%s: switch commit %s holds the user's %s", when, c, p)
+				}
+			}
+		}
+	}
+	r.driveVisibility(t, SetVisibilityOptions{Target: "private", RemoveSharedFiles: true})
+	requireEdits("after going private")
+	r.driveVisibility(t, SetVisibilityOptions{Target: "shared"})
+	requireEdits("after going shared")
+}
+
+// TestIntegrationRepoVisibilitySecondCloneShared proves two clones sharing one
+// private store: once the first goes shared, the second's publish is already
+// done and it completes with local phases only, leaving origin and the store
+// untouched.
+func TestIntegrationRepoVisibilitySecondCloneShared(t *testing.T) {
+	a, data := newPrivateSwitchRepo(t)
+	b := &initRepo{root: a.root, origin: a.origin, writer: a.writer, invocation: filepath.Join(a.root, "second")}
+	runGit(t, a.root, "clone", "-q", a.origin, b.invocation)
+	gitIdentity(t, b.invocation)
+	if res := b.runInitWith(t, InitOptions{}); res.Result != ResultApplied && res.Result != ResultNoOp {
+		t.Fatalf("second clone init = %q (%s)", res.Result, res.HumanText())
+	}
+	a.driveVisibility(t, SetVisibilityOptions{Target: "private"})
+	b.driveVisibility(t, SetVisibilityOptions{Target: "private"})
+	if expectedPrivateLayout(t, a.invocation, data).DefaultBareRemote != expectedPrivateLayout(t, b.invocation, data).DefaultBareRemote {
+		t.Fatal("the two clones do not share one private store")
+	}
+	a.driveVisibility(t, SetVisibilityOptions{Target: "shared"})
+
+	store := expectedPrivateLayout(t, b.invocation, data).DefaultBareRemote
+	originRefs := runGit(t, b.origin, "for-each-ref", "--format=%(refname) %(objectname)")
+	storeRefs := runGit(t, store, "for-each-ref", "--format=%(refname) %(objectname)")
+	preview := b.runSetVisibility(t, SetVisibilityOptions{Target: "shared"})
+	if !preview.ConfirmationRequired() {
+		t.Fatalf("second clone preview = %q (%s), want confirmation-required", preview.Result, preview.HumanText())
+	}
+	for _, name := range []string{"identity-keys", "publish"} {
+		if got := phaseStatus(preview, name); got != visibilityPhaseDone {
+			t.Errorf("%s = %q, want done (the first clone already published)", name, got)
+		}
+	}
+	res := b.runSetVisibility(t, SetVisibilityOptions{Target: "shared", Authorized: true, ExpectedSource: preview.SourceRev()})
+	requireSwitchApplied(t, res, "shared")
+	if got := runGit(t, b.origin, "for-each-ref", "--format=%(refname) %(objectname)"); got != originRefs {
+		t.Errorf("the second clone's switch changed origin:\nbefore:\n%s\nafter:\n%s", originRefs, got)
+	}
+	if got := runGit(t, store, "for-each-ref", "--format=%(refname) %(objectname)"); got != storeRefs {
+		t.Errorf("the second clone's switch changed the store:\nbefore:\n%s\nafter:\n%s", storeRefs, got)
+	}
+	requireSharedLayoutRestored(t, b)
+	requireNoSwitchDebris(t, b)
 }

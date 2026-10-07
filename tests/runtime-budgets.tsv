@@ -41,7 +41,7 @@ tests/test_go_integration_app_repoownership.sh	30	parallel
 tests/test_go_integration_app_repoprepare.sh	20	parallel
 tests/test_go_integration_app_reporecovery.sh	20	parallel
 tests/test_go_integration_app_reporepair.sh	30	parallel
-tests/test_go_integration_app_repovisibility.sh	60	parallel
+tests/test_go_integration_app_repovisibility.sh	150	parallel
 tests/test_go_integration_app_reposetup.sh	35	parallel
 tests/test_go_integration_app_reposetup_race.sh	25	parallel
 tests/test_go_integration_app_privateinstructions.sh	30	parallel
