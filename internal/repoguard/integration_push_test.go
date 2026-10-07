@@ -43,6 +43,7 @@ var pushAllowlist = map[string]string{
 	"reconcileResumeSeed":        "repository migrate resumes the metadata seed",
 	"publishSeed":                "repository migrate publishes the metadata seed",
 	"migrateExecute":             "repository migrate's one-time, human-run legacy prune of the integration branch",
+	"publishVisibilityHistory":   "repository set-visibility publishes the identical metadata history under the target branch name",
 }
 
 // integrationPushReport is what the walk over internal/app found.

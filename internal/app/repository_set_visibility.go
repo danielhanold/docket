@@ -323,6 +323,20 @@ func visibilitySetupRefusal(ctx context.Context, git *gitcli.Client, facts repos
 	if uerr != nil && !isRemoteUnconfigured(uerr) {
 		unknown = append(unknown, "dckt-remote")
 	}
+	// A second clone whose origin branch is gone and whose dckt remote is not
+	// configured yet is still set up when another clone on this machine
+	// published the history to the default store. An origin URL that names no
+	// store means no store can exist.
+	storeHeld := false
+	if oerr == nil && origin.State != gitcli.RemoteRefFound && uerr != nil && isRemoteUnconfigured(uerr) {
+		if priv, perr := privateLayoutOf(ctx, git, sc.repo); perr == nil {
+			ref, serr := defaultStoreTip(ctx, git, priv)
+			if serr != nil {
+				unknown = append(unknown, "private-store")
+			}
+			storeHeld = ref.State == gitcli.RemoteRefFound
+		}
+	}
 	current := string(sc.layout.Mode)
 	if len(unknown) > 0 {
 		r := visibilityRefusalResult(target, current, reposetup.StateUnknown,
@@ -334,7 +348,7 @@ func visibilitySetupRefusal(ctx context.Context, git *gitcli.Client, facts repos
 			"the integration branch still carries a live planning surface; run `docket repository migrate` first")
 		return &r
 	}
-	if origin.State != gitcli.RemoteRefFound && !dcktConfigured {
+	if origin.State != gitcli.RemoteRefFound && !dcktConfigured && !storeHeld {
 		r := visibilityRefusalResult(target, current, reposetup.StateFresh,
 			"the repository has no docket metadata branch on origin and no dckt remote; run `docket repository init` first")
 		return &r
@@ -371,36 +385,46 @@ func planToPrivate(st visibilityState, o SetVisibilityOptions) []visibilityStep 
 			name:   "metadata-remote",
 			done:   st.dcktURL != "" && st.dcktURL == wantURL,
 			detail: "point the dckt remote at " + wantURL,
+			run:    privateMetadataRemotePhase,
 		},
 		{
-			name:   "publish",
-			done:   st.bareHoldsOrigin,
+			name: "publish",
+			// A clone that has not configured its dckt remote yet reads the
+			// default store directly: another clone on this machine may already
+			// have published the history there.
+			done:   st.bareHoldsOrigin || (st.dcktURL == "" && wantURL == st.private.DefaultBareRemote && st.storeHoldsOrigin),
 			detail: "push the identical metadata history of " + sourceName + " to the dckt branch at " + wantURL,
+			run:    privatePublishPhase,
 		},
 		{
 			name:   "config",
 			done:   !st.localConfig && st.pendingConfig != "",
 			detail: "fold the configuration into " + layout.PrivateConfigDisplay + " (from " + st.foldSource + ")",
+			run:    privateConfigPhase,
 		},
 		{
 			name:   "state-folder",
 			done:   st.privateStateDir && !st.sharedStateDir,
 			detail: "rename " + st.shared.StateDir + " to " + st.private.StateDir,
+			run:    privateStateFolderPhase,
 		},
 		{
 			name:   "ignore",
 			done:   st.excludeBlock,
 			detail: "add the managed block to .git/info/exclude",
+			run:    privateIgnorePhase,
 		},
 		{
 			name:   "metadata-worktree",
 			done:   st.privateCheckoutReady && !st.sharedCheckoutRegistered && st.localDocket == "",
 			detail: "move the metadata checkout from " + st.shared.MetadataWorktree + " to " + st.private.MetadataWorktree,
+			run:    privateMetadataWorktreePhase,
 		},
 		{
 			name:   "instructions",
 			done:   st.privateStateDir && !st.recordWorkingTree && (!st.facts.SurfacesAuthorized || st.privateInstructions),
 			detail: "install the dispatch instructions into " + layout.PrivateInstructionsDisplay,
+			run:    privateInstructionsPhase,
 		},
 	}
 	if o.DeleteSharedBranch {
@@ -408,20 +432,25 @@ func planToPrivate(st visibilityState, o SetVisibilityOptions) []visibilityStep 
 			name:   "delete-shared-branch",
 			done:   st.originDocket.State != gitcli.RemoteRefFound,
 			detail: "delete origin's docket branch once the dckt branch holds the same tip",
+			run:    privateDeleteSharedBranchPhase,
 		})
 	}
-	if o.RemoveSharedFiles {
+	// A removal commit already journaled resumes even when the re-run omits
+	// the flag: its edits are in the working tree, waiting for the commit.
+	if o.RemoveSharedFiles || (st.journalPresent && st.journal.Subject == visibilityRemoveSubject) {
 		steps = append(steps, visibilityStep{
 			name:    "remove-shared-files",
 			done:    !st.journalPresent && !st.headSharedFiles,
 			detail:  "remove .docket.yml, the .gitignore block, and the dispatch instructions in one local commit",
 			commits: true,
+			run:     privateRemoveSharedFilesPhase,
 		})
 	}
 	steps = append(steps, visibilityStep{
 		name:   "align-visibility",
 		done:   st.privateVisibilityAligned,
 		detail: "set visibility: private in " + layout.PrivateConfigDisplay,
+		run:    privateAlignVisibilityPhase,
 	})
 	return steps
 }
