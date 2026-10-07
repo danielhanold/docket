@@ -235,6 +235,10 @@ git commit -am "Remove the Bash docket block from CLAUDE.md"
 git push
 ```
 
+Last, choose your coding agents, which the configure-harnesses step left as "none yet": run
+`docket repository configure-harnesses --harnesses <agents>` (for example `claude`) and commit the
+paths it lists.
+
 ## 6. Settings that changed
 
 These are the Bash-era settings docket reports, in `.docket.yml` or in

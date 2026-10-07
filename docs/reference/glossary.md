@@ -50,8 +50,8 @@ cd <target-repo>
 docket repository init               # a repository that has never used docket (--harnesses picks the agents up front)
 docket repository migrate            # a legacy single-branch repository (human-typed)
 docket repository configure-tests    # set the build and finalize test commands
-docket repository configure-harnesses    # choose which coding agents get docket's instructions
 docket repository configure-tests --command "sh ./test.sh"   # set both gates to local with this command
+docket repository configure-harnesses                        # choose which coding agents get docket's instructions
 ```
 
 ### Archived record

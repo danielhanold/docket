@@ -101,6 +101,8 @@ func RunRepositoryConfigureHarnesses(ctx context.Context, d SetupDeps, o Configu
 		out.human = fmt.Sprintf("%s: %s (%s): agent_harnesses is already %s and its instructions are current; nothing to write", op, ResultNoOp, state, list)
 	case display == layout.PrivateConfigDisplay:
 		out.human = fmt.Sprintf("agent harnesses set to %s (%s); wrote %s", list, state, layout.PrivateConfigDisplay)
+	case len(pending) == 0:
+		out.human = fmt.Sprintf("agent harnesses set to %s (%s)", list, state)
 	default:
 		out.human = fmt.Sprintf("agent harnesses set to %s (%s); review and commit the pending paths: %s", list, state, strings.Join(pending, ", "))
 	}
