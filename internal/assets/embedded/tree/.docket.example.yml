@@ -52,7 +52,8 @@ integration_branch: auto
 # bare repository under ~/.local/share/dckt, with nothing docket-named inside the repository — for
 # repositories that must not carry any docket files. `docket repository init` sets a new
 # repository up in this mode (`--private` / `--shared` override it); changing it later does not
-# move a repository that is already set up.
+# move a repository that is already set up; `docket repository set-visibility <shared|private>`
+# moves one, keeping every record.
 # scope: any layer
 visibility: shared
 
