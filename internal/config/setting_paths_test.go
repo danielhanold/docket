@@ -9,6 +9,22 @@ import (
 // supported key list the documentation promises. The expected supported set is
 // written out because it is the contract docs and .docket.example.yml are held
 // to; the unsupported side is checked by sampling every disposition family.
+// TestRepoOnlyPaths pins the repository-only setting list, in registry order:
+// the leaves a machine layer may not declare and a visibility switch never
+// carries out of the local file.
+func TestRepoOnlyPaths(t *testing.T) {
+	want := []string{"integration_branch", "changes_dir", "adrs_dir", "results_dir", "github_project", "terminal_publish"}
+	got := RepoOnlyPaths()
+	if len(got) != len(want) {
+		t.Fatalf("RepoOnlyPaths() = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("RepoOnlyPaths() = %v, want %v", got, want)
+		}
+	}
+}
+
 func TestSettingPathsSupportSplit(t *testing.T) {
 	paths := SettingPaths()
 	if len(paths) != len(registry()) {
