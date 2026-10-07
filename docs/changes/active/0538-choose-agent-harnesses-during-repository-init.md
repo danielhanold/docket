@@ -80,5 +80,5 @@ The result is the same in both modes: no instructions and no message saying why.
 command:  go run ./cmd/docket development test
 result:   green
 head_sha: ee11acbc2bbeb312e794da339642fdf516dae7db
-ran_at:   2026-10-07T02:29:35Z
+ran_at:   2026-10-07T10:29:14Z
 <!-- docket:build-evidence:end -->
