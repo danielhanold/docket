@@ -25,7 +25,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0042](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0042-auto-approve-consent-model.md), [ADR-0011](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0011-finalize-consent-model.md) |
+| ADRs | [ADR-0042](../../adrs/0042-auto-approve-consent-model.md), [ADR-0011](../../adrs/0011-finalize-consent-model.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

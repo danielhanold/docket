@@ -29,7 +29,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md) |
+| Spec | [2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md](../../superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md) |
 | Plan | [2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding.md) |
 <!-- docket:artifacts:end -->
 

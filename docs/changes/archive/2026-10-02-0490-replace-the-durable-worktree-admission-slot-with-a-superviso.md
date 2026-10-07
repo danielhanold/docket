@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso-design.md) |
+| Spec | [2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso-design.md](../../superpowers/specs/2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso-design.md) |
 | Plan | [2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso.md) |
 | Results | [2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-02-replace-the-durable-worktree-admission-slot-with-a-superviso-results.md) |
-| ADRs | [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0125](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
+| ADRs | [ADR-0095](../../adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](../../adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](../../adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0124](../../adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0125](../../adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md), [ADR-0132](../../adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

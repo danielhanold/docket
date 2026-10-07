@@ -30,7 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Plan | [2026-08-26-treat-empty-review-decision-as-no-decision.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-26-treat-empty-review-decision-as-no-decision.md) |
-| ADRs | [ADR-0097](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0097-pr-identity-is-verified-by-parsed-pr-number.md) |
+| ADRs | [ADR-0097](../../adrs/0097-pr-identity-is-verified-by-parsed-pr-number.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

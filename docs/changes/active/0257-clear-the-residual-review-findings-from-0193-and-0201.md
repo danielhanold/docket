@@ -27,7 +27,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-07-clear-the-residual-review-findings-from-0193-and-0201-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-clear-the-residual-review-findings-from-0193-and-0201-design.md) |
+| Spec | [2026-08-07-clear-the-residual-review-findings-from-0193-and-0201-design.md](../../superpowers/specs/2026-08-07-clear-the-residual-review-findings-from-0193-and-0201-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -30,8 +30,8 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-13-certify-native-multi-agent-v2-orchestration-through-docket-i-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-13-certify-native-multi-agent-v2-orchestration-through-docket-i-design.md) |
-| ADRs | [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0094](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md), [ADR-0114](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
+| Spec | [2026-09-13-certify-native-multi-agent-v2-orchestration-through-docket-i-design.md](../../superpowers/specs/2026-09-13-certify-native-multi-agent-v2-orchestration-through-docket-i-design.md) |
+| ADRs | [ADR-0059](../../adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0060](../../adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0094](../../adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md), [ADR-0114](../../adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -32,7 +32,7 @@ claimed_at:
 |---|---|
 | Plan | [2026-09-14-make-finalize-repair-attempts-configurable-with-a-default-of.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-14-make-finalize-repair-attempts-configurable-with-a-default-of.md) |
 | Results | [2026-09-15-make-finalize-repair-attempts-configurable-with-a-default-of-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-15-make-finalize-repair-attempts-configurable-with-a-default-of-results.md) |
-| ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md) |
+| ADRs | [ADR-0010](../../adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0019](../../adrs/0019-global-config-fence-classification.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

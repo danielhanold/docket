@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md) |
+| Spec | [2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md](../../superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md) |
 | Plan | [2026-09-24-0445-revise-groomed-change-typed-operation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-24-0445-revise-groomed-change-typed-operation.md) |
 | Results | [2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-results.md) |
 <!-- docket:artifacts:end -->

@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-design.md) |
+| Spec | [2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-design.md](../../superpowers/specs/2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-design.md) |
 | Plan | [2026-09-16-finalize-rebase-generated-bundle-fast-path.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-16-finalize-rebase-generated-bundle-fast-path.md) |
 | Results | [2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-results.md) |
-| ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0113](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md) |
+| ADRs | [ADR-0010](../../adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0113](../../adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

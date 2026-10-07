@@ -28,7 +28,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
+| Spec | [2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md](../../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
 | Plan | [2026-09-03-give-run-halted-a-board-surface-and-a-health-check-like-its.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-03-give-run-halted-a-board-surface-and-a-health-check-like-its.md) |
 <!-- docket:artifacts:end -->
 

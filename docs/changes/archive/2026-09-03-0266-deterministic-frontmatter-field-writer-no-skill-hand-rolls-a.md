@@ -27,7 +27,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-09-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a-design.md) |
+| Spec | [2026-08-09-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a-design.md](../../superpowers/specs/2026-08-09-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

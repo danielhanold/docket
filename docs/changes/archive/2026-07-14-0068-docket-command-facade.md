@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-13-docket-command-facade-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-docket-command-facade-design.md) |
+| Spec | [2026-07-13-docket-command-facade-design.md](../../superpowers/specs/2026-07-13-docket-command-facade-design.md) |
 | Plan | [2026-07-13-docket-command-facade.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-13-docket-command-facade.md) |
 | Results | [2026-07-13-docket-command-facade-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-13-docket-command-facade-results.md) |
-| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0025](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0025-docket-worktrees-disable-git-hooks.md), [ADR-0027](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0027-terminal-publish-repo-scoped-script-gated.md), [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md) |
+| ADRs | [ADR-0012](../../adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0025](../../adrs/0025-docket-worktrees-disable-git-hooks.md), [ADR-0027](../../adrs/0027-terminal-publish-repo-scoped-script-gated.md), [ADR-0029](../../adrs/0029-docket-facade-routing-and-config-presentation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

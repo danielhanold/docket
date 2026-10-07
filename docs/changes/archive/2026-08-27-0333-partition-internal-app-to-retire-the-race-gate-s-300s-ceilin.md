@@ -29,7 +29,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-27-partition-slow-go-integration-tests-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-27-partition-slow-go-integration-tests-design.md) |
+| Spec | [2026-08-27-partition-slow-go-integration-tests-design.md](../../superpowers/specs/2026-08-27-partition-slow-go-integration-tests-design.md) |
 | Plan | [2026-08-27-partition-slow-go-integration-tests.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-27-partition-slow-go-integration-tests.md) |
 <!-- docket:artifacts:end -->
 

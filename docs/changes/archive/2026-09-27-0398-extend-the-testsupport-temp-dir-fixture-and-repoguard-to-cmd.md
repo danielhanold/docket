@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md) |
+| Spec | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md](../../superpowers/specs/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md) |
 | Plan | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) |
 | Results | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-results.md) |
-| ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
+| ADRs | [ADR-0108](../../adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

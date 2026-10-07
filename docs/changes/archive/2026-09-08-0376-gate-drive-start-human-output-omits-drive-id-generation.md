@@ -30,7 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Plan | [2026-09-07-gate-drive-start-human-output-omits-drive-id-generation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-07-gate-drive-start-human-output-omits-drive-id-generation.md) |
-| ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) |
+| ADRs | [ADR-0107](../../adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

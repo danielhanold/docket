@@ -32,7 +32,7 @@ claimed_at:
 |---|---|
 | Plan | [2026-09-09-scoped-build-task-gate-starts-omit-prepared-scope-identity.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-09-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) |
 | Results | [2026-09-09-scoped-build-task-gate-starts-omit-prepared-scope-identity-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-09-scoped-build-task-gate-starts-omit-prepared-scope-identity-results.md) |
-| ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) |
+| ADRs | [ADR-0107](../../adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

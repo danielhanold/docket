@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-01-give-docket-skills-an-authoritative-compact-cli-capability-c-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-01-give-docket-skills-an-authoritative-compact-cli-capability-c-design.md) |
+| Spec | [2026-09-01-give-docket-skills-an-authoritative-compact-cli-capability-c-design.md](../../superpowers/specs/2026-09-01-give-docket-skills-an-authoritative-compact-cli-capability-c-design.md) |
 | Plan | [2026-09-01-cli-capability-catalog.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-01-cli-capability-catalog.md) |
 | Results | [2026-09-01-give-docket-skills-an-authoritative-compact-cli-capability-c-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-01-give-docket-skills-an-authoritative-compact-cli-capability-c-results.md) |
-| ADRs | [ADR-0003](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0003-convention-reference-loading.md), [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) |
+| ADRs | [ADR-0003](../../adrs/0003-convention-reference-loading.md), [ADR-0020](../../adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0104](../../adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

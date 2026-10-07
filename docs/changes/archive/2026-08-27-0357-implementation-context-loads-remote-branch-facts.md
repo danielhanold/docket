@@ -29,9 +29,9 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-26-implementation-context-remote-branch-facts-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-26-implementation-context-remote-branch-facts-design.md) |
+| Spec | [2026-08-26-implementation-context-remote-branch-facts-design.md](../../superpowers/specs/2026-08-26-implementation-context-remote-branch-facts-design.md) |
 | Plan | [2026-08-26-implementation-context-remote-branch-facts.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-26-implementation-context-remote-branch-facts.md) |
-| ADRs | [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
+| ADRs | [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

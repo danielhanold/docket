@@ -30,7 +30,7 @@ reconciled: true
 |---|---|
 | Plan | [2026-07-28-retune-agent-model-effort-defaults.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-28-retune-agent-model-effort-defaults.md) |
 | Results | [2026-07-28-retune-agent-model-effort-defaults-for-all-three-harnesses-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-28-retune-agent-model-effort-defaults-for-all-three-harnesses-results.md) |
-| ADRs | [ADR-0039](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0039-config-example-mirrors-wrapper-defaults.md) |
+| ADRs | [ADR-0039](../../adrs/0039-config-example-mirrors-wrapper-defaults.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

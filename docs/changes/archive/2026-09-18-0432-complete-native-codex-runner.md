@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-16-complete-native-codex-runner-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-complete-native-codex-runner-design.md) |
+| Spec | [2026-09-16-complete-native-codex-runner-design.md](../../superpowers/specs/2026-09-16-complete-native-codex-runner-design.md) |
 | Plan | [2026-09-17-complete-native-codex-runner.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-17-complete-native-codex-runner.md) |
 | Results | [2026-09-17-complete-native-codex-runner-closeout-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-17-complete-native-codex-runner-closeout-results.md) |
 <!-- docket:artifacts:end -->

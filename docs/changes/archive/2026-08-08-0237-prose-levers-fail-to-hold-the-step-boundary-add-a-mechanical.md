@@ -28,10 +28,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-design.md) |
+| Spec | [2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-design.md](../../superpowers/specs/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-design.md) |
 | Plan | [2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) |
 | Results | [2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-results.md) |
-| ADRs | [ADR-0069](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md), [ADR-0075](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md) |
+| ADRs | [ADR-0069](../../adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md), [ADR-0075](../../adrs/0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -31,7 +31,7 @@ claimed_at:
 |---|---|
 | Plan | [2026-09-21-0350-surface-swallowed-validation-failure.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-21-0350-surface-swallowed-validation-failure.md) |
 | Results | [2026-09-21-surface-the-swallowed-validation-failure-behind-a-bare-inter-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-21-surface-the-swallowed-validation-failure-behind-a-bare-inter-results.md) |
-| ADRs | [ADR-0050](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0055](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0055-exhaustive-vocabulary-mappings-require-array-pinned-set-equality.md) |
+| ADRs | [ADR-0050](../../adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0055](../../adrs/0055-exhaustive-vocabulary-mappings-require-array-pinned-set-equality.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

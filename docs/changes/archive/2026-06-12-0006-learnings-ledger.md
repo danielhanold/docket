@@ -21,10 +21,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-12-learnings-ledger-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-12-learnings-ledger-design.md) |
+| Spec | [2026-06-12-learnings-ledger-design.md](../../superpowers/specs/2026-06-12-learnings-ledger-design.md) |
 | Plan | [2026-06-12-learnings-ledger.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-12-learnings-ledger.md) |
 | Results | [2026-06-12-learnings-ledger-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-12-learnings-ledger-results.md) |
-| ADRs | [ADR-0005](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0005-close-out-only-harvest.md) |
+| ADRs | [ADR-0005](../../adrs/0005-close-out-only-harvest.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

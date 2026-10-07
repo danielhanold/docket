@@ -26,10 +26,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-12-auto-groom-critic-recheck-foreground-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-12-auto-groom-critic-recheck-foreground-design.md) |
+| Spec | [2026-07-12-auto-groom-critic-recheck-foreground-design.md](../../superpowers/specs/2026-07-12-auto-groom-critic-recheck-foreground-design.md) |
 | Plan | [2026-07-12-auto-groom-critic-recheck-foreground.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-12-auto-groom-critic-recheck-foreground.md) |
 | Results | [2026-07-12-auto-groom-critic-recheck-foreground-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-12-auto-groom-critic-recheck-foreground-results.md) |
-| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md) |
+| ADRs | [ADR-0024](../../adrs/0024-claude-context-fork-skill-dispatch.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

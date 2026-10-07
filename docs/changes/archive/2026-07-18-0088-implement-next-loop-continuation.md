@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-17-implement-next-loop-continuation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-implement-next-loop-continuation-design.md) |
+| Spec | [2026-07-17-implement-next-loop-continuation-design.md](../../superpowers/specs/2026-07-17-implement-next-loop-continuation-design.md) |
 | Plan | [2026-07-18-implement-next-loop-continuation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-18-implement-next-loop-continuation.md) |
 | Results | [2026-07-18-implement-next-loop-continuation-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-18-implement-next-loop-continuation-results.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

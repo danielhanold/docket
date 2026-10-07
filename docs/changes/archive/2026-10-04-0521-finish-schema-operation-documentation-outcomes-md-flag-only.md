@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md) |
+| Spec | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md](../../superpowers/specs/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-design.md) |
 | Plan | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only.md) |
 | Results | [2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-finish-schema-operation-documentation-outcomes-md-flag-only-results.md) |
-| ADRs | [ADR-0138](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0138-a-published-request-schema-is-exactly-the-json-file-an-opera.md) |
+| ADRs | [ADR-0138](../../adrs/0138-a-published-request-schema-is-exactly-the-json-file-an-opera.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

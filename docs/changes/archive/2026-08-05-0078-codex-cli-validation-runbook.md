@@ -26,7 +26,7 @@ type: chore
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-15-codex-cli-validation-runbook-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-codex-cli-validation-runbook-design.md) |
+| Spec | [2026-07-15-codex-cli-validation-runbook-design.md](../../superpowers/specs/2026-07-15-codex-cli-validation-runbook-design.md) |
 | Plan | [2026-07-16-codex-cli-validation-runbook.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-16-codex-cli-validation-runbook.md) |
 | Results | [2026-07-16-codex-cli-validation-runbook-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-16-codex-cli-validation-runbook-results.md) |
 <!-- docket:artifacts:end -->

@@ -28,10 +28,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md) |
+| Spec | [2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md](../../superpowers/specs/2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md) |
 | Plan | [2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md) |
 | Results | [2026-08-10-launch-and-wait-contract-for-long-running-child-processes-li-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-10-launch-and-wait-contract-for-long-running-child-processes-li-results.md) |
-| ADRs | [ADR-0081](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) |
+| ADRs | [ADR-0081](../../adrs/0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

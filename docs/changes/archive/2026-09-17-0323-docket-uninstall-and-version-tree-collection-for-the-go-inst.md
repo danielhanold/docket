@@ -29,10 +29,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) |
+| Spec | [2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md](../../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) |
 | Plan | [2026-09-09-docket-uninstall-and-version-tree-collection.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-09-docket-uninstall-and-version-tree-collection.md) |
 | Results | [2026-09-10-docket-uninstall-and-version-tree-collection-for-the-go-inst-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-10-docket-uninstall-and-version-tree-collection-for-the-go-inst-results.md) |
-| ADRs | [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md), [ADR-0110](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0110-install-path-configuration-reads-tolerate-unknown-keys-the-s.md), [ADR-0121](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0121-version-tree-references-are-derived-from-complete-installed.md), [ADR-0122](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0122-automatic-version-collection-is-a-post-commit-best-effort-pa.md), [ADR-0123](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0123-uninstall-is-asset-and-repository-independent-proof-gated-by.md) |
+| ADRs | [ADR-0096](../../adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md), [ADR-0110](../../adrs/0110-install-path-configuration-reads-tolerate-unknown-keys-the-s.md), [ADR-0121](../../adrs/0121-version-tree-references-are-derived-from-complete-installed.md), [ADR-0122](../../adrs/0122-automatic-version-collection-is-a-post-commit-best-effort-pa.md), [ADR-0123](../../adrs/0123-uninstall-is-asset-and-repository-independent-proof-gated-by.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

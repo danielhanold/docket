@@ -29,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0100](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0100-native-host-dispatch-is-authoritative-for-registered-docket.md), [ADR-0067](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0067-runner-bearing-agent-requires-a-user-configured-model.md), [ADR-0079](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0079-shim-wrapper-frontmatter-pin-governs-the-parent-side-agent.md), [ADR-0080](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0080-detached-delegation-execution-posture-launch-then-observe.md), [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0088](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0088-halt-exit-code-is-a-property-of-run-state-not-discovery-path.md) |
+| ADRs | [ADR-0100](../../adrs/0100-native-host-dispatch-is-authoritative-for-registered-docket.md), [ADR-0067](../../adrs/0067-runner-bearing-agent-requires-a-user-configured-model.md), [ADR-0079](../../adrs/0079-shim-wrapper-frontmatter-pin-governs-the-parent-side-agent.md), [ADR-0080](../../adrs/0080-detached-delegation-execution-posture-launch-then-observe.md), [ADR-0087](../../adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0088](../../adrs/0088-halt-exit-code-is-a-property-of-run-state-not-discovery-path.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

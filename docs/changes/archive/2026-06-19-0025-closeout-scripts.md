@@ -22,10 +22,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-19-closeout-scripts-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-19-closeout-scripts-design.md) |
+| Spec | [2026-06-19-closeout-scripts-design.md](../../superpowers/specs/2026-06-19-closeout-scripts-design.md) |
 | Plan | [2026-06-19-closeout-scripts.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-19-closeout-scripts.md) |
 | Results | [2026-06-19-closeout-scripts-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-19-closeout-scripts-results.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0007](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0007-github-board-mirror-boundary.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0002](../../adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0007](../../adrs/0007-github-board-mirror-boundary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

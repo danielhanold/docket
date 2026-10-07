@@ -27,10 +27,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-19-docket-yml-example-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-docket-yml-example-design.md) |
+| Spec | [2026-07-19-docket-yml-example-design.md](../../superpowers/specs/2026-07-19-docket-yml-example-design.md) |
 | Plan | [2026-07-19-docket-yml-example.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-19-docket-yml-example.md) |
 | Results | [2026-07-19-docket-yml-example-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-19-docket-yml-example-results.md) |
-| ADRs | [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0039](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0039-config-example-mirrors-wrapper-defaults.md), [ADR-0048](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0048-docket-yml-example-invariants.md) |
+| ADRs | [ADR-0019](../../adrs/0019-global-config-fence-classification.md), [ADR-0039](../../adrs/0039-config-example-mirrors-wrapper-defaults.md), [ADR-0048](../../adrs/0048-docket-yml-example-invariants.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

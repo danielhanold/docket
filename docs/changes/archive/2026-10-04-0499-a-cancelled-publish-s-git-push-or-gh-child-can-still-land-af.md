@@ -29,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0137](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0137-the-publish-journal-blocks-only-on-a-publisher-that-may-stil.md) |
+| ADRs | [ADR-0137](../../adrs/0137-the-publish-journal-blocks-only-on-a-publisher-that-may-stil.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

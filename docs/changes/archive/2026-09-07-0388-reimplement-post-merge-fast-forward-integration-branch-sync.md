@@ -30,9 +30,9 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-07-reimplement-post-merge-fast-forward-integration-branch-sync-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-reimplement-post-merge-fast-forward-integration-branch-sync-design.md) |
+| Spec | [2026-09-07-reimplement-post-merge-fast-forward-integration-branch-sync-design.md](../../superpowers/specs/2026-09-07-reimplement-post-merge-fast-forward-integration-branch-sync-design.md) |
 | Plan | [2026-09-07-reimplement-post-merge-fast-forward-integration-branch-sync.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-07-reimplement-post-merge-fast-forward-integration-branch-sync.md) |
-| ADRs | [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0101](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md), [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md), [ADR-0109](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md) |
+| ADRs | [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0101](../../adrs/0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md), [ADR-0104](../../adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md), [ADR-0109](../../adrs/0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

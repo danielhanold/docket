@@ -25,7 +25,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-07-retune-agent-model-defaults-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-07-retune-agent-model-defaults-design.md) |
+| Spec | [2026-07-07-retune-agent-model-defaults-design.md](../../superpowers/specs/2026-07-07-retune-agent-model-defaults-design.md) |
 | Plan | [2026-07-07-retune-agent-model-defaults.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-07-retune-agent-model-defaults.md) |
 <!-- docket:artifacts:end -->
 

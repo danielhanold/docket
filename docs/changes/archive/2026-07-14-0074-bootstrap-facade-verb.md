@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-14-bootstrap-facade-verb-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-14-bootstrap-facade-verb-design.md) |
+| Spec | [2026-07-14-bootstrap-facade-verb-design.md](../../superpowers/specs/2026-07-14-bootstrap-facade-verb-design.md) |
 | Plan | [2026-07-14-bootstrap-facade-verb.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-14-bootstrap-facade-verb.md) |
 | Results | [2026-07-14-bootstrap-facade-verb-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-14-bootstrap-facade-verb-results.md) |
-| ADRs | [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) |
+| ADRs | [ADR-0029](../../adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0030](../../adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

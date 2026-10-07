@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-design.md) |
+| Spec | [2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-design.md](../../superpowers/specs/2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-design.md) |
 | Plan | [2026-09-29-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-29-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md) |
 | Results | [2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-results.md) |
-| ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
+| ADRs | [ADR-0129](../../adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

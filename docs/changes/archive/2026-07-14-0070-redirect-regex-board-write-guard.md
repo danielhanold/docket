@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-13-redirect-regex-board-write-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md) |
+| Spec | [2026-07-13-redirect-regex-board-write-guard-design.md](../../superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md) |
 | Plan | [2026-07-13-redirect-regex-board-write-guard-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-13-redirect-regex-board-write-guard-plan.md) |
 | Results | [2026-07-14-redirect-regex-board-write-guard-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-14-redirect-regex-board-write-guard-results.md) |
-| ADRs | [ADR-0031](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0031-complementary-board-write-guards-and-the-bound-of-source-scanning.md) |
+| ADRs | [ADR-0031](../../adrs/0031-complementary-board-write-guards-and-the-bound-of-source-scanning.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

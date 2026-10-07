@@ -28,10 +28,10 @@ type: docs
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-26-skill-config-read-channel-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-26-skill-config-read-channel-design.md) |
+| Spec | [2026-07-26-skill-config-read-channel-design.md](../../superpowers/specs/2026-07-26-skill-config-read-channel-design.md) |
 | Plan | [2026-07-27-config-read-channel-guard.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-27-config-read-channel-guard.md) |
 | Results | [2026-07-27-docket-finalize-change-claims-integration-branch-is-read-fro-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-27-docket-finalize-change-claims-integration-branch-is-read-fro-results.md) |
-| ADRs | [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
+| ADRs | [ADR-0052](../../adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

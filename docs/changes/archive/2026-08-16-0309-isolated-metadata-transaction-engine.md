@@ -29,10 +29,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-15-isolated-metadata-transaction-engine-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-15-isolated-metadata-transaction-engine-design.md) |
+| Spec | [2026-08-15-isolated-metadata-transaction-engine-design.md](../../superpowers/specs/2026-08-15-isolated-metadata-transaction-engine-design.md) |
 | Plan | [2026-08-15-isolated-metadata-transaction-engine.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-15-isolated-metadata-transaction-engine.md) |
 | Results | [2026-08-16-isolated-metadata-transaction-engine-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-16-isolated-metadata-transaction-engine-results.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0089](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0034](../../adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0089](../../adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

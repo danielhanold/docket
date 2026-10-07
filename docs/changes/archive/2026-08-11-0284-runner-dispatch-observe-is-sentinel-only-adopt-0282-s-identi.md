@@ -28,10 +28,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-10-runner-dispatch-observe-liveness-probe-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md) |
+| Spec | [2026-08-10-runner-dispatch-observe-liveness-probe-design.md](../../superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md) |
 | Plan | [2026-08-11-runner-dispatch-observe-liveness-probe.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-11-runner-dispatch-observe-liveness-probe.md) |
 | Results | [2026-08-11-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-11-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi-results.md) |
-| ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0088](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0088-halt-exit-code-is-a-property-of-run-state-not-discovery-path.md) |
+| ADRs | [ADR-0087](../../adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0088](../../adrs/0088-halt-exit-code-is-a-property-of-run-state-not-discovery-path.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

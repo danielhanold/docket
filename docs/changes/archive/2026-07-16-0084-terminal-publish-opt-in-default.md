@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-16-terminal-publish-opt-in-default-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-terminal-publish-opt-in-default-design.md) |
+| Spec | [2026-07-16-terminal-publish-opt-in-default-design.md](../../superpowers/specs/2026-07-16-terminal-publish-opt-in-default-design.md) |
 | Plan | [2026-07-16-terminal-publish-opt-in-default.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-16-terminal-publish-opt-in-default.md) |
 | Results | [2026-07-16-terminal-publish-opt-in-default-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-16-terminal-publish-opt-in-default-results.md) |
-| ADRs | [ADR-0027](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0027-terminal-publish-repo-scoped-script-gated.md), [ADR-0040](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0040-terminal-publish-default-opt-in.md) |
+| ADRs | [ADR-0027](../../adrs/0027-terminal-publish-repo-scoped-script-gated.md), [ADR-0040](../../adrs/0040-terminal-publish-default-opt-in.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

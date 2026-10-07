@@ -27,7 +27,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0044](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md) |
+| ADRs | [ADR-0024](../../adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0044](../../adrs/0044-autonomy-precedence-call-site-pre-specification.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

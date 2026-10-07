@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md) |
+| Spec | [2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md](../../superpowers/specs/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md) |
 | Plan | [2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) |
 | Results | [2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-results.md) |
-| ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
+| ADRs | [ADR-0071](../../adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

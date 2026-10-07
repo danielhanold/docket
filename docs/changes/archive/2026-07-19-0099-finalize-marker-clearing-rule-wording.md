@@ -27,7 +27,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-19-finalize-marker-clearing-rule-wording-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-finalize-marker-clearing-rule-wording-design.md) |
+| Spec | [2026-07-19-finalize-marker-clearing-rule-wording-design.md](../../superpowers/specs/2026-07-19-finalize-marker-clearing-rule-wording-design.md) |
 | Plan | [2026-07-19-finalize-marker-clearing-rule-wording.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-19-finalize-marker-clearing-rule-wording.md) |
 | Results | [2026-07-19-finalize-marker-clearing-rule-wording-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-19-finalize-marker-clearing-rule-wording-results.md) |
 <!-- docket:artifacts:end -->

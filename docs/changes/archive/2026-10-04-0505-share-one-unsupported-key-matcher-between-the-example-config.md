@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) |
+| Spec | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md](../../superpowers/specs/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-design.md) |
 | Plan | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config.md) |
 | Results | [2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-share-one-unsupported-key-matcher-between-the-example-config-results.md) |
 <!-- docket:artifacts:end -->

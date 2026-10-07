@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-16-learnings-promotion-destination-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-learnings-promotion-destination-design.md) |
+| Spec | [2026-07-16-learnings-promotion-destination-design.md](../../superpowers/specs/2026-07-16-learnings-promotion-destination-design.md) |
 | Plan | [2026-07-16-learnings-promotion-destination.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-16-learnings-promotion-destination.md) |
 | Results | [2026-07-16-learnings-promotion-destination-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-16-learnings-promotion-destination-results.md) |
-| ADRs | [ADR-0005](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0005-close-out-only-harvest.md), [ADR-0041](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0041-learnings-findings-directory-and-promotion-valve.md) |
+| ADRs | [ADR-0005](../../adrs/0005-close-out-only-harvest.md), [ADR-0041](../../adrs/0041-learnings-findings-directory-and-promotion-valve.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

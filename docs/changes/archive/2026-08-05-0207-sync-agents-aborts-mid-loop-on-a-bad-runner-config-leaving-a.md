@@ -28,7 +28,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-05-atomic-wrapper-generation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md) |
+| Spec | [2026-08-05-atomic-wrapper-generation-design.md](../../superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md) |
 | Plan | [2026-08-05-atomic-wrapper-generation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-05-atomic-wrapper-generation.md) |
 | Results | [2026-08-05-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-05-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a-results.md) |
 <!-- docket:artifacts:end -->

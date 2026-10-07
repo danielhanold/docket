@@ -21,10 +21,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-02-docket-metadata-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-02-docket-metadata-branch-design.md) |
+| Spec | [2026-06-02-docket-metadata-branch-design.md](../../superpowers/specs/2026-06-02-docket-metadata-branch-design.md) |
 | Plan | [2026-06-03-docket-metadata-branch.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-03-docket-metadata-branch.md) |
 | Results | [2026-06-03-docket-metadata-branch-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-03-docket-metadata-branch-results.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0002](../../adrs/0002-docket-mode-default-and-bootstrap.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

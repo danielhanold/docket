@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md) |
+| Spec | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md](../../superpowers/specs/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-design.md) |
 | Plan | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri.md) |
 | Results | [2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-02-delete-the-task-owned-gate-drive-machinery-once-no-skill-dri-results.md) |
-| ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0117](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0125](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md), [ADR-0130](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md), [ADR-0131](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0131-the-run-tracker-s-outer-takeover-recovers-only-a-still-runni.md) |
+| ADRs | [ADR-0107](../../adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0117](../../adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md), [ADR-0120](../../adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0125](../../adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md), [ADR-0130](../../adrs/0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md), [ADR-0131](../../adrs/0131-the-run-tracker-s-outer-takeover-recovers-only-a-still-runni.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

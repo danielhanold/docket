@@ -28,10 +28,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md) |
+| Spec | [2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md](../../superpowers/specs/2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md) |
 | Plan | [2026-08-11-auto-groom-s-critic-verdict-return-channel.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-11-auto-groom-s-critic-verdict-return-channel.md) |
 | Results | [2026-08-11-auto-groom-s-critic-verdict-return-channel-fails-under-backg-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-11-auto-groom-s-critic-verdict-return-channel-fails-under-backg-results.md) |
-| ADRs | [ADR-0085](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0085-critic-verdict-travels-on-one-channel-the-foreground-return.md) |
+| ADRs | [ADR-0085](../../adrs/0085-critic-verdict-travels-on-one-channel-the-foreground-return.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

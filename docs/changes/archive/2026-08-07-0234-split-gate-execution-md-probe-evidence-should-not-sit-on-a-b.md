@@ -28,7 +28,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md) |
+| Spec | [2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md](../../superpowers/specs/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md) |
 | Plan | [2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-plan.md) |
 | Results | [2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-results.md) |
 <!-- docket:artifacts:end -->

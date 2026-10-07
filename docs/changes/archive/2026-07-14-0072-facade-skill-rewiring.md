@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-13-facade-skill-rewiring-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-facade-skill-rewiring-design.md) |
+| Spec | [2026-07-13-facade-skill-rewiring-design.md](../../superpowers/specs/2026-07-13-facade-skill-rewiring-design.md) |
 | Plan | [2026-07-14-facade-skill-rewiring.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-14-facade-skill-rewiring.md) |
 | Results | [2026-07-14-facade-skill-rewiring-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-14-facade-skill-rewiring-results.md) |
-| ADRs | [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) |
+| ADRs | [ADR-0030](../../adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

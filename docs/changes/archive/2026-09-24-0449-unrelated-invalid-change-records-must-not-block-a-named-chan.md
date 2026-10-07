@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-23-unrelated-invalid-change-records-must-not-block-a-named-chan-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-23-unrelated-invalid-change-records-must-not-block-a-named-chan-design.md) |
+| Spec | [2026-09-23-unrelated-invalid-change-records-must-not-block-a-named-chan-design.md](../../superpowers/specs/2026-09-23-unrelated-invalid-change-records-must-not-block-a-named-chan-design.md) |
 | Plan | [2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan.md) |
 | Results | [2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan-results.md) |
-| ADRs | [ADR-0093](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0093-repository-reference-severity-graded-by-structural-role.md), [ADR-0127](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0127-scoped-metadata-validation-for-named-operations.md) |
+| ADRs | [ADR-0093](../../adrs/0093-repository-reference-severity-graded-by-structural-role.md), [ADR-0127](../../adrs/0127-scoped-metadata-validation-for-named-operations.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -25,7 +25,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0013](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0013-adr-0012-boundary-extends-to-docket-adr-surface.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0013](../../adrs/0013-adr-0012-boundary-extends-to-docket-adr-surface.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

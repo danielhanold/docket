@@ -30,9 +30,9 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-30-cut-generated-agent-invocation-over-to-native-host-dispatch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-30-cut-generated-agent-invocation-over-to-native-host-dispatch-design.md) |
+| Spec | [2026-08-30-cut-generated-agent-invocation-over-to-native-host-dispatch-design.md](../../superpowers/specs/2026-08-30-cut-generated-agent-invocation-over-to-native-host-dispatch-design.md) |
 | Plan | [2026-08-30-cut-generated-agent-invocation-over-to-native-host-dispatch.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-30-cut-generated-agent-invocation-over-to-native-host-dispatch.md) |
-| ADRs | [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0100](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0100-native-host-dispatch-is-authoritative-for-registered-docket.md) |
+| ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0074](../../adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0100](../../adrs/0100-native-host-dispatch-is-authoritative-for-registered-docket.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-28-allow-editing-an-existing-change-s-title-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-allow-editing-an-existing-change-s-title-design.md) |
+| Spec | [2026-09-28-allow-editing-an-existing-change-s-title-design.md](../../superpowers/specs/2026-09-28-allow-editing-an-existing-change-s-title-design.md) |
 | Plan | [2026-09-28-0461-allow-editing-an-existing-change-s-title.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-28-0461-allow-editing-an-existing-change-s-title.md) |
 | Results | [2026-09-28-allow-editing-an-existing-change-s-title-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-28-allow-editing-an-existing-change-s-title-results.md) |
-| ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
+| ADRs | [ADR-0071](../../adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

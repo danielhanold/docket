@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md) |
+| Spec | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md](../../superpowers/specs/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md) |
 | Plan | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) |
 | Results | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-results.md) |
 <!-- docket:artifacts:end -->

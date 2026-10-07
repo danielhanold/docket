@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md) |
+| Spec | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md](../../superpowers/specs/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-design.md) |
 | Plan | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check.md) |
 | Results | [2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-03-drop-startedrunresult-s-unreachable-empty-input-check-results.md) |
 <!-- docket:artifacts:end -->

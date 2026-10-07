@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-design.md) |
+| Spec | [2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-design.md](../../superpowers/specs/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-design.md) |
 | Plan | [2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469.md) |
 | Results | [2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-01-split-the-overloaded-gate-drive-halt-tokens-left-by-0469-results.md) |
-| ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
+| ADRs | [ADR-0129](../../adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

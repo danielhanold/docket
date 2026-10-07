@@ -28,7 +28,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md) |
+| Spec | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md](../../superpowers/specs/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md) |
 | Plan | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md) |
 | Results | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-results.md) |
 <!-- docket:artifacts:end -->

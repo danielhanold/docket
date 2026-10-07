@@ -29,7 +29,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-07-reapply-sha256-source-revision-width-fix-isfullobjectid-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-reapply-sha256-source-revision-width-fix-isfullobjectid-design.md) |
+| Spec | [2026-09-07-reapply-sha256-source-revision-width-fix-isfullobjectid-design.md](../../superpowers/specs/2026-09-07-reapply-sha256-source-revision-width-fix-isfullobjectid-design.md) |
 | Plan | [2026-09-06-reapply-sha256-source-revision-width-fix-isfullobjectid.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-06-reapply-sha256-source-revision-width-fix-isfullobjectid.md) |
 <!-- docket:artifacts:end -->
 

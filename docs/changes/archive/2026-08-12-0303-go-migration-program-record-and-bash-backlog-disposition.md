@@ -28,7 +28,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-12-go-migration-architecture-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-12-go-migration-architecture-design.md) |
+| Spec | [2026-08-12-go-migration-architecture-design.md](../../superpowers/specs/2026-08-12-go-migration-architecture-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -22,10 +22,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-20-script-adr-passes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-20-script-adr-passes-design.md) |
+| Spec | [2026-06-20-script-adr-passes-design.md](../../superpowers/specs/2026-06-20-script-adr-passes-design.md) |
 | Plan | [2026-06-20-script-adr-passes.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-20-script-adr-passes.md) |
 | Results | [2026-06-20-script-adr-passes-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-20-script-adr-passes-results.md) |
-| ADRs | [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0007](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0007-github-board-mirror-boundary.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0013](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0013-adr-0012-boundary-extends-to-docket-adr-surface.md) |
+| ADRs | [ADR-0002](../../adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0007](../../adrs/0007-github-board-mirror-boundary.md), [ADR-0012](../../adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0013](../../adrs/0013-adr-0012-boundary-extends-to-docket-adr-surface.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

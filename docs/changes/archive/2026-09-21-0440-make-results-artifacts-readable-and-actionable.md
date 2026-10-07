@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-21-make-results-artifacts-readable-and-actionable-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-21-make-results-artifacts-readable-and-actionable-design.md) |
+| Spec | [2026-09-21-make-results-artifacts-readable-and-actionable-design.md](../../superpowers/specs/2026-09-21-make-results-artifacts-readable-and-actionable-design.md) |
 | Plan | [2026-09-21-make-results-artifacts-readable-and-actionable.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-21-make-results-artifacts-readable-and-actionable.md) |
 | Results | [2026-09-21-make-results-artifacts-readable-and-actionable-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-21-make-results-artifacts-readable-and-actionable-results.md) |
-| ADRs | [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
+| ADRs | [ADR-0102](../../adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

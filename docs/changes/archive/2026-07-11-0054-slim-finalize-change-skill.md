@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-10-slim-finalize-change-skill-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-slim-finalize-change-skill-design.md) |
+| Spec | [2026-07-10-slim-finalize-change-skill-design.md](../../superpowers/specs/2026-07-10-slim-finalize-change-skill-design.md) |
 | Plan | [2026-07-11-slim-finalize-change-skill.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-11-slim-finalize-change-skill.md) |
 | Results | [2026-07-11-slim-finalize-change-skill-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-11-slim-finalize-change-skill-results.md) |
-| ADRs | [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md) |
+| ADRs | [ADR-0002](../../adrs/0002-docket-mode-default-and-bootstrap.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

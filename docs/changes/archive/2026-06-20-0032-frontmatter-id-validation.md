@@ -22,10 +22,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-20-frontmatter-id-validation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-20-frontmatter-id-validation-design.md) |
+| Spec | [2026-06-20-frontmatter-id-validation-design.md](../../superpowers/specs/2026-06-20-frontmatter-id-validation-design.md) |
 | Plan | [2026-06-20-frontmatter-id-validation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-20-frontmatter-id-validation.md) |
 | Results | [2026-06-20-frontmatter-id-validation-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-20-frontmatter-id-validation-results.md) |
-| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
+| ADRs | [ADR-0012](../../adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

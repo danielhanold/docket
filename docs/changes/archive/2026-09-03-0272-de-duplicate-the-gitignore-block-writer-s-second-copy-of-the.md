@@ -27,7 +27,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-09-gitignore-writer-redirect-status-keying-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-gitignore-writer-redirect-status-keying-design.md) |
+| Spec | [2026-08-09-gitignore-writer-redirect-status-keying-design.md](../../superpowers/specs/2026-08-09-gitignore-writer-redirect-status-keying-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

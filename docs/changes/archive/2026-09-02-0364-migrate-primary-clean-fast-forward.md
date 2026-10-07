@@ -29,7 +29,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-28-migrate-primary-clean-fast-forward-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) |
+| Spec | [2026-08-28-migrate-primary-clean-fast-forward-design.md](../../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) |
 | Plan | [2026-09-01-migrate-primary-clean-fast-forward.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-01-migrate-primary-clean-fast-forward.md) |
 <!-- docket:artifacts:end -->
 

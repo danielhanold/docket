@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md) |
+| Spec | [2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md](../../superpowers/specs/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md) |
 | Plan | [2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md) |
 | Results | [2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-results.md) |
-| ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0128](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md) |
+| ADRs | [ADR-0111](../../adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](../../adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0128](../../adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-21-consuming-repo-script-resolution-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-consuming-repo-script-resolution-design.md) |
+| Spec | [2026-06-21-consuming-repo-script-resolution-design.md](../../superpowers/specs/2026-06-21-consuming-repo-script-resolution-design.md) |
 | Plan | [2026-06-21-consuming-repo-script-resolution.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-21-consuming-repo-script-resolution.md) |
 | Results | [2026-06-21-consuming-repo-script-resolution-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-21-consuming-repo-script-resolution-results.md) |
-| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md) |
+| ADRs | [ADR-0012](../../adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0014](../../adrs/0014-consuming-repo-script-resolution.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

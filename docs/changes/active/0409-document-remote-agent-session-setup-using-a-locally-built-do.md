@@ -29,8 +29,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
-| ADRs | [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) |
+| Spec | [2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md](../../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
+| ADRs | [ADR-0104](../../adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

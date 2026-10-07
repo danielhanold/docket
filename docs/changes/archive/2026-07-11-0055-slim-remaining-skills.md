@@ -25,7 +25,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-10-slim-remaining-skills-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-slim-remaining-skills-design.md) |
+| Spec | [2026-07-10-slim-remaining-skills-design.md](../../superpowers/specs/2026-07-10-slim-remaining-skills-design.md) |
 | Plan | [2026-07-11-slim-remaining-skills.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-11-slim-remaining-skills.md) |
 | Results | [2026-07-11-slim-remaining-skills-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-11-slim-remaining-skills-results.md) |
 <!-- docket:artifacts:end -->

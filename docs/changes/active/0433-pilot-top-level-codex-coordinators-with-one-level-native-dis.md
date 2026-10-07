@@ -29,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0115](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0119](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0119-native-codex-dispatch-with-explicit-role-aware-feature-bindi.md) |
+| ADRs | [ADR-0016](../../adrs/0016-harness-first-agent-config.md), [ADR-0111](../../adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0115](../../adrs/0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md), [ADR-0118](../../adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0119](../../adrs/0119-native-codex-dispatch-with-explicit-role-aware-feature-bindi.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

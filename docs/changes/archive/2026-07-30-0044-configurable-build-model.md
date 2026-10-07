@@ -26,10 +26,10 @@ type: feat
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-07-configurable-build-model-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-07-configurable-build-model-design.md) |
+| Spec | [2026-07-07-configurable-build-model-design.md](../../superpowers/specs/2026-07-07-configurable-build-model-design.md) |
 | Plan | [2026-07-11-configurable-build-model.md](https://github.com/danielhanold/docket/blob/feat/configurable-build-model/docs/superpowers/plans/2026-07-11-configurable-build-model.md) |
 | Results | [2026-07-11-configurable-build-model-results.md](https://github.com/danielhanold/docket/blob/feat/configurable-build-model/docs/results/2026-07-11-configurable-build-model-results.md) |
-| ADRs | [ADR-0023](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0023-configurable-sdd-build-model.md) |
+| ADRs | [ADR-0023](../../adrs/0023-configurable-sdd-build-model.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

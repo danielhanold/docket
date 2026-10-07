@@ -22,10 +22,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-17-finalize-consent-model-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-17-finalize-consent-model-design.md) |
+| Spec | [2026-06-17-finalize-consent-model-design.md](../../superpowers/specs/2026-06-17-finalize-consent-model-design.md) |
 | Plan | [2026-06-17-finalize-consent-model.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-17-finalize-consent-model.md) |
 | Results | [2026-06-17-finalize-consent-model-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-17-finalize-consent-model-results.md) |
-| ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0011](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0011-finalize-consent-model.md) |
+| ADRs | [ADR-0010](../../adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0011](../../adrs/0011-finalize-consent-model.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

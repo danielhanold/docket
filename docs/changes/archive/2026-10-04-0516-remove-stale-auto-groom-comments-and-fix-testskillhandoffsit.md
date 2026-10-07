@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md) |
+| Spec | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md](../../superpowers/specs/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-design.md) |
 | Plan | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit.md) |
 | Results | [2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-remove-stale-auto-groom-comments-and-fix-testskillhandoffsit-results.md) |
 <!-- docket:artifacts:end -->

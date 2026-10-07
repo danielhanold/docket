@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-design.md) |
+| Spec | [2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-design.md](../../superpowers/specs/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-design.md) |
 | Plan | [2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction.md) |
 | Results | [2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-results.md) |
-| ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
+| ADRs | [ADR-0108](../../adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

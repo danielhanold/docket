@@ -27,8 +27,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-09-retune-the-opencode-shipped-model-defaults-for-cost-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-retune-the-opencode-shipped-model-defaults-for-cost-design.md) |
-| ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md) |
+| Spec | [2026-08-09-retune-the-opencode-shipped-model-defaults-for-cost-design.md](../../superpowers/specs/2026-08-09-retune-the-opencode-shipped-model-defaults-for-cost-design.md) |
+| ADRs | [ADR-0015](../../adrs/0015-harness-portable-agent-config.md), [ADR-0016](../../adrs/0016-harness-first-agent-config.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

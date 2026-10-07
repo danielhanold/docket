@@ -28,10 +28,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-01-four-tier-build-profiles-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-four-tier-build-profiles-design.md) |
+| Spec | [2026-08-01-four-tier-build-profiles-design.md](../../superpowers/specs/2026-08-01-four-tier-build-profiles-design.md) |
 | Plan | [2026-08-01-four-tier-build-profile-ladder.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-01-four-tier-build-profile-ladder.md) |
 | Results | [2026-08-01-four-tier-build-profile-ladder-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-01-four-tier-build-profile-ladder-results.md) |
-| ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md) |
+| ADRs | [ADR-0015](../../adrs/0015-harness-portable-agent-config.md), [ADR-0016](../../adrs/0016-harness-first-agent-config.md), [ADR-0063](../../adrs/0063-docket-owns-the-build-role-profile-routed-workers.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

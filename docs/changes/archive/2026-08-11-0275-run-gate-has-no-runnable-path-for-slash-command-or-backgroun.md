@@ -28,10 +28,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-09-run-gate-detached-dispatch-path-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-run-gate-detached-dispatch-path-design.md) |
+| Spec | [2026-08-09-run-gate-detached-dispatch-path-design.md](../../superpowers/specs/2026-08-09-run-gate-detached-dispatch-path-design.md) |
 | Plan | [2026-08-11-run-gate-detached-dispatch-path.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-11-run-gate-detached-dispatch-path.md) |
 | Results | [2026-08-11-run-gate-detached-dispatch-path-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-11-run-gate-detached-dispatch-path-results.md) |
-| ADRs | [ADR-0084](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md) |
+| ADRs | [ADR-0084](../../adrs/0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md) |
+| Spec | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md](../../superpowers/specs/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-design.md) |
 | Plan | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref.md) |
 | Results | [2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-05-repository-init-writes-gate-off-and-configure-tests-then-ref-results.md) |
 <!-- docket:artifacts:end -->

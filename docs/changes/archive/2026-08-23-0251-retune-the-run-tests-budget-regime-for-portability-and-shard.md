@@ -28,7 +28,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md) |
+| Spec | [2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md](../../superpowers/specs/2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md) |
 | Plan | [2026-08-22-retune-the-run-tests-budget-regime-for-portability-and-shard.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-22-retune-the-run-tests-budget-regime-for-portability-and-shard.md) |
 <!-- docket:artifacts:end -->
 

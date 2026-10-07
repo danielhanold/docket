@@ -25,7 +25,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-21-status-sweep-double-archive-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-status-sweep-double-archive-design.md) |
+| Spec | [2026-06-21-status-sweep-double-archive-design.md](../../superpowers/specs/2026-06-21-status-sweep-double-archive-design.md) |
 | Plan | [2026-06-21-status-sweep-double-archive.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-21-status-sweep-double-archive.md) |
 | Results | [2026-06-21-status-sweep-double-archive-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-21-status-sweep-double-archive-results.md) |
 <!-- docket:artifacts:end -->

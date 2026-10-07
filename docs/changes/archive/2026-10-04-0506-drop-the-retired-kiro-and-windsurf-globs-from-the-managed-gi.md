@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-design.md) |
+| Spec | [2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-design.md](../../superpowers/specs/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-design.md) |
 | Plan | [2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi.md) |
 | Results | [2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-drop-the-retired-kiro-and-windsurf-globs-from-the-managed-gi-results.md) |
-| ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md) |
+| ADRs | [ADR-0020](../../adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0060](../../adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

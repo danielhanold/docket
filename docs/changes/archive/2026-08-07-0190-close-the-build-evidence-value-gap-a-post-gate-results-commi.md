@@ -28,10 +28,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) |
+| Spec | [2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md](../../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) |
 | Plan | [2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) |
 | Results | [2026-08-07-close-the-build-evidence-value-gap-a-post-gate-results-commi-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-07-close-the-build-evidence-value-gap-a-post-gate-results-commi-results.md) |
-| ADRs | [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) |
+| ADRs | [ADR-0066](../../adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

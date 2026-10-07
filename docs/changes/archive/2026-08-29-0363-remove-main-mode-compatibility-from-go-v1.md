@@ -29,10 +29,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md) |
+| Spec | [2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md](../../superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md) |
 | Plan | [2026-08-28-remove-main-mode-compatibility-from-go-v1.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-28-remove-main-mode-compatibility-from-go-v1.md) |
 | Results | [2026-08-28-remove-main-mode-compatibility-from-go-v1-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-28-remove-main-mode-compatibility-from-go-v1-results.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md), [ADR-0069](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0002](../../adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0052](../../adrs/0052-config-key-resolution-boundary.md), [ADR-0069](../../adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

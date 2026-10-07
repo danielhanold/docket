@@ -28,7 +28,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-07-clear-the-unfixed-review-findings-from-change-0191-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-clear-the-unfixed-review-findings-from-change-0191-design.md) |
+| Spec | [2026-08-07-clear-the-unfixed-review-findings-from-change-0191-design.md](../../superpowers/specs/2026-08-07-clear-the-unfixed-review-findings-from-change-0191-design.md) |
 | Plan | [2026-08-08-clear-the-unfixed-review-findings-from-change-0191-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-08-clear-the-unfixed-review-findings-from-change-0191-plan.md) |
 | Results | [2026-08-08-clear-the-unfixed-review-findings-from-change-0191-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-08-clear-the-unfixed-review-findings-from-change-0191-results.md) |
 <!-- docket:artifacts:end -->

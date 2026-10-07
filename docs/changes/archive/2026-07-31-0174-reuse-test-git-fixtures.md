@@ -28,7 +28,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-31-reuse-test-git-fixtures-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-reuse-test-git-fixtures-design.md) |
+| Spec | [2026-07-31-reuse-test-git-fixtures-design.md](../../superpowers/specs/2026-07-31-reuse-test-git-fixtures-design.md) |
 | Plan | [2026-07-31-reuse-test-git-fixtures.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-31-reuse-test-git-fixtures.md) |
 | Results | [2026-07-31-reuse-test-git-fixtures-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-31-reuse-test-git-fixtures-results.md) |
 <!-- docket:artifacts:end -->

@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md) |
+| Spec | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md](../../superpowers/specs/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-design.md) |
 | Plan | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) |
 | Results | [2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-05-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc-results.md) |
 <!-- docket:artifacts:end -->

@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-20-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-20-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged-design.md) |
+| Spec | [2026-09-20-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged-design.md](../../superpowers/specs/2026-09-20-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged-design.md) |
 | Plan | [2026-09-20-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-20-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged.md) |
 | Results | [2026-09-20-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-20-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged-results.md) |
-| ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md), [ADR-0112](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0112-a-completed-gate-publish-checkpoint-is-persisted-in-the-owne.md), [ADR-0113](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
+| ADRs | [ADR-0010](../../adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0105](../../adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md), [ADR-0112](../../adrs/0112-a-completed-gate-publish-checkpoint-is-persisted-in-the-owne.md), [ADR-0113](../../adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md), [ADR-0118](../../adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

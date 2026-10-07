@@ -28,9 +28,9 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-25-recorded-branch-identity-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-25-recorded-branch-identity-design.md) |
+| Spec | [2026-08-25-recorded-branch-identity-design.md](../../superpowers/specs/2026-08-25-recorded-branch-identity-design.md) |
 | Plan | [2026-08-25-honor-recorded-branch-over-feat-prefix.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-25-honor-recorded-branch-over-feat-prefix.md) |
-| ADRs | [ADR-0035](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0097](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0097-pr-identity-is-verified-by-parsed-pr-number.md) |
+| ADRs | [ADR-0035](../../adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0097](../../adrs/0097-pr-identity-is-verified-by-parsed-pr-number.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

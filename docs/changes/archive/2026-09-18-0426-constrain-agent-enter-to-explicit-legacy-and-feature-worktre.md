@@ -29,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0114](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
+| ADRs | [ADR-0114](../../adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

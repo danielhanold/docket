@@ -22,9 +22,9 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-20-sync-integration-after-merge-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-20-sync-integration-after-merge-design.md) |
+| Spec | [2026-06-20-sync-integration-after-merge-design.md](../../superpowers/specs/2026-06-20-sync-integration-after-merge-design.md) |
 | Plan | [2026-06-20-sync-integration-after-merge.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-20-sync-integration-after-merge.md) |
-| ADRs | [ADR-0007](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0007-github-board-mirror-boundary.md) |
+| ADRs | [ADR-0007](../../adrs/0007-github-board-mirror-boundary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

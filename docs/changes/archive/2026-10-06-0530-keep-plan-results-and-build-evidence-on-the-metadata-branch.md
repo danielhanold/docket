@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch-design.md) |
+| Spec | [2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch-design.md](../../superpowers/specs/2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch-design.md) |
 | Plan | [2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) |
 | Results | [2026-10-06-keep-plan-results-and-build-evidence-on-the-metadata-branch-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-06-keep-plan-results-and-build-evidence-on-the-metadata-branch-results.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0141](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0141-build-artifacts-plan-results-evidence-live-on-the-metadata-b.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0012](../../adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0066](../../adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0141](../../adrs/0141-build-artifacts-plan-results-evidence-live-on-the-metadata-b.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

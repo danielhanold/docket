@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-14-cursor-sandbox-permissions-guide-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-14-cursor-sandbox-permissions-guide-design.md) |
+| Spec | [2026-07-14-cursor-sandbox-permissions-guide-design.md](../../superpowers/specs/2026-07-14-cursor-sandbox-permissions-guide-design.md) |
 | Plan | [2026-07-14-cursor-sandbox-permissions-guide.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-14-cursor-sandbox-permissions-guide.md) |
 | Results | [2026-07-14-cursor-sandbox-permissions-guide-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-14-cursor-sandbox-permissions-guide-results.md) |
-| ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0033](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0033-cursor-auto-run-trust-at-facade.md) |
+| ADRs | [ADR-0020](../../adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0033](../../adrs/0033-cursor-auto-run-trust-at-facade.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

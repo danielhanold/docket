@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos-design.md) |
+| Spec | [2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos-design.md](../../superpowers/specs/2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos-design.md) |
 | Plan | [2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos.md) |
 | Results | [2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-03-a-publish-killed-mid-flight-wedges-its-run-s-cancel-and-clos-results.md) |
-| ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0132](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md), [ADR-0133](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0133-the-run-key-is-the-run-tracker-s-only-handle-gate-starts-car.md), [ADR-0134](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0134-a-dead-supervisor-s-suite-counts-as-gone-only-when-its-proce.md), [ADR-0137](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0137-the-publish-journal-blocks-only-on-a-publisher-that-may-stil.md) |
+| ADRs | [ADR-0118](../../adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0124](../../adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0132](../../adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md), [ADR-0133](../../adrs/0133-the-run-key-is-the-run-tracker-s-only-handle-gate-starts-car.md), [ADR-0134](../../adrs/0134-a-dead-supervisor-s-suite-counts-as-gone-only-when-its-proce.md), [ADR-0137](../../adrs/0137-the-publish-journal-blocks-only-on-a-publisher-that-may-stil.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

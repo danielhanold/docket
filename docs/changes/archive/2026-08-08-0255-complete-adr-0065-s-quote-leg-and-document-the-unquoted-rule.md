@@ -28,10 +28,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md) |
+| Spec | [2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md](../../superpowers/specs/2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md) |
 | Plan | [2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-plan.md) |
 | Results | [2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-results.md) |
-| ADRs | [ADR-0076](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0076-quote-leg-rule-binds-by-role-not-reader-shape.md) |
+| ADRs | [ADR-0076](../../adrs/0076-quote-leg-rule-binds-by-role-not-reader-shape.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

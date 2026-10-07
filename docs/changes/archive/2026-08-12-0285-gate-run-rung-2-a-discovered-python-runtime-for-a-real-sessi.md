@@ -27,8 +27,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-10-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-10-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi-design.md) |
-| ADRs | [ADR-0081](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) |
+| Spec | [2026-08-10-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi-design.md](../../superpowers/specs/2026-08-10-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi-design.md) |
+| ADRs | [ADR-0081](../../adrs/0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md) |
+| Spec | [2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md](../../superpowers/specs/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-design.md) |
 | Plan | [2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary.md) |
 | Results | [2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-align-the-skills-and-agent-files-with-the-docket-binary-results.md) |
-| ADRs | [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0022](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0022-consultant-authored-brainstorm.md), [ADR-0081](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0130](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md) |
+| ADRs | [ADR-0018](../../adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0022](../../adrs/0022-consultant-authored-brainstorm.md), [ADR-0081](../../adrs/0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0130](../../adrs/0130-build-task-workers-run-focused-tests-directly-under-a-fixed.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

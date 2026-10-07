@@ -28,10 +28,10 @@ type: refactor
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-22-centralize-runtime-config-helpers-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-22-centralize-runtime-config-helpers-design.md) |
+| Spec | [2026-07-22-centralize-runtime-config-helpers-design.md](../../superpowers/specs/2026-07-22-centralize-runtime-config-helpers-design.md) |
 | Plan | [2026-07-28-centralize-runtime-config-helpers.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-28-centralize-runtime-config-helpers.md) |
 | Results | [2026-07-28-centralize-runtime-config-helpers-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-28-centralize-runtime-config-helpers-results.md) |
-| ADRs | [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md) |
+| ADRs | [ADR-0014](../../adrs/0014-consuming-repo-script-resolution.md), [ADR-0019](../../adrs/0019-global-config-fence-classification.md), [ADR-0029](../../adrs/0029-docket-facade-routing-and-config-presentation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-design.md) |
+| Spec | [2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-design.md](../../superpowers/specs/2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-design.md) |
 | Plan | [2026-09-20-leaked-worktree-gate-admission-slot-diagnostics.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-20-leaked-worktree-gate-admission-slot-diagnostics.md) |
 | Results | [2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-results.md) |
-| ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md) |
+| ADRs | [ADR-0087](../../adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](../../adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](../../adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](../../adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

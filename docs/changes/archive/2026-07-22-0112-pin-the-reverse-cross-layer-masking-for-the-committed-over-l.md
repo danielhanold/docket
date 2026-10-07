@@ -27,7 +27,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-20-reverse-cross-layer-masking-matrix-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-reverse-cross-layer-masking-matrix-design.md) |
+| Spec | [2026-07-20-reverse-cross-layer-masking-matrix-design.md](../../superpowers/specs/2026-07-20-reverse-cross-layer-masking-matrix-design.md) |
 | Plan | [2026-07-21-reverse-cross-layer-masking-matrix.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-21-reverse-cross-layer-masking-matrix.md) |
 | Results | [2026-07-21-pin-the-reverse-cross-layer-masking-for-the-committed-over-l-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-21-pin-the-reverse-cross-layer-masking-for-the-committed-over-l-results.md) |
 <!-- docket:artifacts:end -->

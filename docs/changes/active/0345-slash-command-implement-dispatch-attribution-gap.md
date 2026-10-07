@@ -27,8 +27,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
-| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0026](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0026-fork-dispatch-opacity-two-invocation-paths.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0084](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md), [ADR-0100](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0100-native-host-dispatch-is-authoritative-for-registered-docket.md), [ADR-0103](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0103-enter-codex-coordinator-roles-through-app-server-root-thread.md), [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) |
+| Spec | [2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md](../../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
+| ADRs | [ADR-0024](../../adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0026](../../adrs/0026-fork-dispatch-opacity-two-invocation-paths.md), [ADR-0060](../../adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0084](../../adrs/0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md), [ADR-0100](../../adrs/0100-native-host-dispatch-is-authoritative-for-registered-docket.md), [ADR-0103](../../adrs/0103-enter-codex-coordinator-roles-through-app-server-root-thread.md), [ADR-0111](../../adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

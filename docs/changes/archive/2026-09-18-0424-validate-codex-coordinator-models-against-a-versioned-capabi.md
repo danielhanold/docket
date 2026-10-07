@@ -30,9 +30,9 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md) |
+| Spec | [2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md](../../superpowers/specs/2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md) |
 | Plan | [2026-09-17-validate-codex-coordinator-models-against-a-versioned-capabi.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-17-validate-codex-coordinator-models-against-a-versioned-capabi.md) |
-| ADRs | [ADR-0114](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
+| ADRs | [ADR-0114](../../adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

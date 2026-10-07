@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md) |
+| Spec | [2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md](../../superpowers/specs/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-design.md) |
 | Plan | [2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) |
 | Results | [2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-05-finalize-stops-on-a-private-repo-without-the-branch-rules-ap-results.md) |
-| ADRs | [ADR-0035](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0140](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0140-cleanup-finishes-a-worktree-removal-git-already-committed-to.md) |
+| ADRs | [ADR-0035](../../adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0140](../../adrs/0140-cleanup-finishes-a-worktree-removal-git-already-committed-to.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

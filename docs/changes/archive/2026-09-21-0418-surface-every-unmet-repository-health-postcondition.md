@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-20-surface-every-unmet-repository-health-postcondition-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-20-surface-every-unmet-repository-health-postcondition-design.md) |
+| Spec | [2026-09-20-surface-every-unmet-repository-health-postcondition-design.md](../../superpowers/specs/2026-09-20-surface-every-unmet-repository-health-postcondition-design.md) |
 | Plan | [2026-09-20-surface-every-unmet-repository-health-postcondition.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-20-surface-every-unmet-repository-health-postcondition.md) |
 | Results | [2026-09-20-surface-every-unmet-repository-health-postcondition-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-20-surface-every-unmet-repository-health-postcondition-results.md) |
-| ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0025](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0025-docket-worktrees-disable-git-hooks.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
+| ADRs | [ADR-0020](../../adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0025](../../adrs/0025-docket-worktrees-disable-git-hooks.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

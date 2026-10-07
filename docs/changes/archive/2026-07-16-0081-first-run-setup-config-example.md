@@ -25,9 +25,9 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-15-first-run-setup-config-example-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-first-run-setup-config-example-design.md) |
+| Spec | [2026-07-15-first-run-setup-config-example-design.md](../../superpowers/specs/2026-07-15-first-run-setup-config-example-design.md) |
 | Plan | [2026-07-15-first-run-setup-config-example.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-15-first-run-setup-config-example.md) |
-| ADRs | [ADR-0039](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0039-config-example-mirrors-wrapper-defaults.md) |
+| ADRs | [ADR-0039](../../adrs/0039-config-example-mirrors-wrapper-defaults.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

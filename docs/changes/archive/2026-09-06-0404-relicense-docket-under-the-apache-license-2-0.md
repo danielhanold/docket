@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-04-relicense-docket-under-the-apache-license-2-0-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-04-relicense-docket-under-the-apache-license-2-0-design.md) |
+| Spec | [2026-09-04-relicense-docket-under-the-apache-license-2-0-design.md](../../superpowers/specs/2026-09-04-relicense-docket-under-the-apache-license-2-0-design.md) |
 | Plan | [2026-09-04-relicense-docket-under-the-apache-license-2-0.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-04-relicense-docket-under-the-apache-license-2-0.md) |
 <!-- docket:artifacts:end -->
 

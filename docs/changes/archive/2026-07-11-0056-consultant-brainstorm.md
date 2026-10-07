@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-10-consultant-brainstorm-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-consultant-brainstorm-design.md) |
+| Spec | [2026-07-10-consultant-brainstorm-design.md](../../superpowers/specs/2026-07-10-consultant-brainstorm-design.md) |
 | Plan | [2026-07-11-consultant-brainstorm.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-11-consultant-brainstorm.md) |
 | Results | [2026-07-11-consultant-brainstorm-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-11-consultant-brainstorm-results.md) |
-| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0009](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0009-auto-groom-critic-isolation.md), [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0022](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0022-consultant-authored-brainstorm.md) |
+| ADRs | [ADR-0008](../../adrs/0008-agent-layer-generated-subagents.md), [ADR-0009](../../adrs/0009-auto-groom-critic-isolation.md), [ADR-0018](../../adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0022](../../adrs/0022-consultant-authored-brainstorm.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

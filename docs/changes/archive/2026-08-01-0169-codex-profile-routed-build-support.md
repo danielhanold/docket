@@ -28,10 +28,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-31-codex-profile-routed-build-support-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-codex-profile-routed-build-support-design.md) |
+| Spec | [2026-07-31-codex-profile-routed-build-support-design.md](../../superpowers/specs/2026-07-31-codex-profile-routed-build-support-design.md) |
 | Plan | [2026-07-31-codex-profile-routed-build-support.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-31-codex-profile-routed-build-support.md) |
 | Results | [2026-07-31-codex-profile-routed-build-support-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-31-codex-profile-routed-build-support-results.md) |
-| ADRs | [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0037](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0064](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md) |
+| ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0037](../../adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](../../adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md), [ADR-0063](../../adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0064](../../adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -22,9 +22,9 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-15-docket-subagent-model-effort-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-15-docket-subagent-model-effort-design.md) |
+| Spec | [2026-06-15-docket-subagent-model-effort-design.md](../../superpowers/specs/2026-06-15-docket-subagent-model-effort-design.md) |
 | Plan | [2026-06-16-docket-subagent-model-effort.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-16-docket-subagent-model-effort.md) |
-| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md) |
+| ADRs | [ADR-0008](../../adrs/0008-agent-layer-generated-subagents.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

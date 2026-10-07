@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md) |
+| Spec | [2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md](../../superpowers/specs/2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md) |
 | Plan | [2026-09-16-native-codex-acceptance-for-durable-review-evidence-plan.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-16-native-codex-acceptance-for-durable-review-evidence-plan.md) |
 <!-- docket:artifacts:end -->
 

@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md) |
+| Spec | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md](../../superpowers/specs/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-design.md) |
 | Plan | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names.md) |
 | Results | [2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-committed-ignore-invalid-hint-for-an-absent-gitignore-names-results.md) |
 <!-- docket:artifacts:end -->

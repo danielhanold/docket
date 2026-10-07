@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-08-multi-harness-agent-generation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-multi-harness-agent-generation-design.md) |
+| Spec | [2026-07-08-multi-harness-agent-generation-design.md](../../superpowers/specs/2026-07-08-multi-harness-agent-generation-design.md) |
 | Plan | [2026-07-08-multi-harness-agent-generation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-08-multi-harness-agent-generation.md) |
 | Results | [2026-07-08-multi-harness-agent-generation-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-08-multi-harness-agent-generation-results.md) |
-| ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md) |
+| ADRs | [ADR-0015](../../adrs/0015-harness-portable-agent-config.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -27,7 +27,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
+| Spec | [2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md](../../superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

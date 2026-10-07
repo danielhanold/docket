@@ -28,7 +28,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-01-bare-mv-prompts-on-a-tty-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-bare-mv-prompts-on-a-tty-design.md) |
+| Spec | [2026-08-01-bare-mv-prompts-on-a-tty-design.md](../../superpowers/specs/2026-08-01-bare-mv-prompts-on-a-tty-design.md) |
 | Plan | [2026-08-01-bare-mv-prompts-on-a-tty.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-01-bare-mv-prompts-on-a-tty.md) |
 | Results | [2026-08-01-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-01-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui-results.md) |
 <!-- docket:artifacts:end -->

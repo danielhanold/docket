@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-15-codex-runner-delegation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-codex-runner-delegation-design.md) |
+| Spec | [2026-07-15-codex-runner-delegation-design.md](../../superpowers/specs/2026-07-15-codex-runner-delegation-design.md) |
 | Plan | [2026-07-15-codex-runner-delegation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-15-codex-runner-delegation.md) |
 | Results | [2026-07-15-codex-runner-delegation-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-15-codex-runner-delegation-results.md) |
-| ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0037](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md) |
+| ADRs | [ADR-0015](../../adrs/0015-harness-portable-agent-config.md), [ADR-0037](../../adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](../../adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

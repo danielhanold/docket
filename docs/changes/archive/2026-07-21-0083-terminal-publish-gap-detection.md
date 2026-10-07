@@ -26,10 +26,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-18-terminal-publish-gap-detection-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-terminal-publish-gap-detection-design.md) |
+| Spec | [2026-07-18-terminal-publish-gap-detection-design.md](../../superpowers/specs/2026-07-18-terminal-publish-gap-detection-design.md) |
 | Plan | [2026-07-21-terminal-publish-gap-detection.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-21-terminal-publish-gap-detection.md) |
 | Results | [2026-07-21-terminal-publish-gap-detection-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-21-terminal-publish-gap-detection-results.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0051](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0051-publish-deferred-marker-not-branch-diff-detector.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0051](../../adrs/0051-publish-deferred-marker-not-branch-diff-detector.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

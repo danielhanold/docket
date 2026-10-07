@@ -30,9 +30,9 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-30-separate-build-and-finalize-test-configuration-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-30-separate-build-and-finalize-test-configuration-design.md) |
+| Spec | [2026-08-30-separate-build-and-finalize-test-configuration-design.md](../../superpowers/specs/2026-08-30-separate-build-and-finalize-test-configuration-design.md) |
 | Plan | [2026-08-31-separate-build-and-finalize-test-configuration.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-31-separate-build-and-finalize-test-configuration.md) |
-| ADRs | [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
+| ADRs | [ADR-0063](../../adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0074](../../adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0095](../../adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0102](../../adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

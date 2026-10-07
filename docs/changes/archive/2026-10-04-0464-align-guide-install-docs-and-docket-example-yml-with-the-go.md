@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md) |
+| Spec | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md](../../superpowers/specs/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-design.md) |
 | Plan | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go.md) |
 | Results | [2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-align-guide-install-docs-and-docket-example-yml-with-the-go-results.md) |
 <!-- docket:artifacts:end -->

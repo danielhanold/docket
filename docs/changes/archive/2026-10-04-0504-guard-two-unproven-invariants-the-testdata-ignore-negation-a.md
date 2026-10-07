@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md) |
+| Spec | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md](../../superpowers/specs/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-design.md) |
 | Plan | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a.md) |
 | Results | [2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-04-guard-two-unproven-invariants-the-testdata-ignore-negation-a-results.md) |
 <!-- docket:artifacts:end -->

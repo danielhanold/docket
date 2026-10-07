@@ -27,10 +27,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-design.md) |
+| Spec | [2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-design.md](../../superpowers/specs/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-design.md) |
 | Plan | [2026-07-22-truthful-git-errors-harness-neutral-escalation-retry.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry.md) |
 | Results | [2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-results.md) |
-| ADRs | [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0033](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0033-cursor-auto-run-trust-at-facade.md), [ADR-0037](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md) |
+| ADRs | [ADR-0029](../../adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0033](../../adrs/0033-cursor-auto-run-trust-at-facade.md), [ADR-0037](../../adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](../../adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

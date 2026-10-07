@@ -28,7 +28,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-07-normalize-the-inherit-model-sentinel-once-for-every-runner-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-normalize-the-inherit-model-sentinel-once-for-every-runner-a-design.md) |
+| Spec | [2026-08-07-normalize-the-inherit-model-sentinel-once-for-every-runner-a-design.md](../../superpowers/specs/2026-08-07-normalize-the-inherit-model-sentinel-once-for-every-runner-a-design.md) |
 | Plan | [2026-08-08-normalize-the-inherit-model-sentinel-once-for-every-runner-a.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-08-normalize-the-inherit-model-sentinel-once-for-every-runner-a.md) |
 | Results | [2026-08-08-normalize-the-inherit-model-sentinel-once-for-every-runner-a-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-08-normalize-the-inherit-model-sentinel-once-for-every-runner-a-results.md) |
 <!-- docket:artifacts:end -->

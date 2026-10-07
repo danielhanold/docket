@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-design.md) |
+| Spec | [2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-design.md](../../superpowers/specs/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-design.md) |
 | Plan | [2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can.md) |
 | Results | [2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-03-drop-final-claimed-at-is-reported-repairable-but-nothing-can-results.md) |
-| ADRs | [ADR-0136](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0136-repair-on-a-migrated-repository-is-docket-repository-repair.md) |
+| ADRs | [ADR-0136](../../adrs/0136-repair-on-a-migrated-repository-is-docket-repository-repair.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

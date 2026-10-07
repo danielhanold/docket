@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-16-autonomous-finalize-merge-authorization-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-autonomous-finalize-merge-authorization-design.md) |
+| Spec | [2026-07-16-autonomous-finalize-merge-authorization-design.md](../../superpowers/specs/2026-07-16-autonomous-finalize-merge-authorization-design.md) |
 | Plan | [2026-07-16-autonomous-finalize-merge-authorization.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-16-autonomous-finalize-merge-authorization.md) |
 | Results | [2026-07-16-autonomous-finalize-merge-authorization-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-16-autonomous-finalize-merge-authorization-results.md) |
-| ADRs | [ADR-0011](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0011-finalize-consent-model.md), [ADR-0042](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0042-auto-approve-consent-model.md) |
+| ADRs | [ADR-0011](../../adrs/0011-finalize-consent-model.md), [ADR-0042](../../adrs/0042-auto-approve-consent-model.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

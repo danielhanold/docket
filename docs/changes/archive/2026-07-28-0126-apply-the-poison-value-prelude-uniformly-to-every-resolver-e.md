@@ -28,7 +28,7 @@ type: chore
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-27-poison-prelude-uniformity-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-27-poison-prelude-uniformity-design.md) |
+| Spec | [2026-07-27-poison-prelude-uniformity-design.md](../../superpowers/specs/2026-07-27-poison-prelude-uniformity-design.md) |
 | Plan | [2026-07-28-poison-prelude-uniformity.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-28-poison-prelude-uniformity.md) |
 | Results | [2026-07-28-apply-the-poison-value-prelude-uniformly-to-every-resolver-e-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-28-apply-the-poison-value-prelude-uniformly-to-every-resolver-e-results.md) |
 <!-- docket:artifacts:end -->

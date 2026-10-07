@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-16-native-codex-acceptance-for-active-worker-validation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-native-codex-acceptance-for-active-worker-validation-design.md) |
+| Spec | [2026-09-16-native-codex-acceptance-for-active-worker-validation-design.md](../../superpowers/specs/2026-09-16-native-codex-acceptance-for-active-worker-validation-design.md) |
 | Plan | [2026-09-16-native-codex-acceptance-for-active-worker-validation-plan.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-16-native-codex-acceptance-for-active-worker-validation-plan.md) |
 | Results | [2026-09-16-native-codex-acceptance-for-active-worker-validation-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-16-native-codex-acceptance-for-active-worker-validation-results.md) |
 <!-- docket:artifacts:end -->

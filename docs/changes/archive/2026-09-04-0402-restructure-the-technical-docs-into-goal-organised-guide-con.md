@@ -30,9 +30,9 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-03-restructure-the-technical-docs-into-goal-organised-guide-con-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-03-restructure-the-technical-docs-into-goal-organised-guide-con-design.md) |
+| Spec | [2026-09-03-restructure-the-technical-docs-into-goal-organised-guide-con-design.md](../../superpowers/specs/2026-09-03-restructure-the-technical-docs-into-goal-organised-guide-con-design.md) |
 | Plan | [2026-09-03-restructure-docs-into-three-tiers.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-03-restructure-docs-into-three-tiers.md) |
-| ADRs | [ADR-0053](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0053-readme-yaml-fences-guarded-by-default-opt-out-marker-grammar.md), [ADR-0054](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0054-cross-reference-anchor-style.md) |
+| ADRs | [ADR-0053](../../adrs/0053-readme-yaml-fences-guarded-by-default-opt-out-marker-grammar.md), [ADR-0054](../../adrs/0054-cross-reference-anchor-style.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -29,10 +29,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-18-resume-halted-preallocation-recovery-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-resume-halted-preallocation-recovery-design.md) |
+| Spec | [2026-09-18-resume-halted-preallocation-recovery-design.md](../../superpowers/specs/2026-09-18-resume-halted-preallocation-recovery-design.md) |
 | Plan | [2026-09-18-resume-halted-preallocation-recovery.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-18-resume-halted-preallocation-recovery.md) |
 | Results | [2026-09-18-resume-halted-preallocation-recovery-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-18-resume-halted-preallocation-recovery-results.md) |
-| ADRs | [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0035](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
+| ADRs | [ADR-0034](../../adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0035](../../adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0118](../../adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

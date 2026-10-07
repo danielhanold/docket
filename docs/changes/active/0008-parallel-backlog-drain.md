@@ -22,7 +22,7 @@ type: feat
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md) |
+| ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

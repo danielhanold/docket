@@ -27,8 +27,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-28-config-read-channel-guard-widening-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-28-config-read-channel-guard-widening-design.md) |
-| ADRs | [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
+| Spec | [2026-07-28-config-read-channel-guard-widening-design.md](../../superpowers/specs/2026-07-28-config-read-channel-guard-widening-design.md) |
+| ADRs | [ADR-0052](../../adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

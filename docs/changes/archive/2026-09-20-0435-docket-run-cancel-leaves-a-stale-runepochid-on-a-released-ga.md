@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md) |
+| Spec | [2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md](../../superpowers/specs/2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md) |
 | Plan | [2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) |
 | Results | [2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-results.md) |
 <!-- docket:artifacts:end -->

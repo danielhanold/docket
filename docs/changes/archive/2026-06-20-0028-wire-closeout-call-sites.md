@@ -22,8 +22,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-19-wire-closeout-call-sites-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-19-wire-closeout-call-sites-design.md) |
-| ADRs | [ADR-0007](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0007-github-board-mirror-boundary.md) |
+| Spec | [2026-06-19-wire-closeout-call-sites-design.md](../../superpowers/specs/2026-06-19-wire-closeout-call-sites-design.md) |
+| ADRs | [ADR-0007](../../adrs/0007-github-board-mirror-boundary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

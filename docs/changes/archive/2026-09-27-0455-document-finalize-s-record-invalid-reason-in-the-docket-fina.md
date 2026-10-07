@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-design.md) |
+| Spec | [2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-design.md](../../superpowers/specs/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-design.md) |
 | Plan | [2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) |
 | Results | [2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-results.md) |
-| ADRs | [ADR-0127](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0127-scoped-metadata-validation-for-named-operations.md) |
+| ADRs | [ADR-0127](../../adrs/0127-scoped-metadata-validation-for-named-operations.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

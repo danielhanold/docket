@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first-design.md) |
+| Spec | [2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first-design.md](../../superpowers/specs/2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first-design.md) |
 | Plan | [2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) |
 | Results | [2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first-results.md) |
-| ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0125](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md) |
+| ADRs | [ADR-0087](../../adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](../../adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](../../adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](../../adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0124](../../adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0125](../../adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

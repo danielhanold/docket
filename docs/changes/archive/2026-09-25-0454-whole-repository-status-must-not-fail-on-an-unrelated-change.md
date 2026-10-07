@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-design.md) |
+| Spec | [2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-design.md](../../superpowers/specs/2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-design.md) |
 | Plan | [2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change.md) |
 | Results | [2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-results.md) |
-| ADRs | [ADR-0127](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0127-scoped-metadata-validation-for-named-operations.md) |
+| ADRs | [ADR-0127](../../adrs/0127-scoped-metadata-validation-for-named-operations.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

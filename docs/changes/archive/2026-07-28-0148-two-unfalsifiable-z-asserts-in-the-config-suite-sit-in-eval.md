@@ -27,7 +27,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-28-unfalsifiable-runtime-asserts-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-28-unfalsifiable-runtime-asserts-design.md) |
+| Spec | [2026-07-28-unfalsifiable-runtime-asserts-design.md](../../superpowers/specs/2026-07-28-unfalsifiable-runtime-asserts-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

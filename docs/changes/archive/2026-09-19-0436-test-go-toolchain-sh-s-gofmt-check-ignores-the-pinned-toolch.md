@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md) |
+| Spec | [2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md](../../superpowers/specs/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md) |
 | Plan | [2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md) |
 | Results | [2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-results.md) |
-| ADRs | [ADR-0050](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
+| ADRs | [ADR-0050](../../adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0108](../../adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

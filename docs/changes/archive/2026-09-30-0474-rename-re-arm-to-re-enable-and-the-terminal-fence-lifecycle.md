@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-design.md) |
+| Spec | [2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-design.md](../../superpowers/specs/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-design.md) |
 | Plan | [2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) |
 | Results | [2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-results.md) |
-| ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
+| ADRs | [ADR-0129](../../adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

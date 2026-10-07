@@ -29,7 +29,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-22-gate-observe-json-convergence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-22-gate-observe-json-convergence-design.md) |
+| Spec | [2026-08-22-gate-observe-json-convergence-design.md](../../superpowers/specs/2026-08-22-gate-observe-json-convergence-design.md) |
 | Plan | [2026-08-23-gate-observe-json-convergence.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-23-gate-observe-json-convergence.md) |
 <!-- docket:artifacts:end -->
 

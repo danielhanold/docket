@@ -30,7 +30,7 @@ reconciled: true
 |---|---|
 | Plan | [2026-08-02-default-build-review-roles-to-docket-owned-skills.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-02-default-build-review-roles-to-docket-owned-skills.md) |
 | Results | [2026-08-02-default-build-review-roles-to-docket-owned-skills-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-02-default-build-review-roles-to-docket-owned-skills-results.md) |
-| ADRs | [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) |
+| ADRs | [ADR-0063](../../adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0066](../../adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

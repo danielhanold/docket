@@ -27,7 +27,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-07-config-reader-consolidation-one-extractor-or-a-recorded-adr-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-config-reader-consolidation-one-extractor-or-a-recorded-adr-design.md) |
+| Spec | [2026-08-07-config-reader-consolidation-one-extractor-or-a-recorded-adr-design.md](../../superpowers/specs/2026-08-07-config-reader-consolidation-one-extractor-or-a-recorded-adr-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

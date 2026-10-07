@@ -25,10 +25,10 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-13-board-surfaces-unset-vs-empty-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-board-surfaces-unset-vs-empty-design.md) |
+| Spec | [2026-07-13-board-surfaces-unset-vs-empty-design.md](../../superpowers/specs/2026-07-13-board-surfaces-unset-vs-empty-design.md) |
 | Plan | [2026-07-14-board-surfaces-unset-vs-empty.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-14-board-surfaces-unset-vs-empty.md) |
 | Results | [2026-07-14-board-surfaces-unset-vs-empty-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-14-board-surfaces-unset-vs-empty-results.md) |
-| ADRs | [ADR-0028](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0028-report-channel-is-not-a-board-surface.md), [ADR-0032](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0032-positive-off-state-empty-is-a-wiring-bug.md) |
+| ADRs | [ADR-0028](../../adrs/0028-report-channel-is-not-a-board-surface.md), [ADR-0032](../../adrs/0032-positive-off-state-empty-is-a-wiring-bug.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

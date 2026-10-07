@@ -25,7 +25,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-07-17-discovered-from-provenance-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-discovered-from-provenance-design.md) |
+| Spec | [2026-07-17-discovered-from-provenance-design.md](../../superpowers/specs/2026-07-17-discovered-from-provenance-design.md) |
 | Plan | [2026-07-17-discovered-from-provenance.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-17-discovered-from-provenance.md) |
 <!-- docket:artifacts:end -->
 

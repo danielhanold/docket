@@ -29,7 +29,7 @@ reconciled: true
 |---|---|
 | Plan | [2026-07-20-rename-docket-yml-example-to-docket-example-yml.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-20-rename-docket-yml-example-to-docket-example-yml.md) |
 | Results | [2026-07-20-rename-docket-yml-example-to-docket-example-yml-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-20-rename-docket-yml-example-to-docket-example-yml-results.md) |
-| ADRs | [ADR-0048](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0048-docket-yml-example-invariants.md) |
+| ADRs | [ADR-0048](../../adrs/0048-docket-yml-example-invariants.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

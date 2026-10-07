@@ -29,9 +29,9 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-24-resumable-native-gate-driver-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-resumable-native-gate-driver-design.md) |
+| Spec | [2026-08-24-resumable-native-gate-driver-design.md](../../superpowers/specs/2026-08-24-resumable-native-gate-driver-design.md) |
 | Plan | [2026-08-24-resumable-native-gate-driver.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-24-resumable-native-gate-driver.md) |
-| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0098](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0098-structured-gate-waiting-and-ownership-handoff.md) |
+| ADRs | [ADR-0024](../../adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0095](../../adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0098](../../adrs/0098-structured-gate-waiting-and-ownership-handoff.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

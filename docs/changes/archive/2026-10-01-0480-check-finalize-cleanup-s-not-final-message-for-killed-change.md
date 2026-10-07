@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md) |
+| Spec | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md](../../superpowers/specs/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-design.md) |
 | Plan | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change.md) |
 | Results | [2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-01-check-finalize-cleanup-s-not-final-message-for-killed-change-results.md) |
 <!-- docket:artifacts:end -->

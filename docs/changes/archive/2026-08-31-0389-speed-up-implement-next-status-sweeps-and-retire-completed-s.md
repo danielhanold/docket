@@ -30,9 +30,9 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s-design.md) |
+| Spec | [2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s-design.md](../../superpowers/specs/2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s-design.md) |
 | Plan | [2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s.md) |
-| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0101](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md) |
+| ADRs | [ADR-0012](../../adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0024](../../adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0101](../../adrs/0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

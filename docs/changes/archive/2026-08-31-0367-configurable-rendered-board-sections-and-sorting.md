@@ -29,9 +29,9 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-29-configurable-rendered-board-sections-and-sorting-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-29-configurable-rendered-board-sections-and-sorting-design.md) |
+| Spec | [2026-08-29-configurable-rendered-board-sections-and-sorting-design.md](../../superpowers/specs/2026-08-29-configurable-rendered-board-sections-and-sorting-design.md) |
 | Plan | [2026-08-31-configurable-rendered-board-sections-and-sorting.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-31-configurable-rendered-board-sections-and-sorting.md) |
-| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
+| ADRs | [ADR-0012](../../adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0052](../../adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

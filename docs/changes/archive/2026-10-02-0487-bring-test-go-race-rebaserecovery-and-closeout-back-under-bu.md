@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md) |
+| Spec | [2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md](../../superpowers/specs/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-design.md) |
 | Plan | [2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-01-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu.md) |
 | Results | [2026-10-02-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-02-bring-test-go-race-rebaserecovery-and-closeout-back-under-bu-results.md) |
-| ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md), [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
+| ADRs | [ADR-0108](../../adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md), [ADR-0129](../../adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

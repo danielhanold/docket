@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md) |
+| Spec | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md](../../superpowers/specs/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md) |
 | Plan | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) |
 | Results | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-results.md) |
-| ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) |
+| ADRs | [ADR-0111](../../adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

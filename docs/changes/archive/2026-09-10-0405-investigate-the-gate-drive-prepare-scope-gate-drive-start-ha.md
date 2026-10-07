@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-design.md) |
+| Spec | [2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-design.md](../../superpowers/specs/2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-design.md) |
 | Plan | [2026-09-10-sequential-test-drives-within-one-worker-recovery-scope.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-10-sequential-test-drives-within-one-worker-recovery-scope.md) |
 | Results | [2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-results.md) |
-| ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0117](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md) |
+| ADRs | [ADR-0107](../../adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0117](../../adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

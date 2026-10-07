@@ -30,7 +30,7 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg-design.md) |
+| Spec | [2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg-design.md](../../superpowers/specs/2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg-design.md) |
 | Plan | [2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) |
 | Results | [2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-10-05-repository-check-reports-a-behind-only-docket-copy-as-diverg-results.md) |
 <!-- docket:artifacts:end -->

@@ -26,7 +26,7 @@ type: chore
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md) |
+| ADRs | [ADR-0010](../../adrs/0010-finalize-merge-gate-split-agents.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

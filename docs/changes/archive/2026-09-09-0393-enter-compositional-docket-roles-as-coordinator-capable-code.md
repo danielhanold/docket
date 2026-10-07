@@ -30,10 +30,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-01-enter-compositional-docket-roles-as-coordinator-capable-code-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-01-enter-compositional-docket-roles-as-coordinator-capable-code-design.md) |
+| Spec | [2026-09-01-enter-compositional-docket-roles-as-coordinator-capable-code-design.md](../../superpowers/specs/2026-09-01-enter-compositional-docket-roles-as-coordinator-capable-code-design.md) |
 | Plan | [2026-09-01-coordinator-capable-codex-root-entry.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-01-coordinator-capable-codex-root-entry.md) |
 | Results | [2026-09-07-enter-compositional-docket-roles-as-coordinator-capable-code-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-07-enter-compositional-docket-roles-as-coordinator-capable-code-results.md) |
-| ADRs | [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0094](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md), [ADR-0103](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0103-enter-codex-coordinator-roles-through-app-server-root-thread.md), [ADR-0114](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
+| ADRs | [ADR-0036](../../adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0059](../../adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0060](../../adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0094](../../adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md), [ADR-0103](../../adrs/0103-enter-codex-coordinator-roles-through-app-server-root-thread.md), [ADR-0114](../../adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

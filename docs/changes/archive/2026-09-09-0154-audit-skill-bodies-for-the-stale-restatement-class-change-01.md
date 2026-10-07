@@ -28,10 +28,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
+| Spec | [2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md](../../superpowers/specs/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 | Plan | [2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) |
 | Results | [2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-results.md) |
-| ADRs | [ADR-0003](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0003-convention-reference-loading.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0054](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0054-cross-reference-anchor-style.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md), [ADR-0109](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md) |
+| ADRs | [ADR-0003](../../adrs/0003-convention-reference-loading.md), [ADR-0012](../../adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0054](../../adrs/0054-cross-reference-anchor-style.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0104](../../adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md), [ADR-0109](../../adrs/0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
