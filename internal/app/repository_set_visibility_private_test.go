@@ -53,7 +53,7 @@ func TestDisownWorkingTreeSurfaces(t *testing.T) {
 	dir := testsupport.TempDir(t)
 
 	t.Run("absent record", func(t *testing.T) {
-		changed, err := disownWorkingTreeSurfaces(filepath.Join(dir, "absent", "install.json"))
+		changed, err := disownWorkingTreeSurfaces(filepath.Join(dir, "absent", "install.json"), nil)
 		if err != nil || changed {
 			t.Fatalf("disownWorkingTreeSurfaces = (%v, %v), want (false, nil)", changed, err)
 		}
@@ -62,7 +62,7 @@ func TestDisownWorkingTreeSurfaces(t *testing.T) {
 	t.Run("keeps the git-dir surface", func(t *testing.T) {
 		path := filepath.Join(dir, "mixed", "install.json")
 		writeTestRecord(t, path, "AGENTS.md", ".git/dckt/AGENTS.md")
-		changed, err := disownWorkingTreeSurfaces(path)
+		changed, err := disownWorkingTreeSurfaces(path, map[string]bool{"AGENTS.md": true})
 		if err != nil || !changed {
 			t.Fatalf("disownWorkingTreeSurfaces = (%v, %v), want (true, nil)", changed, err)
 		}
@@ -73,7 +73,7 @@ func TestDisownWorkingTreeSurfaces(t *testing.T) {
 		if len(rec.Surfaces) != 1 || rec.Surfaces[0].Path != ".git/dckt/AGENTS.md" {
 			t.Errorf("surfaces = %+v, want only .git/dckt/AGENTS.md", rec.Surfaces)
 		}
-		if changed, err := disownWorkingTreeSurfaces(path); err != nil || changed {
+		if changed, err := disownWorkingTreeSurfaces(path, map[string]bool{"AGENTS.md": true}); err != nil || changed {
 			t.Errorf("second call = (%v, %v), want (false, nil)", changed, err)
 		}
 	})
@@ -81,12 +81,28 @@ func TestDisownWorkingTreeSurfaces(t *testing.T) {
 	t.Run("removes an emptied record", func(t *testing.T) {
 		path := filepath.Join(dir, "shared", "install.json")
 		writeTestRecord(t, path, "AGENTS.md", "CLAUDE.md")
-		changed, err := disownWorkingTreeSurfaces(path)
+		changed, err := disownWorkingTreeSurfaces(path, map[string]bool{"AGENTS.md": true, "CLAUDE.md": true})
 		if err != nil || !changed {
 			t.Fatalf("disownWorkingTreeSurfaces = (%v, %v), want (true, nil)", changed, err)
 		}
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Errorf("the emptied record is still present (stat err %v)", err)
+		}
+	})
+
+	t.Run("keeps an untracked working-tree surface owned", func(t *testing.T) {
+		path := filepath.Join(dir, "ignored", "install.json")
+		writeTestRecord(t, path, "AGENTS.md", cursorRuleRel)
+		changed, err := disownWorkingTreeSurfaces(path, map[string]bool{"AGENTS.md": true})
+		if err != nil || !changed {
+			t.Fatalf("disownWorkingTreeSurfaces = (%v, %v), want (true, nil)", changed, err)
+		}
+		rec, err := reposeed.LoadRecord(path)
+		if err != nil || rec == nil {
+			t.Fatalf("LoadRecord = (%v, %v)", rec, err)
+		}
+		if len(rec.Surfaces) != 1 || rec.Surfaces[0].Path != cursorRuleRel {
+			t.Errorf("surfaces = %+v, want only %s, which no commit tracks", rec.Surfaces, cursorRuleRel)
 		}
 	})
 }

@@ -551,6 +551,36 @@ func TestIntegrationRepoVisibilityPrivateRemoveSharedFilesLater(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoVisibilityPrivateRetiresIgnoredCursorRule proves going
+// private with cursor opted in retires the generated Cursor dispatch rule,
+// which shared mode ignores rather than commits, so stripping the managed
+// .gitignore block leaves no untracked docket-named file behind.
+func TestIntegrationRepoVisibilityPrivateRetiresIgnoredCursorRule(t *testing.T) {
+	data := testsupport.TempDir(t)
+	t.Setenv("XDG_DATA_HOME", data)
+	r := newInitRepo(t, defaultSetupYML+"agent_harnesses: [codex, cursor]\n", nil)
+	if res := r.runInitWith(t, InitOptions{}); res.Result != ResultApplied {
+		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	commitAndPushAll(t, r.invocation, "commit the docket setup")
+	const cursorRule = ".cursor/rules/docket-dispatch.mdc"
+	if _, err := os.Stat(filepath.Join(r.invocation, cursorRule)); err != nil {
+		t.Fatalf("the Cursor dispatch rule is not installed: %v", err)
+	}
+	if _, err := tryGit(r.invocation, "cat-file", "-e", "HEAD:"+cursorRule); err == nil {
+		t.Fatal("the fixture committed the Cursor dispatch rule; it must be ignored")
+	}
+
+	res := r.switchVisibility(t, SetVisibilityOptions{Target: "private", RemoveSharedFiles: true})
+	requireSwitchApplied(t, res, "private")
+	if _, err := os.Lstat(filepath.Join(r.invocation, cursorRule)); !os.IsNotExist(err) {
+		t.Errorf("the Cursor dispatch rule is still present (lstat err %v)", err)
+	}
+	if out := runGit(t, r.invocation, "status", "--porcelain", "--untracked-files=all"); out != "" {
+		t.Errorf("the working tree is not clean after the switch:\n%s", out)
+	}
+}
+
 // TestIntegrationRepoVisibilityPrivateRefusesForeignBareRemote proves a dckt
 // branch in the default store that is unrelated to origin's docket branch
 // refuses the publish, naming both tips, before the state folder moves.
