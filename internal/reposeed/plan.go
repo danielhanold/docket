@@ -197,6 +197,14 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 	return targets, owners, nil
 }
 
+// SurfacePaths lists, sorted, every repository-relative path Plan can emit for
+// any harness selection and CLAUDE.md state — the working-tree surfaces a
+// shared repository may commit. TestSurfacePathsCoverPlan derives the set from
+// Plan itself, so a new surface cannot be missed here.
+func SurfacePaths() []string {
+	return []string{cursorRuleRel, agentsMDName, claudeMDName}
+}
+
 // selectHarnesses validates the opt-in tokens and returns them as a set. An
 // unknown token is an error (defense in depth; see the harness constants).
 func selectHarnesses(tokens []string) (map[string]bool, error) {

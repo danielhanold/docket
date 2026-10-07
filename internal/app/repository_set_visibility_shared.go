@@ -74,7 +74,25 @@ func splitSharedConfig(st visibilityState, pc pendingPrivateConfig) (committed, 
 		return nil, nil, privateRefusal(reposetup.StateNeedsReview,
 			"the .docket.yml split from "+pc.path+" does not resolve: "+err.Error()+"; fix the private configuration by hand, then re-run")
 	}
+	if committed, err = keepOnDiskCommitted(st.primary, committed); err != nil {
+		return nil, nil, err
+	}
 	return committed, local, nil
+}
+
+// keepOnDiskCommitted returns the .docket.yml already in the primary checkout
+// when it declares exactly the leaves the split does, so a round trip keeps a
+// hand-formatted file byte for byte; otherwise it returns the split. An
+// on-disk file that does not parse is replaced by the split.
+func keepOnDiskCommitted(primary string, committed []byte) ([]byte, error) {
+	onDisk, ok, err := readOptionalFile(filepath.Join(primary, docketYMLRel))
+	if err != nil || !ok {
+		return committed, err
+	}
+	if same, serr := reposetup.SameConfigLeaves(onDisk, committed); serr == nil && same {
+		return onDisk, nil
+	}
+	return committed, nil
 }
 
 // identityKeysRemedy is the stop-and-push remedy of the identity-keys phase.
@@ -86,8 +104,9 @@ func identityKeysRemedy(st visibilityState) string {
 // sharedIdentityKeysPhase commits .docket.yml carrying the repository-identity
 // keys the private config sets, then stops the run: nothing is published until
 // origin's default branch carries those values, so no workflow ever runs on
-// defaults. When HEAD already carries them it refuses with the same remedy and
-// makes no second commit.
+// defaults. The stop is a needs-review refusal carrying that remedy, never an
+// applied result. When HEAD already carries them it refuses with the same
+// remedy and makes no second commit.
 func sharedIdentityKeysPhase(ctx context.Context, x *visibilityRun) error {
 	git, repo, st := x.d.Git, x.st.sc.repo, x.st
 	pc, err := readPendingPrivateConfig(st)
@@ -135,8 +154,8 @@ func sharedIdentityKeysPhase(ctx context.Context, x *visibilityRun) error {
 	if err := commitSharedJournal(ctx, x, cs); err != nil {
 		return err
 	}
-	x.res.PendingLocal = append(x.res.PendingLocal, identityKeysRemedy(st))
-	x.stop = true
+	x.stop = privateRefusal(reposetup.StateNeedsReview,
+		"committed the repository identity keys to .docket.yml; "+identityKeysRemedy(st))
 	return nil
 }
 

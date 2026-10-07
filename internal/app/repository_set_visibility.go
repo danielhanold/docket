@@ -133,14 +133,16 @@ type visibilityStep struct {
 }
 
 // visibilityRun is what an executing phase reads and reports into. An
-// executor sets stop to end the run successfully after its phase, leaving the
-// later phases pending for a re-run.
+// executor sets stop to end the run after its phase (recorded applied, its
+// afterVisibilityPhase seam fired) with that error, leaving the later phases
+// pending for a re-run: the run never reports applied while the switch is
+// incomplete.
 type visibilityRun struct {
 	d    SetupDeps
 	o    SetVisibilityOptions
 	st   visibilityState
 	res  *RepositorySetVisibilityResult
-	stop bool
+	stop error
 }
 
 // markPhase sets the status (and, when non-empty, the detail) of the named
@@ -228,8 +230,16 @@ func RunRepositorySetVisibility(ctx context.Context, d SetupDeps, o SetVisibilit
 
 	// 7. Plan; refuse the user's own edits to a path a pending commit holds.
 	steps := planVisibility(st, o)
+	commitPlan, err := planVisibilityCommit(ctx, d.Git, st, o, steps)
+	if err != nil {
+		var ref *visibilityRefusal
+		if errors.As(err, &ref) {
+			return visibilityRefusalResult(o.Target, current, ref.state, ref.msg)
+		}
+		return visibilityExternalFailure(o.Target, current, reposetup.StateUnknown, "planning the integration-branch commit", err)
+	}
 	if visibilityCommitsPending(steps) {
-		conflicts, err := commitPathConflicts(ctx, d.Git, st.sc.repo, st.common, visibilityCommitPaths)
+		conflicts, err := commitPathConflicts(ctx, d.Git, st.sc.repo, st.common, commitPlan.guard)
 		if err != nil {
 			return visibilityExternalFailure(o.Target, current, reposetup.StateUnknown, "checking the integration-branch paths", err)
 		}
@@ -246,7 +256,7 @@ func RunRepositorySetVisibility(ctx context.Context, d SetupDeps, o SetVisibilit
 		Target:         o.Target,
 		SourceRevision: pin,
 		Phases:         visibilityPhaseRows(steps),
-		Commits:        visibilityPlannedCommits(st, o, steps),
+		Commits:        visibilityPlannedCommits(st, o, steps, commitPlan),
 		Warnings:       visibilityWarnings(ctx, d, st, o),
 		PendingLocal:   debris.pending(),
 	}
@@ -347,15 +357,20 @@ func visibilitySetupRefusal(ctx context.Context, git *gitcli.Client, facts repos
 	// A second clone whose origin branch is gone and whose dckt remote is not
 	// configured yet is still set up when another clone on this machine
 	// published the history to the default store. An origin URL that names no
-	// store means no store can exist.
+	// store means no store can exist; any other failure to locate the store
+	// (origin's URL or the data home unreadable) leaves it unknown.
 	storeHeld := false
 	if oerr == nil && origin.State != gitcli.RemoteRefFound && uerr != nil && isRemoteUnconfigured(uerr) {
-		if priv, perr := privateLayoutOf(ctx, git, sc.repo); perr == nil {
+		priv, perr := privateLayoutOf(ctx, git, sc.repo)
+		switch {
+		case perr == nil:
 			ref, serr := defaultStoreTip(ctx, git, priv)
 			if serr != nil {
 				unknown = append(unknown, "private-store")
 			}
 			storeHeld = ref.State == gitcli.RemoteRefFound
+		case !originNamesNoStore(ctx, git, sc.repo):
+			unknown = append(unknown, "private-store")
 		}
 	}
 	current := string(sc.layout.Mode)
@@ -375,6 +390,17 @@ func visibilitySetupRefusal(ctx context.Context, git *gitcli.Client, facts repos
 		return &r
 	}
 	return nil
+}
+
+// originNamesNoStore reports whether origin's URL reads but names no store
+// (layout.OwnerRepo cannot derive one from it).
+func originNamesNoStore(ctx context.Context, git *gitcli.Client, repo gitcli.Repository) bool {
+	url, err := git.RemoteURL(ctx, repo, originRemote)
+	if err != nil {
+		return false
+	}
+	_, err = layout.OwnerRepo(url)
+	return err != nil
 }
 
 // planVisibility returns the target direction's phases.
@@ -638,8 +664,8 @@ func runVisibilitySteps(ctx context.Context, x *visibilityRun, steps []visibilit
 		}); err != nil {
 			return err
 		}
-		if x.stop {
-			return nil
+		if x.stop != nil {
+			return x.stop
 		}
 	}
 	return nil
@@ -679,24 +705,17 @@ func visibilityPhaseRows(steps []visibilityStep) []VisibilityPhase {
 }
 
 // visibilityPlannedCommits is the planned commit row when a pending step
-// commits: the fixed subject, the primary checkout's branch, and the paths with
-// what happens to each.
-func visibilityPlannedCommits(st visibilityState, o SetVisibilityOptions, steps []visibilityStep) []VisibilityCommit {
+// commits: the fixed subject, the primary checkout's branch, and the paths the
+// commit changes with what happens to each (planVisibilityCommit).
+func visibilityPlannedCommits(st visibilityState, o SetVisibilityOptions, steps []visibilityStep, plan visibilityCommitPlan) []VisibilityCommit {
 	if !visibilityCommitsPending(steps) {
 		return nil
 	}
-	subject, paths := visibilityAddSubject, []string{".docket.yml (write)", ".gitignore (write)", "the dispatch instructions agent_harnesses names (write)"}
+	subject := visibilityAddSubject
 	if o.Target == string(layout.Private) {
-		subject, paths = visibilityRemoveSubject, nil
-		for _, p := range st.headPresentCommitPaths {
-			action := "write"
-			if p == ".docket.yml" || p == ".cursor/rules/docket-dispatch.mdc" {
-				action = "delete"
-			}
-			paths = append(paths, p+" ("+action+")")
-		}
+		subject = visibilityRemoveSubject
 	}
-	return []VisibilityCommit{{Subject: subject, Branch: st.primaryBranch, Paths: paths, Status: visibilityCommitPlanned}}
+	return []VisibilityCommit{{Subject: subject, Branch: st.primaryBranch, Paths: plan.rows, Status: visibilityCommitPlanned}}
 }
 
 // visibilityPreviewText renders the confirmation preview.
@@ -792,6 +811,9 @@ func visibilityStopped(res RepositorySetVisibilityResult, err error) RepositoryS
 	b.WriteString(res.human + "\n")
 	for _, p := range res.Phases {
 		fmt.Fprintf(&b, "  [%s] %s\n", p.Status, p.Name)
+	}
+	for _, c := range res.Commits {
+		fmt.Fprintf(&b, "  commit %s on %s: %s (%s)\n", c.Commit, c.Branch, c.Subject, c.Status)
 	}
 	if res.Lessons != "" {
 		// The private instructions file is already gone: report its lessons

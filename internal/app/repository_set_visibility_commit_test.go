@@ -1,6 +1,8 @@
 package app
 
 import (
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -50,5 +52,44 @@ func TestVisibilityJournalReplacesEmptyOtherSubject(t *testing.T) {
 	}
 	if err := recordSwitchDigest(common, visibilityAddSubject, ".gitignore", digestDeleted); err == nil {
 		t.Error("recording over a removal journal holding a path succeeded, want a refusal")
+	}
+}
+
+// TestKeepOnDiskCommittedKeepsHandFormatting proves going shared keeps a
+// hand-formatted .docket.yml byte for byte when it already declares the
+// split's leaves, and takes the split when a leaf differs, the file is absent,
+// or the file does not parse.
+func TestKeepOnDiskCommittedKeepsHandFormatting(t *testing.T) {
+	split := []byte("visibility: shared\nintegration_branch: main\nbuild:\n  test_command: make\n")
+	cases := []struct {
+		name   string
+		onDisk string // "" = absent
+		keep   bool
+	}{
+		{"same leaves", "# mine\nbuild: {test_command: make}   # fast\nintegration_branch: 'main'\nvisibility: shared\n", true},
+		{"a leaf differs", "build: {test_command: make all}\nintegration_branch: main\nvisibility: shared\n", false},
+		{"absent", "", false},
+		{"unparsable", "build: [unclosed\n", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			primary := testsupport.TempDir(t)
+			if c.onDisk != "" {
+				if err := os.WriteFile(filepath.Join(primary, docketYMLRel), []byte(c.onDisk), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := keepOnDiskCommitted(primary, split)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := string(split)
+			if c.keep {
+				want = c.onDisk
+			}
+			if string(got) != want {
+				t.Errorf("keepOnDiskCommitted = %q, want %q", got, want)
+			}
+		})
 	}
 }

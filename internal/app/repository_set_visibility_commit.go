@@ -14,8 +14,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/install"
 	"github.com/danielhanold/docket/internal/layout"
+	"github.com/danielhanold/docket/internal/reposeed"
+	"github.com/danielhanold/docket/internal/reposetup"
 )
 
 // The two fixed subjects of every integration-branch commit a visibility switch
@@ -26,8 +30,10 @@ const (
 	visibilityAddSubject    = "Add docket configurations to repository"
 )
 
-// visibilityCommitPaths are the integration-branch paths a switch may commit.
-var visibilityCommitPaths = []string{".docket.yml", ".gitignore", "AGENTS.md", "CLAUDE.md", ".cursor/rules/docket-dispatch.mdc"}
+// visibilityCommitPaths are the integration-branch paths a switch may commit:
+// the committed config, the managed .gitignore block, and every dispatch
+// surface reposeed plans for a shared repository.
+var visibilityCommitPaths = append([]string{docketYMLRel, gitignoreRel}, reposeed.SurfacePaths()...)
 
 // switchJournalFile is the write-ahead journal, kept in layout.StateDirOf(common)
 // so it travels with a state-folder rename.
@@ -397,4 +403,213 @@ func pendingSwitchPaths(ctx context.Context, git *gitcli.Client, repo gitcli.Rep
 		}
 	}
 	return pending, nil
+}
+
+// visibilityCommitPlan is what the pending integration-branch commit touches:
+// guard is every path the run writes or commits (the user's own edits to any of
+// them refuse), rows are the paths the commit will actually change, each with
+// what happens to it.
+type visibilityCommitPlan struct {
+	guard []string
+	rows  []string
+}
+
+// planVisibilityCommit computes the pending commit's paths from the same
+// sources its executors use: the removal targets of HEAD going private, and
+// going shared the committed config, the managed .gitignore block, and the
+// dispatch surfaces reposeed plans for the shared layout (the ones the managed
+// block ignores excepted). With the identity-keys phase pending, the run
+// commits .docket.yml alone and stops.
+func planVisibilityCommit(ctx context.Context, git *gitcli.Client, st visibilityState, o SetVisibilityOptions, steps []visibilityStep) (visibilityCommitPlan, error) {
+	var plan visibilityCommitPlan
+	if !visibilityCommitsPending(steps) {
+		return plan, nil
+	}
+	if o.Target == string(layout.Private) {
+		if st.primaryHead == "" {
+			return plan, nil
+		}
+		targets, err := removalTargets(ctx, git, st.sc.repo, gitcli.ObjectID(st.primaryHead))
+		if err != nil {
+			return plan, err
+		}
+		for _, t := range targets {
+			action := "write"
+			if t.content == nil {
+				action = "delete"
+			}
+			plan.guard = append(plan.guard, t.rel)
+			plan.rows = append(plan.rows, t.rel+" ("+action+")")
+		}
+		return plan, nil
+	}
+
+	pending := map[string]bool{}
+	for _, s := range steps {
+		pending[s.name] = !s.done
+	}
+	// add records a path the run writes or commits; final is its content once
+	// the run is through (nil: it is absent), so it is a row iff that differs
+	// from HEAD.
+	add := func(rel string, final []byte, present bool) error {
+		plan.guard = append(plan.guard, rel)
+		want := digestDeleted
+		if present {
+			want = contentDigest(final)
+		}
+		have := digestDeleted
+		if st.primaryHead != "" {
+			var err error
+			if have, err = headPathDigest(ctx, git, st.sc.repo, gitcli.ObjectID(st.primaryHead), rel); err != nil {
+				return err
+			}
+		}
+		if want != have {
+			plan.rows = append(plan.rows, rel+" (write)")
+		}
+		return nil
+	}
+
+	pc, err := readPendingPrivateConfig(st)
+	if err != nil {
+		return plan, err
+	}
+	_, ymlJournaled := st.journal.Paths[docketYMLRel]
+	ymlWritten := pc.path != "" && (pending["identity-keys"] || pending["config-committed"])
+	if ymlWritten || ymlJournaled {
+		final, present, err := readOptionalFile(filepath.Join(st.primary, docketYMLRel))
+		if err != nil {
+			return plan, err
+		}
+		if pc.path != "" {
+			if final, _, err = splitSharedConfig(st, pc); err != nil {
+				return plan, err
+			}
+			present = true
+		}
+		if err := add(docketYMLRel, final, present); err != nil {
+			return plan, err
+		}
+	}
+	if pending["identity-keys"] {
+		return plan, nil
+	}
+
+	ignore, _, err := readOptionalFile(filepath.Join(st.primary, gitignoreRel))
+	if err != nil {
+		return plan, err
+	}
+	_, ignoreJournaled := st.journal.Paths[gitignoreRel]
+	if pending["ignore"] {
+		ensured, changed, err := reposetup.EnsureGitignoreBlock(ignore)
+		if err != nil {
+			return plan, privateRefusal(reposetup.StateNeedsReview, gitignoreRel+": "+err.Error()+"; fix the markers by hand, then re-run")
+		}
+		if changed {
+			ignore, ignoreJournaled = ensured, true
+		}
+	}
+	if ignoreJournaled {
+		if err := add(gitignoreRel, ignore, true); err != nil {
+			return plan, err
+		}
+	}
+
+	surfaces, err := plannedSharedSurfaces(ctx, git, st, pc)
+	if err != nil {
+		return plan, err
+	}
+	for _, t := range surfaces {
+		rel, err := filepath.Rel(st.primary, t.Path)
+		if err != nil {
+			return plan, err
+		}
+		rel = filepath.ToSlash(rel)
+		plan.guard = append(plan.guard, rel)
+		insp, err := install.InspectTarget(t, nil, nil)
+		if err != nil {
+			return plan, err
+		}
+		changed := insp.Disposition != install.DispositionNoop
+		if !changed {
+			disk, err := pathDigest(t.Path)
+			if err != nil {
+				return plan, err
+			}
+			head := digestDeleted
+			if st.primaryHead != "" {
+				if head, err = headPathDigest(ctx, git, st.sc.repo, gitcli.ObjectID(st.primaryHead), rel); err != nil {
+					return plan, err
+				}
+			}
+			changed = disk != head
+		}
+		if changed {
+			plan.rows = append(plan.rows, rel+" (write)")
+		}
+	}
+	return plan, nil
+}
+
+// plannedSharedSurfaces is the dispatch surfaces the going-shared commit phase
+// installs, minus the ones the managed .gitignore block ignores: planned from
+// the split of the private config while one is pending, else as install's
+// repository phase resolves them once the repository reads shared. No
+// authorization plans nothing.
+func plannedSharedSurfaces(ctx context.Context, git *gitcli.Client, st visibilityState, pc pendingPrivateConfig) ([]install.Target, error) {
+	runTracker, err := buildRunTracker()
+	if err != nil {
+		return nil, err
+	}
+	var targets []install.Target
+	if pc.path != "" {
+		committed, local, err := splitSharedConfig(st, pc)
+		if err != nil {
+			return nil, err
+		}
+		sources := []config.Source{{Layer: config.LayerRepository, Name: docketYMLRel, Data: committed}}
+		if local != nil {
+			sources = append(sources, config.Source{Layer: config.LayerRepositoryLocal, Name: localConfigRel, Data: local})
+		}
+		snap, _, err := config.Resolve(sources, config.ResolveContext{DefaultBranch: st.sc.defaultBranch})
+		if err != nil {
+			return nil, privateRefusal(reposetup.StateNeedsReview, "the configuration split from "+pc.path+" does not resolve: "+err.Error()+"; fix it by hand, then re-run")
+		}
+		ah := snap.Effective.AgentHarnesses
+		if !ah.Explicit || !isRepositoryLayer(ah.Provenance.Layer) {
+			return nil, nil
+		}
+		if targets, _, err = reposeed.Plan(reposeed.PlanInput{
+			WorktreeRoot:  st.primary,
+			Harnesses:     ah.Value,
+			RunTracker:    runTracker,
+			ClaudeMDState: classifyClaudeMD(st.primary),
+		}); err != nil {
+			return nil, err
+		}
+	} else if st.current == layout.Shared {
+		phase, _, _, err := ResolveRepoPhase(ctx, git, st.primary, nil, runTracker, nil, config.ResolveContext{DefaultBranch: "main"})
+		if err != nil {
+			return nil, err
+		}
+		if phase == nil || !phase.Authorized {
+			return nil, nil
+		}
+		targets = phase.Targets
+	}
+	ignored := map[string]bool{}
+	for _, e := range reposetup.GitignoreEntries() {
+		ignored[e] = true
+	}
+	out := make([]install.Target, 0, len(targets))
+	for _, t := range targets {
+		rel, err := filepath.Rel(st.primary, t.Path)
+		if err != nil {
+			return nil, err
+		}
+		if !ignored[filepath.ToSlash(rel)] {
+			out = append(out, t)
+		}
+	}
+	return out, nil
 }

@@ -151,17 +151,14 @@ func TestListDocketTextPRs(t *testing.T) {
 func previewTestState() visibilityState {
 	common, primary := "/repo/.git", "/repo"
 	return visibilityState{
-		common:        common,
-		primary:       primary,
-		current:       layout.Shared,
-		shared:        layout.SharedLayout(common, primary),
-		private:       layout.PrivateLayout(common, primary, "/data", "acme-app"),
-		primaryBranch: "main",
-		originDocket:  gitcli.RemoteRef{State: gitcli.RemoteRefFound, Commit: "abc"},
-		foldSource:    "origin's main .docket.yml",
-		headPresentCommitPaths: []string{
-			".docket.yml", ".gitignore", "AGENTS.md",
-		},
+		common:                   common,
+		primary:                  primary,
+		current:                  layout.Shared,
+		shared:                   layout.SharedLayout(common, primary),
+		private:                  layout.PrivateLayout(common, primary, "/data", "acme-app"),
+		primaryBranch:            "main",
+		originDocket:             gitcli.RemoteRef{State: gitcli.RemoteRefFound, Commit: "abc"},
+		foldSource:               "origin's main .docket.yml",
 		headSharedFiles:          true,
 		sharedStateDir:           true,
 		privateVisibilityAligned: true,
@@ -177,7 +174,7 @@ func TestVisibilityPreviewTextNamesEveryPendingPhase(t *testing.T) {
 	steps := planToPrivate(st, o)
 	res := RepositorySetVisibilityResult{
 		SourceRevision: "origin-docket=abc dckt=absent origin-default=def",
-		Commits:        visibilityPlannedCommits(st, o, steps),
+		Commits:        visibilityPlannedCommits(st, o, steps, visibilityCommitPlan{rows: []string{".docket.yml (delete)"}}),
 		Warnings:       []string{"a warning"},
 	}
 	text := visibilityPreviewText(st, o, steps, res)

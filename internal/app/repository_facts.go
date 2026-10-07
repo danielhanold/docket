@@ -11,6 +11,7 @@ import (
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/layout"
+	"github.com/danielhanold/docket/internal/reposeed"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -389,13 +390,13 @@ func liveSurfacePresence(ctx context.Context, p setupProber, repo gitcli.Reposit
 // the parent-facing dispatch surfaces. The clean preflight ignores exactly these
 // (and ignored paths), so a repeat init whose only difference from clean is its
 // own pending review edits is not read as a dirty primary.
-var docketManagedWorktreePaths = map[string]bool{
-	".gitignore":                        true,
-	".docket.yml":                       true,
-	"CLAUDE.md":                         true,
-	"AGENTS.md":                         true,
-	".cursor/rules/docket-dispatch.mdc": true,
-}
+var docketManagedWorktreePaths = func() map[string]bool {
+	set := map[string]bool{".gitignore": true, ".docket.yml": true}
+	for _, p := range reposeed.SurfacePaths() {
+		set[p] = true
+	}
+	return set
+}()
 
 // primaryCleanPresence reports whether the primary worktree is clean once the
 // docket-managed pending-review surfaces and ignored paths are set aside. A

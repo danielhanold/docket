@@ -136,6 +136,39 @@ func ConfigLeafValues(src []byte, paths []string) (map[string]string, error) {
 	return out, nil
 }
 
+// SameConfigLeaves reports whether a and b declare exactly the same leaves with
+// the same values, ignoring comments, quoting, key order, and layout — so a
+// hand-formatted file that already says what a re-encoded one would say can
+// keep its bytes.
+func SameConfigLeaves(a, b []byte) (bool, error) {
+	la, err := renderedLeaves(a)
+	if err != nil {
+		return false, err
+	}
+	lb, err := renderedLeaves(b)
+	if err != nil {
+		return false, err
+	}
+	return reflect.DeepEqual(la, lb), nil
+}
+
+// renderedLeaves maps every leaf path of src to its comment-free rendering.
+func renderedLeaves(src []byte) (map[string]string, error) {
+	_, root, err := parseConfigMapping(src)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, l := range configLeaves(root, nil) {
+		b, err := yaml.Marshal(stripComments(cloneNode(l.val)))
+		if err != nil {
+			return nil, fmt.Errorf("reposetup: render %s: %w", l.path, err)
+		}
+		out[l.path] = strings.TrimSpace(string(b))
+	}
+	return out, nil
+}
+
 // RenderVisibilityEdit sets an explicit top-level visibility to value by a
 // byte splice on its scalar, keeping every other byte (a trailing comment
 // included). An absent key or one already equal returns (existing, false,

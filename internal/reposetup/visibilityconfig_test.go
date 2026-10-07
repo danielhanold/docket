@@ -242,3 +242,50 @@ func TestRemoveExcludeBlock(t *testing.T) {
 		t.Errorf("dangling start = %q, %v, %v; want MalformedExcludeError and nil out", out, changed, err)
 	}
 }
+
+// TestSameConfigLeaves proves the comparison ignores comments, quoting, key
+// order, and layout, but not a changed, added, or removed leaf.
+func TestSameConfigLeaves(t *testing.T) {
+	hand := []byte("# my config\nintegration_branch: 'main'   # trunk\nbuild: {test_command: make}\nvisibility: shared\n")
+	cases := []struct {
+		other string
+		want  bool
+	}{
+		{"visibility: shared\nbuild:\n  test_command: make\nintegration_branch: main\n", true},
+		{"visibility: shared\nbuild:\n  test_command: make test\nintegration_branch: main\n", false},
+		{"build:\n  test_command: make\nintegration_branch: main\n", false},
+		{"visibility: shared\nbuild:\n  test_command: make\nintegration_branch: main\nchanges_dir: x\n", false},
+	}
+	for _, c := range cases {
+		got, err := SameConfigLeaves(hand, []byte(c.other))
+		if err != nil || got != c.want {
+			t.Errorf("SameConfigLeaves(hand, %q) = %v, %v; want %v", c.other, got, err, c.want)
+		}
+	}
+	if _, err := SameConfigLeaves([]byte("a: [unclosed\n"), hand); err == nil {
+		t.Error("an unparsable file compared without an error")
+	}
+}
+
+// TestSplitOfFoldDeclaresTheHandFormattedLeaves proves a fold then a split
+// declares exactly the leaves of a hand-formatted committed file (that already
+// carries visibility: shared), while re-encoding its bytes: the switch keeps the
+// on-disk file because of this.
+func TestSplitOfFoldDeclaresTheHandFormattedLeaves(t *testing.T) {
+	hand := []byte("# my config\nvisibility: shared\nintegration_branch: 'main'   # trunk\nbuild: {test_command: make}\n")
+	local := []byte("reclaim:\n  auto: true\n")
+	folded, _, err := FoldPrivateConfig(hand, local, repoOnlyForTest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	committed, _, err := SplitPrivateConfig(folded, local, repoOnlyForTest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(committed) == string(hand) {
+		t.Fatalf("the split kept the hand formatting by itself; this test no longer proves anything:\n%s", committed)
+	}
+	if same, err := SameConfigLeaves(hand, committed); err != nil || !same {
+		t.Errorf("SameConfigLeaves(hand, split) = %v, %v; want true\nsplit:\n%s", same, err, committed)
+	}
+}
