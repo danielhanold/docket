@@ -486,7 +486,7 @@ func planToPrivate(st visibilityState, o SetVisibilityOptions) []visibilityStep 
 // read from state; a step without an executor stops an authorized run.
 func planToShared(st visibilityState, _ SetVisibilityOptions) []visibilityStep {
 	backup := visibilityBackupURL(st)
-	return []visibilityStep{
+	steps := []visibilityStep{
 		{
 			name:    "identity-keys",
 			done:    st.identityKeysAligned,
@@ -555,6 +555,54 @@ func planToShared(st visibilityState, _ SetVisibilityOptions) []visibilityStep {
 			run:    sharedAlignVisibilityPhase,
 		},
 	}
+	// A repository that is already shared, with no switch under way, only
+	// aligns its clone-local visibility value: every other phase is settled,
+	// so the user's own edits to the committed paths are neither refused nor
+	// swept into a commit.
+	if !sharedSwitchUnderway(st) {
+		for i := range steps {
+			if steps[i].name != "align-visibility" {
+				steps[i].done = true
+			}
+		}
+	}
+	return steps
+}
+
+// sharedSwitchUnderway reports whether a going-shared switch has anything left
+// to move: the repository is not yet shared, or a trace of the private layout
+// or of an interrupted run remains (the private state folder, a waiting private
+// config, the dckt remote, branch, or checkout, the exclude block, the private
+// instructions file or ownership-record entries under .git/, or the switch
+// journal, which an authorized going-shared run holds from the first phase
+// that retires the private layout until its commit lands).
+func sharedSwitchUnderway(st visibilityState) bool {
+	return st.current != layout.Shared || st.privateStateDir || st.pendingConfig != "" ||
+		st.dcktURL != "" || st.localDckt != "" || st.privateCheckoutRegistered ||
+		st.excludeBlockPresent || st.privateInstructions || st.recordGitDir || st.journalPresent
+}
+
+// sharedRetiringPhases are the going-shared phases that retire the private
+// layout, up to and including the commit that closes the add journal.
+var sharedRetiringPhases = map[string]bool{
+	"instructions": true, "config-committed": true, "state-folder": true, "config-local": true,
+	"ignore": true, "metadata-worktree": true, "commit": true,
+}
+
+// holdSharedSwitchJournal opens the add journal before a going-shared phase
+// retires any of the private layout, so a run interrupted after its last
+// private trace is gone still reads as under way and resumes its commit. It
+// opens nothing for the identity-keys and publish phases (a refusal there
+// leaves the repository as it was) or after the commit, and keeps an existing
+// journal as it is.
+func holdSharedSwitchJournal(x *visibilityRun, step string) error {
+	if x.o.Target != string(layout.Shared) || !sharedRetiringPhases[step] || !sharedSwitchUnderway(x.st) {
+		return nil
+	}
+	if _, ok, err := loadSwitchJournal(x.st.common); err != nil || ok {
+		return err
+	}
+	return saveSwitchJournal(x.st.common, switchJournal{Subject: visibilityAddSubject, Paths: map[string]string{}})
 }
 
 // runVisibilitySteps runs each pending step in order, records it applied
@@ -568,6 +616,9 @@ func runVisibilitySteps(ctx context.Context, x *visibilityRun, steps []visibilit
 		}
 		if s.run == nil {
 			return &visibilityInternal{err: fmt.Errorf("phase %s has no executor", s.name)}
+		}
+		if err := holdSharedSwitchJournal(x, s.name); err != nil {
+			return err
 		}
 		if err := s.run(ctx, x); err != nil {
 			return err
