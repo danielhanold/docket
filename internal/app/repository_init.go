@@ -83,9 +83,10 @@ func newRepositoryOpResult(operation string, result Result, out RepositoryOpResu
 // effects: a parentless empty-tree root with a versioned receipt, a create-only
 // publish that adopts an already-published exact shape and refuses a foreign one,
 // the local branch + persistent .docket worktree, disabled worktree hooks, the
-// unstaged managed .gitignore edit plus (only when authorized) the parent-facing
-// dispatch surfaces, and the ownership record for the surfaces it owns. It never
-// prompts and never reads stdin.
+// unstaged managed .gitignore edit plus the chosen agent_harnesses and the
+// dispatch surfaces it authorizes, and the ownership record for the surfaces it
+// owns. It never reads stdin itself; its only interaction is the harness chooser
+// the CLI supplies on a terminal, asked before any write.
 //
 // o selects the visibility a fresh repository is set up in (decideInitMode):
 // the effective `visibility` value, overridden by --private / --shared. A
@@ -97,6 +98,10 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps, o InitOptions) Reposito
 		out := newRepositoryOpResult(OperationRepositoryInit, ResultInvalidInput, RepositoryOpResult{})
 		out.human = fmt.Sprintf("%s: %s: --private and --shared are mutually exclusive", OperationRepositoryInit, ResultInvalidInput)
 		return out
+	}
+	flagSel, hrefusal := parseHarnessesFlag(OperationRepositoryInit, o.Harnesses)
+	if hrefusal != nil {
+		return *hrefusal
 	}
 
 	facts, sc, err := GatherSetupFacts(ctx, d, true)
@@ -120,8 +125,26 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps, o InitOptions) Reposito
 	if why != "" {
 		return initRefusal(cls.State, why)
 	}
+
+	// Resolved before any metadata, config, or working-tree write, so a
+	// cancelled picker leaves nothing behind. A fresh repository set up private
+	// reads only the private config this run creates.
+	repoDeclared := harnessRepoDeclared(sc.cfg)
+	_, configDisplay, _ := repoConfigTarget(sc)
+	if mode == layout.Private && sc.layout.Mode != layout.Private {
+		repoDeclared, configDisplay = false, layout.PrivateConfigDisplay
+	}
+	choice, cerr := resolveHarnessChoice(ctx, harnessChoiceInput{flag: flagSel, chooser: o.Harnesses.Chooser, policy: harnessPolicyInit,
+		cfg: sc.cfg, repoDeclared: repoDeclared, configDisplay: configDisplay, detect: detectHarnesses})
+	if errors.Is(cerr, ErrHarnessChoiceCancelled) {
+		return harnessChoiceCancelled(OperationRepositoryInit, cls.State)
+	}
+	if cerr != nil {
+		return repositoryInternalFailure(OperationRepositoryInit, cls.State, "choosing agent harnesses", cerr)
+	}
+
 	if mode == layout.Private {
-		return runPrivateInit(ctx, d, sc, cls, o, debris)
+		return runPrivateInit(ctx, d, sc, cls, o, debris, choice)
 	}
 
 	// Effects 1–2: build a parentless empty-tree root with the OpInitRoot receipt
@@ -151,25 +174,24 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps, o InitOptions) Reposito
 		return repositoryExternalFailure(OperationRepositoryInit, cls.State, "disabling metadata-worktree hooks", err)
 	}
 
-	// Effect 5: prepare the managed .gitignore edit (unstaged) and, only when an
-	// explicit repository/repository-local agent_harnesses declaration authorizes
-	// them, the parent-facing dispatch surfaces via the same install machinery the
-	// installer's repository phase uses.
+	// Effect 5: prepare the managed .gitignore edit (unstaged), write the chosen
+	// agent_harnesses (unstaged), and install the parent-facing dispatch surfaces
+	// via the same install machinery the installer's repository phase uses. The
+	// surfaces are authorized from the post-write config re-read from disk, so a
+	// value chosen this run authorizes this run's surfaces, and only an explicit
+	// repository/repository-local declaration ever does.
 	pending := []string{gitignoreRel}
 	wroteGitignore, err := ensureManagedGitignore(sc.repo.PrimaryWorktree)
 	if err != nil {
 		return repositoryInternalFailure(OperationRepositoryInit, cls.State, "preparing the managed .gitignore block", err)
 	}
 
-	wroteSurfaces := false
-	if facts.SurfacesAuthorized {
-		surfacePending, changed, serr := installAuthorizedSurfaces(ctx, d.Git, sc.repo.PrimaryWorktree)
-		if serr != nil {
-			return mapSurfaceFailure(cls.State, serr)
-		}
-		pending = append(pending, surfacePending...)
-		wroteSurfaces = changed
+	applied, herr := applyHarnessChoice(ctx, d.Git, sc, choice)
+	if herr != nil {
+		return harnessApplyFailure(OperationRepositoryInit, cls.State, herr)
 	}
+	pending = appendPending(pending, applied.pendingConfig)
+	pending = appendPending(pending, applied.surfacePending...)
 
 	// Test policy: discover the suite from the primary worktree and write the
 	// generated `.docket.yml` edit as another pending, UNSTAGED review path —
@@ -180,11 +202,8 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps, o InitOptions) Reposito
 	if derr != nil {
 		return repositoryInternalFailure(OperationRepositoryInit, cls.State, "generating the test-policy config", derr)
 	}
-	if docketYMLPending != "" {
-		pending = append(pending, docketYMLPending)
-	}
-
-	pending = append(pending, debris.pending()...)
+	pending = appendPending(pending, docketYMLPending)
+	pending = appendPending(pending, debris.pending()...)
 	sort.Strings(pending)
 
 	// The metadata topology is established with pending integration-worktree
@@ -192,7 +211,7 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps, o InitOptions) Reposito
 	// one that created a remote branch, worktree, block, or surface reports
 	// applied. Both exit 0.
 	result := ResultNoOp
-	if createdRemote || createdWorktree || wroteGitignore || wroteSurfaces || wroteDocketYML {
+	if createdRemote || createdWorktree || wroteGitignore || applied.wroteConfig || applied.wroteSurfaces || wroteDocketYML {
 		result = ResultApplied
 	}
 
@@ -207,6 +226,7 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps, o InitOptions) Reposito
 	if note := testDiscoveryNote(discovery); note != "" {
 		out.human += "\n" + note
 	}
+	setHarnessResult(&out, choice, applied)
 	return out
 }
 
@@ -694,12 +714,6 @@ func repositoryInternalFailure(operation string, state reposetup.State, stage st
 	})
 	out.human = fmt.Sprintf("%s: %s while %s: %s", operation, ResultInternalError, stage, err.Error())
 	return out
-}
-
-// mapSurfaceFailure maps an init surface-installation failure to its result;
-// it delegates to mapSurfaceFailureFor with the init operation.
-func mapSurfaceFailure(state reposetup.State, err error) RepositoryOpResult {
-	return mapSurfaceFailureFor(OperationRepositoryInit, state, err)
 }
 
 // mapSurfaceFailureFor maps a surface-installation failure to operation's
