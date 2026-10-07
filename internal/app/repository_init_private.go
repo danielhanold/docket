@@ -23,10 +23,12 @@ import (
 // InitOptions carries init's mode flags. Private and Shared override the
 // effective `visibility` value for a fresh repository; MetadataRemote, valid
 // only for a private result, names the git URL the dckt branch is pushed to in
-// place of the default bare repository.
+// place of the default bare repository. Harnesses carries --harnesses and the
+// CLI's interactive chooser.
 type InitOptions struct {
 	Private, Shared bool
 	MetadataRemote  string
+	Harnesses       HarnessesOptions
 }
 
 // privateInitRecovery is appended to every private-init failure after the
@@ -105,8 +107,10 @@ func isRemoteUnconfigured(err error) bool {
 }
 
 // runPrivateInit sets a repository up private. Every step is idempotent and
-// writes nothing into the working tree, so `git status` stays clean.
-func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls reposetup.Classification, o InitOptions, debris setupDebrisReport) RepositoryOpResult {
+// writes nothing into the working tree, so `git status` stays clean. choice is
+// the harness choice RunRepositoryInit resolved before any write; step 8 writes
+// it to the private config.
+func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls reposetup.Classification, o InitOptions, debris setupDebrisReport, choice harnessChoice) RepositoryOpResult {
 	common := sc.repo.CommonDir
 	changed := false
 
@@ -273,16 +277,22 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 		return fail(repositoryExternalFailure(OperationRepositoryInit, cls.State, "disabling metadata-checkout hooks", err))
 	}
 
-	// 8. The parent-facing instructions: when the private config's
-	// agent_harnesses authorizes them, the dispatch block goes into
-	// .git/dckt/AGENTS.md through the installer's repository phase (which
-	// authorizes itself). Private init edits no .gitignore and writes nothing in
-	// the working tree.
-	_, wroteSurfaces, serr := installAuthorizedSurfaces(ctx, d.Git, sc.repo.PrimaryWorktree)
-	if serr != nil {
-		return fail(mapSurfaceFailure(cls.State, serr))
+	// 8. The chosen agent_harnesses goes into the private config, then the
+	// parent-facing instructions: when the private config's agent_harnesses
+	// authorizes them, the dispatch block goes into .git/dckt/AGENTS.md through
+	// the installer's repository phase (which authorizes itself from the config
+	// re-read after this write). Private init edits no .gitignore and writes
+	// nothing in the working tree.
+	//
+	// The layout resolved in step 3: a fresh repository's gather-time layout is
+	// still shared and would point the write at .docket.yml.
+	psc := sc
+	psc.layout = lay
+	applied, herr := applyHarnessChoice(ctx, d.Git, psc, choice)
+	if herr != nil {
+		return fail(harnessApplyFailure(OperationRepositoryInit, cls.State, herr))
 	}
-	changed = changed || wroteSurfaces
+	changed = changed || applied.wroteConfig || applied.wroteSurfaces
 
 	// 9. Report the state the repository now classifies in.
 	facts, sc2, err := GatherSetupFacts(ctx, d, false)
@@ -311,6 +321,7 @@ func runPrivateInit(ctx context.Context, d SetupDeps, sc setupContext, cls repos
 	if len(pending) > 0 {
 		out.human += "\n" + strings.Join(pending, "\n")
 	}
+	setHarnessResult(&out, choice, applied)
 	return out
 }
 
