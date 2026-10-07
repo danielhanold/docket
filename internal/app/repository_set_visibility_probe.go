@@ -52,6 +52,7 @@ type visibilityState struct {
 	current                         layout.Mode
 	sharedStateDir, privateStateDir bool
 	originDocket, bareDckt          gitcli.RemoteRef
+	storeDckt                       gitcli.RemoteRef // the default store's dckt branch, read from disk while the dckt remote is unconfigured
 	dcktURL, defaultTip             string
 	worktrees                       []gitcli.WorktreeInfo
 	localDocket, localDckt          string
@@ -65,6 +66,7 @@ type visibilityState struct {
 	primaryHead               string
 	bareHoldsOrigin           bool // the bare dckt equals or descends from origin's docket (or origin has none and the bare one exists)
 	originHoldsBare           bool // origin's docket equals or descends from the bare dckt (or the bare one is absent and origin's exists)
+	storeHoldsOrigin          bool // the default store's dckt equals or descends from origin's docket (or origin has none and the store's exists)
 	excludeBlock              bool // .git/info/exclude carries the valid managed block
 	excludeBlockPresent       bool // .git/info/exclude carries any `# dckt:` block
 	sharedCheckoutRegistered  bool
@@ -127,6 +129,17 @@ func probeVisibility(ctx context.Context, d SetupDeps, sc setupContext, facts re
 		}
 	case isRemoteUnconfigured(uerr):
 		st.bareDckt = gitcli.RemoteRef{State: gitcli.RemoteRefAbsent}
+		if st.storeDckt, err = defaultStoreTip(ctx, git, st.private); err != nil {
+			return st, fmt.Errorf("reading the dckt branch in %s: %w", st.private.DefaultBareRemote, err)
+		}
+		if st.storeDckt.State == gitcli.RemoteRefFound {
+			st.storeHoldsOrigin = st.originDocket.State != gitcli.RemoteRefFound
+			if !st.storeHoldsOrigin {
+				if st.storeHoldsOrigin, err = storeHoldsCommit(ctx, git, st.private, st.storeDckt.Commit, st.originDocket.Commit); err != nil {
+					return st, err
+				}
+			}
+		}
 	default:
 		return st, uerr
 	}
@@ -464,7 +477,11 @@ func visibilityPin(st visibilityState) string {
 	if def == "" {
 		def = "absent"
 	}
-	return fmt.Sprintf("origin-docket=%s dckt=%s origin-default=%s", tip(st.originDocket), tip(st.bareDckt), def)
+	dckt := st.bareDckt
+	if dckt.State != gitcli.RemoteRefFound {
+		dckt = st.storeDckt // read from the default store while the dckt remote is unconfigured
+	}
+	return fmt.Sprintf("origin-docket=%s dckt=%s origin-default=%s", tip(st.originDocket), tip(dckt), def)
 }
 
 // --- preconditions -----------------------------------------------------------
@@ -560,12 +577,22 @@ func visibilityMetadataSyncRefusal(ctx context.Context, git *gitcli.Client, st v
 		}
 		head := string(wt.Head)
 		published := head != "" && head == auth
-		if !published && head != "" && auth != "" {
+		switch {
+		case published || head == "":
+		case auth != "":
 			anc, err := git.IsAncestor(ctx, st.sc.repo, gitcli.ObjectID(head), gitcli.ObjectID(auth))
 			if err != nil {
 				return "", err
 			}
 			published = anc
+		case wt.Branch == metadataRef(st.shared) && st.storeDckt.State == gitcli.RemoteRefFound:
+			// Neither remote holds a branch this clone can read, but another
+			// clone on this machine published the history to the default store.
+			held, err := storeHoldsCommit(ctx, git, st.private, st.storeDckt.Commit, gitcli.ObjectID(head))
+			if err != nil {
+				return "", err
+			}
+			published = held
 		}
 		if !published {
 			return "the metadata worktree " + l.MetadataWorktree + " holds commits its remote branch lacks; publish them with `docket repository prepare`, or resolve them by hand", nil
