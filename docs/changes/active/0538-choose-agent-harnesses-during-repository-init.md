@@ -2,7 +2,7 @@
 id: 538
 slug: 'choose-agent-harnesses-during-repository-init'
 title: 'Choose agent harnesses during init and with configure-harnesses'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-07'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/choose-agent-harnesses-during-repository-init'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-07T00:56:53Z'
 ---
 
 ## Artifacts
