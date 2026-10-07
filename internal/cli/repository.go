@@ -25,7 +25,9 @@ import (
 // flow, which lives here because it is a terminal interaction: the service
 // returns the plan, and the CLI prints it and re-invokes with an explicit
 // authorization keyed on exactly the pinned revision the human saw (learning
-// decide-and-act-on-the-same-copy).
+// decide-and-act-on-the-same-copy). The CLI also owns the harness picker
+// (harness_picker.go): init and configure-harnesses hand the app a chooser only
+// on an interactive, non-JSON session with no --harnesses value.
 
 // repositoryInitRunner, repositoryCheckRunner, and repositoryMigrateRunner are
 // the app entry points the repository subcommands dispatch to. They are package
@@ -59,6 +61,9 @@ var (
 	repositoryConfigureTestsRunner = func(ctx context.Context, d app.SetupDeps, o app.ConfigureTestsOptions) app.OperationResult {
 		return app.RunRepositoryConfigureTests(ctx, d, o)
 	}
+	repositoryConfigureHarnessesRunner = func(ctx context.Context, d app.SetupDeps, o app.ConfigureHarnessesOptions) app.OperationResult {
+		return app.RunRepositoryConfigureHarnesses(ctx, d, o)
+	}
 	repositorySyncIntegrationRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
 		return app.RunRepositorySyncIntegration(ctx, d)
 	}
@@ -71,6 +76,44 @@ var (
 var repositoryConfirmInteractive = func() bool {
 	fi, err := os.Stdin.Stat()
 	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+}
+
+// repositoryHarnessesInteractive reports whether init and configure-harnesses
+// may show the harness picker: stdin and stdout must both be terminals, since
+// the picker both reads keys and redraws the screen. It is a seam so a test can
+// force either branch without a real TTY.
+var repositoryHarnessesInteractive = func() bool {
+	return isCharDevice(os.Stdin) && isCharDevice(os.Stdout)
+}
+
+// isCharDevice reports whether f is a character device (a terminal).
+func isCharDevice(f *os.File) bool {
+	fi, err := f.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+}
+
+// repositoryHarnessChooser is the chooser harnessesOptions supplies on an
+// interactive session; a seam so a test never opens the real picker.
+var repositoryHarnessChooser app.HarnessChooser = huhHarnessChooser
+
+// harnessesUsage documents --harnesses on init and configure-harnesses.
+const harnessesUsage = "comma `list` of coding agents to write docket's instructions for (claude, codex, cursor, opencode), or none; without it, a terminal shows a checklist"
+
+// harnessesOptions reads --harnesses by Changed (an explicit empty value must
+// reach the app, which refuses it) and supplies the picker only when no flag
+// was given, --json is off, and the session is interactive.
+func harnessesOptions(c *cobra.Command) app.HarnessesOptions {
+	var o app.HarnessesOptions
+	if c.Flags().Changed("harnesses") {
+		o.Set = true
+		if o.Tokens, _ = c.Flags().GetStringSlice("harnesses"); o.Tokens == nil {
+			o.Tokens = []string{}
+		}
+	}
+	if jsonMode, _ := c.Flags().GetBool("json"); !o.Set && !jsonMode && repositoryHarnessesInteractive() {
+		o.Chooser = repositoryHarnessChooser
+	}
+	return o
 }
 
 // newRepositoryCommand builds the `repository` command group. setResult is the
@@ -97,6 +140,7 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 			o.Private, _ = c.Flags().GetBool("private")
 			o.Shared, _ = c.Flags().GetBool("shared")
 			o.MetadataRemote, _ = c.Flags().GetString("metadata-remote")
+			o.Harnesses = harnessesOptions(c)
 			setResult(repositoryInitRunner(c.Context(), deps, o))
 		},
 		// metadata-write (the parentless metadata root, published create-only to
@@ -113,6 +157,7 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 		"keep docket's metadata on a docket branch pushed to origin with a .docket/ worktree (overrides the visibility setting)")
 	initCmd.Flags().String("metadata-remote", "",
 		"with --private: push the dckt branch to this git `url` instead of the default bare repository")
+	initCmd.Flags().StringSlice("harnesses", nil, harnessesUsage)
 	checkCmd := repositorySubcommand("check",
 		"Report repository health with machine-readable findings (read-only)",
 		func(c *cobra.Command, deps app.SetupDeps) {
@@ -150,6 +195,17 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 	configureTestsCmd.Flags().String("command", "",
 		"suite `command` to set as both build.test_command and finalize.test_command with both gates local (skips discovery)")
 
+	configureHarnessesCmd := repositorySubcommand("configure-harnesses",
+		"Choose which coding agents get docket's instructions in this repository, and refresh them",
+		func(c *cobra.Command, deps app.SetupDeps) {
+			setResult(repositoryConfigureHarnessesRunner(c.Context(), deps, app.ConfigureHarnessesOptions{Harnesses: harnessesOptions(c)}))
+		},
+		// local-write: writes agent_harnesses to the repository config (the
+		// unstaged .docket.yml, or the private config) and refreshes the agent
+		// instruction surfaces; never commits, never stages, never pushes.
+		EffectLocalWrite)
+	configureHarnessesCmd.Flags().StringSlice("harnesses", nil, harnessesUsage)
+
 	syncIntegrationCmd := repositorySubcommand("sync-integration",
 		"Fast-forward the primary checkout to the freshly fetched integration tip when it is safe (explicit skips otherwise)",
 		func(c *cobra.Command, deps app.SetupDeps) {
@@ -159,7 +215,7 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 		// the primary checkout; it never pushes and changes no planning metadata.
 		EffectLocalWrite)
 
-	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, repairCmd, prepareCmd, configureTestsCmd, syncIntegrationCmd)
+	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, repairCmd, prepareCmd, configureTestsCmd, configureHarnessesCmd, syncIntegrationCmd)
 	return repositoryCmd
 }
 
@@ -320,8 +376,9 @@ func repositoryReadYes(r io.Reader) bool {
 // unavailable Git client) is an argument-shaped error returned before the
 // operation runs.
 // The capability id is the dotted command path "repository."+name; effects are
-// declared by each caller (the repository verbs differ — check reads, prepare
-// and configure-tests write locally, init writes metadata + local) rather than
+// declared by each caller (the repository verbs differ — check reads, prepare,
+// configure-tests, and configure-harnesses write locally, init writes metadata
+// + local) rather than
 // looked up from a name inside the helper.
 func repositorySubcommand(name, short string, run func(c *cobra.Command, deps app.SetupDeps), effects ...Effect) *cobra.Command {
 	cmd := &cobra.Command{
