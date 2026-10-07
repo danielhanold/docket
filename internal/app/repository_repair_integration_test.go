@@ -10,9 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/layout"
+	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
+	"github.com/danielhanold/docket/internal/repository"
 )
 
 // This is the real-Git `repository repair` shard (prefix TestIntegrationRepoRepair,
@@ -208,6 +211,73 @@ func TestIntegrationRepoRepairAppliesOneDescendantCommit(t *testing.T) {
 	for _, f := range r.runCheck(t).Findings {
 		if f.Repairable != nil && *f.Repairable {
 			t.Errorf("check after repair still reports a repairable finding: %+v", f)
+		}
+	}
+}
+
+// --- metadata artifact backlinks ---------------------------------------------
+
+const (
+	restampRecordPath = "docs/changes/active/0001-example.md"
+	restampSpecPath   = "docs/superpowers/specs/2026-08-30-example-design.md"
+	restampProseLine  = "see https://github.com/o/r/blob/docket/docs/adrs/README.md"
+)
+
+// absoluteSpecWithProse is a spec whose generated backlink is an absolute
+// same-branch URL, followed by an authored prose line that carries an absolute
+// same-branch URL of its own; the repair may touch only the block.
+func absoluteSpecWithProse() string {
+	return "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
+		"> ↩ **[Change 0001 — Example change](https://github.com/o/r/blob/docket/" + restampRecordPath + ")**\n" +
+		"<!-- docket:backlink:end -->\n\n# Example design\n\n" + restampProseLine + "\n"
+}
+
+// TestIntegrationRepoRepairRestampsAbsoluteSpecBacklink proves the preview
+// lists the stale spec backlink, the authorized repair rewrites only the block
+// to the canonical relative link (the prose URL and every other byte stay),
+// and a following check reports no stale backlink (Review Focus 3).
+func TestIntegrationRepoRepairRestampsAbsoluteSpecBacklink(t *testing.T) {
+	r := newHealthyRepo(t)
+	dotDocket := filepath.Join(r.invocation, ".docket")
+	writeRepoFile(t, dotDocket, restampRecordPath, staleRepairRecord())
+	writeRepoFile(t, dotDocket, restampSpecPath, absoluteSpecWithProse())
+	runGit(t, dotDocket, "add", "--", restampRecordPath, restampSpecPath)
+	runGit(t, dotDocket, "commit", "-q", "-m", "publish a spec with an absolute backlink")
+	runGit(t, dotDocket, "push", "-q", "origin", string(layout.SharedName))
+	before := currentDocketTip(t, r)
+
+	preview := r.runRepair(t, RepairOptions{})
+	if !preview.ConfirmationRequired() {
+		t.Fatalf("preview = %q (%s), want confirmation-required", preview.Result, preview.HumanText())
+	}
+	if !containsPath(preview.RepairedViews, restampSpecPath) {
+		t.Errorf("RepairedViews = %v, want %s", preview.RepairedViews, restampSpecPath)
+	}
+	if want := "[" + reposetup.CodeArtifactBacklinkStale + "] " + restampSpecPath; !strings.Contains(preview.HumanText(), want) {
+		t.Errorf("preview human lacks %q:\n%s", want, preview.HumanText())
+	}
+
+	res := r.runRepair(t, RepairOptions{Authorized: true, ExpectedSource: before})
+	if res.Result != ResultApplied {
+		t.Fatalf("repair = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	snap, ok := buildCorpusSnapshot(derivedTestConfig(), []corpusRecord{{
+		path: restampRecordPath, bytes: []byte(staleRepairRecord()), kind: repository.KindChange, location: repository.LocationActive,
+	}})
+	if !ok {
+		t.Fatal("buildCorpusSnapshot failed")
+	}
+	c, out := snap.Change(domain.ChangeID(1))
+	if out != domain.LookupFound {
+		t.Fatalf("change 1 absent from the snapshot (outcome %d)", out)
+	}
+	want := render.ArtifactBacklinkContent(c, restampSpecPath) + "\n# Example design\n\n" + restampProseLine + "\n"
+	if got := showDocketFile(t, r, restampSpecPath); got != strings.TrimRight(want, "\n") {
+		t.Errorf("repaired spec = %q\nwant %q", got, want)
+	}
+	for _, f := range r.runCheck(t).Findings {
+		if f.Code == reposetup.CodeArtifactBacklinkStale {
+			t.Errorf("check after repair still reports %+v", f)
 		}
 	}
 }
