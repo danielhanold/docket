@@ -66,67 +66,68 @@ var assetIndependent = map[string]bool{
 	"evidence verify":         true,
 	"evidence recertify":      true, // composes the local gate + GitHub PR edit; reads no installed assets
 
-	"pr":                          true, // the group itself; it reports a missing command
-	"pr publish":                  true,
-	"run":                         true, // the group itself; it reports a missing command
-	"run verify":                  true,
-	"run start":                   true,
-	"run verdict":                 true,
-	"run continue":                true,
-	"run cancel":                  true,
-	"learning":                    true, // the group itself; it reports a missing command
-	"learning record":             true,
-	"learning update":             true,
-	"adr":                         true, // the group itself; it reports a missing command
-	"adr record":                  true,
-	"adr supersede":               true,
-	"adr reverse":                 true,
-	"gate":                        true, // the group itself; it reports a missing command
-	"gate launch":                 true,
-	"gate observe":                true,
-	"gate stop":                   true,
-	"gate recover":                true,
-	"gate cleanup":                true,
-	"gate drive":                  true, // the group itself; it reports a missing command
-	"gate drive start":            true,
-	"gate drive advance":          true,
-	"gate drive handoff":          true,
-	"gate drive claim":            true,
-	"finalize":                    true, // the group itself; it reports a missing command
-	"finalize retarget-children":  true,
-	"finalize rebase":             true,
-	"finalize rebase-continue":    true,
-	"finalize rebase-abort":       true,
-	"finalize resolver-reserve":   true,
-	"finalize publish":            true,
-	"finalize block":              true,
-	"finalize clear-block":        true,
-	"finalize merge":              true,
-	"finalize closeout":           true,
-	"finalize cleanup":            true,
-	"maintenance":                 true, // the group itself; it reports a missing command
-	"maintenance sweep":           true,
-	"maintenance preflight":       true,
-	"repository":                  true, // the group itself; it reports a missing command
-	"repository init":             true,
-	"repository check":            true,
-	"repository migrate":          true,
-	"repository repair":           true,
-	"repository prepare":          true,
-	"repository configure-tests":  true,
-	"repository sync-integration": true,
-	"agent":                       true,
-	"instructions":                true, // session hooks must answer on a machine mid-install; it reads only the repository's own file
-	"diagnostic":                  true, // the group itself; it reports a missing command
-	"diagnostic runtime":          true,
-	"diagnostic config":           true,
-	"install":                     true,
-	"install check":               true,
-	"install collect":             true,
-	"uninstall":                   true,
-	"development":                 true,
-	"development install":         true,
-	"development test":            true, // the Go-native whole-suite runner reads this checkout, never installed assets (change 0318)
+	"pr":                             true, // the group itself; it reports a missing command
+	"pr publish":                     true,
+	"run":                            true, // the group itself; it reports a missing command
+	"run verify":                     true,
+	"run start":                      true,
+	"run verdict":                    true,
+	"run continue":                   true,
+	"run cancel":                     true,
+	"learning":                       true, // the group itself; it reports a missing command
+	"learning record":                true,
+	"learning update":                true,
+	"adr":                            true, // the group itself; it reports a missing command
+	"adr record":                     true,
+	"adr supersede":                  true,
+	"adr reverse":                    true,
+	"gate":                           true, // the group itself; it reports a missing command
+	"gate launch":                    true,
+	"gate observe":                   true,
+	"gate stop":                      true,
+	"gate recover":                   true,
+	"gate cleanup":                   true,
+	"gate drive":                     true, // the group itself; it reports a missing command
+	"gate drive start":               true,
+	"gate drive advance":             true,
+	"gate drive handoff":             true,
+	"gate drive claim":               true,
+	"finalize":                       true, // the group itself; it reports a missing command
+	"finalize retarget-children":     true,
+	"finalize rebase":                true,
+	"finalize rebase-continue":       true,
+	"finalize rebase-abort":          true,
+	"finalize resolver-reserve":      true,
+	"finalize publish":               true,
+	"finalize block":                 true,
+	"finalize clear-block":           true,
+	"finalize merge":                 true,
+	"finalize closeout":              true,
+	"finalize cleanup":               true,
+	"maintenance":                    true, // the group itself; it reports a missing command
+	"maintenance sweep":              true,
+	"maintenance preflight":          true,
+	"repository":                     true, // the group itself; it reports a missing command
+	"repository init":                true,
+	"repository check":               true,
+	"repository migrate":             true,
+	"repository repair":              true,
+	"repository prepare":             true,
+	"repository configure-tests":     true,
+	"repository configure-harnesses": true,
+	"repository sync-integration":    true,
+	"agent":                          true,
+	"instructions":                   true, // session hooks must answer on a machine mid-install; it reads only the repository's own file
+	"diagnostic":                     true, // the group itself; it reports a missing command
+	"diagnostic runtime":             true,
+	"diagnostic config":              true,
+	"install":                        true,
+	"install check":                  true,
+	"install collect":                true,
+	"uninstall":                      true,
+	"development":                    true,
+	"development install":            true,
+	"development test":               true, // the Go-native whole-suite runner reads this checkout, never installed assets (change 0318)
 }
 
 // assetDependent is the explicit complement for shipped commands that require

@@ -14,7 +14,7 @@ import (
 // group and an unknown subcommand both fail rather than silently succeeding.
 func TestRepositoryCommandsRegistered(t *testing.T) {
 	root := captureTree(t)
-	for _, sub := range []string{"init", "check", "migrate", "prepare", "configure-tests", "repair"} {
+	for _, sub := range []string{"init", "check", "migrate", "prepare", "configure-tests", "configure-harnesses", "repair"} {
 		cmd, _, err := root.Find([]string{"repository", sub})
 		if err != nil || cmd == nil || cmd.Name() != sub {
 			t.Fatalf("repository %s not registered: cmd=%v err=%v", sub, cmd, err)
@@ -622,5 +622,108 @@ func TestRepositoryConfigureTestsHelpNamesCommandFlag(t *testing.T) {
 	out, _, _ := runCLI(t, "repository", "configure-tests", "--help")
 	if !strings.Contains(out, "--command") {
 		t.Errorf("configure-tests --help must document --command:\n%s", out)
+	}
+}
+
+// TestRepositoryHarnessesFlagAndChooserFlow proves configure-harnesses reads
+// --harnesses by Changed (repeated and comma-separated values accumulate, an
+// explicit empty value still arrives as Set) and supplies the picker only when
+// no flag was given, --json is off, and the session is interactive.
+func TestRepositoryHarnessesFlagAndChooserFlow(t *testing.T) {
+	tmp := testsupport.TempDir(t)
+	var got app.ConfigureHarnessesOptions
+	oldRunner := repositoryConfigureHarnessesRunner
+	repositoryConfigureHarnessesRunner = func(ctx context.Context, d app.SetupDeps, o app.ConfigureHarnessesOptions) app.OperationResult {
+		got = o
+		return fakeSyncResult{Envelope: app.NewEnvelope("repository.configure-harnesses", app.ResultNoOp)}
+	}
+	interactive := false
+	oldInteractive := repositoryHarnessesInteractive
+	repositoryHarnessesInteractive = func() bool { return interactive }
+	defer func() {
+		repositoryConfigureHarnessesRunner = oldRunner
+		repositoryHarnessesInteractive = oldInteractive
+	}()
+
+	run := func(t *testing.T, args ...string) app.HarnessesOptions {
+		t.Helper()
+		got = app.ConfigureHarnessesOptions{}
+		argv := append([]string{"repository", "configure-harnesses", "--repo-dir", tmp}, args...)
+		if _, _, code := runCLI(t, argv...); code != 0 {
+			t.Fatalf("exit = %d, want 0 (the stubbed runner decides)", code)
+		}
+		return got.Harnesses
+	}
+
+	t.Run("repeated and comma flags accumulate", func(t *testing.T) {
+		interactive = false
+		h := run(t, "--harnesses", "claude,cursor", "--harnesses", "codex")
+		if !h.Set || strings.Join(h.Tokens, "|") != "claude|cursor|codex" || h.Chooser != nil {
+			t.Fatalf("got Set=%v Tokens=%v chooser=%v", h.Set, h.Tokens, h.Chooser != nil)
+		}
+	})
+	t.Run("explicit empty value is set", func(t *testing.T) {
+		interactive = false
+		h := run(t, "--harnesses", "")
+		if !h.Set || h.Tokens == nil {
+			t.Fatalf("an explicit empty --harnesses must arrive Set with non-nil tokens, got Set=%v Tokens=%#v", h.Set, h.Tokens)
+		}
+	})
+	t.Run("non-interactive without flag", func(t *testing.T) {
+		interactive = false
+		h := run(t)
+		if h.Set || h.Chooser != nil {
+			t.Fatalf("got Set=%v chooser=%v, want unset and no chooser", h.Set, h.Chooser != nil)
+		}
+	})
+	t.Run("interactive supplies chooser", func(t *testing.T) {
+		interactive = true
+		if h := run(t); h.Set || h.Chooser == nil {
+			t.Fatalf("got Set=%v chooser=%v, want a chooser", h.Set, h.Chooser != nil)
+		}
+	})
+	t.Run("interactive with json has no chooser", func(t *testing.T) {
+		interactive = true
+		if h := run(t, "--json"); h.Chooser != nil {
+			t.Fatal("--json must never show the picker")
+		}
+	})
+	t.Run("interactive with flag has no chooser", func(t *testing.T) {
+		interactive = true
+		if h := run(t, "--harnesses", "none"); !h.Set || h.Chooser != nil {
+			t.Fatalf("got Set=%v chooser=%v, want set and no chooser", h.Set, h.Chooser != nil)
+		}
+	})
+}
+
+// TestRepositoryInitHarnessesFlagFlows proves init passes --harnesses through to
+// the app options.
+func TestRepositoryInitHarnessesFlagFlows(t *testing.T) {
+	tmp := testsupport.TempDir(t)
+	var got app.InitOptions
+	old := repositoryInitRunner
+	repositoryInitRunner = func(ctx context.Context, d app.SetupDeps, o app.InitOptions) app.OperationResult {
+		got = o
+		return fakeInitResult{Envelope: app.NewEnvelope("repository.init", app.ResultApplied)}
+	}
+	defer func() { repositoryInitRunner = old }()
+
+	if _, _, code := runCLI(t, "repository", "init", "--repo-dir", tmp, "--harnesses", "claude", "--harnesses", "cursor"); code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if !got.Harnesses.Set || strings.Join(got.Harnesses.Tokens, "|") != "claude|cursor" {
+		t.Fatalf("Harnesses = %+v, want Set with [claude cursor]", got.Harnesses)
+	}
+}
+
+func TestRepositoryHarnessesHelp(t *testing.T) {
+	for _, sub := range []string{"init", "configure-harnesses"} {
+		out, _, _ := runCLI(t, "repository", sub, "--help")
+		if !strings.Contains(out, "--harnesses") || !strings.Contains(out, "none") {
+			t.Errorf("%s --help must document --harnesses and none:\n%s", sub, out)
+		}
+	}
+	if !assetIndependent["repository configure-harnesses"] {
+		t.Error(`assetIndependent["repository configure-harnesses"] must be true`)
 	}
 }
