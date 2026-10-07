@@ -35,6 +35,14 @@ func resolveLayout(ctx context.Context, r remoteURLReader, repo gitcli.Repositor
 	if mode == layout.Shared {
 		return layout.SharedLayout(repo.CommonDir, repo.PrimaryWorktree), nil
 	}
+	return privateLayoutOf(ctx, r, repo)
+}
+
+// privateLayoutOf is resolveLayout's private branch: repo's private layout,
+// its store located from origin's URL and the data home, whatever mode the
+// repository is in now. A repository switching to private needs it before its
+// state reads as private.
+func privateLayoutOf(ctx context.Context, r remoteURLReader, repo gitcli.Repository) (layout.Layout, error) {
 	url, err := r.RemoteURL(ctx, repo, originRemote)
 	if err != nil {
 		return layout.Layout{}, fmt.Errorf("%w: private repository: reading origin's URL to locate the metadata store: %v", ErrStatusExternal, err)

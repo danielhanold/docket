@@ -254,7 +254,7 @@ func TestIntegrationWorkflowLifecyclePrivateInitToImplemented(t *testing.T) {
 	originBefore := localHeads(t, r.origin)
 
 	lay := resolvedPrivateLayout(t, r.invocation)
-	if want := privateLayoutOf(t, r.invocation, data).DefaultBareRemote; lay.DefaultBareRemote != want {
+	if want := expectedPrivateLayout(t, r.invocation, data).DefaultBareRemote; lay.DefaultBareRemote != want {
 		t.Fatalf("resolved store %q, want %q", lay.DefaultBareRemote, want)
 	}
 	if url := runGit(t, r.invocation, "config", "--get", "remote.dckt.url"); url != lay.DefaultBareRemote {

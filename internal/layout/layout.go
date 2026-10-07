@@ -36,6 +36,11 @@ const (
 	// user-facing spelling.
 	PrivateInstructionsFile    = "AGENTS.md"
 	PrivateInstructionsDisplay = ".git/dckt/AGENTS.md"
+
+	// PrivateLocalKeysFile is the file beneath <common>/dckt that keeps a
+	// repository's .docket.local.yml while it is private, so going shared
+	// again can return those keys to the clone-local layer.
+	PrivateLocalKeysFile = "local-keys.yml"
 )
 
 // Detect decides the mode from state; a probe error is returned, never guessed.
@@ -77,6 +82,12 @@ func PrivateConfigPath(commonDir string) string {
 // <commonDir>/dckt/AGENTS.md.
 func PrivateInstructionsPath(commonDir string) string {
 	return filepath.Join(commonDir, PrivateName, PrivateInstructionsFile)
+}
+
+// PrivateLocalKeysPath is the saved .docket.local.yml of a private
+// repository, <commonDir>/dckt/local-keys.yml.
+func PrivateLocalKeysPath(commonDir string) string {
+	return filepath.Join(commonDir, PrivateName, PrivateLocalKeysFile)
 }
 
 // CommonDirOf resolves a working-tree root's common dir from the filesystem
