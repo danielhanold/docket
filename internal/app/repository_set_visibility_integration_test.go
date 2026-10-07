@@ -20,10 +20,18 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// This file is the real-Git `repository set-visibility` shard (prefix
-// TestIntegrationRepoVisibility): the preview, every refusal that stops a
-// switch before it writes, each direction's switch, and the acceptance proofs
-// (round trip, resume after every phase, the private result, commit messages).
+// This file holds the real-Git `repository set-visibility` tests: the preview,
+// every refusal that stops a switch before it writes, each direction's switch,
+// and the acceptance proofs (round trip, resume after every phase, the private
+// result, commit messages). Their names split three ways so each sibling shard
+// stays under its runtime budget: TestIntegrationRepoVisibilityPrivate… (going
+// private, tests/test_go_integration_app_repovisibility_private.sh),
+// TestIntegrationRepoVisibilityShared… (going shared,
+// tests/test_go_integration_app_repovisibility_shared.sh), and
+// TestIntegrationRepoVisibilitySwitch… (preview, refusals, commit machinery,
+// and the direction-neutral acceptance proofs,
+// tests/test_go_integration_app_repovisibility.sh). No prefix is a prefix of
+// another, so every test matches exactly one shard.
 
 // runSetVisibility runs RunRepositorySetVisibility against the invocation clone
 // with the user's machine roots pinned to temp dirs.
@@ -86,10 +94,10 @@ func requireVisibilityRefusal(t *testing.T, res RepositorySetVisibilityResult, w
 	}
 }
 
-// TestIntegrationRepoVisibilityPreviewWritesNothing proves a private preview
+// TestIntegrationRepoVisibilitySwitchPreviewWritesNothing proves a private preview
 // lists its phases and pin while the working tree, origin's refs, the .git
 // listing, and the private store stay untouched.
-func TestIntegrationRepoVisibilityPreviewWritesNothing(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchPreviewWritesNothing(t *testing.T) {
 	r := newSharedVisibilityRepo(t)
 	before := visibilitySnapshot(t, r)
 	res := r.runSetVisibility(t, SetVisibilityOptions{Target: "private"})
@@ -125,9 +133,9 @@ func TestIntegrationRepoVisibilityPreviewWritesNothing(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoVisibilityRefusesLiveRun proves an active run refuses the
+// TestIntegrationRepoVisibilitySwitchRefusesLiveRun proves an active run refuses the
 // switch, naming the cancel command for its key.
-func TestIntegrationRepoVisibilityRefusesLiveRun(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchRefusesLiveRun(t *testing.T) {
 	r := newSharedVisibilityRepo(t)
 	key, err := MintRunTrackerRecord(r.invocation, sampleRunTrackerRecord())
 	if err != nil {
@@ -140,9 +148,9 @@ func TestIntegrationRepoVisibilityRefusesLiveRun(t *testing.T) {
 	requireVisibilityRefusal(t, res, "docket run cancel --key "+key)
 }
 
-// TestIntegrationRepoVisibilityRefusesBusyGateLock proves a held gate lock in
+// TestIntegrationRepoVisibilitySwitchRefusesBusyGateLock proves a held gate lock in
 // the state folder refuses the switch.
-func TestIntegrationRepoVisibilityRefusesBusyGateLock(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchRefusesBusyGateLock(t *testing.T) {
 	r := newSharedVisibilityRepo(t)
 	dir := filepath.Join(r.gitDir(t), layout.SharedName, "worktree-locks", "x")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -157,18 +165,18 @@ func TestIntegrationRepoVisibilityRefusesBusyGateLock(t *testing.T) {
 	requireVisibilityRefusal(t, res, "busy.lock")
 }
 
-// TestIntegrationRepoVisibilityRefusesDirtyMetadataWorktree proves an
+// TestIntegrationRepoVisibilitySwitchRefusesDirtyMetadataWorktree proves an
 // uncommitted change in .docket refuses the switch.
-func TestIntegrationRepoVisibilityRefusesDirtyMetadataWorktree(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchRefusesDirtyMetadataWorktree(t *testing.T) {
 	r := newSharedVisibilityRepo(t)
 	writeRepoFile(t, filepath.Join(r.invocation, ".docket"), "scratch.md", "unsaved\n")
 	res := r.runSetVisibility(t, SetVisibilityOptions{Target: "private"})
 	requireVisibilityRefusal(t, res, "commit or discard the changes in")
 }
 
-// TestIntegrationRepoVisibilityRefusesUnpublishedMetadataCommit proves a
+// TestIntegrationRepoVisibilitySwitchRefusesUnpublishedMetadataCommit proves a
 // metadata commit origin lacks refuses the switch.
-func TestIntegrationRepoVisibilityRefusesUnpublishedMetadataCommit(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchRefusesUnpublishedMetadataCommit(t *testing.T) {
 	r := newSharedVisibilityRepo(t)
 	dotDocket := filepath.Join(r.invocation, ".docket")
 	gitIdentity(t, dotDocket)
@@ -179,9 +187,9 @@ func TestIntegrationRepoVisibilityRefusesUnpublishedMetadataCommit(t *testing.T)
 	requireVisibilityRefusal(t, res, "docket repository prepare")
 }
 
-// TestIntegrationRepoVisibilityRefusesFreshAndLegacy proves a repository that
+// TestIntegrationRepoVisibilitySwitchRefusesFreshAndLegacy proves a repository that
 // was never set up names init, and a legacy one names migrate.
-func TestIntegrationRepoVisibilityRefusesFreshAndLegacy(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchRefusesFreshAndLegacy(t *testing.T) {
 	fresh := newInitRepo(t, defaultSetupYML, nil)
 	requireVisibilityRefusal(t, fresh.runSetVisibility(t, SetVisibilityOptions{Target: "private"}), "docket repository init")
 
@@ -193,10 +201,10 @@ func TestIntegrationRepoVisibilityRefusesFreshAndLegacy(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoVisibilityWarnsAbsoluteLinksWithoutRefusing proves a
+// TestIntegrationRepoVisibilitySwitchWarnsAbsoluteLinksWithoutRefusing proves a
 // metadata file whose prose links absolutely into the docket branch is named in
 // a warning that names `docket repository repair`, and the preview still stands.
-func TestIntegrationRepoVisibilityWarnsAbsoluteLinksWithoutRefusing(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchWarnsAbsoluteLinksWithoutRefusing(t *testing.T) {
 	r := newSharedVisibilityRepo(t)
 	runGit(t, r.invocation, "remote", "set-url", "origin", "https://github.com/acme/app.git")
 	runGit(t, r.invocation, "config", "url."+r.origin+".insteadOf", "https://github.com/acme/app.git")
@@ -1177,11 +1185,11 @@ func metadataTreeAt(t *testing.T, dir, commit string) string {
 	return runGit(t, dir, "ls-tree", "-r", commit)
 }
 
-// TestIntegrationRepoVisibilityRoundTripPreservesRecords proves shared ->
+// TestIntegrationRepoVisibilitySwitchRoundTripPreservesRecords proves shared ->
 // private (both flags) -> shared publishes back the identical metadata history:
 // origin's docket tip and tree are what they were, and replaying an earlier
 // change create and claim returns their original outcomes without a commit.
-func TestIntegrationRepoVisibilityRoundTripPreservesRecords(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchRoundTripPreservesRecords(t *testing.T) {
 	r, _ := newPrivateSwitchRepo(t)
 	ctx := context.Background()
 	created := createSwitchChange(t, r.invocation)
@@ -1319,71 +1327,39 @@ type visibilityDirection struct {
 	o       SetVisibilityOptions
 }
 
-// TestIntegrationRepoVisibilityInterruptedPhasesResume proves a switch killed
-// right after any phase, in either direction, completes on the next run and
-// lands in exactly the state an uninterrupted switch does: the same folders,
+// TestIntegrationRepoVisibilityPrivateInterruptedPhasesResume proves a switch
+// to private killed right after any phase completes on the next run and lands
+// in exactly the state an uninterrupted switch does: the same folders,
 // worktree registrations, branches, and remotes, each fixed subject once, the
 // metadata tip unchanged, and no switch debris.
-func TestIntegrationRepoVisibilityInterruptedPhasesResume(t *testing.T) {
-	directions := []visibilityDirection{
-		{
-			name: "private",
-			fixture: func(t *testing.T) (*initRepo, string, string) {
-				r, data := newPrivateSwitchRepo(t)
-				return r, data, r.originTip(t, layout.SharedName)
-			},
-			o: SetVisibilityOptions{Target: "private", DeleteSharedBranch: true, RemoveSharedFiles: true},
+func TestIntegrationRepoVisibilityPrivateInterruptedPhasesResume(t *testing.T) {
+	requireInterruptedPhasesResume(t, visibilityDirection{
+		name: "private",
+		fixture: func(t *testing.T) (*initRepo, string, string) {
+			r, data := newPrivateSwitchRepo(t)
+			return r, data, r.originTip(t, layout.SharedName)
 		},
-		{
-			name: "shared",
-			fixture: func(t *testing.T) (*initRepo, string, string) {
-				r, data := newBornPrivateRepo(t)
-				return r, data, runGit(t, expectedPrivateLayout(t, r.invocation, data).DefaultBareRemote, "rev-parse", "refs/heads/"+layout.PrivateName)
-			},
-			o: SetVisibilityOptions{Target: "shared"},
+		o: SetVisibilityOptions{Target: "private", DeleteSharedBranch: true, RemoveSharedFiles: true},
+	})
+}
+
+// TestIntegrationRepoVisibilitySharedInterruptedPhasesResume is the shared
+// direction of the same proof, plus the identity-keys phase that is pending
+// only when the private config sets a repository identity key.
+func TestIntegrationRepoVisibilitySharedInterruptedPhasesResume(t *testing.T) {
+	requireInterruptedPhasesResume(t, visibilityDirection{
+		name: "shared",
+		fixture: func(t *testing.T) (*initRepo, string, string) {
+			r, data := newBornPrivateRepo(t)
+			return r, data, runGit(t, expectedPrivateLayout(t, r.invocation, data).DefaultBareRemote, "rev-parse", "refs/heads/"+layout.PrivateName)
 		},
-	}
-	for _, dir := range directions {
-		t.Run(dir.name, func(t *testing.T) {
-			var want string
-			var pending []string
-			t.Run("uninterrupted", func(t *testing.T) {
-				r, data, tip := dir.fixture(t)
-				preview := r.runSetVisibility(t, dir.o)
-				for _, p := range preview.Phases {
-					if p.Status == visibilityPhasePending {
-						pending = append(pending, p.Name)
-					}
-				}
-				requireSwitchApplied(t, r.switchVisibility(t, dir.o), dir.o.Target)
-				requireNoSwitchDebris(t, r)
-				want = visibilityFinalState(t, r, data, tip)
-			})
-			if want == "" || len(pending) < 5 {
-				t.Fatalf("the uninterrupted switch left no reference state (pending phases %q)", pending)
-			}
-			for _, phase := range pending {
-				t.Run(phase, func(t *testing.T) {
-					r, data, tip := dir.fixture(t)
-					first := r.switchVisibilityWithHooks(t, dir.o, interruptAt(phase))
-					if first.Result != ResultExternalFailed {
-						t.Fatalf("run 1 = %q (%s), want external-failed at %s", first.Result, first.HumanText(), phase)
-					}
-					requireNoSwitchDebrisFolders(t, r)
-					r.driveVisibility(t, dir.o)
-					requireNoSwitchDebris(t, r)
-					if got := visibilityFinalState(t, r, data, tip); got != want {
-						t.Errorf("resumed after %s:\n%s\nwant (uninterrupted):\n%s", phase, got, want)
-					}
-				})
-			}
-		})
-	}
+		o: SetVisibilityOptions{Target: "shared"},
+	})
 
 	// identity-keys is pending only when the private config sets a repository
 	// identity key; a kill right after its commit still resumes once that
 	// commit reaches origin.
-	t.Run("shared/identity-keys", func(t *testing.T) {
+	t.Run("identity-keys", func(t *testing.T) {
 		r, _ := newBornPrivateRepo(t)
 		cfgPath := filepath.Join(r.gitDir(t), layout.PrivateName, layout.PrivateConfigFile)
 		if err := os.WriteFile(cfgPath, append(mustReadFile(t, cfgPath), []byte("integration_branch: main\n")...), 0o644); err != nil {
@@ -1401,6 +1377,46 @@ func TestIntegrationRepoVisibilityInterruptedPhasesResume(t *testing.T) {
 			t.Errorf("%s new commits, want the identity commit and the final commit", n)
 		}
 	})
+}
+
+// requireInterruptedPhasesResume runs dir's switch once uninterrupted for the
+// reference state and its pending phases, then once per pending phase killed
+// right after that phase and resumed, requiring the resumed state to equal the
+// reference.
+func requireInterruptedPhasesResume(t *testing.T, dir visibilityDirection) {
+	t.Helper()
+	var want string
+	var pending []string
+	t.Run("uninterrupted", func(t *testing.T) {
+		r, data, tip := dir.fixture(t)
+		preview := r.runSetVisibility(t, dir.o)
+		for _, p := range preview.Phases {
+			if p.Status == visibilityPhasePending {
+				pending = append(pending, p.Name)
+			}
+		}
+		requireSwitchApplied(t, r.switchVisibility(t, dir.o), dir.o.Target)
+		requireNoSwitchDebris(t, r)
+		want = visibilityFinalState(t, r, data, tip)
+	})
+	if want == "" || len(pending) < 5 {
+		t.Fatalf("the uninterrupted %s switch left no reference state (pending phases %q)", dir.name, pending)
+	}
+	for _, phase := range pending {
+		t.Run(phase, func(t *testing.T) {
+			r, data, tip := dir.fixture(t)
+			first := r.switchVisibilityWithHooks(t, dir.o, interruptAt(phase))
+			if first.Result != ResultExternalFailed {
+				t.Fatalf("run 1 = %q (%s), want external-failed at %s", first.Result, first.HumanText(), phase)
+			}
+			requireNoSwitchDebrisFolders(t, r)
+			r.driveVisibility(t, dir.o)
+			requireNoSwitchDebris(t, r)
+			if got := visibilityFinalState(t, r, data, tip); got != want {
+				t.Errorf("resumed after %s:\n%s\nwant (uninterrupted):\n%s", phase, got, want)
+			}
+		})
+	}
 }
 
 // requireNoSwitchDebrisFolders asserts an interrupted run never leaves both
@@ -1461,12 +1477,12 @@ func canonicalDir(t *testing.T, dir string) string {
 	return out
 }
 
-// TestIntegrationRepoVisibilityCommitMessages proves every commit a switch makes
+// TestIntegrationRepoVisibilitySwitchCommitMessages proves every commit a switch makes
 // carries one of the two fixed subjects and no body, a hand-edited .gitignore
 // refuses the going-shared preview, a detached HEAD refuses a committing plan,
 // and a commit hook that fails once leaves the edits for a re-run that makes
 // exactly one commit.
-func TestIntegrationRepoVisibilityCommitMessages(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchCommitMessages(t *testing.T) {
 	t.Run("round trip subjects", func(t *testing.T) {
 		r, _ := newPrivateSwitchRepo(t)
 		before := runGit(t, r.invocation, "rev-parse", "HEAD")
@@ -1539,10 +1555,10 @@ func TestIntegrationRepoVisibilityCommitMessages(t *testing.T) {
 	})
 }
 
-// TestIntegrationRepoVisibilityUserEditsSurvive proves a staged unrelated file
+// TestIntegrationRepoVisibilitySwitchUserEditsSurvive proves a staged unrelated file
 // and an unstaged edit to a tracked file outside the switch's paths survive
 // both directions, never entering a switch commit.
-func TestIntegrationRepoVisibilityUserEditsSurvive(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchUserEditsSurvive(t *testing.T) {
 	r, _ := newPrivateSwitchRepo(t)
 	writeRepoFile(t, r.invocation, "notes.txt", "mine\n")
 	runGit(t, r.invocation, "add", "--", "notes.txt")
@@ -1574,11 +1590,11 @@ func TestIntegrationRepoVisibilityUserEditsSurvive(t *testing.T) {
 	requireEdits("after going shared")
 }
 
-// TestIntegrationRepoVisibilitySecondCloneShared proves two clones sharing one
+// TestIntegrationRepoVisibilitySwitchSecondCloneShared proves two clones sharing one
 // private store: once the first goes shared, the second's publish is already
 // done and it completes with local phases only, leaving origin and the store
 // untouched.
-func TestIntegrationRepoVisibilitySecondCloneShared(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchSecondCloneShared(t *testing.T) {
 	a, data := newPrivateSwitchRepo(t)
 	b := &initRepo{root: a.root, origin: a.origin, writer: a.writer, invocation: filepath.Join(a.root, "second")}
 	runGit(t, a.root, "clone", "-q", a.origin, b.invocation)
@@ -1617,13 +1633,13 @@ func TestIntegrationRepoVisibilitySecondCloneShared(t *testing.T) {
 	requireNoSwitchDebris(t, b)
 }
 
-// TestIntegrationRepoVisibilitySameModeIsAlignOnly proves a switch to the mode a
+// TestIntegrationRepoVisibilitySwitchSameModeIsAlignOnly proves a switch to the mode a
 // never-switched repository is already in only aligns the clone-local
 // visibility value: a freshly initialized shared repository with uncommitted
 // edits to the switch's own paths (init's unstaged .gitignore block, a dirty
 // AGENTS.md) neither refuses nor commits, and leaves every edit as it was; a
 // born-private repository switched to private is likewise a no-op.
-func TestIntegrationRepoVisibilitySameModeIsAlignOnly(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchSameModeIsAlignOnly(t *testing.T) {
 	newDirtyShared := func(t *testing.T) *initRepo {
 		t.Helper()
 		t.Setenv("XDG_DATA_HOME", testsupport.TempDir(t))
