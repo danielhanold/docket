@@ -1616,3 +1616,143 @@ func TestIntegrationRepoVisibilitySecondCloneShared(t *testing.T) {
 	requireSharedLayoutRestored(t, b)
 	requireNoSwitchDebris(t, b)
 }
+
+// TestIntegrationRepoVisibilitySameModeIsAlignOnly proves a switch to the mode a
+// never-switched repository is already in only aligns the clone-local
+// visibility value: a freshly initialized shared repository with uncommitted
+// edits to the switch's own paths (init's unstaged .gitignore block, a dirty
+// AGENTS.md) neither refuses nor commits, and leaves every edit as it was; a
+// born-private repository switched to private is likewise a no-op.
+func TestIntegrationRepoVisibilitySameModeIsAlignOnly(t *testing.T) {
+	newDirtyShared := func(t *testing.T) *initRepo {
+		t.Helper()
+		t.Setenv("XDG_DATA_HOME", testsupport.TempDir(t))
+		r := newInitRepo(t, privateSwitchYML, nil)
+		if res := r.runInitWith(t, InitOptions{}); res.Result != ResultApplied {
+			t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+		}
+		agents := filepath.Join(r.invocation, "AGENTS.md")
+		writeRepoFile(t, r.invocation, "AGENTS.md", string(mustReadFile(t, agents))+"\nmy own note\n")
+		return r
+	}
+	requireUntouched := func(t *testing.T, r *initRepo, head, status, agents string) {
+		t.Helper()
+		if got := runGit(t, r.invocation, "rev-parse", "HEAD"); got != head {
+			t.Errorf("HEAD moved %s -> %s; a same-mode switch must not commit", head, got)
+		}
+		if got := runGit(t, r.invocation, "status", "--porcelain", "--untracked-files=all"); got != status {
+			t.Errorf("the working tree changed:\nbefore:\n%s\nafter:\n%s", status, got)
+		}
+		if got := string(mustReadFile(t, filepath.Join(r.invocation, "AGENTS.md"))); got != agents {
+			t.Errorf("AGENTS.md changed:\nbefore:\n%s\nafter:\n%s", agents, got)
+		}
+		if _, err := os.Stat(filepath.Join(r.gitDir(t), layout.SharedName, switchJournalFile)); !os.IsNotExist(err) {
+			t.Errorf("a switch journal was left (stat err %v)", err)
+		}
+	}
+
+	t.Run("shared to shared is a no-op", func(t *testing.T) {
+		r := newDirtyShared(t)
+		head := runGit(t, r.invocation, "rev-parse", "HEAD")
+		status := runGit(t, r.invocation, "status", "--porcelain", "--untracked-files=all")
+		agents := string(mustReadFile(t, filepath.Join(r.invocation, "AGENTS.md")))
+		if preview := r.runSetVisibility(t, SetVisibilityOptions{Target: "shared"}); preview.Result != ResultNoOp {
+			t.Errorf("preview = %q state %q, want no-op:\n%s", preview.Result, preview.RepositoryState, preview.HumanText())
+		}
+		if res := r.runSetVisibility(t, SetVisibilityOptions{Target: "shared", Authorized: true}); res.Result != ResultNoOp {
+			t.Errorf("--yes = %q state %q, want no-op:\n%s", res.Result, res.RepositoryState, res.HumanText())
+		}
+		requireUntouched(t, r, head, status, agents)
+	})
+
+	t.Run("shared to shared aligns only the local value", func(t *testing.T) {
+		r := newDirtyShared(t)
+		writeRepoFile(t, r.invocation, ".docket.local.yml", "visibility: private\n")
+		head := runGit(t, r.invocation, "rev-parse", "HEAD")
+		agents := string(mustReadFile(t, filepath.Join(r.invocation, "AGENTS.md")))
+		res := r.runSetVisibility(t, SetVisibilityOptions{Target: "shared", Authorized: true})
+		if res.Result != ResultApplied || res.RepositoryState != "shared" {
+			t.Fatalf("--yes = %q state %q, want applied shared:\n%s", res.Result, res.RepositoryState, res.HumanText())
+		}
+		for _, p := range res.Phases {
+			want := visibilityPhaseDone
+			if p.Name == "align-visibility" {
+				want = visibilityPhaseApplied
+			}
+			if p.Status != want {
+				t.Errorf("phase %s = %q, want %q", p.Name, p.Status, want)
+			}
+		}
+		if len(res.Commits) != 0 {
+			t.Errorf("Commits = %+v, want none", res.Commits)
+		}
+		if got := string(mustReadFile(t, filepath.Join(r.invocation, ".docket.local.yml"))); !strings.Contains(got, "visibility: shared") {
+			t.Errorf(".docket.local.yml = %q, want visibility: shared", got)
+		}
+		status := runGit(t, r.invocation, "status", "--porcelain", "--untracked-files=all")
+		requireUntouched(t, r, head, status, agents)
+	})
+
+	t.Run("private to private is a no-op", func(t *testing.T) {
+		r, _ := newBornPrivateRepo(t)
+		head := runGit(t, r.invocation, "rev-parse", "HEAD")
+		status := runGit(t, r.invocation, "status", "--porcelain", "--untracked-files=all")
+		if preview := r.runSetVisibility(t, SetVisibilityOptions{Target: "private"}); preview.Result != ResultNoOp {
+			t.Errorf("preview = %q state %q, want no-op:\n%s", preview.Result, preview.RepositoryState, preview.HumanText())
+		}
+		if res := r.runSetVisibility(t, SetVisibilityOptions{Target: "private", Authorized: true}); res.Result != ResultNoOp {
+			t.Errorf("--yes = %q state %q, want no-op:\n%s", res.Result, res.RepositoryState, res.HumanText())
+		}
+		if got := runGit(t, r.invocation, "rev-parse", "HEAD"); got != head {
+			t.Errorf("HEAD moved %s -> %s", head, got)
+		}
+		if got := runGit(t, r.invocation, "status", "--porcelain", "--untracked-files=all"); got != status {
+			t.Errorf("the working tree changed:\nbefore:\n%s\nafter:\n%s", status, got)
+		}
+	})
+}
+
+// TestIntegrationRepoVisibilitySharedResumesCommitWithoutJournaledEdits proves
+// a going-shared run killed after its metadata checkout moved still resumes its
+// commit when no earlier phase journaled an edit: the repository went private
+// keeping its committed files, .docket.yml already holds what the private
+// configuration splits into, and the user dropped the dispatch block from
+// AGENTS.md. The resumed run reinstalls the block and commits it with the add
+// subject instead of reading the repository as never switched.
+func TestIntegrationRepoVisibilitySharedResumesCommitWithoutJournaledEdits(t *testing.T) {
+	r, _ := newPrivateSwitchRepo(t)
+	r.driveVisibility(t, SetVisibilityOptions{Target: "private"})
+	gitDir := r.gitDir(t)
+	cfg := mustReadFile(t, filepath.Join(gitDir, layout.PrivateName, layout.PrivateConfigFile))
+	keys, _, err := readOptionalFile(filepath.Join(gitDir, layout.PrivateName, layout.PrivateLocalKeysFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	committed, _, err := reposetup.SplitPrivateConfig(cfg, keys, config.RepoOnlyPaths())
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.invocation, ".docket.yml", string(committed))
+	writeRepoFile(t, r.invocation, "AGENTS.md", "# Agents\n")
+	runGit(t, r.invocation, "add", "--", ".docket.yml", "AGENTS.md")
+	runGit(t, r.invocation, "commit", "-q", "-m", "hand edits while private")
+	before := runGit(t, r.invocation, "rev-parse", "HEAD")
+
+	first := r.switchVisibilityWithHooks(t, SetVisibilityOptions{Target: "shared"}, interruptAt("metadata-worktree"))
+	if first.Result != ResultExternalFailed {
+		t.Fatalf("run 1 = %q (%s), want external-failed after metadata-worktree", first.Result, first.HumanText())
+	}
+	if got := phaseStatus(first, "config-committed"); got != visibilityPhaseDone {
+		t.Fatalf("config-committed = %q, want done (the fixture must journal no edit)", got)
+	}
+	r.driveVisibility(t, SetVisibilityOptions{Target: "shared"})
+	requireSharedLayoutRestored(t, r)
+	requireNoSwitchDebris(t, r)
+	if n := runGit(t, r.invocation, "rev-list", "--count", before+"..HEAD"); n != "1" {
+		t.Fatalf("%s new commits, want the one add commit", n)
+	}
+	requireAddCommit(t, r.invocation, "HEAD", "AGENTS.md")
+	if agents := runGit(t, r.invocation, "show", "HEAD:AGENTS.md"); !strings.Contains(agents, document.MarkerSpelling(instructionsBlockName)+":start") {
+		t.Errorf("the committed AGENTS.md lacks the dispatch block:\n%s", agents)
+	}
+}

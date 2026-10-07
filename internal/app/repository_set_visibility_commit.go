@@ -165,7 +165,9 @@ func validateSwitchRel(rel string) error {
 }
 
 // recordSwitchDigest journals rel -> digest under subject, refusing a journal
-// that already belongs to the other subject.
+// that already belongs to the other subject and holds a path. A journal of the
+// other subject holding no path (the marker an abandoned going-shared run
+// opened) has no commit pending, so it is replaced.
 func recordSwitchDigest(commonDir, subject, rel, digest string) error {
 	if !validVisibilitySubject(subject) {
 		return fmt.Errorf("unknown commit subject %q", subject)
@@ -177,10 +179,10 @@ func recordSwitchDigest(commonDir, subject, rel, digest string) error {
 	if err != nil {
 		return err
 	}
-	if ok && j.Subject != subject {
+	if ok && j.Subject != subject && len(j.Paths) > 0 {
 		return fmt.Errorf("a pending switch commit %q is journaled; it must complete before %q", j.Subject, subject)
 	}
-	if !ok {
+	if !ok || j.Subject != subject {
 		j = switchJournal{Subject: subject, Paths: map[string]string{}}
 	}
 	j.Paths[rel] = digest
