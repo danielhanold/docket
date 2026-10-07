@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -14,7 +15,7 @@ import (
 // group and an unknown subcommand both fail rather than silently succeeding.
 func TestRepositoryCommandsRegistered(t *testing.T) {
 	root := captureTree(t)
-	for _, sub := range []string{"init", "check", "migrate", "prepare", "configure-tests", "configure-harnesses", "repair"} {
+	for _, sub := range []string{"init", "check", "migrate", "prepare", "configure-tests", "configure-harnesses", "repair", "set-visibility"} {
 		cmd, _, err := root.Find([]string{"repository", sub})
 		if err != nil || cmd == nil || cmd.Name() != sub {
 			t.Fatalf("repository %s not registered: cmd=%v err=%v", sub, cmd, err)
@@ -725,5 +726,108 @@ func TestRepositoryHarnessesHelp(t *testing.T) {
 	}
 	if !assetIndependent["repository configure-harnesses"] {
 		t.Error(`assetIndependent["repository configure-harnesses"] must be true`)
+	}
+}
+
+// TestRepositorySetVisibilityRegisteredWithCapability proves `repository
+// set-visibility` is a registered leaf taking exactly one argument, carrying its
+// flags, the catalog id repository.set-visibility, exactly the local-write,
+// metadata-write, and external-write effects, and an asset-independent entry.
+func TestRepositorySetVisibilityRegisteredWithCapability(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"repository", "set-visibility"})
+	if err != nil || cmd == nil || cmd.Name() != "set-visibility" {
+		t.Fatalf("repository set-visibility not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"repo-dir", "yes", "metadata-remote", "delete-shared-branch", "remove-shared-files"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("repository set-visibility: missing --%s flag", flag)
+		}
+	}
+	if got := cmd.Annotations[capAnnotationID]; got != "repository.set-visibility" {
+		t.Errorf("capability id = %q, want repository.set-visibility", got)
+	}
+	if got, want := cmd.Annotations[capAnnotationEffects], "external-write local-write metadata-write"; got != want {
+		t.Errorf("effects = %q, want exactly %q", got, want)
+	}
+	if !assetIndependent["repository set-visibility"] {
+		t.Errorf("repository set-visibility must be asset-independent")
+	}
+	if cmd.Args == nil || cmd.Args(cmd, nil) == nil || cmd.Args(cmd, []string{"a", "b"}) == nil || cmd.Args(cmd, []string{"private"}) != nil {
+		t.Errorf("repository set-visibility must take exactly one argument")
+	}
+}
+
+// fakeVisibilityResult is a stub set-visibility result.
+type fakeVisibilityResult struct {
+	app.Envelope
+	source  string
+	confirm bool
+}
+
+func (r fakeVisibilityResult) HumanText() string          { return "visibility plan @ " + r.source }
+func (r fakeVisibilityResult) SourceRev() string          { return r.source }
+func (r fakeVisibilityResult) ConfirmationRequired() bool { return r.confirm }
+
+// stubSetVisibility replaces the runner and the GitHub constructor for one test.
+func stubSetVisibility(t *testing.T, confirm func(o app.SetVisibilityOptions) bool) *[]app.SetVisibilityOptions {
+	t.Helper()
+	var calls []app.SetVisibilityOptions
+	old := repositorySetVisibilityRunner
+	repositorySetVisibilityRunner = func(ctx context.Context, d app.SetupDeps, o app.SetVisibilityOptions) app.OperationResult {
+		calls = append(calls, o)
+		return fakeVisibilityResult{Envelope: app.NewEnvelope("repository.set-visibility", app.ResultInvalidState), source: "pin", confirm: confirm(o)}
+	}
+	oldGH := repositorySetVisibilityGitHub
+	repositorySetVisibilityGitHub = func() (app.RepairGitHub, error) { return nil, errors.New("no gh") }
+	t.Cleanup(func() { repositorySetVisibilityRunner = old; repositorySetVisibilityGitHub = oldGH })
+	return &calls
+}
+
+// TestRepositorySetVisibilityFlagsReachOptions proves the argument and every
+// flag reach the service, and --yes authorizes directly with no preview pass.
+func TestRepositorySetVisibilityFlagsReachOptions(t *testing.T) {
+	calls := stubSetVisibility(t, func(app.SetVisibilityOptions) bool { return false })
+	_, _, _ = runCLI(t, "repository", "set-visibility", "private", "--yes",
+		"--metadata-remote", "/tmp/backup.git", "--delete-shared-branch", "--remove-shared-files")
+	if len(*calls) != 1 {
+		t.Fatalf("runner called %d times, want once", len(*calls))
+	}
+	got := (*calls)[0]
+	want := app.SetVisibilityOptions{Target: "private", Authorized: true, MetadataRemote: "/tmp/backup.git", DeleteSharedBranch: true, RemoveSharedFiles: true}
+	if got != want {
+		t.Errorf("options = %+v, want %+v", got, want)
+	}
+}
+
+// TestRepositorySetVisibilityInteractiveConfirmReinvokes proves `y` re-invokes
+// authorized, pinned to the previewed state, keeping the target and flags.
+func TestRepositorySetVisibilityInteractiveConfirmReinvokes(t *testing.T) {
+	calls := stubSetVisibility(t, func(o app.SetVisibilityOptions) bool { return !o.Authorized })
+	oldI := repositoryConfirmInteractive
+	repositoryConfirmInteractive = func() bool { return true }
+	defer func() { repositoryConfirmInteractive = oldI }()
+
+	_, _, _ = runCLIStdin(t, "y\n", "repository", "set-visibility", "private", "--remove-shared-files")
+	if len(*calls) != 2 {
+		t.Fatalf("runner called %d times, want preview then authorized", len(*calls))
+	}
+	p, a := (*calls)[0], (*calls)[1]
+	if p.Authorized || !a.Authorized || a.ExpectedSource != "pin" || a.Target != "private" || !a.RemoveSharedFiles {
+		t.Errorf("calls = %+v, want an unauthorized preview then an authorized run pinned to pin with the same flags", *calls)
+	}
+}
+
+// TestRepositorySetVisibilityNonInteractivePreview proves without --yes and
+// without a terminal the service is called once, unauthorized.
+func TestRepositorySetVisibilityNonInteractivePreview(t *testing.T) {
+	calls := stubSetVisibility(t, func(app.SetVisibilityOptions) bool { return true })
+	oldI := repositoryConfirmInteractive
+	repositoryConfirmInteractive = func() bool { return false }
+	defer func() { repositoryConfirmInteractive = oldI }()
+
+	_, _, _ = runCLI(t, "repository", "set-visibility", "shared")
+	if len(*calls) != 1 || (*calls)[0].Authorized || (*calls)[0].Target != "shared" {
+		t.Fatalf("want exactly one unauthorized shared preview: %+v", *calls)
 	}
 }
