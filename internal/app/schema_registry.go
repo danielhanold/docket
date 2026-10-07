@@ -103,6 +103,7 @@ var operationBindings = []OperationBinding{
 	{ID: "maintenance.sweep", Request: nil, Result: MaintenanceResult{}},                                   // MaintenanceSweep
 	{ID: "pr.publish", Request: PRPublishInput{}, Result: PRPublishResult{}},                               // PRPublish
 	{ID: "repository.check", Request: nil, Result: RepositoryCheckResult{}},                                // RunRepositoryCheck
+	{ID: "repository.configure-harnesses", Request: nil, Result: RepositoryOpResult{}},                     // RunRepositoryConfigureHarnesses
 	{ID: "repository.configure-tests", Request: nil, Result: RepositoryOpResult{}},                         // RunRepositoryConfigureTests
 	{ID: "repository.init", Request: nil, Result: RepositoryOpResult{}},                                    // RunRepositoryInit
 	{ID: "repository.migrate", Request: nil, Result: RepositoryMigrateResult{}},                            // RunRepositoryMigrate
