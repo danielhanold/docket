@@ -289,8 +289,12 @@ func planRepositoryRepair(sc setupContext, corpus checkCorpus) (repositoryRepair
 		for _, r := range repaired.records {
 			recByPath[r.path] = r
 		}
+		viewByPath := map[string]reposetup.DerivedView{}
+		for _, f := range repairable {
+			viewByPath[f.Path] = f.View
+		}
 		for _, f := range derivedRepairFiles(repairable) {
-			b, err := composeDerivedRepairBytes(sc, snap, repaired, recByPath, f)
+			b, err := composeDerivedRepairBytes(sc, snap, repaired, recByPath, viewByPath[f], f)
 			if err != nil {
 				return repositoryRepairPlan{}, fmt.Errorf("composing the repaired %s: %w", f, err)
 			}
@@ -381,16 +385,19 @@ func derivedRepairFiles(repairable []reposetup.DerivedFinding) []string {
 	return files
 }
 
-// composeDerivedRepairBytes recomputes the canonical bytes for one repaired file.
-// The board and ADR index are whole-file renders; an artifact-links file is the
-// record with its managed block rewritten (or, when absent, inserted after the
-// frontmatter) — never any other authored byte.
-func composeDerivedRepairBytes(sc setupContext, snap domain.Snapshot, corpus checkCorpus, recByPath map[string]corpusRecord, file string) ([]byte, error) {
-	switch file {
-	case boardCorpusPath(sc.cfg):
+// composeDerivedRepairBytes recomputes the canonical bytes for one repaired file
+// of the given derived view. The board and ADR index are whole-file renders; an
+// artifact-links file is the record with its managed block rewritten (or, when
+// absent, inserted after the frontmatter); a metadata artifact has only its
+// existing backlink block re-stamped — never any other authored byte.
+func composeDerivedRepairBytes(sc setupContext, snap domain.Snapshot, corpus checkCorpus, recByPath map[string]corpusRecord, view reposetup.DerivedView, file string) ([]byte, error) {
+	switch view {
+	case reposetup.DerivedViewBoard:
 		return renderCanonicalBoard(snap, corpusBoardUnrenderable(sc.cfg, corpus.records), boardPresentation(sc.cfg))
-	case adrIndexCorpusPath(sc.cfg):
+	case reposetup.DerivedViewADRIndex:
 		return renderCanonicalADRIndex(snap, corpusADRIndexUnrenderable(sc.cfg, corpus.records))
+	case reposetup.DerivedViewArtifactBacklinks:
+		return composeArtifactBacklinkRepair(snap, corpus, file)
 	}
 	// An artifact-links record.
 	rec, ok := recByPath[file]
@@ -419,6 +426,37 @@ func composeDerivedRepairBytes(sc setupContext, snap domain.Snapshot, corpus che
 		ps.InsertBlock("artifacts", "generated — do not hand-edit", body, document.AfterFrontmatter)
 	}
 	return doc.Apply(ps)
+}
+
+// composeArtifactBacklinkRepair re-stamps the backlink block of the metadata
+// artifact at file against the one change linking it. Check reports an artifact
+// linked by several changes, or carrying no block, as nothing repairable, so
+// either reaching here is an internal inconsistency, never a guess.
+func composeArtifactBacklinkRepair(snap domain.Snapshot, corpus checkCorpus, file string) ([]byte, error) {
+	stored, ok := corpus.artifacts[file]
+	if !ok {
+		return nil, fmt.Errorf("artifact %s absent from the corpus", file)
+	}
+	var owners []domain.Change
+	for _, c := range snap.Changes() {
+		for _, p := range artifactPathsOf(c) {
+			if p == file {
+				owners = append(owners, c)
+				break
+			}
+		}
+	}
+	if len(owners) != 1 {
+		return nil, fmt.Errorf("artifact %s is linked by %d changes, want exactly one", file, len(owners))
+	}
+	out, hasBlock, err := canonicalArtifactBacklink(stored, owners[0], file)
+	if err != nil {
+		return nil, err
+	}
+	if !hasBlock {
+		return nil, fmt.Errorf("artifact %s carries no backlink block", file)
+	}
+	return out, nil
 }
 
 // changeByPath finds the change whose canonical path is p.

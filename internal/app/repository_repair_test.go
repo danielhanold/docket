@@ -388,7 +388,7 @@ func TestComposeDerivedRepairBoardBytes(t *testing.T) {
 	corpus := checkCorpus{records: []corpusRecord{rec}, link: render.LinkContext{MetadataBranch: layout.SharedName}}
 	recByPath := map[string]corpusRecord{rec.path: rec}
 
-	got, err := composeDerivedRepairBytes(setupContext{cfg: cfg}, snap, corpus, recByPath, boardCorpusPath(cfg))
+	got, err := composeDerivedRepairBytes(setupContext{cfg: cfg}, snap, corpus, recByPath, reposetup.DerivedViewBoard, boardCorpusPath(cfg))
 	if err != nil {
 		t.Fatalf("compose board: %v", err)
 	}
@@ -410,7 +410,7 @@ func TestComposeDerivedRepairArtifactLinksBytes(t *testing.T) {
 	corpus := checkCorpus{records: []corpusRecord{stale}, link: render.LinkContext{MetadataBranch: layout.SharedName}}
 	recByPath := map[string]corpusRecord{path: stale}
 
-	got, err := composeDerivedRepairBytes(setupContext{cfg: cfg}, snap, corpus, recByPath, path)
+	got, err := composeDerivedRepairBytes(setupContext{cfg: cfg}, snap, corpus, recByPath, reposetup.DerivedViewArtifactLinks, path)
 	if err != nil {
 		t.Fatalf("compose artifact-links: %v", err)
 	}
@@ -422,5 +422,30 @@ func TestComposeDerivedRepairArtifactLinksBytes(t *testing.T) {
 	recheck := checkCorpus{records: []corpusRecord{repaired}, link: corpus.link}
 	if f := findingByCode(derivedViewFindings(cfg, recheck), reposetup.CodeArtifactLinksStale); f != nil {
 		t.Errorf("re-check of the repaired record still reports stale: %+v", f)
+	}
+}
+
+// TestPlanRepositoryRepairRestampsAbsoluteArtifactBacklink proves an artifact
+// whose generated backlink is an absolute same-branch URL is planned as the
+// canonical relative backlink, with every other byte unchanged.
+func TestPlanRepositoryRepairRestampsAbsoluteArtifactBacklink(t *testing.T) {
+	cfg := derivedTestConfig()
+	recs := []corpusRecord{backlinkRecord("07", "t", false)}
+	corpus := checkCorpus{
+		records:   recs,
+		link:      repairLink(),
+		artifacts: map[string][]byte{backlinkSpecPath: []byte(absoluteBacklinkArtifact)},
+	}
+	plan, err := planRepositoryRepair(setupContext{cfg: cfg}, corpus)
+	if err != nil {
+		t.Fatalf("planRepositoryRepair: %v", err)
+	}
+	if !planHasFile(plan.files, backlinkSpecPath) {
+		t.Fatalf("files = %v, want %s", plan.files, backlinkSpecPath)
+	}
+	c := backlinkSnapshotChange(t, recs, 7)
+	want := assembleSpecFile(render.ArtifactBacklinkContent(c, backlinkSpecPath), "# body")
+	if got := plan.contents[backlinkSpecPath]; !bytes.Equal(got, want) {
+		t.Errorf("contents = %q\nwant %q", got, want)
 	}
 }
