@@ -51,3 +51,39 @@ func TestIntegrationRepoInitBareAndAddRemote(t *testing.T) {
 		t.Fatalf("InitBare on a non-bare repository succeeded, want failure")
 	}
 }
+
+// TestIntegrationRepoRemoveRemote proves RemoveRemote deletes a configured
+// remote and its tracking refs, after which RemoteURL reports it unconfigured,
+// and that removing an unconfigured remote is remote-unavailable.
+func TestIntegrationRepoRemoveRemote(t *testing.T) {
+	requireGit(t)
+	c := newRealClient(t)
+	ctx := context.Background()
+	r := newMainModeRepos(t)
+	repo := mustDiscover(t, c, r.Invocation)
+
+	bare := filepath.Join(testsupport.TempDir(t), "remote.git")
+	if err := c.InitBare(ctx, bare); err != nil {
+		t.Fatalf("InitBare: %v", err)
+	}
+	if err := c.AddRemote(ctx, repo, "dckt", bare); err != nil {
+		t.Fatalf("AddRemote: %v", err)
+	}
+	gitOut(t, r.Invocation, "push", "-q", "dckt", "main")
+	gitOut(t, r.Invocation, "fetch", "-q", "dckt")
+	if _, err := gitTry(r.Invocation, "rev-parse", "--verify", "refs/remotes/dckt/main"); err != nil {
+		t.Fatalf("tracking ref missing before removal: %v", err)
+	}
+
+	if err := c.RemoveRemote(ctx, repo, "dckt"); err != nil {
+		t.Fatalf("RemoveRemote: %v", err)
+	}
+	_, err := c.RemoteURL(ctx, repo, "dckt")
+	assertKind(t, err, KindRemoteUnavailable)
+	if _, err := gitTry(r.Invocation, "rev-parse", "--verify", "refs/remotes/dckt/main"); err == nil {
+		t.Fatalf("tracking ref refs/remotes/dckt/main survived RemoveRemote")
+	}
+
+	assertKind(t, c.RemoveRemote(ctx, repo, "dckt"), KindRemoteUnavailable)
+	assertKind(t, c.RemoveRemote(ctx, repo, "-x"), KindInvalidRequest)
+}
