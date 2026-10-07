@@ -34,7 +34,7 @@ func newSwitchCommitRepo(t *testing.T) (*gitcli.Client, gitcli.Repository) {
 	return git, gitcli.Repository{PrimaryWorktree: dir, CommonDir: filepath.Join(dir, ".git")}
 }
 
-func TestIntegrationRepoVisibilityCommitPathConflicts(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchCommitPathConflicts(t *testing.T) {
 	ctx := context.Background()
 	git, repo := newSwitchCommitRepo(t)
 	dir, common := repo.PrimaryWorktree, repo.CommonDir
@@ -90,7 +90,7 @@ func TestIntegrationRepoVisibilityCommitPathConflicts(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepoVisibilityCommitSwitchJournalCommitsOnlyJournaledPaths(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchJournalCommitsOnlyJournaledPaths(t *testing.T) {
 	ctx := context.Background()
 	git, repo := newSwitchCommitRepo(t)
 	dir, common := repo.PrimaryWorktree, repo.CommonDir
@@ -133,7 +133,7 @@ func TestIntegrationRepoVisibilityCommitSwitchJournalCommitsOnlyJournaledPaths(t
 	}
 }
 
-func TestIntegrationRepoVisibilityCommitSwitchJournalIsIdempotentAfterCrash(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchJournalIsIdempotentAfterCrash(t *testing.T) {
 	ctx := context.Background()
 	git, repo := newSwitchCommitRepo(t)
 	dir, common := repo.PrimaryWorktree, repo.CommonDir
@@ -168,7 +168,7 @@ func TestIntegrationRepoVisibilityCommitSwitchJournalIsIdempotentAfterCrash(t *t
 	}
 }
 
-func TestIntegrationRepoVisibilityCommitSwitchJournalRetriesAfterHookFailure(t *testing.T) {
+func TestIntegrationRepoVisibilitySwitchJournalRetriesAfterHookFailure(t *testing.T) {
 	ctx := context.Background()
 	git, repo := newSwitchCommitRepo(t)
 	dir, common := repo.PrimaryWorktree, repo.CommonDir

@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # docket-suite: go
-# tests/test_go_integration_app_repovisibility.sh — Go integration shard: the
-# `repository set-visibility` switch over real git — the preview, the refusals
-# that stop a switch before it writes, the journaled own-path integration-branch
-# commit machinery (fixed subjects, the user's other staged work left alone, hook
-# failure and crash recovery), and the direction-neutral acceptance proofs —
-# behind the `integration` build tag, prefix ^TestIntegrationRepoVisibilitySwitch. The
+# tests/test_go_integration_app_repovisibility_shared.sh — Go integration shard: the
+# `repository set-visibility` switch to shared over real git — restoring the
+# shared layout and keys, origin-branch handling, and resume after every phase —
+# behind the `integration` build tag, prefix ^TestIntegrationRepoVisibilityShared. The
 # visibility tests split across three sibling shards by name prefix (none a
 # prefix of another) so each stays under its runtime budget.
 # Declarations only — execution and inspection live in
@@ -18,7 +16,7 @@ fail=0
 assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 SHARD_PKG="./internal/app"
-SHARD_PREFIX="TestIntegrationRepoVisibilitySwitch"
+SHARD_PREFIX="TestIntegrationRepoVisibilityShared"
 SHARD_MODE="normal"
 
 . "$REPO/tests/lib/go-integration-shard.sh"
