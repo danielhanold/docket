@@ -90,7 +90,7 @@ func RunRepositoryCheck(ctx context.Context, d SetupDeps) RepositoryCheckResult 
 	// its own errors to the safe Unknown value, never to a false absence.
 	var fm []reposetup.RepairFinding
 	var corpusExtra []reposetup.Finding
-	var testConfig *reposetup.Finding
+	var testConfig, harnessesUnset *reposetup.Finding
 	if facts.RemoteMetadata.Presence == reposetup.PresencePresent {
 		augmentCheckFacts(ctx, d.Git, &facts, sc)
 		corpus, rerr := readCheckCorpus(ctx, d.Git, sc)
@@ -102,6 +102,10 @@ func RunRepositoryCheck(ctx context.Context, d SetupDeps) RepositoryCheckResult 
 		// exactly what the resolver read (a private repository's
 		// .git/dckt/config.yml, through repoConfigTarget).
 		testConfig = reposetup.TestConfigFinding(sc.cfg, readRepoConfigBytes(sc))
+		// An unchosen agent_harnesses is a setup gap reported like the test
+		// policy: a warning with the configure-harnesses remedy, never a state
+		// change.
+		harnessesUnset = reposetup.HarnessesUnsetFinding(facts)
 	}
 
 	cls := reposetup.Classify(facts)
@@ -109,6 +113,9 @@ func RunRepositoryCheck(ctx context.Context, d SetupDeps) RepositoryCheckResult 
 	findings = append(findings, corpusExtra...)
 	if testConfig != nil {
 		findings = append(findings, *testConfig)
+	}
+	if harnessesUnset != nil {
+		findings = append(findings, *harnessesUnset)
 	}
 	// The visibility findings explain; they never change the classified state.
 	// A mismatch is meaningful only once the repository is set up (a fresh
