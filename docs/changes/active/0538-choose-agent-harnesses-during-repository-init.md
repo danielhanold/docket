@@ -11,7 +11,7 @@ depends_on: []
 stacked_on:
 related: [531, 533, 351]
 discovered_from: [535]
-adrs: []
+adrs: [146]
 spec: 'docs/superpowers/specs/2026-10-07-choose-agent-harnesses-during-repository-init-design.md'
 plan: 'docs/superpowers/plans/2026-10-07-choose-agent-harnesses-during-repository-init.md'
 results:
@@ -22,7 +22,7 @@ branch: 'feat/choose-agent-harnesses-during-repository-init'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-07T01:31:45Z'
+claimed_at: '2026-10-07T02:09:36Z'
 ---
 
 ## Artifacts
@@ -32,6 +32,7 @@ claimed_at: '2026-10-07T01:31:45Z'
 |---|---|
 | Spec | [2026-10-07-choose-agent-harnesses-during-repository-init-design.md](../../superpowers/specs/2026-10-07-choose-agent-harnesses-during-repository-init-design.md) |
 | Plan | [2026-10-07-choose-agent-harnesses-during-repository-init.md](../../superpowers/plans/2026-10-07-choose-agent-harnesses-during-repository-init.md) |
+| ADRs | [ADR-0146](../../adrs/0146-adopt-charmbracelet-huh-as-the-interactive-terminal-ui-depen.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -67,3 +68,7 @@ The result is the same in both modes: no instructions and no message saying why.
 ### 2026-10-07
 
 2026-10-07: Groomed the same day against main ed335f07d. Re-traced the spec's anchors on current code (installAuthorizedSurfaces, writeTargetConfig, the SurfacesAuthorized init gate, RemoveMetadataBranchKey's splice helpers, the health conditions); all present as described. No related change moved (531, 351 done; 533 still proposed). Scope unchanged.
+
+### 2026-10-07
+
+2026-10-07: Recorded ADR-0146 (adopt charmbracelet/huh as the interactive terminal UI dependency) during review; added to adrs.
