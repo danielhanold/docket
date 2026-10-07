@@ -36,6 +36,9 @@ func ParseHarnessSelection(tokens []string) ([]string, error) {
 		case tok == "":
 			empty = true
 		case tok == HarnessesNone:
+			if none && !containsString(dups, tok) {
+				dups = append(dups, tok)
+			}
 			none = true
 		case !containsString(allowed, tok):
 			unknown = append(unknown, tok)

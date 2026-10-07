@@ -68,4 +68,10 @@ func TestIntegrationRepoCheckHarnessesUnsetPrivate(t *testing.T) {
 		t.Fatalf("configure-harnesses none = %q (%s), want applied", none.Result, none.HumanText())
 	}
 	assertHarnessesUnset(t, "none", checkIn(t, r.invocation), false, 0)
+
+	claude := r.runConfigureHarnesses(t, ConfigureHarnessesOptions{Harnesses: harnessFlag("claude")})
+	if claude.Result != ResultApplied {
+		t.Fatalf("configure-harnesses claude = %q (%s), want applied", claude.Result, claude.HumanText())
+	}
+	assertHarnessesUnset(t, "claude", checkIn(t, r.invocation), false, 0)
 }

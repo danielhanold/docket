@@ -40,6 +40,7 @@ func TestParseHarnessSelection(t *testing.T) {
 		{[]string{"claude", ""}, []string{"empty"}},
 		{[]string{"claude", "claude"}, []string{"claude", "more than once"}},
 		{[]string{"none", "claude"}, []string{"none"}},
+		{[]string{"none", "none"}, []string{"none", "more than once"}},
 		{[]string{"bogus", "claude", "nope"}, []string{"bogus", "nope", "claude, codex, cursor, opencode"}},
 		{[]string{"Claude"}, []string{"Claude"}},
 	}
