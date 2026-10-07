@@ -1,12 +1,6 @@
 # Backlog
 
-**539 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 374 done · 🗑️ 139 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0533](active/0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | `medium` | `feat` | [#404](https://github.com/danielhanold/docket/pull/404) | awaiting merge |
+**539 changes** — 🟣 2 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 375 done · 🗑️ 139 killed
 
 ## 🟣 Groomed (2)
 
@@ -73,9 +67,6 @@ graph TD
   0511 --> 0514
   0527
   0528
-  0530 --> 0533
-  0531 --> 0533
-  0535 --> 0533
   0536
   0537
   0539
@@ -85,17 +76,15 @@ graph TD
   0393:::done
   0407:::done
   0511:::done
-  0530:::done
-  0531:::done
-  0535:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (513)</summary>
+<details><summary>✅🗑️ Archive — done + killed (514)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0538](archive/2026-10-07-0538-choose-agent-harnesses-during-repository-init.md) | Choose agent harnesses during init and with configure-harnesses | 2026-10-07 |
+| [0533](archive/2026-10-07-0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | 2026-10-07 |
 | [0535](archive/2026-10-06-0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | 2026-10-06 |
 | [0534](archive/2026-10-06-0534-install-an-alias-for-the-docket-binary.md) | Install an alias for the docket binary | 2026-10-06 |
 | [0532](archive/2026-10-06-0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | 2026-10-06 |
@@ -109,7 +98,6 @@ graph TD
 | [0522](archive/2026-10-05-0522-share-the-json-key-rules-between-internal-cli-and-internal-a.md) | Share the JSON-key rules between internal/cli and internal/app | 2026-10-05 |
 | [0507](archive/2026-10-05-0507-flaky-tests-track-and-stabilize-intermittent-suite-failures.md) | Fix the observe-test hang and bring two test files back under their time limits | 2026-10-05 |
 | [0366](archive/2026-10-05-0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | v1.0.0-alpha.1 acceptance and publication (Claude Code) | 2026-10-05 |
-| [0521](archive/2026-10-04-0521-finish-schema-operation-documentation-outcomes-md-flag-only.md) | Mark every nested required request field in the schema, and fix the stale schema docs | 2026-10-04 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -254,7 +242,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 31 done |
+| [2026-10](archive/) | 32 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

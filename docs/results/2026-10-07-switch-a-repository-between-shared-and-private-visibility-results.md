@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0533 — Switch a repository between shared and private visibility](../changes/active/0533-switch-a-repository-between-shared-and-private-visibility.md)**
+> ↩ **[Change 0533 — Switch a repository between shared and private visibility](../changes/archive/2026-10-07-0533-switch-a-repository-between-shared-and-private-visibility.md)**
 <!-- docket:backlink:end -->
 
 # Switch a repository between shared and private visibility — Results

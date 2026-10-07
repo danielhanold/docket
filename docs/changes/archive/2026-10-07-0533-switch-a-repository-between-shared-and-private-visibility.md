@@ -2,7 +2,7 @@
 id: 533
 slug: 'switch-a-repository-between-shared-and-private-visibility'
 title: 'Switch a repository between shared and private visibility'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-05'
@@ -22,7 +22,7 @@ branch: 'feat/switch-a-repository-between-shared-and-private-visibility'
 pr: 'https://github.com/danielhanold/docket/pull/404'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-07T11:29:37Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-07T11:29:37Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md](../../superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) |
+| Spec (merged) | [2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-05-switch-a-repository-between-shared-and-private-visibility-design.md) |
 | Plan | [2026-10-07-switch-a-repository-between-shared-and-private-visibility.md](../../superpowers/plans/2026-10-07-switch-a-repository-between-shared-and-private-visibility.md) |
 | Results | [2026-10-07-switch-a-repository-between-shared-and-private-visibility-results.md](../../results/2026-10-07-switch-a-repository-between-shared-and-private-visibility-results.md) |
 | ADRs | [ADR-0001](../../adrs/0001-docket-metadata-branch-model.md), [ADR-0099](../../adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0147](../../adrs/0147-a-visibility-switch-republishes-the-identical-metadata-histo.md) |
