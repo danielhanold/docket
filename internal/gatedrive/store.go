@@ -164,7 +164,7 @@ func OpenStore(gitCommonDir string) *Store {
 		root:            filepath.Join(state, "gate-drives", "v2"),
 		scopeRoot:       filepath.Join(state, "gate-scopes", "v2"),
 		suiteBudgetRoot: filepath.Join(state, "gate-suite-budgets", "v1"),
-		lockRoot:        filepath.Join(state, "worktree-locks"),
+		lockRoot:        filepath.Join(state, worktreeLockRootName),
 	}
 }
 
