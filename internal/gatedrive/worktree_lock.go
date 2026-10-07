@@ -21,17 +21,22 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/danielhanold/docket/internal/process"
 )
 
 const (
-	worktreeLockFile    = "busy.lock"
-	worktreeHolderFile  = "holder.json"
-	opWorktreeAdmission = "worktree-admission"
+	worktreeLockRootName = "worktree-locks"
+	worktreeLockFile     = "busy.lock"
+	worktreeHolderFile   = "holder.json"
+	opWorktreeAdmission  = "worktree-admission"
 )
 
 // HolderNote is the diagnostic record of the gate that last took a worktree lock.
@@ -175,4 +180,40 @@ func liveHolder(dir string, obs HolderObserver) *IncumbentSnapshot {
 		ChangeID:  n.ChangeID,
 		Owner:     n.Owner,
 	}
+}
+
+// BusyWorktreeLocks reports every worktree lock a live process holds right now:
+// the <stateDir>/worktree-locks/<key> directories whose busy.lock is held,
+// sorted. It is a repository-wide precondition probe, never an admission: each
+// lock is probed with process.ProbeLock (no create, never waiting, released by
+// close), so a free lock stays free and no lock file is minted where none was.
+// A missing root is (nil, nil) and a directory without busy.lock is skipped. A
+// lock the probe cannot decide is an error, never "not busy": liveness unknown
+// is not absence.
+func BusyWorktreeLocks(stateDir string) ([]string, error) {
+	root := filepath.Join(stateDir, worktreeLockRootName)
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("reading %s: %w", root, err)
+	}
+	var busy []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		dir := filepath.Join(root, e.Name())
+		switch process.ProbeLock(filepath.Join(dir, worktreeLockFile)) {
+		case process.LockProbeHeld:
+			busy = append(busy, dir)
+		case process.LockProbeFree, process.LockProbeMissing:
+			// Nobody holds it, or there is no lock file: not busy.
+		default:
+			return nil, fmt.Errorf("cannot probe the worktree lock in %s", dir)
+		}
+	}
+	sort.Strings(busy)
+	return busy, nil
 }
