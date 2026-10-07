@@ -72,6 +72,28 @@ func TestIntegrationRepoSetupInitHarnessesFlagShared(t *testing.T) {
 	}
 }
 
+// Init's pending list is what the human commits: the Cursor rule the managed
+// .gitignore block ignores is never on it, and `git add` takes the whole list.
+func TestIntegrationRepoSetupInitPendingOmitsIgnoredCursorRule(t *testing.T) {
+	r := newInitRepo(t, defaultSetupYML, nil)
+	res := r.runInitWith(t, InitOptions{Harnesses: harnessFlag("claude", "cursor")})
+	if res.Result != ResultApplied {
+		t.Fatalf("Result = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	if _, err := os.Stat(filepath.Join(r.invocation, ".cursor", "rules", "docket-dispatch.mdc")); err != nil {
+		t.Fatalf("the cursor rule was not installed: %v", err)
+	}
+	if contains(res.PendingPaths, ".cursor/rules/docket-dispatch.mdc") {
+		t.Errorf("PendingPaths = %v, want the gitignored cursor rule left off", res.PendingPaths)
+	}
+	if strings.Contains(res.HumanText(), "docket-dispatch.mdc") {
+		t.Errorf("human text %q names the gitignored cursor rule", res.HumanText())
+	}
+	if out, err := tryGit(r.invocation, append([]string{"add", "--"}, res.PendingPaths...)...); err != nil {
+		t.Errorf("git add of the pending paths %v failed: %v (%s)", res.PendingPaths, err, out)
+	}
+}
+
 func TestIntegrationRepoSetupPrivateInitHarnessesFlag(t *testing.T) {
 	r, data := newPrivateInitRepo(t, nil)
 	res := r.runInitWith(t, InitOptions{Private: true, Harnesses: harnessFlag("claude")})
@@ -282,15 +304,7 @@ func newHarnessRepo(t *testing.T, tokens ...string) *initRepo {
 	if res.Result != ResultApplied {
 		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
 	}
-	// Init also reports the Cursor rule, which the managed .gitignore block
-	// ignores; commit only the paths git will track.
-	var tracked []string
-	for _, p := range res.PendingPaths {
-		if _, err := tryGit(r.invocation, "check-ignore", "-q", "--", p); err != nil {
-			tracked = append(tracked, p)
-		}
-	}
-	r.commitAndPushMain(t, "commit init's pending edits", tracked...)
+	r.commitAndPushMain(t, "commit init's pending edits", res.PendingPaths...)
 	return r
 }
 
