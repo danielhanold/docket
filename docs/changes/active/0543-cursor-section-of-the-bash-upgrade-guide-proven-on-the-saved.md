@@ -11,8 +11,8 @@ depends_on: []
 stacked_on:
 related: [511, 512, 513, 514]
 discovered_from: [512]
-adrs: []
-spec:
+adrs: [96]
+spec: 'docs/superpowers/specs/2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-design.md](../../superpowers/specs/2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-design.md) |
+| ADRs | [ADR-0096](../../adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -37,14 +41,12 @@ This was split out of 0512 at grooming. The release protocol builds no code insi
 
 ## What changes
 
-- **The guide.** Add the Cursor steps to `docs/release/upgrading-from-bash.md`:
-  - taking over the old Cursor install under `~/.cursor` (skills, agents, and the v0.9.x `docket-dispatch.mdc` rule), including any ownership-conflict remedy;
-  - the per-repository Cursor surface (`agent_harnesses` listing `cursor`, and the repository `.cursor/rules/docket-dispatch.mdc`);
-  - Cursor's leftovers you can delete;
-  - restarting Cursor;
-  - the permissions note: docket runs outside Cursor's sandbox (link to `docs/install/cursor.md`).
-  Remove the "not supported until their sections arrive" wording for Cursor; OpenCode keeps it.
-- **The test.** Extend `TestBashUpgrade` (`internal/bashupgrade`) to assert the Cursor steps against the saved v0.9.2 and v0.9.3 cases, which already hold the Cursor files. It must end clean for Cursor the same way it does for Claude Code: a clean install check for the Cursor harness, nothing under `~/.cursor` pointing into the old checkout, and the guide's per-repository Cursor steps applied.
+- **The guide.** One combined path for Claude Code and Cursor in `docs/release/upgrading-from-bash.md`:
+  - the install line names both harnesses (drop the one you don't use), on `v1.0.0-alpha.2`;
+  - a marked Cursor takeover step removes Bash's `~/.cursor/skills` links, and on v0.9.3 also `docket-plan-writer.md` and Bash's user-level `~/.cursor/rules/docket-dispatch.mdc` (v0.9.2's rule is removed by the installer itself);
+  - `configure-harnesses` with `claude,cursor`;
+  - Cursor's leftovers, the sandbox note, and restarting Cursor.
+- **The test.** `TestBashUpgrade` runs the guide once per saved case through both harnesses. It keeps every Claude Code assertion and adds Cursor's: the expected conflicts, no user-level rule left, a clean install check, no `~/.cursor` links into the old checkout, and the repository rule written.
 - **Code bugs stay out.** If the test exposes something the binary does wrong, rather than something the guide can explain, the build halts and the bug gets its own fix change.
 
 ## Out of scope
