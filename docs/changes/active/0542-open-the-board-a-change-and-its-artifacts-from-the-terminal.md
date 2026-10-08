@@ -12,7 +12,7 @@ stacked_on:
 related: [136, 531, 534]
 discovered_from: []
 adrs: [19, 141, 142]
-spec:
+spec: 'docs/superpowers/specs/2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal-design.md](../../superpowers/specs/2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal-design.md) |
 | ADRs | [ADR-0019](../../adrs/0019-global-config-fence-classification.md), [ADR-0141](../../adrs/0141-build-artifacts-plan-results-evidence-live-on-the-metadata-b.md), [ADR-0142](../../adrs/0142-private-visibility-keeps-the-single-metadata-layout-and-vari.md) |
 <!-- docket:artifacts:end -->
 
