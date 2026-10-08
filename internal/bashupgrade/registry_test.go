@@ -514,9 +514,9 @@ func mirrorInstallBinary(t *testing.T, c *upgradeCase, st *runState, body string
 
 // installHandoff mirrors internal/release/downloader/install.sh from the point it
 // has a verified binary: stage it beside the destination, run the staged binary's
-// `install` with one `--harness` per harness on the guide's installer line, and only on success move it into place, place the
-// relative dckt alias beside it, write the ownership record (naming the alias), and
-// run `docket install check`.
+// `install` with one `--harness` per harness on the guide's installer line, and
+// only on success move it into place, place the relative dckt alias beside it,
+// write the ownership record (naming the alias), and run `docket install check`.
 func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
 	t.Helper()
 	dest := filepath.Join(c.BinDir, "docket")
