@@ -13,7 +13,7 @@ related: [366, 511, 513, 523, 524, 525, 526, 543]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md'
 results:
 trivial: false
 auto_groomable: false
@@ -31,6 +31,7 @@ claimed_at: '2026-10-08T18:11:43Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md](../../superpowers/specs/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md) |
+| Plan | [2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md](../../superpowers/plans/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
