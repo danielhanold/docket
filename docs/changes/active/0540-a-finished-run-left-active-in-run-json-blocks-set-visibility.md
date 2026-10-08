@@ -22,7 +22,7 @@ branch: 'fix/a-finished-run-left-active-in-run-json-blocks-set-visibility'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-08T01:40:05Z'
+claimed_at: '2026-10-08T01:49:43Z'
 ---
 
 ## Artifacts
