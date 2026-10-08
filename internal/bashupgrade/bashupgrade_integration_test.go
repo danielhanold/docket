@@ -4,6 +4,8 @@ package bashupgrade
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -106,6 +108,9 @@ func TestIntegrationBashUpgradeGuide(t *testing.T) {
 				t.Fatalf("the remedy did not lead to a second install run")
 			}
 			assertCleanEndState(t, c)
+			if _, err := os.Lstat(filepath.Join(c.Home, ".cursor", "rules", "docket-dispatch.mdc")); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("Bash's user-level Cursor rule ~/.cursor/rules/docket-dispatch.mdc is still there after the guide (%v)", err)
+			}
 			assertRecordsSurvive(t, c, before)
 			if after, _ := os.ReadFile(filepath.Join(c.Clone, "CLAUDE.md")); strings.Contains(string(after), "docket:dispatch:") {
 				t.Errorf("the repository CLAUDE.md still carries the Bash dispatch block after the guide")
@@ -148,7 +153,8 @@ func TestIntegrationBashUpgradeGuide(t *testing.T) {
 	}
 }
 
-// assertCleanEndState: install check, repository check and status all clean.
+// assertCleanEndState: install check (for every harness the guide installs),
+// repository check and status all clean.
 func assertCleanEndState(t *testing.T, c *upgradeCase) {
 	t.Helper()
 	for _, args := range [][]string{{"--json", "install", "check"}, {"--json", "repository", "check"}} {
@@ -156,6 +162,23 @@ func assertCleanEndState(t *testing.T, c *upgradeCase) {
 		if r.Code != 0 {
 			t.Errorf("docket %s exited %d\nstdout:\n%s\nstderr:\n%s", strings.Join(args, " "), r.Code, r.Stdout, r.Stderr)
 			continue
+		}
+		if args[1] == "install" {
+			var doc struct {
+				Harnesses []string `json:"harnesses"`
+			}
+			if err := json.Unmarshal([]byte(r.Stdout), &doc); err != nil {
+				t.Errorf("decode install check JSON: %v\n%s", err, r.Stdout)
+			}
+			have := map[string]bool{}
+			for _, h := range doc.Harnesses {
+				have[h] = true
+			}
+			for _, h := range guideHarnesses {
+				if !have[h] {
+					t.Errorf("docket install check reports harnesses %v; the guide installs %s", doc.Harnesses, h)
+				}
+			}
 		}
 		for _, f := range findingCodes(t, r.Stdout) {
 			if f.Severity == "error" || f.Severity == "warning" {
