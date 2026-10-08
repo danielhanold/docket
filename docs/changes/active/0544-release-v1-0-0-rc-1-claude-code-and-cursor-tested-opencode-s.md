@@ -13,7 +13,7 @@ related: [366, 511, 512, 513, 514, 543, 545]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md'
 results:
 trivial: false
 auto_groomable: false
@@ -31,6 +31,7 @@ claimed_at: '2026-10-08T21:11:18Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-design.md](../../superpowers/specs/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-design.md) |
+| Plan | [2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md](../../superpowers/plans/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
