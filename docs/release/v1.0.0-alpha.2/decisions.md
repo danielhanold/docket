@@ -66,3 +66,8 @@ git ls-remote origin refs/heads/main: ec4c2b1841954c2d6a3dd018e1133ee762861137	r
 
 - Release notes reviewed by Daniel. He had change 0545 created to confirm Cursor's subagent model pins in a sandbox, and kept the other known gaps as drafted.
 - Daniel, 2026-10-08T19:36:32Z: "go ahead and publish".
+
+## Phases 4–5 (2026-10-08)
+
+- Phase 4: tag, draft, six verified assets, published 19:37:30Z as a pre-release, `v0.9.3` still Latest. See `publication.md`.
+- Phase 5: public install from the release URL passed. See `public-install.md`.
