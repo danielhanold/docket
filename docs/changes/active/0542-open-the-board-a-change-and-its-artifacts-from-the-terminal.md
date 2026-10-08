@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/open-the-board-a-change-and-its-artifacts-from-the-terminal'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-08T10:16:01Z'
+reconciled: true
+claimed_at: '2026-10-08T10:16:43Z'
 ---
 
 ## Artifacts
@@ -53,3 +53,9 @@ Getting from the terminal to the board, or to a change's spec, plan, results, or
 - Rendering Markdown to HTML or serving a local preview site.
 - Opening ADRs, learnings, or the integration-branch copy of a spec.
 - Shell completion for change ids.
+
+## Reconcile log
+
+### 2026-10-08
+
+Reconciled against main ab42a50a0 the same day the change was groomed. Every symbol the spec cites still exists with the described shape (githubWebURL, linkContextOf, LinkContext.BlobURL, recordedBranch, gitcli WorktreeCheckoutState, boardCorpusPath, RunRepositoryPrepare); no `open` command exists yet. Scope unchanged; no relation changes.
