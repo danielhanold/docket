@@ -1,0 +1,23 @@
+Run: 37844907335
+URL: https://github.com/danielhanold/docket/actions/runs/37844907335
+Event: workflow_dispatch  ref=d0f4712a53bd6a158fddada91cdf612f1755a531  version=v1.0.0-rc.1
+headSha: d0f4712a53bd6a158fddada91cdf612f1755a531
+Conclusion: success (source-gate, package, 4x smoke, summary all success)
+Source gate toolchain: go version go1.26.8 darwin/arm64 (macos-15)
+
+Suite: SUITE files=86 passed=86 failed=0 asserts=593 wall=1285s
+Budget: ten BUDGET WATCH screening lines (all streak 1/5), no SERIAL CONFIRMED OVER BUDGET line.
+
+Upgrade proof: test_go_integration_bashupgrade 67s rc=0 ok=4 notok=0
+  (TestBashUpgrade cases, including the Cursor assertions, ran and passed)
+
+Evidence checks: source_commit = candidate; head_version = v1.0.0-rc.1; checksums_txt byte-equal to checksums.txt.
+
+Read-only copy: $OPERATOR_HOME/docket-rc1-candidate/head (chmod -R a-w)
+SHA-256 listing:
+28b9757ade9df58530fde8ac4a4bf9b0ded8cc8d4221a26593c293c8652653c5  checksums.txt
+6e8b3eb2c8b418ab47f76d6886a75c7170b4cf93b273930fccfc8df2f6a83081  docket_v1.0.0-rc.1_darwin_amd64.tar.gz
+6ffe40c70127cc862ad494a2287f39cf688c1fe3e40d1b4c3ae7f50b04fb2637  docket_v1.0.0-rc.1_darwin_arm64.tar.gz
+5a25d7ae49fd1401f40b5dfd0ace3eba72c83f58e687dc15d7aa28a6942492ea  docket_v1.0.0-rc.1_linux_amd64.tar.gz
+911a529d2e31a390df379fad38f6d4ba9ce0d1592c291d052ac63a0798a56301  docket_v1.0.0-rc.1_linux_arm64.tar.gz
+52fb4dcb78648db02948632713a08120443abe15681b19e338e139bfb6321608  install.sh

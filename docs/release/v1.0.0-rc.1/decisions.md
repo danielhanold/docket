@@ -39,3 +39,15 @@ e44c85c54 docs(release): v1.0.0-alpha.2 notes final; publish decision
 d0f3503cc docs(release): v1.0.0-alpha.2 Phase 2 candidate evidence
 b14bba595 docs(release): v1.0.0-alpha.2 Phase 0 and Phase 1 decisions
 ```
+
+## Phase 2 — package once (2026-10-08)
+
+- Run 37844907335 green on all seven jobs at the candidate; no STOP.
+- `evidence.json` checks exact, including the `checksums_txt` byte match (no waiver).
+- `TestBashUpgrade` (with the Cursor assertions) ran and passed: `rc=0 ok=4`.
+- Ten `BUDGET WATCH` screening lines, no `SERIAL CONFIRMED OVER BUDGET`. Details in `candidate/run.txt`.
+- Read-only copy made; every later phase reads it.
+
+## Phase 3 — coverage statement
+
+No human harness test. Claude Code was proven end to end in alpha.1 (change 0366) and Cursor in alpha.2 (change 0512). Both are covered at this candidate by the whole-suite source gate, which is identical in source to alpha.2 (docs-only diff).
