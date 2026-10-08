@@ -757,7 +757,7 @@ func TestIntegrationRunCompletionTreeSurvivesNeverBlocksCloseout(t *testing.T) {
 		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 
-	res := runTrackerCompleteRun(fx.repo, fx.key, rec, 42, fx.seams())
+	res := runTrackerCompleteRun(fx.repo, fx.key, rec, VerdictRunComplete, 42, fx.seams())
 	if res.Decision != RunDecisionDone || res.Outcome != VerdictRunComplete {
 		t.Fatalf("verdict = %s %s (reason %q, findings %v), want run-done run-complete",
 			res.Decision, res.Outcome, res.Reason, res.CompletionFindings)

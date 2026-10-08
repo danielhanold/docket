@@ -778,6 +778,9 @@ func TestIntegrationRunVerdictVerdictNoBindingNoProofIsNoAttributableClaim(t *te
 	if runTrackerRetryMarkerExists(t, repo, key) {
 		t.Errorf("no-attributable-claim must never spend the retry")
 	}
+	if _, _, err := LoadRunRecord(repo, key); !isRunKind(err, ErrRunNotFound) {
+		t.Fatalf("no run beside the record: the verdict must not fabricate one: %v", err)
+	}
 }
 
 // TestIntegrationRunVerdictVerdictUnconfirmedReservationRecoversFromExactReceipt: a reservation whose
@@ -1430,5 +1433,255 @@ func TestIntegrationRunVerdictUnattributedNeverSettlesNeverLaunchedDrive(t *test
 	_ = RunVerdictObserve(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, []string{"3"})
 	if out, _ := driveOutcome(t, fx.store, orphan); out != "" {
 		t.Fatalf("an unattributed verdict settled a drive: outcome %s", out)
+	}
+}
+
+// --- every keyed run-done retires its run (change 0540) ----------------------
+//
+// Before 0540 only run-complete drove the closeout; no-attributable-claim and
+// run-unclaimed wrote record.json alone and left run.json active forever, so the
+// repository-wide live-run scan refused set-visibility and run cancel refused
+// claim-unconfirmed. These tests pin the closeout on every run-done.
+
+// noClaimRunFixture is a keyed run that claimed nothing — no binding file and no
+// committed proof under its context hash "ha" — with an active run.json beside its
+// record and permissive, faked closeout seams.
+type noClaimRunFixture struct {
+	repo, key      string
+	wdeps          WorkspaceDeps
+	observer       *fakeProcessObserver
+	launchObserver *fakeLaunchObserver
+}
+
+func newNoClaimRunFixture(t *testing.T) noClaimRunFixture {
+	t.Helper()
+	repo := newRunTrackerRepo(t)
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
+	if _, err := MintRunRecord(repo, key, ""); err != nil {
+		t.Fatalf("MintRunRecord: %v", err)
+	}
+	observer := &fakeProcessObserver{defaultProven: true}
+	launchObserver := &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}}
+	wdeps := WorkspaceDeps{
+		// A sibling's proof under a DIFFERENT context hash: filtered out, so zero match.
+		ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{{RequestID: "x", ChangeID: 9, RunContextHash: "OTHER"}}},
+		CancelSeams: func(string) cancelSeams {
+			return cancelSeams{observer: observer, launchObserver: launchObserver}
+		},
+	}
+	return noClaimRunFixture{repo: repo, key: key, wdeps: wdeps, observer: observer, launchObserver: launchObserver}
+}
+
+// TestIntegrationRunVerdictNoAttributableClaimRetiresStrandedRun reproduces the
+// #540 incident: record.json already terminal from an earlier verdict, run.json
+// still active, no claim. The live-run scan lists it with the keyed-verdict remedy;
+// re-running that verdict reports the unchanged line, closes the run out through
+// the census for its own context hash, and the scan no longer lists it.
+func TestIntegrationRunVerdictNoAttributableClaimRetiresStrandedRun(t *testing.T) {
+	fx := newNoClaimRunFixture(t)
+	rec, err := LoadRunTrackerRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
+	}
+	rec.Terminal = true
+	rec.Disposition = "run-done " + fx.key + " no-attributable-claim"
+	must(t, SaveRunTrackerRecord(fx.repo, fx.key, rec))
+	stateDir, err := runTrackerStateDir(fx.repo)
+	if err != nil {
+		t.Fatalf("runTrackerStateDir: %v", err)
+	}
+	before, err := liveRunsUnder(stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(before) != 1 || before[0].Key != fx.key || before[0].Remedy != runVerdictCommand(fx.key) {
+		t.Fatalf("stranded run before the verdict = %#v, want one locator with remedy %q", before, runVerdictCommand(fx.key))
+	}
+
+	res := RunVerdict(context.Background(), PlanningDeps{}, fx.wdeps, GitHubDeps{}, fx.repo, fx.key)
+	if got, want := res.HumanText(), "run-done "+fx.key+" no-attributable-claim"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
+		t.Fatalf("run state = %q, want completed", st)
+	}
+	if calls := fx.launchObserver.calls; len(calls) != 1 || calls[0] != "ha" {
+		t.Fatalf("census calls = %v, want [ha] (the closeout ran for the run's context hash)", calls)
+	}
+	after, err := liveRunsUnder(stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != 0 {
+		t.Fatalf("live runs after the verdict = %#v, want none", after)
+	}
+	if runTrackerRetryMarkerExists(t, fx.repo, fx.key) {
+		t.Error("retiring a no-claim run must never spend the retry")
+	}
+}
+
+// TestIntegrationRunVerdictUnconfirmedReservationRetiresRun: the other
+// no-attributable-claim leg — a reservation whose claim never committed — also
+// closes the run out, and leaves the reservation refused (never confirmed).
+func TestIntegrationRunVerdictUnconfirmedReservationRetiresRun(t *testing.T) {
+	fx := newNoClaimRunFixture(t)
+	must(t, ReserveRunTrackerClaim(fx.repo, fx.key, 3, "claim-3-v"))
+	fx.wdeps.ClaimProofs = &fakeProofScanner{proofs: nil}
+
+	res := RunVerdict(context.Background(), PlanningDeps{}, fx.wdeps, GitHubDeps{}, fx.repo, fx.key)
+	if got, want := res.HumanText(), "run-done "+fx.key+" no-attributable-claim"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
+		t.Fatalf("run state = %q, want completed", st)
+	}
+	b, ok, err := LoadRunTrackerClaimBinding(fx.repo, fx.key)
+	if err != nil || !ok || b.Confirmed {
+		t.Fatalf("binding = %+v ok=%v err=%v, want the unconfirmed reservation intact", b, ok, err)
+	}
+}
+
+// TestIntegrationRunVerdictRunUnclaimedRetiresRun: a confirmed claim whose change
+// went back to proposed reports the unchanged run-unclaimed line and closes the
+// run out.
+func TestIntegrationRunVerdictRunUnclaimedRetiresRun(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
+	must(t, ReserveRunTrackerClaim(repo, key, 3, "claim-3-v"))
+	must(t, ConfirmRunTrackerClaim(repo, key, 3, "claim-3-v", "r1", ""))
+	if _, err := MintRunRecord(repo, key, "3"); err != nil {
+		t.Fatalf("MintRunRecord: %v", err)
+	}
+	launchObserver := &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}}
+	wdeps := WorkspaceDeps{
+		ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
+			{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
+		}},
+		CancelSeams: func(string) cancelSeams {
+			return cancelSeams{observer: &fakeProcessObserver{defaultProven: true}, launchObserver: launchObserver}
+		},
+	}
+	deps := runTrackerLightDeps(t, []StatusBlob{runTrackerProposedBlob(3, rvSlug)})
+
+	res := RunVerdict(context.Background(), deps, wdeps, GitHubDeps{}, repo, key)
+	if got, want := res.HumanText(), "run-done "+key+" run-unclaimed 3"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if st := loadRunState(t, repo, key); st != RunCompleted {
+		t.Fatalf("run state = %q, want completed", st)
+	}
+	if len(launchObserver.calls) != 1 {
+		t.Fatalf("census calls = %v, want one (the closeout ran)", launchObserver.calls)
+	}
+}
+
+// TestIntegrationRunVerdictNoClaimBlockedCloseoutReplays: an unproven obligation
+// blocks the closeout — run-stop completion-unaccounted with findings, the run
+// stays completing, no retry spent. Once it settles, repeating the same keyed
+// verdict replays the closeout to the unchanged run-done line and completed.
+func TestIntegrationRunVerdictNoClaimBlockedCloseoutReplays(t *testing.T) {
+	fx := newNoClaimRunFixture(t)
+	must(t, RegisterRunParticipant(fx.repo, fx.key, RunParticipant{Kind: "raw-run", NativeHandle: "exec-live"}))
+	fx.observer.defaultProven = false
+
+	res := RunVerdict(context.Background(), PlanningDeps{}, fx.wdeps, GitHubDeps{}, fx.repo, fx.key)
+	if res.Decision != RunDecisionStop || res.Outcome != RunOutcomeUnavailable || res.Reason != ReasonRunCompletionUnaccounted {
+		t.Fatalf("decision/outcome/reason = %q/%q/%q, want run-stop/run-tracker-unavailable/completion-unaccounted",
+			res.Decision, res.Outcome, res.Reason)
+	}
+	if len(res.CompletionFindings) == 0 {
+		t.Fatal("a blocked closeout carried no findings to settle")
+	}
+	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleting {
+		t.Fatalf("run state = %q, want completing (the fence holds)", st)
+	}
+	if runTrackerRetryMarkerExists(t, fx.repo, fx.key) {
+		t.Error("a blocked closeout must never spend the retry")
+	}
+
+	fx.observer.defaultProven = true
+	res2 := RunVerdict(context.Background(), PlanningDeps{}, fx.wdeps, GitHubDeps{}, fx.repo, fx.key)
+	if got, want := res2.HumanText(), "run-done "+fx.key+" no-attributable-claim"; got != want {
+		t.Fatalf("replay HumanText = %q, want %q", got, want)
+	}
+	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
+		t.Fatalf("run state after replay = %q, want completed", st)
+	}
+}
+
+// TestIntegrationRunVerdictHaltedLeavesRunActive: run-halted is a stop, not a
+// run-done. The run stays active (so halt → cancel → resume still works) and the
+// closeout never runs.
+func TestIntegrationRunVerdictHaltedLeavesRunActive(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	key := runTrackerMintAttributedLimit(t, repo, 3, 2)
+	if _, err := MintRunRecord(repo, key, "3"); err != nil {
+		t.Fatalf("MintRunRecord: %v", err)
+	}
+	launchObserver := &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}}
+	wdeps := WorkspaceDeps{CancelSeams: func(string) cancelSeams {
+		return cancelSeams{observer: &fakeProcessObserver{defaultProven: true}, launchObserver: launchObserver}
+	}}
+	deps := runTrackerLightDeps(t, []StatusBlob{runTrackerHaltedInProgressBlob(3, rvSlug)})
+
+	res := RunVerdict(context.Background(), deps, wdeps, GitHubDeps{}, repo, key)
+	if got, want := res.HumanText(), "run-stop "+key+" run-halted 3"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if st := loadRunState(t, repo, key); st != RunActive {
+		t.Fatalf("run state = %q, want active (a halted run waits for cancel or continue)", st)
+	}
+	if len(launchObserver.calls) != 0 {
+		t.Fatalf("a halt ran the closeout census: %v", launchObserver.calls)
+	}
+}
+
+// TestIntegrationRunVerdictNoClaimNeverRelabelsCancellingOrSuperseded: a run
+// already fenced cancelling (or superseded) is never marked completed by a
+// no-attributable-claim verdict; the closeout's own refusal is reported.
+func TestIntegrationRunVerdictNoClaimNeverRelabelsCancellingOrSuperseded(t *testing.T) {
+	for _, tc := range []struct {
+		state  runState
+		reason string
+	}{
+		{RunCancelling, ReasonRunCancelled},
+		{RunSuperseded, ReasonRunSuperseded},
+	} {
+		t.Run(string(tc.state), func(t *testing.T) {
+			fx := newNoClaimRunFixture(t)
+			forceRunState(t, fx.repo, fx.key, tc.state)
+			res := RunVerdict(context.Background(), PlanningDeps{}, fx.wdeps, GitHubDeps{}, fx.repo, fx.key)
+			if res.Decision != RunDecisionStop || res.Reason != tc.reason {
+				t.Fatalf("decision/reason = %q/%q, want run-stop/%s", res.Decision, res.Reason, tc.reason)
+			}
+			if st := loadRunState(t, fx.repo, fx.key); st != tc.state {
+				t.Fatalf("run state = %q, want %q (never relabelled)", st, tc.state)
+			}
+		})
+	}
+}
+
+// TestIntegrationRunVerdictObserveLeavesNoClaimRunActive: unattributed observe
+// mode over the incident fixture holds no key, so it never reaches the closeout —
+// the run stays active and byte-identical.
+func TestIntegrationRunVerdictObserveLeavesNoClaimRunActive(t *testing.T) {
+	fx := newNoClaimRunFixture(t)
+	_, genBefore, err := LoadRunRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("load run before: %v", err)
+	}
+	res := RunVerdictObserve(context.Background(), runTrackerLightDeps(t, nil), fx.wdeps, GitHubDeps{}, fx.repo, nil)
+	if got, want := res.HumanText(), "run-observe no-current-run"; got != want {
+		t.Fatalf("observe HumanText = %q, want %q", got, want)
+	}
+	ep, genAfter, err := LoadRunRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("load run after: %v", err)
+	}
+	if ep.State != RunActive || genAfter != genBefore {
+		t.Fatalf("observe mode wrote the run: state %q, generation %q -> %q", ep.State, genBefore, genAfter)
+	}
+	if len(fx.launchObserver.calls) != 0 {
+		t.Fatalf("observe mode ran the closeout census: %v", fx.launchObserver.calls)
 	}
 }
