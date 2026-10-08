@@ -40,7 +40,7 @@ Prerequisite: build the binary from the feature branch with `go build -o /tmp/do
    Expected: the browser opens `https://github.com/danielhanold/docket/blob/docket/docs/changes/BOARD.md`, and that URL is the only line printed.
 2. Inside the feature worktree, run `/tmp/docket-open open spec`.
    Expected: the spec for change 542 opens on GitHub. The change was inferred from the branch.
-3. Run `DOCKET_X=1 /tmp/docket-open open plan 542 --print`. The `DOCKET_X` variable is irrelevant; `--print` is the part being tested.
+3. Run `/tmp/docket-open open plan 542 --print`.
    Expected: the plan URL is printed and nothing opens.
 4. Add `open:\n  artifacts: local` to `/Users/homer/dev/docket/.docket.local.yml`, then run `/tmp/docket-open open results 542`.
    Expected: the results file under `/Users/homer/dev/docket/.docket/docs/results/` opens in your default Markdown app.
