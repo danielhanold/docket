@@ -705,20 +705,20 @@ func mirrorTakeoverRemedy(t *testing.T, c *upgradeCase, st *runState, body strin
 // The Cursor paths the guide's cursor-takeover-remedy block deletes, and the guide's
 // claims about them.
 const (
-	cursorSkillsGlob           = "~/.cursor/skills/docket-*"
-	cursorPlanWriter           = "~/.cursor/agents/docket-plan-writer.md"
-	cursorUserRule             = "~/.cursor/rules/docket-dispatch.mdc"
-	cursorRuleSelfRemovedProse = "On `v0.9.2` the installer removes that rule itself."
-	cursorRemedySkipProse      = "If you don't use Cursor, skip this block."
-	cursorSandboxLink          = "](../install/cursor.md)"
+	cursorSkillsGlob          = "~/.cursor/skills/docket-*"
+	cursorPlanWriter          = "~/.cursor/agents/docket-plan-writer.md"
+	cursorUserRule            = "~/.cursor/rules/docket-dispatch.mdc"
+	cursorRuleNoConflictProse = "On `v0.9.2` it is not reported as a conflict; the block below deletes it either way."
+	cursorRemedySkipProse     = "If you don't use Cursor, skip this block."
+	cursorSandboxLink         = "](../install/cursor.md)"
 )
 
 // mirrorCursorTakeoverRemedy runs the block's Cursor deletes after proving the first
 // install's Cursor conflicts are exactly the ones the guide lists: every
 // ~/.cursor/skills/docket-* link, plus, on v0.9.3 only, docket-plan-writer.md and Bash's
-// user-level rule. On v0.9.2 the rule is present but no conflict, which is the
-// installer's side of the guide's "removes that rule itself" (the block's rm -f gets
-// there first; internal/install's TestRetireCursorFileLegacyBytes proves the removal).
+// user-level rule. On v0.9.2 the rule is present but no conflict, which is what the
+// guide's "not reported as a conflict; the block below deletes it either way" claims:
+// the first install fails on the skills conflicts, so the block's rm -f is what removes it.
 // The installer re-run stays in takeover-remedy, so this block must come first.
 func mirrorCursorTakeoverRemedy(t *testing.T, c *upgradeCase, st *runState, body string) {
 	t.Helper()
@@ -734,7 +734,7 @@ func mirrorCursorTakeoverRemedy(t *testing.T, c *upgradeCase, st *runState, body
 	for _, p := range []string{cursorSkillsGlob, cursorPlanWriter, cursorUserRule} {
 		mustContain(t, "cursor-takeover-remedy block", body, p)
 	}
-	mustContainProse(t, "guide", st.Guide, cursorRuleSelfRemovedProse)
+	mustContainProse(t, "guide", st.Guide, cursorRuleNoConflictProse)
 	mustContainProse(t, "guide", st.Guide, cursorRemedySkipProse)
 	if len(st.Conflicts) == 0 {
 		t.Fatalf("cursor-takeover-remedy: the first install reported no conflict; the guide says every %s link conflicts", cursorSkillsGlob)
@@ -751,7 +751,7 @@ func mirrorCursorTakeoverRemedy(t *testing.T, c *upgradeCase, st *runState, body
 	if c.Tag == "v0.9.3" {
 		want[planWriter], want[rule] = true, true
 	} else if _, err := os.Lstat(rule); err != nil {
-		t.Errorf("guide says the installer removes Bash's rule itself on %s, but the saved home has no %s: %v", c.Tag, rule, err)
+		t.Errorf("guide says the block deletes Bash's rule on %s, but the saved home has no %s: %v", c.Tag, rule, err)
 	}
 	got := map[string]bool{}
 	for _, p := range st.Conflicts {

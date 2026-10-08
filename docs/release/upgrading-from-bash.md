@@ -71,7 +71,8 @@ same way. It reports these Cursor paths as conflicts:
 
 - every `docket-*` link under `~/.cursor/skills/`. These also point into your old Bash checkout.
 - on `v0.9.3` only, `~/.cursor/agents/docket-plan-writer.md` and Bash's user-level rule
-  `~/.cursor/rules/docket-dispatch.mdc`. On `v0.9.2` the installer removes that rule itself.
+  `~/.cursor/rules/docket-dispatch.mdc`. On `v0.9.2` it is not reported as a conflict; the block
+  below deletes it either way.
 
 Delete the Cursor paths first. If you don't use Cursor, skip this block.
 
