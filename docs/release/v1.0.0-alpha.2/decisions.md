@@ -46,3 +46,10 @@ git ls-remote origin refs/heads/main: ec4c2b1841954c2d6a3dd018e1133ee762861137	r
 - `TestBashUpgrade` (with the 0543 Cursor assertions) ran and passed: `rc=0 ok=4`.
 - Eight `BUDGET WATCH` screening lines, no `SERIAL CONFIRMED OVER BUDGET`. Details in `candidate/run.txt`.
 - Read-only copy made; every later phase reads it.
+
+## Phase 3 — setup (2026-10-08)
+
+- Test home `$TEST_HOME` (throwaway folder on the operator account); candidate installed from the read-only copy with `DOCKET_RELEASE_BASE_URL=file://$TEST_HOME/mirror` (`mirror/v1.0.0-alpha.2` links to the copy) and `--harness cursor`. `docket version`: `v1.0.0-alpha.2` @ `ec4c2b1`; `install check`: `no-op`, `release`, `[cursor]`, no findings; `supported_target: true`. Installed `docket` is byte-identical to the darwin/arm64 archive member (`a465dcff…`).
+- **Deviation — Git transport (operator decision):** SSH instead of the spec's HTTPS + `gh auth setup-git`, to avoid credential prompts. OpenSSH reads keys from the account's real home regardless of `$HOME`, so the operator's existing key authenticates (verified with and without the agent socket). `gh auth login -p ssh` inside the test home for the API token; `Git operations protocol: ssh`.
+- Test-home `.gitconfig`: operator identity and `init.defaultBranch main`, so the empty `gh repo create --clone` started on `main` (no rename needed).
+- Fixture: private `danielhanold/docket-accept-v1-0-0-alpha-2-cursor`; `README.md` + `test.sh` pushed; `docket repository init --shared --harnesses cursor` (wrote `agent_harnesses: [cursor]`, gates `off`, as 0526 documents); committed; `configure-tests --command "sh ./test.sh"` set both gates `local`; committed; `docket install --harness cursor --repo-dir <fixture>` wrote the ignored `.cursor/rules/docket-dispatch.mdc`. `repository check`: `no-op`, no findings.
