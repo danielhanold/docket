@@ -91,6 +91,8 @@ func decodeAcceptanceCases() []decodeCase {
 			block: "reclaim:\n  auto: true\n", flow: "reclaim: {auto: true}\n", value: true},
 		{row: "leak_check.match_word", path: "leak_check.match_word",
 			block: "leak_check:\n  match_word: false\n", flow: "leak_check: {match_word: false}\n", value: false},
+		{row: "open.artifacts", path: "open.artifacts",
+			block: "open:\n  artifacts: local\n", flow: "open: {artifacts: local}\n", value: "local"},
 
 		{row: "build.checkpoint", path: "build.checkpoint",
 			block: "build:\n  checkpoint: true\n", flow: "build: {checkpoint: true}\n", value: true},
@@ -323,6 +325,7 @@ func TestDecodeRejections(t *testing.T) {
 		{"bool quoted string", "auto_groom: \"true\"\n", CodeInvalidType, "auto_groom", SeverityError},
 		{"negative int", "learnings:\n  cap: -1\n", CodeInvalidValue, "learnings.cap", SeverityError},
 		{"bad enum", "finalize:\n  gate: sometimes\n", CodeInvalidValue, "finalize.gate", SeverityError},
+		{"bad open.artifacts enum", "open:\n  artifacts: browser\n", CodeInvalidValue, "open.artifacts", SeverityError},
 		{"metadata branch obsolete every layer", "metadata_branch: trunk\n", CodeObsoleteSetting, "metadata_branch", SeverityWarning},
 		{"absolute dir", "changes_dir: /etc/changes\n", CodeInvalidValue, "changes_dir", SeverityError},
 		{"unclean dir", "changes_dir: docs/../etc\n", CodeInvalidValue, "changes_dir", SeverityError},
