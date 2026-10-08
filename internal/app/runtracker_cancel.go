@@ -335,35 +335,12 @@ func runCancel(seams cancelSeams, repoDir, key, reason string) RunCancelResult {
 		return cancelRefused(cancelRunReason(err))
 	}
 
-	// (2) Validate the remaining authority conditions: the record must carry a
-	// parent-held authority; a CONFIRMED claim binding for the run's change must
-	// exist, or the resume-verified proof (ADR-0128 Decision 1).
-	if rec.ParentCap == "" {
-		return cancelRefused("authority-unavailable")
-	}
-	binding, ok, berr := LoadRunTrackerClaimBinding(repoDir, key)
-	if berr != nil {
-		return cancelRefused("claim-unreadable")
-	}
-	ownerID := 0
-	switch {
-	case ok && binding.Confirmed:
-		ownerID = binding.ChangeID
-	case !ok && rec.resumeAttributed():
-		// Resume-verified authority (change 0463): `run start --resume` pre-binds
-		// AttributedID through WorkspaceInspect identity and never gets a claim binding
-		// (change.claim requires a proposed change). It is the same shape
-		// resolveRunTrackerOwnership accepts as ownership. Without it, the run a resume start
-		// mints could never be cancelled, and the next resume would refuse
-		// resume-active-run with a remedy that always refuses. Only a record with NO
-		// binding file qualifies: a reservation that exists but is unconfirmed still
-		// refuses below.
-		ownerID = rec.AttributedID
-	default:
-		return cancelRefused("claim-unconfirmed")
-	}
-	if ep.ChangeID != "" && strconv.Itoa(ownerID) != ep.ChangeID {
-		return cancelRefused("claim-mismatch")
+	// (2) Validate the remaining authority conditions through the shared ownership
+	// proof (runCancelOwner): a parent-held authority, and a CONFIRMED claim binding
+	// for the run's change or the resume-verified proof (ADR-0128 Decision 1).
+	binding, hasBinding, berr := LoadRunTrackerClaimBinding(repoDir, key)
+	if _, refusal := runCancelOwner(rec, binding, hasBinding, berr, ep.ChangeID); refusal != "" {
+		return cancelRefused(refusal)
 	}
 
 	// (3) State gate + the durable fence. A terminal run is already-cancelled; an
@@ -436,6 +413,44 @@ func runCancel(seams cancelSeams, repoDir, key, reason string) RunCancelResult {
 		return cancelResult(CancelDispositionPending, findings)
 	}
 	return cancelResult(CancelDispositionCancelled, findings)
+}
+
+// runCancelOwner is run.cancel's ownership proof (ADR-0128 Decision 1) as one
+// pure decision: the record must carry a parent-held authority, the claim binding
+// must be readable, and the run must be owned by a CONFIRMED claim binding or by
+// the resume-verified shape (no binding file at all and rec.resumeAttributed()).
+// When the run already names its change, the owner must be that change. It returns
+// the owning change id, or the exact refusal token runCancel reports. runCancel
+// and the repository-wide live-run scan (liveRunCancelAuthority) both call it, so
+// a printed `docket run cancel` remedy names cancel only when cancel would accept
+// (change 0540).
+func runCancelOwner(rec RunTrackerRecord, binding RunTrackerClaimBinding, hasBinding bool, bindingErr error, runChangeID string) (ownerID int, refusal string) {
+	if rec.ParentCap == "" {
+		return 0, "authority-unavailable"
+	}
+	if bindingErr != nil {
+		return 0, "claim-unreadable"
+	}
+	switch {
+	case hasBinding && binding.Confirmed:
+		ownerID = binding.ChangeID
+	case !hasBinding && rec.resumeAttributed():
+		// Resume-verified authority (change 0463): `run start --resume` pre-binds
+		// AttributedID through WorkspaceInspect identity and never gets a claim binding
+		// (change.claim requires a proposed change). It is the same shape
+		// resolveRunTrackerOwnership accepts as ownership. Without it, the run a resume
+		// start mints could never be cancelled, and the next resume would refuse
+		// resume-active-run with a remedy that always refuses. Only a record with NO
+		// binding file qualifies: a reservation that exists but is unconfirmed still
+		// refuses.
+		ownerID = rec.AttributedID
+	default:
+		return 0, "claim-unconfirmed"
+	}
+	if runChangeID != "" && strconv.Itoa(ownerID) != runChangeID {
+		return 0, "claim-mismatch"
+	}
+	return ownerID, ""
 }
 
 // verifyTerminalRunQuiescence revalidates a terminal (cancelled/superseded)
