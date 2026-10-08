@@ -28,11 +28,13 @@ type liveRunLocator struct{ Key, State, ChangeID, Remedy string }
 // is skipped, as is any non-directory entry. A missing root is (nil, nil); any
 // other failure to list the root is an error.
 //
-// Each locator's Remedy follows liveRunCancelAuthority, so it names a command that
-// will act on the run in its current state: run cancel only where runCancelOwner
-// accepts, the keyed run verdict (once the dispatch has returned) for a readable
-// run cancel would refuse, and the
-// by-hand remedy where neither command can load the run.
+// Each locator's Remedy follows liveRunCancelAuthority: run cancel only where
+// runCancelOwner accepts, and the by-hand remedy where neither run cancel nor the
+// verdict can load the run. For a readable run cancel would refuse it names the
+// keyed run verdict (once the dispatch has returned), which re-resolves ownership
+// and retires the run on any run-done outcome. It promises no more than that: a
+// verdict that reports run-stop (a halted or incomplete change) leaves the run
+// active, and settling it is then a human's call.
 func liveRunsUnder(stateDir string) ([]liveRunLocator, error) {
 	root := filepath.Join(stateDir, runTrackerDirName)
 	entries, err := os.ReadDir(root)
@@ -69,8 +71,9 @@ func liveRunsUnder(stateDir string) ([]liveRunLocator, error) {
 				loc.Remedy = runCancelCommand(key)
 			case liveRunCancelRefuses:
 				// Cancel refuses a run it cannot prove owned (ADR-0128); the keyed
-				// verdict re-resolves ownership and retires a run that claimed nothing
-				// (change 0540).
+				// verdict re-resolves ownership and retires the run on any run-done
+				// outcome, including one that claimed nothing (change 0540); a run-stop
+				// verdict leaves it active.
 				loc.Remedy = runVerdictRemedy(key)
 			default:
 				loc.Remedy = byHandRemedy(dir)
