@@ -310,6 +310,9 @@ other tools, under `~/.codex` and `~/.agents`, still do. The guide does not cove
 Using docket from OpenCode on an upgraded repository is not supported until its section arrives,
 and Codex is not supported at all (see section 1).
 
+If you skipped a harness in section 4, its Bash links under `~/.claude` or `~/.cursor` still point
+into the checkout; delete them with that harness's `rm` lines from section 4.
+
 In Cursor, docket must run outside Cursor's sandbox. [Running docket under Cursor](../install/cursor.md)
 shows the permission setup that allows it.
 
