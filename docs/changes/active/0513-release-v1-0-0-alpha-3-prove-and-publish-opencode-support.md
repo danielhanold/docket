@@ -2,7 +2,7 @@
 id: 513
 slug: 'release-v1-0-0-alpha-3-prove-and-publish-opencode-support'
 title: 'Full OpenCode support after v1.0.0: prove and publish the OpenCode harness'
-status: 'proposed'
+status: 'deferred'
 priority: 'high'
 type: 'chore'
 created: '2026-10-04'
@@ -47,3 +47,7 @@ Until then, OpenCode users have no tested release and no upgrade steps for their
 
 - Codex (officially unsupported).
 - Re-proving Claude Code or Cursor beyond what the shared protocol already re-runs.
+
+## Why deferred
+
+On 2026-10-08 the human excluded OpenCode from the `v1.0.0` release candidate (change 0544) and from `v1.0.0`. Those releases ship the OpenCode files marked untested. Full OpenCode support is planned for after `v1.0.0`; revive this change then.
