@@ -1,12 +1,16 @@
 # Keeping docket current
 
-**Every time you pull a new version — a `git pull` on `main` or a checked-out release tag — re-run
-`install.sh`.** It is the catch-all: it applies whatever the new version needs on your machine, and
-it is idempotent, so running it when nothing changed is a no-op.
+**Installed from a release?** Updating means re-running the downloader for the new version: fetch
+and verify that release's `install.sh` and `checksums.txt` as in [Installing docket](install.md),
+then run `sh install.sh --version <new version> --harness <name>`.
+
+**Running from a source checkout?** Every time you pull a new version — a `git pull` on `main` or a
+checked-out release tag — re-run `install.sh`. It is the catch-all: it applies whatever the new
+version needs on your machine, and it is idempotent, so running it when nothing changed is a no-op.
 
 ```bash
 cd ~/dev/docket
-git fetch --tags && git pull        # or: git checkout v0.9.3
+git fetch --tags && git pull
 bash ~/dev/docket/install.sh        # always — not only when something looks broken
 ```
 

@@ -1,6 +1,6 @@
 # Codex: running docket under Codex
 
-Codex is a first-class docket harness. An install writes three kinds of Codex artifact:
+Codex is unsupported. An install writes three kinds of Codex artifact:
 
 - **User-level skills and agent wrappers.** docket's skills are linked under the harness-neutral
   `~/.agents/skills/` root, which Codex reads, and its 17 agent wrappers are written to

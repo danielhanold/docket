@@ -1,6 +1,6 @@
 # Cursor: running docket under Cursor
 
-Cursor is a first-class docket harness. Running docket under Cursor's Auto-run in Sandbox needs a
+Cursor is a supported, tested docket harness. Running docket under Cursor's Auto-run in Sandbox needs a
 small, stable permission configuration, because docket must run **outside** Cursor's sandbox.
 
 ### What an install writes for Cursor

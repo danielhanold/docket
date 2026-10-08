@@ -1,6 +1,6 @@
 # opencode: running docket under opencode
 
-opencode is a first-class docket harness. An install writes three kinds of opencode artifact:
+opencode installs with docket but is untested. An install writes three kinds of opencode artifact:
 
 - **User-level skills and agent definitions**, under
   `${XDG_CONFIG_HOME:-~/.config}/opencode/`: docket's skills are linked under `skills/`, and its 17

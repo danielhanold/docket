@@ -21,7 +21,8 @@ single `docket` binary, installed by `install.sh`, does the bookkeeping the skil
 - **You own the PR handoff.** Agents never merge on their own authority. Your review of
   the pull request is the one required human checkpoint on the way to `done`.
 - **No new infrastructure.** Markdown files, git, and skills any supported harness can run —
-  Claude Code, Cursor, Codex, and opencode are first-class.
+  Claude Code and Cursor are supported and tested; opencode installs but is untested; Codex is
+  unsupported.
 - **The right model for each step.** Every autonomous skill is pinned to its own model and
   effort, so a status check runs at a cheap tier while a build runs at a top one — see
   [Models: tuning model and effort per task](docs/install/models-and-effort.md).
@@ -76,13 +77,25 @@ monitor production, or feed incidents back into the backlog.
 
 ## Install and the five steps
 
+Install from a release: download `install.sh` and `checksums.txt` from the release, verify the
+script, then run it.
+
+```bash
+base=https://github.com/danielhanold/docket/releases/download/v1.0.0-rc.1
+curl -fsSLO "$base/install.sh" -O "$base/checksums.txt"
+sh install.sh --version v1.0.0-rc.1 --harness claude --harness cursor
+```
+
+Claude Code and Cursor are supported and tested; opencode installs but is untested; Codex is
+unsupported. To run from source instead, clone the repository and install from the checkout:
+
 ```bash
 cd ~/dev/docket
 git fetch --tags && git pull
 bash install.sh
 ```
 
-Re-run `install.sh` after every update — it is idempotent and machine-global. Full
+Re-run the installer after every update — it is idempotent and machine-global. Full
 prerequisites and what an install run does: [Installing docket](docs/install/install.md). To adopt
 docket in a repository, run `docket repository init` from inside it; `docket repository migrate`
 is only for converting a repository that still uses the legacy single-branch layout
