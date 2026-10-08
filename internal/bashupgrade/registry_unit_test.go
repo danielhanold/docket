@@ -37,7 +37,7 @@ func TestContainsProse(t *testing.T) {
 	if !containsProse("one two\n  three\tfour", "two three four") {
 		t.Error("a wrapped sentence did not match its one-line form")
 	}
-	if !containsProse("On `v0.9.2` the installer\nremoves that rule itself.", "On `v0.9.2` the installer removes that rule itself.") {
+	if !containsProse("On `v0.9.2` it is not reported as a conflict; the block\n  below deletes it either way.", "On `v0.9.2` it is not reported as a conflict; the block below deletes it either way.") {
 		t.Error("a wrapped guide sentence did not match")
 	}
 	if containsProse("one two three", "two four") {
