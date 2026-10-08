@@ -1,27 +1,21 @@
 # Backlog
 
-**544 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 377 done · 🗑️ 139 killed
+**544 changes** — 🟣 3 groomed · 🟡 9 proposed · ⚪ 15 deferred · ✅ 378 done · 🗑️ 139 killed
 
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0543](active/0543-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md) | Cursor section of the Bash upgrade guide, proven on the saved cases | `high` | `docs` | [#408](https://github.com/danielhanold/docket/pull/408) | awaiting merge |
-
-## 🟣 Groomed (2)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | [spec](../superpowers/specs/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0544](active/0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | `high` | `chore` | ⏳ waiting on #512 — not yet built |
 | [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
-| [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | ⏳ waiting on #543 — needs your merge |
 | [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | List the artifact-backlink finding codes in the docket-status skill | `low` | `docs` | needs-grooming |
 | [0537](active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | `low` | `fix` | needs-grooming |
 | [0536](active/0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) | Split the private leak-check tests out of the workflow lifecycle shard | `low` | `fix` | needs-grooming |
@@ -80,7 +74,6 @@ graph TD
   0537
   0539
   0541
-  0543
   0512 --> 0544
   0192:::done
   0251:::done
@@ -88,13 +81,15 @@ graph TD
   0393:::done
   0407:::done
   0511:::done
+  0543:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (516)</summary>
+<details><summary>✅🗑️ Archive — done + killed (517)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0543](archive/2026-10-08-0543-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md) | Cursor section of the Bash upgrade guide, proven on the saved cases | 2026-10-08 |
 | [0542](archive/2026-10-08-0542-open-the-board-a-change-and-its-artifacts-from-the-terminal.md) | Open the board, a change, and its artifacts from the terminal | 2026-10-08 |
 | [0540](archive/2026-10-08-0540-a-finished-run-left-active-in-run-json-blocks-set-visibility.md) | A finished run left active in run.json blocks set-visibility and cannot be cancelled | 2026-10-08 |
 | [0538](archive/2026-10-07-0538-choose-agent-harnesses-during-repository-init.md) | Choose agent harnesses during init and with configure-harnesses | 2026-10-07 |
@@ -109,7 +104,6 @@ graph TD
 | [0525](archive/2026-10-05-0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | 2026-10-05 |
 | [0524](archive/2026-10-05-0524-release-candidate-evidence-json-drops-the-trailing-newline-f.md) | Release-candidate evidence.json drops the trailing newline from its checksums copy | 2026-10-05 |
 | [0523](archive/2026-10-05-0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) | Treat a behind-only .docket copy as healthy and make prepare fast-forward it in place | 2026-10-05 |
-| [0522](archive/2026-10-05-0522-share-the-json-key-rules-between-internal-cli-and-internal-a.md) | Share the JSON-key rules between internal/cli and internal/app | 2026-10-05 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -254,7 +248,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 34 done |
+| [2026-10](archive/) | 35 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

@@ -2,7 +2,7 @@
 id: 543
 slug: 'cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved'
 title: 'Cursor section of the Bash upgrade guide, proven on the saved cases'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'docs'
 created: '2026-10-08'
@@ -22,7 +22,7 @@ branch: 'docs/cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved'
 pr: 'https://github.com/danielhanold/docket/pull/408'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-08T16:26:49Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-08T16:26:49Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-design.md](../../superpowers/specs/2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-design.md) |
+| Spec (merged) | [2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-design.md) |
 | Plan | [2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md](../../superpowers/plans/2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md) |
 | Results | [2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-results.md](../../results/2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-results.md) |
 | ADRs | [ADR-0096](../../adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md) |

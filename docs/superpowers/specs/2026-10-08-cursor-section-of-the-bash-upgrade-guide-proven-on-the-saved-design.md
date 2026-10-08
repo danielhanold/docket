@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0543 — Cursor section of the Bash upgrade guide, proven on the saved cases](../../changes/active/0543-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md)**
+> ↩ **[Change 0543 — Cursor section of the Bash upgrade guide, proven on the saved cases](../../changes/archive/2026-10-08-0543-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md)**
 <!-- docket:backlink:end -->
 
 # Cursor section of the Bash upgrade guide, proven on the saved cases
