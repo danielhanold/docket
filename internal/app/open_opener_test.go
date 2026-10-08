@@ -114,3 +114,31 @@ func TestRunOpenerProcessReturnsWhenGrandchildHoldsStderr(t *testing.T) {
 		t.Fatalf("RunOpenerProcess took %v, want it bounded by the pipe-drain delay", elapsed)
 	}
 }
+
+// TestRunOpenerProcessKeepsOpenerStdoutOffDocketStdout guards the --json
+// stream: a chattering opener must never write to docket's own stdout. It
+// swaps the process-global os.Stdout for a file, so it must not run in
+// parallel.
+func TestRunOpenerProcessKeepsOpenerStdoutOffDocketStdout(t *testing.T) {
+	bin, _ := openerScript(t, 0, "")
+	captured, err := os.Create(filepath.Join(testsupport.TempDir(t), "stdout"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer captured.Close()
+	saved := os.Stdout
+	os.Stdout = captured
+	t.Cleanup(func() { os.Stdout = saved })
+	runErr := RunOpenerProcess(context.Background(), bin, "https://example.test/x")
+	os.Stdout = saved
+	if runErr != nil {
+		t.Fatalf("RunOpenerProcess: %v", runErr)
+	}
+	got, err := os.ReadFile(captured.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("opener wrote %q to docket's stdout, want nothing", got)
+	}
+}
