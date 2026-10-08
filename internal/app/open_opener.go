@@ -97,7 +97,7 @@ func RunOpenerProcess(ctx context.Context, bin, target string) error {
 		return nil
 	}
 	if err != nil {
-		if detail := strings.TrimSpace(stderr.String()); detail != "" {
+		if detail := strings.Join(strings.Fields(stderr.String()), " "); detail != "" {
 			return fmt.Errorf("%s: %w: %s", filepath.Base(bin), err, detail)
 		}
 		return fmt.Errorf("%s: %w", filepath.Base(bin), err)

@@ -75,6 +75,16 @@ func TestOpenResultRendering(t *testing.T) {
 	if strings.Contains(string(raw), "change_id") || !strings.Contains(string(raw), `"notes":[]`) || !strings.Contains(string(raw), `"launched":false`) {
 		t.Errorf("board document = %s, want no change_id, notes [], launched false", raw)
 	}
+	full, _ := json.Marshal(OpenResult{What: "spec", ChangeID: 7, Target: "/m/spec.md", TargetKind: "file", Launched: true, Notes: []string{"n1"}})
+	var doc map[string]any
+	if err := json.Unmarshal(full, &doc); err != nil {
+		t.Fatal(err)
+	}
+	for k, want := range map[string]any{"what": "spec", "change_id": float64(7), "target": "/m/spec.md", "target_kind": "file", "launched": true, "notes": []any{"n1"}} {
+		if !reflect.DeepEqual(doc[k], want) {
+			t.Errorf("success document %s = %#v, want %#v (doc %s)", k, doc[k], want, full)
+		}
+	}
 }
 
 const (
