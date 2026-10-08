@@ -13,7 +13,7 @@ related: [541, 345, 532]
 discovered_from: []
 adrs: [124, 128]
 spec: 'docs/superpowers/specs/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-08T01:40:05Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md](../../superpowers/specs/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md) |
+| Plan | [2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility.md](../../superpowers/plans/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility.md) |
 | ADRs | [ADR-0124](../../adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0128](../../adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md) |
 <!-- docket:artifacts:end -->
 
