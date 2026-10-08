@@ -22,7 +22,7 @@ branch: 'docs/cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-08T16:14:01Z'
+claimed_at: '2026-10-08T16:15:28Z'
 ---
 
 ## Artifacts
