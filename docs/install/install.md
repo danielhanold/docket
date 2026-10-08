@@ -9,7 +9,8 @@ section because harness setup is exactly what it is about; the guide keeps them 
 
 - **A harness.** docket's skills — a **skill** is a named, reusable instruction set an agent loads
   for one job — run inside a harness that has its own on-disk `skills/` and `agents/` directories
-  for docket to write into. docket supports four: **Claude Code, Cursor, Codex, and opencode**.
+  for docket to write into. **Claude Code** and **Cursor** are supported and tested. **opencode**
+  installs but is untested. **Codex** is unsupported.
 - **`git` and the GitHub CLI (`gh`).** Every docket operation is a git operation, and the
   implementer opens pull requests with `gh`.
 - **GNU coreutils `timeout`.** Build workers run each focused test under
@@ -25,6 +26,26 @@ section because harness setup is exactly what it is about; the guide keeps them 
   [Default workflow roles](../reference/skills-and-agents.md#default-workflow-roles).
 
 ## Install docket on your machine
+
+### From a release
+
+Download `install.sh` and `checksums.txt` from the release, verify the script against its line in
+`checksums.txt`, then run it. It needs `sh`, `curl`, `tar`, and one SHA-256 tool, and supports
+darwin and linux on amd64 and arm64.
+
+```bash
+base=https://github.com/danielhanold/docket/releases/download/v1.0.0-rc.1
+curl -fsSLO "$base/install.sh" -O "$base/checksums.txt"
+grep ' install.sh$' checksums.txt          # compare with: shasum -a 256 install.sh
+sh install.sh --version v1.0.0-rc.1 --harness claude --harness cursor
+```
+
+`--harness` is repeatable and limits the install to the harnesses you name; `--bin-dir <dir>`
+chooses where the binary goes. Install with the script, not a browser download: the binaries are
+not notarized, so macOS Gatekeeper blocks an archive downloaded in a browser. `curl` and `tar` do
+not add the quarantine attribute that triggers it.
+
+### From source
 
 Place the docket repo at `~/dev/docket` (the source of truth the symlinks point back to), then run:
 
