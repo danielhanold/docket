@@ -13,7 +13,7 @@ related: [511, 512, 513, 514]
 discovered_from: [512]
 adrs: [96]
 spec: 'docs/superpowers/specs/2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-08T16:15:28Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-design.md](../../superpowers/specs/2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved-design.md) |
+| Plan | [2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md](../../superpowers/plans/2026-10-08-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md) |
 | ADRs | [ADR-0096](../../adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md) |
 <!-- docket:artifacts:end -->
 
