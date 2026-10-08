@@ -2,7 +2,7 @@
 id: 512
 slug: 'release-v1-0-0-alpha-2-prove-and-publish-cursor-support'
 title: 'Release v1.0.0-alpha.2: prove and publish Cursor support'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'chore'
 created: '2026-10-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable: false
 branch_prefix:
-branch:
+branch: 'chore/release-v1-0-0-alpha-2-prove-and-publish-cursor-support'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-08T18:11:13Z'
 ---
 
 ## Artifacts
