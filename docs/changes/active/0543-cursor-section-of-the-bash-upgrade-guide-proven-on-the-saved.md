@@ -2,7 +2,7 @@
 id: 543
 slug: 'cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved'
 title: 'Cursor section of the Bash upgrade guide, proven on the saved cases'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'docs'
 created: '2026-10-08'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'docs/cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-08T16:12:24Z'
 ---
 
 ## Artifacts
