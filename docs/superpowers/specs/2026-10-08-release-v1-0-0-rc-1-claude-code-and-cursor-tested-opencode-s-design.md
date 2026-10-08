@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0544 — Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested](../../changes/active/0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md)**
+> ↩ **[Change 0544 — Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested](../../changes/archive/2026-10-08-0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md)**
 <!-- docket:backlink:end -->
 
 # v1.0.0-rc.1 — release candidate publication

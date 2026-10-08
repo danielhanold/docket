@@ -2,7 +2,7 @@
 id: 544
 slug: 'release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s'
 title: 'Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'chore'
 created: '2026-10-08'
@@ -22,7 +22,7 @@ branch: 'chore/release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s'
 pr: 'https://github.com/danielhanold/docket/pull/410'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-08T21:11:18Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-08T21:11:18Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-design.md](../../superpowers/specs/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-design.md) |
+| Spec (merged) | [2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-design.md) |
 | Plan | [2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md](../../superpowers/plans/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) |
 | Results | [2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-results.md](../../results/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-results.md) |
 <!-- docket:artifacts:end -->
