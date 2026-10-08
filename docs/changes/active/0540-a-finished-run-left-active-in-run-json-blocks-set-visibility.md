@@ -11,7 +11,7 @@ depends_on: []
 stacked_on:
 related: [541, 345, 532]
 discovered_from: []
-adrs: [124, 128]
+adrs: [124, 128, 148]
 spec: 'docs/superpowers/specs/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md'
 plan: 'docs/superpowers/plans/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility.md'
 results:
@@ -22,7 +22,7 @@ branch: 'fix/a-finished-run-left-active-in-run-json-blocks-set-visibility'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-08T01:49:43Z'
+claimed_at: '2026-10-08T02:15:52Z'
 ---
 
 ## Artifacts
@@ -32,7 +32,7 @@ claimed_at: '2026-10-08T01:49:43Z'
 |---|---|
 | Spec | [2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md](../../superpowers/specs/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md) |
 | Plan | [2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility.md](../../superpowers/plans/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility.md) |
-| ADRs | [ADR-0124](../../adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0128](../../adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md) |
+| ADRs | [ADR-0124](../../adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0128](../../adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md), [ADR-0148](../../adrs/0148-every-keyed-run-done-verdict-drives-the-successful-run-close.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -60,3 +60,7 @@ Why attribution fails: the child claiming without `--run-context` (#541) and com
 ### 2026-10-08
 
 Reconciled against origin/main 1ace73350. The spec's code citations still hold: RunVerdict only routes VerdictRunComplete through runTrackerCompleteRun; VerdictRunUnclaimed and runTrackerOwnershipDone persist record.json only; liveRunsUnder hard-codes runCancelCommand for active/completing. No related change (#541, #345) has landed, and no archived change touched this path since #532. Scope unchanged.
+
+### 2026-10-08
+
+Recorded ADR-0148 (every keyed run-done verdict drives the successful-run closeout) produced by this change.
