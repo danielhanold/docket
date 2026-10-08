@@ -33,6 +33,13 @@ func (p Presenter) Present(r app.OperationResult) int {
 		return app.ExitCode(r.Env().Result)
 	}
 	fmt.Fprintln(p.Stdout, r.HumanText())
+	// Notes go to stderr in human mode so stdout stays exactly the text line
+	// (`docket open --print` inside command substitution). JSON carries them.
+	if n, ok := r.(interface{ HumanNotes() []string }); ok {
+		for _, note := range n.HumanNotes() {
+			fmt.Fprintf(p.Stderr, "note: %s\n", note)
+		}
+	}
 	return app.ExitCode(r.Env().Result)
 }
 
