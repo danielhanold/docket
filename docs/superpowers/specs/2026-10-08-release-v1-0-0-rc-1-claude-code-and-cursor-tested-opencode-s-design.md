@@ -8,8 +8,8 @@
 
 ## Purpose and boundary
 
-Take one reviewed commit of `main` to a verified, public `v1.0.0-rc.1` pre-release of the Go
-binary. The notes call Claude Code and Cursor tested, OpenCode shipped but untested, and Codex
+Take one reviewed commit of `main` to a verified, public `v1.0.0-rc.1` **full release** of the
+Go binary — not a pre-release — which becomes the repository's "Latest" release. The notes call Claude Code and Cursor tested, OpenCode shipped but untested, and Codex
 unsupported.
 
 This is the alpha.2 protocol (change 0512, spec
@@ -17,7 +17,8 @@ This is the alpha.2 protocol (change 0512, spec
 harness test**. Where this spec says "as 0512", that spec's wording applies with the version,
 title and file names substituted.
 
-This change builds no product code. If a source defect turns up, it goes to a separate reviewed
+This change builds no product code. Its only source edits are the install docs (see *Docs*
+below), made on its own feature branch and merged at closeout. If a source defect turns up, it goes to a separate reviewed
 change, the candidate is discarded, and packaging restarts from the new merged commit.
 
 **Not driven by `docket-implement-next`.** The operator runs this protocol by hand in an attended
@@ -33,7 +34,8 @@ and 6), never planned or built by an autonomous run.
 | OpenCode | Files ship and install as today; the notes call it **untested**, not unsupported. Full support is 0513, after `v1.0.0`. |
 | Codex | The only officially **unsupported** harness. |
 | Signing / notarization | Not needed for the supported install path, and not done. See *macOS Gatekeeper* below. |
-| Latest | `v0.9.3` stays "Latest"; rc.1 is a pre-release with `--latest=false`. Promoting a Go build to Latest is a stable `v1.0.0` decision. |
+| Release type | rc.1 is a **full release, not a pre-release**, and becomes "Latest", replacing `v0.9.3`. Nothing installs from "Latest" automatically: the downloader is version-stamped and no doc links `releases/latest`. |
+| Docs | Edited on 0544's own feature branch and merged at closeout (see *Docs*). The tagged commit keeps the old docs; `main` gets the new ones when the closeout PR merges. |
 | Rollback | As 0512: no rehearsal; the notes state that the Bash tags `v0.9.2` and `v0.9.3` remain available. |
 
 ## Current reality (2026-10-08)
@@ -45,6 +47,7 @@ and 6), never planned or built by an autonomous run.
 | Install path | The published downloader (`internal/release/downloader/install.sh`) fetches with `curl` and unpacks with `tar`, then installs. |
 | darwin binaries | Cross-built with `CGO_ENABLED=0`; the Go linker ad-hoc signs darwin/arm64 output (`Signature=adhoc`, `linker-signed`). |
 | Open Cursor follow-up | 0545 (whether Cursor runs docket subagents at their pinned models) — a known gap carried from alpha.2, not a precondition. |
+| Docs today | `README.md` and `docs/install/install.md` describe only the clone-and-`bash install.sh` path and call Codex supported; `docs/install/keeping-current.md` suggests `git checkout v0.9.3`. None mentions the release downloader. |
 | Bundle | `docket_v1.0.0-rc.1_{darwin,linux}_{amd64,arm64}.tar.gz`, `checksums.txt`, `install.sh`. |
 
 ## macOS Gatekeeper
@@ -57,6 +60,25 @@ gets a quarantined, un-notarized binary that macOS refuses to run; the remedy is
 script (or `xattr -d com.apple.quarantine docket`). Phase 5 records proof of the first claim, and
 the notes state the second as a known gap. Notarization (Apple Developer Program membership,
 Developer ID signing in CI) is out of scope.
+
+## Docs
+
+On the feature branch, before Phase 6's gate, bring the install docs in line with rc.1:
+
+- `README.md` (*Install and the five steps*) and `docs/install/install.md`: lead with the release
+  downloader (download `install.sh` and `checksums.txt` from the release, verify, then
+  `sh install.sh --version v1.0.0-rc.1 --harness <name>`); keep the clone-and-build path as the
+  way to run from source.
+- Harness status in `docs/install/install.md` (and each harness page's opening line where it
+  claims support): Claude Code and Cursor supported and tested; OpenCode installs but is
+  untested; Codex unsupported.
+- `docs/install/keeping-current.md`: updating a release install means re-running the downloader
+  for the new version; drop the `v0.9.3` example.
+- One line in the install docs: install with the script, not a browser download, because the
+  binaries are not notarized (see *macOS Gatekeeper*).
+
+Docs describe current behavior only — no change numbers. The whole-suite gate in Phase 6 covers
+any doc-guard tests these edits touch.
 
 ## Protocol
 
@@ -93,12 +115,13 @@ alpha.1, Cursor in alpha.2, both covered at this candidate by the whole-suite so
 
 ### Phase 4 — Publish (the human's irreversible step)
 
-As 0512, with tag and release `v1.0.0-rc.1` and title `v1.0.0-rc.1 — release candidate`.
+As 0512, with tag and release `v1.0.0-rc.1` and title `v1.0.0-rc.1 — release candidate`, except
+that the release is **not** a pre-release.
 Preconditions: Phases 1–2 recorded and passing, `origin/main` still the candidate, notes reviewed,
 the human's explicit "publish" in `decisions.md`. Probe → act only if absent → verify → record
-for the tag, the draft pre-release, the six assets (never `--clobber`), and
-`gh release edit v1.0.0-rc.1 --draft=false --prerelease --latest=false`. Verify `v0.9.3` is still
-"Latest". Never move or delete a tag; a re-cut ships as `v1.0.0-rc.2`.
+for the tag, the draft release, the six assets (never `--clobber`), and
+`gh release edit v1.0.0-rc.1 --draft=false --prerelease=false --latest`. Verify that `v1.0.0-rc.1`
+is now "Latest" and is not marked pre-release. Never move or delete a tag; a re-cut ships as `v1.0.0-rc.2`.
 
 ### Phase 5 — Public install check
 
@@ -112,7 +135,9 @@ and verify `docket version --json`, `docket install check --json` (clean, harnes
 
 ### Phase 6 — Closeout
 
-As 0512, in the same order, with `docket-finalize-change 544`.
+As 0512, in the same order, with `docket-finalize-change 544`. The doc edits (*Docs*) are
+committed on the feature branch before the build gate runs, so the gate covers them; they reach
+`main` when finalize merges the PR.
 
 ## Evidence bundle
 
@@ -135,7 +160,8 @@ records.
 
 Title: `v1.0.0-rc.1 — release candidate`. Sections, in order:
 
-1. **What this release is.** The first release candidate for `v1.0.0`.
+1. **What this release is.** The first release candidate for `v1.0.0`, published as a full
+   release: the first Go build to be "Latest", replacing the Bash `v0.9.3`.
 2. **Harness status.** Claude Code: tested end to end (alpha.1). Cursor: tested end to end
    (alpha.2). Both are covered at this build by the full test suite; neither was re-run by hand.
    OpenCode: installs and ships, **untested** (0513, after `v1.0.0`). Codex: **unsupported**.
@@ -174,6 +200,10 @@ source inline; never automatically compensate a published effect.
   notes name them instead.
 - **A short manual smoke on each harness.** Rejected as ceremony; the public install check
   already proves the release installs for both.
+- **Publish rc.1 as a pre-release, `v0.9.3` staying Latest.** Rejected by the human: rc.1 is an
+  actual release.
+- **Fix the docs in a separate change merged before the cut.** Rejected as more machinery than the
+  gap warrants; the docs lag `main` only until the closeout PR merges.
 - **Notarize the darwin binaries.** Deferred: the supported install path never meets Gatekeeper;
   it needs paid Apple membership and CI signing for a browser path docket does not document.
 
@@ -182,12 +212,14 @@ source inline; never automatically compensate a published effect.
 - Human-testing any harness; OpenCode support and its upgrade-guide section (0513); Codex.
 - Source changes of any kind inside the freeze.
 - Homebrew, Windows, signing/notarization, SBOM or provenance; a publishing workflow.
-- Stable `v1.0.0` and promoting a Go build to "Latest".
+- Stable `v1.0.0`.
+- Docs beyond the install pages named in *Docs*.
 
 ## Acceptance boundary
 
 - **Designed:** this spec is linked from the record.
-- **Implemented:** the closeout PR is open with every phase's evidence in the bundle and every
-  gate green; the tag and release exist at the candidate with six verified assets; the public
+- **Implemented:** the closeout PR is open with every phase's evidence in the bundle, the doc
+  edits, and every gate green; the tag and full release exist at the candidate with six verified assets and the release is
+  "Latest"; the public
   install check passed.
 - **Done:** `docket-finalize-change` archives the change and the sweep is clean.

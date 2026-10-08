@@ -42,15 +42,16 @@ Claude Code and Cursor were each just proven end to end by hand, so the human de
 
 ## What changes
 
-- **Release.** Package, verify and publish `v1.0.0-rc.1` with the alpha.2 protocol (0512), minus the human harness test.
+- **Release.** Package, verify and publish `v1.0.0-rc.1` with the alpha.2 protocol (0512), minus the human harness test. rc.1 is a **full release, not a pre-release**, and becomes "Latest", replacing the Bash `v0.9.3`.
 - **No human harness test.** Claude Code (alpha.1) and Cursor (alpha.2) count as tested; the full suite gates the candidate. Source changes that land before the cut ship too, and the notes list them.
 - **Public install check** for both Claude Code and Cursor, plus proof that the installed macOS binary carries no quarantine flag and a valid signature.
+- **Install docs.** `README.md`, `docs/install/install.md` and `docs/install/keeping-current.md` describe installing from the release, state the harness status, and warn against browser downloads. Edited on this change's branch; they reach `main` when its PR merges.
 - **Harness status in the release notes and docs:**
   - Claude Code and Cursor: tested.
   - OpenCode: **untested**, not unsupported. The OpenCode files still ship and install as they do today.
   - Codex: the only officially **unsupported** harness.
 - **Upgrade path.** The release notes link the Bash upgrade guide (0511, with the Cursor section from 0543). The guide has no OpenCode section yet; the notes say so.
-- **macOS note.** The binaries are not notarized. The install script never triggers Gatekeeper; the notes warn that a browser-downloaded archive will be blocked.
+- **macOS note.** The binaries are not notarized. The install script never triggers Gatekeeper; the notes and install docs warn that a browser-downloaded archive will be blocked.
 
 ## Out of scope
 
@@ -59,5 +60,6 @@ Claude Code and Cursor were each just proven end to end by hand, so the human de
 - Removing or disabling OpenCode files from the release.
 - Codex support.
 - Notarizing or Developer ID signing the binaries; Homebrew; Windows.
-- Stable `v1.0.0` itself, and making a Go build "Latest".
-- Source changes of any kind inside the release freeze; a defect gets its own change and a new candidate.
+- Stable `v1.0.0` itself.
+- Docs beyond the install pages listed above.
+- Product source changes of any kind inside the release freeze; a defect gets its own change and a new candidate.
