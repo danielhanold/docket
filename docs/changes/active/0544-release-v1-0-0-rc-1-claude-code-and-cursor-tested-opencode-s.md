@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-08T21:10:03Z'
+reconciled: true
+claimed_at: '2026-10-08T21:11:18Z'
 ---
 
 ## Artifacts
@@ -64,3 +64,9 @@ Claude Code and Cursor were each just proven end to end by hand, so the human de
 - Stable `v1.0.0` itself.
 - Docs beyond the install pages listed above.
 - Product source changes of any kind inside the release freeze; a defect gets its own change and a new candidate.
+
+## Reconcile log
+
+### 2026-10-08
+
+Attended release protocol; spec reviewed against current main (d0f4712a5). No spec drift: 11 commits since alpha.2 are docs-only.
