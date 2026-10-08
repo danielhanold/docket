@@ -82,6 +82,11 @@ func TestRunOpenerProcessPassesOneArgAndReportsFailure(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "exit status 3") || !strings.Contains(err.Error(), "cannot open display") {
 		t.Fatalf("err = %v, want exit status and stderr", err)
 	}
+	bin, _ = openerScript(t, 4, "cannot open display\n  no DISPLAY set")
+	err = RunOpenerProcess(context.Background(), bin, "https://example.test/x")
+	if err == nil || strings.ContainsAny(err.Error(), "\r\n") || !strings.Contains(err.Error(), "cannot open display no DISPLAY set") {
+		t.Fatalf("err = %q, want multi-line stderr collapsed onto one line", err)
+	}
 }
 
 // TestRunOpenerProcessReturnsWhenGrandchildHoldsStderr models xdg-open handing
