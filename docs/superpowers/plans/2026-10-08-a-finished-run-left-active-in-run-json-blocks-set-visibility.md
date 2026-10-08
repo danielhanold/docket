@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0540 — A finished run left active in run.json blocks set-visibility and cannot be cancelled](../../changes/active/0540-a-finished-run-left-active-in-run-json-blocks-set-visibility.md)**
+> ↩ **[Change 0540 — A finished run left active in run.json blocks set-visibility and cannot be cancelled](../../changes/archive/2026-10-08-0540-a-finished-run-left-active-in-run-json-blocks-set-visibility.md)**
 <!-- docket:backlink:end -->
 
 # A keyed run-done verdict retires its run: implementation plan

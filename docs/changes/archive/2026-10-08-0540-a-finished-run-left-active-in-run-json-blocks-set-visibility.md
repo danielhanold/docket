@@ -2,7 +2,7 @@
 id: 540
 slug: 'a-finished-run-left-active-in-run-json-blocks-set-visibility'
 title: 'A finished run left active in run.json blocks set-visibility and cannot be cancelled'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-08'
@@ -22,7 +22,7 @@ branch: 'fix/a-finished-run-left-active-in-run-json-blocks-set-visibility'
 pr: 'https://github.com/danielhanold/docket/pull/406'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-08T02:15:52Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-08T02:15:52Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md](../../superpowers/specs/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md) |
+| Spec (merged) | [2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md) |
 | Plan | [2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility.md](../../superpowers/plans/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility.md) |
 | Results | [2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-results.md](../../results/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-results.md) |
 | ADRs | [ADR-0124](../../adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0128](../../adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md), [ADR-0148](../../adrs/0148-every-keyed-run-done-verdict-drives-the-successful-run-close.md) |
