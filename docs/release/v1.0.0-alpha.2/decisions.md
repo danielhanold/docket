@@ -55,3 +55,9 @@ git ls-remote origin refs/heads/main: ec4c2b1841954c2d6a3dd018e1133ee762861137	r
 - Fixture: private `danielhanold/docket-accept-v1-0-0-alpha-2-cursor`; `README.md` + `test.sh` pushed; `docket repository init --shared --harnesses cursor` (wrote `agent_harnesses: [cursor]`, gates `off`, as 0526 documents); committed; `configure-tests --command "sh ./test.sh"` set both gates `local`; committed; `docket install --harness cursor --repo-dir <fixture>` wrote the ignored `.cursor/rules/docket-dispatch.mdc`. `repository check`: `no-op`, no findings.
 - Isolation probe in the test Cursor (Cursor 3.23.23, Run Everything, chat model Grok 4.6 medium): agent shell shows `$TEST_HOME`, `$TEST_HOME/bin/docket`, `v1.0.0-alpha.2` @ `ec4c2b1`, `install check` `no-op`/`release`/`[cursor]`; the test-home-only `zz-isolation-probe` agent dispatched and replied `ALPHA2-TESTHOME-7f3c`.
 - **Finding — SIGTERM does not kill Cursor while an agent chat is open:** a SIGTERM at 18:44Z raised a quit-confirmation dialog instead of exiting (the dry run, with no active chat, exited within 10 s). The kill poller therefore sends SIGTERM, waits 10 s, then SIGKILL. The kill trigger is the first feature-branch commit touching `README.md` (the build's first code commit).
+
+## Phase 3 — gate (2026-10-08)
+
+- Terminal predicate: all six checks pass. Finalize merged PR #1 by itself (no hand merge); `repository check` clean without `repository prepare`.
+- Recorded deviations and findings (see `harness/cursor.md`): groom exited trivial rather than with a short spec; the build tier name is inferred (dispatch parameters cut short by the kill); an orphaned `cursor-agent` worker survived the main-process kill and was terminated before the relaunch; SIGTERM with an open chat raises a quit dialog; subagents ran at grok-4.5 high regardless of their pinned efforts.
+- Verdict: **pass**.
