@@ -1,0 +1,5 @@
+92d3a2ab3461be040bbde6faa7617fba1703c25c4edd18f1151e2ef97abb24f7  docket_v1.0.0-alpha.2_darwin_amd64.tar.gz
+846cd193fafd827f481c1310cfd9e0d6c708b123f9e15b6d8d81912c769fd808  docket_v1.0.0-alpha.2_darwin_arm64.tar.gz
+4b64a5cf3ec8d53da5ac00c0adc22e10d3a62840f41a0348d64baf66dc5a6c25  docket_v1.0.0-alpha.2_linux_amd64.tar.gz
+1f2e7b74b92a83ca387238f7b942ec6eb8c05162213dd10366645cd4850e16c5  docket_v1.0.0-alpha.2_linux_arm64.tar.gz
+f1fe6ddf66e0ed524d3a9d38222c88b140bef89e483d71f06d4970a70727917d  install.sh
