@@ -77,6 +77,7 @@ var stepRegistry = map[string]stepAction{
 	"repair-apply":           runRepairApply,
 	"repo-confirm":           runRepoConfirm,
 	"dispatch-block":         mirrorDispatchBlock,
+	"choose-harnesses":       runChooseHarnesses,
 	"leftovers":              mirrorLeftovers,
 	"repo-agent-files":       runRepoAgentFiles,
 }
@@ -1145,6 +1146,9 @@ const (
 	// repository without the block, which mirrorDispatchBlock proves.
 	dispatchBlockSkip    = "If there is no such block, skip this step."
 	dispatchBlockSkipWhy = "There is nothing to commit, and `git commit` stops with an error."
+	// bashDispatchSignature is what marks a dispatch block as Bash docket's: its body
+	// runs docket.sh. docket's own block shares the marker lines but never this.
+	bashDispatchSignature = "/docket.sh "
 )
 
 // dispatchBlockSpan validates the dispatch block's markers in lines and returns the
@@ -1218,7 +1222,7 @@ func mirrorDispatchBlock(t *testing.T, c *upgradeCase, st *runState, body string
 	// Guide: the upgrade leaves the block in place and `docket repository check`
 	// does not report it. repo-confirm already saw `healthy` with the block present.
 	mustContain(t, "guide", st.Guide, "`docket.sh`")
-	if !strings.Contains(strings.Join(lines[start:end+1], "\n"), "/docket.sh ") {
+	if !strings.Contains(strings.Join(lines[start:end+1], "\n"), bashDispatchSignature) {
 		t.Errorf("the guide says the block tells Claude to run Bash docket's docket.sh; it does not")
 	}
 	out := append(append([]string{}, lines[:start]...), lines[end+1:]...)
@@ -1243,6 +1247,73 @@ func mirrorDispatchBlock(t *testing.T, c *upgradeCase, st *runState, body string
 		t.Fatalf("origin main:CLAUDE.md still carries the dispatch block after dispatch-block")
 	}
 	st.DispatchBlockRemoved = true
+}
+
+// The guide's final section-5 step: choose the agents, then commit what the command
+// lists. The Cursor rule it writes is ignored, so only the listed paths are committed.
+const (
+	chooseHarnessesLine  = "docket repository configure-harnesses --harnesses claude,cursor"
+	cursorRepoRule       = ".cursor/rules/docket-dispatch.mdc"
+	cursorRepoRuleProse  = "For Cursor, it writes `.cursor/rules/docket-dispatch.mdc` into the repository, which the `.gitignore` block keeps out of commits."
+	claudeRepoBlockProse = "For Claude Code, it writes docket's own block into `CLAUDE.md`."
+)
+
+// runChooseHarnesses runs the block and checks the guide's claims: the git add line
+// names exactly the paths configure-harnesses lists, the commit reaches origin main and
+// leaves nothing behind, .docket.yml there records both harnesses, CLAUDE.md there
+// carries docket's dispatch block (not Bash's), and the repository Cursor rule exists
+// and is ignored by git.
+func runChooseHarnesses(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	lines := blockLines(body)
+	if len(lines) != 4 || lines[0] != chooseHarnessesLine || !strings.HasPrefix(lines[1], "git add ") ||
+		!strings.HasPrefix(lines[2], "git commit -m ") || lines[3] != "git push" {
+		t.Fatalf("choose-harnesses block must be `%s`, `git add <paths>`, `git commit -m …` and `git push`:\n%s", chooseHarnessesLine, body)
+	}
+	mustContainProse(t, "guide", st.Guide, cursorRepoRuleProse)
+	mustContainProse(t, "guide", st.Guide, claudeRepoBlockProse)
+	if st.Cwd != c.Clone {
+		t.Fatalf("choose-harnesses runs in the repository; the reader is in %s", st.Cwd)
+	}
+	if left := strings.TrimSpace(c.mustGit(t, st.Cwd, "status", "--porcelain")); left != "" {
+		t.Fatalf("choose-harnesses starts from a clean repository; git status shows:\n%s", left)
+	}
+	before := gitRev(t, c, "main")
+	r := runBlock(t, c, st, body)
+	pending := pendingPathsFrom(r.Stdout + r.Stderr)
+	added := strings.Fields(strings.TrimPrefix(lines[1], "git add "))
+	if len(pending) == 0 || !sameSet(pending, added) {
+		t.Fatalf("the guide's git add line names %v; configure-harnesses asked to commit %v\nstdout:\n%s\nstderr:\n%s", added, pending, r.Stdout, r.Stderr)
+	}
+	if gitRev(t, c, "main") == before {
+		t.Fatalf("choose-harnesses did not push a new commit to main")
+	}
+	if left := strings.TrimSpace(c.mustGit(t, st.Cwd, "status", "--porcelain")); left != "" {
+		t.Fatalf("choose-harnesses left changes behind:\n%s", left)
+	}
+	if fi, err := os.Lstat(filepath.Join(c.Clone, filepath.FromSlash(cursorRepoRule))); err != nil || !fi.Mode().IsRegular() {
+		t.Fatalf("configure-harnesses did not write %s into the repository (%v)", cursorRepoRule, err)
+	}
+	if ig := c.run(t, c.Clone, "git", "check-ignore", "-q", "--", cursorRepoRule); ig.Code != 0 {
+		t.Errorf("guide says the .gitignore block keeps %s out of commits; git does not ignore it", cursorRepoRule)
+	}
+	var cfg struct {
+		AgentHarnesses []string `yaml:"agent_harnesses"`
+	}
+	if err := yaml.Unmarshal([]byte(c.mustGit(t, c.Origin, "show", "main:.docket.yml")), &cfg); err != nil {
+		t.Fatalf("parse main:.docket.yml: %v", err)
+	}
+	if !sameSet(cfg.AgentHarnesses, guideHarnesses) {
+		t.Errorf("origin main:.docket.yml records agent_harnesses %v; the guide chooses %v", cfg.AgentHarnesses, guideHarnesses)
+	}
+	claudeLines := strings.Split(c.mustGit(t, c.Origin, "show", "main:CLAUDE.md"), "\n")
+	start, end, err := dispatchBlockSpan(claudeLines)
+	switch {
+	case err != nil || start < 0:
+		t.Errorf("origin main:CLAUDE.md has no docket dispatch block after choose-harnesses (%v)", err)
+	case strings.Contains(strings.Join(claudeLines[start:end+1], "\n"), bashDispatchSignature):
+		t.Errorf("origin main:CLAUDE.md carries Bash docket's dispatch block after choose-harnesses, not docket's")
+	}
 }
 
 // ---- section 7: leftovers ----------------------------------------------------------
@@ -1298,8 +1369,10 @@ func mirrorLeftovers(t *testing.T, c *upgradeCase, st *runState, body string) {
 // The per-repository leftovers the guide names. repoAgentGlob is the exact block line
 // the test requires; repoSettings is the file the guide says it does not cover.
 const (
-	repoAgentGlob = "rm -f .claude/agents/docket-*.md"
-	repoSettings  = ".claude/settings.local.json"
+	repoAgentGlob           = "rm -f .claude/agents/docket-*.md"
+	repoSettings            = ".claude/settings.local.json"
+	repoCursorAgentGlob     = "rm -f .cursor/agents/docket-*.md"
+	repoCursorAgentUnproven = "so the test does not prove the `.cursor/agents` line"
 )
 
 // runRepoAgentFiles runs the block that deletes the repository's Bash agent files.
@@ -1311,14 +1384,19 @@ const (
 func runRepoAgentFiles(t *testing.T, c *upgradeCase, st *runState, body string) {
 	t.Helper()
 	lines := blockLines(body)
-	if len(lines) != 2 || lines[0] != "cd "+c.Clone || lines[1] != repoAgentGlob {
-		t.Fatalf("repo-agent-files block must be exactly `cd <repo>` and `%s`:\n%s", repoAgentGlob, body)
+	if len(lines) != 3 || lines[0] != "cd "+c.Clone || lines[1] != repoAgentGlob || lines[2] != repoCursorAgentGlob {
+		t.Fatalf("repo-agent-files block must be exactly `cd <repo>`, `%s` and `%s`:\n%s", repoAgentGlob, repoCursorAgentGlob, body)
 	}
-	mustContain(t, "guide", st.Guide, "these old files hide the agents the installer just wrote")
-	mustContain(t, "guide", st.Guide, "`"+repoSettings+"`")
-	mustContain(t, "guide", st.Guide, "the test leaves it in place")
+	mustContainProse(t, "guide", st.Guide, "these old files hide the agents the installer just wrote")
+	mustContainProse(t, "guide", st.Guide, "`"+repoSettings+"`")
+	mustContainProse(t, "guide", st.Guide, "the test leaves it in place")
+	mustContainProse(t, "guide", st.Guide, repoCursorAgentUnproven)
 
 	glob := filepath.Join(c.Clone, ".claude", "agents", "docket-*.md")
+	cursorGlob := filepath.Join(c.Clone, ".cursor", "agents", "docket-*.md")
+	if found, _ := filepath.Glob(cursorGlob); len(found) > 0 {
+		t.Errorf("the saved %s clone carries repository Cursor agent files %v; the guide says the test does not prove the .cursor/agents line, so prove it and drop that sentence", c.Tag, found)
+	}
 	before, _ := filepath.Glob(glob)
 	for _, p := range before {
 		rel := strings.TrimPrefix(p, c.Clone+"/")
@@ -1341,8 +1419,10 @@ func runRepoAgentFiles(t *testing.T, c *upgradeCase, st *runState, body string) 
 
 	runBlock(t, c, st, body)
 
-	if left, _ := filepath.Glob(glob); len(left) > 0 {
-		t.Errorf("repo-agent-files left %v behind", left)
+	for _, g := range []string{glob, cursorGlob} {
+		if left, _ := filepath.Glob(g); len(left) > 0 {
+			t.Errorf("repo-agent-files left %v behind", left)
+		}
 	}
 	if left := strings.TrimSpace(c.mustGit(t, c.Clone, "status", "--porcelain")); left != "" {
 		t.Errorf("guide says there is nothing to commit after repo-agent-files; git status shows:\n%s", left)

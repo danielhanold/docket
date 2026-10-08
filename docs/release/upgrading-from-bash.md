@@ -194,9 +194,8 @@ docket repository configure-tests
 
 Next, choose the coding agents docket writes instructions for. On a terminal,
 `docket repository configure-harnesses` shows a checklist. The command below records "none yet",
-because Bash docket's `CLAUDE.md` block would get in the way. After you remove that block (the last
-step), run `docket repository configure-harnesses --harnesses claude` (or your agents) and commit
-the result.
+because Bash docket's `CLAUDE.md` block would get in the way. The last step of this section, after
+you remove that block, chooses your agents.
 
 <!-- upgrade-step: configure-harnesses -->
 ```sh
@@ -253,9 +252,19 @@ git commit -am "Remove the Bash docket block from CLAUDE.md"
 git push
 ```
 
-Last, choose your coding agents, which the configure-harnesses step left as "none yet": run
-`docket repository configure-harnesses --harnesses <agents>` (for example `claude`) and commit the
-paths it lists.
+Last, choose your coding agents, which the configure-harnesses step left as "none yet". The command
+lists the paths to review and commit. For Claude Code, it writes docket's own block into `CLAUDE.md`.
+For Cursor, it writes `.cursor/rules/docket-dispatch.mdc` into the repository, which the
+`.gitignore` block keeps out of commits. Drop the agent you don't use from `--harnesses`, and if you
+don't use Claude Code, leave `CLAUDE.md` off the `git add` line.
+
+<!-- upgrade-step: choose-harnesses -->
+```sh
+docket repository configure-harnesses --harnesses claude,cursor
+git add .docket.yml CLAUDE.md
+git commit -m "Choose docket's agents"
+git push
+```
 
 ## 6. Settings that changed
 
@@ -304,15 +313,18 @@ In Cursor, docket must run outside Cursor's sandbox. [Running docket under Curso
 shows the permission setup that allows it.
 
 Bash docket also wrote agent files into a repository when its `.docket.yml` has an `agents:`
-setting: one `docket-*.md` file per agent under the repository's `.claude/agents/` folder. Claude
-Code uses an agent file in the repository instead of the one with the same name in
-`~/.claude/agents/`, so these old files hide the agents the installer just wrote. Delete them in
-every repository. If a repository has none, the command does nothing.
+setting: one `docket-*.md` file per agent under the repository's `.claude/agents/` folder, and for
+Cursor under `.cursor/agents/`. Claude Code uses an agent file in the repository instead of the one
+with the same name in `~/.claude/agents/`, so these old files hide the agents the installer just
+wrote. Delete them in every repository. If a repository has none, the command does nothing. The
+saved installs the test runs carry no repository Cursor agent files, so the test does not prove the
+`.cursor/agents` line.
 
 <!-- upgrade-step: repo-agent-files -->
 ```sh
 cd <repo>
 rm -f .claude/agents/docket-*.md
+rm -f .cursor/agents/docket-*.md
 ```
 
 The `.gitignore` block from section 5 keeps these files out of commits, so there is nothing to
