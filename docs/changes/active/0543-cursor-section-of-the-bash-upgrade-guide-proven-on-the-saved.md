@@ -2,7 +2,7 @@
 id: 543
 slug: 'cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved'
 title: 'Cursor section of the Bash upgrade guide, proven on the saved cases'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'docs'
 created: '2026-10-08'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'docs/cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/408'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-08T16:26:49Z'
@@ -63,3 +63,12 @@ This was split out of 0512 at grooming. The release protocol builds no code insi
 ### 2026-10-08
 
 2026-10-08: Reconciled against main 2847444ae. The guide (docs/release/upgrading-from-bash.md) and internal/bashupgrade are unchanged since grooming apart from the already-landed artifact-backlink-stale table row; no related change has shipped Cursor guide content. Scope stands as specified.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 5669d3d998ec80d85912a15f3225d212a6e365a7
+ran_at:   2026-10-08T16:50:49Z
+<!-- docket:build-evidence:end -->
