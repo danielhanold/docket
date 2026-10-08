@@ -2,7 +2,7 @@
 id: 540
 slug: 'a-finished-run-left-active-in-run-json-blocks-set-visibility'
 title: 'A finished run left active in run.json blocks set-visibility and cannot be cancelled'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-08'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/a-finished-run-left-active-in-run-json-blocks-set-visibility'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/406'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-08T02:15:52Z'
@@ -65,3 +65,12 @@ Reconciled against origin/main 1ace73350. The spec's code citations still hold: 
 ### 2026-10-08
 
 Recorded ADR-0148 (every keyed run-done verdict drives the successful-run closeout) produced by this change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 75102ddf632911c849d941816281ed6cdd92944c
+ran_at:   2026-10-08T02:35:03Z
+<!-- docket:build-evidence:end -->

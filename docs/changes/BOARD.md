@@ -1,12 +1,12 @@
 # Backlog
 
-**541 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 10 proposed · ⚪ 14 deferred · ✅ 375 done · 🗑️ 139 killed
+**541 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 10 proposed · ⚪ 14 deferred · ✅ 375 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0540](active/0540-a-finished-run-left-active-in-run-json-blocks-set-visibility.md) | A finished run left active in run.json blocks set-visibility and cannot be cancelled | `medium` | `fix` | [spec](../superpowers/specs/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md) | `fix/a-finished-run-left-active-in-run-json-blocks-set-visibility` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0540](active/0540-a-finished-run-left-active-in-run-json-blocks-set-visibility.md) | A finished run left active in run.json blocks set-visibility and cannot be cancelled | `medium` | `fix` | [#406](https://github.com/danielhanold/docket/pull/406) | awaiting merge |
 
 ## 🟣 Groomed (2)
 
