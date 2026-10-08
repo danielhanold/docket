@@ -2,7 +2,7 @@
 id: 544
 slug: 'release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s'
 title: 'Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'chore'
 created: '2026-10-08'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable: false
 branch_prefix:
-branch:
+branch: 'chore/release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-08T21:10:03Z'
 ---
 
 ## Artifacts
