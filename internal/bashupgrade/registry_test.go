@@ -190,6 +190,74 @@ func mustContain(t *testing.T, what, text, want string) {
 	}
 }
 
+// guideHarnesses are the harnesses the guide's combined path covers; the test runs
+// every saved case once, through all of them.
+var guideHarnesses = []string{"claude", "cursor"}
+
+// installLineHarnesses parses the guide's installer invocation: exactly `sh install.sh`
+// followed by one or more `--harness <name>` pairs, each name one the downloader
+// accepts and none repeated. It returns the names in line order.
+func installLineHarnesses(line string) ([]string, bool) {
+	f := strings.Fields(line)
+	if len(f) < 4 || len(f)%2 != 0 || f[0] != "sh" || f[1] != "install.sh" {
+		return nil, false
+	}
+	known := map[string]bool{"claude": true, "codex": true, "cursor": true, "opencode": true}
+	seen := map[string]bool{}
+	var out []string
+	for i := 2; i < len(f); i += 2 {
+		if f[i] != "--harness" || !known[f[i+1]] || seen[f[i+1]] {
+			return nil, false
+		}
+		seen[f[i+1]] = true
+		out = append(out, f[i+1])
+	}
+	return out, true
+}
+
+// containsProse reports whether text contains want once every whitespace run in both
+// is collapsed to one space, so a re-flowed guide paragraph still matches the claim.
+func containsProse(text, want string) bool {
+	return strings.Contains(strings.Join(strings.Fields(text), " "), strings.Join(strings.Fields(want), " "))
+}
+
+func mustContainProse(t *testing.T, what, text, want string) {
+	t.Helper()
+	if !containsProse(text, want) {
+		t.Fatalf("%s does not contain %q (whitespace collapsed):\n%s", what, want, text)
+	}
+}
+
+// pendingPathsLead introduces the paths `docket repository configure-harnesses` asks
+// the reader to review and commit, in its human output.
+const pendingPathsLead = "review and commit the pending paths: "
+
+// pendingPathsFrom returns, sorted, the paths after pendingPathsLead up to the end of
+// that line, or nil when the output carries no such list.
+func pendingPathsFrom(out string) []string {
+	_, rest, ok := strings.Cut(out, pendingPathsLead)
+	if !ok {
+		return nil
+	}
+	line, _, _ := strings.Cut(rest, "\n")
+	var paths []string
+	for _, p := range strings.Split(line, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			paths = append(paths, p)
+		}
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+// sameSet reports whether a and b hold the same strings, ignoring order.
+func sameSet(a, b []string) bool {
+	x, y := append([]string(nil), a...), append([]string(nil), b...)
+	sort.Strings(x)
+	sort.Strings(y)
+	return strings.Join(x, "\x00") == strings.Join(y, "\x00") && len(x) == len(y)
+}
+
 // findingObjects decodes one JSON document and returns, in document order, every
 // object carrying string code and severity fields (the shape findingCodes reads).
 func findingObjects(t *testing.T, stdout string) []map[string]any {
