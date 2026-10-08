@@ -69,3 +69,26 @@ func TestPresentHumanErrorGoesToStderrOnly(t *testing.T) {
 		t.Fatalf("stderr = %q", errBuf.String())
 	}
 }
+
+// notedResult is a result that carries human notes, the way `docket open` does.
+type notedResult struct{ app.CLIErrorResult }
+
+func (notedResult) HumanText() string    { return "https://example.test/x" }
+func (notedResult) HumanNotes() []string { return []string{"first", "second"} }
+
+// TestPresentHumanNotesGoToStderr pins that human-mode notes go to stderr, one
+// "note:" line each, so stdout stays exactly the text line; JSON mode writes
+// nothing to stderr because the document carries the notes.
+func TestPresentHumanNotesGoToStderr(t *testing.T) {
+	r := notedResult{app.CLIErrorResult{Envelope: app.NewEnvelope("open", app.ResultApplied)}}
+	var out, errBuf bytes.Buffer
+	Presenter{Stdout: &out, Stderr: &errBuf}.Present(r)
+	if out.String() != "https://example.test/x\n" || errBuf.String() != "note: first\nnote: second\n" {
+		t.Errorf("stdout %q stderr %q", out.String(), errBuf.String())
+	}
+	out.Reset()
+	errBuf.Reset()
+	if (Presenter{Stdout: &out, Stderr: &errBuf, JSON: true}).Present(r); errBuf.Len() != 0 {
+		t.Errorf("JSON mode wrote stderr %q", errBuf.String())
+	}
+}

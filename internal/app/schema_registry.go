@@ -101,6 +101,7 @@ var operationBindings = []OperationBinding{
 	{ID: "learning.update", Request: LearningUpdateRequest{}, Result: LearningResult{}},                    // LearningUpdate
 	{ID: "maintenance.preflight", Request: nil, Result: MaintenancePreflightResult{}},                      // MaintenancePreflight
 	{ID: "maintenance.sweep", Request: nil, Result: MaintenanceResult{}},                                   // MaintenanceSweep
+	{ID: "open", Request: nil, Result: OpenResult{}},                                                       // Open
 	{ID: "pr.publish", Request: PRPublishInput{}, Result: PRPublishResult{}},                               // PRPublish
 	{ID: "repository.check", Request: nil, Result: RepositoryCheckResult{}},                                // RunRepositoryCheck
 	{ID: "repository.configure-harnesses", Request: nil, Result: RepositoryOpResult{}},                     // RunRepositoryConfigureHarnesses

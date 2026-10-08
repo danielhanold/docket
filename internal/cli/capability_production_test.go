@@ -345,6 +345,8 @@ func TestRepresentativeSignatures(t *testing.T) {
 		"finalize.block":    "--attempt <token> --head <ref> --id <id> --input <file> --pr-number <n> --reason <token> --revision <revision> [--repo-dir <dir>]",
 		"finalize.merge":    "--head <ref> --id <id> --revision <revision> [--admin] [--repo-dir <dir>]",
 		"workspace.prepare": "--id <id> --revision <revision> [--repo-dir <dir>]",
+		// positional target and optional id lead, the optional flags trail sorted.
+		"open": "<what> [<id>] [--print] [--repo-dir <dir>]",
 	}
 	for id, wantSig := range want {
 		e, ok := entryByID(entries, id)
@@ -360,6 +362,11 @@ func TestRepresentativeSignatures(t *testing.T) {
 	// on a cancelled or superseded predecessor, so it declares process-control.
 	if e, ok := entryByID(entries, "run.start"); !ok || strings.Join(e.Effects, " ") != "local-write process-control" {
 		t.Errorf("run.start effects = %v, want [local-write process-control]", e.Effects)
+	}
+	// open reads the corpus, prepares the metadata checkout, and launches the
+	// system opener.
+	if e, ok := entryByID(entries, "open"); !ok || strings.Join(e.Effects, " ") != "local-write process-control read" {
+		t.Errorf("open effects = %v, want [local-write process-control read]", e.Effects)
 	}
 	// change 0472: no catalog operation's signature carries the retired
 	// record-revision flags (the `version` op itself takes no flags).
