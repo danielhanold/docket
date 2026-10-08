@@ -49,7 +49,7 @@ Restart Claude Code and Cursor after installing: both load agents and skills at 
 ## Known gaps
 
 - **Cursor's sandboxed mode was not exercised.** The documented "Allowlist (with Sandbox)" setup was not part of this release's test; the acceptance run used Run Everything (unsandboxed).
-- **Cursor may run docket's subagents at a different model effort than their pins.** In the acceptance run, agents pinned to grok-4.5 low or medium ran at grok-4.5 high.
+- **Cursor may run docket's subagents at a different model effort than their pins.** In the acceptance run, agents pinned to grok-4.5 low or medium ran at grok-4.5 high. Tracked in change 0545.
 - **Quitting Cursor can leave its agent worker running.** After Cursor's main process was killed, its `cursor-agent` worker stayed alive. If you stop Cursor in the middle of a docket run, check for a leftover `cursor-agent` process before resuming.
 - OpenCode is installable but untested (alpha.3).
 - Codex is paused.
