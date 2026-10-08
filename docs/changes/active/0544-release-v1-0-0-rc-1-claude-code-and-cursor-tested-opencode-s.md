@@ -14,7 +14,7 @@ discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-design.md'
 plan: 'docs/superpowers/plans/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md'
-results:
+results: 'docs/results/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-results.md'
 trivial: false
 auto_groomable: false
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-08T21:11:18Z'
 |---|---|
 | Spec | [2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-design.md](../../superpowers/specs/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-design.md) |
 | Plan | [2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md](../../superpowers/plans/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) |
+| Results | [2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-results.md](../../results/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
