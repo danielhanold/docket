@@ -2,7 +2,7 @@
 id: 540
 slug: 'a-finished-run-left-active-in-run-json-blocks-set-visibility'
 title: 'A finished run left active in run.json blocks set-visibility and cannot be cancelled'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-08'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/a-finished-run-left-active-in-run-json-blocks-set-visibility'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-08T01:35:35Z'
 ---
 
 ## Artifacts
