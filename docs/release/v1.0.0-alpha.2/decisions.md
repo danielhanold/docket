@@ -61,3 +61,8 @@ git ls-remote origin refs/heads/main: ec4c2b1841954c2d6a3dd018e1133ee762861137	r
 - Terminal predicate: all six checks pass. Finalize merged PR #1 by itself (no hand merge); `repository check` clean without `repository prepare`.
 - Recorded deviations and findings (see `harness/cursor.md`): groom exited trivial rather than with a short spec; the build tier name is inferred (dispatch parameters cut short by the kill); an orphaned `cursor-agent` worker survived the main-process kill and was terminated before the relaunch; SIGTERM with an open chat raises a quit dialog; subagents ran at grok-4.5 high regardless of their pinned efforts.
 - Verdict: **pass**.
+
+## Phase 4 — publish decision (2026-10-08)
+
+- Release notes reviewed by Daniel. He had change 0545 created to confirm Cursor's subagent model pins in a sandbox, and kept the other known gaps as drafted.
+- Daniel, 2026-10-08T19:36:32Z: "go ahead and publish".
