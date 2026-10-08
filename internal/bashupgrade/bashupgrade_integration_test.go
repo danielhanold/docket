@@ -112,8 +112,11 @@ func TestIntegrationBashUpgradeGuide(t *testing.T) {
 				t.Errorf("Bash's user-level Cursor rule ~/.cursor/rules/docket-dispatch.mdc is still there after the guide (%v)", err)
 			}
 			assertRecordsSurvive(t, c, before)
-			if after, _ := os.ReadFile(filepath.Join(c.Clone, "CLAUDE.md")); strings.Contains(string(after), "docket:dispatch:") {
-				t.Errorf("the repository CLAUDE.md still carries the Bash dispatch block after the guide")
+			if after, _ := os.ReadFile(filepath.Join(c.Clone, "CLAUDE.md")); strings.Contains(string(after), bashDispatchSignature) {
+				t.Errorf("the repository CLAUDE.md still carries Bash docket's dispatch block (it runs docket.sh) after the guide")
+			}
+			if fi, err := os.Lstat(filepath.Join(c.Clone, ".cursor", "rules", "docket-dispatch.mdc")); err != nil || !fi.Mode().IsRegular() {
+				t.Errorf("the repository has no .cursor/rules/docket-dispatch.mdc after the guide (%v)", err)
 			}
 			dispatchRemoved = dispatchRemoved || st.DispatchBlockRemoved
 			repoAgentShadow = repoAgentShadow || st.RepoAgentFilesShadow > 0
