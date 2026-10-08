@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [19, 141, 142]
 spec: 'docs/superpowers/specs/2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal-design.md'
 plan: 'docs/superpowers/plans/2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal.md'
-results:
+results: 'docs/results/2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-08T10:46:43Z'
 |---|---|
 | Spec | [2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal-design.md](../../superpowers/specs/2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal-design.md) |
 | Plan | [2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal.md](../../superpowers/plans/2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal.md) |
+| Results | [2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal-results.md](../../results/2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal-results.md) |
 | ADRs | [ADR-0019](../../adrs/0019-global-config-fence-classification.md), [ADR-0141](../../adrs/0141-build-artifacts-plan-results-evidence-live-on-the-metadata-b.md), [ADR-0142](../../adrs/0142-private-visibility-keeps-the-single-metadata-layout-and-vari.md) |
 <!-- docket:artifacts:end -->
 
