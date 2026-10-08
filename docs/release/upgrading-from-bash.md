@@ -12,11 +12,11 @@ Use this guide if all of these are true:
 
 - You installed Bash docket from the `v0.9.2` or `v0.9.3` tag.
 - Your repositories keep their docket records on a separate `docket` branch.
-- You use docket with Claude Code.
+- You use docket with Claude Code, Cursor, or both.
 
 Repositories that keep their records on the default branch (the single-branch layout) are not
-covered. The guide covers Claude Code only. Sections for Cursor and OpenCode arrive in later
-pre-releases. Codex is not supported.
+covered. The guide covers Claude Code and Cursor. OpenCode follows in a later pre-release. Codex is
+not supported.
 
 ## 2. Before you start
 
@@ -28,16 +28,17 @@ pre-releases. Codex is not supported.
 ## 3. Install the docket binary
 
 Run these commands outside any repository. They download the installer and the checksum file into
-a new folder, check the installer against the checksum, then run it for Claude Code.
+a new folder, check the installer against the checksum, then run it for Claude Code and Cursor. If
+you use only one of them, drop the other one's `--harness` flag, here and in section 4.
 
 <!-- upgrade-step: install-binary -->
 ```sh
 mkdir -p ~/docket-download && cd ~/docket-download
-VERSION=v1.0.0-alpha.1
+VERSION=v1.0.0-alpha.2
 curl -fsSLO "https://github.com/danielhanold/docket/releases/download/$VERSION/install.sh"
 curl -fsSLO "https://github.com/danielhanold/docket/releases/download/$VERSION/checksums.txt"
 grep '  install.sh$' checksums.txt | shasum -a 256 -c -
-sh install.sh --harness claude
+sh install.sh --harness claude --harness cursor
 ```
 
 The `shasum` line must print `install.sh: OK`. If it prints anything else, stop and do not run
@@ -53,7 +54,7 @@ clears the conflicts.
 If you build docket from a source checkout instead, see [Installing docket](../install/install.md).
 That route needs Go and is not part of this guide.
 
-## 4. Take over the old Claude Code install
+## 4. Take over the old Claude Code and Cursor install
 
 The installer takes over the agent files Bash docket wrote under `~/.claude/agents/` by itself, as
 long as they still hold exactly what the Bash installer wrote.
@@ -65,14 +66,30 @@ you to move or delete it. For a Bash `v0.9.2` or `v0.9.3` install, that list is:
   Deleting a link leaves the checkout alone.
 - on `v0.9.3` only, `~/.claude/agents/docket-plan-writer.md`.
 
-Delete them, then run the installer again from the same folder. The failed run left no `docket`
-command, so run `sh install.sh` again, not `docket install`.
+For Cursor, the installer takes over Bash's agent files under `~/.cursor/agents/` by itself in the
+same way. It reports these Cursor paths as conflicts:
+
+- every `docket-*` link under `~/.cursor/skills/`. These also point into your old Bash checkout.
+- on `v0.9.3` only, `~/.cursor/agents/docket-plan-writer.md` and Bash's user-level rule
+  `~/.cursor/rules/docket-dispatch.mdc`. On `v0.9.2` the installer removes that rule itself.
+
+Delete the Cursor paths first. If you don't use Cursor, skip this block.
+
+<!-- upgrade-step: cursor-takeover-remedy -->
+```sh
+rm ~/.cursor/skills/docket-*
+rm -f ~/.cursor/agents/docket-plan-writer.md ~/.cursor/rules/docket-dispatch.mdc
+```
+
+Then delete the Claude Code paths and run the installer again from the same folder, with the same
+`--harness` flags as in section 3. If you don't use Claude Code, leave out the two `rm` lines. The
+failed run left no `docket` command, so run `sh install.sh` again, not `docket install`.
 
 <!-- upgrade-step: takeover-remedy -->
 ```sh
 rm ~/.claude/skills/docket-*
 rm -f ~/.claude/agents/docket-plan-writer.md
-sh install.sh --harness claude
+sh install.sh --harness claude --harness cursor
 ```
 
 This time the installer reports `install: applied`.
@@ -277,11 +294,14 @@ does not mention them. Delete them:
 The test covers zsh, where those lines are in `~/.zshenv`. Other shells keep them in a different
 startup file, which the test does not cover.
 
-Your old Bash checkout, usually `~/dev/docket`, is no longer used by Claude Code: nothing under
-`~/.claude` points into it after the upgrade. The links Bash docket made for other tools, under
-`~/.cursor`, `~/.codex` and `~/.agents`, still do. The guide does not cover those tools. Using
-docket from Cursor or OpenCode on an upgraded repository is not supported until their sections
-arrive, and Codex is not supported at all (see section 1).
+Your old Bash checkout, usually `~/dev/docket`, is no longer used by Claude Code or Cursor: nothing
+under `~/.claude` or `~/.cursor` points into it after the upgrade. The links Bash docket made for
+other tools, under `~/.codex` and `~/.agents`, still do. The guide does not cover those tools.
+Using docket from OpenCode on an upgraded repository is not supported until its section arrives,
+and Codex is not supported at all (see section 1).
+
+In Cursor, docket must run outside Cursor's sandbox. [Running docket under Cursor](../install/cursor.md)
+shows the permission setup that allows it.
 
 Bash docket also wrote agent files into a repository when its `.docket.yml` has an `agents:`
 setting: one `docket-*.md` file per agent under the repository's `.claude/agents/` folder. Claude
@@ -304,10 +324,10 @@ default branch, such as `Bash(git -C * push origin HEAD:main)`, and it can also 
 your own. This guide does not cover that file: the test leaves it in place and does not show
 whether deleting it is safe.
 
-## 8. Restart Claude Code
+## 8. Restart Claude Code and Cursor
 
-Quit Claude Code and start it again. Claude Code loads agents and skills when it starts, so
-clearing a conversation is not enough.
+Quit Claude Code and Cursor and start each one again. Both load agents and skills when they start,
+so clearing a conversation is not enough.
 
 ## 9. If something goes wrong
 

@@ -43,13 +43,14 @@ type runState struct {
 	Conflicts       []string
 	Observed        map[string][]findingRef
 
-	Guide       string   // the full guide text, for prose and table checks
-	Cwd         string   // the reader's terminal directory after the last block
-	DownloadDir string   // where install-binary downloaded install.sh
-	InstallLine string   // install-binary's installer invocation, re-run by takeover-remedy
-	CheckJSON   string   // repo-check's --json stdout
-	Settings    []string // settings-table patterns config-cleanup matched to a finding
-	Removed     []string // settings config-cleanup removed from .docket.yml
+	Guide            string   // the full guide text, for prose and table checks
+	Cwd              string   // the reader's terminal directory after the last block
+	DownloadDir      string   // where install-binary downloaded install.sh
+	InstallLine      string   // install-binary's installer invocation, re-run by takeover-remedy
+	InstallHarnesses []string // the --harness names of InstallLine, in line order
+	CheckJSON        string   // repo-check's --json stdout
+	Settings         []string // settings-table patterns config-cleanup matched to a finding
+	Removed          []string // settings config-cleanup removed from .docket.yml
 
 	DispatchBlockRemoved bool // dispatch-block found and removed the CLAUDE.md block
 	RepoAgentFilesShadow int  // repository agent files that hid an installed agent before repo-agent-files
@@ -59,24 +60,25 @@ type runState struct {
 type stepAction func(t *testing.T, c *upgradeCase, st *runState, body string)
 
 var stepRegistry = map[string]stepAction{
-	"install-binary":        mirrorInstallBinary,
-	"takeover-remedy":       mirrorTakeoverRemedy,
-	"global-config-cleanup": mirrorGlobalConfigCleanup,
-	"confirm-install":       runConfirmInstall,
-	"repo-prepare":          runRepoPrepare,
-	"repo-check":            observeRepoCheck,
-	"fix-gitignore":         mirrorFixGitignore,
-	"config-cleanup":        mirrorConfigCleanup,
-	"commit-fixes":          runCommitFixes,
-	"configure-tests":       runPlain,
-	"configure-harnesses":   runPlain,
-	"commit-config":         runCommit,
-	"repair-preview":        observeRepairPreview,
-	"repair-apply":          runRepairApply,
-	"repo-confirm":          runRepoConfirm,
-	"dispatch-block":        mirrorDispatchBlock,
-	"leftovers":             mirrorLeftovers,
-	"repo-agent-files":      runRepoAgentFiles,
+	"install-binary":         mirrorInstallBinary,
+	"cursor-takeover-remedy": mirrorCursorTakeoverRemedy,
+	"takeover-remedy":        mirrorTakeoverRemedy,
+	"global-config-cleanup":  mirrorGlobalConfigCleanup,
+	"confirm-install":        runConfirmInstall,
+	"repo-prepare":           runRepoPrepare,
+	"repo-check":             observeRepoCheck,
+	"fix-gitignore":          mirrorFixGitignore,
+	"config-cleanup":         mirrorConfigCleanup,
+	"commit-fixes":           runCommitFixes,
+	"configure-tests":        runPlain,
+	"configure-harnesses":    runPlain,
+	"commit-config":          runCommit,
+	"repair-preview":         observeRepairPreview,
+	"repair-apply":           runRepairApply,
+	"repo-confirm":           runRepoConfirm,
+	"dispatch-block":         mirrorDispatchBlock,
+	"leftovers":              mirrorLeftovers,
+	"repo-agent-files":       runRepoAgentFiles,
 }
 
 // Guide headings the table checks anchor on.
@@ -441,6 +443,18 @@ func snapshotTree(t *testing.T, dir string) map[string]string {
 	return out
 }
 
+// harnessHomesSnapshot snapshots every harness folder the guide's install writes.
+func harnessHomesSnapshot(t *testing.T, c *upgradeCase) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	for _, d := range []string{".claude", ".cursor"} {
+		for k, v := range snapshotTree(t, filepath.Join(c.Home, d)) {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 func gitRev(t *testing.T, c *upgradeCase, ref string) string {
 	t.Helper()
 	return strings.TrimSpace(c.mustGit(t, c.Origin, "rev-parse", ref))
@@ -481,21 +495,25 @@ func mirrorInstallBinary(t *testing.T, c *upgradeCase, st *runState, body string
 			sawChecksums = true
 		case strings.Contains(line, "checksums.txt") && strings.Contains(line, "shasum -a 256 -c"):
 			sawVerify = true
-		case line == "sh install.sh --harness claude":
-			st.InstallLine = line
+		case f[0] == "sh":
+			hs, ok := installLineHarnesses(line)
+			if !ok || !sameSet(hs, guideHarnesses) {
+				t.Fatalf("install-binary: installer line %q must be `sh install.sh` with one --harness per covered harness %v", line, guideHarnesses)
+			}
+			st.InstallLine, st.InstallHarnesses = line, hs
 		default:
 			t.Fatalf("install-binary: line %q is not a shape the test mirrors", line)
 		}
 	}
 	if st.DownloadDir == "" || !sawInstallSh || !sawChecksums || !sawVerify || st.InstallLine == "" {
-		t.Fatalf("install-binary block must make a download folder, fetch install.sh and checksums.txt, verify with shasum -a 256 -c, and run `sh install.sh --harness claude`:\n%s", body)
+		t.Fatalf("install-binary block must make a download folder, fetch install.sh and checksums.txt, verify with shasum -a 256 -c, and run the installer for every covered harness:\n%s", body)
 	}
 	installHandoff(t, c, st)
 }
 
 // installHandoff mirrors internal/release/downloader/install.sh from the point it
 // has a verified binary: stage it beside the destination, run the staged binary's
-// `install --harness claude`, and only on success move it into place, place the
+// `install` with one `--harness` per harness on the guide's installer line, and only on success move it into place, place the
 // relative dckt alias beside it, write the ownership record (naming the alias), and
 // run `docket install check`.
 func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
@@ -518,10 +536,14 @@ func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
 	if err := os.WriteFile(stage, bin, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	before := snapshotTree(t, filepath.Join(c.Home, ".claude"))
+	args := []string{"install"}
+	for _, h := range st.InstallHarnesses {
+		args = append(args, "--harness", h)
+	}
+	before := harnessHomesSnapshot(t, c)
 	// The downloader runs the staged binary in human mode, so the reader sees these
 	// lines; the guide quotes them.
-	r := c.run(t, st.DownloadDir, stage, "install", "--harness", "claude")
+	r := c.run(t, st.DownloadDir, stage, args...)
 	st.InstallAttempts = append(st.InstallAttempts, r)
 	human := r.Stdout + r.Stderr
 	if r.Code != 0 {
@@ -532,7 +554,7 @@ func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
 		// A failed run changes nothing, so a --json re-run reads the same conflict
 		// set in a form the test can parse; the human output must list each path on
 		// a conflict line.
-		j := c.run(t, st.DownloadDir, stage, "--json", "install", "--harness", "claude")
+		j := c.run(t, st.DownloadDir, stage, append([]string{"--json"}, args...)...)
 		_ = os.Remove(stage)
 		var conflicts []string
 		var doc struct {
@@ -567,8 +589,8 @@ func installHandoff(t *testing.T, c *upgradeCase, st *runState) {
 		if _, err := os.Lstat(dest); err == nil {
 			t.Fatalf("a failed install left %s behind", dest)
 		}
-		if after := snapshotTree(t, filepath.Join(c.Home, ".claude")); !mapsEqual(before, after) {
-			t.Fatalf("a failed install changed ~/.claude")
+		if after := harnessHomesSnapshot(t, c); !mapsEqual(before, after) {
+			t.Fatalf("a failed install changed ~/.claude or ~/.cursor")
 		}
 		st.Conflicts = conflicts
 		return
@@ -676,6 +698,84 @@ func mirrorTakeoverRemedy(t *testing.T, c *upgradeCase, st *runState, body strin
 	installHandoff(t, c, st)
 	if last := st.InstallAttempts[len(st.InstallAttempts)-1]; last.Code != 0 {
 		t.Fatalf("the install after takeover-remedy exited %d", last.Code)
+	}
+}
+
+// The Cursor paths the guide's cursor-takeover-remedy block deletes, and the guide's
+// claims about them.
+const (
+	cursorSkillsGlob           = "~/.cursor/skills/docket-*"
+	cursorPlanWriter           = "~/.cursor/agents/docket-plan-writer.md"
+	cursorUserRule             = "~/.cursor/rules/docket-dispatch.mdc"
+	cursorRuleSelfRemovedProse = "On `v0.9.2` the installer removes that rule itself."
+	cursorRemedySkipProse      = "If you don't use Cursor, skip this block."
+	cursorSandboxLink          = "](../install/cursor.md)"
+)
+
+// mirrorCursorTakeoverRemedy runs the block's Cursor deletes after proving the first
+// install's Cursor conflicts are exactly the ones the guide lists: every
+// ~/.cursor/skills/docket-* link, plus, on v0.9.3 only, docket-plan-writer.md and Bash's
+// user-level rule. On v0.9.2 the rule is present but no conflict, which is the
+// installer's side of the guide's "removes that rule itself" (the block's rm -f gets
+// there first; internal/install's TestRetireCursorFileLegacyBytes proves the removal).
+// The installer re-run stays in takeover-remedy, so this block must come first.
+func mirrorCursorTakeoverRemedy(t *testing.T, c *upgradeCase, st *runState, body string) {
+	t.Helper()
+	lines := blockLines(body)
+	if len(lines) == 0 {
+		t.Fatalf("cursor-takeover-remedy block is empty")
+	}
+	for _, l := range lines {
+		if !strings.HasPrefix(l, "rm ") {
+			t.Fatalf("cursor-takeover-remedy line %q is not a delete the test mirrors; the installer re-run belongs to takeover-remedy", l)
+		}
+	}
+	for _, p := range []string{cursorSkillsGlob, cursorPlanWriter, cursorUserRule} {
+		mustContain(t, "cursor-takeover-remedy block", body, p)
+	}
+	mustContainProse(t, "guide", st.Guide, cursorRuleSelfRemovedProse)
+	mustContainProse(t, "guide", st.Guide, cursorRemedySkipProse)
+	if len(st.Conflicts) == 0 {
+		t.Fatalf("cursor-takeover-remedy: the first install reported no conflict; the guide says every %s link conflicts", cursorSkillsGlob)
+	}
+	links, _ := filepath.Glob(c.expandHome(cursorSkillsGlob))
+	if len(links) == 0 {
+		t.Fatalf("population floor: the saved %s home has no %s link", c.Tag, cursorSkillsGlob)
+	}
+	planWriter, rule := c.expandHome(cursorPlanWriter), c.expandHome(cursorUserRule)
+	want := map[string]bool{}
+	for _, l := range links {
+		want[l] = true
+	}
+	if c.Tag == "v0.9.3" {
+		want[planWriter], want[rule] = true, true
+	} else if _, err := os.Lstat(rule); err != nil {
+		t.Errorf("guide says the installer removes Bash's rule itself on %s, but the saved home has no %s: %v", c.Tag, rule, err)
+	}
+	got := map[string]bool{}
+	for _, p := range st.Conflicts {
+		if strings.HasPrefix(p, filepath.Join(c.Home, ".cursor")+"/") {
+			got[p] = true
+		}
+	}
+	for p := range want {
+		if !got[p] {
+			t.Errorf("guide says %s conflicts on %s; the installer did not report it", p, c.Tag)
+		}
+	}
+	for p := range got {
+		if !want[p] {
+			t.Errorf("the installer reported %s as a conflict on %s, which the guide does not list", p, c.Tag)
+		}
+	}
+	if t.Failed() {
+		t.FailNow()
+	}
+	runBlock(t, c, st, body)
+	for p := range want {
+		if _, err := os.Lstat(p); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("cursor-takeover-remedy left the conflict path %s in place", p)
+		}
 	}
 }
 
@@ -1169,21 +1269,29 @@ func mirrorLeftovers(t *testing.T, c *upgradeCase, st *runState, body string) {
 			t.Fatalf("leftovers line %q names a path the test does not mirror", line)
 		}
 	}
-	// Guide: nothing under ~/.claude points into the old checkout; the other tools'
-	// links under ~/.cursor, ~/.codex and ~/.agents still do. The guide states that
+	// Guide: nothing under ~/.claude or ~/.cursor points into the old checkout; the
+	// other tools' links under ~/.codex and ~/.agents still do. The guide states that
 	// using docket from those tools on an upgraded repository is not supported, rather
 	// than advising to keep using Bash docket there: the test observes only the links.
 	mustContain(t, "guide", st.Guide, "`~/dev/docket`")
-	mustContain(t, "guide", st.Guide, "on an upgraded repository is not supported")
+	mustContainProse(t, "guide", st.Guide, "on an upgraded repository is not supported")
 	checkout := filepath.Join(c.Home, "dev", "docket")
-	if n := linksInto(t, filepath.Join(c.Home, ".claude"), checkout); n != 0 {
-		t.Errorf("guide says nothing under ~/.claude points into the old checkout; %d links do", n)
+	for _, d := range []string{".claude", ".cursor"} {
+		mustContain(t, "guide", st.Guide, "`~/"+d+"`")
+		if n := linksInto(t, filepath.Join(c.Home, d), checkout); n != 0 {
+			t.Errorf("guide says nothing under ~/%s points into the old checkout; %d links do", d, n)
+		}
 	}
-	for _, d := range []string{".cursor", ".codex", ".agents"} {
+	for _, d := range []string{".codex", ".agents"} {
 		mustContain(t, "guide", st.Guide, "`~/"+d+"`")
 		if linksInto(t, filepath.Join(c.Home, d), checkout) == 0 {
 			t.Errorf("guide says links under ~/%s still point into the old checkout; none do", d)
 		}
+	}
+	// Guide: docket must run outside Cursor's sandbox, with a link to the Cursor page.
+	mustContain(t, "guide", st.Guide, cursorSandboxLink)
+	if _, err := os.Stat(filepath.Join(repoRoot(t), "docs", "install", "cursor.md")); err != nil {
+		t.Errorf("the guide links %s, which does not exist: %v", cursorSandboxLink, err)
 	}
 }
 
