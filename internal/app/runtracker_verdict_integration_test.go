@@ -1494,8 +1494,8 @@ func TestIntegrationRunVerdictNoAttributableClaimRetiresStrandedRun(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(before) != 1 || before[0].Key != fx.key || before[0].Remedy != runVerdictCommand(fx.key) {
-		t.Fatalf("stranded run before the verdict = %#v, want one locator with remedy %q", before, runVerdictCommand(fx.key))
+	if len(before) != 1 || before[0].Key != fx.key || before[0].Remedy != runVerdictRemedy(fx.key) {
+		t.Fatalf("stranded run before the verdict = %#v, want one locator with remedy %q", before, runVerdictRemedy(fx.key))
 	}
 
 	res := RunVerdict(context.Background(), PlanningDeps{}, fx.wdeps, GitHubDeps{}, fx.repo, fx.key)

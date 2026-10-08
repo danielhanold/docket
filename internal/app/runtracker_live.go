@@ -30,7 +30,8 @@ type liveRunLocator struct{ Key, State, ChangeID, Remedy string }
 //
 // Each locator's Remedy follows liveRunCancelAuthority, so it names a command that
 // will act on the run in its current state: run cancel only where runCancelOwner
-// accepts, the keyed run verdict for a readable run cancel would refuse, and the
+// accepts, the keyed run verdict (once the dispatch has returned) for a readable
+// run cancel would refuse, and the
 // by-hand remedy where neither command can load the run.
 func liveRunsUnder(stateDir string) ([]liveRunLocator, error) {
 	root := filepath.Join(stateDir, runTrackerDirName)
@@ -70,7 +71,7 @@ func liveRunsUnder(stateDir string) ([]liveRunLocator, error) {
 				// Cancel refuses a run it cannot prove owned (ADR-0128); the keyed
 				// verdict re-resolves ownership and retires a run that claimed nothing
 				// (change 0540).
-				loc.Remedy = runVerdictCommand(key)
+				loc.Remedy = runVerdictRemedy(key)
 			default:
 				loc.Remedy = byHandRemedy(dir)
 			}
@@ -101,6 +102,14 @@ func runCancelCommand(key string) string {
 // would refuse, it re-resolves ownership and, on any run-done, retires the run.
 func runVerdictCommand(key string) string {
 	return "docket run verdict " + key
+}
+
+// runVerdictRemedy names runVerdictCommand only for after the run's dispatch has
+// returned. The scan cannot tell a finished run that claimed nothing from a live
+// dispatch that has not claimed yet, and a verdict on the live one ends it: the
+// record goes terminal and the child's later claim is refused.
+func runVerdictRemedy(key string) string {
+	return "once its dispatch has returned, run `" + runVerdictCommand(key) + "`"
 }
 
 // liveRunAuthority is what run cancel would decide about one live run, read from
