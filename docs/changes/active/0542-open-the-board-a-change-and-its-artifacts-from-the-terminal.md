@@ -2,7 +2,7 @@
 id: 542
 slug: 'open-the-board-a-change-and-its-artifacts-from-the-terminal'
 title: 'Open the board, a change, and its artifacts from the terminal'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-08'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/open-the-board-a-change-and-its-artifacts-from-the-terminal'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-08T10:16:01Z'
 ---
 
 ## Artifacts
