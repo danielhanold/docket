@@ -70,6 +70,10 @@ verdict, not the worker's report, says what may happen next.
   `docket run verdict --unattributed [<id>...]` checks the named changes
   (or every in-progress change) and prints `run-observe` lines, holding
   no key and writing nothing.
+  A keyed `run-done` line also retires the run, so it no longer counts as
+  live; if something the run started is still settling, the verdict reports
+  `run-stop … completion-unaccounted` instead, and repeating the same verdict
+  once it settles retires the run.
 - **Only two lines authorize another dispatch.** `run-retry-once` grants
   one more attempt for the change id and unmet work it names.
   `run-continue` is nonterminal: the same attempt still owns tracked work,

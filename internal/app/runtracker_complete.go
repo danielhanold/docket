@@ -3,8 +3,9 @@
 // coordinator's authoritative Stop, this is the authoritative "the run finished
 // successfully — release its run ownership so later workflow mutations on its
 // worktree are no longer fenced to it". It is driven ONLY from the attributed, keyed RunVerdict
-// path on a verified run-complete (Task 8 wires the caller); RunVerify stays
-// read-only and unattributed observe verdicts never reach it.
+// path, on every run-done verdict (run-complete since change 0441; run-unclaimed and
+// no-attributable-claim since change 0540); RunVerify stays read-only and unattributed
+// observe verdicts never reach it.
 //
 // STOPS NOTHING. Closeout stops nothing and signals nothing: it never invokes
 // native cancellation and never process.Stop. Its two writes are
@@ -31,10 +32,11 @@
 //
 // FAIL CLOSED. A live, busy, pending, or unreadable obligation blocks completion; a
 // publication journal entry blocks only while its publisher may still be running
-// (change 0494), because RunVerify's live probes behind the verified run-complete
-// are the evidence a publication landed: missing terminal evidence is UNPROVEN, never implicitly complete. A
-// blocked closeout leaves the run durably completing (the success fence holds) and
-// returns completion-unaccounted with the bounded findings that name what to settle;
+// (change 0494), because the journal is never the evidence a publication landed (on
+// a run-complete, RunVerify's live probes are; no other run-done claims one):
+// missing terminal evidence is UNPROVEN, never implicitly complete. A blocked
+// closeout leaves the run durably completing (the success fence holds) and returns
+// completion-unaccounted with the bounded findings that name what to settle;
 // the remedy is to settle the named evidence and repeat the same keyed verdict, or to
 // cancel explicitly. No retry, budget, or attempt is consumed by a blocked closeout.
 //
@@ -124,8 +126,8 @@ func (o appLaunchObserver) observe(contextHash string) (gatedrive.RunLaunchRepor
 // completion-unaccounted, completion-unpersisted, run-record-unreadable), and the bounded
 // credential-free findings that name every unsettled obligation; findings may also
 // carry informational mutation-settled:<op> or mutation-abandoned:<op> tokens, even on a successful closeout.
-// The caller (Task 8)
-// has already resolved the confirmed claim binding and the run-complete verdict; this
+// The caller
+// has already resolved ownership and a run-done verdict; this
 // function owns only the run's closeout. See the file header for the
 // stops-nothing, fail-closed, never-relabel, and lock-ordering contracts.
 func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, reason string, findings []string) {
@@ -329,8 +331,9 @@ func durableExecutionProof(seams cancelSeams, handle string) bool {
 // (classifyAdmittedMutation, change 0494), mirroring cancellation. A publisher that
 // may still be running, or an unprovable entry, blocks with mutation-pending:<op>.
 // An uncertain entry, or one whose publisher provably exited, is accounted with the
-// informational mutation-abandoned:<op>. RunVerify's live probes behind the verified
-// run-complete, not the journal, are the evidence that a publication landed.
+// informational mutation-abandoned:<op>. The journal is never the evidence that a
+// publication landed: on a run-complete RunVerify's live probes are, and no other
+// run-done claims one.
 func accountCompletionMutations(repoDir, runKey string, ep RunRecord) (bool, []string) {
 	return accountRunMutations(repoDir, runKey, ep.AdmittedMutations)
 }

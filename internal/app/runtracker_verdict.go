@@ -28,11 +28,13 @@ import (
 // never authorizes a retry.
 //
 // COMPLETION (spec §successful-completion-flow, change 0441). The verdict remains
-// the sole authority MAPPER — it never re-derives RunVerify's run-complete. On a
-// keyed run-complete it additionally drives the successful-run ownership closeout
-// (runTrackerCompleteRun → completeSuccessfulRun) so a standalone finalize gate can admit
-// on the same worktree without a run-superseded refusal or a human cancellation. A
-// BLOCKED or lost closeout maps to `run-stop <key> run-tracker-unavailable <reason>` on the
+// the sole authority MAPPER — it never re-derives RunVerify's run-complete. On
+// every keyed run-done — run-complete, run-unclaimed, and no-attributable-claim
+// (change 0540) — it additionally drives the run ownership closeout
+// (runTrackerCompleteRun → completeSuccessfulRun) so the run stops counting as live and a
+// standalone finalize gate can admit on the same worktree without a run-superseded
+// refusal or a human cancellation. A BLOCKED or lost closeout on any of those
+// run-done verdicts maps to `run-stop <key> run-tracker-unavailable <reason>` on the
 // existing run-tracker-unavailable channel with the new bounded reason tokens (run-cancelled
 // / run-superseded / completion-unaccounted / completion-unpersisted /
 // report-unpersisted / run-record-unreadable) and never reports success — RunVerify's own
@@ -131,8 +133,8 @@ const (
 	ReasonRunProofUnavailable = "proof-unavailable"
 )
 
-// The successful-run closeout reason tokens (change 0441). Each rides the existing
-// `run-stop <key> run-tracker-unavailable <reason>` channel when the keyed run-complete
+// The run closeout reason tokens (change 0441). Each rides the existing
+// `run-stop <key> run-tracker-unavailable <reason>` channel when a keyed run-done
 // verdict cannot report success: the report-line vocabulary is unchanged; only these
 // bounded reason spellings are new. The first four are RE-USED verbatim from Task 7's
 // completeSuccessfulRun return values (which flow straight through as r.Reason), so a
@@ -156,7 +158,7 @@ const (
 	// completed, but the terminal gate REPORT mirror could not be saved. The failure is
 	// REPORTED, not hidden by the best-effort save (spec: "completion-path persistence
 	// failures must be reported"); the run is already completed, so a repeat of the
-	// same keyed verdict replays to run-done run-complete once the fault clears.
+	// same keyed verdict replays to the same run-done line once the fault clears.
 	ReasonRunReportUnpersisted = "report-unpersisted"
 	// ReasonRunRecordUnreadable: the run record beside the key could not be read
 	// (a store fault, corruption, or schema mismatch — anything but a clean absence,
@@ -304,16 +306,14 @@ func RunVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gde
 	v := RunVerify(ctx, deps, wdeps, gdeps, repoDir, RunVerifyRequest{ID: id})
 
 	switch v.Verdict {
-	case VerdictRunComplete:
-		// A verified run-complete additionally drives the successful-run ownership
-		// closeout (change 0441) so a standalone finalize gate can admit on the same
-		// worktree. The seam bundle is injectable (unit tests fake the observers);
-		// production composes productionCancelSeams(repoDir). RunVerify's verdict is
-		// still reported as fact — runTrackerCompleteRun never re-derives it.
-		return runTrackerCompleteRun(repoDir, key, rec, id, verdictSeams(repoDir, wdeps))
-	case VerdictRunUnclaimed:
-		return persistRunVerdict(repoDir, key, rec,
-			runVerdictLine(key, RunDecisionDone, VerdictRunUnclaimed, id, true, nil))
+	case VerdictRunComplete, VerdictRunUnclaimed:
+		// Every keyed run-done drives the run's ownership closeout (change 0441 for
+		// run-complete, extended to every run-done by change 0540) so run.json leaves
+		// active and the run stops counting as live. The seam bundle is injectable
+		// (unit tests fake the observers); production composes
+		// productionCancelSeams(repoDir). RunVerify's verdict is reported as fact —
+		// runTrackerCompleteRun never re-derives it.
+		return runTrackerCompleteRun(repoDir, key, rec, v.Verdict, id, verdictSeams(repoDir, wdeps))
 	case VerdictRunHalted:
 		return persistRunVerdict(repoDir, key, rec,
 			runVerdictLine(key, RunDecisionStop, VerdictRunHalted, id, true, nil))
@@ -403,14 +403,15 @@ func RunVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gde
 	}
 }
 
-// runTrackerCompleteRun maps a verified keyed run-complete onto the successful-run
-// ownership closeout (change 0441). The caller (RunVerdict) has already resolved
-// the confirmed claim binding and delegated the run predicate to RunVerify; this owns
-// only the ownership retirement.
+// runTrackerCompleteRun maps a keyed run-done verdict — run-complete, run-unclaimed,
+// or no-attributable-claim (outcome; id is 0 for no-attributable-claim) — onto the
+// run's ownership closeout (changes 0441, 0540). The caller has already resolved
+// ownership and, for run-complete and run-unclaimed, delegated the run predicate to
+// RunVerify; this owns only the ownership retirement.
 //
 //  1. Locate the run beside the run-tracker record. A clean ABSENCE (ErrRunNotFound)
 //     is the keyless/standalone/legacy shape: EXACTLY the prior behavior — best-effort
-//     report mirror + run-done run-complete. Any OTHER load fault fails closed
+//     report mirror + the same run-done line. Any OTHER load fault fails closed
 //     (run-record-unreadable): a record the store cannot read is never a free closeout.
 //  2. Drive completeSuccessfulRun. A blocked/lost closeout maps to run-stop
 //     run-tracker-unavailable with the engine's bounded reason token and the diagnostic
@@ -419,14 +420,15 @@ func RunVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gde
 //  3. On success the run is durably completed. The terminal report mirror is saved
 //     as a CHECKED write — a persistence failure is REPORTED (report-unpersisted),
 //     never hidden by the best-effort save; the run is already completed, so the
-//     remedy is the idempotent replay (a repeat of the same keyed verdict).
-func runTrackerCompleteRun(repoDir, key string, rec RunTrackerRecord, id int, seams cancelSeams) RunVerdictResult {
+//     remedy is the idempotent replay (a repeat of the same keyed verdict), which
+//     replays to the same run-done line.
+func runTrackerCompleteRun(repoDir, key string, rec RunTrackerRecord, outcome string, id int, seams cancelSeams) RunVerdictResult {
 	// (1) Locate the run. Absence is the keyless/standalone/legacy shape; any
 	// other fault fails closed.
 	if _, _, lerr := LoadRunRecord(repoDir, key); lerr != nil {
 		if ee, ok := AsRunError(lerr); ok && ee.Kind == ErrRunNotFound {
 			return persistRunVerdict(repoDir, key, rec,
-				runVerdictLine(key, RunDecisionDone, VerdictRunComplete, id, true, nil))
+				runVerdictLine(key, RunDecisionDone, outcome, id, true, nil))
 		}
 		return persistRunVerdict(repoDir, key, rec,
 			runVerdictLine(key, RunDecisionStop, RunOutcomeUnavailable, id, true, func(r *RunVerdictResult) {
@@ -450,8 +452,8 @@ func runTrackerCompleteRun(repoDir, key string, rec RunTrackerRecord, id int, se
 	// (3) Closeout succeeded; the run is durably completed. Save the terminal report
 	// mirror as a CHECKED write — a completion-path persistence failure is reported, not
 	// hidden. On failure the run stays completed, so the same keyed verdict replays to
-	// run-done run-complete once the fault clears.
-	res := runVerdictLine(key, RunDecisionDone, VerdictRunComplete, id, true, func(r *RunVerdictResult) {
+	// the same run-done line once the fault clears.
+	res := runVerdictLine(key, RunDecisionDone, outcome, id, true, func(r *RunVerdictResult) {
 		r.CompletionFindings = findings
 	})
 	rec.Disposition = res.HumanText()
@@ -666,7 +668,7 @@ func resolveRunTrackerOwnership(ctx context.Context, deps PlanningDeps, wdeps Wo
 		if !found {
 			// The reserved claim never committed. Leave the reservation refused — never
 			// released, never confirmed — and report no attributable claim.
-			return runTrackerOwnershipDone(repoDir, key, *rec)
+			return runTrackerOwnershipDone(wdeps, repoDir, key, *rec)
 		}
 		// The committed receipt is authority, so a confirm error still proceeds on the
 		// proof (best-effort mirror) — but the worktree it binds must be real: resolve
@@ -690,7 +692,7 @@ func resolveRunTrackerOwnership(ctx context.Context, deps PlanningDeps, wdeps Wo
 		matches := runTrackerProofsForContext(proofs, rec.ChildContextHash)
 		switch len(matches) {
 		case 0:
-			return runTrackerOwnershipDone(repoDir, key, *rec)
+			return runTrackerOwnershipDone(wdeps, repoDir, key, *rec)
 		case 1:
 			p := matches[0]
 			// Adopt the sole proof: resolve the change's logical feature worktree
@@ -817,11 +819,14 @@ func runTrackerOwnershipStop(repoDir, key string, rec RunTrackerRecord, reason s
 	return &res
 }
 
-// runTrackerOwnershipDone builds the terminal run-done no-attributable-claim report for a
-// dispatch that provably claimed nothing, persists it, and returns it.
-func runTrackerOwnershipDone(repoDir, key string, rec RunTrackerRecord) *RunVerdictResult {
-	res := persistRunVerdict(repoDir, key, rec,
-		runVerdictLine(key, RunDecisionDone, RunOutcomeNoAttributableClaim, 0, true, nil))
+// runTrackerOwnershipDone handles a dispatch that provably claimed nothing: it
+// reports run-done no-attributable-claim and retires the run through the same
+// closeout as every keyed run-done (change 0540), so a run that never claimed is
+// never left active for the live-run scan to refuse on. A blocked closeout
+// reports run-stop run-tracker-unavailable with the closeout's reason; no run beside
+// the record keeps the prior mirror-only behavior.
+func runTrackerOwnershipDone(wdeps WorkspaceDeps, repoDir, key string, rec RunTrackerRecord) *RunVerdictResult {
+	res := runTrackerCompleteRun(repoDir, key, rec, RunOutcomeNoAttributableClaim, 0, verdictSeams(repoDir, wdeps))
 	return &res
 }
 
