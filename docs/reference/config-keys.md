@@ -52,6 +52,7 @@ Each key has one scope:
 | `reclaim.lease_ttl` | `72` | any layer | hours a claim on an in-progress change lasts |
 | `reclaim.auto` | `false` | any layer | whether `docket maintenance sweep` reclaims an eligible change or reports it skipped |
 | `learnings.enabled` | `true` | any layer | whether learnings are written and read |
+| `open.artifacts` | `github` | any layer | where `docket open` shows a shared repository's board and change artifacts: `github` pages, or the `local` metadata checkout's files |
 | `gate_observation_budget` | `30` | any layer | minutes docket waits for a test-suite run it started to finish |
 | `board_surfaces` | `[inline]` | any layer | which board views to render; `[]` renders none |
 | `board.section_order` | `[in-progress, built, blocked, groomed, proposed, deferred]` | any layer | the order of the board's sections |

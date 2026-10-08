@@ -839,3 +839,21 @@ func TestConfigDiagnosticsAttemptLimitsSurface(t *testing.T) {
 		t.Errorf("human effective block lacks the resolved run attempt-limit line:\n%s", h)
 	}
 }
+
+// TestConfigDiagnosticsOpenArtifactsSurface pins that the effective-config
+// diagnostics surface reports open.artifacts on both halves — the
+// auto-reflected `effective` JSON and the hand-maintained human block — and
+// asserts the resolved value, not mere presence (learnings:
+// defaulted-param-hides-caller-wiring).
+func TestConfigDiagnosticsOpenArtifactsSurface(t *testing.T) {
+	src := []config.Source{{Layer: config.LayerRepository, Name: ".docket.yml", Data: []byte("open:\n  artifacts: local\n")}}
+	for _, tc := range []struct {
+		sources    []config.Source
+		want, line string
+	}{{sparseSources(), "github", "open.artifacts = github  [built-in]"}, {src, "local", "open.artifacts = local"}} {
+		r := DiagnosticConfig(tc.sources, mainCtx(), false)
+		if r.Effective == nil || r.Effective.Open.Artifacts.Value != tc.want || !strings.Contains(r.HumanText(), tc.line) {
+			t.Errorf("want %q and line %q:\n%s", tc.want, tc.line, r.HumanText())
+		}
+	}
+}

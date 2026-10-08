@@ -130,6 +130,7 @@ type Effective struct {
 	Learnings         Learnings       `json:"learnings"`
 	Reclaim           Reclaim         `json:"reclaim"`
 	LeakCheck         LeakCheck       `json:"leak_check"`
+	Open              Open            `json:"open"`
 	Review            Review          `json:"review"`
 	GateObservation   Value[int]      `json:"gate_observation_budget"` // minutes
 	BoardSurfaces     Value[[]string] `json:"board_surfaces"`
@@ -190,6 +191,12 @@ type Reclaim struct {
 
 type LeakCheck struct {
 	MatchWord Value[bool] `json:"match_word"`
+}
+
+// Open is the `docket open` policy: where a shared repository's board and
+// change artifacts open.
+type Open struct {
+	Artifacts Value[string] `json:"artifacts"` // github|local
 }
 
 type Review struct {

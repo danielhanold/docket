@@ -50,6 +50,7 @@ func builtinEffective() Effective {
 			Auto:     builtinValue(false),
 		},
 		LeakCheck: LeakCheck{MatchWord: builtinValue(true)},
+		Open:      Open{Artifacts: builtinValue("github")},
 		Review: Review{
 			MinFixSeverity: builtinValue("minor"),
 			MaxFixTasks:    builtinValue(10),

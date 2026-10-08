@@ -174,6 +174,18 @@ leak_check:
   match_word: true
 
 
+# ═══ open — where docket open takes you ═══════════════════════════════════════════════════
+
+open:
+  # artifacts — github (default): in a shared repository, `docket open` shows the board, a
+  # change, and its spec, plan, and results as GitHub pages in your browser. local: open the
+  # file from your metadata checkout in your system's default app for Markdown instead —
+  # handy offline, or when you would rather read in an editor. A private repository always
+  # opens the local file, and `docket open pr` always opens the pull request on GitHub.
+  # scope: any layer
+  artifacts: github
+
+
 # ═══ learnings — the learnings ledger ═════════════════════════════════════════════════════
 
 learnings:

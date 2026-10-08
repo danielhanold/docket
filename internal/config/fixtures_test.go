@@ -184,6 +184,7 @@ func TestFixtureSparseDefaults(t *testing.T) {
 		{"reclaim.lease_ttl", eff.Reclaim.LeaseTTL.Explicit, eff.Reclaim.LeaseTTL.Provenance.Layer},
 		{"reclaim.auto", eff.Reclaim.Auto.Explicit, eff.Reclaim.Auto.Provenance.Layer},
 		{"leak_check.match_word", eff.LeakCheck.MatchWord.Explicit, eff.LeakCheck.MatchWord.Provenance.Layer},
+		{"open.artifacts", eff.Open.Artifacts.Explicit, eff.Open.Artifacts.Provenance.Layer},
 		{"review.min_fix_severity", eff.Review.MinFixSeverity.Explicit, eff.Review.MinFixSeverity.Provenance.Layer},
 		{"review.max_fix_tasks", eff.Review.MaxFixTasks.Explicit, eff.Review.MaxFixTasks.Provenance.Layer},
 		{"gate_observation_budget", eff.GateObservation.Explicit, eff.GateObservation.Provenance.Layer},

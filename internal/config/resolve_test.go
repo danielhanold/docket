@@ -92,6 +92,8 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 		return eff.Reclaim.Auto.Value, eff.Reclaim.Auto.Provenance, eff.Reclaim.Auto.Explicit
 	case "leak_check.match_word":
 		return eff.LeakCheck.MatchWord.Value, eff.LeakCheck.MatchWord.Provenance, eff.LeakCheck.MatchWord.Explicit
+	case "open.artifacts":
+		return eff.Open.Artifacts.Value, eff.Open.Artifacts.Provenance, eff.Open.Artifacts.Explicit
 	case "review.min_fix_severity":
 		return eff.Review.MinFixSeverity.Value, eff.Review.MinFixSeverity.Provenance, eff.Review.MinFixSeverity.Explicit
 	case "review.max_fix_tasks":
@@ -1299,5 +1301,30 @@ func TestWarningsFilter(t *testing.T) {
 	out := Warnings(in)
 	if len(out) != 1 || out[0].Code != CodeUnknownKey {
 		t.Fatalf("Warnings = %v, want only the warning-severity diagnostic", out)
+	}
+}
+
+// TestOpenArtifactsIsAnOrdinaryLayeredKey pins open.artifacts as an ordinary
+// layered key: a non-explicit built-in "github" default, and the
+// highest-precedence layer that declares it wins.
+func TestOpenArtifactsIsAnOrdinaryLayeredKey(t *testing.T) {
+	if v := mustResolve(t, nil, mainCtx).effective.Open.Artifacts; v.Value != "github" || v.Provenance.Layer != LayerBuiltIn || v.Explicit {
+		t.Fatalf("default = %+v, want non-explicit built-in github", v)
+	}
+	g, r, l := srcG("open:\n  artifacts: local\n"), srcR("open:\n  artifacts: github\n"), srcL("open:\n  artifacts: local\n")
+	for _, tc := range []struct {
+		sources []Source
+		want    string
+		layer   LayerKind
+	}{{[]Source{g}, "local", LayerGlobal}, {[]Source{g, r}, "github", LayerRepository}, {[]Source{r, l}, "local", LayerRepositoryLocal}} {
+		res := mustResolve(t, tc.sources, mainCtx)
+		if v := res.effective.Open.Artifacts; v.Value != tc.want || v.Provenance.Layer != tc.layer || !v.Explicit {
+			t.Errorf("open.artifacts = %+v, want explicit %q from %q", v, tc.want, tc.layer)
+		}
+		for _, d := range res.diags {
+			if d.Severity == SeverityWarning || d.Severity == SeverityError {
+				t.Errorf("unexpected diagnostic %s/%s/%s", d.Severity, d.Code, d.Path)
+			}
+		}
 	}
 }

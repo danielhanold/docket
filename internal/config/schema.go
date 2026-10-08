@@ -307,6 +307,12 @@ func buildRegistry() []pathSpec {
 		{path: "leak_check.match_word", kind: kindBool, def: true,
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
 
+		// open.artifacts: where `docket open` sends a shared repository's
+		// artifacts. A private repository always opens locally.
+		{path: "open.artifacts", kind: kindString, enum: []string{"github", "local"}, def: "github",
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported,
+			validate: enumLeaf("github", "local")},
+
 		// 15: build. The build role's own gate policy (change 0374): build.gate
 		// and build.test_command resolve independently of the finalize pair.
 		{path: "build.checkpoint", kind: kindBool, def: false,
