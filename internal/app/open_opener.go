@@ -8,11 +8,19 @@ package app
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+// openerWaitDelay bounds how long cmd.Wait keeps draining the opener's stderr
+// pipe after the opener exits. xdg-open can hand that pipe to the long-lived
+// application it launches; without the bound a pipe-holding grandchild keeps
+// cmd.Run blocked until the user closes that application.
+const openerWaitDelay = 2 * time.Second
 
 // Opener hands one target, a URL or an absolute file path, to whatever
 // application the platform associates with it.
@@ -74,13 +82,21 @@ func (o systemOpener) Open(ctx context.Context, target string) error {
 }
 
 // RunOpenerProcess runs bin with target as its only argument (no shell) and
-// waits. Stdin/stdout stay unset (the null device), so opener chatter never
+// waits for it to exit, bounding the stderr drain by openerWaitDelay.
+// Stdin/stdout stay unset (the null device), so opener chatter never
 // reaches docket's protocol stdout; a non-zero exit carries the opener's stderr.
 func RunOpenerProcess(ctx context.Context, bin, target string) error {
 	cmd := exec.CommandContext(ctx, bin, target)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
+	cmd.WaitDelay = openerWaitDelay
+	err := cmd.Run()
+	// ErrWaitDelay means the opener exited 0 and only a grandchild still held
+	// stderr: the open itself succeeded.
+	if errors.Is(err, exec.ErrWaitDelay) {
+		return nil
+	}
+	if err != nil {
 		if detail := strings.TrimSpace(stderr.String()); detail != "" {
 			return fmt.Errorf("%s: %w: %s", filepath.Base(bin), err, detail)
 		}
