@@ -71,3 +71,5 @@ git ls-remote origin refs/heads/main: ec4c2b1841954c2d6a3dd018e1133ee762861137	r
 
 - Phase 4: tag, draft, six verified assets, published 19:37:30Z as a pre-release, `v0.9.3` still Latest. See `publication.md`.
 - Phase 5: public install from the release URL passed. See `public-install.md`.
+
+- 2026-10-08T19:41:36Z: release-notes OpenCode correction (see `publication.md`), at Daniel's "yes". The Phase 6 build gate's first run (attempt 1) was stopped to commit it; the gate re-runs on the final head.

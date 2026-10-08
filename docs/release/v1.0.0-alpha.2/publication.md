@@ -20,3 +20,14 @@ Release: https://github.com/danielhanold/docket/releases/tag/v1.0.0-alpha.2 (rel
 | `docket_v1.0.0-alpha.2_linux_amd64.tar.gz` | 622808147 | 8783254 | `sha256:4b64a5cf3ec8d53da5ac00c0adc22e10d3a62840f41a0348d64baf66dc5a6c25` |
 | `docket_v1.0.0-alpha.2_linux_arm64.tar.gz` | 622808284 | 8144675 | `sha256:1f2e7b74b92a83ca387238f7b942ec6eb8c05162213dd10366645cd4850e16c5` |
 | `install.sh` | 622808152 | 13666 | `sha256:f1fe6ddf66e0ed524d3a9d38222c88b140bef89e483d71f06d4970a70727917d` |
+
+## Post-publication notes edit (2026-10-08T19:41:36Z)
+
+The OpenCode lines named an alpha.3 that change 0544 had already replaced (rc.1 ships OpenCode untested; full OpenCode support moved after v1.0.0, change 0513 deferred). At Daniel's "yes", the release body was edited with `gh release edit v1.0.0-alpha.2 --notes-file release-notes.md`. Only the two OpenCode lines changed; the tag, assets and pre-release/latest flags are untouched (re-verified: published, pre-release, 6 assets, `v0.9.3` Latest).
+
+```diff
+- - OpenCode is installable but untested; it is proven in alpha.3. Codex is paused.
++ - OpenCode is installable but untested; full OpenCode support comes after v1.0.0. Codex is paused.
+- - OpenCode is installable but untested (alpha.3).
++ - OpenCode is installable but untested; full OpenCode support comes after v1.0.0.
+```
