@@ -22,7 +22,7 @@ branch: 'feat/open-the-board-a-change-and-its-artifacts-from-the-terminal'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-08T10:16:43Z'
+claimed_at: '2026-10-08T10:18:17Z'
 ---
 
 ## Artifacts
