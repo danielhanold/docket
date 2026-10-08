@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [124, 128, 148]
 spec: 'docs/superpowers/specs/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md'
 plan: 'docs/superpowers/plans/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility.md'
-results:
+results: 'docs/results/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-08T02:15:52Z'
 |---|---|
 | Spec | [2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md](../../superpowers/specs/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-design.md) |
 | Plan | [2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility.md](../../superpowers/plans/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility.md) |
+| Results | [2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-results.md](../../results/2026-10-08-a-finished-run-left-active-in-run-json-blocks-set-visibility-results.md) |
 | ADRs | [ADR-0124](../../adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0128](../../adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md), [ADR-0148](../../adrs/0148-every-keyed-run-done-verdict-drives-the-successful-run-close.md) |
 <!-- docket:artifacts:end -->
 
