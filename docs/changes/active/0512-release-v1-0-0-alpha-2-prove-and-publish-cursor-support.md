@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/release-v1-0-0-alpha-2-prove-and-publish-cursor-support'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-08T18:11:13Z'
+reconciled: true
+claimed_at: '2026-10-08T18:11:43Z'
 ---
 
 ## Artifacts
@@ -61,3 +61,9 @@ A human-attended release protocol, run by the operator in an attended session, n
 - OpenCode (alpha.3) and Codex (paused).
 - Re-proving Claude Code beyond the candidate's whole-suite source gate.
 - Proving Cursor's documented Allowlist (with Sandbox) setup; the run uses Run Everything, and the notes list that as a known gap.
+
+## Reconcile log
+
+### 2026-10-08
+
+Reconciled 2026-10-08 at the alpha.2 cut, as a hand-run release protocol. Dependency 0543 is merged (PR #408) and the candidate is origin/main ec4c2b1841954c2d6a3dd018e1133ee762861137. The Phase 0 Cursor isolation dry run passed on Cursor 3.23.23. Two adjustments to the protocol, both recorded in decisions.md: (1) the isolation probe also dispatches a test-home-only agent (~/.cursor/agents/zz-isolation-probe.md), because a ~/.cursor/rules marker was not loaded by Cursor; (2) change.attach-plan now writes the plan on the metadata branch itself, so no plan-only commit with a Docket-Plan-Path trailer is needed. The spec is otherwise current.
