@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0512 — Release v1.0.0-alpha.2: prove and publish Cursor support](../../changes/active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md)**
+> ↩ **[Change 0512 — Release v1.0.0-alpha.2: prove and publish Cursor support](../../changes/archive/2026-10-08-0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md)**
 <!-- docket:backlink:end -->
 
 # v1.0.0-alpha.2 acceptance and publication (Cursor) — plan

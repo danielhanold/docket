@@ -1,12 +1,6 @@
 # Backlog
 
-**545 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 378 done · 🗑️ 139 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | [#409](https://github.com/danielhanold/docket/pull/409) | awaiting merge |
+**545 changes** — 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 379 done · 🗑️ 139 killed
 
 ## 🟣 Groomed (2)
 
@@ -20,7 +14,7 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0545](active/0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | `medium` | `chore` | needs-grooming |
-| [0544](active/0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | `high` | `chore` | ⏳ waiting on #512 — needs your merge |
+| [0544](active/0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | `high` | `chore` | needs-grooming |
 | [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
 | [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | List the artifact-backlink finding codes in the docket-status skill | `low` | `docs` | needs-grooming |
 | [0537](active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | `low` | `fix` | needs-grooming |
@@ -70,8 +64,6 @@ graph TD
   0412
   0433
   0503
-  0366 --> 0512
-  0543 --> 0512
   0544 --> 0513
   0511 --> 0514
   0527
@@ -84,21 +76,21 @@ graph TD
   0545
   0192:::done
   0251:::done
-  0366:::done
   0393:::done
   0407:::done
   0511:::done
-  0543:::done
+  0512:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (517)</summary>
+<details><summary>✅🗑️ Archive — done + killed (518)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0543](archive/2026-10-08-0543-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md) | Cursor section of the Bash upgrade guide, proven on the saved cases | 2026-10-08 |
 | [0542](archive/2026-10-08-0542-open-the-board-a-change-and-its-artifacts-from-the-terminal.md) | Open the board, a change, and its artifacts from the terminal | 2026-10-08 |
 | [0540](archive/2026-10-08-0540-a-finished-run-left-active-in-run-json-blocks-set-visibility.md) | A finished run left active in run.json blocks set-visibility and cannot be cancelled | 2026-10-08 |
+| [0512](archive/2026-10-08-0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | 2026-10-08 |
 | [0538](archive/2026-10-07-0538-choose-agent-harnesses-during-repository-init.md) | Choose agent harnesses during init and with configure-harnesses | 2026-10-07 |
 | [0533](archive/2026-10-07-0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | 2026-10-07 |
 | [0535](archive/2026-10-06-0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | 2026-10-06 |
@@ -110,7 +102,6 @@ graph TD
 | [0526](archive/2026-10-05-0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | 2026-10-05 |
 | [0525](archive/2026-10-05-0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | 2026-10-05 |
 | [0524](archive/2026-10-05-0524-release-candidate-evidence-json-drops-the-trailing-newline-f.md) | Release-candidate evidence.json drops the trailing newline from its checksums copy | 2026-10-05 |
-| [0523](archive/2026-10-05-0523-repository-check-reports-a-behind-only-docket-copy-as-diverg.md) | Treat a behind-only .docket copy as healthy and make prepare fast-forward it in place | 2026-10-05 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -255,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 35 done |
+| [2026-10](archive/) | 36 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

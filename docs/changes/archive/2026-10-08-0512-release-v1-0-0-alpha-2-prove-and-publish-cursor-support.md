@@ -2,7 +2,7 @@
 id: 512
 slug: 'release-v1-0-0-alpha-2-prove-and-publish-cursor-support'
 title: 'Release v1.0.0-alpha.2: prove and publish Cursor support'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'chore'
 created: '2026-10-04'
@@ -22,7 +22,7 @@ branch: 'chore/release-v1-0-0-alpha-2-prove-and-publish-cursor-support'
 pr: 'https://github.com/danielhanold/docket/pull/409'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-08T18:11:43Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-08T18:11:43Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md](../../superpowers/specs/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md) |
+| Spec (merged) | [2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md) |
 | Plan | [2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md](../../superpowers/plans/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) |
 | Results | [2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-results.md](../../results/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-results.md) |
 <!-- docket:artifacts:end -->
