@@ -139,10 +139,14 @@ func TestLiveRunsUnderMissingRoot(t *testing.T) {
 // command that will act on it in its current state (change 0540). Cancel is named
 // only when runCancelOwner accepts; a readable run cancel would refuse gets the
 // keyed verdict, which retires it; anything neither command can load is by hand.
+// The verdict remedy is qualified: the scan cannot tell a finished unclaimed run
+// from a live dispatch that has not claimed yet, and a verdict on the latter ends it.
 func TestLiveRunsUnderRemedyFollowsCancelAuthority(t *testing.T) {
 	stateDir := testsupport.TempDir(t)
 	cancel := func(k string) string { return "docket run cancel --key " + k + " --reason <why>" }
-	verdict := func(k string) string { return "docket run verdict " + k }
+	verdict := func(k string) string {
+		return "once its dispatch has returned, run `docket run verdict " + k + "`"
+	}
 	byHand := func(dir string) string { return "inspect or remove " + dir + " by hand" }
 
 	// The incident: a record with no parent capability and no claim (no binding file).
