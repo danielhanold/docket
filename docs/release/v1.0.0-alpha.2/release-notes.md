@@ -4,7 +4,7 @@ The second public build of the docket Go binary, an alpha for existing users.
 
 - **Cursor is now tested end to end.** A full lifecycle (create, groom, implement with a mid-run kill and resume, finalize) ran in Cursor against this exact build.
 - Claude Code was tested end to end in `v1.0.0-alpha.1` and is covered in this release by the test suite.
-- OpenCode is installable but untested; it is proven in alpha.3. Codex is paused.
+- OpenCode is installable but untested; full OpenCode support comes after v1.0.0. Codex is paused.
 - Like alpha.1, this is a hard replacement of the Bash implementation, with no Bash fallback.
 
 ## Install
@@ -51,7 +51,7 @@ Restart Claude Code and Cursor after installing: both load agents and skills at 
 - **Cursor's sandboxed mode was not exercised.** The documented "Allowlist (with Sandbox)" setup was not part of this release's test; the acceptance run used Run Everything (unsandboxed).
 - **Cursor may run docket's subagents at a different model effort than their pins.** In the acceptance run, agents pinned to grok-4.5 low or medium ran at grok-4.5 high. Tracked in change 0545.
 - **Quitting Cursor can leave its agent worker running.** After Cursor's main process was killed, its `cursor-agent` worker stayed alive. If you stop Cursor in the middle of a docket run, check for a leftover `cursor-agent` process before resuming.
-- OpenCode is installable but untested (alpha.3).
+- OpenCode is installable but untested; full OpenCode support comes after v1.0.0.
 - Codex is paused.
 - No Homebrew, Windows, or signing/notarization.
 
