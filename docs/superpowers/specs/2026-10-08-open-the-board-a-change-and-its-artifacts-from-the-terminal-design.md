@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0542 — Open the board, a change, and its artifacts from the terminal](../../changes/active/0542-open-the-board-a-change-and-its-artifacts-from-the-terminal.md)**
+> ↩ **[Change 0542 — Open the board, a change, and its artifacts from the terminal](../../changes/archive/2026-10-08-0542-open-the-board-a-change-and-its-artifacts-from-the-terminal.md)**
 <!-- docket:backlink:end -->
 
 # Open docket artifacts from the terminal: design
