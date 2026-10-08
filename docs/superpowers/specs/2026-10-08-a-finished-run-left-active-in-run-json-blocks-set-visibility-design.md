@@ -19,7 +19,7 @@ This change makes the keyed verdict retire the run on **every** `run-done` outco
 - **Cancel refuses exactly these runs, on purpose.** `runCancel` (`runtracker_cancel.go`) accepts a confirmed claim binding or the resume-verified shape (`RunTrackerRecord.resumeAttributed`); anything else is `claim-unconfirmed`. ADR-0128 Decision 1 keeps "an unconfirmed reservation still refuses claim-unconfirmed".
 - **The repository-wide scan reads only `run.json`.** `liveRunsUnder` (`runtracker_live.go`) treats `active`, `completing`, `cancelling`, and unknown states as live and hard-codes `runCancelCommand(key)` as the remedy for `active`/`completing`. Its only caller is `visibilityLiveRunLines` in `repository_set_visibility_probe.go`.
 - **Resume depends on halted runs staying `active`.** `run start --resume` (`runtracker_start.go`) answers a prior `RunCompleted` run with "there is nothing to resume" and supersedes only a `RunCancelled` one, so the halt → cancel → resume flow needs a halted run to remain `active` until it is cancelled.
-- **It is not rare.** On 2026-10-07 this machine's `.git/docket/run-tracker` held three `active` runs with no claim binding and no participants: two `run-done … no-attributable-claim` runs (2026-10-04 22:29Z and 2026-10-07 10:49Z) and one `gate-armed` run from 2026-09-29 that never got a verdict. `/Users/homer/Downloads/dckt-private` had a fourth, hand-edited to `completed`. Two of these runs did claim and build a change but claimed without `--run-context` (#541), so the attribution failure is common, and every one of them strands an `active` `run.json` today.
+- **It is not rare.** At grooming the development machine held three `active` runs with no claim binding and no participants: two `run-done … no-attributable-claim` runs and one `gate-armed` run that never got a verdict. A private test repository had a fourth, hand-edited to `completed`. Two of these runs did claim and build a change but claimed without `--run-context` (#541), so the attribution failure is common, and every one of them strands an `active` `run.json` today.
 
 ## Design
 
@@ -61,7 +61,7 @@ At build, record a new ADR (via `docket-adr`) that extends ADR-0124 Rule 1 from 
 
 ### 4. Existing stuck runs
 
-No migration. After install, running `docket run verdict <key>` on a stranded run re-resolves ownership, gets `no-attributable-claim`, and closes it out. The results file lists the three keys found on this machine at grooming (`implement-next-20260929t153306z-56752-95e7`, `implement-next-20261004t222959z-96475-7c95`, `implement-next-20261007t104957z-97517-71ff`) as a human action. Re-check they are still `active` first.
+No migration. After install, running `docket run verdict <key>` on a stranded run re-resolves ownership, gets `no-attributable-claim`, and closes it out. The results file tells the human, as a human action, how to find stranded runs (a `run.json` still `active` beside a `record.json` with `terminal: true`) and to run the keyed verdict on each.
 
 ## Tests
 
