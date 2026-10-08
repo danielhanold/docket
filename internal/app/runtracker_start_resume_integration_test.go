@@ -133,6 +133,7 @@ func TestIntegrationRunStartResumeRefusesCompletedRunWithoutSuperseding(t *testi
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeRunDeps(t)
 	priorKey := seedPriorRun(t, repoDir, RunCompleted)
+	seedRunDisposition(t, repoDir, priorKey, "run-done "+priorKey+" run-complete 5")
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
 	res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
@@ -157,6 +158,146 @@ func TestIntegrationRunStartResumeRefusesCompletedRunWithoutSuperseding(t *testi
 	}
 	if ep.ReplacementReserved != "" {
 		t.Fatalf("resume must reserve no replacement over a completed run, got %q", ep.ReplacementReserved)
+	}
+}
+
+// seedRunDisposition overwrites the latest report line on key's run-tracker record —
+// the line the keyed verdict persisted there.
+func seedRunDisposition(t *testing.T, repoDir, key, disposition string) {
+	t.Helper()
+	rec, err := LoadRunTrackerRecord(repoDir, key)
+	if err != nil {
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
+	}
+	rec.Disposition = disposition
+	rec.Terminal = true
+	if err := SaveRunTrackerRecord(repoDir, key, rec); err != nil {
+		t.Fatalf("SaveRunTrackerRecord: %v", err)
+	}
+}
+
+// TestIntegrationRunStartResumeAfterRunUnclaimedRetirementStartsFreshRun: a run the
+// keyed run-unclaimed verdict retired to completed (change 0540) still names its
+// change, but it is not the change's prior run. After a keyless re-claim of the same
+// change halts, run start --resume mints and binds a fresh run instead of answering
+// "nothing to resume", and a repeat resume resolves that fresh run as the prior run
+// (resume-active-run) rather than an ambiguity with the retired one.
+func TestIntegrationRunStartResumeAfterRunUnclaimedRetirementStartsFreshRun(t *testing.T) {
+	ctx := context.Background()
+	repoDir := newWorkingRepo(t, nil).invocation
+
+	// A keyed run claims change 5; the claim is then released, so the keyed verdict
+	// reports run-unclaimed and retires the run to completed, still bound to change 5.
+	oldKey := runTrackerMintStarted(t, repoDir, nil, 1, "ha")
+	must(t, ReserveRunTrackerClaim(repoDir, oldKey, 5, "claim-5-v"))
+	must(t, ConfirmRunTrackerClaim(repoDir, oldKey, 5, "claim-5-v", "r1", ""))
+	if _, err := MintRunRecord(repoDir, oldKey, "5"); err != nil {
+		t.Fatalf("MintRunRecord: %v", err)
+	}
+	vwdeps := WorkspaceDeps{
+		ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
+			{RequestID: "claim-5-v", ChangeID: 5, RunContextHash: "ha", Revision: "r1"},
+		}},
+		CancelSeams: func(string) cancelSeams {
+			return cancelSeams{
+				observer:       &fakeProcessObserver{defaultProven: true},
+				launchObserver: &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}},
+			}
+		},
+	}
+	vdeps := runTrackerLightDeps(t, []StatusBlob{runTrackerProposedBlob(5, "epsilon")})
+	v := RunVerdict(ctx, vdeps, vwdeps, GitHubDeps{}, repoDir, oldKey)
+	if got, want := v.HumanText(), "run-done "+oldKey+" run-unclaimed 5"; got != want {
+		t.Fatalf("verdict = %q, want %q", got, want)
+	}
+	if st := loadRunState(t, repoDir, oldKey); st != RunCompleted {
+		t.Fatalf("retired run state = %q, want completed", st)
+	}
+
+	// A keyless dispatch re-claims change 5 and halts: it is in-progress again with
+	// no run-tracker run of its own.
+	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{runTrackerHaltedInProgressBlob(5, "epsilon")}}
+	deps := workspaceDepsFor(t, reader)
+	wdeps := WorkspaceDeps{Service: resumeInspectService("/tmp/wt/epsilon")}
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+
+	res := RunStart(ctx, deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+	if !res.Started {
+		t.Fatalf("resume after a run-unclaimed retirement did not start: reason %q, %q", res.Reason, res.HumanText())
+	}
+	if res.Key == "" || res.Key == oldKey || sp.calls != 1 {
+		t.Fatalf("resume must mint a fresh run: key=%q (retired %q) scope calls=%d", res.Key, oldKey, sp.calls)
+	}
+	ep, _, err := LoadRunRecord(repoDir, res.Key)
+	if err != nil {
+		t.Fatalf("LoadRunRecord(fresh): %v", err)
+	}
+	if ep.State != RunActive || ep.ChangeID != "5" || ep.Worktree == "" {
+		t.Fatalf("fresh run = state %q change %q worktree %q, want active, bound to change 5 and its worktree",
+			ep.State, ep.ChangeID, ep.Worktree)
+	}
+	if st := loadRunState(t, repoDir, oldKey); st != RunCompleted {
+		t.Fatalf("resume must leave the retired run completed, got %q", st)
+	}
+
+	sp2 := &fakeScopePrep{grant: sampleScopeGrant()}
+	res2 := RunStart(ctx, deps, wdeps, sp2.deps(), repoDir, "implement-next", 5)
+	if res2.Started || res2.Reason != ReasonRunResumeActiveRun || !strings.Contains(res2.Message, "run key "+res.Key) {
+		t.Fatalf("repeat resume = started %v reason %q message %q, want resume-active-run naming run key %q",
+			res2.Started, res2.Reason, res2.Message, res.Key)
+	}
+}
+
+// TestIntegrationRunStartResumeCompletedRunByLatestReportLine: only a completed run
+// whose latest report line is run-done … run-complete is the change's finished prior
+// run ("nothing to resume"). One retired by another run-done outcome — or whose
+// run-done line a later keyed verdict replaced, such as run-stop … run-halted after a
+// keyless re-claim halted — is passed over and the resume starts a fresh run. A
+// record.json that cannot be read proves nothing, so it still refuses.
+func TestIntegrationRunStartResumeCompletedRunByLatestReportLine(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		disposition func(key string) string // "" corrupts record.json instead
+		wantStarted bool
+	}{
+		{"no-attributable-claim", func(k string) string { return "run-done " + k + " no-attributable-claim" }, true},
+		{"run-unclaimed", func(k string) string { return "run-done " + k + " run-unclaimed 5" }, true},
+		{"halted replay", func(k string) string { return "run-stop " + k + " run-halted 5" }, true},
+		{"run-complete", func(k string) string { return "run-done " + k + " run-complete 5" }, false},
+		{"unreadable record", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repoDir := newWorkingRepo(t, nil).invocation
+			deps, wdeps := resumeRunDeps(t)
+			priorKey := seedPriorRun(t, repoDir, RunCompleted)
+			if tc.disposition != nil {
+				seedRunDisposition(t, repoDir, priorKey, tc.disposition(priorKey))
+			} else {
+				stateDir, err := runTrackerStateDir(repoDir)
+				if err != nil {
+					t.Fatalf("runTrackerStateDir: %v", err)
+				}
+				if err := os.WriteFile(filepath.Join(stateDir, runTrackerDirName, priorKey, runTrackerRecordFileName),
+					[]byte("{not json"), 0o600); err != nil {
+					t.Fatalf("corrupt record.json: %v", err)
+				}
+			}
+			sp := &fakeScopePrep{grant: sampleScopeGrant()}
+
+			res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+			if res.Started != tc.wantStarted {
+				t.Fatalf("started = %v (reason %q, %q), want %v", res.Started, res.Reason, res.HumanText(), tc.wantStarted)
+			}
+			if !tc.wantStarted && res.Reason != ReasonRunResumeRunCompleted {
+				t.Fatalf("Reason = %q, want %q", res.Reason, ReasonRunResumeRunCompleted)
+			}
+			if tc.wantStarted && res.Key == priorKey {
+				t.Fatalf("resume reused the retired run key %q", priorKey)
+			}
+			if st := loadRunState(t, repoDir, priorKey); st != RunCompleted {
+				t.Fatalf("resume must leave the completed run untouched, got %q", st)
+			}
+		})
 	}
 }
 

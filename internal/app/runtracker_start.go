@@ -620,7 +620,10 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 			case RunCompleted:
 				// The successful closeout finished (change 0441): terminal, nothing to
 				// resume — never quiescence-checked into a supersede, never a replacement
-				// reservation. Verify and finalize instead.
+				// reservation. Verify and finalize instead. FindRunByChange returns a
+				// completed run only when its latest report line is run-done … run-complete
+				// (or its record cannot be read); a run retired by another run-done outcome
+				// falls through to the fresh mint below.
 				return runUntrackedMsg(ReasonRunResumeRunCompleted,
 					"change "+scopeChangeID+"'s run completed successfully (run key "+
 						oldKey+"); there is nothing to resume — verify with 'docket run "+

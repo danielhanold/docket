@@ -42,6 +42,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -637,6 +638,15 @@ func SupersedeCancelledRun(repoDir, runKey, replacementKey string) error {
 // is returned, so a repeat resume still recovers the reservation. A missing run-tracker
 // root or no match is (found=false, nil); a corrupt/unreadable sibling run is
 // skipped, mirroring findRunByWorktree.
+//
+// A COMPLETED run is the change's run only while its run-tracker record's latest
+// report line is `run-done <key> run-complete …` (runRetiredWithoutRunComplete).
+// Every keyed run-done verdict retires its run to completed (change 0540), and a
+// run-unclaimed run stays bound to the change it once claimed; if such a run
+// matched, a resume after a keyless re-claim of the same change would hit
+// resume's "nothing to resume" refusal, which run cancel cannot clear. A run
+// retired that way owns no worktree and holds no reservation, so it is skipped
+// like a run that never named the change, and the resume mints a fresh one.
 func FindRunByChange(repoDir, changeID string) (runKey string, rec RunRecord, found bool, err error) {
 	if changeID == "" {
 		return "", RunRecord{}, false, nil
@@ -666,9 +676,13 @@ func FindRunByChange(repoDir, changeID string) (runKey string, rec RunRecord, fo
 		if lerr != nil {
 			continue // no run.json here, or a corrupt/unreadable sibling: cannot match
 		}
-		if r.ChangeID == changeID {
-			matches = append(matches, matchEntry{key: key, rec: r})
+		if r.ChangeID != changeID {
+			continue
 		}
+		if r.State == RunCompleted && runRetiredWithoutRunComplete(repoDir, key) {
+			continue // retired by a non-success run-done: no longer the change's run
+		}
+		matches = append(matches, matchEntry{key: key, rec: r})
 	}
 	if len(matches) == 0 {
 		return "", RunRecord{}, false, nil
@@ -705,6 +719,23 @@ func FindRunByChange(repoDir, changeID string) (runKey string, rec RunRecord, fo
 		return tail[0].key, tail[0].rec, true, nil
 	}
 	return "", RunRecord{}, false, runErr(ErrRunAmbiguous, "find-by-change", nil)
+}
+
+// runRetiredWithoutRunComplete reports whether the completed run at key was retired
+// by something other than a run-complete verdict: its run-tracker record reads
+// cleanly and its latest report line is not `run-done <key> run-complete …`. The
+// line is the latest one, not the retiring one — a later keyed verdict on the same
+// key may have replaced run-unclaimed with, say, run-stop … run-halted — so only a
+// run-complete line keeps the run as the change's finished run. A record that
+// cannot be read proves nothing and returns false, keeping the run (resume then
+// refuses as before).
+func runRetiredWithoutRunComplete(repoDir, key string) bool {
+	rec, err := LoadRunTrackerRecord(repoDir, key)
+	if err != nil {
+		return false
+	}
+	f := strings.Fields(rec.Disposition)
+	return len(f) < 3 || f[0] != RunDecisionDone || f[2] != VerdictRunComplete
 }
 
 // runToken mints a random 32-hex-char token (16 crypto-random bytes) for the
