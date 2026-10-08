@@ -1,12 +1,12 @@
 # Backlog
 
-**545 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 9 proposed · ⚪ 15 deferred · ✅ 379 done · 🗑️ 139 killed
+**545 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 9 proposed · ⚪ 15 deferred · ✅ 379 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0544](active/0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | `high` | `chore` | [spec](../superpowers/specs/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-design.md) | `chore/release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0544](active/0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | `high` | `chore` | [#410](https://github.com/danielhanold/docket/pull/410) | awaiting merge |
 
 ## 🟣 Groomed (2)
 

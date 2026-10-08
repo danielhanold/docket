@@ -2,7 +2,7 @@
 id: 544
 slug: 'release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s'
 title: 'Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'chore'
 created: '2026-10-08'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable: false
 branch_prefix:
 branch: 'chore/release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/410'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-08T21:11:18Z'
@@ -72,3 +72,12 @@ Claude Code and Cursor were each just proven end to end by hand, so the human de
 ### 2026-10-08
 
 Attended release protocol; spec reviewed against current main (d0f4712a5). No spec drift: 11 commits since alpha.2 are docs-only.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: cb6b4c0a2ed0f99f7f9e9ee711a19f31b26ba5c3
+ran_at:   2026-10-08T21:44:42Z
+<!-- docket:build-evidence:end -->
