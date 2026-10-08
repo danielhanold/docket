@@ -427,6 +427,36 @@ func MintRunTrackerRecord(repoDir string, rec RunTrackerRecord) (string, error) 
 	return "", runTrackerErr(ErrRunTrackerIO, "mint", errors.New("could not mint a unique key"))
 }
 
+// decodeRunTrackerRecord parses record.json bytes and applies every read-boundary
+// check LoadRunTrackerRecord makes EXCEPT the repository-identity check (Repo vs the
+// canonical common dir): an unparseable record, an unknown schema, a partial
+// continuation triple, or a partial claim-binding mirror pair is a corrupt record.
+// LoadRunTrackerRecord adds the identity check; the repository-wide live-run scan
+// (liveRunCancelAuthority) reads a state folder that already selects the repository.
+func decodeRunTrackerRecord(buf []byte, op string) (RunTrackerRecord, error) {
+	var rec RunTrackerRecord
+	if err := json.Unmarshal(buf, &rec); err != nil {
+		return RunTrackerRecord{}, runTrackerErr(ErrRunTrackerCorruptRecord, op, err)
+	}
+	if rec.Schema != runTrackerSchemaVersion {
+		return RunTrackerRecord{}, runTrackerErr(ErrRunTrackerCorruptRecord, op,
+			fmt.Errorf("schema version %d, want %d", rec.Schema, runTrackerSchemaVersion))
+	}
+	// A partial continuation triple is a corrupt record: fail closed on read so a
+	// half-written continuation is never handed to the verdict path.
+	if !runTrackerContinuationTripleOK(rec) {
+		return RunTrackerRecord{}, runTrackerErr(ErrRunTrackerCorruptRecord, op,
+			errors.New("partial continuation triple"))
+	}
+	// A partial claim-binding mirror pair is a corrupt record: fail closed on read
+	// so a half-written mirror is never handed to the verdict path.
+	if !runTrackerBoundPairOK(rec) {
+		return RunTrackerRecord{}, runTrackerErr(ErrRunTrackerCorruptRecord, op,
+			errors.New("partial claim-binding mirror pair"))
+	}
+	return rec, nil
+}
+
 // LoadRunTrackerRecord reads the record for key from the repository's run-tracker root. It
 // validates the key before any filesystem or git touch, refuses a record whose
 // Repo does not match the current canonical common dir (wrong-repo), fails closed
@@ -448,28 +478,12 @@ func LoadRunTrackerRecord(repoDir, key string) (RunTrackerRecord, error) {
 		}
 		return RunTrackerRecord{}, runTrackerErr(ErrRunTrackerIO, "load", err)
 	}
-	var rec RunTrackerRecord
-	if err := json.Unmarshal(buf, &rec); err != nil {
-		return RunTrackerRecord{}, runTrackerErr(ErrRunTrackerCorruptRecord, "load", err)
-	}
-	if rec.Schema != runTrackerSchemaVersion {
-		return RunTrackerRecord{}, runTrackerErr(ErrRunTrackerCorruptRecord, "load",
-			fmt.Errorf("schema version %d, want %d", rec.Schema, runTrackerSchemaVersion))
+	rec, err := decodeRunTrackerRecord(buf, "load")
+	if err != nil {
+		return RunTrackerRecord{}, err
 	}
 	if rec.Repo != common {
 		return RunTrackerRecord{}, runTrackerErr(ErrRunTrackerWrongRepo, "load", nil)
-	}
-	// A partial continuation triple is a corrupt record: fail closed on read so a
-	// half-written continuation is never handed to the verdict path.
-	if !runTrackerContinuationTripleOK(rec) {
-		return RunTrackerRecord{}, runTrackerErr(ErrRunTrackerCorruptRecord, "load",
-			errors.New("partial continuation triple"))
-	}
-	// A partial claim-binding mirror pair is a corrupt record: fail closed on read
-	// so a half-written mirror is never handed to the verdict path.
-	if !runTrackerBoundPairOK(rec) {
-		return RunTrackerRecord{}, runTrackerErr(ErrRunTrackerCorruptRecord, "load",
-			errors.New("partial claim-binding mirror pair"))
 	}
 	// The markers are authority; reflect them into the readable mirror on read so a
 	// crash between an O_EXCL create and the JSON flip still reads as consumed.
