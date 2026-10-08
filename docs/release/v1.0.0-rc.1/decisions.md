@@ -51,3 +51,8 @@ b14bba595 docs(release): v1.0.0-alpha.2 Phase 0 and Phase 1 decisions
 ## Phase 3 — coverage statement
 
 No human harness test. Claude Code was proven end to end in alpha.1 (change 0366) and Cursor in alpha.2 (change 0512). Both are covered at this candidate by the whole-suite source gate, which is identical in source to alpha.2 (docs-only diff).
+
+## Phase 4 — publish decision (2026-10-08)
+
+- Release notes reviewed and approved by Daniel as final.
+- Daniel, 2026-10-08: explicit approval to publish the tag and the full "Latest" release (not a pre-release); he noted tags and releases can be deleted from GitHub if needed.
