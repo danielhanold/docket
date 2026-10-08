@@ -134,15 +134,25 @@ func TestIntegrationRepoVisibilitySwitchPreviewWritesNothing(t *testing.T) {
 }
 
 // TestIntegrationRepoVisibilitySwitchRefusesLiveRun proves an active run refuses the
-// switch, naming the cancel command for its key.
+// switch, naming the cancel command for its key. The run carries the authority run
+// cancel accepts (a parent capability and a confirmed claim on its change), since
+// the live-run scan names cancel only for a run cancel would act on.
 func TestIntegrationRepoVisibilitySwitchRefusesLiveRun(t *testing.T) {
 	r := newSharedVisibilityRepo(t)
-	key, err := MintRunTrackerRecord(r.invocation, sampleRunTrackerRecord())
+	rec := sampleRunTrackerRecord()
+	rec.ParentCap = "parent-cap-raw"
+	key, err := MintRunTrackerRecord(r.invocation, rec)
 	if err != nil {
 		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
 	if _, err := MintRunRecord(r.invocation, key, "375"); err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
+	}
+	if err := ReserveRunTrackerClaim(r.invocation, key, 375, "req-1"); err != nil {
+		t.Fatalf("ReserveRunTrackerClaim: %v", err)
+	}
+	if err := ConfirmRunTrackerClaim(r.invocation, key, 375, "req-1", "rev-1", ""); err != nil {
+		t.Fatalf("ConfirmRunTrackerClaim: %v", err)
 	}
 	res := r.runSetVisibility(t, SetVisibilityOptions{Target: "private"})
 	requireVisibilityRefusal(t, res, "docket run cancel --key "+key)
