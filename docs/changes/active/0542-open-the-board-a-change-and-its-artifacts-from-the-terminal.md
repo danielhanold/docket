@@ -2,7 +2,7 @@
 id: 542
 slug: 'open-the-board-a-change-and-its-artifacts-from-the-terminal'
 title: 'Open the board, a change, and its artifacts from the terminal'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-08'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/open-the-board-a-change-and-its-artifacts-from-the-terminal'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/407'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-08T10:46:43Z'
@@ -61,3 +61,12 @@ Getting from the terminal to the board, or to a change's spec, plan, results, or
 ### 2026-10-08
 
 Reconciled against main ab42a50a0 the same day the change was groomed. Every symbol the spec cites still exists with the described shape (githubWebURL, linkContextOf, LinkContext.BlobURL, recordedBranch, gitcli WorktreeCheckoutState, boardCorpusPath, RunRepositoryPrepare); no `open` command exists yet. Scope unchanged; no relation changes.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: d9328ee4a93607388c0f82dbbe99a241b74bddd5
+ran_at:   2026-10-08T11:17:25Z
+<!-- docket:build-evidence:end -->

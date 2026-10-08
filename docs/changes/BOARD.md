@@ -1,12 +1,12 @@
 # Backlog
 
-**542 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 10 proposed · ⚪ 14 deferred · ✅ 376 done · 🗑️ 139 killed
+**542 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 10 proposed · ⚪ 14 deferred · ✅ 376 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0542](active/0542-open-the-board-a-change-and-its-artifacts-from-the-terminal.md) | Open the board, a change, and its artifacts from the terminal | `medium` | `feat` | [spec](../superpowers/specs/2026-10-08-open-the-board-a-change-and-its-artifacts-from-the-terminal-design.md) | `feat/open-the-board-a-change-and-its-artifacts-from-the-terminal` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0542](active/0542-open-the-board-a-change-and-its-artifacts-from-the-terminal.md) | Open the board, a change, and its artifacts from the terminal | `medium` | `feat` | [#407](https://github.com/danielhanold/docket/pull/407) | awaiting merge |
 
 ## 🟣 Groomed (2)
 
