@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/a-finished-run-left-active-in-run-json-blocks-set-visibility'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-08T01:35:35Z'
+reconciled: true
+claimed_at: '2026-10-08T01:37:57Z'
 ---
 
 ## Artifacts
@@ -53,3 +53,9 @@ The linked spec holds the evidence, the per-verdict table, the remedy matrix, an
 ## Out of scope
 
 Why attribution fails: the child claiming without `--run-context` (#541) and command-launched dispatch (#345). Changing `run cancel`'s ownership proofs (ADR-0128). How halted and stop verdicts treat `run.json`. Any new run state, schema change, or change to the run tracker's lock and generation scheme.
+
+## Reconcile log
+
+### 2026-10-08
+
+Reconciled against origin/main 1ace73350. The spec's code citations still hold: RunVerdict only routes VerdictRunComplete through runTrackerCompleteRun; VerdictRunUnclaimed and runTrackerOwnershipDone persist record.json only; liveRunsUnder hard-codes runCancelCommand for active/completing. No related change (#541, #345) has landed, and no archived change touched this path since #532. Scope unchanged.
