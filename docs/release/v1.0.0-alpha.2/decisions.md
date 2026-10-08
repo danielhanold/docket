@@ -38,3 +38,11 @@ git ls-remote origin refs/heads/main: ec4c2b1841954c2d6a3dd018e1133ee762861137	r
 - `gh pr list --state open`: empty.
 - Claimed 0512 at 2026-10-08T18:11:13Z (untracked claim; attended protocol), workspace prepared, record reconciled, pointer plan attached.
 - **Freeze rule in force:** every later phase re-probes `git ls-remote origin refs/heads/main` and requires `ec4c2b1841954c2d6a3dd018e1133ee762861137`.
+
+## Phase 2 — Package once (2026-10-08)
+
+- Run 37822474785 green on all seven jobs at the candidate; no STOP.
+- `evidence.json` checks exact, including the `checksums_txt` byte match (no waiver needed; 0524).
+- `TestBashUpgrade` (with the 0543 Cursor assertions) ran and passed: `rc=0 ok=4`.
+- Eight `BUDGET WATCH` screening lines, no `SERIAL CONFIRMED OVER BUDGET`. Details in `candidate/run.txt`.
+- Read-only copy made; every later phase reads it.

@@ -1,0 +1,33 @@
+Run: 37822474785
+URL: https://github.com/danielhanold/docket/actions/runs/37822474785
+Event: workflow_dispatch  ref=ec4c2b1841954c2d6a3dd018e1133ee762861137  version=v1.0.0-alpha.2
+headSha: ec4c2b1841954c2d6a3dd018e1133ee762861137
+Conclusion: success (source-gate, package, 4x smoke, summary all success)
+Source gate toolchain: go version go1.26.8 darwin/arm64 (macos-15)
+
+Suite summary:
+source-gate	Run the resolved test suite	2026-10-08T18:12:49.0458200Z ^[[36;1m# patterns line-anchored so a per-file "  OVER BUDGET (ceiling …)" suffix never matches.^[[0m
+source-gate	Run the resolved test suite	2026-10-08T18:31:47.3771200Z SUITE files=86 passed=86 failed=0 asserts=593 wall=1125s
+source-gate	Run the resolved test suite	2026-10-08T18:31:47.3776620Z BUDGET WATCH: tests/test_go_finalize_e2e.sh — 83s under -j3; consecutive parallel-overrun streak 1/5
+source-gate	Run the resolved test suite	2026-10-08T18:31:47.3777780Z BUDGET WATCH: tests/test_go_integration_app_merge.sh — 48s under -j3; consecutive parallel-overrun streak 1/5
+source-gate	Run the resolved test suite	2026-10-08T18:31:47.3778830Z BUDGET WATCH: tests/test_go_integration_app_reposetup.sh — 92s under -j3; consecutive parallel-overrun streak 1/5
+source-gate	Run the resolved test suite	2026-10-08T18:31:47.3780050Z BUDGET WATCH: tests/test_go_integration_app_repovisibility_private.sh — 237s under -j3; consecutive parallel-overrun streak 1/5
+source-gate	Run the resolved test suite	2026-10-08T18:31:47.3781530Z BUDGET WATCH: tests/test_go_integration_app_repovisibility_shared.sh — 220s under -j3; consecutive parallel-overrun streak 1/5
+source-gate	Run the resolved test suite	2026-10-08T18:31:47.3784820Z BUDGET WATCH: tests/test_go_integration_app_workflowlifecycle.sh — 244s under -j3; consecutive parallel-overrun streak 1/5
+source-gate	Run the resolved test suite	2026-10-08T18:31:47.3787060Z BUDGET WATCH: tests/test_go_race.sh — 419s under -j3; consecutive parallel-overrun streak 1/5
+source-gate	Run the resolved test suite	2026-10-08T18:31:47.3788090Z BUDGET WATCH: tests/test_go_toolchain.sh — 102s under -j3; consecutive parallel-overrun streak 1/5
+(no SERIAL CONFIRMED OVER BUDGET line)
+
+Upgrade proof: source-gate	Run the resolved test suite	2026-10-08T18:31:47.3700130Z test_go_integration_bashupgrade 63s rc=0 ok=4 notok=0 
+  (shard asserts every selected TestIntegrationBashUpgrade test ran and passed; includes the 0543 Cursor assertions)
+
+Evidence checks: source_commit = candidate; head_version = v1.0.0-alpha.2; checksums_txt byte-equal to checksums.txt (cmp, trailing newline included); every bundle file SHA-256 matches a manifest line, 5 lines / 5 files, no unmatched line.
+
+Read-only copy: $OPERATOR_HOME/docket-alpha2-candidate/head (chmod -R a-w)
+SHA-256 listing:
+c4f1623d92da91d379844d50ec47b305e1602a2c07654accec07286b40445ae5  checksums.txt
+92d3a2ab3461be040bbde6faa7617fba1703c25c4edd18f1151e2ef97abb24f7  docket_v1.0.0-alpha.2_darwin_amd64.tar.gz
+846cd193fafd827f481c1310cfd9e0d6c708b123f9e15b6d8d81912c769fd808  docket_v1.0.0-alpha.2_darwin_arm64.tar.gz
+4b64a5cf3ec8d53da5ac00c0adc22e10d3a62840f41a0348d64baf66dc5a6c25  docket_v1.0.0-alpha.2_linux_amd64.tar.gz
+1f2e7b74b92a83ca387238f7b942ec6eb8c05162213dd10366645cd4850e16c5  docket_v1.0.0-alpha.2_linux_arm64.tar.gz
+f1fe6ddf66e0ed524d3a9d38222c88b140bef89e483d71f06d4970a70727917d  install.sh
