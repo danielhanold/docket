@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'docs/cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-08T16:12:24Z'
+reconciled: true
+claimed_at: '2026-10-08T16:14:01Z'
 ---
 
 ## Artifacts
@@ -55,3 +55,9 @@ This was split out of 0512 at grooming. The release protocol builds no code insi
 - OpenCode (alpha.3, change 0513) and Codex.
 - The release itself (change 0512).
 - Retiring the saved cases (change 0514).
+
+## Reconcile log
+
+### 2026-10-08
+
+2026-10-08: Reconciled against main 2847444ae. The guide (docs/release/upgrading-from-bash.md) and internal/bashupgrade are unchanged since grooming apart from the already-landed artifact-backlink-stale table row; no related change has shipped Cursor guide content. Scope stands as specified.
