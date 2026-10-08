@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/danielhanold/docket/internal/testsupport"
 )
@@ -79,5 +81,36 @@ func TestRunOpenerProcessPassesOneArgAndReportsFailure(t *testing.T) {
 	err := RunOpenerProcess(context.Background(), bin, "https://example.test/x")
 	if err == nil || !strings.Contains(err.Error(), "exit status 3") || !strings.Contains(err.Error(), "cannot open display") {
 		t.Fatalf("err = %v, want exit status and stderr", err)
+	}
+}
+
+// TestRunOpenerProcessReturnsWhenGrandchildHoldsStderr models xdg-open handing
+// its stderr to a long-lived application: the opener backgrounds a process
+// that inherits stderr, then exits 0. RunOpenerProcess must return promptly
+// with success instead of waiting for that application to exit.
+func TestRunOpenerProcessReturnsWhenGrandchildHoldsStderr(t *testing.T) {
+	dir := testsupport.TempDir(t)
+	bin, pidFile := filepath.Join(dir, "fake-opener"), filepath.Join(dir, "pid")
+	body := fmt.Sprintf("#!/bin/sh\nsleep 30 &\necho $! > '%s'\nexit 0\n", pidFile)
+	if err := os.WriteFile(bin, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if raw, err := os.ReadFile(pidFile); err == nil {
+			if pid, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil {
+				if p, err := os.FindProcess(pid); err == nil {
+					_ = p.Kill()
+				}
+			}
+		}
+	})
+	start := time.Now()
+	err := RunOpenerProcess(context.Background(), bin, "https://example.test/x")
+	elapsed := time.Since(start)
+	if err != nil {
+		t.Fatalf("RunOpenerProcess: %v, want success once the opener exits 0", err)
+	}
+	if elapsed > 15*time.Second {
+		t.Fatalf("RunOpenerProcess took %v, want it bounded by the pipe-drain delay", elapsed)
 	}
 }
