@@ -1,12 +1,12 @@
 # Backlog
 
-**545 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 378 done · 🗑️ 139 killed
+**545 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 378 done · 🗑️ 139 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | [spec](../superpowers/specs/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md) | `chore/release-v1-0-0-alpha-2-prove-and-publish-cursor-support` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0512](active/0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | `high` | `chore` | [#409](https://github.com/danielhanold/docket/pull/409) | awaiting merge |
 
 ## 🟣 Groomed (2)
 
@@ -20,7 +20,7 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0545](active/0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | `medium` | `chore` | needs-grooming |
-| [0544](active/0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | `high` | `chore` | ⏳ waiting on #512 — not yet built |
+| [0544](active/0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | `high` | `chore` | ⏳ waiting on #512 — needs your merge |
 | [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
 | [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | List the artifact-backlink finding codes in the docket-status skill | `low` | `docs` | needs-grooming |
 | [0537](active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | `low` | `fix` | needs-grooming |

@@ -2,7 +2,7 @@
 id: 512
 slug: 'release-v1-0-0-alpha-2-prove-and-publish-cursor-support'
 title: 'Release v1.0.0-alpha.2: prove and publish Cursor support'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'chore'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable: false
 branch_prefix:
 branch: 'chore/release-v1-0-0-alpha-2-prove-and-publish-cursor-support'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/409'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-08T18:11:43Z'
@@ -69,3 +69,12 @@ A human-attended release protocol, run by the operator in an attended session, n
 ### 2026-10-08
 
 Reconciled 2026-10-08 at the alpha.2 cut, as a hand-run release protocol. Dependency 0543 is merged (PR #408) and the candidate is origin/main ec4c2b1841954c2d6a3dd018e1133ee762861137. The Phase 0 Cursor isolation dry run passed on Cursor 3.23.23. Two adjustments to the protocol, both recorded in decisions.md: (1) the isolation probe also dispatches a test-home-only agent (~/.cursor/agents/zz-isolation-probe.md), because a ~/.cursor/rules marker was not loaded by Cursor; (2) change.attach-plan now writes the plan on the metadata branch itself, so no plan-only commit with a Docket-Plan-Path trailer is needed. The spec is otherwise current.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 2de03d5f6bea8b50860225126a38006e22b5c128
+ran_at:   2026-10-08T19:47:26Z
+<!-- docket:build-evidence:end -->
