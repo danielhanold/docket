@@ -14,7 +14,7 @@ discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md'
 plan: 'docs/superpowers/plans/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md'
-results:
+results: 'docs/results/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-results.md'
 trivial: false
 auto_groomable: false
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-08T18:11:43Z'
 |---|---|
 | Spec | [2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md](../../superpowers/specs/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md) |
 | Plan | [2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md](../../superpowers/plans/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) |
+| Results | [2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-results.md](../../results/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
