@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'high'
 type: 'chore'
 created: '2026-10-04'
-updated: '2026-10-05'
-depends_on: [366]
+updated: '2026-10-08'
+depends_on: [366, 543]
 stacked_on:
-related: [366, 511, 523, 524, 525, 526]
+related: [366, 511, 513, 523, 524, 525, 526, 543]
 discovered_from: []
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md](../../superpowers/specs/2026-10-08-release-v1-0-0-alpha-2-prove-and-publish-cursor-support-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -41,22 +44,19 @@ Until alpha.2 ships, Cursor users have no tested release and no upgrade steps fo
 
 ## What changes
 
-- **Upgrade guide.** Add the Cursor section to the Bash upgrade guide from change 0511, and add the Cursor assertions to its test. The saved v0.9.2 and v0.9.3 cases already hold the Cursor files.
-- **Human test.** Run the full lifecycle in a fresh Cursor process (IDE), as 0366 does for Claude Code.
-- **Release.** Package, verify and publish `v1.0.0-alpha.2` with a lighter version of 0366's protocol: the new harness row plus the release basics. Settle the exact trimmed protocol at grooming.
-- **Fold in the protocol gaps alpha.1 hit (change 0366).** The trimmed protocol should state each of these up front instead of discovering them mid-run:
-  - *Installing the candidate before publication.* `sh <copy>/install.sh` always downloads from the release URL, which doesn't exist yet. Install from the read-only copy through `DOCKET_RELEASE_BASE_URL=file://<mirror>`, where `<mirror>/<version>` points at the copy.
-  - *Test-home Git credentials.* With `HOME` pointed at the test home, `git push` over HTTPS prompts for credentials. Run `gh auth login` and then `gh auth setup-git` inside the test home. The operator's SSH keys are not there.
-  - *Fixture setup.* `gh repo create --clone` gave a `master` branch with nothing pushed. Rename it to `main` and push before `repository init`. `init` wrote `gate: off` and `configure-tests` would not change it, so the local gates were set by hand (change 0526).
-  - *The kill window.* The record's `plan:` field is set well after the plan commit lands, so polling for `plan:` missed the window and the kill came during review. Key the window on a signal that appears in time, such as the plan commit on the feature branch or the record going `in-progress`.
-  - *Verdict lines.* The printed `run-*` lines from the kill and resume weren't captured, and the session transcripts don't contain them. Say who copies them, and when.
-  - *Closeout with no code.* `change.mark-implemented` refuses without a reconciled record (`not-reconciled`) and a linked plan (`plan-unlinked`). `change.attach-plan` needs a plan-only commit carrying a `Docket-Plan-Path:` trailer. Plan for a reconcile and a pointer plan from the start.
-  - *PR evidence after implemented.* After `mark-implemented`, `pr.publish` returns `contended`, so the PR body kept stale evidence until `evidence recertify` refreshed it. Order the closeout so the final head is gated and published before marking implemented.
-  - *Private fixture and finalize.* Finalize's merge refused on the private fixture (branch-rules API), and the operator merged by hand. Use a fixture where finalize can merge, or land change 0525 first.
-  - *Evidence byte-equality.* Phase 2's `evidence.json` check STOPs on a trailing-newline difference until change 0524 lands.
+A human-attended release protocol, run by the operator in an attended session, never by `docket-implement-next`. It reuses alpha.1's protocol (0366) with the Claude Code row replaced by a Cursor row. The spec holds the full protocol.
+
+- **Before the cut.** 0543 (the Cursor section of the Bash upgrade guide and its test) is merged. The Cursor isolation launch is dry-run against the alpha.1 binary before `main` is frozen.
+- **Package once.** The candidate workflow builds `v1.0.0-alpha.2`. The `evidence.json` byte check is exact again (0524).
+- **Cursor test.** Run the full lifecycle in a separate Cursor instance launched from a test home, with its own user-data directory, running outside the sandbox (Run Everything). The whole Cursor process is killed as the build starts and the run is resumed. The private fixture finalizes by itself (0525) and gets its test gates from `configure-tests --command` (0526).
+- **Publish.** A draft pre-release with six verified assets, published at the human's explicit "publish". `v0.9.3` stays Latest.
+- **Public install check** with `--harness cursor`.
+- **Closeout.** Reconcile and attach a pointer plan right after the claim. Gate, record evidence, attach results and publish the PR before marking the change implemented. Then finalize.
+- **alpha.1's gaps** are each designed in: installing before publication, test-home Git credentials, fixture setup, the kill window, capturing verdict lines, closeout with no code, PR evidence ordering, private-fixture finalize, and evidence byte-equality.
 
 ## Out of scope
 
-- OpenCode (alpha.3).
-- Codex (paused).
-- Re-proving Claude Code beyond what the shared protocol already re-runs.
+- The upgrade guide's Cursor section (change 0543).
+- OpenCode (alpha.3) and Codex (paused).
+- Re-proving Claude Code beyond the candidate's whole-suite source gate.
+- Proving Cursor's documented Allowlist (with Sandbox) setup; the run uses Run Everything, and the notes list that as a known gap.
