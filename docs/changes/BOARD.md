@@ -1,19 +1,19 @@
 # Backlog
 
-**546 changes** — 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 380 done · 🗑️ 139 killed
+**546 changes** — 🟣 3 groomed · 🟡 9 proposed · ⚪ 15 deferred · ✅ 380 done · 🗑️ 139 killed
 
-## 🟣 Groomed (2)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0546](active/0546-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md) | Per-agent prompt-cache TTL pin, shipped 1h for implement-next | `high` | `feat` | [spec](../superpowers/specs/2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0546](active/0546-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md) | Per-agent prompt-cache TTL pin, shipped 1h for implement-next | `high` | `feat` | needs-grooming |
 | [0545](active/0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | `medium` | `chore` | needs-grooming |
 | [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
 | [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | List the artifact-backlink finding codes in the docket-status skill | `low` | `docs` | needs-grooming |

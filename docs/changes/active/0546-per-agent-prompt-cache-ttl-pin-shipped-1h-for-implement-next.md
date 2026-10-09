@@ -12,7 +12,7 @@ stacked_on:
 related: [195]
 discovered_from: []
 adrs: [15, 64, 77]
-spec:
+spec: 'docs/superpowers/specs/2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md](../../superpowers/specs/2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md) |
 | ADRs | [ADR-0015](../../adrs/0015-harness-portable-agent-config.md), [ADR-0064](../../adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md), [ADR-0077](../../adrs/0077-orphan-effort-dropped-as-docket-policy-not-vendor-constraint.md) |
 <!-- docket:artifacts:end -->
 
