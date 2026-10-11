@@ -465,6 +465,49 @@ func Planners(roots install.UserRoots, agents config.AgentsTable) []install.Plan
 	return planners
 }
 
+// cacheTTLHarnesses are the harnesses whose agent definitions have a per-agent
+// prompt-cache TTL setting. Claude Code reads it from `experimental.cacheTtl`;
+// Cursor, Codex, and opencode have no equivalent, so their adapters leave the
+// field out.
+var cacheTTLHarnesses = map[string]bool{claude.Name: true}
+
+// CacheTTLDropWarnings reports every resolved `cache_ttl` pin a selected harness
+// cannot express. The adapter drops the field; this warning keeps the drop loud
+// rather than silent (ADR-0077's warn-and-drop posture). It keys on the
+// RESOLVED value, not on which layer declared it, so a global `default:` pin
+// that reaches a non-Claude harness warns too, while the shipped table (which
+// pins a TTL on claude alone) warns nothing. Warnings are sorted by harness,
+// then agent.
+func CacheTTLDropWarnings(agents config.AgentsTable, harnesses []string) []config.Diagnostic {
+	selected := append([]string(nil), harnesses...)
+	sort.Strings(selected)
+	var out []config.Diagnostic
+	for _, h := range selected {
+		if cacheTTLHarnesses[h] {
+			continue
+		}
+		row := agents[h]
+		names := make([]string, 0, len(row))
+		for name, setting := range row {
+			if setting.CacheTTL.Value != "" {
+				names = append(names, name)
+			}
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			out = append(out, config.Diagnostic{
+				Code:     string(FCAgentCacheTTLDropped),
+				Severity: config.SeverityWarning,
+				Path:     "agents." + h + "." + name + ".cache_ttl",
+				Message: fmt.Sprintf("%s has no prompt-cache TTL setting, so cache_ttl %q for %s is left out of its agent file",
+					h, row[name].CacheTTL.Value, name),
+				Remedy: "set cache_ttl under agents.claude in the global config, not under agents.default or another harness",
+			})
+		}
+	}
+	return out
+}
+
 // planMode translates the installer's mode into the adapters'. The two
 // vocabularies are spelled identically today; converting through a switch keeps
 // a future divergence a compile-time question rather than a silent one.
@@ -482,15 +525,17 @@ func planMode(m install.Mode) harness.InstallMode {
 // identifies what was RENDERED, and two configurations that pin the same model
 // from different layers render the same files.
 type agentDigestRow struct {
-	Model  string `json:"model"`
-	Effort string `json:"effort"`
+	Model    string `json:"model"`
+	Effort   string `json:"effort"`
+	CacheTTL string `json:"cache_ttl,omitempty"`
 }
 
 // AgentDigest identifies the resolved agent settings a plan was rendered from:
-// sha256 of the canonical JSON of {harness: {agent: {model, effort}}}, narrowed
-// to the named harnesses. encoding/json sorts map keys, so the encoding is
-// canonical without a second sort, and a harness the caller did not select
-// cannot move the digest.
+// sha256 of the canonical JSON of {harness: {agent: {model, effort[, cache_ttl]}}},
+// narrowed to the named harnesses. encoding/json sorts map keys, so the encoding
+// is canonical without a second sort, and a harness the caller did not select
+// cannot move the digest. cache_ttl is omitted when empty, so a table with no
+// TTL digests exactly as it did before the field existed.
 func AgentDigest(agents config.AgentsTable, harnesses []string) (string, error) {
 	selected := make(map[string]bool, len(harnesses))
 	for _, name := range harnesses {
@@ -504,8 +549,9 @@ func AgentDigest(agents config.AgentsTable, harnesses []string) (string, error) 
 		rendered := make(map[string]agentDigestRow, len(row))
 		for agentName, setting := range row {
 			rendered[agentName] = agentDigestRow{
-				Model:  setting.Model.Value,
-				Effort: setting.Effort.Value,
+				Model:    setting.Model.Value,
+				Effort:   setting.Effort.Value,
+				CacheTTL: setting.CacheTTL.Value,
 			}
 		}
 		table[harnessName] = rendered

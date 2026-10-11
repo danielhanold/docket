@@ -1,11 +1,14 @@
 package app
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -537,5 +540,71 @@ func TestInstallResultRendersAliasFindingsAsWarnings(t *testing.T) {
 	human := r.HumanText()
 	if !strings.Contains(human, "warning: /c/dckt") || !strings.Contains(human, "move it") {
 		t.Errorf("human text does not show the foreign alias warning with its remedy:\n%s", human)
+	}
+}
+
+// A cache TTL resolved for a harness with no such setting is a warning per
+// harness and agent, sorted, naming the field. Claude is never warned, nothing
+// is warned for an unselected harness, and a table with no TTL warns nothing.
+func TestCacheTTLDropWarnings(t *testing.T) {
+	ttl := func(v string) config.AgentSetting {
+		return config.AgentSetting{CacheTTL: config.Value[string]{Value: v}}
+	}
+	agents := config.AgentsTable{
+		"claude":   {"implement-next": ttl("1h")},
+		"codex":    {"status": ttl("1h"), "adr": ttl("5m"), "build-max": ttl("")},
+		"cursor":   {"status": ttl("1h")},
+		"opencode": {"status": ttl("1h")},
+	}
+	got := CacheTTLDropWarnings(agents, []string{"claude", "codex", "cursor"})
+	var paths []string
+	for _, d := range got {
+		paths = append(paths, d.Path)
+		if d.Code != string(FCAgentCacheTTLDropped) || d.Severity != config.SeverityWarning || d.Message == "" || d.Remedy == "" {
+			t.Errorf("warning = %+v", d)
+		}
+	}
+	want := []string{"agents.codex.adr.cache_ttl", "agents.codex.status.cache_ttl", "agents.cursor.status.cache_ttl"}
+	if !reflect.DeepEqual(paths, want) {
+		t.Fatalf("warning paths = %v, want %v", paths, want)
+	}
+	if !strings.Contains(got[0].Message, "codex") || !strings.Contains(got[0].Message, "adr") || !strings.Contains(got[0].Message, "5m") {
+		t.Errorf("message does not name the harness, agent, and value: %q", got[0].Message)
+	}
+	if w := CacheTTLDropWarnings(config.AgentsTable{"codex": {"status": ttl("")}}, []string{"codex"}); len(w) != 0 {
+		t.Errorf("an empty TTL warned: %+v", w)
+	}
+}
+
+// The digest moves when only a cache TTL changes, so `install check` sees the
+// rendered wrapper as stale, and a table with no TTL digests exactly as the
+// model/effort-only encoding did, so installs without one are not reported as
+// drifted.
+func TestAgentDigestCoversCacheTTL(t *testing.T) {
+	table := func(ttl string) config.AgentsTable {
+		return config.AgentsTable{"claude": {"implement-next": {
+			Model:    config.Value[string]{Value: "claude-opus-5"},
+			Effort:   config.Value[string]{Value: "medium"},
+			CacheTTL: config.Value[string]{Value: ttl},
+		}}}
+	}
+	none, err := AgentDigest(table(""), []string{"claude"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hour, err := AgentDigest(table("1h"), []string{"claude"})
+	if err != nil || hour == none {
+		t.Fatalf("digest ignored a cache TTL change: %q (%v)", hour, err)
+	}
+	legacy, err := json.Marshal(map[string]map[string]struct {
+		Model  string `json:"model"`
+		Effort string `json:"effort"`
+	}{"claude": {"implement-next": {Model: "claude-opus-5", Effort: "medium"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(legacy)
+	if want := "sha256:" + hex.EncodeToString(sum[:]); none != want {
+		t.Errorf("a TTL-less table digests %q, want the model/effort-only digest %q", none, want)
 	}
 }
