@@ -13,7 +13,7 @@ related: [195]
 discovered_from: []
 adrs: [15, 64, 77]
 spec: 'docs/superpowers/specs/2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-11T13:41:35Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md](../../superpowers/specs/2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md) |
+| Plan | [2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md](../../superpowers/plans/2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md) |
 | ADRs | [ADR-0015](../../adrs/0015-harness-portable-agent-config.md), [ADR-0064](../../adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md), [ADR-0077](../../adrs/0077-orphan-effort-dropped-as-docket-policy-not-vendor-constraint.md) |
 <!-- docket:artifacts:end -->
 
