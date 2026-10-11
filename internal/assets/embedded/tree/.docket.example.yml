@@ -271,6 +271,11 @@ change_types: [chore, docs, feat, fix, refactor, perf]
 # Pins apply per agent and per field; a line you leave out keeps its built-in value. A `default:`
 # block applies to every harness that has no pin of its own for that agent. Model IDs and effort
 # tokens pass through unchecked; `effort: auto` writes no effort line, so the harness picks.
+# An entry may also set `cache_ttl`, how long Claude Code keeps that agent's prompt cache
+# (`1h`, `5m`). The built-in table sets `1h` on claude's implement-next only: it waits on builds
+# and tests longer than the 5-minute default, and the longer TTL roughly halves its cost.
+# `cache_ttl: auto` removes the pin. Cursor, Codex, and opencode have no such setting, so install
+# leaves it out of their agent files and warns.
 # Re-run `docket install` after editing. Set pins only in the global config: an `agents:` pin in
 # .docket.yml or .docket.local.yml, even one that repeats the built-in value, makes docket refuse
 # to change the repository until you move it to the global config.
@@ -286,7 +291,7 @@ change_types: [chore, docs, feat, fix, refactor, perf]
 #     build-premium:         { model: claude-opus-5,             effort: medium }
 #     build-max:             { model: claude-opus-5,             effort: high }
 #     finalize-change:       { model: claude-opus-5,             effort: low }
-#     implement-next:        { model: claude-opus-5,             effort: medium }
+#     implement-next:        { model: claude-opus-5,             effort: medium, cache_ttl: 1h }
 #     integration-repair:    { model: claude-opus-5,             effort: medium }
 #     plan-writer:           { model: claude-opus-5,             effort: high }
 #     rebase-resolver:       { model: claude-opus-5,             effort: medium }

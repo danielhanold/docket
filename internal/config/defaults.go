@@ -7,7 +7,7 @@ package config
 // it is a table rather than a cell. The agent table is frozen against
 // `agents/harness-defaults.yml` at commit a4d72613 (change 0324, which added the
 // seventeenth agent docket-plan-writer), and its byte-exact copy under
-// `testdata/repositories/v0.9.11/` (re-cut comment-only) is the parity oracle.
+// `testdata/repositories/v0.9.13/` is the parity oracle.
 
 // builtinProvenance is the provenance every default carries.
 func builtinProvenance() Provenance {
@@ -171,8 +171,17 @@ var builtinAgentDefaults = map[string]map[string]agentDefault{
 	},
 }
 
+// builtinAgentCacheTTL is the shipped prompt-cache TTL pins, written the way
+// `agents/harness-defaults.yml` writes its optional `cache_ttl` field: harness →
+// agent short name → TTL token. An agent absent here carries no TTL pin. It is a
+// separate table, not a third agentDefault column, because only one entry
+// carries the field.
+var builtinAgentCacheTTL = map[string]map[string]string{
+	"claude": {"implement-next": "1h"},
+}
+
 // builtinAgents returns the full 17x4 table with `effort: auto` suppressed to
-// "". A fresh table is built per call, so a caller layering global overrides
+// "" and the shipped cache TTLs applied. A fresh table is built per call, so a caller layering global overrides
 // on top can never write back into the shipped defaults.
 func builtinAgents() AgentsTable {
 	out := make(AgentsTable, len(builtinAgentDefaults))
@@ -186,7 +195,7 @@ func builtinAgents() AgentsTable {
 			row[name] = AgentSetting{
 				Model:    builtinValue(def.model),
 				Effort:   builtinValue(effort),
-				CacheTTL: builtinValue(""),
+				CacheTTL: builtinValue(builtinAgentCacheTTL[harness][name]),
 			}
 		}
 		out[harness] = row

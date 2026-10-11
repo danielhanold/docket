@@ -1394,3 +1394,24 @@ func TestOpenArtifactsIsAnOrdinaryLayeredKey(t *testing.T) {
 		}
 	}
 }
+
+// The shipped implement-next TTL obeys the same per-field layering as model and
+// effort: a model-only override keeps it, and a global `auto` or `5m` replaces it.
+func TestAgentsShippedCacheTTLLayering(t *testing.T) {
+	res := mustResolve(t, []Source{srcG("agents:\n  claude:\n    implement-next:\n      model: claude-sonnet-5\n")}, mainCtx)
+	got := res.effective.Agents["claude"]["implement-next"]
+	if got.Model.Value != "claude-sonnet-5" {
+		t.Fatalf("model = %q, want the global override", got.Model.Value)
+	}
+	if got.CacheTTL.Value != "1h" || got.CacheTTL.Provenance.Layer != LayerBuiltIn || got.CacheTTL.Explicit {
+		t.Errorf("cache_ttl = %+v, want the built-in 1h kept by a model-only override", got.CacheTTL)
+	}
+
+	for _, tc := range []struct{ in, want string }{{"auto", ""}, {"5m", "5m"}} {
+		res := mustResolve(t, []Source{srcG("agents:\n  claude:\n    implement-next:\n      cache_ttl: " + tc.in + "\n")}, mainCtx)
+		got := res.effective.Agents["claude"]["implement-next"].CacheTTL
+		if got.Value != tc.want || !got.Explicit || got.Provenance.Layer != LayerGlobal {
+			t.Errorf("cache_ttl %s: got %+v, want explicit global %q", tc.in, got, tc.want)
+		}
+	}
+}
