@@ -241,9 +241,14 @@ func installOptions(ctx context.Context, harnesses []string, repoDir string, res
 	if err != nil {
 		return install.Options{}, &InstallRefusal{Reason: app.ReasonInvalidConfig, Err: err}
 	}
-	configWarnings := config.Warnings(diags)
 	agents := snapshot.Effective.Agents
-	digest, err := app.AgentDigest(agents, app.HarnessNames(harnesses))
+	selected := app.HarnessNames(harnesses)
+	// A cache_ttl resolved for a harness with no such setting is dropped from
+	// that harness's agent file; the warning rides the same channel as the
+	// config read's own warnings, so install, check, and development install
+	// all print it.
+	configWarnings := append(config.Warnings(diags), app.CacheTTLDropWarnings(agents, selected)...)
+	digest, err := app.AgentDigest(agents, selected)
 	if err != nil {
 		return install.Options{}, &InstallRefusal{Reason: install.ReasonInternal, Err: err}
 	}

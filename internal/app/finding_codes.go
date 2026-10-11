@@ -162,6 +162,13 @@ const (
 	// is left untouched and that harness's trigger is not installed. A warning
 	// only: the primary result is unaffected.
 	FCHookFileNotEditable FindingCode = "hook-file-not-editable"
+
+	// agent-cache-ttl-dropped is the warning code an install, development
+	// install, or install check surfaces when a resolved `cache_ttl` pin reaches
+	// a harness with no prompt-cache TTL setting (Cursor, Codex, opencode). The
+	// field is left out of that harness's agent file. A warning only: the
+	// configuration never blocks.
+	FCAgentCacheTTLDropped FindingCode = "agent-cache-ttl-dropped"
 )
 
 // AllFindingCodes is the authoritative, sorted, deduplicated vocabulary of every
@@ -196,6 +203,7 @@ const (
 // completeness guard covers.
 var AllFindingCodes = []FindingCode{
 	FindingCode("adr-not-accepted"),
+	FCAgentCacheTTLDropped,
 	FindingCode("ambiguous-adr"),
 	FindingCode("ambiguous-change"),
 	FCArtifactMissing,
