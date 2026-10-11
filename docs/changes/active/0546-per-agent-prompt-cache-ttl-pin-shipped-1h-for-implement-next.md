@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-11T13:38:36Z'
+reconciled: true
+claimed_at: '2026-10-11T13:40:16Z'
 ---
 
 ## Artifacts
@@ -56,3 +56,9 @@ The build workers and plan-writer rarely expire (5–24% of their writes), and 1
 - Turning on the 1-hour TTL for any other agent, including finalize-change, until its transcripts are measured.
 - Using the global subagent controls (`subagentPromptCacheTtl`, `CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL`, `ENABLE_PROMPT_CACHING_1H`). They're documented, not used.
 - Any keep-warm or ping mechanism, which Claude Code doesn't document.
+
+## Reconcile log
+
+### 2026-10-11
+
+Reconciled against main 22a6d9076 (v1.0.0-rc.1 docs). No `cache_ttl`/`cacheTtl` exists anywhere in code, sidecar, or docs yet; `AgentSetting` (internal/config/config.go) still carries only Model/Effort and the Claude adapter's `renderAgent`/`verifyRoundTrip` take model+effort only, so the spec's design applies unchanged. No scope adjustments.
