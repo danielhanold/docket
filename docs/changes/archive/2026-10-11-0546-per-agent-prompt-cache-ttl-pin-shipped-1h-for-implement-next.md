@@ -2,7 +2,7 @@
 id: 546
 slug: 'per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next'
 title: 'Per-agent prompt-cache TTL pin, shipped 1h for implement-next'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'feat'
 created: '2026-10-09'
@@ -22,7 +22,7 @@ branch: 'feat/per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next'
 pr: 'https://github.com/danielhanold/docket/pull/411'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-11T13:54:04Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-11T13:54:04Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md](../../superpowers/specs/2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md) |
+| Spec (merged) | [2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md) |
 | Plan | [2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md](../../superpowers/plans/2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md) |
 | Results | [2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-results.md](../../results/2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-results.md) |
 | ADRs | [ADR-0015](../../adrs/0015-harness-portable-agent-config.md), [ADR-0064](../../adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md), [ADR-0077](../../adrs/0077-orphan-effort-dropped-as-docket-policy-not-vendor-constraint.md) |

@@ -1,12 +1,6 @@
 # Backlog
 
-**548 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 11 proposed · ⚪ 15 deferred · ✅ 380 done · 🗑️ 139 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0546](active/0546-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md) | Per-agent prompt-cache TTL pin, shipped 1h for implement-next | `high` | `feat` | [#411](https://github.com/danielhanold/docket/pull/411) | awaiting merge |
+**548 changes** — 🟣 2 groomed · 🟡 11 proposed · ⚪ 15 deferred · ✅ 381 done · 🗑️ 139 killed
 
 ## 🟣 Groomed (2)
 
@@ -19,8 +13,8 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0548](active/0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Rename the v0.9.13 frozen fixture tree to the 1.0 release series | `low` | `chore` | ⏳ waiting on #546 — needs your merge |
-| [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | ⏳ waiting on #546 — needs your merge |
+| [0548](active/0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Rename the v0.9.13 frozen fixture tree to the 1.0 release series | `low` | `chore` | needs-grooming |
+| [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
 | [0545](active/0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | `medium` | `chore` | needs-grooming |
 | [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
 | [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | List the artifact-backlink finding codes in the docket-status skill | `low` | `docs` | needs-grooming |
@@ -80,7 +74,6 @@ graph TD
   0539
   0541
   0545
-  0546
   0546 --> 0547
   0546 --> 0548
   0192:::done
@@ -89,13 +82,15 @@ graph TD
   0407:::done
   0511:::done
   0544:::done
+  0546:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (519)</summary>
+<details><summary>✅🗑️ Archive — done + killed (520)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0546](archive/2026-10-11-0546-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md) | Per-agent prompt-cache TTL pin, shipped 1h for implement-next | 2026-10-11 |
 | [0544](archive/2026-10-08-0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | 2026-10-08 |
 | [0543](archive/2026-10-08-0543-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md) | Cursor section of the Bash upgrade guide, proven on the saved cases | 2026-10-08 |
 | [0542](archive/2026-10-08-0542-open-the-board-a-change-and-its-artifacts-from-the-terminal.md) | Open the board, a change, and its artifacts from the terminal | 2026-10-08 |
@@ -110,7 +105,6 @@ graph TD
 | [0530](archive/2026-10-06-0530-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) | Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR | 2026-10-06 |
 | [0529](archive/2026-10-06-0529-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) | Repoint a merged PR's change backlink when the change is archived | 2026-10-06 |
 | [0526](archive/2026-10-05-0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | 2026-10-05 |
-| [0525](archive/2026-10-05-0525-finalize-stops-on-a-private-repo-without-the-branch-rules-ap.md) | Finalize stops on a private repo without the branch-rules API, and leaves half-removed workspaces | 2026-10-05 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -255,7 +249,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 37 done |
+| [2026-10](archive/) | 38 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

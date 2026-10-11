@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0546 — Per-agent prompt-cache TTL pin, shipped 1h for implement-next](../../changes/active/0546-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md)**
+> ↩ **[Change 0546 — Per-agent prompt-cache TTL pin, shipped 1h for implement-next](../../changes/archive/2026-10-11-0546-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md)**
 <!-- docket:backlink:end -->
 
 # Per-agent prompt-cache TTL pin Implementation Plan
