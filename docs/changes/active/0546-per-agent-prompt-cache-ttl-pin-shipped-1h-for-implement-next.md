@@ -22,7 +22,7 @@ branch: 'feat/per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-11T13:40:16Z'
+claimed_at: '2026-10-11T13:41:35Z'
 ---
 
 ## Artifacts
