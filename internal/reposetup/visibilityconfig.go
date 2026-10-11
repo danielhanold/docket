@@ -20,6 +20,8 @@ import (
 	"strings"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/danielhanold/docket/internal/config"
 )
 
 const visibilityKey = "visibility"
@@ -356,14 +358,36 @@ func configLeaves(m *yaml.Node, prefix []string) []configLeaf {
 	return out
 }
 
-// isAgentPin reports an agents.<harness>.<agent>.model|effort|runner leaf.
-func isAgentPin(keys []string) bool {
-	if len(keys) != 4 || keys[0] != "agents" {
-		return false
+// agentPinPatterns is every config registry path under agents (dynamic
+// segments spelled "*"), so a new agent pin row is folded like the others
+// without a second spelling list here.
+var agentPinPatterns = func() [][]string {
+	var out [][]string
+	for _, sp := range config.SettingPaths() {
+		if keys := strings.Split(sp.Path, "."); keys[0] == "agents" {
+			out = append(out, keys)
+		}
 	}
-	switch keys[3] {
-	case "model", "effort", "runner":
-		return true
+	return out
+}()
+
+// isAgentPin reports a leaf matching a registry agents.<harness>.<agent>.<pin>
+// path: model, effort, cache_ttl, runner, and any pin added there later.
+func isAgentPin(keys []string) bool {
+	for _, pat := range agentPinPatterns {
+		if len(pat) != len(keys) {
+			continue
+		}
+		match := true
+		for i, seg := range pat {
+			if seg != "*" && seg != keys[i] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
+		}
 	}
 	return false
 }
