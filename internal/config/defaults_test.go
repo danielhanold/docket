@@ -15,22 +15,24 @@ import (
 // The frozen tree is an immutable input (testdata/README.md): these tests only
 // read both files.
 const (
-	sidecarPath     = "../../testdata/repositories/v0.9.11/agents-harness-defaults.yml"
+	sidecarPath     = "../../testdata/repositories/v0.9.13/agents-harness-defaults.yml"
 	liveSidecarPath = "../../agents/harness-defaults.yml"
 )
 
 // sidecarDoc is the shipped-defaults file's shape: harness → agent short name
-// → model/effort pair.
+// → model/effort pair, plus the optional prompt-cache TTL.
 type sidecarDoc struct {
 	Agents map[string]map[string]struct {
-		Model  string `yaml:"model"`
-		Effort string `yaml:"effort"`
+		Model    string `yaml:"model"`
+		Effort   string `yaml:"effort"`
+		CacheTTL string `yaml:"cache_ttl"`
 	} `yaml:"agents"`
 }
 
-// pair is a (model, effort) tuple compared structurally, so a missing or extra
-// harness/agent shows up as a difference rather than being skipped.
-type pair struct{ Model, Effort string }
+// pair is a (model, effort, cache TTL) tuple compared structurally, so a
+// missing or extra harness/agent shows up as a difference rather than being
+// skipped.
+type pair struct{ Model, Effort, CacheTTL string }
 
 // TestBuiltinAgentsParityWithFrozenSidecar compares the frozen sidecar against
 // builtinAgents() as WHOLE structures, both directions in one DeepEqual: every
@@ -66,7 +68,7 @@ func TestBuiltinAgentsParityWithFrozenSidecar(t *testing.T) {
 			if effort == "auto" {
 				effort = ""
 			}
-			row[name] = pair{Model: entry.Model, Effort: effort}
+			row[name] = pair{Model: entry.Model, Effort: effort, CacheTTL: entry.CacheTTL}
 		}
 		want[harness] = row
 	}
@@ -75,13 +77,32 @@ func TestBuiltinAgentsParityWithFrozenSidecar(t *testing.T) {
 	for harness, agents := range builtinAgents() {
 		row := make(map[string]pair, len(agents))
 		for name, entry := range agents {
-			row[name] = pair{Model: entry.Model.Value, Effort: entry.Effort.Value}
+			row[name] = pair{Model: entry.Model.Value, Effort: entry.Effort.Value, CacheTTL: entry.CacheTTL.Value}
 		}
 		got[harness] = row
 	}
 
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("built-in agent table differs from the frozen sidecar:\n got: %v\nwant: %v", got, want)
+	}
+}
+
+// TestBuiltinAgentsCacheTTLShippedOnImplementNextOnly pins the shipped
+// prompt-cache TTL scope: claude's implement-next carries 1h, and no other
+// harness or agent carries any TTL. The 1-hour write costs more than the
+// 5-minute one, so a TTL on an agent that rarely outlasts five minutes between
+// turns is a pure surcharge.
+func TestBuiltinAgentsCacheTTLShippedOnImplementNextOnly(t *testing.T) {
+	for harness, agents := range builtinAgents() {
+		for name, entry := range agents {
+			want := ""
+			if harness == "claude" && name == "implement-next" {
+				want = "1h"
+			}
+			if entry.CacheTTL.Value != want {
+				t.Errorf("%s/%s: built-in cache_ttl = %q, want %q", harness, name, entry.CacheTTL.Value, want)
+			}
+		}
 	}
 }
 

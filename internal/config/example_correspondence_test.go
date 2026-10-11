@@ -209,11 +209,11 @@ var (
 	agentsOpenerRe     = regexp.MustCompile(`^#[ \t]*agents:[ \t]*$`)
 	agentsBlockLineRe  = regexp.MustCompile(`^#[ \t]{2,}\S`)
 	agentsHarnessRowRe = regexp.MustCompile(`^#[ \t]{3}([A-Za-z0-9_-]+):[ \t]*$`)
-	agentsAgentRowRe   = regexp.MustCompile(`^#[ \t]{5}([A-Za-z0-9_-]+):[ \t]*\{[ \t]*model:[ \t]*([^,}\s]+)[ \t]*,[ \t]*effort:[ \t]*([^,}\s]+)[ \t]*\}[ \t]*$`)
+	agentsAgentRowRe   = regexp.MustCompile(`^#[ \t]{5}([A-Za-z0-9_-]+):[ \t]*\{[ \t]*model:[ \t]*([^,}\s]+)[ \t]*,[ \t]*effort:[ \t]*([^,}\s]+)[ \t]*(?:,[ \t]*cache_ttl:[ \t]*([^,}\s]+)[ \t]*)?\}[ \t]*$`)
 )
 
 // exampleAgentsTable parses the example's commented agents table into
-// harness -> agent -> (model, effort), with `effort: auto` read as "" the way
+// harness -> agent -> (model, effort, cache_ttl), with `effort: auto` read as "" the way
 // builtinAgents suppresses it. It returns the agent-row count and every line in
 // the block that is neither row shape, or that repeats a row, as a problem.
 func exampleAgentsTable(content string) (map[string]map[string]pair, int, []string) {
@@ -257,7 +257,7 @@ func exampleAgentsTable(content string) (map[string]map[string]pair, int, []stri
 		if effort == "auto" {
 			effort = ""
 		}
-		table[harness][m[1]] = pair{Model: m[2], Effort: effort}
+		table[harness][m[1]] = pair{Model: m[2], Effort: effort, CacheTTL: m[4]}
 		rows++
 	}
 	return table, rows, problems
@@ -269,7 +269,7 @@ func builtinAgentPairs() map[string]map[string]pair {
 	for harness, agents := range builtinAgents() {
 		row := map[string]pair{}
 		for name, a := range agents {
-			row[name] = pair{Model: a.Model.Value, Effort: a.Effort.Value}
+			row[name] = pair{Model: a.Model.Value, Effort: a.Effort.Value, CacheTTL: a.CacheTTL.Value}
 		}
 		out[harness] = row
 	}
@@ -536,6 +536,14 @@ func TestExampleSchemaCorrespondence(t *testing.T) {
 		}
 		if len(check(mutated)) == 0 {
 			t.Errorf("a changed model value in the commented agents table was not caught")
+		}
+		// Mutation: dropping the shipped cache_ttl from the example must redden.
+		dropped := strings.Replace(content, ", cache_ttl: 1h }", " }", 1)
+		if dropped == content {
+			t.Fatalf("cache_ttl mutation probe did not change the example")
+		}
+		if len(check(dropped)) == 0 {
+			t.Errorf("a missing cache_ttl in the commented agents table was not caught")
 		}
 		// An unparseable row inside the block is reported, not skipped.
 		if _, _, p := exampleAgentsTable(strings.Replace(content, "#   claude:\n", "#   claude:\n#     adr: model claude-opus-5\n", 1)); len(p) == 0 {
