@@ -2,11 +2,11 @@
 id: 546
 slug: 'per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next'
 title: 'Per-agent prompt-cache TTL pin, shipped 1h for implement-next'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'feat'
 created: '2026-10-09'
-updated: '2026-10-09'
+updated: '2026-10-11'
 depends_on: []
 stacked_on:
 related: [195]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-11T13:38:36Z'
 ---
 
 ## Artifacts
