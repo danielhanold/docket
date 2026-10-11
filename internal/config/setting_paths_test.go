@@ -53,7 +53,7 @@ func TestSettingPathsSupportSplit(t *testing.T) {
 		"gate_observation_budget",
 		"board_surfaces", "board.section_order",
 		"change_types", "agent_harnesses",
-		"agents.*.*.model", "agents.*.*.effort",
+		"agents.*.*.model", "agents.*.*.effort", "agents.*.*.cache_ttl",
 	}
 	for _, s := range BoardSectionTokens {
 		want = append(want, "board.sorting."+s+".by", "board.sorting."+s+".direction")

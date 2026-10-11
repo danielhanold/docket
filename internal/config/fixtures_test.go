@@ -48,8 +48,10 @@ func loadFixture(t *testing.T, name string) (*Snapshot, []Diagnostic, error) {
 // loadFixtureFrom is loadFixture parameterized by the versioned tree root, for
 // the rare reader that must resolve a fixture from a tree other than the shared
 // fixtureRoot (TestFixtureDocketSelf, whose frozen copy was re-cut into a newer
-// versioned tree when docket's own .docket.yml changed). Every other fixture
-// test stays on fixtureRoot through loadFixture.
+// versioned tree when docket's own .docket.yml changed, and
+// TestFixtureDeferredActive, re-cut when the registry gained a repo-settable
+// deferred row). Every other fixture test stays on fixtureRoot through
+// loadFixture.
 func loadFixtureFrom(t *testing.T, root, name string) (*Snapshot, []Diagnostic, error) {
 	t.Helper()
 	tmp := t.TempDir()
@@ -618,7 +620,12 @@ func TestFixtureDeferredPairs(t *testing.T) {
 // transcribed from the fixture, so adding a deferred row without extending the
 // fixture fails here instead of quietly shrinking the coverage.
 func TestFixtureDeferredActive(t *testing.T) {
-	snap := mustResolveFixture(t, "deferred-active")
+	// The fixture is re-cut into a newer versioned tree each time the registry
+	// gains a repo-settable deferred row, because it must request every such
+	// capability at once; this test reads that tree. v0.9.13 adds the
+	// `agents.*.*.cache_ttl` agent pin.
+	const deferredActiveRoot = "../../testdata/repositories/v0.9.13"
+	snap := mustResolveFixtureFrom(t, deferredActiveRoot, "deferred-active")
 
 	decision := PreflightMutation(snap)
 	if decision.Allowed {

@@ -884,6 +884,72 @@ func TestAgentsEffortAuto(t *testing.T) {
 	}
 }
 
+// cache_ttl is a third per-field agent pin: it resolves built-in → global, a
+// harness-specific pin falls back to the global `default:` block, and it never
+// disturbs the model or effort beside it.
+func TestAgentsCacheTTLResolution(t *testing.T) {
+	res := mustResolve(t, []Source{srcG(
+		"agents:\n" +
+			"  default:\n" +
+			"    build-max:\n" +
+			"      cache_ttl: 5m\n" +
+			"  claude:\n" +
+			"    plan-writer:\n" +
+			"      cache_ttl: 1h\n")}, mainCtx)
+
+	pw := res.effective.Agents["claude"]["plan-writer"]
+	if pw.CacheTTL.Value != "1h" || pw.CacheTTL.Provenance.Layer != LayerGlobal || !pw.CacheTTL.Explicit {
+		t.Errorf("claude/plan-writer cache_ttl = %+v, want an explicit global 1h", pw.CacheTTL)
+	}
+	if pw.Model.Value != "claude-opus-5" || pw.Model.Provenance.Layer != LayerBuiltIn || pw.Model.Explicit {
+		t.Errorf("claude/plan-writer model = %+v, want the untouched built-in", pw.Model)
+	}
+	if pw.Effort.Value != "high" || pw.Effort.Provenance.Layer != LayerBuiltIn || pw.Effort.Explicit {
+		t.Errorf("claude/plan-writer effort = %+v, want the untouched built-in", pw.Effort)
+	}
+
+	for _, h := range []string{"claude", "codex", "cursor", "opencode"} {
+		got := res.effective.Agents[h]["build-max"].CacheTTL
+		if got.Value != "5m" || got.Provenance.Layer != LayerGlobal || !got.Explicit {
+			t.Errorf("%s/build-max cache_ttl = %+v, want the global default-block 5m", h, got)
+		}
+	}
+
+	untouched := res.effective.Agents["codex"]["adr"].CacheTTL
+	if untouched.Value != "" || untouched.Explicit || untouched.Provenance.Layer != LayerBuiltIn {
+		t.Errorf("codex/adr cache_ttl = %+v, want the empty built-in (no pin)", untouched)
+	}
+}
+
+// `cache_ttl: auto` removes the pin, exactly as `effort: auto` does.
+func TestAgentsCacheTTLAuto(t *testing.T) {
+	res := mustResolve(t, []Source{srcG("agents:\n  claude:\n    plan-writer:\n      cache_ttl: auto\n")}, mainCtx)
+	got := res.effective.Agents["claude"]["plan-writer"].CacheTTL
+	if got.Value != "" {
+		t.Errorf("cache_ttl = %q, want \"\" (auto removes the pin)", got.Value)
+	}
+	if !got.Explicit || got.Provenance.Layer != LayerGlobal {
+		t.Errorf("cache_ttl provenance = %+v (explicit %v), want an explicit global pin", got.Provenance, got.Explicit)
+	}
+}
+
+// A repository-layer cache_ttl never reaches Effective; it reaches the classifier.
+func TestAgentsCacheTTLRepoLayerExcludedFromEffective(t *testing.T) {
+	for _, build := range []func(string) Source{srcR, srcL} {
+		src := build("agents:\n  claude:\n    plan-writer:\n      cache_ttl: 1h\n")
+		t.Run(string(src.Layer), func(t *testing.T) {
+			res := mustResolve(t, []Source{src}, mainCtx)
+			got := res.effective.Agents["claude"]["plan-writer"].CacheTTL
+			if got.Value != "" || got.Explicit || got.Provenance.Layer != LayerBuiltIn {
+				t.Errorf("claude/plan-writer cache_ttl = %+v, want the untouched built-in", got)
+			}
+			if d, ok := res.declared["agents.claude.plan-writer.cache_ttl"]; !ok || d.prov.Layer != src.Layer {
+				t.Errorf("the declaration must still reach the classifier; declared = %v", res.declared)
+			}
+		})
+	}
+}
+
 // The repository layers may not pin agents at all: such a declaration is a
 // deferred-capability request the classifier reports, never effective policy.
 func TestAgentsRepoLayerExcludedFromEffective(t *testing.T) {

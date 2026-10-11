@@ -376,7 +376,7 @@ func assign[T any](dst *Value[T], declared map[string]leafDecl, path string) err
 }
 
 // resolveAgents lays each override layer's agent pins over the built-in 17x4
-// table. Model and effort resolve independently, and within one layer a
+// table. Model, effort, and cache_ttl resolve independently, and within one layer a
 // harness-specific pin falls back to that layer's `agents.default` before the
 // next layer is consulted — so a global default pin is not silently outranked
 // by a built-in harness pin.
@@ -401,6 +401,15 @@ func resolveAgents(byLayer map[LayerKind]map[string]leafDecl) AgentsTable {
 							effort = ""
 						}
 						setting.Effort = Value[string]{Value: effort, Provenance: decl.prov, Explicit: true}
+					}
+				}
+				if decl, ok := agentDecl(declared, harness, name, "cache_ttl"); ok {
+					if ttl, ok := decl.value.(string); ok {
+						// `auto` removes the pin: the harness keeps its own TTL.
+						if ttl == autoSentinel {
+							ttl = ""
+						}
+						setting.CacheTTL = Value[string]{Value: ttl, Provenance: decl.prov, Explicit: true}
 					}
 				}
 				row[name] = setting

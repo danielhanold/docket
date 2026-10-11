@@ -297,6 +297,16 @@ func TestClassifyMatrix(t *testing.T) {
 			want:     []capWant{{"agents.codex.status.effort", Deferred, true, true, LayerRepositoryLocal}},
 			blockers: []string{"agents.codex.status.effort"},
 		},
+		{
+			name:    "a global agent cache_ttl pin is supported",
+			sources: []Source{srcG("agents:\n  claude:\n    plan-writer:\n      cache_ttl: 1h\n")},
+		},
+		{
+			name:     "a repository agent cache_ttl pin blocks",
+			sources:  []Source{srcR("agents:\n  claude:\n    plan-writer:\n      cache_ttl: 1h\n")},
+			want:     []capWant{{"agents.claude.plan-writer.cache_ttl", Deferred, true, true, LayerRepository}},
+			blockers: []string{"agents.claude.plan-writer.cache_ttl"},
+		},
 
 		// Row 33 — a runner assignment blocks in any layer.
 		{
