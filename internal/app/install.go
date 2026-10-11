@@ -535,7 +535,8 @@ type agentDigestRow struct {
 // narrowed to the named harnesses. encoding/json sorts map keys, so the encoding
 // is canonical without a second sort, and a harness the caller did not select
 // cannot move the digest. cache_ttl is omitted when empty, so a table with no
-// TTL digests exactly as it did before the field existed.
+// TTL digests exactly as it did before the field existed. Only a harness in
+// cacheTTLHarnesses renders cache_ttl, so only its rows digest it.
 func AgentDigest(agents config.AgentsTable, harnesses []string) (string, error) {
 	selected := make(map[string]bool, len(harnesses))
 	for _, name := range harnesses {
@@ -548,11 +549,11 @@ func AgentDigest(agents config.AgentsTable, harnesses []string) (string, error) 
 		}
 		rendered := make(map[string]agentDigestRow, len(row))
 		for agentName, setting := range row {
-			rendered[agentName] = agentDigestRow{
-				Model:    setting.Model.Value,
-				Effort:   setting.Effort.Value,
-				CacheTTL: setting.CacheTTL.Value,
+			digested := agentDigestRow{Model: setting.Model.Value, Effort: setting.Effort.Value}
+			if cacheTTLHarnesses[harnessName] {
+				digested.CacheTTL = setting.CacheTTL.Value
 			}
+			rendered[agentName] = digested
 		}
 		table[harnessName] = rendered
 	}

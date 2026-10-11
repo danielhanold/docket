@@ -64,18 +64,9 @@ global configuration, per field, with a harness entry falling back to `default:`
 
 The built-in table sets `cache_ttl: 1h` on claude's `implement-next` and nowhere else. That agent
 orchestrates: it waits while a build worker or the test suite runs, and those waits regularly outlast
-the 5-minute subagent cache, so its next turn writes its whole context into the cache again. A cost
-audit of its transcripts found most of its spend going to those rewrites, and a 1-hour TTL is
-estimated to halve its cost per run. The other agents rarely wait that long between turns, and a
-1-hour cache write costs twice the input price against 1.25 times for a 5-minute one, so for them a
-1-hour TTL is a surcharge of about 10–23%.
-
-| agent | cost per run | cache writes that were expiry rewrites |
-|---|---|---|
-| implement-next | $5.35 | 87% |
-| plan-writer | $3.96 | 24% |
-| build-premium | $2.23 | 12% |
-| build-standard | $0.96 | 5% |
+the 5-minute subagent cache, so its next turn writes its whole context into the cache again. The
+other agents rarely wait that long between turns, and a 1-hour cache write costs twice the input price
+against 1.25 times for a 5-minute one, so for them a 1-hour TTL would cost more than it saves.
 
 The claude wrapper carries it under the `experimental` map:
 

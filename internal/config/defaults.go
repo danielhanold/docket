@@ -4,10 +4,9 @@ package config
 // ships with. Two halves live here — the scalar/list defaults, which mirror
 // the registry's `def` cells (defaults_test.go proves they cannot drift), and
 // the 17x4 agent table, which the registry deliberately does not carry because
-// it is a table rather than a cell. The agent table is frozen against
-// `agents/harness-defaults.yml` at commit a4d72613 (change 0324, which added the
-// seventeenth agent docket-plan-writer), and its byte-exact copy under
-// `testdata/repositories/v0.9.13/` is the parity oracle.
+// it is a table rather than a cell. Its parity oracle is
+// `testdata/repositories/v0.9.13/agents-harness-defaults.yml`, whose origin the
+// `agents-harness-defaults.yml` entry in that tree's PROVENANCE.md records.
 
 // builtinProvenance is the provenance every default carries.
 func builtinProvenance() Provenance {

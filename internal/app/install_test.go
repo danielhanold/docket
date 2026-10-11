@@ -608,3 +608,26 @@ func TestAgentDigestCoversCacheTTL(t *testing.T) {
 		t.Errorf("a TTL-less table digests %q, want the model/effort-only digest %q", none, want)
 	}
 }
+
+// A harness that renders no cache TTL digests the same with or without one,
+// because the digest identifies what was rendered.
+func TestAgentDigestIgnoresCacheTTLForNonRenderingHarness(t *testing.T) {
+	table := func(ttl string) config.AgentsTable {
+		return config.AgentsTable{"codex": {"implement-next": {
+			Model:    config.Value[string]{Value: "gpt-5"},
+			Effort:   config.Value[string]{Value: "medium"},
+			CacheTTL: config.Value[string]{Value: ttl},
+		}}}
+	}
+	none, err := AgentDigest(table(""), []string{"codex"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hour, err := AgentDigest(table("1h"), []string{"codex"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hour != none {
+		t.Errorf("a cache TTL codex never renders moved its digest: %q vs %q", hour, none)
+	}
+}
