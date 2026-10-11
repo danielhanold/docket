@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/config"
@@ -101,6 +102,54 @@ func TestFoldPrivateConfigDropsAgentPins(t *testing.T) {
 	}
 	if _, _, err := FoldPrivateConfig(nil, []byte("- a\n"), repoOnlyForTest()); err == nil {
 		t.Errorf("a sequence local root folded without error")
+	}
+}
+
+// TestFoldPrivateConfigDropsCacheTTLPin: a committed cache_ttl agent pin is
+// refused in repository layers like model and effort, so the fold drops it and
+// reports it rather than carrying it into the private config.
+func TestFoldPrivateConfigDropsCacheTTLPin(t *testing.T) {
+	committed := []byte("agents:\n  claude:\n    implement-next:\n      cache_ttl: 1h\nreclaim:\n  auto: true\n")
+	folded, dropped, err := FoldPrivateConfig(committed, nil, repoOnlyForTest())
+	if err != nil {
+		t.Fatalf("FoldPrivateConfig: %v", err)
+	}
+	if want := []string{"agents.claude.implement-next.cache_ttl"}; !slices.Equal(dropped, want) {
+		t.Errorf("dropped = %v, want %v", dropped, want)
+	}
+	if got := leafValues(t, folded, "agents"); len(got) != 0 {
+		t.Errorf("cache_ttl pin carried into the private config: %v\n%s", got, folded)
+	}
+}
+
+// TestIsAgentPinCoversEveryRegistryAgentLeaf derives the agent-pin leaves from
+// the config registry, so a new agents.<harness>.<agent>.<leaf> row is a pin
+// here without a second spelling list.
+func TestIsAgentPinCoversEveryRegistryAgentLeaf(t *testing.T) {
+	n := 0
+	for _, sp := range config.SettingPaths() {
+		keys := strings.Split(sp.Path, ".")
+		if keys[0] != "agents" {
+			continue
+		}
+		n++
+		concrete := slices.Clone(keys)
+		for i, k := range concrete {
+			if k == "*" {
+				concrete[i] = "x"
+			}
+		}
+		if !isAgentPin(concrete) {
+			t.Errorf("isAgentPin(%v) = false for registry path %s", concrete, sp.Path)
+		}
+	}
+	if n == 0 {
+		t.Fatal("no agents.* paths in the config registry")
+	}
+	for _, keys := range [][]string{{"agents", "claude", "x", "colour"}, {"reclaim", "auto"}, {"agents", "claude", "x"}} {
+		if isAgentPin(keys) {
+			t.Errorf("isAgentPin(%v) = true, want false", keys)
+		}
 	}
 }
 
