@@ -45,6 +45,16 @@ pointing it at another harness's model, where Claude Code's effort tiers do not 
 auto`, which drops the effort line entirely so the agent inherits the model default. Omitting the
 `effort:` key instead *keeps* the built-in effort, so `auto` is the explicit way to drop it.
 
+**Prompt-cache TTL (Claude Code).** An agent entry may also set `cache_ttl`, how long Claude Code
+keeps that agent's prompt cache. docket ships `cache_ttl: 1h` on Claude Code's `implement-next`
+only. It waits on builds and tests longer than the 5-minute default cache lasts, so it kept paying
+to write its whole context into the cache again, and the 1-hour TTL roughly halves its cost per
+run. The other agents rarely wait that long, and a 1-hour cache write costs more, so they keep the
+default. `cache_ttl: auto` removes a pin. Cursor, Codex, and opencode have no such setting: install
+leaves the field out of their wrappers and warns. The [agent layer
+reference](../../skills/docket-convention/references/agent-layer.md#prompt-cache-ttl) covers the
+measurements, Claude Code's machine-wide alternatives, and which one wins.
+
 **Finding model IDs.** A `model:` value is passed to the harness verbatim — docket never validates
 it — so use exactly the IDs your harness reports:
 

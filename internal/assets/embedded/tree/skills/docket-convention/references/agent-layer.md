@@ -54,6 +54,57 @@ and space-free: each must be a single token.
 alias layer and no vendor allowlist; the running harness interprets it (a Claude ID under Claude Code, a Cursor
 model ID under Cursor). That passthrough is what lets docket drive non-Claude harnesses.
 
+### Prompt-cache TTL
+
+An agent entry may carry a third, optional field, `cache_ttl`, which sets how long Claude Code keeps
+that agent's prompt cache. It layers exactly like `model` and `effort`: the built-in table, then the
+global configuration, per field, with a harness entry falling back to `default:`. A `cache_ttl` in
+`.docket.yml` or `.docket.local.yml` blocks writes. The value passes through verbatim (`1h`, `5m`);
+`cache_ttl: auto` removes the pin and leaves Claude Code's default.
+
+The built-in table sets `cache_ttl: 1h` on claude's `implement-next` and nowhere else. That agent
+orchestrates: it waits while a build worker or the test suite runs, and those waits regularly outlast
+the 5-minute subagent cache, so its next turn writes its whole context into the cache again. A cost
+audit of its transcripts found most of its spend going to those rewrites, and a 1-hour TTL is
+estimated to halve its cost per run. The other agents rarely wait that long between turns, and a
+1-hour cache write costs twice the input price against 1.25 times for a 5-minute one, so for them a
+1-hour TTL is a surcharge of about 10–23%.
+
+| agent | cost per run | cache writes that were expiry rewrites |
+|---|---|---|
+| implement-next | $5.35 | 87% |
+| plan-writer | $3.96 | 24% |
+| build-premium | $2.23 | 12% |
+| build-standard | $0.96 | 5% |
+
+The claude wrapper carries it under the `experimental` map:
+
+```yaml
+experimental:
+  cacheTtl: 1h
+```
+
+Cursor, Codex, and opencode have no prompt-cache TTL setting. A `cache_ttl` that resolves for one of
+them, for example through a `default:` entry, is left out of that harness's wrapper, and the install
+warns `agent-cache-ttl-dropped`, naming the harness and agent.
+
+Claude Code also has machine-wide controls. docket doesn't set them, because each one reaches every
+subagent rather than one agent:
+
+| control | reaches |
+|---|---|
+| `CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL=1h` (environment) | every subagent, plus workflows, teammates, forks, compaction, and session titles |
+| `subagentPromptCacheTtl: "1h"` (Claude Code settings) | the same as the environment variable |
+| `ENABLE_PROMPT_CACHING_1H=1` (environment) | the main conversation and every subagent |
+| `FORCE_PROMPT_CACHING_5M=1` (environment) | everything, forcing the 5-minute TTL |
+
+Precedence, highest first: `FORCE_PROMPT_CACHING_5M`, the subagent environment variable, the
+subagent setting, an agent's own `cacheTtl`, `ENABLE_PROMPT_CACHING_1H`, then the default. If you set
+one of the broader controls, it overrides docket's pin.
+
+The agent field needs Claude Code 2.1.248 or later. On a Claude subscription, Claude Code ignores an
+agent's `cacheTtl: 1h` while usage is drawn from usage credits.
+
 ## Per-harness wrapper shapes
 
 Each harness gets its own wrapper shape:
@@ -66,7 +117,9 @@ Each harness gets its own wrapper shape:
 | opencode | `.md` | `model:` (`openrouter/<vendor>/<id>` passes through whole) | `reasoningEffort:` (a provider model option) | body preamble |
 
 Cursor's wrapper carries `name`, `description`, and `model`, leaving `readonly` and `is_background` at Cursor's
-defaults. On Cursor and opencode an effort with no resolved model has nowhere to attach and is dropped.
+defaults. On Cursor and opencode an effort with no resolved model has nowhere to attach and is dropped. Only the
+claude wrapper carries a prompt-cache TTL (`experimental.cacheTtl`; see
+[Prompt-cache TTL](#prompt-cache-ttl)).
 
 ## Repository dispatch blocks: agent_harnesses
 
