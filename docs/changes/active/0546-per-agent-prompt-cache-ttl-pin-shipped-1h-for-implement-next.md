@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [15, 64, 77]
 spec: 'docs/superpowers/specs/2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md'
 plan: 'docs/superpowers/plans/2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md'
-results:
+results: 'docs/results/2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-11T13:54:04Z'
 |---|---|
 | Spec | [2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md](../../superpowers/specs/2026-10-09-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-design.md) |
 | Plan | [2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md](../../superpowers/plans/2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md) |
+| Results | [2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-results.md](../../results/2026-10-11-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next-results.md) |
 | ADRs | [ADR-0015](../../adrs/0015-harness-portable-agent-config.md), [ADR-0064](../../adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md), [ADR-0077](../../adrs/0077-orphan-effort-dropped-as-docket-policy-not-vendor-constraint.md) |
 <!-- docket:artifacts:end -->
 
