@@ -110,7 +110,8 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 		// on this harness and must survive to renderAgent. See renderAgent's
 		// field-mapping comment.
 		model, effort := harness.ResolvedAgentRaw(in.Agents, Name, s.ShortName)
-		content, err := renderAgent(s, model, effort)
+		cacheTTL := harness.ResolvedCacheTTL(in.Agents, Name, s.ShortName)
+		content, err := renderAgent(s, model, effort, cacheTTL)
 		if err != nil {
 			return nil, err
 		}
@@ -154,6 +155,7 @@ func GlobalDispatchTarget(r install.UserRoots) install.Target {
 //	frontmatter skills:      -> skills          (preserved; omitted when empty)
 //	resolved model           -> model           (omitted when unpinned)
 //	resolved effort          -> effort          (omitted when unpinned)
+//	resolved cache TTL       -> experimental.cacheTtl (omitted when unpinned)
 //	body                     -> body verbatim
 //
 // One difference from emit() is deliberate: emit() is a stream transform, so it
@@ -172,7 +174,7 @@ func GlobalDispatchTarget(r install.UserRoots) install.Target {
 //
 // Claude reads `skills:` natively, so unlike the codex/cursor/opencode
 // renderers there is no skills preamble in the body.
-func renderAgent(s harness.AgentSource, model, effort string) ([]byte, error) {
+func renderAgent(s harness.AgentSource, model, effort, cacheTTL string) ([]byte, error) {
 	var b strings.Builder
 	b.WriteString("---\n")
 	b.WriteString("name: " + quoteYAML(s.Name) + "\n")
@@ -194,6 +196,12 @@ func renderAgent(s harness.AgentSource, model, effort string) ([]byte, error) {
 	if effort != "" {
 		b.WriteString("effort: " + effort + "\n")
 	}
+	// Claude Code reads a subagent's prompt-cache TTL from the `experimental`
+	// map, never from a top-level key. The value is opaque passthrough like the
+	// model and effort, and the round-trip check below guards it the same way.
+	if cacheTTL != "" {
+		b.WriteString("experimental:\n  cacheTtl: " + cacheTTL + "\n")
+	}
 	b.WriteString("---\n")
 
 	// The self-recursion guard is its own paragraph, injected at one consistent
@@ -210,7 +218,7 @@ func renderAgent(s harness.AgentSource, model, effort string) ([]byte, error) {
 	b.WriteString(body)
 
 	out := []byte(b.String())
-	if err := verifyRoundTrip(out, s, model, effort); err != nil {
+	if err := verifyRoundTrip(out, s, model, effort, cacheTTL); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -221,17 +229,20 @@ func renderAgent(s harness.AgentSource, model, effort string) ([]byte, error) {
 // checked property of each write rather than a claim about the escaping helper,
 // which is what keeps a hostile description — or an unusual vendor model
 // string — from shipping as a file that parses into something else.
-func verifyRoundTrip(rendered []byte, s harness.AgentSource, model, effort string) error {
+func verifyRoundTrip(rendered []byte, s harness.AgentSource, model, effort, cacheTTL string) error {
 	doc, err := document.Parse(rendered)
 	if err != nil {
 		return fmt.Errorf("%w: %s does not reparse: %w", ErrRender, s.Name, err)
 	}
 	var fm struct {
-		Name        string   `yaml:"name"`
-		Description string   `yaml:"description"`
-		Skills      []string `yaml:"skills"`
-		Model       string   `yaml:"model"`
-		Effort      string   `yaml:"effort"`
+		Name         string   `yaml:"name"`
+		Description  string   `yaml:"description"`
+		Skills       []string `yaml:"skills"`
+		Model        string   `yaml:"model"`
+		Effort       string   `yaml:"effort"`
+		Experimental struct {
+			CacheTTL string `yaml:"cacheTtl"`
+		} `yaml:"experimental"`
 	}
 	if err := doc.DecodeFrontmatter(&fm); err != nil {
 		return fmt.Errorf("%w: %s does not decode: %w", ErrRender, s.Name, err)
@@ -245,6 +256,8 @@ func verifyRoundTrip(rendered []byte, s harness.AgentSource, model, effort strin
 		return fmt.Errorf("%w: %s round-trips model %q as %q", ErrRender, s.Name, model, fm.Model)
 	case fm.Effort != effort:
 		return fmt.Errorf("%w: %s round-trips effort %q as %q", ErrRender, s.Name, effort, fm.Effort)
+	case fm.Experimental.CacheTTL != cacheTTL:
+		return fmt.Errorf("%w: %s round-trips cacheTtl %q as %q", ErrRender, s.Name, cacheTTL, fm.Experimental.CacheTTL)
 	case len(s.Skills) > 0 && !reflect.DeepEqual(fm.Skills, s.Skills):
 		return fmt.Errorf("%w: %s round-trips skills %v as %v", ErrRender, s.Name, s.Skills, fm.Skills)
 	}

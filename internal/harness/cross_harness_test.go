@@ -356,3 +356,61 @@ func TestNoCrossHarnessDelegation(t *testing.T) {
 		}
 	}
 }
+
+// TestCacheTTLRendersOnClaudeOnly: a prompt-cache TTL pinned on every harness
+// changes exactly one file, claude's wrapper for that agent. Cursor, Codex, and
+// opencode have no such setting, so their plans are byte-identical with and
+// without the pin, and no payload of theirs names the field.
+func TestCacheTTLRendersOnClaudeOnly(t *testing.T) {
+	base := crossPlanInput(t)
+	pinned := crossPlanInput(t)
+	for _, h := range harness.Order {
+		s := pinned.Agents[h]["build-standard"]
+		s.CacheTTL = config.Value[string]{Value: "1h"}
+		pinned.Agents[h]["build-standard"] = s
+	}
+	adapters := map[string]harness.Adapter{
+		"claude": claude.New(), "codex": codex.New(), "cursor": cursor.New(), "opencode": opencode.New(),
+	}
+	for _, h := range harness.Order {
+		before, err := adapters[h].Plan(base)
+		if err != nil {
+			t.Fatalf("%s: Plan(base): %v", h, err)
+		}
+		after, err := adapters[h].Plan(pinned)
+		if err != nil {
+			t.Fatalf("%s: Plan(pinned): %v", h, err)
+		}
+		if len(before) != len(after) {
+			t.Fatalf("%s: target count moved %d -> %d", h, len(before), len(after))
+		}
+		var changed []string
+		for i := range after {
+			if after[i].Path != before[i].Path {
+				t.Fatalf("%s: target order moved at %d: %s vs %s", h, i, before[i].Path, after[i].Path)
+			}
+			if string(after[i].Content) != string(before[i].Content) {
+				changed = append(changed, filepath.Base(after[i].Path))
+			}
+			if h != "claude" {
+				c := string(after[i].Content)
+				if strings.Contains(c, "cacheTtl") || strings.Contains(c, "cache_ttl") {
+					t.Errorf("%s: %s names the cache TTL field", h, after[i].Path)
+				}
+			}
+		}
+		if h == "claude" {
+			if len(changed) != 1 || changed[0] != "docket-build-standard.md" {
+				t.Fatalf("claude: changed files = %v, want only docket-build-standard.md", changed)
+			}
+			for _, tg := range after {
+				if filepath.Base(tg.Path) == "docket-build-standard.md" &&
+					!strings.Contains(string(tg.Content), "\nexperimental:\n  cacheTtl: 1h\n") {
+					t.Errorf("claude wrapper lacks the experimental.cacheTtl block:\n%s", tg.Content)
+				}
+			}
+		} else if len(changed) != 0 {
+			t.Errorf("%s: a cache TTL pin changed %v; this harness has no such setting", h, changed)
+		}
+	}
+}

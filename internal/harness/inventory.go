@@ -241,3 +241,12 @@ func ResolvedAgent(t config.AgentsTable, harnessName, shortName string) (model, 
 	}
 	return model, effort
 }
+
+// ResolvedCacheTTL returns the prompt-cache TTL pin a harness should render
+// for one agent short name, or "" when the agent carries none (config already
+// folds `cache_ttl: auto` to ""). Only the claude adapter reads it: Claude Code
+// is the one harness with a per-agent cache TTL setting, and the other
+// adapters drop the field simply by never asking for it.
+func ResolvedCacheTTL(t config.AgentsTable, harnessName, shortName string) string {
+	return t[harnessName][shortName].CacheTTL.Value
+}
