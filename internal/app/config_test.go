@@ -857,3 +857,39 @@ func TestConfigDiagnosticsOpenArtifactsSurface(t *testing.T) {
 		}
 	}
 }
+
+// TestConfigDiagnosticsAgentCacheTTLSurface pins that the hand-maintained
+// `effective (winning layer)` human block (agentLines) shows each agent's
+// prompt-cache TTL pin beside its model and effort, and names the TTL's layer
+// when it differs from the model's: the shipped `1h` on claude implement-next,
+// a global override, a global `auto` that clears the pin, and no segment at
+// all for an agent that carries no pin.
+func TestConfigDiagnosticsAgentCacheTTLSurface(t *testing.T) {
+	def := DiagnosticConfig(sparseSources(), mainCtx(), false).HumanText()
+	for _, want := range []string{
+		"agents.claude.implement-next = claude-opus-5 / medium / ttl 1h  [built-in]\n",
+		"agents.claude.adr = claude-opus-5 / low  [built-in]\n",
+	} {
+		if !strings.Contains(def, want) {
+			t.Errorf("default human block lacks %q:\n%s", want, def)
+		}
+	}
+
+	global := func(body string) string {
+		return DiagnosticConfig([]config.Source{{
+			Layer: config.LayerGlobal, Name: "/xdg/docket/config.yml", Data: []byte(body),
+		}}, mainCtx(), false).HumanText()
+	}
+	for _, tc := range []struct{ name, body, want string }{
+		{"override", "agents:\n  claude:\n    implement-next:\n      cache_ttl: 5m\n",
+			"agents.claude.implement-next = claude-opus-5 / medium / ttl 5m  [built-in, cache_ttl: global /xdg/docket/config.yml:4]\n"},
+		{"auto", "agents:\n  claude:\n    implement-next:\n      cache_ttl: auto\n",
+			"agents.claude.implement-next = claude-opus-5 / medium / ttl (no pin)  [built-in, cache_ttl: global /xdg/docket/config.yml:4]\n"},
+		{"new pin", "agents:\n  claude:\n    adr:\n      cache_ttl: 1h\n",
+			"agents.claude.adr = claude-opus-5 / low / ttl 1h  [built-in, cache_ttl: global /xdg/docket/config.yml:4]\n"},
+	} {
+		if h := global(tc.body); !strings.Contains(h, tc.want) {
+			t.Errorf("%s: human block lacks %q:\n%s", tc.name, tc.want, h)
+		}
+	}
+}

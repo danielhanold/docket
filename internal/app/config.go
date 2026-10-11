@@ -279,8 +279,9 @@ func effectiveLines(eff *config.Effective) []effectiveLine {
 }
 
 // agentLines renders the harness × agent table in sorted order, pairing each
-// row's model with its effort pin. The bracket names the model's winning
-// layer, and adds the effort's own only when the two disagree.
+// row's model with its effort pin and, where one is set, its cache TTL pin.
+// The bracket names the model's winning layer, and adds the effort's or the
+// cache TTL's own only when it disagrees with the model's.
 func agentLines(agents config.AgentsTable) []effectiveLine {
 	harnesses := make([]string, 0, len(agents))
 	for harness := range agents {
@@ -307,9 +308,23 @@ func agentLines(agents config.AgentsTable) []effectiveLine {
 			if setting.Effort.Provenance != setting.Model.Provenance {
 				layer += ", effort: " + layerLabel(setting.Effort.Provenance)
 			}
+			value := fmt.Sprintf("%s / %s", setting.Model.Value, effort)
+			// The cache TTL segment appears only when a pin resolves or a layer
+			// declared one (`cache_ttl: auto` clears it): most agents carry no
+			// pin, and a "(no pin)" on every row would bury the ones that do.
+			if ttl := setting.CacheTTL; ttl.Value != "" || ttl.Explicit {
+				shown := ttl.Value
+				if shown == "" {
+					shown = "(no pin)"
+				}
+				value += " / ttl " + shown
+				if ttl.Provenance != setting.Model.Provenance {
+					layer += ", cache_ttl: " + layerLabel(ttl.Provenance)
+				}
+			}
 			out = append(out, effectiveLine{
 				path:  fmt.Sprintf("agents.%s.%s", harness, name),
-				value: fmt.Sprintf("%s / %s", setting.Model.Value, effort),
+				value: value,
 				layer: layer,
 			})
 		}
