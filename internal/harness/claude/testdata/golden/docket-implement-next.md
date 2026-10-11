@@ -2,6 +2,10 @@
 name: 'docket-implement-next'
 description: 'Use when you want the next build-ready change in the docket backlog implemented end-to-end to an open PR with no human interaction — picking, claiming, reconciling against current reality, planning, building with TDD, reviewing, and stopping at the PR handoff. The autonomous backlog-drainer; runs solo per change.'
 skills: ['docket-implement-next', 'docket-convention']
+model: claude-opus-5
+effort: medium
+experimental:
+  cacheTtl: 1h
 ---
 
 You are already running as `docket-implement-next`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-implement-next` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
