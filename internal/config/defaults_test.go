@@ -115,11 +115,12 @@ func TestBuiltinAgentsShape(t *testing.T) {
 			if strings.ContainsAny(entry.Model.Value, " \t\n") {
 				t.Errorf("%s/%s: model %q is not a single token", harness, name, entry.Model.Value)
 			}
-			if entry.Model.Provenance != builtinProvenance() || entry.Effort.Provenance != builtinProvenance() {
-				t.Errorf("%s/%s: provenance = %+v/%+v, want %+v",
-					harness, name, entry.Model.Provenance, entry.Effort.Provenance, builtinProvenance())
+			if entry.Model.Provenance != builtinProvenance() || entry.Effort.Provenance != builtinProvenance() ||
+				entry.CacheTTL.Provenance != builtinProvenance() {
+				t.Errorf("%s/%s: provenance = %+v/%+v/%+v, want %+v",
+					harness, name, entry.Model.Provenance, entry.Effort.Provenance, entry.CacheTTL.Provenance, builtinProvenance())
 			}
-			if entry.Model.Explicit || entry.Effort.Explicit {
+			if entry.Model.Explicit || entry.Effort.Explicit || entry.CacheTTL.Explicit {
 				t.Errorf("%s/%s: Explicit must be false on built-in defaults", harness, name)
 			}
 		}

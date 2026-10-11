@@ -184,8 +184,9 @@ func builtinAgents() AgentsTable {
 				effort = ""
 			}
 			row[name] = AgentSetting{
-				Model:  builtinValue(def.model),
-				Effort: builtinValue(effort),
+				Model:    builtinValue(def.model),
+				Effort:   builtinValue(effort),
+				CacheTTL: builtinValue(""),
 			}
 		}
 		out[harness] = row

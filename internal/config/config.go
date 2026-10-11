@@ -217,7 +217,7 @@ type BoardSort struct {
 	Direction Value[string] `json:"direction"` // asc | desc
 }
 
-// AgentsTable: harness → agent short name → resolved model/effort.
+// AgentsTable: harness → agent short name → resolved model/effort/cache TTL.
 // Resolved from built-in + GLOBAL layers only; repository-layer agent
 // declarations are deferred-capability requests and never land here.
 type AgentsTable map[string]map[string]AgentSetting
@@ -225,6 +225,10 @@ type AgentsTable map[string]map[string]AgentSetting
 type AgentSetting struct {
 	Model  Value[string] `json:"model"`
 	Effort Value[string] `json:"effort"` // "" == effort pin suppressed (`effort: auto`)
+	// CacheTTL is the agent's prompt-cache TTL pin. Only Claude Code has the
+	// setting (it renders as `experimental.cacheTtl`); "" == no pin (unset, or
+	// `cache_ttl: auto`).
+	CacheTTL Value[string] `json:"cache_ttl"`
 }
 
 type Snapshot struct {

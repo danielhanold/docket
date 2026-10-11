@@ -72,7 +72,7 @@ const (
 	dispDeferredByValue    // finalize.gate: ci/both block
 	dispSupportedOrDropped // board_surfaces: the github token
 	dispInertCompanion     // auto_capture.types, dummy_mode.persona/surfaces, runners.*
-	dispAgentsLeaf         // agents.<h>.<a>.model/effort: layer-dependent
+	dispAgentsLeaf         // agents.<h>.<a>.model/effort/cache_ttl: layer-dependent
 	dispDeferredActive     // skills.*, agents...runner: any explicit value blocks
 )
 
@@ -218,7 +218,7 @@ func RepoOnlyPaths() []string {
 
 // dispositionSupported reports whether a disposition family is supported
 // configuration. finalize.gate (refused only for some values), board_surfaces
-// (one token dropped), and the agents model/effort leaves (honoured only from
+// (one token dropped), and the agents model/effort/cache_ttl leaves (honoured only from
 // the global layer) are supported keys whose individual values or layers may
 // still be refused. Obsolete, inert, inert-companion, deferred, and
 // deferred-active paths are not supported. A new disposition defaults to
@@ -415,7 +415,7 @@ func buildRegistry() []pathSpec {
 		{path: "skills.finish", kind: kindString, merge: mergeScalar, scope: scopeAny,
 			disp: dispDeferredActive, validate: stringLeaf(true, false, false)},
 
-		// 32-33: agent pins. Model IDs are opaque passthrough — docket never
+		// 32-34: agent pins. Model IDs are opaque passthrough — docket never
 		// asserts a vendor ID exists — but they must be single tokens. The
 		// built-in defaults are the 17x4 table of Reference C, which lives in
 		// defaults.go rather than in a `def` cell here.
@@ -423,10 +423,14 @@ func buildRegistry() []pathSpec {
 			disp: dispAgentsLeaf, validate: stringLeaf(true, true, false)},
 		{path: "agents.*.*.effort", kind: kindString, merge: mergeScalar, scope: scopeAny,
 			disp: dispAgentsLeaf, validate: stringLeaf(true, true, false)},
+		// The prompt-cache TTL pin (`1h`, `5m`, ...) is opaque passthrough like
+		// the model and effort beside it; only the Claude adapter renders it.
+		{path: "agents.*.*.cache_ttl", kind: kindString, merge: mergeScalar, scope: scopeAny,
+			disp: dispAgentsLeaf, validate: stringLeaf(true, true, false)},
 		{path: "agents.*.*.runner", kind: kindString, merge: mergeScalar, scope: scopeAny,
 			disp: dispDeferredActive, validate: stringLeaf(true, false, false)},
 
-		// 34-38: runner settings — inert companions, activated only by an
+		// 35-39: runner settings — inert companions, activated only by an
 		// effective agent entry naming that runner.
 		{path: "runners.codex.sandbox", kind: kindString,
 			enum:  []string{"workspace-write", "danger-full-access"},
