@@ -2,7 +2,7 @@
 id: 546
 slug: 'per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next'
 title: 'Per-agent prompt-cache TTL pin, shipped 1h for implement-next'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'feat'
 created: '2026-10-09'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/411'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-11T13:54:04Z'
@@ -64,3 +64,12 @@ The build workers and plan-writer rarely expire (5–24% of their writes), and 1
 ### 2026-10-11
 
 Reconciled against main 22a6d9076 (v1.0.0-rc.1 docs). No `cache_ttl`/`cacheTtl` exists anywhere in code, sidecar, or docs yet; `AgentSetting` (internal/config/config.go) still carries only Model/Effort and the Claude adapter's `renderAgent`/`verifyRoundTrip` take model+effort only, so the spec's design applies unchanged. No scope adjustments.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: c19ca264f1c5289520d3d845716a4a8dcc261c57
+ran_at:   2026-10-11T14:26:57Z
+<!-- docket:build-evidence:end -->
