@@ -1,6 +1,6 @@
 # Backlog
 
-**548 changes** — 🟣 2 groomed · 🟡 11 proposed · ⚪ 15 deferred · ✅ 381 done · 🗑️ 139 killed
+**548 changes** — 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 381 done · 🗑️ 140 killed
 
 ## 🟣 Groomed (2)
 
@@ -9,13 +9,12 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (11)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0548](active/0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Rename the v0.9.13 frozen fixture tree to the 1.0 release series | `low` | `chore` | needs-grooming |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
-| [0545](active/0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | `medium` | `chore` | needs-grooming |
 | [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
 | [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | List the artifact-backlink finding codes in the docket-status skill | `low` | `docs` | needs-grooming |
 | [0537](active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | `low` | `fix` | needs-grooming |
@@ -73,7 +72,6 @@ graph TD
   0537
   0539
   0541
-  0545
   0546 --> 0547
   0546 --> 0548
   0192:::done
@@ -86,10 +84,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (520)</summary>
+<details><summary>✅🗑️ Archive — done + killed (521)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
 | [0546](archive/2026-10-11-0546-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md) | Per-agent prompt-cache TTL pin, shipped 1h for implement-next | 2026-10-11 |
 | [0544](archive/2026-10-08-0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | 2026-10-08 |
 | [0543](archive/2026-10-08-0543-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md) | Cursor section of the Bash upgrade guide, proven on the saved cases | 2026-10-08 |

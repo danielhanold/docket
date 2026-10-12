@@ -2,11 +2,11 @@
 id: 545
 slug: 'confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at'
 title: 'Confirm in a sandbox whether Cursor runs docket subagents at their pinned models'
-status: 'proposed'
+status: 'killed'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-08'
-updated: '2026-10-08'
+updated: '2026-10-12'
 depends_on: []
 stacked_on:
 related: [512]
@@ -48,3 +48,7 @@ In the v1.0.0-alpha.2 Cursor acceptance run (change 0512), docket's subagents ap
 - Fixing anything; this change only finds out.
 - Other harnesses.
 - The other alpha.2 Cursor findings (the sandboxed Allowlist mode, the orphaned `cursor-agent` worker).
+
+## Why killed
+
+Answered by manual testing. Three different models were set in Cursor's agent definition, and the docket status skill was modified to report the model (and effort) it ran at; all three runs succeeded. Effort was not always reported, which matches previous tests. Nothing further to build.
