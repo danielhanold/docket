@@ -81,8 +81,11 @@ your main folder sits on `main` or a feature branch, a skill needs a second fold
 metadata branch — a **metadata worktree** (a second checkout of the repo at `.docket/`, parked on
 the metadata branch, so backlog edits never touch your code checkout). Every workflow's startup
 check (`docket repository prepare`) attaches the persistent worktree at `.docket/` and brings it up
-to date with the remote before any read. **Your main working
-tree never switches branches.**
+to date with the remote before any read. Every docket write also moves the worktree forward to the
+commit it just pushed whenever it safely can, so the files there, the board included, are current
+as soon as the write returns. A worktree with local edits or commits of its own is left alone for
+the next startup check to report. `docket open board` brings the worktree up to date and opens the
+board from it. **Your main working tree never switches branches.**
 
 `.docket/` is gitignored (alongside `.worktrees/`, which holds per-change feature worktrees), and
 it deliberately sits at `.docket/` rather than under `.worktrees/` for three reasons: a change
