@@ -2,7 +2,7 @@
 id: 550
 slug: 'let-change-groom-set-a-change-s-priority'
 title: 'Let change.groom set a change''s priority'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-14'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/let-change-groom-set-a-change-s-priority'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-14T23:33:50Z'
 ---
 
 ## Artifacts
