@@ -532,6 +532,12 @@ func newPlanningDepsOver(client *gitcli.Client, repoDir ...string) (app.Planning
 	if dir := optionalRepoDir(repoDir); dir != "" {
 		engine.AdmissionHook = app.MutationAdmissionHook(dir)
 	}
+	// Follow the clone's metadata checkout after every applied metadata write, at
+	// the same single assembly point, so every Engine.Execute caller is covered —
+	// unconditionally, unlike the fence: a maintenance or standalone build (a sweep
+	// closeout included) moves the checkout too. Best-effort and silent; see
+	// app.MetadataCheckoutFollower.
+	engine.AppliedHook = app.MetadataCheckoutFollower(client)
 	return app.PlanningDeps{
 		Client: client,
 		Engine: engine,
