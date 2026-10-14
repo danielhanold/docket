@@ -22,7 +22,7 @@ branch: 'fix/bring-the-local-metadata-checkout-up-to-date-after-every-doc'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-14T23:20:56Z'
+claimed_at: '2026-10-14T23:22:29Z'
 ---
 
 ## Artifacts
