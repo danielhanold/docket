@@ -1,6 +1,6 @@
 # Backlog
 
-**548 changes** — 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 381 done · 🗑️ 140 killed
+**549 changes** — 🟣 2 groomed · 🟡 11 proposed · ⚪ 15 deferred · ✅ 381 done · 🗑️ 140 killed
 
 ## 🟣 Groomed (2)
 
@@ -9,10 +9,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0549](active/0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) | Bring the local metadata checkout up to date after every docket write | `medium` | `fix` | needs-grooming |
 | [0548](active/0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Rename the v0.9.13 frozen fixture tree to the 1.0 release series | `low` | `chore` | needs-grooming |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
 | [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
@@ -74,6 +75,7 @@ graph TD
   0541
   0546 --> 0547
   0546 --> 0548
+  0549
   0192:::done
   0251:::done
   0393:::done
