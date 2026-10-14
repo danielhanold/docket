@@ -13,7 +13,7 @@ related: [461]
 discovered_from: [523]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-14-let-change-groom-set-a-change-s-priority-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-14-let-change-groom-set-a-change-s-priority.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-14T23:37:49Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-14-let-change-groom-set-a-change-s-priority-design.md](../../superpowers/specs/2026-10-14-let-change-groom-set-a-change-s-priority-design.md) |
+| Plan | [2026-10-14-let-change-groom-set-a-change-s-priority.md](../../superpowers/plans/2026-10-14-let-change-groom-set-a-change-s-priority.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
