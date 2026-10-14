@@ -1,12 +1,17 @@
 # Backlog
 
-**549 changes** — 🟣 3 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 381 done · 🗑️ 140 killed
+**549 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 381 done · 🗑️ 140 killed
 
-## 🟣 Groomed (3)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0549](active/0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) | Bring the local metadata checkout up to date after every docket write | `medium` | `fix` | [spec](../superpowers/specs/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md) | `fix/bring-the-local-metadata-checkout-up-to-date-after-every-doc` |  |
+
+## 🟣 Groomed (2)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0549](active/0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) | Bring the local metadata checkout up to date after every docket write | `medium` | `fix` | [spec](../superpowers/specs/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 

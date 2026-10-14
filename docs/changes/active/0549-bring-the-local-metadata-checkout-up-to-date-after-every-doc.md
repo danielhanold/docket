@@ -2,7 +2,7 @@
 id: 549
 slug: 'bring-the-local-metadata-checkout-up-to-date-after-every-doc'
 title: 'Bring the local metadata checkout up to date after every docket write'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-14'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/bring-the-local-metadata-checkout-up-to-date-after-every-doc'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-14T23:19:03Z'
 ---
 
 ## Artifacts
