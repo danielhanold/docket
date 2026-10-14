@@ -2,7 +2,7 @@
 id: 550
 slug: 'let-change-groom-set-a-change-s-priority'
 title: 'Let change.groom set a change''s priority'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-14'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/let-change-groom-set-a-change-s-priority'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/412'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-14T23:44:09Z'
@@ -52,3 +52,12 @@ A dedicated `change.set-priority` command. Changing the priority values themselv
 ### 2026-10-14
 
 2026-10-14: Reconciled against main at 50420ee58. change.groom still has no priority field; the title (retitle) precedent, ParsePriority, and the unknown-priority finding code are all present. Related #461 is done. Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: e2dbe4e7fec4156d0c56c7c9ee8f8c7f085eb926
+ran_at:   2026-10-14T23:54:43Z
+<!-- docket:build-evidence:end -->
