@@ -2011,3 +2011,193 @@ func TestChangeGroomBadPriorityRefusedWithoutEngineCall(t *testing.T) {
 		})
 	}
 }
+
+// assertPriorityLanded pins that the record carries the new priority (and not
+// the old medium) and that the inline board row shows it.
+func assertPriorityLanded(t *testing.T, plan transaction.MutationPlan, want string) {
+	t.Helper()
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if !strings.Contains(rec, "\npriority: '"+want+"'\n") {
+		t.Errorf("record priority not rewritten to %q:\n%s", want, rec)
+	}
+	if strings.Contains(rec, "\npriority: medium\n") {
+		t.Errorf("old priority survived:\n%s", rec)
+	}
+	board := string(groomedRecordBytes(t, plan, "docs/changes/BOARD.md"))
+	if !strings.Contains(board, "| A change | `"+want+"` |") {
+		t.Errorf("board row does not show priority %q:\n%s", want, board)
+	}
+	if strings.Contains(board, "| A change | `medium` |") {
+		t.Errorf("board row still shows the old priority:\n%s", board)
+	}
+}
+
+// TestChangeGroomPlanPriorityLandsOnEveryAcceptingOutcome pins spec test 1:
+// spec, trivial, revise, and re-enable each write the new priority to the
+// record and the board row in the same plan.
+func TestChangeGroomPlanPriorityLandsOnEveryAcceptingOutcome(t *testing.T) {
+	trivial := ChangeGroomRequest{
+		ChangeID: 2, Path: groomPath(2, "add-a-widget"),
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Outcome: GroomTrivial,
+		Sections: []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}},
+	}
+	cases := []struct {
+		name string
+		rec  string
+		req  ChangeGroomRequest
+	}{
+		{"spec", groomableChange(2, "add-a-widget"), validGroomSpecRequest()},
+		{"trivial", groomableChange(2, "add-a-widget"), trivial},
+		{"revise", groomableChange(2, "add-a-widget"), priorityOnlyReviseRequest("")},
+		{"re-enable", abstainedChange(2, "add-a-widget"), reEnableRequest()},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := c.req
+			req.Priority = "high"
+			files := map[string]string{
+				groomPath(2, "add-a-widget"): c.rec,
+				"docs/changes/BOARD.md":      "# Backlog\n\nold\n",
+			}
+			plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, req))
+			if opRes.Refused {
+				t.Fatalf("unexpected refusal: %v", opRes.Findings)
+			}
+			assertPriorityLanded(t, plan, "high")
+			if rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget"))); !strings.Contains(rec, "updated: '2026-08-16'") {
+				t.Errorf("updated not bumped:\n%s", rec)
+			}
+		})
+	}
+}
+
+// TestChangeGroomPlanPriorityOnlyReviseKeepsGroomState pins spec test 2: a
+// revise carrying only a priority passes shape validation (the widened
+// empty-revise rule) and changes no groom state.
+func TestChangeGroomPlanPriorityOnlyReviseKeepsGroomState(t *testing.T) {
+	req := priorityOnlyReviseRequest("critical")
+	if findings := validateChangeGroomShape(req); len(findings) != 0 {
+		t.Fatalf("priority-only revise refused at the shape stage: %v", findings)
+	}
+	files := map[string]string{
+		groomPath(2, "add-a-widget"): optedOutStub(2, "add-a-widget"),
+		"docs/changes/BOARD.md":      "# Backlog\n\nold\n",
+	}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+		"docs/changes/BOARD.md":      transaction.MutationReplace,
+	})
+	assertPriorityLanded(t, plan, "critical")
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	for _, want := range []string{"\nspec:\n", "trivial: false", "auto_groomable: false", "title: 'A change'", "slug: add-a-widget", "Original why."} {
+		if !strings.Contains(rec, want) {
+			t.Errorf("priority-only revise changed more than priority; missing %q:\n%s", want, rec)
+		}
+	}
+	board := string(groomedRecordBytes(t, plan, "docs/changes/BOARD.md"))
+	if !strings.Contains(board, "needs-grooming") {
+		t.Errorf("board row is no longer needs-grooming:\n%s", board)
+	}
+}
+
+// TestChangeGroomPlanOmittedPriorityLeavesFieldByteIdentical pins spec test 3:
+// a groom without priority never touches the stored priority: line (the
+// fixture stores it unquoted, so any rewrite would re-quote it).
+func TestChangeGroomPlanOmittedPriorityLeavesFieldByteIdentical(t *testing.T) {
+	files := map[string]string{groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget")}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, stubSectionReviseRequest()))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	// Non-vacuity: this is the groomed record (the section edit landed).
+	if !strings.Contains(rec, "Sharpened why.") {
+		t.Fatalf("not reading the groomed record:\n%s", rec)
+	}
+	if !strings.Contains(rec, "\npriority: medium\n") || strings.Contains(rec, "priority: 'medium'") {
+		t.Errorf("priority: line not byte-identical when priority is omitted:\n%s", rec)
+	}
+}
+
+// TestChangeGroomPlanPriorityWithTitleAndSections pins Review Focus 3: one
+// revise carrying a title, a priority, and a section edit lands all three in
+// the single record write and the board row.
+func TestChangeGroomPlanPriorityWithTitleAndSections(t *testing.T) {
+	req := stubSectionReviseRequest()
+	req.Title = "Renamed widget"
+	req.Priority = "low"
+	files := map[string]string{
+		groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget"),
+		"docs/changes/BOARD.md":      "# Backlog\n\nold\n",
+	}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	for _, want := range []string{"title: 'Renamed widget'", "\npriority: 'low'\n", "Sharpened why."} {
+		if !strings.Contains(rec, want) {
+			t.Errorf("record missing %q:\n%s", want, rec)
+		}
+	}
+	board := string(groomedRecordBytes(t, plan, "docs/changes/BOARD.md"))
+	if !strings.Contains(board, "| Renamed widget | `low` |") {
+		t.Errorf("board row lacks the new title and priority together:\n%s", board)
+	}
+}
+
+// TestChangeGroomPlanSamePriorityIsNoOp pins Review Focus 4: resending the
+// stored priority over a settled tree declares nothing, the engine's clean
+// no-op, never an unchanged replace the delta verifier rejects.
+func TestChangeGroomPlanSamePriorityIsNoOp(t *testing.T) {
+	files := map[string]string{
+		groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget"),
+		"docs/changes/BOARD.md":      "# Backlog\n\nold\n",
+	}
+	settle, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, priorityOnlyReviseRequest("high")))
+	if opRes.Refused {
+		t.Fatalf("settling revise refused: %v", opRes.Findings)
+	}
+	files[groomPath(2, "add-a-widget")] = string(groomedRecordBytes(t, settle, groomPath(2, "add-a-widget")))
+	files["docs/changes/BOARD.md"] = string(groomedRecordBytes(t, settle, "docs/changes/BOARD.md"))
+
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, priorityOnlyReviseRequest("high")))
+	if opRes.Refused {
+		t.Fatalf("same-priority revise refused: %v", opRes.Findings)
+	}
+	if len(plan.Files) != 0 {
+		t.Errorf("same-priority revise declared files %v, want an empty (no-op) plan", planPaths(plan))
+	}
+}
+
+// TestChangeGroomPlanPriorityOnNonProposedRefused pins Review Focus 5: the
+// revise gate still admits only proposed changes; a deferred change must be
+// revived before it can be re-prioritized.
+func TestChangeGroomPlanPriorityOnNonProposedRefused(t *testing.T) {
+	cases := []struct {
+		name  string
+		files map[string]string
+	}{
+		{"in-progress", reviseFixtureAtStatus(groomPath(2, "add-a-widget"), "in-progress", reviseClaimFields)},
+		{"deferred", reviseFixtureAtStatus(groomPath(2, "add-a-widget"), "deferred", "")},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			plan, opRes := groomPlanFor(t, c.files, baseGroomOp([]string{}, priorityOnlyReviseRequest("high")))
+			if !opRes.Refused || len(plan.Files) != 0 {
+				t.Fatalf("want a refusal writing nothing, got refused=%v files=%v", opRes.Refused, planPaths(plan))
+			}
+			found := false
+			for _, f := range opRes.Findings {
+				found = found || f.Code == "not-revisable"
+			}
+			if !found {
+				t.Errorf("missing not-revisable; got %v", opRes.Findings)
+			}
+		})
+	}
+}

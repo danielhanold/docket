@@ -673,7 +673,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		return refuseGroom("section-edit-failed", err.Error())
 	}
 
-	// First patch pass: the typed field edits (spec/trivial/updated and the
+	// First patch pass: the typed field edits (spec/trivial/updated/title/priority and the
 	// complete-desired relationship collections). The artifact block is filled in
 	// a second pass, because rendering it needs the groomed snapshot.
 	doc1, err := document.Parse(edited)
@@ -718,6 +718,13 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		// touched: the candidate snapshot below carries the new title into the
 		// artifact block and the board with no further code.
 		upsertField(&ps, doc1, "title", document.String(o.req.Title))
+	}
+	if o.req.Priority != "" {
+		// Re-prioritize (change 0550). Validated against domain.ParsePriority at
+		// the shape stage; upsertField tolerates a record lacking the key, as the
+		// retitle does. The candidate snapshot carries the new priority into the
+		// artifact block and the inline board with no further code.
+		upsertField(&ps, doc1, "priority", document.String(o.req.Priority))
 	}
 	if o.req.DependsOn != nil {
 		ps.SetField("depends_on", intSeqValue(o.req.DependsOn))
