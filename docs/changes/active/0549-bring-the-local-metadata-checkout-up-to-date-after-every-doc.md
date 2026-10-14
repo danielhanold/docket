@@ -11,8 +11,8 @@ depends_on: []
 stacked_on:
 related: [523, 531, 360]
 discovered_from: []
-adrs: [142]
-spec:
+adrs: [142, 89]
+spec: 'docs/superpowers/specs/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md'
 plan:
 results:
 trivial: false
@@ -29,7 +29,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0142](../../adrs/0142-private-visibility-keeps-the-single-metadata-layout-and-vari.md) |
+| Spec | [2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md](../../superpowers/specs/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md) |
+| ADRs | [ADR-0142](../../adrs/0142-private-visibility-keeps-the-single-metadata-layout-and-vari.md), [ADR-0089](../../adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -44,10 +45,11 @@ The human also asked for a command to refresh the board. `docket open board` alr
 
 ## What changes
 
-- After a typed metadata operation's push applies, bring the local metadata branch and checkout up to the pushed commit, reusing prepare's in-place fast-forward from #523 (no hooks, refuses rather than discards).
-- Best-effort: if the local copy can't be fast-forwarded (dirty, ahead, locked), the operation still succeeds and the next `prepare` handles it as it does today.
-- Same behavior in shared and private repositories.
-- Decide at grooming whether any dedicated board-refresh command is still warranted, given `docket open board` and the above.
+- After a docket write's push lands, move the local metadata branch and checkout (shared `.docket/`, private `checkouts/<clone-id>/`) forward to the pushed commit, reusing the in-place fast-forward from #523.
+- One optional after-apply hook on the transaction engine, wired where the engine is built, so every typed write is covered; `repository repair`, which pushes outside the engine, calls the same step.
+- Best-effort and silent: a checkout with edits, its own commits, or one already moved further is left alone, and the next `prepare` handles it as today.
+- Same behavior in shared and private repositories. No new command: `docket open board` stays the manual way to sync and view the board.
+- One sentence in the metadata-location guide describing the new behavior.
 
 ## Out of scope
 
