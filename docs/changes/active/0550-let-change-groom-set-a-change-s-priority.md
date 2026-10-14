@@ -14,7 +14,7 @@ discovered_from: [523]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-14-let-change-groom-set-a-change-s-priority-design.md'
 plan: 'docs/superpowers/plans/2026-10-14-let-change-groom-set-a-change-s-priority.md'
-results:
+results: 'docs/results/2026-10-14-let-change-groom-set-a-change-s-priority-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-14T23:44:09Z'
 |---|---|
 | Spec | [2026-10-14-let-change-groom-set-a-change-s-priority-design.md](../../superpowers/specs/2026-10-14-let-change-groom-set-a-change-s-priority-design.md) |
 | Plan | [2026-10-14-let-change-groom-set-a-change-s-priority.md](../../superpowers/plans/2026-10-14-let-change-groom-set-a-change-s-priority.md) |
+| Results | [2026-10-14-let-change-groom-set-a-change-s-priority-results.md](../../results/2026-10-14-let-change-groom-set-a-change-s-priority-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
