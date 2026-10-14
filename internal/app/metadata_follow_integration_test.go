@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/repository/transaction"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -251,5 +252,128 @@ func TestIntegrationMetadataFollowNeverAttachesAbsentCheckout(t *testing.T) {
 	}
 	if tip := localDocketTip(t, r); tip != oldTip {
 		t.Fatalf("local docket branch = %s, want %s", tip, oldTip)
+	}
+}
+
+// --- typed writes through an engine wired like newPlanningDepsOver ----------------
+
+// followingPlanningDepsFor is planningDepsFor with the engine's AppliedHook wired to
+// MetadataCheckoutFollower, as internal/cli's newPlanningDepsOver wires it.
+func followingPlanningDepsFor(t *testing.T, dir string) realNode {
+	t.Helper()
+	client := newGitClient(t)
+	engine, err := transaction.NewEngine(client, testClock())
+	if err != nil {
+		t.Fatalf("transaction.NewEngine: %v", err)
+	}
+	engine.AppliedHook = MetadataCheckoutFollower(client)
+	return realNode{dir: dir, deps: PlanningDeps{
+		Client: client, Engine: engine, Reader: NewGitStatusReader(client), Clock: testClock(),
+	}}
+}
+
+const followBoardPath = "docs/changes/BOARD.md"
+
+func TestIntegrationMetadataFollowTypedWriteShared(t *testing.T) {
+	r := newHealthyRepo(t)
+	dot := filepath.Join(r.invocation, ".docket")
+	// The healthy fixture's metadata branch starts empty, so the checkout has no
+	// board until a write renders one.
+	if _, err := os.Stat(filepath.Join(dot, followBoardPath)); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("fixture: %s already on disk before the create (%v)", followBoardPath, err)
+	}
+	node := followingPlanningDepsFor(t, r.invocation)
+	created := ChangeCreate(context.Background(), node.deps, node.dir, validChangeCreateRequest())
+	if created.Result != ResultApplied {
+		t.Fatalf("change create = %q (%s, findings %v)", created.Result, created.HumanText(), created.Findings)
+	}
+	if head := r.dotDocketHead(t); head != created.Revision {
+		t.Fatalf(".docket HEAD = %s, want the pushed commit %s", head, created.Revision)
+	}
+	onDisk, err := os.ReadFile(filepath.Join(dot, followBoardPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	onBranch, ok := originFile(t, r.origin, "docket", followBoardPath)
+	if !ok {
+		t.Fatalf("origin docket has no %s", followBoardPath)
+	}
+	if strings.TrimSpace(string(onDisk)) != strings.TrimSpace(onBranch) {
+		t.Fatalf("BOARD.md on disk differs from the branch:\n--- disk\n%s\n--- branch\n%s", onDisk, onBranch)
+	}
+	requireCheckHealthy(t, r)
+}
+
+func TestIntegrationMetadataFollowTypedWriteLeavesDirtyCheckoutAlone(t *testing.T) {
+	r := newHealthyRepo(t)
+	node := followingPlanningDepsFor(t, r.invocation)
+	// The healthy fixture's metadata branch starts empty; a first create (which the
+	// follow brings into .docket) gives the checkout a tracked record to edit.
+	first := ChangeCreate(context.Background(), node.deps, node.dir, validChangeCreateRequest())
+	if first.Result != ResultApplied {
+		t.Fatalf("first change create = %q (%s, findings %v)", first.Result, first.HumanText(), first.Findings)
+	}
+	before := r.dotDocketHead(t)
+	if before != first.Revision {
+		t.Fatalf("fixture: .docket HEAD = %s after the first create, want %s", before, first.Revision)
+	}
+	// Edit the first record, which the second create does not write (it writes the
+	// board and its own new record), so the edit is never in the way of read-tree.
+	edited := filepath.Join(r.invocation, ".docket", filepath.FromSlash(first.Path))
+	orig, err := os.ReadFile(edited)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := string(orig) + "\nlocal edit\n"
+	if err := os.WriteFile(edited, []byte(want), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	second := validChangeCreateRequest()
+	second.RequestID = "req-00000002"
+	second.Title = "Add a gadget"
+	created := ChangeCreate(context.Background(), node.deps, node.dir, second)
+	if created.Result != ResultApplied {
+		t.Fatalf("change create = %q (%s), want applied despite the dirty checkout", created.Result, created.HumanText())
+	}
+	for _, p := range strings.Fields(runGit(t, r.origin, "diff-tree", "--no-commit-id", "--name-only", "-r", created.Revision)) {
+		if p == first.Path {
+			t.Fatalf("fixture: the second create wrote the edited path %s", p)
+		}
+	}
+	if head := r.dotDocketHead(t); head != before {
+		t.Fatalf(".docket HEAD = %s, want it untouched at %s", head, before)
+	}
+	if b, _ := os.ReadFile(edited); string(b) != want {
+		t.Fatalf("local edit lost: %q", b)
+	}
+}
+
+func TestIntegrationMetadataFollowTypedWritePrivate(t *testing.T) {
+	r, _ := newPrivateInitRepo(t, nil)
+	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
+		t.Fatalf("init --private = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	lay := resolvedPrivateLayout(t, r.invocation)
+	before := runGit(t, lay.MetadataWorktree, "rev-parse", "HEAD")
+
+	node := followingPlanningDepsFor(t, r.invocation)
+	created := ChangeCreate(context.Background(), node.deps, node.dir, validChangeCreateRequest())
+	if created.Result != ResultApplied {
+		t.Fatalf("change create = %q (%s, findings %v)", created.Result, created.HumanText(), created.Findings)
+	}
+	head := runGit(t, lay.MetadataWorktree, "rev-parse", "HEAD")
+	if head == before || head != created.Revision {
+		t.Fatalf("private checkout HEAD = %s (was %s), want the pushed commit %s", head, before, created.Revision)
+	}
+	onDisk, err := os.ReadFile(filepath.Join(lay.MetadataWorktree, followBoardPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	onBranch, ok := originFile(t, lay.DefaultBareRemote, privateFixtureBranch, followBoardPath)
+	if !ok {
+		t.Fatalf("dckt store has no %s", followBoardPath)
+	}
+	if strings.TrimSpace(string(onDisk)) != strings.TrimSpace(onBranch) {
+		t.Fatalf("private BOARD.md on disk differs from the branch:\n--- disk\n%s\n--- branch\n%s", onDisk, onBranch)
 	}
 }
