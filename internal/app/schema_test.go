@@ -106,6 +106,11 @@ func TestReflectDescriptorChangeGroomRequest(t *testing.T) {
 	if f := fieldByKey(t, d, "title"); f.Required || f.Type != "string" {
 		t.Errorf("title = %+v, want optional string", f)
 	}
+	// priority (change 0550): optional, drawn from the same closed vocabulary
+	// change.create's priority names.
+	if f := fieldByKey(t, d, "priority"); f.Required || f.Type != "string" || f.Enum != "priorities" {
+		t.Errorf("priority = %+v, want optional string with enum priorities", f)
+	}
 	// No caller-supplied spec path: the spec pinned is always the one the
 	// record's spec: field links.
 	for _, f := range d.Fields {

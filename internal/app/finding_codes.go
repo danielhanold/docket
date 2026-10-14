@@ -110,6 +110,7 @@ const (
 	FCInvalidBranchPrefix       FindingCode = "invalid-branch_prefix"
 	FCEmptyTitle                FindingCode = "empty-title"
 	FCInvalidTitle              FindingCode = "invalid-title"
+	FCInvalidPriority           FindingCode = "invalid-priority"
 	FCEmptyWhy                  FindingCode = "empty-why"
 	FCEmptyWhatChanges          FindingCode = "empty-what_changes"
 	FCEmptyOutOfScope           FindingCode = "empty-out_of_scope"
@@ -280,6 +281,7 @@ var AllFindingCodes = []FindingCode{
 	FCInvalidNoteEntry,
 	FCInvalidOutcome,
 	FCInvalidPRNumber,
+	FCInvalidPriority,
 	FCInvalidRelated,
 	FCInvalidRelatesTo,
 	FCInvalidRequestID,

@@ -1891,3 +1891,123 @@ func TestChangeGroomPlanSameTitleIsNoOp(t *testing.T) {
 		t.Errorf("same-title revise declared files %v, want an empty (no-op) plan", planPaths(plan))
 	}
 }
+
+// priorityOnlyReviseRequest is a revise carrying nothing but a priority — no
+// spec body, no spec_revision, no section edits, no title (change 0550).
+func priorityOnlyReviseRequest(priority string) ChangeGroomRequest {
+	r := validReviseRequest()
+	r.SpecMarkdown, r.SpecRevision, r.Sections = "", "", nil
+	r.Priority = priority
+	return r
+}
+
+func TestChangeGroomPriorityShapeValidation(t *testing.T) {
+	withPriority := func(r ChangeGroomRequest, p string) ChangeGroomRequest {
+		r.Priority = p
+		return r
+	}
+	cases := []struct {
+		name string
+		req  ChangeGroomRequest
+		code string // "" means the request must pass shape validation
+		not  string // a code that must NOT be emitted ("" = no check)
+	}{
+		{"spec accepts priority", withPriority(validGroomSpecRequest(), "high"), "", ""},
+		{"trivial accepts priority", withPriority(titledTrivialRequest("Renamed widget"), "low"), "", ""},
+		{"re-enable accepts priority", withPriority(reEnableRequest(), "critical"), "", ""},
+		{"revise accepts a priority alone", priorityOnlyReviseRequest("high"), "", ""},
+		{"revise accepts priority with sections", withPriority(validReviseRequest(), "medium"), "", ""},
+		{"unknown word", priorityOnlyReviseRequest("urgent"), "unknown-priority", ""},
+		{"capitalized", priorityOnlyReviseRequest("High"), "unknown-priority", ""},
+		{"upper-case", priorityOnlyReviseRequest("HIGH"), "unknown-priority", ""},
+		{"leading space", priorityOnlyReviseRequest(" high"), "unknown-priority", ""},
+		{"trailing space", priorityOnlyReviseRequest("high "), "unknown-priority", ""},
+		{"unknown on spec outcome", withPriority(validGroomSpecRequest(), "urgent"), "unknown-priority", ""},
+		{"abstain refuses a valid priority", withPriority(abstainRequest(), "high"), "invalid-priority", "unknown-priority"},
+		{"abstain refuses a bogus priority once", withPriority(abstainRequest(), "urgent"), "invalid-priority", "unknown-priority"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			findings := validateChangeGroomShape(c.req)
+			if c.code == "" {
+				if len(findings) != 0 {
+					t.Fatalf("unexpected shape findings: %v", findings)
+				}
+				return
+			}
+			if !hasFindingCode(findings, c.code) {
+				t.Errorf("missing finding %q; got %v", c.code, findings)
+			}
+			if c.not != "" && hasFindingCode(findings, c.not) {
+				t.Errorf("unexpected finding %q alongside %q; got %v", c.not, c.code, findings)
+			}
+		})
+	}
+}
+
+// TestChangeGroomUnknownPriorityMessageMatchesCreate pins the shared wording
+// with change.create's unknown-priority finding.
+func TestChangeGroomUnknownPriorityMessageMatchesCreate(t *testing.T) {
+	findings := validateChangeGroomShape(priorityOnlyReviseRequest("urgent"))
+	want := `unknown priority "urgent"; valid values are critical, high, medium, low`
+	for _, f := range findings {
+		if f.Code == string(FCUnknownPriority) {
+			if f.Message != want {
+				t.Errorf("message = %q, want %q", f.Message, want)
+			}
+			return
+		}
+	}
+	t.Fatalf("no unknown-priority finding; got %v", findings)
+}
+
+// TestChangeGroomEmptyReviseNamesPriority pins the widened empty-revise rule:
+// with no spec_markdown, no effective section edit, no title, and no priority
+// the revise is refused, and the diagnostic names priority too.
+func TestChangeGroomEmptyReviseNamesPriority(t *testing.T) {
+	findings := validateChangeGroomShape(priorityOnlyReviseRequest(""))
+	var msg string
+	for _, f := range findings {
+		if f.Code == string(FCEmptyRevise) {
+			msg = f.Message
+		}
+	}
+	if msg == "" {
+		t.Fatalf("empty revise not refused; findings %v", findings)
+	}
+	for _, want := range []string{"spec_markdown", "section edit", "title", "priority"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("empty-revise message %q does not name %q", msg, want)
+		}
+	}
+}
+
+func TestChangeGroomBadPriorityRefusedWithoutEngineCall(t *testing.T) {
+	cases := []struct {
+		name string
+		req  ChangeGroomRequest
+		code string
+	}{
+		{"unknown priority", priorityOnlyReviseRequest("urgent"), "unknown-priority"},
+		{"abstain with priority", func() ChangeGroomRequest { r := abstainRequest(); r.Priority = "high"; return r }(), "invalid-priority"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			engine := &recordingEngine{}
+			reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+			deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+			res := ChangeGroom(context.Background(), deps, "", c.req)
+
+			if res.Result != ResultInvalidInput {
+				t.Fatalf("result = %q, want invalid-input", res.Result)
+			}
+			if len(engine.calls) != 0 {
+				t.Errorf("engine called %d times on a shape failure, want 0 (nothing may be written)", len(engine.calls))
+			}
+			if !hasFindingCode(res.Findings, c.code) {
+				t.Errorf("missing %q; got %v", c.code, res.Findings)
+			}
+		})
+	}
+}
