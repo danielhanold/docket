@@ -239,6 +239,8 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomTrivial, BlockedNote: "x"})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomAbstain, Title: "x"})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise, Title: "a\nb"})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomAbstain, Priority: "high"})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise, Priority: "urgent"})...)
 	emitted = append(emitted, validateChangeReconcileShape(ChangeReconcileRequest{
 		Sections:     map[string]string{"## Not Owned": "x"},
 		SpecSections: map[string]string{"not a heading": "x"},
@@ -266,7 +268,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 		FCEmptySpecMarkdown, FCEmptySpecRevision, FCInvalidSpecRevision, FCMissingRationale, FCInvalidOutcome,
 		FCInvalidSpecSectionHeading, FCEmptyReconcileLogEntry,
 		FCEmptyBlockedNote, FCInvalidBlockedNote, FCInvalidSections,
-		FCInvalidPRNumber, FCInvalidAttempt, FCEmptyHead,
+		FCInvalidPRNumber, FCInvalidAttempt, FCEmptyHead, FCInvalidPriority, FCUnknownPriority,
 	}
 	for _, c := range floor {
 		if !seen[string(c)] {

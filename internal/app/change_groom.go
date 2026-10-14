@@ -122,6 +122,13 @@ type ChangeGroomRequest struct {
 	// retitle renames nothing: the slug, record path, spec path, and branch stay put.
 	Title string `json:"title,omitempty"`
 
+	// Priority, when non-empty, re-prioritizes the change (change 0550). The
+	// spec, trivial, revise, and re-enable outcomes accept it; abstain refuses
+	// it, since an autonomous abstain cannot re-rank the proposal. Empty leaves
+	// the priority unchanged. It draws on the same closed vocabulary as
+	// change.create's priority.
+	Priority string `json:"priority,omitempty" docket:"enum=priorities"`
+
 	DependsOn      []int `json:"depends_on"`
 	Related        []int `json:"related"`
 	DiscoveredFrom []int `json:"discovered_from"`
@@ -332,8 +339,8 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 			if msg := specMarkdownShapeProblem(req.SpecMarkdown); msg != "" {
 				addShape(FCInvalidSpecMarkdown, msg)
 			}
-		} else if !hasEffectiveSectionEdit(req.Sections) && req.Title == "" {
-			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown, at least one replace/remove section edit, or a title")
+		} else if !hasEffectiveSectionEdit(req.Sections) && req.Title == "" && req.Priority == "" {
+			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown, at least one replace/remove section edit, a title, or a priority")
 		}
 		for _, s := range req.Sections {
 			if s.Heading == autoGroomBlockedHeading {
@@ -354,6 +361,9 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		}
 		if req.Title != "" {
 			addShape(FCInvalidTitle, "title is not accepted by the abstain outcome; an abstain cannot rewrite the proposal")
+		}
+		if req.Priority != "" {
+			addShape(FCInvalidPriority, "priority is not accepted by the abstain outcome; an abstain cannot re-rank the proposal")
 		}
 		for _, rel := range []struct {
 			name string
@@ -389,6 +399,15 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 	if req.Title != "" && req.Outcome != GroomAbstain {
 		if code, msg := validateTitle(req.Title); code != "" {
 			addShape(code, msg)
+		}
+	}
+
+	// A priority re-prioritizes the change on every other outcome (change 0550);
+	// an empty one means "unchanged". The match is case-sensitive and uses the
+	// same message as change.create's unknown-priority finding.
+	if req.Priority != "" && req.Outcome != GroomAbstain {
+		if _, ok := domain.ParsePriority(req.Priority); !ok {
+			addShape(FCUnknownPriority, fmt.Sprintf("unknown priority %q; valid values are critical, high, medium, low", req.Priority))
 		}
 	}
 
