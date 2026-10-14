@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -212,6 +213,29 @@ func TestIntegrationRepoRepairAppliesOneDescendantCommit(t *testing.T) {
 		if f.Repairable != nil && *f.Repairable {
 			t.Errorf("check after repair still reports a repairable finding: %+v", f)
 		}
+	}
+}
+
+// TestIntegrationRepoRepairFollowsMetadataCheckout proves an applied repair leaves
+// the clean .docket checkout at the repair commit, with the recomputed board on
+// disk — repair pushes outside the transaction engine, so it follows itself.
+func TestIntegrationRepoRepairFollowsMetadataCheckout(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.publishHealthyDrift(t)
+
+	res := r.runRepair(t, RepairOptions{Authorized: true})
+	if res.Result != ResultApplied {
+		t.Fatalf("repair = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	if head := r.dotDocketHead(t); head != res.MetadataTip {
+		t.Fatalf(".docket HEAD = %s, want the repair commit %s", head, res.MetadataTip)
+	}
+	board, err := os.ReadFile(filepath.Join(r.invocation, ".docket", "docs", "changes", "BOARD.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(board), "hand-written stale board") {
+		t.Fatalf("BOARD.md on disk still carries the stale board:\n%s", board)
 	}
 }
 

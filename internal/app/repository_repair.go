@@ -353,6 +353,10 @@ func executeRepositoryRepair(ctx context.Context, git *gitcli.Client, sc setupCo
 	if rev.Commit != commit {
 		return repairContended(string(rev.Commit), metadataTip)
 	}
+	// Repair pushes outside the transaction engine, so the engine's AppliedHook
+	// never sees it: follow the clone's metadata checkout to the verified repair
+	// commit here. Best-effort and silent, exactly as after an engine write.
+	followMetadataCheckout(ctx, git, sc.repo, docketRef, commit)
 	return repairApplied(string(commit), metadataTip, plan, sc.layout)
 }
 
