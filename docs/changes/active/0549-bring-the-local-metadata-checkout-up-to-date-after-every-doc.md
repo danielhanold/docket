@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/bring-the-local-metadata-checkout-up-to-date-after-every-doc'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-14T23:19:03Z'
+reconciled: true
+claimed_at: '2026-10-14T23:20:56Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,9 @@ The human also asked for a command to refresh the board. `docket open board` alr
 - Changing how the board is rendered or when an operation decides to rewrite it; generation is already correct on the branch.
 - Changing `repository repair`'s job (repairing a board that drifted on the branch).
 - Moving transactions off their throwaway worktree.
+
+## Reconcile log
+
+### 2026-10-14
+
+2026-10-14: Reconciled against current main (50420ee). Traced the cited seams: transaction.Engine still carries only AdmissionHook (engine.go), newPlanningDepsOver in internal/cli/change.go is still the single engine assembly point, gitcli.Client.FastForwardCheckedOutBranch exists and is already used by repository prepare, and executeRepositoryRepair still pushes outside the engine. No overlapping work landed since grooming; scope and spec unchanged.
