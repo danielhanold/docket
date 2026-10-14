@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/let-change-groom-set-a-change-s-priority'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-14T23:33:50Z'
+reconciled: true
+claimed_at: '2026-10-14T23:36:30Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ A change's priority is visible on the board and drives implement-next's selectio
 ## Out of scope
 
 A dedicated `change.set-priority` command. Changing the priority values themselves or how selection orders them. Bulk re-prioritization across several changes.
+
+## Reconcile log
+
+### 2026-10-14
+
+2026-10-14: Reconciled against main at 50420ee58. change.groom still has no priority field; the title (retitle) precedent, ParsePriority, and the unknown-priority finding code are all present. Related #461 is done. Scope unchanged.
