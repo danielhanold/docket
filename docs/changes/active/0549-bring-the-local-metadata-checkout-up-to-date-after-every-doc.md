@@ -13,7 +13,7 @@ related: [523, 531, 360]
 discovered_from: []
 adrs: [142, 89]
 spec: 'docs/superpowers/specs/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-14T23:22:29Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md](../../superpowers/specs/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md) |
+| Plan | [2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md](../../superpowers/plans/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) |
 | ADRs | [ADR-0142](../../adrs/0142-private-visibility-keeps-the-single-metadata-layout-and-vari.md), [ADR-0089](../../adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md) |
 <!-- docket:artifacts:end -->
 
