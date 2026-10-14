@@ -66,6 +66,16 @@ const maxAttempts = 4
 // concurrent invocation. A non-nil error from the hook is a refusal, never a
 // programmer error; the engine maps it to an interrupted outcome carrying a typed
 // *Failure keyed on StageAdmission/KindCancelled.
+//
+// AppliedHook, when set, runs once per Execute after the attempt loop settles,
+// only when the final disposition is applied or already-applied and the result
+// carries an applied commit. It receives the caller's request and the final
+// result, cannot change either (it has no return), and never runs on a refused,
+// contended, no-op, interrupted, failed, or call-shape outcome. Like
+// AdmissionHook it is OPTIONAL (nil keeps the standalone contract exactly), must
+// be set once at wiring time before the first Execute, and must be safe for
+// concurrent invocation. The engine stays layout-agnostic: what the hook does
+// with the request's repository and target ref is the wiring layer's business.
 type Engine struct {
 	client *gitcli.Client
 	clock  Clock
@@ -73,6 +83,10 @@ type Engine struct {
 	// AdmissionHook is the optional run mutation-admission fence. See the type
 	// doc. Set it after NewEngine and before any Execute; the engine never mutates it.
 	AdmissionHook func(OperationKey) error
+
+	// AppliedHook is the optional after-apply observer. See the type doc. Set it
+	// after NewEngine and before any Execute; the engine never mutates it.
+	AppliedHook func(ctx context.Context, req Request, res Result)
 }
 
 // NewEngine constructs an Engine over a git client and a clock. Both are
@@ -91,8 +105,20 @@ func NewEngine(client *gitcli.Client, clock Clock) (*Engine, error) {
 // non-nil Go error accompanies only a programmer/call-shape failure or an
 // external/interruption outcome (where it is a typed *Failure keyed on stage and
 // kind); a domain refusal, contention, no-op, or applied outcome returns a nil
-// error. Engine and Client are safe for concurrent goroutines.
+// error. Engine and Client are safe for concurrent goroutines. When AppliedHook
+// is set it runs once, after the outcome is final, on applied and
+// already-applied outcomes only.
 func (e *Engine) Execute(ctx context.Context, req Request) (Result, error) {
+	res, err := e.execute(ctx, req)
+	if e.AppliedHook != nil && res.AppliedCommit != "" &&
+		(res.Disposition == DispositionApplied || res.Disposition == DispositionAlreadyApplied) {
+		e.AppliedHook(ctx, req, res)
+	}
+	return res, err
+}
+
+// execute is Execute's attempt sequence, without the after-apply hook.
+func (e *Engine) execute(ctx context.Context, req Request) (Result, error) {
 	op := req.Operation.Key()
 	base := Result{Operation: op}
 	if req.Idempotency != nil {

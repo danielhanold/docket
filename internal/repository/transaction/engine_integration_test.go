@@ -471,3 +471,163 @@ func newEngine(t *testing.T, client *gitcli.Client) *Engine {
 const thirdChangePath = "docs/changes/active/0003-third-change.md"
 
 func thirdChange() string { return corpusChange(3, "third-change", "proposed") }
+
+// hookRecorder records every AppliedHook invocation. It is used from one
+// goroutine per test (Execute calls the hook synchronously), so it needs no lock.
+type hookRecorder struct {
+	calls []hookCall
+}
+
+type hookCall struct {
+	req Request
+	res Result
+}
+
+func (h *hookRecorder) hook(_ context.Context, req Request, res Result) {
+	h.calls = append(h.calls, hookCall{req: req, res: res})
+}
+
+// TestIntegrationTxnApplyEngineAppliedHookRunsOnceOnApplied proves the hook runs
+// exactly once on an applied outcome, with the request and the final result.
+func TestIntegrationTxnApplyEngineAppliedHookRunsOnceOnApplied(t *testing.T) {
+	for _, topo := range topologies() {
+		t.Run(topo.name, func(t *testing.T) {
+			r := topo.build(t)
+			client, repo := r.discover(t)
+			eng := newEngine(t, client)
+			rec := &hookRecorder{}
+			eng.AppliedHook = rec.hook
+
+			res := mustExecute(t, eng, r, repo, nil, createOp(thirdChangePath, thirdChange()))
+			if res.Disposition != DispositionApplied {
+				t.Fatalf("disposition = %q, want applied", res.Disposition)
+			}
+			if len(rec.calls) != 1 {
+				t.Fatalf("hook calls = %d, want 1", len(rec.calls))
+			}
+			got := rec.calls[0]
+			if got.res.Disposition != DispositionApplied || got.res.AppliedCommit != res.AppliedCommit {
+				t.Errorf("hook result = (%q, %q), want (applied, %q)", got.res.Disposition, got.res.AppliedCommit, res.AppliedCommit)
+			}
+			if got.res.AppliedCommit != r.originTip(t) {
+				t.Errorf("hook applied commit = %q, want origin tip %q", got.res.AppliedCommit, r.originTip(t))
+			}
+			if got.req.TargetRef != r.Target || got.req.Repository.CommonDir != repo.CommonDir {
+				t.Errorf("hook request = (%q, %q), want (%q, %q)", got.req.TargetRef, got.req.Repository.CommonDir, r.Target, repo.CommonDir)
+			}
+		})
+	}
+}
+
+// TestIntegrationTxnApplyEngineAppliedHookRunsOncePerExecuteAfterRetry proves the
+// hook runs once per Execute, after the attempt loop settles — not per attempt.
+func TestIntegrationTxnApplyEngineAppliedHookRunsOncePerExecuteAfterRetry(t *testing.T) {
+	r := newMainModeRepos(t)
+	client, repo := r.discover(t)
+	eng := newEngine(t, client)
+	rec := &hookRecorder{}
+	eng.AppliedHook = rec.hook
+
+	op := createOp(thirdChangePath, thirdChange())
+	op.beforePlan = func(call int) {
+		if call == 1 {
+			r.advanceOrigin(t, "docs/changes/active/0005-writer-change.md",
+				corpusChange(5, "writer-change", "proposed"))
+		}
+	}
+	res := mustExecute(t, eng, r, repo, nil, op)
+	if res.Disposition != DispositionApplied || res.Attempts != 2 {
+		t.Fatalf("disposition/attempts = %q/%d, want applied/2", res.Disposition, res.Attempts)
+	}
+	if len(rec.calls) != 1 {
+		t.Fatalf("hook calls = %d, want exactly 1 across two attempts", len(rec.calls))
+	}
+	if rec.calls[0].res.AppliedCommit != res.AppliedCommit {
+		t.Errorf("hook applied commit = %q, want %q", rec.calls[0].res.AppliedCommit, res.AppliedCommit)
+	}
+}
+
+// TestIntegrationTxnApplyEngineAppliedHookRunsOnAlreadyApplied proves an
+// idempotent replay runs the hook with the ORIGINAL applied commit.
+func TestIntegrationTxnApplyEngineAppliedHookRunsOnAlreadyApplied(t *testing.T) {
+	r := newMainModeRepos(t)
+	client, repo := r.discover(t)
+	eng := newEngine(t, client)
+	rec := &hookRecorder{}
+	eng.AppliedHook = rec.hook
+
+	first, err := eng.Execute(context.Background(), Request{
+		Repository: repo, Remote: "origin", TargetRef: r.Target,
+		Idempotency: keyReq(), Loader: testLoader{}, Operation: createOp(thirdChangePath, thirdChange()),
+	})
+	if err != nil || first.Disposition != DispositionApplied {
+		t.Fatalf("first Execute: disposition %q err %v", first.Disposition, err)
+	}
+	replay, err := eng.Execute(context.Background(), Request{
+		Repository: repo, Remote: "origin", TargetRef: r.Target,
+		Idempotency: keyReq(), Loader: testLoader{}, Operation: createOp(thirdChangePath, thirdChange()),
+	})
+	if err != nil || replay.Disposition != DispositionAlreadyApplied {
+		t.Fatalf("replay Execute: disposition %q err %v", replay.Disposition, err)
+	}
+	if len(rec.calls) != 2 {
+		t.Fatalf("hook calls = %d, want 2 (apply + replay)", len(rec.calls))
+	}
+	got := rec.calls[1].res
+	if got.Disposition != DispositionAlreadyApplied || got.AppliedCommit != first.AppliedCommit {
+		t.Errorf("replay hook result = (%q, %q), want (already-applied, %q)", got.Disposition, got.AppliedCommit, first.AppliedCommit)
+	}
+}
+
+// TestIntegrationTxnApplyEngineAppliedHookNeverRunsOtherwise proves the hook never
+// runs on refused, contended, no-op, failed, or call-shape outcomes.
+func TestIntegrationTxnApplyEngineAppliedHookNeverRunsOtherwise(t *testing.T) {
+	firstPath := "docs/changes/active/0001-first-change.md"
+	cases := []struct {
+		name string
+		req  func(r *testRepos, repo gitcli.Repository) Request
+		want Disposition
+	}{
+		{"refused", func(r *testRepos, repo gitcli.Repository) Request {
+			return Request{Repository: repo, Remote: "origin", TargetRef: r.Target, Loader: testLoader{},
+				Operation: &scriptedOp{refuse: true, findings: []domain.Finding{
+					{Code: "op-refused", Severity: domain.SeverityError, Entity: domain.EntityRef{Kind: domain.EntityRepo}},
+				}}}
+		}, DispositionRefused},
+		{"contended", func(r *testRepos, repo gitcli.Repository) Request {
+			return Request{Repository: repo, Remote: "origin", TargetRef: r.Target, Loader: testLoader{},
+				Expected: []EntityExpectation{{Path: gitcli.RepoPath(firstPath),
+					Revision: ExpectedRevision{Kind: RevisionBlob, ObjectID: "0000000000000000000000000000000000000000"}}},
+				Operation: createOp(thirdChangePath, thirdChange())}
+		}, DispositionContended},
+		{"no-op", func(r *testRepos, repo gitcli.Repository) Request {
+			return Request{Repository: repo, Remote: "origin", TargetRef: r.Target, Loader: testLoader{},
+				Operation: &scriptedOp{}}
+		}, DispositionNoOp},
+		{"failed", func(r *testRepos, repo gitcli.Repository) Request {
+			return Request{Repository: repo, Remote: "origin", TargetRef: "refs/heads/nope", Loader: testLoader{},
+				Operation: createOp(thirdChangePath, thirdChange())}
+		}, DispositionFailed},
+		{"call-shape", func(r *testRepos, repo gitcli.Repository) Request {
+			return Request{Repository: repo, Remote: "origin", TargetRef: "refs/tags/v1", Loader: testLoader{},
+				Operation: createOp(thirdChangePath, thirdChange())}
+		}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newMainModeRepos(t)
+			client, repo := r.discover(t)
+			eng := newEngine(t, client)
+			rec := &hookRecorder{}
+			eng.AppliedHook = rec.hook
+
+			res, _ := eng.Execute(context.Background(), tc.req(r, repo))
+			if res.Disposition != tc.want {
+				t.Fatalf("disposition = %q, want %q", res.Disposition, tc.want)
+			}
+			if len(rec.calls) != 0 {
+				t.Errorf("hook ran %d times on a %s outcome, want 0", len(rec.calls), tc.name)
+			}
+		})
+	}
+}
