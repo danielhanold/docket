@@ -22,7 +22,7 @@ branch: 'feat/let-change-groom-set-a-change-s-priority'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-14T23:36:30Z'
+claimed_at: '2026-10-14T23:37:49Z'
 ---
 
 ## Artifacts
