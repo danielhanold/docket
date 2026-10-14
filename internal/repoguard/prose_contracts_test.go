@@ -199,6 +199,11 @@ var proseContracts = []proseContract{
 	// nothing (slug, record path, spec path, and branch stay put).
 	{sentinel: "change_0461_retitle", file: "skills/docket-groom-next/SKILL.md",
 		present: []string{"also carry `title`", "a `title` alone is a valid revise", "a retitle renames nothing", "`not-retitleable`"}},
+	// change 0550 — change.groom carries an optional priority on the same
+	// outcomes as title; a priority alone is a valid revise; abstain refuses it.
+	{sentinel: "change_0550_priority", file: "skills/docket-groom-next/SKILL.md",
+		present: []string{"may also carry `priority`", "a `priority` alone is a valid revise", "`invalid-priority`", "`unknown-priority`",
+			"owned-section, `title`, `priority`, or relationship edits"}},
 	// change 0509 — revise edits any proposed change without changing its groom
 	// state; a request to edit (not groom) a needs-grooming stub goes straight
 	// to the revise exit with no brainstorm. The absent phrases are the retired

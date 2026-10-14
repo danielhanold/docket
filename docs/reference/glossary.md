@@ -690,14 +690,16 @@ docket change groom --request groom.json
 The `change.groom` outcome that edits any `proposed` change without changing its groom state: a
 needs-grooming stub stays needs-grooming, and a spec'd or trivial change stays build-ready. It can
 replace the linked spec's body (only when the change links a spec) and edit owned sections, the
-title, and relationship fields. It never sets `spec:`, `trivial:`, or `auto_groomable:`, and it
-never edits `## Auto-groom blocked`, which only abstain and re-enable write.
+title, the priority, and relationship fields. It never sets `spec:`, `trivial:`, or
+`auto_groomable:`, and it never edits `## Auto-groom blocked`, which only abstain and re-enable
+write.
 
 **Used for:** fixing a just-landed design, or sharpening a stub's Why or title without grooming it.
 Reach it by naming the id to `docket-groom-next`. A spec replace also needs `spec_revision` (the
 spec's blob id), so a concurrent spec edit contends instead of being overwritten. A `title` alone is
 also a valid revise: it rewrites `title:`, the board row, and the spec's backlink line, and renames
-nothing — the slug and every path stay put.
+nothing — the slug and every path stay put. A `priority` alone is also a valid revise: it rewrites
+`priority:` and the board row.
 
 ```sh
 # groom.json: {"change_id": 412, "path": "…", "revision": "<v>", "outcome": "revise", "spec_markdown": "…", "spec_revision": "<blob>"}
@@ -1985,6 +1987,9 @@ docket diagnostic config --repo-dir . --json   # shows which layer each value ca
 
 `critical` > `high` > `medium` (default) > `low` — the first key of selection order.
 
+Set by `change create` (default `medium`) and changed on a `proposed` change by `change groom`'s
+optional `priority` (any outcome but `abstain`).
+
 ### `reclaim.auto` / `reclaim.lease_ttl`
 
 `reclaim.lease_ttl` (default 72 hours) is how long a claim lease lasts. `reclaim.auto` (default
@@ -2053,7 +2058,7 @@ below.
 | `reconcile_dispositions` | `applied` `contended` `failed` | `change reconcile` |
 | `sync_dispositions` | `advanced` `already-current` `failed` `refused` `skipped` | `repository sync-integration`, `maintenance sweep` |
 | `section_intents` | `preserve` `replace` `remove` | `change groom` (request `sections[].intent`) |
-| `priorities` | `critical` `high` `medium` `low` | `change create` (request `priority`), `status --priority` |
+| `priorities` | `critical` `high` `medium` `low` | `change create` (request `priority`), `change groom` (request `priority`), `status --priority` |
 
 **Used for:** writing drivers that branch on outcomes safely. Read an `unknown` as "state
 unobservable; retain", which authorizes nothing destructive.
