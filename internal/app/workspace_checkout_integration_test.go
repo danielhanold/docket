@@ -127,3 +127,32 @@ func TestIntegrationWorkspaceCheckoutRefusesNotImplemented(t *testing.T) {
 		t.Fatalf("= %q/%q, head %s; want blocked/%s with the workspace untouched", res.Result, res.Reason, f.localHead(), ReasonWorkspaceNotImplemented)
 	}
 }
+
+// On a machine that never built the change, a gate-off finalize.merge refuses
+// with zero merge calls (no local head agrees with the PR and remote heads);
+// after workspace.checkout the heads agree and the merge lands once.
+func TestIntegrationWorkspaceCheckoutLetsGateOffMergeLand(t *testing.T) {
+	requireRealGit(t)
+	ctx := context.Background()
+	f := setupMergeFixture(t, planRepoModes()[0])
+	f.repo.writerAdvance(t, "main", map[string]string{
+		".docket.yml": "integration_branch: main\nbuild:\n  test_command: 'go test ./...'\nfinalize:\n  gate: \"off\"\n  test_command: 'go test ./...'\n",
+	})
+	mergeCommit := f.mergeFeatureIntoBase(t)
+	gh := f.carryFake(t, false) // no green evidence: only gate off satisfies the gate
+	gh.mergeOutcome = githubcli.MergeMerged
+	gh.mergeFacts = mergedFactsFor(f.head, "main", mergeCommit)
+	f.forgetLocalWorkspace(t)
+
+	if before := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false)); before.Result == ResultApplied || gh.mergeCalls != 0 {
+		t.Fatalf("merge without a workspace = %q (%s), %d call(s); want a refusal with none", before.Result, before.Reason, gh.mergeCalls)
+	}
+	co := WorkspaceCheckout(ctx, f.deps, f.checkoutDeps(gh), f.repo.invocation, WorkspaceCheckoutRequest{ID: f.id, Revision: f.revision, Head: f.head})
+	if co.Result != ResultApplied {
+		t.Fatalf("checkout = %q/%q (%s: %s)", co.Result, co.Disposition, co.Reason, co.Message)
+	}
+	res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+	if res.Result != ResultApplied || res.Disposition != MergeDispMerged || gh.mergeCalls != 1 {
+		t.Fatalf("merge after checkout = %q/%q (%s: %s), %d call(s)", res.Result, res.Disposition, res.Reason, res.Message, gh.mergeCalls)
+	}
+}
