@@ -13,7 +13,7 @@ related: [368, 429]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-15T02:35:29Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md](../../superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md) |
+| Plan | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc.md](../../superpowers/plans/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
