@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [136]
 spec: 'docs/superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md'
 plan: 'docs/superpowers/plans/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua.md'
-results:
+results: 'docs/results/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-15T22:28:11Z'
 |---|---|
 | Spec | [2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md](../../superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md) |
 | Plan | [2026-10-15-explain-repository-check-and-status-findings-in-plain-langua.md](../../superpowers/plans/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua.md) |
+| Results | [2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-results.md](../../results/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-results.md) |
 | ADRs | [ADR-0136](../../adrs/0136-repair-on-a-migrated-repository-is-docket-repository-repair.md) |
 <!-- docket:artifacts:end -->
 
