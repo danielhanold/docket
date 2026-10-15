@@ -79,6 +79,9 @@ const (
 	ProofHeadMismatch     = "head-mismatch"
 	ProofDirty            = "dirty"
 	ProofGitRefused       = "git-refused"
+	// ProofRegistrationChanged: the worktree's registration vanished or moved
+	// between the inventory and the proofs; a lost race, reported contended.
+	ProofRegistrationChanged = "registration-changed"
 )
 
 // CheckoutRequest names the repository, the remote holding the pushed feature
@@ -287,7 +290,7 @@ func (s *Service) checkoutAttach(ctx context.Context, req CheckoutRequest, out C
 		switch {
 		case hp == repo.PrimaryWorktree:
 			return out.refuse(CheckoutBlocked, CheckoutReasonBranchInPrimary,
-				fmt.Sprintf("%s is checked out in the main checkout %s; switch it to another branch (git -C %s switch %s) and retry%s", branch, hp, hp, target.Base.Branch, unchanged)), nil
+				fmt.Sprintf("%s is checked out in the main checkout %s; detach it (git -C %s switch --detach) or switch it to a branch no other worktree has checked out, then retry%s", branch, hp, hp, unchanged)), nil
 		case holderAtTarget && resume != nil:
 			registered = true
 		default:
@@ -407,6 +410,10 @@ func (s *Service) checkoutAttach(ctx context.Context, req CheckoutRequest, out C
 		if err != nil {
 			return CheckoutResult{}, err
 		}
+		if proof == ProofRegistrationChanged {
+			out.FailedProof = proof
+			return out.refuse(CheckoutContended, CheckoutReasonForeignWorktreeUnsafe, remedy), nil
+		}
 		if proof != "" {
 			return out.unsafeForeign(proof, remedy), nil
 		}
@@ -486,12 +493,11 @@ func (s *Service) checkoutAttach(ctx context.Context, req CheckoutRequest, out C
 	}
 
 	// 8. Reinspect live Git and advance the manifest to ready.
-	ws, err := s.reinspectAndFinalize(ctx, checkoutOp, repo, dir, man, intended, target, base, PrepareCreated)
+	// The head is checked before the manifest advances, so a branch moved
+	// during the attach never leaves a ready workspace off the expected head.
+	ws, err := s.reinspectAndFinalize(ctx, checkoutOp, repo, dir, man, intended, target, base, head, PrepareCreated)
 	if err != nil {
 		return CheckoutResult{}, err
-	}
-	if ws.HeadCommit != head {
-		return CheckoutResult{}, &Failure{Op: checkoutOp, Stage: "verify", Kind: KindInvalidState, Detail: "the attached workspace is not at the expected head"}
 	}
 	out.Disposition = CheckoutAttached
 	out.BaseCommit = ws.BaseCommit
@@ -503,10 +509,27 @@ func (s *Service) checkoutAttach(ctx context.Context, req CheckoutRequest, out C
 // removalProof reads, last and fresh, whether a foreign worktree may be removed.
 // It returns the first failed proof with a remedy valid in exactly that state
 // (both empty when every proof holds); any probe error is a Failure at stage
-// probe, never a pass.
-func (s *Service) removalProof(ctx context.Context, req CheckoutRequest, info gitcli.WorktreeInfo) (proof, remedy string, err error) {
-	path := canonicalOrLexical(info.Path)
+// probe, never a pass. The registration is re-listed here rather than taken from
+// the inventory's snapshot (seen): one gone, or no longer on the branch or
+// detached state the inventory saw, is registration-changed.
+func (s *Service) removalProof(ctx context.Context, req CheckoutRequest, seen gitcli.WorktreeInfo) (proof, remedy string, err error) {
+	path := canonicalOrLexical(seen.Path)
 	branch := req.Target.FeatureBranch()
+
+	infos, err := s.git.ListWorktrees(ctx, req.Repository)
+	if err != nil {
+		return "", "", mapGitFailure(checkoutOp, "probe", err)
+	}
+	info, found := gitcli.WorktreeInfo{}, false
+	for _, i := range infos {
+		if canonicalOrLexical(i.Path) == path {
+			info, found = i, true
+			break
+		}
+	}
+	if !found || info.Detached != seen.Detached || info.Branch != seen.Branch {
+		return ProofRegistrationChanged, fmt.Sprintf("the worktree registered at %s changed while checkout was reading it; retry%s", path, unchanged), nil
+	}
 
 	if req.MetadataWorktree != "" && path == canonicalOrLexical(req.MetadataWorktree) {
 		return ProofMetadataWorktree, fmt.Sprintf("%s is the docket metadata worktree but has %s checked out; move it back to the metadata branch by hand%s", path, branch, unchanged), nil

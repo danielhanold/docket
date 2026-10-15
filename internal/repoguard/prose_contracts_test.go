@@ -1219,6 +1219,7 @@ var alignmentContracts = []proseContract{
 			"in every gate mode",
 			"`blocked` with `workspace-dirty`, `local-head-mismatch`, or `workspace-not-ready`",
 			"any other `blocked` is `halted`",
+			"`unknown`, or any other result, is `halted`",
 		}},
 }
 

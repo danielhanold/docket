@@ -77,9 +77,11 @@ func checkoutRefusalRows(f *rebaseFixture) []checkoutRefusalRow {
 	baseMoved.BaseBranch = "develop"
 	return []checkoutRefusalRow{
 		{"revision-without-head", gh(open...), WorkspaceCheckoutRequest{ID: f.id, Revision: f.revision},
-			ResultInvalidInput, "", ReasonWorkspaceCheckoutPinIncomplete},
+			ResultInvalidInput, "blocked", ReasonWorkspaceCheckoutPinIncomplete},
 		{"malformed-head", gh(open...), WorkspaceCheckoutRequest{ID: f.id, Revision: f.revision, Head: strings.ToUpper(f.head)},
-			ResultInvalidInput, "", ReasonWorkspaceMalformedHead},
+			ResultInvalidInput, "blocked", ReasonWorkspaceMalformedHead},
+		{"unknown-change", gh(open...), WorkspaceCheckoutRequest{ID: 9999},
+			ResultInvalidInput, "blocked", ReasonWorkspaceUnknownChange},
 		{"revision-drift", gh(open...), WorkspaceCheckoutRequest{ID: f.id, Revision: strings.Repeat("0", 40), Head: f.head},
 			ResultContended, "contended", ReasonWorkspaceRevisionDrift},
 		{"head-flag-mismatch", gh(open...), WorkspaceCheckoutRequest{ID: f.id, Revision: f.revision, Head: other},

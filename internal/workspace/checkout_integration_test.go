@@ -273,7 +273,9 @@ var refuseRows = []refuseRow{
 			r.localCommit(t)
 			return r.writerCommit(t, coFeature, "r.txt"), ""
 		}},
-	{name: "branch-in-primary", disp: "blocked", reason: CheckoutReasonBranchInPrimary, mention: "switch",
+	// The remedy detaches the main checkout: a stacked change's effective base
+	// is often held by its parent's worktree, so switching to it would fail.
+	{name: "branch-in-primary", disp: "blocked", reason: CheckoutReasonBranchInPrimary, mention: "switch --detach",
 		arrange: func(t *testing.T, r *wsRepos, repo gitcli.Repository, tgt Target, head gitcli.ObjectID) (gitcli.ObjectID, string) {
 			r.localFeatureAt(t, head)
 			gitOut(t, r.Primary, "checkout", "-q", coFeature)
@@ -704,5 +706,88 @@ func TestIntegrationWorkspaceCheckoutForeignOperationElsewhereLocalBehind(t *tes
 				t.Errorf("FastForwardedFrom = %q; want %q", res.FastForwardedFrom, old)
 			}
 		})
+	}
+}
+
+// writeGitBefore writes a git wrapper that forwards to the real git on PATH,
+// first running the shell command pre whenever the subcommand is sub, so a
+// test can change the repository between a checkout's inventory and its act.
+func writeGitBefore(t *testing.T, sub, pre string) string {
+	t.Helper()
+	p := filepath.Join(testsupport.TempDir(t), "git")
+	script := "#!/bin/sh\nif [ \"$1\" = \"" + sub + "\" ]; then\n  " + pre + "\nfi\nexec git \"$@\"\n"
+	if err := os.WriteFile(p, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// The removal proofs read the worktree registration fresh, after the
+// inventory: a foreign worktree locked or removed between the two is judged on
+// what holds now, never on the inventory's snapshot.
+func TestIntegrationWorkspaceCheckoutRemovalProofReadsFresh(t *testing.T) {
+	for _, tc := range []struct {
+		name, disp, proof string
+		pre               func(primary, foreign string) string
+	}{
+		{name: "locked-after-inventory", disp: "blocked", proof: ProofLocked,
+			pre: func(primary, foreign string) string {
+				return "git -C '" + primary + "' worktree lock '" + foreign + "' 2>/dev/null"
+			}},
+		{name: "removed-after-inventory", disp: "contended", proof: ProofRegistrationChanged,
+			pre: func(primary, foreign string) string {
+				return "git -C '" + primary + "' worktree remove --force '" + foreign + "' 2>/dev/null"
+			}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := mainModeRepo(t)
+			head := r.pushBranch(t, coFeature, "main")
+			_, repo := r.newService(t)
+			tgt := freshTarget(t, 7)
+			r.localFeatureAt(t, head)
+			foreign := r.foreignAt(t, r.elsewhere())
+			// merge-base runs after the inventory and before the removal proofs.
+			c, err := gitcli.NewClient(gitcli.WithExecutable(writeGitBefore(t, "merge-base", tc.pre(r.Primary, foreign))))
+			if err != nil {
+				t.Fatal(err)
+			}
+			svc, _ := NewService(c)
+			res := runCheckout(t, svc, repo, tgt, head, "")
+			if string(res.Disposition) != tc.disp || res.Reason != CheckoutReasonForeignWorktreeUnsafe || res.FailedProof != tc.proof {
+				t.Fatalf("= %q/%q proof %q (%s); want %s/%s proof %q", res.Disposition, res.Reason, res.FailedProof, res.Message, tc.disp, CheckoutReasonForeignWorktreeUnsafe, tc.proof)
+			}
+			if _, ok, _ := loadManifest(metaDirOf(repo, tgt)); ok {
+				t.Error("a manifest was published")
+			}
+			if _, err := os.Lstat(wsPathOf(repo)); !os.IsNotExist(err) {
+				t.Errorf("the target path was created (%v)", err)
+			}
+		})
+	}
+}
+
+// A feature branch moved by another process while checkout attaches it never
+// leaves a ready workspace at a head other than the expected one: the manifest
+// stays allocating, so the next run resumes and judges the moved branch.
+func TestIntegrationWorkspaceCheckoutHeadMovedDuringAttachStaysAllocating(t *testing.T) {
+	r := mainModeRepo(t)
+	head := r.pushBranch(t, coFeature, "main")
+	_, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	moved := r.mainTip(t)
+	gitOut(t, r.Primary, "fetch", "-q", "origin", "main")
+	// After `worktree add` lands, move the branch off the expected head.
+	pre := "if [ \"$2\" = add ]; then git \"$@\" || exit $?; exec git -C '" + r.Primary + "' update-ref refs/heads/" + coFeature + " " + string(moved) + "; fi"
+	c, err := gitcli.NewClient(gitcli.WithExecutable(writeGitBefore(t, "worktree", pre)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc, _ := NewService(c)
+	_, err = svc.Checkout(context.Background(), coReq(repo, tgt, head, ""))
+	if f, ok := AsFailure(err); !ok || f.Stage != "verify" {
+		t.Fatalf("Checkout with the branch moved under it = %v; want a *Failure at stage verify", err)
+	}
+	if m, ok, err := loadManifest(metaDirOf(repo, tgt)); err != nil || !ok || m.Phase != PhaseAllocating {
+		t.Fatalf("manifest %v %q %v; want it left allocating", ok, m.Phase, err)
 	}
 }

@@ -168,7 +168,7 @@ func (s *Service) Prepare(ctx context.Context, req PrepareRequest) (Workspace, e
 	}
 
 	// Step 8: reinspect and advance the manifest to ready.
-	return s.reinspectAndFinalize(ctx, prepareOp, req.Repository, dir, man, intendedPath, target, baseCommit, PrepareCreated)
+	return s.reinspectAndFinalize(ctx, prepareOp, req.Repository, dir, man, intendedPath, target, baseCommit, "", PrepareCreated)
 }
 
 // prepareOwned dispatches a valid, owned manifest by its recorded phase: a ready
@@ -298,7 +298,7 @@ func (s *Service) prepareResume(ctx context.Context, repo gitcli.Repository, dir
 		}
 	}
 
-	return s.reinspectAndFinalize(ctx, prepareOp, repo, dir, m, intendedPath, target, base, PrepareResumed)
+	return s.reinspectAndFinalize(ctx, prepareOp, repo, dir, m, intendedPath, target, base, "", PrepareResumed)
 }
 
 // blockedWorkspace is the byte-untouched blocked disposition: a value, not an
@@ -453,8 +453,10 @@ func publishAllocating(op, root, dir string, m Manifest) error {
 // Git reports is an invalid-state failure: the postcondition was not established.
 // The reinspected HEAD is read back from the ref, so post-creation commits on a
 // resumed workspace surface as the reported head, and dirty bytes are reported,
-// never repaired. op names the calling operation on any Failure.
-func (s *Service) reinspectAndFinalize(ctx context.Context, op string, repo gitcli.Repository, dir string, man Manifest, intendedPath string, target Target, baseCommit gitcli.ObjectID, disposition PrepareDisposition) (Workspace, error) {
+// never repaired. op names the calling operation on any Failure. A non-empty
+// expectHead must equal the reinspected HEAD before the manifest advances, so a
+// branch moved during the attach leaves the manifest allocating.
+func (s *Service) reinspectAndFinalize(ctx context.Context, op string, repo gitcli.Repository, dir string, man Manifest, intendedPath string, target Target, baseCommit, expectHead gitcli.ObjectID, disposition PrepareDisposition) (Workspace, error) {
 	infos, err := s.git.ListWorktrees(ctx, repo)
 	if err != nil {
 		return Workspace{}, mapGitFailure(op, "verify", err)
@@ -470,6 +472,9 @@ func (s *Service) reinspectAndFinalize(ctx context.Context, op string, repo gitc
 	head, err := s.git.ResolveRef(ctx, repo, target.FeatureRef)
 	if err != nil {
 		return Workspace{}, mapGitFailure(op, "verify", err)
+	}
+	if expectHead != "" && head != expectHead {
+		return Workspace{}, &Failure{Op: op, Stage: "verify", Kind: KindInvalidState, Detail: "the attached workspace is not at the expected head"}
 	}
 	reachable, err := s.git.IsAncestor(ctx, repo, baseCommit, head)
 	if err != nil {
