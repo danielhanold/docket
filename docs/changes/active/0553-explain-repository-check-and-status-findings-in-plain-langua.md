@@ -2,7 +2,7 @@
 id: 553
 slug: 'explain-repository-check-and-status-findings-in-plain-langua'
 title: 'Explain repository check and status findings in plain language'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-10-15'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/explain-repository-check-and-status-findings-in-plain-langua'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-15T21:53:59Z'
 ---
 
 ## Artifacts

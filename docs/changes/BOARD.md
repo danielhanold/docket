@@ -1,6 +1,12 @@
 # Backlog
 
-**553 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 384 done · 🗑️ 140 killed
+**553 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 384 done · 🗑️ 140 killed
+
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0553](active/0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | `high` | `fix` | [spec](../superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md) | `fix/explain-repository-check-and-status-findings-in-plain-langua` |  |
 
 ## 🔵 Built (1)
 
@@ -8,11 +14,10 @@
 |---|-------|----------|------|----|-------|
 | [0552](active/0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | `medium` | `fix` | [#415](https://github.com/danielhanold/docket/pull/415) | awaiting merge |
 
-## 🟣 Groomed (3)
+## 🟣 Groomed (2)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0553](active/0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | `high` | `fix` | [spec](../superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
