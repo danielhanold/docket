@@ -13,7 +13,7 @@ related: [27, 408]
 discovered_from: []
 adrs: [145]
 spec: 'docs/superpowers/specs/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-15T19:30:18Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md](../../superpowers/specs/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md) |
+| Plan | [2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and.md](../../superpowers/plans/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and.md) |
 | ADRs | [ADR-0145](../../adrs/0145-private-repository-parent-facing-rules-load-through-content.md) |
 <!-- docket:artifacts:end -->
 
