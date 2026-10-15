@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [149]
 spec: 'docs/superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md'
 plan: 'docs/superpowers/plans/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc.md'
-results:
+results: 'docs/results/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-15T03:57:51Z'
 |---|---|
 | Spec | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md](../../superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md) |
 | Plan | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc.md](../../superpowers/plans/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc.md) |
+| Results | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-results.md](../../results/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-results.md) |
 | ADRs | [ADR-0149](../../adrs/0149-docket-adopts-unowned-local-state-only-when-proven-against-t.md) |
 <!-- docket:artifacts:end -->
 
