@@ -463,9 +463,14 @@ func gitRev(t *testing.T, c *upgradeCase, ref string) string {
 
 // ---- section 3 and 4: the machine install ------------------------------------------
 
-// repairPrepareOptionalProse is the guide's statement that the prepare step repair
-// mentions is optional.
-const repairPrepareOptionalProse = "That step is optional: every docket workflow runs `docket repository prepare` first, which brings the folder up to date."
+// repairFollowsProse is the guide's statement that the repair brings the local .docket
+// copy up to the repaired commit, and repairPrepareSkipProse its statement that the
+// prepare step the repair output names can therefore be skipped. Both are matched with
+// whitespace collapsed, so a re-flowed paragraph still matches.
+const (
+	repairFollowsProse     = "and brings your local `.docket` folder up to the repaired commit."
+	repairPrepareSkipProse = "You can skip that: the repair already brought the folder up to date."
+)
 
 // releaseVerifiedProse is the guide's statement that the download and checksum
 // lines rest on the release verification, not on this test.
@@ -1107,9 +1112,9 @@ func observeRepairPreview(t *testing.T, c *upgradeCase, st *runState, body strin
 }
 
 // runRepairApply runs the block and checks the guide's claims: the repair is pushed
-// to the docket branch, the output names `docket repository prepare`, which the guide
-// calls optional, and the local .docket copy is left behind the remote (so the
-// healthy check that follows proves a behind-only copy is healthy).
+// to the docket branch, the local .docket copy is brought up to that repaired commit,
+// and the output names `docket repository prepare`, which the guide says to skip
+// because the copy is already up to date.
 func runRepairApply(t *testing.T, c *upgradeCase, st *runState, body string) {
 	t.Helper()
 	before := gitRev(t, c, "docket")
@@ -1118,11 +1123,12 @@ func runRepairApply(t *testing.T, c *upgradeCase, st *runState, body string) {
 	if after == before {
 		t.Fatalf("guide says repair pushes to the docket branch; origin/docket did not move")
 	}
+	mustContainProse(t, "guide", st.Guide, repairFollowsProse)
 	mustContain(t, "repair output", r.Stdout+r.Stderr, "docket repository prepare")
-	mustContain(t, "guide", st.Guide, repairPrepareOptionalProse)
+	mustContainProse(t, "guide", st.Guide, repairPrepareSkipProse)
 	local := strings.TrimSpace(c.mustGit(t, filepath.Join(st.Cwd, ".docket"), "rev-parse", "HEAD"))
-	if local == after {
-		t.Fatalf("the local .docket copy is already at the repaired tip; the guide's claim that prepare is optional is untested")
+	if local != after {
+		t.Fatalf("guide says repair brings the local .docket copy up to the repaired commit %s; it is at %s", after, local)
 	}
 }
 
