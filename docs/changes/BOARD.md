@@ -1,18 +1,12 @@
 # Backlog
 
-**550 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 381 done · 🗑️ 140 killed
+**550 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 382 done · 🗑️ 140 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0549](active/0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) | Bring the local metadata checkout up to date after every docket write | `medium` | `fix` | [spec](../superpowers/specs/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md) | `fix/bring-the-local-metadata-checkout-up-to-date-after-every-doc` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0550](active/0550-let-change-groom-set-a-change-s-priority.md) | Let change.groom set a change's priority | `medium` | `feat` | [#412](https://github.com/danielhanold/docket/pull/412) | awaiting merge |
 
 ## 🟣 Groomed (2)
 
@@ -87,7 +81,6 @@ graph TD
   0546 --> 0547
   0546 --> 0548
   0549
-  0550
   0192:::done
   0251:::done
   0393:::done
@@ -98,10 +91,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (521)</summary>
+<details><summary>✅🗑️ Archive — done + killed (522)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0550](archive/2026-10-15-0550-let-change-groom-set-a-change-s-priority.md) | Let change.groom set a change's priority | 2026-10-15 |
 | [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
 | [0546](archive/2026-10-11-0546-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md) | Per-agent prompt-cache TTL pin, shipped 1h for implement-next | 2026-10-11 |
 | [0544](archive/2026-10-08-0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | 2026-10-08 |
@@ -117,7 +111,6 @@ graph TD
 | [0531](archive/2026-10-06-0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md) | Keep the metadata branch on a local remote with neutral naming | 2026-10-06 |
 | [0530](archive/2026-10-06-0530-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) | Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR | 2026-10-06 |
 | [0529](archive/2026-10-06-0529-repoint-a-merged-pr-s-change-backlink-when-the-change-is-arc.md) | Repoint a merged PR's change backlink when the change is archived | 2026-10-06 |
-| [0526](archive/2026-10-05-0526-repository-init-writes-gate-off-and-configure-tests-then-ref.md) | repository configure-tests takes the test command as input | 2026-10-05 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -262,7 +255,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 38 done |
+| [2026-10](archive/) | 39 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

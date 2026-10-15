@@ -2,11 +2,11 @@
 id: 550
 slug: 'let-change-groom-set-a-change-s-priority'
 title: 'Let change.groom set a change''s priority'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-14'
-updated: '2026-10-14'
+updated: '2026-10-15'
 depends_on: []
 stacked_on:
 related: [461]
@@ -22,7 +22,7 @@ branch: 'feat/let-change-groom-set-a-change-s-priority'
 pr: 'https://github.com/danielhanold/docket/pull/412'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-14T23:44:09Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-14T23:44:09Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-14-let-change-groom-set-a-change-s-priority-design.md](../../superpowers/specs/2026-10-14-let-change-groom-set-a-change-s-priority-design.md) |
+| Spec (merged) | [2026-10-14-let-change-groom-set-a-change-s-priority-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-14-let-change-groom-set-a-change-s-priority-design.md) |
 | Plan | [2026-10-14-let-change-groom-set-a-change-s-priority.md](../../superpowers/plans/2026-10-14-let-change-groom-set-a-change-s-priority.md) |
 | Results | [2026-10-14-let-change-groom-set-a-change-s-priority-results.md](../../results/2026-10-14-let-change-groom-set-a-change-s-priority-results.md) |
 <!-- docket:artifacts:end -->

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0550 — Let change.groom set a change's priority](../changes/active/0550-let-change-groom-set-a-change-s-priority.md)**
+> ↩ **[Change 0550 — Let change.groom set a change's priority](../changes/archive/2026-10-15-0550-let-change-groom-set-a-change-s-priority.md)**
 <!-- docket:backlink:end -->
 
 # Results: Let change.groom set a change's priority
