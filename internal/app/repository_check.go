@@ -562,6 +562,13 @@ type checkCorpus struct {
 	board     corpusFile
 	adrIndex  corpusFile
 	artifacts map[string][]byte
+	locator   reposetup.RecordLocator // where hand-edit remedies point: the resolved metadata checkout
+}
+
+// checkRecordLocator names where check's hand-edit remedies point: the metadata
+// checkout, named as the topology findings already name it (metadataWorktreeRef).
+func checkRecordLocator(l layout.Layout) reposetup.RecordLocator {
+	return reposetup.RecordLocator{Checkout: metadataWorktreeRef(l)}
 }
 
 // corpusFile is one whole-file derived view read from the corpus: its bytes and
@@ -578,6 +585,7 @@ type corpusFile struct {
 // the check never fabricates absence (learning probe-error-is-not-clean-absence).
 func readCheckCorpus(ctx context.Context, git *gitcli.Client, sc setupContext) (checkCorpus, error) {
 	var corpus checkCorpus
+	corpus.locator = checkRecordLocator(sc.layout)
 	src, err := git.OpenObjectSource(ctx, sc.repo, gitcli.Revision{Commit: gitcli.ObjectID(sc.metadataTip)})
 	if err != nil {
 		return corpus, err
@@ -717,7 +725,7 @@ func checkCorpusOutcome(cfg config.Effective, corpus checkCorpus, readErr error)
 	if readErr != nil {
 		return nil, []reposetup.Finding{corpusUnreadableFinding(readErr)}
 	}
-	fm := corpusFindings(cfg, corpus.records)
+	fm := corpusFindings(cfg, corpus.records, corpus.locator)
 	var extra []reposetup.Finding
 	for _, df := range derivedViewFindings(cfg, corpus) {
 		extra = append(extra, df.Finding())
@@ -1038,9 +1046,12 @@ type corpusRecord struct {
 
 // corpusFindings is the pure report-only validation over already-read records:
 // PlanRepairs per change record for the closed repair roster, then a whole-corpus
-// BuildSnapshot whose error-severity findings surface as non-repairable
-// frontmatter findings. It is pure so it is unit-testable without Git.
-func corpusFindings(cfg config.Effective, recs []corpusRecord) []reposetup.RepairFinding {
+// BuildSnapshot whose error-severity findings surface as non-repairable findings
+// under the validator's own code (ReviewCode), worded by the shared table
+// (explainValidation) with hand-edit remedies pointing through loc. A path
+// PlanRepairs already named is not reported twice. It is pure so it is
+// unit-testable without Git.
+func corpusFindings(cfg config.Effective, recs []corpusRecord, loc reposetup.RecordLocator) []reposetup.RepairFinding {
 	var out []reposetup.RepairFinding
 	covered := map[string]bool{}
 	for _, r := range recs {
@@ -1081,12 +1092,9 @@ func corpusFindings(cfg config.Effective, recs []corpusRecord) []reposetup.Repai
 		if covered[f.Entity.Path] {
 			continue
 		}
-		out = append(out, reposetup.RepairFinding{
-			Path:       f.Entity.Path,
-			Field:      f.Field,
-			Repairable: false,
-			Message:    "metadata corpus finding: " + f.Code,
-		})
+		text := explainValidation(f, loc)
+		out = append(out, reposetup.RepairFinding{Path: validationRecordPath(f), Field: f.Field, Repairable: false,
+			ReviewCode: f.Code, Message: text.Message, Impact: text.Impact, Remedy: text.Remedy})
 	}
 	return out
 }

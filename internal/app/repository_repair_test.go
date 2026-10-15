@@ -54,7 +54,7 @@ func TestPlanRepositoryRepairComposesFrontmatterAndArtifactLinks(t *testing.T) {
 		t.Fatalf("composed bytes must carry BOTH repairs; got:\n%s", got)
 	}
 	recheck := checkCorpus{records: []corpusRecord{{path: path, bytes: got, kind: repository.KindChange, location: repository.LocationActive}}, link: repairLink()}
-	for _, f := range corpusFindings(cfg, recheck.records) {
+	for _, f := range corpusFindings(cfg, recheck.records, reposetup.RecordLocator{}) {
 		t.Errorf("re-check frontmatter finding on composed bytes: %+v", f)
 	}
 	for _, f := range derivedViewFindings(cfg, recheck) {

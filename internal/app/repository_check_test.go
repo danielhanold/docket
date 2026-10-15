@@ -133,7 +133,7 @@ func TestCorpusFindingsSurfacesUndecodable(t *testing.T) {
 		kind:     repository.KindChange,
 		location: repository.LocationActive,
 	}}
-	got := corpusFindings(config.Effective{}, recs)
+	got := corpusFindings(config.Effective{}, recs, reposetup.RecordLocator{})
 	if len(got) == 0 {
 		t.Fatal("corpusFindings returned no finding for an undecodable record")
 	}

@@ -63,6 +63,33 @@ type RepairFinding struct {
 	Repairable bool
 	Message    string
 	Patch      []byte // preview for repairable findings; nil otherwise
+
+	// ReviewCode, Impact, and Remedy are display-only: RepairDigest and
+	// ApplyRepairs never read them, and they stay out of the JSON output.
+	// ReviewCode is the code a non-repairable finding reports under when it
+	// came from somewhere other than the repair roster (a validator finding
+	// check surfaces); see FindingCode.
+	ReviewCode string `json:"-"`
+	Impact     string `json:"-"` // whether it matters if left alone
+	Remedy     string `json:"-"` // the producer's own remedy; empty selects frontmatterFinding's default
+}
+
+// CodeFrontmatterManualReview is the code a non-repairable frontmatter-shape
+// finding from PlanRepairs reports under.
+const CodeFrontmatterManualReview = "frontmatter-manual-review"
+
+// FindingCode is the code the finding reports under: the roster code for a
+// repairable finding; otherwise the ReviewCode when the producer set one (a
+// validator finding keeps its own code); otherwise
+// CodeFrontmatterManualReview.
+func (rf RepairFinding) FindingCode() string {
+	if rf.Repairable {
+		return string(rf.Code)
+	}
+	if rf.ReviewCode != "" {
+		return rf.ReviewCode
+	}
+	return CodeFrontmatterManualReview
 }
 
 // changeListFields is the set of change-manifest frontmatter fields the decode
