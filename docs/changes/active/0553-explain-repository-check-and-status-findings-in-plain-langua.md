@@ -13,7 +13,7 @@ related: [496, 403, 352, 533, 539]
 discovered_from: []
 adrs: [136]
 spec: 'docs/superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-15T21:56:25Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md](../../superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md) |
+| Plan | [2026-10-15-explain-repository-check-and-status-findings-in-plain-langua.md](../../superpowers/plans/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua.md) |
 | ADRs | [ADR-0136](../../adrs/0136-repair-on-a-migrated-repository-is-docket-repository-repair.md) |
 <!-- docket:artifacts:end -->
 
