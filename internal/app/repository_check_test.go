@@ -94,7 +94,7 @@ func TestRepositoryCheckJSONHumanEquivalence(t *testing.T) {
 	if !strings.Contains(human, findings[0].Code) {
 		t.Errorf("human text %q does not name finding code %q", human, findings[0].Code)
 	}
-	if !strings.Contains(human, string(reposetup.StateFresh)) {
+	if !strings.Contains(human, checkStatePhrases[reposetup.StateFresh]) {
 		t.Errorf("human text %q does not name the state", human)
 	}
 }

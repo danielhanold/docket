@@ -47,14 +47,15 @@ type RepositoryCheckResult struct {
 	human           string
 }
 
-// HumanText renders the human summary: the repository state, then one block per
-// finding naming its code, severity, ref, message, and remedy.
+// HumanText renders the human summary: a header naming the setup state in
+// plain words and counting the findings by severity (checkHeader), then one
+// block per finding naming its code, severity, ref, message, impact, and remedy.
 func (r RepositoryCheckResult) HumanText() string {
 	if r.human != "" {
 		return r.human
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "repository check: %s (%s)", r.Result, r.RepositoryState)
+	b.WriteString(checkHeader(r.RepositoryState, r.Findings))
 	// One block per finding, through the shared per-finding renderer that
 	// appendConfigFindingBlock also calls, so the healthy and refusal blocks
 	// cannot drift (appendFindingBlock, change 0403).
@@ -62,6 +63,71 @@ func (r RepositoryCheckResult) HumanText() string {
 		appendFindingBlock(&b, f)
 	}
 	return b.String()
+}
+
+// checkStatePhrases names each repository setup state in plain words for the
+// check header. TestCheckStatePhrasesCoverEveryState guards it in both
+// directions against the State constants declared in reposetup/classify.go.
+var checkStatePhrases = map[reposetup.State]string{
+	reposetup.StateHealthy:     "setup healthy",
+	reposetup.StateFresh:       "not set up yet",
+	reposetup.StateLegacy:      "old single-branch layout",
+	reposetup.StatePartial:     "migration interrupted",
+	reposetup.StateNeedsReview: "setup waiting for your review",
+	reposetup.StateConflict:    "setup conflict",
+	reposetup.StateUnknown:     "setup state unknown",
+}
+
+// checkHeader renders the check's first line: the state's plain phrase, then
+// either "no problems found" (healthy, no findings) or the finding counts, and
+// a reminder that check changed nothing. A blank or unrecognised state falls
+// back to the unknown phrase so the header never prints an empty state.
+func checkHeader(state string, findings []reposetup.Finding) string {
+	phrase, ok := checkStatePhrases[reposetup.State(state)]
+	if !ok {
+		phrase = checkStatePhrases[reposetup.StateUnknown]
+	}
+	const readOnly = " (read-only, nothing was changed)"
+	c := findingCounts(findings)
+	switch {
+	case c == "" && reposetup.State(state) == reposetup.StateHealthy:
+		return "repository check: " + phrase + ", no problems found"
+	case c == "":
+		return "repository check: " + phrase + readOnly
+	default:
+		return "repository check: " + phrase + ", " + c + readOnly
+	}
+}
+
+// findingCounts counts findings by severity as "1 error, 2 warnings": errors,
+// then warnings, then any other severity as "N other finding(s)". It returns
+// "" when there are no findings.
+func findingCounts(findings []reposetup.Finding) string {
+	var errs, warns, other int
+	for _, f := range findings {
+		switch f.Severity {
+		case reposetup.SeverityError:
+			errs++
+		case reposetup.SeverityWarning:
+			warns++
+		default:
+			other++
+		}
+	}
+	var parts []string
+	add := func(n int, noun string) {
+		if n == 0 {
+			return
+		}
+		if n != 1 {
+			noun += "s"
+		}
+		parts = append(parts, fmt.Sprintf("%d %s", n, noun))
+	}
+	add(errs, "error")
+	add(warns, "warning")
+	add(other, "other finding")
+	return strings.Join(parts, ", ")
 }
 
 // CheckExitCode maps the classified state and its findings to the 0/1/2 check

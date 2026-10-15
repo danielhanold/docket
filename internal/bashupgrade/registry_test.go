@@ -1136,7 +1136,7 @@ func runRepoConfirm(t *testing.T, c *upgradeCase, st *runState, body string) {
 		t.Fatalf("repo-confirm block must be exactly `docket repository check`:\n%s", body)
 	}
 	r := runBlock(t, c, st, body)
-	mustContain(t, "repository check output", r.Stdout+r.Stderr, "repository check: no-op (healthy)")
+	mustContain(t, "repository check output", r.Stdout+r.Stderr, "repository check: setup healthy, no problems found")
 }
 
 // The lines that open and close the dispatch block Bash docket wrote into a
