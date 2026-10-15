@@ -256,7 +256,7 @@ func inspectHookEntries(t Target, info fs.FileInfo, rec TargetRecord, hasRec boo
 	}
 	allow, allowOK := readAllowRules(data)
 	if len(t.AllowRules) > 0 && !allowOK {
-		return skip(t, withAllowRules(remedyAllowRulesInvalid, t)), nil
+		return skip(t, remedyAllowRulesInvalid), nil
 	}
 	t.retireHookCommands = staleHookCommands(t, entries, rec, hasRec)
 	if allowOK {
@@ -326,7 +326,7 @@ const (
 	remedyHookFileInvalid = "this hooks file is not a JSON object docket can edit (hooks must be an object and each event an array), " +
 		"so docket left it untouched and did not add its session-start entries; to install them, repair it by hand, then re-run"
 	remedyAllowRulesInvalid = "this settings file's permissions value is not a JSON object docket can edit (permissions must be an object and its allow value an array), " +
-		"so docket left it untouched and did not add its session-start entries; to install them, repair it by hand, then re-run"
+		"so docket left it untouched and did not add its session-start entries or its permissions.allow rules; to install them, repair it by hand, then re-run"
 )
 
 // remedyLinkDestination names the destination the plan wants, which is the one
