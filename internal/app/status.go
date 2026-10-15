@@ -12,6 +12,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/layout"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -214,7 +215,7 @@ func Status(ctx context.Context, reader StatusReader, opts StatusOptions) Status
 		r := corpusRecords(snap, blobByPath)
 		records = &r
 	}
-	findings := assembleFindings(pin.ConfigDiags, parseFindings, build.Report, artifactFindings)
+	findings := assembleFindings(pin.ConfigDiags, parseFindings, build.Report, artifactFindings, statusRecordLocator(pin.Layout))
 
 	readyIDs := make([]int, 0, len(ready))
 	for _, c := range ready {
@@ -653,15 +654,15 @@ func corpusRecords(snap domain.Snapshot, blobByPath map[string]StatusBlob) []Sta
 // diagnostics, then parse findings, then the validation report, then the
 // artifact/status-read findings. The validation report is already
 // deterministically ordered; the parse and artifact groups were sorted by their
-// producers.
-func assembleFindings(diags []config.Diagnostic, parse []StatusFinding, report domain.ValidationReport, artifact []StatusFinding) []StatusFinding {
+// producers. loc names where the validation findings' hand-edit remedies point.
+func assembleFindings(diags []config.Diagnostic, parse []StatusFinding, report domain.ValidationReport, artifact []StatusFinding, loc reposetup.RecordLocator) []StatusFinding {
 	findings := make([]StatusFinding, 0, len(diags)+len(parse)+len(artifact))
 	for _, d := range diags {
 		findings = append(findings, configFinding(d))
 	}
 	findings = append(findings, parse...)
 	for _, f := range report.Findings() {
-		findings = append(findings, validationFinding(f))
+		findings = append(findings, validationFinding(f, loc))
 	}
 	sortableArtifact := append([]StatusFinding(nil), artifact...)
 	sort.SliceStable(sortableArtifact, func(i, j int) bool {
@@ -688,9 +689,21 @@ func configFinding(d config.Diagnostic) StatusFinding {
 	}
 }
 
-// validationFinding normalizes a domain validation finding, synthesizing its
-// message from the code and detail (the domain finding carries no prose).
-func validationFinding(f domain.Finding) StatusFinding {
+// statusRecordLocator names where status's hand-edit remedies point: `.docket`
+// in a shared repository; a private checkout path is host-absolute, which
+// status never prints, so it is named in words.
+func statusRecordLocator(l layout.Layout) reposetup.RecordLocator {
+	if l.Mode == layout.Private {
+		return reposetup.RecordLocator{Label: "your private metadata checkout"}
+	}
+	return reposetup.RecordLocator{Checkout: layout.SharedWorktreeDir}
+}
+
+// validationFinding normalizes a domain validation finding. Its message,
+// impact, and remedy come from the shared plain-language table
+// (explainValidation), the same text `repository check` prints; loc names
+// where the remedy's hand edit happens.
+func validationFinding(f domain.Finding, loc reposetup.RecordLocator) StatusFinding {
 	related := make([]string, 0, len(f.Related))
 	for _, r := range f.Related {
 		related = append(related, entityIdentity(r))
@@ -698,6 +711,7 @@ func validationFinding(f domain.Finding) StatusFinding {
 	if len(related) == 0 {
 		related = nil
 	}
+	text := explainValidation(f, loc)
 	return StatusFinding{
 		Code:     f.Code,
 		Severity: string(f.Severity),
@@ -706,12 +720,15 @@ func validationFinding(f domain.Finding) StatusFinding {
 		Field:    f.Field,
 		Path:     f.Entity.Path,
 		Related:  related,
-		Message:  findingMessage(f),
+		Message:  text.Message,
+		Impact:   text.Impact,
+		Remedy:   text.Remedy,
 	}
 }
 
-// findingMessage renders a domain finding as deterministic prose: the code,
-// plus its detail pairs in sorted key order when present.
+// findingMessage renders a domain finding as the code plus its detail pairs in
+// sorted key order when present. It is explainValidation's fallback for a code
+// the plain-language table has no entry for, so a message is never empty.
 func findingMessage(f domain.Finding) string {
 	if len(f.Detail) == 0 {
 		return f.Code

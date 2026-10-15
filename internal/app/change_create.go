@@ -13,6 +13,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
@@ -430,10 +431,13 @@ func slugifyTitle(title string) string {
 
 // findingsToStatus converts a slice of domain findings into the DTO shape,
 // always returning a non-nil slice so the result's Findings marshals as [].
+// A mutation operation has no resolved layout at this call site, so remedies
+// use the zero RecordLocator, which names a record's path on the metadata
+// branch.
 func findingsToStatus(findings []domain.Finding) []StatusFinding {
 	out := make([]StatusFinding, 0, len(findings))
 	for _, f := range findings {
-		out = append(out, validationFinding(f))
+		out = append(out, validationFinding(f, reposetup.RecordLocator{}))
 	}
 	return out
 }
