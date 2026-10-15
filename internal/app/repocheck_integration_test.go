@@ -249,6 +249,50 @@ func TestIntegrationRepoCheckDerivedViewDrift(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoCheckRecordRemediesFollowSetupState proves a record or
+// generated-view remedy is valid in the state that produced it: in
+// needs-review `docket repository repair` refuses, so no remedy may open with
+// it or send the reader to a `.docket` checkout; each names the record on the
+// metadata branch and points at the setup finding first.
+//
+// Mutation probe: make checkRecordLocator ignore its state argument — this
+// test must redden.
+func TestIntegrationRepoCheckRecordRemediesFollowSetupState(t *testing.T) {
+	r := newInitRepo(t, healthySetupYML, nil)
+	if res := r.runInit(t); res.Result != ResultApplied {
+		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	r.writeDocketFileAndPush(t, "docs/changes/BOARD.md", "# Backlog\n\nhand-written stale board\n", "publish a stale inline board")
+	r.writeDocketFileAndPush(t, "docs/changes/active/0001-x.md",
+		"---\nid: 1\nslug: x\nstatus: proposed\ntitle: yes\ntype: feature\nrelated: foo\n---\n\nBody.\n", "publish a record needing repair")
+
+	res := r.runCheck(t)
+	if res.RepositoryState != string(reposetup.StateNeedsReview) {
+		t.Fatalf("state = %q (%s), want needs-review", res.RepositoryState, res.HumanText())
+	}
+	seen := map[string]bool{}
+	for _, f := range res.Findings {
+		if f.Repairable == nil && f.Code != reposetup.CodeFrontmatterManualReview {
+			continue // a setup finding; its own remedy is the setup step
+		}
+		seen[f.Code] = true
+		if strings.Contains(f.Remedy, "`.docket") || strings.Contains(f.Remedy, "from `") {
+			t.Errorf("%s remedy names a checkout that may not exist: %q", f.Code, f.Remedy)
+		}
+		if strings.HasPrefix(f.Remedy, "Run `docket repository repair`") {
+			t.Errorf("%s remedy offers a repair that refuses in needs-review: %q", f.Code, f.Remedy)
+		}
+		if !strings.Contains(strings.ToLower(f.Remedy), "once the setup finding above is resolved") {
+			t.Errorf("%s remedy does not point at the setup finding first: %q", f.Code, f.Remedy)
+		}
+	}
+	for _, code := range []string{reposetup.CodeBoardStale, string(reposetup.RepairQuoteScalar), reposetup.CodeFrontmatterManualReview} {
+		if !seen[code] {
+			t.Errorf("population floor: no %s finding; findings: %+v", code, res.Findings)
+		}
+	}
+}
+
 // TestIntegrationRepoCheckIsReadOnly proves check performs no write: across
 // several fixture states the local refs (excluding refs/remotes/*, which a bounded
 // fetch may advance), the primary HEAD, and both worktrees' porcelain status are

@@ -28,10 +28,20 @@ import (
 // (for example "your private metadata checkout") and is used only when
 // Checkout is empty — the form for output that must not print a host-absolute
 // path. The zero value names the path "on the metadata branch".
+//
+// SetupBlocked marks a repository whose setup is not healthy: its checkout may
+// not exist yet and `docket repository repair` refuses until the setup is
+// fixed, so every remedy names the record on the metadata branch (Checkout and
+// Label are ignored) and sends the reader to the setup finding before any
+// repair.
 type RecordLocator struct {
-	Checkout string
-	Label    string
+	Checkout     string
+	Label        string
+	SetupBlocked bool
 }
+
+// setupResolved is the condition a SetupBlocked remedy puts before any repair.
+const setupResolved = "once the setup finding above is resolved"
 
 // where renders the file reference for rel, or "" when rel is empty (an edit
 // that spans several records names no single file).
@@ -39,6 +49,8 @@ func (l RecordLocator) where(rel string) string {
 	switch {
 	case rel == "":
 		return ""
+	case l.SetupBlocked:
+		return "`" + rel + "` on the metadata branch"
 	case l.Checkout != "":
 		return "`" + filepath.Join(l.Checkout, filepath.FromSlash(rel)) + "`"
 	case l.Label != "":
@@ -53,6 +65,8 @@ func (l RecordLocator) where(rel string) string {
 // uncommitted edit in the checkout fixes nothing.
 func (l RecordLocator) commitClause() string {
 	switch {
+	case l.SetupBlocked:
+		return "commit and push it"
 	case l.Checkout != "":
 		return "commit and push it from `" + l.Checkout + "`"
 	case l.Label != "":
@@ -73,6 +87,9 @@ func (l RecordLocator) HandEditThenRepair(instruction, rel string) string {
 	if w := l.where(rel); w != "" {
 		s += " in " + w
 	}
+	if l.SetupBlocked {
+		return s + ", " + l.commitClause() + ". " + capitalizeFirst(setupResolved) + ", run `docket repository repair` so the board and link blocks catch up."
+	}
 	return s + ", " + l.commitClause() + ", then run `docket repository repair` so the board and link blocks catch up."
 }
 
@@ -81,11 +98,29 @@ func (l RecordLocator) HandEditThenRepair(instruction, rel string) string {
 // lowercase clause) and the equivalent hand edit second. instruction and rel
 // are as for HandEditThenRepair.
 func (l RecordLocator) RepairOrHandEdit(action, instruction, rel string) string {
+	if l.SetupBlocked {
+		s := capitalizeFirst(instruction)
+		if w := l.where(rel); w != "" {
+			s += " in " + w
+		}
+		return s + " by hand and " + l.commitClause() + ", or, " + setupResolved + ", run `docket repository repair` to " + action + " (it shows the edit first)."
+	}
 	s := "Run `docket repository repair` to " + action + " (it shows the edit first), or " + instruction
 	if w := l.where(rel); w != "" {
 		s += " in " + w
 	}
 	return s + " by hand and " + l.commitClause() + "."
+}
+
+// RunRepair is the remedy for a generated view only `docket repository repair`
+// rewrites: purpose is what follows the command (" to regenerate it (it shows
+// the change first)", or ""). When the setup is blocked the repair refuses, so
+// the setup step comes first.
+func (l RecordLocator) RunRepair(purpose string) string {
+	if l.SetupBlocked {
+		return capitalizeFirst(setupResolved) + ", run `docket repository repair`" + purpose + "."
+	}
+	return "Run `docket repository repair`" + purpose + "."
 }
 
 // PlainDocumentError renders a document-parse error for a finding message:

@@ -57,6 +57,28 @@ func TestRecordLocatorRepairOrHandEdit(t *testing.T) {
 	}
 }
 
+// TestRecordLocatorSetupBlocked pins the unhealthy-setup wording: a set
+// Checkout is ignored (it may not exist yet) and every repair waits on the
+// setup finding, because repair refuses until the setup is fixed.
+func TestRecordLocatorSetupBlocked(t *testing.T) {
+	loc := RecordLocator{Checkout: ".docket", Label: "your private metadata checkout", SetupBlocked: true}
+	cases := []struct{ name, got, want string }{
+		{"hand edit", loc.HandEditThenRepair(locatorInstr, locatorRel),
+			"Remove `172` from `depends_on` in `" + locatorRel + "` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up."},
+		{"repair or hand edit", loc.RepairOrHandEdit("remove it", "delete the `claimed_at:` line", locatorRel),
+			"Delete the `claimed_at:` line in `" + locatorRel + "` on the metadata branch by hand and commit and push it, or, once the setup finding above is resolved, run `docket repository repair` to remove it (it shows the edit first)."},
+		{"run repair", loc.RunRepair(" to regenerate it"),
+			"Once the setup finding above is resolved, run `docket repository repair` to regenerate it."},
+		{"run repair, healthy", RecordLocator{Checkout: ".docket"}.RunRepair(""),
+			"Run `docket repository repair`."},
+	}
+	for _, c := range cases {
+		if c.got != c.want {
+			t.Errorf("%s:\n got %q\nwant %q", c.name, c.got, c.want)
+		}
+	}
+}
+
 func TestPlainDocumentError(t *testing.T) {
 	err := &document.Error{Kind: document.KindMarkerImbalance, Name: "artifacts", Line: 12, Msg: "start marker has no matching end"}
 	if got, want := PlainDocumentError(err), "start marker has no matching end (`artifacts`) on line 12"; got != want {
