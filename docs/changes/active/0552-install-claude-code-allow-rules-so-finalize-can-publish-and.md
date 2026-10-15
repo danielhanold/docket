@@ -2,7 +2,7 @@
 id: 552
 slug: 'install-claude-code-allow-rules-so-finalize-can-publish-and'
 title: 'Install Claude Code allow rules so finalize can publish and merge under auto mode'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-15'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/install-claude-code-allow-rules-so-finalize-can-publish-and'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/415'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-15T19:47:16Z'
@@ -53,3 +53,12 @@ Per-repository grants (`.claude/settings.local.json`) — more surfaces, absent 
 ### 2026-10-15
 
 2026-10-15: Traced current code on main (9ace757c3). The spec still holds: `harness.ClaudeHookTarget` in internal/harness/trigger.go owns the two SessionStart hooks through one hook-entries target (internal/install/hook_entries.go), no allow-rule support exists yet, and finalize.publish / finalize.merge are cataloged as `docket finalize publish` / `docket finalize merge`. No related or archived change has done this work. ADR 145 already linked. Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: d11b1b9bd61e283773d4d66e64712a159a6d384a
+ran_at:   2026-10-15T20:15:23Z
+<!-- docket:build-evidence:end -->

@@ -1,12 +1,12 @@
 # Backlog
 
-**553 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 384 done · 🗑️ 140 killed
+**553 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 384 done · 🗑️ 140 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0552](active/0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | `medium` | `fix` | [spec](../superpowers/specs/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md) | `fix/install-claude-code-allow-rules-so-finalize-can-publish-and` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0552](active/0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | `medium` | `fix` | [#415](https://github.com/danielhanold/docket/pull/415) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
