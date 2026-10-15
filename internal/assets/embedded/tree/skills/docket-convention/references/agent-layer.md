@@ -151,7 +151,9 @@ In a private repository, `agent_harnesses` writes the `docket:dispatch` block in
 - a `dckt:private-instructions` pointer block in `~/.codex/AGENTS.md`, which Codex follows on a best-effort basis.
 
 Outside a private repository `docket instructions` prints nothing, so the triggers are inert there. Uninstall
-removes each trigger only while it is unchanged.
+removes each trigger only while it is unchanged. The same `settings.json` also gets two `permissions.allow` rules,
+one for each of the `finalize.publish` and `finalize.merge` operations, in every repository. They let finalize publish
+and merge under Claude Code's auto mode. They are a permission grant, not a trigger.
 
 ## Launch posture
 
