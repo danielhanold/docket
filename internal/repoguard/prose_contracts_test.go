@@ -1211,6 +1211,15 @@ var alignmentContracts = []proseContract{
 		absent: oneLayoutAbsent},
 	{sentinel: "align_0502_one_layout", file: "skills/docket-status/SKILL.md",
 		absent: oneLayoutAbsent},
+	// 0551: finalize checks the change out before any step reads the workspace,
+	// in every gate mode, and routes owned-workspace refusals on to finalize.rebase.
+	{sentinel: "align_0551_finalize_checkout", file: "skills/docket-finalize-change/SKILL.md",
+		present: []string{
+			"the `workspace.checkout` operation with `--id <id> --revision <revision> --head <feature head>`",
+			"in every gate mode",
+			"`blocked` with `workspace-dirty`, `local-head-mismatch`, or `workspace-not-ready`",
+			"any other `blocked` is `halted`",
+		}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.

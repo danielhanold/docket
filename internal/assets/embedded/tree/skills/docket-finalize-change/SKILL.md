@@ -66,6 +66,8 @@ The steps below run for the one selected change. Each is one operation; read its
 
 The `context.finalize` operation with `[--id <id> | --allowlist <ids>]`. Read-only. Select per *Selection* above. A candidate whose only skip reason is `approval-required` on an explicitly named or allowlisted run carries an `override_note` and proceeds; any other skip reason on the selected candidate is `halted`.
 
+**Local checkout.** When the selected candidate's PR is open, put the change into its own workspace on this machine before any step that reads it, in every gate mode (`finalize.merge` compares the local head even when `finalize.gate` is `off`): the `workspace.checkout` operation with `--id <id> --revision <revision> --head <feature head>`. It adopts the pushed branch only at the head the PR and the remote agree on, and removes a foreign worktree only when it is provably clean at that head. Route on `disposition`: `existing`/`attached` - continue, naming any `foreign-worktree-removed` finding's path in the final report; `blocked` with `workspace-dirty`, `local-head-mismatch`, or `workspace-not-ready` - the workspace is already docket's own (an owned rebase may be in flight), so continue and let `finalize.rebase` recover or refuse it; any other `blocked` is `halted`, relaying the message verbatim; `contended` - re-read `context.finalize` (the run is `contended`); `unknown` - `halted`. A candidate whose PR already merged has nothing to check out and skips this.
+
 ### 2. Retarget authorized children (only when open children exist)
 
 If the candidate has open child PRs targeting this change's branch, they must be retargeted onto its effective base **before** the merge, or the merge refuses with `not-mergeable`/an open-children condition.
