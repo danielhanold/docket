@@ -683,7 +683,7 @@ func requireReadyWorkspace(opKey string, rc *rebaseContext, expectedHead string)
 		return &r
 	default:
 		r := rebaseRefusal(opKey, ResultBlocked, RebaseDispBlocked, ReasonRebaseWorkspaceNotReady,
-			fmt.Sprintf("the feature workspace is %q, not the clean registered feature state", rc.insp.Kind), int(rc.change.ID()))
+			workspaceNotReadyMessage(rc), int(rc.change.ID()))
 		return &r
 	}
 	if string(rc.insp.HeadCommit) != expectedHead {
@@ -692,6 +692,19 @@ func requireReadyWorkspace(opKey string, rc *rebaseContext, expectedHead string)
 		return &r
 	}
 	return nil
+}
+
+// workspaceNotReadyMessage carries the inspection's own reason and, when no
+// docket workspace holds the change here, the command that checks it out.
+func workspaceNotReadyMessage(rc *rebaseContext) string {
+	msg := fmt.Sprintf("the feature workspace is %q, not the clean registered feature state", rc.insp.Kind)
+	if rc.insp.Detail != "" {
+		msg += " (" + rc.insp.Detail + ")"
+	}
+	if rc.insp.Kind == workspace.StateAbsent || rc.insp.Kind == workspace.StateForeign {
+		msg += fmt.Sprintf("; check the change out into its own worktree with `docket workspace checkout --id %d`", int(rc.change.ID()))
+	}
+	return msg
 }
 
 // ---------------------------------------------------------------------------
@@ -774,10 +787,18 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 		return recoverFromReceipt(ctx, deps, repoDir, rc, req, pr, baseHead, remoteHead, ownedPrefix, existing)
 	}
 
-	// Fresh attempt (no owned receipt). Guard against any foreign in-progress rebase
-	// FIRST — a rebase this call did not start is retained as such, never demoted to
-	// a mere dirty-tree refusal — and before writing a receipt, so a blocked
-	// precondition leaves Git and the receipt untouched.
+	// Fresh attempt (no owned receipt). A workspace not registered at its
+	// canonical path (absent, foreign, a cleaned tombstone) has no checkout Git
+	// can probe: report it not ready, with the inspection's reason and remedy,
+	// before any Git runs in a directory that may not exist. A registered one
+	// then has a foreign in-progress rebase detected FIRST (a rebase detaches the
+	// worktree, so Inspect alone calls it a mismatch), never demoted to a
+	// dirty-tree or not-ready refusal. Both precede the receipt.
+	if !rc.insp.Registered {
+		if r := requireReadyWorkspace(op, rc, req.Head); r != nil {
+			return *r
+		}
+	}
 	state, err := deps.Planning.Client.RebaseState(ctx, rc.wsDir)
 	if err != nil {
 		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe, err.Error(), id)

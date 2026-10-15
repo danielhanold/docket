@@ -10,6 +10,7 @@ import (
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/workspace"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -2532,5 +2533,37 @@ func TestIntegrationFinalizeRebasePublishedRefreshInterruption(t *testing.T) {
 	}
 	if replay.Attempt != crashed.Attempt {
 		t.Errorf("replay attempt = %q, want the one refreshed attempt %q", replay.Attempt, crashed.Attempt)
+	}
+}
+
+// TestIntegrationFinalizeRebaseGateWorkspaceNotReady proves a fresh rebase on a
+// clone with no registered workspace at the canonical path (absent, or the branch
+// held by a foreign worktree) is refused workspace-not-ready with the inspection's
+// reason and the checkout remedy, before any Git runs in the missing directory.
+func TestIntegrationFinalizeRebaseGateWorkspaceNotReady(t *testing.T) {
+	requireRealGit(t)
+	for _, tc := range []struct {
+		name, detail string
+		foreign      bool
+	}{{"absent", `"absent"`, false}, {"foreign", "no workspace manifest; local feature branch exists", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := setupRebaseFixture(t, planRepoModes()[0])
+			f.forgetLocalWorkspace(t)
+			if tc.foreign {
+				b := f.target.FeatureBranch()
+				runGit(t, f.repo.invocation, "fetch", "-q", "origin", "refs/heads/"+b+":refs/heads/"+b)
+				runGit(t, f.repo.invocation, "worktree", "add", "-q", filepath.Join(f.repo.root, "gh-checkout"), b)
+			}
+			gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+			res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
+				FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
+			assertRebaseRefused(t, res, ResultBlocked, ReasonRebaseWorkspaceNotReady)
+			for _, want := range []string{tc.detail, fmt.Sprintf("docket workspace checkout --id %d", f.id)} {
+				if !strings.Contains(res.Message, want) {
+					t.Errorf("message %q lacks %q", res.Message, want)
+				}
+			}
+			f.receiptAbsent(t)
+		})
 	}
 }
