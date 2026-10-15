@@ -198,6 +198,13 @@ var attachRows = []attachRow{
 		gitOut(t, r.Primary, "worktree", "add", "-q", wsPathOf(repo), coFeature)
 		return head, "", ""
 	}},
+	// The attach landed at the old tip but the in-place fast-forward did not run.
+	{name: "resume-attached-behind", arrange: func(t *testing.T, r *wsRepos, repo gitcli.Repository, tgt Target, head gitcli.ObjectID) (gitcli.ObjectID, string, gitcli.ObjectID) {
+		writeStateManifest(t, repo, tgt, r.mainTip(t), PhaseAllocating)
+		r.localFeatureAt(t, head)
+		gitOut(t, r.Primary, "worktree", "add", "-q", wsPathOf(repo), coFeature)
+		return r.writerCommit(t, coFeature, "two.txt"), "", head
+	}},
 	{name: "foreign-elsewhere", arrange: func(t *testing.T, r *wsRepos, repo gitcli.Repository, tgt Target, head gitcli.ObjectID) (gitcli.ObjectID, string, gitcli.ObjectID) {
 		r.localFeatureAt(t, head)
 		p := r.foreignAt(t, r.elsewhere())
@@ -325,6 +332,18 @@ var refuseRows = []refuseRow{
 			gitOut(t, r.Primary, "fetch", "-q", "origin", "main")
 			writeStateManifest(t, repo, tgt, moved, PhaseAllocating)
 			return head, ""
+		}},
+	// The in-place fast-forward was killed between its ref swap and its tree update.
+	{name: "resume-interrupted-fast-forward", disp: "blocked", reason: CheckoutReasonWorkspaceNotReady, owned: true, mention: "reset --merge",
+		arrange: func(t *testing.T, r *wsRepos, repo gitcli.Repository, tgt Target, head gitcli.ObjectID) (gitcli.ObjectID, string) {
+			writeStateManifest(t, repo, tgt, r.mainTip(t), PhaseAllocating)
+			r.localFeatureAt(t, head)
+			ws := wsPathOf(repo)
+			gitOut(t, r.Primary, "worktree", "add", "-q", ws, coFeature)
+			next := r.writerCommit(t, coFeature, "two.txt")
+			gitOut(t, r.Primary, "fetch", "-q", "origin", coFeature)
+			gitOut(t, ws, "update-ref", "-m", "docket: fast-forward", "refs/heads/"+coFeature, string(next), string(head))
+			return next, ws
 		}},
 	unsafeRow("proof-dirty-tracked", ProofDirty, "", false, func(t *testing.T, r *wsRepos, p string) {
 		writeWorktreeFile(t, p, "main.go", "package main // edited\n")
@@ -563,5 +582,77 @@ func TestIntegrationWorkspaceCheckoutForeignRebaseElsewhereRecovers(t *testing.T
 	assertAttached(t, svc, repo, tgt, res, head)
 	if res.RemovedWorktree != foreign {
 		t.Errorf("RemovedWorktree = %q; want %q", res.RemovedWorktree, foreign)
+	}
+}
+
+// A foreign worktree mid-rebase or mid-bisect outside .worktrees/ is listed as
+// detached, yet its operation still owns the branch. With the local branch
+// behind the expected head, git's own in-use check must refuse the attach
+// before anything moves the branch: the branch stays put, the operation stays
+// intact, and an allocating breadcrumb is left. Once the human finishes the
+// operation and removes that worktree, a rerun resumes and fast-forwards.
+func TestIntegrationWorkspaceCheckoutForeignOperationElsewhereLocalBehind(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		start  func(t *testing.T, r *wsRepos, dir string)
+		marker string // the git-path whose presence proves the operation is in progress
+		finish []string
+	}{
+		{name: "rebase", marker: "rebase-merge", finish: []string{"rebase", "--abort"},
+			start: func(t *testing.T, r *wsRepos, dir string) { r.conflictedRebase(t, dir) }},
+		{name: "bisect", marker: "BISECT_START", finish: []string{"bisect", "reset"},
+			start: func(t *testing.T, r *wsRepos, dir string) {
+				gitOut(t, dir, "bisect", "start")
+				gitOut(t, dir, "checkout", "-q", "--detach", "HEAD~1")
+			}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := mainModeRepo(t)
+			old := r.pushBranch(t, coFeature, "main")
+			r.localFeatureAt(t, old)
+			foreign := r.foreignAt(t, r.elsewhere())
+			tc.start(t, r, foreign)
+			if _, err := gitTry(foreign, "symbolic-ref", "--quiet", "HEAD"); err == nil {
+				t.Fatal("fixture: the foreign worktree is still attached; the detached listing is the point")
+			}
+			head := r.writerCommit(t, coFeature, "two.txt")
+			markerPath := gitOut(t, foreign, "rev-parse", "--git-path", tc.marker)
+			if !filepath.IsAbs(markerPath) {
+				markerPath = filepath.Join(foreign, markerPath)
+			}
+			foreignHead := gitOut(t, foreign, "rev-parse", "HEAD")
+			svc, repo := r.newService(t)
+			tgt := freshTarget(t, 7)
+
+			if _, err := svc.Checkout(context.Background(), coReq(repo, tgt, head, "")); err == nil {
+				t.Fatal("Checkout over a foreign operation = nil error; want git's refusal")
+			}
+			if got := gitOut(t, r.Primary, "rev-parse", "refs/heads/"+coFeature); got != string(old) {
+				t.Fatalf("local branch moved %s -> %s under the foreign %s", old, got, tc.name)
+			}
+			if _, err := os.Stat(markerPath); err != nil {
+				t.Fatalf("the foreign %s was disturbed: %v", tc.name, err)
+			}
+			if got := gitOut(t, foreign, "rev-parse", "HEAD"); got != foreignHead {
+				t.Errorf("foreign HEAD moved %s -> %s", foreignHead, got)
+			}
+			if _, err := os.Lstat(wsPathOf(repo)); !os.IsNotExist(err) {
+				t.Errorf("the target path was created (%v)", err)
+			}
+			if m, ok, err := loadManifest(metaDirOf(repo, tgt)); err != nil || !ok || m.Phase != PhaseAllocating {
+				t.Fatalf("manifest %v %q %v; want an allocating breadcrumb", ok, m.Phase, err)
+			}
+
+			gitOut(t, foreign, tc.finish...)
+			if got := gitOut(t, r.Primary, "rev-parse", "refs/heads/"+coFeature); got != string(old) {
+				t.Fatalf("finishing the %s left the branch at %s; want %s", tc.name, got, old)
+			}
+			gitOut(t, r.Primary, "worktree", "remove", foreign)
+			res := runCheckout(t, svc, repo, tgt, head, "")
+			assertAttached(t, svc, repo, tgt, res, head)
+			if res.FastForwardedFrom != old {
+				t.Errorf("FastForwardedFrom = %q; want %q", res.FastForwardedFrom, old)
+			}
+		})
 	}
 }

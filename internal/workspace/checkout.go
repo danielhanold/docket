@@ -8,11 +8,16 @@ package workspace
 // Prepare refuses any branch it did not create, because a fresh build has
 // nothing to prove that branch against. Checkout deliberately adopts one: the
 // expected head is proven, and every action is checked against it. It adopts a
-// local branch at or behind that head (moving it only by compare-and-swap
-// fast-forward), and removes a foreign worktree holding the branch only when
-// every removalProof holds, through git's own clean-only remove. Every other
-// local state is a blocked or contended value that leaves the repository as it
-// was (only the per-workspace lock dir and fetched remote-tracking refs change).
+// local branch at or behind that head, and removes a foreign worktree holding
+// the branch only when every removalProof holds, through git's own clean-only
+// remove. A branch that is behind moves only after git's own in-use check has
+// attached it to the target worktree, and then only by a compare-and-swap
+// fast-forward inside that worktree: `git worktree list` shows a worktree
+// mid-rebase or mid-bisect as detached, so only git's check sees that its
+// operation still owns the branch, and a branch moved under it would break the
+// operation's continue and abort. Every other local state is a blocked or
+// contended value that leaves the repository as it was (only the per-workspace
+// lock dir and fetched remote-tracking refs change).
 //
 // The order mirrors Prepare: validate, take the per-workspace operation lock,
 // fetch, classify the manifest slot, then finish every probe and decision
@@ -126,8 +131,8 @@ type checkoutPlan int
 const (
 	planCreate      checkoutPlan = iota // no local branch: create it at the expected head
 	planAttach                          // local branch at the expected head: attach it
-	planFastForward                     // local branch behind: CAS fast-forward, then attach
-	planRegistered                      // a resumed checkout already attached the branch at the target
+	planFastForward                     // local branch behind: attach at its tip (unless already registered), then fast-forward in place
+	planRegistered                      // a resumed checkout already attached the branch at the target, at the head
 )
 
 // unchanged is the suffix every refusal message carries.
@@ -319,12 +324,28 @@ func (s *Service) checkoutAttach(ctx context.Context, req CheckoutRequest, out C
 	switch {
 	case candidateHolds:
 		plan = planAttach
+	case registered && tip == head:
+		// A fast-forward killed between its ref swap and its tree update leaves
+		// the branch at the head with the old files staged against it.
+		interrupted, err := s.git.InterruptedFastForward(ctx, intended, target.FeatureRef)
+		if err != nil {
+			return CheckoutResult{}, mapGitFailure(checkoutOp, "inventory", err)
+		}
+		if interrupted {
+			return out.refuse(CheckoutBlocked, CheckoutReasonWorkspaceNotReady,
+				fmt.Sprintf("the interrupted checkout at %s stopped mid fast-forward: %s moved to %s but its files did not; finish it with git -C %s reset --merge HEAD (it refuses rather than overwrite a local edit), never commit the staged changes, and retry", intended, branch, head, intended)), nil
+		}
+		plan = planRegistered
 	case registered:
-		if tip != head {
+		behind, err := s.git.IsAncestorIgnoringReplacements(ctx, repo, tip, head)
+		if err != nil {
+			return CheckoutResult{}, mapGitFailure(checkoutOp, "inventory", err)
+		}
+		if !behind {
 			return out.refuse(CheckoutBlocked, CheckoutReasonLocalHeadMismatch,
 				fmt.Sprintf("the interrupted workspace at %s holds %s at %s, not the expected head %s; it was left as is", intended, branch, tip, head)), nil
 		}
-		plan = planRegistered
+		plan = planFastForward
 	case !branchPresent:
 		plan = planCreate
 	case tip == head:
@@ -423,7 +444,16 @@ func (s *Service) checkoutAttach(ctx context.Context, req CheckoutRequest, out C
 			return CheckoutResult{}, mapGitFailure(checkoutOp, "worktree", err)
 		}
 	case planFastForward:
-		if err := s.git.FastForwardBranchRef(ctx, repo, target.FeatureRef, tip, head); err != nil {
+		// Attach first, so git's own in-use check refuses a branch that a
+		// rebase or bisect in another worktree still owns before anything
+		// moves it; the branch then moves only inside the worktree it is
+		// checked out in, by compare-and-swap from the inspected tip.
+		if !registered {
+			if err := s.git.AttachBranchWorktree(ctx, repo, intended, target.FeatureRef); err != nil {
+				return CheckoutResult{}, mapGitFailure(checkoutOp, "worktree", err)
+			}
+		}
+		if err := s.git.FastForwardCheckedOutBranch(ctx, intended, target.FeatureRef, tip, head); err != nil {
 			now, rerr := s.git.ResolveRef(ctx, repo, target.FeatureRef)
 			gone := false
 			if rerr != nil {
@@ -439,9 +469,6 @@ func (s *Service) checkoutAttach(ctx context.Context, req CheckoutRequest, out C
 			return CheckoutResult{}, mapGitFailure(checkoutOp, "allocate", err)
 		}
 		out.FastForwardedFrom = tip
-		if err := s.git.AttachBranchWorktree(ctx, repo, intended, target.FeatureRef); err != nil {
-			return CheckoutResult{}, mapGitFailure(checkoutOp, "worktree", err)
-		}
 	case planAttach:
 		if err := s.git.AttachBranchWorktree(ctx, repo, intended, target.FeatureRef); err != nil {
 			return CheckoutResult{}, mapGitFailure(checkoutOp, "worktree", err)
