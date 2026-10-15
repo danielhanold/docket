@@ -1,0 +1,45 @@
+---
+id: 552
+slug: 'install-claude-code-allow-rules-so-finalize-can-publish-and'
+title: 'Install Claude Code allow rules so finalize can publish and merge under auto mode'
+status: 'proposed'
+priority: 'medium'
+type: 'fix'
+created: '2026-10-15'
+updated: '2026-10-15'
+depends_on: []
+stacked_on:
+related: [27, 408]
+discovered_from: []
+adrs: [145]
+spec:
+plan:
+results:
+trivial: false
+auto_groomable:
+branch_prefix:
+branch:
+pr:
+blocked_by:
+reconciled: false
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| ADRs | [ADR-0145](../../adrs/0145-private-repository-parent-facing-rules-load-through-content.md) |
+<!-- docket:artifacts:end -->
+
+## Why
+
+When implement-next has just run the full suite green and finalize runs right after, finalize correctly skips re-running the tests. Claude Code's auto-mode classifier reads the resulting `docket finalize publish` / `docket finalize merge` as a "CI bypass" and soft-denies them, so an otherwise clean finalize stalls on a human prompt. Adding `Bash(docket finalize publish:*)` and `Bash(docket finalize merge:*)` to `permissions.allow` in the user-level `~/.claude/settings.json` cleared the denial (observed on another machine, 2026-10). Today every user has to discover and hand-add those rules on every machine.
+
+## What changes
+
+`docket install` manages the two allow rules in `~/.claude/settings.json`, alongside the two SessionStart hooks it already owns there. The existing Claude settings target grows a second owned list (allow rules) next to its hook commands, because the install record allows one managed target per file. Every install converges the file: missing rules are added back, rules a newer docket no longer ships are retired, and an already-correct file stays byte-identical. Uninstall removes them with the hooks. On by default whenever the Claude harness is installed, no opt-out knob. A file docket cannot edit (symlink, unparseable) is skipped with a warning naming the rules to add by hand. A test pins each rule to the capability catalog's argv for `finalize.publish` / `finalize.merge`. Install docs list the rules.
+
+## Out of scope
+
+Per-repository grants (`.claude/settings.local.json`) — more surfaces, absent on fresh clones, and private repositories keep nothing in the root. Other harnesses (Cursor, Codex, OpenCode have no such classifier). The `dckt` alias spelling. Any other finalize subcommand or docket command. A config knob to disable the rules. A blocking probe of classifier behavior. Generalizing the hook-entries machinery into a generic JSON-array target.
