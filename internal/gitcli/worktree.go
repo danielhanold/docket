@@ -29,6 +29,9 @@ type WorktreeInfo struct {
 	Detached bool
 	Branch   RefName
 	Prunable bool
+	// Locked is Git's "locked" annotation (`git worktree lock`, with or without
+	// a reason): git refuses to remove or prune it until it is unlocked.
+	Locked bool
 }
 
 // AddDetachedWorktree registers a detached worktree at path checked out at
@@ -247,8 +250,8 @@ func (c *Client) ListWorktrees(ctx context.Context, repo Repository) ([]Worktree
 // `worktree list --porcelain -z`. Each worktree stanza is a run of
 // "label value" (or bare "label") fields terminated by an empty field; the
 // "worktree <path>" field opens a stanza. Recognized attributes are worktree,
-// HEAD, branch, detached, and prunable; bare and any other attribute (locked,
-// …) are tolerated and ignored. A HEAD value must be a valid object id; a
+// HEAD, branch, detached, prunable, and locked (with or without a reason); bare
+// and any other attribute are tolerated and ignored. A HEAD value must be a valid object id; a
 // stanza without a worktree path is malformed.
 func parseWorktreeListZ(out []byte) ([]WorktreeInfo, error) {
 	var infos []WorktreeInfo
@@ -305,8 +308,10 @@ func parseWorktreeListZ(out []byte) ([]WorktreeInfo, error) {
 			isBare = true
 		case "prunable":
 			cur.Prunable = true
+		case "locked":
+			cur.Locked = true
 		default:
-			// locked and any future attribute: ignored.
+			// any future attribute: ignored.
 		}
 	}
 	if err := flush(); err != nil {

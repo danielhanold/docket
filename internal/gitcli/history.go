@@ -12,6 +12,7 @@ const (
 	sharedAncestryOp Operation = "shared-ancestry"
 	listHistoryOp    Operation = "list-history-trees"
 	treeEntriesOp    Operation = "tree-entry-ids"
+	mergeBaseOp      Operation = "merge-base"
 )
 
 // HasSharedAncestry reports whether a and b share any common ancestor via
@@ -45,6 +46,42 @@ func (c *Client) HasSharedAncestry(ctx context.Context, repo Repository, a, b Ob
 	default:
 		return false, newFailure(sharedAncestryOp, KindCommandFailed, "merge-base failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
 	}
+}
+
+// MergeBase returns the best common ancestor of a and b via
+// `git merge-base <a> <b>`. found is false only on merge-base's documented clean
+// "no merge base" answer; every other failure is a typed error, never a missing
+// base.
+func (c *Client) MergeBase(ctx context.Context, repo Repository, a, b ObjectID) (ObjectID, bool, error) {
+	if err := validateObjectID(a); err != nil {
+		return "", false, newFailure(mergeBaseOp, KindInvalidRequest, "invalid object id a", err)
+	}
+	if err := validateObjectID(b); err != nil {
+		return "", false, newFailure(mergeBaseOp, KindInvalidRequest, "invalid object id b", err)
+	}
+	res, f := c.run(ctx, runRequest{
+		op:   mergeBaseOp,
+		dir:  repo.PrimaryWorktree,
+		args: []string{"merge-base", string(a), string(b)},
+	})
+	if f != nil {
+		return "", false, f
+	}
+	if res.exitCode == 1 && len(bytes.TrimSpace(res.stdout)) == 0 {
+		return "", false, nil
+	}
+	if res.exitCode != 0 {
+		return "", false, newFailure(mergeBaseOp, KindCommandFailed, "merge-base failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
+	}
+	lines := stdoutLines(res.stdout)
+	if len(lines) != 1 {
+		return "", false, newFailure(mergeBaseOp, KindInvalidOutput, "merge-base printed an unexpected number of lines", nil)
+	}
+	id := ObjectID(lines[0])
+	if err := validateObjectID(id); err != nil {
+		return "", false, newFailure(mergeBaseOp, KindInvalidOutput, "merge-base produced a malformed commit id", err)
+	}
+	return id, true, nil
 }
 
 // HistoryEntry pairs a commit with its own root tree OID.
