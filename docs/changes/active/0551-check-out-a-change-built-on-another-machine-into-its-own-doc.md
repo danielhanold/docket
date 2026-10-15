@@ -11,7 +11,7 @@ depends_on: []
 stacked_on:
 related: [368, 429]
 discovered_from: []
-adrs: []
+adrs: [149]
 spec: 'docs/superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md'
 plan: 'docs/superpowers/plans/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc.md'
 results:
@@ -22,7 +22,7 @@ branch: 'chore/check-out-a-change-built-on-another-machine-into-its-own-doc'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-15T03:17:34Z'
+claimed_at: '2026-10-15T03:57:51Z'
 ---
 
 ## Artifacts
@@ -32,6 +32,7 @@ claimed_at: '2026-10-15T03:17:34Z'
 |---|---|
 | Spec | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md](../../superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md) |
 | Plan | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc.md](../../superpowers/plans/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc.md) |
+| ADRs | [ADR-0149](../../adrs/0149-docket-adopts-unowned-local-state-only-when-proven-against-t.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -58,3 +59,7 @@ Finalize only works on the machine whose docket created the change's worktree. W
 ### 2026-10-15
 
 2026-10-15: Reconciled against main a9321f6e3. The spec was groomed today and its premises still hold: `FinalizeRebase` still calls `RebaseState` in `rc.wsDir` before `requireReadyWorkspace` (internal/app/finalize_rebase.go), and no `workspace.checkout` operation exists in the catalog. Recent main work (metadata-checkout follow, groom priority) touches neither the workspace package nor finalize rebase. No scope change.
+
+### 2026-10-15
+
+2026-10-15: Recorded ADR-0149 (adopting unowned local state only when proven against the PR-and-remote-agreed head), produced by this change.
