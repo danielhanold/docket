@@ -436,3 +436,30 @@ func TestStatusValidationTextNeverPrintsPrivateCheckoutPath(t *testing.T) {
 		t.Errorf("shared Remedy = %q", shared.Remedy)
 	}
 }
+
+// TestFindingsToStatusOmitsRemedy pins that a typed operation's findings carry
+// the plain-language message and impact but no remedy. Those findings can come
+// from the transaction engine's after-gate, which validates a candidate state
+// that was never committed, so the table's hand-edit remedy would send the
+// reader to fix a file that does not exist or does not have the problem.
+//
+// Mutation probe: route findingsToStatus through validationFinding unchanged —
+// this test must redden.
+func TestFindingsToStatusOmitsRemedy(t *testing.T) {
+	if explainValidation(danglingDep(), reposetup.RecordLocator{}).Remedy == "" {
+		t.Fatal("fixture precondition: the table must offer a remedy for this finding")
+	}
+	got := findingsToStatus([]domain.Finding{danglingDep()})
+	if len(got) != 1 {
+		t.Fatalf("findingsToStatus returned %d findings, want 1", len(got))
+	}
+	if got[0].Remedy != "" {
+		t.Errorf("Remedy = %q, want empty for a typed operation's finding", got[0].Remedy)
+	}
+	if got[0].Message == "" || got[0].Impact == "" {
+		t.Errorf("Message = %q, Impact = %q, want both kept", got[0].Message, got[0].Impact)
+	}
+	if empty := findingsToStatus(nil); empty == nil {
+		t.Error("findingsToStatus(nil) = nil, want a non-nil empty slice")
+	}
+}

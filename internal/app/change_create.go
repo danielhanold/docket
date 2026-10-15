@@ -431,13 +431,17 @@ func slugifyTitle(title string) string {
 
 // findingsToStatus converts a slice of domain findings into the DTO shape,
 // always returning a non-nil slice so the result's Findings marshals as [].
-// A mutation operation has no resolved layout at this call site, so remedies
-// use the zero RecordLocator, which names a record's path on the metadata
-// branch.
+// Each finding keeps its plain-language message and impact but carries no
+// remedy: a typed operation's findings can come from the transaction engine's
+// after-gate, which validates a candidate state that was never committed, so
+// the table's hand-edit remedy would point at a file that does not exist or
+// does not have the problem.
 func findingsToStatus(findings []domain.Finding) []StatusFinding {
 	out := make([]StatusFinding, 0, len(findings))
 	for _, f := range findings {
-		out = append(out, validationFinding(f, reposetup.RecordLocator{}))
+		sf := validationFinding(f, reposetup.RecordLocator{})
+		sf.Remedy = ""
+		out = append(out, sf)
 	}
 	return out
 }
