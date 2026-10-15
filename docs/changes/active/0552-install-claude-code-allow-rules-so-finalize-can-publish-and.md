@@ -22,7 +22,7 @@ branch: 'fix/install-claude-code-allow-rules-so-finalize-can-publish-and'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-15T19:28:54Z'
+claimed_at: '2026-10-15T19:30:18Z'
 ---
 
 ## Artifacts
