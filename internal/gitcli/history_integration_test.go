@@ -246,3 +246,48 @@ func TestIntegrationHistoryTreeEntryIDsAbsentOnlyEmpty(t *testing.T) {
 		t.Errorf("TreeEntryIDs for an absent path = %v, want no entries", entries)
 	}
 }
+
+// TestIntegrationHistoryMergeBase proves MergeBase returns the fork point of
+// two branches, and reports a clean found=false (no error, empty id) for
+// disjoint lineages.
+func TestIntegrationHistoryMergeBase(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("fork point", func(t *testing.T) {
+		c := newRealClient(t)
+		dir, repo := historyRepo(t)
+		root := commitFile(t, dir, "a.txt", "a\n", "root")
+		gitOut(t, dir, "checkout", "-q", "-b", "side")
+		side := commitFile(t, dir, "s.txt", "s\n", "side")
+		gitOut(t, dir, "checkout", "-q", "main")
+		main := commitFile(t, dir, "m.txt", "m\n", "main")
+
+		base, found, err := c.MergeBase(ctx, repo, side, main)
+		if err != nil {
+			t.Fatalf("MergeBase: %v", err)
+		}
+		if !found || base != root {
+			t.Errorf("MergeBase = (%q, %v), want (%q, true)", base, found, root)
+		}
+	})
+
+	t.Run("disjoint", func(t *testing.T) {
+		c := newRealClient(t)
+		dir, repo := historyRepo(t)
+		main := commitFile(t, dir, "a.txt", "a\n", "main root")
+		gitOut(t, dir, "checkout", "-q", "--orphan", "other")
+		gitOut(t, dir, "rm", "-rfq", "--cached", ".")
+		writeWorktreeFile(t, dir, "b.txt", "b\n")
+		gitOut(t, dir, "add", "-A")
+		gitOut(t, dir, "commit", "-q", "-m", "orphan root")
+		other := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+
+		base, found, err := c.MergeBase(ctx, repo, main, other)
+		if err != nil {
+			t.Fatalf("MergeBase: %v", err)
+		}
+		if found || base != "" {
+			t.Errorf("MergeBase(disjoint) = (%q, %v), want (\"\", false)", base, found)
+		}
+	})
+}

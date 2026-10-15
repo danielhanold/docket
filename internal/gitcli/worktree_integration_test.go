@@ -416,3 +416,41 @@ func TestIntegrationRepoRemoveWorktreeCleanPreservesBranchAndRefusesDirty(t *tes
 		}
 	})
 }
+
+// TestIntegrationRepoListWorktreesReportsLocked proves ListWorktrees carries
+// git's "locked" annotation: unlocked, locked after `git worktree lock`, and
+// unlocked again after `git worktree unlock`.
+func TestIntegrationRepoListWorktreesReportsLocked(t *testing.T) {
+	requireGit(t)
+	ctx := context.Background()
+	c := newRealClient(t)
+	r := newMainModeRepos(t)
+	repo := mustDiscover(t, c, r.Invocation)
+
+	head := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
+	wtPath := filepath.Join(testsupport.TempDir(t), "locked-x")
+	if err := c.AddBranchWorktree(ctx, repo, wtPath, RefName("refs/heads/feat/locked-x"), head); err != nil {
+		t.Fatalf("AddBranchWorktree: %v", err)
+	}
+
+	lockedNow := func() bool {
+		t.Helper()
+		infos, err := c.ListWorktrees(ctx, repo)
+		if err != nil {
+			t.Fatalf("ListWorktrees: %v", err)
+		}
+		return findWorktree(t, infos, wtPath).Locked
+	}
+
+	if lockedNow() {
+		t.Errorf("fresh worktree Locked = true, want false")
+	}
+	gitOut(t, r.Invocation, "worktree", "lock", "--reason", "x", wtPath)
+	if !lockedNow() {
+		t.Errorf("locked worktree Locked = false, want true")
+	}
+	gitOut(t, r.Invocation, "worktree", "unlock", wtPath)
+	if lockedNow() {
+		t.Errorf("unlocked worktree Locked = true, want false")
+	}
+}
