@@ -61,6 +61,11 @@ type Inspection struct {
 	BaseReached bool
 	DirtyPaths  []string // exact tracked-dirty + staged + untracked paths, sorted
 	Detail      string   // bounded reason for a StateForeign classification
+	// NoManifest reports that the workspace-record slot was cleanly absent, so
+	// the Kind (StateAbsent, or StateForeign for a leftover) came from the live
+	// ref, path, and registrations alone — the states checkout can act on. A
+	// present record that is undecodable or not this clone's is never NoManifest.
+	NoManifest bool
 }
 
 // Inspect classifies one workspace read-only. It returns a typed Failure only
@@ -135,7 +140,7 @@ func (s *Service) Inspect(ctx context.Context, req InspectRequest) (Inspection, 
 // direction (change 0368).
 func (s *Service) classifyAbsentSlot(ctx context.Context, repo gitcli.Repository, target Target, intendedPath string) (Inspection, error) {
 	foreign := func(detail string) (Inspection, error) {
-		return Inspection{Kind: StateForeign, Path: intendedPath, Detail: detail}, nil
+		return Inspection{Kind: StateForeign, Path: intendedPath, Detail: detail, NoManifest: true}, nil
 	}
 	absent, err := s.localRefAbsent(ctx, repo, target.FeatureRef)
 	if err != nil {
@@ -159,7 +164,7 @@ func (s *Service) classifyAbsentSlot(ctx context.Context, repo gitcli.Repository
 	case regUnresolved:
 		return foreign("no workspace manifest; a worktree registration's identity is unresolved")
 	}
-	return Inspection{Kind: StateAbsent, Path: intendedPath}, nil
+	return Inspection{Kind: StateAbsent, Path: intendedPath, NoManifest: true}, nil
 }
 
 // classifyState assigns insp.Kind (and the ancestry/dirty facts it depends on)
