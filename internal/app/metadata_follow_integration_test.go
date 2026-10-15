@@ -48,11 +48,14 @@ func newFollowRepo(t *testing.T) (r *initRepo, oldTip, newTip string) {
 	return r, oldTip, newTip
 }
 
-// followAt runs followMetadataCheckout for the repository discovered at dir.
-func followAt(t *testing.T, dir, ref, pushed string) {
+// followAt runs followMetadataCheckout for the repository discovered at dir and
+// fails unless it reports wantSynced: whether the checkout ends at pushed.
+func followAt(t *testing.T, dir, ref, pushed string, wantSynced bool) {
 	t.Helper()
-	followMetadataCheckout(context.Background(), newGitClient(t), discoverFollowRepo(t, dir),
-		gitcli.RefName(ref), gitcli.ObjectID(pushed))
+	if got := followMetadataCheckout(context.Background(), newGitClient(t), discoverFollowRepo(t, dir),
+		gitcli.RefName(ref), gitcli.ObjectID(pushed)); got != wantSynced {
+		t.Fatalf("followMetadataCheckout(%s, %s) synced = %v, want %v", ref, pushed, got, wantSynced)
+	}
 }
 
 func localDocketTip(t *testing.T, r *initRepo) string {
@@ -62,7 +65,7 @@ func localDocketTip(t *testing.T, r *initRepo) string {
 
 func TestIntegrationMetadataFollowFastForwardsCleanBehindCheckout(t *testing.T) {
 	r, _, newTip := newFollowRepo(t)
-	followAt(t, r.invocation, "refs/heads/docket", newTip)
+	followAt(t, r.invocation, "refs/heads/docket", newTip, true)
 	if head := r.dotDocketHead(t); head != newTip {
 		t.Fatalf(".docket HEAD = %s, want the pushed commit %s", head, newTip)
 	}
@@ -83,7 +86,7 @@ func TestIntegrationMetadataFollowFromLinkedWorktree(t *testing.T) {
 	r, _, newTip := newFollowRepo(t)
 	feat := filepath.Join(testsupport.TempDir(t), "feat")
 	runGit(t, r.invocation, "worktree", "add", "-q", "-b", "feat", feat, "main")
-	followAt(t, feat, "refs/heads/docket", newTip)
+	followAt(t, feat, "refs/heads/docket", newTip, true)
 	if head := r.dotDocketHead(t); head != newTip {
 		t.Fatalf(".docket HEAD = %s, want %s (follow from a linked worktree)", head, newTip)
 	}
@@ -91,7 +94,7 @@ func TestIntegrationMetadataFollowFromLinkedWorktree(t *testing.T) {
 
 func TestIntegrationMetadataFollowIgnoresOtherTargetRef(t *testing.T) {
 	r, oldTip, newTip := newFollowRepo(t)
-	followAt(t, r.invocation, "refs/heads/main", newTip)
+	followAt(t, r.invocation, "refs/heads/main", newTip, false)
 	if head := r.dotDocketHead(t); head != oldTip {
 		t.Fatalf(".docket HEAD = %s, want it untouched at %s for a non-metadata target", head, oldTip)
 	}
@@ -105,10 +108,10 @@ func TestIntegrationMetadataFollowIgnoresOtherTargetRef(t *testing.T) {
 func TestIntegrationMetadataFollowLeavesUncommittedEditAlone(t *testing.T) {
 	r, baseTip, _ := newFollowRepo(t)
 	dot := filepath.Join(r.invocation, ".docket")
-	followAt(t, r.invocation, "refs/heads/docket", baseTip)
+	followAt(t, r.invocation, "refs/heads/docket", baseTip, true)
 	oldTip := r.advanceRemoteDocket(t, "notes/base.txt", "base\n", "track a base file")
 	runGit(t, r.invocation, "fetch", "-q", "origin", "docket")
-	followAt(t, r.invocation, "refs/heads/docket", oldTip)
+	followAt(t, r.invocation, "refs/heads/docket", oldTip, true)
 	if head := r.dotDocketHead(t); head != oldTip {
 		t.Fatalf("fixture: .docket HEAD = %s, want %s", head, oldTip)
 	}
@@ -126,7 +129,7 @@ func TestIntegrationMetadataFollowLeavesUncommittedEditAlone(t *testing.T) {
 	if err := os.WriteFile(edited, []byte(want), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	followAt(t, r.invocation, "refs/heads/docket", newTip)
+	followAt(t, r.invocation, "refs/heads/docket", newTip, false)
 	if head := r.dotDocketHead(t); head != oldTip {
 		t.Fatalf(".docket HEAD = %s, want it untouched at %s", head, oldTip)
 	}
@@ -146,7 +149,7 @@ func TestIntegrationMetadataFollowLeavesUntrackedFileAlone(t *testing.T) {
 	dot := filepath.Join(r.invocation, ".docket")
 	scratch := filepath.Join(dot, "notes", "scratch.txt")
 	writeRepoFile(t, dot, "notes/scratch.txt", "mine\n")
-	followAt(t, r.invocation, "refs/heads/docket", newTip)
+	followAt(t, r.invocation, "refs/heads/docket", newTip, false)
 	if head := r.dotDocketHead(t); head != oldTip {
 		t.Fatalf(".docket HEAD = %s, want it untouched at %s", head, oldTip)
 	}
@@ -170,7 +173,7 @@ func TestIntegrationMetadataFollowLeavesInterruptedFastForwardAlone(t *testing.T
 	runGit(t, r.invocation, "fetch", "-q", "origin", "docket")
 	indexBefore := runGit(t, dot, "write-tree")
 
-	followAt(t, r.invocation, "refs/heads/docket", nextTip)
+	followAt(t, r.invocation, "refs/heads/docket", nextTip, false)
 	if tip := localDocketTip(t, r); tip != newTip {
 		t.Fatalf("local docket branch = %s, want it untouched at %s", tip, newTip)
 	}
@@ -189,7 +192,7 @@ func TestIntegrationMetadataFollowLeavesInterruptedFastForwardAlone(t *testing.T
 func TestIntegrationMetadataFollowLeavesLocalCommitAlone(t *testing.T) {
 	r, _, newTip := newFollowRepo(t)
 	local := r.commitInDocket(t, "notes/local.txt", "local\n", "local commit")
-	followAt(t, r.invocation, "refs/heads/docket", newTip)
+	followAt(t, r.invocation, "refs/heads/docket", newTip, false)
 	if head := r.dotDocketHead(t); head != local {
 		t.Fatalf(".docket HEAD = %s, want it untouched at the local commit %s", head, local)
 	}
@@ -200,11 +203,11 @@ func TestIntegrationMetadataFollowLeavesLocalCommitAlone(t *testing.T) {
 // that already moved the checkout): it must never move the branch backwards.
 func TestIntegrationMetadataFollowLeavesCheckoutAlreadyPastAlone(t *testing.T) {
 	r, oldTip, newTip := newFollowRepo(t)
-	followAt(t, r.invocation, "refs/heads/docket", newTip)
+	followAt(t, r.invocation, "refs/heads/docket", newTip, true)
 	if head := r.dotDocketHead(t); head != newTip {
 		t.Fatalf("setup: .docket HEAD = %s, want %s", head, newTip)
 	}
-	followAt(t, r.invocation, "refs/heads/docket", oldTip)
+	followAt(t, r.invocation, "refs/heads/docket", oldTip, false)
 	if head := r.dotDocketHead(t); head != newTip {
 		t.Fatalf(".docket HEAD = %s, want it to stay at %s (never backwards)", head, newTip)
 	}
@@ -214,7 +217,7 @@ func TestIntegrationMetadataFollowLeavesDetachedCheckoutAlone(t *testing.T) {
 	r, oldTip, newTip := newFollowRepo(t)
 	dot := filepath.Join(r.invocation, ".docket")
 	runGit(t, dot, "checkout", "-q", "--detach")
-	followAt(t, r.invocation, "refs/heads/docket", newTip)
+	followAt(t, r.invocation, "refs/heads/docket", newTip, false)
 	if head := r.dotDocketHead(t); head != oldTip {
 		t.Fatalf("detached .docket HEAD = %s, want %s", head, oldTip)
 	}
@@ -234,7 +237,7 @@ func TestIntegrationMetadataFollowLeavesUnregisteredCloneAlone(t *testing.T) {
 	dot := filepath.Join(r.invocation, ".docket")
 	runGit(t, r.invocation, "clone", "-q", "-b", "docket", r.origin, dot)
 	runGit(t, dot, "reset", "-q", "--hard", oldTip)
-	followAt(t, r.invocation, "refs/heads/docket", newTip)
+	followAt(t, r.invocation, "refs/heads/docket", newTip, false)
 	if head := runGit(t, dot, "rev-parse", "HEAD"); head != oldTip {
 		t.Fatalf("standalone clone at .docket moved to %s, want it untouched at %s", head, oldTip)
 	}
@@ -246,7 +249,7 @@ func TestIntegrationMetadataFollowLeavesUnregisteredCloneAlone(t *testing.T) {
 func TestIntegrationMetadataFollowNeverAttachesAbsentCheckout(t *testing.T) {
 	r, oldTip, newTip := newFollowRepo(t)
 	removeDocketWorktree(t, r)
-	followAt(t, r.invocation, "refs/heads/docket", newTip)
+	followAt(t, r.invocation, "refs/heads/docket", newTip, false)
 	if _, err := os.Stat(filepath.Join(r.invocation, ".docket")); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf(".docket was (re)created by the follow (err=%v)", err)
 	}

@@ -193,12 +193,19 @@ func TestRepairConfirmationRequiredNamesYes(t *testing.T) {
 // TestRepairAppliedNamesRevisionAndPending proves the applied document names the
 // new and prior tips, the file set, and the `docket repository prepare` sync.
 func TestRepairAppliedNamesRevisionAndPending(t *testing.T) {
-	out := repairApplied("newtip", "priortip", repositoryRepairPlan{files: []string{"docs/changes/BOARD.md"}}, layout.Layout{Mode: layout.Shared})
+	out := repairApplied("newtip", "priortip", repositoryRepairPlan{files: []string{"docs/changes/BOARD.md"}}, layout.Layout{Mode: layout.Shared}, false)
 	if out.Result != ResultApplied || out.MetadataTip != "newtip" || out.SourceRevision != "priortip" {
 		t.Fatalf("applied = %+v", out)
 	}
 	if !strings.Contains(strings.Join(out.PendingLocal, " "), "docket repository prepare") {
 		t.Errorf("PendingLocal = %v, want the prepare sync remedy", out.PendingLocal)
+	}
+	synced := repairApplied("newtip", "priortip", repositoryRepairPlan{files: []string{"docs/changes/BOARD.md"}}, layout.Layout{Mode: layout.Shared}, true)
+	if len(synced.PendingLocal) != 0 || strings.Contains(synced.HumanText(), "pending local sync") {
+		t.Errorf("synced repair still asks for a local sync: %v\n%s", synced.PendingLocal, synced.HumanText())
+	}
+	if !strings.Contains(synced.HumanText(), "repository repaired: metadata newtip") {
+		t.Errorf("synced repair lost its applied line:\n%s", synced.HumanText())
 	}
 }
 
@@ -208,11 +215,11 @@ func TestRepairAppliedNamesRevisionAndPending(t *testing.T) {
 func TestRepairAppliedPendingNamesResolvedWorktree(t *testing.T) {
 	const store = "/data/docket/store/proj-abc/checkout"
 	plan := repositoryRepairPlan{files: []string{"docs/changes/BOARD.md"}}
-	shared := repairApplied("newtip", "priortip", plan, layout.Layout{Mode: layout.Shared})
+	shared := repairApplied("newtip", "priortip", plan, layout.Layout{Mode: layout.Shared}, false)
 	if want := []string{"fast-forward your local .docket metadata worktree: re-run `docket repository prepare` to sync it to the repaired metadata revision"}; strings.Join(shared.PendingLocal, "|") != strings.Join(want, "|") {
 		t.Errorf("shared PendingLocal = %q, want %q", shared.PendingLocal, want)
 	}
-	private := repairApplied("newtip", "priortip", plan, layout.Layout{Mode: layout.Private, MetadataWorktree: store})
+	private := repairApplied("newtip", "priortip", plan, layout.Layout{Mode: layout.Private, MetadataWorktree: store}, false)
 	got := strings.Join(private.PendingLocal, " ")
 	if want := "fast-forward your local " + store + " metadata worktree: re-run `docket repository prepare` to sync it to the repaired metadata revision"; got != want {
 		t.Errorf("private PendingLocal = %q, want %q", got, want)
@@ -266,7 +273,7 @@ func TestRepairResultJSONFieldNames(t *testing.T) {
 		derived:     []reposetup.DerivedFinding{{Code: reposetup.CodeBoardStale, Path: "docs/changes/BOARD.md", Repairable: true}},
 		manual:      []string{"[x] y: z"},
 		files:       []string{"docs/changes/BOARD.md", repairArchivedPath},
-	}, layout.Layout{Mode: layout.Shared})
+	}, layout.Layout{Mode: layout.Shared}, false)
 	raw, err := json.Marshal(out)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
