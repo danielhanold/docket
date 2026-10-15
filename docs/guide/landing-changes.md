@@ -11,21 +11,23 @@ setting that lets it merge without you standing over it.
 change's (one unit of planned work, roughly one pull request, tracked as one markdown file) life. Once
 its pull request is approved or merged, `docket-finalize-change`:
 
-1. rebases the feature branch onto the change's base: the **integration branch** (the branch code
+1. checks the change out into its own worktree on the machine running finalize, when it is not
+   already there (see [Working on a change built on another machine](#working-on-a-change-built-on-another-machine));
+2. rebases the feature branch onto the change's base: the **integration branch** (the branch code
    lands on, usually `main`), or for a stacked change whose parent is still open, the parent's
    branch. A conflict goes to a conflict resolver;
-2. re-runs the test suite on the rebased branch (the finalize gate). A red suite goes to a repair
+3. re-runs the test suite on the rebased branch (the finalize gate). A red suite goes to a repair
    pass, capped by `finalize.repair_max_attempts`;
-3. pushes the rebased head and records its build evidence in the change record's
+4. pushes the rebased head and records its build evidence in the change record's
    `## Build evidence` section (`docket finalize publish`);
-4. merges the pull request with the first merge method the repository permits: rebase, then merge
+5. merges the pull request with the first merge method the repository permits: rebase, then merge
    commit, then squash. On a private repository whose GitHub plan has no branch rules, the method
    comes from the repository settings alone;
-5. marks the change `done` and archives it on the `docket` branch in one commit that also retargets
+6. marks the change `done` and archives it on the `docket` branch in one commit that also retargets
    the backlinks in its spec, plan, and results files, refreshing the **board** (the generated
    overview of every change and its state, never edited by hand). The backlink at the top of the
    merged pull request's description is repointed best-effort;
-6. cleans up the change's worktree and feature branch.
+7. cleans up the change's worktree and feature branch.
 
 Nothing is pushed to the integration branch at close-out: it already holds what the pull request
 merged (the spec copy and the code), and the change record, its plan, results, and decisions stay on
@@ -65,6 +67,23 @@ Selection is ordered by **mergeability** rather than priority: already-merged pu
 only need closing out come first, then changes whose dependencies are `done`, with GitHub's
 `MERGEABLE` signal ahead of conflicting or unknown ones, then the smallest diff, with priority → age →
 id as the tiebreak — so each drain lands as many changes as it can before anything stops it.
+
+## Working on a change built on another machine
+
+Finalize needs the change's branch in a worktree docket made, at `.worktrees/<slug>` in your
+clone. When the change was built on another machine, or its branch was checked out with
+`gh pr checkout` or a hand-made `git worktree add`, run `docket workspace checkout --id <id>`.
+
+It checks the change out at the head its pull request and pushed branch agree on: it reuses a
+local branch at that head, fast-forwards one that is behind, and deletes a clean worktree another
+tool made for the branch (ignored files such as build output go with it). It refuses anything it
+cannot prove safe - local commits the pull request lacks, uncommitted changes, an unfinished
+rebase, the branch checked out in your main checkout - and says what to run instead. It works for
+an `implemented` change with an open pull request.
+
+Finalize runs the same checkout before it rebases, so you rarely need it by hand. Avoid
+`gh pr checkout` and `git worktree add` for these branches: docket cannot use the worktrees they
+make until a checkout replaces them.
 
 ## When finalize is blocked
 

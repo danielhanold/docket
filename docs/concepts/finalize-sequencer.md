@@ -28,6 +28,9 @@ to it.
   approved PR
         │
         ▼
+  workspace checkout: the change's own worktree on this machine
+        │            (adopts the pushed branch only at the PR head)
+        ▼
   finalize retarget-children: open child PRs move to the parent's base
         │            (only when open children exist)
         ▼
@@ -50,6 +53,11 @@ to it.
   finalize cleanup: tear down the branch and worktree (fail-closed)
 ```
 
+- Finalize first checks the change out into its own worktree on the machine
+  running it, so a change built elsewhere lands the same way. It adopts only a
+  local state proven identical to, or behind, the head the pull request and the
+  pushed branch agree on, and removes a worktree another tool made only when it
+  is clean at that head.
 - Stacked children whose pull requests target this branch are retargeted onto
   the parent's effective base first, so none points at a branch about to be
   merged and deleted; the merge refuses while a child is still open against it.
