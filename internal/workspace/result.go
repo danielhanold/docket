@@ -64,7 +64,7 @@ const (
 // redacted prose only — never tokens, env values, PR body bytes, credentialed
 // URLs, or unbounded stderr.
 type Failure struct {
-	Op     string // "prepare" | "inspect" | "cleanup" | "publish-head"
+	Op     string // "prepare" | "inspect" | "cleanup" | "publish-head" | "checkout"
 	Stage  Stage
 	Kind   Kind
 	Detail string // bounded, redacted
