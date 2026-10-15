@@ -206,11 +206,12 @@ func TestRefusalAndCheckShareFindingRenderer(t *testing.T) {
 			Message: "runtime.bash: ignored", Remedy: "remove it"},
 		{Code: "bare", Severity: reposetup.Severity("error")}, // no ref/message/remedy
 	}
-	// The healthy check renders "repository check: <result> (<state>)" then one
-	// block per finding; with a zero-value result the header is fixed, so the
-	// trailing per-finding bytes are exactly the refusal block appended to "".
+	// The healthy check renders checkHeader(state, findings) then one block per
+	// finding; with a zero-value result the header is checkHeader's blank-state
+	// form, so the trailing per-finding bytes are exactly the refusal block
+	// appended to "".
 	check := RepositoryCheckResult{Findings: findings}
-	const header = "repository check:  ()"
+	header := checkHeader("", findings)
 	full := check.HumanText()
 	if !strings.HasPrefix(full, header) {
 		t.Fatalf("check header changed: %q", full)
