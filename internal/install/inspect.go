@@ -229,6 +229,11 @@ func inspectManagedBlock(t Target, info fs.FileInfo, rec TargetRecord, hasRec bo
 // apply: an exact entry for such a command is cut before the new ones are
 // added, so the old and the new trigger never both fire. Only an exact entry is
 // cut, as on uninstall; one the user has edited is theirs and stays.
+//
+// Allow rules follow the same posture: a missing rule (one deleted by hand
+// included) makes the target an update, a rule a consistent prior record
+// carries and the plan dropped is retired, and a permissions value docket
+// cannot read as editable skips the file when the target carries rules.
 func inspectHookEntries(t Target, info fs.FileInfo, rec TargetRecord, hasRec bool) (Inspection, error) {
 	if !info.Mode().IsRegular() {
 		// The transaction publishes by rename, which would replace a symlink (a
@@ -236,7 +241,7 @@ func inspectHookEntries(t Target, info fs.FileInfo, rec TargetRecord, hasRec boo
 		// conflict: these entries are only a trigger, inert outside a private
 		// repository, so a file docket cannot edit in place must not fail the
 		// rest of the install.
-		return skip(t, remedyHookFileNotRegular), nil
+		return skip(t, withAllowRules(remedyHookFileNotRegular, t)), nil
 	}
 	data, err := os.ReadFile(t.Path)
 	if err != nil {
@@ -247,14 +252,26 @@ func inspectHookEntries(t Target, info fs.FileInfo, rec TargetRecord, hasRec boo
 		// Skipped for the same reason: a file docket cannot parse (a JSONC
 		// comment, a byte-order mark, a non-object hooks value) is the user's to
 		// repair, and refusing it would fail every other target over a trigger.
-		return skip(t, remedyHookFileInvalid), nil
+		return skip(t, withAllowRules(remedyHookFileInvalid, t)), nil
+	}
+	allow, allowOK := readAllowRules(data)
+	if len(t.AllowRules) > 0 && !allowOK {
+		return skip(t, withAllowRules(remedyAllowRulesInvalid, t)), nil
 	}
 	t.retireHookCommands = staleHookCommands(t, entries, rec, hasRec)
-	if len(t.retireHookCommands) > 0 {
+	if allowOK {
+		t.retireAllowRules = staleAllowRules(t, allow, rec, hasRec)
+	}
+	if len(t.retireHookCommands) > 0 || len(t.retireAllowRules) > 0 {
 		return Inspection{Target: t, Disposition: DispositionUpdate}, nil
 	}
 	for _, c := range t.HookCommands {
 		if !anyEntryRuns(entries, t.HookDialect, c) {
+			return Inspection{Target: t, Disposition: DispositionUpdate}, nil
+		}
+	}
+	for _, r := range t.AllowRules {
+		if !allowRulePresent(allow, r) { // includes a rule deleted by hand
 			return Inspection{Target: t, Disposition: DispositionUpdate}, nil
 		}
 	}
@@ -307,6 +324,8 @@ const (
 	remedyHookFileNotRegular = "this hooks file is not a regular file (a symlink or a directory), so docket left it untouched " +
 		"and did not add its session-start entries; to install them, make it a regular file, then re-run"
 	remedyHookFileInvalid = "this hooks file is not a JSON object docket can edit (hooks must be an object and each event an array), " +
+		"so docket left it untouched and did not add its session-start entries; to install them, repair it by hand, then re-run"
+	remedyAllowRulesInvalid = "this settings file's permissions value is not a JSON object docket can edit (permissions must be an object and its allow value an array), " +
 		"so docket left it untouched and did not add its session-start entries; to install them, repair it by hand, then re-run"
 )
 
@@ -451,7 +470,7 @@ func recordMatchesDisk(rec TargetRecord) (bool, error) {
 		if err != nil {
 			return false, fmt.Errorf("install: reading %s: %w", rec.Path, err)
 		}
-		editable, _, allExact := hookEntriesState(data, rec.HookDialect, rec.HookCommands)
+		editable, _, allExact := hookEntriesState(data, rec.HookDialect, rec.HookCommands, rec.AllowRules)
 		return editable && allExact, nil
 
 	default:

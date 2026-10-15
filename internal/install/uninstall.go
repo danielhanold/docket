@@ -330,13 +330,13 @@ func proveUninstallRemoval(rec TargetRecord) (bool, bool, string, error) {
 		if err != nil {
 			return false, false, "", fmt.Errorf("install: reading %s: %w", rec.Path, err)
 		}
-		editable, anyPresent, _ := hookEntriesState(data, rec.HookDialect, rec.HookCommands)
+		editable, anyPresent, _ := hookEntriesState(data, rec.HookDialect, rec.HookCommands, rec.AllowRules)
 		if !editable {
 			return false, false, ReasonManagedBlockInvalid, nil
 		}
 		if !anyPresent {
-			// No entry runs a recorded command: the user's file holds nothing of
-			// docket's, so there is nothing to remove.
+			// No recorded command runs and no recorded rule is present: the
+			// user's file holds nothing of docket's, so there is nothing to remove.
 			return true, false, "", nil
 		}
 		// Otherwise recordMatchesDisk decides: a modified entry is a conflict.

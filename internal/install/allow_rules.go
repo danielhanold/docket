@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // errAllowRulesInvalid reports a settings file whose shape leaves
@@ -127,6 +128,38 @@ func removeAllowRules(src []byte, rules []string) ([]byte, error) {
 		return nil, fmt.Errorf("install: removing allow rules produced an unreadable file")
 	}
 	return out, nil
+}
+
+// staleAllowRules lists the prior record's rules the plan no longer carries and
+// the file still holds. It mirrors staleHookCommands: only a consistent
+// same-dialect record proves a rule docket's. A hand-typed copy of such a rule
+// goes with it (accepted: it is indistinguishable from docket's).
+func staleAllowRules(t Target, allow []json.RawMessage, rec TargetRecord, hasRec bool) []string {
+	if !hasRec || rec.Kind != KindHookEntries || rec.HookDialect != t.HookDialect ||
+		rec.SHA256 == "" || rec.SHA256 != hookEntriesDigest(rec.HookDialect, rec.HookCommands, rec.AllowRules) {
+		return nil
+	}
+	var stale []string
+	for _, r := range rec.AllowRules {
+		if !containsString(t.AllowRules, r) && allowRulePresent(allow, r) {
+			stale = append(stale, r)
+		}
+	}
+	return stale
+}
+
+// withAllowRules owns a skipped target's remedy suffix: it names the target's
+// rules so the user can add them by hand. A rule-less remedy passes through.
+func withAllowRules(remedy string, t Target) string {
+	if len(t.AllowRules) == 0 {
+		return remedy
+	}
+	quoted := make([]string, len(t.AllowRules))
+	for i, r := range t.AllowRules {
+		quoted[i] = fmt.Sprintf("%q", r)
+	}
+	return remedy + "; it did not add its permissions.allow rules either — to grant them by hand, add " +
+		strings.Join(quoted, " and ") + " to permissions.allow"
 }
 
 // checkAllowRules owns the structural rule for a hook-entries target's allow
