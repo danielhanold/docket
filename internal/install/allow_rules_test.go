@@ -293,7 +293,7 @@ func TestAllowRulesInspect(t *testing.T) {
 		t.Fatalf("could not respell a rule")
 	}
 	withRules := func(p string) Target { return rulesTarget(p, testAllowRules) }
-	invalidPerms := func(t Target) string { return withAllowRules(remedyAllowRulesInvalid, t) }
+	invalidPerms := func(Target) string { return remedyAllowRulesInvalid }
 	for _, c := range []struct {
 		name   string
 		seed   *string
@@ -579,7 +579,7 @@ func TestAllowRulesInstallUninstallLifecycle(t *testing.T) {
 			t.Errorf("Uninstall = err %v, reason %s, actions %+v", out.Err, out.Reason, out.Actions)
 		}
 		again := Install(opts)
-		if again.Err != nil || !skippedWith(again, path, withAllowRules(remedyAllowRulesInvalid, rulesTarget(path, testAllowRules))) {
+		if again.Err != nil || !skippedWith(again, path, remedyAllowRulesInvalid) {
 			t.Errorf("re-install: err %v, skipped %+v", again.Err, again.Skipped)
 		}
 		if readOrDie(t, path) != broken {
@@ -597,7 +597,7 @@ func TestAllowRulesInstallUninstallLifecycle(t *testing.T) {
 		seed := "{\n  \"permissions\": {\n    \"allow\": {}\n  }\n}\n"
 		writeFileOrDie(t, path, seed)
 		out := Install(opts)
-		if out.Err != nil || !out.Applied || !skippedWith(out, path, withAllowRules(remedyAllowRulesInvalid, rulesTarget(path, testAllowRules))) {
+		if out.Err != nil || !out.Applied || !skippedWith(out, path, remedyAllowRulesInvalid) {
 			t.Fatalf("Install: err %v, applied %v, skipped %+v", out.Err, out.Applied, out.Skipped)
 		}
 		if readOrDie(t, other) != "agent\n" || readOrDie(t, path) != seed || stateRecordAt(t, opts.Roots, path) != nil {
@@ -608,4 +608,15 @@ func TestAllowRulesInstallUninstallLifecycle(t *testing.T) {
 			t.Errorf("uninstall changed the skipped file")
 		}
 	})
+}
+
+// An unreadable permissions value has one remedy, repairing it; offering a
+// hand grant beside it would read as an alternative that cannot work.
+func TestAllowRulesInvalidRemedyOffersOnlyTheRepair(t *testing.T) {
+	if strings.Contains(remedyAllowRulesInvalid, "to grant them by hand") {
+		t.Errorf("remedy offers a hand grant: %q", remedyAllowRulesInvalid)
+	}
+	if !strings.Contains(remedyAllowRulesInvalid, "permissions.allow rules") {
+		t.Errorf("remedy does not say the allow rules were not added: %q", remedyAllowRulesInvalid)
+	}
 }
