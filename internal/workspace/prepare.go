@@ -156,7 +156,7 @@ func (s *Service) Prepare(ctx context.Context, req PrepareRequest) (Workspace, e
 		CreatedUTC: now,
 		UpdatedUTC: now,
 	}
-	if err := publishAllocating(root, dir, man); err != nil {
+	if err := publishAllocating(prepareOp, root, dir, man); err != nil {
 		return Workspace{}, err
 	}
 
@@ -168,7 +168,7 @@ func (s *Service) Prepare(ctx context.Context, req PrepareRequest) (Workspace, e
 	}
 
 	// Step 8: reinspect and advance the manifest to ready.
-	return s.reinspectAndFinalize(ctx, req.Repository, dir, man, intendedPath, target, baseCommit, PrepareCreated)
+	return s.reinspectAndFinalize(ctx, prepareOp, req.Repository, dir, man, intendedPath, target, baseCommit, PrepareCreated)
 }
 
 // prepareOwned dispatches a valid, owned manifest by its recorded phase: a ready
@@ -298,7 +298,7 @@ func (s *Service) prepareResume(ctx context.Context, repo gitcli.Repository, dir
 		}
 	}
 
-	return s.reinspectAndFinalize(ctx, repo, dir, m, intendedPath, target, base, PrepareResumed)
+	return s.reinspectAndFinalize(ctx, prepareOp, repo, dir, m, intendedPath, target, base, PrepareResumed)
 }
 
 // blockedWorkspace is the byte-untouched blocked disposition: a value, not an
@@ -432,14 +432,15 @@ func (s *Service) inventoryForFresh(ctx context.Context, repo gitcli.Repository,
 
 // publishAllocating writes the allocating manifest under the short registry
 // lock, which serializes first publication across workspaces sharing the root.
-func publishAllocating(root, dir string, m Manifest) error {
+// op names the calling operation on any Failure (prepare or checkout).
+func publishAllocating(op, root, dir string, m Manifest) error {
 	release, err := acquireRegistryLock(root)
 	if err != nil {
-		return &Failure{Op: prepareOp, Stage: "lock", Kind: KindExternal, Detail: "acquiring registry lock", Err: err}
+		return &Failure{Op: op, Stage: "lock", Kind: KindExternal, Detail: "acquiring registry lock", Err: err}
 	}
 	defer release()
 	if err := writeManifest(dir, m); err != nil {
-		return &Failure{Op: prepareOp, Stage: "manifest", Kind: KindExternal, Detail: "publishing allocating manifest", Err: err}
+		return &Failure{Op: op, Stage: "manifest", Kind: KindExternal, Detail: "publishing allocating manifest", Err: err}
 	}
 	return nil
 }
@@ -452,42 +453,42 @@ func publishAllocating(root, dir string, m Manifest) error {
 // Git reports is an invalid-state failure: the postcondition was not established.
 // The reinspected HEAD is read back from the ref, so post-creation commits on a
 // resumed workspace surface as the reported head, and dirty bytes are reported,
-// never repaired.
-func (s *Service) reinspectAndFinalize(ctx context.Context, repo gitcli.Repository, dir string, man Manifest, intendedPath string, target Target, baseCommit gitcli.ObjectID, disposition PrepareDisposition) (Workspace, error) {
+// never repaired. op names the calling operation on any Failure.
+func (s *Service) reinspectAndFinalize(ctx context.Context, op string, repo gitcli.Repository, dir string, man Manifest, intendedPath string, target Target, baseCommit gitcli.ObjectID, disposition PrepareDisposition) (Workspace, error) {
 	infos, err := s.git.ListWorktrees(ctx, repo)
 	if err != nil {
-		return Workspace{}, mapGitFailure(prepareOp, "verify", err)
+		return Workspace{}, mapGitFailure(op, "verify", err)
 	}
 	reg, ok := worktreeAt(infos, intendedPath)
 	if !ok {
-		return Workspace{}, &Failure{Op: prepareOp, Stage: "verify", Kind: KindInvalidState, Detail: "worktree is not registered at the target path after creation"}
+		return Workspace{}, &Failure{Op: op, Stage: "verify", Kind: KindInvalidState, Detail: "worktree is not registered at the target path after creation"}
 	}
 	if reg.Branch != target.FeatureRef {
-		return Workspace{}, &Failure{Op: prepareOp, Stage: "verify", Kind: KindInvalidState, Detail: "created worktree is not attached to the feature branch"}
+		return Workspace{}, &Failure{Op: op, Stage: "verify", Kind: KindInvalidState, Detail: "created worktree is not attached to the feature branch"}
 	}
 
 	head, err := s.git.ResolveRef(ctx, repo, target.FeatureRef)
 	if err != nil {
-		return Workspace{}, mapGitFailure(prepareOp, "verify", err)
+		return Workspace{}, mapGitFailure(op, "verify", err)
 	}
 	reachable, err := s.git.IsAncestor(ctx, repo, baseCommit, head)
 	if err != nil {
-		return Workspace{}, mapGitFailure(prepareOp, "verify", err)
+		return Workspace{}, mapGitFailure(op, "verify", err)
 	}
 	if !reachable {
-		return Workspace{}, &Failure{Op: prepareOp, Stage: "verify", Kind: KindInvalidState, Detail: "fetched base is not reachable from the created head"}
+		return Workspace{}, &Failure{Op: op, Stage: "verify", Kind: KindInvalidState, Detail: "fetched base is not reachable from the created head"}
 	}
 
 	changes, err := s.git.ChangedPaths(ctx, intendedPath)
 	if err != nil {
-		return Workspace{}, mapGitFailure(prepareOp, "verify", err)
+		return Workspace{}, mapGitFailure(op, "verify", err)
 	}
 	dirty := len(changes) > 0
 
 	man.Phase = PhaseReady
 	man.UpdatedUTC = time.Now().UTC().Format(time.RFC3339)
 	if err := writeManifest(dir, man); err != nil {
-		return Workspace{}, &Failure{Op: prepareOp, Stage: "manifest", Kind: KindExternal, Detail: "advancing manifest to ready", Err: err}
+		return Workspace{}, &Failure{Op: op, Stage: "manifest", Kind: KindExternal, Detail: "advancing manifest to ready", Err: err}
 	}
 
 	return Workspace{
