@@ -133,6 +133,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0147](0147-a-visibility-switch-republishes-the-identical-metadata-histo.md) — A visibility switch republishes the identical metadata history under the target branch name (Accepted) ← change #533 · relates to ADR-0001, ADR-0099
 - [ADR-0148](0148-every-keyed-run-done-verdict-drives-the-successful-run-close.md) — Every keyed run-done verdict drives the successful-run closeout (Accepted) · relates to ADR-0124, ADR-0128
 - [ADR-0149](0149-docket-adopts-unowned-local-state-only-when-proven-against-t.md) — Docket adopts unowned local state only when proven against the PR-and-remote-agreed head (Accepted)
+- [ADR-0150](0150-docket-install-grants-claude-code-allow-rules-for-finalize-p.md) — docket install grants Claude Code allow rules for finalize publish and merge (Accepted) ← change #552 · relates to ADR-0145
 
 ## Superseded / Reversed
 

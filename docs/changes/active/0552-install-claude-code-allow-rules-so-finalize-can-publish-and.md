@@ -11,7 +11,7 @@ depends_on: []
 stacked_on:
 related: [27, 408]
 discovered_from: []
-adrs: [145]
+adrs: [145, 150]
 spec: 'docs/superpowers/specs/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md'
 plan: 'docs/superpowers/plans/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and.md'
 results:
@@ -32,7 +32,7 @@ claimed_at: '2026-10-15T19:47:16Z'
 |---|---|
 | Spec | [2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md](../../superpowers/specs/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md) |
 | Plan | [2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and.md](../../superpowers/plans/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and.md) |
-| ADRs | [ADR-0145](../../adrs/0145-private-repository-parent-facing-rules-load-through-content.md) |
+| ADRs | [ADR-0145](../../adrs/0145-private-repository-parent-facing-rules-load-through-content.md), [ADR-0150](../../adrs/0150-docket-install-grants-claude-code-allow-rules-for-finalize-p.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
