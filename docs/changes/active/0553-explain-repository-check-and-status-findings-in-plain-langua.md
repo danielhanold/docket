@@ -12,7 +12,7 @@ stacked_on:
 related: [496, 403, 352, 533, 539]
 discovered_from: []
 adrs: [136]
-spec:
+spec: 'docs/superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md](../../superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md) |
 | ADRs | [ADR-0136](../../adrs/0136-repair-on-a-migrated-repository-is-docket-repository-repair.md) |
 <!-- docket:artifacts:end -->
 
