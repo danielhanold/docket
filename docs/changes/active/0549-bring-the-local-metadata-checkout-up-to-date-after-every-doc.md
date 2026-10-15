@@ -71,6 +71,6 @@ The human also asked for a command to refresh the board. `docket open board` alr
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: a38a9116b720cda41cc960c2ba7e063a9dce232e
-ran_at:   2026-10-15T00:28:27Z
+head_sha: c003ccc5b50256063dbec67f035560df1b09cf96
+ran_at:   2026-10-15T01:51:45Z
 <!-- docket:build-evidence:end -->
