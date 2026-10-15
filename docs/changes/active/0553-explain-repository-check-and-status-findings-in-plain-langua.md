@@ -66,3 +66,16 @@ Daniel reads this output himself, and agents relay it; every finding should answ
 ### 2026-10-15
 
 2026-10-15 — Spec groomed today; re-traced every named site on origin/main 9ace757 (corpusFindings, findingMessage, validationFinding, appendFindingBlock, writeFinding, checkGatherFailure, PlanRepairs, planRepositoryRepair) and all still exist as described. Recent main commits (0551 workspace checkout) do not touch these files. No scope change; ADR-0136 still governs the repair remedy wording.
+
+## Run halted
+
+### 2026-10-15
+
+The run stopped at the post-fix full-suite gate because the machine ran out of disk space. This is an environment failure, not a code failure.
+
+- The build was green at a3ee5f9b7. Build evidence was recorded and verified for that head.
+- A deep-tier review returned 10 findings: 0 blocker, 3 important, 7 minor. All were fixed in-branch: 17da9b7e9, 43a703d44, 9ca351f34, and 84439f2f3 (a batch of the seven minors).
+- The post-fix gate (drive 9c84c4ac5590ee57c0a8f7cab41d17fd, attempt 1) returned FAILED at head 84439f2f3. Every failure in its log is `no space left on device`, from the compile, link, MkdirTemp, and git init steps. `df` showed /System/Volumes/Data at 100%, with 1.4 GiB available.
+- The fix pass's revert-and-record path was deliberately not taken. Reverting would throw away fixes that the red run never actually judged, and the one allowed re-run would fail the same way.
+
+Remedy: free disk space. The Go build cache (`go clean -cache`) and stale worktrees are likely candidates. Then resume this change through `change.resume-halted` and re-drive the build gate at the current head (84439f2f3). That run must record evidence, then publish the PR. The feature worktree is intact and clean at `.worktrees/explain-repository-check-and-status-findings-in-plain-langua`.
