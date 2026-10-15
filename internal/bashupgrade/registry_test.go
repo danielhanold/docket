@@ -464,13 +464,9 @@ func gitRev(t *testing.T, c *upgradeCase, ref string) string {
 // ---- section 3 and 4: the machine install ------------------------------------------
 
 // repairFollowsProse is the guide's statement that the repair brings the local .docket
-// copy up to the repaired commit, and repairPrepareSkipProse its statement that the
-// prepare step the repair output names can therefore be skipped. Both are matched with
-// whitespace collapsed, so a re-flowed paragraph still matches.
-const (
-	repairFollowsProse     = "and brings your local `.docket` folder up to the repaired commit."
-	repairPrepareSkipProse = "You can skip that: the repair already brought the folder up to date."
-)
+// copy up to the repaired commit. It is matched with whitespace collapsed, so a
+// re-flowed paragraph still matches.
+const repairFollowsProse = "and brings your local `.docket` folder up to the repaired commit."
 
 // releaseVerifiedProse is the guide's statement that the download and checksum
 // lines rest on the release verification, not on this test.
@@ -1112,9 +1108,8 @@ func observeRepairPreview(t *testing.T, c *upgradeCase, st *runState, body strin
 }
 
 // runRepairApply runs the block and checks the guide's claims: the repair is pushed
-// to the docket branch, the local .docket copy is brought up to that repaired commit,
-// and the output names `docket repository prepare`, which the guide says to skip
-// because the copy is already up to date.
+// to the docket branch and the local .docket copy is brought up to that repaired
+// commit, so the output asks for no `docket repository prepare` sync either.
 func runRepairApply(t *testing.T, c *upgradeCase, st *runState, body string) {
 	t.Helper()
 	before := gitRev(t, c, "docket")
@@ -1124,8 +1119,9 @@ func runRepairApply(t *testing.T, c *upgradeCase, st *runState, body string) {
 		t.Fatalf("guide says repair pushes to the docket branch; origin/docket did not move")
 	}
 	mustContainProse(t, "guide", st.Guide, repairFollowsProse)
-	mustContain(t, "repair output", r.Stdout+r.Stderr, "docket repository prepare")
-	mustContainProse(t, "guide", st.Guide, repairPrepareSkipProse)
+	if out := r.Stdout + r.Stderr; strings.Contains(out, "docket repository prepare") {
+		t.Fatalf("the repair brought .docket up to date, yet its output still asks for `docket repository prepare`:\n%s", out)
+	}
 	local := strings.TrimSpace(c.mustGit(t, filepath.Join(st.Cwd, ".docket"), "rev-parse", "HEAD"))
 	if local != after {
 		t.Fatalf("guide says repair brings the local .docket copy up to the repaired commit %s; it is at %s", after, local)

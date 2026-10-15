@@ -228,8 +228,7 @@ your local `.docket` folder up to the repaired commit.
 docket repository repair --yes
 ```
 
-Its output also tells you to run `docket repository prepare` to sync the `.docket` folder. You can
-skip that: the repair already brought the folder up to date. Check the repository:
+Then check the repository:
 
 <!-- upgrade-step: repo-confirm -->
 ```sh

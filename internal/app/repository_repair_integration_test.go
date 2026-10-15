@@ -237,6 +237,38 @@ func TestIntegrationRepoRepairFollowsMetadataCheckout(t *testing.T) {
 	if strings.Contains(string(board), "hand-written stale board") {
 		t.Fatalf("BOARD.md on disk still carries the stale board:\n%s", board)
 	}
+	// The checkout is already at the repair commit, so the result asks for no
+	// local sync: neither the pending_local field nor the human line.
+	if len(res.PendingLocal) != 0 {
+		t.Errorf("PendingLocal = %v, want none after a successful follow", res.PendingLocal)
+	}
+	if h := res.HumanText(); strings.Contains(h, "pending local sync") || strings.Contains(h, "docket repository prepare") {
+		t.Errorf("repair output still asks for a local sync after a successful follow:\n%s", h)
+	}
+}
+
+// TestIntegrationRepoRepairDirtyCheckoutKeepsPendingLocal proves a repair whose
+// follow leaves the checkout behind (an untracked file makes it dirty) still
+// names the `docket repository prepare` sync, in the field and the human text.
+func TestIntegrationRepoRepairDirtyCheckoutKeepsPendingLocal(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.publishHealthyDrift(t)
+	before := r.dotDocketHead(t)
+	writeRepoFile(t, filepath.Join(r.invocation, ".docket"), "notes/scratch.txt", "mine\n")
+
+	res := r.runRepair(t, RepairOptions{Authorized: true})
+	if res.Result != ResultApplied {
+		t.Fatalf("repair = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	if head := r.dotDocketHead(t); head != before {
+		t.Fatalf("fixture: .docket HEAD = %s, want the dirty checkout left at %s", head, before)
+	}
+	if !strings.Contains(strings.Join(res.PendingLocal, " "), "docket repository prepare") {
+		t.Errorf("PendingLocal = %v, want the prepare sync remedy", res.PendingLocal)
+	}
+	if h := res.HumanText(); !strings.Contains(h, "pending local sync") {
+		t.Errorf("repair output lacks the pending local sync line:\n%s", h)
+	}
 }
 
 // --- metadata artifact backlinks ---------------------------------------------

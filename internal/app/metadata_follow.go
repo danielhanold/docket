@@ -25,7 +25,7 @@ import (
 // applied commit; it is safe for concurrent invocation (all state is per call).
 func MetadataCheckoutFollower(client *gitcli.Client) func(context.Context, transaction.Request, transaction.Result) {
 	return func(ctx context.Context, req transaction.Request, res transaction.Result) {
-		followMetadataCheckout(ctx, client, req.Repository, req.TargetRef, res.AppliedCommit)
+		_ = followMetadataCheckout(ctx, client, req.Repository, req.TargetRef, res.AppliedCommit)
 	}
 }
 
@@ -33,7 +33,10 @@ func MetadataCheckoutFollower(client *gitcli.Client) func(context.Context, trans
 // targetRef is the layout's metadata ref and the checkout is attached on that
 // branch, clean, and strictly behind pushed. Anything else — a resolution or probe
 // error included — leaves the checkout exactly as it was. The pushed commit was
-// created in this repository, so no fetch is needed.
+// created in this repository, so no fetch is needed. It reports whether the
+// checkout ends at pushed (already there, or moved there now); a caller that
+// would otherwise tell the user to sync the checkout uses it to skip that note,
+// and the engine's AppliedHook ignores it.
 //
 // The local tip is read BEFORE the clean check, and that order is what keeps two
 // concurrent follows (two writes landing at once in one clone) from corrupting
@@ -43,34 +46,39 @@ func MetadataCheckoutFollower(client *gitcli.Client) func(context.Context, trans
 // read; and a tip read before the other's move makes its own compare-and-swap
 // refuse. The reverse order could prove clean against the old tip, read the moved
 // tip, and stack a second fast-forward onto the first one's stale index.
-func followMetadataCheckout(ctx context.Context, client *gitcli.Client, repo gitcli.Repository, targetRef gitcli.RefName, pushed gitcli.ObjectID) {
+func followMetadataCheckout(ctx context.Context, client *gitcli.Client, repo gitcli.Repository, targetRef gitcli.RefName, pushed gitcli.ObjectID) bool {
 	if client == nil || pushed == "" {
-		return
+		return false
 	}
 	lay, err := resolveLayout(ctx, client, repo)
 	if err != nil {
-		return
+		return false
 	}
 	metaRef := metadataRef(lay)
 	if targetRef != metaRef {
-		return
+		return false
 	}
 	worktree := lay.MetadataWorktree
 	if !metadataCheckoutAttached(ctx, client, repo, worktree, metaRef) {
-		return
+		return false
 	}
 	localTip, err := client.ResolveRef(ctx, repo, metaRef)
-	if err != nil || localTip == pushed {
-		return
+	if err != nil {
+		return false
 	}
 	// read-tree -u -m refuses only a change IN THE WAY and carries any other local
-	// edit across, so only a clean checkout moves — prepare's own rule.
+	// edit across, so only a clean checkout moves — prepare's own rule. A checkout
+	// already at pushed must be clean too to count as synced: a half-finished
+	// fast-forward leaves the branch there with the files behind.
 	if clean, _, _ := worktreeCleanState(ctx, client, worktree); clean != reposetup.PresencePresent {
-		return
+		return false
+	}
+	if localTip == pushed {
+		return true
 	}
 	// Refuses (nothing changed) unless pushed descends from localTip and the branch
 	// is still at localTip, so it never moves backwards or across a divergence.
-	_ = client.FastForwardCheckedOutBranch(ctx, worktree, metaRef, localTip, pushed)
+	return client.FastForwardCheckedOutBranch(ctx, worktree, metaRef, localTip, pushed) == nil
 }
 
 // metadataCheckoutAttached reports whether a live worktree registration sits at

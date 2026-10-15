@@ -157,7 +157,7 @@ func RunRepositoryRepair(ctx context.Context, d SetupDeps, o RepairOptions) Repo
 	}
 	plan.orphans = pruned
 	if len(plan.files) == 0 {
-		return repairApplied("", metadataTip, plan, sc.layout)
+		return repairApplied("", metadataTip, plan, sc.layout, false)
 	}
 	return executeRepositoryRepair(ctx, d.Git, sc, metadataTip, plan)
 }
@@ -355,9 +355,10 @@ func executeRepositoryRepair(ctx context.Context, git *gitcli.Client, sc setupCo
 	}
 	// Repair pushes outside the transaction engine, so the engine's AppliedHook
 	// never sees it: follow the clone's metadata checkout to the verified repair
-	// commit here. Best-effort and silent, exactly as after an engine write.
-	followMetadataCheckout(ctx, git, sc.repo, docketRef, commit)
-	return repairApplied(string(commit), metadataTip, plan, sc.layout)
+	// commit here. Best-effort and silent, exactly as after an engine write; only
+	// a checkout the follow did not bring to the commit still needs a local sync.
+	synced := followMetadataCheckout(ctx, git, sc.repo, docketRef, commit)
+	return repairApplied(string(commit), metadataTip, plan, sc.layout, synced)
 }
 
 // splitDerivedFindings partitions derived-view findings into the mechanically
@@ -536,13 +537,14 @@ func repairConfirmationRequired(sc setupContext, metadataTip string, plan reposi
 }
 
 // repairApplied is the success document: new and prior tips, the repaired file
-// set, and the local sync remedy (the remote advanced; the layout's metadata
-// worktree — `.docket`, or the private checkout — fast-forwards on the next
-// `docket repository prepare`), plus any orphaned checkouts removed.
-// An orphan-only repair publishes nothing (newTip "") and needs no local sync.
-func repairApplied(newTip, priorTip string, plan repositoryRepairPlan, l layout.Layout) RepositoryRepairResult {
+// set, and — unless synced reports the layout's metadata worktree (`.docket`, or
+// the private checkout) already at the repair commit — the local sync remedy (the
+// remote advanced; the worktree fast-forwards on the next `docket repository
+// prepare`), plus any orphaned checkouts removed. An orphan-only repair publishes
+// nothing (newTip "") and needs no local sync.
+func repairApplied(newTip, priorTip string, plan repositoryRepairPlan, l layout.Layout, synced bool) RepositoryRepairResult {
 	var pending []string
-	if len(plan.files) > 0 {
+	if len(plan.files) > 0 && !synced {
 		pending = []string{
 			fmt.Sprintf("fast-forward your local %s metadata worktree: re-run `docket repository prepare` to sync it to the repaired metadata revision", metadataWorktreeRef(l)),
 		}
@@ -560,8 +562,10 @@ func repairApplied(newTip, priorTip string, plan repositoryRepairPlan, l layout.
 	})
 	var b strings.Builder
 	if len(plan.files) > 0 {
-		fmt.Fprintf(&b, "repository repaired: metadata %s (%d file(s))\npending local sync: %s\n",
-			newTip, len(plan.files), strings.Join(pending, "; "))
+		fmt.Fprintf(&b, "repository repaired: metadata %s (%d file(s))\n", newTip, len(plan.files))
+		if len(pending) > 0 {
+			fmt.Fprintf(&b, "pending local sync: %s\n", strings.Join(pending, "; "))
+		}
 	}
 	for _, o := range plan.orphans {
 		fmt.Fprintf(&b, "removed orphaned checkout: %s\n", o)
