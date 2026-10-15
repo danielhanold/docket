@@ -1217,3 +1217,35 @@ func TestHarnessesUnsetFinding(t *testing.T) {
 		t.Errorf("HarnessesUnsetFinding(SurfacesAuthorized) = %+v, want nil", got)
 	}
 }
+
+// TestRepairFindingFindingCode pins the three code cases of
+// RepairFinding.FindingCode and that frontmatterFinding reports the same code,
+// keeping the producer's own Impact and Remedy text.
+func TestRepairFindingFindingCode(t *testing.T) {
+	cases := []struct {
+		name string
+		in   RepairFinding
+		want string
+	}{
+		{"repairable", RepairFinding{Path: "docs/changes/active/0001-a.md", Code: RepairQuoteScalar, Repairable: true, Message: "m", Impact: "i", Remedy: "r"}, "quote-unsafe-scalar"},
+		{"review code", RepairFinding{Path: "docs/changes/active/0001-a.md", ReviewCode: "change-reference-dangling", Message: "m", Impact: "i", Remedy: "r"}, "change-reference-dangling"},
+		{"empty", RepairFinding{Path: "docs/changes/active/0001-a.md", Message: "m", Impact: "i", Remedy: "r"}, CodeFrontmatterManualReview},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := c.in.FindingCode(); got != c.want {
+				t.Errorf("FindingCode() = %q, want %q", got, c.want)
+			}
+			f := frontmatterFinding(c.in)
+			if f.Code != c.want {
+				t.Errorf("frontmatterFinding code = %q, want %q", f.Code, c.want)
+			}
+			if f.Impact != c.in.Impact || f.Remedy != c.in.Remedy {
+				t.Errorf("frontmatterFinding impact/remedy = %q/%q, want the producer's %q/%q", f.Impact, f.Remedy, c.in.Impact, c.in.Remedy)
+			}
+			if f.Repairable == nil || *f.Repairable != c.in.Repairable {
+				t.Errorf("frontmatterFinding Repairable = %v, want non-nil %v", f.Repairable, c.in.Repairable)
+			}
+		})
+	}
+}

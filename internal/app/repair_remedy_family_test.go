@@ -22,7 +22,7 @@ import (
 // vacuously.
 //
 // Mutation probes: restore "Run `docket repository migrate`" in derived.go's
-// repairable remedy, or "Apply the previewed mechanical repair" in health.go's —
+// repairable remedy, or in frontmatterFinding's default remedy in health.go —
 // each must redden this test.
 func TestRepairableFamilyRemediesNameRepairNotMigrate(t *testing.T) {
 	cfg := derivedTestConfig()
@@ -36,6 +36,8 @@ func TestRepairableFamilyRemediesNameRepairNotMigrate(t *testing.T) {
 			// repairable derived: a stale artifact-links block
 			{path: "docs/changes/active/0001-example.md", bytes: changeRecordBytes(derivedChangeFM, ""), kind: repository.KindChange, location: repository.LocationActive},
 			// non-repairable derived: an unbalanced managed marker
+			// non-repairable validator finding: a dangling depends_on reference
+			danglingDependencyRecord(),
 			{path: "docs/changes/active/0004-malformed.md", bytes: []byte("---\n" + malformedFM + "---\n\n## Artifacts\n\n<!-- docket:artifacts:start (generated — do not hand-edit) -->\n| Artifact | Link |\n\n## Why\n\nbody\n"), kind: repository.KindChange, location: repository.LocationActive},
 		},
 		link:  render.LinkContext{MetadataBranch: layout.SharedName},
@@ -67,14 +69,14 @@ func TestRepairableFamilyRemediesNameRepairNotMigrate(t *testing.T) {
 	// Population floor (marker-scoped-guard-needs-a-population-floor): both
 	// producers, both polarities.
 	for _, code := range []string{
-		string(reposetup.RepairDropClaimedAt), "frontmatter-manual-review",
+		string(reposetup.RepairDropClaimedAt), reposetup.CodeFrontmatterManualReview, repository.CodeChangeReferenceDangling,
 		reposetup.CodeBoardStale, reposetup.CodeArtifactLinksStale, reposetup.CodeArtifactLinksMalformed,
 	} {
 		if !seen[code] {
 			t.Errorf("population floor: the fixture produced no %s finding (seen: %v)", code, seen)
 		}
 	}
-	if repairable < 3 || manual < 2 {
-		t.Errorf("population floor: repairable=%d manual=%d, want >=3 and >=2", repairable, manual)
+	if repairable < 3 || manual < 3 {
+		t.Errorf("population floor: repairable=%d manual=%d, want >=3 and >=3", repairable, manual)
 	}
 }

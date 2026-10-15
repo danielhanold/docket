@@ -359,27 +359,31 @@ func committedDeclaresLegacyAuto(committedYML []byte) bool {
 }
 
 // frontmatterFinding lifts one caller-gathered RepairFinding into a health
-// Finding. It is the only Finding that carries a non-nil Repairable pointer.
+// Finding. It is the only Finding that carries a non-nil Repairable pointer. Its
+// code is rf.FindingCode(); it keeps the producer's Message, Impact, and Remedy,
+// falling back to a default remedy only for a finding built without one.
 func frontmatterFinding(rf RepairFinding) Finding {
 	repairable := rf.Repairable
-	if rf.Repairable {
-		return Finding{
-			Code:       string(rf.Code),
-			Severity:   SeverityWarning,
-			Ref:        rf.Path,
-			Message:    rf.Message,
-			Remedy:     "Run `docket repository repair` to preview and apply this repair, or edit the record frontmatter by hand.",
-			Repairable: &repairable,
-		}
-	}
-	return Finding{
-		Code:       "frontmatter-manual-review",
+	f := Finding{
+		Code:       rf.FindingCode(),
 		Severity:   SeverityError,
 		Ref:        rf.Path,
 		Message:    rf.Message,
-		Remedy:     "Edit the record frontmatter manually; this shape is outside the mechanical repair roster.",
+		Impact:     rf.Impact,
+		Remedy:     rf.Remedy,
 		Repairable: &repairable,
 	}
+	if rf.Repairable {
+		f.Severity = SeverityWarning
+	}
+	if f.Remedy == "" {
+		if rf.Repairable {
+			f.Remedy = "Run `docket repository repair` to make this edit (it shows the edit first)."
+		} else {
+			f.Remedy = "Edit the record by hand, then run `docket repository repair` so the board and link blocks catch up."
+		}
+	}
+	return f
 }
 
 // CheckExit maps a classification and its findings to the `docket repository

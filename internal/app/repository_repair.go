@@ -252,9 +252,9 @@ func planRepositoryRepair(sc setupContext, corpus checkCorpus) (repositoryRepair
 	p := repositoryRepairPlan{contents: map[string][]byte{}}
 
 	byPath := map[string][]reposetup.RepairFinding{}
-	for _, f := range corpusFindings(cfg, corpus.records) {
+	for _, f := range corpusFindings(cfg, corpus.records, corpus.locator) {
 		if !f.Repairable {
-			p.manual = append(p.manual, manualReviewLine("frontmatter-manual-review", f.Path, f.Message))
+			p.manual = append(p.manual, manualReviewLine(f.FindingCode(), f.Path, f.Message))
 			continue
 		}
 		p.frontmatter = append(p.frontmatter, f)
