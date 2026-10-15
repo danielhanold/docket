@@ -739,8 +739,9 @@ func corpusUnreadableFinding(err error) reposetup.Finding {
 	return reposetup.Finding{
 		Code:     reposetup.CodeCorpusUnreadable,
 		Severity: reposetup.SeverityError,
-		Message:  "the metadata corpus could not be read: " + err.Error(),
-		Remedy:   "Ensure the remote docket branch is reachable and its objects are fetched, then re-run `docket repository check`.",
+		Message:  "docket couldn't read the records on the metadata branch: " + err.Error() + ".",
+		Impact:   "None of the record checks ran, so this result says nothing about the records.",
+		Remedy:   "Fix the read error, then run `docket repository check` again.",
 	}
 }
 
@@ -773,7 +774,9 @@ func derivedViewFindings(cfg config.Effective, corpus checkCorpus) []reposetup.D
 					Code:       reposetup.CodeBoardStale,
 					Path:       boardCorpusPath(cfg),
 					Repairable: true,
-					Message:    "the inline board differs from the canonical render of the current metadata.",
+					Message:    "BOARD.md doesn't match the current change records.",
+					Impact:     "The board shows out-of-date statuses. This usually means a record was edited with plain git instead of a docket command.",
+					Remedy:     "Run `docket repository repair` to regenerate it (it shows the change first).",
 				})
 			}
 		}
@@ -787,7 +790,9 @@ func derivedViewFindings(cfg config.Effective, corpus checkCorpus) []reposetup.D
 					Code:       reposetup.CodeADRIndexStale,
 					Path:       adrIndexCorpusPath(cfg),
 					Repairable: true,
-					Message:    "the ADR index differs from the canonical render of the current metadata.",
+					Message:    "The ADR index doesn't match the current ADR records.",
+					Impact:     "It lists out-of-date titles or statuses. This usually means an ADR was edited with plain git instead of a docket command.",
+					Remedy:     "Run `docket repository repair` to regenerate it (it shows the change first).",
 				})
 			}
 		}
@@ -825,12 +830,16 @@ func artifactBacklinkFindings(snap domain.Snapshot, corpus checkCorpus) []repose
 			continue
 		}
 		if len(owners[p]) > 1 {
+			ids := ownerIDs(owners[p])
 			out = append(out, reposetup.DerivedFinding{
 				View:       reposetup.DerivedViewArtifactBacklinks,
 				Code:       reposetup.CodeArtifactBacklinkShared,
 				Path:       p,
 				Repairable: false,
-				Message:    "the artifact is linked by more than one change, so its generated backlink has no single canonical target.",
+				Message:    "`" + p + "` is linked from more than one change (" + ids + ").",
+				Impact:     "docket can't tell which change its back-link should point to, so it leaves the link alone.",
+				Remedy: corpus.locator.HandEditThenRepair(
+					"remove the `spec:`, `plan:`, or `results:` line naming `"+p+"` from every change except the one that owns it (changes "+ids+")", ""),
 			})
 			continue
 		}
@@ -842,7 +851,10 @@ func artifactBacklinkFindings(snap domain.Snapshot, corpus checkCorpus) []repose
 					Code:       reposetup.CodeArtifactBacklinkMalformed,
 					Path:       p,
 					Repairable: false,
-					Message:    "the generated backlink markers are unbalanced or malformed: " + err.Error(),
+					Message:    "The back-link markers at the top of `" + p + "` don't pair up: " + reposetup.PlainDocumentError(err) + ".",
+					Impact:     "docket won't rewrite a link whose start and end it can't find, so the link stays as it is.",
+					Remedy: corpus.locator.HandEditThenRepair(
+						"restore the `<!-- docket:backlink:start … -->` and `<!-- docket:backlink:end -->` lines around the link", p),
 				})
 			}
 			continue
@@ -856,11 +868,28 @@ func artifactBacklinkFindings(snap domain.Snapshot, corpus checkCorpus) []repose
 				Code:       reposetup.CodeArtifactBacklinkStale,
 				Path:       p,
 				Repairable: true,
-				Message:    "the generated backlink differs from the canonical relative link to its change.",
+				Message:    "The link at the top of `" + p + "` back to its change points to the wrong place.",
+				Impact:     "Following it from the file leads to a missing page. This usually happens after the change was archived.",
+				Remedy:     "Run `docket repository repair`.",
 			})
 		}
 	}
 	return out
+}
+
+// ownerIDs renders the changes sharing one artifact as their sorted,
+// comma-joined four-digit ids, for the artifact-backlink-shared text.
+func ownerIDs(cs []domain.Change) string {
+	ids := make([]int, 0, len(cs))
+	for _, c := range cs {
+		ids = append(ids, int(c.ID()))
+	}
+	sort.Ints(ids)
+	parts := make([]string, len(ids))
+	for i, id := range ids {
+		parts[i] = fmt.Sprintf("%04d", id)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // canonicalArtifactBacklink renders src with its docket:backlink block replaced
@@ -913,7 +942,12 @@ func artifactLinkFindings(snap domain.Snapshot, corpus checkCorpus) []reposetup.
 					Code:       reposetup.CodeArtifactLinksMalformed,
 					Path:       rec.path,
 					Repairable: false,
-					Message:    "the managed artifact-links markers are unbalanced or malformed: " + err.Error(),
+					Message:    "The `## Artifacts` block markers in this change record don't pair up: " + reposetup.PlainDocumentError(err) + ".",
+					Impact:     "docket won't rewrite a block whose start and end it can't find, so the block stays out of date.",
+					// Deleting both markers is safe: repair then adds the block
+					// afresh, as for a CodeArtifactLinksMissing record.
+					Remedy: corpus.locator.HandEditThenRepair(
+						"restore the `<!-- docket:artifacts:start … -->` and `<!-- docket:artifacts:end -->` lines around the block, or delete both lines and everything between them", rec.path),
 				})
 			}
 			continue
@@ -933,7 +967,9 @@ func artifactLinkFindings(snap domain.Snapshot, corpus checkCorpus) []reposetup.
 					Code:       reposetup.CodeArtifactLinksMissing,
 					Path:       rec.path,
 					Repairable: true,
-					Message:    "the record carries artifacts but has no managed artifact-links block.",
+					Message:    "This change record links a spec, plan, results file, or ADR but has no `## Artifacts` block.",
+					Impact:     "Readers of the record don't see its links.",
+					Remedy:     "Run `docket repository repair` to add the block (it shows the change first).",
 				})
 			}
 			continue
@@ -948,7 +984,9 @@ func artifactLinkFindings(snap domain.Snapshot, corpus checkCorpus) []reposetup.
 				Code:       reposetup.CodeArtifactLinksStale,
 				Path:       rec.path,
 				Repairable: true,
-				Message:    "the managed artifact-links block differs from the canonical render.",
+				Message:    "The `## Artifacts` block in this change record is out of date.",
+				Impact:     "Its links don't match the record's spec, plan, results, or ADRs. This usually means the record was edited with plain git instead of a docket command.",
+				Remedy:     "Run `docket repository repair` to rewrite the block (it shows the change first).",
 			})
 		}
 	}
