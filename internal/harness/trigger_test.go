@@ -5,6 +5,7 @@ package harness_test
 
 import (
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -131,6 +132,16 @@ func TestTriggerTargets(t *testing.T) {
 	if u.Kind != install.KindHookEntries || u.HookDialect != install.HookDialectCursor || u.Role != harness.TriggerRole ||
 		len(u.HookCommands) != 1 || u.HookCommands[0] != harness.CursorHookCommand {
 		t.Errorf("cursor hook target = %+v", u)
+	}
+	if harness.ClaudeFinalizePublishAllowRule != "Bash(docket finalize publish:*)" ||
+		harness.ClaudeFinalizeMergeAllowRule != "Bash(docket finalize merge:*)" {
+		t.Errorf("allow rules are not the proven spellings")
+	}
+	if want := []string{harness.ClaudeFinalizePublishAllowRule, harness.ClaudeFinalizeMergeAllowRule}; !reflect.DeepEqual(c.AllowRules, want) {
+		t.Errorf("claude target allow rules = %q, want %q", c.AllowRules, want)
+	}
+	if len(u.AllowRules) != 0 {
+		t.Errorf("cursor target carries allow rules %q", u.AllowRules)
 	}
 	o := harness.OpenCodePluginTarget("/h/p.js")
 	if o.Kind != install.KindFile || string(o.Content) != harness.OpenCodePlugin || o.Role != harness.TriggerRole {

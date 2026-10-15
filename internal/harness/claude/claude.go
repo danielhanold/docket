@@ -1,9 +1,9 @@
 // Package claude renders Docket's installation for Claude Code: skill
 // symlinks, one native agent definition per agent source, and one content-free
 // trigger (the private-instructions SessionStart hooks in settings.json,
-// harness.ClaudeHookTarget). It no longer
-// plans a user-global dispatch block (change 0351) — parent-facing routing
-// belongs to a repository's own CLAUDE.md, not a personal global one — but it
+// harness.ClaudeHookTarget, which also carries the two finalize allow rules).
+// It no longer plans a user-global dispatch block (change 0351) — parent-facing
+// routing belongs to a repository's own CLAUDE.md, not a personal global one — but it
 // still exports GlobalDispatchTarget so the installer can retire a leftover a
 // prior install owns. It plans only: nothing here writes to the filesystem
 // apart from Detect's read-only stat.

@@ -45,11 +45,26 @@ const (
 		"follow it for the rest of the session. If it prints nothing, ignore this section.\n"
 )
 
-// ClaudeHookTarget is the Claude Code trigger: both SessionStart commands as
-// one hook-entries target in settings.json (one target per hooks file).
+// The Claude Code allow rules are not triggers, and unlike them they name
+// docket: a narrow permission grant in the same user-level settings.json. When
+// finalize reuses a green implement-next suite run, auto mode reads the publish
+// and merge that follow as a CI bypass and soft-denies them; these rules clear
+// that. They match only `docket finalize publish|merge`, which refuse outside a
+// docket repository, so the user-level grant authorizes nothing elsewhere.
+// TestClaudeFinalizeAllowRulesMatchCatalog (internal/cli) pins them to the
+// capability catalog's argv.
+const (
+	ClaudeFinalizePublishAllowRule = "Bash(docket finalize publish:*)"
+	ClaudeFinalizeMergeAllowRule   = "Bash(docket finalize merge:*)"
+)
+
+// ClaudeHookTarget is the Claude Code trigger: both SessionStart commands plus
+// the two finalize allow rules, as one hook-entries target in settings.json
+// (one target per hooks file).
 func ClaudeHookTarget(settingsPath string) install.Target {
 	return install.Target{Path: settingsPath, Kind: install.KindHookEntries, HookDialect: install.HookDialectClaude,
-		HookCommands: []string{ClaudeDispatchHookCommand, ClaudeLessonsHookCommand}, Role: TriggerRole}
+		HookCommands: []string{ClaudeDispatchHookCommand, ClaudeLessonsHookCommand},
+		AllowRules:   []string{ClaudeFinalizePublishAllowRule, ClaudeFinalizeMergeAllowRule}, Role: TriggerRole}
 }
 
 // CursorHookTarget is the Cursor trigger: the sessionStart command in hooks.json.

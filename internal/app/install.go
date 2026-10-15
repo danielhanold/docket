@@ -246,9 +246,13 @@ func NewInstallResult(operation string, out install.Outcome) InstallResult {
 func skippedWarnings(skipped []install.Inspection) []InstallWarning {
 	var out []InstallWarning
 	for _, s := range skipped {
+		message := "hooks file left untouched; its trigger is not installed"
+		if len(s.Target.AllowRules) > 0 {
+			message = "settings file left untouched; its trigger and allow rules are not installed"
+		}
 		out = append(out, InstallWarning{Diagnostic: config.Diagnostic{
 			Code: string(FCHookFileNotEditable), Severity: config.SeverityWarning, Path: s.Target.Path,
-			Message: "hooks file left untouched; its trigger is not installed",
+			Message: message,
 			Remedy:  s.Remedy,
 		}})
 	}

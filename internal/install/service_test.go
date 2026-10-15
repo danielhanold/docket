@@ -8,9 +8,11 @@ package install_test
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"syscall"
@@ -1571,5 +1573,43 @@ func TestCheckNeverTakesTheLock(t *testing.T) {
 	holdInstallLock(t, w.roots)
 	if out := install.Check(o); out.Reason != "" || out.Err != nil {
 		t.Errorf("check under a held lock: reason %q err %v", out.Reason, out.Err)
+	}
+}
+
+// A real Claude install over a realistic settings.json adds the finalize rules
+// after the user's own, is a byte-identical no-op the second time, and uninstall
+// restores the user's file exactly.
+func TestInstallClaudeAllowRulesKeepEveryUserByte(t *testing.T) {
+	w := newWorld(t, ".claude")
+	seed := "{\n  \"model\": \"opus\",\n  \"permissions\": {\n    \"allow\": [\n      \"Bash(git status:*)\"\n    ],\n" +
+		"    \"deny\": [\n      \"Bash(rm -rf:*)\"\n    ],\n    \"defaultMode\": \"acceptEdits\"\n  }\n}\n"
+	settings := w.path(".claude", "settings.json")
+	writeFile(t, settings, seed)
+	if out := install.Install(w.options(nil)); out.Err != nil || !out.Applied {
+		t.Fatalf("Install: %v (reason %q)", out.Err, out.Reason)
+	}
+	body := readFile(t, settings)
+	var doc struct {
+		Permissions struct {
+			Allow       []string `json:"allow"`
+			Deny        []string `json:"deny"`
+			DefaultMode string   `json:"defaultMode"`
+		} `json:"permissions"`
+	}
+	if err := json.Unmarshal([]byte(body), &doc); err != nil {
+		t.Fatalf("decoding settings: %v", err)
+	}
+	want := []string{"Bash(git status:*)", harness.ClaudeFinalizePublishAllowRule, harness.ClaudeFinalizeMergeAllowRule}
+	if !reflect.DeepEqual(doc.Permissions.Allow, want) || !reflect.DeepEqual(doc.Permissions.Deny, []string{"Bash(rm -rf:*)"}) ||
+		doc.Permissions.DefaultMode != "acceptEdits" || !strings.Contains(body, harness.ClaudeDispatchHookCommand) {
+		t.Errorf("settings after install:\n%s", body)
+	}
+	if again := install.Install(w.options(nil)); again.Err != nil || again.Applied || readFile(t, settings) != body {
+		t.Errorf("second Install: err %v, applied %v (want a byte-identical no-op)", again.Err, again.Applied)
+	}
+	u := install.Uninstall(install.UninstallOptions{Roots: w.roots, FS: install.RealFS{},
+		SupportedHarnesses: []string{"claude", "codex", "cursor", "opencode"}})
+	if u.Err != nil || readFile(t, settings) != seed {
+		t.Errorf("Uninstall: err %v; settings now\n%s", u.Err, readFile(t, settings))
 	}
 }
