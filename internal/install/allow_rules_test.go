@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -398,4 +399,213 @@ func TestHookEntriesStateCountsAllowRules(t *testing.T) {
 	if ed, _, _ := hookEntriesState(broken, HookDialectClaude, claudeHookCmds, nil); !ed {
 		t.Errorf("broken permissions is not editable for a hooks-only record")
 	}
+}
+
+const settingsSeed = "{\n  \"model\": \"opus\",\n  \"env\": {\n    \"FOO\": \"1\"\n  },\n" +
+	"  \"permissions\": {\n    \"allow\": [\n      \"Bash(git status:*)\",\n      \"Read(~/notes/**)\"\n    ],\n" +
+	"    \"deny\": [\n      \"Bash(rm -rf:*)\"\n    ],\n    \"defaultMode\": \"acceptEdits\"\n  },\n" +
+	"  \"hooks\": {\n    \"Stop\": [\n      {\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"./stop.sh\"\n          }\n        ]\n      }\n    ]\n  }\n}\n"
+
+// rulesWorld is a claude hookWorld whose target carries *rules (empty: hooks
+// only), re-read at every plan so a test can change them between installs.
+func rulesWorld(t *testing.T, rules *[]string, extra func(UserRoots) []Target) (Options, UninstallOptions, string) {
+	t.Helper()
+	opts, uopts, path := hookWorld(t, HookDialectClaude, extra)
+	inner := opts.Planners[0].Plan
+	opts.Planners[0].Plan = func(m Mode, dir string, c assets.Catalog) ([]Target, error) {
+		ts, err := inner(m, dir, c)
+		if err == nil && len(*rules) > 0 {
+			ts[0].AllowRules = append([]string(nil), (*rules)...)
+		}
+		return ts, err
+	}
+	return opts, uopts, path
+}
+
+func mustInstall(t *testing.T, opts Options, wantApplied bool) {
+	t.Helper()
+	if out := Install(opts); out.Err != nil || out.Applied != wantApplied {
+		t.Fatalf("Install: err %v, applied %v (want %v), actions %+v, skipped %+v", out.Err, out.Applied, wantApplied, out.Actions, out.Skipped)
+	}
+}
+
+func mustUninstall(t *testing.T, uopts UninstallOptions) {
+	t.Helper()
+	if out := Uninstall(uopts); out.Err != nil {
+		t.Fatalf("Uninstall: %v (actions %+v)", out.Err, out.Actions)
+	}
+}
+
+func TestAllowRulesInstallUninstallLifecycle(t *testing.T) {
+	t.Run("realistic seed: install, no-op, uninstall restores", func(t *testing.T) {
+		rules := testAllowRules
+		opts, uopts, path := rulesWorld(t, &rules, nil)
+		writeFileOrDie(t, path, settingsSeed)
+		mustInstall(t, opts, true)
+		installed := readOrDie(t, path)
+		if got, want := allowStrings(t, []byte(installed)), []string{"Bash(git status:*)", "Read(~/notes/**)", testAllowRules[0], testAllowRules[1]}; !reflect.DeepEqual(got, want) {
+			t.Errorf("allow = %q, want %q", got, want)
+		}
+		entries, _ := readHookEntries([]byte(installed), HookDialectClaude)
+		for _, c := range claudeHookCmds {
+			if countEntries(entries, func(e json.RawMessage) bool { return isExactEntry(e, HookDialectClaude, c) }) != 1 {
+				t.Errorf("no exact entry runs %q", c)
+			}
+		}
+		if rec := stateRecordAt(t, opts.Roots, path); rec == nil || !reflect.DeepEqual(rec.AllowRules, testAllowRules) ||
+			rec.SHA256 != hookEntriesDigest(HookDialectClaude, claudeHookCmds, testAllowRules) {
+			t.Fatalf("state record = %+v", rec)
+		}
+		mustInstall(t, opts, false)
+		if readOrDie(t, path) != installed {
+			t.Errorf("a second install changed the file")
+		}
+		mustUninstall(t, uopts)
+		if got := readOrDie(t, path); got != settingsSeed {
+			t.Errorf("after uninstall = %q, want the seed", got)
+		}
+		assertNoStaging(t, filepath.Dir(path))
+	})
+
+	t.Run("no seed: hooks then rules, uninstall leaves {}", func(t *testing.T) {
+		rules := testAllowRules
+		opts, uopts, path := rulesWorld(t, &rules, nil)
+		mustInstall(t, opts, true)
+		if got := readOrDie(t, path); got != settingsWith(t, testAllowRules) {
+			t.Errorf("created file =\n%s", got)
+		}
+		mustUninstall(t, uopts)
+		if got := readOrDie(t, path); got != "{}\n" {
+			t.Errorf("after uninstall = %q", got)
+		}
+	})
+
+	t.Run("a hand-deleted rule comes back", func(t *testing.T) {
+		rules := testAllowRules
+		opts, _, path := rulesWorld(t, &rules, nil)
+		writeFileOrDie(t, path, settingsSeed)
+		mustInstall(t, opts, true)
+		deleted, err := removeAllowRules([]byte(readOrDie(t, path)), testAllowRules[:1])
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFileOrDie(t, path, string(deleted))
+		mustInstall(t, opts, true)
+		got := allowStrings(t, []byte(readOrDie(t, path)))
+		if countString(got, testAllowRules[0]) != 1 || countString(got, testAllowRules[1]) != 1 {
+			t.Errorf("allow = %q, want each rule once", got)
+		}
+	})
+
+	t.Run("a hand-typed rule is not duplicated and goes on uninstall", func(t *testing.T) {
+		rules := testAllowRules
+		opts, uopts, path := rulesWorld(t, &rules, nil)
+		writeFileOrDie(t, path, "{\n  \"permissions\": {\n    \"allow\": [\n      \"Bash(a x:*)\"\n    ]\n  }\n}\n")
+		mustInstall(t, opts, true)
+		if got := allowStrings(t, []byte(readOrDie(t, path))); !reflect.DeepEqual(got, testAllowRules) {
+			t.Errorf("allow = %q", got)
+		}
+		mustUninstall(t, uopts)
+		if got := readOrDie(t, path); got != "{}\n" {
+			t.Errorf("after uninstall = %q", got)
+		}
+	})
+
+	t.Run("a dropped rule is retired", func(t *testing.T) {
+		old := "Bash(a old:*)"
+		rules := append(append([]string(nil), testAllowRules...), old)
+		opts, _, path := rulesWorld(t, &rules, nil)
+		writeFileOrDie(t, path, settingsSeed)
+		mustInstall(t, opts, true)
+		rules = testAllowRules
+		mustInstall(t, opts, true)
+		got := allowStrings(t, []byte(readOrDie(t, path)))
+		if countString(got, old) != 0 || countString(got, testAllowRules[0]) != 1 || countString(got, testAllowRules[1]) != 1 {
+			t.Errorf("allow = %q", got)
+		}
+		if rec := stateRecordAt(t, opts.Roots, path); rec == nil || !reflect.DeepEqual(rec.AllowRules, testAllowRules) {
+			t.Errorf("state record = %+v", rec)
+		}
+		mustInstall(t, opts, false)
+	})
+
+	t.Run("upgrade from a hooks-only record adds only the rules", func(t *testing.T) {
+		var rules []string
+		opts, _, path := rulesWorld(t, &rules, nil)
+		writeFileOrDie(t, path, settingsSeed)
+		mustInstall(t, opts, true)
+		if rec := stateRecordAt(t, opts.Roots, path); rec == nil || rec.AllowRules != nil ||
+			rec.SHA256 != hookEntriesDigest(HookDialectClaude, claudeHookCmds, nil) {
+			t.Fatalf("hooks-only record = %+v", rec)
+		}
+		before := readOrDie(t, path)
+		rules = testAllowRules
+		mustInstall(t, opts, true)
+		if stripped, err := removeAllowRules([]byte(readOrDie(t, path)), testAllowRules); err != nil || string(stripped) != before {
+			t.Errorf("the upgrade changed more than the rules (err %v)", err)
+		}
+		if rec := stateRecordAt(t, opts.Roots, path); rec == nil || !reflect.DeepEqual(rec.AllowRules, testAllowRules) {
+			t.Errorf("upgraded record = %+v", rec)
+		}
+	})
+
+	t.Run("rules left after the hooks were deleted by hand are removed", func(t *testing.T) {
+		rules := testAllowRules
+		opts, uopts, path := rulesWorld(t, &rules, nil)
+		writeFileOrDie(t, path, settingsSeed)
+		mustInstall(t, opts, true)
+		noHooks, err := removeHookEntries([]byte(readOrDie(t, path)), HookDialectClaude, claudeHookCmds)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFileOrDie(t, path, string(noHooks))
+		mustUninstall(t, uopts)
+		if got := readOrDie(t, path); got != settingsSeed {
+			t.Errorf("after uninstall = %q, want the seed", got)
+		}
+	})
+
+	t.Run("permissions broken after install: uninstall refuses, install skips", func(t *testing.T) {
+		rules := testAllowRules
+		opts, uopts, path := rulesWorld(t, &rules, nil)
+		mustInstall(t, opts, true)
+		broken := strings.Replace(readOrDie(t, path), "\"permissions\": {", "\"permissions\": [], \"was\": {", 1)
+		if !strings.Contains(broken, "\"permissions\": []") {
+			t.Fatalf("could not break permissions")
+		}
+		writeFileOrDie(t, path, broken)
+		out := Uninstall(uopts)
+		if out.Err == nil || out.Reason != ReasonManagedBlockInvalid || !hasConflictFor(out, path, ReasonManagedBlockInvalid) {
+			t.Errorf("Uninstall = err %v, reason %s, actions %+v", out.Err, out.Reason, out.Actions)
+		}
+		again := Install(opts)
+		if again.Err != nil || !skippedWith(again, path, withAllowRules(remedyAllowRulesInvalid, rulesTarget(path, testAllowRules))) {
+			t.Errorf("re-install: err %v, skipped %+v", again.Err, again.Skipped)
+		}
+		if readOrDie(t, path) != broken {
+			t.Errorf("the broken file changed")
+		}
+	})
+
+	t.Run("unreadable permissions at first install skips only this file", func(t *testing.T) {
+		rules := testAllowRules
+		var other string
+		opts, uopts, path := rulesWorld(t, &rules, func(r UserRoots) []Target {
+			other = filepath.Join(r.Home, ".claude", "agent.md")
+			return []Target{{Path: other, Kind: KindFile, Content: []byte("agent\n"), Role: "agent"}}
+		})
+		seed := "{\n  \"permissions\": {\n    \"allow\": {}\n  }\n}\n"
+		writeFileOrDie(t, path, seed)
+		out := Install(opts)
+		if out.Err != nil || !out.Applied || !skippedWith(out, path, withAllowRules(remedyAllowRulesInvalid, rulesTarget(path, testAllowRules))) {
+			t.Fatalf("Install: err %v, applied %v, skipped %+v", out.Err, out.Applied, out.Skipped)
+		}
+		if readOrDie(t, other) != "agent\n" || readOrDie(t, path) != seed || stateRecordAt(t, opts.Roots, path) != nil {
+			t.Errorf("want the other target installed, the settings file untouched and unrecorded")
+		}
+		mustUninstall(t, uopts)
+		if readOrDie(t, path) != seed {
+			t.Errorf("uninstall changed the skipped file")
+		}
+	})
 }
