@@ -462,7 +462,7 @@ func TestChangeCreateRecordHasNoRepairFindings(t *testing.T) {
 		t.Fatalf("title = %q (err %v), want %q", fm.Title, err, title)
 	}
 
-	fs, err := reposetup.PlanRepairs(recPath, rec, false)
+	fs, err := reposetup.PlanRepairs(recPath, rec, false, reposetup.RecordLocator{})
 	if err != nil {
 		t.Fatalf("PlanRepairs: %v", err)
 	}

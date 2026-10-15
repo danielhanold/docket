@@ -13,7 +13,7 @@ import (
 // non-nil error, which the roster never produces for a well-formed call.
 func planOne(t *testing.T, path string, src string, archived bool) []RepairFinding {
 	t.Helper()
-	fs, err := PlanRepairs(path, []byte(src), archived)
+	fs, err := PlanRepairs(path, []byte(src), archived, RecordLocator{})
 	if err != nil {
 		t.Fatalf("PlanRepairs(%q) unexpected error: %v", path, err)
 	}
@@ -382,7 +382,7 @@ func TestRepairBareScalarsKeepTheirVerdict(t *testing.T) {
 			t.Fatalf("want exactly one finding, got %d: %+v", len(fs), fs)
 		}
 		f := fs[0]
-		if f.Repairable || f.Field != "title" || !strings.Contains(f.Message, "needs manual review") {
+		if f.Repairable || f.Field != "title" || !strings.Contains(f.Message, "`title: true` is unquoted") {
 			t.Fatalf("want a non-repairable manual-review finding on title, got %+v", f)
 		}
 	})
