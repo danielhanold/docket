@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/explain-repository-check-and-status-findings-in-plain-langua'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-15T21:53:59Z'
+reconciled: true
+claimed_at: '2026-10-15T21:54:53Z'
 ---
 
 ## Artifacts
@@ -58,3 +58,9 @@ Daniel reads this output himself, and agents relay it; every finding should answ
 - Any new blocking gate.
 - A `--explain` flag or other verbosity switch.
 - Naming the artifact-backlink codes in the docket-status skill (change 539).
+
+## Reconcile log
+
+### 2026-10-15
+
+2026-10-15 — Spec groomed today; re-traced every named site on origin/main 9ace757 (corpusFindings, findingMessage, validationFinding, appendFindingBlock, writeFinding, checkGatherFailure, PlanRepairs, planRepositoryRepair) and all still exist as described. Recent main commits (0551 workspace checkout) do not touch these files. No scope change; ADR-0136 still governs the repair remedy wording.
