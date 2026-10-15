@@ -12,7 +12,7 @@ stacked_on:
 related: [27, 408]
 discovered_from: []
 adrs: [145]
-spec:
+spec: 'docs/superpowers/specs/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md](../../superpowers/specs/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md) |
 | ADRs | [ADR-0145](../../adrs/0145-private-repository-parent-facing-rules-load-through-content.md) |
 <!-- docket:artifacts:end -->
 
