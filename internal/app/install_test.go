@@ -631,3 +631,17 @@ func TestAgentDigestIgnoresCacheTTLForNonRenderingHarness(t *testing.T) {
 		t.Errorf("a cache TTL codex never renders moved its digest: %q vs %q", hour, none)
 	}
 }
+
+// A skipped target that carries allow rules is named as the settings file whose
+// trigger and allow rules were not installed, not as a bare hooks file.
+func TestInstallResultSkippedSettingsNamesAllowRules(t *testing.T) {
+	out := install.Outcome{Mode: install.ModeRelease, Applied: true, Skipped: []install.Inspection{{
+		Target: install.Target{Path: "/h/.claude/settings.json", Kind: install.KindHookEntries,
+			AllowRules: []string{"Bash(docket finalize publish:*)"}},
+		Disposition: install.DispositionSkip, Remedy: "repair it by hand, then re-run",
+	}}}
+	r := NewInstallResult(OperationInstall, out)
+	if len(r.Warnings) != 1 || r.Warnings[0].Message != "settings file left untouched; its trigger and allow rules are not installed" {
+		t.Errorf("warnings = %+v", r.Warnings)
+	}
+}
