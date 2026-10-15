@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 )
@@ -128,6 +129,33 @@ func renderFindingCatalog(t *testing.T) string {
 	}
 	appendFindingBlock(&b, corpusUnreadableFinding(errors.New("object 4b825dc6 is missing")))
 	b.WriteString("\n")
+
+	// A setup that is not healthy re-words every record remedy
+	// (checkRecordLocator): the checkout may not exist and repair refuses.
+	b.WriteString("\n## Record remedies while setup is not healthy\n")
+	blocked := checkRecordLocator(layout.Layout{}, reposetup.StateNeedsReview)
+	fmt.Fprintf(&b, "\n### validator (%s)\nremedy: %s\n", danglingDep().Code, explainValidation(danglingDep(), blocked).Remedy)
+	for _, shape := range catalogFrontmatterShapes() {
+		rfs, err := reposetup.PlanRepairs(rel, []byte(shape.src), shape.archived, blocked)
+		if err != nil {
+			t.Fatalf("PlanRepairs(%s): %v", shape.name, err)
+		}
+		for _, f := range rfs {
+			fmt.Fprintf(&b, "\n### %s — %s\nremedy: %s\n", f.FindingCode(), shape.name, f.Remedy)
+		}
+	}
+	blockedDerived := map[string]string{}
+	for _, corpus := range derivedScenarios(t) {
+		corpus.locator = blocked
+		for _, df := range derivedViewFindings(derivedTestConfig(), corpus) {
+			if _, ok := blockedDerived[df.Code]; !ok {
+				blockedDerived[df.Code] = df.Finding().Remedy
+			}
+		}
+	}
+	for _, code := range catalogKeys(blockedDerived) {
+		fmt.Fprintf(&b, "\n### %s\nremedy: %s\n", code, blockedDerived[code])
+	}
 
 	b.WriteString("\n## Status parse findings\n")
 	_, parsed := parseCorpusAt(catalogUnparseableBlobs(), dotDocket)

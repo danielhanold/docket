@@ -423,6 +423,56 @@ remedy: Remove `172` from `depends_on:` or correct it to the right number in `do
   None of the record checks ran, so this result says nothing about the records.
   remedy: Fix the read error, then run `docket repository check` again.
 
+## Record remedies while setup is not healthy
+
+### validator (change-reference-dangling)
+remedy: Remove `172` from `depends_on:` or correct it to the right number in `docs/changes/active/0263-x.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+
+### drop-final-claimed-at — drop-final-claimed-at
+remedy: Delete the `claimed_at:` line in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch by hand and commit and push it, or, once the setup finding above is resolved, run `docket repository repair` to remove it (it shows the edit first).
+
+### quote-unsafe-scalar — quote-unsafe-scalar
+remedy: Quote the `title:` value in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch by hand and commit and push it, or, once the setup finding above is resolved, run `docket repository repair` to add the quotes (it shows the edit first).
+
+### scalar-to-list — scalar-to-list
+remedy: Rewrite it as `depends_on: [3, 4]` in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch by hand and commit and push it, or, once the setup finding above is resolved, run `docket repository repair` to rewrite it as `[3, 4]` (it shows the edit first).
+
+### frontmatter-manual-review — ambiguous value
+remedy: Write `title: 'true'` if you meant the text, or correct the value in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+
+### frontmatter-manual-review — non-id list
+remedy: Rewrite it as a list of numbers, such as `related: [12, 40]`, or delete the line in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+
+### frontmatter-manual-review — claimed_at, not done
+remedy: Set `status:` to `done` or `killed` (or move the file back into `active/` if the change is still open) in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+
+### frontmatter-manual-review — undecodable
+remedy: Fix the frontmatter between the two `---` lines in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+
+### adr-index-stale
+remedy: Once the setup finding above is resolved, run `docket repository repair` to regenerate it (it shows the change first).
+
+### artifact-backlink-malformed
+remedy: Restore the `<!-- docket:backlink:start … -->` and `<!-- docket:backlink:end -->` lines around the link in `docs/superpowers/specs/x.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+
+### artifact-backlink-shared
+remedy: Remove the `spec:`, `plan:`, or `results:` line naming `docs/superpowers/specs/x.md` from every change except the one that owns it (changes 0007, 0008), commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+
+### artifact-backlink-stale
+remedy: Once the setup finding above is resolved, run `docket repository repair`.
+
+### artifact-links-malformed
+remedy: Restore the `<!-- docket:artifacts:start … -->` and `<!-- docket:artifacts:end -->` lines around the block, or delete both lines and everything between them in `docs/changes/active/0004-malformed.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+
+### artifact-links-missing
+remedy: Once the setup finding above is resolved, run `docket repository repair` to add the block (it shows the change first).
+
+### artifact-links-stale
+remedy: Once the setup finding above is resolved, run `docket repository repair` to rewrite the block (it shows the change first).
+
+### board-stale
+remedy: Once the setup finding above is resolved, run `docket repository repair` to regenerate it (it shows the change first).
+
 ## Status parse findings
 
 - [error] invalid-yaml (docs/adrs/0003-yaml.md)

@@ -157,9 +157,16 @@ func RunRepositoryCheck(ctx context.Context, d SetupDeps) RepositoryCheckResult 
 	var fm []reposetup.RepairFinding
 	var corpusExtra []reposetup.Finding
 	var testConfig, harnessesUnset *reposetup.Finding
-	if facts.RemoteMetadata.Presence == reposetup.PresencePresent {
+	metadataPresent := facts.RemoteMetadata.Presence == reposetup.PresencePresent
+	if metadataPresent {
 		augmentCheckFacts(ctx, d.Git, &facts, sc)
+	}
+	// Classify before the corpus findings are worded: a record remedy must be
+	// valid in the state that produced it (checkRecordLocator).
+	cls := reposetup.Classify(facts)
+	if metadataPresent {
 		corpus, rerr := readCheckCorpus(ctx, d.Git, sc)
+		corpus.locator = checkRecordLocator(sc.layout, cls.State)
 		fm, corpusExtra = checkCorpusOutcome(sc.cfg, corpus, rerr)
 		// A local build/finalize gate with no configured command (or a still-declared
 		// legacy `auto`) is a setup gap, not a topology fault: it surfaces here with
@@ -174,7 +181,6 @@ func RunRepositoryCheck(ctx context.Context, d SetupDeps) RepositoryCheckResult 
 		harnessesUnset = reposetup.HarnessesUnsetFinding(facts)
 	}
 
-	cls := reposetup.Classify(facts)
 	findings := reposetup.EvaluateHealth(cls, facts, fm)
 	findings = append(findings, corpusExtra...)
 	if testConfig != nil {
@@ -562,12 +568,19 @@ type checkCorpus struct {
 	board     corpusFile
 	adrIndex  corpusFile
 	artifacts map[string][]byte
-	locator   reposetup.RecordLocator // where hand-edit remedies point: the resolved metadata checkout
+	locator   reposetup.RecordLocator // where record remedies point, for the setup state (checkRecordLocator)
 }
 
-// checkRecordLocator names where check's hand-edit remedies point: the metadata
-// checkout, named as the topology findings already name it (metadataWorktreeRef).
-func checkRecordLocator(l layout.Layout) reposetup.RecordLocator {
+// checkRecordLocator names where check's record remedies point, for the
+// classified setup state. Healthy: the metadata checkout, named as the topology
+// findings already name it (metadataWorktreeRef). Any other state: the checkout
+// may not exist and `docket repository repair` refuses (repairPreflight), so the
+// remedies name the record on the metadata branch and put the setup finding
+// first.
+func checkRecordLocator(l layout.Layout, state reposetup.State) reposetup.RecordLocator {
+	if state != reposetup.StateHealthy {
+		return reposetup.RecordLocator{SetupBlocked: true}
+	}
 	return reposetup.RecordLocator{Checkout: metadataWorktreeRef(l)}
 }
 
@@ -585,7 +598,10 @@ type corpusFile struct {
 // the check never fabricates absence (learning probe-error-is-not-clean-absence).
 func readCheckCorpus(ctx context.Context, git *gitcli.Client, sc setupContext) (checkCorpus, error) {
 	var corpus checkCorpus
-	corpus.locator = checkRecordLocator(sc.layout)
+	// Repair reads this corpus only past repairPreflight, which admits only a
+	// setup repair can act on, so the checkout wording holds there; check
+	// re-points the locator at its classified state.
+	corpus.locator = checkRecordLocator(sc.layout, reposetup.StateHealthy)
 	src, err := git.OpenObjectSource(ctx, sc.repo, gitcli.Revision{Commit: gitcli.ObjectID(sc.metadataTip)})
 	if err != nil {
 		return corpus, err
@@ -776,7 +792,7 @@ func derivedViewFindings(cfg config.Effective, corpus checkCorpus) []reposetup.D
 					Repairable: true,
 					Message:    "BOARD.md doesn't match the current change records.",
 					Impact:     "The board shows out-of-date statuses. This usually means a record was edited with plain git instead of a docket command.",
-					Remedy:     "Run `docket repository repair` to regenerate it (it shows the change first).",
+					Remedy:     corpus.locator.RunRepair(" to regenerate it (it shows the change first)"),
 				})
 			}
 		}
@@ -792,7 +808,7 @@ func derivedViewFindings(cfg config.Effective, corpus checkCorpus) []reposetup.D
 					Repairable: true,
 					Message:    "The ADR index doesn't match the current ADR records.",
 					Impact:     "It lists out-of-date titles or statuses. This usually means an ADR was edited with plain git instead of a docket command.",
-					Remedy:     "Run `docket repository repair` to regenerate it (it shows the change first).",
+					Remedy:     corpus.locator.RunRepair(" to regenerate it (it shows the change first)"),
 				})
 			}
 		}
@@ -870,7 +886,7 @@ func artifactBacklinkFindings(snap domain.Snapshot, corpus checkCorpus) []repose
 				Repairable: true,
 				Message:    "The link at the top of `" + p + "` back to its change points to the wrong place.",
 				Impact:     "Following it from the file leads to a missing page. This usually happens after the change was archived.",
-				Remedy:     "Run `docket repository repair`.",
+				Remedy:     corpus.locator.RunRepair(""),
 			})
 		}
 	}
@@ -969,7 +985,7 @@ func artifactLinkFindings(snap domain.Snapshot, corpus checkCorpus) []reposetup.
 					Repairable: true,
 					Message:    "This change record links a spec, plan, results file, or ADR but has no `## Artifacts` block.",
 					Impact:     "Readers of the record don't see its links.",
-					Remedy:     "Run `docket repository repair` to add the block (it shows the change first).",
+					Remedy:     corpus.locator.RunRepair(" to add the block (it shows the change first)"),
 				})
 			}
 			continue
@@ -986,7 +1002,7 @@ func artifactLinkFindings(snap domain.Snapshot, corpus checkCorpus) []reposetup.
 				Repairable: true,
 				Message:    "The `## Artifacts` block in this change record is out of date.",
 				Impact:     "Its links don't match the record's spec, plan, results, or ADRs. This usually means the record was edited with plain git instead of a docket command.",
-				Remedy:     "Run `docket repository repair` to rewrite the block (it shows the change first).",
+				Remedy:     corpus.locator.RunRepair(" to rewrite the block (it shows the change first)"),
 			})
 		}
 	}
