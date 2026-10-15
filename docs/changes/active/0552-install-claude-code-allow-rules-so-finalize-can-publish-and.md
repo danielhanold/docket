@@ -2,7 +2,7 @@
 id: 552
 slug: 'install-claude-code-allow-rules-so-finalize-can-publish-and'
 title: 'Install Claude Code allow rules so finalize can publish and merge under auto mode'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-15'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/install-claude-code-allow-rules-so-finalize-can-publish-and'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-15T19:27:11Z'
 ---
 
 ## Artifacts
