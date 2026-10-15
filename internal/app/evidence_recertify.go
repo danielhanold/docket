@@ -173,7 +173,7 @@ func recertifyProbe(ctx context.Context, deps FinalizeDeps, repoDir string, id i
 		return recertifyFacts{}, &r
 	default:
 		r := recertifyRefusal(ResultBlocked, ReasonRecertifyWorkspaceNotReady,
-			fmt.Sprintf("the feature workspace is %q, not the clean registered feature state", insp.Kind), cid)
+			workspaceNotReadyMessage(insp, cid), cid)
 		return recertifyFacts{}, &r
 	}
 	head := strings.ToLower(string(insp.HeadCommit))

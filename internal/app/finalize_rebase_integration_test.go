@@ -1882,6 +1882,25 @@ func TestIntegrationFinalizeRebaseForwardRefreshRefusals(t *testing.T) {
 		assertRefreshRetained(t, f, headBefore, rec, remoteBefore)
 	})
 
+	t.Run("workspace-not-ready", func(t *testing.T) {
+		// A detached owned worktree still carries a head that descends the
+		// recorded base, so it reaches the refresh's own workspace check, which
+		// names the inspected state and offers no checkout (a workspace record exists).
+		f, deps, head := setup(t)
+		f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved forward\n"})
+		runGit(t, f.wp, "checkout", "-q", "--detach")
+		headBefore := f.localHead()
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
+		res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
+		assertRebaseRefused(t, res, ResultBlocked, ReasonRebaseWorkspaceNotReady)
+		if !strings.Contains(res.Message, `"mismatch"`) || strings.Contains(res.Message, "workspace checkout") {
+			t.Errorf("message %q: want the mismatch state and no checkout remedy", res.Message)
+		}
+		assertRefreshRetained(t, f, headBefore, rec, remoteBefore)
+	})
+
 	t.Run("reservation-outstanding-settles-conflicted-against-recorded-base", func(t *testing.T) {
 		// A still-conflicted owned attempt with an outstanding reservation settles
 		// against its RECORDED base even after the base advances — it is never
