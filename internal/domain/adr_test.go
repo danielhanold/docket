@@ -368,3 +368,35 @@ func TestValidateADRGraphOrderIsStable(t *testing.T) {
 		t.Fatalf("unstable order:\n%v\n%v", first, second)
 	}
 }
+
+// TestADRGraphFindingsCarryRecordPath pins that every graph finding about a
+// referring ADR names that ADR's record path in Detail["path"], so a remedy
+// can name the file even though the finding identifies the ADR by id only.
+func TestADRGraphFindingsCarryRecordPath(t *testing.T) {
+	s := adrSnapshot(
+		NewADR(ADRSpec{ID: 1, Path: "docs/adrs/0001-a.md", Status: ADRStatus{Kind: ADRReversedBy, Ref: 2}}),
+		NewADR(ADRSpec{ID: 2, Path: "docs/adrs/0002-b.md", Status: ADRStatus{Kind: ADRAccepted}, Supersedes: []ADRID{1, 2, 9}}),
+		NewADR(ADRSpec{ID: 3, Path: "docs/adrs/0003-c.md", Status: ADRStatus{Kind: ADRSupersededBy, Ref: 2}}),
+	)
+	got := ValidateADRGraph(s)
+	cases := []struct {
+		code  string
+		id    int
+		field string
+		path  string
+	}{
+		{CodeADRBackpointerMismatch, 2, "supersedes", "docs/adrs/0002-b.md"},
+		{CodeADRSelfReference, 2, "supersedes", "docs/adrs/0002-b.md"},
+		{CodeADRDanglingReference, 2, "supersedes", "docs/adrs/0002-b.md"},
+		{CodeADRBackpointerMismatch, 3, "status", "docs/adrs/0003-c.md"},
+	}
+	for _, c := range cases {
+		f, ok := findingFor(got, c.code, c.id, c.field)
+		if !ok {
+			t.Fatalf("no %s finding for ADR %d field %s in %v", c.code, c.id, c.field, findingCodes(got))
+		}
+		if f.Detail["path"] != c.path {
+			t.Errorf("%s ADR %d %s: Detail[path] = %q, want %q", c.code, c.id, c.field, f.Detail["path"], c.path)
+		}
+	}
+}

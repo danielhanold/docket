@@ -75,6 +75,7 @@ func validateADREdges(s Snapshot, a ADR, field string, targets []ADRID, kind ADR
 				Detail: map[string]string{
 					"expected": want.String(),
 					"actual":   other.Status().String(),
+					"path":     a.Path(),
 				},
 			})
 		}
@@ -133,6 +134,7 @@ func validateADRStatusRef(s Snapshot, a ADR) []Finding {
 			"missing-edge":  edgeFieldFor(status.Kind),
 			"expected-on":   fmt.Sprintf("%04d", int(status.Ref)),
 			"expected-edge": fmt.Sprintf("%04d", int(a.ID())),
+			"path":          a.Path(),
 		},
 	}}
 }
@@ -202,7 +204,8 @@ func adrReferenceSeverity(field string) Severity {
 	return SeverityError
 }
 
-// adrRef builds the finding reference for an ADR ID.
+// adrRef builds the finding reference for an ADR ID. Graph findings name the
+// ADR by id only; the referring ADR's record path rides in Detail["path"].
 func adrRef(id ADRID) EntityRef { return EntityRef{Kind: EntityADR, ID: int(id)} }
 
 // adrSelfReference builds the self-reference finding for one field.
@@ -212,6 +215,7 @@ func adrSelfReference(a ADR, field string) Finding {
 		Severity: SeverityError,
 		Entity:   adrRef(a.ID()),
 		Field:    field,
+		Detail:   map[string]string{"path": a.Path()},
 	}
 }
 
@@ -229,7 +233,7 @@ func adrDangling(a ADR, field string, target EntityRef, out LookupOutcome) Findi
 		Entity:   adrRef(a.ID()),
 		Field:    field,
 		Related:  []EntityRef{target},
-		Detail:   map[string]string{"lookup": lookup},
+		Detail:   map[string]string{"lookup": lookup, "path": a.Path()},
 	}
 }
 
