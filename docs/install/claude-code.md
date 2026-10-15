@@ -17,6 +17,14 @@ calling out, after a word on what the install writes.
   symlink, or a file docket cannot parse, such as one with comments) is left untouched, and the
   run warns about it. Uninstall removes the hooks
   only while they are unchanged.
+- **Two `permissions.allow` rules in the same `~/.claude/settings.json`:**
+  `Bash(docket finalize publish:*)` and `Bash(docket finalize merge:*)`. When finalize runs right
+  after a green implement-next run, it reuses that suite run rather than testing again. Without the
+  rules, Claude Code's auto mode reads the resulting publish and merge as a CI bypass and stops for
+  a prompt. The rules match only those two commands, which refuse to run outside a docket
+  repository. Every install puts back a rule you deleted by hand. Uninstall removes both rules,
+  including a copy you typed yourself. If docket cannot edit `settings.json` in place, it leaves
+  the file untouched and the warning names the two rules so you can add them by hand.
 - **The dispatch block in `CLAUDE.md`, on opt-in only.** When a repository's `.docket.yml` or
   `.docket.local.yml` lists `claude` in `agent_harnesses`, the install reconciles a
   marker-bounded `docket` dispatch block in that repository's `CLAUDE.md`. When Codex or opencode is

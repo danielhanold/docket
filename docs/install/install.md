@@ -77,6 +77,11 @@ harness, after editing a config file, and after every version update). A single 
   outside a private repository, so a trigger is inert everywhere else. A hooks file docket cannot
   edit in place (a symlink, or a file docket cannot parse, such as one with comments) is left
   untouched, and the run warns about it.
+- **Lets finalize publish and merge under Claude Code's auto mode**: two `permissions.allow` rules
+  in `~/.claude/settings.json`, `Bash(docket finalize publish:*)` and
+  `Bash(docket finalize merge:*)`. Finalize reuses a green implement-next suite run, and without
+  the rules auto mode reads the publish and merge that follow as a CI bypass. The rules match only
+  those two commands. Every install restores a rule you deleted by hand, and uninstall removes them.
 - **Retires the old global parent-facing dispatch blocks** that earlier docket versions wrote into
   your personal `~/.claude/CLAUDE.md` and the other harnesses' global instruction files, while
   keeping the global skills and agent wrappers. Removal is **proof-gated** — the engine deletes a
