@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0551 — Check out a change built on another machine into its own docket worktree](../../changes/active/0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md)**
+> ↩ **[Change 0551 — Check out a change built on another machine into its own docket worktree](../../changes/archive/2026-10-15-0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md)**
 <!-- docket:backlink:end -->
 
 # Check out a change built on another machine into its own docket worktree - Implementation Plan

@@ -1,12 +1,6 @@
 # Backlog
 
-**551 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 383 done · 🗑️ 140 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0551](active/0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | `medium` | `chore` | [#414](https://github.com/danielhanold/docket/pull/414) | awaiting merge |
+**551 changes** — 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 384 done · 🗑️ 140 killed
 
 ## 🟣 Groomed (2)
 
@@ -80,7 +74,6 @@ graph TD
   0541
   0546 --> 0547
   0546 --> 0548
-  0551
   0192:::done
   0251:::done
   0393:::done
@@ -91,10 +84,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (523)</summary>
+<details><summary>✅🗑️ Archive — done + killed (524)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0551](archive/2026-10-15-0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | 2026-10-15 |
 | [0550](archive/2026-10-15-0550-let-change-groom-set-a-change-s-priority.md) | Let change.groom set a change's priority | 2026-10-15 |
 | [0549](archive/2026-10-15-0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) | Bring the local metadata checkout up to date after every docket write | 2026-10-15 |
 | [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
@@ -110,7 +104,6 @@ graph TD
 | [0534](archive/2026-10-06-0534-install-an-alias-for-the-docket-binary.md) | Install an alias for the docket binary | 2026-10-06 |
 | [0532](archive/2026-10-06-0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | 2026-10-06 |
 | [0531](archive/2026-10-06-0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md) | Keep the metadata branch on a local remote with neutral naming | 2026-10-06 |
-| [0530](archive/2026-10-06-0530-keep-plan-results-and-build-evidence-on-the-metadata-branch.md) | Keep plan, results, and build evidence on the metadata branch, and ship the spec with the PR | 2026-10-06 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -255,7 +248,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 40 done |
+| [2026-10](archive/) | 41 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

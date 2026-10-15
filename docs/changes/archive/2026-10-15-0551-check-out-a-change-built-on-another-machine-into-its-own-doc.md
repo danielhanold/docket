@@ -2,7 +2,7 @@
 id: 551
 slug: 'check-out-a-change-built-on-another-machine-into-its-own-doc'
 title: 'Check out a change built on another machine into its own docket worktree'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-15'
@@ -22,7 +22,7 @@ branch: 'chore/check-out-a-change-built-on-another-machine-into-its-own-doc'
 pr: 'https://github.com/danielhanold/docket/pull/414'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-15T03:57:51Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-15T03:57:51Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md](../../superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md) |
+| Spec (merged) | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md) |
 | Plan | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc.md](../../superpowers/plans/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc.md) |
 | Results | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-results.md](../../results/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-results.md) |
 | ADRs | [ADR-0149](../../adrs/0149-docket-adopts-unowned-local-state-only-when-proven-against-t.md) |
