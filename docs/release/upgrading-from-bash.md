@@ -220,17 +220,16 @@ lists the files it would rewrite and asks `repair? [y/N]`. Answer `N`.
 docket repository repair
 ```
 
-Then apply the repairs. docket commits and pushes them to the `docket` branch itself.
+Then apply the repairs. docket commits and pushes them to the `docket` branch itself, and brings
+your local `.docket` folder up to the repaired commit.
 
 <!-- upgrade-step: repair-apply -->
 ```sh
 docket repository repair --yes
 ```
 
-It then tells you to run `docket repository prepare` to bring your local `.docket` folder up to
-date.
-That step is optional: every docket workflow runs `docket repository prepare` first, which brings the folder up to date.
-Check the repository:
+Its output also tells you to run `docket repository prepare` to sync the `.docket` folder. You can
+skip that: the repair already brought the folder up to date. Check the repository:
 
 <!-- upgrade-step: repo-confirm -->
 ```sh
