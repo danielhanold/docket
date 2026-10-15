@@ -2,7 +2,7 @@
 id: 552
 slug: 'install-claude-code-allow-rules-so-finalize-can-publish-and'
 title: 'Install Claude Code allow rules so finalize can publish and merge under auto mode'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-15'
@@ -22,7 +22,7 @@ branch: 'fix/install-claude-code-allow-rules-so-finalize-can-publish-and'
 pr: 'https://github.com/danielhanold/docket/pull/415'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-15T19:47:16Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-15T19:47:16Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md](../../superpowers/specs/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md) |
+| Spec (merged) | [2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-design.md) |
 | Plan | [2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and.md](../../superpowers/plans/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and.md) |
 | Results | [2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-results.md](../../results/2026-10-15-install-claude-code-allow-rules-so-finalize-can-publish-and-results.md) |
 | ADRs | [ADR-0145](../../adrs/0145-private-repository-parent-facing-rules-load-through-content.md), [ADR-0150](../../adrs/0150-docket-install-grants-claude-code-allow-rules-for-finalize-p.md) |

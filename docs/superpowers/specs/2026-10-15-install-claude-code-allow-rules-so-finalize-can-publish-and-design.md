@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0552 — Install Claude Code allow rules so finalize can publish and merge under auto mode](../../changes/active/0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md)**
+> ↩ **[Change 0552 — Install Claude Code allow rules so finalize can publish and merge under auto mode](../../changes/archive/2026-10-15-0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md)**
 <!-- docket:backlink:end -->
 
 # Claude Code allow rules for finalize publish and merge — design

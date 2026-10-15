@@ -1,18 +1,12 @@
 # Backlog
 
-**554 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 2 groomed · 🟡 11 proposed · ⚪ 15 deferred · ✅ 384 done · 🗑️ 140 killed
+**554 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 11 proposed · ⚪ 15 deferred · ✅ 385 done · 🗑️ 140 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0553](active/0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | `high` | `fix` | [spec](../superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md) | `fix/explain-repository-check-and-status-findings-in-plain-langua` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0552](active/0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | `medium` | `fix` | [#415](https://github.com/danielhanold/docket/pull/415) | awaiting merge |
 
 ## 🟣 Groomed (2)
 
@@ -87,7 +81,6 @@ graph TD
   0541
   0546 --> 0547
   0546 --> 0548
-  0552
   0553
   0554
   0192:::done
@@ -100,10 +93,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (524)</summary>
+<details><summary>✅🗑️ Archive — done + killed (525)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0552](archive/2026-10-15-0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | 2026-10-15 |
 | [0551](archive/2026-10-15-0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | 2026-10-15 |
 | [0550](archive/2026-10-15-0550-let-change-groom-set-a-change-s-priority.md) | Let change.groom set a change's priority | 2026-10-15 |
 | [0549](archive/2026-10-15-0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) | Bring the local metadata checkout up to date after every docket write | 2026-10-15 |
@@ -119,7 +113,6 @@ graph TD
 | [0535](archive/2026-10-06-0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | 2026-10-06 |
 | [0534](archive/2026-10-06-0534-install-an-alias-for-the-docket-binary.md) | Install an alias for the docket binary | 2026-10-06 |
 | [0532](archive/2026-10-06-0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | 2026-10-06 |
-| [0531](archive/2026-10-06-0531-private-visibility-keep-the-metadata-branch-on-a-local-remot.md) | Keep the metadata branch on a local remote with neutral naming | 2026-10-06 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -264,7 +257,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 41 done |
+| [2026-10](archive/) | 42 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
