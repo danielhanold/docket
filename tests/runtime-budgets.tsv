@@ -19,6 +19,7 @@
 # wrapper (or a POSIX product suite) discovered by the runner. The frozen Bash runner and
 # its per-assertion profilers are gone, so no row describes them.
 tests/test_go_integration_app_change.sh	35	parallel
+tests/test_go_integration_app_checkout.sh	40	parallel
 tests/test_go_integration_app_changeruntime.sh	40	parallel
 tests/test_go_integration_app_cleanup.sh	40	parallel
 tests/test_go_integration_app_closeout.sh	40	parallel

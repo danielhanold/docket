@@ -64,6 +64,11 @@ var revisionFlagOps = [][]string{
 	{"finalize", "retarget-children"}, {"workspace", "prepare"},
 }
 
+// optionalRevisionFlagOps are the commands that register --revision as an
+// OPTIONAL pin under the row-40 spelling: `workspace checkout` takes the record
+// revision only together with --head, and a human passes neither.
+var optionalRevisionFlagOps = [][]string{{"workspace", "checkout"}}
+
 func flagRequired(f *pflag.Flag) bool {
 	v := f.Annotations[cobra.BashCompOneRequiredFlag]
 	return len(v) == 1 && v[0] == "true"
@@ -73,14 +78,20 @@ func flagRequired(f *pflag.Flag) bool {
 // 0472). Over the WHOLE change/finalize/workspace subtree (derived from the live
 // cobra tree, not listed): no command registers --version or --expect-version,
 // and the commands registering a required --revision are exactly row 40's set
-// (checked in both directions). Every old spelling is refused as an unknown flag.
+// (checked in both directions), while the commands registering an optional one
+// are exactly optionalRevisionFlagOps. Every old spelling is refused as an
+// unknown flag.
 func TestRevisionFlagHardCut(t *testing.T) {
 	root := captureTree(t)
 	want := map[string]bool{}
 	for _, p := range revisionFlagOps {
 		want[strings.Join(p, " ")] = true
 	}
-	got := map[string]bool{}
+	optional := map[string]bool{}
+	for _, p := range optionalRevisionFlagOps {
+		optional[strings.Join(p, " ")] = true
+	}
+	got, gotOptional := map[string]bool{}, map[string]bool{}
 	var walk func(prefix string, c *cobra.Command)
 	walk = func(prefix string, c *cobra.Command) {
 		key := strings.TrimSpace(prefix + " " + c.Name())
@@ -90,9 +101,17 @@ func TestRevisionFlagHardCut(t *testing.T) {
 			}
 		}
 		if f := c.Flags().Lookup("revision"); f != nil {
-			got[key] = true
-			if !flagRequired(f) {
-				t.Errorf("%s: --revision is not required", key)
+			switch {
+			case optional[key]:
+				gotOptional[key] = true
+				if flagRequired(f) {
+					t.Errorf("%s: --revision is required but pairs optionally with --head", key)
+				}
+			default:
+				got[key] = true
+				if !flagRequired(f) {
+					t.Errorf("%s: --revision is not required", key)
+				}
 			}
 		}
 		for _, sub := range c.Commands() {
@@ -114,6 +133,11 @@ func TestRevisionFlagHardCut(t *testing.T) {
 	for k := range got {
 		if !want[k] {
 			t.Errorf("%s registers --revision but is not a row-40 operation", k)
+		}
+	}
+	for k := range optional {
+		if !gotOptional[k] {
+			t.Errorf("%s lacks its optional --revision", k)
 		}
 	}
 	rep, _, err := root.Find([]string{"change", "relink"})

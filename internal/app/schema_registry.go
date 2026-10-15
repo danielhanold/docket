@@ -120,6 +120,7 @@ var operationBindings = []OperationBinding{
 	{ID: "status", Request: nil, Result: StatusResult{}},                                                   // Status
 	{ID: "uninstall", Request: nil, Result: InstallResult{}},                                               // RunUninstall
 	{ID: "version", Request: nil, Result: VersionResult{}},                                                 // Version
+	{ID: "workspace.checkout", Request: nil, Result: WorkspaceOpResult{}},                                  // WorkspaceCheckout
 	{ID: "workspace.commit-spec", Request: nil, Result: WorkspaceOpResult{}},                               // WorkspaceCommitSpec
 	{ID: "workspace.inspect", Request: nil, Result: WorkspaceOpResult{}},                                   // WorkspaceInspect
 	{ID: "workspace.prepare", Request: nil, Result: WorkspaceOpResult{}},                                   // WorkspacePrepare

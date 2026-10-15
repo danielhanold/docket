@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/danielhanold/docket/internal/app"
+	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
@@ -22,7 +23,7 @@ import (
 func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 	workspaceCmd := &cobra.Command{
 		Use:   "workspace",
-		Short: "Prepare, inspect, and publish feature workspaces for in-progress changes",
+		Short: "Prepare, inspect, and publish feature workspaces for in-progress changes; check out implemented ones",
 		// A command group resolves its subcommand before Args runs, so anything
 		// reaching here named no subcommand; NoArgs names an offending token and
 		// the bare `docket workspace` falls through to RunE's missing-command error.
@@ -134,7 +135,35 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = publish.MarkFlagRequired("id")
 	_ = publish.MarkFlagRequired("head")
 
-	workspaceCmd.AddCommand(prepare, commitSpec, inspect, publish)
+	checkout := &cobra.Command{
+		Use:         "checkout",
+		Short:       "Check an implemented change's pushed branch out into its own worktree at the head its open PR and remote agree on",
+		Args:        cobra.NoArgs,
+		Annotations: capability("workspace.checkout", EffectLocalWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			id, _ := c.Flags().GetInt("id")
+			revision, _ := c.Flags().GetString("revision")
+			head, _ := c.Flags().GetString("head")
+			deps, cdeps, err := newWorkspaceCheckoutDeps(repoDir)
+			if err != nil {
+				return err
+			}
+			setResult(app.WorkspaceCheckout(c.Context(), deps, cdeps, repoDir,
+				app.WorkspaceCheckoutRequest{ID: id, Revision: revision, Head: head}))
+			return nil
+		},
+	}
+	checkout.Flags().Int("id", 0, "change `id` to check out (required)")
+	checkout.Flags().String("revision", "", "exact record `revision` the caller read; given together with --head")
+	checkout.Flags().String("head", "", "expected feature head `ref` (the pull request head); given together with --revision")
+	checkout.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	_ = checkout.MarkFlagRequired("id")
+
+	workspaceCmd.AddCommand(prepare, commitSpec, inspect, publish, checkout)
 	return workspaceCmd
 }
 
@@ -150,4 +179,23 @@ func newWorkspaceDeps(repoDir ...string) (app.PlanningDeps, app.WorkspaceDeps, e
 		return app.PlanningDeps{}, app.WorkspaceDeps{}, err
 	}
 	return deps, app.WorkspaceDeps{Service: svc}, nil
+}
+
+// newWorkspaceCheckoutDeps assembles the planning seams, the workspace service
+// over the same Git client, and the GitHub client checkout proves the PR head
+// through.
+func newWorkspaceCheckoutDeps(repoDir string) (app.PlanningDeps, app.WorkspaceCheckoutDeps, error) {
+	deps, err := newPlanningDeps(repoDir)
+	if err != nil {
+		return app.PlanningDeps{}, app.WorkspaceCheckoutDeps{}, err
+	}
+	svc, err := workspace.NewService(deps.Client)
+	if err != nil {
+		return app.PlanningDeps{}, app.WorkspaceCheckoutDeps{}, err
+	}
+	gh, err := githubcli.NewClient()
+	if err != nil {
+		return app.PlanningDeps{}, app.WorkspaceCheckoutDeps{}, err
+	}
+	return deps, app.WorkspaceCheckoutDeps{Service: svc, GitHub: gh}, nil
 }
