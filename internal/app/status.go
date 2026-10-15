@@ -159,7 +159,7 @@ func Status(ctx context.Context, reader StatusReader, opts StatusOptions) Status
 	if err != nil {
 		return statusFailure(ctx, pin, err)
 	}
-	inputs, parseFindings := parseCorpus(blobs)
+	inputs, parseFindings := parseCorpusAt(blobs, statusRecordLocator(pin.Layout))
 	blobByPath := make(map[string]StatusBlob, len(blobs))
 	for _, b := range blobs {
 		blobByPath[b.Path] = b
@@ -337,13 +337,21 @@ func validateFilters(eff config.Effective, opts StatusOptions) ([]domain.Priorit
 // parseCorpus parses every blob. A parse failure becomes an error-severity
 // finding carrying the typed error's kind as its code; a success is fed to
 // BuildSnapshot as an InputDocument. One bad record never aborts the read.
+// Callers that discard the findings use this form; status, which prints them,
+// calls parseCorpusAt with its own locator.
 func parseCorpus(blobs []StatusBlob) ([]repository.InputDocument, []StatusFinding) {
+	return parseCorpusAt(blobs, reposetup.RecordLocator{})
+}
+
+// parseCorpusAt is parseCorpus with loc naming where a parse finding's
+// hand-edit remedy points.
+func parseCorpusAt(blobs []StatusBlob, loc reposetup.RecordLocator) ([]repository.InputDocument, []StatusFinding) {
 	inputs := make([]repository.InputDocument, 0, len(blobs))
 	var findings []StatusFinding
 	for _, b := range blobs {
 		doc, err := document.Parse(b.Data)
 		if err != nil {
-			findings = append(findings, parseFinding(b, err))
+			findings = append(findings, parseFinding(b, err, loc))
 			continue
 		}
 		inputs = append(inputs, repository.InputDocument{
@@ -357,19 +365,46 @@ func parseCorpus(blobs []StatusBlob) ([]repository.InputDocument, []StatusFindin
 	return inputs, findings
 }
 
-// parseFinding normalizes a document.Parse failure into a StatusFinding.
-func parseFinding(b StatusBlob, err error) StatusFinding {
+// parseFinding normalizes a document.Parse failure into a StatusFinding. Its
+// text is the plain-language wording `repository check` gives the same broken
+// record (reposetup.PlanRepairs): the parser's problem without its internal
+// error-kind prefix, what skipping the record costs, and a hand edit in the
+// record's real checkout (loc) followed by `docket repository repair`.
+func parseFinding(b StatusBlob, err error, loc reposetup.RecordLocator) StatusFinding {
 	code := string(FCParseFailed)
 	var de *document.Error
 	if errors.As(err, &de) {
 		code = string(de.Kind)
+	}
+	message := "docket can't read this record's frontmatter: " + reposetup.PlainDocumentError(err) + "."
+	instruction := "fix the frontmatter between the two `---` lines"
+	if markerMalformed(err) {
+		message = "The `<!-- docket:… -->` block markers in this record don't pair up: " + reposetup.PlainDocumentError(err) + "."
+		instruction = "restore the block's `<!-- docket:…:start … -->` and `<!-- docket:…:end -->` lines, or delete both lines and everything between them"
 	}
 	return StatusFinding{
 		Code:     code,
 		Severity: string(domain.SeverityError),
 		Entity:   entityKindFor(b.Kind),
 		Path:     b.Path,
-		Message:  err.Error(),
+		Message:  message,
+		Impact:   parseFindingImpact(b.Kind),
+		Remedy:   loc.HandEditThenRepair(instruction, b.Path),
+	}
+}
+
+// parseFindingImpact says what docket loses by skipping an unreadable record
+// of kind k.
+func parseFindingImpact(k repository.RecordKind) string {
+	switch k {
+	case repository.KindChange:
+		return "docket skips the record, so the change is missing from the board and from every other check."
+	case repository.KindADR:
+		return "docket skips the record, so the ADR is missing from the ADR index and from every other check."
+	case repository.KindLearning:
+		return "docket skips the record, so the learning is missing from every check."
+	default:
+		return "docket skips the record, so it is missing from every check."
 	}
 }
 

@@ -422,3 +422,21 @@ remedy: Remove `172` from `depends_on:` or correct it to the right number in `do
   docket couldn't read the records on the metadata branch: object 4b825dc6 is missing.
   None of the record checks ran, so this result says nothing about the records.
   remedy: Fix the read error, then run `docket repository check` again.
+
+## Status parse findings
+
+- [error] invalid-yaml (docs/adrs/0003-yaml.md)
+  docket can't read this record's frontmatter: yaml: line 1: did not find expected ',' or ']' on line 2.
+  docket skips the record, so the ADR is missing from the ADR index and from every other check.
+  remedy: Fix the frontmatter between the two `---` lines in `.docket/docs/adrs/0003-yaml.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+
+- [error] duplicate-field (docs/changes/active/0001-dup.md)
+  docket can't read this record's frontmatter: field is declared more than once (first declared on line 2) (`id`) on line 3.
+  docket skips the record, so the change is missing from the board and from every other check.
+  remedy: Fix the frontmatter between the two `---` lines in `.docket/docs/changes/active/0001-dup.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+
+- [error] marker-imbalance (docs/changes/active/0002-markers.md)
+  The `<!-- docket:… -->` block markers in this record don't pair up: start marker for 'artifacts' has no matching end marker (`artifacts`) on line 7.
+  docket skips the record, so the change is missing from the board and from every other check.
+  remedy: Restore the block's `<!-- docket:…:start … -->` and `<!-- docket:…:end -->` lines, or delete both lines and everything between them in `.docket/docs/changes/active/0002-markers.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+

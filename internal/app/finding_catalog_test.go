@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/reposetup"
+	"github.com/danielhanold/docket/internal/repository"
 )
 
 // -update rewrites testdata/finding-catalog.txt from the current finding text,
@@ -127,7 +128,25 @@ func renderFindingCatalog(t *testing.T) string {
 	}
 	appendFindingBlock(&b, corpusUnreadableFinding(errors.New("object 4b825dc6 is missing")))
 	b.WriteString("\n")
+
+	b.WriteString("\n## Status parse findings\n")
+	_, parsed := parseCorpusAt(catalogUnparseableBlobs(), dotDocket)
+	for _, f := range parsed {
+		fmt.Fprintf(&b, "\n- [%s] %s (%s)\n  %s\n  %s\n  remedy: %s\n", f.Severity, f.Code, f.Path, f.Message, f.Impact, f.Remedy)
+	}
+	b.WriteString("\n")
 	return b.String()
+}
+
+// catalogUnparseableBlobs is one record per parse-failure shape `docket
+// status` words: an undecodable frontmatter and unpaired block markers in a
+// change, and an undecodable ADR.
+func catalogUnparseableBlobs() []StatusBlob {
+	return []StatusBlob{
+		{Kind: repository.KindChange, Path: "docs/changes/active/0001-dup.md", Data: []byte("---\nid: 1\nid: 2\n---\nbody\n")},
+		{Kind: repository.KindChange, Path: "docs/changes/active/0002-markers.md", Data: []byte("---\nid: 2\n---\n\n## Artifacts\n\n<!-- docket:artifacts:start -->\n- x\n")},
+		{Kind: repository.KindADR, Path: "docs/adrs/0003-yaml.md", Data: []byte("---\nid: [3\n---\nbody\n")},
+	}
 }
 
 // TestFindingCatalogGolden keeps testdata/finding-catalog.txt, one reviewable
