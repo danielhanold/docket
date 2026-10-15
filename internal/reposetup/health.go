@@ -38,7 +38,8 @@ type Finding struct {
 	Code       string   `json:"code"`                 // stable machine token, e.g. "live-surface-present"
 	Severity   Severity `json:"severity"`             //
 	Ref        string   `json:"ref,omitempty"`        // path or ref the finding is about, if any
-	Message    string   `json:"message"`              //
+	Message    string   `json:"message"`              // what is wrong
+	Impact     string   `json:"impact,omitempty"`     // whether it matters if left alone
 	Remedy     string   `json:"remedy,omitempty"`     // exact human remedy, branched on the finding's own facts
 	Repairable *bool    `json:"repairable,omitempty"` // set only for frontmatter findings; nil otherwise
 }

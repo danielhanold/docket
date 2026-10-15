@@ -162,13 +162,17 @@ func countFindings(findings []StatusFinding) (errs, warns, notices int) {
 // block. The severity column is gone: the group heading above the row carries
 // it. A multi-line remedy keeps every subsequent line at the same four-space
 // column so the block cannot collapse into the next row; trailing newlines are
-// trimmed, and an empty remedy emits nothing.
+// trimmed, and an empty remedy emits nothing. A non-empty impact prints on its
+// own four-space-indented line between the message row and the remedy block.
 func writeFinding(b *strings.Builder, f StatusFinding) {
 	fmt.Fprintf(b, "  %s", f.Code)
 	if loc := findingLocator(f); loc != "" {
 		fmt.Fprintf(b, " %s", loc)
 	}
 	fmt.Fprintf(b, " — %s\n", f.Message)
+	if impact := strings.TrimSpace(f.Impact); impact != "" {
+		fmt.Fprintf(b, "    %s\n", impact)
+	}
 	remedy := strings.TrimRight(f.Remedy, "\n")
 	if remedy == "" {
 		return

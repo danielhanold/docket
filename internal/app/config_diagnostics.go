@@ -161,10 +161,11 @@ func ConfigDiagnosticLine(d config.Diagnostic) string {
 }
 
 // appendFindingBlock writes one finding's human block to b, led by a newline:
-// "- [severity] code", an optional " (ref)", then the message and the remedy
-// each on their own indented continuation line. It is the SINGLE per-finding
-// renderer that RepositoryCheckResult.HumanText's healthy loop and
-// appendConfigFindingBlock's refusal loop both call, so the healthy and refusal
+// "- [severity] code", an optional " (ref)", then the message, the impact, and
+// the remedy each on their own indented continuation line (an empty part emits
+// no line). It is the SINGLE per-finding renderer that
+// RepositoryCheckResult.HumanText's healthy loop and appendConfigFindingBlock's
+// refusal loop both call, so the healthy and refusal
 // blocks cannot drift by hand-copy (change 0403; finding: the two loops were
 // duplicated). RepositoryPrepareResult.HumanText deliberately renders without the
 // "(ref)" clause and is not a caller — its refusal path still routes config
@@ -177,6 +178,9 @@ func appendFindingBlock(b *strings.Builder, f reposetup.Finding) {
 	}
 	if f.Message != "" {
 		fmt.Fprintf(b, "\n  %s", f.Message)
+	}
+	if f.Impact != "" {
+		fmt.Fprintf(b, "\n  %s", f.Impact)
 	}
 	if f.Remedy != "" {
 		fmt.Fprintf(b, "\n  remedy: %s", f.Remedy)

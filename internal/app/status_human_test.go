@@ -447,3 +447,14 @@ func TestStatusHumanTextFailureReasonWithFindings(t *testing.T) {
 		t.Errorf("grouped health missing on failure result:\n%s", got)
 	}
 }
+
+// TestWriteFindingPrintsImpactContinuation pins the impact continuation line a
+// status finding row prints between its message row and its remedy block.
+func TestWriteFindingPrintsImpactContinuation(t *testing.T) {
+	var b strings.Builder
+	writeFinding(&b, StatusFinding{Code: "change-reference-dangling", Entity: "change", Identity: "0263",
+		Field: "depends_on", Message: "msg", Impact: "imp", Remedy: "rem"})
+	if want := "  change-reference-dangling change 0263 (depends_on) — msg\n    imp\n    remedy: rem\n"; b.String() != want {
+		t.Fatalf("got %q\nwant %q", b.String(), want)
+	}
+}

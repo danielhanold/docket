@@ -86,6 +86,7 @@ type StatusFinding struct {
 	Path     string   `json:"path,omitempty"`
 	Related  []string `json:"related,omitempty"`
 	Message  string   `json:"message"`          // explanatory prose
+	Impact   string   `json:"impact,omitempty"` // whether it matters if left alone
 	Remedy   string   `json:"remedy,omitempty"` // must be valid for the exact reported state
 }
 
