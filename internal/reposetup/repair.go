@@ -261,11 +261,15 @@ func planClaimedAt(path string, src []byte, doc document.Document, archived bool
 		return RepairFinding{}, false
 	}
 	if !finalStatus(doc) {
+		statusText := "it has no `status:`, so it is not done or killed"
+		if st := rawStatus(doc); st != "" {
+			statusText = "its status is `" + st + "`, not done or killed"
+		}
 		return RepairFinding{
 			Path:       path,
 			Field:      "claimed_at",
 			Repairable: false,
-			Message:    "This archived change still has a `claimed_at` timestamp, but its status is `" + rawStatus(doc) + "`, not done or killed.",
+			Message:    "This archived change still has a `claimed_at` timestamp, but " + statusText + ".",
 			Impact:     "An archived change should be done or killed; docket won't remove the timestamp until the status is settled.",
 			Remedy:     loc.HandEditThenRepair("set `status:` to `done` or `killed` (or move the file back into `active/` if the change is still open)", path),
 		}, true
@@ -322,14 +326,15 @@ func finalStatus(doc document.Document) bool {
 
 // rawStatus returns the record's status as written, for wording a finding
 // only — never for a decision (finalStatus decides). It decodes status exactly
-// as finalStatus does and returns "missing" when the status is empty or the
-// frontmatter cannot be decoded.
+// as finalStatus does and returns "" when the status is empty or the
+// frontmatter cannot be decoded, so the caller words that case as absent
+// rather than quoting a placeholder as if it were stored.
 func rawStatus(doc document.Document) string {
 	var head struct {
 		Status string `yaml:"status"`
 	}
-	if err := doc.DecodeFrontmatter(&head); err != nil || head.Status == "" {
-		return "missing"
+	if err := doc.DecodeFrontmatter(&head); err != nil {
+		return ""
 	}
 	return head.Status
 }

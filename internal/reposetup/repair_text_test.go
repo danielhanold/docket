@@ -87,7 +87,7 @@ func TestDropFinalClaimedAtText(t *testing.T) {
 	f := fs[0]
 	wantMsg := "This finished change still has a `claimed_at` timestamp from when it was being built."
 	wantImpact := "It's harmless: nothing reads it once a change is closed. Older docket versions left it behind."
-	wantRemedy := "Run `docket repository repair` to remove it (it shows the edit first), or delete the `claimed_at:` line in `.docket/" + rel + "` by hand and commit and push it from `.docket`."
+	wantRemedy := "Run `docket repository repair` to remove it (it shows the edit first). Or edit it by hand: in `.docket/" + rel + "`, delete the `claimed_at:` line; then commit and push it from `.docket`."
 	if f.Message != wantMsg {
 		t.Errorf("message:\n got %q\nwant %q", f.Message, wantMsg)
 	}

@@ -209,7 +209,7 @@ func changeIdentity(c domain.Change) []domain.Finding {
 	}
 	if c.Priority() == "" {
 		findings = append(findings, finding(CodeChangePriorityUnknown, domain.SeverityWarning, ref, "priority",
-			map[string]string{"raw": c.RawPriority()}))
+			map[string]string{"raw": c.RawPriority(), "status": string(c.Status())}))
 	}
 	if !identityMatchesFilename(path.Base(c.Path()), c.Location() == LocationArchive, int(c.ID()), c.Slug()) {
 		findings = append(findings, finding(CodeChangeFilenameMismatch, domain.SeverityError, ref, "path",

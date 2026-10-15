@@ -184,13 +184,14 @@ func validationFixtures() map[string][]validationFixture {
 		},
 		repository.CodeChangeIDInvalid: {
 			{"zero", f(repository.CodeChangeIDInvalid, E, domain.EntityRef{Kind: domain.EntityChange, Slug: "x", Path: "docs/changes/active/0000-x.md"}, "id", map[string]string{"raw": "0"})},
+			{"negative", f(repository.CodeChangeIDInvalid, E, domain.EntityRef{Kind: domain.EntityChange, Slug: "x", Path: "docs/changes/active/0000-x.md"}, "id", map[string]string{"raw": "-3"})},
 		},
 		repository.CodeADRIDInvalid: {
 			{"zero", f(repository.CodeADRIDInvalid, E, domain.EntityRef{Kind: domain.EntityADR, Slug: "x", Path: "docs/adrs/0000-x.md"}, "id", map[string]string{"raw": "0"})},
 		},
 		repository.CodeChangeSlugInvalid: {
 			{"bad", f(repository.CodeChangeSlugInvalid, E, fxChange(263, "Bad_Slug"), "slug", map[string]string{"raw": "Bad_Slug"})},
-			{"raw empty", f(repository.CodeChangeSlugInvalid, E, domain.EntityRef{Kind: domain.EntityChange, ID: 263, Path: "docs/changes/active/0263-.md"}, "slug", map[string]string{"raw": ""})},
+			{"raw empty", f(repository.CodeChangeSlugInvalid, E, domain.EntityRef{Kind: domain.EntityChange, ID: 263, Path: "docs/changes/active/0263-x.md"}, "slug", map[string]string{"raw": ""})},
 		},
 		repository.CodeADRSlugInvalid: {
 			{"bad", f(repository.CodeADRSlugInvalid, E, fxADR(12, "Bad--slug"), "slug", map[string]string{"raw": "Bad--slug"})},
@@ -203,8 +204,9 @@ func validationFixtures() map[string][]validationFixture {
 			{"raw empty", f(repository.CodeChangeStatusUnknown, E, fxChange(263, "x"), "status", map[string]string{"raw": ""})},
 		},
 		repository.CodeChangePriorityUnknown: {
-			{"unknown", f(repository.CodeChangePriorityUnknown, W, fxChange(263, "x"), "priority", map[string]string{"raw": "urgent"})},
-			{"raw empty", f(repository.CodeChangePriorityUnknown, W, fxChange(263, "x"), "priority", map[string]string{"raw": ""})},
+			{"unknown", f(repository.CodeChangePriorityUnknown, W, fxChange(263, "x"), "priority", map[string]string{"raw": "urgent", "status": "in-progress"})},
+			{"raw empty", f(repository.CodeChangePriorityUnknown, W, fxChange(263, "x"), "priority", map[string]string{"raw": "", "status": "in-progress"})},
+			{"proposed", f(repository.CodeChangePriorityUnknown, W, fxChange(263, "x"), "priority", map[string]string{"raw": "urgent", "status": "proposed"})},
 		},
 		repository.CodeChangeFilenameMismatch: {
 			{"mismatch", f(repository.CodeChangeFilenameMismatch, E, domain.EntityRef{Kind: domain.EntityChange, ID: 263, Slug: "x", Path: "docs/changes/active/0263-y.md"}, "path",
@@ -373,6 +375,65 @@ func TestValidationTextUsesNoInternalVocabulary(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestExplainValidationTypeRuleMatchesValidator pins that the type finding
+// describes domain.ValidTypeToken's rule (a leading letter, then letters,
+// digits, or hyphens), not the slug rule, and that each example the text
+// gives passes the validator.
+func TestExplainValidationTypeRuleMatchesValidator(t *testing.T) {
+	f := domain.Finding{Code: repository.CodeChangeTypeInvalid, Severity: domain.SeverityError,
+		Entity: fxChange(263, "x"), Field: "type", Detail: map[string]string{"raw": "1fix"}}
+	got := explainValidation(f, reposetup.RecordLocator{Checkout: ".docket"})
+	for _, part := range []string{got.Message, got.Remedy} {
+		if strings.Contains(part, slugRule) || !strings.Contains(part, typeRule) {
+			t.Errorf("%q should describe the type rule %q, not the slug rule", part, typeRule)
+		}
+	}
+	for _, ok := range []string{"feature", "fix"} {
+		if !domain.ValidTypeToken(ok) || !strings.Contains(got.Remedy, "`"+ok+"`") {
+			t.Errorf("example %q: valid=%v, in remedy=%v", ok, domain.ValidTypeToken(ok), strings.Contains(got.Remedy, "`"+ok+"`"))
+		}
+	}
+}
+
+// TestExplainValidationIDInvalidNeverQuotesPlaceholder pins that an id the
+// validator reports as 0 (absent, zero, or not a number) is not quoted as a
+// stored `id: 0`, while a stored negative id is quoted as written.
+func TestExplainValidationIDInvalidNeverQuotesPlaceholder(t *testing.T) {
+	for _, code := range []string{repository.CodeChangeIDInvalid, repository.CodeADRIDInvalid} {
+		zero := explainValidation(domain.Finding{Code: code, Severity: domain.SeverityError,
+			Entity: domain.EntityRef{Path: "docs/adrs/0000-x.md"}, Field: "id", Detail: map[string]string{"raw": "0"}}, reposetup.RecordLocator{})
+		if strings.Contains(zero.Message, "`id: 0`") || !strings.Contains(zero.Message, "has no valid `id:`") {
+			t.Errorf("%s zero: Message = %q", code, zero.Message)
+		}
+		neg := explainValidation(domain.Finding{Code: code, Severity: domain.SeverityError,
+			Entity: domain.EntityRef{Path: "docs/adrs/0000-x.md"}, Field: "id", Detail: map[string]string{"raw": "-3"}}, reposetup.RecordLocator{})
+		if !strings.Contains(neg.Message, "`id: -3`") {
+			t.Errorf("%s negative: Message = %q", code, neg.Message)
+		}
+	}
+}
+
+// TestExplainValidationPriorityNamesTypedEditWhenProposed pins that a
+// proposed change's priority remedy offers the typed groom revise first and
+// keeps the hand edit as the fallback, while any other status (which the
+// revise refuses) gets the hand edit alone.
+func TestExplainValidationPriorityNamesTypedEditWhenProposed(t *testing.T) {
+	mk := func(status string) findingText {
+		return explainValidation(domain.Finding{Code: repository.CodeChangePriorityUnknown, Severity: domain.SeverityWarning,
+			Entity: fxChange(263, "x"), Field: "priority", Detail: map[string]string{"raw": "urgent", "status": status}},
+			reposetup.RecordLocator{Checkout: ".docket"})
+	}
+	proposed := mk("proposed").Remedy
+	typed := strings.Index(proposed, "`docket change groom`")
+	hand := strings.Index(proposed, "`.docket/docs/changes/active/0263-x.md`")
+	if typed < 0 || hand < 0 || typed > hand || !strings.Contains(proposed, "docket-groom-next") {
+		t.Errorf("proposed Remedy should name the typed revise before the hand edit: %q", proposed)
+	}
+	if other := mk("in-progress").Remedy; strings.Contains(other, "docket change groom") || !strings.Contains(other, "`.docket/docs/changes/active/0263-x.md`") {
+		t.Errorf("in-progress Remedy should be the hand edit alone: %q", other)
 	}
 }
 

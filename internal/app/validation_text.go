@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/reposetup"
@@ -212,6 +214,10 @@ const (
 	// slugRule describes the shared slug and topic grammar
 	// (domain.ValidSlugToken) in words.
 	slugRule = "lowercase letters and digits in words joined by single hyphens"
+	// typeRule describes the change-type grammar (domain.ValidTypeToken) in
+	// words. It is not the slug rule: a type must start with a letter and may
+	// hold any run of hyphens.
+	typeRule = "a lowercase letter followed only by lowercase letters, digits, or hyphens"
 	// reportBug opens the remedy of a finding that reports a docket
 	// defect rather than a problem in a record.
 	reportBug = "Report it as a docket bug and include the path; "
@@ -221,11 +227,21 @@ const (
 func identityInvalid(noun, impact string) validationExplainer {
 	return func(f domain.Finding, loc reposetup.RecordLocator) findingText {
 		return findingText{
-			Message: fmt.Sprintf("%s has `id: %s`, which isn't a usable %s number.", subjectOf(f.Entity), f.Detail["raw"], noun),
+			Message: idInvalidMessage(f, noun),
 			Impact:  impact,
 			Remedy:  handEdit(f, loc, "set `id:` to the number at the start of the file name"),
 		}
 	}
+}
+
+// idInvalidMessage words the id-invalid message. The validator reports an
+// absent, zero, or non-numeric id alike as 0, so that case says the record
+// has no valid id rather than quoting `id: 0` as if it were stored.
+func idInvalidMessage(f domain.Finding, noun string) string {
+	if raw := f.Detail["raw"]; raw != "" && raw != "0" {
+		return fmt.Sprintf("%s has `id: %s`, which isn't a usable %s number.", subjectOf(f.Entity), raw, noun)
+	}
+	return fmt.Sprintf("%s has no valid `id:` (it is missing, zero, or not a number), so it has no usable %s number.", subjectOf(f.Entity), noun)
 }
 
 // slugInvalid builds the change/ADR/learning slug-invalid text.
@@ -266,6 +282,28 @@ func removeReference(f domain.Finding) string {
 	return fmt.Sprintf("remove `%d` from `%s:` or correct it to the right number", relatedTarget(f).ID, f.Field)
 }
 
+// lowerFirst lower-cases the first rune of s so a remedy sentence can follow
+// a colon mid-sentence.
+func lowerFirst(s string) string {
+	r, n := utf8.DecodeRuneInString(s)
+	if n == 0 {
+		return s
+	}
+	return string(unicode.ToLower(r)) + s[n:]
+}
+
+// priorityRemedy is the change-priority-unknown remedy. A proposed change can
+// take the typed groom revise, which sets the priority and keeps the board in
+// step, so that comes first and the hand edit is the fallback; the revise
+// refuses any other status, which gets the hand edit alone.
+func priorityRemedy(f domain.Finding, loc reposetup.RecordLocator) string {
+	hand := handEdit(f, loc, "set `priority:` to critical, high, medium, or low")
+	if f.Detail["status"] != string(domain.StatusProposed) {
+		return hand
+	}
+	return "Revise the change with docket-groom-next, or run `docket change groom` with a revise request, and set its priority to critical, high, medium, or low. To edit it by hand instead: " + lowerFirst(hand)
+}
+
 // validationTexts is the plain-language table, keyed by validator code.
 var validationTexts = map[string]validationExplainer{
 	repository.CodeRecordUndecodable: func(f domain.Finding, loc reposetup.RecordLocator) findingText {
@@ -296,9 +334,9 @@ var validationTexts = map[string]validationExplainer{
 	},
 	repository.CodeChangeTypeInvalid: func(f domain.Finding, loc reposetup.RecordLocator) findingText {
 		return findingText{
-			Message: fmt.Sprintf("%s has %s, which isn't %s.", subjectOf(f.Entity), fieldValue("type", f.Detail["raw"]), slugRule),
+			Message: fmt.Sprintf("%s has %s, but a type must be %s.", subjectOf(f.Entity), fieldValue("type", f.Detail["raw"]), typeRule),
 			Impact:  "docket can't label or group the change by its type.",
-			Remedy:  handEdit(f, loc, "set `type:` to a single word or hyphenated words, such as `feature` or `fix`"),
+			Remedy:  handEdit(f, loc, "set `type:` to "+typeRule+", such as `feature` or `fix`"),
 		}
 	},
 	repository.CodeADRStatusUnparseable: func(f domain.Finding, loc reposetup.RecordLocator) findingText {
@@ -340,7 +378,7 @@ var validationTexts = map[string]validationExplainer{
 		return findingText{
 			Message: fmt.Sprintf("%s has %s, which isn't a priority.", subjectOf(f.Entity), fieldValue("priority", f.Detail["raw"])),
 			Impact:  "It's harmless: docket sorts the change as medium priority.",
-			Remedy:  handEdit(f, loc, "set `priority:` to critical, high, medium, or low"),
+			Remedy:  priorityRemedy(f, loc),
 		}
 	},
 	repository.CodeChangeFilenameMismatch: filenameMismatch,
@@ -518,7 +556,9 @@ var validationTexts = map[string]validationExplainer{
 			return findingText{
 				Message: fmt.Sprintf("%s has `status: %s`, but %s doesn't list %s under `%s`.", subjectOf(f.Entity), f.Detail["status"], other, f.Detail["expected-edge"], edge),
 				Impact:  impact,
-				Remedy: handEdit(f, loc, fmt.Sprintf("add `%d` to `%s:` in %s's own file, or fix `status:`",
+				// The file leads the remedy, so this record's own edit comes
+				// first and the other ADR's edit names its file itself.
+				Remedy: handEdit(f, loc, fmt.Sprintf("fix `status:`, or add `%d` to `%s:` in %s's own file",
 					f.Entity.ID, edge, other)),
 			}
 		}
@@ -526,8 +566,8 @@ var validationTexts = map[string]validationExplainer{
 		return findingText{
 			Message: fmt.Sprintf("%s lists %s under `%s`, but %s's status is `%s`, not `%s`.", subjectOf(f.Entity), name, f.Field, name, f.Detail["actual"], f.Detail["expected"]),
 			Impact:  impact,
-			Remedy: handEdit(f, loc, fmt.Sprintf("set %s's `status:` to `%s` in its own file, or remove `%d` from `%s:`",
-				name, f.Detail["expected"], target.ID, f.Field)),
+			Remedy: handEdit(f, loc, fmt.Sprintf("remove `%d` from `%s:`, or set %s's `status:` to `%s` in %s's own file",
+				target.ID, f.Field, name, f.Detail["expected"], name)),
 		}
 	},
 	domain.CodeADRDanglingReference: func(f domain.Finding, loc reposetup.RecordLocator) findingText {
