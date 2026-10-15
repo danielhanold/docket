@@ -128,3 +128,26 @@ func removeAllowRules(src []byte, rules []string) ([]byte, error) {
 	}
 	return out, nil
 }
+
+// checkAllowRules owns the structural rule for a hook-entries target's allow
+// rules: none at all, or non-empty distinct strings on a claude-dialect target,
+// the only hooks file that is also a permissions file.
+func checkAllowRules(dialect string, rules []string) error {
+	if len(rules) == 0 {
+		return nil
+	}
+	if dialect != HookDialectClaude {
+		return fmt.Errorf("allow rules on a %q hooks file; only the claude dialect carries them", dialect)
+	}
+	seen := make(map[string]bool, len(rules))
+	for _, r := range rules {
+		if r == "" {
+			return errors.New("an empty allow rule")
+		}
+		if seen[r] {
+			return fmt.Errorf("duplicate allow rule %q", r)
+		}
+		seen[r] = true
+	}
+	return nil
+}

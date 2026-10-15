@@ -94,13 +94,16 @@ func checkHookFields(dialect string, commands []string) error {
 	return nil
 }
 
-// hookEntriesDigest is a hook-entries record's identity: the dialect and the
-// ordered commands it owns.
-func hookEntriesDigest(dialect string, commands []string) string {
+// hookEntriesDigest is a hook-entries record's identity: the dialect, the
+// ordered commands it owns, and the ordered permissions.allow rules it owns.
+// The rules field is omitempty so a hooks-only identity stays byte-identical
+// to the digest of records written before allow rules existed.
+func hookEntriesDigest(dialect string, commands, rules []string) string {
 	data, err := json.Marshal(struct {
-		Dialect  string   `json:"dialect"`
-		Commands []string `json:"commands"`
-	}{dialect, commands})
+		Dialect    string   `json:"dialect"`
+		Commands   []string `json:"commands"`
+		AllowRules []string `json:"allow_rules,omitempty"`
+	}{dialect, commands, rules})
 	if err != nil {
 		// A struct of strings always encodes.
 		panic("install: encoding a hook-entries identity: " + err.Error())

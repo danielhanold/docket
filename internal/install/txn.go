@@ -1104,13 +1104,17 @@ func removalTarget(rec TargetRecord) (Target, error) {
 			return Target{}, fmt.Errorf("%w: %s is recorded as hook entries with no commands",
 				ErrInvalidTarget, rec.Path)
 		}
-		return Target{
+		target := Target{
 			Path:         rec.Path,
 			Kind:         rec.Kind,
 			HookDialect:  rec.HookDialect,
 			HookCommands: append([]string(nil), rec.HookCommands...),
 			Role:         rec.Role,
-		}, nil
+		}
+		if len(rec.AllowRules) > 0 {
+			target.AllowRules = append([]string(nil), rec.AllowRules...)
+		}
+		return target, nil
 	default:
 		return Target{}, fmt.Errorf("%w: %s is recorded as %q, which a transaction never deletes",
 			ErrInvalidTarget, rec.Path, rec.Kind)

@@ -28,7 +28,15 @@ type Target struct {
 	// prior record owned that this target no longer carries, whose exact
 	// entries the apply cuts before adding HookCommands.
 	retireHookCommands []string
-	Role               string
+	// AllowRules is claude-dialect KindHookEntries only: the exact
+	// permissions.allow strings the target owns in the same settings file, in
+	// install order.
+	AllowRules []string
+	// retireAllowRules is set by inspection, never by a planner: rules a prior
+	// record owned that this target no longer carries, whose exact elements
+	// the apply cuts before adding AllowRules.
+	retireAllowRules []string
+	Role             string
 	// Mode overrides the permissions an applied KindFile target is published
 	// with. Zero means "the installer's policy": the mode an updated file
 	// already had, else 0o644. It exists for the one target whose usefulness
@@ -74,7 +82,7 @@ func (t Target) validate() error {
 	case !filepath.IsAbs(t.Path):
 		return fmt.Errorf("%w: path %q is not absolute", ErrInvalidTarget, t.Path)
 	}
-	if t.Kind != KindHookEntries && (t.HookDialect != "" || len(t.HookCommands) > 0) {
+	if t.Kind != KindHookEntries && (t.HookDialect != "" || len(t.HookCommands) > 0 || len(t.AllowRules) > 0) {
 		return fmt.Errorf("%w: %s is a %s target carrying hook-entries fields", ErrInvalidTarget, t.Path, t.Kind)
 	}
 	switch t.Kind {
@@ -98,6 +106,9 @@ func (t Target) validate() error {
 			return fmt.Errorf("%w: %s is a hook-entries target carrying a block name or link target", ErrInvalidTarget, t.Path)
 		}
 		if err := checkHookFields(t.HookDialect, t.HookCommands); err != nil {
+			return fmt.Errorf("%w: %s: %v", ErrInvalidTarget, t.Path, err)
+		}
+		if err := checkAllowRules(t.HookDialect, t.AllowRules); err != nil {
 			return fmt.Errorf("%w: %s: %v", ErrInvalidTarget, t.Path, err)
 		}
 		return nil
@@ -133,7 +144,10 @@ func RecordFor(t Target) (TargetRecord, error) {
 	case KindHookEntries:
 		rec.HookDialect = t.HookDialect
 		rec.HookCommands = append([]string(nil), t.HookCommands...)
-		rec.SHA256 = hookEntriesDigest(t.HookDialect, t.HookCommands)
+		if len(t.AllowRules) > 0 {
+			rec.AllowRules = append([]string(nil), t.AllowRules...)
+		}
+		rec.SHA256 = hookEntriesDigest(t.HookDialect, t.HookCommands, t.AllowRules)
 	}
 	return rec, nil
 }

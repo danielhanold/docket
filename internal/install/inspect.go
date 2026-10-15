@@ -269,7 +269,7 @@ func inspectHookEntries(t Target, info fs.FileInfo, rec TargetRecord, hasRec boo
 // identity — or it proves nothing and nothing is retired.
 func staleHookCommands(t Target, entries []json.RawMessage, rec TargetRecord, hasRec bool) []string {
 	if !hasRec || rec.Kind != KindHookEntries || rec.HookDialect != t.HookDialect ||
-		rec.SHA256 == "" || rec.SHA256 != hookEntriesDigest(rec.HookDialect, rec.HookCommands) {
+		rec.SHA256 == "" || rec.SHA256 != hookEntriesDigest(rec.HookDialect, rec.HookCommands, rec.AllowRules) {
 		return nil
 	}
 	var stale []string
@@ -444,7 +444,7 @@ func recordMatchesDisk(rec TargetRecord) (bool, error) {
 		// file holding none of them is a match too: nothing of docket's is left
 		// to preserve, as for a vanished target.
 		if !info.Mode().IsRegular() || rec.SHA256 == "" ||
-			rec.SHA256 != hookEntriesDigest(rec.HookDialect, rec.HookCommands) {
+			rec.SHA256 != hookEntriesDigest(rec.HookDialect, rec.HookCommands, rec.AllowRules) {
 			return false, nil
 		}
 		data, err := os.ReadFile(rec.Path)
