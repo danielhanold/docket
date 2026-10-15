@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0549 — Bring the local metadata checkout up to date after every docket write](../changes/active/0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md)**
+> ↩ **[Change 0549 — Bring the local metadata checkout up to date after every docket write](../changes/archive/2026-10-15-0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md)**
 <!-- docket:backlink:end -->
 
 # Bring the local metadata checkout up to date after every docket write — Results

@@ -2,7 +2,7 @@
 id: 549
 slug: 'bring-the-local-metadata-checkout-up-to-date-after-every-doc'
 title: 'Bring the local metadata checkout up to date after every docket write'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-14'
@@ -22,7 +22,7 @@ branch: 'fix/bring-the-local-metadata-checkout-up-to-date-after-every-doc'
 pr: 'https://github.com/danielhanold/docket/pull/413'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-14T23:34:41Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-14T23:34:41Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md](../../superpowers/specs/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md) |
+| Spec (merged) | [2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md) |
 | Plan | [2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md](../../superpowers/plans/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) |
 | Results | [2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-results.md](../../results/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-results.md) |
 | ADRs | [ADR-0142](../../adrs/0142-private-visibility-keeps-the-single-metadata-layout-and-vari.md), [ADR-0089](../../adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md) |
