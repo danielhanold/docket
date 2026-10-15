@@ -100,7 +100,7 @@ type WorkspaceCheckoutDeps struct {
 func WorkspaceCheckout(ctx context.Context, deps PlanningDeps, cdeps WorkspaceCheckoutDeps, repoDir string, req WorkspaceCheckoutRequest) WorkspaceOpResult {
 	op := OperationWorkspaceCheckout
 	refuse := func(result Result, disposition, reason, message string) WorkspaceOpResult {
-		return newWorkspaceResult(op, result, WorkspaceOpResult{ID: req.ID, Disposition: disposition, Reason: reason, Message: message})
+		return withCheckoutDisposition(newWorkspaceResult(op, result, WorkspaceOpResult{ID: req.ID, Disposition: disposition, Reason: reason, Message: message}))
 	}
 
 	if (req.Revision == "") != (req.Head == "") {
@@ -114,7 +114,7 @@ func WorkspaceCheckout(ctx context.Context, deps PlanningDeps, cdeps WorkspaceCh
 
 	wc, refusal := loadWorkspaceContext(ctx, deps, repoDir, req.ID, op)
 	if refusal != nil {
-		return *refusal
+		return withCheckoutDisposition(*refusal)
 	}
 	if wc.change.Status() != domain.StatusImplemented {
 		return refuse(ResultBlocked, string(workspace.CheckoutBlocked), ReasonWorkspaceNotImplemented,
@@ -126,7 +126,7 @@ func WorkspaceCheckout(ctx context.Context, deps PlanningDeps, cdeps WorkspaceCh
 	}
 	target, tRefusal := resolveWorkspaceTarget(op, wc)
 	if tRefusal != nil {
-		return *tRefusal
+		return withCheckoutDisposition(*tRefusal)
 	}
 
 	// The PR half of the head: exactly one open PR for the feature branch,
@@ -167,6 +167,25 @@ func WorkspaceCheckout(ctx context.Context, deps PlanningDeps, cdeps WorkspaceCh
 		return out
 	}
 	return checkoutResult(op, req.ID, res)
+}
+
+// withCheckoutDisposition gives a refusal built without a disposition (the
+// shared context and target refusals, the flag checks) one from the closed set
+// a caller routes on: an unobservable outcome is unknown, a lost race
+// contended, and every other refusal blocked. A set disposition is kept.
+func withCheckoutDisposition(r WorkspaceOpResult) WorkspaceOpResult {
+	if r.Disposition != "" {
+		return r
+	}
+	switch r.Result {
+	case ResultExternalFailed, ResultInternalError, ResultInterrupted:
+		r.Disposition = checkoutDispUnknown
+	case ResultContended:
+		r.Disposition = string(workspace.CheckoutContended)
+	default:
+		r.Disposition = string(workspace.CheckoutBlocked)
+	}
+	return r
 }
 
 // checkoutResult maps a checkout disposition onto the protocol result taxonomy:
