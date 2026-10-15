@@ -485,9 +485,22 @@ func (t *Txn) applyStep(i int) error {
 				return fmt.Errorf("retiring stale hook entries from %s: %w", step.Path, err)
 			}
 		}
+		if len(target.retireAllowRules) > 0 {
+			// A dropped permission rule: the recorded rule is cut in the same
+			// rewrite, so the file never grants what docket no longer owns.
+			existing, err = removeAllowRules(existing, target.retireAllowRules)
+			if err != nil {
+				return fmt.Errorf("retiring stale allow rules from %s: %w", step.Path, err)
+			}
+		}
 		out, err := insertHookEntries(existing, target.HookDialect, target.HookCommands)
 		if err != nil {
 			return fmt.Errorf("adding hook entries to %s: %w", step.Path, err)
+		}
+		if len(target.AllowRules) > 0 {
+			if out, err = insertAllowRules(out, target.AllowRules); err != nil {
+				return fmt.Errorf("adding allow rules to %s: %w", step.Path, err)
+			}
 		}
 		return t.writeThroughStaging(step, out, target.Mode)
 
@@ -619,8 +632,9 @@ func (t *Txn) removeManagedBlock(step *journalStep) error {
 	return t.writeThroughStaging(step, out, 0)
 }
 
-// removeHookEntriesStep retires docket's hook entries from a hooks file the
-// user also owns, cutting exactly those entries and keeping every other byte.
+// removeHookEntriesStep retires docket's hook entries and allow rules from a
+// hooks file the user also owns, cutting exactly those and keeping every other
+// byte.
 // It mirrors removeManagedBlock, and rewrites the file only when a cut was made.
 func (t *Txn) removeHookEntriesStep(step *journalStep, target Target) error {
 	switch step.PreImage.State {
@@ -635,8 +649,16 @@ func (t *Txn) removeHookEntriesStep(step *journalStep, target Target) error {
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", step.Path, err)
 	}
-	out, err := removeHookEntries(existing, target.HookDialect, target.HookCommands)
-	if err != nil {
+	// Rules go first, then hooks: the reverse of the order applyStep inserts
+	// them in. A rule-carrying target cuts its rules even when the hooks were
+	// already deleted by hand.
+	out := existing
+	if len(target.AllowRules) > 0 {
+		if out, err = removeAllowRules(out, target.AllowRules); err != nil {
+			return fmt.Errorf("removing allow rules from %s: %w", step.Path, err)
+		}
+	}
+	if out, err = removeHookEntries(out, target.HookDialect, target.HookCommands); err != nil {
 		return fmt.Errorf("removing hook entries from %s: %w", step.Path, err)
 	}
 	if bytes.Equal(out, existing) {
