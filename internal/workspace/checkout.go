@@ -188,11 +188,11 @@ func (s *Service) Checkout(ctx context.Context, req CheckoutRequest) (CheckoutRe
 		return CheckoutResult{}, &Failure{Op: checkoutOp, Stage: "inventory", Kind: KindExternal, Detail: "workspace manifest is unreadable", Err: cerr}
 	case manifestForeign:
 		return out.refuse(CheckoutBlocked, CheckoutReasonForeignManifest,
-			fmt.Sprintf("the workspace record for %s in %s is not one docket can read (%s)%s", target.FeatureBranch(), dir, boundedDetail(cerr.Error()), unchanged)), nil
+			fmt.Sprintf("the workspace record for %s in %s is not one docket can read (%s)%s%s", target.FeatureBranch(), dir, boundedDetail(cerr.Error()), foreignManifestRemedy(dir), unchanged)), nil
 	case manifestValid:
 		if !ownsManifest(m, repo, target, intended) {
 			return out.refuse(CheckoutBlocked, CheckoutReasonForeignManifest,
-				fmt.Sprintf("the workspace record for %s in %s belongs to another repository, change, or path%s", target.FeatureBranch(), dir, unchanged)), nil
+				fmt.Sprintf("the workspace record for %s in %s belongs to another repository, change, or path%s%s", target.FeatureBranch(), dir, foreignManifestRemedy(dir), unchanged)), nil
 		}
 		switch m.Phase {
 		case PhaseReady:
@@ -205,6 +205,13 @@ func (s *Service) Checkout(ctx context.Context, req CheckoutRequest) (CheckoutRe
 		}
 	}
 	return s.checkoutAttach(ctx, req, out, dir, intended, nil)
+}
+
+// foreignManifestRemedy is the way out of a foreign-manifest refusal: with the
+// record directory moved aside the slot is cleanly absent, and the same checkout
+// attaches. A docket command still holding that directory must finish first.
+func foreignManifestRemedy(dir string) string {
+	return fmt.Sprintf("; inspect %s and, if no docket command is using it, move %s aside and retry", filepath.Join(dir, manifestFileName), dir)
 }
 
 // checkoutExisting is the owned-ready arm: a read-only Inspect decides between

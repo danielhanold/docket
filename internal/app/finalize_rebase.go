@@ -695,13 +695,15 @@ func requireReadyWorkspace(opKey string, rc *rebaseContext, expectedHead string)
 }
 
 // workspaceNotReadyMessage carries the inspection's own reason and, when no
-// docket workspace holds the change here, the command that checks it out.
+// workspace record exists for the change here, the command that checks it out.
+// A present record that is undecodable or not this clone's is refused by that
+// command too (foreign-manifest), so it never names it.
 func workspaceNotReadyMessage(rc *rebaseContext) string {
 	msg := fmt.Sprintf("the feature workspace is %q, not the clean registered feature state", rc.insp.Kind)
 	if rc.insp.Detail != "" {
 		msg += " (" + rc.insp.Detail + ")"
 	}
-	if rc.insp.Kind == workspace.StateAbsent || rc.insp.Kind == workspace.StateForeign {
+	if rc.insp.NoManifest {
 		msg += fmt.Sprintf("; check the change out into its own worktree with `docket workspace checkout --id %d`", int(rc.change.ID()))
 	}
 	return msg

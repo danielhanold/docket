@@ -10,6 +10,7 @@ import (
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/workspace"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -2540,28 +2541,62 @@ func TestIntegrationFinalizeRebasePublishedRefreshInterruption(t *testing.T) {
 // clone with no registered workspace at the canonical path (absent, or the branch
 // held by a foreign worktree) is refused workspace-not-ready with the inspection's
 // reason and the checkout remedy, before any Git runs in the missing directory.
+// A present workspace record that is undecodable or owned by another identity is
+// refused the same way but WITHOUT the checkout remedy: checkout refuses that
+// state (foreign-manifest), so naming it would lead nowhere.
 func TestIntegrationFinalizeRebaseGateWorkspaceNotReady(t *testing.T) {
 	requireRealGit(t)
+	ghCheckout := func(t *testing.T, f *rebaseFixture) {
+		f.forgetLocalWorkspace(t)
+		b := f.target.FeatureBranch()
+		runGit(t, f.repo.invocation, "fetch", "-q", "origin", "refs/heads/"+b+":refs/heads/"+b)
+		runGit(t, f.repo.invocation, "worktree", "add", "-q", filepath.Join(f.repo.root, "gh-checkout"), b)
+	}
+	manifest := func(t *testing.T, f *rebaseFixture) string { return filepath.Join(f.metaDir, "manifest.json") }
 	for _, tc := range []struct {
 		name, detail string
-		foreign      bool
-	}{{"absent", `"absent"`, false}, {"foreign", "no workspace manifest; local feature branch exists", true}} {
+		remedy       bool
+		arrange      func(t *testing.T, f *rebaseFixture)
+	}{
+		{"absent", `"absent"`, true, func(t *testing.T, f *rebaseFixture) { f.forgetLocalWorkspace(t) }},
+		{"foreign", "no workspace manifest; local feature branch exists", true, ghCheckout},
+		{"manifest-undecodable", "decoding manifest", false, func(t *testing.T, f *rebaseFixture) {
+			if err := os.WriteFile(manifest(t, f), []byte("{not json"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"manifest-unowned", "manifest identity does not match", false, func(t *testing.T, f *rebaseFixture) {
+			data, err := os.ReadFile(manifest(t, f))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var m map[string]any
+			if err := json.Unmarshal(data, &m); err != nil {
+				t.Fatal(err)
+			}
+			m["base_ref"] = "refs/remotes/origin/elsewhere"
+			out, err := json.Marshal(m)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(manifest(t, f), out, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := setupRebaseFixture(t, planRepoModes()[0])
-			f.forgetLocalWorkspace(t)
-			if tc.foreign {
-				b := f.target.FeatureBranch()
-				runGit(t, f.repo.invocation, "fetch", "-q", "origin", "refs/heads/"+b+":refs/heads/"+b)
-				runGit(t, f.repo.invocation, "worktree", "add", "-q", filepath.Join(f.repo.root, "gh-checkout"), b)
-			}
+			tc.arrange(t, f)
 			gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 			res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
 				FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 			assertRebaseRefused(t, res, ResultBlocked, ReasonRebaseWorkspaceNotReady)
-			for _, want := range []string{tc.detail, fmt.Sprintf("docket workspace checkout --id %d", f.id)} {
-				if !strings.Contains(res.Message, want) {
-					t.Errorf("message %q lacks %q", res.Message, want)
-				}
+			if !strings.Contains(res.Message, tc.detail) {
+				t.Errorf("message %q lacks %q", res.Message, tc.detail)
+			}
+			remedy := fmt.Sprintf("docket workspace checkout --id %d", f.id)
+			if got := strings.Contains(res.Message, remedy); got != tc.remedy {
+				t.Errorf("message %q names %q = %v, want %v", res.Message, remedy, got, tc.remedy)
 			}
 			f.receiptAbsent(t)
 		})

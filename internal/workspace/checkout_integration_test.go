@@ -297,9 +297,23 @@ var refuseRows = []refuseRow{
 			gitOut(t, r.Primary, "worktree", "add", "-q", "-b", "feat/else", wsPathOf(repo), "main")
 			return head, wsPathOf(repo)
 		}},
-	{name: "foreign-manifest", disp: "blocked", reason: CheckoutReasonForeignManifest,
+	{name: "foreign-manifest", disp: "blocked", reason: CheckoutReasonForeignManifest, mention: "aside and retry",
 		arrange: func(t *testing.T, r *wsRepos, repo gitcli.Repository, tgt Target, head gitcli.ObjectID) (gitcli.ObjectID, string) {
 			writeWorktreeFile(t, metaDirOf(repo, tgt), manifestFileName, "{not json")
+			return head, ""
+		}},
+	// A decodable record whose identity is not this clone's (a moved clone or a
+	// changed effective base) is refused with the same move-aside remedy.
+	{name: "foreign-manifest-unowned", disp: "blocked", reason: CheckoutReasonForeignManifest, mention: "aside and retry",
+		arrange: func(t *testing.T, r *wsRepos, repo gitcli.Repository, tgt Target, head gitcli.ObjectID) (gitcli.ObjectID, string) {
+			now := time.Now().UTC().Format(time.RFC3339)
+			if err := writeManifest(metaDirOf(repo, tgt), Manifest{
+				Schema: manifestSchemaVersion, ID: workspaceID(tgt.FeatureRef), CommonDir: repo.CommonDir,
+				ChangeID: tgt.ChangeID, Slug: tgt.Slug, FeatureRef: tgt.FeatureRef, BaseRef: "refs/remotes/origin/elsewhere",
+				BaseCommit: r.mainTip(t), Path: wsPathOf(repo), Phase: PhaseAllocating, CreatedUTC: now, UpdatedUTC: now,
+			}); err != nil {
+				t.Fatal(err)
+			}
 			return head, ""
 		}},
 	{name: "owned-dirty", disp: "blocked", reason: CheckoutReasonWorkspaceDirty, owned: true,
@@ -440,6 +454,42 @@ func TestIntegrationWorkspaceCheckoutRefusals(t *testing.T) {
 			}
 			r.assertAllUnchanged(t, before)
 		})
+	}
+}
+
+// Every foreign-manifest refusal names a remedy that works in that state:
+// moving the named workspace-record directory aside lets the same checkout attach.
+func TestIntegrationWorkspaceCheckoutForeignManifestRemedyRecovers(t *testing.T) {
+	n := 0
+	for _, tc := range refuseRows {
+		if tc.reason != CheckoutReasonForeignManifest {
+			continue
+		}
+		n++
+		t.Run(tc.name, func(t *testing.T) {
+			r := mainModeRepo(t)
+			head := r.pushBranch(t, coFeature, "main")
+			svc, repo := r.newService(t)
+			tgt := targetFor(t, coFeature)
+			expected, _ := tc.arrange(t, r, repo, tgt, head)
+			dir := metaDirOf(repo, tgt)
+			res := runCheckout(t, svc, repo, tgt, expected, "")
+			if res.Reason != CheckoutReasonForeignManifest {
+				t.Fatalf("= %q/%q (%s); want foreign-manifest", res.Disposition, res.Reason, res.Message)
+			}
+			for _, want := range []string{filepath.Join(dir, manifestFileName), "move " + dir + " aside"} {
+				if !strings.Contains(res.Message, want) {
+					t.Fatalf("message %q lacks %q", res.Message, want)
+				}
+			}
+			if err := os.Rename(dir, dir+".aside"); err != nil {
+				t.Fatal(err)
+			}
+			assertAttached(t, svc, repo, tgt, runCheckout(t, svc, repo, tgt, expected, ""), expected)
+		})
+	}
+	if n < 2 {
+		t.Fatalf("%d foreign-manifest refusal rows; want the undecodable and the unowned record", n)
 	}
 }
 
