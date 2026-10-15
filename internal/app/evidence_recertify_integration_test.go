@@ -5,6 +5,8 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -125,6 +127,37 @@ func TestIntegrationEvidenceEvidenceRecertifyRefusesDirtyWorkspace(t *testing.T)
 		t.Fatalf("result = %s/%s; want blocked/%s", res.Result, res.Reason, ReasonRecertifyWorkspaceDirty)
 	}
 	requireRecordUnchanged(t, f, before)
+}
+
+// TestIntegrationEvidenceEvidenceRecertifyRefusesWorkspaceNotReady: a clone that
+// never built the change (or holds a hand-made checkout of its branch) refuses
+// with the inspection's reason and the command that checks the change out.
+func TestIntegrationEvidenceEvidenceRecertifyRefusesWorkspaceNotReady(t *testing.T) {
+	requireRealGit(t)
+	for _, tc := range []struct{ name, detail string }{
+		{"absent", `"absent"`},
+		{"foreign", "no workspace manifest; local feature branch exists"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f, _, deps, wdeps := recertifyFixture(t, &fakeGate{})
+			before := f.remoteRecordBytes(t)
+			f.forgetLocalWorkspace(t)
+			if tc.name == "foreign" {
+				b := f.target.FeatureBranch()
+				runGit(t, f.repo.invocation, "fetch", "-q", "origin", "refs/heads/"+b+":refs/heads/"+b)
+				runGit(t, f.repo.invocation, "worktree", "add", "-q", filepath.Join(f.repo.root, "gh-checkout"), b)
+			}
+			res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
+			if res.Result != ResultBlocked || res.Reason != ReasonRecertifyWorkspaceNotReady {
+				t.Fatalf("result = %s/%s; want blocked/%s", res.Result, res.Reason, ReasonRecertifyWorkspaceNotReady)
+			}
+			remedy := fmt.Sprintf("docket workspace checkout --id %d", f.id)
+			if !strings.Contains(res.Message, tc.detail) || !strings.Contains(res.Message, remedy) {
+				t.Errorf("message %q: want %q and %q", res.Message, tc.detail, remedy)
+			}
+			requireRecordUnchanged(t, f, before)
+		})
+	}
 }
 
 // TestIntegrationEvidenceEvidenceRecertifyRefusesUnpublishedFollowUp: a local follow-up commit

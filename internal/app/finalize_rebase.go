@@ -683,7 +683,7 @@ func requireReadyWorkspace(opKey string, rc *rebaseContext, expectedHead string)
 		return &r
 	default:
 		r := rebaseRefusal(opKey, ResultBlocked, RebaseDispBlocked, ReasonRebaseWorkspaceNotReady,
-			workspaceNotReadyMessage(rc), int(rc.change.ID()))
+			workspaceNotReadyMessage(rc.insp, int(rc.change.ID())), int(rc.change.ID()))
 		return &r
 	}
 	if string(rc.insp.HeadCommit) != expectedHead {
@@ -698,13 +698,13 @@ func requireReadyWorkspace(opKey string, rc *rebaseContext, expectedHead string)
 // workspace record exists for the change here, the command that checks it out.
 // A present record that is undecodable or not this clone's is refused by that
 // command too (foreign-manifest), so it never names it.
-func workspaceNotReadyMessage(rc *rebaseContext) string {
-	msg := fmt.Sprintf("the feature workspace is %q, not the clean registered feature state", rc.insp.Kind)
-	if rc.insp.Detail != "" {
-		msg += " (" + rc.insp.Detail + ")"
+func workspaceNotReadyMessage(insp workspace.Inspection, id int) string {
+	msg := fmt.Sprintf("the feature workspace is %q, not the clean registered feature state", insp.Kind)
+	if insp.Detail != "" {
+		msg += " (" + insp.Detail + ")"
 	}
-	if rc.insp.NoManifest {
-		msg += fmt.Sprintf("; check the change out into its own worktree with `docket workspace checkout --id %d`", int(rc.change.ID()))
+	if insp.NoManifest {
+		msg += fmt.Sprintf("; check the change out into its own worktree with `docket workspace checkout --id %d`", id)
 	}
 	return msg
 }
@@ -1085,7 +1085,7 @@ func refreshOwnedRewrite(ctx context.Context, deps FinalizeDeps, repoDir string,
 			"the feature workspace has uncommitted changes; a base refresh requires a clean tree", id)
 	default:
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseWorkspaceNotReady,
-			fmt.Sprintf("the feature workspace is %q, not the clean registered feature state", rc.insp.Kind), id)
+			workspaceNotReadyMessage(rc.insp, id), id)
 	}
 	// Publication-lease classification (change 0442 extends change 0438): the
 	// unpublished case requires the remote feature head to still equal the
