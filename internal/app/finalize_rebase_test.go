@@ -9,6 +9,7 @@ import (
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/workspace"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -301,6 +302,17 @@ func (f *rebaseFixture) receiptAbsent(t *testing.T) {
 // localHead reads the current feature-workspace head.
 func (f *rebaseFixture) localHead() string {
 	return runGit(f.t, f.wp, "rev-parse", "HEAD")
+}
+
+// forgetLocalWorkspace makes the clone look like a machine that never built the
+// change: owned worktree, local branch, and manifest dir gone; origin keeps the branch.
+func (f *rebaseFixture) forgetLocalWorkspace(t *testing.T) {
+	t.Helper()
+	runGit(t, f.repo.invocation, "worktree", "remove", "--force", f.wp)
+	runGit(t, f.repo.invocation, "branch", "-D", f.target.FeatureBranch())
+	if err := os.RemoveAll(f.metaDir); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // advanceBase adds a non-conflicting commit to origin/main so a fresh feature
