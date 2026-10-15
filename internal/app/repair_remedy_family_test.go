@@ -36,9 +36,9 @@ func TestRepairableFamilyRemediesNameRepairNotMigrate(t *testing.T) {
 			// repairable derived: a stale artifact-links block
 			{path: "docs/changes/active/0001-example.md", bytes: changeRecordBytes(derivedChangeFM, ""), kind: repository.KindChange, location: repository.LocationActive},
 			// non-repairable derived: an unbalanced managed marker
+			{path: "docs/changes/active/0004-malformed.md", bytes: []byte("---\n" + malformedFM + "---\n\n## Artifacts\n\n<!-- docket:artifacts:start (generated — do not hand-edit) -->\n| Artifact | Link |\n\n## Why\n\nbody\n"), kind: repository.KindChange, location: repository.LocationActive},
 			// non-repairable validator finding: a dangling depends_on reference
 			danglingDependencyRecord(),
-			{path: "docs/changes/active/0004-malformed.md", bytes: []byte("---\n" + malformedFM + "---\n\n## Artifacts\n\n<!-- docket:artifacts:start (generated — do not hand-edit) -->\n| Artifact | Link |\n\n## Why\n\nbody\n"), kind: repository.KindChange, location: repository.LocationActive},
 		},
 		link:  render.LinkContext{MetadataBranch: layout.SharedName},
 		board: corpusFile{present: true, bytes: []byte("# Backlog\n\nstale bytes\n")},

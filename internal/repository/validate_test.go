@@ -520,6 +520,28 @@ func TestValidateCycleFindingNamesEveryMember(t *testing.T) {
 	t.Fatalf("no %s finding: %v", CodeChangeDependencyCycle, findingCodes(result.Report.Findings()))
 }
 
+// TestValidatePriorityFindingCarriesStatus pins the additive status Detail
+// the plain-language remedy reads: a proposed change can take the typed
+// groom revise, any other status only a hand edit.
+func TestValidatePriorityFindingCarriesStatus(t *testing.T) {
+	for _, status := range []string{"proposed", "in-progress"} {
+		src := strings.Replace(minimalChange(42, "widget", status, "branch: feat/widget", "claimed_at: 2026-08-01T10:00:00Z"), "priority: medium", "priority: urgent", 1)
+		found := false
+		for _, f := range buildRecords(t, record(t, KindChange, LocationActive, "docs/changes/active/0042-widget.md", src)).Report.Findings() {
+			if f.Code != CodeChangePriorityUnknown {
+				continue
+			}
+			found = true
+			if f.Detail["status"] != status || f.Detail["raw"] != "urgent" {
+				t.Errorf("%s: Detail = %v, want status %q and raw urgent", status, f.Detail, status)
+			}
+		}
+		if !found {
+			t.Errorf("%s: no %s finding", status, CodeChangePriorityUnknown)
+		}
+	}
+}
+
 func TestValidateReportIsDeterministic(t *testing.T) {
 	docs := []InputDocument{
 		record(t, KindChange, LocationActive, "docs/changes/active/0042-widget.md",

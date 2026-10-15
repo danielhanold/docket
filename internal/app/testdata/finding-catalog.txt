@@ -17,42 +17,42 @@ repository check: setup healthy, no problems found
 ### adr-backpointer-mismatch — edge (error)
 ADR 0012 lists ADR 0005 under `supersedes`, but ADR 0005's status is `Accepted`, not `Superseded by ADR-0012`.
 The ADR index shows the two decisions inconsistently, so a reader can't tell which one is in force.
-remedy: Set ADR 0005's `status:` to `Superseded by ADR-0012` in its own file, or remove `5` from `supersedes:` in `.docket/docs/adrs/0012-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-x.md`, remove `5` from `supersedes:`, or set ADR 0005's `status:` to `Superseded by ADR-0012` in ADR 0005's own file; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-backpointer-mismatch — status (error)
 ADR 0012 has `status: Superseded by ADR-0013`, but ADR 0013 doesn't list 0012 under `supersedes`.
 The ADR index shows the two decisions inconsistently, so a reader can't tell which one is in force.
-remedy: Add `12` to `supersedes:` in ADR 0013's own file, or fix `status:` in `.docket/docs/adrs/0012-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-x.md`, fix `status:`, or add `12` to `supersedes:` in ADR 0013's own file; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-dangling-reference — error (error)
 ADR 0012 names ADR 0099 in `supersedes`, but no ADR 0099 exists.
 The ADR index can't connect the two decisions, so the relationship is lost.
-remedy: Remove `99` from `supersedes:` or correct it to the right number in `.docket/docs/adrs/0012-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-x.md`, remove `99` from `supersedes:` or correct it to the right number; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-dangling-reference — warning (warning)
 ADR 0012 names ADR 0099 in `relates_to`, but more than one record claims ADR 0099.
 It's harmless: the link just leads nowhere, and nothing waits on it.
-remedy: Remove `99` from `relates_to:` or correct it to the right number in `.docket/docs/adrs/0012-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-x.md`, remove `99` from `relates_to:` or correct it to the right number; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-dangling-reference — status (error)
 ADR 0012 names ADR 0099 in `status`, but no ADR 0099 exists.
 The ADR index can't connect the two decisions, so the relationship is lost.
-remedy: Set `status:` to name an ADR that exists, or back to `Accepted` in `.docket/docs/adrs/0012-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-x.md`, set `status:` to name an ADR that exists, or back to `Accepted`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-dangling-reference — change (warning)
 ADR 0012 names change 0172 in `change`, but no change 0172 exists.
 It's harmless: the link just leads nowhere, and nothing waits on it.
-remedy: Correct `change:` to the number of the change that produced this ADR, or delete the line in `.docket/docs/adrs/0012-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-x.md`, correct `change:` to the number of the change that produced this ADR, or delete the line; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-filename-mismatch — mismatch (error)
 ADR 0012's file is named `0013-x.md`, but its frontmatter says `id: 0012` and `slug: x`.
 Links and lookups that build the file name from the id and slug miss this record.
-remedy: Make the file name and the `id:` and `slug:` fields agree in `.docket/docs/adrs/0013-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0013-x.md`, make the file name and the `id:` and `slug:` fields agree; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-id-duplicate — two (error)
 ADR 0012's number is also used by 1 other record.
 docket can't tell them apart, so references to this one are ambiguous.
-remedy: Give one of them an unused `id:` and rename its file to match in `.docket/docs/adrs/0012-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-x.md`, give one of them an unused `id:` and rename its file to match; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-id-gap — gap (warning)
 There is no ADR 0007, though ADR numbers go up to 0012.
@@ -60,249 +60,259 @@ It's harmless: docket never reuses a missing number. This usually means an ADR w
 remedy: Nothing to do. If ADR 0007 was deleted by mistake, restore its file from the metadata branch's git history.
 
 ### adr-id-invalid — zero (error)
-The ADR record `docs/adrs/0000-x.md` has `id: 0`, which isn't a usable ADR number.
+The ADR record `docs/adrs/0000-x.md` has no valid `id:` (it is missing, zero, or not a number), so it has no usable ADR number.
 Other ADRs and changes can't refer to this decision, and the ADR index can't list it.
-remedy: Set `id:` to the number at the start of the file name in `.docket/docs/adrs/0000-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0000-x.md`, set `id:` to the number at the start of the file name; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-self-reference — edge (error)
 ADR 0012 names itself in `supersedes`.
 A decision can't supersede, reverse, or relate to itself, so the ADR index shows a broken relationship.
-remedy: Remove its own number from `supersedes:` in `.docket/docs/adrs/0012-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-x.md`, remove its own number from `supersedes:`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-self-reference — status (error)
 ADR 0012 names itself in `status`.
 A decision can't supersede, reverse, or relate to itself, so the ADR index shows a broken relationship.
-remedy: Set `status:` to name a different ADR, or back to `Accepted` in `.docket/docs/adrs/0012-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-x.md`, set `status:` to name a different ADR, or back to `Accepted`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-slug-invalid — bad (error)
 ADR 0012 has `slug: Bad--slug`, which isn't lowercase letters and digits in words joined by single hyphens.
 The ADR's file name and links can't be built from its slug.
-remedy: Set `slug:` to lowercase letters and digits in words joined by single hyphens, and rename the file to match in `.docket/docs/adrs/0012-Bad--slug.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-Bad--slug.md`, set `slug:` to lowercase letters and digits in words joined by single hyphens, and rename the file to match; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-status-unparseable — status (error)
 The ADR record `docs/adrs/0012-x.md` has `status: Approved`, which isn't an ADR status.
 docket can't tell whether the decision is in force, so the ADR index can't list it correctly.
-remedy: Set `status:` to `Accepted`, `Deprecated`, `Superseded by ADR-NNNN`, or `Reversed by ADR-NNNN` in `.docket/docs/adrs/0012-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-x.md`, set `status:` to `Accepted`, `Deprecated`, `Superseded by ADR-NNNN`, or `Reversed by ADR-NNNN`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-status-unparseable — raw empty (error)
 The ADR record `docs/adrs/0012-x.md` has an empty `status:`, which isn't an ADR status.
 docket can't tell whether the decision is in force, so the ADR index can't list it correctly.
-remedy: Set `status:` to `Accepted`, `Deprecated`, `Superseded by ADR-NNNN`, or `Reversed by ADR-NNNN` in `.docket/docs/adrs/0012-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/adrs/0012-x.md`, set `status:` to `Accepted`, `Deprecated`, `Superseded by ADR-NNNN`, or `Reversed by ADR-NNNN`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### artifact-reference-kind-mismatch — plan (error)
 Change 0263's `plan: docs/changes/active/0250-y.md` points at a change record, not a spec, plan, or results file.
 docket can't open or link it as the change's plan.
-remedy: Point `plan:` at the right file, or clear it in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, point `plan:` at the right file, or clear it; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-archive-date-invalid — date (error)
 The archived file `0263-x.md` doesn't start with a `YYYY-MM-DD-` date.
 docket can't tell when the change was archived, so it sorts out of order in the archive.
-remedy: Rename the file to start with the date it was archived, such as `2026-05-28-` in `.docket/docs/changes/archive/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/archive/0263-x.md`, rename the file to start with the date it was archived, such as `2026-05-28-`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-dependency-cycle — two (error)
 Changes 0012 and 0013 depend on each other in a loop through `depends_on`.
 None of them can ever become ready to build, because each waits on another.
-remedy: Remove one `depends_on` link between changes 0012 and 0013 in its change record, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: Remove one `depends_on` link between changes 0012 and 0013 in its change record; then commit and push the edited records from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-dependency-cycle — three (error)
 Changes 0012, 0013, and 0014 depend on each other in a loop through `depends_on`.
 None of them can ever become ready to build, because each waits on another.
-remedy: Remove one `depends_on` link between changes 0012, 0013, and 0014 in its change record, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: Remove one `depends_on` link between changes 0012, 0013, and 0014 in its change record; then commit and push the edited records from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-dependency-cycle — self (error)
 Change 0012 depends on itself through `depends_on`.
 It can never become ready to build, because it waits on itself.
-remedy: Remove `12` from `depends_on:` in change 0012's record, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: Remove `12` from `depends_on:` in change 0012's record; then commit and push the edited records from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-filename-mismatch — mismatch (error)
 Change 0263's file is named `0263-y.md`, but its frontmatter says `id: 0263` and `slug: x`.
 Links and lookups that build the file name from the id and slug miss this record.
-remedy: Make the file name and the `id:` and `slug:` fields agree in `.docket/docs/changes/active/0263-y.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-y.md`, make the file name and the `id:` and `slug:` fields agree; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-final-claim-stamp — stamp (error)
 Change 0001 is done but still has `claimed_at: 2026-05-01T10:00:00Z` from when it was being built.
 It's harmless: nothing reads it once a change is closed. Older docket versions left it behind.
-remedy: Run `docket repository repair` to remove it (it shows the edit first), or delete the `claimed_at:` line in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` by hand and commit and push it from `.docket`.
+remedy: Run `docket repository repair` to remove it (it shows the edit first). Or edit it by hand: in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, delete the `claimed_at:` line; then commit and push it from `.docket`.
 
 ### change-id-duplicate — two (error)
 Change 0263's number is also used by 1 other record.
 docket can't tell these changes apart, so every command that names this number refuses.
-remedy: Give one of them an unused `id:` and rename its file to match in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, give one of them an unused `id:` and rename its file to match; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-id-duplicate — three (error)
 Change 0263's number is also used by 2 other records.
 docket can't tell these changes apart, so every command that names this number refuses.
-remedy: Give one of them an unused `id:` and rename its file to match in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, give one of them an unused `id:` and rename its file to match; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-id-invalid — zero (error)
-The change record `docs/changes/active/0000-x.md` has `id: 0`, which isn't a usable change number.
+The change record `docs/changes/active/0000-x.md` has no valid `id:` (it is missing, zero, or not a number), so it has no usable change number.
 Nothing can refer to this change by number, so it can't be selected, depended on, or built.
-remedy: Set `id:` to the number at the start of the file name in `.docket/docs/changes/active/0000-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0000-x.md`, set `id:` to the number at the start of the file name; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
+
+### change-id-invalid — negative (error)
+The change record `docs/changes/active/0000-x.md` has `id: -3`, which isn't a usable change number.
+Nothing can refer to this change by number, so it can't be selected, depended on, or built.
+remedy: In `.docket/docs/changes/active/0000-x.md`, set `id:` to the number at the start of the file name; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-placement-invalid — active (error)
 Change 0263 is `done` but its file is still in `active/`.
 The board and the backlog keep showing a change that is closed.
-remedy: Move the file into `archive/` with today's date in front of its name (`YYYY-MM-DD-`), or set `status:` back to the change's real state in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, move the file into `archive/` with today's date in front of its name (`YYYY-MM-DD-`), or set `status:` back to the change's real state; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-placement-invalid — archive (error)
 Change 0263's file is in `archive/`, but its status is `proposed`, not done or killed.
 docket treats the change as closed even though its status says it is still open.
-remedy: Set `status:` to `done` or `killed`, or move the file back into `active/` without its date prefix in `.docket/docs/changes/archive/2026-05-28-0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/archive/2026-05-28-0263-x.md`, set `status:` to `done` or `killed`, or move the file back into `active/` without its date prefix; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-priority-unknown — unknown (warning)
 Change 0263 has `priority: urgent`, which isn't a priority.
 It's harmless: docket sorts the change as medium priority.
-remedy: Set `priority:` to critical, high, medium, or low in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, set `priority:` to critical, high, medium, or low; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-priority-unknown — raw empty (warning)
 Change 0263 has an empty `priority:`, which isn't a priority.
 It's harmless: docket sorts the change as medium priority.
-remedy: Set `priority:` to critical, high, medium, or low in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, set `priority:` to critical, high, medium, or low; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
+
+### change-priority-unknown — proposed (warning)
+Change 0263 has `priority: urgent`, which isn't a priority.
+It's harmless: docket sorts the change as medium priority.
+remedy: Revise the change with docket-groom-next, or run `docket change groom` with a revise request, and set its priority to critical, high, medium, or low. To edit it by hand instead: in `.docket/docs/changes/active/0263-x.md`, set `priority:` to critical, high, medium, or low; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-reference-dangling — depends_on (error)
 Change 0263 lists change 0172 under `depends_on`, but no change 0172 exists.
 docket counts change 0263 as waiting on change 0172, so it never becomes ready to build.
-remedy: Remove `172` from `depends_on:` or correct it to the right number in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, remove `172` from `depends_on:` or correct it to the right number; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-reference-dangling — stacked_on (error)
 Change 0263 lists change 0250 under `stacked_on`, but no change 0250 exists.
 docket can't find the change this one is built on, so it can't build or finish this change.
-remedy: Remove `250` from `stacked_on:` or correct it to the right number in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, remove `250` from `stacked_on:` or correct it to the right number; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-reference-dangling — other field (warning)
 Change 0263 lists change 0099 under `related`, but no change 0099 exists.
 It's harmless: the link just leads nowhere, and nothing waits on it.
-remedy: Remove `99` from `related:` or correct it to the right number in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, remove `99` from `related:` or correct it to the right number; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-reference-dangling — adrs (warning)
 Change 0263 lists ADR 0071 under `adrs`, but no ADR 0071 exists.
 It's harmless: the link just leads nowhere, and nothing waits on it.
-remedy: Remove `71` from `adrs:` or correct it to the right number in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, remove `71` from `adrs:` or correct it to the right number; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-reference-dangling — ambiguous (error)
 Change 0263 lists change 0172 under `depends_on`, but more than one record claims change 0172.
 docket counts change 0263 as waiting on change 0172, so it never becomes ready to build.
-remedy: Remove `172` from `depends_on:` or correct it to the right number in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, remove `172` from `depends_on:` or correct it to the right number; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-slug-duplicate — two (error)
 Change 0263 uses `slug: x`, and 1 other change uses it too.
 Their branches would get the same name, so building one can collide with the other.
-remedy: Give one of them a different `slug:` and rename its file to match in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, give one of them a different `slug:` and rename its file to match; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-slug-duplicate — three (error)
 Change 0263 uses `slug: x`, and 2 other changes use it too.
 Their branches would get the same name, so building one can collide with the other.
-remedy: Give one of them a different `slug:` and rename its file to match in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, give one of them a different `slug:` and rename its file to match; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-slug-invalid — bad (error)
 Change 0263 has `slug: Bad_Slug`, which isn't lowercase letters and digits in words joined by single hyphens.
 docket names the change's branch after its slug, so it refuses to claim this change for building.
-remedy: Set `slug:` to lowercase letters and digits in words joined by single hyphens, and rename the file to match in `.docket/docs/changes/active/0263-Bad_Slug.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-Bad_Slug.md`, set `slug:` to lowercase letters and digits in words joined by single hyphens, and rename the file to match; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-slug-invalid — raw empty (error)
 Change 0263 has an empty `slug:`, which isn't lowercase letters and digits in words joined by single hyphens.
 docket names the change's branch after its slug, so it refuses to claim this change for building.
-remedy: Set `slug:` to lowercase letters and digits in words joined by single hyphens, and rename the file to match in `.docket/docs/changes/active/0263-.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, set `slug:` to lowercase letters and digits in words joined by single hyphens, and rename the file to match; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-stack-cycle — two (error)
 Changes 0012 and 0013 are stacked on each other in a loop through `stacked_on`.
 None of them has a base branch to build on, so none can be built or finished.
-remedy: Remove or correct one `stacked_on` value among changes 0012 and 0013 in its change record, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: Remove or correct one `stacked_on` value among changes 0012 and 0013 in its change record; then commit and push the edited records from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-stack-cycle — self (error)
 Change 0012 is stacked on itself through `stacked_on`.
 It has no base branch to build on, so it can't be built or finished.
-remedy: Remove or correct `stacked_on:` in change 0012's record, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: Remove or correct `stacked_on:` in change 0012's record; then commit and push the edited records from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-state-incoherent — missing (error)
 Change 0263 is `in-progress` but has no `branch`.
 Commands that expect `branch` on a change that is `in-progress` can't work on this change.
-remedy: Add the missing `branch:` value, or set `status:` to the change's real state in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, add the missing `branch:` value, or set `status:` to the change's real state; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-status-unknown — unknown (error)
 Change 0263 has `status: wip`, which isn't a change status.
 docket can't place the change on the board or decide whether it is ready to build.
-remedy: Set `status:` to one of proposed, in-progress, blocked, deferred, implemented, stacked-merged, done, or killed in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, set `status:` to one of proposed, in-progress, blocked, deferred, implemented, stacked-merged, done, or killed; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-status-unknown — raw empty (error)
 Change 0263 has no `status:`.
 docket can't place the change on the board or decide whether it is ready to build.
-remedy: Set `status:` to one of proposed, in-progress, blocked, deferred, implemented, stacked-merged, done, or killed in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, set `status:` to one of proposed, in-progress, blocked, deferred, implemented, stacked-merged, done, or killed; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### change-type-invalid — type (error)
-The change record `docs/changes/active/0263-x.md` has `type: Big Feature`, which isn't lowercase letters and digits in words joined by single hyphens.
+The change record `docs/changes/active/0263-x.md` has `type: Big Feature`, but a type must be a lowercase letter followed only by lowercase letters, digits, or hyphens.
 docket can't label or group the change by its type.
-remedy: Set `type:` to a single word or hyphenated words, such as `feature` or `fix` in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, set `type:` to a lowercase letter followed only by lowercase letters, digits, or hyphens, such as `feature` or `fix`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### field-malformed — error (error)
 The change record `docs/changes/active/0263-x.md` has `stacked_on: abc`, which isn't a valid value for that field.
 docket ignores the value, so everything that reads `stacked_on` sees it as missing.
-remedy: Fix the `stacked_on:` value in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, fix the `stacked_on:` value; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### field-malformed — warning (warning)
 The change record `docs/changes/active/0263-x.md` has `updated: yesterday`, which isn't a valid value for that field.
 It's mostly harmless: docket treats `updated` as unset.
-remedy: Fix the `updated:` value in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, fix the `updated:` value; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### field-malformed — raw empty (error)
 The change record `docs/changes/active/0263-x.md` has a `depends_on` value docket can't read.
 docket ignores the value, so everything that reads `depends_on` sees it as missing.
-remedy: Fix the `depends_on:` value in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, fix the `depends_on:` value; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### learning-filename-mismatch — mismatch (error)
 The learning file `pipe.md` doesn't match its `slug: shell-pipe`.
 Links that build the file name from the slug lead nowhere.
-remedy: Rename the file to `shell-pipe.md` or fix `slug:` to match the file name in `.docket/docs/changes/learnings/pipe.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/learnings/pipe.md`, rename the file to `shell-pipe.md` or fix `slug:` to match the file name; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### learning-promotion-destination-invalid — error (error)
 The learning `shell-pipe` is marked promoted, but `promoted_to:` is empty.
 Nobody can tell which instructions file the rule was promoted into.
-remedy: Set `promoted_to:` to the file it was promoted into, or change `promotion_state:` in `.docket/docs/changes/learnings/shell-pipe.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/learnings/shell-pipe.md`, set `promoted_to:` to the file it was promoted into, or change `promotion_state:`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### learning-promotion-destination-invalid — warning (warning)
 The learning `shell-pipe` names `promoted_to: AGENTS.md`, but its `promotion_state` is `candidate`, not promoted.
 It's harmless: docket ignores `promoted_to:` unless the learning is promoted.
-remedy: Clear `promoted_to:`, or set `promotion_state: promoted` if it really was promoted in `.docket/docs/changes/learnings/shell-pipe.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/learnings/shell-pipe.md`, clear `promoted_to:`, or set `promotion_state: promoted` if it really was promoted; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### learning-promotion-unknown — state (error)
 The learning record `docs/changes/learnings/shell-pipe.md` has `promotion_state: graduated`, which isn't a promotion state.
 docket can't tell whether the learning was promoted, so the learnings index can't place it.
-remedy: Set `promotion_state:` to `retained`, `candidate`, or `promoted` in `.docket/docs/changes/learnings/shell-pipe.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/learnings/shell-pipe.md`, set `promotion_state:` to `retained`, `candidate`, or `promoted`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### learning-reference-dangling — absent (warning)
 The learning `shell-pipe` lists change 0172 under `changes`, but no change 0172 exists.
 It's harmless: the link just leads nowhere, and nothing waits on it.
-remedy: Remove `172` from `changes:` or correct it to the right number in `.docket/docs/changes/learnings/shell-pipe.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/learnings/shell-pipe.md`, remove `172` from `changes:` or correct it to the right number; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### learning-slug-duplicate — two (error)
 The learning `shell-pipe`'s slug is also used by 1 other record.
 docket can't tell them apart, so references to this one are ambiguous.
-remedy: Give one of them an unused `slug:` and rename its file to match in `.docket/docs/changes/learnings/shell-pipe.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/learnings/shell-pipe.md`, give one of them an unused `slug:` and rename its file to match; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### learning-slug-invalid — bad (error)
 The learning `Shell_Pipe` has `slug: Shell_Pipe`, which isn't lowercase letters and digits in words joined by single hyphens.
 The learnings index can't link the learning by its slug.
-remedy: Set `slug:` to lowercase letters and digits in words joined by single hyphens, and rename the file to match in `.docket/docs/changes/learnings/Shell_Pipe.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/learnings/Shell_Pipe.md`, set `slug:` to lowercase letters and digits in words joined by single hyphens, and rename the file to match; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### learning-topic-invalid — topic (error)
 The learning `shell-pipe` lists a topic, `Shell`, which isn't lowercase letters and digits in words joined by single hyphens.
 The learnings index can't group the learning under that topic.
-remedy: Fix or remove that entry in `topics:` in `.docket/docs/changes/learnings/shell-pipe.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/learnings/shell-pipe.md`, fix or remove that entry in `topics:`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### learning-topic-invalid — raw empty (error)
 The learning `shell-pipe` lists a topic, an empty value, which isn't lowercase letters and digits in words joined by single hyphens.
 The learnings index can't group the learning under that topic.
-remedy: Fix or remove that entry in `topics:` in `.docket/docs/changes/learnings/shell-pipe.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/learnings/shell-pipe.md`, fix or remove that entry in `topics:`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### list-item-malformed — item (error)
 The change record `docs/changes/active/0263-x.md`'s `depends_on` list has an entry docket can't read: `#12` (position 2).
 docket skips that entry and keeps the rest of the list.
-remedy: Fix or remove that entry in `depends_on:` in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, fix or remove that entry in `depends_on:`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### list-item-malformed — raw empty (error)
 The change record `docs/changes/active/0263-x.md`'s `related` list has an entry docket can't read: an empty value (position 1).
 docket skips that entry and keeps the rest of the list.
-remedy: Fix or remove that entry in `related:` in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, fix or remove that entry in `related:`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### record-path-duplicate — dup (error)
 docket was handed `docs/changes/active/0263-x.md` 2 times.
@@ -317,21 +327,21 @@ remedy: Report it as a docket bug and include the path; nothing in the file need
 ### record-undecodable — undecodable (error)
 docket can't read the frontmatter of `docs/changes/active/0263-x.md`: yaml: line 3: mapping values are not allowed in this context.
 docket skips this record, so it is missing from the board and from every other check.
-remedy: Fix the frontmatter between the two `---` lines in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, fix the frontmatter between the two `---` lines; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ## Remedy locations by layout
 
 ### shared checkout
-remedy: Remove `172` from `depends_on:` or correct it to the right number in `.docket/docs/changes/active/0263-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `.docket/docs/changes/active/0263-x.md`, remove `172` from `depends_on:` or correct it to the right number; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### private checkout path
-remedy: Remove `172` from `depends_on:` or correct it to the right number in `/home/u/.local/share/dckt/o/r/checkouts/r-1a2b3c4d/docs/changes/active/0263-x.md`, commit and push it from `/home/u/.local/share/dckt/o/r/checkouts/r-1a2b3c4d`, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `/home/u/.local/share/dckt/o/r/checkouts/r-1a2b3c4d/docs/changes/active/0263-x.md`, remove `172` from `depends_on:` or correct it to the right number; then commit and push it from `/home/u/.local/share/dckt/o/r/checkouts/r-1a2b3c4d`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### private checkout in words
-remedy: Remove `172` from `depends_on:` or correct it to the right number in `docs/changes/active/0263-x.md` in your private metadata checkout, commit and push it from your private metadata checkout, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `docs/changes/active/0263-x.md` in your private metadata checkout, remove `172` from `depends_on:` or correct it to the right number; then commit and push it from your private metadata checkout, and run `docket repository repair` so the board and link blocks catch up.
 
 ### no resolved layout
-remedy: Remove `172` from `depends_on:` or correct it to the right number in `docs/changes/active/0263-x.md` on the metadata branch, commit and push it, then run `docket repository repair` so the board and link blocks catch up.
+remedy: In `docs/changes/active/0263-x.md` on the metadata branch, remove `172` from `depends_on:` or correct it to the right number; then commit and push it, and run `docket repository repair` so the board and link blocks catch up.
 
 ## Frontmatter-repair findings
 
@@ -340,49 +350,49 @@ remedy: Remove `172` from `depends_on:` or correct it to the right number in `do
 - [warning] drop-final-claimed-at (docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md)
   This finished change still has a `claimed_at` timestamp from when it was being built.
   It's harmless: nothing reads it once a change is closed. Older docket versions left it behind.
-  remedy: Run `docket repository repair` to remove it (it shows the edit first), or delete the `claimed_at:` line in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` by hand and commit and push it from `.docket`.
+  remedy: Run `docket repository repair` to remove it (it shows the edit first). Or edit it by hand: in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, delete the `claimed_at:` line; then commit and push it from `.docket`.
 
 ### quote-unsafe-scalar
 
 - [warning] quote-unsafe-scalar (docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md)
   `title: yes` is unquoted, and YAML can misread values shaped like this.
   docket reads it correctly today; quoting is safe and does not change the value.
-  remedy: Run `docket repository repair` to add the quotes (it shows the edit first), or quote the `title:` value in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` by hand and commit and push it from `.docket`.
+  remedy: Run `docket repository repair` to add the quotes (it shows the edit first). Or edit it by hand: in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, quote the `title:` value; then commit and push it from `.docket`.
 
 ### scalar-to-list
 
 - [warning] scalar-to-list (docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md)
   `depends_on: 3, 4` is written as plain text, not a list.
   docket can't read it as a list, so it ignores these ids.
-  remedy: Run `docket repository repair` to rewrite it as `[3, 4]` (it shows the edit first), or rewrite it as `depends_on: [3, 4]` in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` by hand and commit and push it from `.docket`.
+  remedy: Run `docket repository repair` to rewrite it as `[3, 4]` (it shows the edit first). Or edit it by hand: in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, rewrite it as `depends_on: [3, 4]`; then commit and push it from `.docket`.
 
 ### ambiguous value
 
 - [error] frontmatter-manual-review (docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md)
   `title: true` is unquoted, so YAML reads it as something other than the text `true`.
   docket can't tell whether you meant the text or the YAML value, so it won't change it for you.
-  remedy: Write `title: 'true'` if you meant the text, or correct the value in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+  remedy: In `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, write `title: 'true'` if you meant the text, or correct the value; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### non-id list
 
 - [error] frontmatter-manual-review (docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md)
   `related: foo` is written as plain text, and it isn't a list of change or ADR numbers.
   docket can't read it as a list, so it ignores this field.
-  remedy: Rewrite it as a list of numbers, such as `related: [12, 40]`, or delete the line in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+  remedy: In `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, rewrite it as a list of numbers, such as `related: [12, 40]`, or delete the line; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### claimed_at, not done
 
 - [error] frontmatter-manual-review (docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md)
   This archived change still has a `claimed_at` timestamp, but its status is `proposed`, not done or killed.
   An archived change should be done or killed; docket won't remove the timestamp until the status is settled.
-  remedy: Set `status:` to `done` or `killed` (or move the file back into `active/` if the change is still open) in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+  remedy: In `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, set `status:` to `done` or `killed` (or move the file back into `active/` if the change is still open); then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### undecodable
 
 - [error] frontmatter-manual-review (docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md)
-  docket can't read this record's frontmatter: field is declared more than once (first declared on line 2) (`id`) on line 3.
+  docket can't read this record's frontmatter: for `id` on line 3, field is declared more than once (first declared on line 2).
   docket skips the record, so the change is missing from the board and from every other check.
-  remedy: Fix the frontmatter between the two `---` lines in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+  remedy: In `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, fix the frontmatter between the two `---` lines; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ## Generated-view findings
 
@@ -391,21 +401,21 @@ remedy: Remove `172` from `depends_on:` or correct it to the right number in `do
   It lists out-of-date titles or statuses. This usually means an ADR was edited with plain git instead of a docket command.
   remedy: Run `docket repository repair` to regenerate it (it shows the change first).
 - [error] artifact-backlink-malformed (docs/superpowers/specs/x.md)
-  The back-link markers at the top of `docs/superpowers/specs/x.md` don't pair up: start marker for 'backlink' has no matching end marker (`backlink`) on line 1.
+  The back-link markers at the top of `docs/superpowers/specs/x.md` don't pair up: start marker for 'backlink' has no matching end marker on line 1.
   docket won't rewrite a link whose start and end it can't find, so the link stays as it is.
-  remedy: Restore the `<!-- docket:backlink:start … -->` and `<!-- docket:backlink:end -->` lines around the link in `.docket/docs/superpowers/specs/x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+  remedy: In `.docket/docs/superpowers/specs/x.md`, restore the `<!-- docket:backlink:start … -->` and `<!-- docket:backlink:end -->` lines around the link; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 - [error] artifact-backlink-shared (docs/superpowers/specs/x.md)
   `docs/superpowers/specs/x.md` is linked from more than one change (0007, 0008).
   docket can't tell which change its back-link should point to, so it leaves the link alone.
-  remedy: Remove the `spec:`, `plan:`, or `results:` line naming `docs/superpowers/specs/x.md` from every change except the one that owns it (changes 0007, 0008), commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+  remedy: Remove the `spec:`, `plan:`, or `results:` line naming `docs/superpowers/specs/x.md` from every change except the one that owns it (changes 0007, 0008); then commit and push the edited records from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 - [warning] artifact-backlink-stale (docs/superpowers/specs/x.md)
   The link at the top of `docs/superpowers/specs/x.md` back to its change points to the wrong place.
   Following it from the file leads to a missing page. This usually happens after the change was archived.
   remedy: Run `docket repository repair`.
 - [error] artifact-links-malformed (docs/changes/active/0004-malformed.md)
-  The `## Artifacts` block markers in this change record don't pair up: start marker for 'artifacts' has no matching end marker (`artifacts`) on line 15.
+  The `## Artifacts` block markers in this change record don't pair up: start marker for 'artifacts' has no matching end marker on line 15.
   docket won't rewrite a block whose start and end it can't find, so the block stays out of date.
-  remedy: Restore the `<!-- docket:artifacts:start … -->` and `<!-- docket:artifacts:end -->` lines around the block, or delete both lines and everything between them in `.docket/docs/changes/active/0004-malformed.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+  remedy: In `.docket/docs/changes/active/0004-malformed.md`, restore the `<!-- docket:artifacts:start … -->` and `<!-- docket:artifacts:end -->` lines around the block, or delete both lines and everything between them; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 - [warning] artifact-links-missing (docs/changes/active/0001-example.md)
   This change record links a spec, plan, results file, or ADR but has no `## Artifacts` block.
   Readers of the record don't see its links.
@@ -426,43 +436,43 @@ remedy: Remove `172` from `depends_on:` or correct it to the right number in `do
 ## Record remedies while setup is not healthy
 
 ### validator (change-reference-dangling)
-remedy: Remove `172` from `depends_on:` or correct it to the right number in `docs/changes/active/0263-x.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+remedy: In `docs/changes/active/0263-x.md` on the metadata branch, remove `172` from `depends_on:` or correct it to the right number; then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
 
 ### drop-final-claimed-at — drop-final-claimed-at
-remedy: Delete the `claimed_at:` line in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch by hand and commit and push it, or, once the setup finding above is resolved, run `docket repository repair` to remove it (it shows the edit first).
+remedy: Edit it by hand: in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, delete the `claimed_at:` line; then commit and push it. Or, once the setup finding above is resolved, run `docket repository repair` to remove it (it shows the edit first).
 
 ### quote-unsafe-scalar — quote-unsafe-scalar
-remedy: Quote the `title:` value in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch by hand and commit and push it, or, once the setup finding above is resolved, run `docket repository repair` to add the quotes (it shows the edit first).
+remedy: Edit it by hand: in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, quote the `title:` value; then commit and push it. Or, once the setup finding above is resolved, run `docket repository repair` to add the quotes (it shows the edit first).
 
 ### scalar-to-list — scalar-to-list
-remedy: Rewrite it as `depends_on: [3, 4]` in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch by hand and commit and push it, or, once the setup finding above is resolved, run `docket repository repair` to rewrite it as `[3, 4]` (it shows the edit first).
+remedy: Edit it by hand: in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, rewrite it as `depends_on: [3, 4]`; then commit and push it. Or, once the setup finding above is resolved, run `docket repository repair` to rewrite it as `[3, 4]` (it shows the edit first).
 
 ### frontmatter-manual-review — ambiguous value
-remedy: Write `title: 'true'` if you meant the text, or correct the value in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+remedy: In `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, write `title: 'true'` if you meant the text, or correct the value; then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
 
 ### frontmatter-manual-review — non-id list
-remedy: Rewrite it as a list of numbers, such as `related: [12, 40]`, or delete the line in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+remedy: In `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, rewrite it as a list of numbers, such as `related: [12, 40]`, or delete the line; then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
 
 ### frontmatter-manual-review — claimed_at, not done
-remedy: Set `status:` to `done` or `killed` (or move the file back into `active/` if the change is still open) in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+remedy: In `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, set `status:` to `done` or `killed` (or move the file back into `active/` if the change is still open); then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
 
 ### frontmatter-manual-review — undecodable
-remedy: Fix the frontmatter between the two `---` lines in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+remedy: In `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, fix the frontmatter between the two `---` lines; then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
 
 ### adr-index-stale
 remedy: Once the setup finding above is resolved, run `docket repository repair` to regenerate it (it shows the change first).
 
 ### artifact-backlink-malformed
-remedy: Restore the `<!-- docket:backlink:start … -->` and `<!-- docket:backlink:end -->` lines around the link in `docs/superpowers/specs/x.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+remedy: In `docs/superpowers/specs/x.md` on the metadata branch, restore the `<!-- docket:backlink:start … -->` and `<!-- docket:backlink:end -->` lines around the link; then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
 
 ### artifact-backlink-shared
-remedy: Remove the `spec:`, `plan:`, or `results:` line naming `docs/superpowers/specs/x.md` from every change except the one that owns it (changes 0007, 0008), commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+remedy: Remove the `spec:`, `plan:`, or `results:` line naming `docs/superpowers/specs/x.md` from every change except the one that owns it (changes 0007, 0008); then commit and push the edited records. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
 
 ### artifact-backlink-stale
 remedy: Once the setup finding above is resolved, run `docket repository repair`.
 
 ### artifact-links-malformed
-remedy: Restore the `<!-- docket:artifacts:start … -->` and `<!-- docket:artifacts:end -->` lines around the block, or delete both lines and everything between them in `docs/changes/active/0004-malformed.md` on the metadata branch, commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
+remedy: In `docs/changes/active/0004-malformed.md` on the metadata branch, restore the `<!-- docket:artifacts:start … -->` and `<!-- docket:artifacts:end -->` lines around the block, or delete both lines and everything between them; then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
 
 ### artifact-links-missing
 remedy: Once the setup finding above is resolved, run `docket repository repair` to add the block (it shows the change first).
@@ -478,15 +488,15 @@ remedy: Once the setup finding above is resolved, run `docket repository repair`
 - [error] invalid-yaml (docs/adrs/0003-yaml.md)
   docket can't read this record's frontmatter: yaml: line 1: did not find expected ',' or ']' on line 2.
   docket skips the record, so the ADR is missing from the ADR index and from every other check.
-  remedy: Fix the frontmatter between the two `---` lines in `.docket/docs/adrs/0003-yaml.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+  remedy: In `.docket/docs/adrs/0003-yaml.md`, fix the frontmatter between the two `---` lines; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 - [error] duplicate-field (docs/changes/active/0001-dup.md)
-  docket can't read this record's frontmatter: field is declared more than once (first declared on line 2) (`id`) on line 3.
+  docket can't read this record's frontmatter: for `id` on line 3, field is declared more than once (first declared on line 2).
   docket skips the record, so the change is missing from the board and from every other check.
-  remedy: Fix the frontmatter between the two `---` lines in `.docket/docs/changes/active/0001-dup.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+  remedy: In `.docket/docs/changes/active/0001-dup.md`, fix the frontmatter between the two `---` lines; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 - [error] marker-imbalance (docs/changes/active/0002-markers.md)
-  The `<!-- docket:… -->` block markers in this record don't pair up: start marker for 'artifacts' has no matching end marker (`artifacts`) on line 7.
+  The `<!-- docket:… -->` block markers in this record don't pair up: start marker for 'artifacts' has no matching end marker on line 7.
   docket skips the record, so the change is missing from the board and from every other check.
-  remedy: Restore the block's `<!-- docket:…:start … -->` and `<!-- docket:…:end -->` lines, or delete both lines and everything between them in `.docket/docs/changes/active/0002-markers.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up.
+  remedy: In `.docket/docs/changes/active/0002-markers.md`, restore the block's `<!-- docket:…:start … -->` and `<!-- docket:…:end -->` lines, or delete both lines and everything between them; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 

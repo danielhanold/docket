@@ -27,14 +27,14 @@ func TestStatusParseFindingIsPlain(t *testing.T) {
 	if f.Code != "duplicate-field" || f.Path != rel || f.Entity != "change" {
 		t.Errorf("code/path/entity = %q/%q/%q", f.Code, f.Path, f.Entity)
 	}
-	wantMsg := "docket can't read this record's frontmatter: field is declared more than once (first declared on line 2) (`id`) on line 3."
+	wantMsg := "docket can't read this record's frontmatter: for `id` on line 3, field is declared more than once (first declared on line 2)."
 	if f.Message != wantMsg {
 		t.Errorf("Message = %q, want %q", f.Message, wantMsg)
 	}
 	if want := "docket skips the record, so the change is missing from the board and from every other check."; f.Impact != want {
 		t.Errorf("Impact = %q, want %q", f.Impact, want)
 	}
-	wantRemedy := "Fix the frontmatter between the two `---` lines in `.docket/docs/changes/active/0007-x.md`, commit and push it from `.docket`, then run `docket repository repair` so the board and link blocks catch up."
+	wantRemedy := "In `.docket/docs/changes/active/0007-x.md`, fix the frontmatter between the two `---` lines; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up."
 	if f.Remedy != wantRemedy {
 		t.Errorf("Remedy = %q, want %q", f.Remedy, wantRemedy)
 	}

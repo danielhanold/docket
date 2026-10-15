@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -62,54 +63,64 @@ func (l RecordLocator) where(rel string) string {
 
 // commitClause tells the reader to commit and push the edit. It is never
 // optional: check and status read the pushed metadata branch, so an
-// uncommitted edit in the checkout fixes nothing.
-func (l RecordLocator) commitClause() string {
+// uncommitted edit in the checkout fixes nothing. rel is as for where: an
+// edit that names no single file commits "the edited records", so the clause
+// never points an "it" at nothing.
+func (l RecordLocator) commitClause(rel string) string {
+	what := "it"
+	if rel == "" {
+		what = "the edited records"
+	}
 	switch {
 	case l.SetupBlocked:
-		return "commit and push it"
+		return "commit and push " + what
 	case l.Checkout != "":
-		return "commit and push it from `" + l.Checkout + "`"
+		return "commit and push " + what + " from `" + l.Checkout + "`"
 	case l.Label != "":
-		return "commit and push it from " + l.Label
+		return "commit and push " + what + " from " + l.Label
 	default:
-		return "commit and push it"
+		return "commit and push " + what
 	}
 }
 
+// edit renders the hand edit and its commit as one lowercase clause, the file
+// first ("in `<file>`, <instruction>; then commit and push it ..."). The file
+// leads so it can never attach to the instruction's last example or
+// alternative.
+func (l RecordLocator) edit(instruction, rel string) string {
+	s := instruction
+	if w := l.where(rel); w != "" {
+		s = "in " + w + ", " + instruction
+	}
+	return s + "; then " + l.commitClause(rel)
+}
+
 // HandEditThenRepair is the remedy for a problem only a hand edit can fix:
-// it names the edit, the file it goes in, the commit, and the trailing
+// it names the file, the edit, the commit, and the trailing
 // `docket repository repair` that brings the generated views back in line.
 // instruction is a lowercase imperative clause ("remove `172` from
 // `depends_on`"); rel is the record's metadata-branch path, or "" when the
 // edit spans several records.
 func (l RecordLocator) HandEditThenRepair(instruction, rel string) string {
-	s := capitalizeFirst(instruction)
-	if w := l.where(rel); w != "" {
-		s += " in " + w
-	}
+	s := capitalizeFirst(l.edit(instruction, rel))
 	if l.SetupBlocked {
-		return s + ", " + l.commitClause() + ". " + capitalizeFirst(setupResolved) + ", run `docket repository repair` so the board and link blocks catch up."
+		return s + ". " + capitalizeFirst(setupResolved) + ", run `docket repository repair` so the board and link blocks catch up."
 	}
-	return s + ", " + l.commitClause() + ", then run `docket repository repair` so the board and link blocks catch up."
+	return s + ", and run `docket repository repair` so the board and link blocks catch up."
 }
 
 // RepairOrHandEdit is the remedy for a problem `docket repository repair` can
 // fix itself: it offers the repair first (action says what it does, as a
-// lowercase clause) and the equivalent hand edit second. instruction and rel
-// are as for HandEditThenRepair.
+// lowercase clause) and the equivalent hand edit second. When the setup is
+// blocked the repair refuses, so the hand edit comes first and the repair
+// waits on the setup finding. instruction and rel are as for
+// HandEditThenRepair.
 func (l RecordLocator) RepairOrHandEdit(action, instruction, rel string) string {
+	repair := "run `docket repository repair` to " + action + " (it shows the edit first)"
 	if l.SetupBlocked {
-		s := capitalizeFirst(instruction)
-		if w := l.where(rel); w != "" {
-			s += " in " + w
-		}
-		return s + " by hand and " + l.commitClause() + ", or, " + setupResolved + ", run `docket repository repair` to " + action + " (it shows the edit first)."
+		return "Edit it by hand: " + l.edit(instruction, rel) + ". Or, " + setupResolved + ", " + repair + "."
 	}
-	s := "Run `docket repository repair` to " + action + " (it shows the edit first), or " + instruction
-	if w := l.where(rel); w != "" {
-		s += " in " + w
-	}
-	return s + " by hand and " + l.commitClause() + "."
+	return capitalizeFirst(repair) + ". Or edit it by hand: " + l.edit(instruction, rel) + "."
 }
 
 // RunRepair is the remedy for a generated view only `docket repository repair`
@@ -125,21 +136,23 @@ func (l RecordLocator) RunRepair(purpose string) string {
 
 // PlainDocumentError renders a document-parse error for a finding message:
 // the problem, the field or block it names, and the line — without the
-// internal error-kind prefix that document.Error.Error carries. Any other
-// error renders as its own text.
+// internal error-kind prefix that document.Error.Error carries. The name is
+// left out when the message already quotes it, and otherwise leads the
+// clause ("for `id` on line 3, ..."), so the text never stacks a second
+// parenthetical or repeats the name. Any other error renders as its own text.
 func PlainDocumentError(err error) string {
 	var de *document.Error
 	if !errors.As(err, &de) {
 		return err.Error()
 	}
-	s := de.Msg
-	if de.Name != "" {
-		s += " (`" + de.Name + "`)"
-	}
+	line := ""
 	if de.Line > 0 {
-		s += fmt.Sprintf(" on line %d", de.Line)
+		line = fmt.Sprintf(" on line %d", de.Line)
 	}
-	return s
+	if de.Name == "" || strings.Contains(de.Msg, "'"+de.Name+"'") || strings.Contains(de.Msg, "`"+de.Name+"`") {
+		return de.Msg + line
+	}
+	return "for `" + de.Name + "`" + line + ", " + de.Msg
 }
 
 // capitalizeFirst upper-cases the first rune of s so a lowercase instruction

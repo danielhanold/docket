@@ -211,6 +211,31 @@ func TestRepairDropClaimedAtRefused(t *testing.T) {
 	}
 }
 
+// TestRepairClaimedAtUnsettledStatusWording pins that an absent status is
+// worded as absent, never quoted as if `missing` were the stored value.
+func TestRepairClaimedAtUnsettledStatusWording(t *testing.T) {
+	cases := []struct{ name, src, want, never string }{
+		{"stored status", "---\nid: 7\nstatus: in-progress\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n",
+			"its status is `in-progress`, not done or killed", ""},
+		{"no status", "---\nid: 7\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n",
+			"it has no `status:`", "`missing`"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fs := planOne(t, "docs/changes/archive/2026-05-28-0007-x.md", tc.src, true)
+			var msg string
+			for _, f := range fs {
+				if f.Field == "claimed_at" {
+					msg = f.Message
+				}
+			}
+			if !strings.Contains(msg, tc.want) || (tc.never != "" && strings.Contains(msg, tc.never)) {
+				t.Errorf("Message = %q, want it to contain %q", msg, tc.want)
+			}
+		})
+	}
+}
+
 func TestRepairUndecodableSingleFinding(t *testing.T) {
 	// Duplicate key: document.Parse rejects it, so the whole record is named
 	// once as non-repairable rather than partially repaired.
