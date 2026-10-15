@@ -2,15 +2,21 @@ package harness
 
 import "github.com/danielhanold/docket/internal/install"
 
-// User-level triggers: content-free by design — no rule text, no "docket".
+// User-level triggers: the trigger bytes are content-free by design — no rule
+// text, no "docket".
 //
 // A private repository keeps its parent-facing rules in its own git directory,
 // and each harness reaches them through one trigger installed once per machine.
 // A trigger only runs `dckt instructions`, which prints nothing outside a
 // private repository, so a trigger can sit on every machine without carrying a
 // rule that could drift or a name that could leak.
-// TestTriggersCarryNoRuleTextAndNoDocket renders every byte below through its
-// producer and enforces both properties.
+// TestTriggersCarryNoRuleTextAndNoDocket renders every trigger byte in this
+// const block through its producer and enforces both properties.
+//
+// The property covers the trigger hook commands, plugin, and pointer only. The
+// Claude Code target additionally carries the finalize allow rules below, which
+// name docket by design: a narrow user-level permission grant, recorded in an
+// ADR relating to ADR-0145, and outside the guarded trigger bytes.
 const (
 	// TriggerRole is the installed-state role every trigger target carries.
 	TriggerRole = "trigger"
@@ -60,7 +66,8 @@ const (
 
 // ClaudeHookTarget is the Claude Code trigger: both SessionStart commands plus
 // the two finalize allow rules, as one hook-entries target in settings.json
-// (one target per hooks file).
+// (one target per hooks file). It carries TriggerRole, but only its hook
+// commands are content-free; its allow rules name docket by design.
 func ClaudeHookTarget(settingsPath string) install.Target {
 	return install.Target{Path: settingsPath, Kind: install.KindHookEntries, HookDialect: install.HookDialectClaude,
 		HookCommands: []string{ClaudeDispatchHookCommand, ClaudeLessonsHookCommand},
