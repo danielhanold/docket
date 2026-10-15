@@ -1,12 +1,17 @@
 # Backlog
 
-**551 changes** — 🟣 3 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 383 done · 🗑️ 140 killed
+**551 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 383 done · 🗑️ 140 killed
 
-## 🟣 Groomed (3)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0551](active/0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | `medium` | `chore` | [spec](../superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md) | `chore/check-out-a-change-built-on-another-machine-into-its-own-doc` |  |
+
+## 🟣 Groomed (2)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0551](active/0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | `medium` | `chore` | [spec](../superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 

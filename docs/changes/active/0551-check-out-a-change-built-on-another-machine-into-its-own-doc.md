@@ -2,7 +2,7 @@
 id: 551
 slug: 'check-out-a-change-built-on-another-machine-into-its-own-doc'
 title: 'Check out a change built on another machine into its own docket worktree'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-15'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/check-out-a-change-built-on-another-machine-into-its-own-doc'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-15T02:32:22Z'
 ---
 
 ## Artifacts
