@@ -12,10 +12,11 @@ import (
 
 // This file is the `workspace prepare`, `workspace inspect`, and
 // `workspace publish` operations (`workspace commit-spec` lives in
-// workspace_spec.go): the thin app-layer wiring that reloads the
-// authoritative snapshot, resolves the change's effective base through the
-// domain, builds a validated workspace.Target, and delegates the Git mechanics
-// to the landed workspace.Service. The app layer decides NO base-selection or
+// workspace_spec.go, `workspace checkout` in workspace_checkout.go): the thin
+// app-layer wiring that reloads the authoritative snapshot, resolves the
+// change's effective base through the domain, builds a validated
+// workspace.Target, and delegates the Git mechanics to the landed
+// workspace.Service. The app layer decides NO base-selection or
 // stack policy of its own — every base comes from domain.ResolveEffectiveBase,
 // every disposition comes straight from the service, and `contended`/`unknown`
 // pass through verbatim (no force, no retry-with-force).
@@ -157,6 +158,9 @@ func (r WorkspaceOpResult) HumanText() string {
 			r.Operation, r.ID, disp, r.Path, r.BaseRef, shortCommit(r.BaseCommit), shortCommit(r.Head))
 	}
 	if r.Reason != "" {
+		if r.Message != "" {
+			return fmt.Sprintf("%s: %s (%s) - %s", r.Operation, r.Result, r.Reason, r.Message)
+		}
 		return fmt.Sprintf("%s: %s (%s)", r.Operation, r.Result, r.Reason)
 	}
 	return fmt.Sprintf("%s: %s", r.Operation, r.Result)

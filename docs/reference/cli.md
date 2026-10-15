@@ -62,4 +62,5 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
   repository setup. Verbs: `docket uninstall --help`.
 - **`docket version`** — report the binary's build identity. Verbs: `docket version --help`.
 - **`docket workspace`** — prepare, commit the spec copy onto, inspect, and publish feature
-  workspaces for in-progress changes. Verbs: `docket workspace --help`.
+  workspaces for in-progress changes, and check out an implemented change's pushed branch into
+  its own worktree on this machine. Verbs: `docket workspace --help`.
