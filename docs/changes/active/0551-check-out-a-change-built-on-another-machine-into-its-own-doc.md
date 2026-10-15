@@ -2,7 +2,7 @@
 id: 551
 slug: 'check-out-a-change-built-on-another-machine-into-its-own-doc'
 title: 'Check out a change built on another machine into its own docket worktree'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-15'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/check-out-a-change-built-on-another-machine-into-its-own-doc'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/414'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-15T03:57:51Z'
@@ -64,3 +64,12 @@ Finalize only works on the machine whose docket created the change's worktree. W
 ### 2026-10-15
 
 2026-10-15: Recorded ADR-0149 (adopting unowned local state only when proven against the PR-and-remote-agreed head), produced by this change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: ae0d6d0bc4f39160f8e997b036d73c550c44efc0
+ran_at:   2026-10-15T04:29:06Z
+<!-- docket:build-evidence:end -->

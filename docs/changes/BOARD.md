@@ -1,12 +1,12 @@
 # Backlog
 
-**551 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 383 done · 🗑️ 140 killed
+**551 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 383 done · 🗑️ 140 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0551](active/0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | `medium` | `chore` | [spec](../superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md) | `chore/check-out-a-change-built-on-another-machine-into-its-own-doc` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0551](active/0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | `medium` | `chore` | [#414](https://github.com/danielhanold/docket/pull/414) | awaiting merge |
 
 ## 🟣 Groomed (2)
 
