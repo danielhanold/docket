@@ -421,7 +421,9 @@ func gatherMigrationRepairs(ctx context.Context, git *gitcli.Client, sc setupCon
 		}
 		archived := rec.location == repository.LocationArchive
 		mr.archived[rec.path] = archived
-		findings, perr := reposetup.PlanRepairs(rec.path, rec.bytes, archived)
+		// A migration has no attached metadata checkout yet, so the remedy
+		// names the record on the metadata branch.
+		findings, perr := reposetup.PlanRepairs(rec.path, rec.bytes, archived, reposetup.RecordLocator{})
 		if perr != nil {
 			continue
 		}

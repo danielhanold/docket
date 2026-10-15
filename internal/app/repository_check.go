@@ -1058,7 +1058,7 @@ func corpusFindings(cfg config.Effective, recs []corpusRecord, loc reposetup.Rec
 		if r.kind != repository.KindChange {
 			continue
 		}
-		fnds, err := reposetup.PlanRepairs(r.path, r.bytes, r.location == repository.LocationArchive)
+		fnds, err := reposetup.PlanRepairs(r.path, r.bytes, r.location == repository.LocationArchive, loc)
 		if err != nil {
 			continue
 		}

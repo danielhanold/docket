@@ -126,13 +126,18 @@ var changeStringFields = map[string]bool{
 // undecodable frontmatter block (including a duplicate key, which document.Parse
 // rejects) yields a single non-repairable finding naming the whole record.
 // archived enables RepairDropClaimedAt, and only for a final-status record.
-func PlanRepairs(path string, src []byte, archived bool) ([]RepairFinding, error) {
+// Every finding carries the three plain-language parts — Message, Impact, and
+// Remedy — and loc names where the record is really edited in the remedy; the
+// text never feeds RepairDigest or ApplyRepairs.
+func PlanRepairs(path string, src []byte, archived bool, loc RecordLocator) ([]RepairFinding, error) {
 	doc, err := document.Parse(src)
 	if err != nil {
 		return []RepairFinding{{
 			Path:       path,
 			Repairable: false,
-			Message:    "record frontmatter is undecodable: " + err.Error(),
+			Message:    "docket can't read this record's frontmatter: " + PlainDocumentError(err) + ".",
+			Impact:     "docket skips the record, so the change is missing from the board and from every other check.",
+			Remedy:     loc.HandEditThenRepair("fix the frontmatter between the two `---` lines", path),
 		}}, nil
 	}
 	if !doc.HasFrontmatter() {
@@ -143,23 +148,23 @@ func PlanRepairs(path string, src []byte, archived bool) ([]RepairFinding, error
 	for _, f := range doc.Fields() {
 		switch {
 		case changeStringFields[f.Name]:
-			if fnd, ok := planQuote(path, src, doc, f); ok {
+			if fnd, ok := planQuote(path, src, doc, f, loc); ok {
 				findings = append(findings, fnd)
 			}
 		case changeListFields[f.Name]:
-			if fnd, ok := planList(path, src, doc, f); ok {
+			if fnd, ok := planList(path, src, doc, f, loc); ok {
 				findings = append(findings, fnd)
 			}
 		}
 	}
-	if fnd, ok := planClaimedAt(path, src, doc, archived); ok {
+	if fnd, ok := planClaimedAt(path, src, doc, archived, loc); ok {
 		findings = append(findings, fnd)
 	}
 	return findings, nil
 }
 
 // planQuote decides the quote-unsafe-scalar roster entry for one located field.
-func planQuote(path string, src []byte, doc document.Document, f document.Field) (RepairFinding, bool) {
+func planQuote(path string, src []byte, doc document.Document, f document.Field, loc RecordLocator) (RepairFinding, bool) {
 	// A flow collection or a block/multi-line scalar is not an inline scalar and
 	// is never quoted.
 	if f.Shape != document.ShapeInline {
@@ -183,26 +188,29 @@ func planQuote(path string, src []byte, doc document.Document, f document.Field)
 			Path:       path,
 			Field:      f.Name,
 			Repairable: false,
-			Message:    "unsafe scalar shape with ambiguous decoded value; needs manual review",
+			Message:    "`" + f.Name + ": " + token + "` is unquoted, so YAML reads it as something other than the text `" + token + "`.",
+			Impact:     "docket can't tell whether you meant the text or the YAML value, so it won't change it for you.",
+			Remedy:     loc.HandEditThenRepair("write `"+f.Name+": '"+token+"'` if you meant the text, or correct the value", path),
 		}, true
 	}
-	candidate, preview, err := buildRepair(doc, src, RepairQuoteScalar, f.Name)
+	_, preview, err := buildRepair(doc, src, RepairQuoteScalar, f.Name)
 	if err != nil {
 		return RepairFinding{}, false
 	}
-	_ = candidate
 	return RepairFinding{
 		Path:       path,
 		Field:      f.Name,
 		Code:       RepairQuoteScalar,
 		Repairable: true,
-		Message:    "unsafe unquoted scalar; single-quote with decoded text unchanged",
+		Message:    "`" + f.Name + ": " + token + "` is unquoted, and YAML can misread values shaped like this.",
+		Impact:     "docket reads it correctly today; quoting is safe and does not change the value.",
+		Remedy:     loc.RepairOrHandEdit("add the quotes", "quote the `"+f.Name+":` value", path),
 		Patch:      preview,
 	}, true
 }
 
 // planList decides the scalar-to-list roster entry for one located field.
-func planList(path string, src []byte, doc document.Document, f document.Field) (RepairFinding, bool) {
+func planList(path string, src []byte, doc document.Document, f document.Field, loc RecordLocator) (RepairFinding, bool) {
 	// Already a flow sequence: nothing to convert.
 	if f.Shape != document.ShapeInline {
 		return RepairFinding{}, false
@@ -213,20 +221,24 @@ func planList(path string, src []byte, doc document.Document, f document.Field) 
 			Path:       path,
 			Field:      f.Name,
 			Repairable: false,
-			Message:    "list field stored as a scalar that is not an exact id sequence; needs manual review",
+			Message:    "`" + f.Name + ": " + token + "` is written as plain text, and it isn't a list of change or ADR numbers.",
+			Impact:     "docket can't read it as a list, so it ignores this field.",
+			Remedy:     loc.HandEditThenRepair("rewrite it as a list of numbers, such as `"+f.Name+": [12, 40]`, or delete the line", path),
 		}, true
 	}
 	candidate, preview, err := buildRepair(doc, src, RepairScalarToList, f.Name)
 	if err != nil {
 		return RepairFinding{}, false
 	}
-	_ = candidate
+	newToken := tokenOf(candidate, f.Name)
 	return RepairFinding{
 		Path:       path,
 		Field:      f.Name,
 		Code:       RepairScalarToList,
 		Repairable: true,
-		Message:    "id-list field stored as a scalar; convert to an unquoted flow sequence",
+		Message:    "`" + f.Name + ": " + token + "` is written as plain text, not a list.",
+		Impact:     "docket can't read it as a list, so it ignores these ids.",
+		Remedy:     loc.RepairOrHandEdit("rewrite it as `"+newToken+"`", "rewrite it as `"+f.Name+": "+newToken+"`", path),
 		Patch:      preview,
 	}, true
 }
@@ -236,7 +248,7 @@ func planList(path string, src []byte, doc document.Document, f document.Field) 
 // spelling the decode layer reads as FieldEmpty) is not a claim stamp and is
 // never a finding — the snapshot validator raises CodeChangeFinalClaimStamp only
 // for FieldPresent, and this planner agrees (change 0496).
-func planClaimedAt(path string, src []byte, doc document.Document, archived bool) (RepairFinding, bool) {
+func planClaimedAt(path string, src []byte, doc document.Document, archived bool, loc RecordLocator) (RepairFinding, bool) {
 	f, ok := doc.Field("claimed_at")
 	if !ok {
 		return RepairFinding{}, false
@@ -253,20 +265,23 @@ func planClaimedAt(path string, src []byte, doc document.Document, archived bool
 			Path:       path,
 			Field:      "claimed_at",
 			Repairable: false,
-			Message:    "claimed_at on a non-final archived record; needs manual review",
+			Message:    "This archived change still has a `claimed_at` timestamp, but its status is `" + rawStatus(doc) + "`, not done or killed.",
+			Impact:     "An archived change should be done or killed; docket won't remove the timestamp until the status is settled.",
+			Remedy:     loc.HandEditThenRepair("set `status:` to `done` or `killed` (or move the file back into `active/` if the change is still open)", path),
 		}, true
 	}
-	candidate, preview, err := buildRepair(doc, src, RepairDropClaimedAt, "claimed_at")
+	_, preview, err := buildRepair(doc, src, RepairDropClaimedAt, "claimed_at")
 	if err != nil {
 		return RepairFinding{}, false
 	}
-	_ = candidate
 	return RepairFinding{
 		Path:       path,
 		Field:      "claimed_at",
 		Code:       RepairDropClaimedAt,
 		Repairable: true,
-		Message:    "claimed_at on a final archived change; remove the stale claim lease",
+		Message:    "This finished change still has a `claimed_at` timestamp from when it was being built.",
+		Impact:     "It's harmless: nothing reads it once a change is closed. Older docket versions left it behind.",
+		Remedy:     loc.RepairOrHandEdit("remove it", "delete the `claimed_at:` line", path),
 		Patch:      preview,
 	}, true
 }
@@ -303,6 +318,20 @@ func finalStatus(doc document.Document) bool {
 	}
 	st, ok := domain.ParseStatus(head.Status)
 	return ok && st.Final()
+}
+
+// rawStatus returns the record's status as written, for wording a finding
+// only — never for a decision (finalStatus decides). It decodes status exactly
+// as finalStatus does and returns "missing" when the status is empty or the
+// frontmatter cannot be decoded.
+func rawStatus(doc document.Document) string {
+	var head struct {
+		Status string `yaml:"status"`
+	}
+	if err := doc.DecodeFrontmatter(&head); err != nil || head.Status == "" {
+		return "missing"
+	}
+	return head.Status
 }
 
 // booleanKeywords are the scalar spellings the house rule requires quoting
