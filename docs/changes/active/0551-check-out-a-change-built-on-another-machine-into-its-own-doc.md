@@ -70,6 +70,6 @@ Finalize only works on the machine whose docket created the change's worktree. W
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: ae0d6d0bc4f39160f8e997b036d73c550c44efc0
-ran_at:   2026-10-15T04:29:06Z
+head_sha: 0f3c788074d8a874561e9a54903fbfe700db71dc
+ran_at:   2026-10-15T11:39:50Z
 <!-- docket:build-evidence:end -->
