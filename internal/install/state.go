@@ -55,6 +55,9 @@ type TargetRecord struct {
 	// and the exact commands docket's entries run, in install order.
 	HookDialect  string   `json:"hook_dialect,omitempty"`
 	HookCommands []string `json:"hook_commands,omitempty"`
+	// AllowRules is claude hook-entries only: the exact permissions.allow
+	// strings the target owns, in install order.
+	AllowRules []string `json:"allow_rules,omitempty"`
 	// Harness attributes the target to the harness whose planner produced it.
 	// It is what makes a scoped run a scope rather than an uninstall: a run
 	// that plans for one harness prunes only that harness's stale targets and
@@ -188,7 +191,7 @@ func ValidateState(s *State) error {
 }
 
 func validateTarget(target TargetRecord) error {
-	if target.Kind != KindHookEntries && (target.HookDialect != "" || len(target.HookCommands) > 0) {
+	if target.Kind != KindHookEntries && (target.HookDialect != "" || len(target.HookCommands) > 0 || len(target.AllowRules) > 0) {
 		return fmt.Errorf("a %s target carries hook-entries fields", target.Kind)
 	}
 	switch target.Kind {
@@ -209,6 +212,9 @@ func validateTarget(target TargetRecord) error {
 			return errors.New("invalid hook-entries fields")
 		}
 		if err := checkHookFields(target.HookDialect, target.HookCommands); err != nil {
+			return fmt.Errorf("invalid hook-entries fields: %w", err)
+		}
+		if err := checkAllowRules(target.HookDialect, target.AllowRules); err != nil {
 			return fmt.Errorf("invalid hook-entries fields: %w", err)
 		}
 	default:

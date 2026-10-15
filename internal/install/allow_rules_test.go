@@ -181,3 +181,79 @@ func TestAllowRulesUnreadableShapes(t *testing.T) {
 		}
 	}
 }
+
+func TestHookEntriesDigestIsUnchangedWithoutRules(t *testing.T) {
+	old := hashBytes([]byte(`{"dialect":"claude","commands":["a --x","a --y"]}`))
+	if got := hookEntriesDigest(HookDialectClaude, claudeHookCmds, nil); got != old {
+		t.Errorf("hooks-only digest = %s, want the pre-rules digest %s", got, old)
+	}
+	if got := hookEntriesDigest(HookDialectClaude, claudeHookCmds, []string{}); got != old {
+		t.Errorf("an empty rules list changed the digest")
+	}
+	with := hookEntriesDigest(HookDialectClaude, claudeHookCmds, testAllowRules)
+	if with == old || with == hookEntriesDigest(HookDialectClaude, claudeHookCmds, testAllowRules[:1]) {
+		t.Errorf("the digest does not cover the allow rules")
+	}
+}
+
+func TestValidateAllowRules(t *testing.T) {
+	good := hookTarget("/h/.claude/settings.json", HookDialectClaude)
+	good.AllowRules = append([]string(nil), testAllowRules...)
+	if err := good.validate(); err != nil {
+		t.Fatalf("a claude target with allow rules is invalid: %v", err)
+	}
+	for name, mutate := range map[string]func(*Target){
+		"cursor dialect": func(t *Target) { t.HookDialect, t.HookCommands = HookDialectCursor, []string{"a --z"} },
+		"empty rule":     func(t *Target) { t.AllowRules = []string{"Bash(a x:*)", ""} },
+		"duplicate rule": func(t *Target) { t.AllowRules = []string{"Bash(a x:*)", "Bash(a x:*)"} },
+		"file kind":      func(t *Target) { t.Kind, t.HookDialect, t.HookCommands = KindFile, "", nil },
+	} {
+		tgt := good
+		tgt.AllowRules = append([]string(nil), good.AllowRules...)
+		mutate(&tgt)
+		if err := tgt.validate(); !errors.Is(err, ErrInvalidTarget) {
+			t.Errorf("target with %s: validate = %v, want ErrInvalidTarget", name, err)
+		}
+	}
+
+	rec, err := RecordFor(good)
+	if err != nil || !reflect.DeepEqual(rec.AllowRules, testAllowRules) ||
+		rec.SHA256 != hookEntriesDigest(HookDialectClaude, claudeHookCmds, testAllowRules) || validateTarget(rec) != nil {
+		t.Fatalf("RecordFor = %+v, %v", rec, err)
+	}
+	good.AllowRules[0] = "changed"
+	if rec.AllowRules[0] != testAllowRules[0] {
+		t.Errorf("RecordFor shares the target's rule slice")
+	}
+	if hooksOnly, err := RecordFor(hookTarget("/h/.claude/settings.json", HookDialectClaude)); err != nil || hooksOnly.AllowRules != nil {
+		t.Errorf("a hooks-only record carries allow rules %v (err %v)", hooksOnly.AllowRules, err)
+	}
+	for name, mutate := range map[string]func(*TargetRecord){
+		"cursor dialect": func(r *TargetRecord) { r.HookDialect = HookDialectCursor },
+		"empty rule":     func(r *TargetRecord) { r.AllowRules = []string{""} },
+		"duplicate rule": func(r *TargetRecord) { r.AllowRules = []string{"Bash(a x:*)", "Bash(a x:*)"} },
+		"file kind":      func(r *TargetRecord) { r.Kind, r.HookDialect, r.HookCommands, r.SHA256 = KindFile, "", nil, "ab" },
+	} {
+		r := rec
+		r.AllowRules = append([]string(nil), rec.AllowRules...)
+		mutate(&r)
+		if validateTarget(r) == nil {
+			t.Errorf("record with %s is valid", name)
+		}
+	}
+	if rt, err := removalTarget(rec); err != nil || !reflect.DeepEqual(rt.AllowRules, testAllowRules) {
+		t.Errorf("removalTarget = %+v (err %v), want the recorded rules", rt, err)
+	}
+
+	roots := versionRoots(t)
+	r := rec
+	r.Harness = "claude"
+	state := &State{FormatVersion: StateFormatVersion, ProductVersion: "v", AssetProtocol: 1, AssetSetID: "x",
+		Mode: ModeRelease, Harnesses: []string{"claude"}, AgentDigest: "d", Targets: []TargetRecord{r}}
+	if err := WriteStateAtomic(roots.StatePath(), state); err != nil {
+		t.Fatal(err)
+	}
+	if loaded, err := LoadState(roots.StatePath()); err != nil || loaded == nil || !reflect.DeepEqual(loaded.Targets[0].AllowRules, testAllowRules) {
+		t.Errorf("LoadState = %+v, %v", loaded, err)
+	}
+}

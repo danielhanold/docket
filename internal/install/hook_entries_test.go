@@ -456,7 +456,7 @@ func TestHookEntriesInstallUninstallLifecycle(t *testing.T) {
 			}
 			if rec == nil || rec.Kind != KindHookEntries || rec.HookDialect != dialect ||
 				!reflect.DeepEqual(rec.HookCommands, hookCmdsFor(dialect)) ||
-				rec.SHA256 != hookEntriesDigest(dialect, hookCmdsFor(dialect)) {
+				rec.SHA256 != hookEntriesDigest(dialect, hookCmdsFor(dialect), nil) {
 				t.Fatalf("state record = %+v", rec)
 			}
 
@@ -885,7 +885,7 @@ func TestHookEntriesUnparseableHooksFileIsSkipped(t *testing.T) {
 
 func TestValidateTargetHookEntries(t *testing.T) {
 	good := TargetRecord{Path: "/h/.claude/settings.json", Kind: KindHookEntries, HookDialect: HookDialectClaude,
-		HookCommands: []string{"a --x", "a --y"}, SHA256: hookEntriesDigest(HookDialectClaude, []string{"a --x", "a --y"}), Role: "trigger"}
+		HookCommands: []string{"a --x", "a --y"}, SHA256: hookEntriesDigest(HookDialectClaude, []string{"a --x", "a --y"}, nil), Role: "trigger"}
 	if err := validateTarget(good); err != nil {
 		t.Fatalf("a well-formed record is invalid: %v", err)
 	}
@@ -945,7 +945,7 @@ func TestValidateTargetHookEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 	if rec.Kind != KindHookEntries || rec.HookDialect != HookDialectCursor || !reflect.DeepEqual(rec.HookCommands, cursorHookCmds) ||
-		rec.SHA256 != hookEntriesDigest(HookDialectCursor, cursorHookCmds) || rec.BlockName != "" {
+		rec.SHA256 != hookEntriesDigest(HookDialectCursor, cursorHookCmds, nil) || rec.BlockName != "" {
 		t.Errorf("RecordFor = %+v", rec)
 	}
 	goodT.HookCommands[0] = "changed"
