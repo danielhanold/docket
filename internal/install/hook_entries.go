@@ -333,53 +333,69 @@ func removeHookEntries(src []byte, dialect string, commands []string) ([]byte, e
 // creating the event member or the hooks member when absent, as the last member
 // of its parent. src must be a valid JSON object (readHookEntries said so).
 func insertHookEntry(src []byte, event, unit string, entry any) ([]byte, error) {
-	top := skipSpace(src, 0)
-	members, topClose := objectMembers(src, top)
-	hi, ok := findMember(members, "hooks")
-	if !ok {
-		return spliceLast(src, top, topClose, memberSpans(members), 1, unit, func(pad string) ([]byte, error) {
-			return memberText("hooks", map[string][]any{event: {entry}}, pad, unit)
-		})
-	}
-	hooks := members[hi]
-	hmembers, hooksClose := objectMembers(src, hooks.value.start)
-	ei, ok := findMember(hmembers, event)
-	if !ok {
-		return spliceLast(src, hooks.value.start, hooksClose, memberSpans(hmembers), 2, unit, func(pad string) ([]byte, error) {
-			return memberText(event, []any{entry}, pad, unit)
-		})
-	}
-	ev := hmembers[ei]
-	elems, arrayClose := arrayElements(src, ev.value.start)
-	return spliceLast(src, ev.value.start, arrayClose, elems, 3, unit, func(pad string) ([]byte, error) {
-		return json.MarshalIndent(entry, pad, unit)
-	})
+	return insertNestedElement(src, "hooks", event, unit, entry)
 }
 
 // removeHookEntry cuts the first exact entry for command. When it is the only
 // element of its array, the event member goes instead, and when that member is
 // the only one in hooks, the hooks member goes.
 func removeHookEntry(src []byte, event, dialect, command string) ([]byte, bool) {
+	return removeNestedElement(src, "hooks", event, func(raw json.RawMessage) bool { return isExactEntry(raw, dialect, command) })
+}
+
+// insertNestedElement owns the two-level splice walk shared by every list an
+// install target keeps inside a settings file: it adds elem as the last element
+// of the array at <outer>.<inner>, creating the inner member or the outer member
+// when absent, as the last member of its parent. src must be a valid JSON object.
+func insertNestedElement(src []byte, outer, inner, unit string, elem any) ([]byte, error) {
+	top := skipSpace(src, 0)
+	members, topClose := objectMembers(src, top)
+	oi, ok := findMember(members, outer)
+	if !ok {
+		return spliceLast(src, top, topClose, memberSpans(members), 1, unit, func(pad string) ([]byte, error) {
+			return memberText(outer, map[string][]any{inner: {elem}}, pad, unit)
+		})
+	}
+	o := members[oi]
+	omembers, outerClose := objectMembers(src, o.value.start)
+	ii, ok := findMember(omembers, inner)
+	if !ok {
+		return spliceLast(src, o.value.start, outerClose, memberSpans(omembers), 2, unit, func(pad string) ([]byte, error) {
+			return memberText(inner, []any{elem}, pad, unit)
+		})
+	}
+	in := omembers[ii]
+	elems, arrayClose := arrayElements(src, in.value.start)
+	return spliceLast(src, in.value.start, arrayClose, elems, 3, unit, func(pad string) ([]byte, error) {
+		return json.MarshalIndent(elem, pad, unit)
+	})
+}
+
+// removeNestedElement owns the matching removal walk: it cuts the first element
+// of the array at <outer>.<inner> that match accepts. When it is the only
+// element, the inner member goes instead, and when that member is the only one
+// in outer, the outer member goes. removed=false leaves src untouched.
+func removeNestedElement(src []byte, outer, inner string, match func(json.RawMessage) bool) ([]byte, bool) {
 	top := skipSpace(src, 0)
 	if top >= len(src) || src[top] != '{' {
 		return src, false
 	}
 	members, topClose := objectMembers(src, top)
-	hi, ok := findMember(members, "hooks")
+	oi, ok := findMember(members, outer)
 	if !ok {
 		return src, false
 	}
-	hooks := members[hi]
-	hmembers, hooksClose := objectMembers(src, hooks.value.start)
-	ei, ok := findMember(hmembers, event)
+	o := members[oi]
+	omembers, outerClose := objectMembers(src, o.value.start)
+	ii, ok := findMember(omembers, inner)
 	if !ok {
 		return src, false
 	}
-	ev := hmembers[ei]
-	elems, arrayClose := arrayElements(src, ev.value.start)
+	in := omembers[ii]
+	elems, arrayClose := arrayElements(src, in.value.start)
 	k := -1
 	for i, e := range elems {
-		if isExactEntry(src[e.start:e.end], dialect, command) {
+		if match(src[e.start:e.end]) {
 			k = i
 			break
 		}
@@ -388,11 +404,11 @@ func removeHookEntry(src []byte, event, dialect, command string) ([]byte, bool) 
 	case k < 0:
 		return src, false
 	case len(elems) > 1:
-		return cutElement(src, ev.value.start, arrayClose, elems, k), true
-	case len(hmembers) > 1:
-		return cutElement(src, hooks.value.start, hooksClose, memberSpans(hmembers), ei), true
+		return cutElement(src, in.value.start, arrayClose, elems, k), true
+	case len(omembers) > 1:
+		return cutElement(src, o.value.start, outerClose, memberSpans(omembers), ii), true
 	default:
-		return cutElement(src, top, topClose, memberSpans(members), hi), true
+		return cutElement(src, top, topClose, memberSpans(members), oi), true
 	}
 }
 
