@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/install-claude-code-allow-rules-so-finalize-can-publish-and'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-15T19:27:11Z'
+reconciled: true
+claimed_at: '2026-10-15T19:28:54Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ When implement-next has just run the full suite green and finalize runs right af
 ## Out of scope
 
 Per-repository grants (`.claude/settings.local.json`) — more surfaces, absent on fresh clones, and private repositories keep nothing in the root. Other harnesses (Cursor, Codex, OpenCode have no such classifier). The `dckt` alias spelling. Any other finalize subcommand or docket command. A config knob to disable the rules. A blocking probe of classifier behavior. Generalizing the hook-entries machinery into a generic JSON-array target.
+
+## Reconcile log
+
+### 2026-10-15
+
+2026-10-15: Traced current code on main (9ace757c3). The spec still holds: `harness.ClaudeHookTarget` in internal/harness/trigger.go owns the two SessionStart hooks through one hook-entries target (internal/install/hook_entries.go), no allow-rule support exists yet, and finalize.publish / finalize.merge are cataloged as `docket finalize publish` / `docket finalize merge`. No related or archived change has done this work. ADR 145 already linked. Scope unchanged.
