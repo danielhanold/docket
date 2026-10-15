@@ -12,7 +12,7 @@ stacked_on:
 related: [368, 429]
 discovered_from: []
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md](../../superpowers/specs/2026-10-15-check-out-a-change-built-on-another-machine-into-its-own-doc-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
