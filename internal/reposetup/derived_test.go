@@ -7,7 +7,8 @@ import (
 
 // TestDerivedFindingLiftRepairable proves a repairable derived-view difference
 // lifts to a warning Finding that carries the code, the file ref, a non-nil
-// repairable:true flag, and a remedy naming migrate.
+// repairable:true flag, and a remedy that names only the repair, never a hand
+// edit of a generated file.
 func TestDerivedFindingLiftRepairable(t *testing.T) {
 	df := DerivedFinding{
 		View:       DerivedViewBoard,
@@ -28,6 +29,9 @@ func TestDerivedFindingLiftRepairable(t *testing.T) {
 	}
 	if f.Repairable == nil || !*f.Repairable {
 		t.Errorf("Repairable = %v, want a non-nil true", f.Repairable)
+	}
+	if strings.Contains(f.Remedy, "hand") {
+		t.Errorf("Remedy = %q, want no hand-edit offer for a generated file", f.Remedy)
 	}
 }
 

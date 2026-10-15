@@ -57,38 +57,50 @@ const (
 
 // DerivedFinding is one derived-view drift diagnosis about a single corpus file.
 // A deterministic byte difference against a well-formed file is Repairable; a
-// malformed managed marker or a missing referenced artifact is not.
+// malformed managed marker or a missing referenced artifact is not. The
+// producer owns the plain-language text: Message says what is wrong, Impact
+// whether it matters, and Remedy what to do (empty takes the default Finding
+// supplies).
 type DerivedFinding struct {
 	View       DerivedView
 	Code       string
 	Path       string // repo-relative corpus file the finding is about
 	Repairable bool
 	Message    string
+	Impact     string
+	Remedy     string
 }
 
+// Default remedies for a DerivedFinding that carries none. A generated file
+// is never edited by hand, so the repairable default names only
+// `docket repository repair`.
+const (
+	derivedRepairableRemedy = "Run `docket repository repair` to regenerate it (it shows the change first)."
+	derivedManualRemedy     = "Fix it by hand, then run `docket repository repair`."
+)
+
 // Finding lifts a derived-view drift diagnosis into a health Finding. A
-// repairable difference is a warning naming the mechanical repair; a
-// non-repairable one (a malformed marker, a missing referenced artifact) is an
-// error naming manual review. The Repairable flag survives into the JSON so a
+// repairable difference is a warning whose remedy names only the mechanical
+// repair — never a hand edit of a generated file; a non-repairable one (a
+// malformed marker, a missing referenced artifact) is an error whose remedy
+// says what to fix by hand. The Repairable flag survives into the JSON so a
 // consumer can tell a mechanical rewrite apart from a manual-review finding.
 func (df DerivedFinding) Finding() Finding {
 	repairable := df.Repairable
+	severity, remedy := SeverityError, derivedManualRemedy
 	if df.Repairable {
-		return Finding{
-			Code:       df.Code,
-			Severity:   SeverityWarning,
-			Ref:        df.Path,
-			Message:    df.Message,
-			Remedy:     "Run `docket repository repair` to recompute the canonical " + string(df.View) + " output, or edit the file by hand.",
-			Repairable: &repairable,
-		}
+		severity, remedy = SeverityWarning, derivedRepairableRemedy
+	}
+	if df.Remedy != "" {
+		remedy = df.Remedy
 	}
 	return Finding{
 		Code:       df.Code,
-		Severity:   SeverityError,
+		Severity:   severity,
 		Ref:        df.Path,
 		Message:    df.Message,
-		Remedy:     "Resolve the " + string(df.View) + " condition by hand; the automatic repair will not touch it.",
+		Impact:     df.Impact,
+		Remedy:     remedy,
 		Repairable: &repairable,
 	}
 }
