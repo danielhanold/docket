@@ -4,8 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 var testAllowRules = []string{"Bash(a x:*)", "Bash(a y:*)"}
@@ -255,5 +260,142 @@ func TestValidateAllowRules(t *testing.T) {
 	}
 	if loaded, err := LoadState(roots.StatePath()); err != nil || loaded == nil || !reflect.DeepEqual(loaded.Targets[0].AllowRules, testAllowRules) {
 		t.Errorf("LoadState = %+v, %v", loaded, err)
+	}
+}
+
+func rulesTarget(path string, rules []string) Target {
+	t := hookTarget(path, HookDialectClaude)
+	if len(rules) > 0 {
+		t.AllowRules = append([]string(nil), rules...)
+	}
+	return t
+}
+
+// settingsWith is docket's claude hook entries plus, when non-empty, rules.
+func settingsWith(t *testing.T, rules []string) string {
+	t.Helper()
+	b := NewHookFileBytes(HookDialectClaude, claudeHookCmds)
+	if len(rules) > 0 {
+		var err error
+		if b, err = insertAllowRules(b, rules); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return string(b)
+}
+
+func TestAllowRulesInspect(t *testing.T) {
+	str := func(s string) *string { return &s }
+	full := settingsWith(t, testAllowRules)
+	escaped := strings.Replace(full, `"Bash(a x:*)"`, `"Bash(a x:\u002a)"`, 1)
+	if escaped == full {
+		t.Fatalf("could not respell a rule")
+	}
+	withRules := func(p string) Target { return rulesTarget(p, testAllowRules) }
+	invalidPerms := func(t Target) string { return withAllowRules(remedyAllowRulesInvalid, t) }
+	for _, c := range []struct {
+		name   string
+		seed   *string
+		target func(string) Target
+		want   Disposition
+		remedy func(Target) string
+	}{
+		{"absent", nil, withRules, DispositionCreate, nil},
+		{"hooks only", str(settingsWith(t, nil)), withRules, DispositionUpdate, nil},
+		{"hooks and rules", str(full), withRules, DispositionNoop, nil},
+		{"one rule of two", str(settingsWith(t, testAllowRules[:1])), withRules, DispositionUpdate, nil},
+		{"a rule spelled differently", str(escaped), withRules, DispositionNoop, nil},
+		{"rules only", str(`{"permissions": {"allow": ["Bash(a x:*)", "Bash(a y:*)"]}}`), withRules, DispositionUpdate, nil},
+		{"permissions an array", str(`{"permissions": []}`), withRules, DispositionSkip, invalidPerms},
+		{"allow an object", str(`{"permissions": {"allow": {}}}`), withRules, DispositionSkip, invalidPerms},
+		{"hooks an array", str(`{"hooks": []}`), withRules, DispositionSkip,
+			func(t Target) string { return withAllowRules(remedyHookFileInvalid, t) }},
+		{"rule-less target ignores permissions", str(`{"permissions": []}`),
+			func(p string) Target { return rulesTarget(p, nil) }, DispositionUpdate, nil},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			path := filepath.Join(testsupport.TempDir(t), "settings.json")
+			if c.seed != nil {
+				writeFileOrDie(t, path, *c.seed)
+			}
+			target := c.target(path)
+			insp, err := InspectTarget(target, nil, nil)
+			wantRemedy := ""
+			if c.remedy != nil {
+				wantRemedy = c.remedy(target)
+			}
+			if err != nil || insp.Disposition != c.want || insp.Reason != "" || insp.Remedy != wantRemedy {
+				t.Errorf("inspection = %s/%q/%q (err %v), want %s/%q", insp.Disposition, insp.Reason, insp.Remedy, err, c.want, wantRemedy)
+			}
+			if c.seed != nil && readOrDie(t, path) != *c.seed {
+				t.Errorf("inspection changed the file")
+			}
+		})
+	}
+
+	t.Run("symlinked settings names the rules", func(t *testing.T) {
+		dir := testsupport.TempDir(t)
+		real := filepath.Join(dir, "dotfiles-settings.json")
+		writeFileOrDie(t, real, "{}\n")
+		path := filepath.Join(dir, "settings.json")
+		if err := os.Symlink(real, path); err != nil {
+			t.Fatal(err)
+		}
+		insp, err := InspectTarget(withRules(path), nil, nil)
+		if err != nil || insp.Disposition != DispositionSkip || insp.Remedy != withAllowRules(remedyHookFileNotRegular, withRules(path)) ||
+			!strings.HasPrefix(insp.Remedy, remedyHookFileNotRegular) {
+			t.Fatalf("inspection = %+v (err %v)", insp, err)
+		}
+		for _, r := range testAllowRules {
+			if !strings.Contains(insp.Remedy, r) {
+				t.Errorf("the remedy does not name %q: %s", r, insp.Remedy)
+			}
+		}
+	})
+	if got := withAllowRules(remedyHookFileInvalid, rulesTarget("/h/s.json", nil)); got != remedyHookFileInvalid {
+		t.Errorf("withAllowRules changed a rule-less remedy: %q", got)
+	}
+}
+
+func TestAllowRulesInspectRetiresOnlyProvenStaleRules(t *testing.T) {
+	old := "Bash(a old:*)"
+	recRules := append(append([]string(nil), testAllowRules...), old)
+	path := filepath.Join(testsupport.TempDir(t), "settings.json")
+	writeFileOrDie(t, path, settingsWith(t, recRules))
+	rec, err := RecordFor(rulesTarget(path, recRules))
+	if err != nil {
+		t.Fatal(err)
+	}
+	prior := &State{Targets: []TargetRecord{rec}}
+	check := func(label string, target Target, st *State, want Disposition, retire []string) {
+		t.Helper()
+		insp, err := InspectTarget(target, st, nil)
+		if err != nil || insp.Disposition != want || !reflect.DeepEqual(insp.Target.retireAllowRules, retire) {
+			t.Errorf("%s: inspection = %s, retire %q (err %v); want %s retiring %q", label, insp.Disposition, insp.Target.retireAllowRules, err, want, retire)
+		}
+	}
+	check("dropped rule", rulesTarget(path, testAllowRules), prior, DispositionUpdate, []string{old})
+	check("every rule dropped", rulesTarget(path, nil), prior, DispositionUpdate, recRules)
+	bad := rec
+	bad.SHA256 = hookEntriesDigest(HookDialectClaude, claudeHookCmds, nil)
+	check("inconsistent record", rulesTarget(path, testAllowRules), &State{Targets: []TargetRecord{bad}}, DispositionNoop, nil)
+	writeFileOrDie(t, path, settingsWith(t, testAllowRules))
+	check("rule already gone", rulesTarget(path, testAllowRules), prior, DispositionNoop, nil)
+}
+
+func TestHookEntriesStateCountsAllowRules(t *testing.T) {
+	rulesOnly := []byte(`{"permissions": {"allow": ["Bash(a x:*)"]}}`)
+	if ed, any, exact := hookEntriesState(rulesOnly, HookDialectClaude, claudeHookCmds, testAllowRules); !ed || !any || !exact {
+		t.Errorf("rules only, with rules = %v/%v/%v", ed, any, exact)
+	}
+	if ed, any, _ := hookEntriesState(rulesOnly, HookDialectClaude, claudeHookCmds, nil); !ed || any {
+		t.Errorf("rules only, without rules = %v/%v", ed, any)
+	}
+	broken := []byte(`{"permissions": []}`)
+	if ed, _, _ := hookEntriesState(broken, HookDialectClaude, claudeHookCmds, testAllowRules); ed {
+		t.Errorf("broken permissions is editable for a record with rules")
+	}
+	if ed, _, _ := hookEntriesState(broken, HookDialectClaude, claudeHookCmds, nil); !ed {
+		t.Errorf("broken permissions is not editable for a hooks-only record")
 	}
 }

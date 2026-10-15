@@ -247,12 +247,21 @@ func isExactEntry(raw json.RawMessage, dialect, command string) bool {
 }
 
 // hookEntriesState is what a recorded hook-entries target finds in its file:
-// whether the file is editable, whether any entry runs a recorded command, and
-// whether every entry that does is exactly docket's.
-func hookEntriesState(src []byte, dialect string, commands []string) (editable, anyPresent, allExact bool) {
+// whether the file is editable, whether any entry runs a recorded command or
+// any recorded allow rule is present, and whether every entry that does is
+// exactly docket's. With rules, the file is editable only when its permissions
+// shape is readable too; a present rule is a plain string, so it is always
+// exact.
+func hookEntriesState(src []byte, dialect string, commands, rules []string) (editable, anyPresent, allExact bool) {
 	entries, ok := readHookEntries(src, dialect)
 	if !ok {
 		return false, false, false
+	}
+	var allow []json.RawMessage
+	if len(rules) > 0 {
+		if allow, ok = readAllowRules(src); !ok {
+			return false, false, false
+		}
 	}
 	allExact = true
 	for _, e := range entries {
@@ -263,6 +272,11 @@ func hookEntriesState(src []byte, dialect string, commands []string) (editable, 
 					allExact = false
 				}
 			}
+		}
+	}
+	for _, r := range rules {
+		if allowRulePresent(allow, r) {
+			anyPresent = true
 		}
 	}
 	return true, anyPresent, allExact
