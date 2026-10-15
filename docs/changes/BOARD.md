@@ -1,12 +1,12 @@
 # Backlog
 
-**550 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 382 done · 🗑️ 140 killed
+**550 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 382 done · 🗑️ 140 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0549](active/0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) | Bring the local metadata checkout up to date after every docket write | `medium` | `fix` | [spec](../superpowers/specs/2026-10-14-bring-the-local-metadata-checkout-up-to-date-after-every-doc-design.md) | `fix/bring-the-local-metadata-checkout-up-to-date-after-every-doc` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0549](active/0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) | Bring the local metadata checkout up to date after every docket write | `medium` | `fix` | [#413](https://github.com/danielhanold/docket/pull/413) | awaiting merge |
 
 ## 🟣 Groomed (2)
 

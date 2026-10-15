@@ -2,7 +2,7 @@
 id: 549
 slug: 'bring-the-local-metadata-checkout-up-to-date-after-every-doc'
 title: 'Bring the local metadata checkout up to date after every docket write'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-14'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/bring-the-local-metadata-checkout-up-to-date-after-every-doc'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/413'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-14T23:34:41Z'
@@ -65,3 +65,12 @@ The human also asked for a command to refresh the board. `docket open board` alr
 ### 2026-10-14
 
 2026-10-14: Reconciled against current main (50420ee). Traced the cited seams: transaction.Engine still carries only AdmissionHook (engine.go), newPlanningDepsOver in internal/cli/change.go is still the single engine assembly point, gitcli.Client.FastForwardCheckedOutBranch exists and is already used by repository prepare, and executeRepositoryRepair still pushes outside the engine. No overlapping work landed since grooming; scope and spec unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: a38a9116b720cda41cc960c2ba7e063a9dce232e
+ran_at:   2026-10-15T00:28:27Z
+<!-- docket:build-evidence:end -->
