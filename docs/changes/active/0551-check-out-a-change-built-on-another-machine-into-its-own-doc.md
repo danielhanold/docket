@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/check-out-a-change-built-on-another-machine-into-its-own-doc'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-15T02:32:22Z'
+reconciled: true
+claimed_at: '2026-10-15T02:34:05Z'
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ Finalize only works on the machine whose docket created the change's worktree. W
 - Repairing a broken docket-owned worktree.
 - Any change to `workspace prepare`.
 - Cleaning up foreign worktrees that do not hold the change's branch.
+
+## Reconcile log
+
+### 2026-10-15
+
+2026-10-15: Reconciled against main a9321f6e3. The spec was groomed today and its premises still hold: `FinalizeRebase` still calls `RebaseState` in `rc.wsDir` before `requireReadyWorkspace` (internal/app/finalize_rebase.go), and no `workspace.checkout` operation exists in the catalog. Recent main work (metadata-checkout follow, groom priority) touches neither the workspace package nor finalize rebase. No scope change.
