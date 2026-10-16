@@ -93,11 +93,17 @@ const intChildStdout = "GATEDRIVE-INT-CHILD-STDOUT"
 //	                    group-directed SIGTERM from Stop ends it the way a real
 //	                    supervised command dies (never caught → never a fabricated
 //	                    exit record)
-//	selfkill-after <ms> sleep ms, then SIGKILL only this process — a genuine
-//	                    signaled death (kind=signal) with no stop intent, the
-//	                    input the supervisor-died halt keys on
-//	drive-start <gitCommonDir> <runRoot> <childMs>
-//	                    start a real drive against the real supervisor, print
+//	pass-on <path>      wait until <path> exists, then write the stdout marker and
+//	                    exit 0 (a clean pass the test releases only once it has
+//	                    finished asserting the child is live); exit 93 if the
+//	                    signal never arrives within intChildSignalCap
+//	selfkill-on <path>  wait until <path> exists, then SIGKILL only this process
+//	                    — a genuine signaled death (kind=signal) with no stop
+//	                    intent, the input the supervisor-died halt keys on; exit
+//	                    94 if the signal never arrives within intChildSignalCap
+//	drive-start <gitCommonDir> <runRoot> <signalPath>
+//	                    start a real drive over a "pass-on <signalPath>" child
+//	                    against the real supervisor, print
 //	                    "<driveID> <ownerGen> <runDir>", and exit — the separate
 //	                    CLI-shaped process whose exit must not disturb the child
 func runIntChild(args []string) int {
@@ -110,6 +116,12 @@ func runIntChild(args []string) int {
 		time.Sleep(time.Duration(ms) * time.Millisecond)
 		fmt.Fprint(os.Stdout, intChildStdout)
 		return 0
+	case "pass-on":
+		if !waitForSignalFile(args[1]) {
+			return 93
+		}
+		fmt.Fprint(os.Stdout, intChildStdout)
+		return 0
 	case "sleep-forever":
 		// A bare select{} trips Go's all-goroutines-asleep deadlock detector; a
 		// parked timer does not, so time.Sleep keeps the runtime alive with the
@@ -117,9 +129,10 @@ func runIntChild(args []string) int {
 		// helper does.
 		time.Sleep(time.Hour)
 		return 0
-	case "selfkill-after":
-		ms, _ := strconv.Atoi(args[1])
-		time.Sleep(time.Duration(ms) * time.Millisecond)
+	case "selfkill-on":
+		if !waitForSignalFile(args[1]) {
+			return 94
+		}
 		// Kill only this process (not the group) so the supervisor survives to
 		// record a signaled terminal, which is what StateSignaled requires.
 		_ = syscall.Kill(syscall.Getpid(), syscall.SIGKILL)
@@ -129,6 +142,44 @@ func runIntChild(args []string) int {
 		return runDriveStartChild(args[1:])
 	}
 	return 92
+}
+
+// intChildSignalCap bounds how long a go-signal child waits for its signal file.
+// A test that fails before releasing its child must not leave that child alive
+// forever; the test's stopAllRuns cleanup normally ends it far sooner.
+const intChildSignalCap = 5 * time.Minute
+
+// waitForSignalFile polls for path every 5ms and reports whether it appeared
+// within intChildSignalCap. The child is therefore alive at every point the test
+// asserts liveness, however slow the disk, because only the test creates path.
+func waitForSignalFile(path string) bool {
+	end := time.Now().Add(intChildSignalCap)
+	for {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+		if time.Now().After(end) {
+			return false
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// newGoSignal returns a go-signal path in the test's own temp dir that does not
+// exist yet; pass it to a pass-on or selfkill-on child and releaseChild it once
+// the child may proceed.
+func newGoSignal(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(testsupport.TempDir(t), "go")
+}
+
+// releaseChild creates the go-signal file, letting a pass-on or selfkill-on
+// child proceed.
+func releaseChild(t *testing.T, path string) {
+	t.Helper()
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatalf("release child: %v", err)
+	}
 }
 
 // runDriveStartChild is the CLI-shaped launcher: a separate process that starts
@@ -150,7 +201,7 @@ func runDriveStartChild(args []string) int {
 	}
 	store := OpenStore(gitCommonDir)
 	d := newIntDriver(store, svc)
-	doc, err := d.Start(intStartRequest(exe, runRoot, gitCommonDir, "pass-after", args[2]))
+	doc, err := d.Start(intStartRequest(exe, runRoot, gitCommonDir, "pass-on", args[2]))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 83
@@ -486,9 +537,11 @@ func TestIntegrationGatedriveDriverSlicesAcrossLiveChildThenPasses(t *testing.T)
 	reapSupervisors(t, runRoot)
 	d := newIntDriver(store, svc)
 
-	// A child that stays alive well past a handful of 40ms slices.
+	// A child that stays alive until the test releases it, so it spans a handful
+	// of 40ms slices however slow the disk.
+	sig := newGoSignal(t)
 	start := time.Now()
-	doc, err := d.Start(intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "pass-after", "600"))
+	doc, err := d.Start(intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "pass-on", sig))
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -502,14 +555,30 @@ func TestIntegrationGatedriveDriverSlicesAcrossLiveChildThenPasses(t *testing.T)
 	runDir := soleRunDir(t, runRoot)
 	idFirst := readManifestIdentity(t, runDir)
 
-	// Every subsequent invocation is slice-bounded; the child spans several of
-	// them before it exits and the next invocation reads the durable pass.
+	// Every subsequent invocation is slice-bounded; the child spans two of them
+	// while held, then the test releases it and the next invocations read the
+	// durable pass.
+	for i := 0; i < 2; i++ {
+		adv := time.Now()
+		mid, err := d.Advance(doc.DriveID, doc.Generation)
+		if err != nil {
+			t.Fatalf("advance %d: %v", i+1, err)
+		}
+		if el := time.Since(adv); el > sliceCeiling {
+			t.Fatalf("advance invocation took %v — not slice-bounded", el)
+		}
+		if mid.Outcome != WAITING {
+			t.Fatalf("advance %d over a held child: outcome %s (cause %q), want WAITING", i+1, mid.Outcome, mid.Cause)
+		}
+	}
+	releaseChild(t, sig)
 	term, waiting := advanceUntilTerminal(t, d, doc.DriveID, doc.Generation)
 	if term.Outcome != PASSED {
 		t.Fatalf("terminal outcome %s (cause %q), want PASSED", term.Outcome, term.Cause)
 	}
-	if waiting < 2 {
-		t.Fatalf("child did not span multiple slices: only %d WAITING invocations", waiting)
+	// The WAITING count includes the two held advances above.
+	if 2+waiting < 2 {
+		t.Fatalf("child did not span multiple slices: only %d WAITING invocations", 2+waiting)
 	}
 
 	// Identity stable across every invocation, and the child was never
@@ -557,8 +626,9 @@ func TestIntegrationGatedriveFreshProcessResumesAndChildSurvives(t *testing.T) {
 	reapSupervisors(t, runRoot)
 
 	// The separate launcher process starts the drive and exits. A child that
-	// stays alive long enough for us to observe it surviving the launcher's death.
-	out, err := exec.Command(mustExe(t), intChildMarker, "drive-start", gitCommon, runRoot, "1500").Output()
+	// stays alive until released, so we observe it surviving the launcher's death.
+	sig := newGoSignal(t)
+	out, err := exec.Command(mustExe(t), intChildMarker, "drive-start", gitCommon, runRoot, sig).Output()
 	if err != nil {
 		t.Fatalf("drive-start subprocess: %v", err)
 	}
@@ -577,6 +647,7 @@ func TestIntegrationGatedriveFreshProcessResumesAndChildSurvives(t *testing.T) {
 	if !pidAlive(idBefore.SupervisorPID) {
 		t.Fatalf("child did not survive the launcher's exit: supervisor pid %d gone", idBefore.SupervisorPID)
 	}
+	releaseChild(t, sig)
 
 	// A FRESH driver process (this test) resumes from disk alone and drives the
 	// same suite to its durable terminal.
@@ -672,10 +743,12 @@ func TestIntegrationGatedriveProcessDeathHaltsSupervisorDied(t *testing.T) {
 		d := newIntDriver(store, svc)
 		cwd := testsupport.TempDir(t)
 
-		doc, err := d.Start(intStartRequest(mustExe(t), runRoot, cwd, "selfkill-after", "120"))
+		sig := newGoSignal(t)
+		doc, err := d.Start(intStartRequest(mustExe(t), runRoot, cwd, "selfkill-on", sig))
 		if err != nil || doc.Outcome != WAITING {
 			t.Fatalf("first slice over a live child = %s (%v), want WAITING", doc.Outcome, err)
 		}
+		releaseChild(t, sig)
 		term, _ := advanceUntilTerminal(t, d, doc.DriveID, doc.Generation)
 		if term.Outcome != HALTED || term.Cause != CauseSupervisorDied {
 			t.Fatalf("terminal = %s/%q, want HALTED/%s", term.Outcome, term.Cause, CauseSupervisorDied)
