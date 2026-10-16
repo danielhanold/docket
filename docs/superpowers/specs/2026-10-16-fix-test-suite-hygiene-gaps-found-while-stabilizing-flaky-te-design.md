@@ -8,18 +8,22 @@ Change #527, groomed 2026-10-16.
 
 ## Problem
 
-Changes 507 (flaky-test stabilization) and 531 (private visibility) surfaced six unrelated
-test-suite defects. Each one lets a test silently stop running, fail for an environmental
-reason, or fail when nothing is wrong. All six were re-traced against `main` at `2f47107e4`
+Changes 507 (flaky-test stabilization), 531 (private visibility), and 539 (finalize) surfaced
+seven unrelated test-suite defects. Each one lets a test silently stop running, fail for an environmental
+reason, or fail when nothing is wrong. Items 1–6 were re-traced against `main` at `2f47107e4`
 on 2026-10-16; the findings below are what that trace showed, not the original stub's wording.
+Item 7 was observed once while finalizing change 539 and has not been traced; it is
+diagnose-first.
 
 ## Goals
 
 - A test function that stops being run because of its name is caught, in any test file.
-- No test in the six items fails because of `TMPDIR` spelling, an unrelated worktree, or a slow
+- No test in the seven items fails because of `TMPDIR` spelling, an unrelated worktree, or a slow
   disk.
 - The concurrency and reposetup shards have budget rows that match the rule in
   `tests/README.md`: split an oversized shard rather than raise its ceiling.
+- The one observed `TestObserveRunningThenTerminal` timeout has a known cause, or is recorded
+  as not reproducible; it is not hidden by a longer timeout.
 
 ## Non-goals
 
@@ -247,6 +251,30 @@ new shard's row beside the other app shards; lower the reposetup row. Measure on
 another worktree's suite inflates a solo reading, so re-measure once if a number looks off. The
 remaining reposetup tests (about 25 s) cannot fit the original 15 — that is expected.
 
+### 7. `TestObserveRunningThenTerminal` timed out once
+
+**Observation (not yet traced).** During the finalize of change 539 on 2026-10-16,
+`TestObserveRunningThenTerminal` (`internal/process/observe_test.go`) failed once: after the test
+SIGKILLed the helper's process group, `Observe` did not report `vanished` within the test's 30 s
+wait. The next run passed, and so did a full suite. Several whole-suite gate runs and a second
+worktree's suite were running at the same time, so the machine was heavily loaded. The failure
+text was not kept, so the state the run was stuck in is unknown. The test already reports it on
+failure (`describeStuckRun`, added by an earlier fix): last `Observe` state and error, group and
+supervisor liveness, and `live.lock` state.
+
+**Fix: diagnose first, then repair the cause.** Run the test with a high `-count` while the
+machine is under sustained CPU and fsync load (for example several other `go test` runs at once),
+and keep the `describeStuckRun` line from any failure. Then:
+
+- If the line shows `Observe` never leaving `running` or returning an error (a supervisor or
+  lock state `Observe` misreads), that is a defect in `internal/process`: fix it there and add a
+  test that fails without the fix.
+- If it shows the supervisor or group still alive when it should be gone (a process not yet
+  reaped, or a test-side race with the kill), fix the test so it waits on the real condition.
+- If it cannot be reproduced in a few hundred loaded runs, change nothing: record the run count
+  and load used in the results file. Do not raise the 30 s limit or loosen the assertion to
+  make a flake disappear.
+
 ## Verification
 
 - The new unrunnable-test guard passes on the tree, reports its planted orphan, does not report a
@@ -265,6 +293,9 @@ remaining reposetup tests (about 25 s) cannot fit the original 15 — that is ex
   and the new runner selects 23 tests; the reposetup shard selects 33.
 - `go test -tags integration -list '^TestIntegrationRepoSetup(Private|GlobalPrivate)' ./internal/app`
   lists nothing.
+- `TestObserveRunningThenTerminal` passes at a high `-count` under sustained load, or the results
+  file records how many loaded runs failed to reproduce the timeout and what the failure line
+  showed if one did.
 - The whole suite (`build.test_command`) is green, and its budget report shows no
   `BUDGET WATCH:` or `SERIAL CONFIRMED OVER BUDGET:` line for the concurrency, reposetup, or new
   shard.
@@ -275,4 +306,4 @@ remaining reposetup tests (about 25 s) cannot fit the original 15 — that is ex
   tree or in-memory source.
 - The child-mode spellings (`selfkill-on` / `pass-on` are suggestions) and the poll mechanics.
 - Exact wording of the fake server's stderr lines and the guard's failure message.
-- Commit grouping; the six items are independent and can land in any order.
+- Commit grouping; the seven items are independent and can land in any order.

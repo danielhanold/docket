@@ -40,7 +40,7 @@ Change 531's build surfaced two more: a gate-driver test that fails under disk l
 
 ## What changes
 
-Six small test-suite fixes, each re-traced against `main` on 2026-10-16 (the linked spec has the detail):
+Seven small test-suite fixes. The first six were re-traced against `main` on 2026-10-16; the seventh is diagnose-first (the linked spec has the detail):
 
 - **Unrunnable test functions.** A repo-wide guard in `internal/repoguard` flags any function shaped like a test (`func(*testing.T)`, `*testing.B`, `*testing.F`) that `go test` will never run because of its name and that nothing calls. This catches the e2e case (renaming `TestE2EFoo` to `testE2EFoo` leaves `tests/test_go_finalize_e2e.sh` green) and the same mistake in every other test file.
 - **No-git guard path.** `InstallNoGitGuard` stores the temp dir uncleaned, so `TestNoGitGuardShadowsGitOnPath` fails when `TMPDIR` is not in clean form (for example `/tmp//`; a single trailing slash is fine). Store the cleaned path.
@@ -48,6 +48,7 @@ Six small test-suite fixes, each re-traced against `main` on 2026-10-16 (the lin
 - **Exit-sites guard walks worktrees.** `TestProcessExitSitesAreAllowlisted` walks into `.worktrees/` and fails from the main checkout. Switch it to the shared `repoguard.MaintainedFiles` walk.
 - **Gate-driver tests that race a timer.** `child-signal-death` (failing 34 of 40 under disk load) and three other gate-driver tests depend on a child staying alive for a fixed number of milliseconds while several fsync'd writes happen. Make the child wait for a go-signal file the test creates instead of a timer.
 - **Budget rows.** Lower the concurrency shard's row back to its measured value (about 35). Move reposetup's 23 private-mode tests into a new shard under a new prefix, `TestIntegrationPrivateRepoSetup`, and set both rows from fresh serial measurements.
+- **Flaky `TestObserveRunningThenTerminal`.** It timed out once waiting for `vanished` after its helper's process group was SIGKILLed, on a heavily loaded machine (found while finalizing change 539); it passed on rerun. Diagnose first: reproduce under load and read the stuck-state line the test already prints, then fix the cause in `internal/process` or in the test. If it will not reproduce, change nothing and record the run count; never just raise the timeout.
 
 ## Out of scope
 
