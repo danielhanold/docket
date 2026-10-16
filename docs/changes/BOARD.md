@@ -1,13 +1,12 @@
 # Backlog
 
-**554 changes** — 🔵 2 built · 🟣 4 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 387 done · 🗑️ 141 killed
+**554 changes** — 🔵 1 built · 🟣 4 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 388 done · 🗑️ 141 killed
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0554](active/0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice | `medium` | `chore` | [#419](https://github.com/danielhanold/docket/pull/419) | awaiting merge |
-| [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | Describe repository-check drift findings by family in the docket-status skill | `low` | `docs` | [#418](https://github.com/danielhanold/docket/pull/418) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
@@ -73,7 +72,6 @@ graph TD
   0528
   0536
   0537
-  0539
   0541
   0546 --> 0547
   0548 --> 0554
@@ -88,12 +86,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (528)</summary>
+<details><summary>✅🗑️ Archive — done + killed (529)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0553](archive/2026-10-16-0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | 2026-10-16 |
 | [0548](archive/2026-10-16-0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Name test fixture folders by what they hold | 2026-10-16 |
+| [0539](archive/2026-10-16-0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | Describe repository-check drift findings by family in the docket-status skill | 2026-10-16 |
 | [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
 | [0552](archive/2026-10-15-0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | 2026-10-15 |
 | [0551](archive/2026-10-15-0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | 2026-10-15 |
@@ -108,7 +107,6 @@ graph TD
 | [0512](archive/2026-10-08-0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | 2026-10-08 |
 | [0538](archive/2026-10-07-0538-choose-agent-harnesses-during-repository-init.md) | Choose agent harnesses during init and with configure-harnesses | 2026-10-07 |
 | [0533](archive/2026-10-07-0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | 2026-10-07 |
-| [0535](archive/2026-10-06-0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | 2026-10-06 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -253,7 +251,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 44 done |
+| [2026-10](archive/) | 45 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

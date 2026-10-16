@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0539 — Describe repository-check drift findings by family in the docket-status skill](../changes/active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md)**
+> ↩ **[Change 0539 — Describe repository-check drift findings by family in the docket-status skill](../changes/archive/2026-10-16-0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md)**
 <!-- docket:backlink:end -->
 
 # Describe repository-check drift findings by family in the docket-status skill — Results

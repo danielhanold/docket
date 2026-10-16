@@ -2,7 +2,7 @@
 id: 539
 slug: 'list-the-artifact-backlink-finding-codes-in-the-docket-statu'
 title: 'Describe repository-check drift findings by family in the docket-status skill'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'docs'
 created: '2026-10-07'
@@ -22,7 +22,7 @@ branch: 'docs/list-the-artifact-backlink-finding-codes-in-the-docket-statu'
 pr: 'https://github.com/danielhanold/docket/pull/418'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T12:13:20Z'
+claimed_at:
 ---
 
 ## Artifacts
