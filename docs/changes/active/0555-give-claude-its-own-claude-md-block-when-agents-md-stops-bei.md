@@ -14,7 +14,7 @@ discovered_from: [537]
 adrs: [78]
 spec: 'docs/superpowers/specs/2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei-design.md'
 plan: 'docs/superpowers/plans/2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md'
-results:
+results: 'docs/results/2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-16T20:22:12Z'
 |---|---|
 | Spec | [2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei-design.md](../../superpowers/specs/2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei-design.md) |
 | Plan | [2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md](../../superpowers/plans/2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md) |
+| Results | [2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei-results.md](../../results/2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei-results.md) |
 | ADRs | [ADR-0078](../../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
 
