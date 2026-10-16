@@ -301,7 +301,11 @@ func TestAgentEnterServerProcess(t *testing.T) {
 	if os.Getenv("DOCKET_AGENT_TEST_SERVER") != "1" {
 		return
 	}
+	// Every failure exit first writes one "fake app-server: " line to stderr naming
+	// the failed check and its values, so the client's read error carries the cause
+	// instead of a bare EOF.
 	if got := os.Args[len(os.Args)-2:]; got[0] != "app-server" || got[1] != "--stdio" {
+		fmt.Fprintf(os.Stderr, "fake app-server: argv tail %q, want [\"app-server\" \"--stdio\"]\n", got)
 		os.Exit(2)
 	}
 	scanner := bufio.NewScanner(os.Stdin)
@@ -311,6 +315,7 @@ func TestAgentEnterServerProcess(t *testing.T) {
 			Params map[string]json.RawMessage `json:"params"`
 		}
 		if err := json.Unmarshal(scanner.Bytes(), &msg); err != nil {
+			fmt.Fprintf(os.Stderr, "fake app-server: request line is not JSON (%v): %q\n", err, scanner.Text())
 			os.Exit(3)
 		}
 		switch msg.Method {
@@ -318,26 +323,29 @@ func TestAgentEnterServerProcess(t *testing.T) {
 			fmt.Println(`{"id":1,"result":{}}`)
 		case "thread/start":
 			processCWD, err := os.Getwd()
-			if err != nil || processCWD != os.Getenv("DOCKET_AGENT_TEST_CWD") {
+			if want := os.Getenv("DOCKET_AGENT_TEST_CWD"); err != nil || processCWD != want {
+				fmt.Fprintf(os.Stderr, "fake app-server: process cwd %q (getwd error: %v), want %q\n", processCWD, err, want)
 				os.Exit(4)
 			}
 			for key, want := range map[string]string{"cwd": os.Getenv("DOCKET_AGENT_TEST_CWD"), "approvalPolicy": "never", "sandbox": "workspace-write", "threadSource": "vscode"} {
 				var got string
 				_ = json.Unmarshal(msg.Params[key], &got)
 				if got != want {
-					fmt.Fprintf(os.Stderr, "%s=%q, want %q", key, got, want)
+					fmt.Fprintf(os.Stderr, "fake app-server: %s=%q, want %q\n", key, got, want)
 					os.Exit(4)
 				}
 			}
 			var dev string
 			_ = json.Unmarshal(msg.Params["developerInstructions"], &dev)
-			if dev != os.Getenv("DOCKET_AGENT_TEST_DEVELOPER") {
+			if want := os.Getenv("DOCKET_AGENT_TEST_DEVELOPER"); dev != want {
+				fmt.Fprintf(os.Stderr, "fake app-server: developerInstructions=%q, want %q\n", dev, want)
 				os.Exit(5)
 			}
 			if want := os.Getenv("DOCKET_AGENT_TEST_MODEL"); want != "" {
 				var model string
 				_ = json.Unmarshal(msg.Params["model"], &model)
 				if model != want {
+					fmt.Fprintf(os.Stderr, "fake app-server: thread model=%q, want %q\n", model, want)
 					os.Exit(5)
 				}
 			}
@@ -347,6 +355,7 @@ func TestAgentEnterServerProcess(t *testing.T) {
 				var effort string
 				_ = json.Unmarshal(msg.Params["effort"], &effort)
 				if effort != want {
+					fmt.Fprintf(os.Stderr, "fake app-server: turn effort=%q, want %q\n", effort, want)
 					os.Exit(5)
 				}
 			}
@@ -362,12 +371,17 @@ func TestAgentEnterServerProcess(t *testing.T) {
 					skill = true
 				}
 			}
-			if text != os.Getenv("DOCKET_AGENT_TEST_REQUEST") || !skill {
+			if want := os.Getenv("DOCKET_AGENT_TEST_REQUEST"); text != want || !skill {
+				fmt.Fprintf(os.Stderr, "fake app-server: turn text %q, want %q; skill %q with an absolute path seen=%v\n", text, want, os.Getenv("DOCKET_AGENT_TEST_SKILL"), skill)
 				os.Exit(6)
 			}
 			fmt.Println(`{"id":3,"result":{"turn":{"id":"turn"}}}`)
 			fmt.Println(`{"method":"turn/completed","params":{"threadId":"root","turn":{"id":"turn","status":"completed","items":[{"type":"agentMessage","text":"ROOT RESULT"}]}}}`)
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "fake app-server: reading requests: %v\n", err)
+		os.Exit(7)
 	}
 	os.Exit(0)
 }
