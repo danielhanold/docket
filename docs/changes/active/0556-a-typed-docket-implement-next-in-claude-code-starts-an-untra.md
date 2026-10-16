@@ -9,10 +9,10 @@ created: '2026-10-16'
 updated: '2026-10-16'
 depends_on: []
 stacked_on:
-related: [541, 503]
+related: [541, 503, 345]
 discovered_from: [345]
-adrs: []
-spec:
+adrs: [24, 26, 84, 133]
+spec: 'docs/superpowers/specs/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md](../../superpowers/specs/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md) |
+| ADRs | [ADR-0024](../../adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0026](../../adrs/0026-fork-dispatch-opacity-two-invocation-paths.md), [ADR-0084](../../adrs/0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md), [ADR-0133](../../adrs/0133-the-run-key-is-the-run-tracker-s-only-handle-gate-starts-car.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -40,17 +44,18 @@ An untracked run still builds to a PR. But if it dies partway, docket cannot aut
 
 ## What changes
 
-Make a typed `/docket-implement-next` in Claude Code either start a tracked run or say clearly that it did not. Directions to weigh at grooming (hypotheses, not decisions):
+Make an untracked implement run visible, and point people at the tracked ways to start one. The typed command keeps working as it does today and stays visible.
 
-1. Let the typed command reach the main session first: a short entry that runs `run.start`, dispatches the agent with the run context, and runs `run.verdict` afterwards. This means dropping the automatic fork for this skill and keeping the long worker procedure out of the main session's context.
-2. Keep the fork, and have an untracked run say so plainly in its report (visibility only, no new stop).
-3. Document prose and `/loop` as the ways to start implement-next, and leave the typed command untracked.
+- The implementer's final report gains a short note when its dispatch prompt carried neither a run context nor a run key. The note says the run is untracked, so if it stops partway docket can't retry, resume, or cancel it. It says to start implement-next with a plain request or `/loop` to get a tracked run. It only informs: it never changes the disposition, stops the run, or touches the claim.
+- The maintained docs say to start implement-next with a plain request or `/loop`, and that a typed `/docket-implement-next` in Claude Code runs untracked. That covers the unattended-run guide, the run-tracker concept, the invocation-paths table, the README quick start, and any other maintained mention found by grep.
+- A prose-contract sentinel pins the note, and the skill's size ceiling moves by exactly the added words.
 
-Reuse the existing run tracker: no new token format, retry rule, or attribution mechanism. Prove the result with a live typed-command run in a fresh Claude Code session, checking the claim commit's context hash.
+The linked spec holds the live-check evidence, the rejected alternatives, and the acceptance details.
 
 ## Out of scope
 
-- Codex, Cursor, and OpenCode. Cursor has no skill fork; Codex is unsupported; OpenCode ships untested.
+- Making a typed `/docket-implement-next` tracked, hiding it from the `/` menu, or changing its fork frontmatter.
+- Codex, Cursor, and OpenCode launch mechanics.
 - A child that receives the run context but drops it at claim time (change 0541).
-- Prose and `/loop` starts, which are already tracked.
+- Changes to the run tracker, `change.claim`, the parent-facing dispatch blocks, or the agent wrappers.
 - Recovery after the main session loses its run key.
