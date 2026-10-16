@@ -11,7 +11,7 @@ depends_on: [548]
 stacked_on:
 related: [195, 166]
 discovered_from: []
-adrs: []
+adrs: [8]
 spec: 'docs/superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md'
 plan: 'docs/superpowers/plans/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7.md'
 results:
@@ -22,7 +22,7 @@ branch: 'chore/update-cursor-review-tier-defaults-to-grok-4-7'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T12:15:27Z'
+claimed_at: '2026-10-16T12:52:39Z'
 ---
 
 ## Artifacts
@@ -32,6 +32,7 @@ claimed_at: '2026-10-16T12:15:27Z'
 |---|---|
 | Spec | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md](../../superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md) |
 | Plan | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7.md](../../superpowers/plans/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7.md) |
+| ADRs | [ADR-0008](../../adrs/0008-agent-layer-generated-subagents.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -55,3 +56,7 @@ The Codex and opencode values (only one opencode comment sentence is removed). C
 ### 2026-10-16
 
 Reconciled against main e99f310. Dependency #548 is done: internal/config/defaults_test.go now reads agents/harness-defaults.yml directly (no versioned fixture tree), so this is a plain data edit as the spec assumes. The example-correspondence mutation probe still keys on `{ model: claude-sonnet-5,` and must be retargeted, as the spec says. No scope change.
+
+### 2026-10-16
+
+Recorded ADR-0008 in adrs: — it gained a dated Update note (the interactive skills no longer carry an advisory model recommendation).
