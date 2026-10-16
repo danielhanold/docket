@@ -17,7 +17,10 @@ import (
 // TestIntegrationRepoSetup, matched by tests/test_go_integration_app_reposetup.sh):
 // init resolves agent_harnesses from --harnesses or the interactive chooser
 // before any write, writes it to the repository's config target, and installs
-// the dispatch surfaces that value authorizes in the same run.
+// the dispatch surfaces that value authorizes in the same run. The two private
+// harness tests carry prefix TestIntegrationPrivateRepoSetup and run in the
+// private shard (tests/test_go_integration_app_reposetup_private.sh); the rest
+// stay TestIntegrationRepoSetup.
 
 // harnessFlag is a --harnesses value as the CLI passes it: Set, with tokens.
 func harnessFlag(tokens ...string) HarnessesOptions {
@@ -94,7 +97,7 @@ func TestIntegrationRepoSetupInitPendingOmitsIgnoredCursorRule(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepoSetupPrivateInitHarnessesFlag(t *testing.T) {
+func TestIntegrationPrivateRepoSetupInitHarnessesFlag(t *testing.T) {
 	r, data := newPrivateInitRepo(t, nil)
 	res := r.runInitWith(t, InitOptions{Private: true, Harnesses: harnessFlag("claude")})
 	if res.Result != ResultApplied {
@@ -497,7 +500,7 @@ func TestIntegrationRepoSetupConfigureHarnessesLocalOverrideWarns(t *testing.T) 
 	}
 }
 
-func TestIntegrationRepoSetupPrivateConfigureHarnesses(t *testing.T) {
+func TestIntegrationPrivateRepoSetupConfigureHarnesses(t *testing.T) {
 	r, data := initPrivateHealthy(t)
 	res := r.runConfigureHarnesses(t, ConfigureHarnessesOptions{Harnesses: harnessFlag("claude")})
 	if res.Result != ResultApplied || res.RepositoryState != string(reposetup.StateHealthy) {

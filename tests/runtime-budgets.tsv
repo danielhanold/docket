@@ -24,7 +24,7 @@ tests/test_go_integration_app_changeruntime.sh	40	parallel
 tests/test_go_integration_app_cleanup.sh	40	parallel
 tests/test_go_integration_app_closeout.sh	40	parallel
 tests/test_go_integration_app_archive.sh	40	parallel
-tests/test_go_integration_app_concurrency.sh	45	parallel
+tests/test_go_integration_app_concurrency.sh	35	parallel
 tests/test_go_integration_app_merge.sh	15	parallel
 tests/test_go_integration_app_rebase.sh	45	parallel
 tests/test_go_integration_app_rebasepublished.sh	45	parallel
@@ -46,7 +46,8 @@ tests/test_go_integration_app_reporepair.sh	30	parallel
 tests/test_go_integration_app_repovisibility.sh	50	parallel
 tests/test_go_integration_app_repovisibility_private.sh	75	parallel
 tests/test_go_integration_app_repovisibility_shared.sh	70	parallel
-tests/test_go_integration_app_reposetup.sh	35	parallel
+tests/test_go_integration_app_reposetup.sh	30	parallel
+tests/test_go_integration_app_reposetup_private.sh	40	parallel
 tests/test_go_integration_app_reposetup_race.sh	25	parallel
 tests/test_go_integration_app_privateinstructions.sh	30	parallel
 tests/test_go_integration_app_reposynccheck.sh	30	parallel
