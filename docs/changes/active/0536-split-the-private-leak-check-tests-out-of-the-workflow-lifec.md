@@ -13,7 +13,7 @@ related: [527, 528, 273, 531, 532]
 discovered_from: [532]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-16T15:16:20Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-design.md](../../superpowers/specs/2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-design.md) |
+| Plan | [2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md](../../superpowers/plans/2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
