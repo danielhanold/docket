@@ -1,18 +1,18 @@
 ---
 id: 554
 slug: 'update-cursor-review-tier-defaults-to-grok-4-7'
-title: 'Update Cursor review-tier defaults to Grok 4.7'
+title: 'Refresh the shipped Cursor model defaults and Claude''s status model'
 status: 'proposed'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-15'
-updated: '2026-10-15'
-depends_on: []
+updated: '2026-10-16'
+depends_on: [548]
 stacked_on:
 related: [195]
 discovered_from: []
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md'
 plan:
 results:
 trivial: false
@@ -27,18 +27,19 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md](../../superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Grok 4.7 has been released. Docket's shipped Cursor defaults should pin the review tiers to the newer model, not the previous generation.
+New models are out: Grok 4.6 and 4.7 in Cursor, and Claude Opus 5.5 and Haiku 5.5. Docket's shipped Cursor defaults still pin `cursor-grok-4.5-*` and `claude-opus-5-high`, and Claude's `status` agent still pins `claude-haiku-4-5-20251001`. The built-in defaults should match the roster Daniel now runs.
 
 ## What changes
 
-Update the Cursor block of the built-in model defaults (`agents/harness-defaults.yml`) so the three review tiers (`review-lean`, `review-standard`, `review-deep`) use Grok 4.7 model IDs. Mirror the change in the commented Cursor example in `.docket.example.yml`. Daniel will supply the exact Cursor model IDs at grooming.
-
-State found at stub time (origin/main, 2026-10-15): the shipped Cursor defaults use `cursor-grok-4.5-*` (not 4.6). `review-lean` = `cursor-grok-4.5-medium`, `review-standard` = `cursor-grok-4.5-high`, and `review-deep` = `claude-opus-5-high` (not Grok). Grooming should confirm whether `review-deep` moves to Grok too and whether the other `cursor-grok-4.5-*` rows stay as they are.
+Replace all 17 rows of the Cursor block in the built-in model defaults. The roster: Grok 4.6 for most agents at the level in its name, Grok 4.7 for the three review tiers, and Claude models through Cursor for `status`, `plan-writer` and `build-max`. Every effort stays `auto`. Also move Claude's `status` agent to `claude-haiku-5-5` (effort stays `medium`). Apply the same values everywhere the table lives: `agents/harness-defaults.yml`, the Go built-in table, the commented example in `.docket.example.yml`, and the regenerated embedded copies. Update `docs/reference/harness/validation.md`'s list of Cursor wrappers allowed to carry a Claude model ID. Reword the defaults-file comments the new values make untrue. On Cursor, review-deep no longer matches build-max: that is a deliberate choice, so Cursor's review tiers all run on Grok 4.7. The spec has the exact per-agent table. This change waits for #548, so it needs no new frozen fixture folder.
 
 ## Out of scope
 
-Cursor agents other than the review tiers, unless grooming widens the scope. Model defaults for other harnesses (Claude, Codex, OpenCode).
+Claude rows other than `status`, and the Codex and opencode blocks. Changes to how the Cursor emitter handles effort. Frozen historical data (legacy install fixtures, surviving `testdata/repositories/` trees, release notes, archived records).

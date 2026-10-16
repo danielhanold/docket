@@ -14,7 +14,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0554](active/0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Update Cursor review-tier defaults to Grok 4.7 | `medium` | `chore` | needs-grooming |
+| [0554](active/0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Refresh the shipped Cursor model defaults and Claude's status model | `medium` | `chore` | ⏳ waiting on #548 — not yet built |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
 | [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
 | [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | List the artifact-backlink finding codes in the docket-status skill | `low` | `docs` | needs-grooming |
@@ -75,7 +75,7 @@ graph TD
   0541
   0546 --> 0547
   0546 --> 0548
-  0554
+  0548 --> 0554
   0192:::done
   0251:::done
   0393:::done
