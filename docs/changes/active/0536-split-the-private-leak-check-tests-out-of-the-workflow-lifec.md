@@ -2,7 +2,7 @@
 id: 536
 slug: 'split-the-private-leak-check-tests-out-of-the-workflow-lifec'
 title: 'Split the private-mode tests out of the workflow lifecycle shard'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-06'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/split-the-private-leak-check-tests-out-of-the-workflow-lifec'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/420'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-16T15:24:38Z'
@@ -52,3 +52,12 @@ Changing what any moved test asserts. The concurrency and reposetup shards' budg
 ### 2026-10-16
 
 2026-10-16 — Re-checked against origin/main a0bd49b. All seven tests still carry their old names (workflow_private_integration_test.go, leak_check_private_integration_test.go), the lifecycle shard still selects prefix TestIntegrationWorkflowLifecycle at an 80s row, and no live SHARD_PREFIX collides with TestIntegrationPrivateMode in either direction (nearest: TestIntegrationPrivateInstructions, TestIntegrationRepoVisibilityPrivate). Related #527/#528 still proposed, #273 deferred; none overlaps. Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 7cdaca68007781067caeefdb91562fe5097492f3
+ran_at:   2026-10-16T15:39:10Z
+<!-- docket:build-evidence:end -->

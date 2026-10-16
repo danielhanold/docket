@@ -1,12 +1,12 @@
 # Backlog
 
-**554 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 389 done · 🗑️ 141 killed
+**554 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 389 done · 🗑️ 141 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0536](active/0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) | Split the private-mode tests out of the workflow lifecycle shard | `low` | `fix` | [spec](../superpowers/specs/2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-design.md) | `fix/split-the-private-leak-check-tests-out-of-the-workflow-lifec` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0536](active/0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) | Split the private-mode tests out of the workflow lifecycle shard | `low` | `fix` | [#420](https://github.com/danielhanold/docket/pull/420) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
