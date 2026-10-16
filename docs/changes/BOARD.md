@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0553](active/0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | `high` | `fix` | [spec](../superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md) | `fix/explain-repository-check-and-status-findings-in-plain-langua` |  |
+| [0553](active/0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | `high` | `fix` | [spec](../superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md) | `fix/explain-repository-check-and-status-findings-in-plain-langua` | run halted — needs you |
 
 ## 🟣 Groomed (3)
 
