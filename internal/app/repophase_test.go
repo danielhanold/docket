@@ -61,3 +61,49 @@ func TestClassifyAgentsMD(t *testing.T) {
 		})
 	}
 }
+
+// TestClassifyClaudeMD pins the CLAUDE.md pre-state classifyClaudeMD hands
+// reposeed.Plan. A link to the sibling AGENTS.md is the shareable state in both
+// spellings: the relative one, and the absolute one install itself writes
+// (reposeed.Plan joins the cleaned worktree root with AGENTS.md). Any other
+// destination, absolute or relative, is a foreign link the plan leaves alone.
+//
+// MUTATION TEST: drop the absolute-link clause from classifyClaudeMD and the
+// "absolute link to own AGENTS.md" row reddens; accept every absolute link and
+// the "absolute link elsewhere" row reddens.
+func TestClassifyClaudeMD(t *testing.T) {
+	link := func(dest func(root string) string) func(t *testing.T, root string) {
+		return func(t *testing.T, root string) {
+			if err := os.Symlink(dest(root), filepath.Join(root, "CLAUDE.md")); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	cases := []struct {
+		name  string
+		setup func(t *testing.T, root string)
+		want  reposeed.ClaudeMDState
+	}{
+		{"no file", func(t *testing.T, root string) {}, reposeed.ClaudeMDAbsent},
+		{"regular file", func(t *testing.T, root string) {
+			writeRepoFile(t, root, "CLAUDE.md", "x\n")
+		}, reposeed.ClaudeMDRegularFile},
+		{"relative link to AGENTS.md", link(func(string) string { return "AGENTS.md" }), reposeed.ClaudeMDLinkToAgents},
+		{"absolute link to own AGENTS.md", link(func(root string) string {
+			return filepath.Join(root, "AGENTS.md")
+		}), reposeed.ClaudeMDLinkToAgents},
+		{"absolute link elsewhere", link(func(root string) string {
+			return filepath.Join(root, "other", "AGENTS.md")
+		}), reposeed.ClaudeMDForeignLink},
+		{"relative link to another file", link(func(string) string { return "RULES.md" }), reposeed.ClaudeMDForeignLink},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := testsupport.TempDir(t)
+			tc.setup(t, root)
+			if got := classifyClaudeMD(root); got != tc.want {
+				t.Errorf("classifyClaudeMD = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

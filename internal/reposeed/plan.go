@@ -59,16 +59,17 @@ const (
 	// ClaudeMDRegularFile — a regular CLAUDE.md exists; keep its content and
 	// give it its own managed block, never replace it with a link.
 	ClaudeMDRegularFile
-	// ClaudeMDLinkToAgents — CLAUDE.md is already a proven relative link to
-	// AGENTS.md. The link shares AGENTS.md, so the dispatch block goes into the
-	// file the link points to and the plan re-plans the same link.
+	// ClaudeMDLinkToAgents — CLAUDE.md is already a proven link to the
+	// sibling AGENTS.md (relative, or the absolute form this plan writes). The
+	// link shares AGENTS.md, so the dispatch block goes into the file the link
+	// points to and the plan re-plans the same link.
 	ClaudeMDLinkToAgents
 	// ClaudeMDOther — anything else (a foreign kind, an unreadable path).
 	// Planned as a managed block so inspection reports the conflict with a
 	// remedy rather than silently overwriting.
 	ClaudeMDOther
 	// ClaudeMDForeignLink — CLAUDE.md is a symlink that is not a proven
-	// relative link to AGENTS.md. A link cannot carry a managed block, so the
+	// link to the sibling AGENTS.md. A link cannot carry a managed block, so the
 	// plan skips it.
 	ClaudeMDForeignLink
 )
