@@ -4,6 +4,7 @@ package testsupport
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -29,5 +30,28 @@ func TestInstallNoGitGuardReturnsSetupError(t *testing.T) {
 	}
 	if got := NoGitGuardDir(); got != dirBefore {
 		t.Fatalf("a refused install recorded a shim dir %q", got)
+	}
+}
+
+// TestInstallNoGitGuardRecordsCleanDir: a TMPDIR with a trailing or doubled
+// slash still yields a guard dir in clean form, so the shadow check compares
+// one spelling of the path.
+func TestInstallNoGitGuardRecordsCleanDir(t *testing.T) {
+	for _, suffix := range []string{"/", "//"} {
+		t.Run(suffix, func(t *testing.T) {
+			t.Setenv("TMPDIR", TempDir(t)+suffix)
+			t.Setenv("PATH", os.Getenv("PATH"))
+			saved := noGitGuardDir
+			t.Cleanup(func() { noGitGuardDir = saved })
+			finish, err := InstallNoGitGuard("internal/app", "tests/test_go_integration_app_*.sh")
+			if err != nil {
+				t.Fatalf("InstallNoGitGuard: %v", err)
+			}
+			t.Cleanup(func() { finish(0) })
+			if got := NoGitGuardDir(); got != filepath.Clean(got) {
+				t.Fatalf("NoGitGuardDir() = %q, want clean form %q", got, filepath.Clean(got))
+			}
+			AssertNoGitGuardShadowsGit(t)
+		})
 	}
 }

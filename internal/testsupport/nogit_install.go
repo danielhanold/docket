@@ -28,6 +28,7 @@ func InstallNoGitGuard(pkg, shardGlob string) (func(code int) int, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: cannot create the shim directory: %w", diag, err)
 	}
+	dir = filepath.Clean(dir)
 	fail := func(err error) (func(code int) int, error) {
 		_ = os.RemoveAll(dir)
 		return nil, err
