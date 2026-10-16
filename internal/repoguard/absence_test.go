@@ -93,10 +93,11 @@ import (
 //     IS scanned — it lives under agents/, so AlwaysLoadedSurface includes it. It is a
 //     LIVE shipped program-data file, NOT a mere frozen fixture: the built-in agent
 //     table in internal/config/defaults.go mirrors it, and it carries no retired
-//     reference, so it stays GREEN on its content. It is byte-pinned twice — by
-//     TestBuiltinAgentsParityWithFrozenSidecar's frozen sidecar (currently v0.9.13)
-//     and by the embedded-tree copy internal/assets/generate.go writes — so any edit
-//     to it re-cuts the sidecar and regenerates the embedded copy.
+//     reference, so it stays GREEN on its content. It is checked by
+//     TestBuiltinAgentsParityWithShippedDefaults, which reads it directly and
+//     compares it with the built-in table, and pinned by the embedded-tree copy
+//     internal/assets/generate.go writes — so any edit to it must keep the
+//     built-in table in step and regenerates the embedded copy.
 //
 // # Markdown — fenced code is executable, prose is descriptive
 //
