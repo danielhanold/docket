@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/a-typed-docket-implement-next-in-claude-code-starts-an-untra'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-16T23:34:28Z'
+reconciled: true
+claimed_at: '2026-10-16T23:36:24Z'
 ---
 
 ## Artifacts
@@ -64,3 +64,9 @@ A note inside the implementer's report was designed and then dropped after a beh
 - Making a typed `/docket-implement-next` tracked, hiding it from the `/` menu, or changing its fork frontmatter.
 - Codex, Cursor, and OpenCode launch mechanics.
 - A child that receives the run context but drops it at claim time (change 0541).
+
+## Reconcile log
+
+### 2026-10-16
+
+2026-10-16 — Re-read against current main (ffa75abfa) and the named docs: README quick-start drain line, building-without-supervision /loop section, models-and-effort invocation-paths table and run-tracker concept page still match the spec description. Spec groomed today; no scope change, no relation change.
