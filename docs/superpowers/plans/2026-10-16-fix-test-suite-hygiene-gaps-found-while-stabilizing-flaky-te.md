@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0527 — Fix test-suite hygiene gaps found while stabilizing flaky tests](../../changes/active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md)**
+> ↩ **[Change 0527 — Fix test-suite hygiene gaps found while stabilizing flaky tests](../../changes/archive/2026-10-16-0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md)**
 <!-- docket:backlink:end -->
 
 # Fix test-suite hygiene gaps found while stabilizing flaky tests — Implementation Plan

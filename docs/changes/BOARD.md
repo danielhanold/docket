@@ -1,18 +1,12 @@
 # Backlog
 
-**555 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 2 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 390 done · 🗑️ 141 killed
+**555 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 391 done · 🗑️ 141 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0537](active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | `low` | `fix` | [spec](../superpowers/specs/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-design.md) | `fix/delete-the-empty-agents-md-left-behind-when-a-dispatch-block` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | [#421](https://github.com/danielhanold/docket/pull/421) | awaiting merge |
 
 ## 🟣 Groomed (2)
 
@@ -72,7 +66,6 @@ graph TD
   0503
   0544 --> 0513
   0511 --> 0514
-  0554 --> 0527
   0528
   0537
   0541
@@ -85,11 +78,10 @@ graph TD
   0511:::done
   0544:::done
   0546:::done
-  0554:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (531)</summary>
+<details><summary>✅🗑️ Archive — done + killed (532)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -98,6 +90,7 @@ graph TD
 | [0548](archive/2026-10-16-0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Name test fixture folders by what they hold | 2026-10-16 |
 | [0539](archive/2026-10-16-0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | Describe repository-check drift findings by family in the docket-status skill | 2026-10-16 |
 | [0536](archive/2026-10-16-0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) | Split the private-mode tests out of the workflow lifecycle shard | 2026-10-16 |
+| [0527](archive/2026-10-16-0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | 2026-10-16 |
 | [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
 | [0552](archive/2026-10-15-0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | 2026-10-15 |
 | [0551](archive/2026-10-15-0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | 2026-10-15 |
@@ -109,7 +102,6 @@ graph TD
 | [0543](archive/2026-10-08-0543-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md) | Cursor section of the Bash upgrade guide, proven on the saved cases | 2026-10-08 |
 | [0542](archive/2026-10-08-0542-open-the-board-a-change-and-its-artifacts-from-the-terminal.md) | Open the board, a change, and its artifacts from the terminal | 2026-10-08 |
 | [0540](archive/2026-10-08-0540-a-finished-run-left-active-in-run-json-blocks-set-visibility.md) | A finished run left active in run.json blocks set-visibility and cannot be cancelled | 2026-10-08 |
-| [0512](archive/2026-10-08-0512-release-v1-0-0-alpha-2-prove-and-publish-cursor-support.md) | Release v1.0.0-alpha.2: prove and publish Cursor support | 2026-10-08 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -254,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 47 done |
+| [2026-10](archive/) | 48 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

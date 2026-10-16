@@ -2,7 +2,7 @@
 id: 527
 slug: 'fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te'
 title: 'Fix test-suite hygiene gaps found while stabilizing flaky tests'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-05'
@@ -22,7 +22,7 @@ branch: 'fix/fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te'
 pr: 'https://github.com/danielhanold/docket/pull/421'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T16:23:16Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-16T16:23:16Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-design.md](../../superpowers/specs/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-design.md) |
+| Spec (merged) | [2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-design.md) |
 | Plan | [2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md](../../superpowers/plans/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) |
 | Results | [2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-results.md](../../results/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-results.md) |
 <!-- docket:artifacts:end -->
