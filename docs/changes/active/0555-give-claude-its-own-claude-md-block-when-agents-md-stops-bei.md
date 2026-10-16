@@ -1,7 +1,7 @@
 ---
 id: 555
 slug: 'give-claude-its-own-claude-md-block-when-agents-md-stops-bei'
-title: 'Give Claude its own CLAUDE.md block when AGENTS.md stops being shared'
+title: 'Keep Claude''s dispatch block in AGENTS.md while CLAUDE.md links to it'
 status: 'proposed'
 priority: 'low'
 type: 'fix'
@@ -11,8 +11,8 @@ depends_on: []
 stacked_on:
 related: [537]
 discovered_from: [537]
-adrs: []
-spec:
+adrs: [78]
+spec: 'docs/superpowers/specs/2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei-design.md'
 plan:
 results:
 trivial: false
@@ -27,18 +27,33 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei-design.md](../../superpowers/specs/2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei-design.md) |
+| ADRs | [ADR-0078](../../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-In a shared repository where docket made CLAUDE.md a link to AGENTS.md, Claude reads the dispatch block that codex or opencode owns. If codex and opencode are dropped from `agent_harnesses` and claude stays, install removes the AGENTS.md block but keeps the link. Claude then reads an AGENTS.md without the dispatch and run-tracker rules, and every later install skips the link, so the repository stays without them until someone replaces the link by hand. Once #537 deletes an AGENTS.md that is left empty, the link points at nothing. Found while grooming #537.
+In a shared repository, install can make `CLAUDE.md` a link to `AGENTS.md`, so Claude reads the same file Codex and opencode read. Install counts only codex and opencode as owners of the `AGENTS.md` dispatch block. Dropping both while keeping claude retires the block. Claude keeps reading `AGENTS.md` through the link, but without the dispatch and run-tracker rules, and later installs never put them back. Since #537, an `AGENTS.md` left empty is deleted, and the link points at nothing.
+
+The same rule leaves two claude-only setups without Claude's rules. A repository where someone linked `CLAUDE.md` to `AGENTS.md` by hand gets no dispatch block at all. A repository with its own `AGENTS.md` and no `CLAUDE.md` gets a block-only `CLAUDE.md`, so Claude never sees that `AGENTS.md`. ADR-0078 chose the link so Claude sees everything `AGENTS.md` carries, and the Go planner drifted from it. Found while grooming #537.
 
 ## What changes
 
-- When AGENTS.md is no longer shared and claude is still opted in, replace the CLAUDE.md link docket's ownership record holds with a regular CLAUDE.md carrying Claude's own dispatch block, the same file an install with no CLAUDE.md writes.
-- The install transaction can replace a link with a file at the same path. Today it refuses to write a block through a link, and one run cannot both remove and write the same path.
+- When `CLAUDE.md` is a relative link to `AGENTS.md` and claude is opted in, Claude co-owns the `AGENTS.md` dispatch block, so the block stays in the file the link points to.
+  - Dropping codex and opencode keeps the block.
+  - A claude-only repository with the link gets the block.
+  - The next install repairs a repository that already lost the block or `AGENTS.md`.
+- A claude-only repository with its own `AGENTS.md` and no `CLAUDE.md` gets the `CLAUDE.md` link instead of a block-only `CLAUDE.md`.
+- The block's text, and the choice to share, follow every harness the repository opted into, not just the ones a `--harness` run is limited to. A scoped install no longer strips the Codex clause.
+- Install never retires a block in the same run that writes it.
+- The install docs, the glossary, and the convention's agent-layer reference describe the new rule.
 
 ## Out of scope
 
-- Deleting an AGENTS.md left empty when a block is removed (#537).
+- A `CLAUDE.md` that links anywhere other than `AGENTS.md`. It stays unsupported and keeps being skipped.
+- Turning an existing block-only `CLAUDE.md` into a link.
+- Hand-made links being recorded as docket's, so that dropping claude deletes them.
+- A scoped run for a harness no longer opted in retiring a block Claude now shares. The next run that includes claude restores it.
 - Private repositories, which keep no surfaces in the working tree.
