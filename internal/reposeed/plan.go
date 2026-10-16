@@ -4,8 +4,8 @@
 // touches nothing on disk. It emits parent-facing routing instructions ONLY —
 // never per-repository agent definitions and never skills (change 0351). The
 // machine installer (internal/install) applies the plan and the caller
-// (internal/app) supplies the CLAUDE.md pre-state, since Plan never stats a
-// path.
+// (internal/app) supplies the CLAUDE.md and AGENTS.md pre-states, since Plan
+// never stats a path.
 package reposeed
 
 import (
@@ -48,8 +48,9 @@ const (
 )
 
 // ClaudeMDState is the CLAUDE.md pre-state the caller computes (Plan never stats
-// a path). It decides whether Claude can safely share the codex/opencode
-// AGENTS.md surface via a relative link or must own its own managed block.
+// a path). It decides whether Claude can safely share AGENTS.md via a relative
+// link — co-owning the AGENTS.md dispatch block — or must own its own managed
+// block in CLAUDE.md.
 type ClaudeMDState int
 
 const (
@@ -59,7 +60,8 @@ const (
 	// give it its own managed block, never replace it with a link.
 	ClaudeMDRegularFile
 	// ClaudeMDLinkToAgents — CLAUDE.md is already a proven relative link to
-	// AGENTS.md; a share re-plans the same link.
+	// AGENTS.md. The link shares AGENTS.md, so the dispatch block goes into the
+	// file the link points to and the plan re-plans the same link.
 	ClaudeMDLinkToAgents
 	// ClaudeMDOther — anything else (a foreign kind, an unreadable path).
 	// Planned as a managed block so inspection reports the conflict with a
@@ -72,14 +74,33 @@ const (
 )
 
 // PlanInput is the pure input to Plan. WorktreeRoot is a canonical absolute
-// path; Harnesses are the repository's explicit, already-validated opt-in
-// tokens; RunTracker is the run-tracker payload the interiors carry verbatim.
+// path; Harnesses are the already-validated opt-in tokens this run plans for (a
+// --harness scope narrows them); OptIns is the repository's full opt-in set,
+// which picks the AGENTS.md interior and decides the no-CLAUDE.md share, and nil
+// means Harnesses is already the full set. RunTracker is the run-tracker payload
+// the interiors carry verbatim. ClaudeMDState and AgentsMDState are the
+// caller-computed pre-states of the two files, since Plan never stats a path.
 type PlanInput struct {
 	WorktreeRoot  string
 	Harnesses     []string
+	OptIns        []string
 	RunTracker    []byte
 	ClaudeMDState ClaudeMDState
+	AgentsMDState AgentsMDState
 }
+
+// AgentsMDState is the AGENTS.md pre-state the caller computes with os.Lstat.
+type AgentsMDState int
+
+const (
+	// AgentsMDMissing — no AGENTS.md exists (the zero value).
+	AgentsMDMissing AgentsMDState = iota
+	// AgentsMDRegularFile — AGENTS.md is a regular file.
+	AgentsMDRegularFile
+	// AgentsMDOther — a symlink (circular included), a directory, or a path the
+	// probe could not read. Never read as missing; Claude does not share it.
+	AgentsMDOther
+)
 
 // Plan renders the parent-facing repository targets for the opted-in harnesses.
 // It is pure and emits NO agent definitions and NO skills. The second return
@@ -95,11 +116,37 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 		return nil, nil, nil
 	}
 
+	full := selected
+	if in.OptIns != nil {
+		if full, err = selectHarnesses(in.OptIns); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	root := filepath.Clean(in.WorktreeRoot)
 	interior := []byte(harness.DispatchInterior(in.RunTracker))
+	// AGENTS.md is shared, so its interior follows the full opt-in set: a run
+	// scoped away from codex must not strip the clause codex still owns.
 	codexInterior := interior
-	if selected[harnessCodex] {
+	if full[harnessCodex] {
 		codexInterior = []byte(harness.CodexDispatchInterior(in.RunTracker))
+	}
+
+	// Claude shares AGENTS.md — co-owning its dispatch block and linking
+	// CLAUDE.md to it — when CLAUDE.md already links to AGENTS.md and AGENTS.md
+	// is missing or a regular file (the link resolves to where the block goes),
+	// or when there is no CLAUDE.md and AGENTS.md exists as a regular file or
+	// codex/opencode is opted in anywhere. Replacing a link or filling an absent
+	// path loses no user content. The no-CLAUDE.md share follows the full opt-in
+	// set, so a scoped run decides it the same way an unscoped one does.
+	claudeShares := false
+	if selected[harnessClaude] {
+		switch in.ClaudeMDState {
+		case ClaudeMDLinkToAgents:
+			claudeShares = in.AgentsMDState == AgentsMDMissing || in.AgentsMDState == AgentsMDRegularFile
+		case ClaudeMDAbsent:
+			claudeShares = full[harnessCodex] || full[harnessOpencode] || in.AgentsMDState == AgentsMDRegularFile
+		}
 	}
 
 	var targets []install.Target
@@ -116,13 +163,14 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 		return nil
 	}
 
-	// The codex/opencode co-owned AGENTS.md block. Present iff at least one of
-	// the two opted in; each present one is an owner. Claude never co-owns this
-	// block — when it shares, it does so through a CLAUDE.md link, planned
-	// below.
-	sharedAgents := selected[harnessCodex] || selected[harnessOpencode]
-	if sharedAgents {
+	// The co-owned AGENTS.md block. Present iff codex or opencode is selected or
+	// Claude shares it; each of those is an owner. Claude co-owns the block when
+	// it shares, and links CLAUDE.md to it below.
+	if selected[harnessCodex] || selected[harnessOpencode] || claudeShares {
 		var agentsOwners []string
+		if claudeShares {
+			agentsOwners = append(agentsOwners, harnessClaude)
+		}
 		if selected[harnessCodex] {
 			agentsOwners = append(agentsOwners, harnessCodex)
 		}
@@ -142,18 +190,16 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 	}
 
 	if selected[harnessClaude] {
-		// Claude shares AGENTS.md only when that shared surface exists AND
-		// CLAUDE.md is absent or already a proven link — replacing a link
-		// loses no user content. A regular file keeps its content (own block),
-		// and `other` is a block so inspection reports the conflict. Any other
-		// symlinked CLAUDE.md is skipped: a link cannot carry a managed block.
-		share := sharedAgents &&
-			(in.ClaudeMDState == ClaudeMDAbsent || in.ClaudeMDState == ClaudeMDLinkToAgents)
+		// A sharing Claude links CLAUDE.md to AGENTS.md (see claudeShares). A
+		// regular file keeps its content (own block), and `other` is a block so
+		// inspection reports the conflict. A symlinked CLAUDE.md that does not
+		// share — a foreign link, or a link to a non-regular AGENTS.md — is
+		// skipped: a link cannot carry a managed block.
 		isLink := in.ClaudeMDState == ClaudeMDLinkToAgents || in.ClaudeMDState == ClaudeMDForeignLink
 		claudePath := filepath.Join(root, claudeMDName)
 		var t install.Target
 		switch {
-		case share:
+		case claudeShares:
 			t = install.Target{
 				Path:       claudePath,
 				Kind:       install.KindSymlink,
