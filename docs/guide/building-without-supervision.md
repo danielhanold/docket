@@ -156,3 +156,11 @@ the change reaches `done`. Confirm the driver composes cleanly in your own setup
 unattended; `/loop` behavior is version- and mode-specific. The bookkeeping that decides whether a stopped run may be retried at all — who
 launched it, whether it finished, whether a re-dispatch is allowed — is the run tracker, described in
 [The run tracker and attribution](../concepts/run-tracker.md).
+
+The run tracker follows a run only when the session starts it: with a plain request in the session
+(for example "implement 412") or with `/loop docket-implement-next`. In Claude Code the
+implement-next skill runs forked, so a typed command goes straight to the implementer and the
+session never takes the turn that would start a tracked run.
+A typed `/docket-implement-next` runs untracked.
+It still builds to a PR, but if it stops partway there is no automatic retry, resume, or cancel, and
+its outcome can only be read unattributed (`docket run verdict --unattributed`).
