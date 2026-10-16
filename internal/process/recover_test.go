@@ -50,48 +50,43 @@ func abandonedPreconditionUnmet(t *testing.T, runDir string, pgid int) string {
 func TestRecoverMarksCleanlyAbandonedOwnedRun(t *testing.T) {
 	svc := newTestService(t)
 
-	// Setup builds the abandoned shape: an owned run whose supervisor is
-	// SIGKILLed, leaving a free lock, no durable verdict, and a gone group.
-	// Under full-suite contention the setup can lose that race and land in a
-	// shape Recover CORRECTLY declines to mark — a setup failure this test used
-	// to report as a production defect (change 0328). Re-drive setup on a fresh
-	// root when that happens; the Marked==1 assertion below is never weakened.
-	const setupAttempts = 3
-	var root string
-	var out *LaunchOutcome
-	var m *manifestRecord
-	for attempt := 1; ; attempt++ {
-		root = testsupport.TempDir(t)
-		out = launchHelper(t, svc, root, "sleep")
-		var merr error
-		m, merr = readManifest(out.RunDir)
-		if merr != nil || m == nil {
-			t.Fatalf("read manifest: %v (m=%v)", merr, m)
-		}
-		// KILL the whole group: supervisor dies without a terminal record —
-		// the abandoned shape.
-		signalGroup(m.PGID, syscall.SIGKILL)
-		// 60s, not an isolation-calibrated 30s: under full parallel-suite CPU
-		// contention a SIGKILLed group needs longer merely to be reaped. Safe
-		// in the loose direction because waitFor returns the instant its
-		// predicate holds, so the wider ceiling costs wall-time only on a
-		// genuine hang — the trade change 0325 made for its barrier waits.
-		waitFor(t, "lock release", 60*time.Second, func() bool {
-			held, _ := probeFlock(filepath.Join(out.RunDir, liveLockFile))
-			return !held
-		})
-		waitFor(t, "group gone", 60*time.Second, func() bool {
-			return groupAlive(m.PGID) == probeAbsent
-		})
-		why := abandonedPreconditionUnmet(t, out.RunDir, m.PGID)
-		if why == "" {
-			break
-		}
-		if attempt == setupAttempts {
-			t.Fatalf("setup never reached the abandoned shape in %d attempts; last: %s",
-				setupAttempts, why)
-		}
-		t.Logf("setup attempt %d did not reach the abandoned shape (%s); re-driving", attempt, why)
+	// Setup builds the abandoned shape: an owned run whose supervisor is gone
+	// without a durable verdict, leaving a free lock and a gone group.
+	root := testsupport.TempDir(t)
+	out := launchHelper(t, svc, root, "sleep")
+	m, err := readManifest(out.RunDir)
+	if err != nil || m == nil {
+		t.Fatalf("read manifest: %v (m=%v)", err, m)
+	}
+	t.Cleanup(func() { _ = signalGroup(m.PGID, syscall.SIGKILL) })
+	// Kill the supervisor ALONE and wait until it is reaped, and only then end
+	// its command. One group-wide SIGKILL is not atomic across the group's
+	// processes: the command can die first while a supervisor thread, parked in
+	// cmd.Wait, returns and writes terminal.json before its own SIGKILL lands —
+	// a run Recover then correctly declines to mark, never the abandoned shape
+	// this test exists to exercise. A supervisor that is gone before its
+	// command dies can never record that death.
+	if err := syscall.Kill(m.SupervisorPID, syscall.SIGKILL); err != nil {
+		t.Fatalf("SIGKILL supervisor %d: %v", m.SupervisorPID, err)
+	}
+	waitFor(t, "the killed supervisor to be reaped", 60*time.Second, func() bool {
+		return processAlive(m.SupervisorPID) == probeAbsent
+	})
+	_ = signalGroup(m.PGID, syscall.SIGKILL) // end the orphaned command
+	// 60s, not an isolation-calibrated 30s: under full parallel-suite CPU
+	// contention a SIGKILLed group needs longer merely to be reaped. Safe
+	// in the loose direction because waitFor returns the instant its
+	// predicate holds, so the wider ceiling costs wall-time only on a
+	// genuine hang — the trade change 0325 made for its barrier waits.
+	waitFor(t, "lock release", 60*time.Second, func() bool {
+		held, _ := probeFlock(filepath.Join(out.RunDir, liveLockFile))
+		return !held
+	})
+	waitFor(t, "group gone", 60*time.Second, func() bool {
+		return groupAlive(m.PGID) == probeAbsent
+	})
+	if why := abandonedPreconditionUnmet(t, out.RunDir, m.PGID); why != "" {
+		t.Fatalf("setup did not reach the abandoned shape: %s", why)
 	}
 
 	res, err := svc.Recover(root)
