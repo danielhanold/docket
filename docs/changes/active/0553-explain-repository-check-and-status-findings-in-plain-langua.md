@@ -2,7 +2,7 @@
 id: 553
 slug: 'explain-repository-check-and-status-findings-in-plain-langua'
 title: 'Explain repository check and status findings in plain language'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-10-15'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/explain-repository-check-and-status-findings-in-plain-langua'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/416'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-16T01:34:27Z'
@@ -67,3 +67,11 @@ Daniel reads this output himself, and agents relay it; every finding should answ
 
 2026-10-15 — Spec groomed today; re-traced every named site on origin/main 9ace757 (corpusFindings, findingMessage, validationFinding, appendFindingBlock, writeFinding, checkGatherFailure, PlanRepairs, planRepositoryRepair) and all still exist as described. Recent main commits (0551 workspace checkout) do not touch these files. No scope change; ADR-0136 still governs the repair remedy wording.
 
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 84439f2f30cc53fb9c90340faf5ba43e4920e7a2
+ran_at:   2026-10-16T01:43:47Z
+<!-- docket:build-evidence:end -->

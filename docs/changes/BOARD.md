@@ -1,12 +1,12 @@
 # Backlog
 
-**554 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 385 done · 🗑️ 140 killed
+**554 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 385 done · 🗑️ 140 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0553](active/0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | `high` | `fix` | [spec](../superpowers/specs/2026-10-15-explain-repository-check-and-status-findings-in-plain-langua-design.md) | `fix/explain-repository-check-and-status-findings-in-plain-langua` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0553](active/0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | `high` | `fix` | [#416](https://github.com/danielhanold/docket/pull/416) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
