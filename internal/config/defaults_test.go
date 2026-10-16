@@ -10,18 +10,14 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// sidecarPath is the frozen byte-exact copy of agents/harness-defaults.yml, and
-// liveSidecarPath is the original it was cut from — the file docket ships.
-// The frozen tree is an immutable input (testdata/README.md): these tests only
-// read both files.
-const (
-	sidecarPath     = "../../testdata/repositories/v0.9.13/agents-harness-defaults.yml"
-	liveSidecarPath = "../../agents/harness-defaults.yml"
-)
+// shippedDefaultsPath is the agent defaults file docket ships, read where it
+// lives. The parity test below compares it with the Go built-in table, so an
+// edit to it fails here only when it changes what the table must hold.
+const shippedDefaultsPath = "../../agents/harness-defaults.yml"
 
-// sidecarDoc is the shipped-defaults file's shape: harness → agent short name
-// → model/effort pair, plus the optional prompt-cache TTL.
-type sidecarDoc struct {
+// shippedDefaultsDoc is the shipped-defaults file's shape: harness → agent
+// short name → model/effort pair, plus the optional prompt-cache TTL.
+type shippedDefaultsDoc struct {
 	Agents map[string]map[string]struct {
 		Model    string `yaml:"model"`
 		Effort   string `yaml:"effort"`
@@ -34,30 +30,23 @@ type sidecarDoc struct {
 // skipped.
 type pair struct{ Model, Effort, CacheTTL string }
 
-// TestBuiltinAgentsParityWithFrozenSidecar compares the frozen sidecar against
-// builtinAgents() as WHOLE structures, both directions in one DeepEqual: every
-// (harness, agent) pair present in both, models equal, and efforts equal —
-// where the sidecar says `auto` the Go table must hold "". Vendor-ID VALIDITY
-// is deliberately not asserted: that oracle lives outside the repo.
-//
-// The parity is against the FROZEN copy, which pins the Go table to a snapshot
-// rather than to what docket ships today. The byte-equality assert closes
-// that gap: an edit to the live sidecar reddens here instead of silently
-// diverging the built-ins from the shipped defaults.
-func TestBuiltinAgentsParityWithFrozenSidecar(t *testing.T) {
-	assertFrozenCopyMatchesLive(t, sidecarPath, liveSidecarPath,
-		"The shipped agent defaults changed: the Go built-in table in defaults.go and a NEW versioned fixture tree cut from the current agents/harness-defaults.yml must move together.")
-
-	data, err := os.ReadFile(filepath.FromSlash(sidecarPath))
+// TestBuiltinAgentsParityWithShippedDefaults compares agents/harness-defaults.yml
+// against builtinAgents() as WHOLE structures, both directions in one DeepEqual:
+// every (harness, agent) pair present in both, models equal, efforts equal, and
+// cache TTLs equal — where the file says `auto` the Go table must hold "".
+// Vendor-ID VALIDITY is deliberately not asserted: that oracle lives outside
+// the repo.
+func TestBuiltinAgentsParityWithShippedDefaults(t *testing.T) {
+	data, err := os.ReadFile(filepath.FromSlash(shippedDefaultsPath))
 	if err != nil {
-		t.Fatalf("reading the frozen sidecar: %v", err)
+		t.Fatalf("reading %s: %v", shippedDefaultsPath, err)
 	}
-	var doc sidecarDoc
+	var doc shippedDefaultsDoc
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		t.Fatalf("parsing the frozen sidecar: %v", err)
+		t.Fatalf("parsing %s: %v", shippedDefaultsPath, err)
 	}
 	if len(doc.Agents) == 0 {
-		t.Fatal("the frozen sidecar declares no agents — the fixture is wrong")
+		t.Fatalf("%s declares no agents", shippedDefaultsPath)
 	}
 
 	want := make(map[string]map[string]pair, len(doc.Agents))
@@ -83,7 +72,9 @@ func TestBuiltinAgentsParityWithFrozenSidecar(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("built-in agent table differs from the frozen sidecar:\n got: %v\nwant: %v", got, want)
+		t.Errorf("the built-in agent table differs from agents/harness-defaults.yml: "+
+			"agents/harness-defaults.yml and the built-in table in internal/config/defaults.go must change together.\n"+
+			" got: %v\nwant: %v", got, want)
 	}
 }
 
@@ -107,7 +98,7 @@ func TestBuiltinAgentsCacheTTLShippedOnImplementNextOnly(t *testing.T) {
 }
 
 // TestBuiltinAgentsShape pins the table's structure independently of the
-// sidecar: exactly the four shipped harnesses, each carrying exactly the 17
+// shipped defaults file: exactly the four shipped harnesses, each carrying exactly the 17
 // canonical short names, every model a non-empty single token, and every entry
 // carrying built-in provenance with Explicit false.
 func TestBuiltinAgentsShape(t *testing.T) {
