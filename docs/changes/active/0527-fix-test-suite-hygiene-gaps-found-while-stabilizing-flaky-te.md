@@ -2,7 +2,7 @@
 id: 527
 slug: 'fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te'
 title: 'Fix test-suite hygiene gaps found while stabilizing flaky tests'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-05'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-16T16:12:25Z'
 ---
 
 ## Artifacts
