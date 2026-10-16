@@ -2,7 +2,7 @@
 id: 548
 slug: 'rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se'
 title: 'Name test fixture folders by what they hold'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'chore'
 created: '2026-10-11'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-16T10:15:14Z'
 ---
 
 ## Artifacts
