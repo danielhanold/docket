@@ -22,7 +22,7 @@ branch: 'fix/give-claude-its-own-claude-md-block-when-agents-md-stops-bei'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T20:13:00Z'
+claimed_at: '2026-10-16T20:22:12Z'
 ---
 
 ## Artifacts
