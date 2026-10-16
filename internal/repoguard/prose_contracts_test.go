@@ -438,6 +438,10 @@ var proseContracts = []proseContract{
 	{sentinel: "change_0556_tracked_start", file: "docs/reference/glossary.md",
 		present: []string{"A typed `/docket-implement-next` runs untracked."},
 		absent:  []string{"/docket-implement-next 412\n"}},
+	{sentinel: "change_0556_tracked_start", file: "docs/guide/building-without-supervision.md",
+		present: []string{"A typed `/docket-implement-next` runs untracked."}},
+	{sentinel: "change_0556_tracked_start", file: "docs/concepts/run-tracker.md",
+		present: []string{"A typed `/docket-implement-next` runs untracked."}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation

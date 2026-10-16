@@ -64,6 +64,18 @@ verdict, not the worker's report, says what may happen next.
   record cannot be written, start prints `run-untracked <reason>`
   instead; the parent may still dispatch, but without a key, so that run
   can only ever be read unattributed and can never earn a re-dispatch.
+
+  A tracked start needs the session to take a turn first, so that it can
+  run `docket run start implement-next` and put the run context in the
+  dispatch prompt. A plain request in the session (for example "implement
+  412") or `/loop docket-implement-next` gives it that turn. In Claude
+  Code the implement-next skill runs forked, so a typed command skips the
+  turn and goes straight to the implementer.
+  A typed `/docket-implement-next` runs untracked.
+  It still builds to a PR, but it has no key: if it stops partway there is
+  no automatic retry, resume, or cancel, and its outcome can only be read
+  with `docket run verdict --unattributed`, which never authorizes a
+  re-dispatch.
 - **The verdict** (`docket run verdict <key>`) reads the tracker's own
   record of the run and prints exactly one decision line. It always exits
   0: the decision is in the line, never in the exit code. Without a key,
