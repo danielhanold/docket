@@ -22,7 +22,7 @@ branch: 'docs/list-the-artifact-backlink-finding-codes-in-the-docket-statu'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T12:08:00Z'
+claimed_at: '2026-10-16T12:09:39Z'
 ---
 
 ## Artifacts
