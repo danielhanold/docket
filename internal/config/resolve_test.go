@@ -901,7 +901,7 @@ func TestAgentsCacheTTLResolution(t *testing.T) {
 	if pw.CacheTTL.Value != "1h" || pw.CacheTTL.Provenance.Layer != LayerGlobal || !pw.CacheTTL.Explicit {
 		t.Errorf("claude/plan-writer cache_ttl = %+v, want an explicit global 1h", pw.CacheTTL)
 	}
-	if pw.Model.Value != "claude-opus-5" || pw.Model.Provenance.Layer != LayerBuiltIn || pw.Model.Explicit {
+	if pw.Model.Value != "claude-opus-5-5" || pw.Model.Provenance.Layer != LayerBuiltIn || pw.Model.Explicit {
 		t.Errorf("claude/plan-writer model = %+v, want the untouched built-in", pw.Model)
 	}
 	if pw.Effort.Value != "high" || pw.Effort.Provenance.Layer != LayerBuiltIn || pw.Effort.Explicit {
@@ -958,7 +958,7 @@ func TestAgentsRepoLayerExcludedFromEffective(t *testing.T) {
 		t.Run(string(src.Layer), func(t *testing.T) {
 			res := mustResolve(t, []Source{src}, mainCtx)
 			got := res.effective.Agents["claude"]["adr"].Model
-			if got.Value != "claude-opus-5" || got.Provenance.Layer != LayerBuiltIn || got.Explicit {
+			if got.Value != "claude-opus-5-5" || got.Provenance.Layer != LayerBuiltIn || got.Explicit {
 				t.Errorf("claude/adr model = %+v, want the untouched built-in default", got)
 			}
 			d, ok := res.declared["agents.claude.adr.model"]
