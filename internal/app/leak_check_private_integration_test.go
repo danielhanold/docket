@@ -15,8 +15,9 @@ import (
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
-// This file is the leak-check slice of the workflow lifecycle shard (prefix
-// TestIntegrationWorkflowLifecycle). Over real repositories it proves that a
+// This file is the leak-check slice of the private-mode shard
+// (tests/test_go_integration_app_privatemode.sh, prefix
+// TestIntegrationPrivateMode). Over real repositories it proves that a
 // private repository's workspace.publish scans exactly what the push would
 // expose and refuses — with nothing reaching origin — on every seeded docket
 // fingerprint; that leak_check.match_word: false lets only the bare word
@@ -233,11 +234,11 @@ func requireLeakRefusal(t *testing.T, pub WorkspaceOpResult, want LeakHit) {
 	}
 }
 
-// TestIntegrationWorkflowLifecyclePrivateLeakCheckBlocksSeededLeaks seeds each
+// TestIntegrationPrivateModeLeakCheckBlocksSeededLeaks seeds each
 // fingerprint kind onto the feature branch and proves publish refuses with the
 // hit shown and pushes nothing; a fingerprint-free year and ADR reference
 // publish, and upstream main merged into the branch is not scanned as outgoing.
-func TestIntegrationWorkflowLifecyclePrivateLeakCheckBlocksSeededLeaks(t *testing.T) {
+func TestIntegrationPrivateModeLeakCheckBlocksSeededLeaks(t *testing.T) {
 	lw, _ := newPrivateLeakWorkspace(t)
 
 	specBytes, err := os.ReadFile(filepath.Join(lw.wp, lw.specPath))
@@ -364,10 +365,10 @@ func TestIntegrationWorkflowLifecyclePrivateLeakCheckBlocksSeededLeaks(t *testin
 	})
 }
 
-// TestIntegrationWorkflowLifecyclePrivateLeakCheckMatchWordOff proves
+// TestIntegrationPrivateModeLeakCheckMatchWordOff proves
 // leak_check.match_word: false lets the bare word docket through while every
 // other rule still blocks.
-func TestIntegrationWorkflowLifecyclePrivateLeakCheckMatchWordOff(t *testing.T) {
+func TestIntegrationPrivateModeLeakCheckMatchWordOff(t *testing.T) {
 	lw, lay := newPrivateLeakWorkspace(t)
 	f, err := os.OpenFile(lay.ConfigPath, os.O_APPEND|os.O_WRONLY, 0)
 	if err != nil {
@@ -417,11 +418,11 @@ func TestIntegrationWorkflowLifecyclePrivateLeakCheckMatchWordOff(t *testing.T) 
 	}
 }
 
-// TestIntegrationWorkflowLifecyclePrivateLeakCheckUnverifiedPushesNothing
+// TestIntegrationPrivateModeLeakCheckUnverifiedPushesNothing
 // proves a scan that cannot run — a feature branch sharing no history with
 // origin's base, so the merge-base diff fails — refuses as unverified and
 // pushes nothing, never reading as a clean scan.
-func TestIntegrationWorkflowLifecyclePrivateLeakCheckUnverifiedPushesNothing(t *testing.T) {
+func TestIntegrationPrivateModeLeakCheckUnverifiedPushesNothing(t *testing.T) {
 	lw, _ := newPrivateLeakWorkspace(t)
 	orphan := runGit(t, lw.wp, "commit-tree", lw.specCommit+"^{tree}", "-m", "Unrelated root")
 	resetWorkspace(t, lw.wp, orphan)
@@ -436,11 +437,11 @@ func TestIntegrationWorkflowLifecyclePrivateLeakCheckUnverifiedPushesNothing(t *
 	}
 }
 
-// TestIntegrationWorkflowLifecyclePrivateLeakCheckScansBranchName proves the
+// TestIntegrationPrivateModeLeakCheckScansBranchName proves the
 // pushed feature branch name is scanned like any other published text: a
 // trivial change titled "Fix the dckt alias" — no spec copy, clean commits —
 // still refuses, because its slug puts dckt in the branch origin would show.
-func TestIntegrationWorkflowLifecyclePrivateLeakCheckScansBranchName(t *testing.T) {
+func TestIntegrationPrivateModeLeakCheckScansBranchName(t *testing.T) {
 	create := validChangeCreateRequest()
 	create.Title, create.Type = "Fix the dckt alias", "fix"
 	lw, _ := newPrivateLeakWorkspaceFor(t, create, false)
@@ -455,12 +456,12 @@ func TestIntegrationWorkflowLifecyclePrivateLeakCheckScansBranchName(t *testing.
 	}
 }
 
-// TestIntegrationWorkflowLifecyclePrivateLeakCheckGatesPR proves a private
+// TestIntegrationPrivateModeLeakCheckGatesPR proves a private
 // repository's pr.publish scans the authored title and body (as well as the
 // outgoing commits) before any GitHub write: a change reference in the title or
 // a .docket path in the body refuses with nothing ensured and the body never
 // echoed back, while clean prose is ensured byte-for-byte.
-func TestIntegrationWorkflowLifecyclePrivateLeakCheckGatesPR(t *testing.T) {
+func TestIntegrationPrivateModeLeakCheckGatesPR(t *testing.T) {
 	lw, _ := newPrivateLeakWorkspace(t)
 	head := commitInWorkspace(t, lw.wp, "Add the widget", map[string]string{"widget.go": "package widget\n"})
 	if pub := lw.publish(t, head); pub.Result != ResultApplied {
@@ -530,10 +531,10 @@ func TestIntegrationWorkflowLifecyclePrivateLeakCheckGatesPR(t *testing.T) {
 	})
 }
 
-// TestIntegrationWorkflowLifecycleSharedPublishRunsNoLeakCheck pins that a
+// TestIntegrationPrivateModeLeakCheckSkipsSharedPublish pins that a
 // shared repository never runs the scan: a change reference and a .docket path
 // publish untouched.
-func TestIntegrationWorkflowLifecycleSharedPublishRunsNoLeakCheck(t *testing.T) {
+func TestIntegrationPrivateModeLeakCheckSkipsSharedPublish(t *testing.T) {
 	lw := newSharedLeakWorkspace(t)
 	head := commitInWorkspace(t, lw.wp, "Add the widget (0003)", map[string]string{"x.txt": ".docket/x\n"})
 	pub := lw.publish(t, head)
