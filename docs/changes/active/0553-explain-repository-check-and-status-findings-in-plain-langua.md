@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-10-15'
-updated: '2026-10-15'
+updated: '2026-10-16'
 depends_on: []
 stacked_on:
 related: [496, 403, 352, 533, 539]

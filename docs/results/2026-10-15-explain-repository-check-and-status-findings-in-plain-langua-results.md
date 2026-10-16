@@ -4,23 +4,18 @@
 
 # Explain repository check and status findings in plain language — Results
 
-**Human action:** Needed. The run halted because the machine's disk filled up (100% used, 1.4 GiB free) during the post-fix full-suite gate. Free some disk space, then resume the change.
+**Human action:** Not required to merge. One optional walkthrough is listed below for anyone who wants to see the new wording.
 
 ## Outcome
 
-Build complete at a3ee5f9b7 (10 plan tasks, all green on the first full-suite run). Every record-level finding from `docket repository check` and `docket status` now carries a plain-language message, an "is it harmful" impact line, and a remedy. All 10 review findings were fixed in-branch (17da9b7e9, 43a703d44, 9ca351f34, 84439f2f3), but the post-fix suite gate could not certify head 84439f2f3: its run failed with "no space left on device" across many test jobs. That is an environment failure, not a code regression, so the fixes were not reverted.
+Every record-level finding from `docket repository check` and `docket status` now carries a plain-language message, an "is it harmful" impact line, and a remedy. The build finished at a3ee5f9b7 (10 plan tasks, green on the first full-suite run). All 10 review findings were fixed in-branch (17da9b7e9, 43a703d44, 9ca351f34, 84439f2f3). The first post-fix gate failed only because the disk filled up ("no space left on device"). After space was freed the run was resumed, and the full suite passed at 84439f2f3.
+
+## Human actions and testing
+
+- **Optional: see the new finding text.** Prerequisites: a scratch clone of any docket repository and the binary built from this branch. Steps: in the scratch clone's metadata worktree, change one change record's `priority:` to `urgent` and commit it locally, then run `docket repository check`. Expected: the finding gives a plain sentence about the unknown priority, a line saying whether it is harmful, and a remedy that names the groom revise priority edit. Cleanup: `git reset --hard HEAD~1` in that scratch metadata worktree.
 
 ## Verification performed
 
-- Full suite (`go run ./cmd/docket development test`) green at a3ee5f9b7 on the first attempt. Budget report showed BUDGET WATCH and PARALLEL-SENSITIVE screening lines only, with no SERIAL CONFIRMED OVER BUDGET.
-- Whole-branch review (deep tier, bumped from standard for a 3019-line diff): 10 findings (0 blocker, 3 important, 7 minor). Dispositions: finding 1 fixed in 17da9b7e9, 2 in 43a703d44, 3 in 9ca351f34, and 4-10 in 84439f2f3 (one batched commit). The post-fix gate at 84439f2f3 (drive 9c84c4ac) ended FAILED, and every failure in its log is "no space left on device". Findings returned:
-  1. important: `docket status` shows document-parse failures in raw form, with no impact and no remedy (`parseFinding`).
-  2. important: `findingsToStatus` attaches hand-edit remedies to findings from mutation refusals, which describe records that were never written.
-  3. important: record remedies in check name `.docket` and `docket repository repair` even when the setup state is not healthy and repair would refuse.
-  4. minor: `HandEditThenRepair` glues "in `<file>`" onto the end of the instruction; the empty-rel case leaves "it" with nothing to refer to.
-  5. minor: `PlainDocumentError` stacks two parentheticals and repeats the name.
-  6. minor: the type-invalid text describes the slug rule, not the type rule.
-  7. minor: placeholder values are quoted as if they were stored (`missing` status, `id: 0`).
-  8. minor: the priority-unknown remedy doesn't name the groom revise priority edit for proposed changes.
-  9. minor: a family-test fixture comment is misplaced.
-  10. minor: the empty-slug catalog fixture shows an unrealistic path, `0263-.md`.
+- Full suite (`go run ./cmd/docket development test`) green at a3ee5f9b7 and again at the final head 84439f2f3 (resumed run, attempt 1). Both budget reports had only BUDGET WATCH and PARALLEL-SENSITIVE screening lines, with no SERIAL CONFIRMED OVER BUDGET line.
+- The post-fix gate at 84439f2f3 (drive 9c84c4ac) failed first. Every failure in its log was "no space left on device", so the fixes were kept, not reverted. The resumed gate passed at the same head.
+- Review: deep tier (bumped from standard because the diff is 3019 lines). It returned 10 findings: 0 blocker, 3 important, 7 minor. All 10 were fixed. Finding 1 (status showed parse failures raw) was fixed in 17da9b7e9. Finding 2 (hand-edit remedies on mutation refusals) was fixed in 43a703d44. Finding 3 (remedies naming repair when the setup state would refuse it) was fixed in 9ca351f34. Findings 4-10 (wording and fixture details) were fixed together in 84439f2f3.
