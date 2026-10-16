@@ -2,7 +2,7 @@
 id: 555
 slug: 'give-claude-its-own-claude-md-block-when-agents-md-stops-bei'
 title: 'Keep Claude''s dispatch block in AGENTS.md while CLAUDE.md links to it'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-16'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/give-claude-its-own-claude-md-block-when-agents-md-stops-bei'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-16T20:09:24Z'
 ---
 
 ## Artifacts
