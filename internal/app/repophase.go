@@ -167,8 +167,10 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 		targets, owners, err = reposeed.Plan(reposeed.PlanInput{
 			WorktreeRoot:  root,
 			Harnesses:     effective,
+			OptIns:        optIns,
 			RunTracker:    runTracker,
 			ClaudeMDState: classifyClaudeMD(root),
+			AgentsMDState: classifyAgentsMD(root),
 		})
 		if err != nil {
 			return nil, "", nil, &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
@@ -314,6 +316,25 @@ func classifyClaudeMD(root string) reposeed.ClaudeMDState {
 	default:
 		return reposeed.ClaudeMDOther
 	}
+}
+
+// classifyAgentsMD computes the AGENTS.md pre-state reposeed.Plan needs (it never
+// stats a path): AgentsMDMissing when there is no AGENTS.md, AgentsMDRegularFile
+// for a regular file, and AgentsMDOther for anything else — a symlink (circular
+// included) or a directory. A stat error other than not-exist is AgentsMDOther,
+// never "missing": a probe that failed is not a clean absence.
+func classifyAgentsMD(root string) reposeed.AgentsMDState {
+	info, err := os.Lstat(filepath.Join(root, "AGENTS.md"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return reposeed.AgentsMDMissing
+		}
+		return reposeed.AgentsMDOther
+	}
+	if info.Mode().IsRegular() {
+		return reposeed.AgentsMDRegularFile
+	}
+	return reposeed.AgentsMDOther
 }
 
 // composeRecordBytes renders the ownership record this run publishes: the new

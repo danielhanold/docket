@@ -9,10 +9,13 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/install"
 	"github.com/danielhanold/docket/internal/layout"
@@ -336,5 +339,303 @@ func TestIntegrationContextProbeResolveRepoPhaseToleratesUnknownKeys(t *testing.
 	var re *RepoResolutionError
 	if !errors.As(err, &re) || re.Reason != ReasonInvalidConfig {
 		t.Fatalf("strict err = %v, want RepoResolutionError with %q", err, ReasonInvalidConfig)
+	}
+}
+
+// seedSharedSurfaces writes the surfaces reposeed.Plan plans for the given inputs
+// and publishes their ownership record, as an earlier install would have. A
+// non-nil agentsOwners overrides the recorded AGENTS.md owners, to reproduce a
+// record written under an older owner rule.
+func seedSharedSurfaces(t *testing.T, root, gitDir string, harnesses []string, claudeMD reposeed.ClaudeMDState, agentsMD reposeed.AgentsMDState, agentsOwners []string) {
+	t.Helper()
+	rt, err := buildRunTracker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	targets, owners, err := reposeed.Plan(reposeed.PlanInput{
+		WorktreeRoot:  root,
+		Harnesses:     harnesses,
+		RunTracker:    rt,
+		ClaudeMDState: claudeMD,
+		AgentsMDState: agentsMD,
+	})
+	if err != nil {
+		t.Fatalf("seed Plan: %v", err)
+	}
+	if agentsOwners != nil {
+		owners[filepath.Join(root, "AGENTS.md")] = agentsOwners
+	}
+	rec, err := reposeed.DesiredRecord(targets, owners, root)
+	if err != nil {
+		t.Fatalf("seed DesiredRecord: %v", err)
+	}
+	recBytes, err := reposeed.EncodeRecord(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots, err := install.ResolveRoots(os.UserHomeDir, os.Getenv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	phase := &install.RepoPhase{
+		Authorized:  true,
+		Worktree:    root,
+		Targets:     targets,
+		Owners:      owners,
+		RecordPath:  reposeed.RecordPath(gitDir, layout.SharedName),
+		RecordBytes: recBytes,
+	}
+	if _, err := applyRepoPhaseSurfaces(phase, roots); err != nil {
+		t.Fatalf("seed apply: %v", err)
+	}
+}
+
+// installShared runs the shared-mode repository phase of an install over root,
+// scoped to scope (nil for every opted-in harness), and applies it. It returns
+// the phase and whether the apply wrote anything.
+func installShared(t *testing.T, root string, scope []string) (*install.RepoPhase, bool) {
+	t.Helper()
+	rt, err := buildRunTracker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	phase, _, _, err := ResolveRepoPhase(context.Background(), newGitClient(t), root, scope, rt, nil, config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		t.Fatalf("ResolveRepoPhase: %v", err)
+	}
+	if phase == nil || !phase.Authorized {
+		t.Fatalf("phase = %+v, want an authorized phase", phase)
+	}
+	roots, err := install.ResolveRoots(os.UserHomeDir, os.Getenv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrote, err := applyRepoPhaseSurfaces(phase, roots)
+	if err != nil {
+		t.Fatalf("applyRepoPhaseSurfaces: %v", err)
+	}
+	return phase, wrote
+}
+
+// writeLinkOnlyRecord publishes a shared ownership record holding only the
+// claude CLAUDE.md link to AGENTS.md.
+func writeLinkOnlyRecord(t *testing.T, gitDir string) {
+	t.Helper()
+	b, err := reposeed.EncodeRecord(&reposeed.Record{
+		FormatVersion: reposeed.RecordFormatVersion,
+		Surfaces: []reposeed.SurfaceRecord{
+			{Path: "CLAUDE.md", Kind: install.KindSymlink, LinkTarget: "AGENTS.md", Harnesses: []string{"claude"}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recPath := reposeed.RecordPath(gitDir, layout.SharedName)
+	if err := os.MkdirAll(filepath.Dir(recPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(recPath, b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// agentsDispatch reads AGENTS.md and returns its dispatch block's interior and
+// the file with the whole block removed, trimmed of leading blank lines.
+func agentsDispatch(t *testing.T, root string) (interior, rest string) {
+	t.Helper()
+	src, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read AGENTS.md: %v", err)
+	}
+	doc, err := document.Parse(src)
+	if err != nil {
+		t.Fatalf("parse AGENTS.md: %v", err)
+	}
+	b, ok := doc.Block("dispatch")
+	if !ok {
+		t.Fatalf("AGENTS.md has no dispatch block:\n%s", src)
+	}
+	interior = string(src[b.Interior.Start:b.Interior.End])
+	rest = strings.TrimLeft(string(src[:b.Start.Start])+string(src[b.End.End:]), "\n")
+	return interior, rest
+}
+
+// assertClaudeLink fails unless CLAUDE.md is a symlink reading "AGENTS.md".
+func assertClaudeLink(t *testing.T, root string) {
+	t.Helper()
+	p := filepath.Join(root, "CLAUDE.md")
+	info, err := os.Lstat(p)
+	if err != nil {
+		t.Fatalf("lstat CLAUDE.md: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("CLAUDE.md mode = %v, want a symlink", info.Mode())
+	}
+	if dest, err := os.Readlink(p); err != nil || dest != "AGENTS.md" {
+		t.Fatalf("CLAUDE.md -> %q (%v), want AGENTS.md", dest, err)
+	}
+}
+
+// assertClaudeResolvesToAgents fails unless CLAUDE.md is a symlink that resolves
+// to the sibling AGENTS.md (whatever spelling the link's destination uses).
+func assertClaudeResolvesToAgents(t *testing.T, root string) {
+	t.Helper()
+	p := filepath.Join(root, "CLAUDE.md")
+	if info, err := os.Lstat(p); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("CLAUDE.md = %v (%v), want a symlink", info, err)
+	}
+	ci, err := os.Stat(p)
+	if err != nil {
+		t.Fatalf("CLAUDE.md does not resolve: %v", err)
+	}
+	ai, err := os.Stat(filepath.Join(root, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(ci, ai) {
+		t.Errorf("CLAUDE.md does not resolve to AGENTS.md")
+	}
+}
+
+// recordOwners loads the published shared record and maps each surface path to
+// its surface record.
+func recordOwners(t *testing.T, gitDir string) map[string]reposeed.SurfaceRecord {
+	t.Helper()
+	rec, err := reposeed.LoadRecord(reposeed.RecordPath(gitDir, layout.SharedName))
+	if err != nil || rec == nil {
+		t.Fatalf("LoadRecord = %v, %v", rec, err)
+	}
+	out := map[string]reposeed.SurfaceRecord{}
+	for _, s := range rec.Surfaces {
+		out[s.Path] = s
+	}
+	return out
+}
+
+const claudeShareUserText = "# Project rules\n\nUse tabs.\n"
+
+// TestIntegrationContextProbeClaudeShareHandMadeLinkAddsBlock: a claude-only
+// repository whose user hand-linked CLAUDE.md to their own AGENTS.md gets the
+// dispatch block inserted into AGENTS.md, every user byte kept, the link kept.
+func TestIntegrationContextProbeClaudeShareHandMadeLinkAddsBlock(t *testing.T) {
+	pinInstructionsUserRoots(t)
+	root, gitDir := initGitRepo(t, "agent_harnesses: [claude]\n")
+	writeRepoFile(t, root, "AGENTS.md", claudeShareUserText)
+	if err := os.Symlink("AGENTS.md", filepath.Join(root, "CLAUDE.md")); err != nil {
+		t.Fatal(err)
+	}
+
+	installShared(t, root, nil)
+
+	if _, rest := agentsDispatch(t, root); rest != claudeShareUserText {
+		t.Errorf("AGENTS.md outside the block = %q, want the user text %q", rest, claudeShareUserText)
+	}
+	assertClaudeLink(t, root)
+	surfaces := recordOwners(t, gitDir)
+	if s := surfaces["CLAUDE.md"]; s.Kind != install.KindSymlink || !reflect.DeepEqual(s.Harnesses, []string{"claude"}) {
+		t.Errorf("CLAUDE.md record = %+v, want a claude symlink", s)
+	}
+	if s := surfaces["AGENTS.md"]; !reflect.DeepEqual(s.Harnesses, []string{"claude"}) {
+		t.Errorf("AGENTS.md record = %+v, want owners [claude]", s)
+	}
+}
+
+// TestIntegrationContextProbeClaudeShareRepairsLostBlock: the record holds only
+// the claude link and AGENTS.md lost its block; install puts the block back and
+// leaves the user text untouched.
+func TestIntegrationContextProbeClaudeShareRepairsLostBlock(t *testing.T) {
+	pinInstructionsUserRoots(t)
+	root, gitDir := initGitRepo(t, "agent_harnesses: [claude]\n")
+	writeRepoFile(t, root, "AGENTS.md", claudeShareUserText)
+	if err := os.Symlink("AGENTS.md", filepath.Join(root, "CLAUDE.md")); err != nil {
+		t.Fatal(err)
+	}
+	writeLinkOnlyRecord(t, gitDir)
+
+	installShared(t, root, nil)
+
+	if _, rest := agentsDispatch(t, root); rest != claudeShareUserText {
+		t.Errorf("AGENTS.md outside the block = %q, want the user text %q", rest, claudeShareUserText)
+	}
+	assertClaudeLink(t, root)
+}
+
+// TestIntegrationContextProbeClaudeShareRepairsMissingAgentsMD: the CLAUDE.md
+// link dangles because AGENTS.md is gone; install recreates AGENTS.md with the
+// block so the link resolves again.
+func TestIntegrationContextProbeClaudeShareRepairsMissingAgentsMD(t *testing.T) {
+	pinInstructionsUserRoots(t)
+	root, gitDir := initGitRepo(t, "agent_harnesses: [claude]\n")
+	if err := os.Symlink("AGENTS.md", filepath.Join(root, "CLAUDE.md")); err != nil {
+		t.Fatal(err)
+	}
+	writeLinkOnlyRecord(t, gitDir)
+
+	installShared(t, root, nil)
+
+	agentsDispatch(t, root)
+	assertClaudeLink(t, root)
+	assertClaudeResolvesToAgents(t, root)
+}
+
+// TestIntegrationContextProbeClaudeShareNoClaudeMDLinksOwnAgentsMD: a
+// claude-only repository with its own AGENTS.md and no CLAUDE.md gets CLAUDE.md
+// linked to AGENTS.md and the block inserted beside the user text.
+func TestIntegrationContextProbeClaudeShareNoClaudeMDLinksOwnAgentsMD(t *testing.T) {
+	pinInstructionsUserRoots(t)
+	root, _ := initGitRepo(t, "agent_harnesses: [claude]\n")
+	writeRepoFile(t, root, "AGENTS.md", claudeShareUserText)
+
+	installShared(t, root, nil)
+
+	assertClaudeResolvesToAgents(t, root)
+	if _, rest := agentsDispatch(t, root); rest != claudeShareUserText {
+		t.Errorf("AGENTS.md outside the block = %q, want the user text %q", rest, claudeShareUserText)
+	}
+}
+
+// TestIntegrationContextProbeClaudeShareNonRegularAgentsMDUnchanged: CLAUDE.md
+// links to an AGENTS.md that is a directory; nothing is planned for Claude and
+// the run still succeeds without touching either path.
+func TestIntegrationContextProbeClaudeShareNonRegularAgentsMDUnchanged(t *testing.T) {
+	pinInstructionsUserRoots(t)
+	root, _ := initGitRepo(t, "agent_harnesses: [claude]\n")
+	if err := os.Mkdir(filepath.Join(root, "AGENTS.md"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("AGENTS.md", filepath.Join(root, "CLAUDE.md")); err != nil {
+		t.Fatal(err)
+	}
+
+	phase, _ := installShared(t, root, nil)
+
+	if len(phase.Targets) != 0 {
+		t.Errorf("targets = %v, want none", targetPaths(phase))
+	}
+	assertClaudeLink(t, root)
+	if info, err := os.Lstat(filepath.Join(root, "AGENTS.md")); err != nil || !info.IsDir() {
+		t.Errorf("AGENTS.md = %v (%v), want the untouched directory", info, err)
+	}
+	if entries, err := os.ReadDir(filepath.Join(root, "AGENTS.md")); err != nil || len(entries) != 0 {
+		t.Errorf("AGENTS.md directory entries = %v (%v), want empty", entries, err)
+	}
+}
+
+// TestIntegrationContextProbeClaudeShareScopedRunKeepsCodexClause: a
+// --harness opencode run in a repository that opts codex in too keeps the
+// AGENTS.md interior, Codex clause included, byte-identical.
+func TestIntegrationContextProbeClaudeShareScopedRunKeepsCodexClause(t *testing.T) {
+	pinInstructionsUserRoots(t)
+	root, _ := initGitRepo(t, "agent_harnesses: [claude, codex, opencode]\n")
+
+	installShared(t, root, nil)
+	before, _ := agentsDispatch(t, root)
+	if !strings.Contains(before, "### Codex root-coordinator entry") {
+		t.Fatalf("full install interior lacks the Codex clause:\n%s", before)
+	}
+
+	installShared(t, root, []string{"opencode"})
+	if after, _ := agentsDispatch(t, root); after != before {
+		t.Errorf("scoped run changed the AGENTS.md interior:\nbefore:\n%s\nafter:\n%s", before, after)
 	}
 }
