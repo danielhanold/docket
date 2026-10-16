@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -23,10 +22,11 @@ import (
 // fixtureRoot is the frozen tree, relative to this package's directory.
 const fixtureRoot = "../../testdata/repositories/v0.9.2"
 
-// fixtureAgentHarness and fixtureAgentName are the concrete names the
-// deferred-active fixture uses for the dynamic `agents.<h>.<a>` subtree. The
+// fixtureAgentHarness and fixtureAgentName are the concrete names
+// deferredActiveYAML uses for the dynamic `agents.<h>.<a>` subtree. The
 // derivation in repoSettableDeferredPaths substitutes them for the registry's
-// "*" segments, so the fixture and the expectation cannot drift apart.
+// "*" segments, so the inline configuration and the expectation cannot drift
+// apart.
 const (
 	fixtureAgentHarness = "claude"
 	fixtureAgentName    = "adr"
@@ -45,13 +45,10 @@ func loadFixture(t *testing.T, name string) (*Snapshot, []Diagnostic, error) {
 	return loadFixtureFrom(t, fixtureRoot, name)
 }
 
-// loadFixtureFrom is loadFixture parameterized by the versioned tree root, for
-// the rare reader that must resolve a fixture from a tree other than the shared
-// fixtureRoot (TestFixtureDocketSelf, whose frozen copy was re-cut into a newer
-// versioned tree when docket's own .docket.yml changed, and
-// TestFixtureDeferredActive, re-cut when the registry gained a repo-settable
-// deferred row). Every other fixture test stays on fixtureRoot through
-// loadFixture.
+// loadFixtureFrom is loadFixture over an explicit fixture root instead of
+// fixtureRoot — in practice a directory writeFixture built, for the tests whose
+// input must keep up with docket (TestFixtureDocketSelf and
+// TestFixtureDeferredActive). Every other fixture test uses loadFixture.
 func loadFixtureFrom(t *testing.T, root, name string) (*Snapshot, []Diagnostic, error) {
 	t.Helper()
 	tmp := t.TempDir()
@@ -86,8 +83,8 @@ func mustResolveFixture(t *testing.T, name string) *Snapshot {
 	return mustResolveFixtureFrom(t, fixtureRoot, name)
 }
 
-// mustResolveFixtureFrom is mustResolveFixture parameterized by the versioned
-// tree root — see loadFixtureFrom.
+// mustResolveFixtureFrom is mustResolveFixture over an explicit fixture root —
+// see loadFixtureFrom.
 func mustResolveFixtureFrom(t *testing.T, root, name string) *Snapshot {
 	t.Helper()
 	snap, diags, err := loadFixtureFrom(t, root, name)
@@ -98,6 +95,31 @@ func mustResolveFixtureFrom(t *testing.T, root, name string) *Snapshot {
 		t.Fatalf("fixture %s: Resolve returned a nil snapshot without an error", name)
 	}
 	return snap
+}
+
+// writeFixture builds a fixture directory from strings in a fresh temp dir:
+// <root>/<name>/repo/.docket.yml, plus <root>/<name>/xdg/docket/config.yml when
+// globalYAML is non-empty. It returns root, for loadFixtureFrom and
+// mustResolveFixtureFrom. A test whose input must keep up with docket builds it
+// here rather than reading it from testdata/.
+func writeFixture(t *testing.T, name, repoYAML, globalYAML string) string {
+	t.Helper()
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		p := filepath.Join(root, name, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatalf("fixture %s: creating %s: %v", name, filepath.Dir(p), err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatalf("fixture %s: writing %s: %v", name, p, err)
+		}
+	}
+	write("repo/.docket.yml", repoYAML)
+	if globalYAML != "" {
+		write("xdg/docket/config.yml", globalYAML)
+	}
+	return root
 }
 
 func formatDiags(diags []Diagnostic) string {
@@ -120,35 +142,6 @@ func diagPathSet(snap *Snapshot, code string) map[string]bool {
 		out[path] = true
 	}
 	return out
-}
-
-// assertFrozenCopyMatchesLive is the drift signal for a frozen fixture that is
-// a byte copy of a file this repository still maintains. Without it the
-// correspondence runs one way — the tests pin themselves to the copy, and the
-// live original is free to move without reddening anything.
-//
-// The frozen tree is an immutable input (testdata/README.md), so a failure here
-// is NEVER repaired by editing the copy: a legitimately changed live file means
-// a new versioned fixture tree, cut together with whatever the frozen copy
-// feeds. That instruction is what `remedy` carries.
-//
-// Both paths are relative to this package's directory, which is the working
-// directory of a `go test` run.
-func assertFrozenCopyMatchesLive(t *testing.T, frozenPath, livePath, remedy string) {
-	t.Helper()
-	frozen, err := os.ReadFile(filepath.FromSlash(frozenPath))
-	if err != nil {
-		t.Fatalf("reading the frozen copy %s: %v", frozenPath, err)
-	}
-	live, err := os.ReadFile(filepath.FromSlash(livePath))
-	if err != nil {
-		t.Fatalf("reading the live original %s: %v", livePath, err)
-	}
-	if !bytes.Equal(frozen, live) {
-		t.Errorf("the live %s no longer matches its frozen copy %s.\n"+
-			"Do NOT edit the frozen copy: testdata/repositories/v0.9.2/ is an immutable input.\n"+
-			"%s", livePath, frozenPath, remedy)
-	}
 }
 
 func assertSameStrings(t *testing.T, what string, got, want []string) {
@@ -504,67 +497,57 @@ func TestFixtureGuardedMachineKeys(t *testing.T) {
 	}
 }
 
-// TestFixtureDocketSelf: this repository's own committed .docket.yml plus a
-// global layer requesting auto-capture — the four-blocker envelope docket
-// currently runs under. The expectations below are read off the FROZEN copy, so
-// they are only about docket's own live configuration for as long as the copy
-// still matches it: the byte-equality assert is what keeps that true, reddening
-// when the live .docket.yml starts asking for something new.
+// docketSelfGlobalYAML is the machine-global layer of the docket-self fixture:
+// one deferred capability requested from outside the repository, so the
+// blocker envelope spans layers.
+const docketSelfGlobalYAML = `auto_capture:
+  enabled: true
+`
+
+// docketSelfRederive is the remedy every TestFixtureDocketSelf failure carries.
+const docketSelfRederive = "docket's own .docket.yml changed what this test checks: " +
+	"re-derive these expectations by running the resolver against it and reading its actual output."
+
+// TestFixtureDocketSelf: this repository's own committed .docket.yml, read where
+// it lives, plus a global layer requesting auto-capture — the blocker envelope
+// docket runs under. Only that one file is copied into the fixture, never the
+// checkout root, so a developer's .docket.local.yml cannot reach this test.
 func TestFixtureDocketSelf(t *testing.T) {
-	// The frozen copy is re-cut into a newer versioned tree each time docket's own
-	// .docket.yml changes; this test — and only this test — reads that tree. Change
-	// 0318 cut v0.9.6, moving finalize.test_command onto the Go-native source entry
-	// `go run ./cmd/docket development test` (the whole-suite gate cutover). Change
-	// 0468 cut v0.9.8 for a comment-only rewording (ADR-0129 row 64). v0.9.10
-	// adds the explicit agent_harnesses opt-in, which requests no deferred
-	// capability and so leaves the blocker set below unchanged. v0.9.12 drops the
-	// explicit `finalize.skip_results_only_delta: false` (now an obsolete
-	// tombstone), which requested nothing either.
-	const docketSelfRoot = "../../testdata/repositories/v0.9.12"
+	self, err := os.ReadFile(filepath.FromSlash("../../.docket.yml"))
+	if err != nil {
+		t.Fatalf("reading docket's own .docket.yml: %v", err)
+	}
+	root := writeFixture(t, "docket-self", string(self), docketSelfGlobalYAML)
+	snap := mustResolveFixtureFrom(t, root, "docket-self")
 
-	assertFrozenCopyMatchesLive(t,
-		filepath.Join(docketSelfRoot, "docket-self", "repo", ".docket.yml"),
-		"../../.docket.yml",
-		"docket's own configuration changed: cut a NEW versioned fixture tree from the current .docket.yml and re-derive this test's expectations (test_command, the blocker set, and each blocker's layer) against it.")
-
-	snap := mustResolveFixtureFrom(t, docketSelfRoot, "docket-self")
-
-	// The Go-native whole-suite runner is docket's own gate as of change 0318:
-	// finalize.test_command is the branch-faithful source entry `go run
-	// ./cmd/docket development test`, entered from source so the gate tests the
-	// exact checkout under review and never a stale installed binary. The
-	// byte-equality assert above keeps this expectation honest — a further change
-	// to the live .docket.yml re-cuts a newer versioned fixture tree here.
-	if snap.Effective.Finalize.TestCommand.Value != "go run ./cmd/docket development test" {
-		t.Errorf("finalize.test_command = %q, want go run ./cmd/docket development test", snap.Effective.Finalize.TestCommand.Value)
+	// docket's own gate is the Go-native whole-suite runner, entered from source
+	// so the gate tests the exact checkout under review.
+	if got, want := snap.Effective.Finalize.TestCommand.Value, "go run ./cmd/docket development test"; got != want {
+		t.Errorf("finalize.test_command = %q, want %q.\n%s", got, want, docketSelfRederive)
 	}
 
+	// The committed file requests no deferred capability; the machine-global
+	// auto-capture request is the sole blocker.
 	decision := PreflightMutation(snap)
-	// After the contraction the two committed switches are explicitly false, so
-	// they no longer request anything. The machine-global auto-capture request in
-	// this fixture's xdg layer is untouched and remains the sole blocker: the
-	// configuration is still refused, now on one deferred capability from one
-	// layer rather than four across two.
 	if decision.Allowed {
-		t.Fatalf("preflight allowed a configuration still requesting global auto-capture")
+		t.Fatalf("preflight allowed a configuration still requesting global auto-capture.\n%s", docketSelfRederive)
 	}
-	assertSameStrings(t, "docket-self blockers", blockerPaths(snap), []string{
+	assertSameStrings(t, "docket-self blockers ("+docketSelfRederive+")", blockerPaths(snap), []string{
 		"auto_capture.enabled",
 	})
 
-	// The lone surviving blocker comes from the machine-global layer; the
-	// committed file contributes none now that its switches are off. Asserting
-	// the layer keeps the guard honest about which file the request lives in.
+	// The lone blocker comes from the machine-global layer; asserting the layer
+	// keeps the test honest about which file the request lives in.
 	wantLayer := map[string]LayerKind{
 		"auto_capture.enabled": LayerGlobal,
 	}
 	for _, b := range decision.Blockers {
 		if b.Provenance == nil {
-			t.Errorf("blocker %s carries no provenance", b.Path)
+			t.Errorf("blocker %s carries no provenance.\n%s", b.Path, docketSelfRederive)
 			continue
 		}
 		if got := b.Provenance.Layer; got != wantLayer[b.Path] {
-			t.Errorf("blocker %s came from layer %q, want %q", b.Path, got, wantLayer[b.Path])
+			t.Errorf("blocker %s came from layer %q, want %q.\n%s", b.Path, got, wantLayer[b.Path], docketSelfRederive)
 		}
 		if b.Severity != SeverityError {
 			t.Errorf("blocker %s severity %q, want error", b.Path, b.Severity)
@@ -615,23 +598,78 @@ func TestFixtureDeferredPairs(t *testing.T) {
 	}
 }
 
+// deferredActiveYAML requests every repository-settable deferred capability at
+// once: the complete blocker set in one document. TestFixtureDeferredActive
+// derives the expected set from the schema registry rather than from this text,
+// so a deferred row added to the registry without a request here fails, naming
+// the path to add. The agents block uses fixtureAgentHarness/fixtureAgentName.
+const deferredActiveYAML = `finalize:
+  gate: ci
+  skip_results_only_delta: true
+
+build:
+  checkpoint: true
+
+terminal_publish: true
+auto_groom: true
+
+auto_capture:
+  enabled: true
+
+dummy_mode:
+  enabled: true
+
+board_surfaces: [inline, github]
+
+skills:
+  brainstorm: docket-brainstorm
+  plan: docket-plan
+  build: docket-build
+  review: docket-review
+  finish: docket-finish
+
+agents:
+  claude:
+    adr:
+      model: repo-pinned-model
+      effort: high
+      cache_ttl: 1h
+      runner: codex
+`
+
 // TestFixtureDeferredActive: every repo-settable deferred capability requested
-// at once. The expected blocker set is DERIVED from the registry rather than
-// transcribed from the fixture, so adding a deferred row without extending the
-// fixture fails here instead of quietly shrinking the coverage.
+// at once, from deferredActiveYAML. The expected blocker set is DERIVED from the
+// registry rather than transcribed from the configuration, so adding a deferred
+// row without requesting it in deferredActiveYAML fails here, naming the path.
 func TestFixtureDeferredActive(t *testing.T) {
-	// The fixture is re-cut into a newer versioned tree each time the registry
-	// gains a repo-settable deferred row, because it must request every such
-	// capability at once; this test reads that tree. v0.9.13 adds the
-	// `agents.*.*.cache_ttl` agent pin.
-	const deferredActiveRoot = "../../testdata/repositories/v0.9.13"
-	snap := mustResolveFixtureFrom(t, deferredActiveRoot, "deferred-active")
+	root := writeFixture(t, "deferred-active", deferredActiveYAML, "")
+	snap := mustResolveFixtureFrom(t, root, "deferred-active")
 
 	decision := PreflightMutation(snap)
 	if decision.Allowed {
 		t.Fatalf("preflight allowed a configuration requesting every deferred capability")
 	}
-	assertSameStrings(t, "deferred-active blockers", blockerPaths(snap), repoSettableDeferredPaths(t))
+
+	got := blockerPaths(snap)
+	want := repoSettableDeferredPaths(t)
+	requested := make(map[string]bool, len(got))
+	for _, path := range got {
+		requested[path] = true
+	}
+	settable := make(map[string]bool, len(want))
+	for _, path := range want {
+		settable[path] = true
+		if !requested[path] {
+			t.Errorf("%s is a repository-settable deferred capability that deferredActiveYAML does not request: "+
+				"add it to deferredActiveYAML in internal/config/fixtures_test.go", path)
+		}
+	}
+	for _, path := range got {
+		if !settable[path] {
+			t.Errorf("deferredActiveYAML requests %s, which blocks but is not a repository-settable deferred registry row", path)
+		}
+	}
+	assertSameStrings(t, "deferred-active blockers", got, want)
 
 	// Each blocker names the file and offers a way out; a blocker a user
 	// cannot act on is a dead end.
@@ -684,7 +722,8 @@ func repoSettableDeferredPaths(t *testing.T) []string {
 		}
 		path := strings.Replace(spec.path, "agents.*.*.", "agents."+fixtureAgentHarness+"."+fixtureAgentName+".", 1)
 		if strings.Contains(path, "*") {
-			t.Fatalf("registry row %q is a blocking dynamic row with no fixture concretization; extend the deferred-active fixture and this substitution", spec.path)
+			t.Fatalf("registry row %q is a blocking dynamic row with no concrete name in this test: "+
+				"add a request for it to deferredActiveYAML in internal/config/fixtures_test.go and extend this substitution", spec.path)
 		}
 		out = append(out, path)
 	}
