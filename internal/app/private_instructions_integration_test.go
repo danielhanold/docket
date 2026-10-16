@@ -238,16 +238,16 @@ func TestIntegrationPrivateInstructionsRetiresBuggyWorktreeSurfaces(t *testing.T
 	}
 
 	// The CLAUDE.md link and the Cursor rule are wholly docket's and are deleted.
-	// AGENTS.md is a managed block inside a file the user may also own, so its
-	// retirement cuts only the block and keeps the file and every other byte.
+	// AGENTS.md is a managed block inside a file the user may also own; its
+	// retirement cuts only the block, and since the seeded file held nothing
+	// else the file is deleted.
 	for _, rel := range buggy[1:] {
 		if _, err := os.Lstat(filepath.Join(primary, rel)); !os.IsNotExist(err) {
 			t.Errorf("%s survived the install (err=%v); want it retired", rel, err)
 		}
 	}
-	// The seeded file held only the block, so nothing of it is left.
-	if agents, err := os.ReadFile(filepath.Join(primary, "AGENTS.md")); (err != nil && !os.IsNotExist(err)) || len(agents) != 0 {
-		t.Errorf("AGENTS.md = %q (%v) after the install; want its dispatch block retired and nothing left", agents, err)
+	if _, err := os.Lstat(filepath.Join(primary, "AGENTS.md")); !os.IsNotExist(err) {
+		t.Errorf("AGENTS.md survived (err=%v); it held only the dispatch block, so its retirement deletes it", err)
 	}
 	if private := string(mustReadFile(t, layout.PrivateInstructionsPath(common))); !strings.Contains(private, dispatchStartMarker) {
 		t.Errorf("%s = %q, want the dispatch block", layout.PrivateInstructionsDisplay, private)
