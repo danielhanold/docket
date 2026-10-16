@@ -6,20 +6,23 @@ top-tier prices to regenerate a **board** (the generated overview of every chang
 never edited by hand) — and thinking at the cheap tier while designing a build. Both are the same
 mistake in opposite directions: the model was matched to the **session** instead of to the task.
 
-docket's unit of work is the skill, so the tier is a property of the skill, not of your session. A
-`docket-status` sweep is mechanical file bookkeeping — the cheap tier. A `docket-implement-next`
-build and the autonomous design pass before it both reason hardest about the **change** (one unit of
-planned work, roughly one pull request, tracked as one markdown file), so both run the top tier —
-but the build spends more effort, because turning a settled design into working code demands more
-deliberation than drafting the design did. Recording the decision it reached (`docket-adr`) runs
-that same top-tier model at the lowest effort. They run in the **same session**, minutes apart, each
-at its own model and effort, and you never pick one.
+docket's unit of work is the skill, so the tier is a property of the skill, not of your session.
+Each docket agent ships pinned to the model and effort its job calls for, and the built-in values
+are shown in [`.docket.example.yml`](../../.docket.example.yml). Different agents run in the **same
+session**, minutes apart, each at its own model and effort, and you never pick one.
 
 Each **autonomous** docket skill runs as a model/effort-pinned **agent** — a separately launched
 worker with its own context, pinned to a model and effort (`docket-implement-next`,
 `docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`; the two interactive
-skills, `docket-new-change` and `docket-groom-next`, stay inline and only surface an advisory
-recommendation). To change the model or effort one of them runs at:
+skills, `docket-new-change` and `docket-groom-next`, stay inline).
+
+The two interactive skills, `docket-new-change` and `docket-groom-next`, run at whatever model and
+effort your session uses, so you choose them. Pick by preference and by how complex you expect the
+change to be: a quick stub, a trivial verdict, or a small revise needs little, while a net-new
+design, a cross-cutting change, or a stub whose premise needs tracing through the code is worth
+your strongest model at higher effort.
+
+To change the model or effort an autonomous skill runs at:
 
 **1. Edit your global config.** Pins live in the `agents:` block of your global
 `~/.config/docket/config.yml` (see [Global config](global-config.md)), and only there: docket
