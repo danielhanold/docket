@@ -572,14 +572,12 @@ func TestIntegrationGatedriveDriverSlicesAcrossLiveChildThenPasses(t *testing.T)
 		}
 	}
 	releaseChild(t, sig)
-	term, waiting := advanceUntilTerminal(t, d, doc.DriveID, doc.Generation)
+	term, _ := advanceUntilTerminal(t, d, doc.DriveID, doc.Generation)
 	if term.Outcome != PASSED {
 		t.Fatalf("terminal outcome %s (cause %q), want PASSED", term.Outcome, term.Cause)
 	}
-	// The WAITING count includes the two held advances above.
-	if 2+waiting < 2 {
-		t.Fatalf("child did not span multiple slices: only %d WAITING invocations", 2+waiting)
-	}
+	// The two held advances in the loop above are the multi-slice proof:
+	// each returned WAITING while the child was still live.
 
 	// Identity stable across every invocation, and the child was never
 	// duplicated: still exactly one run dir, same supervisor pid/pgid/sid.

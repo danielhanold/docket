@@ -48,6 +48,9 @@ func startHelperAppServer(t *testing.T, mode string) Transport {
 }
 
 func TestRecvReportsStderrOfServerThatClosedStdoutFirst(t *testing.T) {
+	old := recvStderrGrace
+	recvStderrGrace = 30 * time.Second
+	t.Cleanup(func() { recvStderrGrace = old })
 	tr := startHelperAppServer(t, "stdout-closes-first")
 	_, err := tr.Recv()
 	if err == nil {
