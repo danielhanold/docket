@@ -423,6 +423,7 @@ func planToPrivate(st visibilityState, o SetVisibilityOptions) []visibilityStep 
 			wantURL = abs
 		}
 	}
+	noHarnesses := len(st.sc.cfg.AgentHarnesses.Value) == 0
 	sourceName := "the dckt branch"
 	if st.originDocket.State == gitcli.RemoteRefFound {
 		sourceName = "origin's docket branch"
@@ -474,8 +475,11 @@ func planToPrivate(st visibilityState, o SetVisibilityOptions) []visibilityStep 
 			run:    privateMetadataWorktreePhase,
 		},
 		{
-			name:   "instructions",
-			done:   st.privateStateDir && !st.recordWorkingTree && (!st.facts.SurfacesAuthorized || st.privateInstructions),
+			name: "instructions",
+			// An empty declared harness list has nothing to install, so the
+			// phase needs no file; with any harness declared the file is still
+			// required (existence only).
+			done:   st.privateStateDir && !st.recordWorkingTree && (!st.facts.SurfacesAuthorized || noHarnesses || st.privateInstructions),
 			detail: "install the dispatch instructions into " + layout.PrivateInstructionsDisplay,
 			run:    privateInstructionsPhase,
 		},
