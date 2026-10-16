@@ -13,7 +13,7 @@ related: [533]
 discovered_from: [533]
 adrs: []
 spec:
-plan:
+plan: 'docs/superpowers/plans/2026-10-16-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md'
 results:
 trivial: true
 auto_groomable:
@@ -28,6 +28,9 @@ claimed_at: '2026-10-16T12:09:39Z'
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Plan | [2026-10-16-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md](../../superpowers/plans/2026-10-16-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
