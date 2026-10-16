@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/split-the-private-leak-check-tests-out-of-the-workflow-lifec'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-16T15:10:56Z'
+reconciled: true
+claimed_at: '2026-10-16T15:13:32Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ Rename the seven private-mode integration tests (the end-to-end `…PrivateInitT
 ## Out of scope
 
 Changing what any moved test asserts. The concurrency and reposetup shards' budgets (#527). Re-seeding or host-relativizing the budget table (#273). Detecting concurrent suites in the solo re-check (#528). Editing point-in-time records that name the old shard or tests.
+
+## Reconcile log
+
+### 2026-10-16
+
+2026-10-16 — Re-checked against origin/main a0bd49b. All seven tests still carry their old names (workflow_private_integration_test.go, leak_check_private_integration_test.go), the lifecycle shard still selects prefix TestIntegrationWorkflowLifecycle at an 80s row, and no live SHARD_PREFIX collides with TestIntegrationPrivateMode in either direction (nearest: TestIntegrationPrivateInstructions, TestIntegrationRepoVisibilityPrivate). Related #527/#528 still proposed, #273 deferred; none overlaps. Scope unchanged.
