@@ -9,10 +9,10 @@ created: '2026-10-05'
 updated: '2026-10-16'
 depends_on: []
 stacked_on:
-related: [273, 536]
+related: [273, 528, 536]
 discovered_from: [507, 531]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-design.md](../../superpowers/specs/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -37,15 +40,15 @@ Change 531's build surfaced two more: a gate-driver test that fails under disk l
 
 ## What changes
 
-- The e2e test-count check misses a test renamed to lower case: the test silently stops running and the file stays green. Make the check catch it.
-- `TestNoGitGuardShadowsGitOnPath` fails when `TMPDIR` ends in `/` because it compares paths as strings. Compare cleaned paths.
-- `TestAgentEnterCLIPreservesRequestAndReceipt` showed a one-off EOF in the same hand-run measurement; investigate whether it is flaky.
-- `TestProcessExitSitesAreAllowlisted` fails falsely when run from the main checkout because it walks into `.worktrees/`. Skip that directory.
-- The gate-driver test `child-signal-death` fails under heavy disk load: 34 of 40 runs on unmodified `main` under the same load (found during change 531, not caused by it). Make it robust to slow disk, or fix what it races on.
-- Change 531 raised runtime budgets instead of splitting the over-budget tests, against the rule in `tests/README.md` (flagged in PR #399). The workflowlifecycle shard (35→55, since raised to 80) is split by #536. This change handles the other two, measured serially on 2026-10-16:
-  - concurrency (35→45): runs in 30s across 13 tests, so it needs no split; lower its row back to 35.
-  - reposetup (15→35): runs in 61s across 56 tests, past its 35s row and past the 52.5s solo-breach line. Its 23 private-mode tests account for 34.8s of that. Split them into their own shard, then set both rows from fresh serial measurements by the table's seeding rule; the remaining tests (about 25s) cannot fit the original 15.
+Six small test-suite fixes, each re-traced against `main` on 2026-10-16 (the linked spec has the detail):
+
+- **Unrunnable test functions.** A repo-wide guard in `internal/repoguard` flags any function shaped like a test (`func(*testing.T)`, `*testing.B`, `*testing.F`) that `go test` will never run because of its name and that nothing calls. This catches the e2e case (renaming `TestE2EFoo` to `testE2EFoo` leaves `tests/test_go_finalize_e2e.sh` green) and the same mistake in every other test file.
+- **No-git guard path.** `InstallNoGitGuard` stores the temp dir uncleaned, so `TestNoGitGuardShadowsGitOnPath` fails when `TMPDIR` is not in clean form (for example `/tmp//`; a single trailing slash is fine). Store the cleaned path.
+- **Bare `EOF` from the codex client.** The `TestAgentEnterCLIPreservesRequestAndReceipt` EOF did not reproduce (0 of 230 runs). The real gap: the codex client reads the app-server's stderr before its copy finishes, so a crashing server's message can be lost, and the test's fake server exits silently on every failure branch. Fix the client to capture stderr before reporting a read error (bounded, never hangs), and make the fake server say why it exits.
+- **Exit-sites guard walks worktrees.** `TestProcessExitSitesAreAllowlisted` walks into `.worktrees/` and fails from the main checkout. Switch it to the shared `repoguard.MaintainedFiles` walk.
+- **Gate-driver tests that race a timer.** `child-signal-death` (failing 34 of 40 under disk load) and three other gate-driver tests depend on a child staying alive for a fixed number of milliseconds while several fsync'd writes happen. Make the child wait for a go-signal file the test creates instead of a timer.
+- **Budget rows.** Lower the concurrency shard's row back to its measured value (about 35). Move reposetup's 23 private-mode tests into a new shard under a new prefix, `TestIntegrationPrivateRepoSetup`, and set both rows from fresh serial measurements.
 
 ## Out of scope
 
-The runner's solo re-check not detecting another worktree's concurrent suite (tracked separately). Putting budgets on a host-relative basis and re-seeding the budget table (#273); this change only re-shapes the concurrency and reposetup shards. The workflowlifecycle shard split is #536.
+The runner's solo re-check not detecting another worktree's concurrent suite (#528). Putting budgets on a host-relative basis and re-seeding the budget table (#273); this change only re-shapes the concurrency and reposetup shards. The workflowlifecycle shard split (#536). Changing what any existing test asserts.
