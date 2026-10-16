@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0554 — Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice](../../changes/active/0554-update-cursor-review-tier-defaults-to-grok-4-7.md)**
+> ↩ **[Change 0554 — Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice](../../changes/archive/2026-10-16-0554-update-cursor-review-tier-defaults-to-grok-4-7.md)**
 <!-- docket:backlink:end -->
 
 # Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice — Implementation Plan

@@ -2,7 +2,7 @@
 id: 554
 slug: 'update-cursor-review-tier-defaults-to-grok-4-7'
 title: 'Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-15'
@@ -22,7 +22,7 @@ branch: 'chore/update-cursor-review-tier-defaults-to-grok-4-7'
 pr: 'https://github.com/danielhanold/docket/pull/419'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T12:52:39Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-16T12:52:39Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md](../../superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md) |
+| Spec (merged) | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md) |
 | Plan | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7.md](../../superpowers/plans/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7.md) |
 | Results | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-results.md](../../results/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-results.md) |
 | ADRs | [ADR-0008](../../adrs/0008-agent-layer-generated-subagents.md) |
