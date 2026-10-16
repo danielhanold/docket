@@ -2,7 +2,7 @@
 id: 536
 slug: 'split-the-private-leak-check-tests-out-of-the-workflow-lifec'
 title: 'Split the private-mode tests out of the workflow lifecycle shard'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-06'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/split-the-private-leak-check-tests-out-of-the-workflow-lifec'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-16T15:10:56Z'
 ---
 
 ## Artifacts
