@@ -1,12 +1,12 @@
 # Backlog
 
-**555 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 390 done · 🗑️ 141 killed
+**555 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 390 done · 🗑️ 141 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | [spec](../superpowers/specs/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-design.md) | `fix/fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | [#421](https://github.com/danielhanold/docket/pull/421) | awaiting merge |
 
 ## 🟣 Groomed (3)
 

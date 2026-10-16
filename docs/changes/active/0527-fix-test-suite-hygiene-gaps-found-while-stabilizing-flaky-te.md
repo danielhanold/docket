@@ -2,7 +2,7 @@
 id: 527
 slug: 'fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te'
 title: 'Fix test-suite hygiene gaps found while stabilizing flaky tests'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-05'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/421'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-16T16:23:16Z'
@@ -65,3 +65,12 @@ The runner's solo re-check not detecting another worktree's concurrent suite (#5
 ### 2026-10-16
 
 2026-10-16 — Re-checked against origin/main c084cd93c. Scope unchanged. #554 merged: item 7's supervisor-first kill is on main (95d6b56c0), so item 7 is confirm-only as planned. #536 merged and added the `TestIntegrationPrivateMode` shard prefix; the planned `TestIntegrationPrivateRepoSetup` prefix must still be re-checked against the live `SHARD_PREFIX` set (per-package) at build time. `noGitGuardDir` is still stored raw; `TestRecoverMarksCleanlyAbandonedOwnedRun` still uses the one-step group kill; 23 private reposetup tests still carry the old names (21 + 2).
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: cb025f23bfbb5d7b71ce5ac5a399feba8abee568
+ran_at:   2026-10-16T16:58:22Z
+<!-- docket:build-evidence:end -->
