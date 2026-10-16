@@ -1,13 +1,18 @@
 # Backlog
 
-**554 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 387 done · 🗑️ 141 killed
+**554 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 387 done · 🗑️ 141 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0554](active/0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice | `medium` | `chore` | [spec](../superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md) | `chore/update-cursor-review-tier-defaults-to-grok-4-7` |  |
-| [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | Describe repository-check drift findings by family in the docket-status skill | `low` | `docs` | [spec](../) | `docs/list-the-artifact-backlink-finding-codes-in-the-docket-statu` |  |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | Describe repository-check drift findings by family in the docket-status skill | `low` | `docs` | [#418](https://github.com/danielhanold/docket/pull/418) | awaiting merge |
 
 ## 🟣 Groomed (4)
 

@@ -2,7 +2,7 @@
 id: 539
 slug: 'list-the-artifact-backlink-finding-codes-in-the-docket-statu'
 title: 'Describe repository-check drift findings by family in the docket-status skill'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'docs'
 created: '2026-10-07'
@@ -19,7 +19,7 @@ trivial: true
 auto_groomable:
 branch_prefix:
 branch: 'docs/list-the-artifact-backlink-finding-codes-in-the-docket-statu'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/418'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-16T12:13:20Z'
@@ -65,3 +65,12 @@ Changing any finding, its detection, its remedy text, or repair behavior; listin
 ### 2026-10-16
 
 2026-10-16: Re-traced against origin/main e99f310. The docket-status Findings sentence (line 124), the Sweep posture line, the glossary example comment, and the repairability split in internal/reposetup/derived.go are all as the groom described. Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 8e58d1a0148225230fb949ddac0dd89b9790ff1b
+ran_at:   2026-10-16T12:43:22Z
+<!-- docket:build-evidence:end -->
