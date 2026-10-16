@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/give-claude-its-own-claude-md-block-when-agents-md-stops-bei'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-16T20:09:24Z'
+reconciled: true
+claimed_at: '2026-10-16T20:11:31Z'
 ---
 
 ## Artifacts
@@ -58,3 +58,9 @@ The same rule leaves two claude-only setups without Claude's rules. A repository
 - Hand-made links being recorded as docket's, so that dropping claude deletes them.
 - A scoped run for a harness no longer opted in retiring a block Claude now shares. The next run that includes claude restores it.
 - Private repositories, which keep no surfaces in the working tree.
+
+## Reconcile log
+
+### 2026-10-16
+
+2026-10-16: Groomed today; reposeed.Plan, ClaudeMDLinkToAgents handling, PrivatePlanInput.OptIns, and computeRemovals on main (d253a2cff) still match the spec's description. #537 is done and its empty-AGENTS.md deletion is in place. No scope change.
