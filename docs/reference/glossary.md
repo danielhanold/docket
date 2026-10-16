@@ -1884,8 +1884,9 @@ else.
 ### `agent_harnesses`
 
 The list of harnesses a repository's parent-facing dispatch surfaces are installed for: the
-managed block in `CLAUDE.md` / `AGENTS.md` (with a `CLAUDE.md` → `AGENTS.md` symlink when Codex or
-opencode is also opted in) and, for Cursor, `.cursor/rules/docket-dispatch.mdc`. It has no default
+managed block in `CLAUDE.md` / `AGENTS.md` (Claude shares the `AGENTS.md` block through a
+`CLAUDE.md` → `AGENTS.md` symlink when `CLAUDE.md` already links there, or when there is no
+`CLAUDE.md` and `AGENTS.md` exists or Codex or opencode is also opted in) and, for Cursor, `.cursor/rules/docket-dispatch.mdc`. It has no default
 and three states: absent (install touches no repository surface), a non-empty list (reconcile
 exactly those harnesses), or `[]` (retire every docket-owned repository surface).
 

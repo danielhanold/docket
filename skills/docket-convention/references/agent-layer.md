@@ -119,10 +119,10 @@ blocks that route a requested docket workflow to its wrapper. Only a value decla
 `.docket.local.yml` authorizes the install to write repository files; the value has three states:
 
 - **absent** — the install touches no repository surface;
-- **a non-empty list** — the install reconciles the dispatch surface of each listed harness: a managed block in
+- **a non-empty list** — the install reconciles each listed harness's dispatch surface: a managed block in
   `CLAUDE.md` (claude), a managed block in `AGENTS.md` (codex, opencode), and the
-  `.cursor/rules/docket-dispatch.mdc` rule (cursor). When claude is listed with codex or opencode and no regular
-  `CLAUDE.md` file exists, `CLAUDE.md` becomes a link to `AGENTS.md` instead;
+  `.cursor/rules/docket-dispatch.mdc` rule (cursor). If `CLAUDE.md` links to `AGENTS.md`, or is absent and
+  `AGENTS.md` exists or codex/opencode is listed, claude shares that block via the link;
 - **an explicit empty list** (`agent_harnesses: []`) — the install retires every docket-owned repository surface the
   repository had.
 

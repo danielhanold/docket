@@ -27,10 +27,12 @@ calling out, after a word on what the install writes.
   the file untouched and the warning names the two rules so you can add them by hand.
 - **The dispatch block in `CLAUDE.md`, on opt-in only.** When a repository's `.docket.yml` or
   `.docket.local.yml` lists `claude` in `agent_harnesses`, the install reconciles a
-  marker-bounded `docket` dispatch block in that repository's `CLAUDE.md`. When Codex or opencode is
-  opted in too and the repository has no `CLAUDE.md` of its own, `CLAUDE.md` becomes a symlink to
-  `AGENTS.md` so one block serves every harness. Without the opt-in, the install touches no
-  repository file.
+  marker-bounded `docket` dispatch block for Claude. Claude shares `AGENTS.md` through a
+  `CLAUDE.md` symlink when `CLAUDE.md` already links to `AGENTS.md`, or when the repository has no
+  `CLAUDE.md` and either `AGENTS.md` already exists or Codex or opencode is opted in too; the one
+  block in `AGENTS.md` then serves every harness, and your own text in `AGENTS.md` stays where it
+  is. Otherwise `CLAUDE.md` gets its own block, and an existing `CLAUDE.md` keeps its content.
+  Without the opt-in, the install touches no repository file.
 
 ### Forked runs and restarts
 

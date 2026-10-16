@@ -190,9 +190,10 @@ func inspectManagedBlock(t Target, info fs.FileInfo, rec TargetRecord, hasRec bo
 
 	block, ok := doc.Block(t.BlockName)
 	if !ok {
-		// Adding a block only appends; every existing byte survives, so no
-		// ownership proof is required to write one into a file we did not
-		// author.
+		// Adding a block inserts it at the top of the file, or right after
+		// its frontmatter (renderManagedBlock); every existing byte survives,
+		// so no ownership proof is required to write one into a file we did
+		// not author.
 		return Inspection{Target: t, Disposition: DispositionUpdate}, nil
 	}
 	interior := doc.Source()[block.Interior.Start:block.Interior.End]
