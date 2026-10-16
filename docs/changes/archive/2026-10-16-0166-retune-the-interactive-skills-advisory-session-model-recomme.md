@@ -2,7 +2,7 @@
 id: 166
 slug: retune-the-interactive-skills-advisory-session-model-recomme
 title: Retune the interactive skills' advisory session-model recommendation
-status: 'proposed'
+status: 'killed'
 priority: low
 type: chore
 created: 2026-07-28
@@ -85,3 +85,7 @@ Surfaces: the two advisory paragraphs, plus the Task 6 test block. Nothing else 
 The interactive skills still carry the older advisory, but it does not select or change the session model. Mirroring the brainstorm consultant's model and effort is a consistency preference; the proposal contains no task-specific evidence that the current recommendation harms grooming. The planned Bash drift-test surface and hd_field helper have been deleted. This remains useful guidance work, not a demonstrated execution defect or a prerequisite for release.
 
 Revival criterion: revisit the interactive guidance with task-specific evidence and current configuration semantics. Re-groom against the Go default-resolution and test surfaces, preserve the advisory boundary, and justify any model/effort recommendation independently of merely matching an autonomous role. The linked August spec is historical design context and must not be implemented unchanged.
+
+## Why killed
+
+Consolidated into #554. Instead of retuning the interactive skills' advisory session-model recommendation, #554 deletes it from `docket-new-change` and `docket-groom-next`. In its place, the models-and-effort doc gets model-agnostic guidance: the human picks the session model by preference and by how complex the change looks. With no recommendation left, there is nothing to retune.

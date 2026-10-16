@@ -1,6 +1,6 @@
 # Backlog
 
-**554 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 386 done · 🗑️ 140 killed
+**554 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 386 done · 🗑️ 141 killed
 
 ## 🟢 In progress (1)
 
@@ -8,12 +8,11 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0548](active/0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Name test fixture folders by what they hold | `low` | `chore` | [spec](../superpowers/specs/2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md) | `chore/rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se` |  |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0536](active/0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) | Split the private-mode tests out of the workflow lifecycle shard | `low` | `fix` | [spec](../superpowers/specs/2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-design.md) |
-| [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
@@ -56,7 +55,6 @@ graph TD
   0008
   0009
   0010
-  0166
   0192 --> 0195
   0248
   0257
@@ -91,11 +89,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (526)</summary>
+<details><summary>✅🗑️ Archive — done + killed (527)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0553](archive/2026-10-16-0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | 2026-10-16 |
+| [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
 | [0552](archive/2026-10-15-0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | 2026-10-15 |
 | [0551](archive/2026-10-15-0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | 2026-10-15 |
 | [0550](archive/2026-10-15-0550-let-change-groom-set-a-change-s-priority.md) | Let change.groom set a change's priority | 2026-10-15 |
