@@ -1,12 +1,6 @@
 # Backlog
 
-**554 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 385 done · 🗑️ 140 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0553](active/0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | `high` | `fix` | [#416](https://github.com/danielhanold/docket/pull/416) | awaiting merge |
+**554 changes** — 🟣 3 groomed · 🟡 10 proposed · ⚪ 15 deferred · ✅ 386 done · 🗑️ 140 killed
 
 ## 🟣 Groomed (3)
 
@@ -81,7 +75,6 @@ graph TD
   0541
   0546 --> 0547
   0546 --> 0548
-  0553
   0554
   0192:::done
   0251:::done
@@ -93,10 +86,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (525)</summary>
+<details><summary>✅🗑️ Archive — done + killed (526)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0553](archive/2026-10-16-0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | 2026-10-16 |
 | [0552](archive/2026-10-15-0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | 2026-10-15 |
 | [0551](archive/2026-10-15-0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | 2026-10-15 |
 | [0550](archive/2026-10-15-0550-let-change-groom-set-a-change-s-priority.md) | Let change.groom set a change's priority | 2026-10-15 |
@@ -112,7 +106,6 @@ graph TD
 | [0533](archive/2026-10-07-0533-switch-a-repository-between-shared-and-private-visibility.md) | Switch a repository between shared and private visibility | 2026-10-07 |
 | [0535](archive/2026-10-06-0535-load-a-private-repository-s-agent-instructions-without-repos.md) | Load a private repository's agent instructions without repository files | 2026-10-06 |
 | [0534](archive/2026-10-06-0534-install-an-alias-for-the-docket-binary.md) | Install an alias for the docket binary | 2026-10-06 |
-| [0532](archive/2026-10-06-0532-private-visibility-keep-docket-out-of-prs-commits-and-shippe.md) | Implement private visibility for PRs, commits, and shipped files | 2026-10-06 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -257,7 +250,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 42 done |
+| [2026-10](archive/) | 43 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

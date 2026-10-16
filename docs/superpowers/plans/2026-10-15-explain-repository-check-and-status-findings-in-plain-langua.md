@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0553 — Explain repository check and status findings in plain language](../../changes/active/0553-explain-repository-check-and-status-findings-in-plain-langua.md)**
+> ↩ **[Change 0553 — Explain repository check and status findings in plain language](../../changes/archive/2026-10-16-0553-explain-repository-check-and-status-findings-in-plain-langua.md)**
 <!-- docket:backlink:end -->
 
 # Explain repository check and status findings in plain language — Implementation Plan
