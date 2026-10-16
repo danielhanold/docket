@@ -2,7 +2,7 @@
 id: 554
 slug: 'update-cursor-review-tier-defaults-to-grok-4-7'
 title: 'Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-15'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/update-cursor-review-tier-defaults-to-grok-4-7'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/419'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-16T12:52:39Z'
@@ -61,3 +61,12 @@ Reconciled against main e99f310. Dependency #548 is done: internal/config/defaul
 ### 2026-10-16
 
 Recorded ADR-0008 in adrs: — it gained a dated Update note (the interactive skills no longer carry an advisory model recommendation).
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: f85fa291478d94038aa26cb49ff57d21f5721055
+ran_at:   2026-10-16T13:18:56Z
+<!-- docket:build-evidence:end -->
