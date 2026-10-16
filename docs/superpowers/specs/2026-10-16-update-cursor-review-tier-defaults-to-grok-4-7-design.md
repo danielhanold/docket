@@ -1,17 +1,22 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0554 — Refresh the shipped Claude and Cursor model defaults](../../changes/active/0554-update-cursor-review-tier-defaults-to-grok-4-7.md)**
+> ↩ **[Change 0554 — Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice](../../changes/active/0554-update-cursor-review-tier-defaults-to-grok-4-7.md)**
 <!-- docket:backlink:end -->
 
-# Refresh the shipped Claude and Cursor model defaults — design
+# Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice — design
 
-Change #554, groomed 2026-10-16 (revised the same day to cover the whole Claude block).
+Change #554, groomed 2026-10-16. Revised the same day to cover the whole Claude block and to
+remove the interactive skills' model recommendation.
 
 ## Goal
 
-Ship new built-in model defaults by replacing every row of the Claude block and every row of the
-Cursor block (17 agents each). Codex and opencode values don't change. There are no changes to
-behavior, schema, or emitters. The work is a data edit, plus the comments and the one doc that
-describe the data.
+1. Ship new built-in model defaults by replacing every row of the Claude block and every row of
+   the Cursor block (17 agents each). Codex and opencode values don't change.
+2. Delete the hard-coded model recommendation from the two interactive skills. Whoever runs the
+   session picks the model, based on their own preference and how complex the change looks.
+   Replace the recommendation with short, model-agnostic guidance in the docs, so nothing in
+   docket names a session model that has to be kept current.
+
+There are no changes to behavior, schema, or emitters.
 
 ## Target values
 
@@ -121,6 +126,53 @@ under `internal/repository/testdata/`. These files record past states.
   tiers, and Claude models selected through Cursor for `status`, `plan-writer`, and `build-max`.
   Keep the existing explanation of why every effort is `auto`.
 
+## Interactive skills: remove the model recommendation
+
+`docket-new-change` and `docket-groom-next` run inline in the human's own session, so docket can't
+pin their model. Each skill currently has a `## Recommended model/effort (advisory)` section
+naming `claude-sonnet-5`. Every model refresh leaves those sections stale, which is what #166 was
+captured to fix. Daniel decided at grooming to remove the recommendation entirely instead of
+retuning it.
+
+- **Skills.** Delete the whole `## Recommended model/effort (advisory)` section (heading and
+  paragraph) from `skills/docket-new-change/SKILL.md` and `skills/docket-groom-next/SKILL.md`.
+  Don't replace it with anything in the skill. Regenerate the embedded copies with
+  `go generate ./internal/assets/`.
+- **Convention.** The *Agent layer* paragraph of `skills/docket-convention/SKILL.md` says the two
+  interactive skills "stay inline and only surface an **advisory** recommended model/effort at
+  startup". Change it to say they stay inline and run at the session model. Nothing else in that
+  paragraph changes.
+- **Docs: where the guidance goes.** In `docs/install/models-and-effort.md`, replace "only
+  surface an advisory recommendation" with a short paragraph. It should say that the two
+  interactive skills run at whatever model and effort your session uses, and that you pick them
+  by preference and by how complex you expect the change to be. A quick stub, a trivial verdict,
+  or a small revise needs little. A net-new design, a cross-cutting change, or a stub whose
+  premise needs tracing through the code is worth your strongest model at higher effort. Don't
+  name any model ID or harness-specific command, so the text never goes stale.
+- **Glossary.** The `docket-groom-next` entry in `docs/reference/glossary.md` ends "It runs
+  inline at the session model, and the model it recommends is advisory." Drop the second clause.
+  Check the `docket-new-change` entry for the same wording.
+- **ADR-0008.** Its Decision says the interactive skills "stay inline with an **advisory**
+  recommendation only". The decision to keep them inline stands, so this is not a supersession.
+  Append a dated `## Update` note through `docket-adr` saying the advisory recommendation was
+  removed and that the session model is the human's choice, with the guidance now in the
+  models-and-effort doc. Never edit the Decision text.
+- A whole-repo grep for `Recommended model/effort` and for `advisory` near "model" over
+  maintained source (excluding the frozen data listed above and the internal corpus copies under
+  `internal/repository/testdata/`) finds nothing left to fix.
+
+This makes #166, which is deferred and would retune the recommendation, obsolete.
+
+## The models-and-effort intro must stay true
+
+The opening of `docs/install/models-and-effort.md` gives specific per-skill tiers. It says, for
+example, that implement-next "spends more effort" than the design pass and that `docket-adr` runs
+at "the lowest effort". The new Claude table changes those relationships: implement-next is now
+`low` and auto-groom is `medium`. Rewrite those sentences so they hold for the new table, or so
+they make the point (the model fits the task, not the session) without naming per-skill tiers
+that go stale at the next refresh. The second option is preferred, for the same reason the skill
+recommendation is going away.
+
 ## Sequencing
 
 This change depends on #548. Today `internal/config/defaults_test.go` compares the Go table with a
@@ -133,7 +185,12 @@ follow whatever #548 shipped. Never create a versioned fixture folder for this c
 ## Verification
 
 - The full suite is green (`build.test_command`). The YAML↔Go parity test and the
-  `.docket.example.yml` mirror guards are the in-repo proof that every copy agrees.
+  `.docket.example.yml` mirror guards are the in-repo proof that every copy agrees. One of those
+  guards, the mutation probe in `internal/config/example_correspondence_test.go`, finds its target
+  by searching for the literal text `{ model: claude-sonnet-5,`. Once Sonnet is gone the search
+  fails and the test stops with "mutation probe did not change the example". Point the probe at
+  a value that still ships. The test must still fail when a model value in the example is
+  changed.
 - A whole-repo grep over maintained source (excluding the frozen data listed above) finds no
   `cursor-grok-4.5`, `claude-opus-5-high`, `claude-haiku-4-5-20251001`, or shipped-default use of
   `claude-opus-5` / `claude-sonnet-5`. Illustrative examples in prose, such as the override sample
@@ -147,8 +204,6 @@ follow whatever #548 shipped. Never create a versioned fixture folder for this c
 ## Out of scope
 
 - The Codex and opencode values. Only opencode's comment changes, as described above.
-- The interactive skills' advisory session-model recommendation (`claude-sonnet-5` in
-  `docket-new-change` and `docket-groom-next`). That belongs to #166.
 - The Cursor emitter's effort handling, and the opaque-ID rule (ADR-0015).
 - Users' own global-config overrides. A global pin still shadows the new built-in, which is how
   layering is meant to work.
