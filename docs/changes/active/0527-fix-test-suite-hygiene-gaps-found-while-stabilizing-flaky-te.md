@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-16T16:12:25Z'
+reconciled: true
+claimed_at: '2026-10-16T16:13:10Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,9 @@ Eight small test-suite items. The first six were re-traced against `main` on 202
 ## Out of scope
 
 The runner's solo re-check not detecting another worktree's concurrent suite (#528). Putting budgets on a host-relative basis and re-seeding the budget table (#273); this change only re-shapes the concurrency and reposetup shards. The workflowlifecycle shard split (#536). Changing what any existing test asserts.
+
+## Reconcile log
+
+### 2026-10-16
+
+2026-10-16 — Re-checked against origin/main c084cd93c. Scope unchanged. #554 merged: item 7's supervisor-first kill is on main (95d6b56c0), so item 7 is confirm-only as planned. #536 merged and added the `TestIntegrationPrivateMode` shard prefix; the planned `TestIntegrationPrivateRepoSetup` prefix must still be re-checked against the live `SHARD_PREFIX` set (per-package) at build time. `noGitGuardDir` is still stored raw; `TestRecoverMarksCleanlyAbandonedOwnedRun` still uses the one-step group kill; 23 private reposetup tests still carry the old names (21 + 2).
