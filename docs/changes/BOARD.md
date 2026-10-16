@@ -1,6 +1,6 @@
 # Backlog
 
-**556 changes** — 🟣 2 groomed · 🟡 6 proposed · ⚪ 13 deferred · ✅ 393 done · 🗑️ 142 killed
+**556 changes** — 🟣 2 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 393 done · 🗑️ 142 killed
 
 ## 🟣 Groomed (2)
 
@@ -9,21 +9,21 @@
 | [0556](active/0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) | A typed /docket-implement-next in Claude Code starts an untracked run | `low` | `fix` | [spec](../superpowers/specs/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 
-## 🟡 Proposed (6)
+## 🟡 Proposed (5)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0503](active/0503-auto-name-claude-code-sessions-from-docket-workflow-prompts.md) | Auto-name Claude Code sessions from docket workflow prompts | `low` | `feat` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `medium` | `fix` | needs-grooming |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
 | [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
 | [0528](active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | `medium` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
-## ⚪ Deferred (13)
+## ⚪ Deferred (14)
 
 | # | Title | Priority | Type |
 |---|-------|----------|------|
+| [0503](active/0503-auto-name-claude-code-sessions-from-docket-workflow-prompts.md) | Auto-name Claude Code sessions from docket workflow prompts | `low` | `feat` |
 | [0513](active/0513-release-v1-0-0-alpha-3-prove-and-publish-opencode-support.md) | Full OpenCode support after v1.0.0: prove and publish the OpenCode harness | `high` | `chore` |
 | [0514](active/0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) | Retire the saved Bash upgrade test cases when stable v1.0.0 ships | `low` | `chore` |
 | [0433](active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md) | Pilot top-level Codex coordinators with one-level native dispatch | `high` | `refactor` |
