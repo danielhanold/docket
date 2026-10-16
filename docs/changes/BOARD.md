@@ -1,12 +1,13 @@
 # Backlog
 
-**554 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 8 proposed · ⚪ 14 deferred · ✅ 387 done · 🗑️ 141 killed
+**554 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 7 proposed · ⚪ 14 deferred · ✅ 387 done · 🗑️ 141 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0554](active/0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice | `medium` | `chore` | [spec](../superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md) | `chore/update-cursor-review-tier-defaults-to-grok-4-7` |  |
+| [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | Describe repository-check drift findings by family in the docket-status skill | `low` | `docs` | [spec](../) | `docs/list-the-artifact-backlink-finding-codes-in-the-docket-statu` |  |
 
 ## 🟣 Groomed (3)
 
@@ -16,11 +17,10 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | Describe repository-check drift findings by family in the docket-status skill | `low` | `docs` | build-ready (trivial) |
 | [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `medium` | `fix` | needs-grooming |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |

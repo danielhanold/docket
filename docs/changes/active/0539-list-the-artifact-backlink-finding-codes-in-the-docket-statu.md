@@ -2,7 +2,7 @@
 id: 539
 slug: 'list-the-artifact-backlink-finding-codes-in-the-docket-statu'
 title: 'Describe repository-check drift findings by family in the docket-status skill'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'docs'
 created: '2026-10-07'
@@ -18,10 +18,11 @@ results:
 trivial: true
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'docs/list-the-artifact-backlink-finding-codes-in-the-docket-statu'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-16T12:07:26Z'
 ---
 
 ## Artifacts
