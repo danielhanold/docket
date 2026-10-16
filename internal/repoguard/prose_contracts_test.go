@@ -429,6 +429,15 @@ var proseContracts = []proseContract{
 			"cleanup step prunes any feature worktree",
 			"prunes any feature worktree",
 		}},
+	// Typed /docket-implement-next skips run.start: docs name the tracked starts.
+	{sentinel: "change_0556_tracked_start", file: "README.md",
+		present: []string{"A typed `/docket-implement-next` runs untracked."},
+		absent:  []string{"`docket-implement-next` (or `/loop` it hands-free)"}},
+	{sentinel: "change_0556_tracked_start", file: "docs/install/models-and-effort.md",
+		present: []string{"A typed `/docket-implement-next` runs untracked."}},
+	{sentinel: "change_0556_tracked_start", file: "docs/reference/glossary.md",
+		present: []string{"A typed `/docket-implement-next` runs untracked."},
+		absent:  []string{"/docket-implement-next 412\n"}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation

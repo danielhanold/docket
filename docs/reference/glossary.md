@@ -811,10 +811,14 @@ merges.
 
 **Used for:** draining the backlog unattended. Always dispatch it as its named agent, bracketed by
 the run tracker. Pass an explicit id to resume an `in-progress` change — a bare run skips it.
+Start it with a plain request in the session or with `/loop docket-implement-next`.
+A typed `/docket-implement-next` runs untracked.
+It still builds to a PR, but if it stops partway there is no automatic retry, resume, or cancel,
+and its outcome can only be read unattributed (`docket run verdict --unattributed`).
 
 ```sh
 # inside an agent session
-/docket-implement-next 412
+implement 412                              # a plain request, tracked
 /loop docket-implement-next 412 413 414   # drain several back-to-back
 ```
 
@@ -1869,7 +1873,8 @@ There are two ways to reach a pinned wrapper, and both run at the same model and
 can be drilled into live.
 
 **Used for:** use agent-dispatch when you want to watch a long run, and skill-invoke for everything
-else.
+else. Implement-next is the exception: its skill-invoke is untracked, so start it with a plain
+request or `/loop docket-implement-next`.
 
 ```sh
 # inside an agent session
