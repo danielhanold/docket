@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0548 — Name test fixture folders by what they hold](../../changes/active/0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md)**
+> ↩ **[Change 0548 — Name test fixture folders by what they hold](../../changes/archive/2026-10-16-0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md)**
 <!-- docket:backlink:end -->
 
 # Name test fixture folders by what they hold — design

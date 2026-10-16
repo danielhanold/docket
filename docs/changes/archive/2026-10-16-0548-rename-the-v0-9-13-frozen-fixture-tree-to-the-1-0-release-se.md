@@ -2,7 +2,7 @@
 id: 548
 slug: 'rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se'
 title: 'Name test fixture folders by what they hold'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'chore'
 created: '2026-10-11'
@@ -22,7 +22,7 @@ branch: 'chore/rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se'
 pr: 'https://github.com/danielhanold/docket/pull/417'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T10:29:29Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-16T10:29:29Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md](../../superpowers/specs/2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md) |
+| Spec (merged) | [2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md) |
 | Plan | [2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md](../../superpowers/plans/2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) |
 | Results | [2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-results.md](../../results/2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-results.md) |
 <!-- docket:artifacts:end -->
