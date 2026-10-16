@@ -13,7 +13,7 @@ related: [195, 166]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-16T12:08:55Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md](../../superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md) |
+| Plan | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7.md](../../superpowers/plans/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
