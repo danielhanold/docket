@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/repoguard"
 )
 
 // exitSiteRE keys on SHAPE, not on an enumerated list of spellings: any call
@@ -43,48 +45,35 @@ func TestProcessExitSitesAreAllowlisted(t *testing.T) {
 		t.Fatalf("module root not found at %s: %v", root, err)
 	}
 
-	scanned := 0
-	err = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
+	// The population is the shared repo-guard walk (repoguard.MaintainedFiles):
+	// it skips hidden directories (so sibling checkouts under .worktrees/ and
+	// .git are never scanned), testdata, docs, and fixture trees.
+	files, err := repoguard.MaintainedFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scannedSet := map[string]bool{}
+	for _, rel := range files {
+		if !strings.HasSuffix(rel, ".go") || strings.HasSuffix(rel, "_test.go") {
+			continue
 		}
-		if d.IsDir() {
-			switch d.Name() {
-			case ".git", "vendor", "testdata", "node_modules":
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		name := d.Name()
-		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			return nil
-		}
-		rel, relErr := filepath.Rel(root, path)
-		if relErr != nil {
-			return relErr
-		}
-		rel = filepath.ToSlash(rel)
-		scanned++
-		body, readErr := os.ReadFile(path)
+		scannedSet[rel] = true
+		body, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
 		if readErr != nil {
-			return readErr
+			t.Fatal(readErr)
 		}
 		if exitSiteRE.Match(body) && !exitSiteAllowed[rel] {
 			t.Errorf("%s calls os.Exit/log.Fatal; only %v may end the process — return an error or an exit code instead", rel, keys(exitSiteAllowed))
 		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
-	if scanned == 0 {
+	if len(scannedSet) == 0 {
 		t.Fatal("scanned no non-test Go files; the guard would pass vacuously")
 	}
-	// Both allowlisted files must still exist, or the allowlist has rotted
-	// into a permission for a path nothing occupies.
+	// Every allowlisted file must be in the scanned population, or the
+	// allowlist has rotted into a permission for a path the guard never reads.
 	for rel := range exitSiteAllowed {
-		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
-			t.Errorf("allowlisted exit site %s does not exist: %v", rel, err)
+		if !scannedSet[rel] {
+			t.Errorf("allowlisted exit site %s is not in the scanned population", rel)
 		}
 	}
 }
