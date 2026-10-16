@@ -15,11 +15,12 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// This file is the private-visibility slice of the real-Git init/setup shard
-// (prefix TestIntegrationRepoSetup). A private repository keeps the metadata
-// branch `dckt` on a bare `dckt` remote under the data home, its checkout under
-// that store, and its config in .git/dckt/config.yml — nothing docket-named in
-// the repository and nothing pushed to origin.
+// This file is the private-visibility slice of the real-Git init/setup tests
+// (prefix TestIntegrationPrivateRepoSetup, matched by
+// tests/test_go_integration_app_reposetup_private.sh). A private repository
+// keeps the metadata branch `dckt` on a bare `dckt` remote under the data home,
+// its checkout under that store, and its config in .git/dckt/config.yml —
+// nothing docket-named in the repository and nothing pushed to origin.
 
 // newPrivateInitRepo builds the newInitRepo topology but commits NO .docket.yml
 // (a private repository never reads one), points XDG_DATA_HOME at a fresh temp
@@ -115,7 +116,7 @@ func expectedPrivateLayout(t *testing.T, dir, data string) layout.Layout {
 	return layout.PrivateLayout(common, top, canonical, slug)
 }
 
-func TestIntegrationRepoSetupPrivateFreshInitCreatesNeutralLayout(t *testing.T) {
+func TestIntegrationPrivateRepoSetupFreshInitCreatesNeutralLayout(t *testing.T) {
 	r, data := newPrivateInitRepo(t, nil)
 	res := r.runInitWith(t, InitOptions{Private: true})
 	if res.Result != ResultApplied {
@@ -157,13 +158,13 @@ func TestIntegrationRepoSetupPrivateFreshInitCreatesNeutralLayout(t *testing.T) 
 	}
 }
 
-// TestIntegrationRepoSetupPrivateRerunIsNoOp proves a re-run of a finished
+// TestIntegrationPrivateRepoSetupRerunIsNoOp proves a re-run of a finished
 // private init reports no-op whatever the clock does between the two runs. The
 // commit dates are pinned so each case is deterministic: with the same dates the
 // re-run would rebuild a byte-identical init root (two runs inside one second),
 // and with a later date it would build a different one. Either way the re-run
 // adopts the published branch instead of republishing it.
-func TestIntegrationRepoSetupPrivateRerunIsNoOp(t *testing.T) {
+func TestIntegrationPrivateRepoSetupRerunIsNoOp(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
 		first, rerun string
@@ -210,11 +211,11 @@ func pinCommitDate(t *testing.T, date string) {
 	t.Setenv("GIT_COMMITTER_DATE", date)
 }
 
-// TestIntegrationRepoSetupPrivateInterruptedAfterConfigResumes proves the
+// TestIntegrationPrivateRepoSetupInterruptedAfterConfigResumes proves the
 // presence-encoded-state recovery: a run that died right after writing
 // .git/dckt/ (so the repository reads as private) but before registering the
 // dckt remote finishes on a plain re-run.
-func TestIntegrationRepoSetupPrivateInterruptedAfterConfigResumes(t *testing.T) {
+func TestIntegrationPrivateRepoSetupInterruptedAfterConfigResumes(t *testing.T) {
 	r, data := newPrivateInitRepo(t, nil)
 	gitDir := r.gitDir(t)
 	if err := os.MkdirAll(filepath.Join(gitDir, "dckt"), 0o755); err != nil {
@@ -233,7 +234,7 @@ func TestIntegrationRepoSetupPrivateInterruptedAfterConfigResumes(t *testing.T) 
 	}
 }
 
-func TestIntegrationRepoSetupPrivateSecondCloneAdoptsSharedStore(t *testing.T) {
+func TestIntegrationPrivateRepoSetupSecondCloneAdoptsSharedStore(t *testing.T) {
 	r, data := newPrivateInitRepo(t, nil)
 	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("clone A init = %q (%s), want applied", res.Result, res.HumanText())
@@ -269,12 +270,12 @@ func TestIntegrationRepoSetupPrivateSecondCloneAdoptsSharedStore(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoSetupPrivateStoreOriginCollisionRefuses proves the default
+// TestIntegrationPrivateRepoSetupStoreOriginCollisionRefuses proves the default
 // store records the origin that created it and a repository whose distinct
 // origin derives the same <owner>-<repo> store name refuses instead of adopting
 // the other repository's backlog: no dckt remote, no checkout, and the store's
 // branch and record stay untouched.
-func TestIntegrationRepoSetupPrivateStoreOriginCollisionRefuses(t *testing.T) {
+func TestIntegrationPrivateRepoSetupStoreOriginCollisionRefuses(t *testing.T) {
 	a, data := newPrivateInitRepo(t, nil)
 	if res := a.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("repo A init = %q (%s), want applied", res.Result, res.HumanText())
@@ -320,10 +321,10 @@ func TestIntegrationRepoSetupPrivateStoreOriginCollisionRefuses(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoSetupPrivateUnrecordedStoreAdoptsAndRecords proves a store
+// TestIntegrationPrivateRepoSetupUnrecordedStoreAdoptsAndRecords proves a store
 // created before the origin record existed is adopted by a matching repository
 // and gains the record.
-func TestIntegrationRepoSetupPrivateUnrecordedStoreAdoptsAndRecords(t *testing.T) {
+func TestIntegrationPrivateRepoSetupUnrecordedStoreAdoptsAndRecords(t *testing.T) {
 	r, data := newPrivateInitRepo(t, nil)
 	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("clone A init = %q (%s), want applied", res.Result, res.HumanText())
@@ -343,7 +344,7 @@ func TestIntegrationRepoSetupPrivateUnrecordedStoreAdoptsAndRecords(t *testing.T
 	}
 }
 
-func TestIntegrationRepoSetupPrivateRemoteURLConflictRefuses(t *testing.T) {
+func TestIntegrationPrivateRepoSetupRemoteURLConflictRefuses(t *testing.T) {
 	r, _ := newPrivateInitRepo(t, nil)
 	elsewhere := filepath.Join(r.root, "elsewhere.git")
 	runGit(t, r.invocation, "remote", "add", "dckt", elsewhere)
@@ -363,11 +364,11 @@ func TestIntegrationRepoSetupPrivateRemoteURLConflictRefuses(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoSetupPrivateForeignStoreBranchRefuses proves the adopt
+// TestIntegrationPrivateRepoSetupForeignStoreBranchRefuses proves the adopt
 // path a private init takes for a dckt branch the store already holds verifies
 // the branch first: a foreign branch refuses and stays byte-untouched, never
 // adopted and never republished.
-func TestIntegrationRepoSetupPrivateForeignStoreBranchRefuses(t *testing.T) {
+func TestIntegrationPrivateRepoSetupForeignStoreBranchRefuses(t *testing.T) {
 	r, _ := newPrivateInitRepo(t, nil)
 	store := filepath.Join(testsupport.TempDir(t), "store.git")
 	runGit(t, r.root, "init", "--bare", "-q", store)
@@ -386,7 +387,7 @@ func TestIntegrationRepoSetupPrivateForeignStoreBranchRefuses(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepoSetupPrivateMetadataRemoteFlag(t *testing.T) {
+func TestIntegrationPrivateRepoSetupMetadataRemoteFlag(t *testing.T) {
 	r, data := newPrivateInitRepo(t, nil)
 	backup := filepath.Join(testsupport.TempDir(t), "backup.git")
 	runGit(t, r.root, "init", "--bare", "-q", backup)
@@ -406,11 +407,11 @@ func TestIntegrationRepoSetupPrivateMetadataRemoteFlag(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoSetupPrivateMetadataRemoteRerunIsNoOp proves a flagless
+// TestIntegrationPrivateRepoSetupMetadataRemoteRerunIsNoOp proves a flagless
 // re-run on a repository set up with --metadata-remote keeps the configured
 // dckt remote: it reports no-op, never creates the default store, and never
 // refuses a healthy repository with a false remote conflict.
-func TestIntegrationRepoSetupPrivateMetadataRemoteRerunIsNoOp(t *testing.T) {
+func TestIntegrationPrivateRepoSetupMetadataRemoteRerunIsNoOp(t *testing.T) {
 	r, data := newPrivateInitRepo(t, nil)
 	backup := filepath.Join(testsupport.TempDir(t), "backup.git")
 	runGit(t, r.root, "init", "--bare", "-q", backup)
@@ -452,7 +453,7 @@ func TestIntegrationRepoSetupInitModeFlagsRefuseSwitch(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepoSetupGlobalPrivateDefault(t *testing.T) {
+func TestIntegrationPrivateRepoSetupGlobalDefault(t *testing.T) {
 	const global = "visibility: private\n"
 
 	t.Run("fresh with no flags inits private", func(t *testing.T) {
@@ -515,10 +516,10 @@ func TestIntegrationRepoSetupGlobalPrivateDefault(t *testing.T) {
 	})
 }
 
-// TestIntegrationRepoSetupPrivateMigrateRefuses proves migrate refuses a
+// TestIntegrationPrivateRepoSetupMigrateRefuses proves migrate refuses a
 // private repository before any phase logic: it converts legacy repositories
 // to the shared layout, and a private one has nothing to migrate.
-func TestIntegrationRepoSetupPrivateMigrateRefuses(t *testing.T) {
+func TestIntegrationPrivateRepoSetupMigrateRefuses(t *testing.T) {
 	r, _ := newPrivateInitRepo(t, nil)
 	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
@@ -569,7 +570,7 @@ func findingsWithCode(fs []reposetup.Finding, code string) []reposetup.Finding {
 	return out
 }
 
-func TestIntegrationRepoSetupPrivateCheckHealthy(t *testing.T) {
+func TestIntegrationPrivateRepoSetupCheckHealthy(t *testing.T) {
 	r, _ := initPrivateHealthy(t)
 	chk := r.runCheck(t)
 	if chk.RepositoryState != string(reposetup.StateHealthy) {
@@ -588,7 +589,7 @@ func TestIntegrationRepoSetupPrivateCheckHealthy(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepoSetupPrivateCheckFlagsMissingExclude(t *testing.T) {
+func TestIntegrationPrivateRepoSetupCheckFlagsMissingExclude(t *testing.T) {
 	r, _ := initPrivateHealthy(t)
 	exclude := filepath.Join(r.gitDir(t), "info", "exclude")
 	if err := os.WriteFile(exclude, []byte("# a user line\n*.swp\n"), 0o644); err != nil {
@@ -608,7 +609,7 @@ func TestIntegrationRepoSetupPrivateCheckFlagsMissingExclude(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepoSetupPrivateVisibilityMismatch(t *testing.T) {
+func TestIntegrationPrivateRepoSetupVisibilityMismatch(t *testing.T) {
 	r, _ := initPrivateHealthy(t)
 	before := r.runCheck(t)
 	cfgPath := filepath.Join(r.gitDir(t), "dckt", "config.yml")
@@ -636,7 +637,7 @@ func TestIntegrationRepoSetupPrivateVisibilityMismatch(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepoSetupPrivateBothLocalConfigsRefuse(t *testing.T) {
+func TestIntegrationPrivateRepoSetupBothLocalConfigsRefuse(t *testing.T) {
 	r, _ := newPrivateInitRepo(t, nil)
 	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
@@ -664,13 +665,13 @@ func TestIntegrationRepoSetupPrivateBothLocalConfigsRefuse(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoSetupPrivateInitRefusesBesideLocalConfig proves a private
+// TestIntegrationPrivateRepoSetupInitRefusesBesideLocalConfig proves a private
 // init over a repository that already carries a .docket.local.yml refuses before
 // any write, with the same both-paths unsupported-config refusal every private
 // operation gives: writing .git/dckt/ first would turn the repository private
 // and leave every later operation, the recommended init re-run included,
 // refusing.
-func TestIntegrationRepoSetupPrivateInitRefusesBesideLocalConfig(t *testing.T) {
+func TestIntegrationPrivateRepoSetupInitRefusesBesideLocalConfig(t *testing.T) {
 	// The local file is ignored, as a shared repository's usually is, so the
 	// primary worktree reads clean.
 	r, data := newPrivateInitRepo(t, map[string]string{".gitignore": ".docket.local.yml\n"})
@@ -715,13 +716,13 @@ func TestIntegrationRepoSetupPrivateInitRefusesBesideLocalConfig(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoSetupPrivateRecloneSamePathReattaches deletes a private
+// TestIntegrationPrivateRepoSetupRecloneSamePathReattaches deletes a private
 // clone and re-clones it at the same path. The store survives and the clone id
 // is the same, so the old checkout still sits at the new clone's checkout path,
 // its .git file naming a gitdir the new clone no longer has. Init must treat
 // that stale checkout as replaceable and attach a fresh one; prepare must do
 // the same when a checkout loses its registration.
-func TestIntegrationRepoSetupPrivateRecloneSamePathReattaches(t *testing.T) {
+func TestIntegrationPrivateRepoSetupRecloneSamePathReattaches(t *testing.T) {
 	r, data := newPrivateInitRepo(t, nil)
 	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("first init = %q (%s), want applied", res.Result, res.HumanText())
@@ -773,10 +774,10 @@ func TestIntegrationRepoSetupPrivateRecloneSamePathReattaches(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoSetupPrivateMovedCloneOrphanPruned moves a private clone:
+// TestIntegrationPrivateRepoSetupMovedCloneOrphanPruned moves a private clone:
 // its old checkout under the store now points at a gitdir that no longer
 // exists, so check reports it orphaned and repair removes it.
-func TestIntegrationRepoSetupPrivateMovedCloneOrphanPruned(t *testing.T) {
+func TestIntegrationPrivateRepoSetupMovedCloneOrphanPruned(t *testing.T) {
 	r, data := newPrivateInitRepo(t, nil)
 	if res := r.runInitWith(t, InitOptions{Private: true}); res.Result != ResultApplied {
 		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
@@ -848,10 +849,10 @@ func (g fatalRepairGitHub) EditPullRequestBody(context.Context, githubcli.Reposi
 	return githubcli.BodyUnknown, githubcli.PullRequest{}, nil
 }
 
-// TestIntegrationRepoSetupPrivatePRBacklinkRepairIsNoOp: a private repository's
+// TestIntegrationPrivateRepoSetupPRBacklinkRepairIsNoOp: a private repository's
 // pull requests carry no backlink, so `repository repair --pr-backlinks` is a
 // no-op that says so and never touches GitHub.
-func TestIntegrationRepoSetupPrivatePRBacklinkRepairIsNoOp(t *testing.T) {
+func TestIntegrationPrivateRepoSetupPRBacklinkRepairIsNoOp(t *testing.T) {
 	r, _ := initPrivateHealthy(t)
 	d := SetupDeps{Git: newGitClient(t), RepoDir: r.invocation, GitHub: fatalRepairGitHub{t: t}}
 	res := RunRepositoryRepair(context.Background(), d, RepairOptions{PRBacklinks: true})
@@ -863,10 +864,10 @@ func TestIntegrationRepoSetupPrivatePRBacklinkRepairIsNoOp(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoSetupPrivateMetadataOnSharedRemote proves a docket-named
+// TestIntegrationPrivateRepoSetupMetadataOnSharedRemote proves a docket-named
 // branch or refs/docket/ ref on a private repository's origin is reported by
 // check and prepare as a warning, and never changes the classified state.
-func TestIntegrationRepoSetupPrivateMetadataOnSharedRemote(t *testing.T) {
+func TestIntegrationPrivateRepoSetupMetadataOnSharedRemote(t *testing.T) {
 	r, _ := initPrivateHealthy(t)
 	before := r.runCheck(t)
 	if got := findingsWithCode(before.Findings, FindingMetadataOnSharedRemote); len(got) != 0 {
