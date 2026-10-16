@@ -2,11 +2,11 @@
 id: 166
 slug: retune-the-interactive-skills-advisory-session-model-recomme
 title: Retune the interactive skills' advisory session-model recommendation
-status: 'deferred'
+status: 'proposed'
 priority: low
 type: chore
 created: 2026-07-28
-updated: '2026-09-07'
+updated: '2026-10-16'
 depends_on: []
 related: [168, 227]
 discovered_from: [164]
