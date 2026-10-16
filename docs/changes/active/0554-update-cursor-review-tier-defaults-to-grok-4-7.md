@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [8]
 spec: 'docs/superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md'
 plan: 'docs/superpowers/plans/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7.md'
-results:
+results: 'docs/results/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-16T12:52:39Z'
 |---|---|
 | Spec | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md](../../superpowers/specs/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-design.md) |
 | Plan | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7.md](../../superpowers/plans/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7.md) |
+| Results | [2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-results.md](../../results/2026-10-16-update-cursor-review-tier-defaults-to-grok-4-7-results.md) |
 | ADRs | [ADR-0008](../../adrs/0008-agent-layer-generated-subagents.md) |
 <!-- docket:artifacts:end -->
 
