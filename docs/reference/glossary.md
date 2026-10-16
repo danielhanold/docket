@@ -297,8 +297,8 @@ on the metadata branch, and the merged PR's description backlink is repointed be
 **Used for:** keeping links between a change and its artifacts correct in both directions.
 
 ```sh
-docket repository check    # reports records whose links are stale or absolute
-docket repository repair   # re-renders them in one metadata commit
+docket repository check    # reports links blocks and backlinks that are stale or broken
+docket repository repair   # re-renders the stale ones in one metadata commit
 ```
 
 ### Frozen build record
