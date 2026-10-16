@@ -13,7 +13,7 @@ related: [546, 554]
 discovered_from: [546]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-16T10:18:52Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md](../../superpowers/specs/2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md) |
+| Plan | [2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md](../../superpowers/plans/2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
