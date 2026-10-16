@@ -19,13 +19,14 @@ import (
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
-// This file is the private-visibility acceptance slice of the workflow
-// lifecycle shard (prefix TestIntegrationWorkflowLifecycle). It drives a
-// private repository from `init --private` through change creation, grooming,
-// and the whole claim-to-implemented run, then proves the repository is left
-// with nothing docket-named in it: the metadata branch lives on the bare
-// `dckt` store, origin gains only the feature branch, and a walk of the whole
-// clone — .git included — finds no path component spelled `docket`.
+// This file is the private-visibility acceptance slice of the private-mode
+// shard (tests/test_go_integration_app_privatemode.sh, prefix
+// TestIntegrationPrivateMode). It drives a private repository from
+// `init --private` through change creation, grooming, and the whole
+// claim-to-implemented run, then proves the repository is left with nothing
+// docket-named in it: the metadata branch lives on the bare `dckt` store,
+// origin gains only the feature branch, and a walk of the whole clone — .git
+// included — finds no path component spelled `docket`.
 
 // privateFixtureBranch is the private metadata branch as the spec spells it.
 // It is a literal, not layout.PrivateName, so a resolver that drifts from the
@@ -222,11 +223,11 @@ func privateLifecycleChecks(t *testing.T, created ChangeCreateResult, store stri
 	}
 }
 
-// TestIntegrationWorkflowLifecyclePrivateInitToImplemented is acceptance 1: a
+// TestIntegrationPrivateModeInitToImplemented is acceptance 1: a
 // private repository goes from init through implemented, and afterwards the
 // clone holds nothing docket-named and origin holds nothing but the feature
 // branch.
-func TestIntegrationWorkflowLifecyclePrivateInitToImplemented(t *testing.T) {
+func TestIntegrationPrivateModeInitToImplemented(t *testing.T) {
 	t.Setenv("DOCKET_SCRIPTS_DIR", "")
 	ghBin := buildFakeGH(t)
 	r, data := newPrivateInitRepo(t, nil)
