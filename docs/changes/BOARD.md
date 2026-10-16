@@ -21,13 +21,13 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0554](active/0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice | `medium` | `chore` | ⏳ waiting on #548 — not yet built |
+| [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `medium` | `fix` | needs-grooming |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
 | [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
 | [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | List the artifact-backlink finding codes in the docket-status skill | `low` | `docs` | needs-grooming |
 | [0537](active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | `low` | `fix` | needs-grooming |
 | [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | needs-grooming |
 | [0528](active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | `medium` | `fix` | needs-grooming |
-| [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
 ## ⚪ Deferred (14)

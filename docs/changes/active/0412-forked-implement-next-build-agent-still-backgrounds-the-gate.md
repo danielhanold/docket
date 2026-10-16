@@ -3,10 +3,10 @@ id: 412
 slug: 'forked-implement-next-build-agent-still-backgrounds-the-gate'
 title: 'Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge)'
 status: 'proposed'
-priority: 'critical'
+priority: 'medium'
 type: 'fix'
 created: '2026-09-08'
-updated: '2026-09-10'
+updated: '2026-10-16'
 depends_on: []
 stacked_on:
 related: [405, 345, 342, 359, 323, 375]
