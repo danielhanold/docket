@@ -14,7 +14,7 @@ discovered_from: [546]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md'
 plan: 'docs/superpowers/plans/2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md'
-results:
+results: 'docs/results/2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-16T10:29:29Z'
 |---|---|
 | Spec | [2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md](../../superpowers/specs/2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md) |
 | Plan | [2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md](../../superpowers/plans/2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) |
+| Results | [2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-results.md](../../results/2026-10-16-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
