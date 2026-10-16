@@ -75,7 +75,7 @@ func TestPlanClaudeAlone(t *testing.T) {
 }
 
 func TestPlanClaudeAloneAbsentStateStillBlock(t *testing.T) {
-	// No shared AGENTS.md surface exists (claude only), so even an absent
+	// No AGENTS.md exists and no codex/opencode opted in, so even an absent
 	// CLAUDE.md is a managed block, never a symlink.
 	targets, _ := mustPlan(t, PlanInput{
 		WorktreeRoot:  worktreeRoot,
@@ -169,14 +169,14 @@ func TestPlanClaudeCodexAbsentSymlinks(t *testing.T) {
 		ClaudeMDState: ClaudeMDAbsent,
 	})
 	idx := byPath(targets)
-	// AGENTS.md shared block, owned by codex only (claude shares via the link,
-	// it does not co-own the block).
+	// AGENTS.md shared block, co-owned by claude and codex (claude shares it
+	// through the CLAUDE.md link, so it co-owns the block the link points to).
 	ag, ok := idx[agentsMD()]
 	if !ok || ag.Kind != install.KindManagedBlock {
 		t.Fatalf("claude+codex/absent did not plan a shared AGENTS.md block: %+v", targets)
 	}
-	if got := owners[agentsMD()]; !reflect.DeepEqual(got, []string{"codex"}) {
-		t.Errorf("AGENTS.md owners = %v, want [codex] (claude shares via link)", got)
+	if got := owners[agentsMD()]; !reflect.DeepEqual(got, []string{"claude", "codex"}) {
+		t.Errorf("AGENTS.md owners = %v, want [claude codex] (claude co-owns the block it links to)", got)
 	}
 	cl, ok := idx[claudeMD()]
 	if !ok {
@@ -245,15 +245,15 @@ func TestPlanClaudeCodexOtherGetsBlock(t *testing.T) {
 }
 
 func TestPlanClaudeSymlinkWithoutShareIsSkipped(t *testing.T) {
-	// A symlinked CLAUDE.md cannot carry a managed block. When Claude does not
-	// share AGENTS.md (it alone is in scope, or the link is foreign), the plan
-	// leaves CLAUDE.md untouched rather than planning a block into the link.
+	// A symlinked CLAUDE.md cannot carry a managed block. Only a foreign link
+	// is skipped: the plan leaves CLAUDE.md untouched rather than planning a
+	// block into the link. A link to AGENTS.md shares instead (see
+	// TestPlanClaudeSharesAgentsMD).
 	for _, tc := range []struct {
 		name      string
 		harnesses []string
 		state     ClaudeMDState
 	}{
-		{"link to AGENTS.md, claude alone", []string{"claude"}, ClaudeMDLinkToAgents},
 		{"foreign link, claude alone", []string{"claude"}, ClaudeMDForeignLink},
 		{"foreign link, shared surface", []string{"claude", "codex"}, ClaudeMDForeignLink},
 	} {
@@ -269,6 +269,112 @@ func TestPlanClaudeSymlinkWithoutShareIsSkipped(t *testing.T) {
 			}
 			if got, ok := owners[claudeMD()]; ok {
 				t.Errorf("CLAUDE.md owners = %v for a skipped symlink, want none", got)
+			}
+		})
+	}
+}
+
+// TestPlanClaudeSharesAgentsMD pins the share rule: Claude co-owns the AGENTS.md
+// block whenever it shares it, it shares through a CLAUDE.md link, and the
+// interior and the no-CLAUDE.md share follow the full opt-in set.
+func TestPlanClaudeSharesAgentsMD(t *testing.T) {
+	plain := []byte(harness.DispatchInterior(runTracker))
+	codex := []byte(harness.CodexDispatchInterior(runTracker))
+	for _, tc := range []struct {
+		name       string
+		harnesses  []string
+		optIns     []string
+		claude     ClaudeMDState
+		agents     AgentsMDState
+		wantOwners []string // nil = no AGENTS.md target
+		interior   []byte
+		claudeKind install.TargetKind // "" = no CLAUDE.md target
+	}{
+		{"link, claude alone", []string{"claude"}, nil, ClaudeMDLinkToAgents, AgentsMDRegularFile,
+			[]string{"claude"}, plain, install.KindSymlink},
+		{"link, claude alone, AGENTS.md missing", []string{"claude"}, nil, ClaudeMDLinkToAgents, AgentsMDMissing,
+			[]string{"claude"}, plain, install.KindSymlink},
+		{"link, claude and codex", []string{"claude", "codex"}, nil, ClaudeMDLinkToAgents, AgentsMDRegularFile,
+			[]string{"claude", "codex"}, codex, install.KindSymlink},
+		{"absent, own AGENTS.md, claude alone", []string{"claude"}, nil, ClaudeMDAbsent, AgentsMDRegularFile,
+			[]string{"claude"}, plain, install.KindSymlink},
+		{"absent, no AGENTS.md, claude alone", []string{"claude"}, nil, ClaudeMDAbsent, AgentsMDMissing,
+			nil, nil, install.KindManagedBlock},
+		{"regular CLAUDE.md, own AGENTS.md, claude alone", []string{"claude"}, nil, ClaudeMDRegularFile, AgentsMDRegularFile,
+			nil, nil, install.KindManagedBlock},
+		{"scoped opencode keeps codex interior", []string{"opencode"}, []string{"codex", "opencode"}, ClaudeMDAbsent, AgentsMDRegularFile,
+			[]string{"opencode"}, codex, ""},
+		{"scoped claude, link, codex opted in", []string{"claude"}, []string{"claude", "codex"}, ClaudeMDLinkToAgents, AgentsMDRegularFile,
+			[]string{"claude"}, codex, install.KindSymlink},
+		{"scoped claude, absent, codex opted in", []string{"claude"}, []string{"claude", "codex"}, ClaudeMDAbsent, AgentsMDMissing,
+			[]string{"claude"}, codex, install.KindSymlink},
+		{"link to non-regular AGENTS.md, claude alone", []string{"claude"}, nil, ClaudeMDLinkToAgents, AgentsMDOther,
+			nil, nil, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			targets, owners := mustPlan(t, PlanInput{
+				WorktreeRoot:  worktreeRoot,
+				Harnesses:     tc.harnesses,
+				OptIns:        tc.optIns,
+				RunTracker:    runTracker,
+				ClaudeMDState: tc.claude,
+				AgentsMDState: tc.agents,
+			})
+			idx := byPath(targets)
+
+			ag, ok := idx[agentsMD()]
+			if tc.wantOwners == nil {
+				if ok {
+					t.Errorf("AGENTS.md planned as %+v, want no target", ag)
+				}
+			} else {
+				if !ok {
+					t.Fatalf("no AGENTS.md target planned: %+v", targets)
+				}
+				if ag.Kind != install.KindManagedBlock || ag.BlockName != "dispatch" {
+					t.Errorf("AGENTS.md target = %+v, want the dispatch managed block", ag)
+				}
+				if !bytes.Equal(ag.Content, tc.interior) {
+					t.Errorf("AGENTS.md interior = %q, want %q", ag.Content, tc.interior)
+				}
+				if got := owners[agentsMD()]; !reflect.DeepEqual(got, tc.wantOwners) {
+					t.Errorf("AGENTS.md owners = %v, want %v", got, tc.wantOwners)
+				}
+			}
+
+			cl, ok := idx[claudeMD()]
+			switch tc.claudeKind {
+			case "":
+				if ok {
+					t.Errorf("CLAUDE.md planned as %+v, want no target", cl)
+				}
+				if got, ok := owners[claudeMD()]; ok {
+					t.Errorf("CLAUDE.md owners = %v, want none", got)
+				}
+			default:
+				if !ok {
+					t.Fatalf("no CLAUDE.md target planned: %+v", targets)
+				}
+				if cl.Kind != tc.claudeKind {
+					t.Errorf("CLAUDE.md kind = %q, want %q", cl.Kind, tc.claudeKind)
+				}
+				if got := owners[claudeMD()]; !reflect.DeepEqual(got, []string{"claude"}) {
+					t.Errorf("CLAUDE.md owners = %v, want [claude]", got)
+				}
+				switch tc.claudeKind {
+				case install.KindSymlink:
+					if cl.LinkTarget != agentsMD() {
+						t.Errorf("CLAUDE.md link target = %q, want %q", cl.LinkTarget, agentsMD())
+					}
+				case install.KindManagedBlock:
+					if !bytes.Equal(cl.Content, plain) {
+						t.Errorf("CLAUDE.md interior = %q, want the plain interior", cl.Content)
+					}
+				}
+			}
+
+			if tc.agents == AgentsMDOther && tc.claude == ClaudeMDLinkToAgents && len(targets) != 0 {
+				t.Errorf("planned %d targets for a link to a non-regular AGENTS.md, want none: %+v", len(targets), targets)
 			}
 		})
 	}
@@ -543,7 +649,7 @@ func TestPlanPrivate(t *testing.T) {
 }
 
 // TestSurfacePathsCoverPlan derives the surface set from Plan itself: every
-// harness subset under every CLAUDE.md state, relativized to the worktree, must
+// harness subset under every CLAUDE.md and AGENTS.md state, relativized to the worktree, must
 // together emit exactly SurfacePaths — no path SurfacePaths misses, and none it
 // lists that Plan never emits.
 func TestSurfacePathsCoverPlan(t *testing.T) {
@@ -558,13 +664,15 @@ func TestSurfacePathsCoverPlan(t *testing.T) {
 			}
 		}
 		for _, st := range states {
-			targets, _ := mustPlan(t, PlanInput{WorktreeRoot: worktreeRoot, Harnesses: hs, RunTracker: runTracker, ClaudeMDState: st})
-			for _, tg := range targets {
-				rel, err := filepath.Rel(worktreeRoot, tg.Path)
-				if err != nil {
-					t.Fatal(err)
+			for _, ag := range []AgentsMDState{AgentsMDMissing, AgentsMDRegularFile, AgentsMDOther} {
+				targets, _ := mustPlan(t, PlanInput{WorktreeRoot: worktreeRoot, Harnesses: hs, RunTracker: runTracker, ClaudeMDState: st, AgentsMDState: ag})
+				for _, tg := range targets {
+					rel, err := filepath.Rel(worktreeRoot, tg.Path)
+					if err != nil {
+						t.Fatal(err)
+					}
+					emitted[filepath.ToSlash(rel)] = true
 				}
-				emitted[filepath.ToSlash(rel)] = true
 			}
 		}
 	}
