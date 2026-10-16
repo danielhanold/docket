@@ -84,6 +84,7 @@ func TestObserveRunningThenTerminal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("readManifest: %v", err)
 	}
+	t.Cleanup(func() { _ = signalGroup(m.PGID, syscall.SIGKILL) })
 	// Kill the supervisor ALONE and wait until it is reaped, and only then end
 	// its command. One group-wide SIGKILL is not atomic across the group's
 	// processes: the command can die first while a supervisor thread, parked in

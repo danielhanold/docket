@@ -13,8 +13,7 @@ session**, minutes apart, each at its own model and effort, and you never pick o
 
 Each **autonomous** docket skill runs as a model/effort-pinned **agent** — a separately launched
 worker with its own context, pinned to a model and effort (`docket-implement-next`,
-`docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`; the two interactive
-skills, `docket-new-change` and `docket-groom-next`, stay inline).
+`docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`).
 
 The two interactive skills, `docket-new-change` and `docket-groom-next`, run at whatever model and
 effort your session uses, so you choose them. Pick by preference and by how complex you expect the
