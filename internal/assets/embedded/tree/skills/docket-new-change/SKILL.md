@@ -16,10 +16,6 @@ description: Use when capturing a new unit of planned work (a change, roughly on
 - You want to quickly stub several `proposed` candidates without brainstorming yet (scan mode — opt-in).
 - A trivial mechanical change needs to be tracked but has no real design questions (trivial path).
 
-## Recommended model/effort (advisory)
-
-This skill brainstorms with a human, so it cannot be a fire-and-forget subagent and cannot force the session model. **Recommended: `claude-sonnet-5`, effort: model default** (wide variance from a trivial stub to a full brainstorm). Set `/model claude-sonnet-5` to match; this is advisory only — the human owns the session.
-
 ## Convention (load first — blocking)
 
 Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check* (load the convention; run the capability bootstrap; run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context values forward as literals; act on the disposition). Everything below uses its vocabulary without redefinition. All writes — the change, spec, and refreshed `BOARD.md` — land in the metadata worktree (`metadata_worktree_path` in the `repository.prepare` context) on the metadata branch, pushed to the metadata remote (`metadata_remote`) immediately so the backlog is reviewable and visible to the autonomous implementer.

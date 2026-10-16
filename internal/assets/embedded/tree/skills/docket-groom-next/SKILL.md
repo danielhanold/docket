@@ -15,10 +15,6 @@ description: Use when stubs are sitting at needs-grooming on the docket board an
 - Do NOT use to capture a brand-new idea — that is `docket-new-change`'s job; this skill never mints ids.
 - An explicit id naming an already-groomed `proposed` change (has `spec:` or `trivial: true`) is NOT an error — it routes to the revise flow (Step 4, exit 5): adjust the existing spec and owned sections through `change.groom` with `outcome: revise`. An explicit id with a request to *edit* (not groom) a needs-grooming stub routes there too. Drift against current reality at build time remains the reconcile pass's job in `docket-implement-next`.
 
-## Recommended model/effort (advisory)
-
-This skill grooms interactively with a human, so it cannot be a fire-and-forget subagent and cannot force the session model. **Recommended: `claude-sonnet-5` / `high`** (the cold-start recap is genuine synthesis). Set `/model claude-sonnet-5` and `/effort high` to match; this is advisory only — the human owns the session.
-
 ## Convention (load first — blocking)
 
 Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check* (load the convention; run the capability bootstrap; run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context values forward as literals; act on the disposition). Everything below uses its vocabulary without redefinition. All reads and writes land in the metadata worktree (`metadata_worktree_path` in the `repository.prepare` context) on the metadata branch, pushed to the metadata remote (`metadata_remote`) immediately so the backlog stays reviewable and visible to the autonomous implementer; grooming never touches `origin/<integration_branch>` — markdown only, no branches or code.

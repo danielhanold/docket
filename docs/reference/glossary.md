@@ -1711,8 +1711,7 @@ cold-start recap, and brainstorms it with you. It exits with spec, trivial, kill
 re-enable. It never takes a claim and never mints ids.
 
 **Used for:** designing stubs together with you. Naming an already-groomed id, or asking to edit a
-stub rather than groom it, routes to `revise`. It runs inline at the session model, and the model
-it recommends is advisory.
+stub rather than groom it, routes to `revise`. It runs inline at the session model.
 
 ```sh
 /docket-groom-next
