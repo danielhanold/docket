@@ -1221,6 +1221,21 @@ var alignmentContracts = []proseContract{
 			"any other `blocked` is `halted`",
 			"`unknown`, or any other result, is `halted`",
 		}},
+	// change 0539 — the docket-status Findings paragraph names the derived-view
+	// drift family and defers to each finding's own remedy; it no longer lists
+	// codes (the list drifted) or claims repair clears every drift finding
+	// (-malformed and artifact-backlink-shared need a hand edit first). The
+	// Sweep posture's artifact-links-stale line stays: that code is repairable.
+	{sentinel: "change_0539_drift_family", file: "skills/docket-status/SKILL.md",
+		present: []string{
+			"is reported by the `repository.check` operation. Each finding carries its own remedy",
+			"Relay the finding's remedy rather than telling the human to just run repair",
+			"surfaces later as an `artifact-links-stale` finding that the authorized `repository.repair` operation re-renders",
+		},
+		absent: []string{
+			"and their `-malformed` forms",
+			"and repaired through `repository.repair`",
+		}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.
