@@ -72,6 +72,6 @@ Daniel reads this output himself, and agents relay it; every finding should answ
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: 84439f2f30cc53fb9c90340faf5ba43e4920e7a2
-ran_at:   2026-10-16T01:43:47Z
+head_sha: 775bf0559a605f07dd6d78da6760087153b1e720
+ran_at:   2026-10-16T02:03:50Z
 <!-- docket:build-evidence:end -->
