@@ -2,7 +2,7 @@
 id: 554
 slug: 'update-cursor-review-tier-defaults-to-grok-4-7'
 title: 'Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-15'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/update-cursor-review-tier-defaults-to-grok-4-7'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-16T12:05:01Z'
 ---
 
 ## Artifacts
