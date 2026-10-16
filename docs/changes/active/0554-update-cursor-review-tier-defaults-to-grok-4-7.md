@@ -67,6 +67,6 @@ Recorded ADR-0008 in adrs: — it gained a dated Update note (the interactive sk
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: f85fa291478d94038aa26cb49ff57d21f5721055
-ran_at:   2026-10-16T13:18:56Z
+head_sha: 8811c790466745b025a036aeb9ca709beac317e2
+ran_at:   2026-10-16T15:24:38Z
 <!-- docket:build-evidence:end -->
