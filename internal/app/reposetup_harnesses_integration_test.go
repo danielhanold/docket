@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -349,6 +350,69 @@ func TestIntegrationRepoSetupConfigureHarnessesDropsAHarness(t *testing.T) {
 	if strings.Count(yml, "agent_harnesses:") != 1 || !strings.Contains(yml, "agent_harnesses: []\n") {
 		t.Errorf(".docket.yml = %q, want exactly one agent_harnesses: [] line", yml)
 	}
+}
+
+// TestIntegrationRepoSetupConfigureHarnessesDropDeletesAnEmptiedAgentsMD pins
+// what dropping the last harness does to AGENTS.md: a file that held only the
+// dispatch block is deleted (and the tracked deletion is a pending review
+// path), while a file the user also wrote in keeps every byte outside the block.
+func TestIntegrationRepoSetupConfigureHarnessesDropDeletesAnEmptiedAgentsMD(t *testing.T) {
+	t.Run("only the block", func(t *testing.T) {
+		r := newHarnessRepo(t, "codex")
+		agents := filepath.Join(r.invocation, "AGENTS.md")
+		seeded := mustReadFile(t, agents)
+		doc, err := document.Parse(seeded)
+		if err != nil {
+			t.Fatalf("fixture: parsing AGENTS.md: %v", err)
+		}
+		b, ok := doc.Block("dispatch")
+		if !ok {
+			t.Fatalf("fixture: AGENTS.md = %q, want a dispatch block", seeded)
+		}
+		outside := append(append([]byte(nil), seeded[:b.Start.Start]...), seeded[b.End.End:]...)
+		if strings.TrimSpace(string(outside)) != "" {
+			t.Fatalf("fixture: AGENTS.md carries bytes outside the block (%q); the case would be vacuous", outside)
+		}
+
+		res := r.runConfigureHarnesses(t, ConfigureHarnessesOptions{Harnesses: harnessFlag("none")})
+		if res.Result != ResultApplied {
+			t.Fatalf("Result = %q (%s), want applied", res.Result, res.HumanText())
+		}
+		if _, err := os.Lstat(agents); !os.IsNotExist(err) {
+			t.Errorf("AGENTS.md survived (err=%v); it held only the dispatch block, so dropping the harness deletes it", err)
+		}
+		if !contains(res.PendingPaths, "AGENTS.md") {
+			t.Errorf("PendingPaths = %v, want AGENTS.md (its tracked deletion is a reviewable change)", res.PendingPaths)
+		}
+	})
+
+	t.Run("user text kept", func(t *testing.T) {
+		r := newHarnessRepo(t, "codex")
+		agents := filepath.Join(r.invocation, "AGENTS.md")
+		writeRepoFile(t, r.invocation, "AGENTS.md", string(mustReadFile(t, agents))+"\n## My notes\n\nkeep me\n")
+		seeded := mustReadFile(t, agents)
+		doc, err := document.Parse(seeded)
+		if err != nil {
+			t.Fatalf("fixture: parsing AGENTS.md: %v", err)
+		}
+		b, ok := doc.Block("dispatch")
+		if !ok {
+			t.Fatalf("fixture: AGENTS.md = %q, want a dispatch block", seeded)
+		}
+		want := string(seeded[:b.Start.Start]) + string(seeded[b.End.End:])
+
+		res := r.runConfigureHarnesses(t, ConfigureHarnessesOptions{Harnesses: harnessFlag("none")})
+		if res.Result != ResultApplied {
+			t.Fatalf("Result = %q (%s), want applied", res.Result, res.HumanText())
+		}
+		got := string(mustReadFile(t, agents))
+		if got != want {
+			t.Errorf("AGENTS.md = %q, want %q (the seeded file minus only the block's lines)", got, want)
+		}
+		if !strings.Contains(got, "keep me") || strings.Contains(got, "docket:dispatch") {
+			t.Errorf("AGENTS.md = %q, want the user's text kept and no docket:dispatch block", got)
+		}
+	})
 }
 
 func TestIntegrationRepoSetupConfigureHarnessesNoPreconditions(t *testing.T) {
