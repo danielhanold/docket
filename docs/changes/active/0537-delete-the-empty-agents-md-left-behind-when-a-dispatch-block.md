@@ -2,7 +2,7 @@
 id: 537
 slug: 'delete-the-empty-agents-md-left-behind-when-a-dispatch-block'
 title: 'Delete the empty AGENTS.md left behind when a dispatch block is retired'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-06'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/delete-the-empty-agents-md-left-behind-when-a-dispatch-block'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-16T17:20:16Z'
 ---
 
 ## Artifacts
