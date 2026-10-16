@@ -22,7 +22,7 @@ branch: 'chore/update-cursor-review-tier-defaults-to-grok-4-7'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T12:07:14Z'
+claimed_at: '2026-10-16T12:08:55Z'
 ---
 
 ## Artifacts
