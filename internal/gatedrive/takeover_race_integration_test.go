@@ -25,9 +25,10 @@ func TestRaceIntegrationGatedriveTakeoverKeepsRunIdentity(t *testing.T) {
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 	d := newIntDriver(store, svc)
 
-	// A real outer-scope start over a child that outlives several short slices and
-	// is still live when the takeover happens.
-	req := intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "pass-after", "500")
+	// A real outer-scope start over a child held live until the test releases it,
+	// so it outlives several short slices and is still live at the takeover.
+	sig := newGoSignal(t)
+	req := intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "pass-on", sig)
 	grant, err := store.PrepareScope(outerScopeReqFor(req))
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
@@ -64,6 +65,7 @@ func TestRaceIntegrationGatedriveTakeoverKeepsRunIdentity(t *testing.T) {
 	}
 
 	// The fresh owner drives the SAME live run to its terminal pass.
+	releaseChild(t, sig)
 	term, _ := advanceUntilTerminal(t, d, started.DriveID, took.Generation)
 	if term.Outcome != PASSED {
 		t.Fatalf("post-takeover terminal %s (cause %q), want PASSED", term.Outcome, term.Cause)
