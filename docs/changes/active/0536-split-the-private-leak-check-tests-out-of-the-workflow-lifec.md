@@ -9,7 +9,7 @@ created: '2026-10-06'
 updated: '2026-10-16'
 depends_on: []
 stacked_on:
-related: [528, 273, 530, 532]
+related: [527, 528, 273, 531, 532]
 discovered_from: [532]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-design.md'
@@ -34,7 +34,7 @@ reconciled: false
 
 ## Why
 
-Private-visibility work grew the `tests/test_go_integration_app_workflowlifecycle.sh` shard from a 35s budget ceiling to 80s in three steps (change 530's private end-to-end acceptance test, then change 532's six leak-check tests), raising its `tests/runtime-budgets.tsv` row each time instead of re-shaping the file. A quiet serial run on 2026-10-16 measured 83s, already over the row. The suite's convention is to split an oversized shard so its ceiling keeps meaning something, as 0242 and 0434 did.
+Private-visibility work grew the `tests/test_go_integration_app_workflowlifecycle.sh` shard from a 35s budget ceiling to 80s in three steps (change 531's private end-to-end acceptance test, then change 532's six leak-check tests), raising its `tests/runtime-budgets.tsv` row each time instead of re-shaping the file. A quiet serial run on 2026-10-16 measured 83s, already over the row. The suite's convention is to split an oversized shard so its ceiling keeps meaning something, as 0242 and 0434 did.
 
 ## What changes
 
@@ -42,4 +42,4 @@ Rename the seven private-mode integration tests (the end-to-end `…PrivateInitT
 
 ## Out of scope
 
-Changing what any moved test asserts. Re-seeding or host-relativizing the budget table (#273). Detecting concurrent suites in the solo re-check (#528). Editing point-in-time records that name the old shard or tests.
+Changing what any moved test asserts. The concurrency and reposetup shards' budgets (#527). Re-seeding or host-relativizing the budget table (#273). Detecting concurrent suites in the solo re-check (#528). Editing point-in-time records that name the old shard or tests.

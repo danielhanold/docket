@@ -15,7 +15,7 @@ instead of re-shaping the file:
 
 | Step | Added | Row |
 |---|---|---|
-| private-visibility acceptance (change 530) | `…PrivateInitToImplemented` | 35 → 55 |
+| private-visibility acceptance (change 531) | `…PrivateInitToImplemented` | 35 → 55 |
 | feature-push leak check (change 532) | five `…PrivateLeakCheck*` tests + `…SharedPublishRunsNoLeakCheck` | 55 → 70 |
 | PR-write leak check (change 532) | `…PrivateLeakCheckGatesPR` | 70 → 80 |
 
@@ -99,6 +99,7 @@ worktree's suite inflates a solo reading. If a reading looks off, re-measure it 
 ## Out of scope
 
 - Changing what any of the seven tests asserts, or speeding them up.
+- The concurrency and reposetup shards, whose rows change 531 also raised: their re-shaping is #527.
 - Re-seeding or host-relativizing the rest of the budget table (#273).
 - Detecting concurrent suites in the solo re-check (#528).
 - Editing point-in-time records that name the old shard or tests (release run logs, archived
