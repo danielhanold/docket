@@ -516,7 +516,15 @@ func (t *Txn) applyStep(i int) error {
 				return err
 			}
 		}
-		if err := t.fs.Symlink(target.LinkTarget, step.Path); err != nil {
+		dest := target.LinkTarget
+		if target.LinkRelative {
+			rel, err := filepath.Rel(filepath.Dir(step.Path), target.LinkTarget)
+			if err != nil {
+				return fmt.Errorf("linking %s: %w", step.Path, err)
+			}
+			dest = rel
+		}
+		if err := t.fs.Symlink(dest, step.Path); err != nil {
 			return fmt.Errorf("linking %s: %w", step.Path, err)
 		}
 		return nil

@@ -136,6 +136,22 @@ func inspectSymlink(t Target, info fs.FileInfo, rec TargetRecord, hasRec bool, l
 			return Inspection{}, err
 		}
 		if have == want {
+			// The destination is right; only a relative link's spelling can
+			// still be wrong. An absolute spelling is rewritten when the link is
+			// provably ours, and left as the user's when it is not.
+			if t.LinkRelative {
+				raw, err := os.Readlink(t.Path)
+				if err != nil {
+					return Inspection{}, fmt.Errorf("install: reading link %s: %w", t.Path, err)
+				}
+				if filepath.IsAbs(raw) {
+					if owned, err := provenByRecord(rec, hasRec); err != nil {
+						return Inspection{}, err
+					} else if owned {
+						return Inspection{Target: t, Disposition: DispositionUpdate}, nil
+					}
+				}
+			}
 			return Inspection{Target: t, Disposition: DispositionNoop}, nil
 		}
 		repointed = want

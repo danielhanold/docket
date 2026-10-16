@@ -17,8 +17,13 @@ type Target struct {
 	Kind       TargetKind
 	Content    []byte // KindFile: full bytes; KindManagedBlock: desired interior
 	LinkTarget string // KindSymlink: desired destination (canonicalised by the planner)
-	BlockName  string // KindManagedBlock: marker name ("dispatch")
-	Annotation string // KindManagedBlock: start-marker annotation
+	// LinkRelative is KindSymlink only: the link is written relative to its own
+	// directory rather than as LinkTarget's absolute path, so a link committed
+	// to a repository resolves in every clone. An owned link already resolving
+	// to LinkTarget but spelled absolute is rewritten.
+	LinkRelative bool
+	BlockName    string // KindManagedBlock: marker name ("dispatch")
+	Annotation   string // KindManagedBlock: start-marker annotation
 	// HookDialect and HookCommands are KindHookEntries only: the hooks-file
 	// shape (HookDialectClaude, HookDialectCursor) and the exact commands, in
 	// install order, whose entries the target owns in that one file.
@@ -81,6 +86,9 @@ func (t Target) validate() error {
 		return fmt.Errorf("%w: empty path", ErrInvalidTarget)
 	case !filepath.IsAbs(t.Path):
 		return fmt.Errorf("%w: path %q is not absolute", ErrInvalidTarget, t.Path)
+	}
+	if t.LinkRelative && t.Kind != KindSymlink {
+		return fmt.Errorf("%w: %s is a %s target asking for a relative link", ErrInvalidTarget, t.Path, t.Kind)
 	}
 	if t.Kind != KindHookEntries && (t.HookDialect != "" || len(t.HookCommands) > 0 || len(t.AllowRules) > 0) {
 		return fmt.Errorf("%w: %s is a %s target carrying hook-entries fields", ErrInvalidTarget, t.Path, t.Kind)

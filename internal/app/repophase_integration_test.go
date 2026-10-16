@@ -589,9 +589,39 @@ func TestIntegrationContextProbeClaudeShareNoClaudeMDLinksOwnAgentsMD(t *testing
 
 	installShared(t, root, nil)
 
+	assertClaudeLink(t, root)
 	assertClaudeResolvesToAgents(t, root)
 	if _, rest := agentsDispatch(t, root); rest != claudeShareUserText {
 		t.Errorf("AGENTS.md outside the block = %q, want the user text %q", rest, claudeShareUserText)
+	}
+}
+
+// TestIntegrationContextProbeClaudeShareRewritesAbsoluteLink: an older install
+// wrote CLAUDE.md as an absolute link, which dangles in every other clone once
+// committed. Reinstalling rewrites docket's own link to the relative
+// "AGENTS.md", and the install after that is a steady state.
+//
+// MUTATION TEST: drop the LinkRelative rewrite from inspectSymlink and the
+// absolute link stays a no-op; this test reddens.
+func TestIntegrationContextProbeClaudeShareRewritesAbsoluteLink(t *testing.T) {
+	pinInstructionsUserRoots(t)
+	root, _ := initGitRepo(t, "agent_harnesses: [claude]\n")
+	writeRepoFile(t, root, "AGENTS.md", claudeShareUserText)
+	installShared(t, root, nil)
+
+	claude := filepath.Join(root, "CLAUDE.md")
+	if err := os.Remove(claude); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(root, "AGENTS.md"), claude); err != nil {
+		t.Fatal(err)
+	}
+
+	installShared(t, root, nil)
+	assertClaudeLink(t, root)
+
+	if _, wrote := installShared(t, root, nil); wrote {
+		t.Errorf("third install wrote again, want a steady state")
 	}
 }
 
@@ -655,7 +685,7 @@ func TestIntegrationContextProbeClaudeShareReinstallKeepsOwnLink(t *testing.T) {
 	writeRepoFile(t, root, "AGENTS.md", claudeShareUserText)
 
 	installShared(t, root, nil)
-	assertClaudeResolvesToAgents(t, root)
+	assertClaudeLink(t, root)
 
 	phase, _ := installShared(t, root, nil)
 

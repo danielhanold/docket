@@ -251,6 +251,46 @@ func TestInspectTarget(t *testing.T) {
 			want: DispositionUpdate,
 		},
 		{
+			// An owned link spelled absolute dangles in every other clone once
+			// committed, so a plan that wants a relative link rewrites it even
+			// though it already resolves to the right place.
+			name: "owned absolute link the plan wants relative is updated",
+			setup: func(t *testing.T, dir string) (Target, *State) {
+				dest := filepath.Join(dir, "AGENTS.md")
+				writeFileOrDie(t, dest, "rules\n")
+				link := filepath.Join(dir, "CLAUDE.md")
+				symlinkOrDie(t, dest, link)
+				return Target{Path: link, Kind: KindSymlink, LinkTarget: dest, LinkRelative: true, Role: "dispatch"},
+					priorWith(TargetRecord{Path: link, Kind: KindSymlink, LinkTarget: dest, Role: "dispatch"})
+			},
+			want: DispositionUpdate,
+		},
+		{
+			name: "relative link the plan wants relative is a no-op",
+			setup: func(t *testing.T, dir string) (Target, *State) {
+				dest := filepath.Join(dir, "AGENTS.md")
+				writeFileOrDie(t, dest, "rules\n")
+				link := filepath.Join(dir, "CLAUDE.md")
+				symlinkOrDie(t, "AGENTS.md", link)
+				return Target{Path: link, Kind: KindSymlink, LinkTarget: dest, LinkRelative: true, Role: "dispatch"},
+					priorWith(TargetRecord{Path: link, Kind: KindSymlink, LinkTarget: dest, Role: "dispatch"})
+			},
+			want: DispositionNoop,
+		},
+		{
+			// Without a record the link is the user's: it already resolves to
+			// the right place, so its spelling is theirs to keep.
+			name: "unowned absolute link the plan wants relative is a no-op",
+			setup: func(t *testing.T, dir string) (Target, *State) {
+				dest := filepath.Join(dir, "AGENTS.md")
+				writeFileOrDie(t, dest, "rules\n")
+				link := filepath.Join(dir, "CLAUDE.md")
+				symlinkOrDie(t, dest, link)
+				return Target{Path: link, Kind: KindSymlink, LinkTarget: dest, LinkRelative: true, Role: "dispatch"}, nil
+			},
+			want: DispositionNoop,
+		},
+		{
 			name: "unknown file where a symlink belongs is a conflict",
 			setup: func(t *testing.T, dir string) (Target, *State) {
 				link := filepath.Join(dir, "skills", "docket-build")
