@@ -14,7 +14,7 @@ discovered_from: [535]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-design.md'
 plan: 'docs/superpowers/plans/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md'
-results:
+results: 'docs/results/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-16T17:32:55Z'
 |---|---|
 | Spec | [2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-design.md](../../superpowers/specs/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-design.md) |
 | Plan | [2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md](../../superpowers/plans/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) |
+| Results | [2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-results.md](../../results/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
