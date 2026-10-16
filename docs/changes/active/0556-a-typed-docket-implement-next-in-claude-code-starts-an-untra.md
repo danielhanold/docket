@@ -22,7 +22,7 @@ branch: 'fix/a-typed-docket-implement-next-in-claude-code-starts-an-untra'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T23:38:06Z'
+claimed_at: '2026-10-16T23:47:32Z'
 ---
 
 ## Artifacts
