@@ -22,7 +22,7 @@ branch: 'fix/delete-the-empty-agents-md-left-behind-when-a-dispatch-block'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T17:22:07Z'
+claimed_at: '2026-10-16T17:23:35Z'
 ---
 
 ## Artifacts
