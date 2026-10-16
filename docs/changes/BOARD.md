@@ -1,6 +1,6 @@
 # Backlog
 
-**555 changes** — 🟣 2 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 393 done · 🗑️ 141 killed
+**556 changes** — 🟣 2 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 393 done · 🗑️ 141 killed
 
 ## 🟣 Groomed (2)
 
@@ -9,10 +9,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (5)
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0556](active/0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) | A typed /docket-implement-next in Claude Code starts an untracked run | `low` | `fix` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `medium` | `fix` | needs-grooming |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
 | [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
@@ -62,6 +63,7 @@ graph TD
   0528
   0541
   0546 --> 0547
+  0556
   0192:::done
   0251:::done
   0393:::done
