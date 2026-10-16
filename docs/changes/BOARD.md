@@ -1,12 +1,6 @@
 # Backlog
 
-**555 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 391 done · 🗑️ 141 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0537](active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | `low` | `fix` | [#422](https://github.com/danielhanold/docket/pull/422) | awaiting merge |
+**555 changes** — 🟣 2 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 392 done · 🗑️ 141 killed
 
 ## 🟣 Groomed (2)
 
@@ -67,7 +61,6 @@ graph TD
   0544 --> 0513
   0511 --> 0514
   0528
-  0537
   0541
   0546 --> 0547
   0555
@@ -81,7 +74,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (532)</summary>
+<details><summary>✅🗑️ Archive — done + killed (533)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -89,6 +82,7 @@ graph TD
 | [0553](archive/2026-10-16-0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | 2026-10-16 |
 | [0548](archive/2026-10-16-0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Name test fixture folders by what they hold | 2026-10-16 |
 | [0539](archive/2026-10-16-0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | Describe repository-check drift findings by family in the docket-status skill | 2026-10-16 |
+| [0537](archive/2026-10-16-0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | 2026-10-16 |
 | [0536](archive/2026-10-16-0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) | Split the private-mode tests out of the workflow lifecycle shard | 2026-10-16 |
 | [0527](archive/2026-10-16-0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | 2026-10-16 |
 | [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
@@ -101,7 +95,6 @@ graph TD
 | [0544](archive/2026-10-08-0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | 2026-10-08 |
 | [0543](archive/2026-10-08-0543-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md) | Cursor section of the Bash upgrade guide, proven on the saved cases | 2026-10-08 |
 | [0542](archive/2026-10-08-0542-open-the-board-a-change-and-its-artifacts-from-the-terminal.md) | Open the board, a change, and its artifacts from the terminal | 2026-10-08 |
-| [0540](archive/2026-10-08-0540-a-finished-run-left-active-in-run-json-blocks-set-visibility.md) | A finished run left active in run.json blocks set-visibility and cannot be cancelled | 2026-10-08 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -246,7 +239,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 48 done |
+| [2026-10](archive/) | 49 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

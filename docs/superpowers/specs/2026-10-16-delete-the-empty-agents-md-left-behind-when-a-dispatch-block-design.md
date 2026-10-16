@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0537 — Delete the empty AGENTS.md left behind when a dispatch block is retired](../../changes/active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md)**
+> ↩ **[Change 0537 — Delete the empty AGENTS.md left behind when a dispatch block is retired](../../changes/archive/2026-10-16-0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md)**
 <!-- docket:backlink:end -->
 
 # Delete the empty AGENTS.md left behind when a dispatch block is retired — design

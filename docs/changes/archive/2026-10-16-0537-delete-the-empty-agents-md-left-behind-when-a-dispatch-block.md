@@ -2,7 +2,7 @@
 id: 537
 slug: 'delete-the-empty-agents-md-left-behind-when-a-dispatch-block'
 title: 'Delete the empty AGENTS.md left behind when a dispatch block is retired'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-06'
@@ -22,7 +22,7 @@ branch: 'fix/delete-the-empty-agents-md-left-behind-when-a-dispatch-block'
 pr: 'https://github.com/danielhanold/docket/pull/422'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T17:32:55Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-16T17:32:55Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-design.md](../../superpowers/specs/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-design.md) |
+| Spec (merged) | [2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-design.md) |
 | Plan | [2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md](../../superpowers/plans/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) |
 | Results | [2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-results.md](../../results/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-results.md) |
 <!-- docket:artifacts:end -->
