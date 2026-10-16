@@ -9,7 +9,7 @@ created: '2026-10-04'
 updated: '2026-10-16'
 depends_on: []
 stacked_on:
-related: [345]
+related: [345, 556]
 discovered_from: []
 adrs: []
 spec:
@@ -54,7 +54,7 @@ Hook facts that shape the design:
 - Hook locations: `~/.claude/settings.json` (all projects, this machine); `<repo>/.claude/settings.local.json`; `<repo>/.claude/settings.json` (committed); a plugin's `hooks/hooks.json`; skill frontmatter (registered once the skill is invoked; `once: true` is honored only there); subagent frontmatter (only while that subagent runs).
 - A skill-frontmatter hook would exist only in docket sessions and could remove itself after one run, but only grooming runs as a skill in the main session. Implement and finalize run as dispatched agents, whose hooks cannot rename the parent session. Rejected.
 - Daniel starts sessions from the terminal and from the Claude mobile app via Remote Control (sessions run on his Mac; he uses no cloud sessions), so one hook in `~/.claude/settings.json` covers both. Cloud sessions would not read that file. Remote Control picks the remote title in this order: a `--name`/`--remote-control` name, then the `/rename` title, then the last meaningful message, then an auto-generated name.
-- Daniel drives docket workflows with prose prompts (`groom 497`), not `/docket-*` slash commands, which do not currently work in docket (see 0345). So `UserPromptExpansion` — slash commands only, with parsed `command_name`/`command_args` but no title output — does not apply.
+- Daniel drives docket workflows with prose prompts (`groom 497`), not `/docket-*` slash commands. The slash commands do run (verified live on 2026-10-16); a typed `/docket-implement-next` simply skips the run tracker, which change 0556 labels and documents. So `UserPromptExpansion` — slash commands only, with parsed `command_name`/`command_args` but no title output — does not apply to how Daniel works.
 
 **Other harnesses** (desk research of current docs and source, 2026-10-04; not probed live):
 
@@ -112,7 +112,7 @@ The verb vocabulary is exactly groom / implement / finalize; Daniel confirmed he
 - OpenCode: possible via `--title` or a plugin calling `session.update`; a follow-up only if docket work moves to OpenCode.
 - Cloud sessions (claude.ai/code on the web): they do not read `~/.claude/settings.json`, and Daniel does not use them.
 - Workflows started without a change id (`groom the next one`, a bare implement-next pick, new-change, which mints its id mid-session): the id is unknown when the message is sent, so these stay unnamed and use `/rename`.
-- `/docket-*` slash commands and the `UserPromptExpansion` event; revisit if 0345 makes slash commands work.
+- `/docket-*` slash commands and the `UserPromptExpansion` event: Daniel starts workflows with prose, not typed commands. Revisit if that changes; the commands themselves run (change 0556 covers the tracking difference for implement-next).
 - Naming dispatched subagents or other sessions; renaming by writing transcript files directly or through the Agent SDK.
 - A terminal launcher shortcut (`claude --name …`): a personal alias if wanted, not part of this change.
 
