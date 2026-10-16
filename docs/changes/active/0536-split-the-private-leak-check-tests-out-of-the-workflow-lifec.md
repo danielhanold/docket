@@ -58,6 +58,6 @@ Changing what any moved test asserts. The concurrency and reposetup shards' budg
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: 7cdaca68007781067caeefdb91562fe5097492f3
-ran_at:   2026-10-16T15:39:10Z
+head_sha: 3233820e9233515481fcd8a5a7ac8a39a0f8066d
+ran_at:   2026-10-16T16:02:42Z
 <!-- docket:build-evidence:end -->
