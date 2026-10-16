@@ -2,7 +2,7 @@
 id: 556
 slug: 'a-typed-docket-implement-next-in-claude-code-starts-an-untra'
 title: 'A typed /docket-implement-next in Claude Code starts an untracked run'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-16'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/a-typed-docket-implement-next-in-claude-code-starts-an-untra'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-16T23:34:28Z'
 ---
 
 ## Artifacts

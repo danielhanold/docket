@@ -1,12 +1,17 @@
 # Backlog
 
-**556 changes** — 🟣 2 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 393 done · 🗑️ 142 killed
+**556 changes** — 🟢 1 in progress · 🟣 1 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 393 done · 🗑️ 142 killed
 
-## 🟣 Groomed (2)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0556](active/0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) | A typed /docket-implement-next in Claude Code starts an untracked run | `low` | `fix` | [spec](../superpowers/specs/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md) | `fix/a-typed-docket-implement-next-in-claude-code-starts-an-untra` |  |
+
+## 🟣 Groomed (1)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0556](active/0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) | A typed /docket-implement-next in Claude Code starts an untracked run | `low` | `fix` | [spec](../superpowers/specs/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 
 ## 🟡 Proposed (5)
