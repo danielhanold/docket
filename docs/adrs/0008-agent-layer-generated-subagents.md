@@ -130,3 +130,9 @@ rationale and what is kept (the generator, the built-in-defaults glob, the on-de
 **2026-10-04 (change 0515, [[0139]]).** The finalize repair sign-off described in the
 2026-06-17 note above is **reversed** by [[0139]] ("Finalize adds no human gate of its own"):
 a repair that turns the rebased suite green now merges. The rest of this ADR stands as written.
+
+**2026-10-16 (change 0554).** The interactive skills (`docket-new-change`, `docket-groom-next`)
+no longer surface any advisory recommended model/effort. They still stay inline, and the session
+model is the human's choice. Model-agnostic guidance on picking a session model by preference and
+expected change complexity now lives in `docs/install/models-and-effort.md`. The `Decision`
+section is unchanged; this is not a supersession.
