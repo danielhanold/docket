@@ -442,6 +442,73 @@ func TestIntegrationRepoVisibilityPrivateHappyPath(t *testing.T) {
 // TestIntegrationRepoVisibilityPrivateDeleteSharedBranch proves
 // --delete-shared-branch removes origin's docket branch once the bare remote
 // holds its tip, and a re-run is a no-op.
+// TestIntegrationRepoVisibilityPrivateInstructionsPhaseWithoutHarnesses pins
+// the instructions phase against the declared harness list: an empty list has
+// nothing to install, so a private repository without the private instructions
+// file is already done, while a declared harness still needs that file.
+func TestIntegrationRepoVisibilityPrivateInstructionsPhaseWithoutHarnesses(t *testing.T) {
+	paths := func(t *testing.T, r *initRepo) (primary, common, ins string) {
+		t.Helper()
+		primary, err := filepath.EvalSymlinks(r.invocation)
+		if err != nil {
+			t.Fatal(err)
+		}
+		common = filepath.Join(primary, ".git")
+		return primary, common, layout.PrivateInstructionsPath(common)
+	}
+	requireNoOp := func(t *testing.T, r *initRepo) {
+		t.Helper()
+		if res := r.runSetVisibility(t, SetVisibilityOptions{Target: "private"}); res.Result != ResultNoOp {
+			t.Errorf("preview = %q (instructions %q), want no-op:\n%s", res.Result, phaseStatus(res, "instructions"), res.HumanText())
+		}
+		if res := r.runSetVisibility(t, SetVisibilityOptions{Target: "private", Authorized: true}); res.Result != ResultNoOp {
+			t.Errorf("authorized run = %q (instructions %q), want no-op:\n%s", res.Result, phaseStatus(res, "instructions"), res.HumanText())
+		}
+	}
+
+	t.Run("born with no harness", func(t *testing.T) {
+		pinInstructionsUserRoots(t)
+		r, _ := newPrivateInitRepo(t, nil)
+		if res := r.runInitWith(t, InitOptions{Private: true, Harnesses: harnessFlag("none")}); res.Result != ResultApplied {
+			t.Fatalf("private init = %q (%s), want applied", res.Result, res.HumanText())
+		}
+		_, _, ins := paths(t, r)
+		if err := os.Remove(ins); err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		requireNoOp(t, r)
+	})
+
+	t.Run("harness list emptied after an install", func(t *testing.T) {
+		pinInstructionsUserRoots(t)
+		r, _ := newBornPrivateRepo(t)
+		primary, common, ins := paths(t, r)
+		if _, err := os.Stat(ins); err != nil {
+			t.Fatalf("precondition: the private instructions file is missing after a codex init: %v", err)
+		}
+		setPrivateHarnesses(t, common, "[]")
+		installSurfacesIn(t, primary)
+		if _, err := os.Lstat(ins); !os.IsNotExist(err) {
+			t.Fatalf("the private instructions file survived the retirement of its only block (err=%v)", err)
+		}
+		requireNoOp(t, r)
+	})
+
+	t.Run("a declared harness still needs the file", func(t *testing.T) {
+		pinInstructionsUserRoots(t)
+		r, _ := newBornPrivateRepo(t)
+		_, _, ins := paths(t, r)
+		if err := os.Remove(ins); err != nil {
+			t.Fatal(err)
+		}
+		res := r.runSetVisibility(t, SetVisibilityOptions{Target: "private"})
+		if !res.ConfirmationRequired() || phaseStatus(res, "instructions") != visibilityPhasePending {
+			t.Errorf("preview = %q (instructions %q), want confirmation required with instructions pending:\n%s",
+				res.Result, phaseStatus(res, "instructions"), res.HumanText())
+		}
+	})
+}
+
 func TestIntegrationRepoVisibilityPrivateDeleteSharedBranch(t *testing.T) {
 	r, _ := newPrivateSwitchRepo(t)
 	o := SetVisibilityOptions{Target: "private", DeleteSharedBranch: true}
