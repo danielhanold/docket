@@ -72,26 +72,34 @@ It does **not** apply when the prompt carried either one:
 
 A child that had a run context and failed to pass it to the claim is change 0541's problem.
 
-Step 2's existing sentence equates "no token" with "a `run-untracked` or ungated run" (*Verify the run.* paragraph). That ignores keyed re-dispatches. The note's condition must not inherit that gap. Whether to also correct that sentence is the builder's call.
+The *Verify the run.* paragraph equates "no token" with "a `run-untracked` or ungated run". That ignores keyed re-dispatches. The note's condition must not inherit that gap. That sentence itself stays unchanged (see *Behavioral safety*).
 
 **What the note says.** It is written in plain words, covering what happened, whether it matters, and what to do:
 
-- **What:** this run was started without a run context, so the run tracker is not tracking it.
-- **Whether it matters:** if it stops partway, docket cannot retry it, resume it, or cancel it automatically; a run that finished is unaffected.
-- **What to do:** to get a tracked run next time, start implement-next by asking the session in plain words (for example "implement 556") or with `/loop docket-implement-next`, so the session starts the tracked run first. Name the usual cause: invoking the skill directly, such as a typed `/docket-implement-next`.
+- **What:** this run was started without a run context, so the run tracker is not tracking it. That is allowed, and the run proceeded normally.
+- **Whether it matters:** if a run like this stops partway, docket cannot retry it, resume it, or cancel it automatically; a run that finished is unaffected.
+- **What to do, next time:** start implement-next by asking the session in plain words (for example "implement 556") or through a loop driver such as `/loop`, so the session starts a tracked run first. Name the usual cause: invoking the skill directly, such as a typed `/docket-implement-next`. Say explicitly that nothing needs to be re-run now.
 
-**Who reads it.** In the case this targets, the forked child's final report goes to the main session, which then reports to the human. The note is therefore a separate, clearly marked line addressed to the human. It asks the session receiving the report to pass it on as written, not summarize it away. That is an informational request inside the child's own report, not authority and not a change to the parent-facing blocks.
+**Who reads it.** In the case this targets, the forked child's final report goes to the main session, which then reports to the human. The note is therefore a separate, plainly labeled note *for the human*, so a session relaying the report recognizes it as information to pass along. It contains no instruction to the receiving session. Docket's parent-facing blocks teach parents to treat child prose as the child's claim, never as direction, and a child steering its parent is exactly that pattern.
 
 The exact wording is the builder's. Keep the skill prose harness-neutral (the convention's rule for normative skill prose). The skill already names `/loop` in *Terminal disposition*, so naming it again is consistent.
 
-**What the note must never do.** These are anti-goals:
+### Behavioral safety (required in the skill text itself)
 
-- change the declared disposition;
-- stop, delay, or fail the run;
-- refuse or alter the claim;
-- start a run, mint a key, or try to recover attribution on the child's side.
+The note is read by autonomous agents, so it must not invite any action. It must not merely be harmless in intent. Each rule below is a written instruction in `SKILL.md` (or `edge-paths.md`, wherever the note lands). Spec-level intent alone is not enough. The sentinel pins the report-only clause.
 
-A key the child minted and reported back would be authority taken from child prose, which the run tracker forbids. The run key is the tracker's only handle (ADR-0133). This is visibility only. Docket's standing rule is that new checks report and never block.
+1. **Report-only.** The skill states that the note changes nothing else about the run: proceed exactly as today and claim without `--run-context` (the existing supported untracked claim). An untracked run is not an unmet precondition and never a reason to stop, abort, or halt. Without this, the abort-and-report rule could read "untracked" as a blocker.
+2. **Never self-track.** The child never runs `run.start`, `run.verdict`, or `run.cancel`. It never searches for, borrows, or creates a run context or run key: not from run records, other sessions, transcripts, or the environment. The only valid run context is one present in its own dispatch prompt.
+   - **Why:**
+     - A child-started run would leave a live run record whose key no session holds. Because one checkout carries at most one live run, that could block the human's next tracked start or resume there until someone finds the key and cancels it.
+     - A borrowed context would bind this claim to another session's run.
+     - A key the child minted and reported back would be authority taken from child prose, which the run tracker forbids. The run key is the tracker's only handle (ADR-0133).
+3. **Next-time advice, nothing to do now.** The remedy is phrased as guidance for the human's *next* start, and says nothing needs re-running now. It never reads as a request to dispatch, re-run, retry, or resume anything. A parent that took "start implement-next with a plain request" as a to-do could launch another run. After an `advanced` run, that would build the next change. The parent-facing blocks already forbid re-dispatch without `run-retry-once`; the wording must not pull against that.
+4. **No look-alike tokens.** The note contains no run-tracker report tokens (`run-started`, `run-untracked`, `run-retry-once`, `run-continue`, `run-stop`, `run-observe`, `run-halted`, `run-done`) and no disposition words used as a declaration (`advanced`, `contended`, `drained`, `halted`). A parent or loop driver that keys on those words must not misread it. The note sits with the final report's enumeration and never replaces the run's one declared disposition, or comes before it.
+5. **Claim and verify steps untouched.** Step 2's claim instructions and the *Verify the run.* paragraph stay byte-unchanged, including the existing `change_0407_run_context_claim` sentinel phrases. The note's condition is stated where the note lives, not by editing those steps.
+6. **Harness-neutral.** The skill is shared by every harness, so the remedy names "a plain request in your session" first and `/loop` only as an example of a loop driver.
+
+Visibility only: docket's standing rule is that new checks report and never block.
 
 ### Part B: the docs name the tracked starts
 
@@ -129,7 +137,12 @@ Docs describe current behavior only: no change numbers or PR references (ADR lin
 
 ## Tests and verification
 
-- Add a prose-contract sentinel for the Part A note in `internal/repoguard/prose_contracts_test.go`, following its existing `skills/docket-implement-next/SKILL.md` entries (or the `edge-paths.md` file, if the note lands there). Anchor it on verbatim clauses of the note: its condition (neither a run context nor a run key), its untracked statement, and its remedy. Mutation-test it: strip the note, or drop the run-key exclusion, and watch the sentinel go red.
+- Add a prose-contract sentinel for the Part A note in `internal/repoguard/prose_contracts_test.go`, following its existing `skills/docket-implement-next/SKILL.md` entries (or the `edge-paths.md` file, if the note lands there). Anchor it on verbatim clauses of the note: its condition (neither a run context nor a run key), its untracked statement, its remedy, and the report-only clause (*Behavioral safety* rule 1, with rule 2's never-self-track instruction). Mutation-test it: strip the note, drop the run-key exclusion, or drop the report-only clause, and watch the sentinel go red each time.
+- **Two-reader review.** Before the PR opens, review the final note text twice and record the result in the results file:
+  - **As the implementer that received no run context.** Confirm nothing in the skill now invites it to start a run, look for a token, stop, or change its claim.
+  - **As the main session receiving the report.** Confirm nothing in the note reads as a request to dispatch, re-run, retry, resume, or cancel anything, and that no look-alike tracker or disposition token appears.
+
+  A finding here is fixed in-branch like any review finding.
 - Whether the Part B doc statements also get sentinels is the builder's call. If added, follow the same mutation discipline.
 - Regenerate embedded assets, and keep the asset inventory and golden tests green.
 - Run the full suite through the configured `build.test_command`.
@@ -137,7 +150,7 @@ Docs describe current behavior only: no change numbers or PR references (ADR lin
 
 ## Left to the builder
 
-- The note's exact wording and its placement within the final-report paragraph.
+- The note's exact wording and its placement within the final-report paragraph, within *Behavioral safety*'s rules.
 - Exact placement and wording within each named doc page.
 - The sentinel's anchor phrases.
 - Whether docs get sentinels.

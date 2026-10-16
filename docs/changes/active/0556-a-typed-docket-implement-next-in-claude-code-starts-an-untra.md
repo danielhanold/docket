@@ -46,11 +46,12 @@ An untracked run still builds to a PR. But if it dies partway, docket cannot aut
 
 Make an untracked implement run visible, and point people at the tracked ways to start one. The typed command keeps working as it does today and stays visible.
 
-- The implementer's final report gains a short note when its dispatch prompt carried neither a run context nor a run key. The note says the run is untracked, so if it stops partway docket can't retry, resume, or cancel it. It says to start implement-next with a plain request or `/loop` to get a tracked run. It only informs: it never changes the disposition, stops the run, or touches the claim.
+- The implementer's final report gains a short note for the human when its dispatch prompt carried neither a run context nor a run key. The note says the run is untracked, so if a run like this stops partway docket can't retry, resume, or cancel it. As advice for next time, it says to start implement-next with a plain request or a loop driver such as `/loop`, and that nothing needs re-running now.
+- The note is report-only, and the skill text says so outright. The run proceeds exactly as today: it never changes the disposition, stops the run, or touches the claim, and it never starts, searches for, or borrows a run or run key itself. It contains no tracker or disposition tokens, and the claim and verify steps stay unchanged.
 - The maintained docs say to start implement-next with a plain request or `/loop`, and that a typed `/docket-implement-next` in Claude Code runs untracked. That covers the unattended-run guide, the run-tracker concept, the invocation-paths table, the README quick start, and any other maintained mention found by grep.
-- A prose-contract sentinel pins the note, and the skill's size ceiling moves by exactly the added words.
+- A prose-contract sentinel pins the note and its report-only clause. A two-reader review checks the final wording, reading it once as the implementer and once as the session receiving the report. The skill's size ceiling moves by exactly the added words.
 
-The linked spec holds the live-check evidence, the rejected alternatives, and the acceptance details.
+The linked spec holds the live-check evidence, the behavioral-safety rules, the rejected alternatives, and the acceptance details.
 
 ## Out of scope
 
