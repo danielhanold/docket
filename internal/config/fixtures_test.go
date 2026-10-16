@@ -10,17 +10,21 @@ import (
 )
 
 // This file is the end-to-end tier: it drives the real filesystem adapter over
-// the frozen v0.9.2 repository fixtures and asserts what Resolve makes of a
-// whole repository, rather than what one stage makes of one node. Every other
-// test file in this package builds its sources in memory; these read committed
-// bytes, so a change that only looks right against a hand-written literal is
-// caught here.
+// repository fixtures and asserts what Resolve makes of a whole repository,
+// rather than what one stage makes of one node. Every other test file in this
+// package builds its sources in memory; these read bytes from disk, so a change
+// that only looks right against a hand-written literal is caught here.
 //
-// The fixtures are immutable inputs (see testdata/README.md): nothing in this
-// file writes inside testdata/.
+// Most fixtures are the configuration samples under
+// testdata/repositories/configs/. They are samples of data docket must keep
+// reading: a failing test here means docket broke a configuration that already
+// exists, so a sample is never edited to make a test pass (testdata/README.md).
+// A test whose input must keep up with docket builds it with writeFixture.
+// Tests never write inside testdata/.
 
-// fixtureRoot is the frozen tree, relative to this package's directory.
-const fixtureRoot = "../../testdata/repositories/v0.9.2"
+// fixtureRoot is the configuration-sample folder, relative to this package's
+// directory.
+const fixtureRoot = "../../testdata/repositories/configs"
 
 // fixtureAgentHarness and fixtureAgentName are the concrete names
 // deferredActiveYAML uses for the dynamic `agents.<h>.<a>` subtree. The
@@ -375,7 +379,7 @@ func TestFixtureModeMainCustomPaths(t *testing.T) {
 		got, want  string
 		provenance Provenance
 	}{
-		// metadata_branch is an obsolete tombstone (0363): the frozen fixture still
+		// metadata_branch is an obsolete tombstone (0363): the sample still
 		// carries `metadata_branch: main`, but it no longer resolves — the
 		// declaration is diagnosed obsolete and the custom paths below are what
 		// this fixture now exercises.

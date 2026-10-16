@@ -8,11 +8,12 @@ import (
 	"testing"
 )
 
-// frozenDir holds byte-exact real records captured at pinned commits. They are
-// historical snapshots and deliberately do NOT track their live originals; see
-// testdata/repositories/v0.9.2/PROVENANCE.md for the pins and testdata/README.md
-// for that immutability statement.
-const frozenDir = "../../testdata/repositories/v0.9.2/documents"
+// frozenDir holds byte-exact real records captured at pinned commits;
+// testdata/repositories/documents/PROVENANCE.md records the pins. They are
+// samples of records docket must keep reading, so they deliberately do not
+// track their live originals and are never edited to make a test pass (see
+// testdata/README.md).
+const frozenDir = "../../testdata/repositories/documents"
 
 func frozenCorpus(t *testing.T) map[string][]byte {
 	t.Helper()
@@ -22,6 +23,9 @@ func frozenCorpus(t *testing.T) map[string][]byte {
 	}
 	out := map[string][]byte{}
 	for _, e := range entries {
+		if e.Name() == "PROVENANCE.md" {
+			continue // documentation, not a record
+		}
 		b, err := os.ReadFile(filepath.Join(frozenDir, e.Name()))
 		if err != nil {
 			t.Fatal(err)

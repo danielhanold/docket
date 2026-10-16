@@ -42,7 +42,7 @@ func fixtureTree(t *testing.T) string {
 	writeFile(t, root, "docs/adrs/0001.md", "an ADR quoting docket.sh preflight\n")
 	writeFile(t, root, "internal/repository/testdata/corpus/frozen.md", "docket.sh preflight\n")
 	writeFile(t, root, "internal/document/testdata/crlf.md", "fixture\n")
-	writeFile(t, root, "testdata/repositories/v0.9.2/x.md", "frozen release\n")
+	writeFile(t, root, "testdata/repositories/configs/x.md", "frozen release\n")
 	writeFile(t, root, "internal/install/testdata/legacy/old.mdc", "legacy\n")
 	writeFile(t, root, "internal/install/legacydata/block.md", "adopted legacy\n")
 	writeFile(t, root, "tests/fixtures/hygiene/bad.sh", "mv $a $b\n")
@@ -78,7 +78,7 @@ func TestMaintainedFilesIncludesAndExcludes(t *testing.T) {
 		"docs/adrs/0001.md",
 		"internal/repository/testdata/corpus/frozen.md",
 		"internal/document/testdata/crlf.md",
-		"testdata/repositories/v0.9.2/x.md",
+		"testdata/repositories/configs/x.md",
 		"internal/install/testdata/legacy/old.mdc",
 		"internal/install/legacydata/block.md",
 		"tests/fixtures/hygiene/bad.sh",

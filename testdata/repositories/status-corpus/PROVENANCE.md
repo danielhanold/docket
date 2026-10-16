@@ -1,4 +1,4 @@
-# Provenance — `testdata/repositories/v0.9.3/status-corpus/`
+# Provenance — `testdata/repositories/status-corpus/`
 
 - **Source repo:** `danielhanold/docket`
 - **Tag:** `v0.9.3`
@@ -8,9 +8,7 @@
 
 This directory is the frozen semantic corpus for the read-only `docket status`
 operation (change 0310). It is a **representative slice** of the `v0.9.3` tag's
-tree, not the whole tree. It coexists with — and never relabels or absorbs —
-the agent-defaults sidecar that shares this versioned tree; that sidecar keeps
-its own provenance in `../PROVENANCE.md`.
+tree, not the whole tree.
 
 ## Capture procedure (reproducible)
 
