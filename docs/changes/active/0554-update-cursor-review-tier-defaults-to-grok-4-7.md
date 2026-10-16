@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/update-cursor-review-tier-defaults-to-grok-4-7'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-16T12:05:01Z'
+reconciled: true
+claimed_at: '2026-10-16T12:07:14Z'
 ---
 
 ## Artifacts
@@ -48,3 +48,9 @@ Delete the `Recommended model/effort (advisory)` section from both interactive s
 ## Out of scope
 
 The Codex and opencode values (only one opencode comment sentence is removed). Changes to how the Cursor emitter handles effort. Frozen historical data: legacy install fixtures, surviving `testdata/repositories/` trees, internal corpus copies, release notes, and archived records.
+
+## Reconcile log
+
+### 2026-10-16
+
+Reconciled against main e99f310. Dependency #548 is done: internal/config/defaults_test.go now reads agents/harness-defaults.yml directly (no versioned fixture tree), so this is a plain data edit as the spec assumes. The example-correspondence mutation probe still keys on `{ model: claude-sonnet-5,` and must be retargeted, as the spec says. No scope change.
