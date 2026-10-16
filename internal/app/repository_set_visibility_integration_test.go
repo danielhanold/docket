@@ -439,9 +439,6 @@ func TestIntegrationRepoVisibilityPrivateHappyPath(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoVisibilityPrivateDeleteSharedBranch proves
-// --delete-shared-branch removes origin's docket branch once the bare remote
-// holds its tip, and a re-run is a no-op.
 // TestIntegrationRepoVisibilityPrivateInstructionsPhaseWithoutHarnesses pins
 // the instructions phase against the declared harness list: an empty list has
 // nothing to install, so a private repository without the private instructions
@@ -509,6 +506,9 @@ func TestIntegrationRepoVisibilityPrivateInstructionsPhaseWithoutHarnesses(t *te
 	})
 }
 
+// TestIntegrationRepoVisibilityPrivateDeleteSharedBranch proves
+// --delete-shared-branch removes origin's docket branch once the bare remote
+// holds its tip, and a re-run is a no-op.
 func TestIntegrationRepoVisibilityPrivateDeleteSharedBranch(t *testing.T) {
 	r, _ := newPrivateSwitchRepo(t)
 	o := SetVisibilityOptions{Target: "private", DeleteSharedBranch: true}
