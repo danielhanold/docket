@@ -8,22 +8,23 @@ Change #527, groomed 2026-10-16.
 
 ## Problem
 
-Changes 507 (flaky-test stabilization), 531 (private visibility), and 539 (finalize) surfaced
-seven unrelated test-suite defects. Each one lets a test silently stop running, fail for an environmental
+Changes 507 (flaky-test stabilization), 531 (private visibility), 539 (finalize), and 554
+(model defaults) surfaced eight unrelated test-suite defects. Each one lets a test silently stop running, fail for an environmental
 reason, or fail when nothing is wrong. Items 1–6 were re-traced against `main` at `2f47107e4`
 on 2026-10-16; the findings below are what that trace showed, not the original stub's wording.
-Item 7 was observed once while finalizing change 539 and has not been traced; it is
-diagnose-first.
+Item 7 was observed once while finalizing change 539; change 554 then reproduced and fixed it, so
+it is recorded here as done. Item 8 is the same race in a sibling test, found by 554's build.
 
 ## Goals
 
 - A test function that stops being run because of its name is caught, in any test file.
-- No test in the seven items fails because of `TMPDIR` spelling, an unrelated worktree, or a slow
+- No test in the eight items fails because of `TMPDIR` spelling, an unrelated worktree, or a slow
   disk.
 - The concurrency and reposetup shards have budget rows that match the rule in
   `tests/README.md`: split an oversized shard rather than raise its ceiling.
-- The one observed `TestObserveRunningThenTerminal` timeout has a known cause, or is recorded
-  as not reproducible; it is not hidden by a longer timeout.
+- No `internal/process` test builds its "abandoned run" shape with a single group-wide SIGKILL,
+  which is not atomic on macOS; each kills the supervisor first, so the shape is reached by
+  construction rather than by retrying.
 
 ## Non-goals
 
@@ -251,29 +252,50 @@ new shard's row beside the other app shards; lower the reposetup row. Measure on
 another worktree's suite inflates a solo reading, so re-measure once if a number looks off. The
 remaining reposetup tests (about 25 s) cannot fit the original 15 — that is expected.
 
-### 7. `TestObserveRunningThenTerminal` timed out once
+### 7. `TestObserveRunningThenTerminal` timed out once — fixed by change 554
 
-**Observation (not yet traced).** During the finalize of change 539 on 2026-10-16,
-`TestObserveRunningThenTerminal` (`internal/process/observe_test.go`) failed once: after the test
-SIGKILLed the helper's process group, `Observe` did not report `vanished` within the test's 30 s
-wait. The next run passed, and so did a full suite. Several whole-suite gate runs and a second
-worktree's suite were running at the same time, so the machine was heavily loaded. The failure
-text was not kept, so the state the run was stuck in is unknown. The test already reports it on
-failure (`describeStuckRun`, added by an earlier fix): last `Observe` state and error, group and
-supervisor liveness, and `live.lock` state.
+**Done; nothing to build.** It failed once while finalizing change 539 (after the test SIGKILLed
+the helper's process group, `Observe` did not report `vanished` within 30 s). Change 554's build
+reproduced it under CPU load and found the cause: one group-wide SIGKILL is not atomic across the
+group's processes on macOS. The command can die first while the supervisor, parked in `cmd.Wait`,
+returns and writes `terminal.json` before its own SIGKILL lands. `Observe` then correctly reports
+`signaled`, never `vanished`, and the wait times out. 554 fixed the test only (commit `83d80f3`,
+on PR #419): kill the supervisor alone, wait until it is reaped, then kill the group. The fixed
+test passed 1,800 loaded runs. This change depends on 554, so by build time the fix is on `main`.
+The builder only confirms it there by content (`TestObserveRunningThenTerminal` kills
+`m.SupervisorPID` and waits for it to be reaped before `signalGroup`), never by the `83d80f3`
+hash, which a rebase merge rewrites; it changes nothing here.
 
-**Fix: diagnose first, then repair the cause.** Run the test with a high `-count` while the
-machine is under sustained CPU and fsync load (for example several other `go test` runs at once),
-and keep the `describeStuckRun` line from any failure. Then:
+### 8. `TestRecoverMarksCleanlyAbandonedOwnedRun` uses the same one-step group kill
 
-- If the line shows `Observe` never leaving `running` or returning an error (a supervisor or
-  lock state `Observe` misreads), that is a defect in `internal/process`: fix it there and add a
-  test that fails without the fix.
-- If it shows the supervisor or group still alive when it should be gone (a process not yet
-  reaped, or a test-side race with the kill), fix the test so it waits on the real condition.
-- If it cannot be reproduced in a few hundred loaded runs, change nothing: record the run count
-  and load used in the results file. Do not raise the 30 s limit or loosen the assertion to
-  make a flake disappear.
+**Defect (by code reading; not seen failing).** `TestRecoverMarksCleanlyAbandonedOwnedRun`
+(`internal/process/recover_test.go`) builds an abandoned run by SIGKILLing the helper's whole
+process group in one call (`signalGroup(m.PGID, syscall.SIGKILL)`). That is the same
+non-atomic kill as item 7: the supervisor can write `terminal.json` before it dies, and `Recover`
+then correctly declines to mark the run. An earlier change (0328) hid this by re-driving setup up
+to three times on a fresh root when `abandonedPreconditionUnmet` reports a wrong shape, so the
+test fails only when it loses the race three times in a row — which also means each loss costs a
+full extra launch.
+
+**Fix — kill in two steps, drop the retry (the human chose this).** Use the order 554 used for
+item 7 (and `TestRecoverLeavesUnprovableGroupForInspection` already uses): SIGKILL the supervisor
+alone (`m.SupervisorPID`), wait until it probes absent, then SIGKILL the group. A supervisor that
+is gone before its command dies can never record that death, so the abandoned shape is reached
+every time. Then:
+
+- Remove the `setupAttempts` loop and its comment: launch once, kill, wait for lock release and
+  group gone as today.
+- Keep `abandonedPreconditionUnmet` as a single check after setup that fails the test with its
+  reason (`t.Fatalf("setup did not reach the abandoned shape: %s", why)`), so a future setup
+  problem still reports as setup, never as a `Recover` defect.
+- The `Marked == 1` / `abandoned-marked` assertions and `abandoned.json` check are unchanged.
+- Update the test's comments to explain the two-step kill, as 554's comment does in
+  `TestObserveRunningThenTerminal`.
+
+Before editing, grep `internal/process` for any other test that builds an abandoned or vanished
+shape with a single `signalGroup(…, SIGKILL)` and nothing killing the supervisor first; apply the
+same fix to each one found and list them in the results. Tests that kill a group for another
+reason (a stop, a teardown) are left alone.
 
 ## Verification
 
@@ -293,9 +315,11 @@ and keep the `describeStuckRun` line from any failure. Then:
   and the new runner selects 23 tests; the reposetup shard selects 33.
 - `go test -tags integration -list '^TestIntegrationRepoSetup(Private|GlobalPrivate)' ./internal/app`
   lists nothing.
-- `TestObserveRunningThenTerminal` passes at a high `-count` under sustained load, or the results
-  file records how many loaded runs failed to reproduce the timeout and what the failure line
-  showed if one did.
+- On `main`, `TestObserveRunningThenTerminal` kills the supervisor before the group (change
+  554's item-7 fix is present).
+- `TestRecoverMarksCleanlyAbandonedOwnedRun` has no retry loop and passes `-count=200` under
+  sustained CPU load (several other `go test` runs at once); record the count and load in the
+  results file.
 - The whole suite (`build.test_command`) is green, and its budget report shows no
   `BUDGET WATCH:` or `SERIAL CONFIRMED OVER BUDGET:` line for the concurrency, reposetup, or new
   shard.
@@ -306,4 +330,4 @@ and keep the `describeStuckRun` line from any failure. Then:
   tree or in-memory source.
 - The child-mode spellings (`selfkill-on` / `pass-on` are suggestions) and the poll mechanics.
 - Exact wording of the fake server's stderr lines and the guard's failure message.
-- Commit grouping; the seven items are independent and can land in any order.
+- Commit grouping; items 1–6 and 8 are independent and can land in any order.
