@@ -117,3 +117,12 @@ either way. What differs is what **you** see while it runs:
 
 Reach for **agent-dispatch when you want to watch a long run** — a build you intend to babysit — and
 **skill-invoke for everything else**.
+
+`docket-implement-next` is the exception: start it with a plain request in the session (for
+example "implement 412") or with `/loop docket-implement-next`, not a skill-invoke. A skill-invoke,
+typed or invoked by the model, goes straight to the implementer at the same pinned model and
+effort, but the session never runs `run.start`, so the run tracker never sees it.
+A typed `/docket-implement-next` runs untracked.
+It still builds to a PR, but if it stops partway there is no automatic retry, resume, or cancel, and
+its outcome can only be read unattributed (`docket run verdict --unattributed`). See
+[Run tracker](../concepts/run-tracker.md).
