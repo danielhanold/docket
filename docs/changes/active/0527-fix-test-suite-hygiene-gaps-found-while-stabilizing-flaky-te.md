@@ -14,7 +14,7 @@ discovered_from: [507, 531, 554]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-design.md'
 plan: 'docs/superpowers/plans/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md'
-results:
+results: 'docs/results/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-16T16:23:16Z'
 |---|---|
 | Spec | [2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-design.md](../../superpowers/specs/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-design.md) |
 | Plan | [2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md](../../superpowers/plans/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) |
+| Results | [2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-results.md](../../results/2026-10-16-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
