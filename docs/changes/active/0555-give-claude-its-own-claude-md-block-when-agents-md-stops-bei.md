@@ -72,6 +72,6 @@ The same rule leaves two claude-only setups without Claude's rules. A repository
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: 0df79a8d4dd6a78413b88c7806235171c164f5f8
-ran_at:   2026-10-16T21:05:26Z
+head_sha: ed210ab2fe1ac5dabf23c359adefa6bba1358b3d
+ran_at:   2026-10-16T22:09:29Z
 <!-- docket:build-evidence:end -->
