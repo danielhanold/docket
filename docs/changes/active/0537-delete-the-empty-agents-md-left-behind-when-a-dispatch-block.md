@@ -2,7 +2,7 @@
 id: 537
 slug: 'delete-the-empty-agents-md-left-behind-when-a-dispatch-block'
 title: 'Delete the empty AGENTS.md left behind when a dispatch block is retired'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-06'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/delete-the-empty-agents-md-left-behind-when-a-dispatch-block'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/422'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-16T17:32:55Z'
@@ -58,3 +58,12 @@ When docket removes one of its managed blocks from a file it created, it writes 
 ### 2026-10-16
 
 2026-10-16 — Spec groomed today; re-checked against main c084cd93c. `(*Txn).removeManagedBlock`, `rejectDuplicateDestinations`, `removeIfPresent` (internal/install/txn.go) and the set-visibility instructions-phase done check (`planToPrivate`, internal/app/repository_set_visibility.go) are unchanged since grooming. No related change landed that overlaps (533 done, 555 still proposed). Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 07342df42be33578fba3d312fc8795cc2e2e14b9
+ran_at:   2026-10-16T18:02:05Z
+<!-- docket:build-evidence:end -->

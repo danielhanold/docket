@@ -1,12 +1,12 @@
 # Backlog
 
-**555 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 391 done · 🗑️ 141 killed
+**555 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 391 done · 🗑️ 141 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0537](active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | `low` | `fix` | [spec](../superpowers/specs/2026-10-16-delete-the-empty-agents-md-left-behind-when-a-dispatch-block-design.md) | `fix/delete-the-empty-agents-md-left-behind-when-a-dispatch-block` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0537](active/0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | `low` | `fix` | [#422](https://github.com/danielhanold/docket/pull/422) | awaiting merge |
 
 ## 🟣 Groomed (2)
 
