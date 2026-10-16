@@ -64,6 +64,6 @@ When docket removes one of its managed blocks from a file it created, it writes 
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: 07342df42be33578fba3d312fc8795cc2e2e14b9
-ran_at:   2026-10-16T18:02:05Z
+head_sha: d0633ff0d1819e9e09a9b2816de094782b08fe8e
+ran_at:   2026-10-16T18:18:14Z
 <!-- docket:build-evidence:end -->
