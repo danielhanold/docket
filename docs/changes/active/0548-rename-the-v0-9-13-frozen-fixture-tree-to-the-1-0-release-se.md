@@ -2,7 +2,7 @@
 id: 548
 slug: 'rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se'
 title: 'Name test fixture folders by what they hold'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'chore'
 created: '2026-10-11'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/417'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-16T10:29:29Z'
@@ -52,3 +52,12 @@ Changing any sample's contents or renaming individual fixtures. The legacy insta
 ### 2026-10-16
 
 2026-10-16: Re-checked against main at 2f47107e4. Dependency #546 is done. #554 (shipped-default refresh) is still proposed, so no newer numbered folder exists; the newest is still v0.9.13, and the spec layout table matches the tree (v0.9.2 to v0.9.13, with v0.9.13 holding only the harness-defaults copy and deferred-active). No scope change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 5bb624c2b1adb69c53009881e46105a903bd1f18
+ran_at:   2026-10-16T11:00:16Z
+<!-- docket:build-evidence:end -->

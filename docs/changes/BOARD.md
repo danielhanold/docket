@@ -1,12 +1,12 @@
 # Backlog
 
-**554 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 386 done · 🗑️ 141 killed
+**554 changes** — 🔵 1 built · 🟣 3 groomed · 🟡 9 proposed · ⚪ 14 deferred · ✅ 386 done · 🗑️ 141 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0548](active/0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Name test fixture folders by what they hold | `low` | `chore` | [spec](../superpowers/specs/2026-10-15-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se-design.md) | `chore/rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0548](active/0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Name test fixture folders by what they hold | `low` | `chore` | [#417](https://github.com/danielhanold/docket/pull/417) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -20,7 +20,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0554](active/0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice | `medium` | `chore` | ⏳ waiting on #548 — not yet built |
+| [0554](active/0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice | `medium` | `chore` | ⏳ waiting on #548 — needs your merge |
 | [0539](active/0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | Describe repository-check drift findings by family in the docket-status skill | `low` | `docs` | build-ready (trivial) |
 | [0527](active/0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | `low` | `fix` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `medium` | `fix` | needs-grooming |
