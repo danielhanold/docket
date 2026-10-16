@@ -84,12 +84,25 @@ func TestObserveRunningThenTerminal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("readManifest: %v", err)
 	}
+	// Kill the supervisor ALONE and wait until it is reaped, and only then end
+	// its command. One group-wide SIGKILL is not atomic across the group's
+	// processes: the command can die first while a supervisor thread, parked in
+	// cmd.Wait, returns and writes terminal.json before its own SIGKILL lands —
+	// a run Observe then correctly reports "signaled", never the vanished state
+	// this test exists to exercise. A supervisor that is gone before its
+	// command dies can never record that death.
+	if err := syscall.Kill(m.SupervisorPID, syscall_SIGKILL()); err != nil {
+		t.Fatalf("SIGKILL supervisor %d: %v", m.SupervisorPID, err)
+	}
+	waitFor(t, "the killed supervisor to be reaped", 30*time.Second, func() bool {
+		return processAlive(m.SupervisorPID) == probeAbsent
+	})
 	if err := signalGroup(m.PGID, syscall_SIGKILL()); err != nil {
 		t.Fatalf("SIGKILL group %d: %v", m.PGID, err)
 	}
-	// Supervisor dies with the child under KILL: no terminal record can
-	// exist, no stop intent was recorded -> vanished. An Observe error while
-	// polling is kept (lock release can race) and reported if the wait expires.
+	// Supervisor gone before the child: no terminal record can exist, no stop
+	// intent was recorded -> vanished. An Observe error while polling is kept
+	// (lock release can race) and reported if the wait expires.
 	var last *Observation
 	var lastErr error
 	end := time.Now().Add(30 * time.Second)
