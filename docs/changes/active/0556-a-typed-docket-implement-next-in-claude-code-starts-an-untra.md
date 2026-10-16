@@ -44,19 +44,22 @@ An untracked run still builds to a PR. But if it dies partway, docket cannot aut
 
 ## What changes
 
-Make an untracked implement run visible, and point people at the tracked ways to start one. The typed command keeps working as it does today and stays visible.
+Document the tracked ways to start implement-next. This is a docs-only change: the typed command keeps working as it does today, stays visible, and no skill or agent instructions change.
 
-- The implementer's final report gains a short note for the human when its dispatch prompt carried neither a run context nor a run key. The note says the run is untracked, so if a run like this stops partway docket can't retry, resume, or cancel it. As advice for next time, it says to start implement-next with a plain request or a loop driver such as `/loop`, and that nothing needs re-running now.
-- The note is report-only, and the skill text says so outright. The run proceeds exactly as today: it never changes the disposition, stops the run, or touches the claim, and it never starts, searches for, or borrows a run or run key itself. It contains no tracker or disposition tokens, and the claim and verify steps stay unchanged.
-- The maintained docs say to start implement-next with a plain request or `/loop`, and that a typed `/docket-implement-next` in Claude Code runs untracked. That covers the unattended-run guide, the run-tracker concept, the invocation-paths table, the README quick start, and any other maintained mention found by grep.
-- A prose-contract sentinel pins the note and its report-only clause. A two-reader review checks the final wording, reading it once as the implementer and once as the session receiving the report. The skill's size ceiling moves by exactly the added words.
+- The maintained docs say to start implement-next with a plain request in the session or `/loop`, both of which the run tracker tracks. They say a typed `/docket-implement-next` in Claude Code goes straight to the implementer, so that run is untracked, with no automatic retry, resume, or cancel if it stops partway.
+- That covers:
+  - the install guide's invocation-paths table, whose "skill-invoke for everything else" steers implement-next onto the untracked path today;
+  - the unattended-run guide;
+  - the run-tracker concept page;
+  - the README quick start;
+  - any other maintained mention found by grep.
+- Docs describe current behavior only, and existing doc sentinels stay green.
 
-The linked spec holds the live-check evidence, the behavioral-safety rules, the rejected alternatives, and the acceptance details.
+A note inside the implementer's report was designed and then dropped after a behavioral-risk review. Every implement run would read it, but it could only help a run that already finished. The linked spec records that analysis, the live-check evidence, and the other rejected alternatives.
 
 ## Out of scope
 
+- Any change to skills, agent wrappers, dispatch blocks, harness adapters, the run tracker, or `change.claim`. That includes an untracked-run note in the skill and a run-tracker warning.
 - Making a typed `/docket-implement-next` tracked, hiding it from the `/` menu, or changing its fork frontmatter.
 - Codex, Cursor, and OpenCode launch mechanics.
 - A child that receives the run context but drops it at claim time (change 0541).
-- Changes to the run tracker, `change.claim`, the parent-facing dispatch blocks, or the agent wrappers.
-- Recovery after the main session loses its run key.

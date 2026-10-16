@@ -2,17 +2,15 @@
 > ↩ **[Change 0556 — A typed /docket-implement-next in Claude Code starts an untracked run](../../changes/active/0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md)**
 <!-- docket:backlink:end -->
 
-# Change 0556: say when an implement run is untracked, and document the tracked ways to start one
+# Change 0556: document the tracked ways to start implement-next
 
-Design approved by Daniel on 2026-10-16.
+Design approved by Daniel on 2026-10-16, and revised the same day to a docs-only change after a behavioral-risk review.
 
 ## Goal
 
-Nobody should end up with an untracked implement-next run without knowing it, and the docs should name the ways to start one that the run tracker does track. A typed `/docket-implement-next` in Claude Code keeps working exactly as it does today, and stays visible in Claude's `/` menu.
+The maintained docs should name the ways to start implement-next that the run tracker tracks: a plain request in the session, or `/loop`. They should also say plainly that a typed `/docket-implement-next` in Claude Code runs untracked. The typed command keeps working exactly as it does today and stays visible in Claude's `/` menu.
 
-This change makes two edits. The implementer's final report says plainly when its run was untracked (Part A). The maintained docs say to start implement-next with a plain request or `/loop` (Part B). It does not try to make the typed command tracked; *Alternatives considered* records why.
-
-**Known limit (accepted).** The note rides the final report, so a run that dies before writing one (the costly case) shows no note. Part B's docs carry that case: they teach the tracked starts before anyone needs recovery. Covering it inside the run would mean changing the parent-facing dispatch blocks or the run tracker's output, which this change deliberately leaves alone.
+This is a docs-only change. No skill, agent wrapper, dispatch block, harness adapter, or run-tracker code changes. *Alternatives considered* records why: both making the typed command tracked and labeling the untracked run inside the skill were weighed and rejected.
 
 ## Background and evidence
 
@@ -39,7 +37,7 @@ An untracked run still builds to a PR; the work itself is unaffected. What is lo
 - no `run-continue` continuation,
 - no `run.cancel`.
 
-The session can only read the outcome with `run.verdict --unattributed`, which observes and authorizes nothing. ADR-0084 already names this state: a slash-command launch has no attribution and runs in unattributed mode, never re-dispatching. This change makes that state visible to the human instead of silent.
+The session can only read the outcome with `run.verdict --unattributed`, which observes and authorizes nothing. ADR-0084 already names this state: a slash-command launch has no attribution and runs in unattributed mode, never re-dispatching.
 
 ### History
 
@@ -49,77 +47,60 @@ The session can only read the outcome with `run.verdict --unattributed`, which o
 
 Daniel drives docket with prose and `/loop`, not typed commands.
 
+### What the docs say today
+
+The maintained docs never warn about the typed path, and one of them steers toward it:
+
+- **`docs/install/models-and-effort.md`.** The *two invocation paths* table presents skill-invoke (`/docket-status`, or the model auto-invoking the skill) and agent-dispatch as equivalent for the pinned run. It closes with "**skill-invoke for everything else**". For implement-next, a skill-invoke is the untracked path.
+- **`README.md`.** The quick start says "**Drain** the backlog to open PRs — `docket-implement-next` (or `/loop` it hands-free)." That reads as if the bare command is the way in.
+- **`docs/guide/building-without-supervision.md`.** It recommends `/loop docket-implement-next` and links the run tracker, but does not say a typed command bypasses it.
+- **`docs/concepts/run-tracker.md`.** It explains `run.start` but not that a launch which skips the session's turn skips the tracker.
+
 ## Decision
 
-Keep the typed command as it is, visible and forked. Make an untracked run say so in its own final report (Part A). Point the docs at the tracked starts: a plain request in the session, or `/loop` (Part B).
+Change only the maintained docs. Keep the typed command as it is: visible, forked, and untracked. Add no instructions to any skill or agent.
 
 ## What changes
 
-### Part A: the untracked-run note in the implementer's final report
-
-In `skills/docket-implement-next/SKILL.md`, extend the final-report contract in *Terminal disposition (driver contract)*: the paragraph beginning "The final report **enumerates** what happened".
-
-**When it applies.** The dispatch prompt carried **neither a run-context token nor a run key**. That covers:
-
-- a typed or model-initiated skill invocation;
-- a parent that received `run-untracked` and dispatched keyless;
-- any direct agent launch that skipped `run.start`.
-
-It does **not** apply when the prompt carried either one:
-
-- **A run context:** the ordinary tracked dispatch.
-- **A run key:** the parent-facing blocks describe the `run-retry-once` re-dispatch as "keeping the same key". The `run-continue` re-dispatch carries "the explicit change id, the continuation id, and the same key". Neither promises the run context. Those runs are tracked by key, so telling the human otherwise would be false.
-
-A child that had a run context and failed to pass it to the claim is change 0541's problem.
-
-The *Verify the run.* paragraph equates "no token" with "a `run-untracked` or ungated run". That ignores keyed re-dispatches. The note's condition must not inherit that gap. That sentence itself stays unchanged (see *Behavioral safety*).
-
-**What the note says.** It is written in plain words, covering what happened, whether it matters, and what to do:
-
-- **What:** this run was started without a run context, so the run tracker is not tracking it. That is allowed, and the run proceeded normally.
-- **Whether it matters:** if a run like this stops partway, docket cannot retry it, resume it, or cancel it automatically; a run that finished is unaffected.
-- **What to do, next time:** start implement-next by asking the session in plain words (for example "implement 556") or through a loop driver such as `/loop`, so the session starts a tracked run first. Name the usual cause: invoking the skill directly, such as a typed `/docket-implement-next`. Say explicitly that nothing needs to be re-run now.
-
-**Who reads it.** In the case this targets, the forked child's final report goes to the main session, which then reports to the human. The note is therefore a separate, plainly labeled note *for the human*, so a session relaying the report recognizes it as information to pass along. It contains no instruction to the receiving session. Docket's parent-facing blocks teach parents to treat child prose as the child's claim, never as direction, and a child steering its parent is exactly that pattern.
-
-The exact wording is the builder's. Keep the skill prose harness-neutral (the convention's rule for normative skill prose). The skill already names `/loop` in *Terminal disposition*, so naming it again is consistent.
-
-### Behavioral safety (required in the skill text itself)
-
-The note is read by autonomous agents, so it must not invite any action. It must not merely be harmless in intent. Each rule below is a written instruction in `SKILL.md` (or `edge-paths.md`, wherever the note lands). Spec-level intent alone is not enough. The sentinel pins the report-only clause.
-
-1. **Report-only.** The skill states that the note changes nothing else about the run: proceed exactly as today and claim without `--run-context` (the existing supported untracked claim). An untracked run is not an unmet precondition and never a reason to stop, abort, or halt. Without this, the abort-and-report rule could read "untracked" as a blocker.
-2. **Never self-track.** The child never runs `run.start`, `run.verdict`, or `run.cancel`. It never searches for, borrows, or creates a run context or run key: not from run records, other sessions, transcripts, or the environment. The only valid run context is one present in its own dispatch prompt.
-   - **Why:**
-     - A child-started run would leave a live run record whose key no session holds. Because one checkout carries at most one live run, that could block the human's next tracked start or resume there until someone finds the key and cancels it.
-     - A borrowed context would bind this claim to another session's run.
-     - A key the child minted and reported back would be authority taken from child prose, which the run tracker forbids. The run key is the tracker's only handle (ADR-0133).
-3. **Next-time advice, nothing to do now.** The remedy is phrased as guidance for the human's *next* start, and says nothing needs re-running now. It never reads as a request to dispatch, re-run, retry, or resume anything. A parent that took "start implement-next with a plain request" as a to-do could launch another run. After an `advanced` run, that would build the next change. The parent-facing blocks already forbid re-dispatch without `run-retry-once`; the wording must not pull against that.
-4. **No look-alike tokens.** The note contains no run-tracker report tokens (`run-started`, `run-untracked`, `run-retry-once`, `run-continue`, `run-stop`, `run-observe`, `run-halted`, `run-done`) and no disposition words used as a declaration (`advanced`, `contended`, `drained`, `halted`). A parent or loop driver that keys on those words must not misread it. The note sits with the final report's enumeration and never replaces the run's one declared disposition, or comes before it.
-5. **Claim and verify steps untouched.** Step 2's claim instructions and the *Verify the run.* paragraph stay byte-unchanged, including the existing `change_0407_run_context_claim` sentinel phrases. The note's condition is stated where the note lives, not by editing those steps.
-6. **Harness-neutral.** The skill is shared by every harness, so the remedy names "a plain request in your session" first and `/loop` only as an example of a loop driver.
-
-Visibility only: docket's standing rule is that new checks report and never block.
-
-### Part B: the docs name the tracked starts
-
 Docs describe current behavior only: no change numbers or PR references (ADR links are fine).
 
+- **`docs/install/models-and-effort.md`.** In the *two invocation paths* section, add the implement-next exception. A skill-invoke of `docket-implement-next` (typed, or the model invoking the skill) runs untracked, so start implement-next with a plain request in the session or `/loop`. Leave the existing table rows, and the `completed (forked execution)` phrase a prose-contract sentinel pins, intact.
 - **`docs/guide/building-without-supervision.md`.** In the section that recommends `/loop docket-implement-next`, say to start implement-next with a plain request or `/loop`, both of which the run tracker tracks. Say that a typed `/docket-implement-next` in Claude Code goes straight to the implementer, so that run is untracked. Say what that costs: no automatic retry, resume, or cancel if it stops partway.
 - **`docs/concepts/run-tracker.md`.** Where *The moving parts* describes **Starting**, add that a tracked start needs the session to take a turn first. In Claude Code, a typed `/docket-implement-next` skips that, so the run is untracked and can only be read unattributed.
-- **`docs/install/models-and-effort.md`.** The *two invocation paths* table recommends skill-invoke "for everything else". Add the exception for implement-next: a skill-invoke of `docket-implement-next` (typed, or the model invoking the skill) runs untracked, so start implement-next with a plain request or `/loop`. Leave the existing table rows, and the `completed (forked execution)` phrase a prose-contract sentinel pins, intact.
-- **`README.md`.** The quick-start line "**Drain** the backlog to open PRs — `docket-implement-next` (or `/loop` it hands-free)." reads as if the bare command is the way in. Reword it to a plain request or `/loop`. Keep the sentinel-pinned phrase "The right model for each step." intact.
-- **Anything else.** Find every other maintained doc that presents `/docket-implement-next` or a skill-invoke of it as a way to start a run, by whole-repository grep, not by this list, and give it the same treatment. Exclude point-in-time records: archived changes, results files, specs, plans, and Accepted ADRs.
+- **`README.md`.** Reword the quick-start drain line to a plain request or `/loop`. Keep the sentinel-pinned phrase "The right model for each step." intact.
+- **Anything else.** Find every other maintained doc that presents `/docket-implement-next`, or a skill-invoke of it, as a way to start a run, by whole-repository grep, not by this list, and give it the same treatment. Exclude point-in-time records: archived changes, results files, specs, plans, and Accepted ADRs.
 
 ## Constraints
 
-- The skill frontmatter (`context: fork`, `agent: docket-implement-next`) stays unchanged. The command stays visible in Claude's `/` menu (no `user-invocable: false`).
-- No change to the run tracker binary, `change.claim`, the parent-facing dispatch blocks, the agent wrappers, or any harness adapter.
-- No new ADR, and no edits to ADR-0024, ADR-0026, or ADR-0084. ADR-0084 already describes the slash launch as unattributed; this change only makes that visible.
-- After editing the skill, regenerate the embedded assets (`go generate ./internal/assets/`) so release installs carry the change.
-- **Size budget.** `skills/docket-implement-next/SKILL.md` sits exactly at its `TestSkillSizeBudgets` ceiling (215 lines / 8411 words, `internal/repoguard/budgets_test.go`), so any added word reddens the suite. Keep the note to about two sentences in the final-report paragraph. Raise that file's ceiling by exactly the added count, with a reason comment in the file's existing re-baseline style. This is the routine path, as 0531 and 0532 did. If the note cannot stay that short, follow 0448's pattern: put the full note in `references/edge-paths.md` behind a blocking pointer at its trigger. A pointer costs words too, so the ceiling still moves by exactly the pointer's size. Never trim unrelated SKILL.md prose to make room.
+- No edits to any `skills/**`, `agents/**`, `cursor-rules/**`, harness adapter, run-tracker, or claim code. No new ADR, and no edits to ADR-0024, ADR-0026, or ADR-0084.
+- The skill frontmatter (`context: fork`, `agent: docket-implement-next`) stays unchanged. The command stays visible in Claude's `/` menu.
+- The edited docs are not part of the embedded asset set (`internal/assets/embedded` holds only agents, cursor-rules, and skills), so no asset regeneration is needed. If the builder's grep turns up a target inside the embedded set, the *no skill or agent edits* constraint wins: report it as a follow-up instead of editing it.
+- Do not document the `@docket-implement-next` agent mention; it is not widely known and is untested for tracking.
 
 ## Alternatives considered
+
+**Label the untracked run in the implementer's final report.** This was the first approved design. It was rejected after a behavioral-risk review on 2026-10-16:
+
+1. **It shows up only when it doesn't matter.** The note would ride the final report, so it would appear only on runs that finished. The costly case, a run dying partway, writes no report and would get no note.
+2. **Its risk lands on every run.** The implementer skill is read by every implement run on every harness, tracked or not. So any behavioral nudge from the new text would apply to all runs, while the note could only help the rare untracked one. Making two sentences safe took six explicit rules:
+   - report-only, never a reason to stop;
+   - never self-track, so no `run.start`, `run.verdict`, or `run.cancel`, and no searching for or borrowing a run context or key;
+   - advice for next time, not a request to re-run;
+   - no look-alike run-tracker or disposition tokens;
+   - Step 2's claim and the *Verify the run.* paragraph left untouched;
+   - harness-neutral wording.
+
+   Needing that many rules signals the risk.
+3. **It protects a path nobody here uses.** Daniel starts runs with prose or `/loop`, and the docs reach anyone else without an agent re-reading a warning on every run.
+4. **It costs words in a skill already at its size cap.** `skills/docket-implement-next/SKILL.md` sits exactly at its `TestSkillSizeBudgets` ceiling (215 lines / 8411 words).
+
+The specific behavioral risks found are recorded here so nobody re-proposes the note without them:
+
+- A child "fixing" its untracked state by running `run.start` would leave a live run whose key no session holds. Because one checkout carries at most one live run, that could block the human's next tracked start or resume there until someone finds the key and cancels it.
+- A main session could read "start implement-next with a plain request" as a to-do and launch another run. After an `advanced` run, that builds the next change.
+- The abort-and-report rule could read "untracked" as an unmet precondition and stop the run.
+
+**Warn from the run tracker instead (future option).** If in-run visibility is ever wanted, the right home is the run tracker, not skill prose. For example, a plain note when a session reads an untracked run with `run.verdict --unattributed`. That is deterministic code with no agent interpretation, and it would also cover a run that died partway. It is not needed now; it would be its own change.
 
 **Route the typed command through the main session (0345's Claude row).** Drop `context: fork` so the typed command lands in the main session, which would start a tracked run and dispatch the agent. This was rejected. It rests on unproven Claude Code behavior, it reaches into every harness, and it would serve a path Daniel does not use. Research findings:
 
@@ -129,7 +110,7 @@ Docs describe current behavior only: no change numbers or PR references (ADR lin
 - A Claude-only command file can't take over the name: when "A skill and a file in `.claude/commands/`" collide, "The skill" wins.
 - The skill folder is shared by every harness (installed by symlink for Claude, Cursor, OpenCode, and Codex). Any split also changes what Cursor's implementer loads, and Cursor is supported and tested.
 
-**Hide the typed command (`user-invocable: false`).** This was rejected. The note in Part A already covers accidental use. Whether a hidden skill can still be preloaded into the agent is undocumented. And change 0503 would like typed commands to stay usable.
+**Hide the typed command (`user-invocable: false`).** This was rejected. Whether a hidden skill can still be preloaded into the agent is undocumented, and change 0503 would like typed commands to stay usable.
 
 **Pre-render shell injection or a vendor hook.** 0345 analyzed these. They could hand the child a run context, but they do not give the main session the key or make it run the verdict. That is half the tracking and new harness-specific machinery.
 
@@ -137,34 +118,30 @@ Docs describe current behavior only: no change numbers or PR references (ADR lin
 
 ## Tests and verification
 
-- Add a prose-contract sentinel for the Part A note in `internal/repoguard/prose_contracts_test.go`, following its existing `skills/docket-implement-next/SKILL.md` entries (or the `edge-paths.md` file, if the note lands there). Anchor it on verbatim clauses of the note: its condition (neither a run context nor a run key), its untracked statement, its remedy, and the report-only clause (*Behavioral safety* rule 1, with rule 2's never-self-track instruction). Mutation-test it: strip the note, drop the run-key exclusion, or drop the report-only clause, and watch the sentinel go red each time.
-- **Two-reader review.** Before the PR opens, review the final note text twice and record the result in the results file:
-  - **As the implementer that received no run context.** Confirm nothing in the skill now invites it to start a run, look for a token, stop, or change its claim.
-  - **As the main session receiving the report.** Confirm nothing in the note reads as a request to dispatch, re-run, retry, resume, or cancel anything, and that no look-alike tracker or disposition token appears.
-
-  A finding here is fixed in-branch like any review finding.
-- Whether the Part B doc statements also get sentinels is the builder's call. If added, follow the same mutation discipline.
-- Regenerate embedded assets, and keep the asset inventory and golden tests green.
-- Run the full suite through the configured `build.test_command`.
-- No live native acceptance is required. An optional human walkthrough for the results file: run a typed `/docket-implement-next` in a throwaway repository and confirm the final report carries the note.
+- Run the full suite through the configured `build.test_command`. Existing doc sentinels must stay green, in particular the pinned README and `models-and-effort.md` phrases.
+- Whether the new doc statements get prose-contract sentinels is the builder's call. If added, follow the existing doc-contract tests' pattern and mutation-test each one: strip the statement and watch it redden.
+- A reading review confirms the edited pages describe only current behavior and carry no change numbers.
+- No live native acceptance is required.
 
 ## Left to the builder
 
-- The note's exact wording and its placement within the final-report paragraph, within *Behavioral safety*'s rules.
-- Exact placement and wording within each named doc page.
-- The sentinel's anchor phrases.
-- Whether docs get sentinels.
+- Exact placement and wording within each named page.
+- Whether to add doc sentinels.
 
 ## Related
 
-- **Change 0541** (proposed): a child given a run context can still claim without it. That is a different gap, out of scope here. If 0541 changes `change.claim`'s interface (for example an explicit untracked flag), whichever change lands second reconciles Step 2's wording and this note's condition.
-  - The spec review also noticed that the parent-facing blocks do not say whether a `run-retry-once` or `run-continue` re-dispatch carries the run context, though the Codex adapter's clause does. A retried child without it would claim untracked under a tracked key. That belongs with 0541's grooming, not here.
+- **Change 0541** (proposed): a child given a run context can still claim without it. That is a different gap, out of scope here.
+  - Noticed during this groom: the parent-facing blocks do not say whether a `run-retry-once` or `run-continue` re-dispatch carries the run context, though the Codex adapter's clause does. A retried child without it would claim untracked under a tracked key. That belongs with 0541's grooming.
 - **Change 0503** (deferred): session auto-naming. It excluded typed slash commands on the belief that they did not work in docket. They do run; Daniel simply drives by prose, and this change documents the tracking difference.
-- **ADRs:** ADR-0024 (the fork), ADR-0026 (the two invocation paths), ADR-0084 (unattributed mode for slash launches), and ADR-0133 (the run key is the only handle).
+- **ADRs:**
+  - ADR-0024 (the fork);
+  - ADR-0026 (the two invocation paths that `models-and-effort.md` documents);
+  - ADR-0084 (unattributed mode for slash launches);
+  - ADR-0133 (the run key is the only handle, cited by the rejected self-tracking risk).
 
 ## Out of scope
 
+- Any change to skills, agent wrappers, dispatch blocks, harness adapters, the run tracker, or `change.claim`. That includes an untracked-run note in the skill and a run-tracker warning.
 - Making a typed `/docket-implement-next` tracked, or changing its fork frontmatter or visibility.
-- Codex, Cursor, and OpenCode launch mechanics. The skill note is harness-neutral and applies wherever a run lacks a run context; nothing harness-specific changes.
+- Codex, Cursor, and OpenCode launch mechanics.
 - The other forked skills (`docket-status`, `docket-adr`, `docket-auto-groom`), which the run tracker does not track.
-- Recovering attribution after the fact, or any change to the run tracker, claim, or dispatch blocks.
