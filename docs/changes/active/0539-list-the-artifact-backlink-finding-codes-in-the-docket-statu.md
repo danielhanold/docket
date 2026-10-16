@@ -71,6 +71,6 @@ Changing any finding, its detection, its remedy text, or repair behavior; listin
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: 8e58d1a0148225230fb949ddac0dd89b9790ff1b
-ran_at:   2026-10-16T12:43:22Z
+head_sha: e1ef9066ec9281960174b8ed63911a7f4ab5eba2
+ran_at:   2026-10-16T13:26:03Z
 <!-- docket:build-evidence:end -->
