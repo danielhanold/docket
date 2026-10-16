@@ -8,8 +8,8 @@ package repoguard
 // Shape: a name that starts with a digit, optionally after a "v", looks like a
 // version or a date — `^v?[0-9]`.
 //
-// Mutation-tested: an empty testdata/repositories/v0.9.14/ reddens
-// TestSampleFoldersNamedForWhatTheyHold.
+// Mutation-tested: an empty folder named v0.9.14 directly under
+// testdata/repositories/ reddens TestSampleFoldersNamedForWhatTheyHold.
 
 import (
 	"os"
