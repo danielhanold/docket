@@ -863,7 +863,8 @@ func TestTxnManagedBlockRemovalStripsOnlyTheBlock(t *testing.T) {
 	f := newFixture(t)
 	// managed.md carries a dispatch block wrapped in the user's own prose, seeded
 	// by newFixture. Retiring the block must leave every surrounding byte exactly
-	// as it was and the file itself in place — it is a rewrite, not a deletion.
+	// as it was and the file itself in place — the user's prose around the block
+	// is what keeps the file.
 	path := f.path("dispatch", "managed.md")
 	interior := "old interior\n"
 	proseOnly := strings.Replace(managedFile(interior), managedBlockSpan(interior), "", 1)
@@ -948,6 +949,182 @@ func TestTxnManagedBlockRemovalRollsBack(t *testing.T) {
 				t.Errorf("DetectRecovery after rollback = (found %v, err %v), want (false, nil)", found, err)
 			}
 		})
+	}
+}
+
+func TestTxnManagedBlockRemovalDeletesAnEmptiedFile(t *testing.T) {
+	// A file that held nothing but docket's block — give or take whitespace,
+	// including a CRLF line end — has no user bytes left once the block is cut,
+	// so the removal deletes it rather than writing back an empty file. Its
+	// directory is never touched.
+	span := managedBlockSpan("old interior\n")
+	cases := []struct {
+		name    string
+		content string
+	}{
+		{"only the block", span},
+		{"trailing blank lines", span + "\n\n"},
+		{"spaces and tabs around", " \t\n" + span + "\t \n"},
+		{"CRLF residue", "\r\n" + span + "\r\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			path := f.path("dispatch", strings.ReplaceAll(tc.name, " ", "-")+".md")
+			writeFileOrDie(t, path, tc.content)
+
+			removal := TargetRecord{Path: path, Kind: KindManagedBlock, BlockName: "dispatch", Role: "dispatch"}
+			txn, err := BeginTxnWithRemovals(RealFS{}, f.roots, nil, []TargetRecord{removal})
+			if err != nil {
+				t.Fatalf("BeginTxnWithRemovals: %v", err)
+			}
+			if err := txn.Apply(); err != nil {
+				t.Fatalf("Apply: %v", err)
+			}
+			if _, err := os.Lstat(path); !os.IsNotExist(err) {
+				t.Errorf("%s: an emptied file survived its block's removal (err=%v)", tc.name, err)
+			}
+			if fi, err := os.Stat(filepath.Dir(path)); err != nil || !fi.IsDir() {
+				t.Errorf("%s: the parent directory was disturbed (err=%v)", tc.name, err)
+			}
+			assertNoStaging(t, f.targets)
+		})
+	}
+}
+
+// seedBlockOnlyFile writes a file holding nothing but the dispatch block, under
+// a mode a rollback or recovery must put back along with the bytes.
+func seedBlockOnlyFile(t *testing.T, path string) {
+	t.Helper()
+	writeFileOrDie(t, path, managedBlockSpan("old interior\n"))
+	if err := os.Chmod(path, 0o640); err != nil {
+		t.Fatalf("Chmod(%s): %v", path, err)
+	}
+}
+
+func TestTxnManagedBlockRemovalDeletionRollsBack(t *testing.T) {
+	// The removal deletes only.md, which held nothing but the block; a later
+	// create fails, so the deleted file must come back byte-for-byte and with its
+	// mode. The clean run first tells the table how many mutations the pair
+	// performs, so every one gets an injection.
+	makePlan := func(f *fixture) ([]Inspection, []TargetRecord) {
+		insp := []Inspection{{
+			Target: Target{
+				Path: f.path("dispatch", "zzz.md"), Kind: KindFile,
+				Content: []byte("later\n"), Role: "agent",
+			},
+			Disposition: DispositionCreate,
+		}}
+		rem := []TargetRecord{{
+			Path: f.path("dispatch", "only.md"), Kind: KindManagedBlock,
+			BlockName: "dispatch", Role: "dispatch",
+		}}
+		return insp, rem
+	}
+
+	var ops []string
+	var calls []string
+	func() {
+		f := newFixture(t)
+		only := f.path("dispatch", "only.md")
+		seedBlockOnlyFile(t, only)
+		insp, rem := makePlan(f)
+		ifs := &injectFS{inner: RealFS{}}
+		txn, err := BeginTxnWithRemovals(ifs, f.roots, insp, rem)
+		if err != nil {
+			t.Fatalf("BeginTxnWithRemovals: %v", err)
+		}
+		ifs.fail = func(op, p string) error {
+			ops = append(ops, op)
+			if op == "Remove" && p == only {
+				calls = append(calls, op+" "+p)
+			}
+			return nil
+		}
+		if err := txn.Apply(); err != nil {
+			t.Fatalf("clean Apply: %v", err)
+		}
+	}()
+	if len(ops) == 0 {
+		t.Fatal("a clean apply performed no mutations; the table would be vacuous")
+	}
+	if len(calls) == 0 {
+		t.Fatalf("a clean apply never removed only.md (ops %v); the deletion branch did not run", ops)
+	}
+
+	for n := 1; n <= len(ops); n++ {
+		t.Run(fmt.Sprintf("fail-at-%02d-%s", n, ops[n-1]), func(t *testing.T) {
+			f := newFixture(t)
+			seedBlockOnlyFile(t, f.path("dispatch", "only.md"))
+			insp, rem := makePlan(f)
+			before := snapshotWorld(t, f.targets)
+
+			ifs := &injectFS{inner: RealFS{}}
+			txn, err := BeginTxnWithRemovals(ifs, f.roots, insp, rem)
+			if err != nil {
+				t.Fatalf("BeginTxnWithRemovals: %v", err)
+			}
+			ifs.fail = failAtCall(n)
+
+			if err := txn.Apply(); err == nil {
+				t.Fatal("Apply succeeded despite an injected filesystem failure")
+			}
+			assertWorld(t, before, snapshotWorld(t, f.targets), "after rollback")
+			assertNoStaging(t, f.targets)
+			if _, found, err := DetectRecovery(f.roots); err != nil || found {
+				t.Errorf("DetectRecovery after rollback = (found %v, err %v), want (false, nil)", found, err)
+			}
+		})
+	}
+}
+
+func TestRecoveryAfterInterruptedManagedBlockDeletion(t *testing.T) {
+	// A killed transaction whose block-only file was already deleted: a fresh
+	// process's Recover must bring the file back byte-for-byte with its mode.
+	f := newFixture(t)
+	only := f.path("dispatch", "only.md")
+	zzz := f.path("dispatch", "zzz.md")
+	seedBlockOnlyFile(t, only)
+	before := snapshotWorld(t, f.targets)
+
+	insp := []Inspection{{
+		Target:      Target{Path: zzz, Kind: KindFile, Content: []byte("later\n"), Role: "agent"},
+		Disposition: DispositionCreate,
+	}}
+	rem := []TargetRecord{{Path: only, Kind: KindManagedBlock, BlockName: "dispatch", Role: "dispatch"}}
+	ifs := &injectFS{inner: RealFS{}}
+	txn, err := BeginTxnWithRemovals(ifs, f.roots, insp, rem)
+	if err != nil {
+		t.Fatalf("BeginTxnWithRemovals: %v", err)
+	}
+	ifs.fail = func(op, p string) error {
+		if op == "Rename" && p == zzz {
+			return fmt.Errorf("injected failure on %s(%s)", op, p)
+		}
+		return nil
+	}
+	// applySteps is the engine without its rollback: the process dies here.
+	if err := txn.applySteps(); err == nil {
+		t.Fatal("applySteps succeeded despite an injected failure")
+	}
+	if _, err := os.Lstat(only); !os.IsNotExist(err) {
+		t.Fatalf("only.md is still present before recovery (err=%v); the interruption did not follow the deletion", err)
+	}
+
+	id, found, err := DetectRecovery(f.roots)
+	if err != nil {
+		t.Fatalf("DetectRecovery: %v", err)
+	}
+	if !found {
+		t.Fatal("DetectRecovery found no journal after an interrupted transaction")
+	}
+	if err := Recover(RealFS{}, f.roots, id); err != nil {
+		t.Fatalf("Recover(%s): %v", id, err)
+	}
+	assertWorld(t, before, snapshotWorld(t, f.targets), "after recovery")
+	assertNoStaging(t, f.targets)
+	if _, found, err := DetectRecovery(f.roots); err != nil || found {
+		t.Errorf("DetectRecovery after Recover = (found %v, err %v), want (false, nil)", found, err)
 	}
 }
 
