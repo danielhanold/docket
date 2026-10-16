@@ -1,12 +1,12 @@
 # Backlog
 
-**555 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 392 done · 🗑️ 141 killed
+**555 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 392 done · 🗑️ 141 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0555](active/0555-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md) | Keep Claude's dispatch block in AGENTS.md while CLAUDE.md links to it | `low` | `fix` | [spec](../superpowers/specs/2026-10-16-give-claude-its-own-claude-md-block-when-agents-md-stops-bei-design.md) | `fix/give-claude-its-own-claude-md-block-when-agents-md-stops-bei` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0555](active/0555-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md) | Keep Claude's dispatch block in AGENTS.md while CLAUDE.md links to it | `low` | `fix` | [#423](https://github.com/danielhanold/docket/pull/423) | awaiting merge |
 
 ## 🟣 Groomed (2)
 

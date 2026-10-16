@@ -2,7 +2,7 @@
 id: 555
 slug: 'give-claude-its-own-claude-md-block-when-agents-md-stops-bei'
 title: 'Keep Claude''s dispatch block in AGENTS.md while CLAUDE.md links to it'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-16'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/give-claude-its-own-claude-md-block-when-agents-md-stops-bei'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/423'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-16T20:22:12Z'
@@ -66,3 +66,12 @@ The same rule leaves two claude-only setups without Claude's rules. A repository
 ### 2026-10-16
 
 2026-10-16: Groomed today; reposeed.Plan, ClaudeMDLinkToAgents handling, PrivatePlanInput.OptIns, and computeRemovals on main (d253a2cff) still match the spec's description. #537 is done and its empty-AGENTS.md deletion is in place. No scope change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 0df79a8d4dd6a78413b88c7806235171c164f5f8
+ran_at:   2026-10-16T21:05:26Z
+<!-- docket:build-evidence:end -->
