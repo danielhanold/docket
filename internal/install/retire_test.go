@@ -658,6 +658,137 @@ func TestInstallRetiresLeftoverBlockAndWritesPointerInOneFileRollsBackBothSteps(
 	}
 }
 
+// overwriteWithLeftoverOnly replaces the leftover world's AGENTS.md with nothing
+// but the recorded docket:dispatch block, so retiring it empties the file, and
+// sets the user's mode the pointer write must preserve. It returns the bytes.
+func overwriteWithLeftoverOnly(t *testing.T, path string) string {
+	t.Helper()
+	only := managedBlockSpan("leftover dispatch rules\n")
+	writeFileOrDie(t, path, only)
+	if err := os.Chmod(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return only
+}
+
+func TestInstallRetiresLeftoverOnlyBlockAndWritesPointerInOneFile(t *testing.T) {
+	opts, path, _ := leftoverCodexWorld(t)
+	overwriteWithLeftoverOnly(t, path)
+
+	out := Install(opts)
+	if out.Err != nil {
+		t.Fatalf("Install: %v (reason %s, actions %+v)", out.Err, out.Reason, out.Actions)
+	}
+
+	got := readOrDie(t, path)
+	doc, err := document.Parse([]byte(got))
+	if err != nil {
+		t.Fatalf("parsing the installed file: %v\n%s", err, got)
+	}
+	if strings.Contains(got, "docket:dispatch") {
+		t.Errorf("the leftover docket:dispatch block survived:\n%s", got)
+	}
+	block, ok := doc.Block(pointerBlockName)
+	if !ok {
+		t.Fatalf("no %s block was written:\n%s", pointerBlockName, got)
+	}
+	if interior := got[block.Interior.Start:block.Interior.End]; interior != "pointer\n" {
+		t.Errorf("pointer interior = %q, want %q", interior, "pointer\n")
+	}
+	if n := strings.Count(got, "<!-- dckt:private-instructions:start"); n != 1 {
+		t.Errorf("found %d pointer blocks, want 1:\n%s", n, got)
+	}
+	if rest := got[:block.Start.Start] + got[block.End.End:]; strings.TrimSpace(rest) != "" {
+		t.Errorf("bytes outside the pointer block = %q, want only whitespace", rest)
+	}
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := fi.Mode().Perm(); perm != 0o600 {
+		t.Errorf("mode after cut-and-write = %o, want the user's 0600", perm)
+	}
+
+	var removes, updates int
+	for _, a := range out.Actions {
+		if a.Path != path {
+			continue
+		}
+		switch a.Op {
+		case OpRemove:
+			removes++
+		case OpUpdate:
+			updates++
+		}
+	}
+	if removes != 1 || updates != 1 {
+		t.Errorf("actions on %s: %d remove, %d update; want one of each: %+v", path, removes, updates, out.Actions)
+	}
+
+	state, err := LoadState(opts.Roots.StatePath())
+	if err != nil || state == nil {
+		t.Fatalf("LoadState = %v, %v", state, err)
+	}
+	var records []TargetRecord
+	for _, rec := range state.Targets {
+		if filepath.Clean(rec.Path) == path {
+			records = append(records, rec)
+		}
+	}
+	if len(records) != 1 || records[0].BlockName != pointerBlockName {
+		t.Errorf("state records for %s = %+v, want exactly the %s record", path, records, pointerBlockName)
+	}
+}
+
+func TestInstallRetiresLeftoverOnlyBlockAndWritesPointerInOneFileRollsBackBothSteps(t *testing.T) {
+	roots := versionRoots(t)
+	later := filepath.Join(roots.Home, ".codex", "zz.txt")
+	opts, path, _ := leftoverCodexWorldAt(t, roots, Target{
+		Path: later, Kind: KindFile, Content: []byte("later\n"), Role: "agent",
+	})
+	original := overwriteWithLeftoverOnly(t, path)
+
+	agentsRenames, agentsRemoves := 0, 0
+	ifs := &injectFS{inner: RealFS{}, fail: func(op, p string) error {
+		switch {
+		case op == "Remove" && p == path:
+			agentsRemoves++
+		case op == "Rename" && p == path:
+			agentsRenames++
+		case op == "Rename" && p == later:
+			return fmt.Errorf("injected failure publishing %s", p)
+		}
+		return nil
+	}}
+	opts.FS = ifs
+
+	out := Install(opts)
+	if out.Err == nil {
+		t.Fatalf("Install succeeded despite the injected failure: %+v", out.Actions)
+	}
+	// The retirement deleted the emptied file, the pointer write recreated it,
+	// and the rollback published both restores (newest first).
+	if agentsRemoves != 1 {
+		t.Errorf("AGENTS.md was removed %d times, want 1 (the retirement's deletion)", agentsRemoves)
+	}
+	if agentsRenames != 3 {
+		t.Errorf("AGENTS.md was published %d times, want 1 pointer apply + 2 restores", agentsRenames)
+	}
+	if got := readOrDie(t, path); got != original {
+		t.Errorf("AGENTS.md after rollback =\n%q\nwant\n%q", got, original)
+	}
+	if fi, err := os.Stat(path); err != nil || fi.Mode().Perm() != 0o600 {
+		t.Errorf("AGENTS.md mode after rollback = %v (err %v), want 0600", fi, err)
+	}
+	if _, err := os.Lstat(later); !os.IsNotExist(err) {
+		t.Errorf("%s survived the rollback: %v", later, err)
+	}
+	assertNoStaging(t, filepath.Dir(path))
+	if _, found, err := DetectRecovery(roots); err != nil || found {
+		t.Errorf("DetectRecovery after rollback = (found %v, err %v), want (false, nil)", found, err)
+	}
+}
+
 // --- block remedies spell the block's own marker namespace ------------------
 
 func TestBlockRemediesSpellTheMarkerNamespace(t *testing.T) {

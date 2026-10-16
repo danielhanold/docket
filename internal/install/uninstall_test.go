@@ -292,6 +292,31 @@ func TestUninstallSatisfiedAbsenceAndManagedBlockRemoval(t *testing.T) {
 	}
 }
 
+func TestUninstallManagedBlockRemovalDeletesAnEmptiedFile(t *testing.T) {
+	f := newUninstallFixture(t)
+	block := f.paths["codex"]
+	writeFileOrDie(t, block, managedBlockSpan("owned\n"))
+	for i := range f.state.Targets {
+		if f.state.Targets[i].Harness == "codex" {
+			f.state.Targets[i] = TargetRecord{Path: block, Kind: KindManagedBlock, BlockName: "dispatch", SHA256: interiorDigest([]byte("owned\n")), Role: "dispatch", Harness: "codex"}
+		}
+	}
+	if err := WriteStateAtomic(f.roots.StatePath(), f.state); err != nil {
+		t.Fatal(err)
+	}
+	out := Uninstall(uninstallOptions(f))
+	if out.Err != nil {
+		t.Fatalf("Uninstall: %v", out.Err)
+	}
+	// The file held nothing but docket's block, so removing the block deletes it.
+	if _, err := os.Lstat(block); !os.IsNotExist(err) {
+		t.Errorf("a file left empty by the block's removal survived uninstall (err=%v)", err)
+	}
+	if fi, err := os.Stat(filepath.Dir(block)); err != nil || !fi.IsDir() {
+		t.Errorf("the parent directory was disturbed (err=%v)", err)
+	}
+}
+
 func TestUninstallRetainsUnrecordedConfigurationAndIsIdempotent(t *testing.T) {
 	f := newUninstallFixture(t)
 	for _, path := range []string{
