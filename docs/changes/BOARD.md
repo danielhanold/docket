@@ -1,12 +1,6 @@
 # Backlog
 
-**555 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 392 done · 🗑️ 141 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0555](active/0555-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md) | Keep Claude's dispatch block in AGENTS.md while CLAUDE.md links to it | `low` | `fix` | [#423](https://github.com/danielhanold/docket/pull/423) | awaiting merge |
+**555 changes** — 🟣 2 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 393 done · 🗑️ 141 killed
 
 ## 🟣 Groomed (2)
 
@@ -68,7 +62,6 @@ graph TD
   0528
   0541
   0546 --> 0547
-  0555
   0192:::done
   0251:::done
   0393:::done
@@ -79,10 +72,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (533)</summary>
+<details><summary>✅🗑️ Archive — done + killed (534)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0555](archive/2026-10-16-0555-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md) | Keep Claude's dispatch block in AGENTS.md while CLAUDE.md links to it | 2026-10-16 |
 | [0554](archive/2026-10-16-0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice | 2026-10-16 |
 | [0553](archive/2026-10-16-0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | 2026-10-16 |
 | [0548](archive/2026-10-16-0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Name test fixture folders by what they hold | 2026-10-16 |
@@ -99,7 +93,6 @@ graph TD
 | [0546](archive/2026-10-11-0546-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md) | Per-agent prompt-cache TTL pin, shipped 1h for implement-next | 2026-10-11 |
 | [0544](archive/2026-10-08-0544-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s.md) | Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested | 2026-10-08 |
 | [0543](archive/2026-10-08-0543-cursor-section-of-the-bash-upgrade-guide-proven-on-the-saved.md) | Cursor section of the Bash upgrade guide, proven on the saved cases | 2026-10-08 |
-| [0542](archive/2026-10-08-0542-open-the-board-a-change-and-its-artifacts-from-the-terminal.md) | Open the board, a change, and its artifacts from the terminal | 2026-10-08 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -244,7 +237,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 49 done |
+| [2026-10](archive/) | 50 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

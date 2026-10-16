@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0555 — Keep Claude's dispatch block in AGENTS.md while CLAUDE.md links to it](../../changes/active/0555-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md)**
+> ↩ **[Change 0555 — Keep Claude's dispatch block in AGENTS.md while CLAUDE.md links to it](../../changes/archive/2026-10-16-0555-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md)**
 <!-- docket:backlink:end -->
 
 # Keep Claude's dispatch block in AGENTS.md while CLAUDE.md links to it — Implementation Plan
