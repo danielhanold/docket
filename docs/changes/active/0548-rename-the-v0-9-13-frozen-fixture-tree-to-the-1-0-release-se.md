@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-16T10:15:14Z'
+reconciled: true
+claimed_at: '2026-10-16T10:17:19Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ Name the folders for what they hold: `configs/`, `documents/`, `status-corpus/`.
 ## Out of scope
 
 Changing any sample's contents or renaming individual fixtures. The legacy installer's embedded v0.9.2 floor (`internal/install/legacydata/`) and its goldens, `testdata/bash-upgrade/`, and package-local `testdata/` directories. Frozen build records and ADRs that name the old folders.
+
+## Reconcile log
+
+### 2026-10-16
+
+2026-10-16: Re-checked against main at 2f47107e4. Dependency #546 is done. #554 (shipped-default refresh) is still proposed, so no newer numbered folder exists; the newest is still v0.9.13, and the spec layout table matches the tree (v0.9.2 to v0.9.13, with v0.9.13 holding only the harness-defaults copy and deferred-active). No scope change.
