@@ -609,7 +609,6 @@ func TestFixtureDeferredPairs(t *testing.T) {
 // the path to add. The agents block uses fixtureAgentHarness/fixtureAgentName.
 const deferredActiveYAML = `finalize:
   gate: ci
-  skip_results_only_delta: true
 
 build:
   checkpoint: true
