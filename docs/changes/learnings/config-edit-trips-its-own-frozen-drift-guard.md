@@ -1,40 +1,21 @@
 ---
 slug: config-edit-trips-its-own-frozen-drift-guard
-hook: "Editing a file a frozen fixture byte-copies trips that fixture's drift guard — the sanctioned fix (new versioned tree + re-derive) is the guard's OWN remedy message, so obey the guard, not a spec exclusion that names the guard's directory but did not foresee it."
+hook: 'Editing docket''s own `.docket.yml` can fail `TestFixtureDocketSelf`. The fix is to re-derive its expectations from the resolver''s real output, and a spec exclusion naming `internal/config` means ''don''t change the logic'', not ''don''t touch that test''.'
 topics: [fixtures, config, testing, drift-guards]
-changes: [326]
+changes: [326, 548]
 created: 2026-08-18
-updated: 2026-08-18
+updated: '2026-10-16'
 promotion_state: candidate
 promoted_to:
 ---
 
 ## Apply
 
-Some tests keep a **frozen byte-for-byte copy** of a live file and fail the instant the live file
-drifts from the copy (a drift guard). Docket's `TestFixtureDocketSelf` copies the repo's own
-`.docket.yml`; the harness/status fixtures copy other live inputs. The moment a change edits the live
-file — even a legitimate, intended edit — the guard reddens.
+docket's tests read `.docket.yml` and `agents/harness-defaults.yml` where they live, so editing either file fails only a test whose expectations the edit actually changes. `TestFixtureDocketSelf` is the usual one: it resolves docket's own `.docket.yml` and checks the finalize test command, the blocker set, and each blocker's layer.
 
-The reflex is to treat that red as collateral damage to route around. It is not: the guard's **own
-failure message tells you the fix**, and it is a specific protocol, not "edit the frozen copy":
-
-- **Never edit a frozen fixture in place** — it is an immutable input. A new upstream state gets a
-  **new versioned tree** (e.g. `testdata/repositories/v0.9.4/…`), copied from the prior version with
-  only the changed file overwritten, everything else carried verbatim, plus a `PROVENANCE.md`.
-- **Re-point only the one test** to the new tree and **re-derive its expectations by running the
-  resolver and reading the actual output** — never by guessing the new expected set.
-- The guard stays **live** afterward (still byte-compares, still fires on the next drift) and is not
-  weakened.
-
-**The spec-exclusion trap.** A change spec may say "do not modify `internal/config`" (or whatever
-directory) to protect the real logic — the classifier, the schema, the resolver. A drift-guard's
-fixture and its re-derived expectations usually live in that same directory. Read the exclusion by
-**intent** (don't change the decision logic), not by **path** (never touch a file under here): a
-green-suite requirement plus a config edit *forces* the fixture re-baseline, so a literal path
-reading makes the spec self-contradictory. When the two collide, the drift guard's own remedy is the
-tie-breaker, and it is a maintainer call worth surfacing — but it is a fixture-maintenance decision,
-never a logic change. Verify afterward that the protected logic file is byte-untouched by the branch.
+- **Re-derive the expectations by running the resolver and reading its actual output**, never by guessing the new expected set.
+- **Samples under `testdata/repositories/` follow the `testdata/README.md` rule:** they are data docket must keep reading, so never edit one to make a failing test pass. Remove one only when docket deliberately drops support for it, recording why in its `PROVENANCE.md`. Adding a new sample is always fine.
+- **The spec-exclusion trap.** A change spec may say "do not modify `internal/config`" to protect the real logic (the classifier, the schema, the resolver). The test whose expectations an edit changes usually lives in that same directory. Read the exclusion by **intent** (don't change the decision logic), not by **path** (never touch a file under here): a green-suite requirement plus a config edit forces the expectation update, so a literal path reading makes the spec contradict itself. Surface the call when the two collide, and verify afterward that the protected logic file is byte-untouched by the branch.
 
 ## War story
 - 2026-08-18 (#326, PR #220 — merged) — Change 0326 contracts docket's own committed `.docket.yml`
