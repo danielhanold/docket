@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/delete-the-empty-agents-md-left-behind-when-a-dispatch-block'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-16T17:20:16Z'
+reconciled: true
+claimed_at: '2026-10-16T17:22:07Z'
 ---
 
 ## Artifacts
@@ -50,3 +50,9 @@ When docket removes one of its managed blocks from a file it created, it writes 
 - The CLAUDE.md link left dangling when AGENTS.md stops being shared (#555).
 - Hook files emptied of docket's entries, and directories left empty.
 - Any change to what the private-mode triggers write.
+
+## Reconcile log
+
+### 2026-10-16
+
+2026-10-16 — Spec groomed today; re-checked against main c084cd93c. `(*Txn).removeManagedBlock`, `rejectDuplicateDestinations`, `removeIfPresent` (internal/install/txn.go) and the set-visibility instructions-phase done check (`planToPrivate`, internal/app/repository_set_visibility.go) are unchanged since grooming. No related change landed that overlaps (533 done, 555 still proposed). Scope unchanged.
