@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'docs/list-the-artifact-backlink-finding-codes-in-the-docket-statu'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-16T12:07:26Z'
+reconciled: true
+claimed_at: '2026-10-16T12:08:00Z'
 ---
 
 ## Artifacts
@@ -55,3 +55,9 @@ Trivial — no design question. Human chose the family-plus-remedy wording over 
 ## Out of scope
 
 Changing any finding, its detection, its remedy text, or repair behavior; listing finding codes anywhere in the skills (the `schema` operation owns codes and shapes, each finding owns its remedy); the bash-upgrade guide's findings table, which is a deliberate subset for Bash repositories.
+
+## Reconcile log
+
+### 2026-10-16
+
+2026-10-16: Re-traced against origin/main e99f310. The docket-status Findings sentence (line 124), the Sweep posture line, the glossary example comment, and the repairability split in internal/reposetup/derived.go are all as the groom described. Scope unchanged.
