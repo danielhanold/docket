@@ -22,7 +22,7 @@ branch: 'fix/fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T16:14:36Z'
+claimed_at: '2026-10-16T16:23:16Z'
 ---
 
 ## Artifacts
