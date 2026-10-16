@@ -14,7 +14,7 @@ discovered_from: [533]
 adrs: []
 spec:
 plan: 'docs/superpowers/plans/2026-10-16-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md'
-results:
+results: 'docs/results/2026-10-16-list-the-artifact-backlink-finding-codes-in-the-docket-statu-results.md'
 trivial: true
 auto_groomable:
 branch_prefix:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-16T12:13:20Z'
 | Artifact | Link |
 |---|---|
 | Plan | [2026-10-16-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md](../../superpowers/plans/2026-10-16-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) |
+| Results | [2026-10-16-list-the-artifact-backlink-finding-codes-in-the-docket-statu-results.md](../../results/2026-10-16-list-the-artifact-backlink-finding-codes-in-the-docket-statu-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
