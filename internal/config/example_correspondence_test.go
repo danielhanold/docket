@@ -530,7 +530,7 @@ func TestExampleSchemaCorrespondence(t *testing.T) {
 			t.Error(p)
 		}
 		// Mutation: one changed model value in a copy must redden.
-		mutated := strings.Replace(content, "{ model: claude-sonnet-5,", "{ model: claude-sonnet-4,", 1)
+		mutated := strings.Replace(content, "{ model: claude-haiku-5-5,", "{ model: claude-haiku-5-4,", 1)
 		if mutated == content {
 			t.Fatalf("mutation probe did not change the example")
 		}
