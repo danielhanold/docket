@@ -78,10 +78,10 @@ The `model:` key is present only where a model resolves. The built-in table (mir
 entries in your global config, every file carries a `model:` line holding the shipped Cursor ID.
 
 A **Claude Code** model ID appearing in a Cursor wrapper is a cross-harness leak; treat it as a
-defect, not a default. The two deliberate exceptions are `docket-build-max` and
-`docket-review-deep`, whose shipped Cursor ID *is* `claude-opus-5-high` — that is Cursor's own name
-for the model, selected through Cursor, not a leaked Claude Code pin. A **missing** `model:` line is
-also a defect.
+defect, not a default. The three deliberate exceptions are `docket-build-max`
+(`claude-opus-5-5-high`), `docket-plan-writer` (`claude-opus-5-5-medium`), and `docket-status`
+(`claude-haiku-5-5-thinking-medium`): those are Cursor's own names for the models, selected through
+Cursor, not leaked Claude Code pins. A **missing** `model:` line is also a defect.
 
 Where an effort *is* pinned by your own config, the `model` value carries the bracket encoding
 (`<id>[effort=<e>]`). Every shipped Cursor ID already encodes its variant, so they all ship at
