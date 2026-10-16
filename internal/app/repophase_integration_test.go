@@ -639,3 +639,112 @@ func TestIntegrationContextProbeClaudeShareScopedRunKeepsCodexClause(t *testing.
 		t.Errorf("scoped run changed the AGENTS.md interior:\nbefore:\n%s\nafter:\n%s", before, after)
 	}
 }
+
+// relinkClaudeRelative replaces CLAUDE.md with a relative link to AGENTS.md, the
+// shape classifyClaudeMD reads as a share.
+func relinkClaudeRelative(t *testing.T, root string) {
+	t.Helper()
+	p := filepath.Join(root, "CLAUDE.md")
+	if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("AGENTS.md", p); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestIntegrationContextProbeClaudeShareDropKeepsAgentsBlock: a repository whose
+// record lists AGENTS.md under its codex/opencode owner only (the claude link
+// owned separately) drops to claude alone. The AGENTS.md block Claude now
+// co-owns is planned and must not be retired in the same run, nor the run
+// refused for writing one path twice.
+func TestIntegrationContextProbeClaudeShareDropKeepsAgentsBlock(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		other     string
+		userNotes bool
+	}{
+		{name: "opencode, only the block", other: "opencode"},
+		{name: "opencode, user text around it", other: "opencode", userNotes: true},
+		{name: "codex", other: "codex"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pinInstructionsUserRoots(t)
+			root, gitDir := initGitRepo(t, "agent_harnesses: [claude, "+tc.other+"]\n")
+			seedSharedSurfaces(t, root, gitDir, []string{"claude", tc.other}, reposeed.ClaudeMDAbsent, reposeed.AgentsMDMissing, []string{tc.other})
+			relinkClaudeRelative(t, root)
+			if s := recordOwners(t, gitDir)["AGENTS.md"]; !reflect.DeepEqual(s.Harnesses, []string{tc.other}) {
+				t.Fatalf("seeded AGENTS.md record = %+v, want owners [%s]", s, tc.other)
+			}
+			if tc.other == "codex" {
+				if interior, _ := agentsDispatch(t, root); !strings.Contains(interior, "### Codex root-coordinator entry") {
+					t.Fatalf("seeded interior lacks the Codex clause:\n%s", interior)
+				}
+			}
+			if tc.userNotes {
+				f, err := os.OpenFile(filepath.Join(root, "AGENTS.md"), os.O_APPEND|os.O_WRONLY, 0)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := f.WriteString("\n## My notes\n\nkeep me\n"); err != nil {
+					t.Fatal(err)
+				}
+				if err := f.Close(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			writeRepoFile(t, root, ".docket.yml", "agent_harnesses: [claude]\n")
+
+			phase, _ := installShared(t, root, nil)
+
+			agentsPath := filepath.Join(root, "AGENTS.md")
+			for _, r := range phase.Removals {
+				if r.Path == agentsPath {
+					t.Errorf("removals retire AGENTS.md: %+v", r)
+				}
+			}
+			interior, rest := agentsDispatch(t, root)
+			if strings.Contains(interior, "### Codex root-coordinator entry") {
+				t.Errorf("interior still carries the Codex clause after codex dropped:\n%s", interior)
+			}
+			if tc.userNotes && !strings.Contains(rest, "keep me") {
+				t.Errorf("AGENTS.md lost the user notes; outside the block = %q", rest)
+			}
+			assertClaudeResolvesToAgents(t, root)
+			if s := recordOwners(t, gitDir)["AGENTS.md"]; !reflect.DeepEqual(s.Harnesses, []string{"claude"}) {
+				t.Errorf("AGENTS.md record = %+v, want owners [claude]", s)
+			}
+
+			relinkClaudeRelative(t, root)
+			if _, wrote := installShared(t, root, nil); wrote {
+				t.Errorf("second install wrote again, want a steady state")
+			}
+			agentsDispatch(t, root)
+		})
+	}
+}
+
+// TestIntegrationContextProbeClaudeShareDropEverythingRetires: a claude-only
+// repository sharing AGENTS.md through the CLAUDE.md link drops every harness;
+// both the link and the AGENTS.md block docket wrote are retired.
+func TestIntegrationContextProbeClaudeShareDropEverythingRetires(t *testing.T) {
+	pinInstructionsUserRoots(t)
+	root, gitDir := initGitRepo(t, "agent_harnesses: [claude]\n")
+	if err := os.Symlink("AGENTS.md", filepath.Join(root, "CLAUDE.md")); err != nil {
+		t.Fatal(err)
+	}
+	seedSharedSurfaces(t, root, gitDir, []string{"claude"}, reposeed.ClaudeMDLinkToAgents, reposeed.AgentsMDMissing, nil)
+	relinkClaudeRelative(t, root)
+	if s := recordOwners(t, gitDir)["AGENTS.md"]; !reflect.DeepEqual(s.Harnesses, []string{"claude"}) {
+		t.Fatalf("seeded AGENTS.md record = %+v, want owners [claude]", s)
+	}
+	writeRepoFile(t, root, ".docket.yml", "agent_harnesses: []\n")
+
+	installShared(t, root, nil)
+
+	for _, name := range []string{"CLAUDE.md", "AGENTS.md"} {
+		if _, err := os.Lstat(filepath.Join(root, name)); !os.IsNotExist(err) {
+			t.Errorf("%s still present (lstat err %v), want retired", name, err)
+		}
+	}
+}

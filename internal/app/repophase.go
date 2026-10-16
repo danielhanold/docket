@@ -159,10 +159,6 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 		if err != nil {
 			return nil, "", nil, &RepoResolutionError{Reason: install.ReasonInvalidRepoDir, Err: err}
 		}
-		planned = make(map[string]bool, len(targets))
-		for _, t := range targets {
-			planned[filepath.Clean(t.Path)] = true
-		}
 	} else {
 		targets, owners, err = reposeed.Plan(reposeed.PlanInput{
 			WorktreeRoot:  root,
@@ -175,6 +171,16 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 		if err != nil {
 			return nil, "", nil, &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
 		}
+	}
+	// writes is every path this run plans, in both modes; a prior surface at one
+	// of them is never retired (computeRemovals). planned keeps its private-only
+	// meaning: nil in a shared repository.
+	writes := make(map[string]bool, len(targets))
+	for _, t := range targets {
+		writes[filepath.Clean(t.Path)] = true
+	}
+	if private {
+		planned = writes
 	}
 
 	prior, err := reposeed.LoadRecord(recordPath)
@@ -191,7 +197,7 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 		return nil, "", nil, &RepoResolutionError{Reason: install.ReasonInternal, Err: err}
 	}
 
-	removals, err := computeRemovals(prior, root, optIns, inScope, planned, priorState, legacy)
+	removals, err := computeRemovals(prior, root, optIns, inScope, planned, writes, priorState, legacy)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -209,7 +215,7 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 		}
 		if legacyRec != nil {
 			legacyState := legacyRec.ToState(invokedRoot)
-			legacyRemovals, err := computeRemovals(legacyRec, invokedRoot, optIns, inScope, planned, legacyState, legacy)
+			legacyRemovals, err := computeRemovals(legacyRec, invokedRoot, optIns, inScope, planned, writes, legacyState, legacy)
 			if err != nil {
 				return nil, "", nil, err
 			}
@@ -405,11 +411,13 @@ func composeRecordBytes(targets []install.Target, owners map[string][]string, pr
 // none of its remaining owners is opted in, and a scoped run never touches an
 // out-of-scope surface. In a private repository (planned non-nil) a surface is
 // still required only when this run planned its path, so a working-tree surface
-// an earlier install wrote is retired even while its owners stay opted in. The
-// proof is delegated to install.PlanGlobalRetirements, which removes only an
+// an earlier install wrote is retired even while its owners stay opted in.
+// writes is the set of cleaned paths this run plans, in both modes: a prior
+// surface whose path this run plans is never retired; the planned write replaces
+// its record, and ownership is still proven at inspection. The proof is delegated to install.PlanGlobalRetirements, which removes only an
 // artifact byte-provably docket's (prior record or frozen legacy) and refuses
 // the whole run on anything it cannot prove.
-func computeRemovals(prior *reposeed.Record, root string, optIns []string, scope map[string]bool, planned map[string]bool, priorState *install.State, legacy install.LegacyReproducer) ([]install.TargetRecord, error) {
+func computeRemovals(prior *reposeed.Record, root string, optIns []string, scope map[string]bool, planned map[string]bool, writes map[string]bool, priorState *install.State, legacy install.LegacyReproducer) ([]install.TargetRecord, error) {
 	if prior == nil {
 		return nil, nil
 	}
@@ -422,6 +430,9 @@ func computeRemovals(prior *reposeed.Record, root string, optIns []string, scope
 	harnessByPath := map[string]string{}
 	for _, s := range prior.Surfaces {
 		abs := filepath.Clean(filepath.Join(root, filepath.FromSlash(s.Path)))
+		if writes[abs] {
+			continue // this run writes the path: its planned write supersedes the record.
+		}
 		stillWanted := false
 		if planned != nil {
 			stillWanted = planned[abs]
