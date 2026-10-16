@@ -2,11 +2,11 @@
 id: 503
 slug: 'auto-name-claude-code-sessions-from-docket-workflow-prompts'
 title: 'Auto-name Claude Code sessions from docket workflow prompts'
-status: 'deferred'
+status: 'proposed'
 priority: 'low'
 type: 'feat'
 created: '2026-10-04'
-updated: '2026-10-04'
+updated: '2026-10-16'
 depends_on: []
 stacked_on:
 related: [345]
