@@ -298,7 +298,7 @@ on the metadata branch, and the merged PR's description backlink is repointed be
 
 ```sh
 docket repository check    # reports links blocks and backlinks that are stale or broken
-docket repository repair   # re-renders the stale or missing ones in one metadata commit
+docket repository repair   # re-renders the stale ones in one metadata commit
 ```
 
 ### Frozen build record
