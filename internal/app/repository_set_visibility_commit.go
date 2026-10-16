@@ -582,8 +582,10 @@ func plannedSharedSurfaces(ctx context.Context, git *gitcli.Client, st visibilit
 		if targets, _, err = reposeed.Plan(reposeed.PlanInput{
 			WorktreeRoot:  st.primary,
 			Harnesses:     ah.Value,
+			OptIns:        ah.Value,
 			RunTracker:    runTracker,
 			ClaudeMDState: classifyClaudeMD(st.primary),
+			AgentsMDState: classifyAgentsMD(st.primary),
 		}); err != nil {
 			return nil, err
 		}
