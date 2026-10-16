@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0536 — Split the private-mode tests out of the workflow lifecycle shard](../../changes/active/0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md)**
+> ↩ **[Change 0536 — Split the private-mode tests out of the workflow lifecycle shard](../../changes/archive/2026-10-16-0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md)**
 <!-- docket:backlink:end -->
 
 # Split the private-mode tests out of the workflow lifecycle shard — design

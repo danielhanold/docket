@@ -2,7 +2,7 @@
 id: 536
 slug: 'split-the-private-leak-check-tests-out-of-the-workflow-lifec'
 title: 'Split the private-mode tests out of the workflow lifecycle shard'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-06'
@@ -22,7 +22,7 @@ branch: 'fix/split-the-private-leak-check-tests-out-of-the-workflow-lifec'
 pr: 'https://github.com/danielhanold/docket/pull/420'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T15:24:38Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-16T15:24:38Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-design.md](../../superpowers/specs/2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-design.md) |
+| Spec (merged) | [2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-design.md) |
 | Plan | [2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md](../../superpowers/plans/2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) |
 | Results | [2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-results.md](../../results/2026-10-16-split-the-private-leak-check-tests-out-of-the-workflow-lifec-results.md) |
 <!-- docket:artifacts:end -->
