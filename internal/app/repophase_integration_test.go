@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -640,16 +641,39 @@ func TestIntegrationContextProbeClaudeShareScopedRunKeepsCodexClause(t *testing.
 	}
 }
 
-// relinkClaudeRelative replaces CLAUDE.md with a relative link to AGENTS.md, the
-// shape classifyClaudeMD reads as a share.
-func relinkClaudeRelative(t *testing.T, root string) {
-	t.Helper()
-	p := filepath.Join(root, "CLAUDE.md")
-	if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
-		t.Fatal(err)
+// TestIntegrationContextProbeClaudeShareReinstallKeepsOwnLink: a claude-only
+// repository with its own AGENTS.md and no CLAUDE.md is installed twice. The
+// second install must read the CLAUDE.md link the first one wrote as a share of
+// AGENTS.md, so it re-plans the AGENTS.md block with claude among its owners
+// rather than retiring it, and the user text survives.
+//
+// MUTATION TEST: drop the absolute-link clause from classifyClaudeMD and the
+// second install reads docket's own link as foreign; this test reddens.
+func TestIntegrationContextProbeClaudeShareReinstallKeepsOwnLink(t *testing.T) {
+	pinInstructionsUserRoots(t)
+	root, gitDir := initGitRepo(t, "agent_harnesses: [claude]\n")
+	writeRepoFile(t, root, "AGENTS.md", claudeShareUserText)
+
+	installShared(t, root, nil)
+	assertClaudeResolvesToAgents(t, root)
+
+	phase, _ := installShared(t, root, nil)
+
+	agentsPath := filepath.Join(root, "AGENTS.md")
+	if owners := phase.Owners[agentsPath]; !slices.Contains(owners, "claude") {
+		t.Errorf("second install AGENTS.md owners = %v, want claude among them", owners)
 	}
-	if err := os.Symlink("AGENTS.md", p); err != nil {
-		t.Fatal(err)
+	for _, r := range phase.Removals {
+		if r.Path == agentsPath {
+			t.Errorf("second install retires AGENTS.md: %+v", r)
+		}
+	}
+	if _, rest := agentsDispatch(t, root); rest != claudeShareUserText {
+		t.Errorf("AGENTS.md outside the block = %q, want the user text %q", rest, claudeShareUserText)
+	}
+	assertClaudeResolvesToAgents(t, root)
+	if s := recordOwners(t, gitDir)["AGENTS.md"]; !reflect.DeepEqual(s.Harnesses, []string{"claude"}) {
+		t.Errorf("AGENTS.md record = %+v, want owners [claude]", s)
 	}
 }
 
@@ -672,7 +696,6 @@ func TestIntegrationContextProbeClaudeShareDropKeepsAgentsBlock(t *testing.T) {
 			pinInstructionsUserRoots(t)
 			root, gitDir := initGitRepo(t, "agent_harnesses: [claude, "+tc.other+"]\n")
 			seedSharedSurfaces(t, root, gitDir, []string{"claude", tc.other}, reposeed.ClaudeMDAbsent, reposeed.AgentsMDMissing, []string{tc.other})
-			relinkClaudeRelative(t, root)
 			if s := recordOwners(t, gitDir)["AGENTS.md"]; !reflect.DeepEqual(s.Harnesses, []string{tc.other}) {
 				t.Fatalf("seeded AGENTS.md record = %+v, want owners [%s]", s, tc.other)
 			}
@@ -715,7 +738,6 @@ func TestIntegrationContextProbeClaudeShareDropKeepsAgentsBlock(t *testing.T) {
 				t.Errorf("AGENTS.md record = %+v, want owners [claude]", s)
 			}
 
-			relinkClaudeRelative(t, root)
 			if _, wrote := installShared(t, root, nil); wrote {
 				t.Errorf("second install wrote again, want a steady state")
 			}
@@ -734,7 +756,6 @@ func TestIntegrationContextProbeClaudeShareDropEverythingRetires(t *testing.T) {
 		t.Fatal(err)
 	}
 	seedSharedSurfaces(t, root, gitDir, []string{"claude"}, reposeed.ClaudeMDLinkToAgents, reposeed.AgentsMDMissing, nil)
-	relinkClaudeRelative(t, root)
 	if s := recordOwners(t, gitDir)["AGENTS.md"]; !reflect.DeepEqual(s.Harnesses, []string{"claude"}) {
 		t.Fatalf("seeded AGENTS.md record = %+v, want owners [claude]", s)
 	}
