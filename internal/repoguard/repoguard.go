@@ -16,8 +16,9 @@
 //
 //   - any directory named "testdata": Go reserves this name for non-compiled
 //     fixture DATA. This single rule covers internal/repository/testdata (the
-//     frozen v0.9.x recorded corpus), the top-level testdata/ release-versioned
-//     repository corpora (testdata/repositories/v0.9.2..v0.9.6, PROVENANCE.md),
+//     frozen v0.9.x recorded corpus), the top-level testdata/ repository
+//     samples (testdata/repositories/<kind>/, folders named for what they
+//     hold, each with a PROVENANCE.md),
 //     internal/install/testdata/legacy (adopted pre-migration input), and every
 //     package's local fixture tree.
 //   - internal/install/legacydata: frozen recorded pre-migration dispatch blocks

@@ -1145,7 +1145,7 @@ func testRetiredNegativeControls(t *testing.T) {
 		"read `../docket-convention/references/close-out.md` now — blocking",
 		"terminal_publish: false stays parseable; terminal publication is deferred from Go v1",
 		"a run-continue is nonterminal; incumbent-nonterminal; the run reached a terminal disposition",
-		"the frozen fixture testdata/repositories/v0.9.2/fenced-machine-keys/ keeps its name",
+		"the frozen fixture testdata/repositories/configs/fenced-machine-keys/ keeps its name",
 		"a signal re-arm escalation is drained and ignored",
 		"`skipped-not-open` for a non-final child with no open PR",
 		// Change 0469 — family (e): the new spellings and the kept namesakes

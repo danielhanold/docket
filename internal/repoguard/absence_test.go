@@ -558,7 +558,7 @@ func testAbsenceNegativeControls(t *testing.T) {
 		"docs/adrs/0001.md":                        "```\nscripts/docket.sh preflight\n```\n",
 		"docs/superpowers/plans/old.md":            "```\n. scripts/lib/docket-runtime.sh\n```\n",
 		"internal/repository/testdata/corpus/f.sh": "scripts/docket.sh preflight\n",
-		"testdata/repositories/v0.9.6/x.sh":        "export DOCKET_BASH_PATH=/bin/bash\n",
+		"testdata/repositories/configs/x.sh":       "export DOCKET_BASH_PATH=/bin/bash\n",
 		"internal/install/legacydata/old.mdc":      "```\nscripts/docket.sh preflight\n```\n",
 		"internal/install/testdata/legacy/o.sh":    ": \"${DOCKET_SCRIPTS_DIR:?}\"\n",
 		"tests/fixtures/hygiene/bad.sh":            ". scripts/lib/x.sh\n",

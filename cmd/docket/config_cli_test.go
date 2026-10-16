@@ -77,12 +77,13 @@ func repoWithFile(t *testing.T, name, body string) string {
 	return dir
 }
 
-// copyFixtureRepo copies a frozen fixture's repo/ tree into a fresh temp
-// directory. The frozen tree is an immutable input (testdata/README.md): tests
-// copy before they point anything writable at it.
+// copyFixtureRepo copies a configuration sample's repo/ tree
+// (testdata/repositories/configs/<fixture>/repo) into a fresh temp directory,
+// so the command under test points at a writable copy. Tests never write
+// inside testdata/.
 func copyFixtureRepo(t *testing.T, fixture string) string {
 	t.Helper()
-	src := filepath.Join("..", "..", "testdata", "repositories", "v0.9.2", fixture, "repo")
+	src := filepath.Join("..", "..", "testdata", "repositories", "configs", fixture, "repo")
 	if _, err := os.Stat(src); err != nil {
 		t.Fatalf("fixture %s: %v", fixture, err)
 	}

@@ -12,11 +12,11 @@ import (
 	"github.com/danielhanold/docket/internal/repository"
 )
 
-// corpusRelDir is the frozen v0.9.3 semantic corpus, repo-relative from this
-// package directory (internal/app). Its provenance — tag v0.9.3, peeled commit
-// dd742abd5e9fcdf8ffe78eb6f36a293410873bbf — is recorded in
-// testdata/repositories/v0.9.3/status-corpus/PROVENANCE.md.
-const corpusRelDir = "../../testdata/repositories/v0.9.3/status-corpus"
+// corpusRelDir is the status semantic corpus captured from tag v0.9.3,
+// repo-relative from this package directory (internal/app). Its provenance —
+// tag v0.9.3, peeled commit dd742abd5e9fcdf8ffe78eb6f36a293410873bbf — is
+// recorded in testdata/repositories/status-corpus/PROVENANCE.md.
+const corpusRelDir = "../../testdata/repositories/status-corpus"
 
 // loadCorpusBlobs walks the frozen corpus and returns one StatusBlob per record
 // file, classifying kind and location from the repo-relative path prefix — the
