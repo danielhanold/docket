@@ -290,8 +290,8 @@ func reconciledHarnesses(optIns []string, scope map[string]bool) []string {
 }
 
 // classifyClaudeMD computes the CLAUDE.md pre-state reposeed.Plan needs (it never
-// stats a path): absent, a proven relative link to AGENTS.md, a regular file, or
-// anything else. A stat error other than "absent" degrades to ClaudeMDOther so
+// stats a path): absent, a proven link to AGENTS.md (relative, or the absolute
+// form install writes), a regular file, or anything else. A stat error other than "absent" degrades to ClaudeMDOther so
 // reposeed plans a managed block and inspection reports the conflict rather than
 // this assembler guessing.
 func classifyClaudeMD(root string) reposeed.ClaudeMDState {
@@ -309,11 +309,16 @@ func classifyClaudeMD(root string) reposeed.ClaudeMDState {
 		if err != nil {
 			return reposeed.ClaudeMDOther
 		}
-		// A relative link that resolves to the sibling AGENTS.md is the shareable
-		// state; anything else (an absolute link, a foreign destination) is a
-		// foreign link, which the plan skips.
-		if !filepath.IsAbs(dest) &&
-			filepath.Clean(filepath.Join(root, dest)) == filepath.Join(root, "AGENTS.md") {
+		// A link to the sibling AGENTS.md is the shareable state: relative, or the
+		// absolute form install writes (reposeed.Plan joins the cleaned worktree
+		// root with AGENTS.md). Any other destination is a foreign link, which the
+		// plan skips.
+		agents := filepath.Join(root, "AGENTS.md")
+		if filepath.IsAbs(dest) {
+			if filepath.Clean(dest) == agents {
+				return reposeed.ClaudeMDLinkToAgents
+			}
+		} else if filepath.Clean(filepath.Join(root, dest)) == agents {
 			return reposeed.ClaudeMDLinkToAgents
 		}
 		return reposeed.ClaudeMDForeignLink
