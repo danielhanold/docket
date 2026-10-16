@@ -13,7 +13,7 @@ related: [541, 503, 345]
 discovered_from: [345]
 adrs: [24, 26, 84, 133]
 spec: 'docs/superpowers/specs/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-16T23:38:06Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md](../../superpowers/specs/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md) |
+| Plan | [2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md](../../superpowers/plans/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) |
 | ADRs | [ADR-0024](../../adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0026](../../adrs/0026-fork-dispatch-opacity-two-invocation-paths.md), [ADR-0084](../../adrs/0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md), [ADR-0133](../../adrs/0133-the-run-key-is-the-run-tracker-s-only-handle-gate-starts-car.md) |
 <!-- docket:artifacts:end -->
 
