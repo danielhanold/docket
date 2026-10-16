@@ -201,11 +201,14 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 		var t install.Target
 		switch {
 		case claudeShares:
+			// Relative, because CLAUDE.md is committed: an absolute link
+			// names this machine's checkout and dangles in every other clone.
 			t = install.Target{
-				Path:       claudePath,
-				Kind:       install.KindSymlink,
-				LinkTarget: filepath.Join(root, agentsMDName),
-				Role:       roleDispatch,
+				Path:         claudePath,
+				Kind:         install.KindSymlink,
+				LinkTarget:   filepath.Join(root, agentsMDName),
+				LinkRelative: true,
+				Role:         roleDispatch,
 			}
 		case isLink:
 			// Skipped: no target, so t.Path stays empty.

@@ -31,7 +31,7 @@ calling out, after a word on what the install writes.
   `CLAUDE.md` symlink when `CLAUDE.md` already links to `AGENTS.md`, or when the repository has no
   `CLAUDE.md` and either `AGENTS.md` already exists or Codex or opencode is opted in too; the one
   block in `AGENTS.md` then serves every harness, and your own text in `AGENTS.md` stays where it
-  is. Otherwise `CLAUDE.md` gets its own block, and an existing `CLAUDE.md` keeps its content.
+  is. The link is relative (`CLAUDE.md -> AGENTS.md`), so a committed copy resolves in every clone. Otherwise `CLAUDE.md` gets its own block, and an existing `CLAUDE.md` keeps its content.
   Without the opt-in, the install touches no repository file.
 
 ### Forked runs and restarts
