@@ -2,11 +2,11 @@
 id: 345
 slug: slash-command-implement-dispatch-attribution-gap
 title: "Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop"
-status: proposed
+status: 'killed'
 priority: high
 type: feat
 created: 2026-08-25
-updated: '2026-09-07'
+updated: '2026-10-16'
 depends_on: [393, 407]
 related: [334, 359, 371, 405]
 discovered_from: [342]
@@ -61,3 +61,12 @@ The linked spec contains the selected architecture, failure boundaries, implemen
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Outdated; replaced by [change 0556](0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md), which keeps only the Claude Code part. Killed by human decision on 2026-10-16 after a spec review.
+
+- **The premise is real but narrow.** A live check on 2026-10-16 (Claude Code 2.1.301, throwaway repositories) showed that only a typed `/docket-implement-next` starts an untracked run: Claude Code forks the skill straight into the agent, so the main session never runs `run.start`, and the claim records an empty `gate_context_hash`. `/loop docket-implement-next` and prose prompts ran `run.start`, passed the run context, and produced tracked claims.
+- **The four-harness scope no longer holds.** Codex is unsupported, and the 0393 root-coordinator route this spec relied on was abandoned (0424, 0425, 0426, 0431 and 0432 killed; 0433 deferred with a different topology). OpenCode ships untested, with full support after v1.0.0 (0513). Cursor never forks a skill, so its gap, if any, works differently.
+- **The vocabulary and machinery changed.** Every run-gate name in the spec was renamed (ADR-0129: `run.start`, `run.verdict`, `run.continue`, `run-*` verdicts, run key, run context). The run tracker gained cancel and resume rules, the key as its only handle, no automatic relaunch, run-context identity in the claim request, and closeout on `run-done` (ADR-0128, 0133, 0135, 0143, 0148). Both dependencies (0393, 0407) are done.
+- **Overlap.** A child dropping the run context at claim time is change 0541's.

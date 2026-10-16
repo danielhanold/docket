@@ -1,13 +1,12 @@
 # Backlog
 
-**556 changes** — 🟣 2 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 393 done · 🗑️ 141 killed
+**556 changes** — 🟣 1 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 393 done · 🗑️ 142 killed
 
-## 🟣 Groomed (2)
+## 🟣 Groomed (1)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
-| [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
 ## 🟡 Proposed (6)
 
@@ -51,8 +50,6 @@ graph TD
   0263
   0251 --> 0273
   0302
-  0393 --> 0345
-  0407 --> 0345
   0360
   0409
   0412
@@ -66,15 +63,13 @@ graph TD
   0556
   0192:::done
   0251:::done
-  0393:::done
-  0407:::done
   0511:::done
   0544:::done
   0546:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (534)</summary>
+<details><summary>✅🗑️ Archive — done + killed (535)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -86,6 +81,7 @@ graph TD
 | [0537](archive/2026-10-16-0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | 2026-10-16 |
 | [0536](archive/2026-10-16-0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) | Split the private-mode tests out of the workflow lifecycle shard | 2026-10-16 |
 | [0527](archive/2026-10-16-0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | 2026-10-16 |
+| [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
 | [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
 | [0552](archive/2026-10-15-0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | 2026-10-15 |
 | [0551](archive/2026-10-15-0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | 2026-10-15 |
