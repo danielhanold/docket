@@ -1236,6 +1236,12 @@ var alignmentContracts = []proseContract{
 			"and their `-malformed` forms",
 			"and repaired through `repository.repair`",
 		}},
+	{sentinel: "change_0539_drift_family", file: "docs/reference/glossary.md",
+		present: []string{
+			"# reports links blocks and backlinks that are stale or broken",
+			"# re-renders the stale ones in one metadata commit",
+		},
+		absent: []string{"stale or absolute"}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.
