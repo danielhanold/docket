@@ -427,8 +427,8 @@ func (t *Txn) applyStep(i int) error {
 		}
 		if step.Kind == KindManagedBlock {
 			// A managed-block removal rewrites the file with only that block's
-			// lines gone, keeping every surrounding byte; it is not a whole-file
-			// deletion.
+			// lines gone; it keeps every surrounding byte, and deletes the file
+			// only when no non-whitespace byte is left.
 			return t.removeManagedBlock(step)
 		}
 		if step.Kind == KindHookEntries {
@@ -593,10 +593,13 @@ func renderManagedBlock(path string, target Target) ([]byte, error) {
 }
 
 // removeManagedBlock retires one managed block from a file the user also owns,
-// rewriting it with exactly that block's marker-to-marker lines gone and every
+// cutting exactly that block's marker-to-marker lines and keeping every
 // surrounding byte untouched. It is the deletion counterpart of
-// renderManagedBlock and publishes through the same staged rename, so the
-// journal's pre-image covers the whole rewrite for rollback.
+// renderManagedBlock and publishes through the same staged rename. When nothing
+// but whitespace is left, the file was only ever docket's block, so it is
+// deleted rather than written back empty — the same rule stripDispatchBlock
+// applies. Either outcome is undone on rollback from the step's preFile
+// pre-image.
 func (t *Txn) removeManagedBlock(step *journalStep) error {
 	switch step.PreImage.State {
 	case preAbsent:
@@ -626,6 +629,11 @@ func (t *Txn) removeManagedBlock(step *journalStep) error {
 	out, err := doc.Apply(patch)
 	if err != nil {
 		return fmt.Errorf("retiring the %s block in %s: %w", step.BlockName, step.Path, err)
+	}
+	if len(bytes.TrimSpace(out)) == 0 {
+		// Nothing but whitespace is left: the file was only ever docket's block,
+		// so it is deleted rather than written back empty.
+		return removeIfPresent(t.fs, step.Path)
 	}
 	// want == 0 keeps the file's recorded pre-image mode: the surrounding bytes
 	// are the user's, and so is the mode.
@@ -1148,7 +1156,10 @@ func removalTarget(rec TargetRecord) (Target, error) {
 // one of them is a managed block, each a different block, and at most one of
 // them is a removal. Distinct blocks touch disjoint bytes, so retiring one block
 // and writing others — or writing several — composes in any order planSteps
-// picks. Anything else is a planner defect:
+// picks. A removal may delete a file it leaves empty; a later write on the same
+// file then recreates it (the write reads the path as absent and takes the mode
+// from its own pre-image), so the end state is the same in either order.
+// Anything else is a planner defect:
 //
 //   - a whole-file or symlink step beside any other step on its path has an
 //     outcome that depends on step order;
