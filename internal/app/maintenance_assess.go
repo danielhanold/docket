@@ -183,8 +183,10 @@ func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps Workspa
 		wsClear := sweepAssessWorkspaceLeg(ctx, wdeps, repo, target, completed, &a)
 		// A leftover local branch is work only when cleanup would reach the branch
 		// leg: a blocked or unresolved workspace refuses first, and a possible
-		// carried descendant keeps its branch on purpose.
-		presence := wsClear && (completed || !sweepMaybeCarriedDescendant(shared, c, integration))
+		// carried descendant keeps its branch on purpose. A branch name a live
+		// record now records is that change's branch, never this record's leftover.
+		_, reused := branchInUseBy(inv.snap, c.ID(), branch)
+		presence := wsClear && !reused && (completed || !sweepMaybeCarriedDescendant(shared, c, integration))
 		sweepAssessLocalRefLeg(shared, featureRef, presence, &a)
 		if !completed {
 			sweepAssessRemoteRefLeg(shared, featureRef, &a)
