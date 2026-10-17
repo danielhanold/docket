@@ -2,7 +2,7 @@
 id: 559
 slug: 'close-a-change-to-done-without-a-pr'
 title: 'Let a change deliver a results artifact instead of a PR'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-17'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/close-a-change-to-done-without-a-pr'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/426'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-17T18:20:32Z'
@@ -53,3 +53,12 @@ How `pr` changes close, finalize, and kill, apart from renaming finalize's bare 
 ### 2026-10-17
 
 2026-10-17: Groomed the same day; spec traced against current main (417ffd446). Commits since grooming touch only suiterunner and install surfaces, none of the fields, operations, or skills this change edits. No `deliverable` code exists yet; capability catalog is 15862 bytes, so one new entry still fits under the 16 KB cap. Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 031092b949ee4d68bb4e63684fae31ce5d01cbd0
+ran_at:   2026-10-17T19:48:33Z
+<!-- docket:build-evidence:end -->
