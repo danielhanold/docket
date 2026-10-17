@@ -2,7 +2,7 @@
 id: 562
 slug: 'sweep-retries-deleting-a-leftover-local-branch'
 title: 'Sweep retries deleting a leftover local branch'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-17'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/sweep-retries-deleting-a-leftover-local-branch'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/429'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-17T22:30:06Z'
@@ -59,3 +59,12 @@ Changing when closeout first attempts cleanup, or any cleanup safety check. Bran
 ### 2026-10-17
 
 2026-10-17 — Reconciled against main a52c2d9c9 (results-artifact deliverable just landed via #559). The spec-cited symbols still exist as described: sweepAssessLocalRefLeg (worktree-only check), gatherSweepSharedFacts (remoteHeadsErr), sweepRunCleanup, finalizeCleanupLocalRefNoPR. #567 is still proposed, so carried descendants stay excluded as the spec says. No scope change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 5d1f3fb88df7c603a57e3e8788059ce74934b130
+ran_at:   2026-10-17T23:30:23Z
+<!-- docket:build-evidence:end -->

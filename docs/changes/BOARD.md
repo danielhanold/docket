@@ -1,18 +1,13 @@
 # Backlog
 
-**567 changes** — 🟢 1 in progress · 🔵 2 built · 🟡 8 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
+**567 changes** — 🔵 3 built · 🟡 8 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | [spec](../superpowers/specs/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md) | `fix/sweep-retries-deleting-a-leftover-local-branch` |  |
-
-## 🔵 Built (2)
+## 🔵 Built (3)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0563](active/0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | `low` | `fix` | [#427](https://github.com/danielhanold/docket/pull/427) | awaiting merge |
+| [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | [#429](https://github.com/danielhanold/docket/pull/429) | awaiting merge |
 | [0557](active/0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | `low` | `refactor` | [#428](https://github.com/danielhanold/docket/pull/428) | awaiting merge |
 
 ## 🟡 Proposed (8)
