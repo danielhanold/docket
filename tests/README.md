@@ -40,7 +40,10 @@ Budgets are enforced by a **screen-then-confirm** regime:
 a parallel run over `ceiling * 5/2` records an advisory screening finding (`BUDGET WATCH:` /
 `PARALLEL-SENSITIVE:`), and only a solo measurement over `ceiling * 3/2` — from a single-job run, or
 from a scheduled serial confirmation the runner triggers after repeated overruns — is an
-authoritative breach (`SERIAL CONFIRMED OVER BUDGET:`). A default run reports its findings loudly and
+authoritative breach (`SERIAL CONFIRMED OVER BUDGET:`). A scheduled or strict re-check that reads
+over the line while another `docket development test` run of this repository, in any worktree, is
+running is not counted (`SERIAL CONFIRMATION NOT COUNTED:`): the test stays due and is re-checked on
+the next quiet run. A re-check under the line counts either way. A default run reports its findings loudly and
 still exits `0`. `DOCKET_RUNTESTS_STRICT=1` confirms every current candidate immediately and opts into
 the failing exit; `DOCKET_RUNTESTS_JOBS` sets the parallelism.
 
