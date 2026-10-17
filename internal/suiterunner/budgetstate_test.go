@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -409,4 +410,303 @@ func TestBudgetKeyPathResolvesSymlinkedRoot(t *testing.T) {
 	if got := budgetKeyPath(link, target); got != "tests/test_x.sh" {
 		t.Fatalf("budgetKeyPath(%q, %q) = %q, want tests/test_x.sh", link, target, got)
 	}
+}
+
+// peerWorktree is the worktree a held peer sign names in the contention tests.
+const peerWorktree = "/path/to/worktree-y"
+
+// peerSignName is a visible sign name for a simulated peer run.
+const peerSignName = "run-424242-00000000000000ab.sign"
+
+// authoritativeLine matches the prefixes the release-candidate workflow fails on;
+// a not-counted re-check must never print one.
+var authoritativeLine = regexp.MustCompile(`^(OVER BUDGET|SERIAL CONFIRMED OVER BUDGET):`)
+
+// dueFixture makes one due record (5 overruns) for a passing script and returns
+// the state, the target path, its key, and a Config whose StatePath lives in a
+// fresh dir (so runSignDir(cfg.StatePath) is that dir's development-test-runs).
+// Ceiling 10 (solo threshold 15), parallel secs 30, solo injected as soloSecs.
+func dueFixture(t *testing.T, name string, soloSecs string) (*budgetState, string, string, Config) {
+	t.Helper()
+	scripts := testsupport.TempDir(t)
+	tgt := writeScript(t, scripts, name, "echo 'ok - "+name+"'\n")
+	ceil := 10
+	key := ctxKey(tgt.Path, ceil)
+	s := newBudgetState(8)
+	over := ScreenObs{Key: key, Path: tgt.Path, Ceiling: ceil, Secs: 30, Over: true}
+	for i := 0; i < 5; i++ {
+		s.ApplyScreenObservations([]ScreenObs{over})
+	}
+	if s.records[key].dueSeq == "-" {
+		t.Fatal("dueFixture: record must be due")
+	}
+	dur := writeDurations(t, [][3]string{{"test_" + name + ".sh", "30", soloSecs}})
+	cfg := Config{
+		Bash:          bashPath(t),
+		Work:          testsupport.TempDir(t),
+		DurationsPath: dur,
+		StatePath:     filepath.Join(testsupport.TempDir(t), "state.tsv"),
+	}
+	return s, tgt.Path, key, cfg
+}
+
+// setSoloMeasuredHook installs the after-measurement seam for one test.
+func setSoloMeasuredHook(t *testing.T, fn func()) {
+	t.Helper()
+	soloMeasuredHook = fn
+	t.Cleanup(func() { soloMeasuredHook = nil })
+}
+
+// wantNotCounted asserts the exact NOT COUNTED line for an over-line (20s) solo
+// reading against threshold 15, and that nothing authoritative was printed.
+func wantNotCounted(t *testing.T, out, path, reason string) {
+	t.Helper()
+	want := "SERIAL CONFIRMATION NOT COUNTED: " + path + " — 20s solo while " + reason + "; solo threshold 15s; recheck stays due"
+	if !strings.Contains(out, want+"\n") {
+		t.Fatalf("want line:\n%s\ngot:\n%s", want, out)
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if authoritativeLine.MatchString(line) {
+			t.Fatalf("a not-counted re-check must print nothing authoritative: %q", line)
+		}
+	}
+}
+
+// TestNotCountedWhenPeerSeenOverLine is a named mutation guard: an over-line solo
+// reading taken while another suite holds its run sign is reported NOT COUNTED,
+// stores confRes not-counted, and changes nothing else on the record, so the
+// re-check stays due.
+func TestNotCountedWhenPeerSeenOverLine(t *testing.T) {
+	s, path, key, cfg := dueFixture(t, "ncp", "20")
+	holdPeerSign(t, runSignDir(cfg.StatePath), peerSignName, "worktree="+peerWorktree+"\n")
+	before := *s.records[key]
+
+	var buf bytes.Buffer
+	s.ScheduleConfirmation(context.Background(), cfg, &buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "SERIAL CONFIRMATION DUE: "+path) {
+		t.Fatalf("want a DUE line:\n%s", out)
+	}
+	wantNotCounted(t, out, path, "another suite was running ("+peerWorktree+")")
+	if strings.Contains(out, "SERIAL CONFIRMED OVER BUDGET") {
+		t.Fatalf("a contended reading must never confirm:\n%s", out)
+	}
+	r := s.records[key]
+	if r.confRes != "not-counted" {
+		t.Fatalf("confRes = %q, want not-counted", r.confRes)
+	}
+	if r.state != before.state || r.streak != before.streak || r.since != before.since ||
+		r.lastSolo != before.lastSolo || r.dueSeq != before.dueSeq {
+		t.Fatalf("not-counted must touch nothing else: before=%+v after=%+v", before, *r)
+	}
+	due := s.dueCandidates()
+	if len(due) == 0 || due[0].key != key {
+		t.Fatalf("the re-check must stay due first, got %+v", due)
+	}
+}
+
+func TestPeerSeenUnderLineStillClears(t *testing.T) {
+	s, _, key, cfg := dueFixture(t, "psu", "1")
+	holdPeerSign(t, runSignDir(cfg.StatePath), peerSignName, "worktree="+peerWorktree+"\n")
+
+	var buf bytes.Buffer
+	s.ScheduleConfirmation(context.Background(), cfg, &buf)
+	out := buf.String()
+
+	if strings.Contains(out, "NOT COUNTED") {
+		t.Fatalf("an under-line reading clears whether or not a peer ran:\n%s", out)
+	}
+	r := s.records[key]
+	if r.state != "parallel-sensitive" || r.confRes != "cleared" || r.dueSeq != "-" || r.lastSolo != "1" {
+		t.Fatalf("under-line record: %+v; want parallel-sensitive/cleared/not-due/lastSolo 1", *r)
+	}
+}
+
+func TestNoPeerStillConfirms(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		mkdir bool
+	}{{"missing sign folder", false}, {"empty sign folder", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, path, key, cfg := dueFixture(t, "npc", "20")
+			if tc.mkdir {
+				if err := os.MkdirAll(runSignDir(cfg.StatePath), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var buf bytes.Buffer
+			s.ScheduleConfirmation(context.Background(), cfg, &buf)
+			out := buf.String()
+			if !strings.Contains(out, "SERIAL CONFIRMED OVER BUDGET: "+path) {
+				t.Fatalf("no peer: want CONFIRMED:\n%s", out)
+			}
+			if r := s.records[key]; r.confRes != "breached" {
+				t.Fatalf("confRes = %q, want breached", r.confRes)
+			}
+		})
+	}
+}
+
+// TestDeadPeerSignDoesNotBlockConfirmation: a sign left behind by a crashed run
+// (nobody holds its flock) is not contention, and the scan removes it.
+func TestDeadPeerSignDoesNotBlockConfirmation(t *testing.T) {
+	s, path, _, cfg := dueFixture(t, "dps", "20")
+	dir := runSignDir(cfg.StatePath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dead := filepath.Join(dir, peerSignName)
+	if err := os.WriteFile(dead, []byte("worktree="+peerWorktree+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	s.ScheduleConfirmation(context.Background(), cfg, &buf)
+	out := buf.String()
+	if !strings.Contains(out, "SERIAL CONFIRMED OVER BUDGET: "+path) {
+		t.Fatalf("a dead sign must not block confirmation:\n%s", out)
+	}
+	if _, err := os.Stat(dead); !os.IsNotExist(err) {
+		t.Fatalf("the dead sign must be removed, stat err = %v", err)
+	}
+}
+
+func TestOwnSignIsNotContention(t *testing.T) {
+	s, path, _, cfg := dueFixture(t, "osn", "20")
+	sign, err := putUpRunSign(runSignDir(cfg.StatePath), "/repo/self")
+	if err != nil {
+		t.Fatalf("putUpRunSign: %v", err)
+	}
+	t.Cleanup(sign.takeDown)
+	s.selfSign = sign.Path()
+
+	var buf bytes.Buffer
+	s.ScheduleConfirmation(context.Background(), cfg, &buf)
+	out := buf.String()
+	if !strings.Contains(out, "SERIAL CONFIRMED OVER BUDGET: "+path) {
+		t.Fatalf("this run's own sign is not contention:\n%s", out)
+	}
+}
+
+// TestPeerAppearingDuringMeasurementIsCaught is a named mutation guard for the
+// after-measurement scan: a peer that starts while the target runs is caught.
+func TestPeerAppearingDuringMeasurementIsCaught(t *testing.T) {
+	s, path, _, cfg := dueFixture(t, "pam", "20")
+	dir := runSignDir(cfg.StatePath)
+	setSoloMeasuredHook(t, func() {
+		holdPeerSign(t, dir, peerSignName, "worktree="+peerWorktree+"\n")
+	})
+	var buf bytes.Buffer
+	s.ScheduleConfirmation(context.Background(), cfg, &buf)
+	wantNotCounted(t, buf.String(), path, "another suite was running ("+peerWorktree+")")
+}
+
+// TestPeerLeavingDuringMeasurementIsCaught is a named mutation guard for the
+// before-measurement scan: a peer that finishes while the target runs is caught.
+func TestPeerLeavingDuringMeasurementIsCaught(t *testing.T) {
+	s, path, _, cfg := dueFixture(t, "plm", "20")
+	_, release := holdPeerSign(t, runSignDir(cfg.StatePath), peerSignName, "worktree="+peerWorktree+"\n")
+	setSoloMeasuredHook(t, release)
+	var buf bytes.Buffer
+	s.ScheduleConfirmation(context.Background(), cfg, &buf)
+	wantNotCounted(t, buf.String(), path, "another suite was running ("+peerWorktree+")")
+}
+
+func TestCannotTellIsNotCounted(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses file permissions")
+	}
+	check := func(t *testing.T, s *budgetState, path, key string, cfg Config) {
+		t.Helper()
+		var buf bytes.Buffer
+		s.ScheduleConfirmation(context.Background(), cfg, &buf)
+		wantNotCounted(t, buf.String(), path, "the runner could not check for other suites")
+		if r := s.records[key]; r.confRes != "not-counted" {
+			t.Fatalf("confRes = %q, want not-counted", r.confRes)
+		}
+	}
+	t.Run("unreadable folder", func(t *testing.T) {
+		s, path, key, cfg := dueFixture(t, "ctf", "20")
+		dir := runSignDir(cfg.StatePath)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(dir, 0o000); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Chmod(dir, 0o755) })
+		check(t, s, path, key, cfg)
+	})
+	t.Run("unreadable sign", func(t *testing.T) {
+		s, path, key, cfg := dueFixture(t, "cts", "20")
+		dir := runSignDir(cfg.StatePath)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		sign := filepath.Join(dir, peerSignName)
+		if err := os.WriteFile(sign, nil, 0o000); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Chmod(sign, 0o644) })
+		check(t, s, path, key, cfg)
+	})
+}
+
+// TestStrictNotCountedArms is a named mutation guard: under --strict a not-counted
+// reading fails closed (arms exit 4) like a failed confirmation, without
+// recording a breach.
+func TestStrictNotCountedArms(t *testing.T) {
+	setup := func(t *testing.T, names ...string) (*budgetState, map[string]string, map[string]string, Config) {
+		t.Helper()
+		scripts := testsupport.TempDir(t)
+		ceil := 10
+		s := newBudgetState(8)
+		paths, keys := map[string]string{}, map[string]string{}
+		var rows [][3]string
+		for _, n := range names {
+			tgt := writeScript(t, scripts, n, "echo 'ok - "+n+"'\n")
+			paths[n], keys[n] = tgt.Path, ctxKey(tgt.Path, ceil)
+			s.candidates = append(s.candidates, ScreenObs{Key: keys[n], Path: tgt.Path, Ceiling: ceil, Secs: 30, Over: true})
+			solo := "1"
+			if n == "sna" {
+				solo = "20"
+			}
+			rows = append(rows, [3]string{"test_" + n + ".sh", "30", solo})
+		}
+		cfg := Config{
+			Bash:          bashPath(t),
+			Work:          testsupport.TempDir(t),
+			DurationsPath: writeDurations(t, rows),
+			StatePath:     filepath.Join(testsupport.TempDir(t), "state.tsv"),
+		}
+		holdPeerSign(t, runSignDir(cfg.StatePath), peerSignName, "worktree="+peerWorktree+"\n")
+		return s, paths, keys, cfg
+	}
+
+	t.Run("over-line arms", func(t *testing.T) {
+		s, paths, keys, cfg := setup(t, "sna", "snb")
+		var buf bytes.Buffer
+		armed := s.StrictConfirmCandidates(context.Background(), cfg, &buf)
+		out := buf.String()
+		wantNotCounted(t, out, paths["sna"], "another suite was running ("+peerWorktree+")")
+		if strings.Contains(out, "SERIAL CONFIRMED OVER BUDGET") {
+			t.Fatalf("strict must not confirm a contended reading:\n%s", out)
+		}
+		if !armed {
+			t.Fatal("a not-counted strict reading must arm (exit 4)")
+		}
+		if r := s.records[keys["sna"]]; r.confRes != "not-counted" || r.state != "watching" || r.lastSolo != "-" {
+			t.Fatalf("not-counted strict record: %+v; want not-counted, state/lastSolo untouched", *r)
+		}
+		if r := s.records[keys["snb"]]; r.confRes != "cleared" {
+			t.Fatalf("under-line candidate confRes = %q, want cleared", r.confRes)
+		}
+	})
+	t.Run("under-line only", func(t *testing.T) {
+		s, _, _, cfg := setup(t, "snb")
+		var buf bytes.Buffer
+		if s.StrictConfirmCandidates(context.Background(), cfg, &buf) {
+			t.Fatalf("an under-line reading never arms, even with a peer:\n%s", buf.String())
+		}
+	})
 }

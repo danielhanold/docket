@@ -4,8 +4,10 @@
 // authoritative breach; a five-overrun streak arms the first serial confirmation
 // and a ten-overrun recheck counter arms a periodic one; at most ONE scheduled
 // confirmation runs per qualifying run; --strict re-measures every current
-// candidate immediately and fails closed (exit 4). Only a solo (uncontended)
-// re-measurement over ceiling*3/2 is ever authoritative.
+// candidate immediately and fails closed (exit 4). Only a solo re-measurement
+// over ceiling*3/2, taken with no other suite seen, is ever authoritative: an
+// over-line reading taken while scanPeers saw another run of this repository's
+// suite (or could not tell) prints SERIAL CONFIRMATION NOT COUNTED and stays due.
 //
 // The store speaks the oracle's exact v1 format so a human reads both files with
 // one set of eyes — the ONLY deliberate divergence is the default PATH: the Go
@@ -78,7 +80,7 @@ type bsRecord struct {
 	lastPar  string // last contended parallel seconds, or "-"
 	lastSolo string // last uncontended solo seconds, or "-"
 	ceiling  int
-	confRes  string // "-" | failed | breached | cleared
+	confRes  string // "-" | failed | breached | cleared | not-counted
 	dueSeq   string // monotonic due stamp, or "-" when not due
 	path     string
 }
@@ -98,6 +100,10 @@ type budgetState struct {
 	path   string    // resolved store path ("" => no history this run)
 	warn   io.Writer // advisory warnings (may be nil)
 	locked bool      // whether this run holds the advisory lock
+
+	// selfSign is this run's own run-sign path (set by Run), excluded from the
+	// peer scan; "" excludes nothing.
+	selfSign string
 }
 
 // newBudgetState builds an empty state primed with the current run's -j.
@@ -285,9 +291,12 @@ func (s *budgetState) dueCandidates() []dueItem {
 // ScheduleConfirmation is the bounded confirmation tail (the oracle's
 // schedule_confirmation): a qualifying run performs AT MOST ONE scheduled solo
 // confirmation. It announces SERIAL CONFIRMATION DUE for the chosen record,
-// re-runs it solo, and classifies the uncontended measurement — rc!=0 FAILED
-// (clears nothing, stays due); solo over ceiling*3/2 a confirmed breach (SERIAL
-// CONFIRMED OVER BUDGET); else parallel-sensitive/cleared. Every OTHER due record
+// re-runs it solo, and classifies the measurement — rc!=0 FAILED (clears nothing,
+// stays due); solo over ceiling*3/2 while scanPeers saw another suite (or could
+// not tell) SERIAL CONFIRMATION NOT COUNTED (confRes not-counted, nothing else
+// touched, stays due); solo over ceiling*3/2 with no other suite seen a confirmed
+// breach (SERIAL CONFIRMED OVER BUDGET); else parallel-sensitive/cleared, whether
+// or not another suite was seen. Every OTHER due record
 // prints SERIAL CONFIRMATION DEFERRED. Called between ApplyScreenObservations and
 // Save so its outcome lands in the same write.
 func (s *budgetState) ScheduleConfirmation(ctx context.Context, cfg Config, w io.Writer) {
@@ -301,13 +310,19 @@ func (s *budgetState) ScheduleConfirmation(ctx context.Context, cfg Config, w io
 	// DUE announces that a confirmation ran, whatever its outcome — and it prints
 	// BEFORE the solo run, so an authoritative breach can never precede it.
 	fmt.Fprintf(w, "SERIAL CONFIRMATION DUE: %s\n", chosen.path)
-	rc, secs := s.soloConfirm(ctx, cfg, chosen.path, rec.ceiling)
+	rc, secs, peers := s.soloConfirm(ctx, cfg, chosen.path, rec.ceiling)
 	threshold := SoloThreshold(rec.ceiling)
 	if rc != 0 {
 		// A crashed confirm yields a spuriously low time, so it clears nothing,
 		// resets no counter, and leaves the candidate due.
 		rec.confRes = "failed"
 		fmt.Fprintf(w, "SERIAL CONFIRMATION FAILED: %s\n", chosen.path)
+	} else if SoloOver(secs, rec.ceiling) && peers.seen() {
+		// Another suite shared the machine (or the scan could not tell), so the
+		// over-line reading proves nothing: record it, touch nothing else, and
+		// leave the candidate due for an uncontended re-check.
+		rec.confRes = "not-counted"
+		fmt.Fprintln(w, notCountedLine(chosen.path, secs, threshold, peers))
 	} else {
 		rec.since = 0
 		rec.lastSolo = strconv.Itoa(secs)
@@ -331,8 +346,10 @@ func (s *budgetState) ScheduleConfirmation(ctx context.Context, cfg Config, w io
 // strict_confirm_candidates): it re-measures EVERY current screening candidate
 // immediately and individually, ignoring streak/recheck history and the
 // one-per-run bound, reads no stored history to decide what to confirm, and fails
-// closed. A solo over ceiling*3/2 is a confirmed breach and a non-zero
-// confirmation cannot clear the candidate; either arms strict (exit 4). Only
+// closed. A solo over ceiling*3/2 with no other suite seen is a confirmed breach;
+// one taken while scanPeers saw another suite (or could not tell) is SERIAL
+// CONFIRMATION NOT COUNTED; and a non-zero confirmation cannot clear the
+// candidate; each of the three arms strict (exit 4). Only
 // confirmation outcomes are persisted — never the screening counters — so a
 // targeted strict run advances no streak.
 func (s *budgetState) StrictConfirmCandidates(ctx context.Context, cfg Config, w io.Writer) (armed bool) {
@@ -343,7 +360,7 @@ func (s *budgetState) StrictConfirmCandidates(ctx context.Context, cfg Config, w
 			s.records[o.Key] = rec
 		}
 		fmt.Fprintf(w, "SERIAL CONFIRMATION DUE: %s\n", o.Path)
-		rc, secs := s.soloConfirm(ctx, cfg, o.Path, o.Ceiling)
+		rc, secs, peers := s.soloConfirm(ctx, cfg, o.Path, o.Ceiling)
 		threshold := SoloThreshold(o.Ceiling)
 		rec.lastPar = strconv.Itoa(o.Secs)
 		rec.ceiling = o.Ceiling
@@ -351,6 +368,14 @@ func (s *budgetState) StrictConfirmCandidates(ctx context.Context, cfg Config, w
 		if rc != 0 {
 			rec.confRes = "failed"
 			fmt.Fprintf(w, "SERIAL CONFIRMATION FAILED: %s\n", o.Path)
+			armed = true
+			continue
+		}
+		if SoloOver(secs, o.Ceiling) && peers.seen() {
+			// Fail closed like a failed confirmation, but record no breach and
+			// leave lastSolo/state untouched.
+			rec.confRes = "not-counted"
+			fmt.Fprintln(w, notCountedLine(o.Path, secs, threshold, peers))
 			armed = true
 			continue
 		}
@@ -403,10 +428,23 @@ func (s *budgetState) EmitScreenReport(w io.Writer) {
 // measured wall time unless the DOCKET_RUNTESTS_TEST_DURATIONS seam injects a
 // column-3 value. An infrastructure failure is treated as a failed confirmation
 // (fail closed on the confirm axis), never a silent clear.
-func (s *budgetState) soloConfirm(ctx context.Context, cfg Config, path string, ceiling int) (rc, secs int) {
+//
+// It also reports whether another run of this repository's suite shared the
+// measurement: scanPeers reads runSignDir(cfg.StatePath), excluding s.selfSign,
+// immediately before the target launches (catching a peer that finishes
+// mid-measurement) and immediately after it returns (catching one that starts
+// mid-measurement), and the two scans are merged. Only a reading with no peer
+// seen may be authoritative; an over-line one with a peer seen is SERIAL
+// CONFIRMATION NOT COUNTED. An empty cfg.StatePath scans nothing.
+func (s *budgetState) soloConfirm(ctx context.Context, cfg Config, path string, ceiling int) (rc, secs int, peers peerScan) {
 	base := filepath.Base(path)
 	t := Target{Path: path, Base: base, Ceiling: ceiling, Mode: ModeParallel}
 	soloWork := filepath.Join(cfg.Work, "solo")
+	signDir := runSignDir(cfg.StatePath)
+	var before peerScan
+	if signDir != "" {
+		before = scanPeers(signDir, s.selfSign)
+	}
 	// goTestConcurrency 0: a solo confirmation runs this target uncontended to
 	// measure it against its SOLO ceiling, which is seeded from a raw solo
 	// `bash tests/<file>.sh` run (Go defaults, DOCKET_GO_TEST_CONCURRENCY absent).
@@ -414,13 +452,33 @@ func (s *budgetState) soloConfirm(ctx context.Context, cfg Config, path string, 
 	// reproduce, so the solo re-run keeps Go's defaults (change 0373).
 	res, err := ExecuteTarget(ctx, cfg.Bash, t, soloWork, newProcRegistry(), []string{"DOCKET_RUNTESTS_SOLO=1"}, 0)
 	if err != nil {
-		return 1, 0
+		return 1, 0, peerScan{}
+	}
+	if soloMeasuredHook != nil {
+		soloMeasuredHook()
+	}
+	if signDir != "" {
+		peers = before.merge(scanPeers(signDir, s.selfSign))
 	}
 	rc, secs = res.RC, res.Seconds
 	if inj, ok := injectedSolo(cfg.DurationsPath, base); ok {
 		secs = inj
 	}
-	return rc, secs
+	return rc, secs, peers
+}
+
+// soloMeasuredHook is a test seam called, when non-nil, after the solo target
+// returns and before soloConfirm's after-scan, so a test can start or stop a
+// simulated peer mid-measurement. Production leaves it nil.
+var soloMeasuredHook func()
+
+// notCountedLine renders the SERIAL CONFIRMATION NOT COUNTED report line for an
+// over-line solo reading taken while another suite was seen (or the scan could
+// not tell). Its prefix never matches the authoritative OVER BUDGET / SERIAL
+// CONFIRMED OVER BUDGET prefixes.
+func notCountedLine(path string, secs int, threshold string, peers peerScan) string {
+	return fmt.Sprintf("SERIAL CONFIRMATION NOT COUNTED: %s — %ds solo while %s; solo threshold %ss; recheck stays due",
+		path, secs, peers.describe(), threshold)
 }
 
 // injectedSolo reads the solo seconds (column 3) for base from the durations seam,
