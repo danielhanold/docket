@@ -1,6 +1,6 @@
 # Backlog
 
-**557 changes** — 🔵 1 built · 🟣 1 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 394 done · 🗑️ 142 killed
+**558 changes** — 🔵 1 built · 🟣 1 groomed · 🟡 6 proposed · ⚪ 14 deferred · ✅ 394 done · 🗑️ 142 killed
 
 ## 🔵 Built (1)
 
@@ -14,10 +14,11 @@
 |---|-------|----------|------|------|
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 
-## 🟡 Proposed (5)
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0558](active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Name the SERIAL CONFIRMATION NOT COUNTED budget line in AGENTS.md | `low` | `docs` | needs-grooming |
 | [0557](active/0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | `low` | `refactor` | needs-grooming |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `medium` | `fix` | needs-grooming |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
@@ -66,6 +67,7 @@ graph TD
   0541
   0546 --> 0547
   0557
+  0558
   0192:::done
   0251:::done
   0511:::done
