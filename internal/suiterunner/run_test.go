@@ -291,10 +291,10 @@ func TestRunSignFailureWarnsAndPasses(t *testing.T) {
 	}
 }
 
-// TestRunOwnSignIsNotContention drives a real over-line solo re-check through Run
-// on both confirmation paths: the run's own sign is in the sign folder the whole
-// time, and must never make its own re-check NOT COUNTED (Run hands it to the
-// budget state as selfSign).
+// TestRunOwnSignIsNotContention drives a real over-line scheduled solo re-check
+// through Run: the run's own sign is in the sign folder the whole time, and must
+// never make that re-check NOT COUNTED (Run hands it to the budget state as
+// selfSign).
 func TestRunOwnSignIsNotContention(t *testing.T) {
 	setup := func(t *testing.T) (Config, *bytes.Buffer, *bytes.Buffer) {
 		t.Helper()
@@ -326,15 +326,6 @@ func TestRunOwnSignIsNotContention(t *testing.T) {
 			if code := Run(context.Background(), cfg); code != 0 {
 				t.Fatalf("run %d exit = %d\nstdout:\n%s\nstderr:\n%s", i, code, out.String(), errBuf.String())
 			}
-		}
-		check(t, out.String())
-	})
-
-	t.Run("strict", func(t *testing.T) {
-		cfg, out, errBuf := setup(t)
-		cfg.Strict = true
-		if code := Run(context.Background(), cfg); code != 4 {
-			t.Fatalf("exit = %d, want 4 (strict confirmed breach)\nstdout:\n%s\nstderr:\n%s", code, out.String(), errBuf.String())
 		}
 		check(t, out.String())
 	})

@@ -3,8 +3,7 @@
 // contended parallel measurement is only a SCREENING observation, never an
 // authoritative breach; a five-overrun streak arms the first serial confirmation
 // and a ten-overrun recheck counter arms a periodic one; at most ONE scheduled
-// confirmation runs per qualifying run; --strict re-measures every current
-// candidate immediately and fails closed (exit 4). Only a solo re-measurement
+// confirmation runs per qualifying run. Only a solo re-measurement
 // over ceiling*3/2, taken with no other suite seen, is ever authoritative: an
 // over-line reading taken while scanPeers saw another run of this repository's
 // suite (or could not tell) prints SERIAL CONFIRMATION NOT COUNTED and stays due.
@@ -87,7 +86,7 @@ type bsRecord struct {
 
 // budgetState is one run's view of the store: the loaded records, the monotonic
 // due sequence, the current run's -j (for report lines), this run's screening
-// candidates (Over==true observations, for EmitScreenReport and the strict path),
+// candidates (Over==true observations, for EmitScreenReport),
 // the keys observed this run (the current-execution-context filter for
 // ScheduleConfirmation), and the fail-open store bookkeeping.
 type budgetState struct {
@@ -340,58 +339,6 @@ func (s *budgetState) ScheduleConfirmation(ctx context.Context, cfg Config, w io
 	for _, d := range due[1:] {
 		fmt.Fprintf(w, "SERIAL CONFIRMATION DEFERRED: %s — Recheck is due; another test consumed this run's confirmation slot\n", d.path)
 	}
-}
-
-// StrictConfirmCandidates is the --strict path (the oracle's
-// strict_confirm_candidates): it re-measures EVERY current screening candidate
-// immediately and individually, ignoring streak/recheck history and the
-// one-per-run bound, reads no stored history to decide what to confirm, and fails
-// closed. A solo over ceiling*3/2 with no other suite seen is a confirmed breach;
-// one taken while scanPeers saw another suite (or could not tell) is SERIAL
-// CONFIRMATION NOT COUNTED; and a non-zero confirmation cannot clear the
-// candidate; each of the three arms strict (exit 4). Only
-// confirmation outcomes are persisted — never the screening counters — so a
-// targeted strict run advances no streak.
-func (s *budgetState) StrictConfirmCandidates(ctx context.Context, cfg Config, w io.Writer) (armed bool) {
-	for _, o := range s.candidates {
-		rec, ok := s.records[o.Key]
-		if !ok {
-			rec = &bsRecord{state: "watching", lastPar: "-", lastSolo: "-", ceiling: o.Ceiling, confRes: "-", dueSeq: "-", path: o.Path}
-			s.records[o.Key] = rec
-		}
-		fmt.Fprintf(w, "SERIAL CONFIRMATION DUE: %s\n", o.Path)
-		rc, secs, peers := s.soloConfirm(ctx, cfg, o.Path, o.Ceiling)
-		threshold := SoloThreshold(o.Ceiling)
-		rec.lastPar = strconv.Itoa(o.Secs)
-		rec.ceiling = o.Ceiling
-		rec.path = o.Path
-		if rc != 0 {
-			rec.confRes = "failed"
-			fmt.Fprintf(w, "SERIAL CONFIRMATION FAILED: %s\n", o.Path)
-			armed = true
-			continue
-		}
-		if SoloOver(secs, o.Ceiling) && peers.seen() {
-			// Fail closed like a failed confirmation, but record no breach and
-			// leave lastSolo/state untouched.
-			rec.confRes = "not-counted"
-			fmt.Fprintln(w, notCountedLine(o.Path, secs, threshold, peers))
-			armed = true
-			continue
-		}
-		rec.lastSolo = strconv.Itoa(secs)
-		if SoloOver(secs, o.Ceiling) {
-			rec.state = "confirmed-breach"
-			rec.confRes = "breached"
-			fmt.Fprintf(w, "SERIAL CONFIRMED OVER BUDGET: %s — %ds under -j%d; %ds solo; solo threshold %ss\n",
-				o.Path, o.Secs, s.jobs, secs, threshold)
-			armed = true
-		} else {
-			rec.state = "parallel-sensitive"
-			rec.confRes = "cleared"
-		}
-	}
-	return armed
 }
 
 // EmitScreenReport prints one classification line per CURRENT screening candidate

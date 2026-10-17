@@ -7,13 +7,12 @@
 // category-declared and fail-closed; the same budget classification and state
 // machine, and the same exit contract, follow.
 //
-// Exit contract (precedence 1 > 3 > 4 > 0): 0 all passed (advisory breaches
+// Exit contract (precedence 1 > 3 > 0): 0 all passed (budget findings
 // included); 1 a test failed; 2 usage error / runner-internal fail-closed
 // (unusable bash, missing/duplicate targets, undeclared/malformed suite category,
-// bad env value); 3 a scheduled target produced no valid result; 4 a strict-mode
-// confirmed/failed budget breach; 130/143 interrupted by SIGINT/SIGTERM. Every
-// internal uncertainty fails closed to a non-zero, attributable exit — never a
-// fabricated pass.
+// bad env value); 3 a scheduled target produced no valid result; 130/143
+// interrupted by SIGINT/SIGTERM. Every internal uncertainty fails closed to a
+// non-zero, attributable exit — never a fabricated pass.
 //
 // EXIT 5 IS RETIRED (change 0370). It formerly signalled a source-hygiene
 // preflight violation, run by scripts/check-test-source-hygiene.sh before any
@@ -22,6 +21,10 @@
 // shell test source carries a backtick the shell would execute at source-read —
 // is now a Go guard (internal/repoguard TestNoExecutableBacktickInSuiteSource)
 // that runs at the build gate rather than as a per-run preflight.
+//
+// EXIT 4 IS RETIRED as well. It belonged to the opt-in strict budget mode
+// (DOCKET_RUNTESTS_STRICT), which nothing used and which is gone: no budget
+// finding changes the exit code.
 package suiterunner
 
 import (
@@ -208,36 +211,15 @@ func Run(ctx context.Context, cfg Config) int {
 		}
 	}
 
-	tally := RenderReport(stdout, outcomes, unknown, wall, cfg.Verbose, cfg.Strict, logsDir)
+	tally := RenderReport(stdout, outcomes, unknown, wall, cfg.Verbose, logsDir)
 
-	// The budget-state machinery runs BELOW the exit-affecting report so it can
-	// never change the verdict on its own, and is skipped entirely on an
-	// interrupted run (the oracle exits before reaching it). It is fail-open: a
-	// missing or unlockable store never fails the run — only a strict-confirmed
-	// breach arms exit 4, and that arming survives an unwritable store.
-	strictArmed := false
+	// The budget-state machinery runs BELOW the report, is skipped entirely on
+	// an interrupted run (the oracle exits before reaching it), and is fail-open:
+	// a missing or unlockable store never fails the run. It never changes the
+	// exit code.
 	if !didFire {
 		clean := tally.Failed == 0 && tally.NoResult == 0 && tally.Invalid == 0 && len(unknown) == 0
-		strictCandidates := 0
-		for _, o := range screenObs {
-			if o.Over {
-				strictCandidates++
-			}
-		}
-		switch {
-		case cfg.Strict && cfg.Jobs > 1 && clean && strictCandidates > 0:
-			// --strict bypasses the schedule: confirm EVERY current candidate now,
-			// ignoring streak history and the one-per-run bound.
-			st := Load(cfg.StatePath, cfg.Jobs, stderr)
-			st.selfSign = sign.Path()
-			for _, o := range screenObs {
-				if o.Over {
-					st.candidates = append(st.candidates, o)
-				}
-			}
-			strictArmed = st.StrictConfirmCandidates(runCtx, cfg, stdout)
-			st.Save()
-		case cfg.Jobs > 1 && clean:
+		if cfg.Jobs > 1 && clean {
 			// A qualifying run advances the screening state and takes at most one
 			// scheduled solo confirmation, then emits the screening report.
 			st := Load(cfg.StatePath, cfg.Jobs, stderr)
@@ -248,17 +230,12 @@ func Run(ctx context.Context, cfg Config) int {
 			st.EmitScreenReport(stdout)
 		}
 	}
-	// A direct authoritative crossing (the oracle's `overbudget`) is advisory by
-	// default and gates the run only under --strict (exit 4).
-	if cfg.Strict && tally.OverDirect > 0 {
-		strictArmed = true
-	}
 
 	// An interrupted run can never exit 0: its derived code wins over the tally.
 	if didFire {
 		return InterruptExitCode(sig, didFire)
 	}
-	return ExitCode(tally, len(unknown), strictArmed)
+	return ExitCode(tally, len(unknown))
 }
 
 // observedSink collects onDone callbacks — which fire concurrently on the
