@@ -14,7 +14,7 @@ discovered_from: [559]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md'
 plan: 'docs/superpowers/plans/2026-10-17-let-change-groom-clear-stacked-on.md'
-results:
+results: 'docs/results/2026-10-17-let-change-groom-clear-stacked-on-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-17T21:58:50Z'
 |---|---|
 | Spec | [2026-10-17-let-change-groom-clear-stacked-on-design.md](../../superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md) |
 | Plan | [2026-10-17-let-change-groom-clear-stacked-on.md](../../superpowers/plans/2026-10-17-let-change-groom-clear-stacked-on.md) |
+| Results | [2026-10-17-let-change-groom-clear-stacked-on-results.md](../../results/2026-10-17-let-change-groom-clear-stacked-on-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
