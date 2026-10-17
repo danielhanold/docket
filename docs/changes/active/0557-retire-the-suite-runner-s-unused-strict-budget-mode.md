@@ -2,7 +2,7 @@
 id: 557
 slug: 'retire-the-suite-runner-s-unused-strict-budget-mode'
 title: 'Retire the suite runner''s unused strict budget mode'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-16'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/retire-the-suite-runner-s-unused-strict-budget-mode'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/428'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-17T22:17:31Z'
@@ -65,3 +65,12 @@ Drop wording that implied a non-default mode: "by default" in `AGENTS.md`'s budg
 ### 2026-10-17
 
 Reconciled against origin/main a52c2d9c9. The strict budget mode is still present exactly as the spec describes (DOCKET_RUNTESTS_STRICT read in internal/cli/development_test_cmd.go, the stale scripts/run-tests.md hint and ExitCode strictArmed in internal/suiterunner/aggregate.go). No related change touched it since grooming; #528 is done. Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 2fa2ff7d6e90b504927abfb2386a46823c1bb231
+ran_at:   2026-10-17T22:30:40Z
+<!-- docket:build-evidence:end -->
