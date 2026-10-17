@@ -2,7 +2,7 @@
 id: 556
 slug: 'a-typed-docket-implement-next-in-claude-code-starts-an-untra'
 title: 'A typed /docket-implement-next in Claude Code starts an untracked run'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-16'
@@ -22,7 +22,7 @@ branch: 'fix/a-typed-docket-implement-next-in-claude-code-starts-an-untra'
 pr: 'https://github.com/danielhanold/docket/pull/424'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-16T23:47:32Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-16T23:47:32Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md](../../superpowers/specs/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md) |
+| Spec (merged) | [2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md) |
 | Plan | [2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md](../../superpowers/plans/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) |
 | Results | [2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-results.md](../../results/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-results.md) |
 | ADRs | [ADR-0024](../../adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0026](../../adrs/0026-fork-dispatch-opacity-two-invocation-paths.md), [ADR-0084](../../adrs/0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md), [ADR-0133](../../adrs/0133-the-run-key-is-the-run-tracker-s-only-handle-gate-starts-car.md) |

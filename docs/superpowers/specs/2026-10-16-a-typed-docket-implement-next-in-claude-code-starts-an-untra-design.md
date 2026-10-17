@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0556 — A typed /docket-implement-next in Claude Code starts an untracked run](../../changes/active/0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md)**
+> ↩ **[Change 0556 — A typed /docket-implement-next in Claude Code starts an untracked run](../../changes/archive/2026-10-17-0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md)**
 <!-- docket:backlink:end -->
 
 # Change 0556: document the tracked ways to start implement-next
