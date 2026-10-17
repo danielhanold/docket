@@ -6,7 +6,7 @@ status: 'proposed'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-11'
-updated: '2026-10-11'
+updated: '2026-10-17'
 depends_on: [546]
 stacked_on:
 related: []
@@ -14,7 +14,7 @@ discovered_from: [546]
 adrs: []
 spec:
 plan:
-results:
+results: 'docs/results/2026-10-17-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Results | [2026-10-17-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost-results.md](../../results/2026-10-17-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
