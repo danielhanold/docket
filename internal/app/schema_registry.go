@@ -52,6 +52,7 @@ var operationBindings = []OperationBinding{
 	{ID: "change.attach-results", Request: nil, Result: ChangeAttachResult{}},                              // ChangeAttachResults
 	{ID: "change.block", Request: ChangeBlockRequest{}, Result: ChangeLifecycleResult{}},                   // ChangeBlock
 	{ID: "change.claim", Request: nil, Result: ChangeClaimResult{}},                                        // ChangeClaim
+	{ID: "change.complete", Request: ChangeCompleteRequest{}, Result: ChangeCompleteResult{}},              // ChangeComplete
 	{ID: "change.create", Request: ChangeCreateRequest{}, Result: ChangeCreateResult{}},                    // ChangeCreate
 	{ID: "change.defer", Request: ChangeDeferRequest{}, Result: ChangeLifecycleResult{}},                   // ChangeDefer
 	{ID: "change.groom", Request: ChangeGroomRequest{}, Result: ChangeGroomResult{}},                       // ChangeGroom

@@ -40,7 +40,7 @@ func TestSchemaRevisionKeys(t *testing.T) {
 		"adr.record REQ change.revision",
 		"adr.reverse REQ target.revision", "adr.reverse REQ successor.change.revision",
 		"adr.supersede REQ target.revision", "adr.supersede REQ successor.change.revision",
-		"change.block REQ revision", "change.defer REQ revision",
+		"change.block REQ revision", "change.complete REQ revision", "change.defer REQ revision",
 		"change.groom REQ revision", "change.groom REQ spec_revision",
 		"change.kill REQ revision", "change.reconcile REQ revision",
 		"change.revive REQ revision", "change.unblock REQ revision",

@@ -43,6 +43,7 @@ var assetIndependent = map[string]bool{
 	"change unblock":          true,
 	"change revive":           true,
 	"change kill":             true,
+	"change complete":         true,
 	"change claim":            true,
 	"change refresh-claim":    true,
 	"change reconcile":        true,
