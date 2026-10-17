@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/let-change-groom-clear-stacked-on'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-17T21:23:03Z'
+reconciled: true
+claimed_at: '2026-10-17T21:24:59Z'
 ---
 
 ## Artifacts
@@ -56,3 +56,9 @@ Found during change 559.
 - `change.reconcile`'s identical gaps (un-stacking is a human decision; reconcile is autonomous).
 - Killed-parent descendant handling and its doc/code mismatch (#565).
 - How stacks resolve their base; the `document` package's same-point insert rule.
+
+## Reconcile log
+
+### 2026-10-17
+
+Re-read against current main (a52c2d9c9). change_groom.go still writes relationship fields and trivial with bare SetField, stacked_on is still *int with no clear path, empty-revise still ignores relationship fields, and #559's upsertFieldBytes/reqFieldEdits cycle is in place to extend. #564 is killed (consolidated here); #565 stays separate. Scope unchanged.
