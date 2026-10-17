@@ -121,6 +121,10 @@ const (
 	// results content contract on the metadata branch (change 0410, condition 5);
 	// invalid-state.
 	ReasonImplementedResultsInvalid = "results-content-invalid"
+	// ReasonImplementedNotPRDeliverable: the change's deliverable is not pr (a
+	// results-artifact change, or an unknown stored value), so the implemented
+	// transition — the pr ending — does not apply to it (change 0559).
+	ReasonImplementedNotPRDeliverable = "not-pr-deliverable"
 )
 
 // MarkImplementedRequest is the closed request for `change mark-implemented`. ID
@@ -214,6 +218,15 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		}
 		return implementedRefusal(ResultContended, ReasonImplementedRevisionMismatch,
 			fmt.Sprintf("change %04d is already implemented with a different PR reference", req.ID), req.ID)
+	}
+
+	// The implemented transition is the pr ending: a change whose deliverable is
+	// not pr (results-artifact, or an unknown stored value) refuses here, before
+	// any workspace or GitHub probe. domain.MarkImplemented re-checks it inside
+	// the transaction.
+	if c.Deliverable() != domain.DeliverablePR {
+		return implementedRefusal(ResultInvalidState, ReasonImplementedNotPRDeliverable,
+			fmt.Sprintf("change %04d has deliverable %q, not pr; a results-artifact change closes with change complete", req.ID, c.RawDeliverable()), req.ID)
 	}
 
 	// (Condition 1) exact in-progress revision, reconciled, linked to a plan.
@@ -417,35 +430,44 @@ func verifyImplementedResults(ctx context.Context, deps PlanningDeps, pin Status
 		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsIdentity, err.Error(), id)
 		return &r
 	}
-	if !art.Found {
-		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsIdentity,
-			fmt.Sprintf("the attached results path %q is not a file on the metadata branch", resultsPath), id)
+	if reason, message := resultsArtifactProblem(resultsPath, art.Data, art.Found, ch); reason != "" {
+		r := implementedRefusal(ResultInvalidState, reason, message, id)
 		return &r
 	}
+	return nil
+}
 
-	artifactBytes := art.Data
+// resultsArtifactProblem is the pure FINAL results verification shared by the
+// implemented transition and the results-artifact ending (change 0559): given an
+// artifact read (its bytes and whether a file was found at resultsPath), it
+// returns the first problem's stable reason and message, or "", "" when the
+// artifact is valid. A path with no file, or an artifact whose backlink is
+// missing, foreign, or malformed, is broken results identity; a final-contract
+// prose defect is invalid content.
+func resultsArtifactProblem(resultsPath string, data []byte, found bool, ch domain.Change) (reason, message string) {
+	if !found {
+		return ReasonImplementedResultsIdentity,
+			fmt.Sprintf("the attached results path %q is not a file on the metadata branch", resultsPath)
+	}
 
 	// The artifact must still carry this change's backlink.
-	targets, err := backlinkTargets(artifactBytes, ch, resultsPath)
+	targets, err := backlinkTargets(data, ch, resultsPath)
 	if err != nil {
-		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsIdentity,
-			fmt.Sprintf("the attached results artifact %q has a malformed or unreadable backlink on the metadata branch: %v", resultsPath, err), id)
-		return &r
+		return ReasonImplementedResultsIdentity,
+			fmt.Sprintf("the attached results artifact %q has a malformed or unreadable backlink on the metadata branch: %v", resultsPath, err)
 	}
 	if !targets {
-		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsIdentity,
-			fmt.Sprintf("the attached results artifact %q does not carry this change's backlink on the metadata branch", resultsPath), id)
-		return &r
+		return ReasonImplementedResultsIdentity,
+			fmt.Sprintf("the attached results artifact %q does not carry this change's backlink on the metadata branch", resultsPath)
 	}
 
 	// The FINAL results content contract: a substantive ## Outcome and no empty or
 	// filler sections. A content-prose defect is distinct from broken identity.
-	if fs := ValidateResultsContent(artifactBytes, ResultsPhaseFinal); len(fs) > 0 {
-		r := implementedRefusal(ResultInvalidState, ReasonImplementedResultsInvalid,
-			fmt.Sprintf("the attached results artifact fails the final content contract: %s: %s", fs[0].Reason, fs[0].Message), id)
-		return &r
+	if fs := ValidateResultsContent(data, ResultsPhaseFinal); len(fs) > 0 {
+		return ReasonImplementedResultsInvalid,
+			fmt.Sprintf("the attached results artifact fails the final content contract: %s: %s", fs[0].Reason, fs[0].Message)
 	}
-	return nil
+	return "", ""
 }
 
 // changeImplementedOp is the SemanticOperation the engine drives per attempt. It

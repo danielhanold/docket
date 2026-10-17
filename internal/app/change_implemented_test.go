@@ -37,6 +37,14 @@ func miRecord(id int, slug, plan, results string, reconciled, trivial bool) stri
 	return src
 }
 
+// miDeliverable writes a deliverable: line directly after type: when d is set.
+func miDeliverable(src, d string) string {
+	if d == "" {
+		return src
+	}
+	return strings.Replace(src, "type: feat\n", "type: feat\ndeliverable: '"+d+"'\n", 1)
+}
+
 // baseImplementedOp builds a mark-implemented transaction op for the plan-closure
 // tests, wiring the inline board when the surfaces request it. It carries
 // miOpEvidence, the verified record the transition writes into the record.
@@ -219,6 +227,7 @@ type miKit struct {
 	probePRs    []githubcli.PullRequest
 	probeErr    error
 	reqPR       string
+	deliverable string // written as deliverable: after type: when non-empty
 }
 
 const miSlug = "widget"
@@ -234,7 +243,7 @@ func buildMI(t *testing.T, client *gitcli.Client, invocation string, k miKit) (
 		Location: repository.LocationActive,
 		Path:     groomPath(3, miSlug),
 		Revision: k.revision,
-		Data:     []byte(miRecord(3, miSlug, k.plan, k.results, k.reconciled, k.trivial)),
+		Data:     []byte(miDeliverable(miRecord(3, miSlug, k.plan, k.results, k.reconciled, k.trivial), k.deliverable)),
 	}
 	artifacts := map[string]StatusArtifact{}
 	for p, content := range miMetadataResults() {
@@ -307,4 +316,34 @@ func miRealRunWith(t *testing.T, repo *gitRepo, recPath, head string, ev []byte)
 		PR: prRepo().Spec() + "#42", EvidenceRecord: ev,
 	}
 	return ChangeMarkImplemented(context.Background(), node.deps, wdeps, gdeps, node.dir, req)
+}
+
+// TestResultsArtifactProblem pins the pure results verification shared by the
+// implemented transition and the results-artifact ending: absence and a foreign
+// backlink are broken identity, a final-contract defect is invalid content, and
+// a valid artifact reports no problem.
+func TestResultsArtifactProblem(t *testing.T) {
+	ch := domain.NewChange(domain.ChangeSpec{ID: 3, Slug: miSlug, Title: "A change", Path: groomPath(3, miSlug)})
+	rows := []struct {
+		name       string
+		path, data string
+		found      bool
+		reason     string
+	}{
+		{"not found", miResultsPath, "", false, ReasonImplementedResultsIdentity},
+		{"foreign backlink", miResultsMismatchPath, miResultsBacklinkMismatch(), true, ReasonImplementedResultsIdentity},
+		{"final contract failure", miResultsInvalidPath, miResultsFinalInvalid(), true, ReasonImplementedResultsInvalid},
+		{"valid", miResultsPath, miResultsArtifact(), true, ""},
+	}
+	for _, row := range rows {
+		t.Run(row.name, func(t *testing.T) {
+			reason, msg := resultsArtifactProblem(row.path, []byte(row.data), row.found, ch)
+			if reason != row.reason {
+				t.Fatalf("reason = %q, want %q (message %q)", reason, row.reason, msg)
+			}
+			if (reason == "") != (msg == "") {
+				t.Fatalf("reason %q and message %q must be both empty or both set", reason, msg)
+			}
+		})
+	}
 }
