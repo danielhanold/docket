@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-17T02:34:56Z'
+reconciled: true
+claimed_at: '2026-10-17T02:35:45Z'
 ---
 
 ## Artifacts
@@ -54,3 +54,9 @@ Nothing waits, no time is added, and nothing new can fail a gate. Under the opt-
 - Direct readings from a single-job run or a serial-mode budget row, which nothing uses today (#557 reviews that path).
 - Retiring strict mode (#557).
 - Re-seeding or host-relativizing the budget table (#273).
+
+## Reconcile log
+
+### 2026-10-17
+
+2026-10-17 — Reconciled against origin/main dedd4189e. The spec (groomed 2026-10-16) still matches the code: `ScheduleConfirmation`, `StrictConfirmCandidates`, and `soloConfirm` in internal/suiterunner/budgetstate.go and `process.TryExclusiveLock`/`process.ProbeLock` in internal/process/lock.go are unchanged in shape; the only recent suiterunner commit (state folder resolved through layout) keeps the state path in the per-repo folder the sign folder sits beside. #273 is still deferred and #557 still proposed; no overlap moved. No scope change.
