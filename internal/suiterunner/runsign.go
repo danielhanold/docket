@@ -110,6 +110,9 @@ func putUpRunSign(dir, repoRoot string) (*runSign, error) {
 		f.Close()
 		return nil, err
 	}
+	if runSignLockedHook != nil {
+		runSignLockedHook(tmp)
+	}
 	if err := os.Rename(tmp, visible); err != nil {
 		os.Remove(tmp)
 		f.Close()
@@ -117,6 +120,12 @@ func putUpRunSign(dir, repoRoot string) (*runSign, error) {
 	}
 	return &runSign{f: f, path: visible}, nil
 }
+
+// runSignLockedHook is a test seam called, when non-nil, by putUpRunSign with
+// the temporary sign's path after the lock is taken and before the rename to the
+// visible name, so a test can check that nothing is visible yet and the
+// temporary file is already held. Production leaves it nil.
+var runSignLockedHook func(tmp string)
 
 // Path is the sign's visible path, or "" for a nil sign.
 func (s *runSign) Path() string {
