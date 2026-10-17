@@ -1,6 +1,6 @@
 # Backlog
 
-**561 changes** — 🔵 1 built · 🟡 6 proposed · ⚪ 16 deferred · ✅ 395 done · 🗑️ 143 killed
+**562 changes** — 🔵 1 built · 🟡 7 proposed · ⚪ 16 deferred · ✅ 395 done · 🗑️ 143 killed
 
 ## 🔵 Built (1)
 
@@ -8,10 +8,11 @@
 |---|-------|----------|------|----|-------|
 | [0559](active/0559-close-a-change-to-done-without-a-pr.md) | Let a change deliver a results artifact instead of a PR | `medium` | `feat` | [#426](https://github.com/danielhanold/docket/pull/426) | awaiting merge |
 
-## 🟡 Proposed (6)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | needs-grooming |
 | [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
 | [0560](active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Mark a build-ready change as off-limits to the autonomous loop | `medium` | `feat` | needs-grooming |
 | [0558](active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Name the SERIAL CONFIRMATION NOT COUNTED budget line in AGENTS.md | `low` | `docs` | needs-grooming |
@@ -65,6 +66,7 @@ graph TD
   0559
   0560
   0561
+  0562
   0192:::done
   0251:::done
   0511:::done
