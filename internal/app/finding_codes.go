@@ -116,6 +116,8 @@ const (
 	FCEmptyTitle                FindingCode = "empty-title"
 	FCInvalidTitle              FindingCode = "invalid-title"
 	FCInvalidPriority           FindingCode = "invalid-priority"
+	FCInvalidDeliverable        FindingCode = "invalid-deliverable" // groom abstain refusal (change 0559)
+	FCInvalidType               FindingCode = "invalid-type"        // groom abstain refusal (change 0559)
 	FCEmptyWhy                  FindingCode = "empty-why"
 	FCEmptyWhatChanges          FindingCode = "empty-what_changes"
 	FCEmptyOutOfScope           FindingCode = "empty-out_of_scope"
@@ -278,6 +280,7 @@ var AllFindingCodes = []FindingCode{
 	FCInvalidChanges,
 	FCInvalidChildID,
 	FCInvalidChildPRNumber,
+	FCInvalidDeliverable,
 	FCInvalidDependsOn,
 	FCInvalidDiscoveredFrom,
 	FCInvalidHead,
@@ -303,6 +306,7 @@ var AllFindingCodes = []FindingCode{
 	FCInvalidTargetID,
 	FCInvalidTitle,
 	FCInvalidTopics,
+	FCInvalidType,
 	FindingCode("lease-not-expired"),
 	FCLocalMetadataAhead,
 	FCLocalMetadataDiverged,

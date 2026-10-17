@@ -129,6 +129,19 @@ type ChangeGroomRequest struct {
 	// change.create's priority.
 	Priority string `json:"priority,omitempty" docket:"enum=priorities"`
 
+	// Deliverable, Type, and BranchPrefix edit how the change ends and how its
+	// next claim names its branch (change 0559). Like Title and Priority, the
+	// spec, trivial, revise, and re-enable outcomes accept each and abstain
+	// refuses each. An empty Deliverable or Type leaves the field unchanged;
+	// Deliverable draws on change.create's closed vocabulary and Type must be one
+	// of the configured change_types. BranchPrefix is three-state: nil leaves it
+	// unchanged, "" clears it, and a value sets it after
+	// domain.NormalizeBranchPrefix. Nothing is renamed: branch: is minted only at
+	// claim, so the next claim builds the branch name from the new values.
+	Deliverable  string  `json:"deliverable,omitempty" docket:"enum=deliverables"`
+	Type         string  `json:"type,omitempty" docket:"enum=change_types"`
+	BranchPrefix *string `json:"branch_prefix,omitempty"`
+
 	DependsOn      []int `json:"depends_on"`
 	Related        []int `json:"related"`
 	DiscoveredFrom []int `json:"discovered_from"`
@@ -223,6 +236,11 @@ func ChangeGroom(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		})
 	}
 	eff := pin.Config.Effective
+
+	// 2b. Configuration-dependent request checks, still before any engine call.
+	if findings := validateChangeGroomConfig(eff, req); len(findings) > 0 {
+		return newChangeGroomResult(ResultInvalidInput, ChangeGroomResult{Findings: findings})
+	}
 
 	// 3. Board-surface check: a github surface is an unsupported configuration,
 	//    refused before any transaction; otherwise learn whether inline is on.
@@ -339,8 +357,9 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 			if msg := specMarkdownShapeProblem(req.SpecMarkdown); msg != "" {
 				addShape(FCInvalidSpecMarkdown, msg)
 			}
-		} else if !hasEffectiveSectionEdit(req.Sections) && req.Title == "" && req.Priority == "" {
-			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown, at least one replace/remove section edit, a title, or a priority")
+		} else if !hasEffectiveSectionEdit(req.Sections) && req.Title == "" && req.Priority == "" &&
+			req.Deliverable == "" && req.Type == "" && req.BranchPrefix == nil {
+			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown, at least one replace/remove section edit, a title, a priority, a deliverable, a type, or a branch_prefix")
 		}
 		for _, s := range req.Sections {
 			if s.Heading == autoGroomBlockedHeading {
@@ -364,6 +383,15 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		}
 		if req.Priority != "" {
 			addShape(FCInvalidPriority, "priority is not accepted by the abstain outcome; an abstain cannot re-rank the proposal")
+		}
+		if req.Deliverable != "" {
+			addShape(FCInvalidDeliverable, "deliverable is not accepted by the abstain outcome; an abstain cannot rewrite the proposal")
+		}
+		if req.Type != "" {
+			addShape(FCInvalidType, "type is not accepted by the abstain outcome; an abstain cannot rewrite the proposal")
+		}
+		if req.BranchPrefix != nil {
+			addShape(FCInvalidBranchPrefix, "branch_prefix is not accepted by the abstain outcome; an abstain cannot rewrite the proposal")
 		}
 		for _, rel := range []struct {
 			name string
@@ -411,6 +439,27 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		}
 	}
 
+	// A deliverable, type, or branch_prefix edits the change on every other
+	// outcome (change 0559). The deliverable and branch_prefix checks reuse
+	// change.create's messages; the type needs the resolved configuration, so
+	// validateChangeGroomConfig checks it. A results-artifact change takes no
+	// part in stacking, so naming both in one request is refused here; the
+	// resulting-state checks run in Plan.
+	if req.Outcome != GroomAbstain {
+		if req.Deliverable != "" {
+			if d, ok := domain.ParseDeliverable(req.Deliverable); !ok {
+				addShape(FCUnknownDeliverable, fmt.Sprintf("unknown deliverable %q; valid values are %s", req.Deliverable, deliverableList()))
+			} else if d == domain.DeliverableResultsArtifact && req.StackedOn != nil {
+				addShape(FCResultsArtifactNotStackable, "a results-artifact change takes no part in stacking; order it with depends_on")
+			}
+		}
+		if req.BranchPrefix != nil {
+			if msg := branchPrefixProblem(*req.BranchPrefix); msg != "" {
+				addShape(FCInvalidBranchPrefix, msg)
+			}
+		}
+	}
+
 	// blocked_note is the abstain entry's body; nothing else reads it, so it is
 	// refused anywhere else rather than silently ignored.
 	if req.Outcome != GroomAbstain && req.BlockedNote != "" {
@@ -432,6 +481,20 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 
 	findings = append(findings, validateGroomSections(req.Sections)...)
 	return findings
+}
+
+// validateChangeGroomConfig runs the request checks that need the resolved
+// configuration: a type edit must name one of the configured change_types,
+// refused with change.create's unknown-type message. Abstain refuses a type at
+// the shape stage, so it never reaches here.
+func validateChangeGroomConfig(eff config.Effective, req ChangeGroomRequest) []StatusFinding {
+	if req.Type == "" || req.Outcome == GroomAbstain || containsString(eff.ChangeTypes.Value, req.Type) {
+		return nil
+	}
+	return []StatusFinding{{
+		Code: string(FCUnknownType), Severity: string(domain.SeverityError),
+		Message: unknownTypeMessage(eff, req.Type),
+	}}
 }
 
 // specMarkdownShapeProblem returns why an authored spec_markdown is unusable, or
@@ -746,6 +809,16 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: patching record fields: %w", err)
 	}
+	// Deliverable, type, and branch_prefix (change 0559), validated before the
+	// transaction. Older records often lack deliverable: and branch_prefix:, and
+	// two inserts in one PatchSet collide at the pre-fence insertion point, so
+	// each is upserted in its own parse/apply cycle (upsertFieldBytes). A
+	// branch_prefix that normalizes to "" clears the field to a valueless key.
+	for _, f := range o.reqFieldEdits() {
+		if intermediate, err = upsertFieldBytes(intermediate, f.name, f.value); err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: patching %s: %w", f.name, err)
+		}
+	}
 
 	// The candidate snapshot is the before-state with this record replaced by its
 	// groomed bytes: it resolves the artifact block's rows and drives the board.
@@ -756,6 +829,16 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	gc, gout := candidate.Change(domain.ChangeID(o.req.ChangeID))
 	if gout != domain.LookupFound {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: groomed record %04d absent from candidate snapshot", o.req.ChangeID)
+	}
+
+	// A results-artifact change ends without a branch, so it takes no part in
+	// stacking (change 0559). Checked on the resulting state, and only when this
+	// request touches deliverable or stacked_on, so an unrelated revise of an
+	// older record is never blocked.
+	if o.req.Deliverable != "" || o.req.StackedOn != nil {
+		if code, msg := groomStackingProblem(gc, candidate); code != "" {
+			return refuseGroom(code, msg)
+		}
 	}
 
 	body, err := render.ArtifactBlockContent(gc, candidate, o.link)
@@ -855,6 +938,64 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		CommitSubject: fmt.Sprintf("change %04d groomed (%s)", o.req.ChangeID, o.req.Outcome),
 		Receipt:       receipt,
 	}, transaction.OperationResult{}, nil
+}
+
+// groomFieldEdit is one typed field write applied in its own patch cycle.
+type groomFieldEdit struct {
+	name  string
+	value document.Value
+}
+
+// reqFieldEdits lists the deliverable, type, and branch_prefix writes the
+// request asks for, in record order.
+func (o changeGroomOp) reqFieldEdits() []groomFieldEdit {
+	var out []groomFieldEdit
+	if o.req.Type != "" {
+		out = append(out, groomFieldEdit{"type", document.String(o.req.Type)})
+	}
+	if o.req.Deliverable != "" {
+		out = append(out, groomFieldEdit{"deliverable", document.String(o.req.Deliverable)})
+	}
+	if o.req.BranchPrefix != nil {
+		v := document.Null()
+		if p, _ := domain.NormalizeBranchPrefix(*o.req.BranchPrefix); p != "" {
+			v = document.String(p)
+		}
+		out = append(out, groomFieldEdit{"branch_prefix", v})
+	}
+	return out
+}
+
+// groomStackingProblem reports why the groomed change's resulting state breaks
+// the rule that a results-artifact change takes no part in stacking: it is
+// itself stacked, it stacks on a results-artifact parent, or a non-final change
+// stacks on it. It returns "" when the state is legal.
+func groomStackingProblem(gc domain.Change, candidate domain.Snapshot) (string, string) {
+	code := string(FCResultsArtifactNotStackable)
+	stacked := gc.StackedOn().State == domain.FieldPresent
+	if gc.Deliverable() == domain.DeliverableResultsArtifact && stacked {
+		return code, fmt.Sprintf("change %04d is stacked on %04d; a results-artifact change takes no part in stacking, so clear stacked_on and order it with depends_on",
+			int(gc.ID()), gc.StackedOn().Value)
+	}
+	if stacked {
+		if parent, out := candidate.Change(domain.ChangeID(gc.StackedOn().Value)); out == domain.LookupFound &&
+			parent.Deliverable() == domain.DeliverableResultsArtifact {
+			return code, fmt.Sprintf("change %04d is a results-artifact change and never has a branch to stack on; order change %04d after it with depends_on",
+				int(parent.ID()), int(gc.ID()))
+		}
+	}
+	if gc.Deliverable() == domain.DeliverableResultsArtifact {
+		for _, other := range candidate.Changes() {
+			if other.ID() == gc.ID() || other.Status().Final() {
+				continue
+			}
+			if so := other.StackedOn(); so.State == domain.FieldPresent && domain.ChangeID(so.Value) == gc.ID() {
+				return code, fmt.Sprintf("change %04d stacks on change %04d; a results-artifact change takes no part in stacking, so restack change %04d first",
+					int(other.ID()), int(gc.ID()), int(other.ID()))
+			}
+		}
+	}
+	return "", ""
 }
 
 // refuseGroom builds a refusing OperationResult carrying one state-shaped
