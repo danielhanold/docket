@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/testsupport"
@@ -369,5 +370,200 @@ func TestCleanupHumanTextNamesWorkspaceRemnant(t *testing.T) {
 	got := r.HumanText()
 	if !strings.Contains(got, FindingWorkspaceRemnant) || !strings.Contains(got, "/repo/.worktrees/x") {
 		t.Fatalf("HumanText must name the remnant warning; got %q", got)
+	}
+}
+
+// --- results-artifact (no-PR) cleanup -------------------------------------
+
+// raNoGitHub is the GitHub seam a results-artifact cleanup must never reach: it
+// embeds a nil FinalizeGitHub so any call panics and fails the test.
+type raNoGitHub struct{ FinalizeGitHub }
+
+// raWorkspace scripts the workspace-removal leg of a results-artifact cleanup.
+type raWorkspace struct {
+	FinalizeWorkspace
+	disp  workspace.CleanupDisposition
+	err   error
+	calls int
+}
+
+func (w *raWorkspace) Cleanup(context.Context, workspace.CleanupRequest) (workspace.CleanupResult, error) {
+	w.calls++
+	if w.err != nil {
+		return workspace.CleanupResult{Disposition: workspace.CleanupFailed}, w.err
+	}
+	return workspace.CleanupResult{Disposition: w.disp}, nil
+}
+
+// raGit scripts the local-ref leg of a results-artifact cleanup. Every remote
+// method fails the test: a completed change's cleanup never touches a remote ref.
+type raGit struct {
+	t           *testing.T
+	tip         gitcli.ObjectID
+	resolveErr  error
+	fetchErr    error
+	integration gitcli.ObjectID
+	ancestor    bool
+	ancestorErr error
+	worktrees   []gitcli.WorktreeInfo
+	listErr     error
+	deleted     []gitcli.RefName
+	remoteCalls int
+}
+
+func (g *raGit) ResolveRef(context.Context, gitcli.Repository, gitcli.RefName) (gitcli.ObjectID, error) {
+	return g.tip, g.resolveErr
+}
+func (g *raGit) ProbeRemoteBranch(context.Context, gitcli.Repository, gitcli.RemoteName, gitcli.RefName) (gitcli.RemoteRef, error) {
+	g.remoteCalls++
+	g.t.Errorf("a results-artifact cleanup must never probe a remote ref")
+	return gitcli.RemoteRef{}, errCleanupProbe
+}
+func (g *raGit) ListWorktrees(context.Context, gitcli.Repository) ([]gitcli.WorktreeInfo, error) {
+	return g.worktrees, g.listErr
+}
+func (g *raGit) IsAncestor(context.Context, gitcli.Repository, gitcli.ObjectID, gitcli.ObjectID) (bool, error) {
+	return g.ancestor, g.ancestorErr
+}
+func (g *raGit) FetchBranch(context.Context, gitcli.Repository, gitcli.RemoteName, gitcli.RefName) (gitcli.Revision, error) {
+	if g.fetchErr != nil {
+		return gitcli.Revision{}, g.fetchErr
+	}
+	return gitcli.Revision{Commit: g.integration}, nil
+}
+func (g *raGit) DeleteLocalBranchChecked(_ context.Context, _ gitcli.Repository, branch gitcli.RefName, expected gitcli.ObjectID) error {
+	if expected != g.tip {
+		g.t.Errorf("local delete expected tip %q, want the live tip %q", expected, g.tip)
+	}
+	g.deleted = append(g.deleted, branch)
+	return nil
+}
+func (g *raGit) DeleteRemoteRefLease(context.Context, gitcli.Repository, gitcli.RemoteName, gitcli.RefName, gitcli.ObjectID) (gitcli.PushOutcome, error) {
+	g.remoteCalls++
+	g.t.Errorf("a results-artifact cleanup must never delete a remote ref")
+	return gitcli.PushOutcome{}, errCleanupProbe
+}
+
+// happyRAGit returns a git fake whose feature tip is contained in the
+// integration tip and checked out nowhere.
+func happyRAGit(t *testing.T) *raGit {
+	return &raGit{t: t, tip: gitcli.ObjectID(strings.Repeat("a", 40)), integration: gitcli.ObjectID(strings.Repeat("b", 40)), ancestor: true}
+}
+
+// raContext builds the closeout context of a done results-artifact change 41
+// (no PR). withBranch=false strips its recorded branch.
+func raContext(t *testing.T, withBranch bool) *closeoutContext {
+	t.Helper()
+	blob := finalizeBlob(41, "research", "done", "high", "", "deliverable: results-artifact\n")
+	if !withBranch {
+		blob.Data = []byte(strings.Replace(string(blob.Data), "branch: feat/research\n", "", 1))
+	}
+	f := newAssessFixture(t, []StatusBlob{blob}, nil)
+	c, out := f.inv.snap.Change(41)
+	if out != domain.LookupFound {
+		t.Fatalf("record 41 not found")
+	}
+	return &closeoutContext{pin: f.pin, eff: f.pin.Config.Effective, snap: f.inv.snap, change: c, integrationBranch: "main", link: linkContextOf(f.pin)}
+}
+
+func raDeps(ws FinalizeWorkspace, git FinalizeCleanupGit) FinalizeDeps {
+	return FinalizeDeps{GitHub: raNoGitHub{}, Workspace: ws, CleanupGit: git}
+}
+
+func TestFinalizeCleanupResultsArtifactRemovesCleanWorkspaceAndOwnlessBranch(t *testing.T) {
+	git := happyRAGit(t)
+	res := finalizeCleanupResultsArtifact(context.Background(), raDeps(&raWorkspace{disp: workspace.CleanupCleaned}, git), raContext(t, true))
+	if res.Result != ResultApplied || res.Disposition != CleanupDispCleaned {
+		t.Fatalf("cleanup = %q disp %q (%s)", res.Result, res.Disposition, res.Message)
+	}
+	if len(res.RemovedRefs) != 1 || res.RemovedRefs[0] != "local:feat/research" {
+		t.Fatalf("RemovedRefs = %v, want [local:feat/research]", res.RemovedRefs)
+	}
+	if len(git.deleted) != 1 || git.deleted[0] != featureRefFor("research") {
+		t.Fatalf("deleted = %v, want the feature ref", git.deleted)
+	}
+}
+
+func TestFinalizeCleanupResultsArtifactKeepsDirtyWorkspace(t *testing.T) {
+	git := happyRAGit(t)
+	res := finalizeCleanupResultsArtifact(context.Background(), raDeps(&raWorkspace{disp: workspace.CleanupBlocked}, git), raContext(t, true))
+	if res.Disposition != CleanupDispPending || res.Reason != ReasonCleanupWorkspaceBlocked {
+		t.Fatalf("a dirty workspace must be pending/workspace-blocked, got %q/%q", res.Disposition, res.Reason)
+	}
+	if len(git.deleted) != 0 {
+		t.Fatalf("a retained workspace must keep the branch; deleted %v", git.deleted)
+	}
+}
+
+func TestFinalizeCleanupResultsArtifactKeepsBranchWithOwnCommit(t *testing.T) {
+	git := happyRAGit(t)
+	git.ancestor = false
+	res := finalizeCleanupResultsArtifact(context.Background(), raDeps(&raWorkspace{disp: workspace.CleanupCleaned}, git), raContext(t, true))
+	if res.Disposition != CleanupDispPending || res.Reason != ReasonCleanupUnreachable {
+		t.Fatalf("an own commit must be pending/%s, got %q/%q", ReasonCleanupUnreachable, res.Disposition, res.Reason)
+	}
+	if len(git.deleted) != 0 {
+		t.Fatalf("a branch carrying its own commit must be kept; deleted %v", git.deleted)
+	}
+}
+
+func TestFinalizeCleanupResultsArtifactNeverTouchesRemote(t *testing.T) {
+	git := happyRAGit(t)
+	_ = finalizeCleanupResultsArtifact(context.Background(), raDeps(&raWorkspace{disp: workspace.CleanupCleaned}, git), raContext(t, true))
+	if git.remoteCalls != 0 {
+		t.Fatalf("remote calls = %d, want 0", git.remoteCalls)
+	}
+}
+
+func TestFinalizeCleanupResultsArtifactAlreadyClean(t *testing.T) {
+	t.Run("no-branch", func(t *testing.T) {
+		ws := &raWorkspace{disp: workspace.CleanupCleaned}
+		res := finalizeCleanupResultsArtifact(context.Background(), raDeps(ws, happyRAGit(t)), raContext(t, false))
+		if res.Result != ResultNoOp || res.Disposition != CleanupDispAlready {
+			t.Fatalf("no branch: cleanup = %q disp %q (%s)", res.Result, res.Disposition, res.Message)
+		}
+		if ws.calls != 0 {
+			t.Fatalf("no branch: the workspace must not be touched")
+		}
+	})
+	t.Run("workspace-and-ref-gone", func(t *testing.T) {
+		git := happyRAGit(t)
+		git.tip, git.resolveErr = "", &gitcli.Failure{Kind: gitcli.KindRefUnavailable}
+		res := finalizeCleanupResultsArtifact(context.Background(), raDeps(&raWorkspace{disp: workspace.CleanupAlreadyClean}, git), raContext(t, true))
+		if res.Result != ResultNoOp || res.Disposition != CleanupDispAlready {
+			t.Fatalf("already clean: cleanup = %q disp %q (%s)", res.Result, res.Disposition, res.Message)
+		}
+	})
+	t.Run("ref-probe-error-is-not-absence", func(t *testing.T) {
+		git := happyRAGit(t)
+		git.resolveErr = errCleanupProbe
+		res := finalizeCleanupResultsArtifact(context.Background(), raDeps(&raWorkspace{disp: workspace.CleanupAlreadyClean}, git), raContext(t, true))
+		if res.Disposition != CleanupDispPending || res.Reason != ReasonCleanupRefProbe {
+			t.Fatalf("probe error: got %q/%q, want pending/%s", res.Disposition, res.Reason, ReasonCleanupRefProbe)
+		}
+	})
+}
+
+func TestFinalizeCleanupResultsArtifactBranchCheckedOutElsewhere(t *testing.T) {
+	git := happyRAGit(t)
+	git.worktrees = []gitcli.WorktreeInfo{{Path: "/primary", Branch: featureRefFor("research")}}
+	res := finalizeCleanupResultsArtifact(context.Background(), raDeps(&raWorkspace{disp: workspace.CleanupAlreadyClean}, git), raContext(t, true))
+	if res.Disposition != CleanupDispPending || res.Reason != ReasonCleanupCheckedOut {
+		t.Fatalf("checked out elsewhere: got %q/%q, want pending/%s", res.Disposition, res.Reason, ReasonCleanupCheckedOut)
+	}
+	if len(git.deleted) != 0 {
+		t.Fatalf("a checked-out branch must be kept; deleted %v", git.deleted)
+	}
+}
+
+func TestFinalizeCleanupResultsArtifactFetchFailureRetainsBranch(t *testing.T) {
+	git := happyRAGit(t)
+	git.fetchErr = errCleanupProbe
+	res := finalizeCleanupResultsArtifact(context.Background(), raDeps(&raWorkspace{disp: workspace.CleanupCleaned}, git), raContext(t, true))
+	if res.Disposition != CleanupDispPending || res.Reason != ReasonCleanupAncestryProbe {
+		t.Fatalf("fetch failure: got %q/%q, want pending/%s", res.Disposition, res.Reason, ReasonCleanupAncestryProbe)
+	}
+	if len(git.deleted) != 0 {
+		t.Fatalf("an unprovable ancestry must keep the branch; deleted %v", git.deleted)
 	}
 }

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,7 +41,10 @@ import (
 // metadata, transaction, sibling, or foreign worktree, and never recursively
 // deletes by pathname except where workspace.Cleanup finishes a removal Git
 // already committed to (a leftover it cannot delete is reported as a
-// workspace-remnant warning, never a stop).
+// workspace-remnant warning, never a stop). A done results-artifact change has
+// no PR, so its cleanup (finalizeCleanupResultsArtifact) skips every GitHub call
+// and the remote ref, removing only the workspace and a local branch whose tip
+// the integration branch already contains.
 //
 // `gate cleanup` removes ONE exact private run directory's logs only after
 // validating ownership (a manifest whose run id matches the slot), a durable
@@ -213,6 +217,9 @@ func FinalizeCleanup(ctx context.Context, deps FinalizeDeps, repoDir string, id 
 
 	switch cc.change.Status() {
 	case domain.StatusDone:
+		if cc.change.Deliverable() == domain.DeliverableResultsArtifact {
+			return finalizeCleanupResultsArtifact(ctx, deps, cc)
+		}
 		return finalizeCleanupDone(ctx, deps, cc)
 	case domain.StatusStackedMerged:
 		// Retained until the stack root reaches the integration branch: the
@@ -317,7 +324,7 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 	// legs entirely. A remnant note is kept apart from the retryable findings: it
 	// never turns a cleaned result pending.
 	var notes []StatusFinding
-	workspaceClean, wsFinding, wsNote := finalizeCleanupWorkspace(ctx, deps, cc)
+	workspaceClean, _, wsFinding, wsNote := finalizeCleanupWorkspace(ctx, deps, cc)
 	if wsFinding != nil {
 		findings = append(findings, *wsFinding)
 	}
@@ -414,43 +421,45 @@ func finalizeCleanupPRBacklinkRepair(ctx context.Context, deps FinalizeDeps, cc 
 // unresolved, the target is malformed, the inspection could not be answered, or
 // the workspace is blocked — each retaining the workspace byte-untouched. A
 // cleaned result whose folder could not be fully deleted also returns a
-// non-retryable workspace-remnant note naming the leftover path.
-func finalizeCleanupWorkspace(ctx context.Context, deps FinalizeDeps, cc *closeoutContext) (clean bool, finding *StatusFinding, note *StatusFinding) {
+// non-retryable workspace-remnant note naming the leftover path. removed reports
+// that this call removed the checkout (cleaned, not an already-clean tombstone).
+func finalizeCleanupWorkspace(ctx context.Context, deps FinalizeDeps, cc *closeoutContext) (clean, removed bool, finding *StatusFinding, note *StatusFinding) {
 	base := domain.ResolveEffectiveBase(cc.snap, cc.change, domain.NewBranchFacts(nil))
 	if base.Kind != domain.BaseResolved {
 		f := cleanupWarning(ReasonCleanupUnresolvedBase, "the change's effective base did not resolve; the workspace is retained")
-		return false, &f, nil
+		return false, false, &f, nil
 	}
 	branch, berr := recordedBranch(cc.change)
 	if berr != nil {
 		f := cleanupWarning(berr.Error(), "the change's recorded feature branch is unusable; the workspace is retained")
-		return false, &f, nil
+		return false, false, &f, nil
 	}
 	target, err := workspace.NewTarget(cc.change.ID(), cc.change.Slug(), base, branch)
 	if err != nil {
 		f := cleanupWarning(ReasonCleanupUnresolvedBase, "the change's workspace target is malformed; the workspace is retained")
-		return false, &f, nil
+		return false, false, &f, nil
 	}
 	res, err := deps.Workspace.Cleanup(ctx, workspace.CleanupRequest{Repository: cc.repo, Target: target})
 	if err != nil {
 		f := cleanupWarning(ReasonCleanupWorkspaceProbe, "the feature workspace could not be inspected; it is retained")
-		return false, &f, nil
+		return false, false, &f, nil
 	}
 	switch res.Disposition {
 	case workspace.CleanupCleaned, workspace.CleanupAlreadyClean:
+		removed := res.Disposition == workspace.CleanupCleaned
 		if res.Remnant != "" {
 			n := cleanupWarning(FindingWorkspaceRemnant,
 				"Git removed the worktree but part of the folder could not be deleted; delete "+res.Remnant+" by hand")
-			return true, nil, &n
+			return true, removed, nil, &n
 		}
-		return true, nil, nil
+		return true, removed, nil, nil
 	default:
 		msg := "the feature workspace is not a clean, ready checkout; it is retained"
 		if len(res.BlockedBy) > 0 {
 			msg = "the feature workspace is not a clean, ready checkout (" + strings.Join(res.BlockedBy, ", ") + "); it is retained"
 		}
 		f := cleanupWarning(ReasonCleanupWorkspaceBlocked, msg)
-		return false, &f, nil
+		return false, false, &f, nil
 	}
 }
 
@@ -523,6 +532,114 @@ func finalizeCleanupLocalRef(ctx context.Context, deps FinalizeDeps, git Finaliz
 	}
 
 	if err := git.DeleteLocalBranchChecked(ctx, cc.repo, featureRef, expectedTip); err != nil {
+		w := cleanupWarning(ReasonCleanupLocalDelete, "the checked local ref delete did not land; the ref is retained")
+		return false, "", &w
+	}
+	return true, "local:" + featureBranch, nil
+}
+
+// finalizeCleanupResultsArtifact cleans up a done results-artifact change, which
+// closed without a pull request: it never calls GitHub and never touches a remote
+// ref. A change completed with no recorded branch has nothing to clean. Otherwise
+// it removes the owned workspace exactly as the PR path does (a workspace that is
+// not clean retains the branch), then deletes the local feature branch only under
+// finalizeCleanupLocalRefNoPR's proofs. Any finding is pending; a removed
+// workspace or ref is cleaned; nothing removed is already-clean.
+func finalizeCleanupResultsArtifact(ctx context.Context, deps FinalizeDeps, cc *closeoutContext) CleanupOpResult {
+	id := int(cc.change.ID())
+	featureBranch, berr := recordedBranch(cc.change)
+	if errors.Is(berr, errBranchMissing) {
+		return newCleanupResult(OperationFinalizeCleanup, ResultNoOp, CleanupOpResult{
+			ID: id, Disposition: CleanupDispAlready,
+			Message: "the completed change has no recorded feature branch; nothing to clean",
+		})
+	}
+	if berr != nil {
+		return cleanupRefusal(ResultInvalidState, CleanupDispPending, berr.Error(),
+			"the change's recorded feature branch is unusable; the branches are retained", id)
+	}
+	featureRef := gitcli.RefName(branchRefPrefix + featureBranch)
+
+	var findings, notes []StatusFinding
+	var removed []string
+	workspaceClean, wsRemoved, wsFinding, wsNote := finalizeCleanupWorkspace(ctx, deps, cc)
+	if wsFinding != nil {
+		findings = append(findings, *wsFinding)
+	}
+	if wsNote != nil {
+		notes = append(notes, *wsNote)
+	}
+	if !workspaceClean {
+		return finalizeCleanupResult(id, CleanupDispPending, removed, findings,
+			"the feature workspace could not be cleanly removed; the branch is retained")
+	}
+
+	_, localRef, localFinding := finalizeCleanupLocalRefNoPR(ctx, cleanupGit(deps), cc, featureRef, featureBranch)
+	if localRef != "" {
+		removed = append(removed, localRef)
+	}
+	var r CleanupOpResult
+	switch {
+	case localFinding != nil:
+		findings = append(findings, *localFinding)
+		r = finalizeCleanupResult(id, CleanupDispPending, removed, findings,
+			"the local feature branch could not be proven safe to delete; it is retained")
+	case wsRemoved || localRef != "":
+		r = newCleanupResult(OperationFinalizeCleanup, ResultApplied, CleanupOpResult{
+			ID: id, Disposition: CleanupDispCleaned, RemovedRefs: removed,
+			Message: "the completed change was cleaned: workspace removed and local feature branch deleted",
+		})
+	default:
+		r = newCleanupResult(OperationFinalizeCleanup, ResultNoOp, CleanupOpResult{
+			ID: id, Disposition: CleanupDispAlready,
+			Message: "the completed change's workspace and local feature branch are already gone",
+		})
+	}
+	r.Findings = append(r.Findings, notes...)
+	return r
+}
+
+// finalizeCleanupLocalRefNoPR deletes a completed change's local feature branch
+// with no merged pull request to key on: the live tip must be contained in the
+// freshly-fetched integration tip (so the branch holds no commit of its own),
+// checked out in no worktree, and still equal to the probed tip at delete time.
+// A cleanly-absent ref is an already-done leg; every unprovable probe or unmet
+// proof is a pending finding with the ref intact.
+func finalizeCleanupLocalRefNoPR(ctx context.Context, git FinalizeCleanupGit, cc *closeoutContext, featureRef gitcli.RefName, featureBranch string) (done bool, removedRef string, finding *StatusFinding) {
+	tip, err := git.ResolveRef(ctx, cc.repo, featureRef)
+	if err != nil {
+		if f, ok := gitcli.AsFailure(err); ok && f.Kind == gitcli.KindRefUnavailable {
+			return true, "", nil // cleanly absent: already deleted
+		}
+		w := cleanupWarning(ReasonCleanupRefProbe, "the local feature ref could not be probed; it is retained")
+		return false, "", &w
+	}
+	rev, err := git.FetchBranch(ctx, cc.repo, originRemote, gitcli.RefName(branchRefPrefix+cc.integrationBranch))
+	if err != nil {
+		w := cleanupWarning(ReasonCleanupAncestryProbe, "the integration tip could not be fetched; the local ref is retained")
+		return false, "", &w
+	}
+	contained, err := git.IsAncestor(ctx, cc.repo, tip, rev.Commit)
+	if err != nil {
+		w := cleanupWarning(ReasonCleanupAncestryProbe, "the integration branch's containment of the feature tip could not be proven; the local ref is retained")
+		return false, "", &w
+	}
+	if !contained {
+		w := cleanupWarning(ReasonCleanupUnreachable, "the local feature branch carries commits the integration branch does not contain; it is retained")
+		return false, "", &w
+	}
+	infos, err := git.ListWorktrees(ctx, cc.repo)
+	if err != nil {
+		w := cleanupWarning(ReasonCleanupListProbe, "the worktree list could not be read; the local ref is retained")
+		return false, "", &w
+	}
+	for _, wi := range infos {
+		if wi.Branch == featureRef {
+			w := cleanupWarning(ReasonCleanupCheckedOut, "the feature ref is still checked out in a worktree; it is retained")
+			return false, "", &w
+		}
+	}
+	if err := git.DeleteLocalBranchChecked(ctx, cc.repo, featureRef, tip); err != nil {
 		w := cleanupWarning(ReasonCleanupLocalDelete, "the checked local ref delete did not land; the ref is retained")
 		return false, "", &w
 	}

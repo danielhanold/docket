@@ -586,3 +586,56 @@ func TestLegacyArchivedPRBacklinkIsFullSweepWorkOnly(t *testing.T) {
 	}
 	assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
 }
+
+// raDoneBlob is a done results-artifact record (no PR); withBranch=false strips
+// its recorded branch, and prRef optionally carries a stray hand-typed PR value.
+func raDoneBlob(id int, slug string, withBranch bool, prRef string) StatusBlob {
+	b := finalizeBlob(id, slug, "done", "high", prRef, "deliverable: results-artifact\n")
+	if !withBranch {
+		b.Data = []byte(strings.Replace(string(b.Data), "branch: feat/"+slug+"\n", "", 1))
+	}
+	return b
+}
+
+// TestSweepAssessCompletedResultsArtifact: a completed results-artifact change
+// never carries a PR, so the sweep never calls it snapshot-invalid for lacking
+// one and never reads a PR body for it; its workspace and local-ref legs are
+// assessed as for any done record.
+func TestSweepAssessCompletedResultsArtifact(t *testing.T) {
+	t.Run("live-workspace-is-actionable", func(t *testing.T) {
+		f := newAssessFixture(t, []StatusBlob{raDoneBlob(41, "research", true, "")}, nil)
+		_, actionable := f.assess(t, wsState(41, workspace.StateReady), prShared(map[int]string{}), 41)
+		if !actionableHas(actionable, 41) {
+			t.Fatalf("a live owned workspace must be actionable; actionable=%v", actionable)
+		}
+	})
+	t.Run("clean-is-no-work-not-invalid", func(t *testing.T) {
+		f := newAssessFixture(t, []StatusBlob{raDoneBlob(41, "research", true, "")}, nil)
+		entries, actionable := f.assess(t, cleanWS(), prShared(map[int]string{}), 41)
+		if len(actionable) != 0 {
+			t.Fatalf("a clean completed change must dispatch nothing; actionable=%v", actionable)
+		}
+		assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
+	})
+	t.Run("no-branch-is-no-work", func(t *testing.T) {
+		f := newAssessFixture(t, []StatusBlob{raDoneBlob(41, "research", false, "")}, nil)
+		ws := cleanWS()
+		entries, actionable := f.assess(t, ws, prShared(map[int]string{}), 41)
+		if len(actionable) != 0 {
+			t.Fatalf("a branchless completed change must dispatch nothing; actionable=%v", actionable)
+		}
+		assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
+		if ws.inspectCall != 0 {
+			t.Fatalf("a branchless completed change has no workspace to inspect")
+		}
+	})
+	t.Run("no-pr-body-gathered", func(t *testing.T) {
+		f := newAssessFixture(t, []StatusBlob{raDoneBlob(41, "research", true, prRefFor(41))}, nil)
+		batch := &fakeSweepBatchReader{}
+		deps := FinalizeDeps{Planning: PlanningDeps{Reader: f.reader, Clock: testClock()}, PRBatch: batch}
+		shared := gatherSweepSharedFacts(context.Background(), deps, "repo", f.pin.Layout, f.inv, []sweepWorkItem{{id: 41, kind: sweepKindCleanup}})
+		if batch.calls != 0 || len(shared.prBodiesUnknown) != 0 {
+			t.Fatalf("a results-artifact record must gather no PR body: calls=%d unknown=%v", batch.calls, shared.prBodiesUnknown)
+		}
+	})
+}
