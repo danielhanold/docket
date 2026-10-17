@@ -99,7 +99,9 @@ verdict, not the worker's report, says what may happen next.
   build evidence, the pull request, the plan and results files, the claim
   — straight from git, GitHub, and the evidence, and reports one verdict
   (`run-complete`, `run-incomplete` with every unmet condition, or
-  `run-unclaimed`). It never reads the worker's report.
+  `run-unclaimed`). It never reads the worker's report. A results-artifact
+  change has no pull request or build evidence to check: its run is
+  complete once the change is `done` with a final, valid results file.
 - **Resuming** a change already in progress is
   `docket run start implement-next --resume <id>`. Because one worktree
   carries at most one live run, start refuses rather than opening a

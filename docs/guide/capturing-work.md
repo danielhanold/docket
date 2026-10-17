@@ -23,6 +23,9 @@ write in prose. As you meet them, the manifest fields are:
 - `status` — where the change sits in its life (the next section walks the states).
 - `priority` — `critical` / `high` / `medium` / `low`, a hint for ordering, never a hard gate.
 - `type` — which category of work this is (see [Typing your work](#typing-your-work), below).
+- `deliverable` — what the change ends in: `pr` (the default, a merged pull request) or
+  `results-artifact` (a results file alone, for research or measurement work with nothing to
+  merge).
 - `depends_on` — the ids of other changes that must be `done` before this one can start.
 - `spec`, `plan`, `results` — the design document a change links to, written before building;
   the task-by-task breakdown a build follows, written on the metadata branch; and the required
@@ -50,6 +53,10 @@ proposed  →  in-progress  →  implemented  →  done
 - **in-progress** — a run has claimed it and is building.
 - **implemented** — a pull request is open, waiting for your merge.
 - **done** — merged and closed out.
+
+A change whose `deliverable` is `results-artifact` skips `implemented`: it opens no pull request,
+and `docket change complete` moves it from `proposed` or `in-progress` straight to `done` once its
+results file is attached.
 
 Three off-ramps leave the happy path: `blocked` (an external blocker is recorded), `deferred`
 (consciously shelved, may revive later), and `killed` (abandoned — kept in the archive as a
@@ -81,7 +88,7 @@ Every docket write re-renders the board, so there is no separate step to regener
 
 One honest caveat about dependencies: chains serialize on the PR handoff. A change that depends
 on another cannot start until that dependency is `done` — its pull request merged and the change
-closed out. Unrelated changes drain freely in parallel around it — only the dependent one waits.
+closed out, or, for a results-artifact dependency, the change completed. Unrelated changes drain freely in parallel around it — only the dependent one waits.
 
 ## Priorities, types, and dependencies
 
@@ -94,7 +101,8 @@ Three manifest fields shape *what gets built when*, and none of them is a hard s
   legible. [Typing your work](#typing-your-work) covers the vocabulary.
 - **`depends_on`** is the one hard constraint. Listing `depends_on: [12]` means this change may
   not start until that dependency is `done` — not merely built, but merged into your integration
-  branch (the branch code lands on, usually `main`) and closed out. This is why the board shows a
+  branch (the branch code lands on, usually `main`) and closed out, or, for a results-artifact
+  dependency, completed. This is why the board shows a
   "waiting on" note: the dependency is a real gate, and the concrete consequence of ignoring it is
   that the second change would be built against code that is not there yet.
 

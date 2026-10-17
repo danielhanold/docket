@@ -32,17 +32,17 @@ human has to memorize a flowchart to file a piece of work.
                                                              │
                                                      (build takes a claim)
                                                              ▼
-                                                        in-progress
-                                                             │
-                                                      (PR opened)
-                                                             ▼
-                                                       implemented
-                                                             │
-                              ┌──────────────────────────────┤
-                              │ (stacked: merged into        │ (PR merged; finalize
-                              │  its parent's branch)        │  closeout proves it)
-                              ▼                              ▼
-                      stacked-merged ──(stack root lands)──► done
+                                                        in-progress ──────────────────┐
+                                                             │                        │ (results artifact
+                                                      (PR opened)                     │  attached;
+                                                             ▼                        │  change complete)
+                                                       implemented                    │
+                                                             │                        │
+                              ┌──────────────────────────────┤                        │
+                              │ (stacked: merged into        │ (PR merged; finalize   │
+                              │  its parent's branch)        │  closeout proves it)   │
+                              ▼                              ▼                        │
+                      stacked-merged ──(stack root lands)──► done ◄───────────────────┘
 
    off-ramps:
       blocked   — an external blocker is recorded; unblocking returns to in-progress
@@ -66,6 +66,13 @@ human has to memorize a flowchart to file a piece of work.
   **finalize** (rebase, retest, publish, merge, close out, clean up), only after it
   has proved the pull request merged. `docket maintenance sweep` is the safety
   net: it moves a merged change that finalize never closed out to `done`.
+- A change's **deliverable** decides which of those endings it takes. A `pr`
+  change (the default) goes through `implemented` to a merged pull request. A
+  `results-artifact` change delivers findings rather than code: it never opens a
+  pull request and never reaches `implemented`. `docket change complete` moves it
+  straight from build-ready `proposed` or from `in-progress` to `done` once a
+  final results file is attached, and `docket finalize cleanup` (or the sweep)
+  then removes its worktree and local branch.
 - **blocked**, **deferred**, and **killed** are the off-ramps. `done` and
   `killed` are the two final statuses.
 
@@ -87,9 +94,11 @@ and it moves to `done` once the root of its stack lands.
   dependency is `done` before it is build-ready.
 - A stacked change's base is its parent's branch while the parent is live, and
   the integration branch once the parent is `done`.
-- A change becomes done only after its pull request has actually merged, proved
-  by finalize's closeout or by the maintenance sweep — never on a human's say-so
-  alone.
+- A `pr` change becomes done only after its pull request has actually merged,
+  proved by finalize's closeout or by the maintenance sweep — never on a human's
+  say-so alone. A `results-artifact` change becomes done only through
+  `docket change complete`, which refuses without a final, valid results file
+  linked to the change.
 
 ## Decided in
 

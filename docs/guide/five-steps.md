@@ -22,7 +22,9 @@ file — the thing each step below acts on.
 3. **Build — drain the backlog unattended.** The autonomous workhorse claims the next ready
    change, checks it against current reality, plans it, builds it with tests, opens a pull
    request, and stops. It never merges. Run it as many times as you have ready work; independent
-   changes drain back-to-back with no input from you.
+   changes drain back-to-back with no input from you. A change that delivers findings rather than
+   code (`deliverable: results-artifact`) opens no pull request: the run attaches its results and
+   completes the change to `done` itself, so steps 4 and 5 do not apply to it.
    → [Building without supervision](./building-without-supervision.md)
 
 4. **Review and merge — your one required checkpoint.** Read the pull request the build opened

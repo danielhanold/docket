@@ -254,7 +254,7 @@ docket repository check    # surfaces a stale or hand-edited board
 One unit of planned work, roughly one pull request, tracked as one markdown file.
 
 **Used for:** everything. A change carries a frontmatter **manifest** (id, status, priority, type,
-dependencies, links) and a PM-altitude body (`## Why`, `## What changes`, `## Out of scope`, …).
+deliverable, dependencies, links) and a PM-altitude body (`## Why`, `## What changes`, `## Out of scope`, …).
 Active changes live in `<changes_dir>/active/NNNN-<slug>.md`; final ones (`done`, `killed`) in
 `archive/<date>-NNNN-<slug>.md`.
 
@@ -299,6 +299,22 @@ on the metadata branch, and the merged PR's description backlink is repointed be
 ```sh
 docket repository check    # reports links blocks and backlinks that are stale or broken
 docket repository repair   # re-renders the stale or missing ones in one metadata commit
+```
+
+### Deliverable (`deliverable`) / results artifact
+
+What a change ends in. `pr` (the default; an absent field reads as `pr`) ends in a merged pull
+request. `results-artifact` ends in its [results](#results) file alone: findings, measurements, or
+preparation work with nothing to merge. Allowed values `deliverables` in `docket schema`.
+
+**Used for:** choosing the ending. A `pr` change closes through `change mark-implemented` and
+finalize; a `results-artifact` change closes through [`change complete`](#complete-change-complete),
+and each ending refuses the other deliverable. A `results-artifact` change is built from a feature
+worktree but never commits to, publishes, or merges its branch, so it takes no part in stacking
+(`stacked_on`). Set by `change create` and changed on a `proposed` change by `change groom`.
+
+```sh
+docket status --json | jq '.changes[] | {id, deliverable}'
 ```
 
 ### Frozen build record
@@ -368,7 +384,7 @@ docket learning update --request finding-update.json   # {path, revision, hook, 
 
 The frontmatter block at the top of a change file. Its fields (`status`, `priority`, `type`,
 `depends_on`, `stacked_on`, `related`, `discovered_from`, `adrs`, `spec`, `plan`, `results`,
-`trivial`, `auto_groomable`, `branch`, `claimed_at`, `pr`, `blocked_by`, `reconciled`, …) are owned
+`trivial`, `auto_groomable`, `deliverable`, `branch`, `claimed_at`, `pr`, `blocked_by`, `reconciled`, …) are owned
 by the `docket-convention` skill (see [`fields.md`](fields.md)).
 
 **Used for:** the machine-readable state of a change. Edit it only through typed operations; a
@@ -399,7 +415,7 @@ it: `change halt` / `change resume-halted`, `finalize block` / `finalize clear-b
 ### Results
 
 The close-out record of what a build actually did — required for every implemented change,
-trivial included.
+trivial included, and the whole deliverable of a `results-artifact` change.
 
 **Used for:** telling the human what to check (`**Human action:**`, `## Outcome`, verification,
 known follow-ups). `change attach-results` writes the file in `<results_dir>` on the metadata
@@ -438,7 +454,7 @@ A change captured without a design — `proposed`, no spec, not trivial. In life
 
 A change marked `trivial: true` — small and mechanical enough to need no spec.
 
-**Used for:** skipping the design step. A trivial change with its dependencies merged is
+**Used for:** skipping the design step. A trivial change with its dependencies done is
 build-ready without a spec.
 
 ---
@@ -458,7 +474,7 @@ Statuses: `proposed` · `in-progress` · `blocked` · `deferred` · `implemented
 | `deferred` | Consciously shelved, may revive | `change defer` |
 | `implemented` | Built, PR open — the PR handoff | `change mark-implemented` |
 | `stacked-merged` | Merged into its stack parent, awaiting the stack root | finalize close-out |
-| `done` | PR merged and archived (happy final status) | finalize close-out / sweep |
+| `done` | PR merged, or results artifact completed, and archived (happy final status) | finalize close-out / sweep / `change complete` |
 | `killed` | Abandoned as obsolete (sad final status) | `change kill`, reconcile |
 
 ### `## Why deferred` / `## Why killed`
@@ -492,6 +508,24 @@ docket change unblock --request unblock.json
 docket change defer   --request defer.json
 docket change revive  --request revive.json
 docket change kill    --request kill.json
+```
+
+### Complete (`change complete`)
+
+The ending of a `results-artifact` change: it moves a build-ready `proposed` or an `in-progress`
+change to `done` and archives it, with no PR. It refuses unless the change's deliverable is
+`results-artifact`, `pr:` is empty, and a final, valid results file carrying the change's backlink
+is attached. One metadata commit sets `done`, clears the claim, removes any `## Run halted`
+section, archives the record under the transaction date, and re-renders links and the board.
+
+**Used for:** finishing work that delivers findings, not code: implement-next runs it at the end of
+a results-artifact run, and a person runs it after doing a change's human steps. It touches no
+branch or worktree; `finalize cleanup` (or the sweep) removes those afterwards. A retry on an
+already completed change reports `already-completed` and writes nothing.
+
+```sh
+docket change complete --request complete.json   # {change_id, path, revision}
+docket finalize cleanup --id 412
 ```
 
 ### Claim / claim lease / reclaim
@@ -562,7 +596,7 @@ finalize run they start) takes the change the rest of the way. It is a handoff t
 ### Readiness: build-ready / needs-grooming / not-proposed
 
 **Build-ready** is a proposed change that has a spec or is marked trivial and whose dependencies
-are all merged. **Needs-grooming** is a proposed change with neither a spec nor a trivial mark; it
+are all `done`. **Needs-grooming** is a proposed change with neither a spec nor a trivial mark; it
 needs a design conversation first. Anything not `proposed` reads `not-proposed`. Status reports
 four more kinds: `auto-groom-blocked`, `waiting-dependency`, `stack-base-unresolved`, and `invalid`
 (see [Readiness reason](#readiness-reason--waiting-on-n--needs-you-cells)).
@@ -690,7 +724,7 @@ docket change groom --request groom.json
 The `change.groom` outcome that edits any `proposed` change without changing its groom state: a
 needs-grooming stub stays needs-grooming, and a spec'd or trivial change stays build-ready. It can
 replace the linked spec's body (only when the change links a spec) and edit owned sections, the
-title, the priority, and relationship fields. It never sets `spec:`, `trivial:`, or
+title, the priority, the type, the deliverable, the branch prefix, and relationship fields. It never sets `spec:`, `trivial:`, or
 `auto_groomable:`, and it never edits `## Auto-groom blocked`, which only abstain and re-enable
 write.
 
@@ -810,7 +844,9 @@ docket context implementation --id 412 --json
 
 `docket-implement-next` — the autonomous workflow that picks the next build-ready change (or the
 id you name), claims it, reconciles, plans, builds, reviews, and stops at an open PR. It never
-merges.
+merges. A `results-artifact` change takes a separate ending: no plan, build, or PR; the run does
+the work in the feature worktree, attaches and reviews the results, then runs `change complete`
+and `finalize cleanup`.
 
 **Used for:** draining the backlog unattended. Always dispatch it as its named agent, bracketed by
 the run tracker. Pass an explicit id to resume an `in-progress` change — a bare run skips it.
@@ -828,7 +864,8 @@ implement 412                              # a plain request, tracked
 
 ### Mark implemented
 
-The transition to `implemented` once the PR is open, carrying the evidence and PR reference.
+The transition to `implemented` once the PR is open, carrying the evidence and PR reference. Only a
+`pr` change can be marked implemented; a `results-artifact` change ends with `change complete`.
 
 ```sh
 docket pr publish --id 412 --head <sha> --evidence <file> --body pr.json   # --body is a JSON request, not markdown
@@ -898,7 +935,9 @@ docket change reconcile --input reconcile.json
 ### Run verify
 
 A read-only check of one change's claim-to-implemented postconditions (plan and results on the
-metadata branch, the record's build evidence, PR, status) that reports a closed verdict. Its
+metadata branch, the record's build evidence, PR, status) that reports a closed verdict. For a
+`results-artifact` change the postcondition is `done` with a final, valid results file; one still
+`in-progress` reads `run-incomplete` with `not-completed`. Its
 verdicts are `run-complete`, `run-unclaimed`, `run-incomplete`, `run-halted`, and `run-waiting`, all
 with exit code 0, so key on the verdict, never the exit code.
 
@@ -1556,8 +1595,9 @@ docket status                           # the report (read-only)
 
 ### Sweep
 
-The pass that observes merged PRs and closes their changes out to `done`. `maintenance.sweep`
-runs the full scope; preflight runs the implementation scope.
+The pass that observes merged PRs and closes their changes out to `done`. It also retries cleanup
+for every `done` change, including a completed `results-artifact` change's leftover worktree and
+local branch. `maintenance.sweep` runs the full scope; preflight runs the implementation scope.
 
 ```sh
 docket maintenance sweep
@@ -2069,6 +2109,7 @@ below.
 | `sync_dispositions` | `advanced` `already-current` `failed` `refused` `skipped` | `repository sync-integration`, `maintenance sweep` |
 | `section_intents` | `preserve` `replace` `remove` | `change groom` (request `sections[].intent`) |
 | `priorities` | `critical` `high` `medium` `low` | `change create` (request `priority`), `change groom` (request `priority`), `status --priority` |
+| `deliverables` | `pr` `results-artifact` | `change create` (request `deliverable`), `change groom` (request `deliverable`) |
 
 **Used for:** writing drivers that branch on outcomes safely. Read an `unknown` as "state
 unobservable; retain", which authorizes nothing destructive.
@@ -2287,6 +2328,7 @@ docket development install --source ~/dev/docket
 - [Claim / claim lease / reclaim](#claim--claim-lease--reclaim)
 - [Close-out](#closeout--closeout-notes) — see Closeout / closeout notes
 - [Closeout / closeout notes](#closeout--closeout-notes)
+- [Complete (change complete)](#complete-change-complete)
 - [Config layers](#config-layers)
 - [Conflict-checked write / push-retry](#conflict-checked-write--push-retry)
 - [Contended](#contended)
@@ -2295,6 +2337,7 @@ docket development install --source ~/dev/docket
 - [Critic](#critic)
 - [Cursor dispatch rule (docket-dispatch.mdc)](#cursor-dispatch-rule-docket-dispatchmdc)
 - [Cursor's three gates](#sandbox--allowlisting-the-binary) — see Sandbox / allowlisting the binary
+- [Deliverable (deliverable) / results artifact](#deliverable-deliverable--results-artifact)
 - [Dependency (depends_on) / implicitly blocked](#dependency-depends_on--implicitly-blocked)
 - [Derived view / generated block / backlink](#derived-view--generated-block--backlink)
 - [Development test (docket development test)](#development-test-docket-development-test)
@@ -2398,6 +2441,7 @@ docket development install --source ~/dev/docket
 - [Result / disposition](#result--disposition)
 - [Results](#results)
 - [Results **Human action:** line](#results-human-action-line)
+- [Results artifact](#deliverable-deliverable--results-artifact) — see Deliverable / results artifact
 - [Resume dispositions](#resume-dispositions)
 - [Retarget children](#retarget-children)
 - [Review tier](#review-tier)

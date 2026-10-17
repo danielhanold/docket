@@ -19,7 +19,8 @@ single `docket` binary, installed by `install.sh`, does the bookkeeping the skil
   against the current state of the code, builds it with test-driven development, and opens a
   PR — with no supervision in between.
 - **You own the PR handoff.** Agents never merge on their own authority. Your review of
-  the pull request is the one required human checkpoint on the way to `done`.
+  the pull request is the one required human checkpoint on the way to `done` for any change that
+  delivers code.
 - **No new infrastructure.** Markdown files, git, and skills any supported harness can run —
   Claude Code and Cursor are supported and tested; opencode installs but is untested; Codex is
   unsupported.
