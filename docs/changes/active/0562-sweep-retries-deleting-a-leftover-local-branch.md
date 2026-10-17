@@ -2,7 +2,7 @@
 id: 562
 slug: 'sweep-retries-deleting-a-leftover-local-branch'
 title: 'Sweep retries deleting a leftover local branch'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-17'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/sweep-retries-deleting-a-leftover-local-branch'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-17T22:13:15Z'
 ---
 
 ## Artifacts

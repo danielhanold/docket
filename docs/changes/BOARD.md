@@ -1,19 +1,14 @@
 # Backlog
 
-**567 changes** — 🟢 2 in progress · 🟣 1 groomed · 🟡 8 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
+**567 changes** — 🟢 3 in progress · 🟡 8 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0563](active/0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | `low` | `fix` | [spec](../superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md) | `fix/let-change-groom-clear-stacked-on` |  |
+| [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | [spec](../superpowers/specs/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md) | `fix/sweep-retries-deleting-a-leftover-local-branch` |  |
 | [0557](active/0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | `low` | `refactor` | [spec](../superpowers/specs/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md) | `refactor/retire-the-suite-runner-s-unused-strict-budget-mode` |  |
-
-## 🟣 Groomed (1)
-
-| # | Title | Priority | Type | Spec |
-|---|-------|----------|------|------|
-| [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | [spec](../superpowers/specs/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md) |
 
 ## 🟡 Proposed (8)
 
