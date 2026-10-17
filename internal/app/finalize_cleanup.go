@@ -595,7 +595,7 @@ func finalizeCleanupResultsArtifact(ctx context.Context, deps FinalizeDeps, cc *
 	case wsRemoved || localRef != "":
 		r = newCleanupResult(OperationFinalizeCleanup, ResultApplied, CleanupOpResult{
 			ID: id, Disposition: CleanupDispCleaned, RemovedRefs: removed,
-			Message: "the completed change was cleaned: workspace removed and local feature branch deleted",
+			Message: resultsArtifactCleanedMessage(wsRemoved, localRef != ""),
 		})
 	default:
 		r = newCleanupResult(OperationFinalizeCleanup, ResultNoOp, CleanupOpResult{
@@ -960,3 +960,16 @@ func writeGateCleanupReceipt(runDir, runID string) error {
 
 // ensure the concrete StatusFinding severity import is exercised even when a
 // build trims the warning path.
+
+// resultsArtifactCleanedMessage names only what a results-artifact cleanup
+// actually removed: the workspace, the local feature branch, or both.
+func resultsArtifactCleanedMessage(wsRemoved, branchDeleted bool) string {
+	var parts []string
+	if wsRemoved {
+		parts = append(parts, "workspace removed")
+	}
+	if branchDeleted {
+		parts = append(parts, "local feature branch deleted")
+	}
+	return "the completed change was cleaned: " + strings.Join(parts, " and ")
+}

@@ -627,3 +627,18 @@ func TestFinalizeCleanupResultsArtifactFetchFailureRetainsBranch(t *testing.T) {
 		t.Fatalf("an unprovable ancestry must keep the branch; deleted %v", git.deleted)
 	}
 }
+
+func TestResultsArtifactCleanedMessageNamesOnlyWhatWasRemoved(t *testing.T) {
+	for _, tc := range []struct {
+		ws, branch bool
+		want       string
+	}{
+		{true, true, "the completed change was cleaned: workspace removed and local feature branch deleted"},
+		{true, false, "the completed change was cleaned: workspace removed"},
+		{false, true, "the completed change was cleaned: local feature branch deleted"},
+	} {
+		if got := resultsArtifactCleanedMessage(tc.ws, tc.branch); got != tc.want {
+			t.Errorf("ws=%v branch=%v: got %q, want %q", tc.ws, tc.branch, got, tc.want)
+		}
+	}
+}

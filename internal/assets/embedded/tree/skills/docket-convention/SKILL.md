@@ -262,7 +262,7 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
                          ▼                                          │
   proposed ──claim──▶ in-progress ──PR open──▶ implemented ──merge+sweep──▶ done
      │                    │                              │                   (archive/)
-     │                    └──results attached + change.complete (results-artifact; also from proposed)──▶ done
+     │                    ├──results attached + change.complete (results-artifact; also from proposed)──▶ done
      │                    │                              └──into stack parent──▶ stacked-merged ──root lands──▶ done
      │                    ├──blocker──▶ blocked ──clears──▶ in-progress
      │                    └──lease expired, no branch (reclaim)──▶ proposed
