@@ -1,12 +1,12 @@
 # Backlog
 
-**557 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 393 done · 🗑️ 142 killed
+**557 changes** — 🔵 1 built · 🟣 2 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 393 done · 🗑️ 142 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0556](active/0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) | A typed /docket-implement-next in Claude Code starts an untracked run | `low` | `fix` | [spec](../superpowers/specs/2026-10-16-a-typed-docket-implement-next-in-claude-code-starts-an-untra-design.md) | `fix/a-typed-docket-implement-next-in-claude-code-starts-an-untra` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0556](active/0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) | A typed /docket-implement-next in Claude Code starts an untracked run | `low` | `fix` | [#424](https://github.com/danielhanold/docket/pull/424) | awaiting merge |
 
 ## 🟣 Groomed (2)
 

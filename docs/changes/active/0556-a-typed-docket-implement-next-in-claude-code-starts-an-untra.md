@@ -2,7 +2,7 @@
 id: 556
 slug: 'a-typed-docket-implement-next-in-claude-code-starts-an-untra'
 title: 'A typed /docket-implement-next in Claude Code starts an untracked run'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-16'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/a-typed-docket-implement-next-in-claude-code-starts-an-untra'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/424'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-16T23:47:32Z'
@@ -72,3 +72,12 @@ A note inside the implementer's report was designed and then dropped after a beh
 ### 2026-10-16
 
 2026-10-16 — Re-read against current main (ffa75abfa) and the named docs: README quick-start drain line, building-without-supervision /loop section, models-and-effort invocation-paths table and run-tracker concept page still match the spec description. Spec groomed today; no scope change, no relation change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: d52f942f48a76d9b5d136817f4d5a089570885a5
+ran_at:   2026-10-17T00:07:07Z
+<!-- docket:build-evidence:end -->
