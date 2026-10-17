@@ -94,6 +94,21 @@ lands on, usually `main`). Everything else cuts straight from the integration br
 The whole run is unattended between "pick" and "stop": your only required touch-point is reading and
 merging the pull request it opens.
 
+### A change that delivers findings, not code
+
+Some work ends in findings rather than code: a measurement, a piece of research, preparation for a
+larger effort. Such a change carries `deliverable: results-artifact` (the default is `pr`), and its
+run takes a different ending after the claim, reconcile, and worktree steps. There is no plan, no
+build, and no pull request. The run does the work the spec describes in the feature worktree, never
+commits to or publishes the branch, and keeps the findings, numbers, and the commands that produced
+them in the results file. A reviewer checks that the results answer what the spec asked, the run
+fixes what it finds in the results, and then it runs `docket change complete`, which moves the change
+straight to `done` and archives it, followed by `docket finalize cleanup` to remove the worktree.
+
+If the work turns out to need a code change, or reaches a step only a person can do, the run halts
+and says so. You finish such a change yourself: do the remaining steps, attach the results with
+`docket change attach-results`, then run `docket change complete` and `docket finalize cleanup`.
+
 ## Build tiers and the one escalation
 
 The build step does not treat every task the same. Each task in the plan is routed to one of four
@@ -129,7 +144,8 @@ deeper mechanism behind tier routing and the gate verdict lives in
 A single run builds one change. To drain a whole backlog you start runs one after another, and
 whatever starts them keys on the outcome each run declares. Every run ends by declaring one of four outcomes:
 
-- **advanced** — it built a change and opened a pull request.
+- **advanced** — it built a change and opened a pull request, or completed a results-artifact
+  change (done and archived, with its results attached).
 - **contended** — it lost a claim race to another run and built nothing.
 - **drained** — nothing in scope was build-ready.
 - **halted** — something needs a human (an escalation, an invalidated design, a broken precondition).
@@ -150,9 +166,10 @@ build work stays isolated and the driver's own context stays small:
 
 Budget and iteration caps belong to the driver, not to docket, which does not reimplement them. The
 one invariant the driver never breaks is the PR handoff: **a build run never merges.** A dependency
-therefore only clears between drains, once its pull request is merged outside the drain — you
-clicking Merge, or a separate close-out drain ([Landing changes safely](./landing-changes.md)) — and
-the change reaches `done`. Confirm the driver composes cleanly in your own setup before relying on it
+on a `pr` change therefore only clears between drains, once its pull request is merged outside the
+drain — you clicking Merge, or a separate close-out drain
+([Landing changes safely](./landing-changes.md)) — and the change reaches `done`. A dependency on a
+results-artifact change clears as soon as that change is completed. Confirm the driver composes cleanly in your own setup before relying on it
 unattended; `/loop` behavior is version- and mode-specific. The bookkeeping that decides whether a stopped run may be retried at all — who
 launched it, whether it finished, whether a re-dispatch is allowed — is the run tracker, described in
 [The run tracker and attribution](../concepts/run-tracker.md).
