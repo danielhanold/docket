@@ -2,11 +2,11 @@
 id: 541
 slug: 'the-implement-next-child-can-claim-without-run-context-so-a'
 title: 'The implement-next child can claim without --run-context, so a tracked run loses attribution'
-status: 'proposed'
+status: 'killed'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-08'
-updated: '2026-10-08'
+updated: '2026-10-17'
 depends_on: []
 stacked_on:
 related: [540, 345, 407]
@@ -40,3 +40,14 @@ Make it impossible for a tracked child to claim untracked by accident, without b
 ## Out of scope
 
 Settling a run that already ended without attribution (change 540). The command-launched dispatch gap where the parent never arms a run (change 345). Inferring attribution from timestamps, launch shape, or child prose, which the run tracker forbids.
+
+## Why killed
+
+Killed by human decision on 2026-10-17 after tracing. Nothing in the code is broken, and every fix the stub proposed would risk breaking a supported path.
+
+- **The two examples from this repository were misread.** For 0366 and 0544, the dispatched implement-next agent received the run context, stopped before claiming because each was a human-attended release, and claimed nothing; the parent's verdict correctly said `no-attributable-claim`. After the human chose to proceed attended, the main session claimed each change by hand. That is a supported untracked claim made after the tracked run had already ended, not a dropped token.
+- **There was one real miss, and it failed safe.** In a private test repository on 2026-10-07 (change 1), the agent's two-line prompt carried `run-context: <token>`, yet it wrote "Claim (no run context token given)" and claimed without it. The PR was still built and `run verify` said run-complete. Only attribution was lost, so nothing retried, and the keyed verdict now settles the leftover run record (change 0540).
+- **The track record does not justify new machinery.** Every implement-next agent in this repository that received a token passed it to the claim: 41 of 41 under `--gate-context` and 65 of 65 under `--run-context`, through 2026-10-17. Across all repositories, about 110 tokened claims show that single miss. The other empty-hash claims here were untracked by design: typed slash-command runs (change 0556), or no run was started.
+- **Each candidate fix breaks or weakens something.** Requiring an explicit tracked-or-untracked choice on `change.claim` breaks today's supported untracked claims. Having the binary supply the token, or refuse or warn while a tracked run is waiting, needs it to guess which run a claim belongs to, which is impossible under concurrent loops and forbidden by the run tracker. Binding a claim to a run afterwards would weaken the claim-time ownership proof (ADR-0111). A wording-only tweak to the dispatch instructions (write the token as an explicit "pass --run-context <token> to change.claim and every gate.drive.start" line) was considered and declined, because it cannot be shown to prevent a one-off misread.
+
+Revisit only if dispatched agents start dropping the token repeatedly. The evidence would be an empty `gate_context_hash` on a claim made by a dispatched agent whose prompt carried a token.

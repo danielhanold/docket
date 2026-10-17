@@ -1,6 +1,6 @@
 # Backlog
 
-**558 changes** — 🟣 1 groomed · 🟡 5 proposed · ⚪ 15 deferred · ✅ 395 done · 🗑️ 142 killed
+**558 changes** — 🟣 1 groomed · 🟡 4 proposed · ⚪ 15 deferred · ✅ 395 done · 🗑️ 143 killed
 
 ## 🟣 Groomed (1)
 
@@ -8,14 +8,13 @@
 |---|-------|----------|------|------|
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 
-## 🟡 Proposed (5)
+## 🟡 Proposed (4)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0558](active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Name the SERIAL CONFIRMATION NOT COUNTED budget line in AGENTS.md | `low` | `docs` | needs-grooming |
 | [0557](active/0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | `low` | `refactor` | needs-grooming |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
-| [0541](active/0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | `medium` | `fix` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
 ## ⚪ Deferred (15)
@@ -57,7 +56,6 @@ graph TD
   0503
   0544 --> 0513
   0511 --> 0514
-  0541
   0546 --> 0547
   0557
   0558
@@ -69,11 +67,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (537)</summary>
+<details><summary>✅🗑️ Archive — done + killed (538)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0556](archive/2026-10-17-0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) | A typed /docket-implement-next in Claude Code starts an untracked run | 2026-10-17 |
+| [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0528](archive/2026-10-17-0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | 2026-10-17 |
 | [0555](archive/2026-10-16-0555-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md) | Keep Claude's dispatch block in AGENTS.md while CLAUDE.md links to it | 2026-10-16 |
 | [0554](archive/2026-10-16-0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice | 2026-10-16 |
