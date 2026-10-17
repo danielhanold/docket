@@ -2,7 +2,7 @@
 id: 559
 slug: 'close-a-change-to-done-without-a-pr'
 title: 'Let a change deliver a results artifact instead of a PR'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-17'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/close-a-change-to-done-without-a-pr'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-17T18:02:01Z'
 ---
 
 ## Artifacts

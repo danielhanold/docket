@@ -1,12 +1,12 @@
 # Backlog
 
-**561 changes** — 🟣 1 groomed · 🟡 6 proposed · ⚪ 16 deferred · ✅ 395 done · 🗑️ 143 killed
+**561 changes** — 🟢 1 in progress · 🟡 6 proposed · ⚪ 16 deferred · ✅ 395 done · 🗑️ 143 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec |
-|---|-------|----------|------|------|
-| [0559](active/0559-close-a-change-to-done-without-a-pr.md) | Let a change deliver a results artifact instead of a PR | `medium` | `feat` | [spec](../superpowers/specs/2026-10-17-close-a-change-to-done-without-a-pr-design.md) |
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0559](active/0559-close-a-change-to-done-without-a-pr.md) | Let a change deliver a results artifact instead of a PR | `medium` | `feat` | [spec](../superpowers/specs/2026-10-17-close-a-change-to-done-without-a-pr-design.md) | `feat/close-a-change-to-done-without-a-pr` |  |
 
 ## 🟡 Proposed (6)
 
