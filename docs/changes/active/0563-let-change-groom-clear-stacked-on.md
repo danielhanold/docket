@@ -2,7 +2,7 @@
 id: 563
 slug: 'let-change-groom-clear-stacked-on'
 title: 'change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 created: '2026-10-17'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/let-change-groom-clear-stacked-on'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-17T21:23:03Z'
 ---
 
 ## Artifacts

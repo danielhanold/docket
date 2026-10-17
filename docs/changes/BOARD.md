@@ -1,12 +1,12 @@
 # Backlog
 
-**566 changes** — 🟣 1 groomed · 🟡 9 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
+**566 changes** — 🟢 1 in progress · 🟡 9 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec |
-|---|-------|----------|------|------|
-| [0563](active/0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | `low` | `fix` | [spec](../superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md) |
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0563](active/0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | `low` | `fix` | [spec](../superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md) | `fix/let-change-groom-clear-stacked-on` |  |
 
 ## 🟡 Proposed (9)
 
