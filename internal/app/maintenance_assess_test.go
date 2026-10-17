@@ -485,6 +485,56 @@ func TestGatherSweepSharedFactsMarksUnreadPRBodiesUnknown(t *testing.T) {
 	}
 }
 
+// TestGatherSweepSharedFactsNoGitClientMakesLocalHeadsUnknown: with no git
+// client wired, the local-branch inventory is unknown (an error, no map) — never
+// an empty map that would read as "branch absent".
+func TestGatherSweepSharedFactsNoGitClientMakesLocalHeadsUnknown(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "a", "")}, nil)
+	deps := FinalizeDeps{Planning: PlanningDeps{Reader: f.reader, Clock: testClock()}, PRBatch: &fakeSweepBatchReader{}}
+	items := []sweepWorkItem{{id: 41, kind: sweepKindCleanup}}
+	shared := gatherSweepSharedFacts(context.Background(), deps, "repo", f.pin.Layout, f.inv, items)
+	if shared.localHeadsErr == nil || shared.localHeads != nil {
+		t.Fatalf("localHeads=%v err=%v, want unknown (nil map, non-nil error)", shared.localHeads, shared.localHeadsErr)
+	}
+	if shared.remoteHeadsErr == nil || shared.worktreesErr == nil {
+		t.Fatalf("remoteHeadsErr=%v worktreesErr=%v, want both unknown", shared.remoteHeadsErr, shared.worktreesErr)
+	}
+}
+
+// TestGatherSweepSharedFactsKeepsBatchedPRFacts: the batched PR read's facts are
+// kept from the same call that returned the bodies, never a second read.
+func TestGatherSweepSharedFactsKeepsBatchedPRFacts(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "a", ""), assessDoneBlob(42, "b", "")}, nil)
+	n41, n42 := prNumberOf(t, f, 41), prNumberOf(t, f, 42)
+	batch := &fakeSweepBatchReader{result: SweepPRSetResult{
+		Facts:  map[int]domain.PRFacts{n41: {Number: strconv.Itoa(n41), BaseRef: "feat/parent", State: "merged"}},
+		Bodies: map[int]string{n41: "body"},
+	}}
+	deps := FinalizeDeps{Planning: PlanningDeps{Reader: f.reader, Clock: testClock()}, PRBatch: batch}
+	items := []sweepWorkItem{{id: 41, kind: sweepKindCleanup}, {id: 42, kind: sweepKindCleanup}}
+	shared := gatherSweepSharedFacts(context.Background(), deps, "repo", f.pin.Layout, f.inv, items)
+	if batch.calls != 1 {
+		t.Fatalf("calls=%d, want exactly one batched read", batch.calls)
+	}
+	if shared.prFacts[n41].BaseRef != "feat/parent" {
+		t.Errorf("PR #%d facts = %+v, want BaseRef feat/parent", n41, shared.prFacts[n41])
+	}
+	if _, ok := shared.prFacts[n42]; ok {
+		t.Errorf("PR #%d was not returned, so it must have no facts", n42)
+	}
+}
+
+// TestCloseoutIntegrationBranchFallsBackToDefault: the close-out destination is
+// the integration branch, falling back to the default branch.
+func TestCloseoutIntegrationBranchFallsBackToDefault(t *testing.T) {
+	if got := closeoutIntegrationBranch(StatusPin{IntegrationBranch: "", DefaultBranch: "trunk"}); got != "trunk" {
+		t.Errorf("empty integration: got %q, want trunk", got)
+	}
+	if got := closeoutIntegrationBranch(StatusPin{IntegrationBranch: "main", DefaultBranch: "trunk"}); got != "main" {
+		t.Errorf("set integration: got %q, want main", got)
+	}
+}
+
 // TestGatherSweepSharedFactsSkipsPRBodiesInPrivateRepository: a private
 // repository's PR descriptions carry no backlink, so the sweep reads no PR body
 // and leaves the PR-backlink leg unassessed.

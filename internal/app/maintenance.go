@@ -532,13 +532,14 @@ func sweepBuildSnapshot(ctx context.Context, reader StatusReader, pin StatusPin,
 
 // gatherSweepSharedFacts reads the invocation-shared read-only inventories the
 // snapshot assessment reasons over: one complete remote-heads advertisement, one
-// worktree list, and one batched read of the done candidates' PR bodies. It is
+// worktree list, one local-branch inventory, and one batched read of the done
+// candidates' PR bodies (whose PR facts it keeps from the same call). It is
 // LAZY — only a `done` candidate consumes the remote/local-ref and PR-backlink
 // legs, so a historical worklist carrying only stacked-merged (retained) records
 // fetches no inventory (zero ListRemoteHeads or ProbePRSet calls). A failed read is
 // recorded as the leg's error (a failed shared inventory is unknown, never a clean
 // absence and never a fan-out into per-ref probes); a missing git client/repository
-// makes both inventories unknown rather than silently empty.
+// makes all three git inventories unknown rather than silently empty.
 func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir string, lay layout.Layout, inv sweepInventory, historical []sweepWorkItem) sweepSharedFacts {
 	needsShared := false
 	for _, it := range historical {
@@ -573,7 +574,9 @@ func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir stri
 		if len(numbers) > 0 {
 			var bodies map[int]string
 			if deps.PRBatch != nil {
-				bodies = deps.PRBatch.ProbePRSet(ctx, repoDir, numbers).Bodies
+				res := deps.PRBatch.ProbePRSet(ctx, repoDir, numbers)
+				bodies = res.Bodies
+				shared.prFacts = res.Facts
 			}
 			for _, n := range numbers {
 				if b, ok := bodies[n]; ok {
@@ -587,7 +590,7 @@ func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir stri
 	repo := sweepAssessRepo(deps)
 	if deps.Planning.Client == nil || repo.PrimaryWorktree == "" {
 		err := fmt.Errorf("no git client or repository is wired to read the shared sweep inventories")
-		shared.remoteHeadsErr, shared.worktreesErr = err, err
+		shared.remoteHeadsErr, shared.worktreesErr, shared.localHeadsErr = err, err, err
 		return shared
 	}
 	if heads, err := deps.Planning.Client.ListRemoteHeads(ctx, repo, originRemote); err != nil {
@@ -599,6 +602,11 @@ func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir stri
 		shared.worktreesErr = err
 	} else {
 		shared.worktrees = wts
+	}
+	if heads, err := deps.Planning.Client.ListLocalHeads(ctx, repo); err != nil {
+		shared.localHeadsErr = err
+	} else {
+		shared.localHeads = heads
 	}
 	return shared
 }
