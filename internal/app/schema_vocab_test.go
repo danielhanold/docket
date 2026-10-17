@@ -243,3 +243,16 @@ func TestVocabularyConstCompleteness(t *testing.T) {
 func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
+
+// TestNoSchemaVocabularyHasBareAlready: a no-op replay result names what
+// already happened (already-<what happened>); no published vocabulary may
+// carry a bare "already".
+func TestNoSchemaVocabularyHasBareAlready(t *testing.T) {
+	for name, v := range SchemaVocabularies([]string{"noop"}) {
+		for _, m := range v.Members {
+			if m == "already" {
+				t.Errorf("vocabulary %s carries a bare already", name)
+			}
+		}
+	}
+}

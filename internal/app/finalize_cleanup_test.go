@@ -200,6 +200,26 @@ func TestFinalLifecycleCodeSpellings(t *testing.T) {
 	}
 }
 
+// TestAlreadyOutcomeSpellings pins every no-op replay result to the
+// already-<what happened> house pattern: a bare "already" never says what
+// already happened. Drivers key on these strings, not on the constant names.
+func TestAlreadyOutcomeSpellings(t *testing.T) {
+	for _, c := range []struct{ name, got, want string }{
+		{"CompleteDispAlreadyCompleted", CompleteDispAlreadyCompleted, "already-completed"},
+		{"CloseoutDispAlready", CloseoutDispAlready, "already-closed-out"},
+		{"BlockDispAlready", BlockDispAlready, "already-recorded"},
+		{"childOutcomeAlready", childOutcomeAlready, "already-retargeted"},
+		{"prBacklinkAlready", prBacklinkAlready, "already-repointed"},
+		{"githubcli.BodyAlready", string(githubcli.BodyAlready), "already-edited"},
+		{"githubcli.CommentAlready", string(githubcli.CommentAlready), "already-posted"},
+		{"githubcli.RetargetAlready", string(githubcli.RetargetAlready), "already-retargeted"},
+	} {
+		if c.got != c.want {
+			t.Errorf("%s = %q, want %q", c.name, c.got, c.want)
+		}
+	}
+}
+
 // --- TestFinalizeCleanupBranchDeletion ------------------------------------
 
 // seedStackChild adds a child record stacked on the fixture change to the

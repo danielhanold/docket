@@ -81,7 +81,7 @@ const (
 	BlockDispRecorded = "recorded"
 	// BlockDispAlready: the comment is present and the section already records
 	// this exact attempt; a verified no-op keyed on the promised state.
-	BlockDispAlready = "already"
+	BlockDispAlready = "already-recorded"
 	// BlockDispCleared: `clear-block` reprobed every condition and removed the
 	// section.
 	BlockDispCleared = "cleared"

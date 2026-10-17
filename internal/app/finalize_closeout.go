@@ -84,7 +84,7 @@ const (
 	CloseoutDispRootArchived = "root-archived"
 	// CloseoutDispAlready: the promised final state already exists (a response-
 	// lost replay); a verified no-op.
-	CloseoutDispAlready = "already"
+	CloseoutDispAlready = "already-closed-out"
 	// CloseoutDispChildrenRetargetRequired: a descendant is not yet stacked-merged,
 	// so the root cannot be carried; retarget/finish the descendants first.
 	CloseoutDispChildrenRetargetRequired = "children-retarget-required"

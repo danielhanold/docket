@@ -78,7 +78,7 @@ func TestIntegrationEnsureCommentIdempotent(t *testing.T) {
 	})
 
 	t.Run("adopts-when-present", func(t *testing.T) {
-		// A comment already carries the marker: found, already, same URL, no create.
+		// A comment already carries the marker: found, already-posted, same URL, no create.
 		c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 			cmtViewArm(prCommentsJSON(commentObj("unrelated chatter", "u"), commentObj(cmtBody, cmtURL)), 0),
 		}})

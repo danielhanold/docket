@@ -220,7 +220,7 @@ func TestRetargetChildrenHappy(t *testing.T) {
 	}
 	for _, id := range []int{81, 82} {
 		if c := childOutcomeByID(t, retry, id); c.Outcome != childOutcomeAlready {
-			t.Errorf("retry child %d outcome=%q, want already", id, c.Outcome)
+			t.Errorf("retry child %d outcome=%q, want already-retargeted", id, c.Outcome)
 		}
 	}
 	if countEdits(gh.retargets) != editsBefore {

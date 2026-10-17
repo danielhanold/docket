@@ -208,7 +208,7 @@ The archive date is the root's `mergedAt` in **UTC**, derived inside the transac
 so a re-run reuses the same descendant filenames. Route on the typed `disposition`: `root-archived` (every descendant proven),
 `children-retarget-required` (one is not yet `stacked-merged`), or `contended`/`blocked`.
 
-Re-running it is the designed recovery from a partial pass: an `already` disposition replays a
+Re-running it is the designed recovery from a partial pass: an `already-closed-out` disposition replays a
 response-lost success as a keyed no-op, keyed on the descendant already being **archived on the
 metadata branch**. The atomic transaction never half-archives a descendant, so a re-run either
-completes the rest or returns `already`, and never abandons the proven siblings.
+completes the rest or returns `already-closed-out`, and never abandons the proven siblings.

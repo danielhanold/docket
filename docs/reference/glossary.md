@@ -2054,11 +2054,11 @@ below.
 
 | Vocabulary | Members | Reported / accepted by |
 |---|---|---|
-| `block_dispositions` | `recorded` `already` `cleared` `nothing-to-clear` `unknown` `contended` `refused` `failed` | `finalize block`, `finalize clear-block` |
+| `block_dispositions` | `recorded` `already-recorded` `cleared` `nothing-to-clear` `unknown` `contended` `refused` `failed` | `finalize block`, `finalize clear-block` |
 | `cancel_dispositions` | `cancelled` `already-cancelled` `cancellation-pending` `refused` | `run cancel` |
 | `claim_dispositions` | `applied` `already-claimed` `contended` `failed` `run-context-invalid` `run-context-conflict` | `change claim`, `change refresh-claim` |
 | `cleanup_dispositions` | `cleaned` `already-clean` `pending` `retained` `children-retarget-required` `rebase-scratch-cleared` | `finalize cleanup`, `gate cleanup` |
-| `closeout_dispositions` | `done-archived` `stacked-merged` `root-archived` `already` `children-retarget-required` `contended` `blocked` `unknown` `failed` | `finalize closeout` |
+| `closeout_dispositions` | `done-archived` `stacked-merged` `root-archived` `already-closed-out` `children-retarget-required` `contended` `blocked` `unknown` `failed` | `finalize closeout` |
 | `complete_dispositions` | `completed` `already-completed` `contended` `failed` | `change complete` |
 | `groom_outcomes` | `spec` `trivial` `revise` `abstain` `re-enable` | `change groom` (request `outcome`) |
 | `halt_dispositions` | `halted` `resumed` `contended` `refused` `failed` | `change halt`, `change resume-halted` |

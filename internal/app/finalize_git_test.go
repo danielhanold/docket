@@ -295,7 +295,7 @@ func matrixChildRetarget(t *testing.T) {
 		t.Fatalf("replay = %q, want no-op (adopt the already-retargeted PR)", second.Result)
 	}
 	if c := childOutcomeByID(t, second, 81); c.Outcome != childOutcomeAlready {
-		t.Errorf("replay child 81 outcome = %q, want already", c.Outcome)
+		t.Errorf("replay child 81 outcome = %q, want already-retargeted", c.Outcome)
 	}
 	if countEdits(gh.retargets) != editsBefore {
 		t.Errorf("the replay issued a new edit; edits before=%d after=%d", editsBefore, countEdits(gh.retargets))

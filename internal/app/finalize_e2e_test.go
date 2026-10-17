@@ -1106,7 +1106,7 @@ func TestE2EResponseLossConvergence(t *testing.T) {
 	}
 	// A closeout replay is an idempotent no-op keyed on the promised archive state.
 	co2 := s.dk(t, "", "finalize", "closeout", "--id", strconv.Itoa(s.id))
-	if co2.result() != "no-op" && co2.str("disposition") != "already" {
+	if co2.result() != "no-op" && co2.str("disposition") != "already-closed-out" {
 		t.Fatalf("closeout replay = %q/%q, want an idempotent no-op\n%s", co2.result(), co2.str("disposition"), co2.stdout)
 	}
 }

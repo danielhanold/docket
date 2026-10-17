@@ -7,7 +7,7 @@ package githubcli
 // record. It mirrors retarget.go's fixed shape:
 //
 //	1. probe the PR by number for its current body and opaque revision;
-//	2. a body already equal to the request is `already` — no edit (idempotency
+//	2. a body already equal to the request is `already-edited` — no edit (idempotency
 //	   keyed on the promised remote state, never on the revision);
 //	3. an edit is authorized only when ExpectedRevision equals the live revision;
 //	   an empty or mismatched revision is `contended` and the PR is untouched;
@@ -39,7 +39,7 @@ const (
 	// BodyEdited: the body was replaced and the postcondition verified.
 	BodyEdited BodyEditOutcome = "edited"
 	// BodyAlready: the PR already carried exactly the requested body; no edit.
-	BodyAlready BodyEditOutcome = "already"
+	BodyAlready BodyEditOutcome = "already-edited"
 	// BodyContended: the live revision diverged from ExpectedRevision, or the
 	// verified body is neither the request nor the pre-edit body (someone else
 	// wrote it); the PR was not overwritten.

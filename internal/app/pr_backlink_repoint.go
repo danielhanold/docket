@@ -40,11 +40,11 @@ func prBacklinksApply(lay layout.Layout) bool {
 
 // The closed outcomes of one repoint attempt.
 const (
-	prBacklinkRepointed = "repointed" // the block now names the archive path
-	prBacklinkAlready   = "already"   // the block already named it; no edit
-	prBacklinkNoBlock   = "no-block"  // a hand-written body; never given a block
-	prBacklinkContended = "contended" // the body moved under us; not overwritten
-	prBacklinkUnknown   = "unknown"   // unreadable, malformed, or unverified
+	prBacklinkRepointed = "repointed"         // the block now names the archive path
+	prBacklinkAlready   = "already-repointed" // the block already named it; no edit
+	prBacklinkNoBlock   = "no-block"          // a hand-written body; never given a block
+	prBacklinkContended = "contended"         // the body moved under us; not overwritten
+	prBacklinkUnknown   = "unknown"           // unreadable, malformed, or unverified
 )
 
 // PRBodyEditor is the one GitHub write the repoint needs.
@@ -145,7 +145,7 @@ func applyPRBacklinkRepoint(ctx context.Context, ed PRBodyEditor, repo githubcli
 }
 
 // prBacklinkFinding maps an attempt to a retryable warning, or nil when the PR is
-// in its promised state (repointed, already, or a block-less body).
+// in its promised state (repointed, already-repointed, or a block-less body).
 func prBacklinkFinding(id, number int, r prBacklinkResult) *StatusFinding {
 	switch r.outcome {
 	case prBacklinkRepointed, prBacklinkAlready, prBacklinkNoBlock:
