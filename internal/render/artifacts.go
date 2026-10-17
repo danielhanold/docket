@@ -43,7 +43,9 @@ const (
 //     (built on the metadata-branch flow).
 //   - Plan and Results of a legacy record (see legacyArtifactBranch), whose
 //     files stayed on the integration or feature branch because the change
-//     closed out before plan and results moved to the metadata branch.
+//     closed out before plan and results moved to the metadata branch. A
+//     results-artifact change is never legacy: it merges nothing, so its plan
+//     and results rows stay relative, done or not.
 func ArtifactBlockContent(c domain.Change, snap domain.Snapshot, link LinkContext) (string, error) {
 	var rows []string
 	recPath := c.Path()
@@ -97,7 +99,14 @@ func ArtifactBlockContent(c domain.Change, snap domain.Snapshot, link LinkContex
 // branch (an unset branch: yields "", which BlobURLOnBranch resolves to the
 // metadata branch, the rendering such a record has always had). Every other
 // change's plan and results are on the metadata branch.
+//
+// A results-artifact change is never legacy, with or without the section: a
+// results artifact never lives on the integration branch, because the change
+// closes without a PR (refines ADR-0141's legacy-row rule).
 func legacyArtifactBranch(c domain.Change, link LinkContext) (string, bool) {
+	if c.Deliverable() == domain.DeliverableResultsArtifact {
+		return "", false
+	}
 	if c.HasBuildEvidence() {
 		return "", false
 	}
