@@ -208,6 +208,10 @@ func validationFixtures() map[string][]validationFixture {
 			{"raw empty", f(repository.CodeChangePriorityUnknown, W, fxChange(263, "x"), "priority", map[string]string{"raw": "", "status": "in-progress"})},
 			{"proposed", f(repository.CodeChangePriorityUnknown, W, fxChange(263, "x"), "priority", map[string]string{"raw": "urgent", "status": "proposed"})},
 		},
+		repository.CodeChangeDeliverableUnknown: {
+			{"unknown", f(repository.CodeChangeDeliverableUnknown, W, fxChange(263, "x"), "deliverable", map[string]string{"raw": "research", "status": "in-progress"})},
+			{"proposed", f(repository.CodeChangeDeliverableUnknown, W, fxChange(263, "x"), "deliverable", map[string]string{"raw": "research", "status": "proposed"})},
+		},
 		repository.CodeChangeFilenameMismatch: {
 			{"mismatch", f(repository.CodeChangeFilenameMismatch, E, domain.EntityRef{Kind: domain.EntityChange, ID: 263, Slug: "x", Path: "docs/changes/active/0263-y.md"}, "path",
 				map[string]string{"base": "0263-y.md", "slug": "x", "id": "0263"})},

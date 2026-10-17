@@ -62,6 +62,9 @@ func SchemaVocabularies(effects []string) map[string]Vocabulary {
 	v["priorities"] = Vocabulary{Members: members(len(domain.AllPriorities), func(i int) string {
 		return string(domain.AllPriorities[i])
 	})}
+	v["deliverables"] = Vocabulary{Members: members(len(domain.AllDeliverables), func(i int) string {
+		return string(domain.AllDeliverables[i])
+	})}
 	v["statuses"] = Vocabulary{Members: members(len(domain.AllStatuses), func(i int) string {
 		return string(domain.AllStatuses[i])
 	})}

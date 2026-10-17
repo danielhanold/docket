@@ -236,3 +236,36 @@ func TestChangeRecordDraftScalars(t *testing.T) {
 		})
 	}
 }
+
+// TestChangeRecordWritesDeliverableAfterType pins the deliverable line: an
+// empty value renders as pr, and the line sits directly after type:.
+func TestChangeRecordWritesDeliverableAfterType(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"", "deliverable: pr"},
+		{"results-artifact", "deliverable: results-artifact"},
+	} {
+		got, err := render.ChangeRecord(render.NewChangeRecord{
+			ID: 1, Slug: "s", Title: "t", Type: "feat", Priority: "low", Created: goldenDate,
+			Deliverable: tc.in,
+		})
+		if err != nil {
+			t.Fatalf("ChangeRecord: %v", err)
+		}
+		lines := strings.Split(string(got), "\n")
+		typeAt, delAt := -1, -1
+		for i, l := range lines {
+			switch {
+			case strings.HasPrefix(l, "type:"):
+				typeAt = i
+			case strings.HasPrefix(l, "deliverable:"):
+				delAt = i
+				if strings.ReplaceAll(l, "'", "") != tc.want {
+					t.Errorf("deliverable %q: line = %q, want %q", tc.in, l, tc.want)
+				}
+			}
+		}
+		if typeAt < 0 || delAt != typeAt+1 {
+			t.Errorf("deliverable %q: type at %d, deliverable at %d; want directly after", tc.in, typeAt, delAt)
+		}
+	}
+}

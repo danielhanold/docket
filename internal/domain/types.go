@@ -104,6 +104,32 @@ func priorityRank(p Priority) int {
 	return priorityRanks[PriorityMedium]
 }
 
+// Deliverable names how a change ends, drawn from a closed set: through a
+// merged pull request, or through a committed results artifact with no PR.
+type Deliverable string
+
+// The closed set of deliverables.
+const (
+	DeliverablePR              Deliverable = "pr"
+	DeliverableResultsArtifact Deliverable = "results-artifact"
+)
+
+// AllDeliverables is the closed deliverable set, exported for the
+// request/result schema surface's deliverables vocabulary. ParseDeliverable
+// is the membership oracle; this slice is its enumerated form.
+var AllDeliverables = []Deliverable{DeliverablePR, DeliverableResultsArtifact}
+
+// ParseDeliverable reports whether s is a member of the closed deliverable
+// set, returning the typed member when it is. Matching is exact; the empty
+// string is not a member (an absent key defaults at decode, not here).
+func ParseDeliverable(s string) (Deliverable, bool) {
+	switch Deliverable(s) {
+	case DeliverablePR, DeliverableResultsArtifact:
+		return Deliverable(s), true
+	}
+	return "", false
+}
+
 // ADRStatusKind tags which of the four ADR statuses an ADRStatus carries.
 type ADRStatusKind string
 

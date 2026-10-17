@@ -79,6 +79,8 @@ type ChangeSpec struct {
 	Priority       Priority
 	RawPriority    string
 	Type           string
+	Deliverable    Deliverable  // parsed; "" with RawDeliverable set means unknown
+	RawDeliverable string       // as stored; "" when the key is absent or empty
 	Created        OptionalTime // date-only; Raw keeps stored text
 	Updated        OptionalTime
 	DependsOn      []ChangeID
@@ -148,6 +150,19 @@ func (c Change) RawPriority() string { return c.spec.RawPriority }
 
 // Type returns the stored change type token.
 func (c Change) Type() string { return c.spec.Type }
+
+// Deliverable returns the effective deliverable: DeliverablePR when the key
+// is absent or empty, the parsed member when it is known, and "" for an
+// unknown stored value (RawDeliverable names it).
+func (c Change) Deliverable() Deliverable {
+	if c.spec.Deliverable == "" && c.spec.RawDeliverable == "" {
+		return DeliverablePR
+	}
+	return c.spec.Deliverable
+}
+
+// RawDeliverable returns the deliverable text as stored.
+func (c Change) RawDeliverable() string { return c.spec.RawDeliverable }
 
 // Created returns the optional creation date.
 func (c Change) Created() OptionalTime { return c.spec.Created }
