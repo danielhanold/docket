@@ -78,7 +78,7 @@ func (f *fakeCleanupGitHub) MergePullRequest(context.Context, githubcli.Reposito
 // retained rather than destructive.
 type faultyCleanupGit struct {
 	inner *gitcli.Client
-	fail  string // "resolve" | "remote-probe" | "list" | "ancestor" | "fetch"
+	fail  string // "resolve" | "remote-probe" | "list" | "ancestor" | "fetch" | "delete"
 }
 
 var errCleanupProbe = errors.New("injected cleanup probe failure")
@@ -114,6 +114,9 @@ func (g *faultyCleanupGit) FetchBranch(ctx context.Context, repo gitcli.Reposito
 	return g.inner.FetchBranch(ctx, repo, remote, branch)
 }
 func (g *faultyCleanupGit) DeleteLocalBranchChecked(ctx context.Context, repo gitcli.Repository, branch gitcli.RefName, expectedTip gitcli.ObjectID) error {
+	if g.fail == "delete" {
+		return errCleanupProbe
+	}
 	return g.inner.DeleteLocalBranchChecked(ctx, repo, branch, expectedTip)
 }
 func (g *faultyCleanupGit) DeleteRemoteRefLease(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, ref gitcli.RefName, expectedTip gitcli.ObjectID) (gitcli.PushOutcome, error) {
@@ -641,4 +644,215 @@ func TestResultsArtifactCleanedMessageNamesOnlyWhatWasRemoved(t *testing.T) {
 			t.Errorf("ws=%v branch=%v: got %q, want %q", tc.ws, tc.branch, got, tc.want)
 		}
 	}
+}
+
+// --- kept-on-purpose branch warnings --------------------------------------
+
+// raContextCorpus is raContext over a caller-supplied corpus that must hold the
+// done results-artifact record 41.
+func raContextCorpus(t *testing.T, corpus []StatusBlob) *closeoutContext {
+	t.Helper()
+	f := newAssessFixture(t, corpus, nil)
+	c, out := f.inv.snap.Change(41)
+	if out != domain.LookupFound {
+		t.Fatalf("record 41 not found")
+	}
+	return &closeoutContext{pin: f.pin, eff: f.pin.Config.Effective, snap: f.inv.snap, change: c, integrationBranch: "main", link: linkContextOf(f.pin)}
+}
+
+// keptRemoteGit is a raGit whose remote probe answers a found remote ref at a
+// fixed commit, so the PR remote leg sees a moved remote.
+type keptRemoteGit struct {
+	*raGit
+	remote gitcli.ObjectID
+}
+
+func (g *keptRemoteGit) ProbeRemoteBranch(context.Context, gitcli.Repository, gitcli.RemoteName, gitcli.RefName) (gitcli.RemoteRef, error) {
+	return gitcli.RemoteRef{State: gitcli.RemoteRefFound, Commit: g.remote}, nil
+}
+
+// failingDeleteGit is a raGit whose checked local delete fails.
+type failingDeleteGit struct{ *raGit }
+
+func (g *failingDeleteGit) DeleteLocalBranchChecked(context.Context, gitcli.Repository, gitcli.RefName, gitcli.ObjectID) error {
+	return errCleanupProbe
+}
+
+func soleFinding(t *testing.T, res CleanupOpResult, code string) StatusFinding {
+	t.Helper()
+	for _, f := range res.Findings {
+		if f.Code == code {
+			return f
+		}
+	}
+	t.Fatalf("no %s finding in %+v (reason %q, %s)", code, res.Findings, res.Reason, res.Message)
+	return StatusFinding{}
+}
+
+func assertContainsAll(t *testing.T, label, got string, wants ...string) {
+	t.Helper()
+	for _, w := range wants {
+		if !strings.Contains(got, w) {
+			t.Errorf("%s: %q does not contain %q", label, got, w)
+		}
+	}
+}
+
+func TestKeptBranchWarningsNameBranchAndCommand(t *testing.T) {
+	ctx := context.Background()
+	t.Run("no-pr-unreachable", func(t *testing.T) {
+		git := happyRAGit(t)
+		git.ancestor = false
+		res := finalizeCleanupResultsArtifact(ctx, raDeps(&raWorkspace{disp: workspace.CleanupCleaned}, git), raContext(t, true))
+		f := soleFinding(t, res, ReasonCleanupUnreachable)
+		assertContainsAll(t, "unreachable", f.Message, "local branch feat/research was kept", "not on main", "(git branch -D feat/research)")
+		if !isKeptBranchFinding(f) {
+			t.Errorf("unreachable must be a kept-branch finding")
+		}
+	})
+	t.Run("no-pr-checked-out", func(t *testing.T) {
+		git := happyRAGit(t)
+		git.worktrees = []gitcli.WorktreeInfo{{Path: "/elsewhere", Branch: featureRefFor("research")}}
+		res := finalizeCleanupResultsArtifact(ctx, raDeps(&raWorkspace{disp: workspace.CleanupCleaned}, git), raContext(t, true))
+		f := soleFinding(t, res, ReasonCleanupCheckedOut)
+		assertContainsAll(t, "checked-out", f.Message, "local branch feat/research was kept", "checked out in another worktree", "git branch -D feat/research")
+		if !isKeptBranchFinding(f) {
+			t.Errorf("checked-out must be a kept-branch finding")
+		}
+	})
+	t.Run("pr-local-tip-moved", func(t *testing.T) {
+		git := happyRAGit(t)
+		facts := githubcli.MergedFacts{HeadOID: strings.Repeat("c", 40), MergeCommit: strings.Repeat("d", 40)}
+		_, _, f := finalizeCleanupLocalRef(ctx, FinalizeDeps{}, git, raContext(t, true), featureRefFor("research"), "feat/research", facts)
+		if f == nil || f.Code != ReasonCleanupTipMoved {
+			t.Fatalf("finding = %+v, want %s", f, ReasonCleanupTipMoved)
+		}
+		assertContainsAll(t, "tip-moved", f.Message, "local branch feat/research was kept", "moved off the merged commit", "git branch -D feat/research")
+		if !isKeptBranchFinding(*f) {
+			t.Errorf("tip-moved must be a kept-branch finding")
+		}
+	})
+	t.Run("pr-local-checked-out", func(t *testing.T) {
+		git := happyRAGit(t)
+		git.worktrees = []gitcli.WorktreeInfo{{Path: "/elsewhere", Branch: featureRefFor("research")}}
+		facts := githubcli.MergedFacts{HeadOID: string(git.tip), MergeCommit: strings.Repeat("d", 40)}
+		_, _, f := finalizeCleanupLocalRef(ctx, FinalizeDeps{}, git, raContext(t, true), featureRefFor("research"), "feat/research", facts)
+		if f == nil || f.Code != ReasonCleanupCheckedOut {
+			t.Fatalf("finding = %+v, want %s", f, ReasonCleanupCheckedOut)
+		}
+		assertContainsAll(t, "pr checked-out", f.Message, "checked out in another worktree", "git branch -D feat/research")
+	})
+	t.Run("pr-local-unreachable", func(t *testing.T) {
+		git := happyRAGit(t)
+		git.ancestor = false
+		facts := githubcli.MergedFacts{HeadOID: string(git.tip), MergeCommit: strings.Repeat("d", 40)}
+		_, _, f := finalizeCleanupLocalRef(ctx, FinalizeDeps{}, git, raContext(t, true), featureRefFor("research"), "feat/research", facts)
+		if f == nil || f.Code != ReasonCleanupUnreachable {
+			t.Fatalf("finding = %+v, want %s", f, ReasonCleanupUnreachable)
+		}
+		assertContainsAll(t, "pr unreachable", f.Message, "not on main", "git branch -D feat/research")
+	})
+	t.Run("pr-remote-moved", func(t *testing.T) {
+		git := &keptRemoteGit{raGit: happyRAGit(t), remote: gitcli.ObjectID(strings.Repeat("e", 40))}
+		facts := githubcli.MergedFacts{HeadOID: strings.Repeat("a", 40)}
+		_, _, _, f := finalizeCleanupRemoteRef(ctx, FinalizeDeps{}, git, githubcli.Repository{}, raContext(t, true), featureRefFor("research"), "feat/research", facts)
+		if f == nil || f.Code != ReasonCleanupRemoteMoved {
+			t.Fatalf("finding = %+v, want %s", f, ReasonCleanupRemoteMoved)
+		}
+		assertContainsAll(t, "remote-moved", f.Message, "remote branch feat/research was kept", "git push origin --delete feat/research")
+		if !isKeptBranchFinding(*f) {
+			t.Errorf("remote-moved must be a kept-branch finding")
+		}
+	})
+}
+
+func TestQuietCleanupReasonsCarryNoDeleteAdvice(t *testing.T) {
+	ctx := context.Background()
+	drive := func(t *testing.T, git FinalizeCleanupGit, code string) {
+		t.Helper()
+		res := finalizeCleanupResultsArtifact(ctx, raDeps(&raWorkspace{disp: workspace.CleanupCleaned}, git), raContext(t, true))
+		f := soleFinding(t, res, code)
+		if strings.Contains(f.Message, "git branch -D") || strings.Contains(f.Message, "--delete") {
+			t.Errorf("%s message carries delete advice: %q", code, f.Message)
+		}
+		if isKeptBranchFinding(f) {
+			t.Errorf("%s must not be a kept-branch finding", code)
+		}
+		if strings.Contains(res.HumanText(), "git branch -D") {
+			t.Errorf("%s HumanText carries delete advice: %q", code, res.HumanText())
+		}
+	}
+	t.Run("ref-probe", func(t *testing.T) {
+		git := happyRAGit(t)
+		git.resolveErr = errCleanupProbe
+		drive(t, git, ReasonCleanupRefProbe)
+	})
+	t.Run("fetch", func(t *testing.T) {
+		git := happyRAGit(t)
+		git.fetchErr = errCleanupProbe
+		drive(t, git, ReasonCleanupAncestryProbe)
+	})
+	t.Run("list", func(t *testing.T) {
+		git := happyRAGit(t)
+		git.listErr = errCleanupProbe
+		drive(t, git, ReasonCleanupListProbe)
+	})
+	t.Run("local-delete", func(t *testing.T) {
+		drive(t, &failingDeleteGit{raGit: happyRAGit(t)}, ReasonCleanupLocalDelete)
+	})
+	for _, code := range []string{ReasonCleanupLeaseRejected, ReasonCleanupRemoteProbe, ReasonCleanupChildProbe, FindingWorkspaceRemnant, ReasonCleanupLocalDelete, ReasonCleanupRefProbe, ReasonCleanupAncestryProbe, ReasonCleanupListProbe} {
+		if isKeptBranchFinding(cleanupWarning(code, "x")) {
+			t.Errorf("%s must not be a kept-branch finding", code)
+		}
+	}
+}
+
+func TestKeptBranchWarningReusedName(t *testing.T) {
+	ra := finalizeBlob(41, "research", "done", "high", "", "deliverable: results-artifact\n")
+	other := func(status string) StatusBlob {
+		b := finalizeBlob(50, "other", status, "high", prRefFor(50), "")
+		b.Data = []byte(strings.Replace(string(b.Data), "branch: feat/other\n", "branch: feat/research\n", 1))
+		return b
+	}
+	t.Run("live-reuse-suppresses-advice", func(t *testing.T) {
+		cc := raContextCorpus(t, []StatusBlob{ra, other("in-progress")})
+		git := happyRAGit(t)
+		git.ancestor = false
+		res := finalizeCleanupResultsArtifact(context.Background(), raDeps(&raWorkspace{disp: workspace.CleanupCleaned}, git), cc)
+		f := soleFinding(t, res, ReasonCleanupUnreachable)
+		if !strings.Contains(f.Message, "change #50 is now using it") || strings.Contains(f.Message, "git branch -D") {
+			t.Errorf("reused name: got %q", f.Message)
+		}
+		rf := keptBranchWarning(cc, ReasonCleanupRemoteMoved, "feat/research")
+		if want := "remote branch feat/research was kept: change #50 is now using it."; rf.Message != want {
+			t.Errorf("remote reused name: got %q, want %q", rf.Message, want)
+		}
+	})
+	t.Run("final-record-keeps-advice", func(t *testing.T) {
+		cc := raContextCorpus(t, []StatusBlob{ra, other("done")})
+		f := keptBranchWarning(cc, ReasonCleanupUnreachable, "feat/research")
+		if !strings.Contains(f.Message, "git branch -D feat/research") || strings.Contains(f.Message, "now using it") {
+			t.Errorf("final record must not suppress advice: got %q", f.Message)
+		}
+	})
+}
+
+func TestCleanupHumanTextNamesKeptBranch(t *testing.T) {
+	t.Run("pending", func(t *testing.T) {
+		git := happyRAGit(t)
+		git.ancestor = false
+		res := finalizeCleanupResultsArtifact(context.Background(), raDeps(&raWorkspace{disp: workspace.CleanupCleaned}, git), raContext(t, true))
+		if res.Result != ResultBlocked {
+			t.Fatalf("result = %q, want %q", res.Result, ResultBlocked)
+		}
+		assertContainsAll(t, "pending HumanText", res.HumanText(), ReasonCleanupUnreachable, "git branch -D feat/research")
+	})
+	t.Run("applied", func(t *testing.T) {
+		cc := raContext(t, true)
+		r := newCleanupResult(OperationFinalizeCleanup, ResultApplied, CleanupOpResult{
+			ID: 41, Disposition: CleanupDispChildrenRetargetRequired,
+			Findings: []StatusFinding{keptBranchWarning(cc, ReasonCleanupCheckedOut, "feat/research")},
+		})
+		assertContainsAll(t, "applied HumanText", r.HumanText(), "checked out in another worktree", "git branch -D feat/research")
+	})
 }

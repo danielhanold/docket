@@ -171,6 +171,10 @@ type MaintenanceEntry struct {
 	Reason      string `json:"reason,omitempty"`
 	Message     string `json:"message,omitempty"`
 	CarriedIDs  []int  `json:"carried_ids,omitempty"`
+	// keptBranches holds the message of every branch cleanup kept on purpose
+	// (isKeptBranchFinding), filled only by sweepRunCleanup, so the human
+	// summary can name each one. It never reaches the JSON entry.
+	keptBranches []string `json:"-"`
 }
 
 // MaintenanceResult is the protocol-v1 document `maintenance sweep` returns. The
@@ -197,7 +201,9 @@ type MaintenanceResult struct {
 }
 
 // HumanText renders a one-line summary naming the entry count and the mutated
-// count only — never an authored document body.
+// count only — never an authored document body — followed by one
+// "warning: change #<id>: <message>" line per branch cleanup kept on purpose,
+// in entry order, so the leftover branch and its delete command are visible.
 func (r MaintenanceResult) HumanText() string {
 	op := r.Operation
 	if r.Scope != "" {
@@ -229,6 +235,11 @@ func (r MaintenanceResult) HumanText() string {
 		out += fmt.Sprintf("; integration sync: %s", r.IntegrationSync.Disposition)
 		if r.IntegrationSync.Reason != "" {
 			out += fmt.Sprintf(" (%s)", r.IntegrationSync.Reason)
+		}
+	}
+	for _, e := range r.Entries {
+		for _, msg := range e.keptBranches {
+			out += fmt.Sprintf("\nwarning: change #%d: %s", e.ID, msg)
 		}
 	}
 	return out
@@ -532,13 +543,14 @@ func sweepBuildSnapshot(ctx context.Context, reader StatusReader, pin StatusPin,
 
 // gatherSweepSharedFacts reads the invocation-shared read-only inventories the
 // snapshot assessment reasons over: one complete remote-heads advertisement, one
-// worktree list, and one batched read of the done candidates' PR bodies. It is
+// worktree list, one local-branch inventory, and one batched read of the done
+// candidates' PR bodies (whose PR facts it keeps from the same call). It is
 // LAZY — only a `done` candidate consumes the remote/local-ref and PR-backlink
 // legs, so a historical worklist carrying only stacked-merged (retained) records
 // fetches no inventory (zero ListRemoteHeads or ProbePRSet calls). A failed read is
 // recorded as the leg's error (a failed shared inventory is unknown, never a clean
 // absence and never a fan-out into per-ref probes); a missing git client/repository
-// makes both inventories unknown rather than silently empty.
+// makes all three git inventories unknown rather than silently empty.
 func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir string, lay layout.Layout, inv sweepInventory, historical []sweepWorkItem) sweepSharedFacts {
 	needsShared := false
 	for _, it := range historical {
@@ -573,7 +585,9 @@ func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir stri
 		if len(numbers) > 0 {
 			var bodies map[int]string
 			if deps.PRBatch != nil {
-				bodies = deps.PRBatch.ProbePRSet(ctx, repoDir, numbers).Bodies
+				res := deps.PRBatch.ProbePRSet(ctx, repoDir, numbers)
+				bodies = res.Bodies
+				shared.prFacts = res.Facts
 			}
 			for _, n := range numbers {
 				if b, ok := bodies[n]; ok {
@@ -587,7 +601,7 @@ func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir stri
 	repo := sweepAssessRepo(deps)
 	if deps.Planning.Client == nil || repo.PrimaryWorktree == "" {
 		err := fmt.Errorf("no git client or repository is wired to read the shared sweep inventories")
-		shared.remoteHeadsErr, shared.worktreesErr = err, err
+		shared.remoteHeadsErr, shared.worktreesErr, shared.localHeadsErr = err, err, err
 		return shared
 	}
 	if heads, err := deps.Planning.Client.ListRemoteHeads(ctx, repo, originRemote); err != nil {
@@ -599,6 +613,11 @@ func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir stri
 		shared.worktreesErr = err
 	} else {
 		shared.worktrees = wts
+	}
+	if heads, err := deps.Planning.Client.ListLocalHeads(ctx, repo); err != nil {
+		shared.localHeadsErr = err
+	} else {
+		shared.localHeads = heads
 	}
 	return shared
 }
@@ -735,6 +754,24 @@ func sweepRunCleanup(ctx context.Context, ops sweepOps, id int) MaintenanceEntry
 		} else {
 			entry.Message += "; " + f.Message
 		}
+	}
+	// A branch cleanup kept on purpose rides the findings too, often behind
+	// another finding that supplied the reason; carry every one into the
+	// message and the human summary so the branch and its delete command are
+	// named on the safety-net path.
+	for _, f := range res.Findings {
+		if !isKeptBranchFinding(f) {
+			continue
+		}
+		if entry.Reason == "" {
+			entry.Reason = f.Code
+		}
+		if entry.Message == "" {
+			entry.Message = f.Message
+		} else {
+			entry.Message += "; " + f.Message
+		}
+		entry.keptBranches = append(entry.keptBranches, f.Message)
 	}
 	return entry
 }

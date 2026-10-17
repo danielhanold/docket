@@ -353,6 +353,17 @@ type closeoutContext struct {
 	changesDir        string
 }
 
+// closeoutIntegrationBranch is the branch a close-out treats as the merge
+// destination: the pinned integration branch, falling back to the default
+// branch. Cleanup and the sweep assessment share it so their destination
+// predicates cannot drift.
+func closeoutIntegrationBranch(pin StatusPin) string {
+	if pin.IntegrationBranch != "" {
+		return pin.IntegrationBranch
+	}
+	return pin.DefaultBranch
+}
+
 // loadCloseoutContext pins once, runs the capability preflight before any
 // external effect, reads the corpus once, and resolves the change from that one
 // authoritative copy (decide-and-act-on-the-same-copy).
@@ -430,10 +441,7 @@ func loadCloseoutContext(ctx context.Context, deps FinalizeDeps, repoDir string,
 		return nil, &r
 	}
 
-	integration := pin.IntegrationBranch
-	if integration == "" {
-		integration = pin.DefaultBranch
-	}
+	integration := closeoutIntegrationBranch(pin)
 
 	return &closeoutContext{
 		pin: pin, eff: eff, snap: snap, change: c, revision: revision, body: body,

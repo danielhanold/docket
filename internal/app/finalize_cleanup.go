@@ -144,7 +144,9 @@ type CleanupOpResult struct {
 }
 
 // HumanText renders a one-line summary naming identity and disposition, plus
-// any workspace-remnant warning so a leftover folder is never silent.
+// any workspace-remnant warning so a leftover folder is never silent, and every
+// kept-on-purpose branch warning (isKeptBranchFinding) on both the success and
+// the refusal form, so a kept branch is always named with its delete command.
 func (r CleanupOpResult) HumanText() string {
 	if r.Result == ResultApplied || r.Result == ResultNoOp {
 		if r.RunDir != "" {
@@ -156,12 +158,24 @@ func (r CleanupOpResult) HumanText() string {
 				out += "; warning " + FindingWorkspaceRemnant + ": " + f.Message
 			}
 		}
-		return out
+		return out + r.keptBranchText()
 	}
 	if r.Reason != "" {
-		return r.Operation + ": " + string(r.Result) + " (" + r.Reason + ")"
+		return r.Operation + ": " + string(r.Result) + " (" + r.Reason + ")" + r.keptBranchText()
 	}
-	return r.Operation + ": " + string(r.Result)
+	return r.Operation + ": " + string(r.Result) + r.keptBranchText()
+}
+
+// keptBranchText renders every kept-on-purpose branch warning as a
+// "; warning: <message>" suffix for HumanText.
+func (r CleanupOpResult) keptBranchText() string {
+	out := ""
+	for _, f := range r.Findings {
+		if isKeptBranchFinding(f) {
+			out += "; warning: " + f.Message
+		}
+	}
+	return out
 }
 
 // newCleanupResult stamps the envelope for opKey and normalizes Findings so the
@@ -186,6 +200,63 @@ func cleanupRefusal(result Result, disposition, reason, message string, id int) 
 // the pending list.
 func cleanupWarning(code, msg string) StatusFinding {
 	return StatusFinding{Code: code, Severity: string(domain.SeverityWarning), Message: msg}
+}
+
+// isKeptBranchFinding reports whether f is one of the four findings where
+// cleanup kept a branch on purpose (it moved, carries its own commits, or is
+// checked out elsewhere). Only these carry "delete it by hand" advice; every
+// probe failure, failed delete, or rejected lease keeps its plain wording.
+func isKeptBranchFinding(f StatusFinding) bool {
+	switch f.Code {
+	case ReasonCleanupTipMoved, ReasonCleanupUnreachable, ReasonCleanupCheckedOut, ReasonCleanupRemoteMoved:
+		return true
+	}
+	return false
+}
+
+// keptBranchWarning builds the warning for a branch cleanup kept on purpose:
+// it names the branch and gives the git command that deletes it by hand. When a
+// live (non-final) change now records the same branch name, the advice is
+// replaced by naming that change, so no one deletes another change's branch.
+func keptBranchWarning(cc *closeoutContext, code, branch string) StatusFinding {
+	kind := "local branch "
+	if code == ReasonCleanupRemoteMoved {
+		kind = "remote branch "
+	}
+	if other, ok := branchInUseBy(cc.snap, cc.change.ID(), branch); ok {
+		return cleanupWarning(code, kind+branch+" was kept: change #"+itoa(int(other))+" is now using it.")
+	}
+	var msg string
+	switch code {
+	case ReasonCleanupTipMoved:
+		msg = "local branch " + branch + " was kept: it moved off the merged commit. Review it, then delete it by hand (git branch -D " + branch + ")."
+	case ReasonCleanupUnreachable:
+		msg = "local branch " + branch + " was kept: it has commits that are not on " + cc.integrationBranch + ". Review it, then delete it by hand (git branch -D " + branch + ")."
+	case ReasonCleanupCheckedOut:
+		msg = "local branch " + branch + " was kept: it is checked out in another worktree. Review that worktree, then delete the branch by hand (git branch -D " + branch + ")."
+	case ReasonCleanupRemoteMoved:
+		msg = "remote branch " + branch + " was kept: it moved after the merge. Review it, then delete it by hand (git push " + string(originRemote) + " --delete " + branch + ")."
+	}
+	return cleanupWarning(code, msg)
+}
+
+// branchInUseBy returns the lowest-id change other than self that is not final
+// and records branch as its feature branch.
+func branchInUseBy(snap domain.Snapshot, self domain.ChangeID, branch string) (domain.ChangeID, bool) {
+	var found domain.ChangeID
+	ok := false
+	for _, c := range snap.Changes() {
+		if c.ID() == self || c.Status().Final() {
+			continue
+		}
+		if b := c.Branch(); b.State != domain.FieldPresent || b.Value != branch {
+			continue
+		}
+		if !ok || c.ID() < found {
+			found, ok = c.ID(), true
+		}
+	}
+	return found, ok
 }
 
 // cleanupGit returns the branch-deletion Git seam: the injected CleanupGit when
@@ -487,7 +558,7 @@ func finalizeCleanupLocalRef(ctx context.Context, deps FinalizeDeps, git Finaliz
 		return false, "", &w
 	}
 	if tip != expectedTip {
-		w := cleanupWarning(ReasonCleanupTipMoved, "the local feature ref moved off the merged head; it is retained")
+		w := keptBranchWarning(cc, ReasonCleanupTipMoved, featureBranch)
 		return false, "", &w
 	}
 
@@ -514,7 +585,7 @@ func finalizeCleanupLocalRef(ctx context.Context, deps FinalizeDeps, git Finaliz
 		return false, "", &w
 	}
 	if !reachable {
-		w := cleanupWarning(ReasonCleanupUnreachable, "the recorded merge-result commit is not contained in the verified merge chain; the local ref is retained")
+		w := keptBranchWarning(cc, ReasonCleanupUnreachable, featureBranch)
 		return false, "", &w
 	}
 
@@ -526,7 +597,7 @@ func finalizeCleanupLocalRef(ctx context.Context, deps FinalizeDeps, git Finaliz
 	}
 	for _, wi := range infos {
 		if wi.Branch == featureRef {
-			w := cleanupWarning(ReasonCleanupCheckedOut, "the feature ref is still checked out in a worktree; it is retained")
+			w := keptBranchWarning(cc, ReasonCleanupCheckedOut, featureBranch)
 			return false, "", &w
 		}
 	}
@@ -633,7 +704,7 @@ func finalizeCleanupLocalRefNoPR(ctx context.Context, git FinalizeCleanupGit, cc
 		return false, "", &w
 	}
 	if !contained {
-		w := cleanupWarning(ReasonCleanupUnreachable, "the local feature branch carries commits the integration branch does not contain; it is retained")
+		w := keptBranchWarning(cc, ReasonCleanupUnreachable, featureBranch)
 		return false, "", &w
 	}
 	infos, err := git.ListWorktrees(ctx, cc.repo)
@@ -643,7 +714,7 @@ func finalizeCleanupLocalRefNoPR(ctx context.Context, git FinalizeCleanupGit, cc
 	}
 	for _, wi := range infos {
 		if wi.Branch == featureRef {
-			w := cleanupWarning(ReasonCleanupCheckedOut, "the feature ref is still checked out in a worktree; it is retained")
+			w := keptBranchWarning(cc, ReasonCleanupCheckedOut, featureBranch)
 			return false, "", &w
 		}
 	}
@@ -698,7 +769,7 @@ func finalizeCleanupRemoteRef(ctx context.Context, deps FinalizeDeps, git Finali
 		return true, "", false, nil // cleanly absent: already deleted
 	}
 	if rr.Commit != expectedTip {
-		w := cleanupWarning(ReasonCleanupRemoteMoved, "the remote feature ref moved off the merged head; it is retained")
+		w := keptBranchWarning(cc, ReasonCleanupRemoteMoved, featureBranch)
 		return false, "", false, &w
 	}
 

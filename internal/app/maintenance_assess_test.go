@@ -485,6 +485,56 @@ func TestGatherSweepSharedFactsMarksUnreadPRBodiesUnknown(t *testing.T) {
 	}
 }
 
+// TestGatherSweepSharedFactsNoGitClientMakesLocalHeadsUnknown: with no git
+// client wired, the local-branch inventory is unknown (an error, no map) — never
+// an empty map that would read as "branch absent".
+func TestGatherSweepSharedFactsNoGitClientMakesLocalHeadsUnknown(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "a", "")}, nil)
+	deps := FinalizeDeps{Planning: PlanningDeps{Reader: f.reader, Clock: testClock()}, PRBatch: &fakeSweepBatchReader{}}
+	items := []sweepWorkItem{{id: 41, kind: sweepKindCleanup}}
+	shared := gatherSweepSharedFacts(context.Background(), deps, "repo", f.pin.Layout, f.inv, items)
+	if shared.localHeadsErr == nil || shared.localHeads != nil {
+		t.Fatalf("localHeads=%v err=%v, want unknown (nil map, non-nil error)", shared.localHeads, shared.localHeadsErr)
+	}
+	if shared.remoteHeadsErr == nil || shared.worktreesErr == nil {
+		t.Fatalf("remoteHeadsErr=%v worktreesErr=%v, want both unknown", shared.remoteHeadsErr, shared.worktreesErr)
+	}
+}
+
+// TestGatherSweepSharedFactsKeepsBatchedPRFacts: the batched PR read's facts are
+// kept from the same call that returned the bodies, never a second read.
+func TestGatherSweepSharedFactsKeepsBatchedPRFacts(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "a", ""), assessDoneBlob(42, "b", "")}, nil)
+	n41, n42 := prNumberOf(t, f, 41), prNumberOf(t, f, 42)
+	batch := &fakeSweepBatchReader{result: SweepPRSetResult{
+		Facts:  map[int]domain.PRFacts{n41: {Number: strconv.Itoa(n41), BaseRef: "feat/parent", State: "merged"}},
+		Bodies: map[int]string{n41: "body"},
+	}}
+	deps := FinalizeDeps{Planning: PlanningDeps{Reader: f.reader, Clock: testClock()}, PRBatch: batch}
+	items := []sweepWorkItem{{id: 41, kind: sweepKindCleanup}, {id: 42, kind: sweepKindCleanup}}
+	shared := gatherSweepSharedFacts(context.Background(), deps, "repo", f.pin.Layout, f.inv, items)
+	if batch.calls != 1 {
+		t.Fatalf("calls=%d, want exactly one batched read", batch.calls)
+	}
+	if shared.prFacts[n41].BaseRef != "feat/parent" {
+		t.Errorf("PR #%d facts = %+v, want BaseRef feat/parent", n41, shared.prFacts[n41])
+	}
+	if _, ok := shared.prFacts[n42]; ok {
+		t.Errorf("PR #%d was not returned, so it must have no facts", n42)
+	}
+}
+
+// TestCloseoutIntegrationBranchFallsBackToDefault: the close-out destination is
+// the integration branch, falling back to the default branch.
+func TestCloseoutIntegrationBranchFallsBackToDefault(t *testing.T) {
+	if got := closeoutIntegrationBranch(StatusPin{IntegrationBranch: "", DefaultBranch: "trunk"}); got != "trunk" {
+		t.Errorf("empty integration: got %q, want trunk", got)
+	}
+	if got := closeoutIntegrationBranch(StatusPin{IntegrationBranch: "main", DefaultBranch: "trunk"}); got != "main" {
+		t.Errorf("set integration: got %q, want main", got)
+	}
+}
+
 // TestGatherSweepSharedFactsSkipsPRBodiesInPrivateRepository: a private
 // repository's PR descriptions carry no backlink, so the sweep reads no PR body
 // and leaves the PR-backlink leg unassessed.
@@ -665,6 +715,13 @@ func TestSweepAssessCompletedResultsArtifact(t *testing.T) {
 			t.Fatalf("a branchless completed change has no workspace to inspect")
 		}
 	})
+	t.Run("leftover-local-branch-is-actionable", func(t *testing.T) {
+		f := newAssessFixture(t, []StatusBlob{raDoneBlob(41, "research", true, "")}, nil)
+		shared := withLocal(prShared(map[int]string{}), featureRefFor("research"))
+		if _, actionable := f.assess(t, cleanWS(), shared, 41); !actionableHas(actionable, 41) {
+			t.Fatalf("a completed change's leftover local branch must be actionable; actionable=%v", actionable)
+		}
+	})
 	t.Run("no-pr-body-gathered", func(t *testing.T) {
 		f := newAssessFixture(t, []StatusBlob{raDoneBlob(41, "research", true, prRefFor(41))}, nil)
 		batch := &fakeSweepBatchReader{}
@@ -674,4 +731,177 @@ func TestSweepAssessCompletedResultsArtifact(t *testing.T) {
 			t.Fatalf("a results-artifact record must gather no PR body: calls=%d unknown=%v", batch.calls, shared.prBodiesUnknown)
 		}
 	})
+}
+
+// withLocal returns s with a non-nil local-branch inventory holding refs, each at
+// a fixed object id.
+func withLocal(s sweepSharedFacts, refs ...gitcli.RefName) sweepSharedFacts {
+	s.localHeads = make(map[gitcli.RefName]gitcli.ObjectID, len(refs))
+	for _, r := range refs {
+		s.localHeads[r] = gitcli.ObjectID("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+	}
+	return s
+}
+
+// TestAssessLeftoverLocalBranchIsActionable: a done record whose recorded local
+// branch still exists — with no worktree on it, a cleaned workspace, and no remote
+// ref — still has cleanup work, so the full sweep retries it.
+func TestAssessLeftoverLocalBranchIsActionable(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", "")}, nil)
+	shared := withLocal(sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}, featureRefFor("archived"))
+	_, actionable := f.assess(t, cleanWS(), shared, 41)
+	if !actionableHas(actionable, 41) {
+		t.Fatalf("a leftover local branch must be actionable; actionable=%v", actionable)
+	}
+}
+
+// TestAssessAbsentLocalBranchIsNoWork: a complete inventory without the feature
+// branch proves its absence.
+func TestAssessAbsentLocalBranchIsNoWork(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", "")}, nil)
+	shared := withLocal(sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}, gitcli.RefName("refs/heads/main"))
+	entries, actionable := f.assess(t, cleanWS(), shared, 41)
+	if len(actionable) != 0 {
+		t.Fatalf("an absent local branch must dispatch nothing; actionable=%v", actionable)
+	}
+	assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
+}
+
+// TestAssessSimilarBranchNameDoesNotMatch: presence is an exact ref lookup, never
+// a prefix match.
+func TestAssessSimilarBranchNameDoesNotMatch(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", "")}, nil)
+	shared := withLocal(sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}, featureRefFor("archived-2"))
+	entries, actionable := f.assess(t, cleanWS(), shared, 41)
+	if len(actionable) != 0 {
+		t.Fatalf("a similarly named branch must not match; actionable=%v", actionable)
+	}
+	assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
+}
+
+// TestAssessFailedLocalBranchListIsUnknown: a failed local-branch listing makes
+// the local-ref leg unknown, never a clean absence.
+func TestAssessFailedLocalBranchListIsUnknown(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", "")}, nil)
+	shared := sweepSharedFacts{
+		remoteHeads:   map[gitcli.RefName]gitcli.ObjectID{},
+		localHeadsErr: errors.New("for-each-ref failed"),
+	}
+	entries, actionable := f.assess(t, cleanWS(), shared, 41)
+	if len(actionable) != 0 {
+		t.Fatalf("an unprovable local branch must not dispatch; actionable=%v", actionable)
+	}
+	e := findEntry(entries, 41)
+	assertEntry(t, e, SweepDispUnknown, ReasonSweepSnapshotUnknown)
+	if !strings.Contains(e.Message, sweepLegLocalRef) {
+		t.Fatalf("the unknown local-ref leg must be named; msg=%q", e.Message)
+	}
+}
+
+// TestAssessCarriedDescendantByPRFactsGetsNoPresenceDispatch: a record whose PR
+// merged into a branch other than the integration branch may be carried by a
+// descendant, so cleanup would keep its branch: branch presence alone dispatches
+// nothing. The control (merged into the integration branch) is actionable.
+func TestAssessCarriedDescendantByPRFactsGetsNoPresenceDispatch(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessArchivedDoneBlob(41, "archived")}, nil)
+	n := prNumberOf(t, f, 41)
+	body := "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" + assessInterior(t, f, 41) + "\n<!-- docket:backlink:end -->\n\nprose\n"
+	run := func(baseRef string) ([]MaintenanceEntry, []sweepWorkItem) {
+		shared := withLocal(prShared(map[int]string{n: body}), featureRefFor("archived"))
+		shared.prFacts = map[int]domain.PRFacts{n: {BaseRef: baseRef}}
+		return f.assess(t, cleanWS(), shared, 41)
+	}
+	entries, actionable := run("feat/parent")
+	if len(actionable) != 0 {
+		t.Fatalf("a possible carried descendant must not dispatch on presence; actionable=%v", actionable)
+	}
+	assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
+
+	if _, actionable := run(closeoutIntegrationBranch(f.pin)); !actionableHas(actionable, 41) {
+		t.Fatalf("control: a PR merged into the integration branch must be actionable; actionable=%v", actionable)
+	}
+}
+
+// TestAssessStackedOnRecordWithoutFactsGetsNoPresenceDispatch: with no PR facts,
+// a record carrying a stacked_on value may be a carried descendant and gets no
+// presence dispatch; today's worktree trigger still dispatches it.
+func TestAssessStackedOnRecordWithoutFactsGetsNoPresenceDispatch(t *testing.T) {
+	corpus := []StatusBlob{
+		finalizeBlob(5, "parent", "done", "high", prRefFor(5), ""),
+		finalizeBlob(41, "archived", "done", "high", prRefFor(41), "stacked_on: 5\n"),
+	}
+	f := newAssessFixture(t, corpus, nil)
+	shared := withLocal(sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}, featureRefFor("archived"))
+	entries, actionable := f.assess(t, cleanWS(), shared, 41)
+	if len(actionable) != 0 {
+		t.Fatalf("a stacked record without facts must not dispatch on presence; actionable=%v", actionable)
+	}
+	assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
+
+	shared.worktrees = []gitcli.WorktreeInfo{{Path: "/wt", Branch: featureRefFor("archived")}}
+	if _, actionable := f.assess(t, cleanWS(), shared, 41); !actionableHas(actionable, 41) {
+		t.Fatalf("the worktree trigger must still dispatch a stacked record; actionable=%v", actionable)
+	}
+}
+
+// TestAssessEmptyStackedOnStillRetriesLeftoverBranch: an empty stacked_on field
+// (as every ordinary record carries) is not a stack, so a leftover branch is
+// still retried.
+func TestAssessEmptyStackedOnStillRetriesLeftoverBranch(t *testing.T) {
+	corpus := []StatusBlob{finalizeBlob(41, "archived", "done", "high", prRefFor(41), "stacked_on:\n")}
+	f := newAssessFixture(t, corpus, nil)
+	shared := withLocal(sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}, featureRefFor("archived"))
+	if _, actionable := f.assess(t, cleanWS(), shared, 41); !actionableHas(actionable, 41) {
+		t.Fatalf("an empty stacked_on must not suppress the presence retry; actionable=%v", actionable)
+	}
+}
+
+// TestAssessLeftoverBranchBehindBlockedWorkspaceStaysBlocked: cleanup refuses a
+// blocked workspace before it reaches the branch, so a leftover branch next to a
+// foreign workspace dispatches nothing and stays snapshot-blocked.
+func TestAssessLeftoverBranchBehindBlockedWorkspaceStaysBlocked(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", "")}, nil)
+	shared := withLocal(sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}, featureRefFor("archived"))
+	entries, actionable := f.assess(t, wsState(41, workspace.StateForeign), shared, 41)
+	if len(actionable) != 0 {
+		t.Fatalf("a blocked workspace must not dispatch on presence; actionable=%v", actionable)
+	}
+	assertEntry(t, findEntry(entries, 41), SweepDispBlocked, ReasonSweepSnapshotBlocked)
+}
+
+// TestAssessLeftoverBranchReusedByLiveRecordGetsNoPresenceDispatch: when a live
+// (non-final) record now records the same branch name, the leftover branch is
+// that change's branch, so presence alone dispatches nothing and the done record
+// stays snapshot-no-work. The control, where the other record is final, still
+// dispatches. Both the results-artifact and the ordinary done path are covered.
+func TestAssessLeftoverBranchReusedByLiveRecordGetsNoPresenceDispatch(t *testing.T) {
+	reuse := func(b StatusBlob, slug string) StatusBlob {
+		b.Data = []byte(strings.Replace(string(b.Data), "branch: feat/"+slug+"\n", "branch: feat/research\n", 1))
+		return b
+	}
+	for _, tc := range []struct {
+		name string
+		done StatusBlob
+	}{
+		{"results-artifact", raDoneBlob(41, "research", true, "")},
+		{"ordinary", assessDoneBlob(41, "research", "")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			run := func(otherStatus string) ([]MaintenanceEntry, []sweepWorkItem) {
+				other := reuse(finalizeBlob(42, "next", otherStatus, "high", prRefFor(42), ""), "next")
+				f := newAssessFixture(t, []StatusBlob{tc.done, other}, nil)
+				shared := withLocal(sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}, featureRefFor("research"))
+				return f.assess(t, cleanWS(), shared, 41)
+			}
+			entries, actionable := run("in-progress")
+			if len(actionable) != 0 {
+				t.Fatalf("a branch a live record now uses must not dispatch on presence; actionable=%v", actionable)
+			}
+			assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
+
+			if _, actionable := run("done"); !actionableHas(actionable, 41) {
+				t.Fatalf("control: a branch only a final record shares must still dispatch; actionable=%v", actionable)
+			}
+		})
+	}
 }

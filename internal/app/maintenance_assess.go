@@ -16,7 +16,8 @@ import (
 // (full scope only). Before the sweep dispatches a fresh cleanup for every
 // done/stacked-merged record it discovered in the pinned inventory, it resolves
 // each candidate LOCALLY — from the pinned corpus, one shared remote-heads
-// advertisement, one shared worktree list, and the local workspace inspection —
+// advertisement, one shared worktree list, one shared local-branch inventory, and
+// the local workspace inspection —
 // and enqueues only the records that actually warrant a cleanup attempt. A record
 // whose every destructive leg is provably a no-op is reported as a pre-dispatch
 // observation with an EMPTY Operation (never a fabricated cleanup result) and is
@@ -64,19 +65,25 @@ const (
 // yields UNKNOWN assessments for the legs that depend on it, never a fan-out into
 // individual probes. remoteHeads is the complete branch-heads advertisement
 // (gitcli.ListRemoteHeads) gathered once when there are done candidates; worktrees
-// is the one worktree list. A set error means that inventory is unknown this
+// is the one worktree list; localHeads is the one local-branch inventory
+// (gitcli.ListLocalHeads). A set error means that inventory is unknown this
 // invocation — a ref's absence is unprovable, so the dependent leg is unresolved.
 type sweepSharedFacts struct {
 	remoteHeads    map[gitcli.RefName]gitcli.ObjectID
 	remoteHeadsErr error // set ⇒ remote-ref absence is unprovable this invocation
 	worktrees      []gitcli.WorktreeInfo
 	worktreesErr   error // set ⇒ local-ref absence is unprovable this invocation
+	localHeads     map[gitcli.RefName]gitcli.ObjectID
+	localHeadsErr  error // set ⇒ local-branch presence is unprovable this invocation
 	// prBodiesGathered is set when the invocation read its done candidates' PR
 	// bodies (one batched pass). When set, a number in neither prBodies nor
 	// prBodiesUnknown is still unknown — the leg never reads absence as no-work.
 	prBodiesGathered bool
 	prBodies         map[int]string // PR number -> body (never logged)
 	prBodiesUnknown  map[int]bool   // PR numbers the batched read could not resolve
+	// prFacts are the live PR facts the same batched read returned (keyed by PR
+	// number). It is set only when that read ran; a number it lacks has no facts.
+	prFacts map[int]domain.PRFacts
 }
 
 // The leg names the assessment reports in its diagnostic messages. They are
@@ -102,6 +109,7 @@ func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps Workspa
 
 	repo := sweepAssessRepo(deps)
 	link := linkContextOf(pin)
+	integration := closeoutIntegrationBranch(pin)
 
 	for _, it := range candidates {
 		c, out := inv.snap.Change(domain.ChangeID(it.id))
@@ -172,8 +180,14 @@ func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps Workspa
 		if !completed {
 			sweepAssessPRBacklinkLeg(shared, c, link, &a)
 		}
-		sweepAssessWorkspaceLeg(ctx, wdeps, repo, target, completed, &a)
-		sweepAssessLocalRefLeg(shared, featureRef, &a)
+		wsClear := sweepAssessWorkspaceLeg(ctx, wdeps, repo, target, completed, &a)
+		// A leftover local branch is work only when cleanup would reach the branch
+		// leg: a blocked or unresolved workspace refuses first, and a possible
+		// carried descendant keeps its branch on purpose. A branch name a live
+		// record now records is that change's branch, never this record's leftover.
+		_, reused := branchInUseBy(inv.snap, c.ID(), branch)
+		presence := wsClear && !reused && (completed || !sweepMaybeCarriedDescendant(shared, c, integration))
+		sweepAssessLocalRefLeg(shared, featureRef, presence, &a)
 		if !completed {
 			sweepAssessRemoteRefLeg(shared, featureRef, &a)
 		}
@@ -285,18 +299,21 @@ func sweepAssessPRBacklinkLeg(shared sweepSharedFacts, c domain.Change, link ren
 // on another, has no workspace here, so a proven-absent inspection is a no-op for
 // it — exactly as finalizeCleanupResultsArtifact reads it — while a foreign
 // leftover still blocks.
-func sweepAssessWorkspaceLeg(ctx context.Context, wdeps WorkspaceDeps, repo gitcli.Repository, target workspace.Target, completed bool, a *sweepLegAssessment) {
+//
+// It reports clear: true only when the leg recorded neither a blocker nor an
+// unknown, so cleanup would get past the workspace leg to the ref legs.
+func sweepAssessWorkspaceLeg(ctx context.Context, wdeps WorkspaceDeps, repo gitcli.Repository, target workspace.Target, completed bool, a *sweepLegAssessment) (clear bool) {
 	if wdeps.Service == nil {
 		a.markUnknown(sweepLegWorkspace, "no workspace service is wired to inspect the checkout")
-		return
+		return false
 	}
 	insp, err := wdeps.Service.Inspect(ctx, workspace.InspectRequest{Repository: repo, Target: target})
 	if err != nil {
 		a.markUnknown(sweepLegWorkspace, "the feature workspace could not be inspected")
-		return
+		return false
 	}
 	if completed && workspaceProvenAbsent(insp) {
-		return // a completed change with no workspace on this machine: nothing to remove
+		return true // a completed change with no workspace on this machine: nothing to remove
 	}
 	switch insp.Kind {
 	case workspace.StateCleaned:
@@ -307,18 +324,23 @@ func sweepAssessWorkspaceLeg(ctx context.Context, wdeps WorkspaceDeps, repo gitc
 		// tombstone and not authority to delete — pre-0368 an absent manifest
 		// inspected as StateForeign and hit this same blocked leg (change 0368).
 		a.markBlocked(sweepLegWorkspace, "a missing or foreign workspace manifest does not certify a clean checkout")
+		return false
 	default:
 		// A registered, ready/dirty/allocating/mismatched/branch-gone checkout is a
 		// live owned workspace the cleanup may still remove: possible work.
 		a.markWork()
 	}
+	return true
 }
 
-// sweepAssessLocalRefLeg resolves the local-ref leg from the shared worktree list:
-// a worktree still checked out on the feature ref is a leftover local ref the
-// cleanup would remove. A failed worktree list is unresolved — a ref's absence is
-// unprovable — never a clean absence.
-func sweepAssessLocalRefLeg(shared sweepSharedFacts, featureRef gitcli.RefName, a *sweepLegAssessment) {
+// sweepAssessLocalRefLeg resolves the local-ref leg from the shared worktree list
+// and the shared local-branch inventory. A worktree still checked out on the
+// feature ref is a leftover local ref the cleanup would remove. When presence is
+// set (cleanup would reach the branch leg), the feature branch still existing in
+// the local-branch inventory is work too — an exact ref lookup, never a prefix
+// match. A failed worktree list, or a failed local-branch inventory when presence
+// is set, is unresolved — a ref's absence is unprovable — never a clean absence.
+func sweepAssessLocalRefLeg(shared sweepSharedFacts, featureRef gitcli.RefName, presence bool, a *sweepLegAssessment) {
 	if shared.worktreesErr != nil {
 		a.markUnknown(sweepLegLocalRef, "the worktree list could not be read; the local ref's state is unprovable")
 		return
@@ -329,6 +351,32 @@ func sweepAssessLocalRefLeg(shared sweepSharedFacts, featureRef gitcli.RefName, 
 			return
 		}
 	}
+	if !presence {
+		return
+	}
+	if shared.localHeadsErr != nil {
+		a.markUnknown(sweepLegLocalRef, "the local branch list could not be read; whether the local branch still exists is unprovable")
+		return
+	}
+	if _, ok := shared.localHeads[featureRef]; ok {
+		a.markWork()
+	}
+}
+
+// sweepMaybeCarriedDescendant reports whether cleanup may keep the record's
+// branch as a possible carried descendant, so branch presence alone is no
+// reason to dispatch. With live PR facts from the shared batch (a non-empty
+// BaseRef), the PR merged somewhere other than the integration branch — the same
+// destination comparison cleanup makes. On any lookup miss (no batch ran, the
+// number is absent, or no BaseRef) it falls back to the record: a stacked_on
+// value marks a stack. An empty stacked_on field is not a stack.
+func sweepMaybeCarriedDescendant(shared sweepSharedFacts, c domain.Change, integration string) bool {
+	if n, ok := parsePRNumber(c.PR().Value); ok {
+		if facts, found := shared.prFacts[n]; found && facts.BaseRef != "" {
+			return facts.BaseRef != integration
+		}
+	}
+	return c.StackedOn().State == domain.FieldPresent
 }
 
 // sweepAssessRemoteRefLeg resolves the remote-ref leg from the shared complete
