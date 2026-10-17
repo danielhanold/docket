@@ -22,7 +22,7 @@ branch: 'fix/sweep-retries-deleting-a-leftover-local-branch'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-17T22:19:19Z'
+claimed_at: '2026-10-17T22:30:06Z'
 ---
 
 ## Artifacts
