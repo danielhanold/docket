@@ -22,7 +22,7 @@ branch: 'fix/let-change-groom-clear-stacked-on'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-17T21:24:59Z'
+claimed_at: '2026-10-17T21:26:26Z'
 ---
 
 ## Artifacts
