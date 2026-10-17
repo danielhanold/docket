@@ -64,19 +64,25 @@ const (
 // yields UNKNOWN assessments for the legs that depend on it, never a fan-out into
 // individual probes. remoteHeads is the complete branch-heads advertisement
 // (gitcli.ListRemoteHeads) gathered once when there are done candidates; worktrees
-// is the one worktree list. A set error means that inventory is unknown this
+// is the one worktree list; localHeads is the one local-branch inventory
+// (gitcli.ListLocalHeads). A set error means that inventory is unknown this
 // invocation — a ref's absence is unprovable, so the dependent leg is unresolved.
 type sweepSharedFacts struct {
 	remoteHeads    map[gitcli.RefName]gitcli.ObjectID
 	remoteHeadsErr error // set ⇒ remote-ref absence is unprovable this invocation
 	worktrees      []gitcli.WorktreeInfo
 	worktreesErr   error // set ⇒ local-ref absence is unprovable this invocation
+	localHeads     map[gitcli.RefName]gitcli.ObjectID
+	localHeadsErr  error // set ⇒ local-branch presence is unprovable this invocation
 	// prBodiesGathered is set when the invocation read its done candidates' PR
 	// bodies (one batched pass). When set, a number in neither prBodies nor
 	// prBodiesUnknown is still unknown — the leg never reads absence as no-work.
 	prBodiesGathered bool
 	prBodies         map[int]string // PR number -> body (never logged)
 	prBodiesUnknown  map[int]bool   // PR numbers the batched read could not resolve
+	// prFacts are the live PR facts the same batched read returned (keyed by PR
+	// number). It is set only when that read ran; a number it lacks has no facts.
+	prFacts map[int]domain.PRFacts
 }
 
 // The leg names the assessment reports in its diagnostic messages. They are
