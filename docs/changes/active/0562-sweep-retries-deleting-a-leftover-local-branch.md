@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/sweep-retries-deleting-a-leftover-local-branch'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-17T22:13:15Z'
+reconciled: true
+claimed_at: '2026-10-17T22:14:00Z'
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ A branch kept on purpose is retried on every full sweep, and its warning repeats
 ## Out of scope
 
 Changing when closeout first attempts cleanup, or any cleanup safety check. Branches of killed or stacked-merged changes. Stacked children whose PR merged into their parent's branch: they keep today's behavior here, and #567 designs deleting their branches. The implementation-scope sweep (preflight).
+
+## Reconcile log
+
+### 2026-10-17
+
+2026-10-17 — Reconciled against main a52c2d9c9 (results-artifact deliverable just landed via #559). The spec-cited symbols still exist as described: sweepAssessLocalRefLeg (worktree-only check), gatherSweepSharedFacts (remoteHeadsErr), sweepRunCleanup, finalizeCleanupLocalRefNoPR. #567 is still proposed, so carried descendants stay excluded as the spec says. No scope change.
