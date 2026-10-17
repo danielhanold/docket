@@ -1596,8 +1596,8 @@ docket status                           # the report (read-only)
 ### Sweep
 
 The pass that observes merged PRs and closes their changes out to `done`. It also retries cleanup
-for every `done` change, including a completed `results-artifact` change's leftover
-worktree. `maintenance.sweep` runs the full scope; preflight runs the implementation scope.
+for every `done` change whose worktree or local branch is left over, including a completed
+`results-artifact` change. `maintenance.sweep` runs the full scope; preflight runs the implementation scope.
 
 ```sh
 docket maintenance sweep

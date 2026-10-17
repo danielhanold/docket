@@ -117,8 +117,14 @@ immediately.
    only when its recorded tip is detached from every worktree AND contained in the verified merge
    chain, the remote ref only under an exact old-value lease with no open child PR still targeting
    it — never the metadata worktree, the primary tree, or any out-of-tree path. Any
-   resource whose ownership it cannot prove is **retained**, not force-removed. A failure aborts
-   per the caller's posture.
+   resource whose ownership it cannot prove is **retained**, not force-removed. When cleanup keeps
+   a branch because deleting it could lose work (it moved after the merge, it has commits not on
+   the integration branch, or another worktree has it checked out), the `pending` result names the
+   branch and gives the command to delete it by hand after review (`git branch -D <branch>`, or
+   `git push origin --delete <branch>` for the remote copy); if a live change now uses that branch
+   name, it says so instead of suggesting a delete. The warning shows in the human output of
+   `finalize cleanup` and of the sweep, and repeats on every full sweep until the branch is gone.
+   A failure aborts per the caller's posture.
 
    **Complete path (no PR):** on a `done` `results-artifact` change, cleanup makes no GitHub call
    and never touches a remote ref (the branch was never published). It removes a clean feature
@@ -126,7 +132,8 @@ immediately.
    of its own (its tip is contained in `origin/<integration_branch>`); uncommitted files, commits
    on the branch, or an unprovable probe keep everything and report `pending`. A change completed
    straight from `proposed` has no branch, and nothing present on this machine reads
-   `already-clean`. A `pending` cleanup never undoes the completion; the sweep retries a leftover worktree only.
+   `already-clean`. A `pending` cleanup never undoes the completion; the full sweep
+   retries cleanup for any `done` change whose worktree or local branch is still there.
 
    **Kill path:** cleanup removes only a merged `done` change's resources. On a `killed` change it
    removes nothing and returns `no-op` with disposition `retained` and reason `killed-retained` —
