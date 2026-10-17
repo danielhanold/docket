@@ -868,3 +868,40 @@ func TestAssessLeftoverBranchBehindBlockedWorkspaceStaysBlocked(t *testing.T) {
 	}
 	assertEntry(t, findEntry(entries, 41), SweepDispBlocked, ReasonSweepSnapshotBlocked)
 }
+
+// TestAssessLeftoverBranchReusedByLiveRecordGetsNoPresenceDispatch: when a live
+// (non-final) record now records the same branch name, the leftover branch is
+// that change's branch, so presence alone dispatches nothing and the done record
+// stays snapshot-no-work. The control, where the other record is final, still
+// dispatches. Both the results-artifact and the ordinary done path are covered.
+func TestAssessLeftoverBranchReusedByLiveRecordGetsNoPresenceDispatch(t *testing.T) {
+	reuse := func(b StatusBlob, slug string) StatusBlob {
+		b.Data = []byte(strings.Replace(string(b.Data), "branch: feat/"+slug+"\n", "branch: feat/research\n", 1))
+		return b
+	}
+	for _, tc := range []struct {
+		name string
+		done StatusBlob
+	}{
+		{"results-artifact", raDoneBlob(41, "research", true, "")},
+		{"ordinary", assessDoneBlob(41, "research", "")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			run := func(otherStatus string) ([]MaintenanceEntry, []sweepWorkItem) {
+				other := reuse(finalizeBlob(42, "next", otherStatus, "high", prRefFor(42), ""), "next")
+				f := newAssessFixture(t, []StatusBlob{tc.done, other}, nil)
+				shared := withLocal(sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}, featureRefFor("research"))
+				return f.assess(t, cleanWS(), shared, 41)
+			}
+			entries, actionable := run("in-progress")
+			if len(actionable) != 0 {
+				t.Fatalf("a branch a live record now uses must not dispatch on presence; actionable=%v", actionable)
+			}
+			assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
+
+			if _, actionable := run("done"); !actionableHas(actionable, 41) {
+				t.Fatalf("control: a branch only a final record shares must still dispatch; actionable=%v", actionable)
+			}
+		})
+	}
+}
