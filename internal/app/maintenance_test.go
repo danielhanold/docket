@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -1139,5 +1140,108 @@ func TestSweepCleanupSurfacesWorkspaceRemnant(t *testing.T) {
 	}
 	if !strings.Contains(e.Message, "/repo/.worktrees/merged") {
 		t.Errorf("entry message must name the leftover path; got %q", e.Message)
+	}
+}
+
+// sweepKeptBranchRun dispatches one cleanup for done record 30 returning a
+// pending result with the given findings, and returns the sweep result and the
+// record's cleanup entry.
+func sweepKeptBranchRun(t *testing.T, findings []StatusFinding) (MaintenanceResult, MaintenanceEntry) {
+	t.Helper()
+	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
+	}}
+	ops := &recordingSweepOps{cleanup: map[int]CleanupOpResult{
+		30: finalizeCleanupResult(30, CleanupDispPending, nil, findings,
+			"cleanup is partially complete; the retained legs are independently retryable"),
+	}}
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+	for _, e := range res.Entries {
+		if e.ID == 30 && e.Kind == sweepKindCleanup {
+			return res, e
+		}
+	}
+	t.Fatalf("no cleanup entry for 30; entries=%+v", res.Entries)
+	return res, MaintenanceEntry{}
+}
+
+func TestSweepCleanupCarriesKeptBranchWarnings(t *testing.T) {
+	res, e := sweepKeptBranchRun(t, []StatusFinding{
+		cleanupWarning(ReasonPRBacklinkPending, "the PR backlink edit did not land; retry cleanup"),
+		cleanupWarning(ReasonCleanupTipMoved,
+			"local branch feat/merged was kept: it moved off the merged commit. Review it, then delete it by hand (git branch -D feat/merged)."),
+		cleanupWarning(ReasonCleanupRemoteMoved,
+			"remote branch feat/merged was kept: it moved after the merge. Review it, then delete it by hand (git push origin --delete feat/merged)."),
+	})
+	if e.Reason != ReasonPRBacklinkPending {
+		t.Errorf("entry reason = %q, want the result's own reason %q", e.Reason, ReasonPRBacklinkPending)
+	}
+	for _, want := range []string{"git branch -D feat/merged", "git push origin --delete feat/merged"} {
+		if !strings.Contains(e.Message, want) {
+			t.Errorf("entry message must carry %q; got %q", want, e.Message)
+		}
+	}
+	human := res.HumanText()
+	for _, want := range []string{
+		"\nwarning: change #30: local branch feat/merged was kept",
+		"\nwarning: change #30: remote branch feat/merged was kept",
+	} {
+		if !strings.Contains(human, want) {
+			t.Errorf("HumanText must carry %q; got %q", want, human)
+		}
+	}
+	raw, err := json.Marshal(e)
+	if err != nil {
+		t.Fatalf("marshal entry: %v", err)
+	}
+	if strings.Contains(string(raw), `"kept`) {
+		t.Errorf("entry JSON must not gain a kept-branch key; got %s", raw)
+	}
+}
+
+func TestSweepCleanupKeptBranchSetsEmptyReason(t *testing.T) {
+	// A kept-branch warning that is not the result's first finding still
+	// supplies the entry reason when the result carried none.
+	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
+	}}
+	kept := cleanupWarning(ReasonCleanupCheckedOut,
+		"local branch feat/merged was kept: it is checked out in another worktree. Review that worktree, then delete the branch by hand (git branch -D feat/merged).")
+	ops := &recordingSweepOps{cleanup: map[int]CleanupOpResult{
+		30: newCleanupResult(OperationFinalizeCleanup, ResultApplied, CleanupOpResult{
+			ID: 30, Disposition: CleanupDispChildrenRetargetRequired, Findings: []StatusFinding{kept},
+		}),
+	}}
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+	var e *MaintenanceEntry
+	for i := range res.Entries {
+		if res.Entries[i].ID == 30 && res.Entries[i].Kind == sweepKindCleanup {
+			e = &res.Entries[i]
+		}
+	}
+	if e == nil {
+		t.Fatalf("no cleanup entry for 30; entries=%+v", res.Entries)
+	}
+	if e.Reason != ReasonCleanupCheckedOut || e.Message != kept.Message {
+		t.Errorf("entry = reason %q message %q, want %q / %q", e.Reason, e.Message, ReasonCleanupCheckedOut, kept.Message)
+	}
+	if !strings.Contains(res.HumanText(), "\nwarning: change #30: "+kept.Message) {
+		t.Errorf("HumanText must carry the kept-branch line; got %q", res.HumanText())
+	}
+}
+
+func TestSweepCleanupQuietReasonAddsNoWarningLine(t *testing.T) {
+	res, e := sweepKeptBranchRun(t, []StatusFinding{
+		cleanupWarning(ReasonCleanupLocalDelete, "the checked local ref delete did not land; the ref is retained"),
+	})
+	if strings.Contains(res.HumanText(), "\nwarning:") {
+		t.Errorf("a quiet cleanup reason must add no warning line; got %q", res.HumanText())
+	}
+	if strings.Contains(e.Message, "the checked local ref delete did not land") {
+		t.Errorf("a quiet finding must not be copied into the entry message; got %q", e.Message)
 	}
 }
