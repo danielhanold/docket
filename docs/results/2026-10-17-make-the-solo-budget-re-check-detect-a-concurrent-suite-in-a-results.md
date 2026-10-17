@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0528 — Make the solo budget re-check detect a concurrent suite in another worktree](../changes/active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md)**
+> ↩ **[Change 0528 — Make the solo budget re-check detect a concurrent suite in another worktree](../changes/archive/2026-10-17-0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md)**
 <!-- docket:backlink:end -->
 
 # Make the solo budget re-check detect a concurrent suite in another worktree — Results

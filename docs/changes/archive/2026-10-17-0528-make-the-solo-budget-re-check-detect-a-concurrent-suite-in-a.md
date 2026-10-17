@@ -2,7 +2,7 @@
 id: 528
 slug: 'make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a'
 title: 'Make the solo budget re-check detect a concurrent suite in another worktree'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-05'
@@ -22,7 +22,7 @@ branch: 'fix/make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a'
 pr: 'https://github.com/danielhanold/docket/pull/425'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-17T02:43:32Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-17T02:43:32Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md](../../superpowers/specs/2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md) |
+| Spec (merged) | [2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md) |
 | Plan | [2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md](../../superpowers/plans/2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) |
 | Results | [2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-results.md](../../results/2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-results.md) |
 <!-- docket:artifacts:end -->
