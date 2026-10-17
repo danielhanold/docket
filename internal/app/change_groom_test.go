@@ -2944,6 +2944,12 @@ func TestChangeGroomPlanNotRestackable(t *testing.T) {
 			if !strings.Contains(msg, "feat/add-a-widget") {
 				t.Errorf("message does not name the branch: %q", msg)
 			}
+			if strings.Contains(msg, "rebuild") {
+				t.Errorf("message names a remedy that does not lift the refusal: %q", msg)
+			}
+			if !strings.Contains(msg, "branch: field") {
+				t.Errorf("message does not tell the reader to clear the branch: field: %q", msg)
+			}
 			if len(plan.Files) != 0 {
 				t.Errorf("refused plan still carries files: %v", planPaths(plan))
 			}
