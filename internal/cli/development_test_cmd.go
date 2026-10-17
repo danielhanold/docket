@@ -36,7 +36,7 @@ func runDevelopmentTest(ctx context.Context, stdout, stderr io.Writer) int {
 	}
 
 	// The DOCKET_RUNTESTS_* env seams configure the Go runner (TESTS_DIR/BUDGETS
-	// select inputs; JOBS/STATE/STRICT tune the run). An unset seam takes the
+	// select inputs; JOBS/STATE tune the run). An unset seam takes the
 	// branch-faithful default.
 	testsDir := envOr("DOCKET_RUNTESTS_TESTS_DIR", filepath.Join(repoRoot, "tests"))
 	budgets := envOr("DOCKET_RUNTESTS_BUDGETS", filepath.Join(repoRoot, "tests", "runtime-budgets.tsv"))
@@ -71,7 +71,6 @@ func runDevelopmentTest(ctx context.Context, stdout, stderr io.Writer) int {
 		// existing unusable-bash exit-2 still fires). The DOCKET_BASH_PATH seam was
 		// retired with the frozen Bash control plane (change 0370).
 		StatePath:     state,
-		Strict:        os.Getenv("DOCKET_RUNTESTS_STRICT") == "1",
 		DurationsPath: os.Getenv("DOCKET_RUNTESTS_TEST_DURATIONS"),
 		Stdout:        stdout,
 		Stderr:        stderr,

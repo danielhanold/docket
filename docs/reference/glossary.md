@@ -751,7 +751,7 @@ prints even on a green run. `BUDGET WATCH:` and `PARALLEL-SENSITIVE:` are screen
 (parallel timings are machine-dependent); `SERIAL CONFIRMED OVER BUDGET:` is an authoritative breach
 to act on. `SERIAL CONFIRMATION NOT COUNTED:` is neither: another suite of the same repository was
 running during the solo re-check, so the reading is set aside and the test is re-checked on a later
-quiet run. None of these lines fails a default run, and none is part of the build gate in your
+quiet run. None of these lines fails a run, and none is part of the build gate in your
 repository.
 
 ### Build evidence

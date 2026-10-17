@@ -36,26 +36,24 @@ what the finalize gate runs (change 0318):
 go run ./cmd/docket development test    # the whole-suite, branch-faithful source gate
 ```
 
-Budgets are enforced by a **screen-then-confirm** regime:
-a parallel run over `ceiling * 5/2` records an advisory screening finding (`BUDGET WATCH:` /
-`PARALLEL-SENSITIVE:`), and only a solo measurement over `ceiling * 3/2` — from a single-job run, or
-from a scheduled serial confirmation the runner triggers after repeated overruns — is an
-authoritative breach (`SERIAL CONFIRMED OVER BUDGET:`). A scheduled re-check that reads over the
-line while another `docket development test` run of this repository, in any worktree, is running is
-not counted (`SERIAL CONFIRMATION NOT COUNTED:`): the test stays due and is re-checked on the next
-quiet run. Under `DOCKET_RUNTESTS_STRICT=1` such a reading is likewise not counted, but it fails the
-run (exit `4`), the same as a failed confirmation. A re-check under the line counts either way. A default run reports its findings loudly and
-still exits `0`. `DOCKET_RUNTESTS_STRICT=1` confirms every current candidate immediately and opts into
-the failing exit; `DOCKET_RUNTESTS_JOBS` sets the parallelism.
+No budget finding fails a run: a run whose only findings are budget findings exits `0`. Budgets are
+checked two ways.
 
-Exit `0` green (including a green run that breached a budget), `1` a test failed, `3` green but at
-least one target produced no result at all — the run certified nothing about it, `4` a breach under
-strict budget, `2` usage error / runner-internal fail-closed (unusable bash, missing or duplicate
-target, **undeclared or malformed suite category**), `130`/`143` interrupted by `SIGINT`/`SIGTERM`.
+- A parallel run (the default; `DOCKET_RUNTESTS_JOBS` sets the parallelism) screens each file
+  against `ceiling * 5/2` and records an advisory screening finding (`BUDGET WATCH:` /
+  `PARALLEL-SENSITIVE:`). After repeated overruns the runner schedules a solo re-check, and only a
+  re-check over `ceiling * 3/2` with no other suite running is an authoritative breach
+  (`SERIAL CONFIRMED OVER BUDGET:`). A scheduled re-check that reads over the line while another
+  `docket development test` run of this repository, in any worktree, is running is not counted
+  (`SERIAL CONFIRMATION NOT COUNTED:`): the test stays due and is re-checked on the next quiet run.
+  A re-check under the line always counts.
+- A single-job run (`DOCKET_RUNTESTS_JOBS=1`), or a file whose budget row is `serial`, is measured
+  directly against `ceiling * 3/2`, and a crossing prints `OVER BUDGET:`.
 
-Exit `5` — a source-hygiene preflight violation in the old topology — is **retired** (change 0370).
-Its still-meaningful invariant (see "Backticks in test source" below) is now a build-gate Go guard,
-not a per-run preflight.
+Exit `0` green (including a green run with budget findings), `1` a test failed, `3` green but at
+least one target produced no result at all — the run certified nothing about it, `2` usage error /
+runner-internal fail-closed (unusable bash, missing or duplicate target, **undeclared or malformed
+suite category**), `130`/`143` interrupted by `SIGINT`/`SIGTERM`.
 
 ### Formatting failures from the Go gate
 
@@ -172,8 +170,7 @@ evaluate them:
 
   Six files in the suite use this.
 
-**The enforcement.** The invariant is a **build-gate Go guard**, not a per-run preflight (change
-0370, which retired the old exit-5 source-hygiene preflight along with the frozen Bash runner):
+**The enforcement.** The invariant is a **build-gate Go guard**, not a per-run preflight:
 `internal/repoguard`'s `TestNoExecutableBacktickInSuiteSource` scans every declared-category shell
 suite file (the surviving runner's admitted population) and fails on a backtick the shell would
 execute at source-read — a bare or backslash-escaped backtick in bare-code or double-quoted

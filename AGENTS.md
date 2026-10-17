@@ -167,7 +167,7 @@ ledger* section owns the promotion mechanics.
   `tests/README.md` covers how to run the suite and where a new test belongs.
 - Read the budget report even on a green run: a `BUDGET WATCH:` / `PARALLEL-SENSITIVE:` line
   is a screening finding, and a `SERIAL CONFIRMED OVER BUDGET:` line is an authoritative
-  breach to act on. Neither fails the run by default (a parallel wall-clock number is
+  breach to act on. Neither fails the run (a parallel wall-clock number is
   machine-dependent, so a real breach is confirmed serially; see `tests/README.md`), so
   nothing else will catch them for you.
 

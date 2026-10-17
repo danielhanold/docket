@@ -37,7 +37,6 @@ type Config struct {
 	GoTestConcurrency int
 
 	StatePath string // default <per-repo state folder>/development-test-budget-state.tsv; DOCKET_RUNTESTS_STATE overrides
-	Strict    bool   // DOCKET_RUNTESTS_STRICT=1 — confirm every candidate and gate on a breach (exit 4)
 	Verbose   bool   // reserved false in 0318 (the command exposes no flags)
 
 	// DurationsPath is the DOCKET_RUNTESTS_TEST_DURATIONS injection seam: a TSV

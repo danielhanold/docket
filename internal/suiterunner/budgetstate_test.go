@@ -237,47 +237,8 @@ func TestScreeningNeverAuthoritative(t *testing.T) {
 			t.Fatalf("a parallel screen crossing must never be authoritative: %q", line)
 		}
 	}
-	if code := ExitCode(Tally{Files: 1, Passed: 1}, 0, false); code != 0 {
+	if code := ExitCode(Tally{Files: 1, Passed: 1}, 0); code != 0 {
 		t.Fatalf("screening advisory must exit 0, got %d", code)
-	}
-}
-
-func TestStrictConfirmsAllAndArms(t *testing.T) {
-	scripts := testsupport.TempDir(t)
-	a := writeScript(t, scripts, "sa", "echo 'ok - sa'\n")
-	b := writeScript(t, scripts, "sb", "echo 'ok - sb'\n")
-	ceil := 10
-	ka := ctxKey(a.Path, ceil)
-	kb := ctxKey(b.Path, ceil)
-
-	s := newBudgetState(8)
-	s.candidates = []ScreenObs{
-		{Key: ka, Path: a.Path, Ceiling: ceil, Secs: 30, Over: true},
-		{Key: kb, Path: b.Path, Ceiling: ceil, Secs: 30, Over: true},
-	}
-	// a breaches (solo 20 > 15), b clears (solo 1 <= 15).
-	dur := writeDurations(t, [][3]string{{"test_sa.sh", "30", "20"}, {"test_sb.sh", "30", "1"}})
-	cfg := Config{Bash: bashPath(t), Work: testsupport.TempDir(t), DurationsPath: dur}
-
-	var buf bytes.Buffer
-	armed := s.StrictConfirmCandidates(context.Background(), cfg, &buf)
-	out := buf.String()
-
-	if n := strings.Count(out, "SERIAL CONFIRMATION DUE:"); n != 2 {
-		t.Fatalf("strict confirms EVERY candidate: want 2 DUE, got %d:\n%s", n, out)
-	}
-	if !armed {
-		t.Fatal("a confirmed breach must arm strict (exit 4)")
-	}
-	if !strings.Contains(out, "SERIAL CONFIRMED OVER BUDGET: "+a.Path) {
-		t.Fatalf("the breached candidate must be reported:\n%s", out)
-	}
-	// Strict persists only confirmation outcomes, never screening counters.
-	if r := s.records[ka]; r.streak != 0 || r.since != 0 {
-		t.Fatalf("strict must not advance screening counters: streak=%d since=%d", r.streak, r.since)
-	}
-	if r := s.records[kb]; r.streak != 0 || r.since != 0 {
-		t.Fatalf("strict must not advance screening counters: streak=%d since=%d", r.streak, r.since)
 	}
 }
 
@@ -649,64 +610,5 @@ func TestCannotTellIsNotCounted(t *testing.T) {
 		}
 		t.Cleanup(func() { os.Chmod(sign, 0o644) })
 		check(t, s, path, key, cfg)
-	})
-}
-
-// TestStrictNotCountedArms is a named mutation guard: under --strict a not-counted
-// reading fails closed (arms exit 4) like a failed confirmation, without
-// recording a breach.
-func TestStrictNotCountedArms(t *testing.T) {
-	setup := func(t *testing.T, names ...string) (*budgetState, map[string]string, map[string]string, Config) {
-		t.Helper()
-		scripts := testsupport.TempDir(t)
-		ceil := 10
-		s := newBudgetState(8)
-		paths, keys := map[string]string{}, map[string]string{}
-		var rows [][3]string
-		for _, n := range names {
-			tgt := writeScript(t, scripts, n, "echo 'ok - "+n+"'\n")
-			paths[n], keys[n] = tgt.Path, ctxKey(tgt.Path, ceil)
-			s.candidates = append(s.candidates, ScreenObs{Key: keys[n], Path: tgt.Path, Ceiling: ceil, Secs: 30, Over: true})
-			solo := "1"
-			if n == "sna" {
-				solo = "20"
-			}
-			rows = append(rows, [3]string{"test_" + n + ".sh", "30", solo})
-		}
-		cfg := Config{
-			Bash:          bashPath(t),
-			Work:          testsupport.TempDir(t),
-			DurationsPath: writeDurations(t, rows),
-			StatePath:     filepath.Join(testsupport.TempDir(t), "state.tsv"),
-		}
-		holdPeerSign(t, runSignDir(cfg.StatePath), peerSignName, "worktree="+peerWorktree+"\n")
-		return s, paths, keys, cfg
-	}
-
-	t.Run("over-line arms", func(t *testing.T) {
-		s, paths, keys, cfg := setup(t, "sna", "snb")
-		var buf bytes.Buffer
-		armed := s.StrictConfirmCandidates(context.Background(), cfg, &buf)
-		out := buf.String()
-		wantNotCounted(t, out, paths["sna"], "another suite was running ("+peerWorktree+")")
-		if strings.Contains(out, "SERIAL CONFIRMED OVER BUDGET") {
-			t.Fatalf("strict must not confirm a contended reading:\n%s", out)
-		}
-		if !armed {
-			t.Fatal("a not-counted strict reading must arm (exit 4)")
-		}
-		if r := s.records[keys["sna"]]; r.confRes != "not-counted" || r.state != "watching" || r.lastSolo != "-" {
-			t.Fatalf("not-counted strict record: %+v; want not-counted, state/lastSolo untouched", *r)
-		}
-		if r := s.records[keys["snb"]]; r.confRes != "cleared" {
-			t.Fatalf("under-line candidate confRes = %q, want cleared", r.confRes)
-		}
-	})
-	t.Run("under-line only", func(t *testing.T) {
-		s, _, _, cfg := setup(t, "snb")
-		var buf bytes.Buffer
-		if s.StrictConfirmCandidates(context.Background(), cfg, &buf) {
-			t.Fatalf("an under-line reading never arms, even with a peer:\n%s", buf.String())
-		}
 	})
 }
