@@ -1,12 +1,12 @@
 # Backlog
 
-**557 changes** — 🟢 1 in progress · 🟣 1 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 394 done · 🗑️ 142 killed
+**557 changes** — 🔵 1 built · 🟣 1 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 394 done · 🗑️ 142 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0528](active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | `medium` | `fix` | [spec](../superpowers/specs/2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md) | `fix/make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0528](active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | `medium` | `fix` | [#425](https://github.com/danielhanold/docket/pull/425) | awaiting merge |
 
 ## 🟣 Groomed (1)
 
