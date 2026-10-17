@@ -14,7 +14,7 @@ discovered_from: [547]
 adrs: [129, 141, 148, 151]
 spec: 'docs/superpowers/specs/2026-10-17-close-a-change-to-done-without-a-pr-design.md'
 plan: 'docs/superpowers/plans/2026-10-17-close-a-change-to-done-without-a-pr.md'
-results:
+results: 'docs/results/2026-10-17-close-a-change-to-done-without-a-pr-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-17T18:20:32Z'
 |---|---|
 | Spec | [2026-10-17-close-a-change-to-done-without-a-pr-design.md](../../superpowers/specs/2026-10-17-close-a-change-to-done-without-a-pr-design.md) |
 | Plan | [2026-10-17-close-a-change-to-done-without-a-pr.md](../../superpowers/plans/2026-10-17-close-a-change-to-done-without-a-pr.md) |
+| Results | [2026-10-17-close-a-change-to-done-without-a-pr-results.md](../../results/2026-10-17-close-a-change-to-done-without-a-pr-results.md) |
 | ADRs | [ADR-0129](../../adrs/0129-collision-free-docket-vocabulary.md), [ADR-0141](../../adrs/0141-build-artifacts-plan-results-evidence-live-on-the-metadata-b.md), [ADR-0148](../../adrs/0148-every-keyed-run-done-verdict-drives-the-successful-run-close.md), [ADR-0151](../../adrs/0151-a-change-s-deliverable-decides-how-it-reaches-done-done-no-l.md) |
 <!-- docket:artifacts:end -->
 
