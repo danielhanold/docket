@@ -135,9 +135,9 @@ whatever starts them keys on the outcome each run declares. Every run ends by de
 - **halted** — something needs a human (an escalation, an invalidated design, a broken precondition).
 
 A driver keys on these with one simple rule: **continue on `advanced` or `contended`, stop on
-`drained` or `halted`.** The contract is deliberately driver-agnostic — a human re-typing the
-command between runs satisfies it exactly as well as any automated driver, so nothing here depends
-on a particular tool.
+`drained` or `halted`.** The contract is deliberately driver-agnostic — a human re-issuing the
+plain request between runs satisfies it exactly as well as any automated driver, so nothing here
+depends on a particular tool.
 
 The recommended driver is the built-in `/loop`, which starts a fresh run each iteration so the heavy
 build work stays isolated and the driver's own context stays small:

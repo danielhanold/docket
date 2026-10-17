@@ -75,7 +75,8 @@ verdict, not the worker's report, says what may happen next.
   It still builds to a PR, but it has no key: if it stops partway there is
   no automatic retry, resume, or cancel, and its outcome can only be read
   with `docket run verdict --unattributed`, which never authorizes a
-  re-dispatch.
+  re-dispatch. A later `docket run start implement-next --resume <id>`
+  starts a tracked resume of the stopped change.
 - **The verdict** (`docket run verdict <key>`) reads the tracker's own
   record of the run and prints exactly one decision line. It always exits
   0: the decision is in the line, never in the exit code. Without a key,
