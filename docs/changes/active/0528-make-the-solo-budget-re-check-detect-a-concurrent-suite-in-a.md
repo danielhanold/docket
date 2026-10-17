@@ -22,7 +22,7 @@ branch: 'fix/make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-17T02:35:45Z'
+claimed_at: '2026-10-17T02:37:19Z'
 ---
 
 ## Artifacts
