@@ -451,11 +451,11 @@ func TestChangeGroomReviseShapeValidation(t *testing.T) {
 			r.SpecMarkdown = ""
 			r.Sections = []SectionEditRequest{{Heading: "## Why", Intent: "preserve"}}
 		}, "empty-revise"},
-		{"relationships-only revise refused", func(r *ChangeGroomRequest) {
-			r.SpecMarkdown = ""
+		{"relationships-only revise passes", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown, r.SpecRevision = "", ""
 			r.Sections = nil
 			r.DependsOn = []int{1}
-		}, "empty-revise"},
+		}, ""},
 		{"unparseable revise spec_markdown refused", func(r *ChangeGroomRequest) {
 			r.SpecMarkdown = "---\nid: 1\n"
 		}, "invalid-spec_markdown"},
@@ -2722,5 +2722,113 @@ func TestChangeGroomPlanResultsArtifactWithStackClear(t *testing.T) {
 		if !strings.Contains(rec, want) {
 			t.Errorf("record lacks %q:\n%s", want, rec)
 		}
+	}
+}
+
+// --- relationship-only revise and stacked_on shape (change 0563) ---------
+
+func TestChangeGroomEachRelationshipFieldAloneIsAValidRevise(t *testing.T) {
+	cases := map[string]func(*ChangeGroomRequest){
+		"depends_on [1]":      func(r *ChangeGroomRequest) { r.DependsOn = []int{1} },
+		"depends_on []":       func(r *ChangeGroomRequest) { r.DependsOn = []int{} },
+		"related [1]":         func(r *ChangeGroomRequest) { r.Related = []int{1} },
+		"discovered_from [1]": func(r *ChangeGroomRequest) { r.DiscoveredFrom = []int{1} },
+		"adrs [1]":            func(r *ChangeGroomRequest) { r.ADRs = []int{1} },
+		"stacked_on 3":        func(r *ChangeGroomRequest) { r.StackedOn = intPtrTest(3) },
+		"stacked_on 0":        func(r *ChangeGroomRequest) { r.StackedOn = intPtrTest(0) },
+	}
+	for name, mut := range cases {
+		t.Run(name, func(t *testing.T) {
+			if findings := validateChangeGroomShape(fieldOnlyReviseRequest(mut)); len(findings) != 0 {
+				t.Fatalf("relationship-only revise refused: %v", findings)
+			}
+		})
+	}
+	findings := validateChangeGroomShape(fieldOnlyReviseRequest(func(*ChangeGroomRequest) {}))
+	var msg string
+	for _, f := range findings {
+		if f.Code == string(FCEmptyRevise) {
+			msg = f.Message
+		}
+	}
+	if msg == "" {
+		t.Fatalf("empty revise not refused; findings %v", findings)
+	}
+	for _, want := range []string{"depends_on", "related", "discovered_from", "adrs", "stacked_on", "deliverable", "type", "branch_prefix"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("empty-revise message %q does not name %q", msg, want)
+		}
+	}
+}
+
+func TestChangeGroomStackedOnShape(t *testing.T) {
+	const wantMsg = "stacked_on must be a positive change id, or 0 to clear"
+	trivial := ChangeGroomRequest{
+		ChangeID: 2, Path: groomPath(2, "add-a-widget"),
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Outcome: GroomTrivial,
+		Sections: []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}},
+	}
+	negatives := map[string]ChangeGroomRequest{
+		"spec":      validGroomSpecRequest(),
+		"trivial":   trivial,
+		"revise":    fieldOnlyReviseRequest(func(*ChangeGroomRequest) {}),
+		"re-enable": reEnableRequest(),
+	}
+	for name, req := range negatives {
+		t.Run("negative "+name, func(t *testing.T) {
+			req.StackedOn = intPtrTest(-1)
+			found := false
+			for _, f := range validateChangeGroomShape(req) {
+				if f.Code == string(FCInvalidStackedOn) && f.Message == wantMsg {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("missing invalid-stacked_on %q", wantMsg)
+			}
+		})
+	}
+	ab := abstainRequest()
+	ab.StackedOn = intPtrTest(0)
+	if f := validateChangeGroomShape(ab); !hasFindingCode(f, "invalid-stacked_on") {
+		t.Errorf("abstain with stacked_on 0 not refused: %v", f)
+	}
+	clear := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) {
+		r.Deliverable = "results-artifact"
+		r.StackedOn = intPtrTest(0)
+	})
+	if f := validateChangeGroomShape(clear); len(f) != 0 {
+		t.Errorf("results-artifact with stacked_on 0 refused: %v", f)
+	}
+	stack := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) {
+		r.Deliverable = "results-artifact"
+		r.StackedOn = intPtrTest(3)
+	})
+	if f := validateChangeGroomShape(stack); !hasFindingCode(f, "results-artifact-not-stackable") {
+		t.Errorf("results-artifact with stacked_on 3 not refused: %v", f)
+	}
+}
+
+func TestChangeGroomNegativeStackedOnRefusedWithoutEngineCall(t *testing.T) {
+	run := func(n int) (ChangeGroomResult, *recordingEngine) {
+		engine := &recordingEngine{}
+		reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+		deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+		req := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.StackedOn = intPtrTest(n) })
+		return ChangeGroom(context.Background(), deps, "", req), engine
+	}
+	res, engine := run(-1)
+	if res.Result != ResultInvalidInput {
+		t.Fatalf("result = %q, want invalid-input", res.Result)
+	}
+	if !hasFindingCode(res.Findings, "invalid-stacked_on") {
+		t.Errorf("missing invalid-stacked_on; got %v", res.Findings)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("engine called %d times on a shape failure, want 0", len(engine.calls))
+	}
+	res, _ = run(0)
+	if hasFindingCode(res.Findings, "empty-revise") {
+		t.Errorf("stacked_on 0 revise refused as empty: %v", res.Findings)
 	}
 }
