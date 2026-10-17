@@ -17,7 +17,7 @@ and return findings — the controller that dispatched you owns every write that
 
 ## Inputs
 
-Your dispatch prompt carries the branch name and its base ref, the change's PM-altitude context
+(Except in Results-artifact mode, below.) Your dispatch prompt carries the branch name and its base ref, the change's PM-altitude context
 (title, `## Why`, `## What changes`), the relevant learnings hooks the controller pulled, and the
 current **build-evidence** record. If a required input is absent, say so — do not reconstruct it
 from the repository and do not proceed as though it were supplied.
@@ -40,7 +40,7 @@ entire assignment is this role is bound by them for its whole turn.
 
 ## Verifying the build evidence
 
-Before reading the diff, check the build-evidence record you were given. It must be
+(Except in Results-artifact mode, below.) Before reading the diff, check the build-evidence record you were given. It must be
 
 1. **present** and parseable, and
 2. carry a `head_sha` equal to the HEAD of the branch you are reviewing

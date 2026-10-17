@@ -87,7 +87,7 @@ immediately.
    worktree, or GitHub; cleanup (step 3) follows it.
 
 2. **Artifact block + back-links — owned atomically by step 1, no separate caller commit.**
-   Every close-out transaction re-render the archived record's `## Artifacts` block (relative
+   Every close-out transaction re-renders the archived record's `## Artifacts` block (relative
    same-branch rows, plus an absolute `Spec (merged)` row for a merged change) **and** re-stamp every
    metadata-resident back-link — spec, plan, and results — retargeted to the
    now-**archived** change path, **in the same step-1 metadata commit** as the archive:
@@ -126,7 +126,7 @@ immediately.
    of its own (its tip is contained in `origin/<integration_branch>`); uncommitted files, commits
    on the branch, or an unprovable probe keep everything and report `pending`. A change completed
    straight from `proposed` has no branch, and nothing present on this machine reads
-   `already-clean`. A `pending` cleanup never undoes the completion; the sweep retries it.
+   `already-clean`. A `pending` cleanup never undoes the completion; the sweep retries a leftover worktree only.
 
    **Kill path:** cleanup removes only a merged `done` change's resources. On a `killed` change it
    removes nothing and returns `no-op` with disposition `retained` and reason `killed-retained` —
