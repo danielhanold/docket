@@ -22,7 +22,7 @@ branch: 'feat/close-a-change-to-done-without-a-pr'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-17T18:05:30Z'
+claimed_at: '2026-10-17T18:20:32Z'
 ---
 
 ## Artifacts
