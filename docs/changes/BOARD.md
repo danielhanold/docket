@@ -1,6 +1,6 @@
 # Backlog
 
-**567 changes** — 🟢 1 in progress · 🟣 1 groomed · 🟡 9 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
+**567 changes** — 🟢 1 in progress · 🟣 2 groomed · 🟡 8 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
 
 ## 🟢 In progress (1)
 
@@ -8,20 +8,20 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0563](active/0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | `low` | `fix` | [spec](../superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md) | `fix/let-change-groom-clear-stacked-on` |  |
 
-## 🟣 Groomed (1)
+## 🟣 Groomed (2)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | [spec](../superpowers/specs/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md) |
 | [0557](active/0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | `low` | `refactor` | [spec](../superpowers/specs/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md) |
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0567](active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Cleanup deletes a stacked child's branches once its code reaches main | `low` | `fix` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `fix` | needs-grooming |
 | [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Make killed-parent stacking behavior match its documented policy | `low` | `fix` | needs-grooming |
-| [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | needs-grooming |
 | [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
 | [0560](active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Mark a build-ready change as off-limits to the autonomous loop | `medium` | `feat` | needs-grooming |
 | [0558](active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Name the SERIAL CONFIRMATION NOT COUNTED budget line in AGENTS.md | `low` | `docs` | needs-grooming |
