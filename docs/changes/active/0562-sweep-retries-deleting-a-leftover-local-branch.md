@@ -13,7 +13,7 @@ related: [567, 390]
 discovered_from: [559]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-17-sweep-retries-deleting-a-leftover-local-branch.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-17T22:19:19Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md](../../superpowers/specs/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md) |
+| Plan | [2026-10-17-sweep-retries-deleting-a-leftover-local-branch.md](../../superpowers/plans/2026-10-17-sweep-retries-deleting-a-leftover-local-branch.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
