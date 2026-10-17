@@ -72,6 +72,40 @@ func TestRunSignDir(t *testing.T) {
 	}
 }
 
+// TestPutUpRunSignLocksBeforePublishing guards "a sign is never visible
+// unlocked": at runSignLockedHook (between the lock and the rename in
+// putUpRunSign) no visible sign may exist yet, and the temporary file must
+// already probe held.
+func TestPutUpRunSignLocksBeforePublishing(t *testing.T) {
+	dir := filepath.Join(testsupport.TempDir(t), runSignDirName)
+	called := false
+	runSignLockedHook = func(tmp string) {
+		if filepath.Dir(tmp) != dir {
+			return
+		}
+		called = true
+		if !runSignTempName.MatchString(filepath.Base(tmp)) {
+			t.Errorf("pre-publish name %q does not match %s", filepath.Base(tmp), runSignTempName)
+		}
+		if visible := signNamesIn(t, dir, runSignName.MatchString); len(visible) != 0 {
+			t.Errorf("a sign is visible before it is locked and published: %v", visible)
+		}
+		if got := process.ProbeLock(tmp); got != process.LockProbeHeld {
+			t.Errorf("the temporary sign must be held before it is published, probe = %v", got)
+		}
+	}
+	t.Cleanup(func() { runSignLockedHook = nil })
+
+	s, err := putUpRunSign(dir, "/repo/x")
+	if err != nil {
+		t.Fatalf("putUpRunSign: %v", err)
+	}
+	t.Cleanup(s.takeDown)
+	if !called {
+		t.Fatal("putUpRunSign never reached runSignLockedHook")
+	}
+}
+
 func TestPutUpRunSignIsHeldAndNamed(t *testing.T) {
 	dir := filepath.Join(testsupport.TempDir(t), "not", "yet", runSignDirName)
 	s, err := putUpRunSign(dir, "/repo/x")
