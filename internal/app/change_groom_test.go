@@ -2526,3 +2526,201 @@ func TestChangeGroomTypeEditChangesNextClaimBranch(t *testing.T) {
 		})
 	}
 }
+
+// --- stacked_on clear and missing keys (change 0563) ---
+
+// bareKeysChange is shaped like active record 0007: no auto_groomable:,
+// stacked_on:, or discovered_from: key (it keeps the artifacts block, which
+// groom's ReplaceBlock requires).
+func bareKeysChange(id int, slug string) string {
+	s := strings.Replace(groomableChange(id, slug), "stacked_on:\n", "", 1)
+	return strings.Replace(s, "discovered_from: []\n", "", 1)
+}
+
+// noUpdatedChange lacks both updated: and auto_groomable:.
+func noUpdatedChange(id int, slug string) string {
+	return strings.Replace(groomableChange(id, slug), "updated: 2026-08-02\n", "", 1)
+}
+
+// requireLacks fails the test when the fixture src carries any of keys, so a
+// fixture drift cannot make a missing-key test vacuous.
+func requireLacks(t *testing.T, src string, keys ...string) {
+	t.Helper()
+	for _, k := range keys {
+		if strings.Contains(src, "\n"+k+":") {
+			t.Fatalf("fixture unexpectedly carries %s:\n%s", k, src)
+		}
+	}
+}
+
+// requireKeyOnce fails unless rec carries exactly one "key:" occurrence.
+func requireKeyOnce(t *testing.T, rec string, keys ...string) {
+	t.Helper()
+	for _, k := range keys {
+		if n := strings.Count(rec, k+":"); n != 1 {
+			t.Errorf("record carries %s: %d times, want 1:\n%s", k, n, rec)
+		}
+	}
+}
+
+func groomPlanRecord(t *testing.T, files map[string]string, req ChangeGroomRequest) (transaction.MutationPlan, string) {
+	t.Helper()
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	return plan, string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+}
+
+func TestChangeGroomPlanClearStackedOn(t *testing.T) {
+	path := groomPath(2, "add-a-widget")
+	files := map[string]string{
+		path:                       stackedChange(2, "add-a-widget", 3),
+		groomPath(3, "base-thing"): groomableChange(3, "base-thing"),
+		"docs/changes/BOARD.md":    "# Backlog\n\nold\n",
+	}
+	plan, rec := groomPlanRecord(t, files, fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.StackedOn = intPtrTest(0) }))
+	if !strings.Contains(rec, "\nstacked_on:\n") || strings.Contains(rec, "stacked_on: 3") {
+		t.Fatalf("stacked_on not cleared to the valueless key:\n%s", rec)
+	}
+	if !strings.Contains(strings.Join(planPaths(plan), "\n"), "docs/changes/BOARD.md") {
+		t.Errorf("board not planned; files: %v", planPaths(plan))
+	}
+	if n := strings.Count(rec, "docket:artifacts:start"); n != 1 {
+		t.Errorf("artifacts block start markers = %d, want 1", n)
+	}
+
+	files[path] = rec
+	after, err := newPlanningLoader(planningTestConfig(nil)).Load(context.Background(), newFakeTree(files))
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	ch, out := after.Snapshot.Change(domain.ChangeID(2))
+	if out != domain.LookupFound {
+		t.Fatalf("change 2 absent after reload")
+	}
+	got := domain.ResolveEffectiveBase(after.Snapshot, ch, domain.NewBranchFacts(map[string]bool{}))
+	want := domain.EffectiveBase{Kind: domain.BaseResolved, Branch: after.Snapshot.Policy().IntegrationBranch}
+	if got != want {
+		t.Errorf("effective base = %+v, want %+v", got, want)
+	}
+}
+
+func TestChangeGroomPlanClearStackedOnInsertsMissingKey(t *testing.T) {
+	src := bareKeysChange(2, "add-a-widget")
+	requireLacks(t, src, "stacked_on")
+	files := map[string]string{
+		groomPath(2, "add-a-widget"): src,
+		"docs/changes/BOARD.md":      "# Backlog\n\nold\n",
+	}
+	_, rec := groomPlanRecord(t, files, fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.StackedOn = intPtrTest(0) }))
+	if !strings.Contains(rec, "\nstacked_on:\n") {
+		t.Errorf("valueless stacked_on: not inserted:\n%s", rec)
+	}
+	requireKeyOnce(t, rec, "stacked_on")
+}
+
+func TestChangeGroomPlanMissingKeysReviseInsertsRelationships(t *testing.T) {
+	src := bareKeysChange(2, "add-a-widget")
+	requireLacks(t, src, "stacked_on", "discovered_from")
+	files := map[string]string{
+		groomPath(2, "add-a-widget"):        src,
+		groomPath(3, "base-thing"):          groomableChange(3, "base-thing"),
+		"docs/changes/active/0001-first.md": fixtureChange(1, "first"),
+	}
+	_, rec := groomPlanRecord(t, files, fieldOnlyReviseRequest(func(r *ChangeGroomRequest) {
+		r.StackedOn = intPtrTest(3)
+		r.DiscoveredFrom = []int{1}
+	}))
+	for _, want := range []string{"\nstacked_on: 3\n", "\ndiscovered_from: [1]\n"} {
+		if !strings.Contains(rec, want) {
+			t.Errorf("record lacks %q:\n%s", want, rec)
+		}
+	}
+	requireKeyOnce(t, rec, "stacked_on", "discovered_from")
+}
+
+func TestChangeGroomPlanMissingKeyExplicitEmptyListInserted(t *testing.T) {
+	src := bareKeysChange(2, "add-a-widget")
+	requireLacks(t, src, "discovered_from")
+	files := map[string]string{groomPath(2, "add-a-widget"): src}
+	_, rec := groomPlanRecord(t, files, fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.DiscoveredFrom = []int{} }))
+	if !strings.Contains(rec, "\ndiscovered_from: []\n") {
+		t.Errorf("explicit empty discovered_from not inserted:\n%s", rec)
+	}
+	requireKeyOnce(t, rec, "discovered_from")
+}
+
+func TestChangeGroomPlanMissingKeysAbstainAndReEnable(t *testing.T) {
+	records := []struct {
+		name  string
+		src   string
+		lacks []string
+	}{
+		{"0007-shaped", bareKeysChange(2, "add-a-widget"), []string{"auto_groomable", "stacked_on", "discovered_from"}},
+		{"no updated", noUpdatedChange(2, "add-a-widget"), []string{"auto_groomable", "updated"}},
+	}
+	requests := []struct {
+		name string
+		req  ChangeGroomRequest
+		want string
+	}{
+		{"abstain", abstainRequest(), "auto_groomable: false"},
+		{"re-enable", reEnableRequest(), "auto_groomable: true"},
+	}
+	for _, r := range records {
+		for _, q := range requests {
+			t.Run(r.name+"/"+q.name, func(t *testing.T) {
+				requireLacks(t, r.src, r.lacks...)
+				files := map[string]string{groomPath(2, "add-a-widget"): r.src}
+				_, rec := groomPlanRecord(t, files, q.req)
+				for _, want := range []string{q.want, "updated: '2026-08-16'"} {
+					if !strings.Contains(rec, want) {
+						t.Errorf("record lacks %q:\n%s", want, rec)
+					}
+				}
+				requireKeyOnce(t, rec, "auto_groomable", "updated")
+			})
+		}
+	}
+}
+
+func TestChangeGroomPlanSpecOutcomeOnBareRecordInsertsEveryField(t *testing.T) {
+	src := bareKeysChange(2, "add-a-widget")
+	requireLacks(t, src, "auto_groomable", "stacked_on", "discovered_from")
+	files := map[string]string{
+		groomPath(2, "add-a-widget"):        src,
+		groomPath(3, "base-thing"):          groomableChange(3, "base-thing"),
+		"docs/changes/active/0001-first.md": fixtureChange(1, "first"),
+	}
+	req := validGroomSpecRequest()
+	req.DependsOn = []int{1}
+	req.StackedOn = intPtrTest(3)
+	req.DiscoveredFrom = []int{1}
+	_, rec := groomPlanRecord(t, files, req)
+	for _, want := range []string{
+		"spec: 'docs/superpowers/specs/2026-08-16-add-a-widget-design.md'",
+		"\ndepends_on: [1]\n", "\nstacked_on: 3\n", "\ndiscovered_from: [1]\n",
+	} {
+		if !strings.Contains(rec, want) {
+			t.Errorf("record lacks %q:\n%s", want, rec)
+		}
+	}
+	requireKeyOnce(t, rec, "spec", "depends_on", "stacked_on", "discovered_from")
+}
+
+func TestChangeGroomPlanResultsArtifactWithStackClear(t *testing.T) {
+	files := map[string]string{
+		groomPath(2, "add-a-widget"): stackedChange(2, "add-a-widget", 3),
+		groomPath(3, "base-thing"):   groomableChange(3, "base-thing"),
+	}
+	_, rec := groomPlanRecord(t, files, fieldOnlyReviseRequest(func(r *ChangeGroomRequest) {
+		r.Deliverable = "results-artifact"
+		r.StackedOn = intPtrTest(0)
+	}))
+	for _, want := range []string{"\ndeliverable: 'results-artifact'\n", "\nstacked_on:\n"} {
+		if !strings.Contains(rec, want) {
+			t.Errorf("record lacks %q:\n%s", want, rec)
+		}
+	}
+}
