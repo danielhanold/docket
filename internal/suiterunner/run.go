@@ -116,6 +116,24 @@ func Run(ctx context.Context, cfg Config) int {
 		}
 	}
 
+	// The run sign: while this run lives, a held sign in the folder beside the
+	// budget-state store tells every other run's solo budget re-check (soloConfirm,
+	// through scanPeers) that this suite is running. No store, no sign. A sign that
+	// cannot be put up is advisory: one warning, and the run goes on unchanged.
+	// The deferred takeDown holds the *runSign — and so its *os.File — reachable
+	// until Run returns; a garbage-collected file would be closed and silently drop
+	// the lock mid-run.
+	var sign *runSign
+	if dir := runSignDir(cfg.StatePath); dir != "" {
+		s, err := putUpRunSign(dir, cfg.RepoRoot)
+		if err != nil {
+			fmt.Fprintf(stderr, "run-tests: run sign not put up in %s: %v — other suites will not see this run\n", dir, err)
+		} else {
+			sign = s
+			defer sign.takeDown()
+		}
+	}
+
 	// Interruption lifecycle: a cancellable child ctx and a signal handler that
 	// cancels it, forwards to the child GROUPS, and records which signal fired.
 	runCtx, cancel := context.WithCancel(ctx)
@@ -211,6 +229,7 @@ func Run(ctx context.Context, cfg Config) int {
 			// --strict bypasses the schedule: confirm EVERY current candidate now,
 			// ignoring streak history and the one-per-run bound.
 			st := Load(cfg.StatePath, cfg.Jobs, stderr)
+			st.selfSign = sign.Path()
 			for _, o := range screenObs {
 				if o.Over {
 					st.candidates = append(st.candidates, o)
@@ -222,6 +241,7 @@ func Run(ctx context.Context, cfg Config) int {
 			// A qualifying run advances the screening state and takes at most one
 			// scheduled solo confirmation, then emits the screening report.
 			st := Load(cfg.StatePath, cfg.Jobs, stderr)
+			st.selfSign = sign.Path()
 			st.ApplyScreenObservations(screenObs)
 			st.ScheduleConfirmation(runCtx, cfg, stdout)
 			st.Save()
