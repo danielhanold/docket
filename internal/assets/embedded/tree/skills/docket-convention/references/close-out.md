@@ -1,13 +1,13 @@
 # Close-out — the shared per-change sequence
 
 > Single source for the close-out sequence a final transition (`done` or `killed`) runs:
-> archive → re-render `## Artifacts` → cleanup → board.
-> Every driver routes
-> through this file: `docket-finalize-change`'s per-change close-out, `docket-status`'s merge
-> sweep, and `change.complete` for a `results-artifact` change (the three `done` drivers), plus the
-> kill callers — `docket-implement-next`'s reconcile-kill and `docket-new-change`'s proposed-kill. The sequence is one; only the
-> failure posture differs per caller (table below). This file owns ordering and posture.
-> `schema` gives request-file and result shapes; the capability catalog gives flags.
+> archive → re-render `## Artifacts` → cleanup → board. Every driver routes through this file:
+> `docket-finalize-change`'s per-change close-out, `docket-status`'s merge sweep, and
+> `change.complete` for a `results-artifact` change (the three `done` drivers), plus the kill
+> callers — `docket-implement-next`'s reconcile-kill and `docket-new-change`'s proposed-kill. The
+> sequence is one; only the failure posture differs per caller (table below). This file owns
+> ordering and posture. `schema` gives request-file and result shapes; the capability catalog
+> gives flags.
 
 Contents: [The sequence](#the-sequence) · [Failure posture](#failure-posture--per-caller) · [Determinism invariant](#determinism-invariant)
 
@@ -87,24 +87,16 @@ immediately.
    worktree, or GitHub; cleanup (step 3) follows it.
 
 2. **Artifact block + back-links — owned atomically by step 1, no separate caller commit.**
-   Every close-out transaction re-renders the archived record's `## Artifacts` block (relative
-   same-branch rows, plus an absolute `Spec (merged)` row for a merged change) **and** re-stamp every
-   metadata-resident back-link — spec, plan, and results — retargeted to the
-   now-**archived** change path, **in the same step-1 metadata commit** as the archive:
+   Every close-out transaction — `finalize.closeout` (done), `change.kill` (kill), or
+   `change.complete` (complete) — re-renders the archived record's `## Artifacts` block (relative
+   same-branch rows, plus an absolute `Spec (merged)` row for a merged change) **and** retargets
+   every metadata-resident `docket:backlink` block — spec, plan, and results — to the
+   now-**archived** change path, **in the same step-1 metadata commit** as the archive.
 
-   - On the **done** path the step-1 `finalize.closeout` operation transaction owns this restamp
-     atomically.
-   - On the **kill** path the step-1 `change.kill` operation transaction owns it identically — it
-     re-renders the `## Artifacts` block and retargets the linked spec, plan, and results
-     `docket:backlink` blocks in its one commit.
-   - On the **complete** path the step-1 `change.complete` operation transaction owns it the same
-     way.
-
-   So **no separate caller re-render or back-link commit runs for either path** — the skill never
+   So **no separate caller re-render or back-link commit runs for any path** — the skill never
    invokes a facade renderer and never hand-edits a managed block. Nothing touches the integration
-   branch. A typed refusal (malformed markers,
-   missing artifact) leaves the file untouched and aborts per the caller's posture — surface it,
-   never hand-edit the block.
+   branch. A typed refusal (malformed markers, missing artifact) leaves the file untouched and
+   aborts per the caller's posture — surface it.
 
 3. **Clean up the feature branch + worktree.**
 
@@ -117,14 +109,13 @@ immediately.
    only when its recorded tip is detached from every worktree AND contained in the verified merge
    chain, the remote ref only under an exact old-value lease with no open child PR still targeting
    it — never the metadata worktree, the primary tree, or any out-of-tree path. Any
-   resource whose ownership it cannot prove is **retained**, not force-removed. When cleanup keeps
-   a branch because deleting it could lose work (it moved after the merge, it has commits not on
-   the integration branch, or another worktree has it checked out), the `pending` result names the
-   branch and gives the command to delete it by hand after review (`git branch -D <branch>`, or
-   `git push origin --delete <branch>` for the remote copy); if a live change now uses that branch
-   name, it says so instead of suggesting a delete. The warning shows in the human output of
-   `finalize cleanup` and of the sweep, and repeats on every full sweep until the branch is gone.
-   A failure aborts per the caller's posture.
+   resource whose ownership it cannot prove is **retained**, not force-removed. A branch kept
+   because deleting it could lose work (moved after the merge, commits off the integration branch,
+   checked out elsewhere) is named in the `pending` result with the command to delete it by hand
+   after review (`git branch -D <branch>`; `git push origin --delete <branch>` for the remote); if
+   a live change now uses that name, it says so and advises no delete. The warning shows in
+   `finalize cleanup` and sweep human output and repeats every full sweep until the branch is
+   gone. A failure aborts per the caller's posture.
 
    **Complete path (no PR):** on a `done` `results-artifact` change, cleanup makes no GitHub call
    and never touches a remote ref (the branch was never published). It removes a clean feature
@@ -143,13 +134,10 @@ immediately.
    field) and `git worktree list` finds the worktree. A `proposed`-kill has none.
 
 4. **Board refresh — owned atomically by step 1, no separate pass.** Every close-out transaction
-   renders the inline `BOARD.md` **inside its own step-1 metadata commit** — the `finalize.closeout`
-   operation on the done path, `change.complete` on the complete path, the `change.kill` operation
-   on the kill path — so **no separate Board pass
-   runs**, and no skill ever hand-renders the board or double-commits it. The step-1 transaction is
-   the sole writer; a caller neither invokes a board renderer nor follows the typed mutation with a
-   second board commit. `BOARD.md` is the live planning view and is never published to the
-   integration branch.
+   renders the inline `BOARD.md` **inside its own step-1 metadata commit**, so **no separate Board
+   pass runs**. The step-1 transaction is the sole writer; a caller never hand-renders the board,
+   invokes a board renderer, or follows the typed mutation with a second board commit. `BOARD.md`
+   is the live planning view and is never published to the integration branch.
 
 ## Failure posture — per caller
 
@@ -164,9 +152,9 @@ are absorbed into step 1 and carry no separate command):
 | `docket-new-change` proposed-kill | same as reconcile-kill — surface and stop; nothing else is in flight |
 | `docket-implement-next` results-artifact ending | a `change.complete` refusal halts the run; a `pending` cleanup goes into the run report and never halts it |
 
-**Step-failure propagation:** step 1's atomic transaction owns the archive move, the `## Artifacts`
-re-render, every back-link, and the inline board render **together** — it either commits the complete
-set (fail-closed) or writes nothing, so there is no partial step-2 or step-4 follow-up left to skip.
+**Step-failure propagation:** step 1's atomic transaction commits the archive move, the
+`## Artifacts` re-render, every back-link, and the inline board render **together** or writes
+nothing (fail-closed), so no partial step-2 or step-4 follow-up is left to skip.
 Step 3 (cleanup) follows the caller's own skill body: the sweep treats it as best-effort (log and
 continue; a later pass self-heals); other callers keep their own posture (abort-and-report).
 
