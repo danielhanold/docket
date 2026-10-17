@@ -222,7 +222,7 @@ func TestIntegrationFinalizeCloseoutNotesReplayAndFrozen(t *testing.T) {
 
 	replay := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, closeoutTestNotes())
 	if replay.Disposition != CloseoutDispAlready || replay.Result == ResultApplied {
-		t.Fatalf("identical-notes replay = %q disp %q, want no-op already", replay.Result, replay.Disposition)
+		t.Fatalf("identical-notes replay = %q disp %q, want no-op already-closed-out", replay.Result, replay.Disposition)
 	}
 
 	different := closeoutTestNotes()
@@ -349,7 +349,7 @@ func TestIntegrationFinalizeCloseoutNotesStackedInPlace(t *testing.T) {
 	// Identical-notes replay is a no-op; different notes are frozen.
 	replay := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, closeoutTestNotes())
 	if replay.Disposition != CloseoutDispAlready || replay.Result == ResultApplied {
-		t.Fatalf("stacked identical-notes replay = %q disp %q, want no-op already", replay.Result, replay.Disposition)
+		t.Fatalf("stacked identical-notes replay = %q disp %q, want no-op already-closed-out", replay.Result, replay.Disposition)
 	}
 	different := closeoutTestNotes()
 	different.LateFindings = []string{"a different late finding"}

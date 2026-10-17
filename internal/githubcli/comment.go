@@ -11,7 +11,7 @@ package githubcli
 // The sequence mirrors ensure.go's fixed shape:
 //
 //	1. probe the PR's comments and search for the marker prefix;
-//	2. a match is `already`, returning that comment's url, no create;
+//	2. a match is `already-posted`, returning that comment's url, no create;
 //	3. otherwise `gh pr comment <n> --body-file -` posts the body — the authored
 //	   bytes cross ONLY on stdin, never in an argv element or a diagnostic; and
 //	4. the postcondition is re-derived by the same marker probe: a match is
@@ -40,7 +40,7 @@ const (
 	// CommentCreated: no marked comment existed and one was posted and verified.
 	CommentCreated CommentOutcome = "created"
 	// CommentAlready: a comment carrying the marker already existed; none posted.
-	CommentAlready CommentOutcome = "already"
+	CommentAlready CommentOutcome = "already-posted"
 	// CommentUnknown: an external probe could not establish the truth (including
 	// invalid input); nothing was posted. The returned error carries the diagnostic.
 	CommentUnknown CommentOutcome = "unknown"

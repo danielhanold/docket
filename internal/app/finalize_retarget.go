@@ -52,12 +52,12 @@ const (
 
 // The closed set of per-child outcome tokens a result reports for each live child.
 const (
-	childOutcomeRetargeted     = "retargeted"       // moved onto the effective base and verified
-	childOutcomeAlready        = "already"          // already at the effective base; no edit issued
-	childOutcomeContended      = "contended"        // unauthorized-open, ambiguous head, or revision drift
-	childOutcomeUnknown        = "unknown"          // a probe could not establish the truth
-	childOutcomeSkippedDone    = "skipped-final"    // done/killed child; also emitted for stacked-merged children (the child no longer needs its PR retargeted)
-	childOutcomeSkippedNotOpen = "skipped-not-open" // non-final child with no open PR: does not block
+	childOutcomeRetargeted     = "retargeted"         // moved onto the effective base and verified
+	childOutcomeAlready        = "already-retargeted" // already at the effective base; no edit issued
+	childOutcomeContended      = "contended"          // unauthorized-open, ambiguous head, or revision drift
+	childOutcomeUnknown        = "unknown"            // a probe could not establish the truth
+	childOutcomeSkippedDone    = "skipped-final"      // done/killed child; also emitted for stacked-merged children (the child no longer needs its PR retargeted)
+	childOutcomeSkippedNotOpen = "skipped-not-open"   // non-final child with no open PR: does not block
 )
 
 // The stable machine reasons the operation reports for its typed refusals. Message

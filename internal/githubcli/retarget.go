@@ -10,7 +10,7 @@ package githubcli
 // The sequence mirrors ensure.go's fixed shape:
 //
 //	1. probe the PR by number for its current base and opaque revision;
-//	2. if the PR is ALREADY at newBase the promised end-state holds — `already`,
+//	2. if the PR is ALREADY at newBase the promised end-state holds — `already-retargeted`,
 //	   no edit (idempotency keyed on the promised remote state, never on the CAS
 //	   revision, which a completed retarget has already changed);
 //	3. otherwise an edit is authorized only when the caller's ExpectedRevision
@@ -43,7 +43,7 @@ const (
 	// verified.
 	RetargetRetargeted RetargetOutcome = "retargeted"
 	// RetargetAlready: the PR already sat at newBase; no edit was issued.
-	RetargetAlready RetargetOutcome = "already"
+	RetargetAlready RetargetOutcome = "already-retargeted"
 	// RetargetContended: the live revision diverged from ExpectedRevision, or a
 	// verified snapshot still showed a different base; the PR is left untouched.
 	RetargetContended RetargetOutcome = "contended"
