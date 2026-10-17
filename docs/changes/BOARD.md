@@ -1,11 +1,12 @@
 # Backlog
 
-**564 changes** — 🟡 9 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 143 killed
+**565 changes** — 🟡 10 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 143 killed
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Make killed-parent stacking behavior match its documented policy | `low` | `fix` | needs-grooming |
 | [0564](active/0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | `low` | `fix` | needs-grooming |
 | [0563](active/0563-let-change-groom-clear-stacked-on.md) | Let change.groom clear stacked_on | `low` | `fix` | needs-grooming |
 | [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | needs-grooming |
@@ -64,6 +65,7 @@ graph TD
   0562
   0563
   0564
+  0565
   0192:::done
   0251:::done
   0511:::done
@@ -74,7 +76,7 @@ graph TD
 
 <details><summary>✅🗑️ Archive — done + killed (539)</summary>
 
-| # | Title | Merged |
+| # | Title | Closed |
 |---|-------|--------|
 | [0559](archive/2026-10-17-0559-close-a-change-to-done-without-a-pr.md) | Let a change deliver a results artifact instead of a PR | 2026-10-17 |
 | [0556](archive/2026-10-17-0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) | A typed /docket-implement-next in Claude Code starts an untracked run | 2026-10-17 |
