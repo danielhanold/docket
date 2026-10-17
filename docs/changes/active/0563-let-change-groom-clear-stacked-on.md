@@ -13,7 +13,7 @@ related: [564, 565]
 discovered_from: [559]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-17-let-change-groom-clear-stacked-on.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-17T21:26:26Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-17-let-change-groom-clear-stacked-on-design.md](../../superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md) |
+| Plan | [2026-10-17-let-change-groom-clear-stacked-on.md](../../superpowers/plans/2026-10-17-let-change-groom-clear-stacked-on.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
