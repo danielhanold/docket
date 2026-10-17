@@ -14,7 +14,7 @@ discovered_from: [507]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md'
 plan: 'docs/superpowers/plans/2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md'
-results:
+results: 'docs/results/2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-17T02:43:32Z'
 |---|---|
 | Spec | [2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md](../../superpowers/specs/2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md) |
 | Plan | [2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md](../../superpowers/plans/2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) |
+| Results | [2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-results.md](../../results/2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
