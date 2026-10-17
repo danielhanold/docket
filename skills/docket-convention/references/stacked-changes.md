@@ -59,15 +59,15 @@ What it does **not** satisfy:
 
 The merge sweep (the `maintenance.sweep` operation) is the only producer of the state; the typed finalize
 close-out (the `finalize.closeout` operation's `root-archived` disposition) is the only consumer that takes
-a change out of it, when the stack root reaches integration. Neither mechanism is restated here — see
-*The stack close-out is idempotent* below.
+a change out of it, when the stack root reaches integration. See *The stack close-out is idempotent*
+below.
 
 ## Resolving the base — `context.implementation` effective-base
 
 Every branch cut, PR base, and rebase target for a change resolves through one policy, applied
 **unconditionally**: an unstacked change resolves to the integration branch, so no caller needs to
-know in advance whether a change is stacked. The resolution is delivered as the typed
-**`effective_base`** field of the `context.implementation` operation (a `ContextBase`); the `workspace.prepare`
+know in advance whether a change is stacked. The `context.implementation` operation delivers the
+resolution as the typed **`effective_base`** field (a `ContextBase`); the `workspace.prepare`
 operation applies the same domain policy internally — no skill runs a separate resolver.
 
 ```
@@ -89,7 +89,7 @@ The walk applies four rules, upward from the change:
 3. **A `killed` parent stops the walk.**
 4. **Anything else is invalid** — a missing parent, a cycle, or a parent branch with no remote ref.
 
-`effective_base.kind` takes a fixed set of allowed values; `branch` is meaningful **only** when `kind` is
+`effective_base.kind` takes a fixed set of values; `branch` is meaningful **only** when `kind` is
 `resolved`, and `source_change` names the exact ancestor the walk stopped at:
 
 | `kind` | Meaning | What you must do |
@@ -99,7 +99,7 @@ The walk applies four rules, upward from the change:
 | `missing-parent` / `cycle` / `malformed-edge` / `branch-absent` | **Invalid resolution.** | Treat as a **data repair**: fix `stacked_on:`/`branch:`, or push the parent's branch. |
 
 **Never fall back to the integration branch on a `parent-killed` or an invalid `kind`.** Each carries
-an empty `branch` precisely so a caller cannot mistake a broken stack for a fine one; a silent
+an empty `branch` so a caller cannot mistake a broken stack for a fine one; a silent
 fallback produces a branch nobody designed while every surface still reports it as stacked. The kinds
 are separate because the remedies are.
 
@@ -129,8 +129,8 @@ for no gain the gate does not already deliver.
 Before merging a change that has stacked children, resolve every child's state. **Get that child set
 from the scan, never from the parent's rendered `## Stacked children` row** — that row is a view
 regenerated when something writes the *parent*, so a child stacked on an already-`implemented`
-parent is simply absent from it. This set is delivered typed by the `context.finalize` operation, applied
-**unconditionally** — as with the effective-base resolution, an unstacked change's candidate simply
+parent is absent from it. The `context.finalize` operation delivers this set typed, applied
+**unconditionally** — as with the effective-base resolution, an unstacked change's candidate
 carries an empty descendant set.
 
 ```
@@ -181,9 +181,7 @@ a killed parent is a design decision, not a fallback.
   says is false — and deleting their branches would destroy the only copy of work a human may well
   want to re-parent.
 
-An `effective_base.kind` of `parent-killed` is how this state is surfaced; the flip itself is a human-directed edit, never an automatic sweep.
-
-While a descendant is still `proposed`, re-parent or un-stack it through `change.groom` (`stacked_on: <new parent>` or `stacked_on: 0`).
+An `effective_base.kind` of `parent-killed` is how this state is surfaced; the flip itself is a human-directed edit, never an automatic sweep. A still-`proposed` descendant re-parents or un-stacks through `change.groom` (`stacked_on: <new parent>` or `0`).
 
 ## The stack close-out is idempotent
 
