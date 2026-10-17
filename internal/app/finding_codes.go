@@ -48,22 +48,27 @@ const (
 	FCNotRetitleable FindingCode = "not-retitleable"
 
 	// change create request-shape findings.
-	FCInvalidSlug             FindingCode = "invalid-slug"
-	FCUnknownType             FindingCode = "unknown-type"
-	FCUnknownPriority         FindingCode = "unknown-priority"
-	FCDanglingReference       FindingCode = "dangling-reference"
-	FCInvalidDependsOn        FindingCode = "invalid-depends_on"
-	FCInvalidRelated          FindingCode = "invalid-related"
-	FCInvalidDiscoveredFrom   FindingCode = "invalid-discovered_from"
-	FCInvalidADRs             FindingCode = "invalid-adrs"
-	FCInvalidRelatesTo        FindingCode = "invalid-relates_to"
-	FCInvalidChanges          FindingCode = "invalid-changes"
-	FCDuplicateDependsOn      FindingCode = "duplicate-depends_on"
-	FCDuplicateRelated        FindingCode = "duplicate-related"
-	FCDuplicateDiscoveredFrom FindingCode = "duplicate-discovered_from"
-	FCDuplicateADRs           FindingCode = "duplicate-adrs"
-	FCDuplicateRelatesTo      FindingCode = "duplicate-relates_to"
-	FCDuplicateChanges        FindingCode = "duplicate-changes"
+	FCInvalidSlug     FindingCode = "invalid-slug"
+	FCUnknownType     FindingCode = "unknown-type"
+	FCUnknownPriority FindingCode = "unknown-priority"
+	// FCUnknownDeliverable refuses a deliverable outside the closed vocabulary;
+	// FCResultsArtifactNotStackable refuses any stacking involving a
+	// results-artifact change (change 0559).
+	FCUnknownDeliverable          FindingCode = "unknown-deliverable"
+	FCResultsArtifactNotStackable FindingCode = "results-artifact-not-stackable"
+	FCDanglingReference           FindingCode = "dangling-reference"
+	FCInvalidDependsOn            FindingCode = "invalid-depends_on"
+	FCInvalidRelated              FindingCode = "invalid-related"
+	FCInvalidDiscoveredFrom       FindingCode = "invalid-discovered_from"
+	FCInvalidADRs                 FindingCode = "invalid-adrs"
+	FCInvalidRelatesTo            FindingCode = "invalid-relates_to"
+	FCInvalidChanges              FindingCode = "invalid-changes"
+	FCDuplicateDependsOn          FindingCode = "duplicate-depends_on"
+	FCDuplicateRelated            FindingCode = "duplicate-related"
+	FCDuplicateDiscoveredFrom     FindingCode = "duplicate-discovered_from"
+	FCDuplicateADRs               FindingCode = "duplicate-adrs"
+	FCDuplicateRelatesTo          FindingCode = "duplicate-relates_to"
+	FCDuplicateChanges            FindingCode = "duplicate-changes"
 
 	// change groom section-edit request-shape findings.
 	FCInvalidSectionHeading  FindingCode = "invalid-section-heading"
@@ -317,6 +322,7 @@ var AllFindingCodes = []FindingCode{
 	FCPrepareTopologyUnresolved,
 	FCRepositoryFresh,
 	FCRepositoryLegacy,
+	FCResultsArtifactNotStackable,
 	FindingCode("root-ambiguous"),
 	FindingCode("root-not-found"),
 	FCSectionEditFailed,
@@ -324,6 +330,7 @@ var AllFindingCodes = []FindingCode{
 	FCSweepPRFactsUnresolved,
 	FindingCode("unknown-adr"),
 	FindingCode("unknown-change"),
+	FCUnknownDeliverable,
 	FCUnknownOperation,
 	FCUnknownPriority,
 	FCUnknownType,

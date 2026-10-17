@@ -147,7 +147,7 @@ func TestReflectDescriptorChangeCreateRequest(t *testing.T) {
 
 	keys := descriptorKeys(d)
 	want := []string{
-		"request_id", "title", "type", "priority",
+		"request_id", "title", "type", "priority", "deliverable",
 		"why", "what_changes", "out_of_scope",
 		"depends_on", "stacked_on", "related", "discovered_from", "adrs",
 		"auto_groomable", "branch_prefix",
@@ -172,6 +172,9 @@ func TestReflectDescriptorChangeCreateRequest(t *testing.T) {
 	}
 	if f := fieldByKey(t, d, "branch_prefix"); f.Repeated || f.Type != "string" {
 		t.Errorf("branch_prefix = %+v, want optional string", f)
+	}
+	if f := fieldByKey(t, d, "deliverable"); f.Repeated || f.Type != "string" || f.Required {
+		t.Errorf("deliverable = %+v, want optional string", f)
 	}
 
 	// Required set per Task 4's tags.

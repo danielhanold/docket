@@ -56,12 +56,13 @@ type ImplementationContextRequest struct {
 // ContextEntitySummary is the parsed, non-authored semantics of a record, so a
 // caller can read a record's identity without decoding its source bytes.
 type ContextEntitySummary struct {
-	ID       int    `json:"id,omitempty"`
-	Slug     string `json:"slug,omitempty"`
-	Title    string `json:"title,omitempty"`
-	Status   string `json:"status,omitempty"`
-	Type     string `json:"type,omitempty"`
-	Priority string `json:"priority,omitempty"`
+	ID          int    `json:"id,omitempty"`
+	Slug        string `json:"slug,omitempty"`
+	Title       string `json:"title,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Type        string `json:"type,omitempty"`
+	Priority    string `json:"priority,omitempty"`
+	Deliverable string `json:"deliverable,omitempty"`
 }
 
 // ContextEntity is one document the bundle carries: its canonical repo-relative
@@ -308,12 +309,13 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 			Source:   cloneBytes(changeBlob.Data),
 			Revision: changeBlob.Revision,
 			Summary: &ContextEntitySummary{
-				ID:       int(selected.ID()),
-				Slug:     selected.Slug(),
-				Title:    selected.Title(),
-				Status:   selected.RawStatus(),
-				Type:     selected.Type(),
-				Priority: selected.RawPriority(),
+				ID:          int(selected.ID()),
+				Slug:        selected.Slug(),
+				Title:       selected.Title(),
+				Status:      selected.RawStatus(),
+				Type:        selected.Type(),
+				Priority:    selected.RawPriority(),
+				Deliverable: deliverableText(selected),
 			},
 		},
 		Spec:          specEntity,
