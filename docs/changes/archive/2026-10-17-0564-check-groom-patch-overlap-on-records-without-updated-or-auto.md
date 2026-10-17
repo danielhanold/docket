@@ -2,7 +2,7 @@
 id: 564
 slug: 'check-groom-patch-overlap-on-records-without-updated-or-auto'
 title: 'Check groom patch overlap on records without updated or auto_groomable'
-status: 'proposed'
+status: 'killed'
 priority: 'low'
 type: 'fix'
 created: '2026-10-17'
@@ -40,3 +40,7 @@ Reproduce with a record lacking both fields. If it fails, fix the edit planning 
 ## Out of scope
 
 Redesigning the groom patch machinery.
+
+## Why killed
+
+Consolidated into #563. The suspected collision reproduced at the document layer (two `InsertField` edits at the same point refuse with `overlapping-edit`), and grooming also showed that relationship fields written with plain `SetField` fail on records missing the key (ten active records lack `stacked_on:`). Both are fixed in #563's groom patch work, which edits the same function.
