@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0559 — Let a change deliver a results artifact instead of a PR](../../changes/active/0559-close-a-change-to-done-without-a-pr.md)**
+> ↩ **[Change 0559 — Let a change deliver a results artifact instead of a PR](../../changes/archive/2026-10-17-0559-close-a-change-to-done-without-a-pr.md)**
 <!-- docket:backlink:end -->
 
 # Let a change deliver a results artifact instead of a PR — Implementation Plan

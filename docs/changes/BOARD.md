@@ -1,12 +1,6 @@
 # Backlog
 
-**564 changes** — 🔵 1 built · 🟡 9 proposed · ⚪ 16 deferred · ✅ 395 done · 🗑️ 143 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0559](active/0559-close-a-change-to-done-without-a-pr.md) | Let a change deliver a results artifact instead of a PR | `medium` | `feat` | [#426](https://github.com/danielhanold/docket/pull/426) | awaiting merge |
+**564 changes** — 🟡 9 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 143 killed
 
 ## 🟡 Proposed (9)
 
@@ -65,7 +59,6 @@ graph TD
   0546 --> 0547
   0557
   0558
-  0559
   0560
   0561
   0562
@@ -79,10 +72,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (538)</summary>
+<details><summary>✅🗑️ Archive — done + killed (539)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0559](archive/2026-10-17-0559-close-a-change-to-done-without-a-pr.md) | Let a change deliver a results artifact instead of a PR | 2026-10-17 |
 | [0556](archive/2026-10-17-0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) | A typed /docket-implement-next in Claude Code starts an untracked run | 2026-10-17 |
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0528](archive/2026-10-17-0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | 2026-10-17 |
@@ -101,7 +95,6 @@ graph TD
 | [0550](archive/2026-10-15-0550-let-change-groom-set-a-change-s-priority.md) | Let change.groom set a change's priority | 2026-10-15 |
 | [0549](archive/2026-10-15-0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) | Bring the local metadata checkout up to date after every docket write | 2026-10-15 |
 | [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
-| [0546](archive/2026-10-11-0546-per-agent-prompt-cache-ttl-pin-shipped-1h-for-implement-next.md) | Per-agent prompt-cache TTL pin, shipped 1h for implement-next | 2026-10-11 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
 | [0508](archive/2026-10-04-0508-bring-tests-test-go-finalize-e2e-sh-back-under-its-serial-wa.md) | Bring tests/test_go_finalize_e2e.sh back under its serial wall-clock budget | 2026-10-04 |
@@ -246,7 +239,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 52 done |
+| [2026-10](archive/) | 53 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

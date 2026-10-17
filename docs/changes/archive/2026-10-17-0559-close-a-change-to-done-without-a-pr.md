@@ -2,7 +2,7 @@
 id: 559
 slug: 'close-a-change-to-done-without-a-pr'
 title: 'Let a change deliver a results artifact instead of a PR'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-17'
@@ -22,7 +22,7 @@ branch: 'feat/close-a-change-to-done-without-a-pr'
 pr: 'https://github.com/danielhanold/docket/pull/426'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-17T18:20:32Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-17T18:20:32Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-17-close-a-change-to-done-without-a-pr-design.md](../../superpowers/specs/2026-10-17-close-a-change-to-done-without-a-pr-design.md) |
+| Spec (merged) | [2026-10-17-close-a-change-to-done-without-a-pr-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-17-close-a-change-to-done-without-a-pr-design.md) |
 | Plan | [2026-10-17-close-a-change-to-done-without-a-pr.md](../../superpowers/plans/2026-10-17-close-a-change-to-done-without-a-pr.md) |
 | Results | [2026-10-17-close-a-change-to-done-without-a-pr-results.md](../../results/2026-10-17-close-a-change-to-done-without-a-pr-results.md) |
 | ADRs | [ADR-0129](../../adrs/0129-collision-free-docket-vocabulary.md), [ADR-0141](../../adrs/0141-build-artifacts-plan-results-evidence-live-on-the-metadata-b.md), [ADR-0148](../../adrs/0148-every-keyed-run-done-verdict-drives-the-successful-run-close.md), [ADR-0151](../../adrs/0151-a-change-s-deliverable-decides-how-it-reaches-done-done-no-l.md) |
