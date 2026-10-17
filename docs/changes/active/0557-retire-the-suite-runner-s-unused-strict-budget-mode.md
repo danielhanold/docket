@@ -2,7 +2,7 @@
 id: 557
 slug: 'retire-the-suite-runner-s-unused-strict-budget-mode'
 title: 'Retire the suite runner''s unused strict budget mode'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-16'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/retire-the-suite-runner-s-unused-strict-budget-mode'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-17T22:08:22Z'
 ---
 
 ## Artifacts
