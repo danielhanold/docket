@@ -353,3 +353,31 @@ func TestRunWithoutStatePathPutsUpNoSign(t *testing.T) {
 		t.Fatalf("no StatePath must mean no run sign at all:\n%s", errBuf.String())
 	}
 }
+
+// TestRunSingleJobDirectReading pins the direct budget reading a single-job run
+// gets: no screening and no solo re-check run on this path, so the measured time
+// is compared straight against ceiling*3/2. A crossing is loud in the report and
+// still exits 0 — no budget finding changes the exit code.
+func TestRunSingleJobDirectReading(t *testing.T) {
+	dir := devFixture(t, map[string]string{"slow": "echo 'ok - slow'\n"})
+	var out, errBuf bytes.Buffer
+	cfg := runCfg(t, dir, &out, &errBuf)
+	cfg.Jobs = 1
+	// No budget row: default ceiling 60, direct line 90. 100 crosses it.
+	cfg.DurationsPath = writeDurations(t, [][3]string{{"test_slow.sh", "100", "100"}})
+
+	code := Run(context.Background(), cfg)
+	report := out.String()
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0\nstdout:\n%s\nstderr:\n%s", code, report, errBuf.String())
+	}
+	if !strings.Contains(report, "OVER BUDGET (ceiling 60s)") {
+		t.Fatalf("want the OVER BUDGET row tag:\n%s", report)
+	}
+	if !regexp.MustCompile(`(?m)^OVER BUDGET: test_slow$`).MatchString(report) {
+		t.Fatalf("want an OVER BUDGET: line naming test_slow:\n%s", report)
+	}
+	if strings.Contains(report, "SERIAL CONFIRMATION") {
+		t.Fatalf("a single-job run takes no solo re-check:\n%s", report)
+	}
+}
