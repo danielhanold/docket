@@ -50,6 +50,7 @@ type StatusChange struct {
 	Status        string `json:"status"`   // stored spelling
 	Priority      string `json:"priority"` // stored spelling
 	Type          string `json:"type"`
+	Deliverable   string `json:"deliverable"`      // effective value; raw text when unknown
 	Location      string `json:"location"`         // "active" | "archive"
 	Path          string `json:"path"`             // repo-relative record path
 	Revision      string `json:"revision"`         // blob object id

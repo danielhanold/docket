@@ -497,6 +497,16 @@ func matchesFilter(c domain.Change, types []string, priorities []domain.Priority
 	return true
 }
 
+// deliverableText is the deliverable a change reports: its effective value
+// (pr for an absent key), or the stored raw text when that value is unknown,
+// so a hand typo stays visible rather than reading as empty.
+func deliverableText(c domain.Change) string {
+	if d := c.Deliverable(); d != "" {
+		return string(d)
+	}
+	return c.RawDeliverable()
+}
+
 // statusChange translates one active change into its displayed row: stored
 // fields verbatim, plus the readiness, dependency, and stack facts the domain
 // derived, and the blob revision keyed by path.
@@ -515,6 +525,7 @@ func statusChange(snap domain.Snapshot, c domain.Change, facts domain.BranchFact
 		Status:       c.RawStatus(),
 		Priority:     c.RawPriority(),
 		Type:         c.Type(),
+		Deliverable:  deliverableText(c),
 		Location:     string(c.Location()),
 		Path:         c.Path(),
 		Revision:     blobByPath[c.Path()].Revision,

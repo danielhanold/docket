@@ -618,3 +618,146 @@ func TestChangeCreateWhitespaceTitleReportsEmptyTitleOnce(t *testing.T) {
 		t.Errorf("empty-title reported %d times, want exactly 1", n)
 	}
 }
+
+// --- deliverable (change 0559) ----------------------------------------------
+
+func TestChangeCreateWritesDeliverable(t *testing.T) {
+	recPath := "docs/changes/active/0002-add-a-widget.md"
+	for _, c := range []struct {
+		name, in, wantLine string
+		want               domain.Deliverable
+	}{
+		{"omitted", "", "\ndeliverable: 'pr'\n", domain.DeliverablePR},
+		{"explicit pr", "pr", "\ndeliverable: 'pr'\n", domain.DeliverablePR},
+		{"results-artifact", "results-artifact", "\ndeliverable: 'results-artifact'\n", domain.DeliverableResultsArtifact},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			op := baseOp([]string{})
+			op.req.Deliverable = c.in
+			plan, opRes := planFor(t, map[string]string{
+				"docs/changes/active/0001-first.md": fixtureChange(1, "first"),
+			}, op)
+			if opRes.Refused {
+				t.Fatalf("unexpected refusal: %v", opRes.Findings)
+			}
+			rec := groomedRecordBytes(t, plan, recPath)
+			if !strings.Contains(string(rec), c.wantLine) {
+				t.Errorf("record missing %q:\n%s", c.wantLine, rec)
+			}
+			snap, err := buildCandidateSnapshot(op.eff, nil, rec, recPath)
+			if err != nil {
+				t.Fatalf("buildCandidateSnapshot: %v", err)
+			}
+			ch, out := snap.Change(2)
+			if out != domain.LookupFound {
+				t.Fatal("created record not decodable as change 2")
+			}
+			if got := ch.Deliverable(); got != c.want {
+				t.Errorf("decoded deliverable = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+func TestChangeCreateRejectsUnknownDeliverable(t *testing.T) {
+	req := validChangeCreateRequest()
+	req.Deliverable = "research"
+	engine := &recordingEngine{}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	res := ChangeCreate(context.Background(), PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}, "", req)
+	if res.Result != ResultInvalidInput {
+		t.Fatalf("result = %q, want invalid-input", res.Result)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("engine called %d times on an unknown deliverable, want 0", len(engine.calls))
+	}
+	var msg string
+	for _, f := range res.Findings {
+		if f.Code == string(FCUnknownDeliverable) {
+			msg = f.Message
+		}
+	}
+	if want := `unknown deliverable "research"; valid values are pr, results-artifact`; msg != want {
+		t.Errorf("unknown-deliverable message = %q, want %q (findings %v)", msg, want, res.Findings)
+	}
+}
+
+func TestChangeCreateRefusesStackedResultsArtifact(t *testing.T) {
+	req := validChangeCreateRequest()
+	req.Deliverable = "results-artifact"
+	parent := 1
+	req.StackedOn = &parent
+	engine := &recordingEngine{}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	res := ChangeCreate(context.Background(), PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}, "", req)
+	if res.Result != ResultInvalidInput {
+		t.Fatalf("result = %q, want invalid-input", res.Result)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("engine called %d times on a stacked results-artifact change, want 0", len(engine.calls))
+	}
+	if !hasFindingCode(res.Findings, string(FCResultsArtifactNotStackable)) {
+		t.Errorf("missing %q; got %v", FCResultsArtifactNotStackable, res.Findings)
+	}
+}
+
+func TestChangeCreateRefusesStackingOnResultsArtifactParent(t *testing.T) {
+	parentRec := strings.Replace(fixtureChange(2, "parent"), "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
+	files := map[string]string{
+		"docs/changes/active/0001-first.md":  fixtureChange(1, "first"),
+		"docs/changes/active/0002-parent.md": parentRec,
+	}
+	op := baseOp([]string{})
+	parent := 2
+	op.req.StackedOn = &parent
+	plan, opRes := planFor(t, files, op)
+	if !opRes.Refused {
+		t.Fatal("stacking on a results-artifact parent was not refused")
+	}
+	if len(plan.Files) != 0 {
+		t.Errorf("refused plan still carries files: %v", plan.Files)
+	}
+	saw := false
+	for _, f := range opRes.Findings {
+		if f.Code == string(FCResultsArtifactNotStackable) && f.Field == "stacked_on" {
+			saw = true
+		}
+	}
+	if !saw {
+		t.Errorf("missing results-artifact-not-stackable on stacked_on: %v", opRes.Findings)
+	}
+
+	// The same stack onto an ordinary pr parent still plans.
+	ok := baseOp([]string{})
+	first := 1
+	ok.req.StackedOn = &first
+	if _, res := planFor(t, files, ok); res.Refused {
+		t.Errorf("stacking on a pr parent refused: %v", res.Findings)
+	}
+}
+
+func TestChangeCreateDigestTreatsPRAsOmitted(t *testing.T) {
+	digest := func(d string) transaction.RequestDigest {
+		t.Helper()
+		req := validChangeCreateRequest()
+		req.Deliverable = d
+		got, err := canonicalDigest(OperationChangeCreate, changeCreateSemanticPayload(req))
+		if err != nil {
+			t.Fatalf("canonicalDigest: %v", err)
+		}
+		return got
+	}
+	if digest("") != digest("pr") {
+		t.Error(`deliverable "" and "pr" must digest identically so they replay each other`)
+	}
+	if digest("results-artifact") == digest("") {
+		t.Error("results-artifact must change the digest")
+	}
+	b, err := json.Marshal(changeCreateSemanticPayload(validChangeCreateRequest()))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(b), `"deliverable"`) {
+		t.Errorf("unset deliverable appears in the digest payload %s; it would change every pre-0559 digest", b)
+	}
+}

@@ -636,3 +636,42 @@ func TestStatusReadyQueueOrder(t *testing.T) {
 		t.Errorf("ready count = %d, want 2", got.Summary.ReadyChanges)
 	}
 }
+
+// TestStatusReportsDeliverable: every row carries the change's deliverable — the
+// stored value, "pr" for an old record without the key, and an unknown value's
+// raw text so a hand typo stays visible.
+func TestStatusReportsDeliverable(t *testing.T) {
+	fake := &fakeReader{
+		pin: docketPin(t),
+		corpus: []StatusBlob{
+			changeBlob(51, "results", "feat", "high", "deliverable: results-artifact\n"),
+			changeBlob(52, "old", "feat", "high", ""),
+			changeBlob(53, "typo", "feat", "high", "deliverable: research\n"),
+		},
+		facts: domain.NewBranchFacts(nil),
+	}
+	got := Status(context.Background(), fake, StatusOptions{})
+	if got.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied; message=%q", got.Result, got.Message)
+	}
+	want := map[int]string{51: "results-artifact", 52: "pr", 53: "research"}
+	seen := 0
+	for _, c := range got.Changes {
+		if w, ok := want[c.ID]; ok {
+			seen++
+			if c.Deliverable != w {
+				t.Errorf("change %d deliverable = %q, want %q", c.ID, c.Deliverable, w)
+			}
+		}
+	}
+	if seen != len(want) {
+		t.Fatalf("saw %d of %d rows: %+v", seen, len(want), got.Changes)
+	}
+	b, err := json.Marshal(got.Changes[0])
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(b), `"deliverable":`) {
+		t.Errorf("status row JSON lacks a deliverable key: %s", b)
+	}
+}

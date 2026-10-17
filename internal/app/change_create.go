@@ -42,6 +42,9 @@ type ChangeCreateRequest struct {
 	Title     string `json:"title" docket:"required"`
 	Type      string `json:"type" docket:"enum=change_types"`
 	Priority  string `json:"priority" docket:"enum=priorities"`
+	// Deliverable is how the change ends: "pr" (the default when omitted) or
+	// "results-artifact". The record always stores it explicitly.
+	Deliverable string `json:"deliverable,omitempty" docket:"enum=deliverables"`
 
 	Why         string `json:"why" docket:"required"`
 	WhatChanges string `json:"what_changes" docket:"required"`
@@ -132,6 +135,10 @@ type changeCreatePayload struct {
 	// exactly as it did before change 0382 and a pre-0382 retry still replays.
 	AutoGroomable *bool  `json:"auto_groomable,omitempty"`
 	BranchPrefix  string `json:"branch_prefix,omitempty"`
+	// Deliverable is omitempty and normalized so "" and "pr" both digest as
+	// absent: an explicit pr and an omitted field replay each other, and a
+	// pre-0559 retry still replays.
+	Deliverable string `json:"deliverable,omitempty"`
 }
 
 func changeCreateSemanticPayload(req ChangeCreateRequest) changeCreatePayload {
@@ -149,7 +156,17 @@ func changeCreateSemanticPayload(req ChangeCreateRequest) changeCreatePayload {
 		ADRs:           req.ADRs,
 		AutoGroomable:  req.AutoGroomable,
 		BranchPrefix:   normalizedBranchPrefix(req),
+		Deliverable:    normalizedDeliverable(req),
 	}
+}
+
+// normalizedDeliverable is the digested spelling of the request's deliverable:
+// the default "pr" digests exactly as an omitted field.
+func normalizedDeliverable(req ChangeCreateRequest) string {
+	if req.Deliverable == string(domain.DeliverablePR) {
+		return ""
+	}
+	return req.Deliverable
 }
 
 // normalizedBranchPrefix is the stored, digested spelling of the request's
@@ -326,12 +343,29 @@ func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 	if req.StackedOn != nil && *req.StackedOn <= 0 {
 		addShape(FCInvalidStackedOn, "stacked_on must be a positive change id")
 	}
+	if req.Deliverable != "" {
+		if d, ok := domain.ParseDeliverable(req.Deliverable); !ok {
+			addShape(FCUnknownDeliverable, fmt.Sprintf("unknown deliverable %q; valid values are %s", req.Deliverable, deliverableList()))
+		} else if d == domain.DeliverableResultsArtifact && req.StackedOn != nil {
+			addShape(FCResultsArtifactNotStackable, "a results-artifact change takes no part in stacking; order it with depends_on")
+		}
+	}
 	if _, ok := domain.NormalizeBranchPrefix(req.BranchPrefix); !ok {
 		addShape(FCInvalidBranchPrefix, fmt.Sprintf(
 			"branch_prefix %q is not a usable branch prefix: after trimming whitespace, one trailing \"/\", and lowercasing, it must be a single git ref component — no \"/\" (never refs/-qualified), not \"refs\", no \"..\", \"@{\", whitespace, or any of ~^:?*[\\, not starting with \"-\" or \".\", not ending with \".\" or \".lock\"",
 			req.BranchPrefix))
 	}
 	return findings
+}
+
+// deliverableList is the comma-separated closed deliverable vocabulary, in
+// domain order, for refusal messages.
+func deliverableList() string {
+	names := make([]string, 0, len(domain.AllDeliverables))
+	for _, d := range domain.AllDeliverables {
+		names = append(names, string(d))
+	}
+	return strings.Join(names, ", ")
 }
 
 // validateIDCollection reports positive-id and no-duplicate violations for one
@@ -489,6 +523,11 @@ func (o changeCreateOp) Plan(ctx context.Context, st transaction.AttemptState) (
 	if findings := validateChangeReferences(o.req, snap); len(findings) > 0 {
 		return transaction.MutationPlan{}, transaction.OperationResult{Refused: true, Findings: findings}, nil
 	}
+	// A results-artifact change ends without a branch, so nothing can stack on
+	// it; decided here on the attempt's own snapshot.
+	if findings := validateStackParentDeliverable(o.req, snap); len(findings) > 0 {
+		return transaction.MutationPlan{}, transaction.OperationResult{Refused: true, Findings: findings}, nil
+	}
 
 	recordBytes, err := render.ChangeRecord(render.NewChangeRecord{
 		ID:             newID,
@@ -496,6 +535,7 @@ func (o changeCreateOp) Plan(ctx context.Context, st transaction.AttemptState) (
 		Title:          o.req.Title,
 		Type:           o.req.Type,
 		Priority:       o.req.Priority,
+		Deliverable:    o.req.Deliverable,
 		Created:        o.clock.Now().UTC(),
 		DependsOn:      toChangeIDs(o.req.DependsOn),
 		StackedOn:      toChangeIDPtr(o.req.StackedOn),
@@ -627,6 +667,26 @@ func validateChangeReferences(req ChangeCreateRequest, snap domain.Snapshot) []d
 		}
 	}
 	return findings
+}
+
+// validateStackParentDeliverable refuses a stacked_on that resolves to a
+// results-artifact change: such a change never has a branch to stack on. A
+// dangling stacked_on is validateChangeReferences' to report, not this check's.
+func validateStackParentDeliverable(req ChangeCreateRequest, snap domain.Snapshot) []domain.Finding {
+	if req.StackedOn == nil {
+		return nil
+	}
+	parent, out := snap.Change(domain.ChangeID(*req.StackedOn))
+	if out != domain.LookupFound || parent.Deliverable() != domain.DeliverableResultsArtifact {
+		return nil
+	}
+	return []domain.Finding{{
+		Code:     string(FCResultsArtifactNotStackable),
+		Severity: domain.SeverityError,
+		Entity:   domain.EntityRef{Kind: domain.EntityChange},
+		Field:    "stacked_on",
+		Detail:   map[string]string{"reference": fmt.Sprintf("%d", *req.StackedOn)},
+	}}
 }
 
 // buildCandidateSnapshot rebuilds the complete snapshot the attempt would see

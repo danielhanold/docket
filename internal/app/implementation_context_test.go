@@ -597,3 +597,31 @@ func TestImplementationContextAutoSelectionSurvivesMalformedStackBranch(t *testi
 		}
 	}
 }
+
+// TestContextImplementationReportsDeliverable: the selected change's summary
+// carries its deliverable — stored value, "pr" when absent, raw text when unknown.
+func TestContextImplementationReportsDeliverable(t *testing.T) {
+	spec := "docs/changes/specs/spec-d.md"
+	for _, c := range []struct{ extra, want string }{
+		{"deliverable: results-artifact\n", "results-artifact"},
+		{"", "pr"},
+		{"deliverable: research\n", "research"},
+	} {
+		t.Run(c.want, func(t *testing.T) {
+			fake := &fakeReader{
+				pin:    docketPin(t),
+				corpus: []StatusBlob{changeBlob(61, "delta", "feat", "high", "spec: "+spec+"\n"+c.extra)},
+				artifactData: map[string]StatusArtifact{
+					sourceMetadata + "|" + spec: {Found: true, Revision: "sd", Data: []byte("spec d\n")},
+				},
+			}
+			got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{ID: 61})
+			if got.Result != ResultApplied || got.Context == nil {
+				t.Fatalf("result=%q reason=%q", got.Result, got.Reason)
+			}
+			if d := got.Context.Change.Summary.Deliverable; d != c.want {
+				t.Errorf("summary deliverable = %q, want %q", d, c.want)
+			}
+		})
+	}
+}
