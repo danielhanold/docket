@@ -172,7 +172,7 @@ func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps Workspa
 		if !completed {
 			sweepAssessPRBacklinkLeg(shared, c, link, &a)
 		}
-		sweepAssessWorkspaceLeg(ctx, wdeps, repo, target, &a)
+		sweepAssessWorkspaceLeg(ctx, wdeps, repo, target, completed, &a)
 		sweepAssessLocalRefLeg(shared, featureRef, &a)
 		if !completed {
 			sweepAssessRemoteRefLeg(shared, featureRef, &a)
@@ -280,8 +280,12 @@ func sweepAssessPRBacklinkLeg(shared sweepSharedFacts, c domain.Change, link ren
 // (workspace.Service.Inspect never fetches). A cleaned tombstone certifies the
 // checkout is already gone; a missing or foreign manifest does NOT certify clean —
 // it is a blocker, never a no-op; a probe error is unresolved; any other legible
-// owned state is possible work.
-func sweepAssessWorkspaceLeg(ctx context.Context, wdeps WorkspaceDeps, repo gitcli.Repository, target workspace.Target, a *sweepLegAssessment) {
+// owned state is possible work. The one exception is a completed results-artifact
+// change (completed): one claimed but never prepared on this machine, or cleaned
+// on another, has no workspace here, so a proven-absent inspection is a no-op for
+// it — exactly as finalizeCleanupResultsArtifact reads it — while a foreign
+// leftover still blocks.
+func sweepAssessWorkspaceLeg(ctx context.Context, wdeps WorkspaceDeps, repo gitcli.Repository, target workspace.Target, completed bool, a *sweepLegAssessment) {
 	if wdeps.Service == nil {
 		a.markUnknown(sweepLegWorkspace, "no workspace service is wired to inspect the checkout")
 		return
@@ -290,6 +294,9 @@ func sweepAssessWorkspaceLeg(ctx context.Context, wdeps WorkspaceDeps, repo gitc
 	if err != nil {
 		a.markUnknown(sweepLegWorkspace, "the feature workspace could not be inspected")
 		return
+	}
+	if completed && workspaceProvenAbsent(insp) {
+		return // a completed change with no workspace on this machine: nothing to remove
 	}
 	switch insp.Kind {
 	case workspace.StateCleaned:

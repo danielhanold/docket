@@ -562,7 +562,15 @@ func finalizeCleanupResultsArtifact(ctx context.Context, deps FinalizeDeps, cc *
 
 	var findings, notes []StatusFinding
 	var removed []string
-	workspaceClean, wsRemoved, wsFinding, wsNote := finalizeCleanupWorkspace(ctx, deps, cc)
+	// A change claimed but never prepared on this machine — or cleaned on another
+	// — has no workspace manifest, which workspace Cleanup refuses as blocked. A
+	// proven-absent inspection is no workspace work; anything else (a foreign or
+	// leftover state, or an inspection error) goes through Cleanup as before.
+	workspaceClean, wsRemoved := true, false
+	var wsFinding, wsNote *StatusFinding
+	if !finalizeCleanupWorkspaceProvenAbsent(ctx, deps, cc) {
+		workspaceClean, wsRemoved, wsFinding, wsNote = finalizeCleanupWorkspace(ctx, deps, cc)
+	}
 	if wsFinding != nil {
 		findings = append(findings, *wsFinding)
 	}
@@ -772,16 +780,8 @@ func finalizeCleanupAbortedRebase(ctx context.Context, deps FinalizeDeps, cc *cl
 // through a read-only inspect, returning "" when the base is unresolved or the
 // inspection cannot name a path (the caller then skips the rebase-state check).
 func finalizeCleanupWorkspacePath(ctx context.Context, deps FinalizeDeps, cc *closeoutContext) string {
-	base := domain.ResolveEffectiveBase(cc.snap, cc.change, domain.NewBranchFacts(nil))
-	if base.Kind != domain.BaseResolved {
-		return ""
-	}
-	branch, berr := recordedBranch(cc.change)
-	if berr != nil {
-		return ""
-	}
-	target, err := workspace.NewTarget(cc.change.ID(), cc.change.Slug(), base, branch)
-	if err != nil {
+	target, ok := finalizeCleanupTarget(cc)
+	if !ok {
 		return ""
 	}
 	insp, err := deps.Workspace.Inspect(ctx, workspace.InspectRequest{Repository: cc.repo, Target: target})
@@ -792,6 +792,48 @@ func finalizeCleanupWorkspacePath(ctx context.Context, deps FinalizeDeps, cc *cl
 		return ""
 	}
 	return insp.Path
+}
+
+// finalizeCleanupTarget derives the change's workspace target from its resolved
+// base and recorded branch; ok is false when either is unusable.
+func finalizeCleanupTarget(cc *closeoutContext) (workspace.Target, bool) {
+	base := domain.ResolveEffectiveBase(cc.snap, cc.change, domain.NewBranchFacts(nil))
+	if base.Kind != domain.BaseResolved {
+		return workspace.Target{}, false
+	}
+	branch, berr := recordedBranch(cc.change)
+	if berr != nil {
+		return workspace.Target{}, false
+	}
+	target, err := workspace.NewTarget(cc.change.ID(), cc.change.Slug(), base, branch)
+	if err != nil {
+		return workspace.Target{}, false
+	}
+	return target, true
+}
+
+// finalizeCleanupWorkspaceProvenAbsent reports whether the change's workspace is
+// proven cleanly absent on this machine: no manifest, and — as Inspect's
+// StateAbsent certifies — the local feature ref cleanly absent (never a probe
+// error), the intended .worktrees/<slug> path unoccupied, and no worktree
+// registered on the feature ref or that path. Any other state, and any
+// inspection error, is false: a foreign manifest or a leftover never certifies
+// absence.
+func finalizeCleanupWorkspaceProvenAbsent(ctx context.Context, deps FinalizeDeps, cc *closeoutContext) bool {
+	target, ok := finalizeCleanupTarget(cc)
+	if !ok {
+		return false
+	}
+	insp, err := deps.Workspace.Inspect(ctx, workspace.InspectRequest{Repository: cc.repo, Target: target})
+	return err == nil && workspaceProvenAbsent(insp)
+}
+
+// workspaceProvenAbsent is the shared absence predicate for a completed change's
+// workspace leg (cleanup and the sweep's assessment): Inspect classifies a
+// missing manifest as StateAbsent only when the ref, path, and registrations are
+// also cleanly absent; a leftover is StateForeign.
+func workspaceProvenAbsent(insp workspace.Inspection) bool {
+	return insp.Kind == workspace.StateAbsent && insp.NoManifest
 }
 
 // --- gate cleanup ---------------------------------------------------------

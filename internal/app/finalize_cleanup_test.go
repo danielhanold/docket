@@ -400,11 +400,19 @@ func TestCleanupHumanTextNamesWorkspaceRemnant(t *testing.T) {
 type raNoGitHub struct{ FinalizeGitHub }
 
 // raWorkspace scripts the workspace-removal leg of a results-artifact cleanup.
+// insp is what Inspect reports; its zero value is no legible state, so a test
+// that does not set it reaches Cleanup exactly as before.
 type raWorkspace struct {
 	FinalizeWorkspace
-	disp  workspace.CleanupDisposition
-	err   error
-	calls int
+	disp    workspace.CleanupDisposition
+	err     error
+	calls   int
+	insp    workspace.Inspection
+	inspErr error
+}
+
+func (w *raWorkspace) Inspect(context.Context, workspace.InspectRequest) (workspace.Inspection, error) {
+	return w.insp, w.inspErr
 }
 
 func (w *raWorkspace) Cleanup(context.Context, workspace.CleanupRequest) (workspace.CleanupResult, error) {
@@ -552,6 +560,38 @@ func TestFinalizeCleanupResultsArtifactAlreadyClean(t *testing.T) {
 		res := finalizeCleanupResultsArtifact(context.Background(), raDeps(&raWorkspace{disp: workspace.CleanupAlreadyClean}, git), raContext(t, true))
 		if res.Result != ResultNoOp || res.Disposition != CleanupDispAlready {
 			t.Fatalf("already clean: cleanup = %q disp %q (%s)", res.Result, res.Disposition, res.Message)
+		}
+	})
+	// A change claimed but never prepared on this machine (or cleaned on another)
+	// has no workspace manifest, which the real Cleanup reports as blocked. A
+	// proven-absent inspection (no manifest, ref, path, or registration) is
+	// already-clean and never reaches Cleanup.
+	t.Run("never-prepared-is-already-clean", func(t *testing.T) {
+		git := happyRAGit(t)
+		git.tip, git.resolveErr = "", &gitcli.Failure{Kind: gitcli.KindRefUnavailable}
+		ws := &raWorkspace{disp: workspace.CleanupBlocked, insp: workspace.Inspection{Kind: workspace.StateAbsent, NoManifest: true}}
+		res := finalizeCleanupResultsArtifact(context.Background(), raDeps(ws, git), raContext(t, true))
+		if res.Result != ResultNoOp || res.Disposition != CleanupDispAlready {
+			t.Fatalf("never prepared: cleanup = %q disp %q reason %q (%s)", res.Result, res.Disposition, res.Reason, res.Message)
+		}
+		if ws.calls != 0 {
+			t.Fatalf("a proven-absent workspace must not be handed to Cleanup")
+		}
+	})
+	// A missing manifest with a leftover (a local branch, an occupied path, or a
+	// registration) inspects as foreign and stays blocked.
+	t.Run("foreign-leftover-stays-blocked", func(t *testing.T) {
+		ws := &raWorkspace{disp: workspace.CleanupBlocked, insp: workspace.Inspection{Kind: workspace.StateForeign, NoManifest: true}}
+		res := finalizeCleanupResultsArtifact(context.Background(), raDeps(ws, happyRAGit(t)), raContext(t, true))
+		if res.Disposition != CleanupDispPending || res.Reason != ReasonCleanupWorkspaceBlocked {
+			t.Fatalf("foreign leftover: got %q/%q, want pending/%s", res.Disposition, res.Reason, ReasonCleanupWorkspaceBlocked)
+		}
+	})
+	t.Run("inspect-error-is-not-absence", func(t *testing.T) {
+		ws := &raWorkspace{disp: workspace.CleanupBlocked, inspErr: errCleanupProbe}
+		res := finalizeCleanupResultsArtifact(context.Background(), raDeps(ws, happyRAGit(t)), raContext(t, true))
+		if res.Disposition != CleanupDispPending {
+			t.Fatalf("inspect error: got %q/%q, want pending", res.Disposition, res.Reason)
 		}
 	})
 	t.Run("ref-probe-error-is-not-absence", func(t *testing.T) {
