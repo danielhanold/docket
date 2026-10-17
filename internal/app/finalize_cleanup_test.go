@@ -78,7 +78,7 @@ func (f *fakeCleanupGitHub) MergePullRequest(context.Context, githubcli.Reposito
 // retained rather than destructive.
 type faultyCleanupGit struct {
 	inner *gitcli.Client
-	fail  string // "resolve" | "remote-probe" | "list" | "ancestor" | "fetch"
+	fail  string // "resolve" | "remote-probe" | "list" | "ancestor" | "fetch" | "delete"
 }
 
 var errCleanupProbe = errors.New("injected cleanup probe failure")
@@ -114,6 +114,9 @@ func (g *faultyCleanupGit) FetchBranch(ctx context.Context, repo gitcli.Reposito
 	return g.inner.FetchBranch(ctx, repo, remote, branch)
 }
 func (g *faultyCleanupGit) DeleteLocalBranchChecked(ctx context.Context, repo gitcli.Repository, branch gitcli.RefName, expectedTip gitcli.ObjectID) error {
+	if g.fail == "delete" {
+		return errCleanupProbe
+	}
 	return g.inner.DeleteLocalBranchChecked(ctx, repo, branch, expectedTip)
 }
 func (g *faultyCleanupGit) DeleteRemoteRefLease(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, ref gitcli.RefName, expectedTip gitcli.ObjectID) (gitcli.PushOutcome, error) {
