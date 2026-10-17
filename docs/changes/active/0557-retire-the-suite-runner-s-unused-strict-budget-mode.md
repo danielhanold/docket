@@ -11,8 +11,8 @@ depends_on: []
 stacked_on:
 related: [528, 273]
 discovered_from: [528]
-adrs: []
-spec:
+adrs: [74]
+spec: 'docs/superpowers/specs/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md](../../superpowers/specs/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md) |
+| ADRs | [ADR-0074](../../adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,14 +43,16 @@ Surfaced while grooming #528.
 
 ## What changes
 
-Remove strict budget mode from the suite runner: the `DOCKET_RUNTESTS_STRICT` environment seam, `Config.Strict`, the strict re-check path (`StrictConfirmCandidates`), exit code 4, the strict and advisory hint lines in the budget report (including the dead `scripts/run-tests.md` pointer and the `--strict-budget` wording), the strict tests, and the strict sentences in `tests/README.md`'s exit contract.
+Remove strict budget mode from the suite runner: the `DOCKET_RUNTESTS_STRICT` environment seam, `Config.Strict`, the strict re-check path (`StrictConfirmCandidates`), exit code 4, the strict note and the stale "set `DOCKET_RUNTESTS_STRICT=1` … see `scripts/run-tests.md`" hint in the budget report, the strict tests, and the strict sentences in `tests/README.md`. After this, no budget finding changes a run's exit code.
 
-Also decide whether the runner's direct "over budget" reading still earns its place. A single-job run (`DOCKET_RUNTESTS_JOBS=1`) or a serial-mode budget row compares a test straight against `ceiling * 3/2` and prints `OVER BUDGET:`, which the release-candidate workflow fails on. Nothing runs single-job today, no serial-mode rows exist, and its only past users were in the deleted Bash runner. It shares the exit-4 arming with strict mode, so the same change should either retire it or say why it stays.
+Keep the direct reading that a single-job run or a serial-mode budget row gets (`OVER BUDGET:`, exit 0). Screening and the solo re-check only run on a parallel run, so without it those two paths would carry ceilings nothing checks. A new test pins it, and `tests/README.md` is corrected: it wrongly says a single-job breach prints `SERIAL CONFIRMED OVER BUDGET:`.
 
-Finally, fix the stale comment in `.github/workflows/release-candidate.yml` that calls its two greps "the runner's complete budget vocabulary". #528 added the `SERIAL CONFIRMATION NOT COUNTED:` line, which is in neither grep, so the comment is no longer exactly true. The omission is deliberate (that line is meant to fail nothing), so reword the comment to say so rather than adding a third grep. This also makes the "unless a retired line prefix forces an edit there" carve-out below moot for the comment.
+Drop wording that implied a non-default mode: "by default" in `AGENTS.md`'s budget rule and "default" in the glossary's budget entry. Reword two stale comments in `.github/workflows/release-candidate.yml`: the claim that its greps are "the runner's complete budget vocabulary" (the `SERIAL CONFIRMATION NOT COUNTED:` line is left out on purpose, because it is meant to fail nothing) and the "(no --strict-budget)" aside. The greps themselves don't change.
 
 ## Out of scope
 
 - The scheduled solo re-check and its contention handling (#528).
 - Host-relative budgets (#273).
-- The release-candidate workflow's own budget check, unless a retired line prefix forces an edit there.
+- Detecting another running suite during a direct single-job reading.
+- The release-candidate workflow's greps; only its comments change.
+- Point-in-time records that mention strict mode (plans, specs, results files, ADRs) and the frozen `testdata/repositories/status-corpus/` fixture.

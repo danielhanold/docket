@@ -1,6 +1,6 @@
 # Backlog
 
-**566 changes** — 🟢 1 in progress · 🟡 9 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
+**566 changes** — 🟢 1 in progress · 🟣 1 groomed · 🟡 8 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,13 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0563](active/0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | `low` | `fix` | [spec](../superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md) | `fix/let-change-groom-clear-stacked-on` |  |
 
-## 🟡 Proposed (9)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec |
+|---|-------|----------|------|------|
+| [0557](active/0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | `low` | `refactor` | [spec](../superpowers/specs/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md) |
+
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -18,7 +24,6 @@
 | [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
 | [0560](active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Mark a build-ready change as off-limits to the autonomous loop | `medium` | `feat` | needs-grooming |
 | [0558](active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Name the SERIAL CONFIRMATION NOT COUNTED budget line in AGENTS.md | `low` | `docs` | needs-grooming |
-| [0557](active/0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | `low` | `refactor` | needs-grooming |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
