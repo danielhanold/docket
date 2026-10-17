@@ -91,6 +91,10 @@ func SchemaVocabularies(effects []string) map[string]Vocabulary {
 		ReclaimDispReclaimed, ReclaimDispSkipped,
 		ReclaimDispContended, ReclaimDispFailed,
 	}}
+	v["complete_dispositions"] = Vocabulary{Members: []string{
+		CompleteDispCompleted, CompleteDispAlreadyCompleted,
+		CompleteDispContended, CompleteDispFailed,
+	}}
 	v["reconcile_dispositions"] = Vocabulary{Members: []string{
 		ReconcileDispositionApplied, ReconcileDispositionContended,
 		ReconcileDispositionFailed,

@@ -312,6 +312,40 @@ func MarkDone(c Change, f DoneFacts) (ActionResult, *PolicyFailure) {
 	return b.result(), nil
 }
 
+// Complete is the results-artifact ending: it terminates a proposed or
+// in-progress change whose deliverable is results-artifact, carries attached
+// results, and records no PR, moving it straight to done without a PR. The
+// claim stamp is cleared (an archived record holds no lease); the recorded
+// branch is kept, so finalize cleanup can find and delete it. A historical
+// "## Run halted" section is an owned removal. The deliverable check keys on
+// the effective value, so an absent field (pr) and an unknown stored value are
+// both refused rather than guessed. updated: is left to the persisting layer.
+func Complete(c Change) (ActionResult, *PolicyFailure) {
+	if fail := requireStatus(c, "complete", StatusProposed, StatusInProgress); fail != nil {
+		return ActionResult{}, fail
+	}
+	if c.Deliverable() != DeliverableResultsArtifact {
+		return ActionResult{}, newFailure(c, FailInvalidState, "not-results-artifact", map[string]string{
+			"deliverable": c.RawDeliverable(),
+		})
+	}
+	if c.PR().Value != "" {
+		return ActionResult{}, newFailure(c, FailInvalidState, "pr-recorded", map[string]string{
+			"pr": c.PR().Value,
+		})
+	}
+	if c.Results().Value == "" {
+		return ActionResult{}, newFailure(c, FailBlocked, "results-missing", nil)
+	}
+	b := newChangeBuilder(c)
+	b.setStatus(StatusDone)
+	b.clearClaimedAt()
+	if c.HasRunHalted() {
+		b.own(RunHaltedSection)
+	}
+	return b.result(), nil
+}
+
 // DescendantOutcome is one descendant's share of a stack kill. NoOp marks a
 // descendant that was already blocked: it is reported so the caller can
 // account for it, with its unchanged record and an empty Changed set.

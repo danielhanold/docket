@@ -90,6 +90,12 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			setResult(app.ChangeKill(c.Context(), deps, repoDir, req))
 		}, EffectMetadataWrite)
 
+	complete := changeSubcommand("change", "complete",
+		"Complete a results-artifact change, archiving it as done without a PR, from a JSON request",
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeCompleteRequest) {
+			setResult(app.ChangeComplete(c.Context(), deps, repoDir, req))
+		}, EffectMetadataWrite)
+
 	claim := changeIDRevisionSubcommand("claim",
 		"Claim a build-ready change at an exact revision, moving it to in-progress",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
@@ -144,7 +150,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	relink := newRelinkSubcommand(setResult)
 
-	changeCmd.AddCommand(create, groom, block, deferCmd, unblock, revive, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, reclaim, markImplemented, relink)
+	changeCmd.AddCommand(create, groom, block, deferCmd, unblock, revive, kill, complete, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, reclaim, markImplemented, relink)
 	return changeCmd
 }
 

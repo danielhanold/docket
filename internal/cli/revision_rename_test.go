@@ -28,6 +28,7 @@ func TestRetiredRevisionRequestKeysRefused(t *testing.T) {
 		{"change.block", `{"version":"x"}`, "version", "revision", []string{"change", "block", "--request", "-"}},
 		{"change.defer", `{"version":"x"}`, "version", "revision", []string{"change", "defer", "--request", "-"}},
 		{"change.kill", `{"version":"x"}`, "version", "revision", []string{"change", "kill", "--request", "-"}},
+		{"change.complete", `{"version":"x"}`, "version", "revision", []string{"change", "complete", "--request", "-"}},
 		{"change.revive", `{"version":"x"}`, "version", "revision", []string{"change", "revive", "--request", "-"}},
 		{"change.unblock", `{"version":"x"}`, "version", "revision", []string{"change", "unblock", "--request", "-"}},
 		{"change.reconcile", `{"version":"x"}`, "version", "revision", []string{"change", "reconcile", "--input", "-"}},

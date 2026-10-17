@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -25,6 +26,7 @@ type actSpec struct {
 	runHalted    bool
 	dependsOn    []ChangeID
 	deliverable  string // stored deliverable text; a non-member is kept raw as unknown
+	results      string // attached results path, present when non-empty
 }
 
 // build turns an actSpec into an immutable Change.
@@ -67,6 +69,9 @@ func (as actSpec) build() Change {
 	}
 	if as.plan != "" {
 		cs.Plan = OptionalString{State: FieldPresent, Value: as.plan}
+	}
+	if as.results != "" {
+		cs.Results = OptionalString{State: FieldPresent, Value: as.results}
 	}
 	if as.deliverable != "" {
 		cs.RawDeliverable = as.deliverable
@@ -911,6 +916,95 @@ func TestClaimRejectsInvalidBranchComponent(t *testing.T) {
 			}
 			if after := fingerprint(input); after != before {
 				t.Fatalf("input mutated: %q -> %q", before, after)
+			}
+		})
+	}
+}
+
+// TestCompleteMatrix pins the results-artifact ending: a proposed or
+// in-progress results-artifact change carrying results and no PR completes to
+// done with its claim stamp cleared and its branch kept; every other source
+// status, deliverable, or missing precondition refuses with its stable reason.
+func TestCompleteMatrix(t *testing.T) {
+	const ra = string(DeliverableResultsArtifact)
+	const res = "docs/results/r.md"
+
+	t.Run("proposed completes", func(t *testing.T) {
+		got, fail := Complete(actSpec{id: 9, slug: "s", status: StatusProposed, deliverable: ra, results: res}.build())
+		if fail != nil {
+			t.Fatalf("Complete failed: %v", fail)
+		}
+		if got.Change.Status() != StatusDone {
+			t.Fatalf("status = %q, want done", got.Change.Status())
+		}
+		if len(got.OwnedRemovals) != 0 {
+			t.Fatalf("OwnedRemovals = %v, want none without a run-halted section", got.OwnedRemovals)
+		}
+		if _, ok := fieldTo(got, "updated"); ok {
+			t.Fatalf("Complete must not touch updated: (the app upserts it): %+v", got.Changed)
+		}
+	})
+
+	for _, halted := range []bool{false, true} {
+		t.Run(fmt.Sprintf("in-progress completes (run halted %v)", halted), func(t *testing.T) {
+			got, fail := Complete(actSpec{
+				id: 9, slug: "s", status: StatusInProgress, branch: "feat/s",
+				claimedAt: "2026-08-01T00:00:00Z", deliverable: ra, results: res, runHalted: halted,
+			}.build())
+			if fail != nil {
+				t.Fatalf("Complete failed: %v", fail)
+			}
+			if got.Change.Status() != StatusDone {
+				t.Fatalf("status = %q, want done", got.Change.Status())
+			}
+			if got.Change.ClaimedAt().State != FieldAbsent {
+				t.Fatalf("claimed_at not cleared: %+v", got.Change.ClaimedAt())
+			}
+			if to, ok := fieldTo(got, "claimed_at"); !ok || to != "" {
+				t.Fatalf("Changed claimed_at To = %q, ok=%v", to, ok)
+			}
+			if got.Change.Branch().Value != "feat/s" {
+				t.Fatalf("branch = %+v, want kept", got.Change.Branch())
+			}
+			if _, ok := fieldTo(got, "branch"); ok {
+				t.Fatalf("branch must not be rewritten: %+v", got.Changed)
+			}
+			want := 0
+			if halted {
+				want = 1
+			}
+			if len(got.OwnedRemovals) != want || (halted && got.OwnedRemovals[0] != RunHaltedSection) {
+				t.Fatalf("OwnedRemovals = %v, want run-halted only when halted", got.OwnedRemovals)
+			}
+		})
+	}
+
+	for _, st := range []Status{StatusBlocked, StatusDeferred, StatusImplemented, StatusStackedMerged, StatusDone, StatusKilled} {
+		t.Run("from "+string(st), func(t *testing.T) {
+			_, fail := Complete(actSpec{id: 9, slug: "s", status: st, branch: "feat/s", deliverable: ra, results: res}.build())
+			if fail == nil || fail.Kind != FailInvalidState || fail.Reason != "illegal-source-status" {
+				t.Fatalf("failure = %+v, want invalid-state/illegal-source-status", fail)
+			}
+		})
+	}
+
+	refusals := []struct {
+		name   string
+		spec   actSpec
+		kind   PolicyFailureKind
+		reason string
+	}{
+		{"pr deliverable", actSpec{id: 9, status: StatusProposed, deliverable: string(DeliverablePR), results: res}, FailInvalidState, "not-results-artifact"},
+		{"absent deliverable reads as pr", actSpec{id: 9, status: StatusProposed, results: res}, FailInvalidState, "not-results-artifact"},
+		{"unknown deliverable", actSpec{id: 9, status: StatusProposed, deliverable: "research", results: res}, FailInvalidState, "not-results-artifact"},
+		{"pr recorded", actSpec{id: 9, status: StatusInProgress, branch: "feat/s", deliverable: ra, results: res, pr: "https://x/pull/1"}, FailInvalidState, "pr-recorded"},
+		{"no results", actSpec{id: 9, status: StatusProposed, deliverable: ra}, FailBlocked, "results-missing"},
+	}
+	for _, r := range refusals {
+		t.Run(r.name, func(t *testing.T) {
+			_, fail := Complete(r.spec.build())
+			if fail == nil || fail.Kind != r.kind || fail.Reason != r.reason {
+				t.Fatalf("failure = %+v, want %s/%s", fail, r.kind, r.reason)
 			}
 		})
 	}

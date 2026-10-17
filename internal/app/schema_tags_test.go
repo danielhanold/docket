@@ -40,6 +40,9 @@ func TestRequiredTagMatchesValidator(t *testing.T) {
 		{"change.kill", ChangeKillRequest{}, func() []StatusFinding {
 			return ChangeKill(context.Background(), PlanningDeps{}, "", ChangeKillRequest{}).Findings
 		}},
+		{"change.complete", ChangeCompleteRequest{}, func() []StatusFinding {
+			return ChangeComplete(context.Background(), PlanningDeps{}, "", ChangeCompleteRequest{}).Findings
+		}},
 		{"learning.record", LearningRecordRequest{}, func() []StatusFinding {
 			return LearningRecordOp(context.Background(), PlanningDeps{}, "", LearningRecordRequest{}).Findings
 		}},
