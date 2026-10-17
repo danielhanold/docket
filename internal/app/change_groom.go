@@ -736,17 +736,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		return refuseGroom("section-edit-failed", err.Error())
 	}
 
-	// First patch pass: the typed field edits (spec/trivial/updated/title/priority and the
-	// complete-desired relationship collections). The artifact block is filled in
-	// a second pass, because rendering it needs the groomed snapshot.
-	doc1, err := document.Parse(edited)
-	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: reparsing edited record: %w", err)
-	}
-
 	specPath := path.Join(specsDir, fmt.Sprintf("%s-%s-design.md", o.clock.Now().UTC().Format("2006-01-02"), c.Slug()))
-
-	var ps document.PatchSet
 	if o.req.Outcome == GroomSpec {
 		// A pre-existing spec path would collide with the new file; refuse.
 		exists, err := treeHasPath(ctx, st.Tree, specPath)
@@ -756,65 +746,15 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		if exists {
 			return refuseGroom("spec-path-taken", fmt.Sprintf("spec path %q already exists", specPath))
 		}
-		ps.SetField("spec", document.String(specPath))
-	}
-	if o.req.Outcome == GroomTrivial {
-		ps.SetField("trivial", document.Bool(true))
-	}
-	if o.req.Outcome == GroomAbstain {
-		// upsertField: a record without the key (hand-authored or pre-template)
-		// gets it inserted rather than failing on a missing patch target.
-		upsertField(&ps, doc1, "auto_groomable", document.Bool(false))
-	}
-	if o.req.Outcome == GroomReEnable {
-		upsertField(&ps, doc1, "auto_groomable", document.Bool(true))
-	}
-	// upsertField (not bare SetField): the updated: field is inserted when a record
-	// lacks it (a Bash-era or hand-authored record), so this op degrades like the
-	// ADR ops, which upsert the same field, rather than internal-erroring with a
-	// KindMissingPatchTarget.
-	upsertField(&ps, doc1, "updated", document.String(o.clock.Now().UTC().Format("2006-01-02")))
-	if o.req.Title != "" {
-		// Retitle (change 0461). The writer quotes the scalar, so ADR-0071 holds by
-		// construction. upsertField tolerates a record lacking the key rather than
-		// internal-erroring. The slug, record path, and spec path are never
-		// touched: the candidate snapshot below carries the new title into the
-		// artifact block and the board with no further code.
-		upsertField(&ps, doc1, "title", document.String(o.req.Title))
-	}
-	if o.req.Priority != "" {
-		// Re-prioritize (change 0550). Validated against domain.ParsePriority at
-		// the shape stage; upsertField tolerates a record lacking the key, as the
-		// retitle does. The candidate snapshot carries the new priority into the
-		// artifact block and the inline board with no further code.
-		upsertField(&ps, doc1, "priority", document.String(o.req.Priority))
-	}
-	if o.req.DependsOn != nil {
-		ps.SetField("depends_on", intSeqValue(o.req.DependsOn))
-	}
-	if o.req.Related != nil {
-		ps.SetField("related", intSeqValue(o.req.Related))
-	}
-	if o.req.DiscoveredFrom != nil {
-		ps.SetField("discovered_from", intSeqValue(o.req.DiscoveredFrom))
-	}
-	if o.req.ADRs != nil {
-		ps.SetField("adrs", intSeqValue(o.req.ADRs))
-	}
-	if o.req.StackedOn != nil {
-		ps.SetField("stacked_on", document.Int(int64(*o.req.StackedOn)))
 	}
 
-	intermediate, err := doc1.Apply(ps)
-	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: patching record fields: %w", err)
-	}
-	// Deliverable, type, and branch_prefix (change 0559), validated before the
-	// transaction. Older records often lack deliverable: and branch_prefix:, and
-	// two inserts in one PatchSet collide at the pre-fence insertion point, so
-	// each is upserted in its own parse/apply cycle (upsertFieldBytes). A
-	// branch_prefix that normalizes to "" clears the field to a valueless key.
-	for _, f := range o.reqFieldEdits() {
+	// Every groom-written field is upserted (inserted when the record lacks the
+	// key, as hand-authored, Bash-era, and pre-template records often do), one
+	// write per parse/apply cycle: two inserts in one PatchSet collide at the
+	// pre-fence insertion point. The artifact block is filled in a later pass,
+	// because rendering it needs the groomed snapshot.
+	intermediate := edited
+	for _, f := range o.fieldEdits(specPath) {
 		if intermediate, err = upsertFieldBytes(intermediate, f.name, f.value); err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: patching %s: %w", f.name, err)
 		}
@@ -946,10 +886,46 @@ type groomFieldEdit struct {
 	value document.Value
 }
 
-// reqFieldEdits lists the deliverable, type, and branch_prefix writes the
-// request asks for, in record order.
-func (o changeGroomOp) reqFieldEdits() []groomFieldEdit {
+// fieldEdits lists every frontmatter write the outcome and request ask for, in
+// record order. The retitle (change 0461) and re-prioritize (change 0550)
+// values are validated at the shape stage, and the writer quotes every scalar,
+// so ADR-0071 holds by construction; the candidate snapshot carries them into
+// the artifact block and the board with no further code. A branch_prefix that
+// normalizes to "" clears the field to a valueless key (change 0559).
+func (o changeGroomOp) fieldEdits(specPath string) []groomFieldEdit {
 	var out []groomFieldEdit
+	switch o.req.Outcome {
+	case GroomSpec:
+		out = append(out, groomFieldEdit{"spec", document.String(specPath)})
+	case GroomTrivial:
+		out = append(out, groomFieldEdit{"trivial", document.Bool(true)})
+	case GroomAbstain:
+		out = append(out, groomFieldEdit{"auto_groomable", document.Bool(false)})
+	case GroomReEnable:
+		out = append(out, groomFieldEdit{"auto_groomable", document.Bool(true)})
+	}
+	out = append(out, groomFieldEdit{"updated", document.String(o.clock.Now().UTC().Format("2006-01-02"))})
+	if o.req.Title != "" {
+		out = append(out, groomFieldEdit{"title", document.String(o.req.Title)})
+	}
+	if o.req.Priority != "" {
+		out = append(out, groomFieldEdit{"priority", document.String(o.req.Priority)})
+	}
+	if o.req.DependsOn != nil {
+		out = append(out, groomFieldEdit{"depends_on", intSeqValue(o.req.DependsOn)})
+	}
+	if o.req.StackedOn != nil {
+		out = append(out, groomFieldEdit{"stacked_on", stackedOnValue(*o.req.StackedOn)})
+	}
+	if o.req.Related != nil {
+		out = append(out, groomFieldEdit{"related", intSeqValue(o.req.Related)})
+	}
+	if o.req.DiscoveredFrom != nil {
+		out = append(out, groomFieldEdit{"discovered_from", intSeqValue(o.req.DiscoveredFrom)})
+	}
+	if o.req.ADRs != nil {
+		out = append(out, groomFieldEdit{"adrs", intSeqValue(o.req.ADRs)})
+	}
 	if o.req.Type != "" {
 		out = append(out, groomFieldEdit{"type", document.String(o.req.Type)})
 	}
@@ -964,6 +940,16 @@ func (o changeGroomOp) reqFieldEdits() []groomFieldEdit {
 		out = append(out, groomFieldEdit{"branch_prefix", v})
 	}
 	return out
+}
+
+// stackedOnValue renders a requested stacked_on value: 0 clears the key to its
+// valueless form (the shape a cleared branch_prefix writes); any other id is
+// written as an integer.
+func stackedOnValue(id int) document.Value {
+	if id == 0 {
+		return document.Null()
+	}
+	return document.Int(int64(id))
 }
 
 // groomStackingProblem reports why the groomed change's resulting state breaks
