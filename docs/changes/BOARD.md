@@ -1,6 +1,6 @@
 # Backlog
 
-**565 changes** — 🟣 1 groomed · 🟡 8 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
+**566 changes** — 🟣 1 groomed · 🟡 9 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
 
 ## 🟣 Groomed (1)
 
@@ -8,10 +8,11 @@
 |---|-------|----------|------|------|
 | [0563](active/0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | `low` | `fix` | [spec](../superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md) |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `fix` | needs-grooming |
 | [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Make killed-parent stacking behavior match its documented policy | `low` | `fix` | needs-grooming |
 | [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | needs-grooming |
 | [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
@@ -69,6 +70,7 @@ graph TD
   0562
   0563
   0565
+  0566
   0192:::done
   0251:::done
   0511:::done
