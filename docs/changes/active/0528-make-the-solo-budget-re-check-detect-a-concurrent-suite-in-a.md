@@ -13,7 +13,7 @@ related: [273, 557]
 discovered_from: [507]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-17T02:37:19Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md](../../superpowers/specs/2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md) |
+| Plan | [2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md](../../superpowers/plans/2026-10-17-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
