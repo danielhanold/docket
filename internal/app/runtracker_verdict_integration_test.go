@@ -1685,3 +1685,70 @@ func TestIntegrationRunVerdictObserveLeavesNoClaimRunActive(t *testing.T) {
 		t.Fatalf("observe mode ran the closeout census: %v", fx.launchObserver.calls)
 	}
 }
+
+// --- results-artifact run (change 0559) --------------------------------------
+
+// TestIntegrationRunVerdictCompletedResultsArtifactReadsDone: a keyed run over a
+// results-artifact change — claimed, worktree prepared, final results attached,
+// and completed to done through change complete on a real metadata branch —
+// reads run-done run-complete and drives the successful-run closeout. No
+// workspace service and no GitHub service are wired, so the verdict reaches
+// neither a PR probe nor a feature-head inspection, and the run has no gate
+// drive for the closeout census to account.
+func TestIntegrationRunVerdictCompletedResultsArtifactReadsDone(t *testing.T) {
+	requireRealGit(t)
+	const (
+		id   = 3
+		slug = "research"
+	)
+	recPath := groomPath(id, slug)
+	rec := strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: true\n", 1)
+	rec = strings.Replace(rec, "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
+	m := planRepoModes()[0]
+	repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec})
+	lw := prepareLeakWorkspace(t, repo, m.branch, id, recPath, false)
+	completeLeakWorkspace(t, lw, repo.meta, m.branch, recPath)
+
+	repoDir := lw.node.dir
+	key := runTrackerMintStarted(t, repoDir, nil, 1, "ha")
+	if err := ReserveRunTrackerClaim(repoDir, key, id, "claim-3-v"); err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	if err := ConfirmRunTrackerClaim(repoDir, key, id, "claim-3-v", "r1", ""); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	if _, err := MintRunRecord(repoDir, key, "3"); err != nil {
+		t.Fatalf("MintRunRecord: %v", err)
+	}
+	if err := runRecordCAS(repoDir, key, func(r *RunRecord) error {
+		r.Worktree = lw.wp
+		return nil
+	}); err != nil {
+		t.Fatalf("runRecordCAS set worktree: %v", err)
+	}
+	common, err := runTrackerGitCommonDir(repoDir)
+	if err != nil {
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
+	}
+	store := gatedrive.OpenStore(common)
+	must(t, RegisterRunParticipant(repoDir, key, RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
+	must(t, RecordRunParticipantTerminal(repoDir, key, "turn-1", "t1", ParticipantTerminalCompleted))
+	observer := &fakeProcessObserver{defaultProven: true}
+	launchObserver := &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}}
+	wdeps := WorkspaceDeps{
+		ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
+			{RequestID: "claim-3-v", ChangeID: id, RunContextHash: "ha", Revision: "r1"},
+		}},
+		CancelSeams: func(string) cancelSeams {
+			return cancelSeams{store: store, observer: observer, launchObserver: launchObserver}
+		},
+	}
+
+	res := RunVerdict(context.Background(), lw.node.deps, wdeps, GitHubDeps{}, repoDir, key)
+	if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
+		t.Fatalf("HumanText = %q, want %q (findings %v)", got, want, res.CompletionFindings)
+	}
+	if st := loadRunState(t, repoDir, key); st != RunCompleted {
+		t.Fatalf("run state = %q, want completed", st)
+	}
+}

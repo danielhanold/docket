@@ -332,3 +332,97 @@ func TestRunVerifyHaltedPrecedesMissingResults(t *testing.T) {
 		t.Fatalf("halted verdict carried unmet conditions %v; the missing-results condition must not run before the halt short-circuit", unmetReasons(got))
 	}
 }
+
+// --- results-artifact postconditions (change 0559) ---------------------------
+
+// rvResultsArtifactRecord renders change 3 as a results-artifact change in the
+// given status, optionally linking results and carrying the ## Run halted
+// marker. A done record drops claimed_at, as change complete leaves it.
+func rvResultsArtifactRecord(status, results string, halted bool) []byte {
+	src := lifecycleChange(3, rvSlug, status)
+	src = strings.Replace(src, "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
+	if status == "done" {
+		src = strings.Replace(src, "claimed_at: 2026-08-02T00:00:00Z\n", "", 1)
+	}
+	if results != "" {
+		src = strings.Replace(src, "results:\n", "results: '"+results+"'\n", 1)
+	}
+	if halted {
+		src = strings.TrimRight(src, "\n") + "\n\n## Run halted\n\n### 2026-08-14\n\nPaused.\n"
+	}
+	return []byte(src)
+}
+
+// rvResultsArtifactDeps builds reader-only deps over the record: no git client,
+// no workspace service, and no GitHub service are wired, so any workspace,
+// remote, or PR probe on the results-artifact path panics and fails the test.
+func rvResultsArtifactDeps(t *testing.T, status string, record []byte) PlanningDeps {
+	t.Helper()
+	blob := StatusBlob{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, rvSlug), Revision: miRevision, Data: record}
+	if status == "done" {
+		blob.Location = repository.LocationArchive
+		blob.Path = "docs/changes/archive/2026-08-16-0003-" + rvSlug + ".md"
+	}
+	reader := &fakeReader{
+		pin:          mainPin(t),
+		corpus:       []StatusBlob{blob},
+		facts:        domain.NewBranchFacts(nil),
+		artifactData: rvMetadataArtifacts(),
+	}
+	return PlanningDeps{Reader: reader, Clock: testClock()}
+}
+
+// TestRunVerifyResultsArtifact pins the results-artifact postconditions: the
+// verdict reads completion (status done) and the results artifact only, never
+// the workspace, the remote feature ref, a PR, or build evidence.
+func TestRunVerifyResultsArtifact(t *testing.T) {
+	cases := []struct {
+		name        string
+		status      string
+		results     string
+		halted      bool
+		wantVerdict string
+		wantUnmet   []string
+		wantObs     map[string]string
+	}{
+		{"done with valid results", "done", rvResultsPath, false, VerdictRunComplete, nil, nil},
+		{"in-progress with valid results", "in-progress", rvResultsPath, false, VerdictRunIncomplete,
+			[]string{ReasonRunNotCompleted}, map[string]string{ReasonRunNotCompleted: "in-progress"}},
+		{"in-progress without results", "in-progress", "", false, VerdictRunIncomplete,
+			[]string{ReasonRunNotCompleted, ReasonRunResultsUnlinked}, nil},
+		{"done with results file absent", "done", "docs/changes/results/0003-gone-results.md", false, VerdictRunIncomplete,
+			[]string{ReasonRunResultsIdentity}, nil},
+		{"done with invalid results", "done", rvResultsInvalidPath, false, VerdictRunIncomplete,
+			[]string{ReasonRunResultsInvalid}, nil},
+		{"proposed", "proposed", rvResultsPath, false, VerdictRunUnclaimed, nil, nil},
+		{"halted", "in-progress", rvResultsPath, true, VerdictRunHalted, nil, nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			deps := rvResultsArtifactDeps(t, c.status, rvResultsArtifactRecord(c.status, c.results, c.halted))
+			res := RunVerify(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, "unused", RunVerifyRequest{ID: 3})
+			if res.Verdict != c.wantVerdict {
+				t.Fatalf("verdict = %q (reason %q: %s), want %q", res.Verdict, res.Reason, res.Message, c.wantVerdict)
+			}
+			got := unmetReasons(res)
+			want := append([]string{}, c.wantUnmet...)
+			sort.Strings(want)
+			if strings.Join(got, ",") != strings.Join(want, ",") {
+				t.Errorf("unmet = %v, want %v", got, want)
+			}
+			for reason, obs := range c.wantObs {
+				for _, u := range res.Unmet {
+					if u.Reason == reason && u.Observed != obs {
+						t.Errorf("observed for %s = %q, want %q", reason, u.Observed, obs)
+					}
+				}
+			}
+			if res.Head != "" || (c.wantVerdict == VerdictRunComplete && res.PR != "") {
+				t.Errorf("results-artifact verdict carried head %q / pr %q, want both empty", res.Head, res.PR)
+			}
+			if code := ExitCode(res.Env().Result); code != 0 {
+				t.Errorf("exit code = %d, want 0", code)
+			}
+		})
+	}
+}

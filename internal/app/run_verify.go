@@ -32,6 +32,12 @@ import (
 // non-zero; an errored probe is never folded into a clean "postcondition unmet"
 // (learning probe-error-is-not-clean-absence).
 //
+// A results-artifact change (deliverable: results-artifact) takes its own branch
+// after the unclaimed and halted short-circuits: run-complete when the change is
+// done and its results artifact is linked, present, and FINAL-valid; otherwise
+// run-incomplete with not-completed and/or the results reasons. That branch reads
+// no workspace, remote ref, PR, or build evidence (runVerifyResultsArtifact).
+//
 // Child-agent returns are never consulted: every fact is read from
 // Git/GitHub/evidence/metadata at call time.
 
@@ -69,6 +75,10 @@ const (
 	// ReasonRunNotImplemented: the change is claimed but has not reached the
 	// implemented status, so the run is not complete.
 	ReasonRunNotImplemented = "not-implemented"
+	// ReasonRunNotCompleted: a results-artifact change has not reached done
+	// through change complete, so its run is not complete. Observed is the raw
+	// status.
+	ReasonRunNotCompleted = "not-completed"
 	// ReasonRunPlanUnlinked: the change carries no linked plan.
 	ReasonRunPlanUnlinked = "plan-unlinked"
 	// ReasonRunPlanMissing: the linked plan no longer resolves to a file on the
@@ -302,6 +312,13 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		return runVerdict(VerdictRunHalted, req.ID, "", strings.TrimSpace(c.PR().Value), nil)
 	}
 
+	// A results-artifact change ends at done through change complete, with no
+	// PR, feature push, or gate evidence: its run is verified by completion and
+	// its results artifact alone.
+	if c.Deliverable() == domain.DeliverableResultsArtifact {
+		return runVerifyResultsArtifact(ctx, deps, pin, c, req.ID)
+	}
+
 	recordedPR := strings.TrimSpace(c.PR().Value)
 	// The record's bytes from this one corpus read carry the durable build
 	// evidence verified against the feature head below.
@@ -350,7 +367,6 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	// Plan and results links, and their file identity on the metadata branch
 	// (both live there; the feature head is never consulted for either).
 	planPath := strings.TrimSpace(c.Plan().Value)
-	resultsPath := strings.TrimSpace(c.Results().Value)
 	if planPath == "" {
 		add(ReasonRunPlanUnlinked, "")
 	} else {
@@ -362,24 +378,11 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 			add(ReasonRunPlanMissing, planPath)
 		}
 	}
-	// A results artifact is REQUIRED at the implemented boundary (change 0410):
-	// an absent link is an unmet condition on its own, needing no read.
-	if resultsPath == "" {
-		add(ReasonRunResultsUnlinked, "")
-	} else {
-		art, err := deps.Reader.ReadArtifact(ctx, pin, sourceMetadata, resultsPath)
-		if err != nil {
-			return runOperationalRefusal(ResultExternalFailed, ReasonRunArtifactRead, err.Error(), req.ID)
-		}
-		if !art.Found {
-			// The linked path is not on the metadata branch: identity, not prose.
-			add(ReasonRunResultsIdentity, resultsPath)
-		} else if fs := ValidateResultsContent(art.Data, ResultsPhaseFinal); len(fs) > 0 {
-			// The file's FINAL content contract fails. Observed names the path
-			// and the first finding.
-			add(ReasonRunResultsInvalid, resultsPath+": "+fs[0].Reason)
-		}
+	resultsUnmet, err := runVerifyResultsConditions(ctx, deps, pin, c)
+	if err != nil {
+		return runOperationalRefusal(ResultExternalFailed, ReasonRunArtifactRead, err.Error(), req.ID)
 	}
+	unmet = append(unmet, resultsUnmet...)
 
 	// Remote feature head must equal the local head. An errored probe is
 	// operational; a clean absence or a divergent commit is a postcondition miss.
@@ -456,6 +459,56 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	}
 
 	return runVerdict(VerdictRunIncomplete, req.ID, head, recordedPR, unmet)
+}
+
+// runVerifyResultsConditions reports the results-artifact postconditions shared
+// by both deliverables: a linked results path (REQUIRED at the implemented
+// boundary, change 0410, and at completion), its identity on the metadata branch,
+// and its FINAL content contract. Both artifacts live on the metadata branch; the
+// feature head is never consulted. A read error is returned for the caller to
+// report as operational artifact-read-failed, never folded into a condition.
+func runVerifyResultsConditions(ctx context.Context, deps PlanningDeps, pin StatusPin, c domain.Change) ([]RunVerifyCondition, error) {
+	resultsPath := strings.TrimSpace(c.Results().Value)
+	// An absent link is an unmet condition on its own, needing no read.
+	if resultsPath == "" {
+		return []RunVerifyCondition{{Reason: ReasonRunResultsUnlinked}}, nil
+	}
+	art, err := deps.Reader.ReadArtifact(ctx, pin, sourceMetadata, resultsPath)
+	if err != nil {
+		return nil, err
+	}
+	if !art.Found {
+		// The linked path is not on the metadata branch: identity, not prose.
+		return []RunVerifyCondition{{Reason: ReasonRunResultsIdentity, Observed: resultsPath}}, nil
+	}
+	if fs := ValidateResultsContent(art.Data, ResultsPhaseFinal); len(fs) > 0 {
+		// The file's FINAL content contract fails. Observed names the path and
+		// the first finding.
+		return []RunVerifyCondition{{Reason: ReasonRunResultsInvalid, Observed: resultsPath + ": " + fs[0].Reason}}, nil
+	}
+	return nil, nil
+}
+
+// runVerifyResultsArtifact is the results-artifact branch of RunVerify, reached
+// after the unclaimed and halted short-circuits. The run is complete when the
+// change is done and its results artifact is linked, present, and FINAL-valid;
+// cleanup's outcome never enters the verdict. It performs no workspace
+// inspection, remote probe, PR probe, or evidence check, and reports an empty
+// head and PR.
+func runVerifyResultsArtifact(ctx context.Context, deps PlanningDeps, pin StatusPin, c domain.Change, id int) RunVerifyResult {
+	var unmet []RunVerifyCondition
+	if c.Status() != domain.StatusDone {
+		unmet = append(unmet, RunVerifyCondition{Reason: ReasonRunNotCompleted, Observed: c.RawStatus()})
+	}
+	resultsUnmet, err := runVerifyResultsConditions(ctx, deps, pin, c)
+	if err != nil {
+		return runOperationalRefusal(ResultExternalFailed, ReasonRunArtifactRead, err.Error(), id)
+	}
+	unmet = append(unmet, resultsUnmet...)
+	if len(unmet) == 0 {
+		return runVerdict(VerdictRunComplete, id, "", "", nil)
+	}
+	return runVerdict(VerdictRunIncomplete, id, "", "", unmet)
 }
 
 // evaluateRunWaiting folds one WaitingReceipt into the run-waiting decision. It is
