@@ -68,6 +68,19 @@ The whole-branch diff against its base, for:
 Explicitly **out of scope**: re-litigating which tier a task routed to or how the build kept its
 TDD discipline (the build owns its own mechanics), and anything the green suite already proves.
 
+## Results-artifact mode
+
+When the payload carries a spec body (or a trivial change's body) and a results artifact's text
+instead of a branch and an evidence record, the change delivers findings, not code. Skip evidence
+verification and the branch diff, and check that:
+
+- the results answer what the spec asked;
+- claims and numbers trace to cited sources, or to commands a reader could re-run;
+- the `**Human action:**` line is accurate;
+- follow-ups are named.
+
+Same return schema and severities.
+
 ## Return schema
 
 Return a list of findings. Each finding carries exactly these fields:
