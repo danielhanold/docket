@@ -5,9 +5,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/danielhanold/docket/internal/process"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -156,5 +159,197 @@ func TestRunBudgetStateConvergesAcrossCheckouts(t *testing.T) {
 	}
 	if !strings.Contains(second, "consecutive parallel-overrun streak 2/5") {
 		t.Fatalf("second checkout must CONTINUE the same record (2/5), not start its own:\n%s", second)
+	}
+}
+
+// signEntries lists the names in dir matching re (none for a missing dir).
+func signEntries(t *testing.T, dir string, re *regexp.Regexp) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		t.Fatalf("read sign folder: %v", err)
+	}
+	var out []string
+	for _, e := range entries {
+		if re.MatchString(e.Name()) {
+			out = append(out, e.Name())
+		}
+	}
+	return out
+}
+
+// TestRunSignLivesForTheRun pins the sign's lifetime: while a target is still
+// running the run's own sign is visible, held, and names the worktree; once Run
+// returns the sign is gone.
+func TestRunSignLivesForTheRun(t *testing.T) {
+	ctl := testsupport.TempDir(t)
+	marker := filepath.Join(ctl, "started")
+	release := filepath.Join(ctl, "release")
+	dir := devFixture(t, map[string]string{
+		"hold": "touch '" + marker + "'\n" +
+			"i=0\n" +
+			"while [ ! -e '" + release + "' ] && [ \"$i\" -lt 300 ]; do sleep 0.1; i=$((i+1)); done\n" +
+			"echo 'ok - hold'\n",
+	})
+	var out, errBuf bytes.Buffer
+	cfg := runCfg(t, dir, &out, &errBuf)
+	cfg.StatePath = filepath.Join(testsupport.TempDir(t), "state", "state.tsv")
+	cfg.RepoRoot = testsupport.TempDir(t)
+	signDir := runSignDir(cfg.StatePath)
+
+	done := make(chan int, 1)
+	go func() { done <- Run(context.Background(), cfg) }()
+	// Whatever happens below, let the fixture finish and wait for Run, so it never
+	// outlives the test's temp dirs (cleanups run last-registered first).
+	returned := false
+	t.Cleanup(func() {
+		_ = os.WriteFile(release, nil, 0o644)
+		if !returned {
+			select {
+			case <-done:
+			case <-time.After(30 * time.Second):
+			}
+		}
+	})
+
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		if _, err := os.Stat(marker); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("fixture never started")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	signs := signEntries(t, signDir, runSignName)
+	if len(signs) != 1 {
+		t.Fatalf("during the run: want exactly one sign in %s, got %v", signDir, signs)
+	}
+	signPath := filepath.Join(signDir, signs[0])
+	if got := process.ProbeLock(signPath); got != process.LockProbeHeld {
+		t.Fatalf("during the run: sign probe = %v, want held", got)
+	}
+	body, err := os.ReadFile(signPath)
+	if err != nil {
+		t.Fatalf("read sign: %v", err)
+	}
+	if !strings.Contains(string(body), "worktree="+cfg.RepoRoot+"\n") {
+		t.Fatalf("sign must name the worktree %s:\n%s", cfg.RepoRoot, body)
+	}
+	if temps := signEntries(t, signDir, runSignTempName); len(temps) != 0 {
+		t.Fatalf("no temporary sign may remain once published: %v", temps)
+	}
+
+	if err := os.WriteFile(release, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case code := <-done:
+		returned = true
+		if code != 0 {
+			t.Fatalf("exit = %d, want 0\nstdout:\n%s\nstderr:\n%s", code, out.String(), errBuf.String())
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatalf("Run did not return after release")
+	}
+	if left := signEntries(t, signDir, runSignName); len(left) != 0 {
+		t.Fatalf("after the run: the sign must be taken down, found %v", left)
+	}
+}
+
+// TestRunSignFailureWarnsAndPasses: a sign folder that cannot be created costs
+// one stderr warning and never the exit code.
+func TestRunSignFailureWarnsAndPasses(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	defer setLockTiming(2, time.Millisecond)()
+	ro := filepath.Join(testsupport.TempDir(t), "ro")
+	if err := os.Mkdir(ro, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(ro, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(ro, 0o755) })
+
+	dir := devFixture(t, map[string]string{"a": "echo 'ok - a'\n"})
+	var out, errBuf bytes.Buffer
+	cfg := runCfg(t, dir, &out, &errBuf)
+	cfg.StatePath = filepath.Join(ro, "state.tsv")
+	cfg.RepoRoot = testsupport.TempDir(t)
+	if code := Run(context.Background(), cfg); code != 0 {
+		t.Fatalf("exit = %d, want 0\nstdout:\n%s\nstderr:\n%s", code, out.String(), errBuf.String())
+	}
+	if !strings.Contains(errBuf.String(), "run sign not put up") {
+		t.Fatalf("want a run-sign warning on stderr:\n%s", errBuf.String())
+	}
+}
+
+// TestRunOwnSignIsNotContention drives a real over-line solo re-check through Run
+// on both confirmation paths: the run's own sign is in the sign folder the whole
+// time, and must never make its own re-check NOT COUNTED (Run hands it to the
+// budget state as selfSign).
+func TestRunOwnSignIsNotContention(t *testing.T) {
+	setup := func(t *testing.T) (Config, *bytes.Buffer, *bytes.Buffer) {
+		t.Helper()
+		tests := devFixture(t, map[string]string{"slow": "echo 'ok - slow'\n"})
+		var out, errBuf bytes.Buffer
+		cfg := runCfg(t, tests, &out, &errBuf)
+		cfg.RepoRoot = filepath.Dir(tests)
+		cfg.StatePath = filepath.Join(testsupport.TempDir(t), "state.tsv")
+		cfg.DurationsPath = writeDurations(t, [][3]string{{"test_slow.sh", "1000", "1000"}})
+		return cfg, &out, &errBuf
+	}
+	check := func(t *testing.T, out string) {
+		t.Helper()
+		if strings.Contains(out, "SERIAL CONFIRMATION NOT COUNTED") {
+			t.Fatalf("the run's own sign was counted as another suite:\n%s", out)
+		}
+		if !strings.Contains(out, "SERIAL CONFIRMED OVER BUDGET: ") {
+			t.Fatalf("want an uncontended over-line re-check to confirm:\n%s", out)
+		}
+	}
+
+	t.Run("scheduled", func(t *testing.T) {
+		cfg, out, errBuf := setup(t)
+		// The fifth consecutive overrun makes the record due, and that same run
+		// takes the scheduled confirmation.
+		for i := 1; i <= 5; i++ {
+			out.Reset()
+			errBuf.Reset()
+			if code := Run(context.Background(), cfg); code != 0 {
+				t.Fatalf("run %d exit = %d\nstdout:\n%s\nstderr:\n%s", i, code, out.String(), errBuf.String())
+			}
+		}
+		check(t, out.String())
+	})
+
+	t.Run("strict", func(t *testing.T) {
+		cfg, out, errBuf := setup(t)
+		cfg.Strict = true
+		if code := Run(context.Background(), cfg); code != 4 {
+			t.Fatalf("exit = %d, want 4 (strict confirmed breach)\nstdout:\n%s\nstderr:\n%s", code, out.String(), errBuf.String())
+		}
+		check(t, out.String())
+	})
+}
+
+// TestRunWithoutStatePathPutsUpNoSign: no budget-state store means no sign and
+// no sign warning — exactly the behavior before signs existed.
+func TestRunWithoutStatePathPutsUpNoSign(t *testing.T) {
+	dir := devFixture(t, map[string]string{"a": "echo 'ok - a'\n"})
+	var out, errBuf bytes.Buffer
+	cfg := runCfg(t, dir, &out, &errBuf)
+	if code := Run(context.Background(), cfg); code != 0 {
+		t.Fatalf("exit = %d, want 0\nstdout:\n%s\nstderr:\n%s", code, out.String(), errBuf.String())
+	}
+	if strings.Contains(errBuf.String(), "run sign") {
+		t.Fatalf("no StatePath must mean no run sign at all:\n%s", errBuf.String())
 	}
 }
