@@ -717,3 +717,167 @@ func TestIntegrationFinalizeCleanupResultsArtifactNeverPrepared(t *testing.T) {
 		}
 	})
 }
+
+// moveBranchPastMerge points the local branch at a new child commit of its
+// current tip — a commit made after the merge — so cleanup's tip and ancestry
+// proofs refuse and the branch is kept on purpose.
+func moveBranchPastMerge(t *testing.T, dir, branch string) {
+	t.Helper()
+	tip := runGit(t, dir, "rev-parse", "refs/heads/"+branch)
+	c := runGit(t, dir, "commit-tree", tip+"^{tree}", "-p", tip, "-m", "after merge")
+	runGit(t, dir, "branch", "-f", branch, c)
+}
+
+// TestIntegrationFinalizeCleanupLeftoverLocalBranchSweepRetry: a done change
+// whose first cleanup could not delete its local branch keeps that branch
+// behind a clean workspace and an absent remote. The sweep assessment reads the
+// branch from the shared local-branch inventory and dispatches a fresh cleanup,
+// which deletes it; a branch moved past the merge is kept and named instead.
+func TestIntegrationFinalizeCleanupLeftoverLocalBranchSweepRetry(t *testing.T) {
+	requireRealGit(t)
+	firstRunKeepsBranch := func(t *testing.T) (*closeoutFixture, *fakeCleanupGitHub) {
+		t.Helper()
+		f := setupCloseoutFixture(t, planRepoModeDocket())
+		head, mergeCommit := f.archiveClosed(t)
+		gh := f.mergedCleanupFake(head, mergeCommit)
+		git := &faultyCleanupGit{inner: f.deps.Client, fail: "delete"}
+		res := FinalizeCleanup(context.Background(), f.cleanupDeps(gh, git, f.svc), f.repo.invocation, f.id)
+		var deleteFailed bool
+		for _, fd := range res.Findings {
+			deleteFailed = deleteFailed || fd.Code == ReasonCleanupLocalDelete
+		}
+		if res.Reason != ReasonCleanupLocalDelete && !deleteFailed {
+			t.Fatalf("first cleanup = %q disp %q reason %q findings %+v, want %s", res.Result, res.Disposition, res.Reason, res.Findings, ReasonCleanupLocalDelete)
+		}
+		if !f.localBranchPresent(t) {
+			t.Fatalf("a failed local delete must leave the local branch")
+		}
+		if f.remoteBranchPresent(t) {
+			t.Fatalf("the remote leg is independent: the remote branch must be deleted")
+		}
+		return f, gh
+	}
+	assess := func(t *testing.T, f *closeoutFixture, gh *fakeCleanupGitHub) {
+		t.Helper()
+		e, actionable := sweepAssessOne(t, realNode{dir: f.repo.invocation, deps: f.deps}, f.cleanupDeps(gh, f.deps.Client, f.svc), f.svc, f.id)
+		if !actionable {
+			t.Fatalf("a leftover local branch must make the record actionable, got entry %+v", e)
+		}
+	}
+
+	t.Run("retried", func(t *testing.T) {
+		f, gh := firstRunKeepsBranch(t)
+		assess(t, f, gh)
+		res := FinalizeCleanup(context.Background(), f.cleanupDeps(gh, f.deps.Client, f.svc), f.repo.invocation, f.id)
+		if res.Disposition != CleanupDispCleaned {
+			t.Fatalf("retry = %q disp %q reason %q (%s)", res.Result, res.Disposition, res.Reason, res.Message)
+		}
+		if f.localBranchPresent(t) {
+			t.Fatalf("the retry must delete the leftover local branch")
+		}
+	})
+
+	t.Run("kept-after-post-merge-commit", func(t *testing.T) {
+		f, gh := firstRunKeepsBranch(t)
+		branch := "feat/" + f.slug
+		moveBranchPastMerge(t, f.repo.invocation, branch)
+		assess(t, f, gh)
+		res := FinalizeCleanup(context.Background(), f.cleanupDeps(gh, f.deps.Client, f.svc), f.repo.invocation, f.id)
+		if res.Disposition != CleanupDispPending {
+			t.Fatalf("cleanup = %q disp %q reason %q, want pending", res.Result, res.Disposition, res.Reason)
+		}
+		if !f.localBranchPresent(t) {
+			t.Fatalf("a branch moved past the merge must be kept")
+		}
+		human := res.HumanText()
+		for _, want := range []string{"local branch " + branch + " was kept", "git branch -D " + branch} {
+			if !strings.Contains(human, want) {
+				t.Fatalf("human text lacks %q:\n%s", want, human)
+			}
+		}
+	})
+}
+
+// TestIntegrationFinalizeCleanupLeftoverBranchFullSweep drives the production
+// MaintenanceSweep over a completed results-artifact change whose first cleanup
+// removed the worktree but could not delete the local branch: the full sweep
+// retries and deletes it, or, for a branch moved past the completion, keeps it
+// and names it with its delete command in the human summary.
+func TestIntegrationFinalizeCleanupLeftoverBranchFullSweep(t *testing.T) {
+	requireRealGit(t)
+	const (
+		id   = 3
+		slug = "research"
+	)
+	setup := func(t *testing.T) (*leakWorkspace, FinalizeDeps) {
+		t.Helper()
+		recPath := groomPath(id, slug)
+		rec := strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: true\n", 1)
+		rec = strings.Replace(rec, "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
+		m := planRepoModes()[0]
+		repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec})
+		lw := prepareLeakWorkspace(t, repo, m.branch, id, recPath, false)
+		deps := completeLeakWorkspace(t, lw, repo.meta, m.branch, recPath)
+
+		first := deps
+		first.CleanupGit = &faultyCleanupGit{inner: lw.node.deps.Client, fail: "delete"}
+		res := FinalizeCleanup(context.Background(), first, lw.node.dir, lw.id)
+		if res.Disposition != CleanupDispPending {
+			t.Fatalf("first cleanup = %q disp %q reason %q (%s), want pending", res.Result, res.Disposition, res.Reason, res.Message)
+		}
+		if out := runGit(t, lw.invocation, "for-each-ref", "--format=%(refname)", lw.featureRef); out == "" {
+			t.Fatalf("a failed local delete must keep the branch")
+		}
+		if _, err := os.Stat(lw.wp); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("the first cleanup must remove the worktree %s (stat err %v)", lw.wp, err)
+		}
+		sweepDeps := deps
+		sweepDeps.CleanupGit = nil
+		sweepDeps.PRBatch = &fakeSweepBatchReader{}
+		return lw, sweepDeps
+	}
+	findEntry := func(t *testing.T, res MaintenanceResult) MaintenanceEntry {
+		t.Helper()
+		for _, e := range res.Entries {
+			if e.ID == id && e.Kind == sweepKindCleanup {
+				return e
+			}
+		}
+		t.Fatalf("the sweep produced no cleanup entry for #%d: %+v", id, res.Entries)
+		return MaintenanceEntry{}
+	}
+
+	t.Run("retried", func(t *testing.T) {
+		lw, sweepDeps := setup(t)
+		res := MaintenanceSweep(context.Background(), sweepDeps, lw.node.dir, SweepScopeFull)
+		if e := findEntry(t, res); e.Disposition != SweepDispApplied {
+			t.Fatalf("sweep entry = %+v, want applied", e)
+		}
+		if out := runGit(t, lw.invocation, "for-each-ref", "--format=%(refname)", lw.featureRef); out != "" {
+			t.Fatalf("the sweep must delete the leftover branch, still have %q", out)
+		}
+	})
+
+	t.Run("kept", func(t *testing.T) {
+		lw, sweepDeps := setup(t)
+		branch := strings.TrimPrefix(lw.featureRef, "refs/heads/")
+		moveBranchPastMerge(t, lw.invocation, branch)
+		res := MaintenanceSweep(context.Background(), sweepDeps, lw.node.dir, SweepScopeFull)
+		e := findEntry(t, res)
+		if e.Disposition == SweepDispApplied || e.Reason != ReasonCleanupUnreachable {
+			t.Fatalf("sweep entry = %+v, want a pending cleanup with reason %s", e, ReasonCleanupUnreachable)
+		}
+		if out := runGit(t, lw.invocation, "for-each-ref", "--format=%(refname)", lw.featureRef); out == "" {
+			t.Fatalf("a branch moved past the completion must be kept")
+		}
+		human := res.HumanText()
+		for _, want := range []string{
+			fmt.Sprintf("warning: change #%d: local branch feat/%s was kept", id, slug),
+			"git branch -D feat/" + slug,
+		} {
+			if !strings.Contains(human, want) {
+				t.Fatalf("sweep human text lacks %q:\n%s", want, human)
+			}
+		}
+	})
+}
