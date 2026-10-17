@@ -183,6 +183,8 @@ a killed parent is a design decision, not a fallback.
 
 An `effective_base.kind` of `parent-killed` is how this state is surfaced; the flip itself is a human-directed edit, never an automatic sweep.
 
+While a descendant is still `proposed`, re-parent or un-stack it through `change.groom` (`stacked_on: <new parent>` or `stacked_on: 0`).
+
 ## The stack close-out is idempotent
 
 When a stack **root** merges, the typed close-out — the `finalize.closeout` operation's **`root-archived`**

@@ -2491,6 +2491,47 @@ func TestChangeGroomStackingRefusals(t *testing.T) {
 	})
 }
 
+func TestChangeGroomStackingRemediesNameTypedPath(t *testing.T) {
+	toResults := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.Deliverable = "results-artifact" })
+	cases := []struct {
+		name  string
+		files map[string]string
+		extra []string
+	}{
+		{"b record already stacked", map[string]string{
+			groomPath(2, "add-a-widget"): stackedChange(2, "add-a-widget", 3),
+			groomPath(3, "base-thing"):   groomableChange(3, "base-thing"),
+		}, nil},
+		{"d active child stacks on it", map[string]string{
+			groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget"),
+			groomPath(5, "child-thing"):  stackedChange(5, "child-thing", 2),
+		}, []string{"0005", "proposed"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, opRes := groomPlanFor(t, c.files, baseGroomOp([]string{}, toResults))
+			var msg string
+			found := false
+			for _, f := range opRes.Findings {
+				if f.Code == string(FCResultsArtifactNotStackable) {
+					found, msg = true, f.Detail["message"]
+				}
+			}
+			if !found {
+				t.Fatalf("missing results-artifact-not-stackable; got %v", opRes.Findings)
+			}
+			if !strings.Contains(msg, "stacked_on: 0") || strings.Contains(msg, "ask a human") {
+				t.Errorf("remedy does not name the typed path: %q", msg)
+			}
+			for _, want := range c.extra {
+				if !strings.Contains(msg, want) {
+					t.Errorf("remedy missing %q: %q", want, msg)
+				}
+			}
+		})
+	}
+}
+
 func TestChangeGroomTypeEditChangesNextClaimBranch(t *testing.T) {
 	cases := []struct {
 		name string
