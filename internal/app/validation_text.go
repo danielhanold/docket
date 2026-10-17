@@ -304,6 +304,17 @@ func priorityRemedy(f domain.Finding, loc reposetup.RecordLocator) string {
 	return "Revise the change with docket-groom-next, or run `docket change groom` with a revise request, and set its priority to critical, high, medium, or low. To edit it by hand instead: " + lowerFirst(hand)
 }
 
+// deliverableRemedy is the change-deliverable-unknown remedy, ordered like
+// priorityRemedy: the typed groom revise first for a proposed change, the
+// hand edit alone for any other status.
+func deliverableRemedy(f domain.Finding, loc reposetup.RecordLocator) string {
+	hand := handEdit(f, loc, "set `deliverable:` to pr or results-artifact")
+	if f.Detail["status"] != string(domain.StatusProposed) {
+		return hand
+	}
+	return "Revise the change with docket-groom-next, or run `docket change groom` with a revise request, and set its deliverable to pr or results-artifact. To edit it by hand instead: " + lowerFirst(hand)
+}
+
 // validationTexts is the plain-language table, keyed by validator code.
 var validationTexts = map[string]validationExplainer{
 	repository.CodeRecordUndecodable: func(f domain.Finding, loc reposetup.RecordLocator) findingText {
@@ -379,6 +390,13 @@ var validationTexts = map[string]validationExplainer{
 			Message: fmt.Sprintf("%s has %s, which isn't a priority.", subjectOf(f.Entity), fieldValue("priority", f.Detail["raw"])),
 			Impact:  "It's harmless: docket sorts the change as medium priority.",
 			Remedy:  priorityRemedy(f, loc),
+		}
+	},
+	repository.CodeChangeDeliverableUnknown: func(f domain.Finding, loc reposetup.RecordLocator) findingText {
+		return findingText{
+			Message: fmt.Sprintf("%s has %s, which isn't a deliverable.", subjectOf(f.Entity), fieldValue("deliverable", f.Detail["raw"])),
+			Impact:  "docket can't tell how this change ends, so both `docket change complete` and `docket change mark-implemented` refuse it until it is fixed.",
+			Remedy:  deliverableRemedy(f, loc),
 		}
 	},
 	repository.CodeChangeFilenameMismatch: filenameMismatch,

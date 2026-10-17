@@ -570,3 +570,34 @@ func TestFinalLifecycleFindingSpellings(t *testing.T) {
 		t.Errorf("CodeADRUpdateAfterFinal = %q", got)
 	}
 }
+
+// TestChangeIdentityDeliverableUnknown pins the unknown-deliverable warning:
+// only an unknown stored value is flagged; absent, empty, and known values
+// are silent.
+func TestChangeIdentityDeliverableUnknown(t *testing.T) {
+	const path = "docs/changes/active/0042-widget.md"
+	for _, line := range []string{"", "deliverable: ''", "deliverable: pr", "deliverable: results-artifact"} {
+		var extra []string
+		if line != "" {
+			extra = append(extra, line)
+		}
+		for _, f := range buildRecords(t, record(t, KindChange, LocationActive, path, minimalChange(42, "widget", "proposed", extra...))).Report.Findings() {
+			if f.Code == CodeChangeDeliverableUnknown {
+				t.Errorf("%q: unexpected %s finding", line, f.Code)
+			}
+		}
+	}
+	var got []domain.Finding
+	for _, f := range buildRecords(t, record(t, KindChange, LocationActive, path, minimalChange(42, "widget", "proposed", "deliverable: research"))).Report.Findings() {
+		if f.Code == CodeChangeDeliverableUnknown {
+			got = append(got, f)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("want exactly one %s finding, got %d", CodeChangeDeliverableUnknown, len(got))
+	}
+	f := got[0]
+	if f.Severity != domain.SeverityWarning || f.Field != "deliverable" || f.Detail["raw"] != "research" || f.Detail["status"] != "proposed" {
+		t.Errorf("finding = %+v, want warning on deliverable with raw research, status proposed", f)
+	}
+}

@@ -278,3 +278,55 @@ func FuzzNormalizeBranchPrefix(f *testing.F) {
 		}
 	})
 }
+
+func TestParseDeliverable(t *testing.T) {
+	for _, s := range []string{"pr", "results-artifact"} {
+		if d, ok := ParseDeliverable(s); !ok || string(d) != s {
+			t.Errorf("ParseDeliverable(%q) = %q,%v", s, d, ok)
+		}
+	}
+	for _, s := range []string{"", "PR", "results_artifact", " pr"} {
+		if _, ok := ParseDeliverable(s); ok {
+			t.Errorf("ParseDeliverable(%q) accepted", s)
+		}
+	}
+}
+
+// TestChangeDeliverableEffectiveValue pins the accessor default: an absent
+// key reads as pr, an unknown stored value reads as "".
+func TestChangeDeliverableEffectiveValue(t *testing.T) {
+	if got := NewChange(ChangeSpec{}).Deliverable(); got != DeliverablePR {
+		t.Errorf("absent deliverable = %q, want pr", got)
+	}
+	unknown := NewChange(ChangeSpec{RawDeliverable: "research"})
+	if got := unknown.Deliverable(); got != "" {
+		t.Errorf("unknown deliverable = %q, want empty", got)
+	}
+	if got := unknown.RawDeliverable(); got != "research" {
+		t.Errorf("RawDeliverable = %q, want research", got)
+	}
+	ra := NewChange(ChangeSpec{Deliverable: DeliverableResultsArtifact, RawDeliverable: "results-artifact"})
+	if got := ra.Deliverable(); got != DeliverableResultsArtifact {
+		t.Errorf("results-artifact deliverable = %q", got)
+	}
+}
+
+// TestLifecycleActionCarriesDeliverable pins newChangeBuilder's copy: a
+// lifecycle write must keep the stored deliverable, known or unknown.
+func TestLifecycleActionCarriesDeliverable(t *testing.T) {
+	for _, spec := range []ChangeSpec{
+		{ID: 1, Slug: "s", Status: StatusProposed, Deliverable: DeliverableResultsArtifact, RawDeliverable: "results-artifact"},
+		{ID: 1, Slug: "s", Status: StatusProposed, RawDeliverable: "research"},
+	} {
+		res, fail := Defer(NewChange(spec))
+		if fail != nil {
+			t.Fatalf("Defer: %v", fail)
+		}
+		if got := res.Change.Deliverable(); got != spec.Deliverable {
+			t.Errorf("Deliverable after Defer = %q, want %q", got, spec.Deliverable)
+		}
+		if got := res.Change.RawDeliverable(); got != spec.RawDeliverable {
+			t.Errorf("RawDeliverable after Defer = %q, want %q", got, spec.RawDeliverable)
+		}
+	}
+}

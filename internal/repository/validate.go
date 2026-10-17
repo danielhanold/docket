@@ -24,6 +24,10 @@ const (
 	// CodeChangePriorityUnknown marks a priority outside the closed set. It is
 	// a warning: an unreadable priority sorts as medium and stalls nothing.
 	CodeChangePriorityUnknown = "change-priority-unknown"
+	// CodeChangeDeliverableUnknown marks a deliverable outside the closed set.
+	// It is a warning: both endings (change complete, mark-implemented) refuse
+	// an unknown value rather than guess, so nothing closes on a typo.
+	CodeChangeDeliverableUnknown = "change-deliverable-unknown"
 	// CodeChangeFilenameMismatch marks a filename that disagrees with the
 	// frontmatter identity it is supposed to name.
 	CodeChangeFilenameMismatch = "change-filename-mismatch"
@@ -191,7 +195,8 @@ func validateChanges(snap domain.Snapshot) []domain.Finding {
 	return findings
 }
 
-// changeIdentity checks id, slug, status, priority, and filename identity.
+// changeIdentity checks id, slug, status, priority, deliverable, and filename
+// identity.
 func changeIdentity(c domain.Change) []domain.Finding {
 	ref := changeRef(c)
 	var findings []domain.Finding
@@ -210,6 +215,12 @@ func changeIdentity(c domain.Change) []domain.Finding {
 	if c.Priority() == "" {
 		findings = append(findings, finding(CodeChangePriorityUnknown, domain.SeverityWarning, ref, "priority",
 			map[string]string{"raw": c.RawPriority(), "status": string(c.Status())}))
+	}
+	// A warning, not an error: both endings refuse an unknown deliverable, so
+	// the typo stalls only the close, never the board or selection.
+	if c.Deliverable() == "" {
+		findings = append(findings, finding(CodeChangeDeliverableUnknown, domain.SeverityWarning, ref, "deliverable",
+			map[string]string{"raw": c.RawDeliverable(), "status": string(c.Status())}))
 	}
 	if !identityMatchesFilename(path.Base(c.Path()), c.Location() == LocationArchive, int(c.ID()), c.Slug()) {
 		findings = append(findings, finding(CodeChangeFilenameMismatch, domain.SeverityError, ref, "path",

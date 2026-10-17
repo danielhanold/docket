@@ -111,6 +111,7 @@ type changeWire struct {
 	Status         scalar     `yaml:"status"`
 	Priority       scalar     `yaml:"priority"`
 	Type           scalar     `yaml:"type"`
+	Deliverable    scalar     `yaml:"deliverable"`
 	Created        scalar     `yaml:"created"`
 	Updated        scalar     `yaml:"updated"`
 	DependsOn      scalarList `yaml:"depends_on"`
@@ -552,6 +553,15 @@ func decodeChange(in InputDocument) (domain.Change, []domain.Finding) {
 	if spec.Type != "" && !domain.ValidTypeToken(spec.Type) {
 		d.report(CodeChangeTypeInvalid, "type", domain.SeverityError,
 			map[string]string{"raw": spec.Type})
+	}
+
+	// An absent or empty deliverable reads as pr; an unknown value keeps its
+	// raw text and parses to "" for the validation pass to flag.
+	spec.RawDeliverable = d.text("deliverable", wire.Deliverable)
+	if spec.RawDeliverable == "" {
+		spec.Deliverable = domain.DeliverablePR
+	} else {
+		spec.Deliverable, _ = domain.ParseDeliverable(spec.RawDeliverable)
 	}
 
 	spec.Created = d.optionalTime("created", wire.Created, dateLayout)

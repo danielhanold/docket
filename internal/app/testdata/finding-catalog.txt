@@ -99,6 +99,16 @@ The archived file `0263-x.md` doesn't start with a `YYYY-MM-DD-` date.
 docket can't tell when the change was archived, so it sorts out of order in the archive.
 remedy: In `.docket/docs/changes/archive/0263-x.md`, rename the file to start with the date it was archived, such as `2026-05-28-`; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
+### change-deliverable-unknown — unknown (warning)
+Change 0263 has `deliverable: research`, which isn't a deliverable.
+docket can't tell how this change ends, so both `docket change complete` and `docket change mark-implemented` refuse it until it is fixed.
+remedy: In `.docket/docs/changes/active/0263-x.md`, set `deliverable:` to pr or results-artifact; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
+
+### change-deliverable-unknown — proposed (warning)
+Change 0263 has `deliverable: research`, which isn't a deliverable.
+docket can't tell how this change ends, so both `docket change complete` and `docket change mark-implemented` refuse it until it is fixed.
+remedy: Revise the change with docket-groom-next, or run `docket change groom` with a revise request, and set its deliverable to pr or results-artifact. To edit it by hand instead: in `.docket/docs/changes/active/0263-x.md`, set `deliverable:` to pr or results-artifact; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
+
 ### change-dependency-cycle — two (error)
 Changes 0012 and 0013 depend on each other in a loop through `depends_on`.
 None of them can ever become ready to build, because each waits on another.

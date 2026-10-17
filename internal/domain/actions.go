@@ -413,6 +413,8 @@ func newChangeBuilder(c Change) *changeBuilder {
 		Priority:       c.Priority(),
 		RawPriority:    c.RawPriority(),
 		Type:           c.Type(),
+		Deliverable:    c.Deliverable(),
+		RawDeliverable: c.RawDeliverable(),
 		Created:        c.Created(),
 		Updated:        c.Updated(),
 		DependsOn:      c.DependsOn(),

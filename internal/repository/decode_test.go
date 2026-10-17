@@ -874,3 +874,34 @@ func TestDecodeChangeAutoGroomable(t *testing.T) {
 		})
 	}
 }
+
+// TestDecodeChangeDeliverable pins the deliverable decode: an absent or empty
+// key reads as pr, a known value parses, an unknown value keeps its raw text
+// and reads as "".
+func TestDecodeChangeDeliverable(t *testing.T) {
+	cases := []struct {
+		name, line string
+		want       domain.Deliverable
+		raw        string
+	}{
+		{"absent", "", domain.DeliverablePR, ""},
+		{"empty", "deliverable: ''", domain.DeliverablePR, ""},
+		{"results-artifact", "deliverable: results-artifact", domain.DeliverableResultsArtifact, "results-artifact"},
+		{"pr", "deliverable: pr", domain.DeliverablePR, "pr"},
+		{"unknown", "deliverable: research", "", "research"},
+	}
+	for _, tc := range cases {
+		var extra []string
+		if tc.line != "" {
+			extra = append(extra, tc.line)
+		}
+		src := minimalChange(42, "widget", "proposed", extra...)
+		change, _ := decodeChange(input(t, KindChange, LocationActive, "docs/changes/active/0042-widget.md", src))
+		if got := change.Deliverable(); got != tc.want {
+			t.Errorf("%s: Deliverable() = %q, want %q", tc.name, got, tc.want)
+		}
+		if got := change.RawDeliverable(); got != tc.raw {
+			t.Errorf("%s: RawDeliverable() = %q, want %q", tc.name, got, tc.raw)
+		}
+	}
+}

@@ -160,6 +160,7 @@ func TestVocabularyConstCompleteness(t *testing.T) {
 		{vocab: "finding_codes", byType: "FindingCode", subset: true},
 		{vocab: "results", byType: "Result"},
 		{vocab: "priorities", byType: "Priority"},
+		{vocab: "deliverables", byType: "Deliverable"},
 		{vocab: "statuses", byType: "Status"},
 		{vocab: "section_intents", byType: "SectionIntent"},
 		{vocab: "groom_outcomes", byType: "GroomOutcome"},

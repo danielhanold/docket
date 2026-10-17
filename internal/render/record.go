@@ -22,6 +22,7 @@ type NewChangeRecord struct {
 	Slug, Title    string
 	Type           string    // validated against config change_types by the app layer
 	Priority       string    // stored spelling: critical|high|medium|low
+	Deliverable    string    // stored spelling: pr|results-artifact; "" ⇒ pr
 	Created        time.Time // date part rendered YYYY-MM-DD UTC
 	DependsOn      []domain.ChangeID
 	StackedOn      *domain.ChangeID
@@ -49,6 +50,7 @@ func ChangeRecord(r NewChangeRecord) ([]byte, error) {
 		{Name: "status", Value: document.String(string(domain.StatusProposed))},
 		{Name: "priority", Value: document.String(r.Priority)},
 		{Name: "type", Value: document.String(r.Type)},
+		{Name: "deliverable", Value: document.String(deliverableOrDefault(r.Deliverable))},
 		{Name: "created", Value: document.String(created)},
 		{Name: "updated", Value: document.String(created)},
 		{Name: "depends_on", Value: changeIDSeq(r.DependsOn)},
@@ -74,6 +76,15 @@ func ChangeRecord(r NewChangeRecord) ([]byte, error) {
 		section("## Out of scope", r.OutOfScope),
 	)
 	return document.New(fields, body)
+}
+
+// deliverableOrDefault renders an unset deliverable as pr, so every new
+// record states how it ends explicitly.
+func deliverableOrDefault(d string) string {
+	if d == "" {
+		return string(domain.DeliverablePR)
+	}
+	return d
 }
 
 // optionalBoolValue renders a tri-state create-time scalar: nil is the

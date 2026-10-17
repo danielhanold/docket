@@ -5,6 +5,7 @@ title: 'Add planning mutations: board and ADRs'
 status: 'proposed'
 priority: 'medium'
 type: 'feat'
+deliverable: 'pr'
 created: '2026-08-16'
 updated: '2026-08-16'
 depends_on: []
