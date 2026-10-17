@@ -1,14 +1,19 @@
 # Backlog
 
-**561 changes** — 🟡 7 proposed · ⚪ 16 deferred · ✅ 395 done · 🗑️ 143 killed
+**561 changes** — 🟣 1 groomed · 🟡 6 proposed · ⚪ 16 deferred · ✅ 395 done · 🗑️ 143 killed
 
-## 🟡 Proposed (7)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec |
+|---|-------|----------|------|------|
+| [0559](active/0559-close-a-change-to-done-without-a-pr.md) | Let a change deliver a results artifact instead of a PR | `medium` | `feat` | [spec](../superpowers/specs/2026-10-17-close-a-change-to-done-without-a-pr-design.md) |
+
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
 | [0560](active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Mark a build-ready change as off-limits to the autonomous loop | `medium` | `feat` | needs-grooming |
-| [0559](active/0559-close-a-change-to-done-without-a-pr.md) | Close a change to done without a PR | `medium` | `feat` | needs-grooming |
 | [0558](active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Name the SERIAL CONFIRMATION NOT COUNTED budget line in AGENTS.md | `low` | `docs` | needs-grooming |
 | [0557](active/0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | `low` | `refactor` | needs-grooming |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |

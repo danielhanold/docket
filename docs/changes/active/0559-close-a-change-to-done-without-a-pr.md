@@ -1,7 +1,7 @@
 ---
 id: 559
 slug: 'close-a-change-to-done-without-a-pr'
-title: 'Close a change to done without a PR'
+title: 'Let a change deliver a results artifact instead of a PR'
 status: 'proposed'
 priority: 'medium'
 type: 'feat'
@@ -9,10 +9,10 @@ created: '2026-10-17'
 updated: '2026-10-17'
 depends_on: []
 stacked_on:
-related: [547]
+related: [547, 560, 561]
 discovered_from: [547]
-adrs: []
-spec:
+adrs: [129, 141, 148]
+spec: 'docs/superpowers/specs/2026-10-17-close-a-change-to-done-without-a-pr-design.md'
 plan:
 results:
 trivial: false
@@ -27,16 +27,20 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-17-close-a-change-to-done-without-a-pr-design.md](../../superpowers/specs/2026-10-17-close-a-change-to-done-without-a-pr-design.md) |
+| ADRs | [ADR-0129](../../adrs/0129-collision-free-docket-vocabulary.md), [ADR-0141](../../adrs/0141-build-artifacts-plan-results-evidence-live-on-the-metadata-b.md), [ADR-0148](../../adrs/0148-every-keyed-run-done-verdict-drives-the-successful-run-close.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Some changes deliver no code. A measurement, research, or attended-check change produces a results file and nothing else — #547 is the first: it measured whether the 1h cache TTL pin cut implement-next's cost, attached a results file confirming it, and has nothing to merge. Today a change reaches a final status only two ways: finalize after a merged PR (done), or change.kill (killed, which reads as abandoned). A completed measurement therefore either sits on the board as proposed forever or gets recorded as abandoned, and neither is true.
+Some changes deliver no code. Research, measurements, and preparation work for a larger epic end in findings, recorded in a results artifact, with nothing to merge; #547 is the current example. Today a change reaches a final status only through finalize after a merged PR (`done`) or through `change.kill` (`killed`, which reads as abandoned), so a finished research change either stays on the board forever or is recorded as abandoned: #124 and #545 were killed although they were finished, and #423 was hand-edited to `done`. The autonomous loop cannot run such a change either, because implement-next always ends in a PR.
 
 ## What changes
 
-A typed operation that moves a change with an attached results file to done without a PR, through the same archive transaction finalize uses (archive into archive/ with the date prefix, re-render the Artifacts block and backlinks, re-render the board, one metadata commit). It should refuse when the change has a feature branch, an open PR, or no results file, so code-bearing work can't bypass the merge path. Grooming decides the name, which source statuses it accepts (proposed only, or also in-progress), how the board and history show a PR-less done, and whether the skills (docket-status, docket-finalize-change, the results template) mention it. First user: #547.
+Every change gets a `deliverable`: `pr` (the default) or `results-artifact`, editable through grooming along with `type` and `branch_prefix`. A new `docket change complete` operation moves a build-ready or in-progress `results-artifact` change with a valid results artifact to `done` and archives it, with no PR. implement-next gains a results-artifact ending: it does the work in the feature worktree without committing, halts at any step that needs a human, attaches the results artifact, has it independently reviewed, fixes the findings, completes the change, and cleans up its worktree. `finalize cleanup`, the sweep, the Artifacts links, the archive table header, and `run verify` learn the new ending, and the docs, skills, and an ADR record that `done` no longer implies a merge. The spec holds the design.
 
 ## Out of scope
 
-Changing how PR-bearing changes close out. Making implement-next pick up or build measurement changes. Retiring change.kill or changing what killed means.
+How `pr` changes close, finalize, and kill. Reclaim. Showing `deliverable` on the board. Keeping changes that need a human away from the autonomous loop, and letting a loop continue past a halt (#560). A docket-free Markdown export of artifacts (#561). Fixing archived #423, #124, or #545, and completing #547 itself.
