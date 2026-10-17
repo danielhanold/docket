@@ -1,11 +1,12 @@
 # Backlog
 
-**560 changes** — 🟡 6 proposed · ⚪ 16 deferred · ✅ 395 done · 🗑️ 143 killed
+**561 changes** — 🟡 7 proposed · ⚪ 16 deferred · ✅ 395 done · 🗑️ 143 killed
 
-## 🟡 Proposed (6)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
 | [0560](active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Mark a build-ready change as off-limits to the autonomous loop | `medium` | `feat` | needs-grooming |
 | [0559](active/0559-close-a-change-to-done-without-a-pr.md) | Close a change to done without a PR | `medium` | `feat` | needs-grooming |
 | [0558](active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Name the SERIAL CONFIRMATION NOT COUNTED budget line in AGENTS.md | `low` | `docs` | needs-grooming |
@@ -58,6 +59,7 @@ graph TD
   0558
   0559
   0560
+  0561
   0192:::done
   0251:::done
   0511:::done
