@@ -358,8 +358,8 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 				addShape(FCInvalidSpecMarkdown, msg)
 			}
 		} else if !hasEffectiveSectionEdit(req.Sections) && req.Title == "" && req.Priority == "" &&
-			req.Deliverable == "" && req.Type == "" && req.BranchPrefix == nil {
-			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown, at least one replace/remove section edit, a title, a priority, a deliverable, a type, or a branch_prefix")
+			req.Deliverable == "" && req.Type == "" && req.BranchPrefix == nil && !hasRelationshipEdit(req) {
+			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown, at least one replace/remove section edit, a title, a priority, a deliverable, a type, a branch_prefix, or a relationship field (depends_on, related, discovered_from, adrs, stacked_on)")
 		}
 		for _, s := range req.Sections {
 			if s.Heading == autoGroomBlockedHeading {
@@ -446,10 +446,13 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 	// part in stacking, so naming both in one request is refused here; the
 	// resulting-state checks run in Plan.
 	if req.Outcome != GroomAbstain {
+		if req.StackedOn != nil && *req.StackedOn < 0 {
+			addShape(FCInvalidStackedOn, "stacked_on must be a positive change id, or 0 to clear")
+		}
 		if req.Deliverable != "" {
 			if d, ok := domain.ParseDeliverable(req.Deliverable); !ok {
 				addShape(FCUnknownDeliverable, fmt.Sprintf("unknown deliverable %q; valid values are %s", req.Deliverable, deliverableList()))
-			} else if d == domain.DeliverableResultsArtifact && req.StackedOn != nil {
+			} else if d == domain.DeliverableResultsArtifact && req.StackedOn != nil && *req.StackedOn != 0 {
 				addShape(FCResultsArtifactNotStackable, "a results-artifact change takes no part in stacking; order it with depends_on")
 			}
 		}
@@ -547,10 +550,19 @@ func hasAuthoredRationale(sections []SectionEditRequest) bool {
 	return false
 }
 
+// hasRelationshipEdit reports whether the request sets any relationship field:
+// an explicit list (even empty) for depends_on, related, discovered_from, or
+// adrs, or any stacked_on (0 clears it). Each one alone is an effective revise.
+func hasRelationshipEdit(req ChangeGroomRequest) bool {
+	return req.DependsOn != nil || req.Related != nil || req.DiscoveredFrom != nil ||
+		req.ADRs != nil || req.StackedOn != nil
+}
+
 // hasEffectiveSectionEdit reports whether the section edits carry at least one
 // replace or remove — the revise outcome's minimum effective input. A
 // preserve-only or empty list changes nothing and is refused as an empty
-// revise; relationship-field patches alone do not qualify.
+// revise unless another field qualifies, such as a relationship field (see
+// hasRelationshipEdit).
 func hasEffectiveSectionEdit(sections []SectionEditRequest) bool {
 	for _, s := range sections {
 		switch render.SectionIntent(s.Intent) {
