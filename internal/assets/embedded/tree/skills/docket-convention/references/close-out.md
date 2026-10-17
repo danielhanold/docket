@@ -24,8 +24,7 @@ immediately.
 
    **Done drivers** (`docket-finalize-change`'s close-out, the `docket-status` merge sweep) archive
    through the typed transaction. There is **no caller-supplied date**: it derives the UTC archive
-   date from the verified GitHub `mergedAt` **inside** the transaction (never `now()`), so nothing
-   is computed or passed for it here:
+   date from the verified GitHub `mergedAt` **inside** the transaction (never `now()`):
 
    ```
    finalize.closeout  --id <id> [--input <notes.json>]   # resolve argv from the capability catalog
@@ -41,8 +40,8 @@ immediately.
    refusal or process failure writes nothing and aborts per the caller's posture, with **no partial
    caller-owned follow-up**. It still relocates the change file in its own step, so concurrent done
    drivers converge tree-identically (see *Determinism invariant*). The frozen step-2 re-render and
-   step-4 board pass below still run for this path — they re-confirm what the transaction already
-   landed and are idempotent no-ops (a no-diff re-render is success).
+   step-4 board pass below still run for this path as idempotent no-ops re-confirming what it
+   landed (no diff is success).
 
    **Kill drivers** (`docket-implement-next`'s reconcile-kill, `docket-new-change`'s proposed-kill)
    drive the typed `change.kill` operation transaction. There is **no caller-supplied date**: it
@@ -114,8 +113,9 @@ immediately.
    checked out elsewhere) is named in the `pending` result with the command to delete it by hand
    after review (`git branch -D <branch>`; `git push origin --delete <branch>` for the remote); if
    a live change now uses that name, it says so and advises no delete. The warning shows in
-   `finalize cleanup` and sweep human output and repeats every full sweep until the branch is
-   gone. A failure aborts per the caller's posture.
+   `finalize cleanup` and sweep human output, and every full sweep retries until the branch is
+   gone — except a stacked change merged into its parent's branch, a branch a live change now
+   uses, or a blocked or unknown workspace. A failure aborts per the caller's posture.
 
    **Complete path (no PR):** on a `done` `results-artifact` change, cleanup makes no GitHub call
    and never touches a remote ref (the branch was never published). It removes a clean feature
@@ -124,7 +124,8 @@ immediately.
    on the branch, or an unprovable probe keep everything and report `pending`. A change completed
    straight from `proposed` has no branch, and nothing present on this machine reads
    `already-clean`. A `pending` cleanup never undoes the completion; the full sweep
-   retries cleanup for any `done` change whose worktree or local branch is still there.
+   retries cleanup while its worktree or local branch is still there, unless a live change now
+   uses that branch or the workspace is blocked or unknown.
 
    **Kill path:** cleanup removes only a merged `done` change's resources. On a `killed` change it
    removes nothing and returns `no-op` with disposition `retained` and reason `killed-retained` —
@@ -141,8 +142,8 @@ immediately.
 
 ## Failure posture — per caller
 
-The sequence is shared; the posture on a failed step-1 transaction is the caller's (steps 2 and 4
-are absorbed into step 1 and carry no separate command):
+The posture on a failed step-1 transaction is the caller's (steps 2 and 4 are absorbed into
+step 1):
 
 | Caller | Posture |
 |---|---|
@@ -152,9 +153,8 @@ are absorbed into step 1 and carry no separate command):
 | `docket-new-change` proposed-kill | same as reconcile-kill — surface and stop; nothing else is in flight |
 | `docket-implement-next` results-artifact ending | a `change.complete` refusal halts the run; a `pending` cleanup goes into the run report and never halts it |
 
-**Step-failure propagation:** step 1's atomic transaction commits the archive move, the
-`## Artifacts` re-render, every back-link, and the inline board render **together** or writes
-nothing (fail-closed), so no partial step-2 or step-4 follow-up is left to skip.
+**Step-failure propagation:** step 1's atomic transaction commits all of it **together** or
+writes nothing (fail-closed), so no partial step-2 or step-4 follow-up is left to skip.
 Step 3 (cleanup) follows the caller's own skill body: the sweep treats it as best-effort (log and
 continue; a later pass self-heals); other callers keep their own posture (abort-and-report).
 
