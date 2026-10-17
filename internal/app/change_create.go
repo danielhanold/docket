@@ -350,12 +350,29 @@ func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 			addShape(FCResultsArtifactNotStackable, "a results-artifact change takes no part in stacking; order it with depends_on")
 		}
 	}
-	if _, ok := domain.NormalizeBranchPrefix(req.BranchPrefix); !ok {
-		addShape(FCInvalidBranchPrefix, fmt.Sprintf(
-			"branch_prefix %q is not a usable branch prefix: after trimming whitespace, one trailing \"/\", and lowercasing, it must be a single git ref component — no \"/\" (never refs/-qualified), not \"refs\", no \"..\", \"@{\", whitespace, or any of ~^:?*[\\, not starting with \"-\" or \".\", not ending with \".\" or \".lock\"",
-			req.BranchPrefix))
+	if msg := branchPrefixProblem(req.BranchPrefix); msg != "" {
+		addShape(FCInvalidBranchPrefix, msg)
 	}
 	return findings
+}
+
+// branchPrefixProblem returns why an authored branch_prefix is unusable, or ""
+// when domain.NormalizeBranchPrefix accepts it (an empty result means unset).
+// change.create and change.groom share it so their messages stay identical.
+func branchPrefixProblem(raw string) string {
+	if _, ok := domain.NormalizeBranchPrefix(raw); ok {
+		return ""
+	}
+	return fmt.Sprintf(
+		"branch_prefix %q is not a usable branch prefix: after trimming whitespace, one trailing \"/\", and lowercasing, it must be a single git ref component — no \"/\" (never refs/-qualified), not \"refs\", no \"..\", \"@{\", whitespace, or any of ~^:?*[\\, not starting with \"-\" or \".\", not ending with \".\" or \".lock\"",
+		raw)
+}
+
+// unknownTypeMessage is the unknown-type refusal text for a change type outside
+// the configured change_types, shared by change.create and change.groom.
+func unknownTypeMessage(eff config.Effective, t string) string {
+	return fmt.Sprintf("unknown change type %q; configured change_types are %s",
+		t, strings.Join(eff.ChangeTypes.Value, ", "))
 }
 
 // deliverableList is the comma-separated closed deliverable vocabulary, in
@@ -403,8 +420,7 @@ func validateChangeCreateConfig(eff config.Effective, req ChangeCreateRequest) [
 	if !containsString(eff.ChangeTypes.Value, req.Type) {
 		findings = append(findings, StatusFinding{
 			Code: string(FCUnknownType), Severity: string(domain.SeverityError),
-			Message: fmt.Sprintf("unknown change type %q; configured change_types are %s",
-				req.Type, strings.Join(eff.ChangeTypes.Value, ", ")),
+			Message: unknownTypeMessage(eff, req.Type),
 		})
 	}
 	if _, ok := domain.ParsePriority(req.Priority); !ok {

@@ -2201,3 +2201,328 @@ func TestChangeGroomPlanPriorityOnNonProposedRefused(t *testing.T) {
 		})
 	}
 }
+
+// --- deliverable, type, and branch_prefix (change 0559) --------------------
+
+func strPtr(s string) *string { return &s }
+
+func intPtrTest(n int) *int { return &n }
+
+// fieldOnlyReviseRequest is a revise carrying nothing but what mut sets — no
+// spec body, no spec_revision, no section edits.
+func fieldOnlyReviseRequest(mut func(*ChangeGroomRequest)) ChangeGroomRequest {
+	r := validReviseRequest()
+	r.SpecMarkdown, r.SpecRevision, r.Sections = "", "", nil
+	mut(&r)
+	return r
+}
+
+// stackedChange is the groomable fixture at id/slug with stacked_on set.
+func stackedChange(id int, slug string, parent int) string {
+	return strings.Replace(groomableChange(id, slug), "stacked_on:\n", "stacked_on: "+itoaTest(parent)+"\n", 1)
+}
+
+// resultsArtifactChange is the groomable fixture carrying deliverable: results-artifact.
+func resultsArtifactChange(id int, slug string) string {
+	return strings.Replace(groomableChange(id, slug), "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
+}
+
+func TestChangeGroomEditsDeliverableTypeAndPrefixOnEveryAcceptingOutcome(t *testing.T) {
+	trivial := ChangeGroomRequest{
+		ChangeID: 2, Path: groomPath(2, "add-a-widget"),
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Outcome: GroomTrivial,
+		Sections: []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}},
+	}
+	cases := []struct {
+		name string
+		rec  string
+		req  ChangeGroomRequest
+	}{
+		{"spec", groomableChange(2, "add-a-widget"), validGroomSpecRequest()},
+		{"trivial", groomableChange(2, "add-a-widget"), trivial},
+		{"revise", groomableChange(2, "add-a-widget"), fieldOnlyReviseRequest(func(*ChangeGroomRequest) {})},
+		{"re-enable", abstainedChange(2, "add-a-widget"), reEnableRequest()},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := c.req
+			req.Deliverable = "results-artifact"
+			req.Type = "chore"
+			req.BranchPrefix = strPtr("spike")
+			if findings := validateChangeGroomShape(req); len(findings) != 0 {
+				t.Fatalf("shape refused: %v", findings)
+			}
+			files := map[string]string{groomPath(2, "add-a-widget"): c.rec}
+			plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+			if opRes.Refused {
+				t.Fatalf("unexpected refusal: %v", opRes.Findings)
+			}
+			rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+			for _, want := range []string{"\ndeliverable: 'results-artifact'\n", "\ntype: 'chore'\n", "\nbranch_prefix: 'spike'\n"} {
+				if !strings.Contains(rec, want) {
+					t.Errorf("record missing %q:\n%s", want, rec)
+				}
+			}
+			if strings.Contains(rec, "\ntype: feat\n") {
+				t.Errorf("old type survived:\n%s", rec)
+			}
+		})
+	}
+}
+
+func TestChangeGroomEachNewFieldAloneIsAValidRevise(t *testing.T) {
+	cases := map[string]func(*ChangeGroomRequest){
+		"deliverable":         func(r *ChangeGroomRequest) { r.Deliverable = "results-artifact" },
+		"type":                func(r *ChangeGroomRequest) { r.Type = "chore" },
+		"branch_prefix set":   func(r *ChangeGroomRequest) { r.BranchPrefix = strPtr("x") },
+		"branch_prefix clear": func(r *ChangeGroomRequest) { r.BranchPrefix = strPtr("") },
+	}
+	for name, mut := range cases {
+		t.Run(name, func(t *testing.T) {
+			if findings := validateChangeGroomShape(fieldOnlyReviseRequest(mut)); len(findings) != 0 {
+				t.Fatalf("single-field revise refused: %v", findings)
+			}
+		})
+	}
+	findings := validateChangeGroomShape(fieldOnlyReviseRequest(func(*ChangeGroomRequest) {}))
+	var msg string
+	for _, f := range findings {
+		if f.Code == string(FCEmptyRevise) {
+			msg = f.Message
+		}
+	}
+	if msg == "" {
+		t.Fatalf("empty revise not refused; findings %v", findings)
+	}
+	for _, want := range []string{"deliverable", "type", "branch_prefix"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("empty-revise message %q does not name %q", msg, want)
+		}
+	}
+}
+
+func TestChangeGroomAbstainRefusesNewFields(t *testing.T) {
+	cases := []struct {
+		name string
+		mut  func(*ChangeGroomRequest)
+		code string
+	}{
+		{"deliverable", func(r *ChangeGroomRequest) { r.Deliverable = "results-artifact" }, "invalid-deliverable"},
+		{"bogus deliverable once", func(r *ChangeGroomRequest) { r.Deliverable = "research" }, "invalid-deliverable"},
+		{"type", func(r *ChangeGroomRequest) { r.Type = "chore" }, "invalid-type"},
+		{"branch_prefix", func(r *ChangeGroomRequest) { r.BranchPrefix = strPtr("spike") }, "invalid-branch_prefix"},
+		{"branch_prefix clear", func(r *ChangeGroomRequest) { r.BranchPrefix = strPtr("") }, "invalid-branch_prefix"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := abstainRequest()
+			c.mut(&req)
+			findings := validateChangeGroomShape(req)
+			if !hasFindingCode(findings, c.code) {
+				t.Errorf("missing %q; got %v", c.code, findings)
+			}
+			if hasFindingCode(findings, string(FCUnknownDeliverable)) {
+				t.Errorf("abstain also reported unknown-deliverable; got %v", findings)
+			}
+		})
+	}
+	// abstain refuses type at the shape stage, before the config check.
+	req := abstainRequest()
+	req.Type = "nope"
+	engine := &recordingEngine{}
+	deps := PlanningDeps{Engine: engine, Reader: &fakeChangeReader{pin: mainModePin([]string{"inline"})}, Clock: testClock()}
+	res := ChangeGroom(context.Background(), deps, "", req)
+	if res.Result != ResultInvalidInput || !hasFindingCode(res.Findings, "invalid-type") || len(engine.calls) != 0 {
+		t.Errorf("abstain with type: result %q findings %v engine calls %d", res.Result, res.Findings, len(engine.calls))
+	}
+}
+
+func TestChangeGroomBranchPrefixThreeStates(t *testing.T) {
+	withPrefix := strings.Replace(groomableChange(2, "add-a-widget"), "trivial: false\n", "trivial: false\nbranch_prefix: keep\n", 1)
+	run := func(t *testing.T, bp *string) string {
+		t.Helper()
+		req := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.Priority = "high"; r.BranchPrefix = bp })
+		if findings := validateChangeGroomShape(req); len(findings) != 0 {
+			t.Fatalf("shape refused: %v", findings)
+		}
+		plan, opRes := groomPlanFor(t, map[string]string{groomPath(2, "add-a-widget"): withPrefix}, baseGroomOp([]string{}, req))
+		if opRes.Refused {
+			t.Fatalf("unexpected refusal: %v", opRes.Findings)
+		}
+		return string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	}
+	if rec := run(t, nil); !strings.Contains(rec, "\nbranch_prefix: keep\n") {
+		t.Errorf("nil branch_prefix changed the stored line:\n%s", rec)
+	}
+	if rec := run(t, strPtr("")); !strings.Contains(rec, "\nbranch_prefix:\n") || strings.Contains(rec, "keep") {
+		t.Errorf("empty branch_prefix did not clear the field:\n%s", rec)
+	}
+	if rec := run(t, strPtr(" Spike/ ")); !strings.Contains(rec, "\nbranch_prefix: 'spike'\n") {
+		t.Errorf("branch_prefix not normalized and set:\n%s", rec)
+	}
+
+	bad := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.BranchPrefix = strPtr("a/b") })
+	var groomMsg string
+	for _, f := range validateChangeGroomShape(bad) {
+		if f.Code == string(FCInvalidBranchPrefix) {
+			groomMsg = f.Message
+		}
+	}
+	creq := validChangeCreateRequest()
+	creq.BranchPrefix = "a/b"
+	var createMsg string
+	for _, f := range validateChangeCreateShape(creq) {
+		if f.Code == string(FCInvalidBranchPrefix) {
+			createMsg = f.Message
+		}
+	}
+	if groomMsg == "" || groomMsg != createMsg {
+		t.Errorf("groom invalid-branch_prefix message %q, want create's %q", groomMsg, createMsg)
+	}
+}
+
+func TestChangeGroomRefusesUnconfiguredType(t *testing.T) {
+	engine := &recordingEngine{}
+	deps := PlanningDeps{Engine: engine, Reader: &fakeChangeReader{pin: mainModePin([]string{"inline"})}, Clock: testClock()}
+	res := ChangeGroom(context.Background(), deps, "", fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.Type = "nope" }))
+	if res.Result != ResultInvalidInput {
+		t.Fatalf("result = %q, want invalid-input", res.Result)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("engine called %d times, want 0", len(engine.calls))
+	}
+	want := unknownTypeMessage(planningTestConfig([]string{"inline"}), "nope")
+	found := false
+	for _, f := range res.Findings {
+		if f.Code == string(FCUnknownType) {
+			found = true
+			if f.Message != want {
+				t.Errorf("message = %q, want %q", f.Message, want)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("missing unknown-type; got %v", res.Findings)
+	}
+}
+
+func TestChangeGroomRefusesUnknownDeliverable(t *testing.T) {
+	engine := &recordingEngine{}
+	deps := PlanningDeps{Engine: engine, Reader: &fakeChangeReader{pin: mainModePin([]string{"inline"})}, Clock: testClock()}
+	res := ChangeGroom(context.Background(), deps, "", fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.Deliverable = "research" }))
+	if res.Result != ResultInvalidInput || len(engine.calls) != 0 {
+		t.Fatalf("result = %q engine calls %d, want invalid-input and 0", res.Result, len(engine.calls))
+	}
+	want := `unknown deliverable "research"; valid values are pr, results-artifact`
+	for _, f := range res.Findings {
+		if f.Code == string(FCUnknownDeliverable) {
+			if f.Message != want {
+				t.Errorf("message = %q, want %q", f.Message, want)
+			}
+			return
+		}
+	}
+	t.Errorf("missing unknown-deliverable; got %v", res.Findings)
+}
+
+func TestChangeGroomStackingRefusals(t *testing.T) {
+	// (a) same-request results-artifact + stacked_on: shape refusal.
+	sameReq := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.Deliverable = "results-artifact"; r.StackedOn = intPtrTest(3) })
+	if findings := validateChangeGroomShape(sameReq); !hasFindingCode(findings, string(FCResultsArtifactNotStackable)) {
+		t.Errorf("(a) missing shape refusal; got %v", findings)
+	}
+
+	assertRefused := func(t *testing.T, files map[string]string, req ChangeGroomRequest) {
+		t.Helper()
+		if findings := validateChangeGroomShape(req); len(findings) != 0 {
+			t.Fatalf("shape refused (want a Plan refusal): %v", findings)
+		}
+		plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+		if !opRes.Refused || len(plan.Files) != 0 {
+			t.Fatalf("want a refusal writing nothing, got refused=%v files=%v", opRes.Refused, planPaths(plan))
+		}
+		for _, f := range opRes.Findings {
+			if f.Code == string(FCResultsArtifactNotStackable) {
+				return
+			}
+		}
+		t.Errorf("missing results-artifact-not-stackable; got %v", opRes.Findings)
+	}
+	toResults := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.Deliverable = "results-artifact" })
+
+	// (b) the record is already stacked; the request sets only the deliverable.
+	stackedFiles := map[string]string{
+		groomPath(2, "add-a-widget"): stackedChange(2, "add-a-widget", 3),
+		groomPath(3, "base-thing"):   groomableChange(3, "base-thing"),
+	}
+	t.Run("b record already stacked", func(t *testing.T) { assertRefused(t, stackedFiles, toResults) })
+
+	// (c) stacked_on names a results-artifact parent.
+	t.Run("c results-artifact parent", func(t *testing.T) {
+		files := map[string]string{
+			groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget"),
+			groomPath(3, "base-thing"):   resultsArtifactChange(3, "base-thing"),
+		}
+		req := stubSectionReviseRequest()
+		req.StackedOn = intPtrTest(3)
+		assertRefused(t, files, req)
+	})
+
+	// (d) an active change stacks on the change being turned results-artifact.
+	t.Run("d active child stacks on it", func(t *testing.T) {
+		files := map[string]string{
+			groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget"),
+			groomPath(5, "child-thing"):  stackedChange(5, "child-thing", 2),
+		}
+		assertRefused(t, files, toResults)
+	})
+
+	// A revise touching neither field still applies, even on a record already
+	// in the refused state (a stacked results-artifact change, hand-written).
+	t.Run("unrelated revise applies", func(t *testing.T) {
+		legacy := map[string]string{
+			groomPath(2, "add-a-widget"): strings.Replace(resultsArtifactChange(2, "add-a-widget"), "stacked_on:\n", "stacked_on: 3\n", 1),
+			groomPath(3, "base-thing"):   groomableChange(3, "base-thing"),
+		}
+		plan, opRes := groomPlanFor(t, legacy, baseGroomOp([]string{}, stubSectionReviseRequest()))
+		if opRes.Refused || len(plan.Files) == 0 {
+			t.Fatalf("unrelated revise refused=%v files=%v findings=%v", opRes.Refused, planPaths(plan), opRes.Findings)
+		}
+	})
+}
+
+func TestChangeGroomTypeEditChangesNextClaimBranch(t *testing.T) {
+	cases := []struct {
+		name string
+		mut  func(*ChangeGroomRequest)
+		want string
+	}{
+		{"type", func(r *ChangeGroomRequest) { r.Type = "chore" }, "chore/add-a-widget"},
+		{"branch_prefix", func(r *ChangeGroomRequest) { r.BranchPrefix = strPtr("spike") }, "spike/add-a-widget"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			files := map[string]string{groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget")}
+			plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, fieldOnlyReviseRequest(c.mut)))
+			if opRes.Refused {
+				t.Fatalf("unexpected refusal: %v", opRes.Findings)
+			}
+			files[groomPath(2, "add-a-widget")] = string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+			after, err := newPlanningLoader(planningTestConfig(nil)).Load(context.Background(), newFakeTree(files))
+			if err != nil {
+				t.Fatalf("load: %v", err)
+			}
+			ch, out := after.Snapshot.Change(domain.ChangeID(2))
+			if out != domain.LookupFound {
+				t.Fatalf("change 2 not found after groom")
+			}
+			res, fail := domain.Claim(ch, testClock().Now())
+			if fail != nil {
+				t.Fatalf("claim failed: %v", fail)
+			}
+			if got := res.Change.Branch().Value; got != c.want {
+				t.Errorf("claimed branch = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
