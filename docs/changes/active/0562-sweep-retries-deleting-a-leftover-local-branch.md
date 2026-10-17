@@ -14,7 +14,7 @@ discovered_from: [559]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md'
 plan: 'docs/superpowers/plans/2026-10-17-sweep-retries-deleting-a-leftover-local-branch.md'
-results:
+results: 'docs/results/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-17T22:30:06Z'
 |---|---|
 | Spec | [2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md](../../superpowers/specs/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md) |
 | Plan | [2026-10-17-sweep-retries-deleting-a-leftover-local-branch.md](../../superpowers/plans/2026-10-17-sweep-retries-deleting-a-leftover-local-branch.md) |
+| Results | [2026-10-17-sweep-retries-deleting-a-leftover-local-branch-results.md](../../results/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
