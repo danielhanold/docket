@@ -985,7 +985,7 @@ func groomStackingProblem(gc domain.Change, candidate domain.Snapshot) (string, 
 	code := string(FCResultsArtifactNotStackable)
 	stacked := gc.StackedOn().State == domain.FieldPresent
 	if gc.Deliverable() == domain.DeliverableResultsArtifact && stacked {
-		return code, fmt.Sprintf("change %04d is stacked on %04d; a results-artifact change takes no part in stacking, so it cannot be stacked; keep it a pr change or ask a human to remove stacked_on, and order it with depends_on",
+		return code, fmt.Sprintf("change %04d is stacked on %04d; a results-artifact change takes no part in stacking, so it cannot be stacked; keep it a pr change, or un-stack it by grooming it with stacked_on: 0, and order it with depends_on",
 			int(gc.ID()), gc.StackedOn().Value)
 	}
 	if stacked {
@@ -1001,7 +1001,7 @@ func groomStackingProblem(gc domain.Change, candidate domain.Snapshot) (string, 
 				continue
 			}
 			if so := other.StackedOn(); so.State == domain.FieldPresent && domain.ChangeID(so.Value) == gc.ID() {
-				return code, fmt.Sprintf("change %04d stacks on change %04d; a results-artifact change takes no part in stacking, so keep it a pr change or ask a human to remove stacked_on from change %04d",
+				return code, fmt.Sprintf("change %04d stacks on change %04d; a results-artifact change takes no part in stacking, so keep it a pr change, or un-stack change %04d by grooming it with stacked_on: 0 (it must still be proposed to be groomed)",
 					int(other.ID()), int(gc.ID()), int(other.ID()))
 			}
 		}
