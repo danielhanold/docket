@@ -812,6 +812,7 @@ merges.
 **Used for:** draining the backlog unattended. Always dispatch it as its named agent, bracketed by
 the run tracker. Pass an explicit id to resume an `in-progress` change — a bare run skips it.
 Start it with a plain request in the session or with `/loop docket-implement-next`.
+In Claude Code the command runs forked.
 A typed `/docket-implement-next` runs untracked.
 It still builds to a PR, but if it stops partway there is no automatic retry, resume, or cancel,
 and its outcome can only be read unattributed (`docket run verdict --unattributed`).

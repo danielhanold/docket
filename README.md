@@ -109,7 +109,8 @@ The five steps, one skill per step
 2. **Groom** rough stubs to build-ready — `docket-groom-next` (or `docket-auto-groom`).
 3. **Drain** the backlog to open PRs: ask in plain words ("implement the next change"), or
    `/loop docket-implement-next` hands-free, so the [run tracker](docs/concepts/run-tracker.md)
-   follows it. A typed `/docket-implement-next` runs untracked.
+   follows it. In Claude Code the command runs forked.
+   A typed `/docket-implement-next` runs untracked.
 4. **Review and merge** the PR — you.
 5. **Close out** merged work — `docket-finalize-change`; `docket-status` keeps the board
    honest in between.
