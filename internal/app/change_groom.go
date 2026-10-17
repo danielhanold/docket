@@ -680,6 +680,19 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 				o.req.ChangeID, c.Branch().Value, c.Plan().Value, c.Results().Value))
 	}
 
+	// Re-stack gate (change 0563). A change deferred out of in-progress and
+	// revived keeps its branch:, and the next claim reuses that branch; it was
+	// cut from the current base, so giving the change a new base (a new parent,
+	// a first parent, or none) would carry the old base's commits into the PR.
+	// Mirrors the retitle gate above. A stacked_on equal to the current value
+	// (or 0 on an unstacked record) is no change and passes; plan: and results:
+	// alone never block it — only the cut branch carries the old base.
+	if o.req.StackedOn != nil && c.Branch().Value != "" && stackedOnChanges(c.StackedOn(), *o.req.StackedOn) {
+		return refuseGroom(string(FCNotRestackable),
+			fmt.Sprintf("change %04d already has branch %q cut from its current base; changing stacked_on would leave that branch carrying the old base's commits — delete or rebuild the branch before re-stacking or un-stacking it",
+				o.req.ChangeID, c.Branch().Value))
+	}
+
 	// Revise spec-body decision, resolved before any mutation is assembled: a
 	// non-empty SpecMarkdown replaces the change's EXISTING linked spec — never
 	// a new path — and requires both the link and the file to exist.
@@ -994,6 +1007,17 @@ func groomStackingProblem(gc domain.Change, candidate domain.Snapshot) (string, 
 		}
 	}
 	return "", ""
+}
+
+// stackedOnChanges reports whether writing want (0 = clear) to stacked_on
+// would change the record's current value cur: clearing changes anything that
+// is not already absent or valueless, and setting a parent changes anything
+// but that same parent.
+func stackedOnChanges(cur domain.OptionalInt, want int) bool {
+	if want == 0 {
+		return cur.State != domain.FieldAbsent && cur.State != domain.FieldEmpty
+	}
+	return !(cur.State == domain.FieldPresent && cur.Value == want)
 }
 
 // refuseGroom builds a refusing OperationResult carrying one state-shaped
