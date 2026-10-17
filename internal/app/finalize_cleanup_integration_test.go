@@ -5,6 +5,8 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -506,5 +508,100 @@ func TestIntegrationFinalizeCleanupPRBacklinkRetryCarriedDescendant(t *testing.T
 	}
 	if again.Reason != ReasonCleanupDestination || !pending {
 		t.Fatalf("failing retry = reason %q findings %+v, want %s carrying a %s finding", again.Reason, again.Findings, ReasonCleanupDestination, ReasonPRBacklinkPending)
+	}
+}
+
+// raFinalResults is a FINAL-valid results body; attach prepends the backlink.
+const raFinalResults = "# Research — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nThe research answered the question; the findings are recorded here.\n"
+
+// completeLeakWorkspace attaches final results to the prepared results-artifact
+// change at recPath on the metadata branch, completes it, and returns the
+// cleanup deps over the real workspace service.
+func completeLeakWorkspace(t *testing.T, lw *leakWorkspace, meta, branch, recPath string) FinalizeDeps {
+	t.Helper()
+	ctx := context.Background()
+	ver := func() string { return blobRevisionAt(t, meta, branch, recPath) }
+	slug := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(recPath), fmt.Sprintf("%04d-", lw.id)), ".md")
+	attach := ChangeAttachResults(ctx, lw.node.deps, lw.node.dir, ChangeAttachRequest{
+		ID: lw.id, Revision: ver(), Path: "docs/results/2026-08-17-" + slug + "-results.md", Markdown: []byte(raFinalResults),
+	})
+	if attach.Result != ResultApplied {
+		t.Fatalf("attach results = %q (reason %q msg %q findings %v)", attach.Result, attach.Reason, attach.Message, attach.Findings)
+	}
+	done := ChangeComplete(ctx, lw.node.deps, lw.node.dir, ChangeCompleteRequest{ChangeID: lw.id, Path: recPath, Revision: ver()})
+	if done.Result != ResultApplied || done.Disposition != CompleteDispCompleted {
+		t.Fatalf("change complete = (%q, %q), findings %v", done.Result, done.Disposition, done.Findings)
+	}
+	svc, err := workspace.NewService(lw.node.deps.Client)
+	if err != nil {
+		t.Fatalf("workspace.NewService: %v", err)
+	}
+	return FinalizeDeps{Planning: lw.node.deps, GitHub: raNoGitHub{}, Workspace: svc}
+}
+
+// assertResultsArtifactCleaned runs FinalizeCleanup over the completed change and
+// asserts the worktree folder and the local branch are gone.
+func assertResultsArtifactCleaned(t *testing.T, lw *leakWorkspace, deps FinalizeDeps) {
+	t.Helper()
+	res := FinalizeCleanup(context.Background(), deps, lw.node.dir, lw.id)
+	if res.Result != ResultApplied || res.Disposition != CleanupDispCleaned {
+		t.Fatalf("finalize cleanup = %q disp %q reason %q (%s)", res.Result, res.Disposition, res.Reason, res.Message)
+	}
+	if _, err := os.Stat(lw.wp); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the feature worktree %s must be removed (stat err %v)", lw.wp, err)
+	}
+	if out := runGit(t, lw.invocation, "for-each-ref", "--format=%(refname)", lw.featureRef); out != "" {
+		t.Fatalf("the local feature branch must be deleted, still have %q", out)
+	}
+}
+
+// TestIntegrationFinalizeCleanupResultsArtifactRealGit: a claimed results-artifact
+// change with a prepared worktree and final results completes, then cleanup
+// removes the worktree and the local branch with no PR — and leaves a same-named
+// branch on origin alone.
+func TestIntegrationFinalizeCleanupResultsArtifactRealGit(t *testing.T) {
+	requireRealGit(t)
+	const (
+		id   = 3
+		slug = "research"
+	)
+	recPath := groomPath(id, slug)
+	rec := strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: true\n", 1)
+	rec = strings.Replace(rec, "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
+	m := planRepoModes()[0]
+	repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec})
+	lw := prepareLeakWorkspace(t, repo, m.branch, id, recPath, false)
+
+	runGit(t, lw.wp, "push", "-q", "origin", "HEAD:"+lw.featureRef)
+	deps := completeLeakWorkspace(t, lw, repo.meta, m.branch, recPath)
+	assertResultsArtifactCleaned(t, lw, deps)
+	if !originHasBranch(t, lw.origin, lw.featureRef) {
+		t.Fatalf("cleanup of a completed change must never delete a remote branch")
+	}
+}
+
+// TestIntegrationFinalizeCleanupResultsArtifactPrivate: in a private repository a
+// results-artifact change completes with its metadata commit on the private
+// store, and cleanup removes the worktree and local branch while the shared
+// remote gains no branch or ref.
+func TestIntegrationFinalizeCleanupResultsArtifactPrivate(t *testing.T) {
+	requireRealGit(t)
+	create := validChangeCreateRequest()
+	create.Deliverable = string(domain.DeliverableResultsArtifact)
+	lw, lay := newPrivateLeakWorkspaceFor(t, create, false)
+	meta := lay.DefaultBareRemote
+	recPath := runGit(t, meta, "ls-tree", "-r", "--name-only", privateFixtureBranch, "docs/changes/active/")
+	if strings.Contains(recPath, "\n") || recPath == "" {
+		t.Fatalf("want exactly one active record on the private store, got %q", recPath)
+	}
+	refsBefore := runGit(t, lw.origin, "for-each-ref", "--format=%(refname) %(objectname)")
+
+	deps := completeLeakWorkspace(t, lw, meta, privateFixtureBranch, recPath)
+	if subj := runGit(t, meta, "log", "-1", "--format=%s", privateFixtureBranch); !strings.Contains(subj, "completed") {
+		t.Fatalf("the completion commit must land on the private store, latest subject %q", subj)
+	}
+	assertResultsArtifactCleaned(t, lw, deps)
+	if refsAfter := runGit(t, lw.origin, "for-each-ref", "--format=%(refname) %(objectname)"); refsAfter != refsBefore {
+		t.Fatalf("the shared remote's refs changed:\nbefore:\n%s\nafter:\n%s", refsBefore, refsAfter)
 	}
 }

@@ -559,8 +559,9 @@ func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir stri
 		var numbers []int
 		for _, it := range historical {
 			c, out := inv.snap.Change(domain.ChangeID(it.id))
-			if out != domain.LookupFound || c.Status() != domain.StatusDone {
-				continue
+			if out != domain.LookupFound || c.Status() != domain.StatusDone ||
+				c.Deliverable() == domain.DeliverableResultsArtifact {
+				continue // a completed results-artifact change has no PR to read
 			}
 			if n, ok := parsePRNumber(c.PR().Value); ok {
 				numbers = append(numbers, n)

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -130,13 +131,22 @@ func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps Workspa
 		// Validate the done record's identity: an unusable branch, a missing
 		// canonical PR reference, an unresolved base, or a malformed workspace target
 		// is snapshot-invalid — distinguishable from a clean absence, never a no-op.
+		// A completed results-artifact change closed without a PR: it has no PR
+		// reference, PR backlink, or remote ref to assess, and with no recorded
+		// branch it has nothing to clean at all.
+		completed := c.Deliverable() == domain.DeliverableResultsArtifact
 		branch, berr := recordedBranch(c)
+		if completed && errors.Is(berr, errBranchMissing) {
+			entries = append(entries, sweepEntry(it.id, it.kind, SweepDispSkipped, "", ReasonSweepSnapshotNoWork,
+				"completed without a feature branch; nothing to clean"))
+			continue
+		}
 		if berr != nil {
 			entries = append(entries, sweepEntry(it.id, it.kind, SweepDispSkipped, "", ReasonSweepSnapshotInvalid,
 				"the recorded feature branch is unusable ("+berr.Error()+")"))
 			continue
 		}
-		if _, ok := parsePRNumber(c.PR().Value); !finalizeHasPRRef(c) || !ok {
+		if _, ok := parsePRNumber(c.PR().Value); !completed && (!finalizeHasPRRef(c) || !ok) {
 			entries = append(entries, sweepEntry(it.id, it.kind, SweepDispSkipped, "", ReasonSweepSnapshotInvalid,
 				"the record carries no canonical pull-request reference to verify"))
 			continue
@@ -159,10 +169,14 @@ func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps Workspa
 		// unresolved leg never launders into a clean no-op.
 		featureRef := gitcli.RefName(branchRefPrefix + branch)
 		var a sweepLegAssessment
-		sweepAssessPRBacklinkLeg(shared, c, link, &a)
+		if !completed {
+			sweepAssessPRBacklinkLeg(shared, c, link, &a)
+		}
 		sweepAssessWorkspaceLeg(ctx, wdeps, repo, target, &a)
 		sweepAssessLocalRefLeg(shared, featureRef, &a)
-		sweepAssessRemoteRefLeg(shared, featureRef, &a)
+		if !completed {
+			sweepAssessRemoteRefLeg(shared, featureRef, &a)
+		}
 
 		if a.hasWork {
 			// One or more legs may have work: dispatch one normal fresh cleanup
