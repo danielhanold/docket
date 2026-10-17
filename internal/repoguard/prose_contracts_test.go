@@ -204,6 +204,12 @@ var proseContracts = []proseContract{
 	{sentinel: "change_0550_priority", file: "skills/docket-groom-next/SKILL.md",
 		present: []string{"may also carry `priority`", "a `priority` alone is a valid revise", "`invalid-priority`", "`unknown-priority`",
 			"owned-section, `title`, `priority`, or relationship edits"}},
+	// change 0563 — the groom exits carry `stacked_on`: `0` clears it, a
+	// relationship field alone is a valid revise, and a branched change refuses
+	// a restack.
+	{sentinel: "change_0563_stacking", file: "skills/docket-groom-next/SKILL.md",
+		present: []string{"`0` clears it (the fix for a killed stack parent)", "Any relationship field alone is a valid revise.",
+			"refuses with `not-restackable`"}},
 	// change 0509 — revise edits any proposed change without changing its groom
 	// state; a request to edit (not groom) a needs-grooming stub goes straight
 	// to the revise exit with no brainstorm. The absent phrases are the retired
