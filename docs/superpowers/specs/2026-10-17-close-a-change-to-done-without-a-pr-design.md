@@ -104,9 +104,23 @@ Anyone can run `docket change complete` on a build-ready `proposed` `results-art
 - `change attach-results` help text: drop "an in-progress change"; it attaches to any change.
 - User docs: `docs/reference/glossary.md` (define `deliverable` and results artifact; lifecycle table: `done` is reached by finalize close-out, the sweep, or `change complete`), `docs/concepts/change-lifecycle.md`, and the guides that define `advanced` as "opened a pull request" (`docs/guide/building-without-supervision.md` and others). Find every site that equates `done` with a merged PR, or `advanced` with a PR, by a whole-repo grep, not from this list.
 - Run `go generate ./internal/assets/` after skill edits.
-- Record one ADR through `docket-adr`: a change's deliverable is a PR or a results artifact; `done` no longer implies a merge; a completed change's artifacts are never legacy (refines ADR-0141).
+- Record one ADR through `docket-adr`: a change's deliverable is a PR or a results artifact; `done` no longer implies a merge; a completed change's artifacts are never legacy (refines ADR-0141); and a no-op replay result names what already happened (`already-<what happened>`), never a bare `already` (section 9).
 
 The capability catalog is about 15.9 KB against the 16 KB cap in `TestCapabilitiesPayloadWithinByteBudget`; one new entry fits. Do not raise the cap to make room.
+
+### 9. Every "already" result names what already happened
+
+`change complete` returns `already-completed` (section 3). Three existing operations still return a bare `already`, the value this spec first copied. Rename each to the `already-<what happened>` pattern the rest of docket uses (`already-claimed`, `already-cancelled`, `already-merged`, `already-clean`, `already-current`):
+
+| Where | Today | New | Meaning |
+|---|---|---|---|
+| `finalize closeout` disposition (`closeout_dispositions`, `CloseoutDispAlready`) | `already` | `already-closed-out` | the change is already done and archived, or already stacked-merged |
+| `finalize block` disposition (`block_dispositions`, `BlockDispAlready`) | `already` | `already-recorded` | the section already records this attempt; pairs with `recorded` |
+| `finalize retarget-children` per-child `outcome` (`childOutcomeAlready`) | `already` | `already-retargeted` | the child's PR already targets the new base; pairs with `retargeted` |
+
+Four internal outcome values never reach output but carry the same bare string. Rename them too, so nothing is left to copy: `githubcli.BodyAlready` → `already-edited`, `githubcli.CommentAlready` → `already-posted`, `githubcli.RetargetAlready` → `already-retargeted`, and the PR-backlink repoint's `prBacklinkAlready` → `already-repointed`. Go constant names may stay.
+
+Only the spelling changes; behavior does not. Nothing persists these values (they are read in-process or by skills, and the run tracker stores none of them), and skills ship with the binary, so there is no compatibility alias. Update every reader: `skills/docket-finalize-change/SKILL.md` (closeout routing), `skills/docket-convention/references/stacked-changes.md` (the root-archived replay), the `block_dispositions` and `closeout_dispositions` rows in `docs/reference/glossary.md`, and the tests that assert the old value. Find them with a whole-repo grep for the bare value, not from this list. Point-in-time records (archived changes, specs, plans, results) keep the old word. The new ADR (section 8) records the naming rule.
 
 ## Tests
 
@@ -123,12 +137,13 @@ Follow the existing groom, kill, closeout, and cleanup test structure. Run the w
 9. **Run verify.** Completed → `run-complete` (also when cleanup is pending); in-progress → `run-incomplete` with `not-completed`; halted → `run-halted`; `pr` changes unchanged.
 10. **Mutation checks.** Removing the deliverable precondition from complete makes test 4's `pr` case pass wrongly; restoring the legacy rule for completed changes makes test 6 fail; dropping the own-commits check from the no-PR cleanup path makes test 7's own-commit case delete the branch.
 11. **Private repository.** Exercise complete and cleanup end to end in a private fixture (metadata on `dckt`, nothing pushed to the shared remote).
+12. **Already-values.** Pin the new spellings (`already-completed`, `already-closed-out`, `already-recorded`, `already-retargeted`, and the four internal values) in a spelling test like `TestFinalLifecycleCodeSpellings`, and assert that no vocabulary `docket schema` registers contains a bare `already`. Existing closeout, block, and retarget replay tests assert the new values.
 
 ## Out of scope
 
 - The autonomous loop meeting a change that needs a human: a field that keeps a build-ready change away from the loop; whether a loop continues past a halt that concerns only one change, which needs a typed halt reason the driver can read (today every halt stops the driver, and #559 keeps that); and where the loop logic lives (the skill body, or a reference read only when needed). Until then, a person who runs a loop lists change ids and checks that none needs a human. Captured as #560.
 - A clean, docket-free export of any artifact `docket open` can open (#561).
-- How `pr` changes close, finalize, and kill.
+- How `pr` changes close, finalize, and kill, apart from renaming finalize's bare `already` results (section 9).
 - Reclaim: unchanged (section 5).
 - Showing `deliverable` on the board.
 - Fixing archived #423, #124, or #545.
