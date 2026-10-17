@@ -2,10 +2,10 @@
 
 > Single source for the close-out sequence a final transition (`done` or `killed`) runs:
 > archive → re-render `## Artifacts` → cleanup → board.
-> All four drivers route
-> through this file: `docket-finalize-change`'s per-change close-out and `docket-status`'s merge
-> sweep (the two `done` drivers), plus the kill callers — `docket-implement-next`'s reconcile-kill
-> and `docket-new-change`'s proposed-kill. The sequence is one; only the
+> Every driver routes
+> through this file: `docket-finalize-change`'s per-change close-out, `docket-status`'s merge
+> sweep, and `change.complete` for a `results-artifact` change (the three `done` drivers), plus the
+> kill callers — `docket-implement-next`'s reconcile-kill and `docket-new-change`'s proposed-kill. The sequence is one; only the
 > failure posture differs per caller (table below). This file owns ordering and posture.
 > `schema` gives request-file and result shapes; the capability catalog gives flags.
 
@@ -17,9 +17,10 @@ All metadata writes happen in the metadata worktree (`metadata_worktree_path` in
 synced to the metadata remote (`metadata_remote`) before the first read; every commit pushes
 immediately.
 
-1. **Archive on `docket` first.** The two final outcomes split here: `done` runs the Go
-   `finalize.closeout` transaction; `killed` runs the Go `change.kill` transaction (`finalize.closeout`
-   does not cover the `killed` outcome).
+1. **Archive on `docket` first.** The final outcomes split here: a merged `done` runs the Go
+   `finalize.closeout` transaction; a completed `results-artifact` change runs the Go
+   `change.complete` transaction; `killed` runs the Go `change.kill` transaction (`finalize.closeout`
+   covers neither of the other two).
 
    **Done drivers** (`docket-finalize-change`'s close-out, the `docket-status` merge sweep) archive
    through the typed transaction. There is **no caller-supplied date**: it derives the UTC archive
@@ -53,11 +54,12 @@ immediately.
    ```
    # request-file: { "change_id": <id>, "path": "<changes_dir>/active/<UTC-birth>-<id>-<slug>.md",
    #                 "revision": "<revision>", "why_killed": "<why>" }
-   change.kill  --repo-dir <metadata_worktree_path> --input <request-file> --json   # resolve argv from the capability catalog
+   change.kill  --repo-dir <metadata_worktree_path> --request <request-file> --json   # resolve argv from the capability catalog
    ```
 
-   Trust the typed outcome: `applied` ⇒ archived — an idempotent no-op if already archived,
-   including across a day boundary (it reuses the existing dated filename). This ONE metadata commit
+   Trust the typed outcome: `applied` ⇒ archived. Kill is **not idempotent**: a retry after a
+   success finds the record already archived and is refused, writing nothing — read that refusal
+   against the archived record, never as a failed kill. This ONE metadata commit
    atomically owns the archive move, the refreshed `updated:` date, the spliced `## Why killed`
    section, the `## Artifacts` re-render, the retargeted spec, plan, and results back-links, and the inline board render
    — so the step-2 re-render and step-4 board pass below carry **nothing** for the kill path, exactly
@@ -65,8 +67,27 @@ immediately.
    returns a typed refusal that writes nothing (a lost conflict-checked write is `contended`; see
    *Determinism invariant*).
 
+   **Complete driver** (a `results-artifact` change — `docket-implement-next`'s results-artifact
+   ending, or a person finishing one) drives the typed `change.complete` operation transaction,
+   which owns its own archive exactly as kill does. Pin the record from the `status` operation
+   (with `--json`) into a bounded JSON request file (`-` for stdin):
+
+   ```
+   # request-file: { "change_id": <id>, "path": "<record path>", "revision": "<revision>" }
+   change.complete  --repo-dir <metadata_worktree_path> --request <request-file> --json   # resolve argv from the capability catalog
+   ```
+
+   It refuses, writing nothing, unless the change is a `results-artifact` change, `proposed` and
+   build-ready or `in-progress`, with no `pr:`, and with a FINAL-valid results artifact attached.
+   Trust the typed outcome: `completed` ⇒ done and archived, dated by the transaction's own UTC
+   clock; `already-completed` ⇒ an earlier call already did it (a safe retry after a lost
+   response). The one metadata commit owns the archive move, the cleared claim, the removed
+   `## Run halted` section, the `## Artifacts` re-render, the retargeted back-links, and the inline
+   board render — so steps 2 and 4 carry nothing for this path either. It touches no branch,
+   worktree, or GitHub; cleanup (step 3) follows it.
+
 2. **Artifact block + back-links — owned atomically by step 1, no separate caller commit.**
-   Both close-out transactions re-render the archived record's `## Artifacts` block (relative
+   Every close-out transaction re-render the archived record's `## Artifacts` block (relative
    same-branch rows, plus an absolute `Spec (merged)` row for a merged change) **and** re-stamp every
    metadata-resident back-link — spec, plan, and results — retargeted to the
    now-**archived** change path, **in the same step-1 metadata commit** as the archive:
@@ -76,6 +97,8 @@ immediately.
    - On the **kill** path the step-1 `change.kill` operation transaction owns it identically — it
      re-renders the `## Artifacts` block and retargets the linked spec, plan, and results
      `docket:backlink` blocks in its one commit.
+   - On the **complete** path the step-1 `change.complete` operation transaction owns it the same
+     way.
 
    So **no separate caller re-render or back-link commit runs for either path** — the skill never
    invokes a facade renderer and never hand-edits a managed block. Nothing touches the integration
@@ -97,6 +120,14 @@ immediately.
    resource whose ownership it cannot prove is **retained**, not force-removed. A failure aborts
    per the caller's posture.
 
+   **Complete path (no PR):** on a `done` `results-artifact` change, cleanup makes no GitHub call
+   and never touches a remote ref (the branch was never published). It removes a clean feature
+   worktree and deletes the local branch by its recorded name only when the branch has no commits
+   of its own (its tip is contained in `origin/<integration_branch>`); uncommitted files, commits
+   on the branch, or an unprovable probe keep everything and report `pending`. A change completed
+   straight from `proposed` has no branch, and nothing present on this machine reads
+   `already-clean`. A `pending` cleanup never undoes the completion; the sweep retries it.
+
    **Kill path:** cleanup removes only a merged `done` change's resources. On a `killed` change it
    removes nothing and returns `no-op` with disposition `retained` and reason `killed-retained` —
    a success, not a failure, so the kill caller continues. Any feature worktree or branch a
@@ -104,9 +135,10 @@ immediately.
    the branch is the pre-kill `branch:` value (`<type>/<slug>` by default; the kill clears the
    field) and `git worktree list` finds the worktree. A `proposed`-kill has none.
 
-4. **Board refresh — owned atomically by step 1, no separate pass.** Both close-out transactions
-   render the inline `BOARD.md` **inside their own step-1 metadata commit** — the `finalize.closeout`
-   operation on the done path, the `change.kill` operation on the kill path — so **no separate Board pass
+4. **Board refresh — owned atomically by step 1, no separate pass.** Every close-out transaction
+   renders the inline `BOARD.md` **inside its own step-1 metadata commit** — the `finalize.closeout`
+   operation on the done path, `change.complete` on the complete path, the `change.kill` operation
+   on the kill path — so **no separate Board pass
    runs**, and no skill ever hand-renders the board or double-commits it. The step-1 transaction is
    the sole writer; a caller neither invokes a board renderer nor follows the typed mutation with a
    second board commit. `BOARD.md` is the live planning view and is never published to the
@@ -123,6 +155,7 @@ are absorbed into step 1 and carry no separate command):
 | `docket-status` merge sweep (bulk janitor) | **log-and-continue** — abandon the remainder of this change's close-out, move to the next change; the next sweep self-heals idempotently |
 | `docket-implement-next` reconcile-kill | trust each exit code; a failure aborts the kill and is surfaced before returning to selection |
 | `docket-new-change` proposed-kill | same as reconcile-kill — surface and stop; nothing else is in flight |
+| `docket-implement-next` results-artifact ending | a `change.complete` refusal halts the run; a `pending` cleanup goes into the run report and never halts it |
 
 **Step-failure propagation:** step 1's atomic transaction owns the archive move, the `## Artifacts`
 re-render, every back-link, and the inline board render **together** — it either commits the complete
