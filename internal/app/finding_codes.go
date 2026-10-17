@@ -47,6 +47,11 @@ const (
 	// title-bearing backlinks are identity-checked downstream (change 0461).
 	FCNotRetitleable FindingCode = "not-retitleable"
 
+	// FCNotRestackable refuses a change-groom stacked_on edit that would change
+	// the base of a change whose branch: is already cut (change 0563); mirrors
+	// not-retitleable.
+	FCNotRestackable FindingCode = "not-restackable"
+
 	// change create request-shape findings.
 	FCInvalidSlug     FindingCode = "invalid-slug"
 	FCUnknownType     FindingCode = "unknown-type"
@@ -319,6 +324,7 @@ var AllFindingCodes = []FindingCode{
 	FCMissingRationale,
 	FCNotFound,
 	FindingCode(ReasonImplementedNotPRDeliverable),
+	FCNotRestackable,
 	FindingCode("not-results-artifact"),
 	FCNotRetitleable,
 	FCNothingToReEnable,
