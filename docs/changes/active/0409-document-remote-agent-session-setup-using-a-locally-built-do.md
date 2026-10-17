@@ -2,11 +2,11 @@
 id: 409
 slug: 'document-remote-agent-session-setup-using-a-locally-built-do'
 title: 'Document remote-agent session setup using a locally built Docket binary'
-status: 'proposed'
+status: 'deferred'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-07'
-updated: '2026-09-07'
+updated: '2026-10-17'
 depends_on: []
 stacked_on:
 related: [311, 322, 340, 351, 392, 394, 399]
@@ -52,3 +52,7 @@ The linked design specifies the documentation surfaces, supported operation boun
 ## Out of scope
 
 New Docket transport or candidate-export implementation; connector-to-shell credential bridges; hosted services; automatic migration or hook installation; unattended or arbitrary-operation connector recovery; manual change allocation or generated-view rendering; force pushes; changes to claim, gate, PR, or merge semantics. This grooming publishes a design only.
+
+## Why deferred
+
+Low priority change that was only needed once. The spec stays valuable for the future.
