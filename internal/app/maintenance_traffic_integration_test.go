@@ -324,6 +324,10 @@ func TestIntegrationSweepDiscoveryTrafficAccounting(t *testing.T) {
 	if got := countMatching(gl, "ls-remote", "--heads"); got != 1 {
 		t.Errorf("ls-remote --heads ran %d times, want exactly 1 (one shared inventory, not one per history)", got)
 	}
+	// Exactly one shared local-branch inventory — never one per historical record.
+	if got := countMatching(gl, "for-each-ref", "refs/heads/"); got != 1 {
+		t.Errorf("for-each-ref refs/heads/ ran %d times, want exactly 1 (one shared local-branch inventory, not one per history)", got)
+	}
 	// No forbidden per-item remote-ref probe for the non-actionable history.
 	if probes := featureRefProbes(gl); len(probes) != 0 {
 		t.Errorf("the sweep issued %d forbidden per-item remote-ref probe(s):\n%s", len(probes), strings.Join(probes, "\n"))
@@ -436,6 +440,7 @@ func TestIntegrationSweepBatchesPRRequestsOncePer25(t *testing.T) {
 type remoteCounts struct {
 	setupProbe  int // ls-remote --symref … HEAD
 	sharedHeads int // ls-remote --heads
+	localHeads  int // for-each-ref refs/heads/ — the one shared local-branch inventory
 	fetches     int // fetch …
 	featureRef  int // forbidden per-item remote-ref probes
 	repoView    int // gh identity
@@ -449,6 +454,7 @@ func sweepRemoteCounts(t *testing.T, gitLog, ghLog string) remoteCounts {
 	return remoteCounts{
 		setupProbe:  countMatching(gl, "ls-remote", "--symref"),
 		sharedHeads: countMatching(gl, "ls-remote", "--heads"),
+		localHeads:  countMatching(gl, "for-each-ref", "refs/heads/"),
 		fetches:     countMatching(gl, "fetch"),
 		featureRef:  len(featureRefProbes(gl)),
 		repoView:    countPrefix(ghl, "repo view"),
@@ -491,6 +497,9 @@ func TestIntegrationSweepAssessmentTrafficConstantAcrossHistory(t *testing.T) {
 	// present), else the invariant below would be vacuously true.
 	if base.sharedHeads != 1 {
 		t.Fatalf("history=1 shared-inventory count = %d, want 1", base.sharedHeads)
+	}
+	if base.localHeads != 1 {
+		t.Fatalf("history=1 local-branch inventory count = %d, want 1", base.localHeads)
 	}
 	if base.graphql != 1 {
 		t.Fatalf("history=1 PR-body batches = %d, want 1", base.graphql)
@@ -538,6 +547,9 @@ func TestIntegrationSweepImplementationScopeInspectsNoDeferredResources(t *testi
 	if ci.sharedHeads != 0 {
 		t.Errorf("implementation scope gathered the shared inventory %d time(s), want 0 (nothing assessed)", ci.sharedHeads)
 	}
+	if ci.localHeads != 0 {
+		t.Errorf("implementation scope read the local-branch inventory %d time(s), want 0 (nothing assessed)", ci.localHeads)
+	}
 	if ci.featureRef != 0 {
 		t.Errorf("implementation scope issued %d per-item remote-ref probe(s), want 0", ci.featureRef)
 	}
@@ -557,6 +569,9 @@ func TestIntegrationSweepImplementationScopeInspectsNoDeferredResources(t *testi
 	cf := sweepRemoteCounts(t, giFull, ghFull)
 	if cf.sharedHeads != 1 {
 		t.Errorf("full scope shared-inventory count = %d, want 1", cf.sharedHeads)
+	}
+	if cf.localHeads != 1 {
+		t.Errorf("full scope local-branch inventory count = %d, want 1", cf.localHeads)
 	}
 	if resF.DeferredHistoricalCleanups != 0 {
 		t.Errorf("full scope deferred = %d, want 0", resF.DeferredHistoricalCleanups)
