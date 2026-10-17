@@ -6,7 +6,7 @@ status: 'proposed'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-16'
-updated: '2026-10-16'
+updated: '2026-10-17'
 depends_on: []
 stacked_on:
 related: [528, 273]
@@ -42,6 +42,8 @@ Surfaced while grooming #528.
 Remove strict budget mode from the suite runner: the `DOCKET_RUNTESTS_STRICT` environment seam, `Config.Strict`, the strict re-check path (`StrictConfirmCandidates`), exit code 4, the strict and advisory hint lines in the budget report (including the dead `scripts/run-tests.md` pointer and the `--strict-budget` wording), the strict tests, and the strict sentences in `tests/README.md`'s exit contract.
 
 Also decide whether the runner's direct "over budget" reading still earns its place. A single-job run (`DOCKET_RUNTESTS_JOBS=1`) or a serial-mode budget row compares a test straight against `ceiling * 3/2` and prints `OVER BUDGET:`, which the release-candidate workflow fails on. Nothing runs single-job today, no serial-mode rows exist, and its only past users were in the deleted Bash runner. It shares the exit-4 arming with strict mode, so the same change should either retire it or say why it stays.
+
+Finally, fix the stale comment in `.github/workflows/release-candidate.yml` that calls its two greps "the runner's complete budget vocabulary". #528 added the `SERIAL CONFIRMATION NOT COUNTED:` line, which is in neither grep, so the comment is no longer exactly true. The omission is deliberate (that line is meant to fail nothing), so reword the comment to say so rather than adding a third grep. This also makes the "unless a retired line prefix forces an edit there" carve-out below moot for the comment.
 
 ## Out of scope
 
