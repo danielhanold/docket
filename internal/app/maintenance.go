@@ -171,6 +171,10 @@ type MaintenanceEntry struct {
 	Reason      string `json:"reason,omitempty"`
 	Message     string `json:"message,omitempty"`
 	CarriedIDs  []int  `json:"carried_ids,omitempty"`
+	// keptBranches holds the message of every branch cleanup kept on purpose
+	// (isKeptBranchFinding), filled only by sweepRunCleanup, so the human
+	// summary can name each one. It never reaches the JSON entry.
+	keptBranches []string `json:"-"`
 }
 
 // MaintenanceResult is the protocol-v1 document `maintenance sweep` returns. The
@@ -197,7 +201,9 @@ type MaintenanceResult struct {
 }
 
 // HumanText renders a one-line summary naming the entry count and the mutated
-// count only — never an authored document body.
+// count only — never an authored document body — followed by one
+// "warning: change #<id>: <message>" line per branch cleanup kept on purpose,
+// in entry order, so the leftover branch and its delete command are visible.
 func (r MaintenanceResult) HumanText() string {
 	op := r.Operation
 	if r.Scope != "" {
@@ -229,6 +235,11 @@ func (r MaintenanceResult) HumanText() string {
 		out += fmt.Sprintf("; integration sync: %s", r.IntegrationSync.Disposition)
 		if r.IntegrationSync.Reason != "" {
 			out += fmt.Sprintf(" (%s)", r.IntegrationSync.Reason)
+		}
+	}
+	for _, e := range r.Entries {
+		for _, msg := range e.keptBranches {
+			out += fmt.Sprintf("\nwarning: change #%d: %s", e.ID, msg)
 		}
 	}
 	return out
@@ -743,6 +754,24 @@ func sweepRunCleanup(ctx context.Context, ops sweepOps, id int) MaintenanceEntry
 		} else {
 			entry.Message += "; " + f.Message
 		}
+	}
+	// A branch cleanup kept on purpose rides the findings too, often behind
+	// another finding that supplied the reason; carry every one into the
+	// message and the human summary so the branch and its delete command are
+	// named on the safety-net path.
+	for _, f := range res.Findings {
+		if !isKeptBranchFinding(f) {
+			continue
+		}
+		if entry.Reason == "" {
+			entry.Reason = f.Code
+		}
+		if entry.Message == "" {
+			entry.Message = f.Message
+		} else {
+			entry.Message += "; " + f.Message
+		}
+		entry.keptBranches = append(entry.keptBranches, f.Message)
 	}
 	return entry
 }
