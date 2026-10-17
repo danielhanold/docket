@@ -689,7 +689,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	// alone never block it — only the cut branch carries the old base.
 	if o.req.StackedOn != nil && c.Branch().Value != "" && stackedOnChanges(c.StackedOn(), *o.req.StackedOn) {
 		return refuseGroom(string(FCNotRestackable),
-			fmt.Sprintf("change %04d already has branch %q cut from its current base; changing stacked_on would leave that branch carrying the old base's commits — delete or rebuild the branch before re-stacking or un-stacking it",
+			fmt.Sprintf("change %04d already has branch %q , cut from its current base; changing stacked_on would leave that branch carrying the old base's commits. Decide what to keep from the branch (locally and on the remote), then clear the record's branch: field by hand, or kill the change and capture a new one; deleting the git branch alone does not lift this refusal",
 				o.req.ChangeID, c.Branch().Value))
 	}
 
