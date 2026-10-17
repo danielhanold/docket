@@ -2832,3 +2832,80 @@ func TestChangeGroomNegativeStackedOnRefusedWithoutEngineCall(t *testing.T) {
 		t.Errorf("stacked_on 0 revise refused as empty: %v", res.Findings)
 	}
 }
+
+// --- not-restackable (change 0563) ----------------------------------------
+
+// TestChangeGroomPlanNotRestackable pins that a stacked_on edit refuses
+// not-restackable when it would change the base of a change whose branch: is
+// already cut, and that re-sending the current value (or clearing an unstacked
+// record) is no change and passes. plan: alone never blocks a re-stack.
+func TestChangeGroomPlanNotRestackable(t *testing.T) {
+	const planPath = "docs/superpowers/plans/2026-08-10-add-a-widget.md"
+	branched := func(rec string) string {
+		return strings.Replace(rec, "status: proposed\n", "status: proposed\nbranch: 'feat/add-a-widget'\n", 1)
+	}
+	planned := strings.Replace(stackedChange(2, "add-a-widget", 3), "plan:\n", "plan: '"+planPath+"'\n", 1)
+	// The Plan gate's code is not reached by the shape-validator registry
+	// probe, so pin its registration here.
+	registered := false
+	for _, code := range AllFindingCodes {
+		registered = registered || code == FCNotRestackable
+	}
+	if !registered {
+		t.Errorf("%s is not registered in AllFindingCodes", FCNotRestackable)
+	}
+	cases := []struct {
+		name    string
+		rec     string
+		stack   int
+		refused bool
+	}{
+		{"re-parent with branch refuses", branched(stackedChange(2, "add-a-widget", 3)), 4, true},
+		{"clear with branch refuses", branched(stackedChange(2, "add-a-widget", 3)), 0, true},
+		{"first stack with branch refuses", branched(groomableChange(2, "add-a-widget")), 3, true},
+		{"unchanged parent with branch passes", branched(stackedChange(2, "add-a-widget", 3)), 3, false},
+		{"clear of unstacked with branch passes", branched(groomableChange(2, "add-a-widget")), 0, false},
+		{"plan-only re-parent passes", planned, 4, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if !strings.Contains(c.rec, "branch: 'feat/add-a-widget'") && !strings.Contains(c.rec, "plan: '"+planPath+"'") {
+				t.Fatalf("fixture lost its branch:/plan: artifact:\n%s", c.rec)
+			}
+			files := map[string]string{
+				groomPath(2, "add-a-widget"): c.rec,
+				groomPath(3, "base-thing"):   groomableChange(3, "base-thing"),
+				groomPath(4, "other-base"):   groomableChange(4, "other-base"),
+				planPath:                     "# Plan\n",
+			}
+			stack := c.stack
+			req := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.StackedOn = intPtrTest(stack) })
+			plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, req))
+			if !c.refused {
+				if opRes.Refused {
+					t.Fatalf("refused: %v", opRes.Findings)
+				}
+				return
+			}
+			if !opRes.Refused {
+				t.Fatalf("re-stack of a branched change planned: %v", planPaths(plan))
+			}
+			var msg string
+			found := false
+			for _, f := range opRes.Findings {
+				if f.Code == string(FCNotRestackable) {
+					found, msg = true, f.Detail["message"]
+				}
+			}
+			if !found {
+				t.Fatalf("missing not-restackable; got %v", opRes.Findings)
+			}
+			if !strings.Contains(msg, "feat/add-a-widget") {
+				t.Errorf("message does not name the branch: %q", msg)
+			}
+			if len(plan.Files) != 0 {
+				t.Errorf("refused plan still carries files: %v", planPaths(plan))
+			}
+		})
+	}
+}
