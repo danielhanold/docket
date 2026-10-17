@@ -2,7 +2,7 @@
 id: 563
 slug: 'let-change-groom-clear-stacked-on'
 title: 'change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 created: '2026-10-17'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/let-change-groom-clear-stacked-on'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/427'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-17T21:58:50Z'
@@ -64,3 +64,12 @@ Found during change 559.
 ### 2026-10-17
 
 Re-read against current main (a52c2d9c9). change_groom.go still writes relationship fields and trivial with bare SetField, stacked_on is still *int with no clear path, empty-revise still ignores relationship fields, and #559's upsertFieldBytes/reqFieldEdits cycle is in place to extend. #564 is killed (consolidated here); #565 stays separate. Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 40b78cfdf9bbfea7113799810399a63472b4fd03
+ran_at:   2026-10-17T22:13:38Z
+<!-- docket:build-evidence:end -->
