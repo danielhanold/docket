@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/retire-the-suite-runner-s-unused-strict-budget-mode'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-17T22:08:22Z'
+reconciled: true
+claimed_at: '2026-10-17T22:09:47Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,9 @@ Drop wording that implied a non-default mode: "by default" in `AGENTS.md`'s budg
 - Detecting another running suite during a direct single-job reading.
 - The release-candidate workflow's greps; only its comments change.
 - Point-in-time records that mention strict mode (plans, specs, results files, ADRs) and the frozen `testdata/repositories/status-corpus/` fixture.
+
+## Reconcile log
+
+### 2026-10-17
+
+Reconciled against origin/main a52c2d9c9. The strict budget mode is still present exactly as the spec describes (DOCKET_RUNTESTS_STRICT read in internal/cli/development_test_cmd.go, the stale scripts/run-tests.md hint and ExitCode strictArmed in internal/suiterunner/aggregate.go). No related change touched it since grooming; #528 is done. Scope unchanged.
