@@ -14,7 +14,7 @@ discovered_from: [528]
 adrs: [74]
 spec: 'docs/superpowers/specs/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md'
 plan: 'docs/superpowers/plans/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode.md'
-results:
+results: 'docs/results/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-17T22:17:31Z'
 |---|---|
 | Spec | [2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md](../../superpowers/specs/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md) |
 | Plan | [2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode.md](../../superpowers/plans/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode.md) |
+| Results | [2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-results.md](../../results/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-results.md) |
 | ADRs | [ADR-0074](../../adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md) |
 <!-- docket:artifacts:end -->
 
