@@ -249,6 +249,21 @@ func TestAssessAbsentManifestIsBlockedNotClean(t *testing.T) {
 	assertEntry(t, findEntry(entries, 41), SweepDispBlocked, ReasonSweepSnapshotBlocked)
 }
 
+// TestAssessAbsentManifestStaysBlockedForPRClosedRecord: only a completed
+// results-artifact change reads a proven-absent workspace (no manifest, ref,
+// path, or registration) as no work; a PR-closed done record keeps change
+// 0368's blocked verdict for the same inspection.
+func TestAssessAbsentManifestStaysBlockedForPRClosedRecord(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", "")}, nil)
+	ws := &assessWS{insp: map[int]workspace.Inspection{41: {Kind: workspace.StateAbsent, NoManifest: true}}}
+	shared := sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}
+	entries, actionable := f.assess(t, ws, shared, 41)
+	if len(actionable) != 0 {
+		t.Fatalf("a blocked record must dispatch nothing; actionable=%v", actionable)
+	}
+	assertEntry(t, findEntry(entries, 41), SweepDispBlocked, ReasonSweepSnapshotBlocked)
+}
+
 // TestAssessReadyWorkspaceLegIsActionable: an owned ready checkout is possible
 // cleanup work (workspace removal) → actionable.
 func TestAssessReadyWorkspaceLegIsActionable(t *testing.T) {
@@ -616,6 +631,27 @@ func TestSweepAssessCompletedResultsArtifact(t *testing.T) {
 			t.Fatalf("a clean completed change must dispatch nothing; actionable=%v", actionable)
 		}
 		assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
+	})
+	// Claimed but never prepared here (or cleaned on another machine): a
+	// proven-absent workspace is no work for a completed change, while a foreign
+	// leftover still blocks.
+	t.Run("never-prepared-is-no-work", func(t *testing.T) {
+		f := newAssessFixture(t, []StatusBlob{raDoneBlob(41, "research", true, "")}, nil)
+		ws := &assessWS{insp: map[int]workspace.Inspection{41: {Kind: workspace.StateAbsent, NoManifest: true}}}
+		entries, actionable := f.assess(t, ws, prShared(map[int]string{}), 41)
+		if len(actionable) != 0 {
+			t.Fatalf("a never-prepared completed change must dispatch nothing; actionable=%v", actionable)
+		}
+		assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
+	})
+	t.Run("foreign-leftover-is-blocked", func(t *testing.T) {
+		f := newAssessFixture(t, []StatusBlob{raDoneBlob(41, "research", true, "")}, nil)
+		ws := &assessWS{insp: map[int]workspace.Inspection{41: {Kind: workspace.StateForeign, NoManifest: true}}}
+		entries, actionable := f.assess(t, ws, prShared(map[int]string{}), 41)
+		if len(actionable) != 0 {
+			t.Fatalf("a foreign leftover must dispatch nothing; actionable=%v", actionable)
+		}
+		assertEntry(t, findEntry(entries, 41), SweepDispBlocked, ReasonSweepSnapshotBlocked)
 	})
 	t.Run("no-branch-is-no-work", func(t *testing.T) {
 		f := newAssessFixture(t, []StatusBlob{raDoneBlob(41, "research", false, "")}, nil)

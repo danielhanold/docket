@@ -605,3 +605,115 @@ func TestIntegrationFinalizeCleanupResultsArtifactPrivate(t *testing.T) {
 		t.Fatalf("the shared remote's refs changed:\nbefore:\n%s\nafter:\n%s", refsBefore, refsAfter)
 	}
 }
+
+// completeNeverPrepared claims the results-artifact change at recPath (minting
+// its branch) WITHOUT preparing a workspace — the halted-before-prepare case —
+// then attaches final results and completes it. It returns the cleanup deps over
+// the real workspace service.
+func completeNeverPrepared(t *testing.T, repo *gitRepo, branch string, id int, recPath string) (realNode, FinalizeDeps, *workspace.Service) {
+	t.Helper()
+	ctx := context.Background()
+	node := planningDepsFor(t, repo.invocation)
+	ver := func() string { return blobRevisionAt(t, repo.meta, branch, recPath) }
+	ctxRes := ContextImplementation(ctx, node.deps, node.dir, ImplementationContextRequest{ID: id})
+	if ctxRes.Result != ResultApplied || ctxRes.Context == nil {
+		t.Fatalf("context implementation = %q (reason %q); want a bundle", ctxRes.Result, ctxRes.Reason)
+	}
+	claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: ctxRes.Context.Change.Revision})
+	if claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
+		t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
+	}
+	attach := ChangeAttachResults(ctx, node.deps, node.dir, ChangeAttachRequest{
+		ID: id, Revision: ver(), Path: "docs/results/2026-08-17-research-results.md", Markdown: []byte(raFinalResults),
+	})
+	if attach.Result != ResultApplied {
+		t.Fatalf("attach results = %q (reason %q msg %q findings %v)", attach.Result, attach.Reason, attach.Message, attach.Findings)
+	}
+	done := ChangeComplete(ctx, node.deps, node.dir, ChangeCompleteRequest{ChangeID: id, Path: recPath, Revision: ver()})
+	if done.Result != ResultApplied || done.Disposition != CompleteDispCompleted {
+		t.Fatalf("change complete = (%q, %q), findings %v", done.Result, done.Disposition, done.Findings)
+	}
+	svc, err := workspace.NewService(node.deps.Client)
+	if err != nil {
+		t.Fatalf("workspace.NewService: %v", err)
+	}
+	return node, FinalizeDeps{Planning: node.deps, GitHub: raNoGitHub{}, Workspace: svc}, svc
+}
+
+// sweepAssessOne runs the sweep's full-scope historical assessment over the
+// real pinned corpus for one done record and returns its pre-dispatch entry
+// (nil when the record is actionable instead).
+func sweepAssessOne(t *testing.T, node realNode, deps FinalizeDeps, svc *workspace.Service, id int) (*MaintenanceEntry, bool) {
+	t.Helper()
+	ctx := context.Background()
+	pin, err := node.deps.Reader.PinContext(ctx, node.dir)
+	if err != nil {
+		t.Fatalf("pin: %v", err)
+	}
+	inv, refusal := sweepBuildSnapshot(ctx, node.deps.Reader, pin, pin.Config.Effective)
+	if refusal != nil {
+		t.Fatalf("sweepBuildSnapshot refused: %+v", *refusal)
+	}
+	items := []sweepWorkItem{{id: id, kind: sweepKindCleanup}}
+	shared := gatherSweepSharedFacts(ctx, deps, node.dir, pin.Layout, inv, items)
+	entries, actionable := sweepAssessHistorical(ctx, deps, WorkspaceDeps{Service: svc}, inv, pin, shared, items)
+	for i := range entries {
+		if entries[i].ID == id {
+			return &entries[i], len(actionable) != 0
+		}
+	}
+	return nil, len(actionable) != 0
+}
+
+// TestIntegrationFinalizeCleanupResultsArtifactNeverPrepared: a results-artifact
+// change claimed (its branch minted) but halted before workspace prepare, then
+// completed by a person, has no workspace manifest, worktree, or local branch on
+// this machine. Cleanup reads that as already-clean and the sweep as no work; a
+// leftover local branch with no manifest stays blocked in both.
+func TestIntegrationFinalizeCleanupResultsArtifactNeverPrepared(t *testing.T) {
+	requireRealGit(t)
+	const (
+		id   = 3
+		slug = "research"
+	)
+	setup := func(t *testing.T) (*gitRepo, realNode, FinalizeDeps, *workspace.Service) {
+		recPath := groomPath(id, slug)
+		rec := strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: true\n", 1)
+		rec = strings.Replace(rec, "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
+		m := planRepoModes()[0]
+		repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec})
+		node, deps, svc := completeNeverPrepared(t, repo, m.branch, id, recPath)
+		return repo, node, deps, svc
+	}
+
+	t.Run("already-clean", func(t *testing.T) {
+		repo, node, deps, svc := setup(t)
+		res := FinalizeCleanup(context.Background(), deps, node.dir, id)
+		if res.Result != ResultNoOp || res.Disposition != CleanupDispAlready {
+			t.Fatalf("finalize cleanup = %q disp %q reason %q (%s)", res.Result, res.Disposition, res.Reason, res.Message)
+		}
+		if out := runGit(t, repo.invocation, "for-each-ref", "--format=%(refname)", "refs/heads/feat/"+slug); out != "" {
+			t.Fatalf("cleanup must create no local branch, have %q", out)
+		}
+		e, actionable := sweepAssessOne(t, node, deps, svc, id)
+		if actionable || e == nil || e.Disposition != SweepDispSkipped || e.Reason != ReasonSweepSnapshotNoWork {
+			t.Fatalf("sweep assessment = %+v (actionable %v), want skipped/%s", e, actionable, ReasonSweepSnapshotNoWork)
+		}
+	})
+
+	t.Run("leftover-branch-stays-blocked", func(t *testing.T) {
+		repo, node, deps, svc := setup(t)
+		runGit(t, repo.invocation, "branch", "feat/"+slug)
+		res := FinalizeCleanup(context.Background(), deps, node.dir, id)
+		if res.Disposition != CleanupDispPending || res.Reason != ReasonCleanupWorkspaceBlocked {
+			t.Fatalf("finalize cleanup = %q disp %q reason %q, want pending/%s", res.Result, res.Disposition, res.Reason, ReasonCleanupWorkspaceBlocked)
+		}
+		if out := runGit(t, repo.invocation, "for-each-ref", "--format=%(refname)", "refs/heads/feat/"+slug); out == "" {
+			t.Fatalf("a leftover local branch with no manifest must be retained")
+		}
+		e, actionable := sweepAssessOne(t, node, deps, svc, id)
+		if actionable || e == nil || e.Disposition != SweepDispBlocked || e.Reason != ReasonSweepSnapshotBlocked {
+			t.Fatalf("sweep assessment = %+v (actionable %v), want blocked/%s", e, actionable, ReasonSweepSnapshotBlocked)
+		}
+	})
+}
