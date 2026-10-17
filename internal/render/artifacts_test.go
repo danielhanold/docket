@@ -513,3 +513,63 @@ func TestPRArtifactLinksContent(t *testing.T) {
 		t.Fatalf("plan-only PR links = %q, want %q", got, wantPlan)
 	}
 }
+
+// TestArtifactBlockCompletedResultsArtifactLinksMetadataBranch: a done
+// results-artifact change never merged anything, so its plan and results stay
+// on the metadata branch beside the record even without a "## Build evidence"
+// section. Its rows link relatively from the record — never absolutely on the
+// integration branch, and never as a bare backtick path — in a shared repo
+// with a web URL and in a private one without, and it gets no "Spec (merged)"
+// row.
+//
+// Mutation probe: drop the results-artifact clause from legacyArtifactBranch
+// -> the Results row turns absolute on main (or a backtick path) and this test
+// reddens.
+func TestArtifactBlockCompletedResultsArtifactLinksMetadataBranch(t *testing.T) {
+	c := domain.NewChange(domain.ChangeSpec{
+		ID:             10,
+		Slug:           "delta-change",
+		Title:          "Delta change",
+		Status:         domain.StatusDone,
+		Deliverable:    domain.DeliverableResultsArtifact,
+		RawDeliverable: string(domain.DeliverableResultsArtifact),
+		Branch:         optString("fix/delta-change"),
+		Spec:           optString("docs/superpowers/specs/2026-08-16-delta-change-design.md"),
+		Plan:           optString("docs/superpowers/plans/2026-08-16-delta-change.md"),
+		Results:        optString("docs/results/2026-08-16-delta-change-results.md"),
+		Location:       domain.LocationArchive,
+		Path:           deltaArchivePath,
+	})
+	privateLink := render.LinkContext{RepoWebURL: "", MetadataBranch: "dckt", IntegrationBranch: "main"}
+	want := "| Artifact | Link |\n|---|---|\n" +
+		"| Spec | [2026-08-16-delta-change-design.md](../../superpowers/specs/2026-08-16-delta-change-design.md) |\n" +
+		"| Plan | [2026-08-16-delta-change.md](../../superpowers/plans/2026-08-16-delta-change.md) |\n" +
+		"| Results | [2026-08-16-delta-change-results.md](../../results/2026-08-16-delta-change-results.md) |\n"
+	for name, link := range map[string]render.LinkContext{"shared": githubLink, "private": privateLink} {
+		got, err := render.ArtifactBlockContent(c, adrSnapshot(), link)
+		if err != nil {
+			t.Fatalf("%s: ArtifactBlockContent: %v", name, err)
+		}
+		if strings.Contains(got, "/blob/main/") || strings.Contains(got, "`") || strings.Contains(got, "Spec (merged)") {
+			t.Fatalf("%s: completed results-artifact block links off the metadata branch:\n%s", name, got)
+		}
+		if got != want {
+			t.Fatalf("%s: block mismatch:\n--- got ---\n%s\n--- want ---\n%s", name, got, want)
+		}
+	}
+}
+
+// TestArtifactBlockLegacyDonePRUnchanged: a done change with no deliverable
+// key reads as a pr change, so the legacy rule still holds — with no
+// "## Build evidence" its Results row stays absolute on the integration branch.
+func TestArtifactBlockLegacyDonePRUnchanged(t *testing.T) {
+	c := fullChange(domain.StatusDone, false, domain.LocationArchive, deltaArchivePath)
+	got, err := render.ArtifactBlockContent(c, adrSnapshot(), githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent: %v", err)
+	}
+	row := "| Results | [2026-08-16-delta-change-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-16-delta-change-results.md) |\n"
+	if !strings.Contains(got, row) {
+		t.Fatalf("legacy done pr Results row %q missing:\n%s", row, got)
+	}
+}

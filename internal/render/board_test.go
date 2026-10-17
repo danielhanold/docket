@@ -1320,3 +1320,19 @@ func TestBoardTitleCellsEscapePipesAndFlattenBreaks(t *testing.T) {
 		}
 	}
 }
+
+// TestBoardArchiveHeaderSaysClosed: the archive table's date column names
+// when a change closed, not when a PR merged — a completed results-artifact
+// change and a killed change close without any merge.
+func TestBoardArchiveHeaderSaysClosed(t *testing.T) {
+	got, err := render.Board(render.BoardInput{Snapshot: boardCorpusSnapshot(t), Presentation: render.DefaultBoardPresentation()})
+	if err != nil {
+		t.Fatalf("Board: %v", err)
+	}
+	if !bytes.Contains(got, []byte("| # | Title | Closed |")) {
+		t.Fatalf("archive header %q missing:\n%s", "| # | Title | Closed |", got)
+	}
+	if bytes.Contains(got, []byte("| # | Title | Merged |")) {
+		t.Fatalf("archive header still says Merged:\n%s", got)
+	}
+}

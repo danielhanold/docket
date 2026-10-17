@@ -85,10 +85,10 @@ import (
 //  5. The archive <details> block, rendered only when at least one archived
 //     record exists: a summary line concatenating the present
 //     final-status emoji and joining their labels with " + ", then a
-//     "# | Title | Merged" table of the archive rows sorted date-descending
+//     "# | Title | Closed" table of the archive rows sorted date-descending
 //     then id-descending. Every killed row renders verbatim; `done` rows past
 //     the 15 most recent collapse into a trailing per-YYYY-MM "Older done
-//     (collapsed)" digest. The Merged date is the archive filename's leading
+//     (collapsed)" digest. The Closed date is the archive filename's leading
 //     YYYY-MM-DD. The archive is a fixed footer, outside section order/sorting.
 //  6. The repair notice (change 0449), rendered only when at least one record
 //     could not be rendered: "\n## 🛠 Needs repair (<n>)\n\n", a one-line
@@ -507,7 +507,7 @@ func Board(in BoardInput) ([]byte, error) {
 			}
 		}
 		fmt.Fprintf(&b, "\n<details><summary>%s Archive — %s (%d)</summary>\n\n", em, lbl, archiveTotal)
-		b.WriteString("| # | Title | Merged |\n|---|-------|--------|\n")
+		b.WriteString("| # | Title | Closed |\n|---|-------|--------|\n")
 
 		type arcRow struct {
 			date, base, title string
