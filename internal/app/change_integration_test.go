@@ -2004,6 +2004,39 @@ func TestIntegrationChangeRuntimeMarkImplementedConditions(t *testing.T) {
 	}
 }
 
+// TestIntegrationChangeRuntimeMarkImplementedRefusesResultsArtifactChange: the
+// implemented transition is the pr ending, so a change whose deliverable is
+// results-artifact refuses with not-pr-deliverable before any workspace or
+// GitHub probe and never opens a transaction — every other condition holds.
+func TestIntegrationChangeRuntimeMarkImplementedRefusesResultsArtifactChange(t *testing.T) {
+	requireRealGit(t)
+	repo := newWorkingRepo(t, nil)
+	head := miAdvanceHead(t, repo)
+	client := newGitClient(t)
+
+	deps, wdeps, gdeps, inv, req, engine := buildMI(t, client, repo.invocation, miKit{
+		reconciled: true, plan: miPlanPath(), results: miResultsPath, revision: miRevision, reqRevision: miRevision,
+		reqHead: head, localHead: head, evidence: prEvidenceBytes(t, head),
+		probePRs: []githubcli.PullRequest{happyPR(head)}, reqPR: prRepo().Spec() + "#42",
+		deliverable: "results-artifact",
+	})
+
+	res := ChangeMarkImplemented(context.Background(), deps, wdeps, gdeps, inv, req)
+	if res.Result != ResultInvalidState {
+		t.Fatalf("result = %q, want invalid-state (findings %v)", res.Result, res.Findings)
+	}
+	if code := firstStatusFindingCode(res.Findings); code != ReasonImplementedNotPRDeliverable {
+		t.Fatalf("refusal reason = %q, want %q", code, ReasonImplementedNotPRDeliverable)
+	}
+	if len(engine.calls) != 0 {
+		t.Fatalf("engine was called %d times on a refusal", len(engine.calls))
+	}
+	gh := gdeps.Service.(*fakeGitHub)
+	if gh.discoverCalls != 0 || len(gh.probeCalls) != 0 {
+		t.Fatalf("GitHub was consulted (discover %d, probe %d); the refusal must precede it", gh.discoverCalls, len(gh.probeCalls))
+	}
+}
+
 // TestMarkImplementedIdentityForms is the mutation test for the migrated identity
 // condition (parsePRRef number vs the verified pr.Number): the transition applies
 // when the supplied --pr names the verified PR in EITHER accepted form and

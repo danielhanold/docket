@@ -251,6 +251,11 @@ func MarkImplemented(c Change, f ImplementedFacts) (ActionResult, *PolicyFailure
 	if fail := requireStatus(c, "mark-implemented", StatusInProgress); fail != nil {
 		return ActionResult{}, fail
 	}
+	// The implemented transition is the pr ending: a results-artifact change, or
+	// one whose stored deliverable is unknown, never takes it.
+	if c.Deliverable() != DeliverablePR {
+		return ActionResult{}, newFailure(c, FailInvalidState, "not-pr-deliverable", nil)
+	}
 	switch {
 	case f.PR == "":
 		return ActionResult{}, newFailure(c, FailBlocked, "missing-pr", nil)

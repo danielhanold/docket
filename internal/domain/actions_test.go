@@ -24,6 +24,7 @@ type actSpec struct {
 	parent       OptionalInt
 	runHalted    bool
 	dependsOn    []ChangeID
+	deliverable  string // stored deliverable text; a non-member is kept raw as unknown
 }
 
 // build turns an actSpec into an immutable Change.
@@ -66,6 +67,10 @@ func (as actSpec) build() Change {
 	}
 	if as.plan != "" {
 		cs.Plan = OptionalString{State: FieldPresent, Value: as.plan}
+	}
+	if as.deliverable != "" {
+		cs.RawDeliverable = as.deliverable
+		cs.Deliverable, _ = ParseDeliverable(as.deliverable)
 	}
 	return NewChange(cs)
 }
@@ -458,6 +463,31 @@ func TestMarkImplementedPreconditions(t *testing.T) {
 	// Value must round-trip with Raw: the date-only field parses to midnight UTC.
 	if v := got.Change.Updated().Value; !v.Equal(time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)) {
 		t.Fatalf("updated value = %v, want midnight UTC of the injected date", v)
+	}
+}
+
+// TestMarkImplementedRefusesNonPRDeliverable: the implemented transition is the
+// pr ending, so a results-artifact change or one whose stored deliverable is not
+// a known value refuses as invalid state rather than guessing an ending.
+func TestMarkImplementedRefusesNonPRDeliverable(t *testing.T) {
+	facts := ImplementedFacts{PR: "#8", Plan: "docs/plan.md", Now: actNow}
+	for _, d := range []string{string(DeliverableResultsArtifact), "research"} {
+		t.Run(d, func(t *testing.T) {
+			spec := actSpec{id: 8, slug: "s", status: StatusInProgress, branch: "feat/s", reconciled: true, deliverable: d}
+			_, fail := MarkImplemented(spec.build(), facts)
+			if fail == nil {
+				t.Fatal("expected a policy failure")
+			}
+			if fail.Kind != FailInvalidState || fail.Reason != "not-pr-deliverable" {
+				t.Fatalf("failure = %q/%q, want %q/not-pr-deliverable", fail.Kind, fail.Reason, FailInvalidState)
+			}
+		})
+	}
+	for _, d := range []string{"", string(DeliverablePR)} {
+		spec := actSpec{id: 8, slug: "s", status: StatusInProgress, branch: "feat/s", reconciled: true, deliverable: d}
+		if _, fail := MarkImplemented(spec.build(), facts); fail != nil {
+			t.Fatalf("deliverable %q refused: %v", d, fail)
+		}
 	}
 }
 

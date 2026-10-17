@@ -318,6 +318,7 @@ var AllFindingCodes = []FindingCode{
 	FindingCode("missing-claim-stamp"),
 	FCMissingRationale,
 	FCNotFound,
+	FindingCode(ReasonImplementedNotPRDeliverable),
 	FCNotRetitleable,
 	FCNothingToReEnable,
 	FCParseFailed,
