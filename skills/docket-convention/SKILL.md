@@ -158,7 +158,7 @@ docket's workflow steps are **roles**, each done by one fixed skill:
   <YYYY-MM-DD>-<slug>-results.md
 ```
 
-The `archive/` filename date prefix is **UTC**: the **merge commit's** date for `done`, the **kill commit's** date for `killed`.
+The `archive/` filename date prefix is **UTC**: the merge date for a merged change, and the transaction date for a completed results artifact and for a killed change.
 
 All of the above lives on the metadata branch, written through the persistent **metadata worktree**: `<primary>/.docket/` in a shared repository (gitignored, deliberately not under `.worktrees/` — slug collisions, prune blast radius), or a checkout outside the clone in a private one; skills always use `metadata_worktree_path` (see *Branch model*).
 
@@ -175,10 +175,11 @@ slug: quicklook-interactions
 title: Quick Look interactions — external links + local images
 status: proposed          # proposed | in-progress | blocked | deferred | implemented | stacked-merged | done | killed
 priority: medium          # low | medium | high | critical   (default: medium)
-type: feat                # a configured change_type; set at creation. `all`/`untyped` are reserved
+type: feat                # a configured change_type; `all`/`untyped` are reserved
+deliverable: pr           # pr (default; ends in a merged PR) | results-artifact (ends when change.complete archives it with its results attached); absent reads as pr
 created: 2026-05-30
 updated: 2026-05-30
-depends_on: [4]           # change ids that must reach `done` (PR merged) first
+depends_on: [4]           # change ids that must reach `done` first
 stacked_on:               # optional: parent change id whose branch this one is built on
 related: [4, 6]           # cross-links the reconcile pass reads
 discovered_from: [62]     # change id(s) whose work surfaced this one; informational like related:, never a readiness gate
@@ -261,6 +262,7 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
                          ▼                                          │
   proposed ──claim──▶ in-progress ──PR open──▶ implemented ──merge+sweep──▶ done
      │                    │                              │                   (archive/)
+     │                    └──results attached + change.complete (results-artifact; also from proposed)──▶ done
      │                    │                              └──into stack parent──▶ stacked-merged ──root lands──▶ done
      │                    ├──blocker──▶ blocked ──clears──▶ in-progress
      │                    └──lease expired, no branch (reclaim)──▶ proposed
@@ -276,7 +278,7 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
 | `deferred` | consciously shelved, may revive | `active/` |
 | `implemented` | built, PR open — **PR handoff** | `active/` |
 | `stacked-merged` | merged into its stack parent — awaiting the stack root | `active/` |
-| `done` | PR merged, filed away (happy final status) | `archive/` |
+| `done` | PR merged, or results artifact completed (`change.complete`); filed away (happy final status) | `archive/` |
 | `killed` | abandoned — obsolete or never shipped (sad final status) | `archive/` |
 
 **Rules.** `active/` holds every non-final status; `archive/` holds the two final outcomes. `stacked-merged` is non-final for that reason: merged into its stack parent, not the integration branch, so it stays in `active/` until the stack close-out promotes it when the stack root lands. The single physical move (`active/ → archive/`, date-prefixed) happens once on the final transition and is **idempotent**: re-pull, re-read `status` on the metadata branch, no-op if already final. `deferred` may be entered from `proposed` or `in-progress` (add `## Why deferred`) and revived to `proposed`; clear a blocker with `change.unblock` (`blocked` → `in-progress`, clearing `blocked_by`) and revive with `change.revive` (`deferred` → `proposed`) — typed operations, no file move. A change whose `depends_on` is unsatisfied is *implicitly* blocked — the selector skips it and the board shows it **waiting on #N**. A dependency is **satisfied when it reaches `done`**; if `#N` is still `implemented` the board flags **waiting on #N — needs your merge**, distinct from **waiting on #N — not yet built**. Reserve explicit `blocked` for external blockers the system can't infer.

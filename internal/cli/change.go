@@ -124,7 +124,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 		}, EffectMetadataWrite)
 
 	attachResults := changeAttachSubcommand("attach-results",
-		"Write a results record on the metadata branch and link it to an in-progress change",
+		"Write a results record on the metadata branch and link it to a change",
 		"results Markdown `file`, or - for stdin; the operation writes it on the metadata branch with its backlink (required)",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeAttachRequest) {
 			setResult(app.ChangeAttachResults(c.Context(), deps, repoDir, req))
