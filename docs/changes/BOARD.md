@@ -1,12 +1,17 @@
 # Backlog
 
-**557 changes** — 🟣 2 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 394 done · 🗑️ 142 killed
+**557 changes** — 🟢 1 in progress · 🟣 1 groomed · 🟡 5 proposed · ⚪ 14 deferred · ✅ 394 done · 🗑️ 142 killed
 
-## 🟣 Groomed (2)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0528](active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | `medium` | `fix` | [spec](../superpowers/specs/2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md) | `fix/make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a` |  |
+
+## 🟣 Groomed (1)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0528](active/0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | `medium` | `fix` | [spec](../superpowers/specs/2026-10-16-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 
 ## 🟡 Proposed (5)

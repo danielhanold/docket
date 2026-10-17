@@ -2,11 +2,11 @@
 id: 528
 slug: 'make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a'
 title: 'Make the solo budget re-check detect a concurrent suite in another worktree'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-10-05'
-updated: '2026-10-16'
+updated: '2026-10-17'
 depends_on: []
 stacked_on:
 related: [273, 557]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-17T02:34:56Z'
 ---
 
 ## Artifacts
