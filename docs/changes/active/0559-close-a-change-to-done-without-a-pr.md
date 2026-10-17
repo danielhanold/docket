@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/close-a-change-to-done-without-a-pr'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-17T18:02:01Z'
+reconciled: true
+claimed_at: '2026-10-17T18:04:00Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ Every change gets a `deliverable`: `pr` (the default) or `results-artifact`, edi
 ## Out of scope
 
 How `pr` changes close, finalize, and kill, apart from renaming finalize's bare `already` results. Reclaim. Showing `deliverable` on the board. Keeping changes that need a human away from the autonomous loop, and letting a loop continue past a halt (#560). A docket-free Markdown export of artifacts (#561). Fixing archived #423, #124, or #545, and completing #547 itself.
+
+## Reconcile log
+
+### 2026-10-17
+
+2026-10-17: Groomed the same day; spec traced against current main (417ffd446). Commits since grooming touch only suiterunner and install surfaces, none of the fields, operations, or skills this change edits. No `deliverable` code exists yet; capability catalog is 15862 bytes, so one new entry still fits under the 16 KB cap. Scope unchanged.
