@@ -2,11 +2,11 @@
 id: 412
 slug: 'forked-implement-next-build-agent-still-backgrounds-the-gate'
 title: 'Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge)'
-status: 'proposed'
+status: 'deferred'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-08'
-updated: '2026-10-16'
+updated: '2026-10-17'
 depends_on: []
 stacked_on:
 related: [405, 345, 342, 359, 323, 375]
@@ -167,3 +167,7 @@ separate, related inputs. Merely lowering `productionSlice` is not an acceptable
   agent-advanced path be removed rather than maintained as a second behavior?
 - Which harness/version probes are required before merge, and how will the regression suite cover
   the 0323 lost-session race without depending on wall-clock flakiness?
+
+## Why deferred
+
+Not observed in several weeks, and the proposed implementation is far from YAGNI and extremely involved; revisit only if the behavior recurs.
