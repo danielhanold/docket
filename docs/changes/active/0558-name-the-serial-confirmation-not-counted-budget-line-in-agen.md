@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'docs/name-the-serial-confirmation-not-counted-budget-line-in-agen'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-18T18:40:19Z'
+reconciled: true
+claimed_at: '2026-10-18T18:42:32Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ Shrink the AGENTS.md budget-report bullet to the reminder plus a pointer to `tes
 ## Out of scope
 
 Any change to the runner or its output. `.github/workflows/release-candidate.yml`, which already classifies the lines correctly. Point-in-time plans, specs, results, and release records that quote the old bullet. A guard test on AGENTS.md wording.
+
+## Reconcile log
+
+### 2026-10-18
+
+2026-10-18: Re-read the spec against origin/main 4b17bee2a. AGENTS.md, tests/README.md, tests/runtime-budgets.tsv, and docs/reference/glossary.md still carry exactly the wording the spec describes; related #528 and #557 are done and change nothing here. No scope change.
