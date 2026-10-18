@@ -68,3 +68,47 @@ func TestIntegrationRecordOpsChangeLifecycleUnrelatedInvalidRecordRefusals(t *te
 		})
 	}
 }
+
+// A kill of an in-progress stack parent whose stacked child is already built is
+// refused end to end through the real engine: invalid-state with the
+// built-stack-descendants finding, no metadata commit, and both records left
+// byte-for-byte as they were.
+func TestIntegrationRecordOpsChangeKillRefusesBuiltStackedChild(t *testing.T) {
+	requireRealGit(t)
+	parentPath := groomPath(3, "widget")
+	childPath := groomPath(4, "child")
+	repo := newWorkingRepo(t, map[string]string{
+		parentPath: lifecycleChange(3, "widget", "in-progress"),
+		childPath:  builtChild("implemented"),
+	})
+	node := planningDepsFor(t, repo.invocation)
+	tip := originTip(t, repo.origin, "docket")
+	parentBefore, _ := originFile(t, repo.origin, "docket", parentPath)
+	childBefore, _ := originFile(t, repo.origin, "docket", childPath)
+
+	res := ChangeKill(context.Background(), node.deps, node.dir, ChangeKillRequest{
+		ChangeID: 3, Path: parentPath, Revision: blobRevisionAt(t, repo.origin, "docket", parentPath),
+		WhyKilled: "Dropped.\n",
+	})
+	if res.Result != ResultInvalidState {
+		t.Fatalf("kill over a built stacked child = %q (findings %v), want invalid-state", res.Result, res.Findings)
+	}
+	found := false
+	for _, f := range res.Findings {
+		if f.Code == "built-stack-descendants" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("missing built-stack-descendants finding; got %v", res.Findings)
+	}
+	if got := originTip(t, repo.origin, "docket"); got != tip {
+		t.Errorf("a refused kill moved the metadata branch %s -> %s", tip, got)
+	}
+	if got, ok := originFile(t, repo.origin, "docket", parentPath); !ok || got != parentBefore {
+		t.Errorf("parent record changed by a refused kill (present %v)", ok)
+	}
+	if got, ok := originFile(t, repo.origin, "docket", childPath); !ok || got != childBefore {
+		t.Errorf("child record changed by a refused kill (present %v)", ok)
+	}
+}
