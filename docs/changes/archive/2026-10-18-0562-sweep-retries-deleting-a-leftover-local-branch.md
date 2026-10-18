@@ -2,11 +2,11 @@
 id: 562
 slug: 'sweep-retries-deleting-a-leftover-local-branch'
 title: 'Sweep retries deleting a leftover local branch'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-17'
-updated: '2026-10-17'
+updated: '2026-10-18'
 depends_on: []
 stacked_on:
 related: [567, 390]
@@ -22,7 +22,7 @@ branch: 'fix/sweep-retries-deleting-a-leftover-local-branch'
 pr: 'https://github.com/danielhanold/docket/pull/429'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-17T22:30:06Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-17T22:30:06Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md](../../superpowers/specs/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md) |
+| Spec (merged) | [2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-design.md) |
 | Plan | [2026-10-17-sweep-retries-deleting-a-leftover-local-branch.md](../../superpowers/plans/2026-10-17-sweep-retries-deleting-a-leftover-local-branch.md) |
 | Results | [2026-10-17-sweep-retries-deleting-a-leftover-local-branch-results.md](../../results/2026-10-17-sweep-retries-deleting-a-leftover-local-branch-results.md) |
 <!-- docket:artifacts:end -->

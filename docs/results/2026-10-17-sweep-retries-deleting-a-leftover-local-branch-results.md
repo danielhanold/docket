@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0562 — Sweep retries deleting a leftover local branch](../changes/active/0562-sweep-retries-deleting-a-leftover-local-branch.md)**
+> ↩ **[Change 0562 — Sweep retries deleting a leftover local branch](../changes/archive/2026-10-18-0562-sweep-retries-deleting-a-leftover-local-branch.md)**
 <!-- docket:backlink:end -->
 
 # Sweep retries deleting a leftover local branch — Results

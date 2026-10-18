@@ -1,12 +1,6 @@
 # Backlog
 
-**569 changes** — 🔵 1 built · 🟡 10 proposed · ⚪ 16 deferred · ✅ 398 done · 🗑️ 144 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | [#429](https://github.com/danielhanold/docket/pull/429) | awaiting merge |
+**569 changes** — 🟡 10 proposed · ⚪ 16 deferred · ✅ 399 done · 🗑️ 144 killed
 
 ## 🟡 Proposed (10)
 
@@ -67,7 +61,6 @@ graph TD
   0558
   0560
   0561
-  0562
   0565
   0566
   0567
@@ -81,11 +74,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (542)</summary>
+<details><summary>✅🗑️ Archive — done + killed (543)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
 | [0563](archive/2026-10-18-0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | 2026-10-18 |
+| [0562](archive/2026-10-18-0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | 2026-10-18 |
 | [0557](archive/2026-10-18-0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | 2026-10-18 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0559](archive/2026-10-17-0559-close-a-change-to-done-without-a-pr.md) | Let a change deliver a results artifact instead of a PR | 2026-10-17 |
@@ -103,7 +97,6 @@ graph TD
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
 | [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
 | [0552](archive/2026-10-15-0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | 2026-10-15 |
-| [0551](archive/2026-10-15-0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | 2026-10-15 |
 | [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
@@ -249,7 +242,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 55 done |
+| [2026-10](archive/) | 56 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
