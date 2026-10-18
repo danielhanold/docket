@@ -1,7 +1,10 @@
 package app
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
@@ -432,5 +435,127 @@ func TestChangeKillPlanToleratesMissingUpdatedField(t *testing.T) {
 	rec := killRecordBytes(t, plan, killArchivePath(3, "widget"))
 	if !strings.Contains(rec, "updated: '2026-08-16'") {
 		t.Errorf("updated not inserted from the clock on a record lacking it:\n%s", rec)
+	}
+}
+
+// --- the branch a kill leaves behind ---------------------------------------
+
+// TestChangeKillPlanReceiptRecordsLeftBranch: the pre-kill branch: rides the
+// commit receipt (never the archived record); a branchless record's receipt
+// carries no branch key at all.
+func TestChangeKillPlanReceiptRecordsLeftBranch(t *testing.T) {
+	recPath := groomPath(3, "widget")
+
+	files := map[string]string{recPath: lifecycleChange(3, "widget", "in-progress")}
+	plan, opRes := killPlanFor(t, files, baseKillOp([]string{}, 3, recPath, "Dropped.\n"))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec, ok := decodeChangeKillReceipt(plan.Receipt)
+	if !ok || rec.Branch != "feat/widget" {
+		t.Fatalf("receipt = %s (ok=%v), want branch feat/widget", plan.Receipt, ok)
+	}
+	if archived := killRecordBytes(t, plan, killArchivePath(3, "widget")); strings.Contains(archived, "feat/widget") {
+		t.Errorf("archived record still carries the branch:\n%s", archived)
+	}
+
+	files = map[string]string{recPath: lifecycleChange(3, "widget", "proposed")}
+	plan, opRes = killPlanFor(t, files, baseKillOp([]string{}, 3, recPath, "Dropped.\n"))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	if rec, ok := decodeChangeKillReceipt(plan.Receipt); !ok || rec.Branch != "" {
+		t.Fatalf("receipt = %s (ok=%v), want no branch", plan.Receipt, ok)
+	}
+	if strings.Contains(string(plan.Receipt), `"branch"`) {
+		t.Errorf("branchless receipt carries a branch key: %s", plan.Receipt)
+	}
+}
+
+// TestKillReceiptCanonicalWithHTMLCharacters: a branch carrying &, <, or >
+// (legal in git refs) must still produce a receipt the engine accepts as
+// canonical — re-encoding with HTML escaping off yields the same bytes.
+func TestKillReceiptCanonicalWithHTMLCharacters(t *testing.T) {
+	b, err := marshalKillReceipt(changeKillReceipt{
+		ArchivePath: killArchivePath(3, "widget"), Branch: "feat/a&b<c>", ID: 3, Op: OperationChangeKill,
+	})
+	if err != nil {
+		t.Fatalf("marshalKillReceipt: %v", err)
+	}
+	var decoded any
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(decoded); err != nil {
+		t.Fatalf("re-encode: %v", err)
+	}
+	if got := bytes.TrimSuffix(buf.Bytes(), []byte("\n")); !bytes.Equal(got, b) {
+		t.Errorf("receipt not canonical:\n got %s\nwant %s", b, got)
+	}
+	if !bytes.Contains(b, []byte("a&b<c>")) {
+		t.Errorf("receipt escaped the branch: %s", b)
+	}
+}
+
+func killOutcome(t *testing.T, branch string) transaction.Result {
+	t.Helper()
+	receipt, err := marshalKillReceipt(changeKillReceipt{
+		ArchivePath: killArchivePath(3, "widget"), Branch: branch, ID: 3, Op: OperationChangeKill,
+	})
+	if err != nil {
+		t.Fatalf("marshalKillReceipt: %v", err)
+	}
+	return transaction.Result{
+		Disposition:   transaction.DispositionApplied,
+		AppliedCommit: gitcli.ObjectID(strings.Repeat("cafe", 10)),
+		Receipt:       receipt,
+	}
+}
+
+func TestChangeKillResultWarnsBranchLeftBehind(t *testing.T) {
+	res := changeKillResultFromOutcome(killOutcome(t, "feat/widget"), nil)
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied", res.Result)
+	}
+	var hits []StatusFinding
+	for _, f := range res.Findings {
+		if f.Code == "branch-left-behind" {
+			hits = append(hits, f)
+		}
+	}
+	if len(hits) != 1 {
+		t.Fatalf("branch-left-behind findings = %v, want exactly one", res.Findings)
+	}
+	f := hits[0]
+	if f.Severity != "warning" || f.Entity != "change" || f.Identity != "0003" {
+		t.Errorf("finding = %+v, want warning on change 0003", f)
+	}
+	for _, want := range []string{"feat/widget", "local and remote", "worktree", "delete them by hand"} {
+		if !strings.Contains(f.Message, want) {
+			t.Errorf("message %q missing %q", f.Message, want)
+		}
+	}
+	rev := strings.Repeat("cafe", 10)
+	want := "change 0003 killed (archived " + killArchivePath(3, "widget") + ") — " + rev + "\n  " + f.Message
+	if got := res.HumanText(); got != want {
+		t.Errorf("HumanText =\n%q\nwant\n%q", got, want)
+	}
+}
+
+func TestChangeKillResultNoBranchNoWarning(t *testing.T) {
+	res := changeKillResultFromOutcome(killOutcome(t, ""), nil)
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied", res.Result)
+	}
+	if hasFindingCode(res.Findings, "branch-left-behind") {
+		t.Errorf("branchless kill warned: %v", res.Findings)
+	}
+	rev := strings.Repeat("cafe", 10)
+	want := "change 0003 killed (archived " + killArchivePath(3, "widget") + ") — " + rev
+	if got := res.HumanText(); got != want {
+		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 }

@@ -108,6 +108,11 @@ const (
 	// recordedBranch's errBranchMalformed already emit.
 	FCBranchMalformed FindingCode = "branch-malformed"
 
+	// FCBranchLeftBehind warns on an applied change.kill whose record carried
+	// branch:: the kill clears the field but leaves the git branch and any
+	// worktree in place, so the result names the branch.
+	FCBranchLeftBehind FindingCode = "branch-left-behind"
+
 	// Schema-surface request-shape finding (change 0399, Task 7): SchemaFor
 	// returns ok=false for an id absent from the operation-schema registry, and
 	// the cli maps that to ResultInvalidInput carrying this code.
@@ -230,6 +235,7 @@ var AllFindingCodes = []FindingCode{
 	FCAuthoredInputTooLarge,
 	FCBinaryAliasForeign,
 	FCBinaryAliasMissing,
+	FCBranchLeftBehind,
 	FCBranchMalformed,
 	FindingCode("branch-still-exists"),
 	FCCollectionPending,
