@@ -59,6 +59,6 @@ A typed operation to clear `branch:`. Changing the `not-restackable` and `not-re
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: dfa6987431bcd9b849b0262a933eec35f579382e
-ran_at:   2026-10-18T17:06:27Z
+head_sha: f4aa5cd21086b1ada54581ee799a684ccba42641
+ran_at:   2026-10-18T17:33:57Z
 <!-- docket:build-evidence:end -->
