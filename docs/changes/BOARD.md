@@ -1,13 +1,12 @@
 # Backlog
 
-**569 changes** — 🔵 2 built · 🟡 7 proposed · ⚪ 16 deferred · ✅ 400 done · 🗑️ 144 killed
+**569 changes** — 🔵 1 built · 🟡 7 proposed · ⚪ 16 deferred · ✅ 401 done · 🗑️ 144 killed
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | `low` | `fix` | [#432](https://github.com/danielhanold/docket/pull/432) | awaiting merge |
-| [0558](active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Point the budget-report rule in AGENTS.md at tests/README.md instead of listing the lines | `low` | `docs` | [#431](https://github.com/danielhanold/docket/pull/431) | awaiting merge |
 
 ## 🟡 Proposed (7)
 
@@ -62,7 +61,6 @@ graph TD
   0544 --> 0513
   0511 --> 0514
   0546 --> 0547
-  0558
   0560
   0561
   0568 --> 0565
@@ -78,13 +76,14 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (544)</summary>
+<details><summary>✅🗑️ Archive — done + killed (545)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
 | [0568](archive/2026-10-18-0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Stop deferring a change that is already being built | 2026-10-18 |
 | [0563](archive/2026-10-18-0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | 2026-10-18 |
 | [0562](archive/2026-10-18-0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | 2026-10-18 |
+| [0558](archive/2026-10-18-0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Point the budget-report rule in AGENTS.md at tests/README.md instead of listing the lines | 2026-10-18 |
 | [0557](archive/2026-10-18-0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | 2026-10-18 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0559](archive/2026-10-17-0559-close-a-change-to-done-without-a-pr.md) | Let a change deliver a results artifact instead of a PR | 2026-10-17 |
@@ -98,7 +97,6 @@ graph TD
 | [0539](archive/2026-10-16-0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | Describe repository-check drift findings by family in the docket-status skill | 2026-10-16 |
 | [0537](archive/2026-10-16-0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | 2026-10-16 |
 | [0536](archive/2026-10-16-0536-split-the-private-leak-check-tests-out-of-the-workflow-lifec.md) | Split the private-mode tests out of the workflow lifecycle shard | 2026-10-16 |
-| [0527](archive/2026-10-16-0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | 2026-10-16 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
 | [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
 | [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
@@ -246,7 +244,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 57 done |
+| [2026-10](archive/) | 58 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

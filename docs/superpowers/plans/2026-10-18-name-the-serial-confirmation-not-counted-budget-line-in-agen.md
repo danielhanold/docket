@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0558 — Point the budget-report rule in AGENTS.md at tests/README.md instead of listing the lines](../../changes/active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md)**
+> ↩ **[Change 0558 — Point the budget-report rule in AGENTS.md at tests/README.md instead of listing the lines](../../changes/archive/2026-10-18-0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md)**
 <!-- docket:backlink:end -->
 
 # Point the budget-report rule in AGENTS.md at tests/README.md — Implementation Plan

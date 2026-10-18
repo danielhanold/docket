@@ -2,7 +2,7 @@
 id: 558
 slug: 'name-the-serial-confirmation-not-counted-budget-line-in-agen'
 title: 'Point the budget-report rule in AGENTS.md at tests/README.md instead of listing the lines'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'docs'
 created: '2026-10-17'
@@ -22,7 +22,7 @@ branch: 'docs/name-the-serial-confirmation-not-counted-budget-line-in-agen'
 pr: 'https://github.com/danielhanold/docket/pull/431'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-18T18:59:20Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-18T18:59:20Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-design.md](../../superpowers/specs/2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-design.md) |
+| Spec (merged) | [2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-design.md) |
 | Plan | [2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen.md](../../superpowers/plans/2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) |
 | Results | [2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-results.md](../../results/2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-results.md) |
 <!-- docket:artifacts:end -->
