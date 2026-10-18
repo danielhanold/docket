@@ -23,7 +23,7 @@ branch: 'fix/make-killed-parent-stacking-behavior-match-its-documented-po'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-18T18:42:12Z'
+claimed_at: '2026-10-18T18:51:09Z'
 ---
 
 ## Artifacts
