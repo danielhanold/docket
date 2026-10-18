@@ -11,9 +11,9 @@
 # usual right answer is to EXTEND an existing shard.
 #
 # ENFORCEMENT lives in the Go suite runner (internal/suiterunner): it measures each file
-# against its ceiling and emits the budget-clause lines (BUDGET WATCH / PARALLEL-SENSITIVE
-# are screening findings; SERIAL CONFIRMED OVER BUDGET is an authoritative breach). This
-# table is the registry those checks read; the correspondence guard keeps it honest.
+# against its ceiling and emits the budget-clause lines (tests/README.md says what each
+# budget line means). This table is the registry those checks read; the correspondence
+# guard keeps it honest.
 #
 # After change 0370 the suite is Go-native: every row below is a `# docket-suite: go`
 # wrapper (or a POSIX product suite) discovered by the runner. The frozen Bash runner and
