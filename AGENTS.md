@@ -165,11 +165,9 @@ ledger* section owns the promotion mechanics.
   entered from source so the gate tests the exact checkout under review. The Go runner
   (`internal/suiterunner`) is the sole channel; there is no separate Bash oracle.
   `tests/README.md` covers how to run the suite and where a new test belongs.
-- Read the budget report even on a green run: a `BUDGET WATCH:` / `PARALLEL-SENSITIVE:` line
-  is a screening finding, and a `SERIAL CONFIRMED OVER BUDGET:` line is an authoritative
-  breach to act on. Neither fails the run (a parallel wall-clock number is
-  machine-dependent, so a real breach is confirmed serially; see `tests/README.md`), so
-  nothing else will catch them for you.
+- Read the budget report even on a green run: no budget line fails the run, so nothing else
+  will catch a real breach. `tests/README.md` says which lines are screening notes, which are
+  breaches to act on, and which need nothing.
 
 ## Comments and cross-references
 

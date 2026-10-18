@@ -42,13 +42,17 @@ checked two ways.
 - A parallel run (the default; `DOCKET_RUNTESTS_JOBS` sets the parallelism) screens each file
   against `ceiling * 5/2` and records an advisory screening finding (`BUDGET WATCH:` /
   `PARALLEL-SENSITIVE:`). After repeated overruns the runner schedules a solo re-check, and only a
-  re-check over `ceiling * 3/2` with no other suite running is an authoritative breach
+  re-check over `ceiling * 3/2` with no other suite running is an authoritative breach to act on
   (`SERIAL CONFIRMED OVER BUDGET:`). A scheduled re-check that reads over the line while another
   `docket development test` run of this repository, in any worktree, is running is not counted
-  (`SERIAL CONFIRMATION NOT COUNTED:`): the test stays due and is re-checked on the next quiet run.
-  A re-check under the line always counts.
+  (`SERIAL CONFIRMATION NOT COUNTED:`): it needs no action, because the test stays due and the
+  runner re-checks it on the next quiet run. A re-check under the line always counts.
 - A single-job run (`DOCKET_RUNTESTS_JOBS=1`), or a file whose budget row is `serial`, is measured
-  directly against `ceiling * 3/2`, and a crossing prints `OVER BUDGET:`.
+  directly against `ceiling * 3/2`, and a crossing prints `OVER BUDGET:`, also an authoritative
+  breach to act on.
+
+Acting on either breach means bringing the file back under its ceiling; see "**Never grow a file
+past its budget and raise the number.**" in *Where new tests go*.
 
 Exit `0` green (including a green run with budget findings), `1` a test failed, `3` green but at
 least one target produced no result at all — the run certified nothing about it, `2` usage error /
