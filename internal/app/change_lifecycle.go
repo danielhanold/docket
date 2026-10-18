@@ -279,6 +279,15 @@ func lifecycleResultFromOutcome(opKey string, res transaction.Result, execErr er
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
 
 	out := ChangeLifecycleResult{Findings: findingsToStatus(res.Findings)}
+	// A refusal refuseLifecycle built carries its own sentence in
+	// Detail["message"]; the validation table has no entry for those codes, so
+	// show that sentence rather than the code-plus-detail fallback.
+	// findingsToStatus keeps the input order, so index i is the same finding.
+	for i, f := range res.Findings {
+		if msg := f.Detail["message"]; msg != "" {
+			out.Findings[i].Message = msg
+		}
+	}
 	if result == ResultApplied {
 		if rec, ok := decodeChangeLifecycleReceipt(res.Receipt); ok {
 			out.ID = rec.ID

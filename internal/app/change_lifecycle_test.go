@@ -830,3 +830,33 @@ func TestLifecycleResultFromOutcomeFailedCarriesCause(t *testing.T) {
 // from executeChangeLifecycle's transaction.Request and
 // `go test -tags integration ./internal/app/ -run 'TestIntegrationRecordOpsChangeLifecycleUnrelated' -count=1`
 // reddens on the progress rows with the before-gate refusal the bug produced.
+
+// TestChangeDeferInProgressRefusalPrintsPlainText: end to end from the refused
+// plan through the result document to the terminal, the not-deferrable
+// refusal prints its own sentence, never the code-plus-detail fallback.
+func TestChangeDeferInProgressRefusalPrintsPlainText(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	files := map[string]string{recPath: lifecycleChange(3, "widget", "in-progress")}
+	_, opRes := lifecyclePlanFor(t, files, baseDeferOp([]string{}, 3, recPath, "Parked.\n"))
+	if !opRes.Refused {
+		t.Fatalf("defer from in-progress was not refused: %v", opRes.Findings)
+	}
+	res := transaction.Result{Disposition: transaction.DispositionRefused, Findings: opRes.Findings}
+	r := lifecycleResultFromOutcome(OperationChangeDefer, res, nil)
+	if len(r.Findings) != 1 {
+		t.Fatalf("findings = %v, want one", r.Findings)
+	}
+	if r.Findings[0].Remedy != "" {
+		t.Errorf("remedy = %q, want none", r.Findings[0].Remedy)
+	}
+	lines := strings.Split(r.HumanText(), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("HumanText = %q, want the result line and one finding line", r.HumanText())
+	}
+	if got := strings.TrimSpace(lines[1]); !strings.HasPrefix(got, "change 0003 is being built") {
+		t.Errorf("finding line = %q, want it to begin %q", got, "change 0003 is being built")
+	}
+	if strings.Contains(r.HumanText(), "message=") {
+		t.Errorf("HumanText prints the raw detail fallback:\n%s", r.HumanText())
+	}
+}
