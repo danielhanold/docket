@@ -39,9 +39,8 @@ immediately.
    (spec, plan, and results all live on the metadata ref), and the inline board render; a typed
    refusal or process failure writes nothing and aborts per the caller's posture, with **no partial
    caller-owned follow-up**. It still relocates the change file in its own step, so concurrent done
-   drivers converge tree-identically (see *Determinism invariant*). The frozen step-2 re-render and
-   step-4 board pass below still run for this path as idempotent no-ops re-confirming what it
-   landed (no diff is success).
+   drivers converge tree-identically (see *Determinism invariant*). Steps 2 and 4 below run no
+   separate pass for this path.
 
    **Kill drivers** (`docket-implement-next`'s reconcile-kill, `docket-new-change`'s proposed-kill)
    drive the typed `change.kill` operation transaction. There is **no caller-supplied date**: it
