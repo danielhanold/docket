@@ -2,10 +2,10 @@
 id: 10
 slug: board-analytics
 title: Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md
-status: deferred
+status: 'proposed'
 priority: low
 created: 2026-06-11
-updated: 2026-07-26
+updated: '2026-10-18'
 depends_on: []
 related: [4, 93]
 adrs: []
