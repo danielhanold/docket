@@ -549,6 +549,8 @@ func illegalSourceVerb(action string) string {
 		return "unblocked"
 	case "revive":
 		return "revived"
+	case "kill":
+		return "killed"
 	}
 	return "moved by " + action
 }

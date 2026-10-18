@@ -56,6 +56,11 @@ const (
 	// progress); mirrors domain.ReasonNotDeferrable, the token Plan matches on.
 	FCNotDeferrable FindingCode = "not-deferrable"
 
+	// FCBuiltStackDescendants refuses change.kill on a change whose built
+	// stacked descendants still depend on its branch; mirrors
+	// domain.ReasonBuiltStackDescendants, the token Plan matches on.
+	FCBuiltStackDescendants FindingCode = "built-stack-descendants"
+
 	// change create request-shape findings.
 	FCInvalidSlug     FindingCode = "invalid-slug"
 	FCUnknownType     FindingCode = "unknown-type"
@@ -238,6 +243,7 @@ var AllFindingCodes = []FindingCode{
 	FCBranchLeftBehind,
 	FCBranchMalformed,
 	FindingCode("branch-still-exists"),
+	FCBuiltStackDescendants,
 	FCCollectionPending,
 	FCDanglingReference,
 	FCDocketDirForeign,

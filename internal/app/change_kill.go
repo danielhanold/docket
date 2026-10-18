@@ -24,10 +24,11 @@ import (
 // lifecycle fields, its refreshed updated date, its spliced ## Why killed
 // section, its re-rendered artifact block; a metadata-resident linked spec's
 // retargeted backlink; the inline board) as one validated atomic transaction.
-// The domain owns legality: domain.Kill decides whether the current status may
-// take the transition and yields the field changes — including the cleared
-// claim stamp and branch a killed record must not carry — so this layer decides
-// no lifecycle policy of its own. Killing edits an existing record, so it pins
+// The domain owns legality: domain.KillInSnapshot decides whether the current
+// status may take the transition, including refusing while built stacked
+// descendants depend on the change's branch, and yields the field changes —
+// including the cleared claim stamp and branch a killed record must not carry —
+// so this layer decides no lifecycle policy of its own. Killing edits an existing record, so it pins
 // the submitted record revision with an exact-blob entity expectation rather than
 // an idempotency key. It inspects no process, branch, worktree, or PR state:
 // it only reports the recorded branch: it clears, through the commit receipt,
@@ -71,9 +72,11 @@ type ChangeKillResult struct {
 	Findings    []StatusFinding `json:"findings"`
 }
 
-// HumanText renders the human summary of a kill outcome: one line, plus, on an
-// applied kill, the branch-left-behind warning's message on its own indented
-// line. Other findings stay out of the text, so a branchless kill prints one line.
+// HumanText renders the human summary of a kill outcome. An applied kill prints
+// one line, plus the branch-left-behind warning's message on its own indented
+// line; its other findings stay out of the text, so a branchless kill prints one
+// line. Any other outcome prints "change kill: <result>", then each finding that
+// carries a message on its own indented line, the layout lifecycle refusals use.
 func (r ChangeKillResult) HumanText() string {
 	switch r.Result {
 	case ResultApplied:
@@ -86,7 +89,14 @@ func (r ChangeKillResult) HumanText() string {
 		}
 		return b.String()
 	default:
-		return fmt.Sprintf("change kill: %s", r.Result)
+		var b strings.Builder
+		fmt.Fprintf(&b, "change kill: %s", r.Result)
+		for _, f := range r.Findings {
+			if f.Message != "" {
+				b.WriteString("\n  " + f.Message)
+			}
+		}
+		return b.String()
 	}
 }
 
@@ -216,11 +226,21 @@ func ChangeKill(ctx context.Context, deps PlanningDeps, repoDir string, req Chan
 
 // changeKillResultFromOutcome folds a transaction outcome into the result
 // document. A refusal from this operation is always state-shaped (an illegal
-// source status, a not-found record), so the refusal maps onto invalid-state.
+// source status, built stacked descendants, a not-found record), so the refusal
+// maps onto invalid-state.
 func changeKillResultFromOutcome(res transaction.Result, execErr error) ChangeKillResult {
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
 
 	out := ChangeKillResult{Findings: findingsToStatus(res.Findings)}
+	// A refusal Plan built carries its own sentence in Detail["message"]; show
+	// that sentence rather than the code-plus-detail fallback, as
+	// lifecycleResultFromOutcome does. findingsToStatus keeps the input order, so
+	// index i is the same finding.
+	for i, f := range res.Findings {
+		if msg := f.Detail["message"]; msg != "" {
+			out.Findings[i].Message = msg
+		}
+	}
 	if result == ResultApplied {
 		if rec, ok := decodeChangeKillReceipt(res.Receipt); ok {
 			out.ID = rec.ID
@@ -265,7 +285,8 @@ type changeKillOp struct {
 
 func (o changeKillOp) Key() transaction.OperationKey { return OperationChangeKill }
 
-// Plan gates the kill against the attempt's snapshot via domain.Kill, applies
+// Plan gates the kill against the attempt's snapshot via domain.KillInSnapshot
+// (refusing while built stacked descendants depend on the change's branch), applies
 // the domain's owned field changes (status, cleared claim + branch) plus the
 // refreshed updated date, splices the ## Why killed section, relocates the
 // record into the archive, re-renders the artifact block, retargets a
@@ -280,11 +301,15 @@ func (o changeKillOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 		return refuseLifecycle(FCNotFound, fmt.Sprintf("change %04d is not present in the current corpus", o.changeID))
 	}
 
-	// Domain legality gate: Kill decides whether the current status may take the
-	// transition and yields the owned FieldChanges (including the cleared claim
-	// stamp and branch). An illegal source status is a state-shaped refusal.
-	result, fail := domain.Kill(c)
+	// Domain legality gate: KillInSnapshot decides whether the current status
+	// may take the transition, refuses while built stacked descendants depend on
+	// the change's branch, and yields the owned FieldChanges (including the
+	// cleared claim stamp and branch). Every refusal is state-shaped.
+	result, fail := domain.KillInSnapshot(snap, c)
 	if fail != nil {
+		if fail.Reason == domain.ReasonBuiltStackDescendants {
+			return refuseBuiltStackDescendants(snap, c, fail)
+		}
 		return refuseLifecyclePolicy(fail)
 	}
 
@@ -396,6 +421,51 @@ func (o changeKillOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 		CommitSubject: fmt.Sprintf("change %04d killed", o.changeID),
 		Receipt:       receipt,
 	}, transaction.OperationResult{}, nil
+}
+
+// refuseBuiltStackDescendants builds the refusal for a kill that would strand
+// built stacked descendants, naming each one with its status and a remedy that
+// works from the change's own status.
+func refuseBuiltStackDescendants(snap domain.Snapshot, c domain.Change, fail *domain.PolicyFailure) (transaction.MutationPlan, transaction.OperationResult, error) {
+	var built []domain.Change
+	for _, id := range domain.BuiltStackDescendants(snap, c.ID()) {
+		if d, out := snap.Change(id); out == domain.LookupFound {
+			built = append(built, d)
+		}
+	}
+	return transaction.MutationPlan{}, transaction.OperationResult{
+		Refused: true,
+		Findings: []domain.Finding{{
+			Code:     string(FCBuiltStackDescendants),
+			Severity: domain.SeverityError,
+			Entity:   domain.EntityRef{Kind: domain.EntityChange},
+			Detail: map[string]string{
+				"message":     builtStackDescendantsMessage(c, built),
+				"descendants": fail.Detail["descendants"],
+			},
+		}},
+	}, nil
+}
+
+// builtStackDescendantsMessage is the refusal sentence for killing parent while
+// built stacked descendants depend on its branch. The remedy names only an
+// operation that works from parent's status: change.block (undone by
+// change.unblock) for an in-progress parent, otherwise leaving it or
+// change.defer.
+func builtStackDescendantsMessage(parent domain.Change, built []domain.Change) string {
+	names := make([]string, 0, len(built))
+	for _, d := range built {
+		names = append(names, fmt.Sprintf("#%04d %s", d.ID(), d.Status()))
+	}
+	id := fmt.Sprintf("%04d", parent.ID())
+	msg := fmt.Sprintf("change %s has built stacked changes (%s) whose code exists only on its branch; "+
+		"killing it would strand them with no way to finish or kill them. ", id, strings.Join(names, ", "))
+	if parent.Status() == domain.StatusInProgress {
+		return msg + fmt.Sprintf("Finish %s, or pause it with a reason (the change.block operation): "+
+			"its branch stays for those changes, and change.unblock resumes it.", id)
+	}
+	return msg + fmt.Sprintf("Leave %s as it is, or defer it (the change.defer operation): "+
+		"its branch stays for those changes.", id)
 }
 
 // buildKillCandidate rebuilds the complete snapshot the attempt would see after
