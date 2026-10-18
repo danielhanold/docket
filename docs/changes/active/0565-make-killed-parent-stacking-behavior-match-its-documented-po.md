@@ -15,7 +15,7 @@ discovered_from: [563]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md'
 plan: 'docs/superpowers/plans/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po.md'
-results:
+results: 'docs/results/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -33,6 +33,7 @@ claimed_at: '2026-10-18T18:51:09Z'
 |---|---|
 | Spec | [2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md](../../superpowers/specs/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md) |
 | Plan | [2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po.md](../../superpowers/plans/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po.md) |
+| Results | [2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-results.md](../../results/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
