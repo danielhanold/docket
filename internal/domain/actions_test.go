@@ -172,7 +172,7 @@ var matrixActions = []actionCase{
 	{
 		name:  "Defer",
 		apply: Defer,
-		legal: map[Status]Status{StatusProposed: StatusDeferred, StatusInProgress: StatusDeferred},
+		legal: map[Status]Status{StatusProposed: StatusDeferred},
 	},
 	{
 		name:  "Revive",
@@ -1007,5 +1007,26 @@ func TestCompleteMatrix(t *testing.T) {
 				t.Fatalf("failure = %+v, want %s/%s", fail, r.kind, r.reason)
 			}
 		})
+	}
+}
+
+// TestDeferRefusesInProgressAsNotDeferrable: a change being built cannot be
+// deferred; every other non-proposed source keeps illegal-source-status.
+func TestDeferRefusesInProgressAsNotDeferrable(t *testing.T) {
+	in := actSpec{id: 7, slug: "a-slug", status: StatusInProgress, branch: "feat/a-slug",
+		claimedAt: "2026-08-10T00:00:00Z", plan: "docs/plan.md", reconciled: true}.build()
+	before := fingerprint(in)
+	_, fail := Defer(in)
+	if fingerprint(in) != before {
+		t.Fatal("input mutated")
+	}
+	if fail == nil || fail.Kind != FailInvalidState || fail.Reason != ReasonNotDeferrable ||
+		fail.State != StatusInProgress || fail.Change != 7 {
+		t.Fatalf("failure = %+v, want invalid-state/%s from in-progress", fail, ReasonNotDeferrable)
+	}
+	for _, st := range []Status{StatusBlocked, StatusDeferred, StatusImplemented, StatusStackedMerged, StatusDone, StatusKilled} {
+		if _, f := Defer(actSpec{id: 7, slug: "a-slug", status: st}.build()); f == nil || f.Reason != "illegal-source-status" {
+			t.Errorf("defer from %q: failure = %+v, want illegal-source-status", st, f)
+		}
 	}
 }
