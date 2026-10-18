@@ -2,7 +2,7 @@
 id: 568
 slug: 'add-a-typed-way-to-clear-branch-on-a-proposed-change'
 title: 'Stop deferring a change that is already being built'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 deliverable: 'pr'
@@ -19,10 +19,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/add-a-typed-way-to-clear-branch-on-a-proposed-change'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-18T16:21:41Z'
 ---
 
 ## Artifacts

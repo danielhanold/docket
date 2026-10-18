@@ -1,12 +1,12 @@
 # Backlog
 
-**569 changes** — 🟣 1 groomed · 🟡 9 proposed · ⚪ 16 deferred · ✅ 399 done · 🗑️ 144 killed
+**569 changes** — 🟢 1 in progress · 🟡 9 proposed · ⚪ 16 deferred · ✅ 399 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec |
-|---|-------|----------|------|------|
-| [0568](active/0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Stop deferring a change that is already being built | `low` | `fix` | [spec](../superpowers/specs/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md) |
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0568](active/0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Stop deferring a change that is already being built | `low` | `fix` | [spec](../superpowers/specs/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md) | `fix/add-a-typed-way-to-clear-branch-on-a-proposed-change` |  |
 
 ## 🟡 Proposed (9)
 
