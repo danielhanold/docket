@@ -2,11 +2,11 @@
 id: 563
 slug: 'let-change-groom-clear-stacked-on'
 title: 'change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 created: '2026-10-17'
-updated: '2026-10-17'
+updated: '2026-10-18'
 depends_on: []
 stacked_on:
 related: [564, 565]
@@ -22,7 +22,7 @@ branch: 'fix/let-change-groom-clear-stacked-on'
 pr: 'https://github.com/danielhanold/docket/pull/427'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-17T21:58:50Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-17T21:58:50Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-17-let-change-groom-clear-stacked-on-design.md](../../superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md) |
+| Spec (merged) | [2026-10-17-let-change-groom-clear-stacked-on-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-17-let-change-groom-clear-stacked-on-design.md) |
 | Plan | [2026-10-17-let-change-groom-clear-stacked-on.md](../../superpowers/plans/2026-10-17-let-change-groom-clear-stacked-on.md) |
 | Results | [2026-10-17-let-change-groom-clear-stacked-on-results.md](../../results/2026-10-17-let-change-groom-clear-stacked-on-results.md) |
 <!-- docket:artifacts:end -->

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0563 — change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely](../changes/active/0563-let-change-groom-clear-stacked-on.md)**
+> ↩ **[Change 0563 — change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely](../changes/archive/2026-10-18-0563-let-change-groom-clear-stacked-on.md)**
 <!-- docket:backlink:end -->
 
 # change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely — Results
