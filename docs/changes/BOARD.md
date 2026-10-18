@@ -1,12 +1,12 @@
 # Backlog
 
-**570 changes** — 🟣 1 groomed · 🟡 7 proposed · ⚪ 16 deferred · ✅ 402 done · 🗑️ 144 killed
+**570 changes** — 🟢 1 in progress · 🟡 7 proposed · ⚪ 16 deferred · ✅ 402 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec |
-|---|-------|----------|------|------|
-| [0567](active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Clean up stacked children when their stack lands, and finalize a child after its parent | `high` | `fix` | [spec](../superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md) |
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0567](active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Clean up stacked children when their stack lands, and finalize a child after its parent | `high` | `fix` | [spec](../superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md) | `fix/cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea` |  |
 
 ## 🟡 Proposed (7)
 

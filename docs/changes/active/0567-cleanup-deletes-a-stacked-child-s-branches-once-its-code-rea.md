@@ -2,7 +2,7 @@
 id: 567
 slug: 'cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea'
 title: 'Clean up stacked children when their stack lands, and finalize a child after its parent'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 deliverable: 'pr'
@@ -19,10 +19,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-18T23:44:55Z'
 ---
 
 ## Artifacts
