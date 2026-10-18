@@ -2,7 +2,7 @@
 id: 565
 slug: 'make-killed-parent-stacking-behavior-match-its-documented-po'
 title: 'Refuse a stack-parent kill that would strand built children'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 deliverable: 'pr'
@@ -19,10 +19,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/make-killed-parent-stacking-behavior-match-its-documented-po'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-18T18:38:21Z'
 ---
 
 ## Artifacts
