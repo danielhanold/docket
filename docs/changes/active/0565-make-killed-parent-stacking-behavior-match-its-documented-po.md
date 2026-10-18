@@ -22,8 +22,8 @@ branch_prefix:
 branch: 'fix/make-killed-parent-stacking-behavior-match-its-documented-po'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-18T18:38:21Z'
+reconciled: true
+claimed_at: '2026-10-18T18:40:36Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ Killing a change never changes its stacked descendants' status. `change.kill` in
 ## Out of scope
 
 How `change.groom` sets or clears `stacked_on`. How stacks resolve their effective base, and the readiness order. Exits for an `implemented` or `stacked-merged` child of an already-killed parent: the refusal stops that state from being created through docket. Widening `change.groom`, `change.kill`, or `change.unblock` to new source statuses. New skill prose.
+
+## Reconcile log
+
+### 2026-10-18
+
+2026-10-18: #568 is done and landed on main (kill's applied HumanText now carries the branch-left-behind warning; lifecycle refusals print Detail["message"]). `KillStackParent`, `StackParentKilledReason`, `StackKillResult`, `DescendantOutcome` are still unused outside their tests; `changeKillOp.Plan` still calls `domain.Kill(c)`; the board's stack-base-unresolved arm still renders the single waiting cell. Spec holds unchanged; no scope adjustment.
