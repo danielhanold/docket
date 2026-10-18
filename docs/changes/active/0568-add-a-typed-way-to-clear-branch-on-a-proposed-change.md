@@ -39,7 +39,7 @@ Any change can be deferred today, including one that is being built (`in-progres
 
 ## What changes
 
-A change that is being built can only be finished, blocked, or killed, never deferred. `change.defer` on an in-progress change refuses and writes nothing. The refusal gets its own finding code and plain instructions: block it with a reason to pause it and keep its branch and work (`change.unblock` resumes it), or kill it to drop it (its git branch and worktree stay behind to delete by hand). The four lifecycle commands (block, defer, unblock, revive) also print a refusal's message in terminal output, not just `invalid-state`. The lifecycle docs and the code comments that describe the old path are updated. Deferring a proposed change is unchanged.
+A change that is being built can only be finished, blocked, or killed, never deferred. `change.defer` on an in-progress change refuses and writes nothing. The refusal gets its own finding code and plain instructions: block it with a reason to pause it and keep its branch and work (`change.unblock` resumes it), or kill it to drop it (its git branch and worktree stay behind to delete by hand). The four lifecycle commands (block, defer, unblock, revive) also print a refusal's message in terminal output, not just `invalid-state`. Kill also owns up to what it leaves: when the killed record had a `branch:`, the kill result warns, naming that branch and saying its local and remote branch and any worktree are left in place to review and delete by hand. The warning shows in terminal output too. The lifecycle docs and the code comments that describe the old path are updated. Deferring a proposed change is unchanged.
 
 ## Out of scope
 

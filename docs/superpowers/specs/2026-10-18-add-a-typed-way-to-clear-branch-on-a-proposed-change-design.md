@@ -54,6 +54,25 @@ no active or deferred record carries a `branch:` today. So the fix is to remove 
 - Every other defer refusal (deferred, blocked, implemented, final statuses) keeps today's
   `illegal-source-status`.
 
+
+### Kill says what it leaves behind (folded in during grooming)
+
+Since the refusal sends people to kill, kill must be honest about what it leaves. Today
+`change.kill` clears `branch:` from the record and inspects no branch or worktree, and
+finalize cleanup deliberately retains a killed change's branches and worktree
+(`killed-retained`: it deletes only provably merged work). So after a kill nothing in docket
+names the branch any more. Keeping the branch is correct and stays. The fix is wording only:
+
+- When the record carried a non-empty `branch:` at kill time, the applied kill result carries
+  a warning-severity finding (the builder names the code; for example `branch-left-behind`)
+  whose message names that exact branch and says its local and remote branch and any feature
+  worktree are left in place: look them over, then delete them by hand if you don't need them.
+- `ChangeKillResult.HumanText` prints that finding's message under the applied line, so a
+  person typing `docket change kill` sees it. A kill of a change with no `branch:` (a never-
+  claimed proposed change) prints exactly what it prints today.
+- Kill stays probe-free: the warning is decided from the record alone, so its wording says
+  "any" worktree / "if they exist" rather than asserting what is on disk.
+
 ## Where it changes
 
 - `internal/domain/actions.go`: `Defer` accepts `proposed` only and returns the dedicated
@@ -78,6 +97,10 @@ no active or deferred record carries a `branch:` today. So the fix is to remove 
     in-progress changes can be deferred. Archived changes, plans, results, specs, and
     Accepted ADRs are point-in-time records and stay as written.
   - Regenerate embedded assets after skill edits (`go generate ./internal/assets/`).
+- `internal/app/change_kill.go`: the branch-left-behind warning finding (registered like
+  other finding codes) and `HumanText` printing it.
+- Tests: kill of a record with `branch:` returns the warning naming the branch and its
+  HumanText shows it; kill of a record without `branch:` has no such finding.
 - Tests: domain and app tests for the new refusal (in-progress refused with the new code,
   its message present, nothing written; proposed still defers); a HumanText test showing a
   refused lifecycle command prints the finding message; update the existing tests that treat
@@ -94,8 +117,9 @@ no active or deferred record carries a `branch:` today. So the fix is to remove 
 - `change.revive` is unchanged, including for any legacy deferred record that still carries
   `branch:` (none exists today). No migration.
 - No change to what `block`, `unblock`, `kill`, `reclaim`, or `complete` do; only the
-  lifecycle commands' terminal output on refusal changes. Kill still leaves the git branch
-  and worktree in place.
+  lifecycle commands' terminal output on refusal and kill's warning/output change. Kill still
+  leaves the git branch and worktree in place, never deletes them, never records the branch
+  name in the archived record, and never probes git.
 - The killed-stack-parent policy (change 565) is separate.
 
 ## Anti-goals
