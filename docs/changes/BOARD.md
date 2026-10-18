@@ -1,14 +1,15 @@
 # Backlog
 
-**569 changes** — 🟣 1 groomed · 🟡 8 proposed · ⚪ 16 deferred · ✅ 400 done · 🗑️ 144 killed
+**569 changes** — 🟣 2 groomed · 🟡 7 proposed · ⚪ 16 deferred · ✅ 400 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟣 Groomed (2)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | `low` | `fix` | [spec](../superpowers/specs/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md) |
+| [0558](active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Point the budget-report rule in AGENTS.md at tests/README.md instead of listing the lines | `low` | `docs` | [spec](../superpowers/specs/2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-design.md) |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -17,7 +18,6 @@
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `fix` | needs-grooming |
 | [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
 | [0560](active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Mark a build-ready change as off-limits to the autonomous loop | `medium` | `feat` | needs-grooming |
-| [0558](active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Name the SERIAL CONFIRMATION NOT COUNTED budget line in AGENTS.md | `low` | `docs` | needs-grooming |
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
