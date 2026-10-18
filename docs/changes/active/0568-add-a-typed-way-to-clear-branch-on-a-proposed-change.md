@@ -22,8 +22,8 @@ branch_prefix:
 branch: 'fix/add-a-typed-way-to-clear-branch-on-a-proposed-change'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-18T16:21:41Z'
+reconciled: true
+claimed_at: '2026-10-18T16:23:26Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ A change that is being built can only be finished, blocked, or killed, never def
 ## Out of scope
 
 A typed operation to clear `branch:`. Changing the `not-restackable` and `not-retitleable` refusals or their wording; they stay as a safety net for hand-edited or legacy records. What block, unblock, kill, reclaim, revive, or complete do. A new impact/remedy pipeline for typed-operation refusals. The killed-stack-parent policy (#565).
+
+## Reconcile log
+
+### 2026-10-18
+
+2026-10-18: Re-read against current main (7df884687). domain.Defer still accepts proposed and in-progress; the convention Rules sentence still says deferred may be entered from in-progress; related #563 is done and #565 still proposed and separate. Spec holds as written; no scope change.
