@@ -22,8 +22,8 @@ branch_prefix:
 branch: 'fix/cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-18T23:44:55Z'
+reconciled: true
+claimed_at: '2026-10-18T23:45:37Z'
 ---
 
 ## Artifacts
@@ -56,3 +56,9 @@ Found while grooming #562, which deliberately left stacked children alone.
 ## Out of scope
 
 How stacked children merge or become done, and the rule that a child's branches are kept until its root lands. Ordinary (unstacked) cleanup, including removing a clean folder when the branch is kept. Killed changes' branches and worktrees. The killed-parent policy.
+
+## Reconcile log
+
+### 2026-10-18
+
+Reconciled against main at f42692b6d. The code the spec names is still present unchanged in shape: `ownsManifest` (internal/workspace/prepare.go), `proveCarry` (internal/domain/stackcloseout.go), `closeoutIntegrationDestination` and `finalizeCleanupDone` (internal/app), `sweepRunCloseout` and `sweepMaybeCarriedDescendant` (internal/app). The recently landed #568 (refuse killing a parent with built stacked children) touches the kill path only and does not overlap this change's cleanup, closeout, or workspace-identity work. #562 is done. Scope unchanged.
