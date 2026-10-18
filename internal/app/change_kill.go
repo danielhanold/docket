@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -28,7 +29,9 @@ import (
 // claim stamp and branch a killed record must not carry — so this layer decides
 // no lifecycle policy of its own. Killing edits an existing record, so it pins
 // the submitted record revision with an exact-blob entity expectation rather than
-// an idempotency key. It inspects no process, branch, worktree, or PR state.
+// an idempotency key. It inspects no process, branch, worktree, or PR state:
+// it only reports the recorded branch: it clears, through the commit receipt,
+// as a branch-left-behind warning naming the branch and worktree it leaves.
 //
 // Kill is a rename, not a reuse: the archive move is one MutationCreate at the
 // archive path plus one MutationDelete of the active path in the same plan.
@@ -68,11 +71,20 @@ type ChangeKillResult struct {
 	Findings    []StatusFinding `json:"findings"`
 }
 
-// HumanText renders the one-line human summary of a kill outcome.
+// HumanText renders the human summary of a kill outcome: one line, plus, on an
+// applied kill, the branch-left-behind warning's message on its own indented
+// line. Other findings stay out of the text, so a branchless kill prints one line.
 func (r ChangeKillResult) HumanText() string {
 	switch r.Result {
 	case ResultApplied:
-		return fmt.Sprintf("change %04d killed (archived %s) — %s", r.ID, r.ArchivePath, r.Revision)
+		var b strings.Builder
+		fmt.Fprintf(&b, "change %04d killed (archived %s) — %s", r.ID, r.ArchivePath, r.Revision)
+		for _, f := range r.Findings {
+			if f.Code == string(FCBranchLeftBehind) {
+				b.WriteString("\n  " + f.Message)
+			}
+		}
+		return b.String()
 	default:
 		return fmt.Sprintf("change kill: %s", r.Result)
 	}
@@ -89,12 +101,42 @@ func newChangeKillResult(result Result, r ChangeKillResult) ChangeKillResult {
 }
 
 // changeKillReceipt is the canonical receipt persisted with a kill commit. Field
-// order is alphabetical so json.Marshal emits the canonical, sorted-key compact
-// form the engine's receipt validator requires.
+// order is alphabetical so marshalKillReceipt emits the canonical, sorted-key
+// compact form the engine's receipt validator requires. Branch is the pre-kill
+// record's branch: value: it rides the commit receipt, never the archived
+// record, so the result can name the branch the kill leaves behind.
 type changeKillReceipt struct {
 	ArchivePath string `json:"archive_path"`
+	Branch      string `json:"branch,omitempty"`
 	ID          int    `json:"id"`
 	Op          string `json:"op"`
+}
+
+// marshalKillReceipt encodes a kill receipt with HTML escaping disabled, the
+// form validateReceipt compares against: json.Marshal would rewrite a &, <, or
+// > in a branch name (legal in git refs) to \uXXXX and fail that check.
+func marshalKillReceipt(r changeKillReceipt) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(r); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
+}
+
+// branchLeftBehindFinding is the warning an applied kill of a record that
+// carried branch: returns, naming the branch it leaves in place.
+func branchLeftBehindFinding(id int, branch string) StatusFinding {
+	return StatusFinding{
+		Code:     string(FCBranchLeftBehind),
+		Severity: string(domain.SeverityWarning),
+		Entity:   string(domain.EntityChange),
+		Identity: fmt.Sprintf("%04d", id),
+		Message: fmt.Sprintf("change %04d's branch %s is left in place: the kill cleared it from the record, "+
+			"but its local and remote branch and any feature worktree, if they exist, are untouched. "+
+			"Look them over, then delete them by hand if you don't need them.", id, branch),
+	}
 }
 
 // ChangeKill validates the request, pins authoritative context, and drives one
@@ -183,6 +225,9 @@ func changeKillResultFromOutcome(res transaction.Result, execErr error) ChangeKi
 		if rec, ok := decodeChangeKillReceipt(res.Receipt); ok {
 			out.ID = rec.ID
 			out.ArchivePath = rec.ArchivePath
+			if rec.Branch != "" {
+				out.Findings = append(out.Findings, branchLeftBehindFinding(rec.ID, rec.Branch))
+			}
 		}
 		out.Revision = string(res.AppliedCommit)
 	}
@@ -337,8 +382,10 @@ func (o changeKillOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 		}
 	}
 
-	receipt, err := json.Marshal(changeKillReceipt{
-		ArchivePath: archivePath, ID: o.changeID, Op: OperationChangeKill,
+	// Branch is read from the pre-kill record c: the patched record no longer
+	// carries it.
+	receipt, err := marshalKillReceipt(changeKillReceipt{
+		ArchivePath: archivePath, Branch: c.Branch().Value, ID: o.changeID, Op: OperationChangeKill,
 	})
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change kill: encoding receipt: %w", err)
