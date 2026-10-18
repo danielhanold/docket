@@ -503,7 +503,7 @@ and returns to `in-progress`; **defer** shelves a proposed change with `## Why d
 being built is blocked or killed instead), **revive** returns it to `proposed`; **kill** archives it
 as obsolete with `## Why killed`; its git branch and worktree are left for you to delete. Kill
 refuses while the change has built stacked descendants (`implemented` or `stacked-merged` on its
-branch): finish it, or block it.
+branch): finish it, or block it (a `proposed` one carrying a branch: leave it or defer it).
 
 ```sh
 docket change block   --request block.json

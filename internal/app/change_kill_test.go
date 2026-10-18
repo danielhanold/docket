@@ -617,6 +617,20 @@ func TestChangeKillPlanRefusesBuiltStackedChild(t *testing.T) {
 	}
 }
 
+func TestChangeKillPlanBuiltStackRefusalDetail(t *testing.T) {
+	opRes := builtDescendantRefusal(t, lifecycleChange(3, "widget", "in-progress"), "implemented")
+	for _, f := range opRes.Findings {
+		if f.Code != "built-stack-descendants" {
+			continue
+		}
+		for k, want := range map[string]string{"reason": "built-stack-descendants", "from": "in-progress", "action": "kill"} {
+			if got := f.Detail[k]; got != want {
+				t.Errorf("detail[%q] = %q, want %q", k, got, want)
+			}
+		}
+	}
+}
+
 func TestChangeKillPlanRefusesStackedMergedChild(t *testing.T) {
 	opRes := builtDescendantRefusal(t, lifecycleChange(3, "widget", "in-progress"), "stacked-merged")
 	if msg := builtDescendantMessage(t, opRes); !strings.Contains(msg, "#0004 stacked-merged") {

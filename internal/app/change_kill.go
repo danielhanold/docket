@@ -433,16 +433,18 @@ func refuseBuiltStackDescendants(snap domain.Snapshot, c domain.Change, fail *do
 			built = append(built, d)
 		}
 	}
+	detail := map[string]string{"reason": fail.Reason, "from": string(fail.State)}
+	for k, v := range fail.Detail {
+		detail[k] = v
+	}
+	detail["message"] = builtStackDescendantsMessage(c, built)
 	return transaction.MutationPlan{}, transaction.OperationResult{
 		Refused: true,
 		Findings: []domain.Finding{{
 			Code:     string(FCBuiltStackDescendants),
 			Severity: domain.SeverityError,
 			Entity:   domain.EntityRef{Kind: domain.EntityChange},
-			Detail: map[string]string{
-				"message":     builtStackDescendantsMessage(c, built),
-				"descendants": fail.Detail["descendants"],
-			},
+			Detail:   detail,
 		}},
 	}, nil
 }
