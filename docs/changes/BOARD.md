@@ -1,6 +1,6 @@
 # Backlog
 
-**568 changes** — 🔵 1 built · 🟡 9 proposed · ⚪ 16 deferred · ✅ 398 done · 🗑️ 144 killed
+**569 changes** — 🔵 1 built · 🟡 10 proposed · ⚪ 16 deferred · ✅ 398 done · 🗑️ 144 killed
 
 ## 🔵 Built (1)
 
@@ -8,10 +8,11 @@
 |---|-------|----------|------|----|-------|
 | [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | [#429](https://github.com/danielhanold/docket/pull/429) | awaiting merge |
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0569](active/0569-flaky-and-failing-tests-standing-bucket.md) | Flaky and failing tests — standing bucket | `low` | `chore` | needs-grooming |
 | [0568](active/0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Add a typed way to clear branch on a proposed change | `low` | `fix` | needs-grooming |
 | [0567](active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Cleanup deletes a stacked child's branches once its code reaches main | `low` | `fix` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `fix` | needs-grooming |
@@ -71,6 +72,7 @@ graph TD
   0566
   0567
   0568
+  0569
   0192:::done
   0251:::done
   0511:::done
