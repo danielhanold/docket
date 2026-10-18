@@ -70,6 +70,6 @@ Re-read against current main (a52c2d9c9). change_groom.go still writes relations
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: 40b78cfdf9bbfea7113799810399a63472b4fd03
-ran_at:   2026-10-17T22:13:38Z
+head_sha: ecff8e6da0ae673bd20f7e3f404c917f2784914d
+ran_at:   2026-10-18T00:48:16Z
 <!-- docket:build-evidence:end -->
