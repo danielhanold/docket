@@ -59,6 +59,6 @@ How `change.groom` sets or clears `stacked_on`. How stacks resolve their effecti
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: 497d840fd52b90dcb8c8474df15d7c830e62ac8b
-ran_at:   2026-10-18T19:22:00Z
+head_sha: 87c6c8a37aa2db554c755b2d6053e2ef34ae43d1
+ran_at:   2026-10-18T20:08:18Z
 <!-- docket:build-evidence:end -->
