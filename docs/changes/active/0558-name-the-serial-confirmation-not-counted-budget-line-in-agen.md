@@ -22,7 +22,7 @@ branch: 'docs/name-the-serial-confirmation-not-counted-budget-line-in-agen'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-18T18:42:32Z'
+claimed_at: '2026-10-18T18:44:08Z'
 ---
 
 ## Artifacts
