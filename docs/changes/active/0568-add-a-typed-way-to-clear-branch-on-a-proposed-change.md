@@ -14,7 +14,7 @@ related: [563, 565]
 discovered_from: [563]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change.md'
 results:
 trivial: false
 auto_groomable:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-18T16:24:53Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md](../../superpowers/specs/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md) |
+| Plan | [2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change.md](../../superpowers/plans/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
