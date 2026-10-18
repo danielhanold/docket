@@ -62,6 +62,9 @@ const RunHaltedSection = "## Run halted"
 // descendant of a killed stack parent receives.
 const StackParentKilledReason = "stack parent killed — re-scope, re-parent, or kill"
 
+// ReasonNotDeferrable is the policy reason Defer gives for a change being built.
+const ReasonNotDeferrable = "not-deferrable"
+
 // stampLayout is the second-precision UTC layout for claimed_at.
 const stampLayout = time.RFC3339
 
@@ -203,11 +206,17 @@ func Unblock(c Change) (ActionResult, *PolicyFailure) {
 	return b.result(), nil
 }
 
-// Defer parks a proposed or in-progress change. It touches status only: a
-// deferred change is not final, so its recorded branch and claim stamp stay
-// readable for whoever revives it.
+// Defer parks a proposed change and touches status only. A change being built
+// is refused with ReasonNotDeferrable: deferring it would carry its branch,
+// claim stamp, plan, and results onto a record that revive later returns to
+// proposed. It is blocked (to pause, keeping its branch) or killed (to drop)
+// instead.
 func Defer(c Change) (ActionResult, *PolicyFailure) {
-	if fail := requireStatus(c, "defer", StatusProposed, StatusInProgress); fail != nil {
+	if c.Status() == StatusInProgress {
+		return ActionResult{}, newFailure(c, FailInvalidState, ReasonNotDeferrable,
+			map[string]string{"action": "defer", "from": "in-progress"})
+	}
+	if fail := requireStatus(c, "defer", StatusProposed); fail != nil {
 		return ActionResult{}, fail
 	}
 	b := newChangeBuilder(c)
