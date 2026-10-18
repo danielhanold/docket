@@ -2,7 +2,7 @@
 id: 558
 slug: 'name-the-serial-confirmation-not-counted-budget-line-in-agen'
 title: 'Point the budget-report rule in AGENTS.md at tests/README.md instead of listing the lines'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'docs'
 created: '2026-10-17'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'docs/name-the-serial-confirmation-not-counted-budget-line-in-agen'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-18T18:40:19Z'
 ---
 
 ## Artifacts
