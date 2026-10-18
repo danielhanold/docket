@@ -14,7 +14,7 @@ related: [562]
 discovered_from: [562]
 adrs: [92, 35]
 spec: 'docs/superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md'
 results:
 trivial: false
 auto_groomable:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-18T23:47:03Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md](../../superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md) |
+| Plan | [2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md](../../superpowers/plans/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) |
 | ADRs | [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0035](../../adrs/0035-cleanup-teardown-fail-closed.md) |
 <!-- docket:artifacts:end -->
 
