@@ -2,6 +2,8 @@ package domain
 
 import (
 	"fmt"
+	"reflect"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -554,85 +556,144 @@ func TestMarkDoneRequiresReachability(t *testing.T) {
 	}
 }
 
-func TestKillStackParentBlocksLiveDescendants(t *testing.T) {
-	parentEdgeOn := func(id int) OptionalInt {
-		return OptionalInt{State: FieldPresent, Value: id, Raw: "0" + string(rune('0'+id))}
-	}
-	snap := actSnapshot(
-		actSpec{id: 1, slug: "root", status: StatusInProgress, branch: "feat/root"},
-		actSpec{id: 2, slug: "kid-proposed", status: StatusProposed, parent: parentEdgeOn(1)},
-		actSpec{id: 3, slug: "kid-blocked", status: StatusBlocked, blockedBy: "already", parent: parentEdgeOn(1)},
-		actSpec{id: 4, slug: "kid-done", status: StatusDone, parent: parentEdgeOn(1)},
-		actSpec{id: 5, slug: "grandkid", status: StatusInProgress, parent: parentEdgeOn(2)},
-	)
+// edge is a present stacked_on edge naming id.
+func edge(id int) OptionalInt {
+	return OptionalInt{State: FieldPresent, Value: id, Raw: strconv.Itoa(id)}
+}
 
-	got, fail := KillStackParent(snap, 1)
+// TestKillInSnapshotRefusesOnlyBuiltDescendants: a direct child refuses the
+// kill exactly when it is built (implemented or stacked-merged); every other
+// child status lets the kill through.
+func TestKillInSnapshotRefusesOnlyBuiltDescendants(t *testing.T) {
+	for _, st := range allStatuses {
+		t.Run(string(st), func(t *testing.T) {
+			parent := actSpec{id: 1, slug: "root", status: StatusInProgress, branch: "feat/root"}
+			snap := actSnapshot(parent, actSpec{id: 2, slug: "kid", status: st, parent: edge(1)})
+			result, fail := KillInSnapshot(snap, parent.build())
+			built := st == StatusImplemented || st == StatusStackedMerged
+			if built {
+				if fail == nil {
+					t.Fatal("kill accepted with a built child")
+				}
+				if fail.Kind != FailBlocked || fail.Reason != ReasonBuiltStackDescendants ||
+					fail.Detail["descendants"] != "2" || fail.Detail["action"] != "kill" {
+					t.Fatalf("failure = %+v", fail)
+				}
+				return
+			}
+			if fail != nil {
+				t.Fatalf("kill refused with a %s child: %+v", st, fail)
+			}
+			if result.Change.Status() != StatusKilled {
+				t.Fatalf("status = %q, want killed", result.Change.Status())
+			}
+		})
+	}
+}
+
+func TestKillInSnapshotRefusesBuiltGrandchild(t *testing.T) {
+	parent := actSpec{id: 1, slug: "root", status: StatusInProgress, branch: "feat/root"}
+	snap := actSnapshot(parent,
+		actSpec{id: 2, slug: "kid", status: StatusProposed, parent: edge(1)},
+		actSpec{id: 3, slug: "grandkid", status: StatusImplemented, parent: edge(2)},
+	)
+	_, fail := KillInSnapshot(snap, parent.build())
+	if fail == nil || fail.Reason != ReasonBuiltStackDescendants || fail.Detail["descendants"] != "3" {
+		t.Fatalf("failure = %+v, want built-stack-descendants naming 3", fail)
+	}
+}
+
+// TestKillInSnapshotPrunesFinalLinks: a built grandchild below a done or
+// killed child does not depend on the parent's branch, so it never refuses
+// the kill (else the parent would be permanently unkillable).
+func TestKillInSnapshotPrunesFinalLinks(t *testing.T) {
+	cases := []struct{ child, grandchild Status }{
+		{StatusDone, StatusImplemented},
+		{StatusKilled, StatusStackedMerged},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.child), func(t *testing.T) {
+			parent := actSpec{id: 1, slug: "root", status: StatusInProgress, branch: "feat/root"}
+			snap := actSnapshot(parent,
+				actSpec{id: 2, slug: "kid", status: tc.child, parent: edge(1)},
+				actSpec{id: 3, slug: "grandkid", status: tc.grandchild, parent: edge(2)},
+			)
+			if _, fail := KillInSnapshot(snap, parent.build()); fail != nil {
+				t.Fatalf("kill refused through a %s link: %+v", tc.child, fail)
+			}
+		})
+	}
+}
+
+func TestKillInSnapshotNamesEveryBuiltDescendant(t *testing.T) {
+	parent := actSpec{id: 1, slug: "root", status: StatusInProgress, branch: "feat/root"}
+	snap := actSnapshot(parent,
+		actSpec{id: 4, slug: "kid-merged", status: StatusStackedMerged, parent: edge(1)},
+		actSpec{id: 2, slug: "kid-impl", status: StatusImplemented, parent: edge(1)},
+		actSpec{id: 5, slug: "kid-proposed", status: StatusProposed, parent: edge(1)},
+		actSpec{id: 6, slug: "grandkid", status: StatusImplemented, parent: edge(5)},
+	)
+	_, fail := KillInSnapshot(snap, parent.build())
+	if fail == nil || fail.Detail["descendants"] != "2,4,6" {
+		t.Fatalf("failure = %+v, want descendants 2,4,6", fail)
+	}
+	if got := BuiltStackDescendants(snap, 1); !reflect.DeepEqual(got, []ChangeID{2, 4, 6}) {
+		t.Fatalf("BuiltStackDescendants = %v, want [2 4 6]", got)
+	}
+}
+
+func TestKillInSnapshotProposedParentWithBranch(t *testing.T) {
+	parent := actSpec{id: 1, slug: "legacy", status: StatusProposed, branch: "feat/legacy"}
+	snap := actSnapshot(parent, actSpec{id: 2, slug: "kid", status: StatusImplemented, parent: edge(1)})
+	_, fail := KillInSnapshot(snap, parent.build())
+	if fail == nil || fail.Reason != ReasonBuiltStackDescendants || fail.State != StatusProposed {
+		t.Fatalf("failure = %+v, want built-stack-descendants from proposed", fail)
+	}
+}
+
+func TestKillInSnapshotSourceStatusFirst(t *testing.T) {
+	parent := actSpec{id: 1, slug: "root", status: StatusImplemented, branch: "feat/root"}
+	snap := actSnapshot(parent, actSpec{id: 2, slug: "kid", status: StatusImplemented, parent: edge(1)})
+	_, fail := KillInSnapshot(snap, parent.build())
+	if fail == nil || fail.Reason != "illegal-source-status" {
+		t.Fatalf("failure = %+v, want illegal-source-status", fail)
+	}
+}
+
+func TestKillInSnapshotTerminatesOnCycle(t *testing.T) {
+	parent := actSpec{id: 1, slug: "a", status: StatusInProgress, branch: "feat/a", parent: edge(2)}
+	snap := actSnapshot(parent, actSpec{id: 2, slug: "b", status: StatusProposed, parent: edge(1)})
+	if _, fail := KillInSnapshot(snap, parent.build()); fail != nil {
+		t.Fatalf("kill refused on a cycle with no built descendants: %+v", fail)
+	}
+}
+
+func TestKillInSnapshotLeavesDescendantsUntouched(t *testing.T) {
+	parent := actSpec{id: 1, slug: "root", status: StatusInProgress, branch: "feat/root",
+		claimedAt: "2026-08-01T00:00:00Z"}
+	snap := actSnapshot(parent, actSpec{id: 2, slug: "kid", status: StatusProposed, parent: edge(1)})
+	before := map[ChangeID]string{}
+	for _, c := range snap.Changes() {
+		before[c.ID()] = fingerprint(c)
+	}
+	result, fail := KillInSnapshot(snap, parent.build())
 	if fail != nil {
-		t.Fatalf("KillStackParent failed: %v", fail)
+		t.Fatalf("KillInSnapshot failed: %v", fail)
 	}
-	if got.Parent.Change.Status() != StatusKilled {
-		t.Fatalf("parent status = %q", got.Parent.Change.Status())
-	}
-
-	byID := map[ChangeID]DescendantOutcome{}
-	for _, d := range got.Descendants {
-		byID[d.ID] = d
-	}
-	if _, touched := byID[4]; touched {
-		t.Fatalf("done descendant was touched: %+v", got.Descendants)
-	}
-	if len(byID) != 3 {
-		t.Fatalf("descendants = %+v, want 2, 3, and 5", got.Descendants)
-	}
-
-	for _, id := range []ChangeID{2, 5} {
-		d := byID[id]
-		if d.NoOp {
-			t.Fatalf("%d: live descendant reported as a no-op", id)
-		}
-		if d.Result.Change.Status() != StatusBlocked {
-			t.Fatalf("%d: status = %q", id, d.Result.Change.Status())
-		}
-		if d.Result.Change.BlockedBy().Value != StackParentKilledReason {
-			t.Fatalf("%d: blocked_by = %q, want %q",
-				id, d.Result.Change.BlockedBy().Value, StackParentKilledReason)
+	for _, c := range snap.Changes() {
+		if got := fingerprint(c); got != before[c.ID()] {
+			t.Fatalf("change %d mutated: %q -> %q", c.ID(), before[c.ID()], got)
 		}
 	}
-
-	already := byID[3]
-	if !already.NoOp {
-		t.Fatal("already-blocked descendant should be a no-op")
+	if result.Change.ID() != 1 {
+		t.Fatalf("result names change %d, want the parent", result.Change.ID())
 	}
-	if already.Result.Changed != nil {
-		t.Fatalf("no-op carries Changed = %v", already.Result.Changed)
-	}
-	if already.Result.Change.Status() != StatusBlocked || already.Result.Change.BlockedBy().Value != "already" {
-		t.Fatalf("no-op rewrote the descendant: %+v", already.Result.Change)
-	}
-}
-
-func TestKillStackParentLookupFailures(t *testing.T) {
-	dup := actSnapshot(
-		actSpec{id: 1, slug: "a", status: StatusProposed},
-		actSpec{id: 1, slug: "b", status: StatusProposed},
-	)
-	_, fail := KillStackParent(dup, 1)
-	if fail == nil || fail.Kind != FailInvalidInput || fail.Reason != "ambiguous-change" {
-		t.Fatalf("ambiguous parent: %+v", fail)
-	}
-
-	empty := actSnapshot()
-	_, fail = KillStackParent(empty, 1)
-	if fail == nil || fail.Kind != FailInvalidInput || fail.Reason != "unknown-change" {
-		t.Fatalf("unknown parent: %+v", fail)
-	}
-}
-
-func TestKillStackParentRejectsIllegalParentState(t *testing.T) {
-	snap := actSnapshot(actSpec{id: 1, slug: "root", status: StatusDone})
-	_, fail := KillStackParent(snap, 1)
-	if fail == nil || fail.Kind != FailInvalidState {
-		t.Fatalf("done parent: %+v", fail)
+	for _, f := range changedFields(result) {
+		switch f {
+		case "status", "claimed_at", "branch":
+		default:
+			t.Fatalf("Changed names %q; a kill rewrites only the parent's own fields", f)
+		}
 	}
 }
 
@@ -647,8 +708,9 @@ func TestActionsNeverMutateSnapshotChanges(t *testing.T) {
 		before[c.ID()] = fingerprint(c)
 	}
 
-	if _, fail := KillStackParent(snap, 1); fail != nil {
-		t.Fatalf("KillStackParent failed: %v", fail)
+	root, _ := snap.Change(1)
+	if _, fail := KillInSnapshot(snap, root); fail != nil {
+		t.Fatalf("KillInSnapshot failed: %v", fail)
 	}
 	for _, c := range snap.Changes() {
 		if got := fingerprint(c); got != before[c.ID()] {

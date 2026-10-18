@@ -2,6 +2,9 @@ package domain
 
 import (
 	"fmt"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -58,9 +61,9 @@ type ActionResult struct {
 // The domain only identifies it; the document layer performs the removal.
 const RunHaltedSection = "## Run halted"
 
-// StackParentKilledReason is the retained blocked_by reason every live
-// descendant of a killed stack parent receives.
-const StackParentKilledReason = "stack parent killed — re-scope, re-parent, or kill"
+// ReasonBuiltStackDescendants is the policy reason KillInSnapshot gives for a
+// change whose built stacked descendants still depend on its branch.
+const ReasonBuiltStackDescendants = "built-stack-descendants"
 
 // ReasonNotDeferrable is the policy reason Defer gives for a change being built.
 const ReasonNotDeferrable = "not-deferrable"
@@ -186,8 +189,7 @@ func Block(c Change, reason string) (ActionResult, *PolicyFailure) {
 }
 
 // blockedResult is the shared block transition: blocked status plus the
-// recorded reason. KillStackParent reuses it for descendants of any
-// non-final status, which is why it is separate from Block's own guard.
+// recorded reason.
 func blockedResult(c Change, reason string) ActionResult {
 	b := newChangeBuilder(c)
 	b.setStatus(StatusBlocked)
@@ -243,13 +245,73 @@ func Kill(c Change) (ActionResult, *PolicyFailure) {
 	return killedResult(c), nil
 }
 
-// killedResult is the shared kill transition, reused by KillStackParent.
+// killedResult is the shared kill transition.
 func killedResult(c Change) ActionResult {
 	b := newChangeBuilder(c)
 	b.setStatus(StatusKilled)
 	b.clearClaimedAt()
 	b.setBranch("")
 	return b.result()
+}
+
+// KillInSnapshot is Kill with the stack rule the snapshot makes visible: it
+// refuses, with ReasonBuiltStackDescendants, to kill a change that still has
+// built stacked descendants (implemented or stacked-merged), because their
+// code exists only on the change's branch and a kill would strand them with
+// no way to finish or kill them. Kill's own source-status check runs first and
+// its failure is returned unchanged. A kill never touches a descendant record.
+//
+// The descendant walk (BuiltStackDescendants) stops at a final (done or
+// killed) link: that subtree already resolves to the integration branch or
+// to parent-killed, and this kill changes nothing for it, so counting a built
+// change beneath it would make the change permanently unkillable.
+func KillInSnapshot(s Snapshot, c Change) (ActionResult, *PolicyFailure) {
+	result, fail := Kill(c)
+	if fail != nil {
+		return ActionResult{}, fail
+	}
+	built := BuiltStackDescendants(s, c.ID())
+	if len(built) == 0 {
+		return result, nil
+	}
+	ids := make([]string, len(built))
+	for i, id := range built {
+		ids[i] = strconv.Itoa(int(id))
+	}
+	return ActionResult{}, newFailure(c, FailBlocked, ReasonBuiltStackDescendants, map[string]string{
+		"action":      "kill",
+		"descendants": strings.Join(ids, ","),
+	})
+}
+
+// BuiltStackDescendants returns the built (implemented or stacked-merged)
+// changes stacked transitively on id, in ascending id order, reached only
+// through non-final links: a done or killed child is skipped and its subtree
+// is never entered. The walk keeps a visited set seeded with id, so a cycle in
+// stacked_on terminates. It deliberately does not reuse
+// StackDescendantsParentFirst, which walks straight through final links.
+func BuiltStackDescendants(s Snapshot, id ChangeID) []ChangeID {
+	var built []ChangeID
+	visited := map[ChangeID]bool{id: true}
+	pending := StackChildren(s, id)
+	for len(pending) > 0 {
+		next := pending[0]
+		pending = pending[1:]
+		if visited[next] {
+			continue
+		}
+		visited[next] = true
+		child, out := s.Change(next)
+		if out != LookupFound || child.Status().Final() {
+			continue
+		}
+		if st := child.Status(); st == StatusImplemented || st == StatusStackedMerged {
+			built = append(built, next)
+		}
+		pending = append(slices.Clone(StackChildren(s, next)), pending...)
+	}
+	slices.Sort(built)
+	return built
 }
 
 // MarkImplemented moves an in-progress change to implemented once its PR
@@ -353,63 +415,6 @@ func Complete(c Change) (ActionResult, *PolicyFailure) {
 		b.own(RunHaltedSection)
 	}
 	return b.result(), nil
-}
-
-// DescendantOutcome is one descendant's share of a stack kill. NoOp marks a
-// descendant that was already blocked: it is reported so the caller can
-// account for it, with its unchanged record and an empty Changed set.
-type DescendantOutcome struct {
-	ID     ChangeID
-	Result ActionResult
-	NoOp   bool
-}
-
-// StackKillResult is the outcome of killing a stack parent: the parent's kill
-// plus one outcome per live descendant, parent-first.
-type StackKillResult struct {
-	Parent      ActionResult
-	Descendants []DescendantOutcome
-}
-
-// KillStackParent kills a change and blocks every non-final descendant with
-// the retained re-scope, re-parent, or kill reason. It is a distinct graph
-// action rather than a widening of Block: a descendant is blocked from any
-// non-final status, an already-blocked one is a semantic no-op, and a
-// final (done or killed) descendant is not touched and not reported.
-func KillStackParent(s Snapshot, id ChangeID) (StackKillResult, *PolicyFailure) {
-	parent, out := s.Change(id)
-	switch out {
-	case LookupAmbiguous:
-		return StackKillResult{}, &PolicyFailure{
-			Kind: FailInvalidInput, Change: id, Reason: "ambiguous-change",
-		}
-	case LookupAbsent:
-		return StackKillResult{}, &PolicyFailure{
-			Kind: FailInvalidInput, Change: id, Reason: "unknown-change",
-		}
-	}
-	killed, fail := Kill(parent)
-	if fail != nil {
-		return StackKillResult{}, fail
-	}
-
-	result := StackKillResult{Parent: killed}
-	for _, descendantID := range StackDescendantsParentFirst(s, id) {
-		descendant, out := s.Change(descendantID)
-		if out != LookupFound || descendant.Status().Final() {
-			continue
-		}
-		if descendant.Status() == StatusBlocked {
-			result.Descendants = append(result.Descendants, DescendantOutcome{
-				ID: descendantID, Result: ActionResult{Change: descendant}, NoOp: true,
-			})
-			continue
-		}
-		result.Descendants = append(result.Descendants, DescendantOutcome{
-			ID: descendantID, Result: blockedResult(descendant, StackParentKilledReason),
-		})
-	}
-	return result, nil
 }
 
 // Reclaim is declared in lease.go, alongside the EvaluateReclaim predicate it
