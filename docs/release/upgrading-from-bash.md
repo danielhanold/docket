@@ -20,7 +20,7 @@ not supported.
 
 ## 2. Before you start
 
-- In each repository, finish or defer every change that is in progress. The test covers
+- In each repository, finish or kill every change that is in progress. The test covers
   repositories with no change in progress.
 - In each repository, check out the default branch and make sure `git status` shows no changes.
   The steps below commit and push to the default branch.

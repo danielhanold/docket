@@ -683,8 +683,9 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 
 	// Re-stack gate (change 0563). A proposed change carrying branch: is a
 	// hand-edited or legacy record (a change being built cannot be deferred), and
-	// the next claim reuses that branch; it was cut from the current base, so giving the change a new base (a new parent,
-	// a first parent, or none) would carry the old base's commits into the PR.
+	// the next claim reuses that branch; it was cut from the current base, so
+	// giving the change a new base (a new parent, a first parent, or none) would
+	// carry the old base's commits into the PR.
 	// Mirrors the retitle gate above. A stacked_on equal to the current value
 	// (or 0 on an unstacked record) is no change and passes; plan: and results:
 	// alone never block it — only the cut branch carries the old base.
