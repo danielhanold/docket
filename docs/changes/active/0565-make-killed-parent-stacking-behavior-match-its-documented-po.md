@@ -1,19 +1,19 @@
 ---
 id: 565
 slug: 'make-killed-parent-stacking-behavior-match-its-documented-po'
-title: 'Make killed-parent stacking behavior match its documented policy'
+title: 'Refuse a stack-parent kill that would strand built children'
 status: 'proposed'
 priority: 'low'
 type: 'fix'
 deliverable: 'pr'
 created: '2026-10-17'
-updated: '2026-10-17'
-depends_on: []
+updated: '2026-10-18'
+depends_on: [568]
 stacked_on:
-related: [563]
+related: [563, 568]
 discovered_from: [563]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md'
 plan:
 results:
 trivial: false
@@ -28,6 +28,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md](../../superpowers/specs/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -36,8 +39,8 @@ The stacked-changes reference (*When a parent is killed*) says that killing a st
 
 ## What changes
 
-Decide which behavior is intended and make the code and the doc agree: either wire `KillStackParent` into the kill path (so killing a parent blocks its open descendants in the same transaction), or drop the blocking from the policy and document how a human finds and handles a killed parent's descendants (for a proposed descendant, change 563 adds re-parent / un-stack through `change.groom`). If descendants are blocked, decide how a human re-parents or un-stacks a blocked descendant, since `change.groom` only accepts proposed changes.
+Killing a change never changes its stacked descendants' status. `change.kill` instead refuses to kill a change that still has built stacked descendants, meaning ones that are `implemented` or `stacked-merged` and reached only through live changes. A kill would strand them with no way to finish or kill them. The refusal names those descendants, says to finish the change or pause it with `change.block`, and is printed in terminal output. On the board, a proposed child of a killed parent reads `stack parent #A killed — re-parent, un-stack, or kill` instead of `waiting on #A — stack base not built`. The unused `KillStackParent` blocking code is deleted, and the stacked-changes reference, the convention, and the glossary describe only this behavior, including each surviving descendant's typed exits. Builds after #568, which closes the deferral path and sets the refusal-message pattern this extends.
 
 ## Out of scope
 
-How `change.groom` sets or clears `stacked_on` (change 563). How stacks resolve their effective base.
+How `change.groom` sets or clears `stacked_on`. How stacks resolve their effective base, and the readiness order. Exits for an `implemented` or `stacked-merged` child of an already-killed parent: the refusal stops that state from being created through docket. Widening `change.groom`, `change.kill`, or `change.unblock` to new source statuses. New skill prose.
