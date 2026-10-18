@@ -1,6 +1,6 @@
 # Backlog
 
-**568 changes** — 🔵 2 built · 🟡 10 proposed · ⚪ 15 deferred · ✅ 397 done · 🗑️ 144 killed
+**568 changes** — 🔵 2 built · 🟡 9 proposed · ⚪ 16 deferred · ✅ 397 done · 🗑️ 144 killed
 
 ## 🔵 Built (2)
 
@@ -9,12 +9,11 @@
 | [0563](active/0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | `low` | `fix` | [#427](https://github.com/danielhanold/docket/pull/427) | awaiting merge |
 | [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | [#429](https://github.com/danielhanold/docket/pull/429) | awaiting merge |
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0568](active/0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Add a typed way to clear branch on a proposed change | `low` | `fix` | needs-grooming |
-| [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` | needs-grooming |
 | [0567](active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Cleanup deletes a stacked child's branches once its code reaches main | `low` | `fix` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `fix` | needs-grooming |
 | [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Make killed-parent stacking behavior match its documented policy | `low` | `fix` | needs-grooming |
@@ -24,10 +23,11 @@
 | [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
-## ⚪ Deferred (15)
+## ⚪ Deferred (16)
 
 | # | Title | Priority | Type |
 |---|-------|----------|------|
+| [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `medium` | `fix` |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` |
 | [0503](active/0503-auto-name-claude-code-sessions-from-docket-workflow-prompts.md) | Auto-name Claude Code sessions from docket workflow prompts | `low` | `feat` |

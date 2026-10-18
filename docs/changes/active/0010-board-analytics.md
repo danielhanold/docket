@@ -2,7 +2,7 @@
 id: 10
 slug: board-analytics
 title: Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md
-status: 'proposed'
+status: 'deferred'
 priority: low
 created: 2026-06-11
 updated: '2026-10-18'
@@ -61,22 +61,4 @@ change has been sitting.
 
 ## Why deferred
 
-Deferred 2026-07-26 by the change 0124 backlog triage pass. This is the weakest of the four
-2026-06-11 competitive-review stubs and came closest to being killed outright.
-
-Partly delivered: change 0093 added a per-month `| Month | Done |` archive digest to
-`scripts/render-board.sh`, which gives throughput. `BOARD.md` already carries a status count line.
-Cycle time, kill rate, and backlog age remain unbuilt — no `cycle-time`/`throughput`/`STATS.md` hits
-anywhere in `scripts/` or `skills/`.
-
-Deferred because the remaining metrics now sit in **direct tension with a decision the repo has
-since made**. Change 0093 deliberately *shrank* the board surface for context economy — the board
-is read by agents on every run, and every row costs context. This stub proposes growing it with
-derived statistics that nothing consumes and no decision depends on. Adding a stats block would
-partially reverse 0093's intent.
-
-Not killed only because the "separate generated `STATS.md`" option in its own open questions
-sidesteps that tension cleanly — the data really is free in git. Revive only with that shape, and
-only if a real question ("is the backlog keeping up?") ever needs answering by something other
-than reading the board. Absent that, this should be killed on its next review rather than deferred
-again.
+Re-deferred after a test revive that confirmed the record's artifacts block works; original shelving still stands.
