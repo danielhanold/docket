@@ -2,7 +2,7 @@
 id: 558
 slug: 'name-the-serial-confirmation-not-counted-budget-line-in-agen'
 title: 'Point the budget-report rule in AGENTS.md at tests/README.md instead of listing the lines'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'docs'
 created: '2026-10-17'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'docs/name-the-serial-confirmation-not-counted-budget-line-in-agen'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/431'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-18T18:59:20Z'
@@ -52,3 +52,12 @@ Any change to the runner or its output. `.github/workflows/release-candidate.yml
 ### 2026-10-18
 
 2026-10-18: Re-read the spec against origin/main 4b17bee2a. AGENTS.md, tests/README.md, tests/runtime-budgets.tsv, and docs/reference/glossary.md still carry exactly the wording the spec describes; related #528 and #557 are done and change nothing here. No scope change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: d2de9768993eb1864280c0ae307fed170e322ee8
+ran_at:   2026-10-18T18:57:29Z
+<!-- docket:build-evidence:end -->
