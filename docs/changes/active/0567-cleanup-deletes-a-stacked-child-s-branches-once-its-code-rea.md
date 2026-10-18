@@ -23,7 +23,7 @@ branch: 'fix/cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-18T23:45:37Z'
+claimed_at: '2026-10-18T23:47:03Z'
 ---
 
 ## Artifacts
