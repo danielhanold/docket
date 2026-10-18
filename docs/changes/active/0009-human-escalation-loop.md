@@ -19,6 +19,8 @@ blocked_by:
 reconciled: false
 type: feat
 ---
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
 
 ## Why
 
