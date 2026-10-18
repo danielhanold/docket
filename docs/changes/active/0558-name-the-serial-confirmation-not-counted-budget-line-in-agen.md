@@ -14,7 +14,7 @@ discovered_from: [528]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-design.md'
 plan: 'docs/superpowers/plans/2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen.md'
-results:
+results: 'docs/results/2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-18T18:59:20Z'
 |---|---|
 | Spec | [2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-design.md](../../superpowers/specs/2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-design.md) |
 | Plan | [2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen.md](../../superpowers/plans/2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) |
+| Results | [2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-results.md](../../results/2026-10-18-name-the-serial-confirmation-not-counted-budget-line-in-agen-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
