@@ -1,17 +1,12 @@
 # Backlog
 
-**569 changes** — 🟢 1 in progress · 🔵 1 built · 🟡 7 proposed · ⚪ 16 deferred · ✅ 400 done · 🗑️ 144 killed
+**569 changes** — 🔵 2 built · 🟡 7 proposed · ⚪ 16 deferred · ✅ 400 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | `low` | `fix` | [spec](../superpowers/specs/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md) | `fix/make-killed-parent-stacking-behavior-match-its-documented-po` |  |
-
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | `low` | `fix` | [#432](https://github.com/danielhanold/docket/pull/432) | awaiting merge |
 | [0558](active/0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Point the budget-report rule in AGENTS.md at tests/README.md instead of listing the lines | `low` | `docs` | [#431](https://github.com/danielhanold/docket/pull/431) | awaiting merge |
 
 ## 🟡 Proposed (7)

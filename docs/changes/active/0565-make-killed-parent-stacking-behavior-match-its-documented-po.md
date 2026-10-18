@@ -2,7 +2,7 @@
 id: 565
 slug: 'make-killed-parent-stacking-behavior-match-its-documented-po'
 title: 'Refuse a stack-parent kill that would strand built children'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/make-killed-parent-stacking-behavior-match-its-documented-po'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/432'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-18T18:51:09Z'
@@ -53,3 +53,12 @@ How `change.groom` sets or clears `stacked_on`. How stacks resolve their effecti
 ### 2026-10-18
 
 2026-10-18: #568 is done and landed on main (kill's applied HumanText now carries the branch-left-behind warning; lifecycle refusals print Detail["message"]). `KillStackParent`, `StackParentKilledReason`, `StackKillResult`, `DescendantOutcome` are still unused outside their tests; `changeKillOp.Plan` still calls `domain.Kill(c)`; the board's stack-base-unresolved arm still renders the single waiting cell. Spec holds unchanged; no scope adjustment.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 497d840fd52b90dcb8c8474df15d7c830e62ac8b
+ran_at:   2026-10-18T19:22:00Z
+<!-- docket:build-evidence:end -->
