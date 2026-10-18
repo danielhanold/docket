@@ -1,6 +1,6 @@
 # Backlog
 
-**567 changes** — 🔵 2 built · 🟡 8 proposed · ⚪ 16 deferred · ✅ 397 done · 🗑️ 144 killed
+**568 changes** — 🔵 2 built · 🟡 9 proposed · ⚪ 16 deferred · ✅ 397 done · 🗑️ 144 killed
 
 ## 🔵 Built (2)
 
@@ -9,10 +9,11 @@
 | [0563](active/0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | `low` | `fix` | [#427](https://github.com/danielhanold/docket/pull/427) | awaiting merge |
 | [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | [#429](https://github.com/danielhanold/docket/pull/429) | awaiting merge |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0568](active/0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Add a typed way to clear branch on a proposed change | `low` | `fix` | needs-grooming |
 | [0567](active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Cleanup deletes a stacked child's branches once its code reaches main | `low` | `fix` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `fix` | needs-grooming |
 | [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Make killed-parent stacking behavior match its documented policy | `low` | `fix` | needs-grooming |
@@ -71,6 +72,7 @@ graph TD
   0565
   0566
   0567
+  0568
   0192:::done
   0251:::done
   0511:::done
