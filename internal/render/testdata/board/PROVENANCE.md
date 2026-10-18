@@ -77,6 +77,7 @@ directly instead:
 - proposed `⏳ … — needs your merge` (dependency on an `implemented` change);
 - proposed `auto-groom blocked — needs you`;
 - proposed `⏳ waiting on #NNNN — stack base not built`;
+- proposed `stack parent #NNNN killed — re-parent, un-stack, or kill`;
 - proposed `build-ready (trivial)` (trivial, spec-less build-ready);
 - non-default section orders and per-section sort keys, same-date id-desc ties,
   and the unknown-date band;
