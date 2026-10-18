@@ -95,13 +95,22 @@ type ChangeLifecycleResult struct {
 	Findings []StatusFinding `json:"findings"` // present on every path (marshalled as [] never null)
 }
 
-// HumanText renders the one-line human summary of a lifecycle outcome.
+// HumanText renders the human summary of a lifecycle outcome: one line on an
+// applied result; otherwise the operation and result, followed by each
+// finding's message (when it has one) on its own indented line.
 func (r ChangeLifecycleResult) HumanText() string {
 	switch r.Result {
 	case ResultApplied:
 		return fmt.Sprintf("change %04d → %s — %s", r.ID, r.Status, r.Revision)
 	default:
-		return fmt.Sprintf("%s: %s", r.Operation, r.Result)
+		var b strings.Builder
+		fmt.Fprintf(&b, "%s: %s", r.Operation, r.Result)
+		for _, f := range r.Findings {
+			if f.Message != "" {
+				b.WriteString("\n  " + f.Message)
+			}
+		}
+		return b.String()
 	}
 }
 
@@ -356,8 +365,13 @@ func (o changeLifecycleOp) Plan(ctx context.Context, st transaction.AttemptState
 	// Domain legality gate: the action decides whether the current status may take
 	// the transition and yields the exact owned FieldChanges. An illegal source
 	// status is a state-shaped refusal carrying the domain's stable reason token.
+	// A defer of a change being built (domain.ReasonNotDeferrable) is refused
+	// with an explanatory message naming the block and kill alternatives instead.
 	result, fail := o.action(c)
 	if fail != nil {
+		if fail.Reason == domain.ReasonNotDeferrable {
+			return refuseLifecycle(FCNotDeferrable, notDeferrableMessage(o.changeID))
+		}
 		return refuseLifecyclePolicy(fail)
 	}
 
@@ -462,6 +476,17 @@ func lifecycleFieldValue(to string) document.Value {
 		return document.Null()
 	}
 	return document.String(to)
+}
+
+// notDeferrableMessage explains why a change being built cannot be deferred and
+// what to do instead: block it to pause (keeping its branch), or kill it to drop
+// it, which leaves its git branch and worktree in place.
+func notDeferrableMessage(id int) string {
+	return fmt.Sprintf("change %04d is being built (in progress), and a change being built cannot be deferred. "+
+		"To pause it and keep its branch and work, block it with a reason (the change.block operation); "+
+		"change.unblock resumes it later. To drop it, kill it (the change.kill operation): the change is archived "+
+		"and its branch: cleared, but its git branch and worktree stay in place — delete them yourself if you "+
+		"don't need them. It can be captured again later.", id)
 }
 
 // refuseLifecycle builds a refusing OperationResult carrying one state-shaped

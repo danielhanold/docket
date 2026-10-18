@@ -338,23 +338,101 @@ func TestChangeDeferPlanSourceStatusMatrix(t *testing.T) {
 	cases := []struct {
 		status  string
 		refused bool
+		code    string
 	}{
-		{"proposed", false},
-		{"in-progress", false},
-		{"blocked", true},
-		{"deferred", true},
+		{"proposed", false, ""},
+		{"in-progress", true, "not-deferrable"},
+		{"blocked", true, "illegal-source-status"},
+		{"deferred", true, "illegal-source-status"},
+		{"implemented", true, "illegal-source-status"},
 	}
 	for _, c := range cases {
 		t.Run(c.status, func(t *testing.T) {
-			files := map[string]string{recPath: lifecycleChange(3, "widget", c.status)}
-			_, opRes := lifecyclePlanFor(t, files, baseDeferOp([]string{}, 3, recPath, "Parked.\n"))
+			rec := lifecycleChange(3, "widget", c.status)
+			if c.status == "implemented" {
+				// A coherent implemented record carries its plan and PR.
+				rec = strings.Replace(rec, "plan:\n", "plan: 'docs/plan.md'\npr: 'https://github.com/o/r/pull/1'\n", 1)
+			}
+			files := map[string]string{recPath: rec}
+			plan, opRes := lifecyclePlanFor(t, files, baseDeferOp([]string{}, 3, recPath, "Parked.\n"))
 			if opRes.Refused != c.refused {
 				t.Fatalf("defer from %q: refused=%v, want %v (findings %v)", c.status, opRes.Refused, c.refused, opRes.Findings)
 			}
-			if c.refused && !hasDomainFindingCode(opRes.Findings, "illegal-source-status") {
-				t.Errorf("defer from %q: missing illegal-source-status finding; got %v", c.status, opRes.Findings)
+			if !c.refused {
+				return
+			}
+			if !hasDomainFindingCode(opRes.Findings, c.code) {
+				t.Errorf("defer from %q: missing %s finding; got %v", c.status, c.code, opRes.Findings)
+			}
+			if len(plan.Files) != 0 {
+				t.Errorf("defer from %q: refused plan carries %d files, want none", c.status, len(plan.Files))
 			}
 		})
+	}
+}
+
+// TestChangeDeferInProgressRefusalMessage: refusing to defer a change being
+// built tells the person how to pause it (block/unblock) or drop it (kill), and
+// that a kill leaves the git branch and worktree in place.
+func TestChangeDeferInProgressRefusalMessage(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	files := map[string]string{recPath: lifecycleChange(3, "widget", "in-progress")}
+	_, opRes := lifecyclePlanFor(t, files, baseDeferOp([]string{}, 3, recPath, "Parked.\n"))
+	var found *domain.Finding
+	for i := range opRes.Findings {
+		if opRes.Findings[i].Code == string(FCNotDeferrable) {
+			found = &opRes.Findings[i]
+		}
+	}
+	if found == nil {
+		t.Fatalf("no %s finding; got %v", FCNotDeferrable, opRes.Findings)
+	}
+	msg := found.Detail["message"]
+	for _, want := range []string{"0003", "being built", "cannot be deferred", "change.block", "change.unblock",
+		"change.kill", "branch", "worktree", "delete them"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("refusal message lacks %q:\n%s", want, msg)
+		}
+	}
+	if len(found.Detail) != 1 {
+		t.Errorf("refusal detail = %v, want the message only", found.Detail)
+	}
+}
+
+// TestNotDeferrableCodeMatchesDomainToken pins the app code to the domain
+// token Plan matches on, and its registration in AllFindingCodes.
+func TestNotDeferrableCodeMatchesDomainToken(t *testing.T) {
+	if string(FCNotDeferrable) != domain.ReasonNotDeferrable {
+		t.Errorf("FCNotDeferrable = %q, domain.ReasonNotDeferrable = %q; they must match", FCNotDeferrable, domain.ReasonNotDeferrable)
+	}
+	registered := false
+	for _, code := range AllFindingCodes {
+		registered = registered || code == FCNotDeferrable
+	}
+	if !registered {
+		t.Errorf("%s is not registered in AllFindingCodes", FCNotDeferrable)
+	}
+}
+
+// TestChangeLifecycleResultHumanTextPrintsRefusalMessages: a refused lifecycle
+// result prints each finding message under the operation/result line.
+func TestChangeLifecycleResultHumanTextPrintsRefusalMessages(t *testing.T) {
+	for _, op := range []string{OperationChangeBlock, OperationChangeDefer, OperationChangeUnblock, OperationChangeRevive} {
+		r := newChangeLifecycleResult(op, ResultInvalidState, ChangeLifecycleResult{Findings: []StatusFinding{
+			{Code: "x", Severity: "error", Message: "first"},
+			{Code: "y", Severity: "error", Message: "second"},
+		}})
+		if got, want := r.HumanText(), op+": invalid-state\n  first\n  second"; got != want {
+			t.Errorf("%s HumanText = %q, want %q", op, got, want)
+		}
+		bare := newChangeLifecycleResult(op, ResultInvalidState, ChangeLifecycleResult{})
+		if got, want := bare.HumanText(), op+": "+string(ResultInvalidState); got != want {
+			t.Errorf("%s HumanText (no findings) = %q, want %q", op, got, want)
+		}
+	}
+	applied := newChangeLifecycleResult(OperationChangeDefer, ResultApplied, ChangeLifecycleResult{ID: 3, Status: "deferred", Revision: "abc123"})
+	if got, want := applied.HumanText(), "change 0003 → deferred — abc123"; got != want {
+		t.Errorf("applied HumanText = %q, want %q", got, want)
 	}
 }
 

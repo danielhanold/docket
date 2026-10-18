@@ -52,6 +52,10 @@ const (
 	// not-retitleable.
 	FCNotRestackable FindingCode = "not-restackable"
 
+	// FCNotDeferrable refuses change.defer on a change being built (in
+	// progress); mirrors domain.ReasonNotDeferrable, the token Plan matches on.
+	FCNotDeferrable FindingCode = "not-deferrable"
+
 	// change create request-shape findings.
 	FCInvalidSlug     FindingCode = "invalid-slug"
 	FCUnknownType     FindingCode = "unknown-type"
@@ -322,6 +326,7 @@ var AllFindingCodes = []FindingCode{
 	FCMigrationIncomplete,
 	FindingCode("missing-claim-stamp"),
 	FCMissingRationale,
+	FCNotDeferrable,
 	FCNotFound,
 	FindingCode(ReasonImplementedNotPRDeliverable),
 	FCNotRestackable,
