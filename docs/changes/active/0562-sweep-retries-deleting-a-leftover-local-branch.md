@@ -65,6 +65,6 @@ Changing when closeout first attempts cleanup, or any cleanup safety check. Bran
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: 5d1f3fb88df7c603a57e3e8788059ce74934b130
-ran_at:   2026-10-17T23:30:23Z
+head_sha: 76e82e18f7a4cf31c7f5c269477b14239a89addf
+ran_at:   2026-10-18T00:39:17Z
 <!-- docket:build-evidence:end -->
