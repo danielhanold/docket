@@ -23,7 +23,7 @@ branch: 'fix/add-a-typed-way-to-clear-branch-on-a-proposed-change'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-18T16:23:26Z'
+claimed_at: '2026-10-18T16:24:53Z'
 ---
 
 ## Artifacts
