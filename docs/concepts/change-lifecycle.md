@@ -46,7 +46,7 @@ human has to memorize a flowchart to file a piece of work.
 
    off-ramps:
       blocked   — an external blocker is recorded; unblocking returns to in-progress
-      deferred  — consciously shelved; may be revived to proposed
+      deferred  — a proposed change consciously shelved; may be revived to proposed
       killed    — abandoned as obsolete; final, kept in the archive
 ```
 

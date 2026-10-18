@@ -667,11 +667,12 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 				o.req.ChangeID, c.Status(), c.Spec().Value, c.Trivial()))
 	}
 
-	// Retitle gate (change 0461). A proposed change revived from a deferred
-	// in-progress claim keeps its feature-branch artifacts; their backlinks embed
-	// the title and are identity-checked (mark-implemented's
-	// results-identity-broken), so renaming it here would
-	// silently break the later build. A title equal to the current one is no
+	// Retitle gate (change 0461). A proposed change carrying branch:, plan:, or
+	// results: is a hand-edited or legacy record — no lifecycle transition leaves
+	// them on a proposed change, since a change being built cannot be deferred.
+	// Their backlinks embed the title and are identity-checked (mark-implemented's
+	// results-identity-broken), so renaming it here would silently break the
+	// later build. A title equal to the current one is no
 	// retitle and passes.
 	if o.req.Title != "" && o.req.Title != c.Title() &&
 		(c.Branch().Value != "" || c.Plan().Value != "" || c.Results().Value != "") {
@@ -680,9 +681,9 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 				o.req.ChangeID, c.Branch().Value, c.Plan().Value, c.Results().Value))
 	}
 
-	// Re-stack gate (change 0563). A change deferred out of in-progress and
-	// revived keeps its branch:, and the next claim reuses that branch; it was
-	// cut from the current base, so giving the change a new base (a new parent,
+	// Re-stack gate (change 0563). A proposed change carrying branch: is a
+	// hand-edited or legacy record (a change being built cannot be deferred), and
+	// the next claim reuses that branch; it was cut from the current base, so giving the change a new base (a new parent,
 	// a first parent, or none) would carry the old base's commits into the PR.
 	// Mirrors the retitle gate above. A stacked_on equal to the current value
 	// (or 0 on an unstacked record) is no change and passes; plan: and results:

@@ -1767,9 +1767,9 @@ func TestChangeGroomPlanTitleOnlyReviseOfTrivialChange(t *testing.T) {
 	})
 }
 
-// revivedReviseFiles is the revise fixture for a change deferred out of
-// in-progress and revived to proposed: it is still an already-groomed proposed
-// change, but it keeps its feature-branch artifacts (branch:, plan:), whose
+// revivedReviseFiles is the revise fixture for a proposed change that still
+// carries feature-branch artifacts (a hand-edited or legacy record): it is an
+// already-groomed proposed change with branch: and plan: set, whose
 // backlinks embed the title and are identity-checked downstream.
 func revivedReviseFiles() map[string]string {
 	const planPath = "docs/superpowers/plans/2026-08-10-add-a-widget.md"

@@ -257,16 +257,13 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
 ### Lifecycle
 
 ```
-                         ┌──────────────── deferred ──────────────┐
-                         │ (conscious shelve; revive → proposed)   │
-                         ▼                                          │
   proposed ──claim──▶ in-progress ──PR open──▶ implemented ──merge+sweep──▶ done
      │                    │                              │                   (archive/)
      │                    ├──results attached + change.complete (results-artifact; also from proposed)──▶ done
      │                    │                              └──into stack parent──▶ stacked-merged ──root lands──▶ done
      │                    ├──blocker──▶ blocked ──clears──▶ in-progress
      │                    └──lease expired, no branch (reclaim)──▶ proposed
-     │
+     ├──── deferred (shelved; revive → proposed)
      └──── killed (obsolete — from proposed, or from in-progress via reconcile; → archive/) ────▶
 ```
 
@@ -281,7 +278,7 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
 | `done` | PR merged, or results artifact completed (`change.complete`); filed away (happy final status) | `archive/` |
 | `killed` | abandoned — obsolete or never shipped (sad final status) | `archive/` |
 
-**Rules.** `active/` holds every non-final status; `archive/` holds the two final outcomes. `stacked-merged` is non-final for that reason: merged into its stack parent, not the integration branch, so it stays in `active/` until the stack close-out promotes it when the stack root lands. The single physical move (`active/ → archive/`, date-prefixed) happens once on the final transition and is **idempotent**: re-pull, re-read `status` on the metadata branch, no-op if already final. `deferred` may be entered from `proposed` or `in-progress` (add `## Why deferred`) and revived to `proposed`; clear a blocker with `change.unblock` (`blocked` → `in-progress`, clearing `blocked_by`) and revive with `change.revive` (`deferred` → `proposed`) — typed operations, no file move. A change whose `depends_on` is unsatisfied is *implicitly* blocked — the selector skips it and the board shows it **waiting on #N**. A dependency is **satisfied when it reaches `done`**; if `#N` is still `implemented` the board flags **waiting on #N — needs your merge**, distinct from **waiting on #N — not yet built**. Reserve explicit `blocked` for external blockers the system can't infer.
+**Rules.** `active/` holds every non-final status; `archive/` holds the two final outcomes. `stacked-merged` is non-final for that reason: merged into its stack parent, not the integration branch, so it stays in `active/` until the stack close-out promotes it when the stack root lands. The single physical move (`active/ → archive/`, date-prefixed) happens once on the final transition and is **idempotent**: re-pull, re-read `status` on the metadata branch, no-op if already final. `deferred` is entered only from `proposed` (add `## Why deferred`; a change being built is blocked or killed instead) and revived to `proposed`; clear a blocker with `change.unblock` (`blocked` → `in-progress`, clearing `blocked_by`) and revive with `change.revive` (`deferred` → `proposed`) — typed operations, no file move. A change whose `depends_on` is unsatisfied is *implicitly* blocked — the selector skips it and the board shows it **waiting on #N**. A dependency is **satisfied when it reaches `done`**; if `#N` is still `implemented` the board flags **waiting on #N — needs your merge**, distinct from **waiting on #N — not yet built**. Reserve explicit `blocked` for external blockers the system can't infer.
 
 **Reclaim edge (`in-progress → proposed`).** An `in-progress` change whose claim lease (`claimed_at:` + `reclaim.lease_ttl`) has expired AND that has no feature branch is flipped back to `proposed` by the reclaim operation (opt-in via `reclaim.auto`, or an explicit `change.reclaim`), clearing `branch:`/`claimed_at:` and resetting `reconciled: false` so a fresh reconcile runs on re-claim. The has-branch case is never auto-reclaimed (it may carry real work) — it stays flagged for a human.
 
