@@ -470,6 +470,59 @@ func TestBoardReadinessStackBaseUnresolved(t *testing.T) {
 	}
 }
 
+// killedStackParent returns an archived killed change, the parent a stacked
+// proposal can no longer be built on.
+func killedStackParent(id int, slug string) domain.Change {
+	return domain.NewChange(domain.ChangeSpec{
+		ID: domain.ChangeID(id), Slug: slug, Title: "Parent", Status: domain.StatusKilled,
+		Location: domain.LocationArchive,
+		Path:     "docs/changes/archive/2026-10-01-" + fmtID(id) + "-" + slug + ".md",
+	})
+}
+
+// TestBoardReadinessKilledStackParent pins the plain killed-parent cell for a
+// spec'd and a trivial proposal stacked on a killed parent.
+func TestBoardReadinessKilledStackParent(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		trivial bool
+	}{{"spec", false}, {"trivial", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			child := proposedChange(9, "child", "Child")
+			if tc.trivial {
+				child.Trivial = true
+			} else {
+				child.Spec = optString("docs/superpowers/specs/child-design.md")
+			}
+			child.StackedOn = domain.OptionalInt{State: domain.FieldPresent, Value: 8}
+			out := string(boardFromFacts(t, domain.BranchFacts{}, killedStackParent(8, "parent"), domain.NewChange(child)))
+			if !strings.Contains(out, "stack parent #0008 killed — re-parent, un-stack, or kill") {
+				t.Fatalf("killed-parent cell not rendered:\n%s", out)
+			}
+			if strings.Contains(out, "waiting on #0008") {
+				t.Fatalf("killed parent still rendered as waiting:\n%s", out)
+			}
+		})
+	}
+}
+
+// TestBoardReadinessKilledStackGrandparent pins that the cell names the killed
+// ancestor (StackBase.Cause), not the immediate stacked_on parent.
+func TestBoardReadinessKilledStackGrandparent(t *testing.T) {
+	mid := domain.NewChange(domain.ChangeSpec{
+		ID: 8, Slug: "mid", Title: "Mid", Status: domain.StatusStackedMerged,
+		StackedOn: domain.OptionalInt{State: domain.FieldPresent, Value: 7},
+		Location:  domain.LocationActive, Path: "docs/changes/active/0008-mid.md",
+	})
+	child := proposedChange(9, "child", "Child")
+	child.Spec = optString("docs/superpowers/specs/child-design.md")
+	child.StackedOn = domain.OptionalInt{State: domain.FieldPresent, Value: 8}
+	out := string(boardFromFacts(t, domain.BranchFacts{}, killedStackParent(7, "grand"), mid, domain.NewChange(child)))
+	if !strings.Contains(out, "stack parent #0007 killed — re-parent, un-stack, or kill") {
+		t.Fatalf("killed-grandparent cell not rendered:\n%s", out)
+	}
+}
+
 // TestBoardStackedMergedRendersUnderBuilt re-targets the retired stacked-merged
 // section test (change 0367): a stacked-merged change now classifies into the
 // unified Built section, and its State cell carries the padded "merged into

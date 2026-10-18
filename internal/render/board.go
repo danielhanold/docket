@@ -70,9 +70,12 @@ import (
 //     waiting-dependency                             → "⏳ waiting on #<dep> — not yet built"
 //     / "… — needs your merge"
 //     stack-base-unresolved                          → "⏳ waiting on #<parent> — stack base not built"
+//     stack-base-unresolved, parent-killed           → "stack parent #<ancestor> killed — re-parent, un-stack, or kill"
 //     The waiting cell names the representative unmet dependency by its bare
 //     id; the stack cell names the change's immediate stacked_on parent,
-//     zero-padded. A build-ready proposal that reaches Proposed is necessarily
+//     zero-padded. The parent-killed cell instead names the killed ancestor
+//     (StackBase.Cause), zero-padded, and carries no "needs you" suffix
+//     because no marker section drives it. A build-ready proposal that reaches Proposed is necessarily
 //     trivial-without-spec (spec-backed build-ready is Groomed) and renders
 //     "build-ready (trivial)".
 //  4. A mermaid graph: "\n```mermaid\ngraph TD\n", then every active change in
@@ -723,6 +726,9 @@ func boardReadinessCell(in BoardInput, c domain.Change) (string, error) {
 		return fmt.Sprintf("⏳ waiting on #%d — %s",
 			int(r.Dependency.Representative), boardDepReason(r.Dependency.Summary)), nil
 	case domain.ReadyStackBaseUnresolved:
+		if r.StackBase.Kind == domain.BaseParentKilled {
+			return fmt.Sprintf("stack parent #%04d killed — re-parent, un-stack, or kill", int(r.StackBase.Cause)), nil
+		}
 		return fmt.Sprintf("⏳ waiting on #%04d — stack base not built", int(c.StackedOn().Value)), nil
 	default:
 		// A proposed row never reaches here for a well-formed corpus: readiness
