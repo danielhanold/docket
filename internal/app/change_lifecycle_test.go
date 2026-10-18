@@ -860,3 +860,20 @@ func TestChangeDeferInProgressRefusalPrintsPlainText(t *testing.T) {
 		t.Errorf("HumanText prints the raw detail fallback:\n%s", r.HumanText())
 	}
 }
+
+// TestChangeBlockIllegalSourceRefusalPrintsPlainText: an illegal-source-status
+// refusal prints its own sentence, never the code-plus-detail fallback.
+func TestChangeBlockIllegalSourceRefusalPrintsPlainText(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	files := map[string]string{recPath: lifecycleChange(3, "widget", "proposed")}
+	_, opRes := lifecyclePlanFor(t, files, baseBlockOp([]string{}, 3, recPath, "Waiting.\n"))
+	if !opRes.Refused {
+		t.Fatalf("block from proposed was not refused: %v", opRes.Findings)
+	}
+	res := transaction.Result{Disposition: transaction.DispositionRefused, Findings: opRes.Findings}
+	r := lifecycleResultFromOutcome(OperationChangeBlock, res, nil)
+	want := "change 0003 is proposed, so it cannot be blocked."
+	if !strings.Contains(r.HumanText(), want) || strings.Contains(r.HumanText(), "action=") {
+		t.Errorf("HumanText = %q, want it to carry %q and no raw detail", r.HumanText(), want)
+	}
+}

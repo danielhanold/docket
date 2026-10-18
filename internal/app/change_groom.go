@@ -189,7 +189,14 @@ func (r ChangeGroomResult) HumanText() string {
 		}
 		return fmt.Sprintf("change %04d groomed (trivial) — %s", r.ID, r.Revision)
 	default:
-		return fmt.Sprintf("change groom: %s", r.Result)
+		var b strings.Builder
+		fmt.Fprintf(&b, "change groom: %s", r.Result)
+		for _, f := range r.Findings {
+			if f.Message != "" {
+				b.WriteString("\n  " + f.Message)
+			}
+		}
+		return b.String()
 	}
 }
 
@@ -309,6 +316,14 @@ func changeGroomResultFromOutcome(res transaction.Result, execErr error) ChangeG
 	}
 
 	out := ChangeGroomResult{Findings: findingsToStatus(res.Findings)}
+	// A refusal refuseGroom built carries its own sentence in Detail["message"];
+	// show it rather than the code-plus-detail fallback. findingsToStatus keeps
+	// the input order, so index i is the same finding.
+	for i, f := range res.Findings {
+		if msg := f.Detail["message"]; msg != "" {
+			out.Findings[i].Message = msg
+		}
+	}
 	if result == ResultApplied {
 		if rec, ok := decodeChangeGroomReceipt(res.Receipt); ok {
 			out.ID = rec.ID

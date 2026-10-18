@@ -2956,3 +2956,15 @@ func TestChangeGroomPlanNotRestackable(t *testing.T) {
 		})
 	}
 }
+
+// TestChangeGroomRefusalPrintsPlainText: a groom refusal prints the sentence
+// refuseGroom built, never the code-plus-detail fallback.
+func TestChangeGroomRefusalPrintsPlainText(t *testing.T) {
+	_, opRes, _ := refuseGroom("not-restackable", "change 0002 cannot be re-stacked.")
+	res := transaction.Result{Disposition: transaction.DispositionRefused, Findings: opRes.Findings}
+	r := changeGroomResultFromOutcome(res, nil)
+	want := "change groom: invalid-state\n  change 0002 cannot be re-stacked."
+	if r.HumanText() != want {
+		t.Errorf("HumanText = %q, want %q", r.HumanText(), want)
+	}
+}
