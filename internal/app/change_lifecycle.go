@@ -520,6 +520,12 @@ func refuseLifecyclePolicy(fail *domain.PolicyFailure) (transaction.MutationPlan
 	for k, v := range fail.Detail {
 		detail[k] = v
 	}
+	// An illegal source status gets its own sentence in Detail["message"], which
+	// lifecycleResultFromOutcome prints in place of the code-plus-detail fallback.
+	if fail.Reason == "illegal-source-status" {
+		detail["message"] = fmt.Sprintf("change %04d is %s, so it cannot be %s.",
+			fail.Change, fail.State, illegalSourceVerb(fail.Detail["action"]))
+	}
 	return transaction.MutationPlan{}, transaction.OperationResult{
 		Refused: true,
 		Findings: []domain.Finding{{
@@ -529,4 +535,20 @@ func refuseLifecyclePolicy(fail *domain.PolicyFailure) (transaction.MutationPlan
 			Detail:   detail,
 		}},
 	}, nil
+}
+
+// illegalSourceVerb turns the action named in an illegal-source-status refusal
+// into the past participle the message reads with.
+func illegalSourceVerb(action string) string {
+	switch action {
+	case "block":
+		return "blocked"
+	case "defer":
+		return "deferred"
+	case "unblock":
+		return "unblocked"
+	case "revive":
+		return "revived"
+	}
+	return "moved by " + action
 }
