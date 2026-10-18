@@ -1,7 +1,7 @@
 ---
 id: 568
 slug: 'add-a-typed-way-to-clear-branch-on-a-proposed-change'
-title: 'Add a typed way to clear branch on a proposed change'
+title: 'Stop deferring a change that is already being built'
 status: 'proposed'
 priority: 'low'
 type: 'fix'
@@ -13,7 +13,7 @@ stacked_on:
 related: [563, 565]
 discovered_from: [563]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md'
 plan:
 results:
 trivial: false
@@ -28,16 +28,19 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md](../../superpowers/specs/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Change 563 made change.groom refuse restacking (not-restackable) when a proposed change already has a branch: recorded, because its feature branch was cut from the old base. The remedy for a human is to clear branch:, but no typed operation does that. Today it means hand-editing the record on the docket branch, or killing the change and capturing it again. Deleting the git branch does not help, since the check reads the record's branch: field. The gap matters for a killed stack parent's proposed child (see #565), which may already carry a branch: and so cannot be un-stacked or re-parented.
+Any change can be deferred today, including one that is being built (`in-progress`). Deferring keeps everything the build recorded (`branch:`, claim time, plan, results), and reviving it later puts those leftovers on a proposed change. That is the only normal way a proposed change ends up with a `branch:`, and it leads to dead ends in grooming: `change.groom` then refuses to restack it (`not-restackable`, from #563) or retitle it (`not-retitleable`), and no typed operation clears `branch:`. Deleting the git branch doesn't help. No docket workflow defers a change mid-build; only a person typing `docket change defer` can, and it has never happened in this backlog. Closing that path removes the dead ends at their source, so nothing needs a new "clear branch" operation.
 
 ## What changes
 
-Give a human a typed, atomic way to clear branch: on a proposed change, so a restack or un-stack can follow. Decide where it lives (for example, an option on change.groom, or a dedicated operation) and what it must check first, such as that no open PR and no unmerged work on the old branch would be orphaned. Point the not-restackable finding's remedy at it.
+A change that is being built can only be finished, blocked, or killed, never deferred. `change.defer` on an in-progress change refuses and writes nothing. The refusal gets its own finding code and plain instructions: block it with a reason to pause it and keep its branch and work (`change.unblock` resumes it), or kill it to drop it (its git branch and worktree stay behind to delete by hand). The four lifecycle commands (block, defer, unblock, revive) also print a refusal's message in terminal output, not just `invalid-state`. The lifecycle docs and the code comments that describe the old path are updated. Deferring a proposed change is unchanged.
 
 ## Out of scope
 
-How change.groom sets or clears stacked_on (done in #563). Deciding the killed-parent blocking policy (#565). Changes in any status other than proposed.
+A typed operation to clear `branch:`. Changing the `not-restackable` and `not-retitleable` refusals or their wording; they stay as a safety net for hand-edited or legacy records. What block, unblock, kill, reclaim, revive, or complete do. A new impact/remedy pipeline for typed-operation refusals. The killed-stack-parent policy (#565).
