@@ -2,7 +2,7 @@
 id: 568
 slug: 'add-a-typed-way-to-clear-branch-on-a-proposed-change'
 title: 'Stop deferring a change that is already being built'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/add-a-typed-way-to-clear-branch-on-a-proposed-change'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/430'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-18T16:35:50Z'
@@ -53,3 +53,12 @@ A typed operation to clear `branch:`. Changing the `not-restackable` and `not-re
 ### 2026-10-18
 
 2026-10-18: Re-read against current main (7df884687). domain.Defer still accepts proposed and in-progress; the convention Rules sentence still says deferred may be entered from in-progress; related #563 is done and #565 still proposed and separate. Spec holds as written; no scope change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: dfa6987431bcd9b849b0262a933eec35f579382e
+ran_at:   2026-10-18T17:06:27Z
+<!-- docket:build-evidence:end -->

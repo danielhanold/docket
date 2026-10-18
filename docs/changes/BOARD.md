@@ -1,19 +1,19 @@
 # Backlog
 
-**569 changes** — 🟢 1 in progress · 🟡 9 proposed · ⚪ 16 deferred · ✅ 399 done · 🗑️ 144 killed
+**569 changes** — 🔵 1 built · 🟡 9 proposed · ⚪ 16 deferred · ✅ 399 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0568](active/0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Stop deferring a change that is already being built | `low` | `fix` | [spec](../superpowers/specs/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md) | `fix/add-a-typed-way-to-clear-branch-on-a-proposed-change` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0568](active/0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Stop deferring a change that is already being built | `low` | `fix` | [#430](https://github.com/danielhanold/docket/pull/430) | awaiting merge |
 
 ## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0569](active/0569-flaky-and-failing-tests-standing-bucket.md) | Flaky and failing tests — standing bucket | `low` | `chore` | needs-grooming |
-| [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | `low` | `fix` | ⏳ waiting on #568 — not yet built |
+| [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | `low` | `fix` | ⏳ waiting on #568 — needs your merge |
 | [0567](active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Cleanup deletes a stacked child's branches once its code reaches main | `low` | `fix` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `fix` | needs-grooming |
 | [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
