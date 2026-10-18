@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0565 — Refuse a stack-parent kill that would strand built children](../../changes/active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md)**
+> ↩ **[Change 0565 — Refuse a stack-parent kill that would strand built children](../../changes/archive/2026-10-18-0565-make-killed-parent-stacking-behavior-match-its-documented-po.md)**
 <!-- docket:backlink:end -->
 
 # Refuse a stack-parent kill that would strand built children — Implementation Plan

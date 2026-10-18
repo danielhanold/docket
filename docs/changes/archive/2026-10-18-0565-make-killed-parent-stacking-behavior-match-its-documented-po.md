@@ -2,7 +2,7 @@
 id: 565
 slug: 'make-killed-parent-stacking-behavior-match-its-documented-po'
 title: 'Refuse a stack-parent kill that would strand built children'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 deliverable: 'pr'
@@ -23,7 +23,7 @@ branch: 'fix/make-killed-parent-stacking-behavior-match-its-documented-po'
 pr: 'https://github.com/danielhanold/docket/pull/432'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-18T18:51:09Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -32,6 +32,7 @@ claimed_at: '2026-10-18T18:51:09Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md](../../superpowers/specs/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md) |
+| Spec (merged) | [2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md) |
 | Plan | [2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po.md](../../superpowers/plans/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po.md) |
 | Results | [2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-results.md](../../results/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-results.md) |
 <!-- docket:artifacts:end -->
