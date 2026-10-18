@@ -1,14 +1,13 @@
 # Backlog
 
-**567 changes** — 🔵 3 built · 🟡 8 proposed · ⚪ 16 deferred · ✅ 396 done · 🗑️ 144 killed
+**567 changes** — 🔵 2 built · 🟡 8 proposed · ⚪ 16 deferred · ✅ 397 done · 🗑️ 144 killed
 
-## 🔵 Built (3)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0563](active/0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | `low` | `fix` | [#427](https://github.com/danielhanold/docket/pull/427) | awaiting merge |
 | [0562](active/0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | `low` | `fix` | [#429](https://github.com/danielhanold/docket/pull/429) | awaiting merge |
-| [0557](active/0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | `low` | `refactor` | [#428](https://github.com/danielhanold/docket/pull/428) | awaiting merge |
 
 ## 🟡 Proposed (8)
 
@@ -64,7 +63,6 @@ graph TD
   0544 --> 0513
   0511 --> 0514
   0546 --> 0547
-  0557
   0558
   0560
   0561
@@ -81,10 +79,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (540)</summary>
+<details><summary>✅🗑️ Archive — done + killed (541)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0557](archive/2026-10-18-0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | 2026-10-18 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0559](archive/2026-10-17-0559-close-a-change-to-done-without-a-pr.md) | Let a change deliver a results artifact instead of a PR | 2026-10-17 |
 | [0556](archive/2026-10-17-0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) | A typed /docket-implement-next in Claude Code starts an untracked run | 2026-10-17 |
@@ -103,7 +102,6 @@ graph TD
 | [0552](archive/2026-10-15-0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | 2026-10-15 |
 | [0551](archive/2026-10-15-0551-check-out-a-change-built-on-another-machine-into-its-own-doc.md) | Check out a change built on another machine into its own docket worktree | 2026-10-15 |
 | [0550](archive/2026-10-15-0550-let-change-groom-set-a-change-s-priority.md) | Let change.groom set a change's priority | 2026-10-15 |
-| [0549](archive/2026-10-15-0549-bring-the-local-metadata-checkout-up-to-date-after-every-doc.md) | Bring the local metadata checkout up to date after every docket write | 2026-10-15 |
 | [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
@@ -249,7 +247,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 53 done |
+| [2026-10](archive/) | 54 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

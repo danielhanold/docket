@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0557 — Retire the suite runner's unused strict budget mode](../changes/active/0557-retire-the-suite-runner-s-unused-strict-budget-mode.md)**
+> ↩ **[Change 0557 — Retire the suite runner's unused strict budget mode](../changes/archive/2026-10-18-0557-retire-the-suite-runner-s-unused-strict-budget-mode.md)**
 <!-- docket:backlink:end -->
 
 # Results — Retire the suite runner's unused strict budget mode

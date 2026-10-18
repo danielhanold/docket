@@ -2,11 +2,11 @@
 id: 557
 slug: 'retire-the-suite-runner-s-unused-strict-budget-mode'
 title: 'Retire the suite runner''s unused strict budget mode'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'refactor'
 created: '2026-10-16'
-updated: '2026-10-17'
+updated: '2026-10-18'
 depends_on: []
 stacked_on:
 related: [528, 273]
@@ -22,7 +22,7 @@ branch: 'refactor/retire-the-suite-runner-s-unused-strict-budget-mode'
 pr: 'https://github.com/danielhanold/docket/pull/428'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-17T22:17:31Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-17T22:17:31Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md](../../superpowers/specs/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md) |
+| Spec (merged) | [2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-design.md) |
 | Plan | [2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode.md](../../superpowers/plans/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode.md) |
 | Results | [2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-results.md](../../results/2026-10-17-retire-the-suite-runner-s-unused-strict-budget-mode-results.md) |
 | ADRs | [ADR-0074](../../adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md) |
