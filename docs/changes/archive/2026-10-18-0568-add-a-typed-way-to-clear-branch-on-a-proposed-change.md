@@ -2,7 +2,7 @@
 id: 568
 slug: 'add-a-typed-way-to-clear-branch-on-a-proposed-change'
 title: 'Stop deferring a change that is already being built'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 deliverable: 'pr'
@@ -23,7 +23,7 @@ branch: 'fix/add-a-typed-way-to-clear-branch-on-a-proposed-change'
 pr: 'https://github.com/danielhanold/docket/pull/430'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-18T16:35:50Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -32,6 +32,7 @@ claimed_at: '2026-10-18T16:35:50Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md](../../superpowers/specs/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md) |
+| Spec (merged) | [2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md) |
 | Plan | [2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change.md](../../superpowers/plans/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) |
 | Results | [2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-results.md](../../results/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-results.md) |
 <!-- docket:artifacts:end -->

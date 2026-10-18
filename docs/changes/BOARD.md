@@ -1,19 +1,18 @@
 # Backlog
 
-**569 changes** — 🔵 1 built · 🟡 9 proposed · ⚪ 16 deferred · ✅ 399 done · 🗑️ 144 killed
+**569 changes** — 🟣 1 groomed · 🟡 8 proposed · ⚪ 16 deferred · ✅ 400 done · 🗑️ 144 killed
 
-## 🔵 Built (1)
+## 🟣 Groomed (1)
 
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0568](active/0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Stop deferring a change that is already being built | `low` | `fix` | [#430](https://github.com/danielhanold/docket/pull/430) | awaiting merge |
+| # | Title | Priority | Type | Spec |
+|---|-------|----------|------|------|
+| [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | `low` | `fix` | [spec](../superpowers/specs/2026-10-18-make-killed-parent-stacking-behavior-match-its-documented-po-design.md) |
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0569](active/0569-flaky-and-failing-tests-standing-bucket.md) | Flaky and failing tests — standing bucket | `low` | `chore` | needs-grooming |
-| [0565](active/0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | `low` | `fix` | ⏳ waiting on #568 — needs your merge |
 | [0567](active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Cleanup deletes a stacked child's branches once its code reaches main | `low` | `fix` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `fix` | needs-grooming |
 | [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
@@ -69,20 +68,21 @@ graph TD
   0568 --> 0565
   0566
   0567
-  0568
   0569
   0192:::done
   0251:::done
   0511:::done
   0544:::done
   0546:::done
+  0568:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (543)</summary>
+<details><summary>✅🗑️ Archive — done + killed (544)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0568](archive/2026-10-18-0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Stop deferring a change that is already being built | 2026-10-18 |
 | [0563](archive/2026-10-18-0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | 2026-10-18 |
 | [0562](archive/2026-10-18-0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | 2026-10-18 |
 | [0557](archive/2026-10-18-0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | 2026-10-18 |
@@ -101,7 +101,6 @@ graph TD
 | [0527](archive/2026-10-16-0527-fix-test-suite-hygiene-gaps-found-while-stabilizing-flaky-te.md) | Fix test-suite hygiene gaps found while stabilizing flaky tests | 2026-10-16 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
 | [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
-| [0552](archive/2026-10-15-0552-install-claude-code-allow-rules-so-finalize-can-publish-and.md) | Install Claude Code allow rules so finalize can publish and merge under auto mode | 2026-10-15 |
 | [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
 | [0519](archive/2026-10-04-0519-make-the-finalize-block-schema-list-only-the-keys-input-acce.md) | Make the finalize.block schema list only the keys --input accepts | 2026-10-04 |
 | [0518](archive/2026-10-04-0518-publish-a-request-schema-for-finalize-rebase-continue-so-res.md) | Publish a request schema for finalize.rebase-continue so resolver reports stop carrying schema_version | 2026-10-04 |
@@ -247,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 56 done |
+| [2026-10](archive/) | 57 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0568 — Stop deferring a change that is already being built](../changes/active/0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md)**
+> ↩ **[Change 0568 — Stop deferring a change that is already being built](../changes/archive/2026-10-18-0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md)**
 <!-- docket:backlink:end -->
 
 # Stop deferring a change that is already being built — Results
