@@ -559,3 +559,130 @@ func TestChangeKillResultNoBranchNoWarning(t *testing.T) {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 }
+
+// --- built stacked descendants ---------------------------------------------
+
+// builtChild is change 4 ("child") at status, stacked on 3, carrying the PR
+// reference and plan a built record's state guarantees.
+func builtChild(status string) string {
+	rec := stackedOn(lifecycleChange(4, "child", status), 3)
+	rec = strings.Replace(rec, "blocked_by:\n", "pr: 'https://github.com/o/r/pull/40'\nblocked_by:\n", 1)
+	return strings.Replace(rec, "plan:\n", "plan: docs/superpowers/plans/2026-08-16-child-plan.md\n", 1)
+}
+
+// builtDescendantRefusal plans killing change 3 (parentRec) over a stacked
+// change 4 at childStatus and asserts the built-stack-descendants refusal.
+func builtDescendantRefusal(t *testing.T, parentRec, childStatus string) transaction.OperationResult {
+	t.Helper()
+	recPath := groomPath(3, "widget")
+	files := map[string]string{
+		recPath:                 parentRec,
+		groomPath(4, "child"):   builtChild(childStatus),
+		"docs/changes/BOARD.md": "# Backlog\n\nold\n",
+	}
+	plan, opRes := killPlanFor(t, files, baseKillOp([]string{"inline"}, 3, recPath, "Dropped.\n"))
+	if !opRes.Refused {
+		t.Fatalf("kill over a %s stacked child: want refusal, got plan %v", childStatus, planPaths(plan))
+	}
+	if len(plan.Files) != 0 {
+		t.Errorf("refused kill planned files: %v", planPaths(plan))
+	}
+	if !hasDomainFindingCode(opRes.Findings, "built-stack-descendants") {
+		t.Fatalf("missing built-stack-descendants finding; got %v", opRes.Findings)
+	}
+	return opRes
+}
+
+func builtDescendantMessage(t *testing.T, opRes transaction.OperationResult) string {
+	t.Helper()
+	for _, f := range opRes.Findings {
+		if f.Code == "built-stack-descendants" {
+			return f.Detail["message"]
+		}
+	}
+	t.Fatalf("no built-stack-descendants finding in %v", opRes.Findings)
+	return ""
+}
+
+func TestChangeKillPlanRefusesBuiltStackedChild(t *testing.T) {
+	opRes := builtDescendantRefusal(t, lifecycleChange(3, "widget", "in-progress"), "implemented")
+	msg := builtDescendantMessage(t, opRes)
+	for _, want := range []string{"#0004 implemented", "change.block", "change.unblock"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("message missing %q: %s", want, msg)
+		}
+	}
+	if strings.Contains(msg, "change.defer") {
+		t.Errorf("in-progress parent's remedy names change.defer: %s", msg)
+	}
+}
+
+func TestChangeKillPlanRefusesStackedMergedChild(t *testing.T) {
+	opRes := builtDescendantRefusal(t, lifecycleChange(3, "widget", "in-progress"), "stacked-merged")
+	if msg := builtDescendantMessage(t, opRes); !strings.Contains(msg, "#0004 stacked-merged") {
+		t.Errorf("message missing #0004 stacked-merged: %s", msg)
+	}
+}
+
+func TestChangeKillPlanLegacyProposedParentRemedy(t *testing.T) {
+	parent := strings.Replace(lifecycleChange(3, "widget", "proposed"), "blocked_by:\n", "branch: feat/widget\nblocked_by:\n", 1)
+	opRes := builtDescendantRefusal(t, parent, "implemented")
+	msg := builtDescendantMessage(t, opRes)
+	if !strings.Contains(msg, "change.defer") {
+		t.Errorf("proposed parent's remedy missing change.defer: %s", msg)
+	}
+	if strings.Contains(msg, "change.block") {
+		t.Errorf("proposed parent's remedy names change.block: %s", msg)
+	}
+}
+
+func TestChangeKillPlanLeavesProposedChildUntouched(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	childPath := groomPath(4, "child")
+	files := map[string]string{
+		recPath:                 lifecycleChange(3, "widget", "in-progress"),
+		childPath:               stackedOn(lifecycleChange(4, "child", "proposed"), 3),
+		"docs/changes/BOARD.md": "# Backlog\n\nold\n",
+	}
+	plan, opRes := killPlanFor(t, files, baseKillOp([]string{"inline"}, 3, recPath, "Dropped.\n"))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	for _, f := range plan.Files {
+		if string(f.Path) == childPath {
+			t.Errorf("kill planned a mutation of the proposed child: %v", f.Kind)
+		}
+	}
+}
+
+func TestChangeKillBuiltDescendantRefusalPrintsPlainText(t *testing.T) {
+	opRes := builtDescendantRefusal(t, lifecycleChange(3, "widget", "in-progress"), "implemented")
+	r := changeKillResultFromOutcome(transaction.Result{Disposition: transaction.DispositionRefused, Findings: opRes.Findings}, nil)
+	if r.Result != ResultInvalidState {
+		t.Fatalf("result = %s, want invalid-state", r.Result)
+	}
+	text := r.HumanText()
+	lines := strings.Split(text, "\n")
+	if len(lines) != 2 {
+		t.Fatalf("HumanText has %d lines, want 2:\n%s", len(lines), text)
+	}
+	if lines[0] != "change kill: invalid-state" {
+		t.Errorf("first line = %q", lines[0])
+	}
+	if !strings.HasPrefix(strings.TrimSpace(lines[1]), "change 0003 has built stacked changes") {
+		t.Errorf("second line = %q", lines[1])
+	}
+	if strings.Contains(text, "message=") {
+		t.Errorf("HumanText leaks the code-plus-detail fallback:\n%s", text)
+	}
+}
+
+func TestChangeKillIllegalSourceRefusalPrintsPlainText(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	files := map[string]string{recPath: lifecycleChange(3, "widget", "blocked")}
+	_, opRes := killPlanFor(t, files, baseKillOp([]string{}, 3, recPath, "Dropped.\n"))
+	r := changeKillResultFromOutcome(transaction.Result{Disposition: transaction.DispositionRefused, Findings: opRes.Findings}, nil)
+	if text := r.HumanText(); !strings.Contains(text, "change 0003 is blocked, so it cannot be killed.") {
+		t.Errorf("HumanText = %q", text)
+	}
+}
