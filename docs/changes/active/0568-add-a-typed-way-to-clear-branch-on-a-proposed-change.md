@@ -15,7 +15,7 @@ discovered_from: [563]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md'
 plan: 'docs/superpowers/plans/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change.md'
-results:
+results: 'docs/results/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -33,6 +33,7 @@ claimed_at: '2026-10-18T16:35:50Z'
 |---|---|
 | Spec | [2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md](../../superpowers/specs/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-design.md) |
 | Plan | [2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change.md](../../superpowers/plans/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) |
+| Results | [2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-results.md](../../results/2026-10-18-add-a-typed-way-to-clear-branch-on-a-proposed-change-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
