@@ -501,7 +501,9 @@ a final transition (`done` or `killed`). It is idempotent.
 Typed transitions for the side exits: **block** records an external blocker, **unblock** clears it
 and returns to `in-progress`; **defer** shelves a proposed change with `## Why deferred` (a change
 being built is blocked or killed instead), **revive** returns it to `proposed`; **kill** archives it
-as obsolete with `## Why killed`; its git branch and worktree are left for you to delete.
+as obsolete with `## Why killed`; its git branch and worktree are left for you to delete. Kill
+refuses while the change has built stacked descendants (`implemented` or `stacked-merged` on its
+branch): finish it, or block it.
 
 ```sh
 docket change block   --request block.json
@@ -614,7 +616,8 @@ docket status --json | jq '.changes[] | {id, readiness, readiness_reason, unmet_
 `readiness_reason` is the human-readable explanation beside each change's `readiness` in
 `docket status --json`, for example "ready to build" or "waiting on unmet dependencies". It is prose,
 not a parseable code; key on `readiness`. The board renders the same state as cells like
-**⏳ waiting on #N — not yet built**, **… — needs your merge**, and the "needs you" cells
+**⏳ waiting on #N — not yet built**, **… — needs your merge**,
+**stack parent #A killed — re-parent, un-stack, or kill**, and the "needs you" cells
 (**auto-groom blocked**, **run halted**, **finalize blocked**).
 
 **Used for:** seeing why a change is not moving. A "needs you" cell always comes from a
@@ -651,7 +654,8 @@ parent's merge destination, and it can be build-ready before the parent merges o
 resolves.
 
 **Used for:** building a chain of dependent PRs without waiting for each to merge. On the board an
-unresolved base reads *waiting on #A — stack base not built*.
+unresolved base reads *waiting on #A — stack base not built*, or *stack parent #A killed — re-parent,
+un-stack, or kill* when an ancestor was killed.
 
 ```sh
 docket status --json | jq '.changes[] | select(.id==413) | .effective_base'

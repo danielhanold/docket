@@ -104,7 +104,8 @@ fallback produces a branch nobody designed while every surface still reports it 
 are separate because the remedies are.
 
 A change whose base does not resolve is **not build-ready**: the board reads
-*waiting on #A — stack base not built* and the digest token is `stack-base-unresolved`.
+*waiting on #A — stack base not built* (*stack parent #A killed — re-parent, un-stack, or kill*
+when the chain reaches a killed parent) and the digest token is `stack-base-unresolved`.
 
 ## Building a stacked child
 
@@ -169,19 +170,23 @@ merged destination establishes the carry relationship, never that the content sh
 ## When a parent is killed
 
 Killing a parent invalidates its descendants' base. Every descendant was written against work that
-was abandoned, so **nothing is auto-rebased and nothing is auto-promoted** — re-scoping a change off
-a killed parent is a design decision, not a fallback.
+was abandoned, so **nothing is auto-rebased, auto-promoted, or blocked** — re-scoping a change off
+a killed parent is a design decision, not a fallback. A kill never changes a descendant's status.
 
-- **Open descendants** (`proposed`, `in-progress`, `blocked`, `implemented`) flip to `blocked` with
-  `blocked_by: stack parent #A killed — re-scope, re-parent, or kill`, naming the three exits a
-  human actually has.
-- **`stacked-merged` descendants flip to `blocked` too**, with the same `blocked_by:`, and **their
-  feature branches are preserved**. Their code merged into a branch that will never reach the
-  integration branch, so promoting them would write a `done` record that the governing invariant
-  says is false — and deleting their branches would destroy the only copy of work a human may well
-  want to re-parent.
+**`change.kill` refuses while the change has built stacked descendants**: an `implemented` or
+`stacked-merged` descendant reached only through live changes. Its code exists only on the parent's
+branch, so finish the parent, or pause it with `change.block` (its branch stays, and
+`change.unblock` resumes it). A descendant below a `done` or `killed` link does not count.
 
-An `effective_base.kind` of `parent-killed` is how this state is surfaced; the flip itself is a human-directed edit, never an automatic sweep. A still-`proposed` descendant re-parents or un-stacks through `change.groom` (`stacked_on: <new parent>` or `0`).
+A descendant that survives a kill surfaces as `effective_base.kind` `parent-killed`; on the board a
+proposed one reads *stack parent #A killed — re-parent, un-stack, or kill*. Its exits:
+
+| Descendant status | Exits |
+|---|---|
+| `proposed` | re-parent or un-stack through `change.groom` (`stacked_on: <id>` / `0`, while it has no `branch:`), or `change.kill` |
+| `in-progress` | `change.kill` |
+| `blocked` | `change.unblock`, then `change.kill` |
+| `deferred` | `change.revive`, then the `proposed` exits |
 
 ## The stack close-out is idempotent
 

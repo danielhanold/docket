@@ -1261,6 +1261,26 @@ var alignmentContracts = []proseContract{
 			"# re-renders the stale or missing ones in one metadata commit",
 		},
 		absent: []string{"stale or absolute"}},
+	// change 0565 — a kill refuses while the change has built stacked
+	// descendants and never changes a descendant's status; the board names a
+	// killed stack parent plainly. The retired auto-block wording must not return.
+	{sentinel: "change_0565_kill_refuses_built_descendants", file: "skills/docket-convention/references/stacked-changes.md",
+		present: []string{
+			"stack parent #A killed — re-parent, un-stack, or kill",
+			"`change.kill` refuses while the change has built stacked descendants",
+		},
+		absent: []string{
+			"re-scope, re-parent, or kill",
+			"human-directed edit",
+			"flip to `blocked`",
+		}},
+	{sentinel: "change_0565_kill_refuses_built_descendants", file: "skills/docket-convention/SKILL.md",
+		present: []string{"stack parent #A killed — re-parent, un-stack, or kill"}},
+	{sentinel: "change_0565_kill_refuses_built_descendants", file: "docs/reference/glossary.md",
+		present: []string{
+			"stack parent #A killed — re-parent, un-stack, or kill",
+			"Kill refuses while the change has built stacked descendants",
+		}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.
