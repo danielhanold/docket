@@ -641,8 +641,8 @@ func TestChangeUnblockPlanFileSet(t *testing.T) {
 	}
 }
 
-// deferredWithClaim renders a deferred record that still carries the branch and
-// claim stamp a deferral of an in-progress change leaves behind.
+// deferredWithClaim renders a legacy or hand-edited deferred record that still
+// carries a branch and claim stamp; revive must leave them intact.
 func deferredWithClaim() string {
 	return strings.Replace(lifecycleChange(3, "widget", "deferred"), "trivial: false\n",
 		"trivial: false\nbranch: 'feat/widget'\nclaimed_at: 2026-08-02T00:00:00Z\n", 1)

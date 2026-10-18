@@ -499,8 +499,9 @@ a final transition (`done` or `killed`). It is idempotent.
 ### Block / unblock, defer / revive, kill
 
 Typed transitions for the side exits: **block** records an external blocker, **unblock** clears it
-and returns to `in-progress`; **defer** shelves a change with `## Why deferred`, **revive** returns
-it to `proposed`; **kill** archives it as obsolete with `## Why killed`.
+and returns to `in-progress`; **defer** shelves a proposed change with `## Why deferred` (a change
+being built is blocked or killed instead), **revive** returns it to `proposed`; **kill** archives it
+as obsolete with `## Why killed`; its git branch and worktree are left for you to delete.
 
 ```sh
 docket change block   --request block.json
