@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:e2dc667d0edeb78574a49d11deea38f2e4885cbba82ccdb47946d9e91445c6e8",
+  "asset_set_id": "sha256:a2c436ac64d2ae34a471d98ffaa6291e5222851b281a6912442b0b35b0363ac1",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -322,8 +322,8 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 53168,
-      "sha256": "726e4afe68c00543848ce734350edaa9c16aadd94dab3764f358d4e7ab57e0fd"
+      "size": 53256,
+      "sha256": "c627651f6e3c32aafd6f16d01c1cebf148abf294ed1a0250d6399b4104808d3e"
     },
     {
       "path": "skills/docket-convention/references/agent-layer.md",
@@ -350,8 +350,8 @@
       "path": "skills/docket-convention/references/stacked-changes.md",
       "role": "skill",
       "mode": 420,
-      "size": 14084,
-      "sha256": "683d7327375f64c0fc9b804b59992bcb6f59cc4e56acd4f8ed13254a260492fb"
+      "size": 14217,
+      "sha256": "ba1214b171dc3feb8be7cde649c0a5d7f7949b749086a240394b32aee38bc0f3"
     },
     {
       "path": "skills/docket-finalize-change/SKILL.md",
