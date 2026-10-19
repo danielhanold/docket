@@ -158,7 +158,7 @@ func TestReflectDescriptorChangeCreateRequest(t *testing.T) {
 		"request_id", "title", "type", "priority", "deliverable",
 		"why", "what_changes", "out_of_scope",
 		"depends_on", "stacked_on", "related", "discovered_from", "adrs",
-		"auto_groomable", "branch_prefix",
+		"auto_groomable", "branch_prefix", "hold", "hold_reason",
 	}
 	if !reflect.DeepEqual(keys, want) {
 		t.Fatalf("keys = %v, want %v", keys, want)
@@ -183,6 +183,12 @@ func TestReflectDescriptorChangeCreateRequest(t *testing.T) {
 	}
 	if f := fieldByKey(t, d, "deliverable"); f.Repeated || f.Type != "string" || f.Required {
 		t.Errorf("deliverable = %+v, want optional string", f)
+	}
+	if f := fieldByKey(t, d, "hold"); f.Required || f.Repeated || f.Type != "bool" {
+		t.Errorf("hold = %+v, want optional non-repeated bool", f)
+	}
+	if f := fieldByKey(t, d, "hold_reason"); f.Required || f.Repeated || f.Type != "string" {
+		t.Errorf("hold_reason = %+v, want optional string", f)
 	}
 
 	// Required set per Task 4's tags.

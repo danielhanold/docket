@@ -31,9 +31,14 @@ type NewChangeRecord struct {
 	ADRs           []domain.ADRID
 	AutoGroomable  *bool  // nil ⇒ null (not auto-groomable)
 	BranchPrefix   string // already normalized by the app layer; "" ⇒ null
+	Hold           bool   // true ⇒ hold: true; false ⇒ a valueless hold:
 	Why            string // markdown body, no heading line
 	WhatChanges    string // markdown body, no heading line
 	OutOfScope     string // markdown body, no heading line
+	// WhyOnHold is the optional hold reason, a markdown body with no heading
+	// line; "" writes no section, otherwise "## Why on hold" follows
+	// "## Out of scope".
+	WhyOnHold string
 }
 
 // ChangeRecord serializes r as a canonical brand-new proposed change record.
@@ -63,19 +68,33 @@ func ChangeRecord(r NewChangeRecord) ([]byte, error) {
 		{Name: "results", Value: document.Null()},
 		{Name: "trivial", Value: document.Bool(false)},
 		{Name: "auto_groomable", Value: optionalBoolValue(r.AutoGroomable)},
+		{Name: "hold", Value: holdValue(r.Hold)},
 		{Name: "branch_prefix", Value: optionalStringValue(r.BranchPrefix)},
 		{Name: "branch", Value: document.Null()},
 		{Name: "pr", Value: document.Null()},
 		{Name: "blocked_by", Value: document.Null()},
 		{Name: "reconciled", Value: document.Bool(false)},
 	}
-	body := joinSections(
+	sections := []string{
 		section("## Artifacts", artifactsBlockBody),
 		section("## Why", r.Why),
 		section("## What changes", r.WhatChanges),
 		section("## Out of scope", r.OutOfScope),
-	)
-	return document.New(fields, body)
+	}
+	if r.WhyOnHold != "" {
+		sections = append(sections, section("## Why on hold", r.WhyOnHold))
+	}
+	return document.New(fields, joinSections(sections...))
+}
+
+// holdValue renders the hold field: a held record states hold: true, and an
+// unheld one carries the canonical valueless null, so every new record names
+// the field.
+func holdValue(held bool) document.Value {
+	if held {
+		return document.Bool(true)
+	}
+	return document.Null()
 }
 
 // deliverableOrDefault renders an unset deliverable as pr, so every new

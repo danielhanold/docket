@@ -761,3 +761,156 @@ func TestChangeCreateDigestTreatsPRAsOmitted(t *testing.T) {
 		t.Errorf("unset deliverable appears in the digest payload %s; it would change every pre-0559 digest", b)
 	}
 }
+
+// TestChangeCreateHold pins capturing a change already on hold: hold: true is
+// written (with the optional reason as the "## Why on hold" section) and decodes
+// as held; an omitted hold writes a valueless hold: that decodes as not held.
+func TestChangeCreateHold(t *testing.T) {
+	recPath := "docs/changes/active/0002-add-a-widget.md"
+	cases := []struct {
+		name        string
+		hold        *bool
+		reason      string
+		wantLine    string
+		wantSection bool
+		wantHeld    bool
+	}{
+		{"held with reason", boolPtr(true), "Needs a human sign-in.", "\nhold: true\n", true, true},
+		{"held alone", boolPtr(true), "", "\nhold: true\n", false, true},
+		{"omitted", nil, "", "\nhold:\n", false, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			op := baseOp([]string{})
+			op.req.Hold = c.hold
+			op.req.HoldReason = c.reason
+			plan, opRes := planFor(t, map[string]string{
+				"docs/changes/active/0001-first.md": fixtureChange(1, "first"),
+			}, op)
+			if opRes.Refused {
+				t.Fatalf("unexpected refusal: %v", opRes.Findings)
+			}
+			rec := string(groomedRecordBytes(t, plan, recPath))
+			if !strings.Contains(rec, c.wantLine) {
+				t.Errorf("record missing %q:\n%s", c.wantLine, rec)
+			}
+			wantSection := "\n## Why on hold\n\n" + c.reason + "\n"
+			if got := strings.Contains(rec, "## Why on hold"); got != c.wantSection {
+				t.Errorf("reason section present = %v, want %v:\n%s", got, c.wantSection, rec)
+			}
+			if c.wantSection && !strings.HasSuffix(rec, wantSection) {
+				t.Errorf("record does not end with %q:\n%s", wantSection, rec)
+			}
+			snap, err := buildCandidateSnapshot(op.eff, nil, []byte(rec), recPath)
+			if err != nil {
+				t.Fatalf("buildCandidateSnapshot: %v", err)
+			}
+			ch, out := snap.Change(2)
+			if out != domain.LookupFound {
+				t.Fatalf("created record not decodable as change 2")
+			}
+			if ch.Held() != c.wantHeld {
+				t.Errorf("Held() = %v, want %v", ch.Held(), c.wantHeld)
+			}
+		})
+	}
+}
+
+// TestChangeCreateHoldRefusals pins Review Focus 5 for change.create: an unusable
+// hold_reason is refused before any engine call.
+func TestChangeCreateHoldRefusals(t *testing.T) {
+	cases := []struct {
+		name   string
+		hold   *bool
+		reason string
+		code   string
+	}{
+		{"reason without hold", nil, "Needs a sign-in.", "hold-reason-without-hold"},
+		{"reason with hold false", boolPtr(false), "Needs a sign-in.", "hold-reason-without-hold"},
+		{"whitespace-only reason", boolPtr(true), " \n\t ", "invalid-hold_reason"},
+		{"column-zero heading", boolPtr(true), "text\n## Heading\n", "invalid-hold_reason"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := validChangeCreateRequest()
+			req.Hold = c.hold
+			req.HoldReason = c.reason
+			engine := &recordingEngine{}
+			reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+			deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+			res := ChangeCreate(context.Background(), deps, "", req)
+
+			if res.Result != ResultInvalidInput {
+				t.Fatalf("result = %q, want invalid-input", res.Result)
+			}
+			if len(engine.calls) != 0 {
+				t.Errorf("engine called %d times on a refused hold_reason, want 0", len(engine.calls))
+			}
+			if !hasFindingCode(res.Findings, c.code) {
+				t.Errorf("missing finding %q; got %v", c.code, res.Findings)
+			}
+		})
+	}
+}
+
+// TestChangeCreateDigestUnchangedWithoutHold: a request carrying no hold keys
+// digests exactly as the payload did before hold existed, so an older retry
+// under the same request_id still replays; a held request digests differently.
+func TestChangeCreateDigestUnchangedWithoutHold(t *testing.T) {
+	// legacyPayload is changeCreatePayload as it stood before the hold fields.
+	type legacyPayload struct {
+		Title          string `json:"title"`
+		Type           string `json:"type"`
+		Priority       string `json:"priority"`
+		Why            string `json:"why"`
+		WhatChanges    string `json:"what_changes"`
+		OutOfScope     string `json:"out_of_scope"`
+		DependsOn      []int  `json:"depends_on"`
+		StackedOn      *int   `json:"stacked_on"`
+		Related        []int  `json:"related"`
+		DiscoveredFrom []int  `json:"discovered_from"`
+		ADRs           []int  `json:"adrs"`
+		AutoGroomable  *bool  `json:"auto_groomable,omitempty"`
+		BranchPrefix   string `json:"branch_prefix,omitempty"`
+		Deliverable    string `json:"deliverable,omitempty"`
+	}
+	req := validChangeCreateRequest()
+	req.DependsOn = []int{1}
+	req.AutoGroomable = boolPtr(true)
+	req.BranchPrefix = "hotfix"
+	legacy := legacyPayload{
+		Title: req.Title, Type: req.Type, Priority: req.Priority,
+		Why: req.Why, WhatChanges: req.WhatChanges, OutOfScope: req.OutOfScope,
+		DependsOn: req.DependsOn, AutoGroomable: req.AutoGroomable, BranchPrefix: "hotfix",
+	}
+	want, err := canonicalDigest(OperationChangeCreate, legacy)
+	if err != nil {
+		t.Fatalf("canonicalDigest: %v", err)
+	}
+	got, err := canonicalDigest(OperationChangeCreate, changeCreateSemanticPayload(req))
+	if err != nil {
+		t.Fatalf("canonicalDigest: %v", err)
+	}
+	if got != want {
+		t.Errorf("a request without hold keys digests %s, want the pre-hold %s", got, want)
+	}
+	held := req
+	held.Hold = boolPtr(true)
+	heldDigest, err := canonicalDigest(OperationChangeCreate, changeCreateSemanticPayload(held))
+	if err != nil {
+		t.Fatalf("canonicalDigest: %v", err)
+	}
+	if heldDigest == want {
+		t.Error("a request with hold: true must digest differently")
+	}
+	reasoned := held
+	reasoned.HoldReason = "Needs a sign-in."
+	reasonDigest, err := canonicalDigest(OperationChangeCreate, changeCreateSemanticPayload(reasoned))
+	if err != nil {
+		t.Fatalf("canonicalDigest: %v", err)
+	}
+	if reasonDigest == heldDigest {
+		t.Error("a hold_reason must change the digest")
+	}
+}

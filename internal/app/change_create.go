@@ -64,6 +64,13 @@ type ChangeCreateRequest struct {
 	// It is normalized by domain.NormalizeBranchPrefix before it is validated,
 	// digested, or stored; empty after normalization means unset.
 	BranchPrefix string `json:"branch_prefix"`
+	// Hold captures the change already on hold: true writes hold: true, so no
+	// autonomous build selection picks it; nil or false writes the valueless
+	// hold: (not held).
+	Hold *bool `json:"hold,omitempty"`
+	// HoldReason is the optional "## Why on hold" section body, accepted only
+	// with Hold true in the same request.
+	HoldReason string `json:"hold_reason,omitempty"`
 }
 
 // ChangeCreateResult is the protocol-v1 document `change create` returns. It
@@ -139,6 +146,11 @@ type changeCreatePayload struct {
 	// absent: an explicit pr and an omitted field replay each other, and a
 	// pre-0559 retry still replays.
 	Deliverable string `json:"deliverable,omitempty"`
+	// The hold keys are omitempty, and Hold is true only for a held request, so
+	// a request carrying neither digests exactly as before hold existed and an
+	// older retry still replays.
+	Hold       bool   `json:"hold,omitempty"`
+	HoldReason string `json:"hold_reason,omitempty"`
 }
 
 func changeCreateSemanticPayload(req ChangeCreateRequest) changeCreatePayload {
@@ -157,8 +169,13 @@ func changeCreateSemanticPayload(req ChangeCreateRequest) changeCreatePayload {
 		AutoGroomable:  req.AutoGroomable,
 		BranchPrefix:   normalizedBranchPrefix(req),
 		Deliverable:    normalizedDeliverable(req),
+		Hold:           requestHeld(req),
+		HoldReason:     req.HoldReason,
 	}
 }
+
+// requestHeld reports whether the request creates the change already on hold.
+func requestHeld(req ChangeCreateRequest) bool { return req.Hold != nil && *req.Hold }
 
 // normalizedDeliverable is the digested spelling of the request's deliverable:
 // the default "pr" digests exactly as an omitted field.
@@ -353,6 +370,14 @@ func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 	if msg := branchPrefixProblem(req.BranchPrefix); msg != "" {
 		addShape(FCInvalidBranchPrefix, msg)
 	}
+	// hold_reason rides only with hold: true and becomes the "## Why on hold"
+	// body; change.groom shares the same checks.
+	if req.HoldReason != "" {
+		if code, msg := holdReasonProblem(requestHeld(req), req.HoldReason); code != "" {
+			addShape(code, msg)
+		}
+	}
+	boundAuthored(&findings, "hold_reason", req.HoldReason)
 	return findings
 }
 
@@ -563,6 +588,8 @@ func (o changeCreateOp) Plan(ctx context.Context, st transaction.AttemptState) (
 		Why:            o.req.Why,
 		WhatChanges:    o.req.WhatChanges,
 		OutOfScope:     o.req.OutOfScope,
+		Hold:           requestHeld(o.req),
+		WhyOnHold:      o.req.HoldReason,
 	})
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change create: serializing record: %w", err)
