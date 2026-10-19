@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-19T02:25:30Z'
+reconciled: true
+claimed_at: '2026-10-19T02:27:26Z'
 ---
 
 ## Artifacts
@@ -49,3 +49,9 @@ The hold needs no reason. An optional one is written as a `## Why on hold` secti
 ## Out of scope
 
 Grooming picks: a hold does not keep a stub out of groom-next's automatic pick or the auto-groomer's queue, which `auto_groomable` already controls; a hold on a stub takes effect once it is groomed. Finalize. Carrying on past a halt in a loop (#570). How a run behaves at a human step (#559 settled it). Showing the hold's reason on the board.
+
+## Reconcile log
+
+### 2026-10-19
+
+Reconciled against main at c8ee0a39a. No hold field, `on-hold` readiness kind, or `## Why on hold` section exists yet; `domain.ReadinessKind` still carries exactly the seven kinds the spec assumes. Related #559 is done (its results-artifact `change.complete` path is the one the spec's claim-eligibility rule covers); #570 is still proposed and stays out of scope. Recent merges (carried stacked-child cleanup) do not touch readiness, selection, the board's Groomed/In progress tables, or `change.groom`. Scope and spec unchanged.
