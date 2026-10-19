@@ -1,12 +1,12 @@
 # Backlog
 
-**572 changes** — 🟣 1 groomed · 🟡 6 proposed · ⚪ 16 deferred · ✅ 405 done · 🗑️ 144 killed
+**572 changes** — 🟢 1 in progress · 🟡 6 proposed · ⚪ 16 deferred · ✅ 405 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0570](active/0570-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md) | Let a loop carry on past a halt that concerns only one change | `medium` | `feat` | [spec](../superpowers/specs/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0570](active/0570-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md) | Let a loop carry on past a halt that concerns only one change | `medium` | `feat` | [spec](../superpowers/specs/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md) | `feat/let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang` | building |
 
 ## 🟡 Proposed (6)
 

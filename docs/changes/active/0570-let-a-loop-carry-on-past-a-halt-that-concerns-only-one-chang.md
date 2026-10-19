@@ -2,7 +2,7 @@
 id: 570
 slug: 'let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang'
 title: 'Let a loop carry on past a halt that concerns only one change'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -19,10 +19,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-19T16:59:18Z'
 ---
 
 ## Artifacts
