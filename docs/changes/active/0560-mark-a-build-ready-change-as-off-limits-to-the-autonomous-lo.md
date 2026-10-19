@@ -13,7 +13,7 @@ related: [559, 570]
 discovered_from: [559]
 adrs: [6]
 spec: 'docs/superpowers/specs/2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-19-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-19T02:29:09Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md](../../superpowers/specs/2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md) |
+| Plan | [2026-10-19-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md](../../superpowers/plans/2026-10-19-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) |
 | ADRs | [ADR-0006](../../adrs/0006-autonomous-grooming-bounds.md) |
 <!-- docket:artifacts:end -->
 
