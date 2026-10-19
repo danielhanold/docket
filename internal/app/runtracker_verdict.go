@@ -708,7 +708,7 @@ func resolveRunTrackerOwnership(ctx context.Context, deps PlanningDeps, wdeps Wo
 			if !ok {
 				return runTrackerOwnershipStop(repoDir, key, *rec, ReasonRunProofUnavailable)
 			}
-			_ = ReserveRunTrackerClaim(repoDir, key, p.ChangeID, p.RequestID)
+			_ = ReserveRunTrackerClaimSelection(repoDir, key, p.ChangeID, p.RequestID, p.Selection)
 			_ = ConfirmRunTrackerClaim(repoDir, key, p.ChangeID, p.RequestID, p.Revision, wt)
 			runTrackerAdoptOwnership(wdeps, repoDir, key, rec, p.ChangeID, p.RequestID, p.Revision)
 			return nil

@@ -340,7 +340,7 @@ func TestRepresentativeSignatures(t *testing.T) {
 		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--cwd <dir>] [--env-hash <hash>] [--phase <name>] [--ref <ref>] [--repo-dir <dir>] [--run-context <token>] [--task-id <id>]",
 		// change 0472 (ADR-0129 rows 40, 40a): the record revision rides on
 		// --revision, and relink's pin on --expect-revision.
-		"change.claim":       "--id <id> --revision <revision> [--repo-dir <dir>] [--run-context <token>]",
+		"change.claim":       "--id <id> --revision <revision> [--repo-dir <dir>] [--run-context <token>] [--selection <mode>]",
 		"change.relink":      "--expect-revision <revision> --id <id> [--adopt-pr <ref>] [--adopt-pr-head] [--expect-branch <name>] [--expect-head <ref>] [--expect-pr <n>] [--repo-dir <dir>]",
 		"finalize.block":     "--attempt <token> --head <ref> --id <id> --input <file> --pr-number <n> --reason <token> --revision <revision> [--repo-dir <dir>]",
 		"finalize.merge":     "--head <ref> --id <id> --revision <revision> [--admin] [--repo-dir <dir>]",

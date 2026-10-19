@@ -100,9 +100,11 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 		"Claim a build-ready change at an exact revision, moving it to in-progress",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
 			req.RunContext, _ = c.Flags().GetString("run-context")
+			req.Selection, _ = c.Flags().GetString("selection")
 			setResult(app.ChangeClaim(c.Context(), deps, repoDir, req))
 		}, EffectMetadataWrite)
 	claim.Flags().String("run-context", "", "run-context `token` from run start, binding this claim to its started run (optional; omitted for an untracked claim)")
+	claim.Flags().String("selection", "", "how this change was chosen: `mode` queue (picked from the build-ready queue) or named (the run named it); any other value is recorded as unknown")
 
 	refreshClaim := changeIDRevisionSubcommand("refresh-claim",
 		"Re-stamp an in-progress change's claim lease at an exact revision",

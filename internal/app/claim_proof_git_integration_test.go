@@ -29,6 +29,7 @@ type wireClaimReceipt struct {
 	ID             int    `json:"id"`
 	Lease          string `json:"lease"`
 	Op             string `json:"op"`
+	Selection      string `json:"selection,omitempty"`
 	Status         string `json:"status"`
 }
 
@@ -121,5 +122,51 @@ func TestIntegrationRecordOpsScanClaimProofsReadsCommittedReceipt(t *testing.T) 
 		if p.RequestID == "groom-1" || p.ChangeID == 0 {
 			t.Errorf("non-claim commit leaked into proofs: %+v", p)
 		}
+	}
+}
+
+// TestIntegrationRecordOpsScanClaimProofsReadsSelection: the selection a claim
+// recorded in its committed receipt is read back onto the proof, so the verdict's
+// receipt-recovery path keeps how the change was chosen; a receipt without one
+// (an older claim, or an unknown selection) reads back as "".
+func TestIntegrationRecordOpsScanClaimProofsReadsSelection(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+
+	commitClaimTrailers(t, repo, "claim 3",
+		"Docket-Transaction-ID: t1",
+		"Docket-Operation: "+OperationChangeClaim,
+		"Docket-Request-ID: claim-3-v1",
+		"Docket-Request-Digest: sha256:aaaa",
+		"Docket-Result: "+encodeClaimReceipt(t, wireClaimReceipt{
+			Branch: "fix/x", ClaimedAt: "2026-09-07T00:00:00Z", RunContextHash: "h3",
+			ID: 3, Lease: "live", Op: OperationChangeClaim, Status: "in-progress",
+		}))
+	tip := commitClaimTrailers(t, repo, "claim 4",
+		"Docket-Transaction-ID: t2",
+		"Docket-Operation: "+OperationChangeClaim,
+		"Docket-Request-ID: claim-4-v2",
+		"Docket-Request-Digest: sha256:bbbb",
+		"Docket-Result: "+encodeClaimReceipt(t, wireClaimReceipt{
+			Branch: "fix/y", ClaimedAt: "2026-09-07T01:00:00Z", RunContextHash: "h4",
+			ID: 4, Lease: "live", Op: OperationChangeClaim, Selection: ClaimSelectionQueue, Status: "in-progress",
+		}))
+
+	deps := PlanningDeps{
+		Client: newGitClient(t),
+		Reader: &fakeChangeReader{pin: StatusPin{MetadataRevision: tip}},
+		Clock:  testClock(),
+	}
+	proofs, err := NewClaimProofScanner(deps).ScanClaimProofs(context.Background(), repo)
+	if err != nil {
+		t.Fatalf("ScanClaimProofs: %v", err)
+	}
+	if len(proofs) != 2 {
+		t.Fatalf("got %d proofs, want 2:\n%+v", len(proofs), proofs)
+	}
+	if proofs[0].ChangeID != 4 || proofs[0].Selection != ClaimSelectionQueue {
+		t.Errorf("newest proof = %+v, want change 4 with selection queue", proofs[0])
+	}
+	if proofs[1].ChangeID != 3 || proofs[1].Selection != "" {
+		t.Errorf("older proof = %+v, want change 3 with no selection", proofs[1])
 	}
 }

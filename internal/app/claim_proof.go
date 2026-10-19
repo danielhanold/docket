@@ -36,6 +36,7 @@ type ClaimProof struct {
 	ChangeID       int    // receipt id
 	RunContextHash string // receipt gate_context_hash ("" = ungated claim)
 	Revision       string // commit hash carrying the receipt
+	Selection      string // receipt selection: how the run chose the change ("" = unknown)
 }
 
 // ClaimProofScanner is the verdict path's read-only seam onto committed claim
@@ -119,6 +120,7 @@ func (s gitClaimProofScanner) ScanClaimProofs(ctx context.Context, repoDir strin
 			ChangeID:       rec.ID,
 			RunContextHash: rec.RunContextHash,
 			Revision:       string(ct.Commit),
+			Selection:      rec.Selection,
 		})
 	}
 	return proofs, nil

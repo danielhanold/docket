@@ -153,6 +153,73 @@ func TestIntegrationRecordOpsClaimRunContextReservesAndConfirms(t *testing.T) {
 	}
 }
 
+// TestIntegrationRecordOpsClaimSelectionRecordedInBindingAndReceipt: the
+// optional selection input records how the change was chosen on the run's
+// claim binding and in the committed receipt. "queue" and "named" pass through;
+// anything else (an unrecognised value, or nothing at all from an older skill
+// copy) is recorded as unknown (""). It never refuses a claim and never touches
+// claim identity: the digest and request id are exactly what they were without it.
+func TestIntegrationRecordOpsClaimSelectionRecordedInBindingAndReceipt(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"queue", ClaimSelectionQueue},
+		{"named", ClaimSelectionNamed},
+		{" queue ", ClaimSelectionQueue},
+		{"loop", ""},
+		{"", ""},
+	} {
+		t.Run(fmt.Sprintf("%q", tc.in), func(t *testing.T) {
+			repoDir := newRunTrackerRepo(t)
+			hash := runTrackerHashToken("tok")
+			key := mintRunTrackerWithHash(t, repoDir, hash, false)
+			engine := &claimGateEngine{result: appliedGateResult(t, 3)}
+			deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
+
+			res := ChangeClaim(context.Background(), deps, repoDir,
+				ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tok", Selection: tc.in})
+			if res.Result != ResultApplied {
+				t.Fatalf("result = %q, want applied — the selection input never refuses (findings %v)", res.Result, res.Findings)
+			}
+
+			b, ok, err := LoadRunTrackerClaimBinding(repoDir, key)
+			if err != nil || !ok || !b.Confirmed || b.Selection != tc.want {
+				t.Fatalf("post-claim binding = %+v ok=%v err=%v; want confirmed with selection %q", b, ok, err, tc.want)
+			}
+
+			if len(engine.calls) != 1 {
+				t.Fatalf("engine calls = %d, want 1", len(engine.calls))
+			}
+			wantDigest, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimRevision, RunContextHash: hash})
+			if err != nil {
+				t.Fatalf("canonicalDigest: %v", err)
+			}
+			if got := engine.calls[0].Idempotency.Digest; got != wantDigest {
+				t.Errorf("digest = %q, want %q (selection must not change claim identity)", got, wantDigest)
+			}
+			wantRID := claimRequestID(ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tok"})
+			if got := engine.calls[0].Idempotency.RequestID; got != wantRID {
+				t.Errorf("request id = %q, want %q (selection must not change claim identity)", got, wantRID)
+			}
+
+			op := engine.calls[0].Operation.(changeClaimOp)
+			if op.selection != tc.want {
+				t.Errorf("op.selection = %q, want %q", op.selection, tc.want)
+			}
+			plan, opRes := claimPlanFor(t, map[string]string{groomPath(3, "widget"): claimableChange(3, "widget")}, op)
+			if opRes.Refused {
+				t.Fatalf("unexpected refusal building the receipt: %v", opRes.Findings)
+			}
+			receipt := string(plan.Receipt)
+			if tc.want != "" {
+				if !strings.Contains(receipt, `"selection":"`+tc.want+`"`) {
+					t.Errorf("receipt missing selection %q:\n%s", tc.want, receipt)
+				}
+			} else if strings.Contains(receipt, `"selection"`) {
+				t.Errorf("unknown selection must leave no selection key in the receipt:\n%s", receipt)
+			}
+		})
+	}
+}
+
 // TestIntegrationRecordOpsClaimRunContextConflictRefused: a second claim for a DIFFERENT change id
 // under the same context is refused run-context-conflict before its
 // transaction (criterion 3: one context cannot claim two changes).
