@@ -7,13 +7,13 @@ priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
 created: '2026-10-18'
-updated: '2026-10-18'
+updated: '2026-10-19'
 depends_on: []
 stacked_on:
 related: [559, 560]
 discovered_from: [560]
-adrs: []
-spec:
+adrs: [115, 148, 153]
+spec: 'docs/superpowers/specs/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md'
 plan:
 results:
 trivial: false
@@ -28,6 +28,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md](../../superpowers/specs/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md) |
+| ADRs | [ADR-0115](../../adrs/0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md), [ADR-0148](../../adrs/0148-every-keyed-run-done-verdict-drives-the-successful-run-close.md), [ADR-0153](../../adrs/0153-a-hold-keeps-a-groomed-change-out-of-autonomous-build-select.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -38,16 +42,16 @@ Today every `halted` disposition stops the driver, in both `docket-implement-nex
 
 ## What changes
 
-Give a halt a reason a driver can read, so a loop carries on past a halt that concerns only one change and still stops on one that would recur.
+Give a loop a way to carry on past a halt that concerns one change, and a backstop that stops it when halts keep coming.
 
-To settle when grooming:
-
-- The reason's shape and where it is recorded. `change.halt` takes only a free-text report today, and a halt before any claim is recorded nowhere: the run tracker reports it as `no-attributable-claim`, which it cannot tell apart from an empty queue.
-- How every halt point in implement-next and finalize is classified, and the default for one nobody classified. Stopping is the safe default: a setup-wide halt misread as a one-change halt would claim and halt every remaining change, each needing a person to resume it.
-- Whether a cap on consecutive halts is needed as a backstop.
-- Whether finalize shares the rule.
-- Where the loop logic lives: the skill body, or a reference file read only when it applies, so the common path's prompt does not grow.
+- A tracked implement-next loop continues after a run that halted on a change the loop picked from the queue (the halt is already recorded as `## Run halted` and shown as "run halted — needs you"), while the count of halts in a row stays under the new `run.max_consecutive_halts` setting (default 2).
+- The run tracker keeps that count per repository. Only halts on loop-picked changes add to it; a halt on a named change or a resume never touches it; any clean build resets it.
+- At the limit the loop stops and the session asks the person whether to reset the count with a new `docket run reset-halts` command; the agent never resets it on its own.
+- A new verdict line, `run-next`, tells a loop it may start its next run; named runs, resumes, retries, continuations, untracked runs and finalize print exactly today's lines.
+- Docs state that docket supports one implement loop and one finalize loop at a time.
 
 ## Out of scope
 
 Keeping a change that needs a human away from the loop: #560's hold does that. How a run behaves when it reaches a human step: #559 settled that.
+
+Carrying a finalize loop past a blocked change: finalize keeps stopping on every block (a separate change). Typed halt reasons or classifying halt points. Any gate that prevents two loops of the same stage from running at once.
