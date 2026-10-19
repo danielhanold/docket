@@ -2,11 +2,13 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/app"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -685,5 +687,36 @@ func TestChangeRelinkReachesOperation(t *testing.T) {
 	}
 	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
 		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}
+
+// TestChangeClaimSelectionFlagReachesRequest proves `change claim --selection`
+// is copied into the request handed to the claim operation. Without it every
+// claim records an unknown selection and every loop halt reads as unknown.
+func TestChangeClaimSelectionFlagReachesRequest(t *testing.T) {
+	old := changeClaimRunner
+	t.Cleanup(func() { changeClaimRunner = old })
+	var got app.ChangeClaimRequest
+	called := false
+	changeClaimRunner = func(ctx context.Context, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) app.ChangeClaimResult {
+		called = true
+		got = req
+		return old(ctx, deps, repoDir, app.ChangeClaimRequest{})
+	}
+	_, errS, _ := runCLI(t, "change", "claim",
+		"--id", "7", "--revision", "1234123412341234123412341234123412341234",
+		"--selection", "queue",
+		"--repo-dir", testsupport.TempDir(t), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !called {
+		t.Fatalf("change claim never reached the claim operation")
+	}
+	if got.Selection != app.ClaimSelectionQueue {
+		t.Fatalf("request Selection = %q, want %q", got.Selection, app.ClaimSelectionQueue)
+	}
+	if got.ID != 7 {
+		t.Fatalf("request ID = %d, want 7", got.ID)
 	}
 }

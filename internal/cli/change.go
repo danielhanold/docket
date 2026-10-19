@@ -101,7 +101,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
 			req.RunContext, _ = c.Flags().GetString("run-context")
 			req.Selection, _ = c.Flags().GetString("selection")
-			setResult(app.ChangeClaim(c.Context(), deps, repoDir, req))
+			setResult(changeClaimRunner(c.Context(), deps, repoDir, req))
 		}, EffectMetadataWrite)
 	claim.Flags().String("run-context", "", "run-context `token` from run start, binding this claim to its started run (optional; omitted for an untracked claim)")
 	claim.Flags().String("selection", "", "how this change was chosen: `mode` queue (picked from the build-ready queue) or named (the run named it); any other value is recorded as unknown")
@@ -439,6 +439,11 @@ func changeInputSubcommand[T any](verb, short string, run func(c *cobra.Command,
 // carry no authored Markdown, so they take scalar flags (Global Constraints:
 // request files are for authored Markdown, never these). run receives the
 // resolved dependencies, repo directory, and decoded request.
+// changeClaimRunner is the app entry point `change claim` dispatches to. It is a
+// package variable so a test can capture the request the command built from its
+// flags without a real repository.
+var changeClaimRunner = app.ChangeClaim
+
 func changeIDRevisionSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest), effects ...Effect) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         verb,
