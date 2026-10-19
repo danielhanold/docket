@@ -464,3 +464,172 @@ func TestDeriveCarriedSetKilledOrProposedChildContributesNothing(t *testing.T) {
 		})
 	}
 }
+
+func TestProveDoneCarryTwoLevel(t *testing.T) {
+	s := stackSnapshot(
+		stackSpec{id: 1, status: StatusDone, branch: "feat/1"},
+		stackSpec{id: 2, status: StatusDone, parent: parentEdge(1), branch: "feat/2"},
+	)
+	facts := map[ChangeID]PRFacts{
+		1: mergedInto("main"),
+		2: mergedInto("feat/1"),
+	}
+
+	root, token := ProveDoneCarry(s, 2, facts, "main")
+	if root != 1 || token != "" {
+		t.Fatalf("ProveDoneCarry(2) = (%d, %q); want (1, \"\")", root, token)
+	}
+}
+
+func TestProveDoneCarryThreeLevel(t *testing.T) {
+	s := stackSnapshot(
+		stackSpec{id: 1, status: StatusDone, branch: "feat/1"},
+		stackSpec{id: 2, status: StatusDone, parent: parentEdge(1), branch: "feat/2"},
+		stackSpec{id: 3, status: StatusDone, parent: parentEdge(2), branch: "feat/3"},
+	)
+	facts := map[ChangeID]PRFacts{
+		1: mergedInto("main"),
+		2: mergedInto("feat/1"),
+		3: mergedInto("feat/2"),
+	}
+
+	root, token := ProveDoneCarry(s, 3, facts, "main")
+	if root != 1 || token != "" {
+		t.Fatalf("ProveDoneCarry(3) = (%d, %q); want (1, \"\")", root, token)
+	}
+}
+
+func TestProveDoneCarryRefusals(t *testing.T) {
+	tests := []struct {
+		name        string
+		specs       []stackSpec
+		facts       map[ChangeID]PRFacts
+		integration string
+		check       ChangeID
+		reason      string
+	}{
+		{
+			name: "child merged into a branch that is not its parent's is destination-mismatch",
+			specs: []stackSpec{
+				{id: 1, status: StatusDone, branch: "feat/1"},
+				{id: 2, status: StatusDone, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts:  map[ChangeID]PRFacts{1: mergedInto("main"), 2: mergedInto("feat/other")},
+			check:  2,
+			reason: "destination-mismatch",
+		},
+		{
+			name: "a killed parent is killed-ancestor",
+			specs: []stackSpec{
+				{id: 1, status: StatusKilled, branch: "feat/1"},
+				{id: 2, status: StatusDone, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts:  map[ChangeID]PRFacts{1: mergedInto("main"), 2: mergedInto("feat/1")},
+			check:  2,
+			reason: "killed-ancestor",
+		},
+		{
+			name: "missing child facts are pr-unknown, never a clean carry",
+			specs: []stackSpec{
+				{id: 1, status: StatusDone, branch: "feat/1"},
+				{id: 2, status: StatusDone, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts:  map[ChangeID]PRFacts{1: mergedInto("main")},
+			check:  2,
+			reason: "pr-unknown",
+		},
+		{
+			// An ancestor link with no PR facts (a results-artifact, or no PR
+			// reference) never names a root, so the walk runs off the top of
+			// the stack.
+			name: "a done parent with no facts and no parent of its own is chain-broken",
+			specs: []stackSpec{
+				{id: 1, status: StatusDone, branch: "feat/1"},
+				{id: 2, status: StatusDone, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts:  map[ChangeID]PRFacts{2: mergedInto("feat/1")},
+			check:  2,
+			reason: "chain-broken",
+		},
+		{
+			name: "a stacked-merged parent (root not yet landed) is chain-broken",
+			specs: []stackSpec{
+				{id: 1, status: StatusStackedMerged, branch: "feat/1"},
+				{id: 2, status: StatusDone, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts:  map[ChangeID]PRFacts{1: mergedInto("main"), 2: mergedInto("feat/1")},
+			check:  2,
+			reason: "chain-broken",
+		},
+		{
+			name: "a stacked-merged start is not-done",
+			specs: []stackSpec{
+				{id: 1, status: StatusDone, branch: "feat/1"},
+				{id: 2, status: StatusStackedMerged, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts:  map[ChangeID]PRFacts{1: mergedInto("main"), 2: mergedInto("feat/1")},
+			check:  2,
+			reason: "not-done",
+		},
+		{
+			name: "a stacked_on cycle with no link merged into the integration branch is cycle",
+			specs: []stackSpec{
+				{id: 2, status: StatusDone, parent: parentEdge(3), branch: "feat/2"},
+				{id: 3, status: StatusDone, parent: parentEdge(2), branch: "feat/3"},
+			},
+			facts:  map[ChangeID]PRFacts{2: mergedInto("feat/3"), 3: mergedInto("feat/2")},
+			check:  3,
+			reason: "cycle",
+		},
+		{
+			name: "an absent start is chain-broken",
+			specs: []stackSpec{
+				{id: 1, status: StatusDone, branch: "feat/1"},
+			},
+			facts:  map[ChangeID]PRFacts{1: mergedInto("main")},
+			check:  9,
+			reason: "chain-broken",
+		},
+		{
+			name: "an empty integration branch never names a root",
+			specs: []stackSpec{
+				{id: 1, status: StatusDone, branch: "feat/1"},
+				{id: 2, status: StatusDone, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts:       map[ChangeID]PRFacts{1: mergedInto(""), 2: mergedInto("feat/1")},
+			integration: "-",
+			check:       2,
+			reason:      "chain-broken",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := stackSnapshot(tc.specs...)
+			integration := "main"
+			if tc.integration == "-" {
+				integration = ""
+			}
+			root, token := ProveDoneCarry(s, tc.check, tc.facts, integration)
+			if token != tc.reason {
+				t.Fatalf("ProveDoneCarry(%d) token = %q; want %q", tc.check, token, tc.reason)
+			}
+			if root != 0 {
+				t.Fatalf("ProveDoneCarry(%d) root = %d on refusal; want zero", tc.check, root)
+			}
+		})
+	}
+}
+
+func TestProveDoneCarryUnstackedChildIsNotCarried(t *testing.T) {
+	// The caller consults the walk only when a done change's PR did not merge
+	// into the integration branch; an unstacked change has no stack to carry
+	// it, so the walk refuses rather than inventing a root.
+	s := stackSnapshot(stackSpec{id: 4, status: StatusDone, branch: "feat/4"})
+	facts := map[ChangeID]PRFacts{4: mergedInto("feat/elsewhere")}
+
+	root, token := ProveDoneCarry(s, 4, facts, "main")
+	if root != 0 || token != "chain-broken" {
+		t.Fatalf("ProveDoneCarry(unstacked) = (%d, %q); want (0, \"chain-broken\")", root, token)
+	}
+}

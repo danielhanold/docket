@@ -18,6 +18,7 @@ type CarriedDescendant struct {
 // not be proven.
 const (
 	carryNotStackedMerged    = "not-stacked-merged"   // the descendant itself is not stacked-merged
+	carryNotDone             = "not-done"             // a cleanup start record is not done
 	carryDestinationMismatch = "destination-mismatch" // a merged PR landed on the wrong branch
 	carryPRUnknown           = "pr-unknown"           // a carrying merge cannot be confirmed
 	carryChainBroken         = "chain-broken"         // a gap: an intermediate link is not a carried merge
@@ -147,12 +148,10 @@ func DeriveCarriedSet(s Snapshot, parent ChangeID, facts map[ChangeID]PRFacts) (
 	return set, nil
 }
 
-// proveCarry walks id's stacked_on chain up toward root, verifying at each link
-// that the node's merged PR landed on its parent's branch, that no intermediate
-// is killed, and that every intermediate is itself a carried stacked-merged
-// link. It returns the empty string when the chain reaches root cleanly, or the
-// first refusal token otherwise. The walk is guarded by a visited set so a
-// malformed graph terminates.
+// proveCarry proves that id's stacked-merged code is carried into the closeout
+// root: the start must itself be stacked-merged, and walkCarryChain must reach
+// root through stacked-merged intermediates. It returns the empty string when
+// the chain reaches root cleanly, or the first refusal token otherwise.
 func proveCarry(s Snapshot, root, id ChangeID, facts map[ChangeID]PRFacts) string {
 	start, out := s.Change(id)
 	if out != LookupFound {
@@ -161,38 +160,83 @@ func proveCarry(s Snapshot, root, id ChangeID, facts map[ChangeID]PRFacts) strin
 	if start.Status() != StatusStackedMerged {
 		return carryNotStackedMerged
 	}
+	_, token := walkCarryChain(s, start, facts, StatusStackedMerged, func(parent Change) bool {
+		return parent.ID() == root
+	})
+	return token
+}
 
+// ProveDoneCarry proves the carry RELATIONSHIP of a done change whose PR merged
+// into its stack parent's branch rather than the integration branch: the same
+// walk closeout uses (walkCarryChain), applied to a population that is now done
+// rather than stacked-merged. Every link must be done, and the walk ends at the
+// first done ancestor whose own PR merged into integration — the stack root,
+// whose id is returned with an empty token. Any other outcome returns a zero
+// root and the first refusal token: not-done when the start is not done,
+// chain-broken when it is absent or the walk never meets such an ancestor.
+//
+// facts supplies each change's live PR state; a missing or unmerged entry is an
+// unconfirmable link, never a clean carry. A merged destination proves the
+// relationship only: that the child's content actually reached the integration
+// branch is the caller's separate obligation before anything is deleted.
+func ProveDoneCarry(s Snapshot, id ChangeID, facts map[ChangeID]PRFacts, integration string) (root ChangeID, token string) {
+	start, out := s.Change(id)
+	if out != LookupFound {
+		return 0, carryChainBroken
+	}
+	if start.Status() != StatusDone {
+		return 0, carryNotDone
+	}
+	return walkCarryChain(s, start, facts, StatusDone, func(parent Change) bool {
+		if integration == "" || parent.Status() != StatusDone {
+			return false
+		}
+		f, ok := facts[parent.ID()]
+		return ok && f.State == prStateMerged && f.BaseRef == integration
+	})
+}
+
+// walkCarryChain is the one stack carry walk closeout and cleanup share. It
+// climbs start's stacked_on chain, verifying at each link that no node is
+// revisited (cycle), the parent resolves (chain-broken), the parent is not
+// killed (killed-ancestor), the current node's PR is merged (pr-unknown), and
+// that merge landed on the parent's recorded branch (destination-mismatch).
+// When isRoot accepts the parent, the walk returns its id with an empty token;
+// otherwise the parent must itself carry linkStatus — an intermediate carried
+// link — or the chain has a gap (chain-broken). On any refusal the returned id
+// is zero. The visited set guarantees a malformed graph terminates.
+func walkCarryChain(s Snapshot, start Change, facts map[ChangeID]PRFacts, linkStatus Status, isRoot func(parent Change) bool) (ChangeID, string) {
 	visited := map[ChangeID]bool{}
 	for current := start; ; {
 		if visited[current.ID()] {
-			return carryCycle
+			return 0, carryCycle
 		}
 		visited[current.ID()] = true
 
 		parent, out := StackParent(s, current)
 		if out != LookupFound {
-			return carryChainBroken
+			return 0, carryChainBroken
 		}
 		if parent.Status() == StatusKilled {
-			return carryKilledAncestor
+			return 0, carryKilledAncestor
 		}
 
 		f, ok := facts[current.ID()]
 		if !ok || f.State != prStateMerged {
-			return carryPRUnknown
+			return 0, carryPRUnknown
 		}
 		branch := parent.Branch()
 		if branch.State != FieldPresent || branch.Value == "" || f.BaseRef != branch.Value {
-			return carryDestinationMismatch
+			return 0, carryDestinationMismatch
 		}
 
-		if parent.ID() == root {
-			return "" // carried all the way into the closeout root
+		if isRoot(parent) {
+			return parent.ID(), "" // carried all the way into the root
 		}
-		// An intermediate link must itself be a carried stacked-merged change,
-		// or the destination chain has a gap the root cannot absorb.
-		if parent.Status() != StatusStackedMerged {
-			return carryChainBroken
+		// An intermediate link must itself be a carried link of the walked
+		// population, or the destination chain has a gap the root cannot absorb.
+		if parent.Status() != linkStatus {
+			return 0, carryChainBroken
 		}
 		current = parent
 	}
