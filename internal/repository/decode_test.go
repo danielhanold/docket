@@ -905,3 +905,51 @@ func TestDecodeChangeDeliverable(t *testing.T) {
 		}
 	}
 }
+
+// TestDecodeChangeHold pins the hold field's decode: a malformed hand edit
+// reads as held with a warning, never an error and never an open change.
+func TestDecodeChangeHold(t *testing.T) {
+	tests := []struct {
+		name        string
+		line        string
+		wantHeld    bool
+		wantState   domain.FieldState
+		wantWarning bool
+	}{
+		{"true", "hold: true\n", true, domain.FieldPresent, false},
+		{"false", "hold: false\n", false, domain.FieldPresent, false},
+		{"valueless", "hold:\n", false, domain.FieldEmpty, false},
+		{"absent", "", false, domain.FieldAbsent, false},
+		{"yes is malformed", "hold: yes\n", true, domain.FieldMalformed, true},
+		{"sequence is malformed", "hold: [true]\n", true, domain.FieldMalformed, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			in := input(t, KindChange, LocationActive, "docs/changes/active/0001-s.md",
+				"---\nid: 1\nslug: s\n"+tc.line+"---\n\nbody\n")
+			change, findings := decodeChange(in)
+			if got := change.Held(); got != tc.wantHeld {
+				t.Errorf("Held() = %v, want %v", got, tc.wantHeld)
+			}
+			if got := change.Hold().State; got != tc.wantState {
+				t.Errorf("Hold().State = %v, want %v", got, tc.wantState)
+			}
+			warned := false
+			for _, f := range findings {
+				if f.Field == "hold" && f.Code == CodeFieldMalformed {
+					warned = true
+					if f.Severity != domain.SeverityWarning {
+						t.Errorf("hold finding severity = %v, want warning", f.Severity)
+					}
+				}
+				if f.Severity == domain.SeverityError {
+					t.Errorf("unexpected error finding %s on %q", f.Code, f.Field)
+				}
+			}
+			if warned != tc.wantWarning {
+				t.Errorf("hold field-malformed warning = %v, want %v (codes %v)",
+					warned, tc.wantWarning, findingCodes(findings))
+			}
+		})
+	}
+}
