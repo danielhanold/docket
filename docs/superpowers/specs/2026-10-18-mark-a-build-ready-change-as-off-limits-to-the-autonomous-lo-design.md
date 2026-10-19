@@ -22,7 +22,7 @@ Today the only ways to keep a groomed change away from the loop are to leave it 
 - The hold is generic. It records no required reason. An optional reason can be added as prose when the hold is set.
 - Grooming can set and lift the hold from day one, and so can capturing a new change.
 - When grooming settles on a spec that needs manual work, docket suggests a hold. The auto-groomer, which has no one to ask, sets the hold itself.
-- The board shows a held change as `on hold`. The cell names the state, not the action.
+- The board keeps a held change that has a spec in the Groomed table, marked `on hold`. Every groomed row states its readiness.
 
 ## Non-goals
 
@@ -53,7 +53,11 @@ The hold is a **selection-only exclusion**. It must not make the change "not rea
   - implement-next's id-allowlist drain, which filters that same `ready` array in skill prose.
 - **Claim eligibility.** `domain.ClaimEligibility` treats `on-hold` as eligible, exactly like `build-ready`. So `context.implementation --id`, `change.claim`, and `change.complete` on a `proposed` results-artifact change all accept a held change. The claim leaves the field in place. A change reclaimed back to `proposed` is still held, which is what the person asked for.
 - **Status rows.** A held row reports `readiness: on-hold`, `ready: false`, and a `readiness_reason` of "on hold" (`app.readinessReason`).
-- **Board.** `render.boardClassify` puts only `build-ready` spec-backed changes in the Groomed table, so a held change falls through to the Proposed table. That table carries the Readiness column. `render.boardReadinessCell` renders `on-hold` as exactly `on hold`: the state the change is in, not the action of holding it. This keeps the Groomed table's meaning exact: these are the changes a loop will build. A held trivial change shows `on hold` instead of `build-ready (trivial)`.
+- **Board.** A held change that has a spec stays in the Groomed table, marked `on hold`. Unlike a change waiting on a dependency, it can still be built by naming it, so it belongs with the groomed changes.
+  - `render.boardClassify` puts a spec-backed `proposed` change in Groomed when its readiness is `build-ready` or `on-hold`.
+  - The Groomed table gains a last column, Readiness. Every row states its readiness: exactly `build-ready` or exactly `on hold`. No row is left blank, because a blank cell beside rows that carry a status would leave the reader to guess a default. `on hold` names the state the change is in, not the action of holding it.
+  - A held trivial change has no spec, so it stays in the Proposed table as every trivial change does today. `render.boardReadinessCell` renders its cell as `on hold` instead of `build-ready (trivial)`.
+  - Update the column layouts in the `render` package comment and the board golden file.
 - **Everything else** that keys on readiness: dependents of a held change wait until it is done, and a change stacked on a held parent waits for the stack base as it would for any unbuilt parent. Neither needs code. Grep every switch over `ReadinessKind` (today `app.readinessReason` and `render.boardReadinessCell`, plus the equality checks in `SelectQueue`, `ClaimEligibility`, and `boardClassify`), and confirm each one handles `on-hold` deliberately.
 
 ### 3. Setting and lifting a hold
@@ -143,8 +147,9 @@ Mutation-test each new guard: strip the behavior and watch the test go red.
    - `context.implementation --id` and `change.claim` accept it, and the claim keeps the field.
    - `change.complete` accepts a held `proposed` results-artifact change.
 3. **Board.**
-   - A held spec-backed change renders in the Proposed table with Readiness `on hold`, not in Groomed.
-   - A held trivial change renders `on hold`.
+   - A held spec-backed change renders in the Groomed table with Readiness `on hold`.
+   - An unheld spec-backed build-ready change renders in the Groomed table with Readiness `build-ready`; no Groomed row has an empty Readiness cell.
+   - A held trivial change renders in the Proposed table with `on hold`.
    - No record fault.
 4. **`change.groom`.**
    - Set with and without a reason. Replace a reason. Lift, which removes the section.
