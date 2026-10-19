@@ -2,7 +2,7 @@
 id: 560
 slug: 'mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo'
 title: 'Put a groomed change on hold so loops skip it'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-17'
@@ -22,7 +22,7 @@ branch: 'feat/mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo'
 pr: 'https://github.com/danielhanold/docket/pull/434'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-19T02:38:45Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-19T02:38:45Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md](../../superpowers/specs/2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md) |
+| Spec (merged) | [2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md) |
 | Plan | [2026-10-19-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md](../../superpowers/plans/2026-10-19-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) |
 | Results | [2026-10-19-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-results.md](../../results/2026-10-19-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-results.md) |
 | ADRs | [ADR-0006](../../adrs/0006-autonomous-grooming-bounds.md), [ADR-0153](../../adrs/0153-a-hold-keeps-a-groomed-change-out-of-autonomous-build-select.md) |

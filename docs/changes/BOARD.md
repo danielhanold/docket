@@ -1,12 +1,6 @@
 # Backlog
 
-**571 changes** — 🔵 1 built · 🟡 6 proposed · ⚪ 16 deferred · ✅ 404 done · 🗑️ 144 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0560](active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Put a groomed change on hold so loops skip it | `medium` | `feat` | [#434](https://github.com/danielhanold/docket/pull/434) | awaiting merge |
+**571 changes** — 🟡 6 proposed · ⚪ 16 deferred · ✅ 405 done · 🗑️ 144 killed
 
 ## 🟡 Proposed (6)
 
@@ -59,7 +53,6 @@ graph TD
   0503
   0544 --> 0513
   0511 --> 0514
-  0560
   0561
   0566
   0569
@@ -72,11 +65,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (548)</summary>
+<details><summary>✅🗑️ Archive — done + killed (549)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
 | [0567](archive/2026-10-19-0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Clean up stacked children when their stack lands, and finalize a child after its parent | 2026-10-19 |
+| [0560](archive/2026-10-19-0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Put a groomed change on hold so loops skip it | 2026-10-19 |
 | [0547](archive/2026-10-19-0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | 2026-10-19 |
 | [0568](archive/2026-10-18-0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Stop deferring a change that is already being built | 2026-10-18 |
 | [0565](archive/2026-10-18-0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | 2026-10-18 |
@@ -92,7 +86,6 @@ graph TD
 | [0555](archive/2026-10-16-0555-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md) | Keep Claude's dispatch block in AGENTS.md while CLAUDE.md links to it | 2026-10-16 |
 | [0554](archive/2026-10-16-0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice | 2026-10-16 |
 | [0553](archive/2026-10-16-0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | 2026-10-16 |
-| [0548](archive/2026-10-16-0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Name test fixture folders by what they hold | 2026-10-16 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
 | [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
 | [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
@@ -240,7 +233,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 61 done |
+| [2026-10](archive/) | 62 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

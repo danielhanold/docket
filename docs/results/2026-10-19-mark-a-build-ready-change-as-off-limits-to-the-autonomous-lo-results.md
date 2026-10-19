@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0560 — Put a groomed change on hold so loops skip it](../changes/active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md)**
+> ↩ **[Change 0560 — Put a groomed change on hold so loops skip it](../changes/archive/2026-10-19-0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md)**
 <!-- docket:backlink:end -->
 
 # Put a groomed change on hold so loops skip it — Results
