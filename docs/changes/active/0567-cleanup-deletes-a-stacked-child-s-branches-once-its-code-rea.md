@@ -12,7 +12,7 @@ depends_on: []
 stacked_on:
 related: [562]
 discovered_from: [562]
-adrs: [92, 35]
+adrs: [92, 35, 152]
 spec: 'docs/superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md'
 plan: 'docs/superpowers/plans/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md'
 results:
@@ -33,7 +33,7 @@ claimed_at: '2026-10-19T01:09:11Z'
 |---|---|
 | Spec | [2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md](../../superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md) |
 | Plan | [2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md](../../superpowers/plans/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) |
-| ADRs | [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0035](../../adrs/0035-cleanup-teardown-fail-closed.md) |
+| ADRs | [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0035](../../adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0152](../../adrs/0152-a-finished-workspace-s-identity-excludes-the-base-it-was-cut.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
