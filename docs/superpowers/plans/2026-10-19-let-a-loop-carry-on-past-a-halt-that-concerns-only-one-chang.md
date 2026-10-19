@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0570 — Let a loop carry on past a halt that concerns only one change](../../changes/active/0570-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md)**
+> ↩ **[Change 0570 — Let a loop carry on past a halt that concerns only one change](../../changes/archive/2026-10-19-0570-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md)**
 <!-- docket:backlink:end -->
 
 # Let a loop carry on past a halt that concerns only one change — Implementation Plan

@@ -2,7 +2,7 @@
 id: 570
 slug: 'let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang'
 title: 'Let a loop carry on past a halt that concerns only one change'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -23,7 +23,7 @@ branch: 'feat/let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang'
 pr: 'https://github.com/danielhanold/docket/pull/435'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-19T17:21:38Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -32,6 +32,7 @@ claimed_at: '2026-10-19T17:21:38Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md](../../superpowers/specs/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md) |
+| Spec (merged) | [2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md) |
 | Plan | [2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md](../../superpowers/plans/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md) |
 | Results | [2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-results.md](../../results/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-results.md) |
 | ADRs | [ADR-0115](../../adrs/0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md), [ADR-0148](../../adrs/0148-every-keyed-run-done-verdict-drives-the-successful-run-close.md), [ADR-0153](../../adrs/0153-a-hold-keeps-a-groomed-change-out-of-autonomous-build-select.md), [ADR-0154](../../adrs/0154-a-loop-carries-on-past-a-queue-picked-halt-up-to-a-halts-in.md) |
