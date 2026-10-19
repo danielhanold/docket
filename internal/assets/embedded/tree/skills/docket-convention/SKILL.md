@@ -189,6 +189,7 @@ plan:                     # plan FILE on the metadata branch; FILE and FIELD wri
 results:                  # results FILE on the metadata branch; FILE and FIELD written together by change.attach-results at the first checkpoint, required before the implemented transition
 trivial: false            # true = no spec needed (small mechanical change); still build-ready
 auto_groomable:           # `true` makes a stub auto-groomable; unset or `false` means not
+hold:                     # `true` keeps a groomed change out of autonomous build selection; naming it still builds it
 branch_prefix:            # optional one unqualified branch-path component; overrides <type> at mint, consumed only at claim, inert once branch: is populated, survives reclaim
 branch:                   # minted <type>/<slug> (or <branch_prefix>/<slug>) name, set on claim; sole feature-head source of truth after, never reconstructed; branch itself created at build (step 4)
 pr:                       # set when the PR is opened
@@ -228,6 +229,7 @@ change, never in the frozen artifact.
 - `## Run halted` — written by the `change.halt` operation when an autonomous run stops needing a human (the `halted` disposition); the heading is **bare**, never dated — the reader is a whole-line match, so the date sits inside the body. **Marker-section state**, in the same family as `## Auto-groom blocked` and `## Finalize blocked`: while the section is present the `run.verify` operation reports `run-halted`, which is what makes a `halted` disposition verifiable in git rather than a claim in a completion report. It is removed by the `change.resume-halted` operation, and by the claim when a halted change is claimed again.
 - `## Build evidence` — the build-evidence block for the certified feature head, written by `change.mark-implemented`, `finalize.publish`, and `evidence.recertify`; never hand-edited.
 - `## Why deferred` / `## Why killed` — added when entering those states.
+- `## Why on hold` — the optional hold reason, written only by the `hold_reason` key; lifting the hold removes it.
 
 The change body is a **PM-altitude proposal** (intent + scope). Detailed design lives in the linked superpowers spec; the task breakdown in the linked superpowers plan. Different zoom levels, no duplication.
 
@@ -286,11 +288,11 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
 
 ### Build-readiness & selection (shared definition)
 
-A change is **build-ready** — eligible for `docket-implement-next` — only when it is `proposed`, has a `spec:` **or** `trivial: true`, and all `depends_on` are satisfied (`done`). A `proposed` change with neither a spec nor `trivial: true` is **needs-grooming** (not build-ready). A change carrying `stacked_on:` is additionally build-ready only when the binary resolves its **effective base**; until then its readiness is `stack-base-unresolved` and the board reads *waiting on #A — stack base not built* (*stack parent #A killed — re-parent, un-stack, or kill* when an ancestor was killed). Stacking adds this eligibility condition only — never a ranking one. The implementer's deterministic selection order is `priority` (`critical` > `high` > `medium` > `low`) → age (`created`) → **lowest `id`**. A `created:` that is missing or malformed (not a well-formed `YYYY-MM-DD`) sorts last within its priority band — unknown age never preempts dated work.
+A change is **build-ready** — eligible for `docket-implement-next` — only when it is `proposed`, has a `spec:` **or** `trivial: true`, and all `depends_on` are satisfied (`done`). A `proposed` change with neither a spec nor `trivial: true` is **needs-grooming** (not build-ready). A change carrying `stacked_on:` is additionally build-ready only when the binary resolves its **effective base**; until then its readiness is `stack-base-unresolved` and the board reads *waiting on #A — stack base not built* (*stack parent #A killed — re-parent, un-stack, or kill* when an ancestor was killed). Stacking adds this eligibility condition only — never a ranking one. The implementer's deterministic selection order is `priority` (`critical` > `high` > `medium` > `low`) → age (`created`) → **lowest `id`**. A `created:` that is missing or malformed (not a well-formed `YYYY-MM-DD`) sorts last within its priority band — unknown age never preempts dated work. A held change (`hold: true`) that would be build-ready reads `on-hold`: autonomous selection never picks it, and naming it builds it.
 
 ### Autonomous grooming (shared definition)
 
-A change is opted into autonomous grooming only by its own `auto_groomable: true`; unset or `false` means not. The field is human input with one exception: `docket-auto-groom`'s abstain is the single agent write (`change.groom` `outcome: abstain` sets it to `false`).
+A change is opted into autonomous grooming only by its own `auto_groomable: true`; unset or `false` means not. The field is human input with one exception: `docket-auto-groom`'s abstain is the single agent write (`change.groom` `outcome: abstain` sets it to `false`). Likewise `hold` is human input except the auto-groomer's `hold: true` on a spec or trivial verdict that needs a person's step.
 
 A stub is **auto-groomable** — selectable by `docket-auto-groom` — when it is needs-grooming (`proposed`, no `spec:`, not `trivial: true`) AND it carries `auto_groomable: true`. Unsatisfied `depends_on` does NOT exclude it (the same design-ahead rule as interactive grooming; the implementer's reconcile re-validates at build time). Ranking is the same deterministic selection order as build-ready selection.
 

@@ -448,6 +448,42 @@ var proseContracts = []proseContract{
 		present: []string{"A typed `/docket-implement-next` runs untracked."}},
 	{sentinel: "change_0556_tracked_start", file: "docs/concepts/run-tracker.md",
 		present: []string{"A typed `/docket-implement-next` runs untracked."}},
+	// change 0560 — a hold keeps a groomed change out of autonomous build
+	// selection; naming it builds it. Each phrase binds the word to its claim.
+	{sentinel: "change_0560_hold", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{
+			"`readiness` vocabulary: `build-ready`, `on-hold`, `needs-grooming`, `waiting-dependency`, `stack-base-unresolved`, `not-proposed`, `auto-groom-blocked`, `invalid`;",
+			"— needs-grooming, on hold, already `in-progress`",
+			"(needs-grooming / on hold / already `in-progress`",
+			"A held change (`on-hold`) is built when named.",
+			"on the selection path a bundle reporting `on-hold` is dropped and reported the same way",
+		}},
+	{sentinel: "change_0560_hold", file: "skills/docket-groom-next/SKILL.md",
+		present: []string{
+			"**Hold.** When the settled design needs a step a person must carry out, suggest a hold",
+			"`hold: true` sets it, `hold: false` lifts it",
+			"an optional `hold_reason` (only with `hold: true`) writes `## Why on hold`",
+			"Abstain refuses it (`invalid-hold`)",
+			"`hold-reason-without-hold` and `invalid-hold_reason` write nothing",
+		}},
+	{sentinel: "change_0560_hold", file: "skills/docket-new-change/SKILL.md",
+		present: []string{"When the design needs a step a person must carry out, suggest a hold; if the human agrees, send `hold: true`"}},
+	{sentinel: "change_0560_hold", file: "skills/docket-auto-groom/SKILL.md",
+		present: []string{
+			"names a step a person must carry out, add `hold: true`",
+			"never send `hold: false`",
+			"each change it held",
+			"the autonomous builder will build it unless held",
+		}},
+	{sentinel: "change_0560_hold", file: "skills/docket-convention/SKILL.md",
+		present: []string{
+			"\nhold:                     # `true` keeps a groomed change out of autonomous build selection; naming it still builds it",
+			"autonomous selection never picks it, and naming it builds it",
+			"- `## Why on hold` — ",
+			"`hold` is human input except the auto-groomer's `hold: true`",
+		}},
+	{sentinel: "change_0560_hold", file: "skills/docket-status/SKILL.md",
+		present: []string{"a held change that would be build-ready shows **on hold**"}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation
