@@ -21,9 +21,9 @@ branch_prefix:
 branch: 'chore/measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 deliverable: 'results-artifact'
-claimed_at: '2026-10-19T02:35:58Z'
+claimed_at: '2026-10-19T02:37:56Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ The spec holds the script, the window, the baseline table, how to read the numbe
 - Changing any agent's model, effort, or cache setting; this only measures.
 - Measuring finalize-change or the Sonnet trials listed as follow-ups in #546's spec.
 - Adding the script to the repository or building a recurring cost report.
+
+## Reconcile log
+
+### 2026-10-19
+
+2026-10-19 — Reconciled against current state. #546 is done and installed; the spec's method, window (2026-10-12 to this run's claim stamp, 2026-10-19T02:35:58Z), and outcome rules still apply unchanged. No scope change. The results file keeps its existing path (docs/results/2026-10-17-...-results.md) and is replaced in place with the larger sample.
