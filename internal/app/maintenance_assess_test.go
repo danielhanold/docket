@@ -501,29 +501,6 @@ func TestGatherSweepSharedFactsNoGitClientMakesLocalHeadsUnknown(t *testing.T) {
 	}
 }
 
-// TestGatherSweepSharedFactsKeepsBatchedPRFacts: the batched PR read's facts are
-// kept from the same call that returned the bodies, never a second read.
-func TestGatherSweepSharedFactsKeepsBatchedPRFacts(t *testing.T) {
-	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "a", ""), assessDoneBlob(42, "b", "")}, nil)
-	n41, n42 := prNumberOf(t, f, 41), prNumberOf(t, f, 42)
-	batch := &fakeSweepBatchReader{result: SweepPRSetResult{
-		Facts:  map[int]domain.PRFacts{n41: {Number: strconv.Itoa(n41), BaseRef: "feat/parent", State: "merged"}},
-		Bodies: map[int]string{n41: "body"},
-	}}
-	deps := FinalizeDeps{Planning: PlanningDeps{Reader: f.reader, Clock: testClock()}, PRBatch: batch}
-	items := []sweepWorkItem{{id: 41, kind: sweepKindCleanup}, {id: 42, kind: sweepKindCleanup}}
-	shared := gatherSweepSharedFacts(context.Background(), deps, "repo", f.pin.Layout, f.inv, items)
-	if batch.calls != 1 {
-		t.Fatalf("calls=%d, want exactly one batched read", batch.calls)
-	}
-	if shared.prFacts[n41].BaseRef != "feat/parent" {
-		t.Errorf("PR #%d facts = %+v, want BaseRef feat/parent", n41, shared.prFacts[n41])
-	}
-	if _, ok := shared.prFacts[n42]; ok {
-		t.Errorf("PR #%d was not returned, so it must have no facts", n42)
-	}
-}
-
 // TestCloseoutIntegrationBranchFallsBackToDefault: the close-out destination is
 // the integration branch, falling back to the default branch.
 func TestCloseoutIntegrationBranchFallsBackToDefault(t *testing.T) {
@@ -801,13 +778,13 @@ func TestAssessFailedLocalBranchListIsUnknown(t *testing.T) {
 // TestAssessCarriedChildLeftoverLocalBranchDispatches: a record whose PR merged
 // into a stack parent's branch (a carried child) is cleaned like any other done
 // change once cleanup proves its work reached the integration branch, so a
-// leftover local branch alone is actionable.
+// leftover local branch alone is actionable. The assessment reads no PR base
+// fact: whether the PR merged into a stack parent never changes the verdict.
 func TestAssessCarriedChildLeftoverLocalBranchDispatches(t *testing.T) {
 	f := newAssessFixture(t, []StatusBlob{assessArchivedDoneBlob(41, "archived")}, nil)
 	n := prNumberOf(t, f, 41)
 	body := "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" + assessInterior(t, f, 41) + "\n<!-- docket:backlink:end -->\n\nprose\n"
 	shared := withLocal(prShared(map[int]string{n: body}), featureRefFor("archived"))
-	shared.prFacts = map[int]domain.PRFacts{n: {BaseRef: "feat/parent"}}
 	if _, actionable := f.assess(t, cleanWS(), shared, 41); !actionableHas(actionable, 41) {
 		t.Fatalf("a carried child's leftover local branch must dispatch a cleanup; actionable=%v", actionable)
 	}

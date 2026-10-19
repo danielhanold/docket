@@ -603,7 +603,6 @@ func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, repoDir stri
 			if deps.PRBatch != nil {
 				res := deps.PRBatch.ProbePRSet(ctx, repoDir, numbers)
 				bodies = res.Bodies
-				shared.prFacts = res.Facts
 			}
 			for _, n := range numbers {
 				if b, ok := bodies[n]; ok {
