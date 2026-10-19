@@ -1,12 +1,12 @@
 # Backlog
 
-**573 changes** — 🟣 1 groomed · 🟡 6 proposed · ⚪ 16 deferred · ✅ 406 done · 🗑️ 144 killed
+**573 changes** — 🟢 1 in progress · 🟡 6 proposed · ⚪ 16 deferred · ✅ 406 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0573](active/0573-retire-trivial-every-build-ready-change-has-a-spec.md) | Retire trivial: every build-ready change has a spec | `high` | `refactor` | [spec](../superpowers/specs/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0573](active/0573-retire-trivial-every-build-ready-change-has-a-spec.md) | Retire trivial: every build-ready change has a spec | `high` | `refactor` | [spec](../superpowers/specs/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md) | `refactor/retire-trivial-every-build-ready-change-has-a-spec` | building |
 
 ## 🟡 Proposed (6)
 

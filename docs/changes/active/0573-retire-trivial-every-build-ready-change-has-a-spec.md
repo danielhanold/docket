@@ -2,7 +2,7 @@
 id: 573
 slug: 'retire-trivial-every-build-ready-change-has-a-spec'
 title: 'Retire trivial: every build-ready change has a spec'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'refactor'
 deliverable: 'pr'
@@ -20,10 +20,11 @@ trivial: false
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'refactor/retire-trivial-every-build-ready-change-has-a-spec'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-19T23:45:40Z'
 ---
 
 ## Artifacts
