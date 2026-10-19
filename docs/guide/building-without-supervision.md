@@ -151,7 +151,9 @@ whatever starts them keys on the outcome each run declares. Every run ends by de
 - **halted** — something needs a human (an escalation, an invalidated design, a broken precondition).
 
 A driver keys on these with one simple rule: **continue on `advanced` or `contended`, stop on
-`drained` or `halted`.** The contract is deliberately driver-agnostic — a human re-issuing the
+`drained` or `halted`** — except that a tracked loop carries on past `halted` when the run
+tracker's verdict is `run-next` (see [When a change halts mid-drain](#when-a-change-halts-mid-drain)).
+The contract is deliberately driver-agnostic — a human re-issuing the
 plain request between runs satisfies it exactly as well as any automated driver, so nothing here
 depends on a particular tool.
 
@@ -167,8 +169,8 @@ build work stays isolated and the driver's own context stays small:
 A change on [hold](../reference/glossary.md#hold) is skipped by both drains; it is built only
 when you name it alone.
 
-Budget and iteration caps belong to the driver, not to docket, which does not reimplement them. The
-one invariant the driver never breaks is the PR handoff: **a build run never merges.** A dependency
+Iteration caps belong to the driver, not to docket, which does not reimplement them; the one limit
+docket keeps itself is the halt limit below. The one invariant the driver never breaks is the PR handoff: **a build run never merges.** A dependency
 on a `pr` change therefore only clears between drains, once its pull request is merged outside the
 drain — you clicking Merge, or a separate close-out drain
 ([Landing changes safely](./landing-changes.md)) — and the change reaches `done`. A dependency on a
@@ -177,6 +179,10 @@ unattended; `/loop` behavior is version- and mode-specific. The bookkeeping that
 launched it, whether it finished, whether a re-dispatch is allowed — is the run tracker, described in
 [The run tracker and attribution](../concepts/run-tracker.md).
 
+docket supports **one implement loop and one finalize loop at a time**; the two may run side by
+side. A second implement loop is unsupported: both loops would share one halt count, and one loop's
+clean builds would keep resetting the other's halts, so a broken setup would never reach the limit.
+
 The run tracker follows a run only when the session starts it: with a plain request in the session
 (for example "implement 412") or with `/loop docket-implement-next`. In Claude Code the
 implement-next skill runs forked, so a typed command goes straight to the implementer and the
@@ -184,3 +190,31 @@ session never takes the turn that would start a tracked run.
 A typed `/docket-implement-next` runs untracked.
 It still builds to a PR, but if it stops partway there is no automatic retry, resume, or cancel, and
 its outcome can only be read unattributed (`docket run verdict --unattributed`).
+
+### When a change halts mid-drain
+
+A halt usually concerns one change, such as a spec with a logical error that needs you. The change
+is already marked as needing you on the board, so a tracked loop does not stop the whole drain for
+it. When a run halts on a change it picked from the queue, the run tracker's verdict is
+`run-next <key> run-halted <id>`: the halted change is never re-dispatched, and the loop starts a
+fresh run for the next build-ready change.
+
+A setup problem would halt every change the same way, so the run tracker keeps a **count of halts
+in a row** and stops the loop at `run.max_consecutive_halts` (default 2). The halt that reaches the
+limit prints `run-stop <key> run-halted <id>` with a note, and the session asks you whether to reset
+the count. It never resets the count on its own; on your yes it runs `docket run reset-halts`, which
+you can also run yourself at any time. Set the limit to `1` to stop a loop at its first halt.
+
+- **Which runs count.** A run that picked its change from the queue: no id, or a set of two or more
+  ids. That includes a one-off "implement the next change". A named run (a single id) or a resume
+  never reads or changes the count, and its halt stops as before.
+- **What resets it.** A clean build (`run-done … run-complete`) sets the count back to 0, whether
+  the change was named or picked, and so does `docket run reset-halts`. Nothing else does: a run
+  that claimed nothing, including one that halted before its claim, leaves the count alone.
+- **It outlives the loop.** The count is shared by every session and worktree of the repository.
+  A loop stopped at the limit leaves the count there until a clean build or a reset, so the next
+  loop stops at its first halt. A visibility switch moves the state folder, and the count moves with
+  it.
+- **Halted runs stay active.** Each halted run stays active so it can be resumed. A visibility
+  switch refuses while any run is still active, and a loop can leave up to the limit's worth of
+  halted runs behind; cancel each (`docket run cancel --key <key> --reason <why>`) before switching.

@@ -91,7 +91,7 @@ Every docket write re-renders the board, so there is no separate step to regener
 
 One honest caveat about dependencies: chains serialize on the PR handoff. A change that depends
 on another cannot start until that dependency is `done` — its pull request merged and the change
-closed out, or, for a results-artifact dependency, the change completed. Unrelated changes drain freely in parallel around it — only the dependent one waits.
+closed out, or, for a results-artifact dependency, the change completed. Unrelated changes keep draining around it — only the dependent one waits.
 
 ## Priorities, types, and dependencies
 
@@ -110,7 +110,7 @@ Three manifest fields shape *what gets built when*, and none of them is a hard s
   that the second change would be built against code that is not there yet.
 
 Record a dependency whenever one change genuinely needs another's merged code or decision. Leave
-it empty when the two pieces of work are independent — that is what lets them drain in parallel.
+it empty when the two pieces of work are independent — that is what lets them drain in any order.
 
 ## Capturing an idea: designed, rough, or discovered
 

@@ -54,7 +54,8 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
   commands, and fast-forward the primary checkout to the integration branch. Verbs:
   `docket repository --help`.
 - **`docket run`** — track dispatched runs and verify a change's run from claim to its handoff
-  (implemented with a PR, or a completed results artifact).
+  (implemented with a PR, or a completed results artifact); also reset the count of implement-next
+  halts in a row (`docket run reset-halts`).
   Verbs: `docket run --help`.
 - **`docket schema`** — emit request/result payload schemas and allowed values (read-only,
   repository-independent). Verbs: `docket schema --help`.

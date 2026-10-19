@@ -49,8 +49,12 @@ in [Proving the build](./proving-the-build.md).
 `docket-finalize-change` ends every run declaring one of four run outcomes — `advanced` (merged one
 change and closed it out), `contended` (another writer got there first, nothing merged), `drained`
 (nothing eligible in scope), or `halted` (needs a human). implement-next ends with the same four
-words, so a single driver keys on both drains the same way: **continue on `advanced`/`contended`,
-stop on `drained`/`halted`.** The built-in `/loop` is the recommended driver:
+words. A finalize driver keys on them with one rule: **continue on `advanced`/`contended`, stop on
+`drained`/`halted`** — on every `halted`. An implement-next loop differs in one way: it may carry
+on past a halted change when the run tracker's verdict is `run-next`
+([When a change halts mid-drain](./building-without-supervision.md#when-a-change-halts-mid-drain)).
+docket supports one implement loop and one finalize loop at a time; the two may run side by side.
+The built-in `/loop` is the recommended driver:
 
 - `/loop docket-finalize-change` — closes out every eligible `implemented` change, **one merge per
   iteration**, stopping on `drained`.
