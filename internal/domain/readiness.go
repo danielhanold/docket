@@ -1,9 +1,10 @@
 package domain
 
 // ReadinessKind tags a change's readiness outcome. Readiness is a typed value
-// rather than a Boolean: a caller that only wants "can this be built" reads
-// Kind == ReadyBuildReady, while a caller reporting to a human keeps the exact
-// reason the change is not ready.
+// rather than a Boolean: selection reads Kind == ReadyBuildReady, "may this
+// named change be built" goes through ClaimEligibility (which also admits
+// ReadyOnHold), and a caller reporting to a human keeps the exact reason the
+// change is not ready.
 type ReadinessKind string
 
 // The closed set of readiness outcomes.

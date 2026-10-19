@@ -313,20 +313,6 @@ func TestChangeDeliverableEffectiveValue(t *testing.T) {
 
 // TestLifecycleActionCarriesDeliverable pins newChangeBuilder's copy: a
 // lifecycle write must keep the stored deliverable, known or unknown.
-func TestLifecycleActionCarriesHold(t *testing.T) {
-	c := NewChange(ChangeSpec{ID: 1, Slug: "s", Status: StatusProposed, Type: "feat", Trivial: true, Hold: holdTrue})
-	res, fail := Claim(c, actNow)
-	if fail != nil {
-		t.Fatalf("Claim: %v", fail)
-	}
-	if !res.Change.Held() {
-		t.Error("Held after Claim = false, want true")
-	}
-	if got := res.Change.Hold(); got != holdTrue {
-		t.Errorf("Hold after Claim = %+v, want %+v", got, holdTrue)
-	}
-}
-
 func TestLifecycleActionCarriesDeliverable(t *testing.T) {
 	for _, spec := range []ChangeSpec{
 		{ID: 1, Slug: "s", Status: StatusProposed, Deliverable: DeliverableResultsArtifact, RawDeliverable: "results-artifact"},
@@ -342,5 +328,21 @@ func TestLifecycleActionCarriesDeliverable(t *testing.T) {
 		if got := res.Change.RawDeliverable(); got != spec.RawDeliverable {
 			t.Errorf("RawDeliverable after Defer = %q, want %q", got, spec.RawDeliverable)
 		}
+	}
+}
+
+// TestLifecycleActionCarriesHold pins newChangeBuilder's copy of the hold: a
+// claim keeps the stored hold rather than dropping it.
+func TestLifecycleActionCarriesHold(t *testing.T) {
+	c := NewChange(ChangeSpec{ID: 1, Slug: "s", Status: StatusProposed, Type: "feat", Trivial: true, Hold: holdTrue})
+	res, fail := Claim(c, actNow)
+	if fail != nil {
+		t.Fatalf("Claim: %v", fail)
+	}
+	if !res.Change.Held() {
+		t.Error("Held after Claim = false, want true")
+	}
+	if got := res.Change.Hold(); got != holdTrue {
+		t.Errorf("Hold after Claim = %+v, want %+v", got, holdTrue)
 	}
 }

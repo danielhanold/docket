@@ -620,8 +620,8 @@ five more kinds: `on-hold` (see [Hold](#hold)), `auto-groom-blocked`, `waiting-d
 `stack-base-unresolved`, and `invalid`
 (see [Readiness reason](#readiness-reason--waiting-on-n--needs-you-cells)).
 
-**Used for:** selection. Only build-ready changes can be implemented; only needs-grooming changes
-can be groomed. Selection order is priority → age (`created`) → lowest id.
+**Used for:** selection. Only build-ready changes are selected for a build; a held change is built
+only when named. Only needs-grooming changes can be groomed. Selection order is priority → age (`created`) → lowest id.
 
 ```sh
 docket status --json | jq '.changes[] | {id, readiness, readiness_reason, unmet_dependencies}'
@@ -745,7 +745,8 @@ docket change groom --request groom.json
 The `change.groom` outcome that edits any `proposed` change without changing its groom state: a
 needs-grooming stub stays needs-grooming, and a spec'd or trivial change stays build-ready. It can
 replace the linked spec's body (only when the change links a spec) and edit owned sections, the
-title, the priority, the type, the deliverable, the branch prefix, and relationship fields. It never sets `spec:`, `trivial:`, or
+title, the priority, the type, the deliverable, the hold, the branch prefix, and relationship fields. A
+hold moves a change between build-ready and on-hold. It never sets `spec:`, `trivial:`, or
 `auto_groomable:`, and it never edits `## Auto-groom blocked`, which only abstain and re-enable
 write.
 
@@ -2408,10 +2409,10 @@ docket development install --source ~/dev/docket
 - [Groom](#groom)
 - [Groom outcome revise](#groom-outcome-revise)
 - [Halt / resume-halted](#halt--resume-halted)
-- [Hold](#hold)
 - [Harness](#harness)
 - [Harness defaults sidecar (agents/harness-defaults.yml)](#harness-defaults-sidecar-agentsharness-defaultsyml)
 - [Health check / health code](#health-check--health-code)
+- [Hold](#hold)
 - [Id / slug](#id--slug)
 - [Implementation context](#implementation-context)
 - [Implement-next / the drainer](#implement-next--the-drainer)
