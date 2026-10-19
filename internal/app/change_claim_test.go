@@ -522,3 +522,21 @@ func assertUnrelatedShapeIntact(t *testing.T, repo *gitRepo, branch string, shap
 	}
 	t.Errorf("%s: status no longer reports a finding on the unrelated records; findings %+v", shape.name, st.Findings)
 }
+
+// TestChangeClaimAcceptsHeldChangeAndKeepsField: a hold never refuses a claim,
+// and the claimed record keeps the hold for the human to lift.
+func TestChangeClaimAcceptsHeldChangeAndKeepsField(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	src := strings.Replace(claimableChange(3, "widget"), "trivial: true\n", "trivial: true\nhold: true\n", 1)
+	plan, opRes := claimPlanFor(t, map[string]string{recPath: src}, baseClaimOp([]string{"inline"}, 3, domain.NewBranchFacts(nil)))
+	if opRes.Refused {
+		t.Fatalf("claim of a held change refused: %v", opRes.Findings)
+	}
+	rec := killRecordBytes(t, plan, recPath)
+	if !strings.Contains(rec, "\nhold: true\n") {
+		t.Errorf("claimed record lost the hold:\n%s", rec)
+	}
+	if !strings.Contains(rec, "status: 'in-progress'") && !strings.Contains(rec, "status: in-progress") {
+		t.Errorf("claimed record not in-progress:\n%s", rec)
+	}
+}

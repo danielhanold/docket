@@ -346,8 +346,10 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 
 // selectContextChange resolves the change the bundle describes: the first
 // build-ready candidate under the selection policy, or the exact requested id.
+// A hold is a selection-only exclusion: no-id selection never returns a held
+// change, while an explicit id accepts one (ClaimEligibility admits on-hold).
 // It returns a non-nil result pointer for every typed non-bundle outcome, and a
-// build-ready change with a nil pointer on success.
+// claim-eligible change with a nil pointer on success.
 func selectContextChange(snap domain.Snapshot, facts domain.BranchFacts, req ImplementationContextRequest) (domain.Change, *ImplementationContextResult) {
 	if req.ID <= 0 {
 		queue := domain.SelectQueue(snap, facts, domain.SelectionFilter{})
@@ -371,8 +373,9 @@ func selectContextChange(snap domain.Snapshot, facts domain.BranchFacts, req Imp
 		return domain.Change{}, &r
 	}
 
-	// The explicit change must be claimable exactly as the selection policy
-	// requires. ClaimEligibility keys on readiness, so a non-build-ready change
+	// The explicit change must be claimable exactly as a claim requires.
+	// ClaimEligibility keys on readiness and admits a held (on-hold)
+	// change, since naming it overrides the hold; any other non-ready change
 	// carries its exact reason token: an unusable identity is malformed, and
 	// every other non-ready outcome maps to not-ready-<kind> (including
 	// stack-base-unresolved for an unresolved effective base).

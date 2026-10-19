@@ -625,3 +625,55 @@ func TestContextImplementationReportsDeliverable(t *testing.T) {
 		})
 	}
 }
+
+// TestContextImplementationSkipsHeldChange: with no id, selection passes over a
+// held change even when it ranks first, and a corpus whose only candidate is
+// held yields no candidate.
+func TestContextImplementationSkipsHeldChange(t *testing.T) {
+	specA := "docs/changes/specs/spec-a.md"
+	specB := "docs/changes/specs/spec-b.md"
+	held := changeBlob(11, "alpha", "feat", "high", "spec: "+specA+"\nhold: true\n")
+	open := changeBlob(12, "beta", "fix", "low", "spec: "+specB+"\n")
+	artifacts := map[string]StatusArtifact{
+		sourceMetadata + "|" + specA: {Found: true, Revision: "sa", Data: []byte("spec a\n")},
+		sourceMetadata + "|" + specB: {Found: true, Revision: "sb", Data: []byte("spec b\n")},
+	}
+
+	t.Run("unheld sibling selected", func(t *testing.T) {
+		fake := &fakeReader{pin: docketPin(t), corpus: []StatusBlob{held, open}, artifactData: artifacts}
+		got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{})
+		if got.Result != ResultApplied || got.Context == nil {
+			t.Fatalf("result=%q reason=%q message=%q", got.Result, got.Reason, got.Message)
+		}
+		if id := got.Context.Change.Summary.ID; id != 12 {
+			t.Errorf("selected change %d, want 12 (11 is held)", id)
+		}
+	})
+	t.Run("only held change", func(t *testing.T) {
+		fake := &fakeReader{pin: docketPin(t), corpus: []StatusBlob{held}, artifactData: artifacts}
+		got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{})
+		if got.Result != ResultNoOp || got.Reason != ReasonContextNoCandidate {
+			t.Errorf("result=%q reason=%q, want no-op/%q", got.Result, got.Reason, ReasonContextNoCandidate)
+		}
+	})
+}
+
+// TestContextImplementationExplicitIDBuildsHeldChange: a hold is selection-only,
+// so naming the held change returns its bundle, claim-eligible.
+func TestContextImplementationExplicitIDBuildsHeldChange(t *testing.T) {
+	spec := "docs/changes/specs/spec-a.md"
+	fake := &fakeReader{
+		pin:    docketPin(t),
+		corpus: []StatusBlob{changeBlob(11, "alpha", "feat", "high", "spec: "+spec+"\nhold: true\n")},
+		artifactData: map[string]StatusArtifact{
+			sourceMetadata + "|" + spec: {Found: true, Revision: "sa", Data: []byte("spec a\n")},
+		},
+	}
+	got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{ID: 11})
+	if got.Result != ResultApplied || got.Context == nil {
+		t.Fatalf("result=%q reason=%q message=%q", got.Result, got.Reason, got.Message)
+	}
+	if got.Context.Readiness != string(domain.ReadyOnHold) || !got.Context.ClaimEligible {
+		t.Errorf("readiness=%q claim_eligible=%v, want on-hold/true", got.Context.Readiness, got.Context.ClaimEligible)
+	}
+}
