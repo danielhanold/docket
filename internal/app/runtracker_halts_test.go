@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -243,5 +244,43 @@ func TestHaltCountRejectsMalformedKey(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(s.dir, haltCountFileName)); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("a malformed key wrote a count (stat err %v)", err)
+	}
+}
+
+// TestRunVerdictHumanTextAppendsNote pins the report rendering: the note rides on a
+// second line of HumanText, while reportLine — what the record persists — stays the
+// one report line.
+func TestRunVerdictHumanTextAppendsNote(t *testing.T) {
+	r := RunVerdictResult{Decision: RunDecisionNext, Key: "k", Outcome: VerdictRunHalted, AttributedID: 3}
+	if got, want := r.HumanText(), "run-next k run-halted 3"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if r.reportLine() != r.HumanText() {
+		t.Fatalf("without a note reportLine %q != HumanText %q", r.reportLine(), r.HumanText())
+	}
+	r.Decision, r.Note = RunDecisionStop, "note: x"
+	if got, want := r.HumanText(), "run-stop k run-halted 3\nnote: x"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if got, want := r.reportLine(), "run-stop k run-halted 3"; got != want {
+		t.Fatalf("reportLine = %q, want %q", got, want)
+	}
+}
+
+// TestHaltLimitNoteNamesTheResetAndForbidsDoingItAlone pins the at-limit note: one
+// line naming the count, the limit, the setting and the reset operation, and
+// forbidding a reset without the person's yes.
+func TestHaltLimitNoteNamesTheResetAndForbidsDoingItAlone(t *testing.T) {
+	n := haltLimitNote(2, 2)
+	for _, want := range []string{"note: ", "2 changes picked from the queue", "limit of 2", "run.max_consecutive_halts", "run.reset-halts", "Never reset it on your own"} {
+		if !strings.Contains(n, want) {
+			t.Errorf("note %q lacks %q", n, want)
+		}
+	}
+	if strings.Contains(n, "\n") {
+		t.Errorf("note %q spans more than one line", n)
+	}
+	if one := haltLimitNote(1, 1); !strings.Contains(one, "1 change picked from the queue has halted") || !strings.Contains(one, "limit of 1") {
+		t.Errorf("note at limit 1 = %q, want the singular wording", one)
 	}
 }

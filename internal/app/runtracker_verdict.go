@@ -81,6 +81,16 @@ import (
 // single-use continuation triple, and reports `run-continue <key> run-waiting
 // <id> <continuation-id> <phase>` with Terminal false. Unsafe ownership
 // (ambiguous or halted takeover) earns neither retry nor continuation.
+//
+// HALT COUNT (runtracker_halts.go). A run-halted verdict consults the per-repository
+// count of halts in a row by how the run chose its change (runTrackerHaltMode): a
+// named run or a resume never opens the count and prints today's run-stop line; an
+// unknown-mode claim counts but prints today's line; a change picked from the queue
+// counts and prints `run-next <key> run-halted <id>` while the count stays under
+// run.max_consecutive_halts, else today's run-stop plus a reset note. Any count
+// fault prints today's line, and a key's halt counts once — a re-run verdict
+// replays the saved line. Only a final run-done run-complete resets the count, once
+// per key. run-next keeps Terminal true, spends no retry, and leaves the run active.
 
 // OperationRunVerdict is the operation key `run verdict` records in its
 // envelope.
@@ -177,7 +187,7 @@ const (
 type RunVerdictResult struct {
 	Envelope
 	Key          string   `json:"key,omitempty"`
-	Decision     string   `json:"decision,omitempty"` // run-done | run-retry-once | run-stop | run-continue
+	Decision     string   `json:"decision,omitempty"` // run-done | run-retry-once | run-stop | run-continue | run-next
 	Outcome      string   `json:"outcome,omitempty"`  // run-* | no-attributable-claim | ambiguous-claims | run-tracker-unavailable
 	AttributedID int      `json:"attributed_id,omitempty"`
 	Unmet        []string `json:"unmet,omitempty"`
@@ -206,11 +216,29 @@ type RunVerdictResult struct {
 	// It is ADDITIVE and diagnostic — omitempty keeps it off every other path — and
 	// never changes the report-line TOKENS, so existing report parsing is untouched.
 	CompletionFindings []string `json:"completion_findings,omitempty"`
+	// HaltsInARow and HaltLimit surface the halt count on a halt of a change a loop
+	// picked from the queue: the count of halts in a row this halt brought it to and
+	// the run.max_consecutive_halts it was weighed against. Note is the at-limit
+	// reset note, rendered on a second line after the report line. All three stay
+	// empty on every other verdict (omitempty keeps them off the JSON).
+	HaltsInARow int    `json:"halts_in_a_row,omitempty"`
+	HaltLimit   int    `json:"halt_limit,omitempty"`
+	Note        string `json:"note,omitempty"`
 }
 
-// HumanText renders the single attributed report line. The field layout after
-// `<decision> <key> <outcome>` is chosen by the outcome token.
+// HumanText renders the attributed report line, followed by the Note on a second
+// line when one is set (only a halt that reached the halt limit carries one).
 func (r RunVerdictResult) HumanText() string {
+	if r.Note != "" {
+		return r.reportLine() + "\n" + r.Note
+	}
+	return r.reportLine()
+}
+
+// reportLine renders the single attributed report line — the one line the record
+// persists as its Disposition. The field layout after `<decision> <key> <outcome>`
+// is chosen by the outcome token.
+func (r RunVerdictResult) reportLine() string {
 	fields := []string{r.Decision, r.Key, r.Outcome}
 	// A run-continue reuses the run-waiting outcome word but a DISTINCT field
 	// layout — [id, continuation-id, phase] — so it is keyed on the DECISION, not
@@ -257,7 +285,7 @@ func runVerdictLine(key, decision, outcome string, id int, terminal bool, set fu
 // the report line is the contract, and the retry permit's durability rests on the
 // O_EXCL marker (authority), not on this mirror save.
 func persistRunVerdict(repoDir, key string, rec RunTrackerRecord, res RunVerdictResult) RunVerdictResult {
-	rec.Disposition = res.HumanText()
+	rec.Disposition = res.reportLine()
 	rec.Terminal = res.Terminal
 	_ = SaveRunTrackerRecord(repoDir, key, rec)
 	return res
@@ -317,10 +345,19 @@ func RunVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gde
 		// (unit tests fake the observers); production composes
 		// productionCancelSeams(repoDir). RunVerify's verdict is reported as fact —
 		// runTrackerCompleteRun never re-derives it.
-		return runTrackerCompleteRun(repoDir, key, rec, v.Verdict, id, verdictSeams(repoDir, wdeps))
+		res := runTrackerCompleteRun(repoDir, key, rec, v.Verdict, id, verdictSeams(repoDir, wdeps))
+		if v.Verdict == VerdictRunComplete && res.Decision == RunDecisionDone {
+			// A clean build zeroes the halt count — only once the run-done line is
+			// final (after the closeout and its checked save), and best-effort.
+			runTrackerResetHaltCount(repoDir, key)
+		}
+		return res
 	case VerdictRunHalted:
-		return persistRunVerdict(repoDir, key, rec,
-			runVerdictLine(key, RunDecisionStop, VerdictRunHalted, id, true, nil))
+		// A halt never spends a retry and leaves the run active. The halt count may
+		// turn today's run-stop into run-next (a loop-picked halt under the limit) or
+		// add the at-limit note; see runTrackerApplyHaltCount.
+		res := runVerdictLine(key, RunDecisionStop, VerdictRunHalted, id, true, nil)
+		return persistRunVerdict(repoDir, key, rec, runTrackerApplyHaltCount(ctx, deps, repoDir, key, rec, res))
 	case VerdictRunWaiting:
 		// A cooperatively handed-off drive is a live continuation, not a stop: emit
 		// a NONTERMINAL run-continue that keeps the key and spends no retry (change
@@ -460,7 +497,7 @@ func runTrackerCompleteRun(repoDir, key string, rec RunTrackerRecord, outcome st
 	res := runVerdictLine(key, RunDecisionDone, outcome, id, true, func(r *RunVerdictResult) {
 		r.CompletionFindings = findings
 	})
-	rec.Disposition = res.HumanText()
+	rec.Disposition = res.reportLine()
 	rec.Terminal = res.Terminal
 	if serr := SaveRunTrackerRecord(repoDir, key, rec); serr != nil {
 		return persistRunVerdict(repoDir, key, rec,
@@ -470,6 +507,131 @@ func runTrackerCompleteRun(repoDir, key string, rec RunTrackerRecord, outcome st
 			}))
 	}
 	return res
+}
+
+// haltMode is how a halted run chose its change, as the halt count sees it.
+type haltMode int
+
+const (
+	// haltModeUnknown: no positive evidence either way (no binding, an unreadable
+	// one, or a claim made without a recognized selection). The halt counts, but the
+	// verdict prints today's line.
+	haltModeUnknown haltMode = iota
+	// haltModeLoopPicked: the claim recorded ClaimSelectionQueue. The halt counts and
+	// may print run-next.
+	haltModeLoopPicked
+	// haltModeNamed: the run named its change (ClaimSelectionNamed, or a
+	// `run start --resume` record). The count is never opened.
+	haltModeNamed
+)
+
+// runTrackerHaltMode reads how the run behind key chose its change. A resume-shaped
+// record is named by construction (it never claimed); otherwise the claim binding's
+// Selection decides, and any binding fault or absence is unknown — never named,
+// never loop-picked.
+func runTrackerHaltMode(repoDir, key string, rec RunTrackerRecord) haltMode {
+	if rec.resumeAttributed() {
+		return haltModeNamed
+	}
+	b, ok, err := LoadRunTrackerClaimBinding(repoDir, key)
+	if err != nil || !ok {
+		return haltModeUnknown
+	}
+	switch b.Selection {
+	case ClaimSelectionQueue:
+		return haltModeLoopPicked
+	case ClaimSelectionNamed:
+		return haltModeNamed
+	default:
+		return haltModeUnknown
+	}
+}
+
+// runTrackerHaltLimit reads run.max_consecutive_halts from the resolved config at
+// verdict time. A missing reader, a pin fault, or a value under 1 reports ok=false,
+// which demotes a loop-picked halt to unknown (counted, today's line).
+func runTrackerHaltLimit(ctx context.Context, deps PlanningDeps, repoDir string) (int, bool) {
+	if deps.Reader == nil {
+		return 0, false
+	}
+	pin, err := deps.Reader.PinContext(ctx, repoDir)
+	if err != nil {
+		return 0, false
+	}
+	limit := pin.Config.Effective.Run.MaxConsecutiveHalts.Value
+	if limit < 1 {
+		return 0, false
+	}
+	return limit, true
+}
+
+// runTrackerApplyHaltCount weighs a keyed run-halted verdict (res, today's
+// `run-stop <key> run-halted <id>`) against the halt count and returns the line to
+// report. A named halt returns res before the count is ever opened. Every fault —
+// the store, the lock, an unreadable count or marker — returns res unchanged, so a
+// count fault never changes a report line. The outcome comes from the key's SAVED
+// marker, never re-derived from the current mode, count or limit, so re-running the
+// verdict for an old key replays its first line.
+func runTrackerApplyHaltCount(ctx context.Context, deps PlanningDeps, repoDir, key string, rec RunTrackerRecord, res RunVerdictResult) RunVerdictResult {
+	mode := runTrackerHaltMode(repoDir, key, rec)
+	if mode == haltModeNamed {
+		return res
+	}
+	limit := 0
+	if mode == haltModeLoopPicked {
+		l, ok := runTrackerHaltLimit(ctx, deps, repoDir)
+		if !ok {
+			mode = haltModeUnknown
+		} else {
+			limit = l
+		}
+	}
+	store, err := openHaltCountStore(repoDir)
+	if err != nil {
+		return res
+	}
+	out, err := store.recordHalt(key, mode == haltModeLoopPicked, limit)
+	if err != nil {
+		return res
+	}
+	switch out.Decision {
+	case RunDecisionNext:
+		res.Decision = RunDecisionNext
+	case RunDecisionStop:
+		if out.Noted {
+			res.Note = haltLimitNote(out.HaltsInARow, out.HaltLimit)
+		}
+	default:
+		// Unknown mode, now or when the key was first counted: today's line.
+		return res
+	}
+	res.HaltsInARow = out.HaltsInARow
+	res.HaltLimit = out.HaltLimit
+	return res
+}
+
+// runTrackerResetHaltCount zeroes the halt count for key's clean build, once per key.
+// It is best-effort: the caller runs it only after the run-done line is final, and a
+// fault leaves the count as it was without touching the report.
+func runTrackerResetHaltCount(repoDir, key string) {
+	store, err := openHaltCountStore(repoDir)
+	if err != nil {
+		return
+	}
+	_ = store.recordReset(key)
+}
+
+// haltLimitNote is the one-line note under a run-stop that reached the halt limit.
+// It asks the coordinating session to put the reset to the person, and is worded
+// without assuming a loop is running.
+func haltLimitNote(n, limit int) string {
+	halted := fmt.Sprintf("%d changes picked from the queue have halted in a row", n)
+	if n == 1 {
+		halted = "1 change picked from the queue has halted"
+	}
+	return fmt.Sprintf("note: %s, reaching the limit of %d "+
+		"(run.max_consecutive_halts). Ask the person whether to reset the halt count to 0; only on their "+
+		"yes, run the run.reset-halts operation (docket run reset-halts). Never reset it on your own.", halted, limit)
 }
 
 // verdictSeams composes the census seam bundle the keyed run.verdict uses on both
