@@ -1,12 +1,6 @@
 # Backlog
 
-**571 changes** — 🔵 1 built · 🟣 1 groomed · 🟡 7 proposed · ⚪ 16 deferred · ✅ 402 done · 🗑️ 144 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0567](active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Clean up stacked children when their stack lands, and finalize a child after its parent | `high` | `fix` | [#433](https://github.com/danielhanold/docket/pull/433) | awaiting merge |
+**571 changes** — 🟣 1 groomed · 🟡 7 proposed · ⚪ 16 deferred · ✅ 403 done · 🗑️ 144 killed
 
 ## 🟣 Groomed (1)
 
@@ -70,7 +64,6 @@ graph TD
   0560
   0561
   0566
-  0567
   0569
   0570
   0571
@@ -82,10 +75,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (546)</summary>
+<details><summary>✅🗑️ Archive — done + killed (547)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0567](archive/2026-10-19-0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Clean up stacked children when their stack lands, and finalize a child after its parent | 2026-10-19 |
 | [0568](archive/2026-10-18-0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Stop deferring a change that is already being built | 2026-10-18 |
 | [0565](archive/2026-10-18-0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | 2026-10-18 |
 | [0563](archive/2026-10-18-0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | 2026-10-18 |
@@ -102,7 +96,6 @@ graph TD
 | [0553](archive/2026-10-16-0553-explain-repository-check-and-status-findings-in-plain-langua.md) | Explain repository check and status findings in plain language | 2026-10-16 |
 | [0548](archive/2026-10-16-0548-rename-the-v0-9-13-frozen-fixture-tree-to-the-1-0-release-se.md) | Name test fixture folders by what they hold | 2026-10-16 |
 | [0539](archive/2026-10-16-0539-list-the-artifact-backlink-finding-codes-in-the-docket-statu.md) | Describe repository-check drift findings by family in the docket-status skill | 2026-10-16 |
-| [0537](archive/2026-10-16-0537-delete-the-empty-agents-md-left-behind-when-a-dispatch-block.md) | Delete the empty AGENTS.md left behind when a dispatch block is retired | 2026-10-16 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
 | [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
 | [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
@@ -250,7 +243,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 59 done |
+| [2026-10](archive/) | 60 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0567 — Clean up stacked children when their stack lands, and finalize a child after its parent](../../changes/active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md)**
+> ↩ **[Change 0567 — Clean up stacked children when their stack lands, and finalize a child after its parent](../../changes/archive/2026-10-19-0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md)**
 <!-- docket:backlink:end -->
 
 # Clean up stacked children when their stack lands, and finalize a child after its parent — design

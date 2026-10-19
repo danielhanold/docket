@@ -2,7 +2,7 @@
 id: 567
 slug: 'cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea'
 title: 'Clean up stacked children when their stack lands, and finalize a child after its parent'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'fix'
 deliverable: 'pr'
@@ -23,7 +23,7 @@ branch: 'fix/cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea'
 pr: 'https://github.com/danielhanold/docket/pull/433'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-19T01:09:11Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -32,6 +32,7 @@ claimed_at: '2026-10-19T01:09:11Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md](../../superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md) |
+| Spec (merged) | [2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md) |
 | Plan | [2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md](../../superpowers/plans/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) |
 | Results | [2026-10-19-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-results.md](../../results/2026-10-19-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-results.md) |
 | ADRs | [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0035](../../adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0152](../../adrs/0152-a-finished-workspace-s-identity-excludes-the-base-it-was-cut.md) |
