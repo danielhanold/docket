@@ -81,9 +81,6 @@ type sweepSharedFacts struct {
 	prBodiesGathered bool
 	prBodies         map[int]string // PR number -> body (never logged)
 	prBodiesUnknown  map[int]bool   // PR numbers the batched read could not resolve
-	// prFacts are the live PR facts the same batched read returned (keyed by PR
-	// number). It is set only when that read ran; a number it lacks has no facts.
-	prFacts map[int]domain.PRFacts
 }
 
 // The leg names the assessment reports in its diagnostic messages. They are

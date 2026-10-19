@@ -220,7 +220,7 @@ func (s *Service) prepareExisting(ctx context.Context, repo gitcli.Repository, m
 		ID:          m.ID,
 		Path:        intendedPath,
 		FeatureRef:  target.FeatureRef,
-		BaseRef:     target.BaseRef,
+		BaseRef:     m.BaseRef,
 		BaseCommit:  m.BaseCommit,
 		HeadCommit:  head,
 		Dirty:       len(changes) > 0,
@@ -322,7 +322,8 @@ func blockedWorkspace(target Target, intendedPath string) Workspace {
 // The base ref is part of the identity only for an allocating manifest. A
 // finished checkout (ready or cleaned) keeps its identity when its effective base
 // legitimately moves — a stacked child's base becomes the integration branch once
-// its stack parent lands (ADR-0092) — so for it the recorded BaseRef and
+// its stack parent lands (ADR-0092; ADR-0152, "A finished workspace's identity
+// excludes the base it was cut from") — so for it the recorded BaseRef and
 // BaseCommit are history that readers still report, not an ownership condition.
 // An interrupted allocation resumes from its recorded BaseCommit (prepareResume),
 // so resuming it under a different base ref would pair the old commit with the

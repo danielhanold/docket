@@ -476,6 +476,11 @@ func TestIntegrationWorkspaceLifecycleOwnedAfterBaseChange(t *testing.T) {
 		if ws.BaseCommit != m.BaseCommit {
 			t.Errorf("BaseCommit = %q; want the manifest's recorded %q", ws.BaseCommit, m.BaseCommit)
 		}
+		// The reported pair is one consistent piece of history: the manifest's
+		// base ref with its base commit, never the current target's ref.
+		if ws.BaseRef != m.BaseRef {
+			t.Errorf("BaseRef = %q; want the manifest's recorded %q alongside its BaseCommit", ws.BaseRef, m.BaseRef)
+		}
 	})
 
 	t.Run("publish", func(t *testing.T) {

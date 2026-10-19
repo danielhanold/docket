@@ -115,7 +115,8 @@ immediately.
    `finalize cleanup` and sweep human output, and every full sweep retries until the branch is
    gone — except a branch a live change now uses, or a blocked or unknown workspace. A carried
    stacked child is retried like any other `done` change; until its work is proven on the
-   integration branch it stays `pending` (`carry-unproven`) with no delete advice. A failure aborts per the caller's posture.
+   integration branch it stays `pending` (`carry-unproven`) with no delete advice, and one whose
+   stack relationship can't be proven stays `pending` (`destination-mismatch`). A failure aborts per the caller's posture.
 
    **Complete path (no PR):** on a `done` `results-artifact` change, cleanup makes no GitHub call
    and never touches a remote ref (the branch was never published). It removes a clean feature
