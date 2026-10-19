@@ -22,7 +22,7 @@ branch: 'feat/mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-19T02:27:26Z'
+claimed_at: '2026-10-19T02:29:09Z'
 ---
 
 ## Artifacts
