@@ -138,6 +138,24 @@ func TestChangeReconcileAppliesPatch(t *testing.T) {
 	}
 }
 
+// TestChangeReconcileRefusesWhyOnHoldSection: the hold keys on change.groom and
+// change.create are the only writers of "## Why on hold", so a reconcile
+// section edit naming it is refused before any engine call.
+func TestChangeReconcileRefusesWhyOnHoldSection(t *testing.T) {
+	req := validReconcileRequest()
+	req.Sections = map[string]string{whyOnHoldHeading: "A reason.\n"}
+	engine := &recordingEngine{}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeReconcile(context.Background(), deps, "", req)
+
+	if res.Result != ResultInvalidInput || len(engine.calls) != 0 || !hasFindingCode(res.Findings, string(FCInvalidSectionHeading)) {
+		t.Errorf("result %q, engine calls %d, findings %v; want invalid-input, 0, invalid-section-heading",
+			res.Result, len(engine.calls), res.Findings)
+	}
+}
+
 // --- TestChangeReconcileRefusesNonOwnedSection -----------------------------
 
 // TestChangeReconcileRefusesNonOwnedSection proves a request naming a non-owned section

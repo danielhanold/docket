@@ -29,7 +29,10 @@ import (
 // auto_groomable: false plus one dated
 // "## Auto-groom blocked" entry — under the same groom gate; the re-enable outcome
 // clears it — auto_groomable: true, the section removed — under that gate too,
-// optionally with owned-section edits in the same commit. Every outcome
+// optionally with owned-section edits in the same commit. The spec, trivial,
+// revise, and re-enable outcomes also set or lift a hold (hold:, plus the
+// optional "## Why on hold" reason section only the hold keys write), which
+// never changes the groom state; abstain refuses a hold. Every outcome
 // lands the change's source mutation and every affected v1-owned derived view (the change record's owned proposal sections,
 // its typed fields, its artifact block; a new spec file for the spec outcome, a
 // replaced one for a spec-body revise; the inline board) as one validated
@@ -60,12 +63,14 @@ const (
 	// writes spec:, trivial:, or auto_groomable:, so a change can never flip
 	// between needs-grooming, spec'd, and trivial through this outcome, and it
 	// never edits the ## Auto-groom blocked section (abstain and re-enable own it).
+	// It may set or lift a hold: a hold excludes the change from autonomous
+	// build selection only, so it is no part of the groom state.
 	GroomRevise GroomOutcome = "revise"
 	// GroomAbstain records an autonomous groom's abstain on a needs-grooming
 	// change: it sets auto_groomable: false and appends one dated entry to the
 	// ## Auto-groom blocked section. It never writes spec: or trivial:, and it
-	// accepts no section, spec, or relationship edits — an autonomous caller
-	// cannot rewrite the proposal through it.
+	// accepts no section, spec, relationship, or hold edits — an autonomous
+	// caller cannot rewrite the proposal through it.
 	GroomAbstain GroomOutcome = "abstain"
 	// GroomReEnable re-enables a needs-grooming change for autonomous grooming:
 	// it sets auto_groomable: true, removes the ## Auto-groom blocked section when
@@ -88,6 +93,33 @@ const specsDir = "docs/superpowers/specs"
 // "auto-groom blocked — needs you" cell keys on its presence
 // (domain.ReadyAutoGroomBlocked).
 const autoGroomBlockedHeading = "## Auto-groom blocked"
+
+// whyOnHoldHeading is the optional reason section for a hold. It is not in
+// render.ChangeOwnedHeadings: the hold and hold_reason keys of change.groom and
+// change.create are its only writers, so a sections edit naming it is refused
+// on every outcome (and on change.reconcile) as an unowned heading.
+const whyOnHoldHeading = "## Why on hold"
+
+// holdReasonProblem reports why a non-empty hold_reason cannot be written, or
+// "" when it is usable as the whyOnHoldHeading section body. held is whether
+// the same request sets the hold. Callers run it only when the reason is
+// non-empty, since an omitted reason sets the hold without one. The
+// diagnostics are static and never echo the authored reason.
+func holdReasonProblem(held bool, reason string) (FindingCode, string) {
+	if !held {
+		return FCHoldReasonWithoutHold, "hold_reason is accepted only with hold: true in the same request; it becomes the \"" + whyOnHoldHeading + "\" section"
+	}
+	if strings.TrimSpace(reason) == "" {
+		return FCInvalidHoldReason, "hold_reason is blank; send the reason for \"" + whyOnHoldHeading + "\", or omit hold_reason to set the hold without one"
+	}
+	if err := render.ValidateSectionBody([]byte(reason)); err != nil {
+		if errors.Is(err, render.ErrSectionBodyUnterminatedFence) {
+			return FCInvalidHoldReason, "hold_reason leaves a code fence unterminated; close the fence so the sections after \"" + whyOnHoldHeading + "\" stay visible"
+		}
+		return FCInvalidHoldReason, "hold_reason carries a column-zero \"## \" heading outside fenced code; the operation owns the \"" + whyOnHoldHeading + "\" heading — author body text, lists, or \"###\"-or-deeper subsections, and put heading examples inside closed code fences"
+	}
+	return "", ""
+}
 
 // ChangeGroomRequest is the closed, caller-supplied request for one groom. Path
 // and Revision pin the exact submitted record; the relationship collections are
@@ -141,6 +173,16 @@ type ChangeGroomRequest struct {
 	Deliverable  string  `json:"deliverable,omitempty" docket:"enum=deliverables"`
 	Type         string  `json:"type,omitempty" docket:"enum=change_types"`
 	BranchPrefix *string `json:"branch_prefix,omitempty"`
+
+	// Hold and HoldReason set and lift a hold, which keeps the change out of
+	// every autonomous build selection while a run naming it still builds it.
+	// Hold is three-state: nil leaves it unchanged, true writes hold: true, and
+	// false clears the key and removes any "## Why on hold" section. HoldReason
+	// is accepted only with Hold true in the same request; it replaces that
+	// section, and an omitted reason leaves an existing one alone. The spec,
+	// trivial, revise, and re-enable outcomes accept both; abstain refuses Hold.
+	Hold       *bool  `json:"hold,omitempty"`
+	HoldReason string `json:"hold_reason,omitempty"`
 
 	DependsOn      []int `json:"depends_on"`
 	Related        []int `json:"related"`
@@ -373,8 +415,8 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 				addShape(FCInvalidSpecMarkdown, msg)
 			}
 		} else if !hasEffectiveSectionEdit(req.Sections) && req.Title == "" && req.Priority == "" &&
-			req.Deliverable == "" && req.Type == "" && req.BranchPrefix == nil && !hasRelationshipEdit(req) {
-			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown, at least one replace/remove section edit, a title, a priority, a deliverable, a type, a branch_prefix, or a relationship field (depends_on, related, discovered_from, adrs, stacked_on)")
+			req.Deliverable == "" && req.Type == "" && req.BranchPrefix == nil && req.Hold == nil && !hasRelationshipEdit(req) {
+			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown, at least one replace/remove section edit, a title, a priority, a deliverable, a type, a branch_prefix, a hold, or a relationship field (depends_on, related, discovered_from, adrs, stacked_on)")
 		}
 		for _, s := range req.Sections {
 			if s.Heading == autoGroomBlockedHeading {
@@ -407,6 +449,9 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		}
 		if req.BranchPrefix != nil {
 			addShape(FCInvalidBranchPrefix, "branch_prefix is not accepted by the abstain outcome; an abstain cannot rewrite the proposal")
+		}
+		if req.Hold != nil {
+			addShape(FCInvalidHold, "hold is not accepted by the abstain outcome; an abstain cannot rewrite the proposal")
 		}
 		for _, rel := range []struct {
 			name string
@@ -477,6 +522,15 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 			}
 		}
 	}
+
+	// hold_reason rides only with hold: true and becomes the "## Why on hold"
+	// body, so it gets blocked_note's section-body checks on every outcome.
+	if req.HoldReason != "" {
+		if code, msg := holdReasonProblem(req.Hold != nil && *req.Hold, req.HoldReason); code != "" {
+			addShape(code, msg)
+		}
+	}
+	boundAuthored(&findings, "hold_reason", req.HoldReason)
 
 	// blocked_note is the abstain entry's body; nothing else reads it, so it is
 	// refused anywhere else rather than silently ignored.
@@ -773,7 +827,23 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 			edits = append(edits, render.SectionEdit{Heading: autoGroomBlockedHeading, Intent: render.SectionRemove})
 		}
 	}
-	edited, err := render.ApplySectionEdits(src, render.ChangeOwnedHeadings, edits)
+	// A request that sets or lifts a hold also owns "## Why on hold" for this
+	// splice — and only such a request, so a hand-duplicated reason section never
+	// blocks an unrelated groom. The owned set is a fresh slice: appending to
+	// render.ChangeOwnedHeadings could alias the shared package variable. A set
+	// with a reason replaces the section; a lift removes it only when present,
+	// because removing an absent section is an ApplySectionEdits error.
+	owned := render.ChangeOwnedHeadings
+	if o.req.Hold != nil {
+		owned = append(append([]string(nil), render.ChangeOwnedHeadings...), whyOnHoldHeading)
+		switch {
+		case *o.req.Hold && o.req.HoldReason != "":
+			edits = append(edits, render.SectionEdit{Heading: whyOnHoldHeading, Intent: render.SectionReplace, Markdown: o.req.HoldReason})
+		case !*o.req.Hold && namedSectionPresent(src, whyOnHoldHeading):
+			edits = append(edits, render.SectionEdit{Heading: whyOnHoldHeading, Intent: render.SectionRemove})
+		}
+	}
+	edited, err := render.ApplySectionEdits(src, owned, edits)
 	if err != nil {
 		return refuseGroom("section-edit-failed", err.Error())
 	}
@@ -933,7 +1003,8 @@ type groomFieldEdit struct {
 // values are validated at the shape stage, and the writer quotes every scalar,
 // so ADR-0071 holds by construction; the candidate snapshot carries them into
 // the artifact block and the board with no further code. A branch_prefix that
-// normalizes to "" clears the field to a valueless key (change 0559).
+// normalizes to "" clears the field to a valueless key (change 0559), and so
+// does a lifted hold.
 func (o changeGroomOp) fieldEdits(specPath string) []groomFieldEdit {
 	var out []groomFieldEdit
 	switch o.req.Outcome {
@@ -980,6 +1051,13 @@ func (o changeGroomOp) fieldEdits(specPath string) []groomFieldEdit {
 			v = document.String(p)
 		}
 		out = append(out, groomFieldEdit{"branch_prefix", v})
+	}
+	if o.req.Hold != nil {
+		v := document.Null()
+		if *o.req.Hold {
+			v = document.Bool(true)
+		}
+		out = append(out, groomFieldEdit{"hold", v})
 	}
 	return out
 }

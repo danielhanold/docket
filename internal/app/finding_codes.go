@@ -170,6 +170,13 @@ const (
 	FCInvalidAttempt            FindingCode = "invalid-attempt"
 	FCEmptyHead                 FindingCode = "empty-head"
 
+	// Hold request findings (change.groom and change.create): abstain refuses a
+	// hold, a hold_reason needs hold: true in the same request, and a reason
+	// must be usable as the "## Why on hold" section body.
+	FCInvalidHold           FindingCode = "invalid-hold"
+	FCHoldReasonWithoutHold FindingCode = "hold-reason-without-hold"
+	FCInvalidHoldReason     FindingCode = "invalid-hold_reason"
+
 	// Install-maintenance findings. collection-pending is the reason an explicit
 	// `install collect` reports and the warning code an automatic post-install
 	// collection surfaces when a version tree could not be reclaimed; the primary
@@ -288,6 +295,7 @@ var AllFindingCodes = []FindingCode{
 	FCEmptyWhyDeferred,
 	FCEmptyWhyKilled,
 	FindingCode(ReasonStatusExternal),
+	FCHoldReasonWithoutHold,
 	FCHookFileNotEditable,
 	FindingCode("illegal-source-status"),
 	FindingCode(ReasonStatusInternalError),
@@ -305,6 +313,8 @@ var AllFindingCodes = []FindingCode{
 	FCInvalidDependsOn,
 	FCInvalidDiscoveredFrom,
 	FCInvalidHead,
+	FCInvalidHold,
+	FCInvalidHoldReason,
 	FCInvalidID,
 	FindingCode(ReasonStatusInvalidInput),
 	FCInvalidNoteEntry,
