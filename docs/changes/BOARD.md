@@ -1,12 +1,12 @@
 # Backlog
 
-**570 changes** — 🟢 1 in progress · 🟣 1 groomed · 🟡 6 proposed · ⚪ 16 deferred · ✅ 402 done · 🗑️ 144 killed
+**570 changes** — 🔵 1 built · 🟣 1 groomed · 🟡 6 proposed · ⚪ 16 deferred · ✅ 402 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0567](active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Clean up stacked children when their stack lands, and finalize a child after its parent | `high` | `fix` | [spec](../superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md) | `fix/cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0567](active/0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Clean up stacked children when their stack lands, and finalize a child after its parent | `high` | `fix` | [#433](https://github.com/danielhanold/docket/pull/433) | awaiting merge |
 
 ## 🟣 Groomed (1)
 

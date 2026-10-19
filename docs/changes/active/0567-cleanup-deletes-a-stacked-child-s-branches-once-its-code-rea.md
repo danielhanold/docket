@@ -2,7 +2,7 @@
 id: 567
 slug: 'cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea'
 title: 'Clean up stacked children when their stack lands, and finalize a child after its parent'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/433'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-19T01:09:11Z'
@@ -64,3 +64,12 @@ How stacked children merge or become done, and the rule that a child's branches 
 ### 2026-10-18
 
 Reconciled against main at f42692b6d. The code the spec names is still present unchanged in shape: `ownsManifest` (internal/workspace/prepare.go), `proveCarry` (internal/domain/stackcloseout.go), `closeoutIntegrationDestination` and `finalizeCleanupDone` (internal/app), `sweepRunCloseout` and `sweepMaybeCarriedDescendant` (internal/app). The recently landed #568 (refuse killing a parent with built stacked children) touches the kill path only and does not overlap this change's cleanup, closeout, or workspace-identity work. #562 is done. Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: e1358d8501b1e3422bb6054daf79f7c63097d9e5
+ran_at:   2026-10-19T01:25:16Z
+<!-- docket:build-evidence:end -->
