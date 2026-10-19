@@ -13,7 +13,7 @@ stacked_on:
 related: [566]
 discovered_from: []
 adrs: [6, 153]
-spec:
+spec: 'docs/superpowers/specs/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md'
 plan:
 results:
 trivial: false
@@ -31,6 +31,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md](../../superpowers/specs/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md) |
 | ADRs | [ADR-0006](../../adrs/0006-autonomous-grooming-bounds.md), [ADR-0153](../../adrs/0153-a-hold-keeps-a-groomed-change-out-of-autonomous-build-select.md) |
 <!-- docket:artifacts:end -->
 
