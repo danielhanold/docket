@@ -1,6 +1,6 @@
 # Backlog
 
-**570 changes** — 🔵 1 built · 🟣 1 groomed · 🟡 6 proposed · ⚪ 16 deferred · ✅ 402 done · 🗑️ 144 killed
+**571 changes** — 🔵 1 built · 🟣 1 groomed · 🟡 7 proposed · ⚪ 16 deferred · ✅ 402 done · 🗑️ 144 killed
 
 ## 🔵 Built (1)
 
@@ -14,10 +14,11 @@
 |---|-------|----------|------|------|
 | [0560](active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Put a groomed change on hold so loops skip it | `medium` | `feat` | [spec](../superpowers/specs/2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md) |
 
-## 🟡 Proposed (6)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0571](active/0571-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md) | Parent closeout waits on a retargeted child, so a parent that lands first never becomes done | `medium` | `fix` | needs-grooming |
 | [0570](active/0570-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md) | Let a loop carry on past a halt that concerns only one change | `medium` | `feat` | needs-grooming |
 | [0569](active/0569-flaky-and-failing-tests-standing-bucket.md) | Flaky and failing tests — standing bucket | `low` | `chore` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `fix` | needs-grooming |
@@ -72,6 +73,7 @@ graph TD
   0567
   0569
   0570
+  0571
   0192:::done
   0251:::done
   0511:::done
