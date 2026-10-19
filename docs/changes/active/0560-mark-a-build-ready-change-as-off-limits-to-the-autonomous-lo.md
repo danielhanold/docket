@@ -2,7 +2,7 @@
 id: 560
 slug: 'mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo'
 title: 'Put a groomed change on hold so loops skip it'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-17'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-19T02:25:30Z'
 ---
 
 ## Artifacts

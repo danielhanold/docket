@@ -1,12 +1,12 @@
 # Backlog
 
-**571 changes** — 🟣 1 groomed · 🟡 7 proposed · ⚪ 16 deferred · ✅ 403 done · 🗑️ 144 killed
+**571 changes** — 🟢 1 in progress · 🟡 7 proposed · ⚪ 16 deferred · ✅ 403 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec |
-|---|-------|----------|------|------|
-| [0560](active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Put a groomed change on hold so loops skip it | `medium` | `feat` | [spec](../superpowers/specs/2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md) |
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0560](active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Put a groomed change on hold so loops skip it | `medium` | `feat` | [spec](../superpowers/specs/2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md) | `feat/mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo` |  |
 
 ## 🟡 Proposed (7)
 
