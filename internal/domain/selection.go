@@ -27,8 +27,8 @@ type SelectionFilter struct {
 //     changes can tie, since the snapshot excludes ambiguous IDs.
 //
 // Selection consults EvaluateReadiness, so a change that is not proposed, has
-// an unmet dependency, carries no design, or sits on an unresolved stack base
-// is excluded — as is a change whose ID more than one record claims, which
+// an unmet dependency, carries no design, sits on an unresolved stack base, or
+// is held is excluded — as is a change whose ID more than one record claims, which
 // readiness reports as invalid. The returned slice is freshly allocated; the
 // caller may sort or truncate it without touching the snapshot.
 func SelectQueue(s Snapshot, facts BranchFacts, filter SelectionFilter) []Change {

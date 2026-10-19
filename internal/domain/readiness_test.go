@@ -13,7 +13,15 @@ type readySpec struct {
 	parent       OptionalInt
 	branch       string
 	groomBlocked bool
+	hold         OptionalBool
 }
+
+// holdTrue is an explicit hold: true; holdBad is a garbled hand edit, which
+// reads as held.
+var (
+	holdTrue = OptionalBool{State: FieldPresent, Value: true, Raw: "true"}
+	holdBad  = OptionalBool{State: FieldMalformed, Raw: "yes"}
+)
 
 // specRef is a present, non-empty spec: reference.
 func specRef(path string) OptionalString {
@@ -34,6 +42,7 @@ func (rp readySpec) build() Change {
 		Trivial:   rp.trivial,
 		DependsOn: rp.dependsOn,
 		StackedOn: rp.parent,
+		Hold:      rp.hold,
 
 		HasAutoGroomBlocked: rp.groomBlocked,
 	}
@@ -203,6 +212,72 @@ func TestEvaluateReadinessPrecedence(t *testing.T) {
 			},
 			subject: 2,
 			want:    ReadyBuildReady,
+		},
+		{
+			name:    "a held spec-backed change is on-hold",
+			specs:   []readySpec{{id: 2, status: StatusProposed, spec: specRef("s.md"), hold: holdTrue}},
+			subject: 2,
+			want:    ReadyOnHold,
+		},
+		{
+			name:    "a held trivial change is on-hold",
+			specs:   []readySpec{{id: 2, status: StatusProposed, trivial: true, hold: holdTrue}},
+			subject: 2,
+			want:    ReadyOnHold,
+		},
+		{
+			name:    "a held stub still needs grooming",
+			specs:   []readySpec{{id: 2, status: StatusProposed, hold: holdTrue}},
+			subject: 2,
+			want:    ReadyNeedsGrooming,
+		},
+		{
+			name:    "a held auto-groom-blocked stub keeps its marker outcome",
+			specs:   []readySpec{{id: 2, status: StatusProposed, groomBlocked: true, hold: holdTrue}},
+			subject: 2,
+			want:    ReadyAutoGroomBlocked,
+		},
+		{
+			name: "a held change with an unmet dependency keeps waiting-dependency",
+			specs: []readySpec{
+				{id: 1, status: StatusProposed},
+				{id: 2, status: StatusProposed, spec: specRef("s.md"), dependsOn: []ChangeID{1}, hold: holdTrue},
+			},
+			subject: 2,
+			want:    ReadyWaitingDependency,
+		},
+		{
+			name: "a held change on an unresolved stack base keeps stack-base-unresolved",
+			specs: []readySpec{
+				{id: 1, status: StatusProposed, spec: specRef("p.md")},
+				{id: 2, status: StatusProposed, spec: specRef("s.md"), parent: parentEdge(1), hold: holdTrue},
+			},
+			subject: 2,
+			want:    ReadyStackBaseUnresolved,
+		},
+		{
+			name:    "hold: false is build-ready",
+			specs:   []readySpec{{id: 2, status: StatusProposed, spec: specRef("s.md"), hold: OptionalBool{State: FieldPresent, Value: false, Raw: "false"}}},
+			subject: 2,
+			want:    ReadyBuildReady,
+		},
+		{
+			name:    "an absent hold is build-ready",
+			specs:   []readySpec{{id: 2, status: StatusProposed, spec: specRef("s.md")}},
+			subject: 2,
+			want:    ReadyBuildReady,
+		},
+		{
+			name:    "an empty hold is build-ready",
+			specs:   []readySpec{{id: 2, status: StatusProposed, spec: specRef("s.md"), hold: OptionalBool{State: FieldEmpty}}},
+			subject: 2,
+			want:    ReadyBuildReady,
+		},
+		{
+			name:    "a malformed hold reads as held",
+			specs:   []readySpec{{id: 2, status: StatusProposed, spec: specRef("s.md"), hold: holdBad}},
+			subject: 2,
+			want:    ReadyOnHold,
 		},
 	}
 

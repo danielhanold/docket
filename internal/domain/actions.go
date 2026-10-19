@@ -100,7 +100,10 @@ type DoneFacts struct {
 // A caller that claims without calling it claims a change with unmet
 // dependencies, no design, or an unresolved stack base.
 //
-// The refusal keys on EvaluateReadiness: every non-build-ready outcome becomes
+// A held change (on-hold) is eligible: the hold excludes it from autonomous
+// selection only, and a claim that names it overrides that.
+//
+// The refusal keys on EvaluateReadiness: every other non-build-ready outcome becomes
 // the stable reason token "not-ready-<kind>", blocked for an unmet precondition
 // the backlog can still satisfy and invalid-state for a record that cannot be
 // claimed as it stands (not proposed, or an id more than one record claims). A
@@ -111,7 +114,9 @@ func ClaimEligibility(s Snapshot, c Change, facts BranchFacts) *PolicyFailure {
 		return newFailure(c, FailInvalidInput, "unknown-change", nil)
 	}
 	readiness := EvaluateReadiness(s, c, facts)
-	if readiness.Kind == ReadyBuildReady {
+	// A hold is a selection-only exclusion: a single-id act names the change
+	// deliberately and overrides it, so on-hold is as claimable as build-ready.
+	if readiness.Kind == ReadyBuildReady || readiness.Kind == ReadyOnHold {
 		return nil
 	}
 	kind := FailBlocked
@@ -480,6 +485,7 @@ func newChangeBuilder(c Change) *changeBuilder {
 		Results:        c.Results(),
 		Trivial:        c.Trivial(),
 		AutoGroomable:  c.AutoGroomable(),
+		Hold:           c.Hold(),
 		BranchPrefix:   c.BranchPrefix(),
 		Branch:         c.Branch(),
 		ClaimedAt:      c.ClaimedAt(),
