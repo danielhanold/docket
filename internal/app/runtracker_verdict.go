@@ -91,6 +91,10 @@ const (
 	RunDecisionDone      = "run-done"
 	RunDecisionRetryOnce = "run-retry-once"
 	RunDecisionStop      = "run-stop"
+	// RunDecisionNext reports a halt on a change a loop picked from the queue while the
+	// halt count stays under run.max_consecutive_halts: the halted change is never
+	// re-dispatched, but a loop driver may start its next run with a fresh run.start.
+	RunDecisionNext = "run-next"
 )
 
 // The run-tracker outcome tokens that are not themselves RunVerify verdicts. The run-*
