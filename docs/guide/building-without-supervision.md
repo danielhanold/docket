@@ -164,6 +164,9 @@ build work stays isolated and the driver's own context stays small:
   order. A named change that is not build-ready — still needs design, already in progress, or
   waiting on an unmerged dependency — is skipped this drain with its reason, not waited on.
 
+A change on [hold](../reference/glossary.md#hold) is skipped by both drains; it is built only
+when you name it alone.
+
 Budget and iteration caps belong to the driver, not to docket, which does not reimplement them. The
 one invariant the driver never breaks is the PR handoff: **a build run never merges.** A dependency
 on a `pr` change therefore only clears between drains, once its pull request is merged outside the

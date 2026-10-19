@@ -84,6 +84,9 @@ your at-a-glance view. It groups every change into six sections — in progress,
 groomed, proposed, and deferred — with one Type cell per row and a note like
 `⏳ waiting on #<dep> — needs your merge` where a dependency is holding something up. The section
 order and each section's sorting are configurable with `board.section_order` and `board.sorting`.
+Grooming can also put a change on hold, keeping it out of autonomous builds: the Groomed table's
+Readiness cell reads `build-ready` or `on hold`. The In progress table's State cell reads `building`
+or `run halted — needs you`.
 Every docket write re-renders the board, so there is no separate step to regenerate it.
 
 One honest caveat about dependencies: chains serialize on the PR handoff. A change that depends

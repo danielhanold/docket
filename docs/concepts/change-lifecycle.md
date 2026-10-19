@@ -54,7 +54,8 @@ human has to memorize a flowchart to file a piece of work.
   trivial mark is **needs-grooming** — it needs a design conversation first. A
   proposed change that has a **spec** (the design document a change links to,
   written before building) or is marked trivial, and whose dependencies are all
-  `done`, is **build-ready**.
+  `done`, is **build-ready**. A build-ready change on hold reads **on-hold**:
+  autonomous drains skip it, and it is built only when named.
 - **in-progress** means a build has taken a **claim** — the moment a change is
   picked up for building; it records which branch will carry the work and when it
   was taken. Grooming a change to build-ready takes no claim; only building does,

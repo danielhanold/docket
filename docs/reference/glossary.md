@@ -572,6 +572,21 @@ docket change resume-halted --id 412 --revision <v> --acknowledge-quiescent
 **quiescent** (no longer writing). Without it, on revision drift, or on a live gate lock, the
 operation refuses and writes nothing.
 
+### Hold
+
+A **hold** (`hold: true` on the change record) keeps an otherwise build-ready change out of
+autonomous build selection; its readiness reads `on-hold` and the board shows **on hold**. A
+malformed value reads as held, with a warning. Naming the change alone overrides the hold: a named
+run, a claim, or `change complete` proceeds. Grooming and finalize ignore it. `change.groom` and
+`change.create` set it with `hold: true` (an optional `hold_reason` writes `## Why on hold`) and
+`change.groom` lifts it with `hold: false`.
+
+**Used for:** a groomed change that needs manual steps, so a drain does not pick it up.
+
+```sh
+docket status --json | jq '.changes[] | select(.readiness=="on-hold") | .id'
+```
+
 ### Owned sections / section intents (`preserve` / `replace` / `remove`)
 
 **Owned sections** are the change-body headings that typed operations may write: `## Why`,
@@ -601,7 +616,8 @@ finalize run they start) takes the change the rest of the way. It is a handoff t
 **Build-ready** is a proposed change that has a spec or is marked trivial and whose dependencies
 are all `done`. **Needs-grooming** is a proposed change with neither a spec nor a trivial mark; it
 needs a design conversation first. Anything not `proposed` reads `not-proposed`. Status reports
-four more kinds: `auto-groom-blocked`, `waiting-dependency`, `stack-base-unresolved`, and `invalid`
+five more kinds: `on-hold` (see [Hold](#hold)), `auto-groom-blocked`, `waiting-dependency`,
+`stack-base-unresolved`, and `invalid`
 (see [Readiness reason](#readiness-reason--waiting-on-n--needs-you-cells)).
 
 **Used for:** selection. Only build-ready changes can be implemented; only needs-grooming changes
@@ -617,7 +633,7 @@ docket status --json | jq '.changes[] | {id, readiness, readiness_reason, unmet_
 `docket status --json`, for example "ready to build" or "waiting on unmet dependencies". It is prose,
 not a parseable code; key on `readiness`. The board renders the same state as cells like
 **⏳ waiting on #N — not yet built**, **… — needs your merge**,
-**stack parent #A killed — re-parent, un-stack, or kill**, and the "needs you" cells
+**stack parent #A killed — re-parent, un-stack, or kill**, **on hold**, and the "needs you" cells
 (**auto-groom blocked**, **run halted**, **finalize blocked**).
 
 **Used for:** seeing why a change is not moving. A "needs you" cell always comes from a
@@ -2392,6 +2408,7 @@ docket development install --source ~/dev/docket
 - [Groom](#groom)
 - [Groom outcome revise](#groom-outcome-revise)
 - [Halt / resume-halted](#halt--resume-halted)
+- [Hold](#hold)
 - [Harness](#harness)
 - [Harness defaults sidecar (agents/harness-defaults.yml)](#harness-defaults-sidecar-agentsharness-defaultsyml)
 - [Health check / health code](#health-check--health-code)
