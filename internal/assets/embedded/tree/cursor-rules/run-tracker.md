@@ -24,6 +24,9 @@ broken: surface it, never rebuild the run tracker by hand.
    or dispatch `docket-implement-next` again with the explicit change id, the continuation id, and the
    same key, and run `run.verdict` with `<key>` again. Every `run-stop` and every
    `run-observe` forbids re-dispatch; `run-halted` means a human is needed.
+   `run-next <key> run-halted <id>` also forbids re-dispatching that change; only a loop driver
+   (`/loop`) may go on to its next run, with a fresh `run.start`; a single dispatch stops, as on
+   `run-stop`.
 
 ## Stopping a dispatched run — there is no automatic Stop button
 

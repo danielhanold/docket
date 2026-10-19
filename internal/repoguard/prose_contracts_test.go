@@ -1317,6 +1317,27 @@ var alignmentContracts = []proseContract{
 			"stack parent #A killed — re-parent, un-stack, or kill",
 			"Kill refuses while the change has built stacked descendants",
 		}},
+	// change 0570 — a tracked loop carries on past a halt on a change it picked
+	// from the queue (verdict run-next); the claim names how the change was
+	// chosen; an untracked driver still stops on every halted. The dispatch
+	// block's run-next sentence must stay in both of its copies.
+	{sentinel: "change_0570_run_next_dispatch", file: "cursor-rules/run-tracker.md",
+		present: []string{
+			"`run-next <key> run-halted <id>` also forbids re-dispatching that change",
+			"only a loop driver (`/loop`) may go on to its next run, with a fresh `run.start`",
+		}},
+	{sentinel: "change_0570_run_next_dispatch", file: "AGENTS.md",
+		present: []string{
+			"`run-next <key> run-halted <id>` also forbids re-dispatching that change",
+			"only a loop driver (`/loop`) may go on to its next run, with a fresh `run.start`",
+		}},
+	{sentinel: "change_0570_driver_contract", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{
+			"pass `--selection queue` on the selection path and `--selection named` on the named path",
+			"a tracked loop whose verdict is `run-next`, which continues",
+			"an untracked driver has no verdict and stops on every `halted`",
+		},
+		absent: []string{"The driver's decision is binary"}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.
