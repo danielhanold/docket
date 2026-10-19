@@ -8,7 +8,6 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0003](0003-convention-reference-loading.md) — The docket convention is reference-loaded from a docket-convention skill, not embedded per skill (Accepted) ← change #5 · relates to ADR-0002
 - [ADR-0004](0004-grooming-takes-no-claim.md) — Grooming takes no claim — final-push CAS suffices for human-attended sessions (Accepted) ← change #12 · relates to ADR-0001
 - [ADR-0005](0005-close-out-only-harvest.md) — Learnings are harvested only at close-out — one writer, one moment, ledger unpublished (Accepted) ← change #6 · relates to ADR-0001, ADR-0003
-- [ADR-0006](0006-autonomous-grooming-bounds.md) — Autonomous grooming bounds — critic gates every build-ready exit; kill/defer never autonomous (Accepted) ← change #14 · relates to ADR-0004
 - [ADR-0007](0007-github-board-mirror-boundary.md) — GitHub board mirror — one-way, change-files-authoritative, driven by a deterministic script (Accepted) ← change #11 · relates to ADR-0001
 - [ADR-0008](0008-agent-layer-generated-subagents.md) — Agent layer — generated subagent wrappers from layered config (Accepted) ← change #16 · relates to ADR-0001, ADR-0003
 - [ADR-0009](0009-auto-groom-critic-isolation.md) — Auto-groom critic isolation — the adversary loads only the convention (Accepted) ← change #17 · relates to ADR-0008
@@ -138,10 +137,12 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0152](0152-a-finished-workspace-s-identity-excludes-the-base-it-was-cut.md) — A finished workspace's identity excludes the base it was cut from (Accepted) ← change #567 · relates to ADR-0092, ADR-0035
 - [ADR-0153](0153-a-hold-keeps-a-groomed-change-out-of-autonomous-build-select.md) — A hold keeps a groomed change out of autonomous build selection; naming it overrides it (Accepted) ← change #560 · relates to ADR-0006
 - [ADR-0154](0154-a-loop-carries-on-past-a-queue-picked-halt-up-to-a-halts-in.md) — A loop carries on past a queue-picked halt, up to a halts-in-a-row limit (Accepted) ← change #570 · relates to ADR-0115, ADR-0148, ADR-0153
+- [ADR-0155](0155-retire-trivial-every-build-ready-change-has-a-spec.md) — Retire trivial: every build-ready change has a spec (Accepted) ← change #573 → supersedes ADR-0006 · relates to ADR-0153
 
 ## Superseded / Reversed
 
 - [ADR-0002](0002-docket-mode-default-and-bootstrap.md) — docket-mode is the default; refuse-and-migrate bootstrap; terminal-publish single-sourced in finalize (Superseded by ADR-99) ← change #2 · relates to ADR-0001
+- [ADR-0006](0006-autonomous-grooming-bounds.md) — Autonomous grooming bounds — critic gates every build-ready exit; kill/defer never autonomous (Superseded by ADR-0155) ← change #14 · relates to ADR-0004
 - [ADR-0017](0017-cursor-dispatch-rule-full-agent-set.md) — Per-repo agent generation goes always-full-set, opt-in, with a Cursor dispatch rule (Superseded by ADR-20) ← change #48 · relates to ADR-0015, ADR-0016
 - [ADR-0023](0023-configurable-sdd-build-model.md) — Configurable SDD build models — a `build:` surface of per-role direct model IDs (Superseded by ADR-63) ← change #44 · relates to ADR-0015, ADR-0016, ADR-0018
 - [ADR-0037](0037-runner-delegation-explicit-runner-field.md) — Cross-harness runner delegation is switched by an explicit runner field, never model-ID sniffing (Superseded by ADR-0100) ← change #79 · relates to ADR-0015, ADR-0012

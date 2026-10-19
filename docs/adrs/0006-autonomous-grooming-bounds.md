@@ -2,7 +2,7 @@
 id: 6
 slug: autonomous-grooming-bounds
 title: Autonomous grooming bounds — critic gates every build-ready exit; kill/defer never autonomous
-status: Accepted
+status: 'Superseded by ADR-0155'
 date: 2026-06-12
 supersedes: []
 reverses: []
