@@ -241,6 +241,10 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise, Title: "a\nb"})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomAbstain, Priority: "high"})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise, Priority: "urgent"})...)
+	held := true
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomAbstain, Hold: &held})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise, HoldReason: "x"})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise, Hold: &held, HoldReason: " "})...)
 	emitted = append(emitted, validateChangeReconcileShape(ChangeReconcileRequest{
 		Sections:     map[string]string{"## Not Owned": "x"},
 		SpecSections: map[string]string{"not a heading": "x"},
@@ -269,6 +273,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 		FCInvalidSpecSectionHeading, FCEmptyReconcileLogEntry,
 		FCEmptyBlockedNote, FCInvalidBlockedNote, FCInvalidSections,
 		FCInvalidPRNumber, FCInvalidAttempt, FCEmptyHead, FCInvalidPriority, FCUnknownPriority,
+		FCInvalidHold, FCHoldReasonWithoutHold, FCInvalidHoldReason,
 	}
 	for _, c := range floor {
 		if !seen[string(c)] {

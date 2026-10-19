@@ -2294,7 +2294,7 @@ func TestChangeGroomEachNewFieldAloneIsAValidRevise(t *testing.T) {
 	if msg == "" {
 		t.Fatalf("empty revise not refused; findings %v", findings)
 	}
-	for _, want := range []string{"deliverable", "type", "branch_prefix"} {
+	for _, want := range []string{"deliverable", "type", "branch_prefix", "hold"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("empty-revise message %q does not name %q", msg, want)
 		}
@@ -2966,5 +2966,299 @@ func TestChangeGroomRefusalPrintsPlainText(t *testing.T) {
 	want := "change groom: invalid-state\n  change 0002 cannot be re-stacked."
 	if r.HumanText() != want {
 		t.Errorf("HumanText = %q, want %q", r.HumanText(), want)
+	}
+}
+
+// --- hold and hold_reason ---------------------------------------------------
+
+func boolPtr(b bool) *bool { return &b }
+
+// heldChange is the groomable fixture at id 2 carrying hold: true, followed by
+// a "## Why on hold" section with reason when reason is non-empty.
+func heldChange(reason string) string {
+	rec := strings.Replace(groomableChange(2, "add-a-widget"), "trivial: false\n", "trivial: false\nhold: true\n", 1)
+	if reason != "" {
+		rec += "\n" + whyOnHoldHeading + "\n\n" + reason
+	}
+	return rec
+}
+
+// holdPlanRecord plans req against a one-record tree holding rec and returns
+// the groomed record text, failing on a refusal.
+func holdPlanRecord(t *testing.T, rec string, req ChangeGroomRequest) string {
+	t.Helper()
+	if findings := validateChangeGroomShape(req); len(findings) != 0 {
+		t.Fatalf("shape refused: %v", findings)
+	}
+	files := map[string]string{groomPath(2, "add-a-widget"): rec}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	return string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+}
+
+func TestChangeGroomSetsHoldOnEveryAcceptingOutcome(t *testing.T) {
+	trivial := ChangeGroomRequest{
+		ChangeID: 2, Path: groomPath(2, "add-a-widget"),
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Outcome: GroomTrivial,
+		Sections: []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}},
+	}
+	cases := []struct {
+		name string
+		rec  string
+		req  ChangeGroomRequest
+	}{
+		{"spec", groomableChange(2, "add-a-widget"), validGroomSpecRequest()},
+		{"trivial", groomableChange(2, "add-a-widget"), trivial},
+		{"revise", groomableChange(2, "add-a-widget"), fieldOnlyReviseRequest(func(*ChangeGroomRequest) {})},
+		{"re-enable", abstainedChange(2, "add-a-widget"), reEnableRequest()},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := c.req
+			req.Hold = boolPtr(true)
+			rec := holdPlanRecord(t, c.rec, req)
+			if n := strings.Count(rec, "\nhold: true\n"); n != 1 {
+				t.Errorf("record carries %d hold: true lines, want 1:\n%s", n, rec)
+			}
+			if strings.Contains(rec, whyOnHoldHeading) {
+				t.Errorf("a hold with no reason wrote %q:\n%s", whyOnHoldHeading, rec)
+			}
+		})
+	}
+}
+
+func TestChangeGroomHoldReasonSection(t *testing.T) {
+	revise := func(mut func(*ChangeGroomRequest)) ChangeGroomRequest { return fieldOnlyReviseRequest(mut) }
+
+	t.Run("a set with a reason writes the section at end of file", func(t *testing.T) {
+		rec := holdPlanRecord(t, groomableChange(2, "add-a-widget"), revise(func(r *ChangeGroomRequest) {
+			r.Hold, r.HoldReason = boolPtr(true), "Needs a person to rotate the key.\n"
+		}))
+		if !strings.Contains(rec, "\nhold: true\n") {
+			t.Errorf("hold not set:\n%s", rec)
+		}
+		if !strings.HasSuffix(rec, "\n\n## Why on hold\n\nNeeds a person to rotate the key.\n") {
+			t.Errorf("section not appended at end of file:\n%s", rec)
+		}
+	})
+
+	t.Run("a second set with a new reason replaces it", func(t *testing.T) {
+		rec := holdPlanRecord(t, heldChange("Old reason.\n"), revise(func(r *ChangeGroomRequest) {
+			r.Hold, r.HoldReason = boolPtr(true), "New reason.\n"
+		}))
+		if n := strings.Count(rec, whyOnHoldHeading); n != 1 {
+			t.Errorf("record carries %d %q headings, want 1:\n%s", n, whyOnHoldHeading, rec)
+		}
+		if strings.Contains(rec, "Old reason.") || !strings.Contains(rec, "## Why on hold\n\nNew reason.\n") {
+			t.Errorf("reason not replaced:\n%s", rec)
+		}
+	})
+
+	t.Run("a set with no reason leaves an existing section alone", func(t *testing.T) {
+		const section = "\n## Why on hold\n\nKeep this reason.\n"
+		rec := holdPlanRecord(t, heldChange("Keep this reason.\n"), revise(func(r *ChangeGroomRequest) {
+			r.Hold, r.Priority = boolPtr(true), "high"
+		}))
+		if !strings.HasSuffix(rec, section) || strings.Count(rec, whyOnHoldHeading) != 1 {
+			t.Errorf("existing section changed:\n%s", rec)
+		}
+	})
+
+	t.Run("a lift clears the field and removes the section", func(t *testing.T) {
+		rec := holdPlanRecord(t, heldChange("Stale reason.\n"), revise(func(r *ChangeGroomRequest) {
+			r.Hold = boolPtr(false)
+		}))
+		if !strings.Contains(rec, "\nhold:\n") || strings.Contains(rec, "\nhold: true\n") {
+			t.Errorf("hold not lifted to a valueless key:\n%s", rec)
+		}
+		if strings.Contains(rec, whyOnHoldHeading) || strings.Contains(rec, "Stale reason.") {
+			t.Errorf("section survived the lift:\n%s", rec)
+		}
+		if !strings.Contains(rec, "## Open questions\n\nAn open question.\n") {
+			t.Errorf("the preceding section's text changed:\n%s", rec)
+		}
+	})
+
+	t.Run("a lift on a record with no section succeeds", func(t *testing.T) {
+		rec := holdPlanRecord(t, heldChange(""), revise(func(r *ChangeGroomRequest) {
+			r.Hold = boolPtr(false)
+		}))
+		if !strings.Contains(rec, "\nhold:\n") {
+			t.Errorf("hold not lifted:\n%s", rec)
+		}
+	})
+
+	t.Run("an omitted hold keeps the field and the section", func(t *testing.T) {
+		const section = "\n## Why on hold\n\nStill held.\n"
+		rec := holdPlanRecord(t, heldChange("Still held.\n"), revise(func(r *ChangeGroomRequest) {
+			r.Priority = "high"
+		}))
+		if !strings.Contains(rec, "\nhold: true\n") || !strings.HasSuffix(rec, section) {
+			t.Errorf("an omitted hold changed the hold or its section:\n%s", rec)
+		}
+	})
+}
+
+func TestChangeGroomHoldAloneIsAValidRevise(t *testing.T) {
+	for name, v := range map[string]bool{"set": true, "lift": false} {
+		t.Run(name, func(t *testing.T) {
+			req := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.Hold = boolPtr(v) })
+			if findings := validateChangeGroomShape(req); len(findings) != 0 {
+				t.Fatalf("hold-only revise refused: %v", findings)
+			}
+		})
+	}
+	findings := validateChangeGroomShape(fieldOnlyReviseRequest(func(*ChangeGroomRequest) {}))
+	for _, f := range findings {
+		if f.Code == string(FCEmptyRevise) && !strings.Contains(f.Message, "hold") {
+			t.Errorf("empty-revise message %q does not name hold", f.Message)
+		}
+	}
+}
+
+func TestChangeGroomHoldRefusals(t *testing.T) {
+	trivial := ChangeGroomRequest{
+		ChangeID: 2, Path: groomPath(2, "add-a-widget"),
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Outcome: GroomTrivial,
+		Sections: []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}},
+	}
+	revise := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.Priority = "high" })
+	withHold := func(base ChangeGroomRequest, hold *bool, reason string) ChangeGroomRequest {
+		base.Hold, base.HoldReason = hold, reason
+		return base
+	}
+	whyOnHoldEdit := []SectionEditRequest{{Heading: whyOnHoldHeading, Intent: "replace", Markdown: "Hand reason.\n"}}
+	withSection := func(base ChangeGroomRequest) ChangeGroomRequest {
+		base.Sections = append(append([]SectionEditRequest(nil), base.Sections...), whyOnHoldEdit...)
+		return base
+	}
+
+	cases := []struct {
+		name string
+		req  ChangeGroomRequest
+		code FindingCode
+	}{
+		{"abstain with hold", withHold(abstainRequest(), boolPtr(true), ""), FCInvalidHold},
+		{"abstain lifting a hold", withHold(abstainRequest(), boolPtr(false), ""), FCInvalidHold},
+		{"reason with no hold", withHold(revise, nil, "A reason.\n"), FCHoldReasonWithoutHold},
+		{"reason with a lift", withHold(revise, boolPtr(false), "A reason.\n"), FCHoldReasonWithoutHold},
+		{"reason on abstain with no hold", withHold(abstainRequest(), nil, "A reason.\n"), FCHoldReasonWithoutHold},
+		{"whitespace-only reason", withHold(revise, boolPtr(true), " \n\t\n"), FCInvalidHoldReason},
+		{"reason carrying a heading", withHold(revise, boolPtr(true), "text\n## Heading\n"), FCInvalidHoldReason},
+		{"reason leaving a fence open", withHold(revise, boolPtr(true), "text\n```\ncode\n"), FCInvalidHoldReason},
+		{"section edit on spec", withSection(validGroomSpecRequest()), FCInvalidSectionHeading},
+		{"section edit on trivial", withSection(trivial), FCInvalidSectionHeading},
+		{"section edit on revise", withSection(revise), FCInvalidSectionHeading},
+		{"section edit on revise with a hold", withSection(withHold(revise, boolPtr(true), "")), FCInvalidSectionHeading},
+		{"section edit on re-enable", withSection(reEnableRequest()), FCInvalidSectionHeading},
+		{"section edit on abstain", withSection(abstainRequest()), FCInvalidSectionHeading},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			engine := &recordingEngine{}
+			reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+			deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+			res := ChangeGroom(context.Background(), deps, "", c.req)
+
+			if res.Result != ResultInvalidInput {
+				t.Fatalf("result = %q, want invalid-input; findings %v", res.Result, res.Findings)
+			}
+			if len(engine.calls) != 0 {
+				t.Errorf("engine called %d times on a shape failure, want 0", len(engine.calls))
+			}
+			if !hasFindingCode(res.Findings, string(c.code)) {
+				t.Errorf("missing %q; got %v", c.code, res.Findings)
+			}
+		})
+	}
+
+	// The reason diagnostics are static: they name the owned heading and never
+	// echo the authored text.
+	const secret = "SECRET-REASON-TEXT"
+	for _, reason := range []string{secret + "\n## Heading\n", secret + "\n```\n", "   "} {
+		findings := validateChangeGroomShape(withHold(revise, boolPtr(true), reason))
+		for _, f := range findings {
+			if f.Code != string(FCInvalidHoldReason) {
+				continue
+			}
+			if strings.Contains(f.Message, secret) || !strings.Contains(f.Message, whyOnHoldHeading) {
+				t.Errorf("hold_reason diagnostic %q must name %q and never echo the reason", f.Message, whyOnHoldHeading)
+			}
+		}
+	}
+
+	// A usable reason with hold: true passes the shape stage.
+	if findings := validateChangeGroomShape(withHold(revise, boolPtr(true), "Needs a person.\n")); len(findings) != 0 {
+		t.Errorf("a usable reason was refused: %v", findings)
+	}
+}
+
+func TestChangeGroomHoldDuplicateSectionRefuses(t *testing.T) {
+	dup := heldChange("First.\n") + "\n" + whyOnHoldHeading + "\n\nSecond.\n"
+	cases := map[string]func(*ChangeGroomRequest){
+		"set with a reason":    func(r *ChangeGroomRequest) { r.Hold, r.HoldReason = boolPtr(true), "New.\n" },
+		"set without a reason": func(r *ChangeGroomRequest) { r.Hold = boolPtr(true) },
+		"lift":                 func(r *ChangeGroomRequest) { r.Hold = boolPtr(false) },
+	}
+	for name, mut := range cases {
+		t.Run(name, func(t *testing.T) {
+			files := map[string]string{groomPath(2, "add-a-widget"): dup}
+			plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, fieldOnlyReviseRequest(mut)))
+			if !opRes.Refused {
+				t.Fatalf("a duplicated %q was not refused; files %v", whyOnHoldHeading, planPaths(plan))
+			}
+			if len(opRes.Findings) != 1 || opRes.Findings[0].Code != string(FCSectionEditFailed) {
+				t.Errorf("findings = %v, want one %s", opRes.Findings, FCSectionEditFailed)
+			}
+			if len(plan.Files) != 0 {
+				t.Errorf("a refused groom planned files %v", planPaths(plan))
+			}
+		})
+	}
+
+	// A request that leaves the hold alone never inspects the section, so a
+	// hand-duplicated reason does not block an unrelated revise.
+	files := map[string]string{groomPath(2, "add-a-widget"): dup}
+	_, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.Priority = "high" })))
+	if opRes.Refused {
+		t.Errorf("an unrelated revise refused over a duplicated %q: %v", whyOnHoldHeading, opRes.Findings)
+	}
+}
+
+func TestChangeGroomOwnedHeadingsStayShared(t *testing.T) {
+	// The hold keys are the section's only writer, so the shared owned set
+	// never names it, before or after a Plan that writes it.
+	before := append([]string(nil), render.ChangeOwnedHeadings...)
+	files := map[string]string{groomPath(2, "add-a-widget"): heldChange("Reason.\n")}
+	groomPlanFor(t, files, baseGroomOp([]string{}, fieldOnlyReviseRequest(func(r *ChangeGroomRequest) {
+		r.Hold, r.HoldReason = boolPtr(true), "Other.\n"
+	})))
+	for _, h := range render.ChangeOwnedHeadings {
+		if h == whyOnHoldHeading {
+			t.Fatalf("render.ChangeOwnedHeadings carries %q", whyOnHoldHeading)
+		}
+	}
+	if strings.Join(before, "|") != strings.Join(render.ChangeOwnedHeadings, "|") {
+		t.Errorf("render.ChangeOwnedHeadings changed: %v -> %v", before, render.ChangeOwnedHeadings)
+	}
+}
+
+func TestChangeGroomHoldCodesAreRegistered(t *testing.T) {
+	registered := map[FindingCode]bool{}
+	for _, code := range AllFindingCodes {
+		registered[code] = true
+	}
+	for code, want := range map[FindingCode]string{
+		FCInvalidHold: "invalid-hold", FCHoldReasonWithoutHold: "hold-reason-without-hold", FCInvalidHoldReason: "invalid-hold_reason",
+	} {
+		if string(code) != want {
+			t.Errorf("code %q, want %q", code, want)
+		}
+		if !registered[code] {
+			t.Errorf("%s is not registered in AllFindingCodes", code)
+		}
 	}
 }

@@ -111,6 +111,14 @@ func TestReflectDescriptorChangeGroomRequest(t *testing.T) {
 	if f := fieldByKey(t, d, "priority"); f.Required || f.Type != "string" || f.Enum != "priorities" {
 		t.Errorf("priority = %+v, want optional string with enum priorities", f)
 	}
+	// hold is three-state (*bool: omitted keeps, true sets, false lifts) and
+	// hold_reason rides with hold: true only; neither is required.
+	if f := fieldByKey(t, d, "hold"); f.Required || f.Repeated || f.Type != "bool" {
+		t.Errorf("hold = %+v, want optional non-repeated bool", f)
+	}
+	if f := fieldByKey(t, d, "hold_reason"); f.Required || f.Repeated || f.Type != "string" {
+		t.Errorf("hold_reason = %+v, want optional string", f)
+	}
 	// No caller-supplied spec path: the spec pinned is always the one the
 	// record's spec: field links.
 	for _, f := range d.Fields {
