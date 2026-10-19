@@ -2593,7 +2593,10 @@ func TestIntegrationFinalizeRebaseGateWorkspaceNotReady(t *testing.T) {
 			if err := json.Unmarshal(data, &m); err != nil {
 				t.Fatal(err)
 			}
-			m["base_ref"] = "refs/remotes/origin/elsewhere"
+			// A record written by another clone (a moved repository). The base ref
+			// is no ownership condition for a ready record, so it cannot build this
+			// state; the common dir is.
+			m["common_dir"] = filepath.Join(f.repo.root, "elsewhere", ".git")
 			out, err := json.Marshal(m)
 			if err != nil {
 				t.Fatal(err)
