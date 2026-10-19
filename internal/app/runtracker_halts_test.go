@@ -11,13 +11,15 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // haltStoreFixture returns a halt-count store rooted in a fresh temp state folder.
 // It is pure filesystem: nothing here starts git.
 func haltStoreFixture(t *testing.T) haltCountStore {
 	t.Helper()
-	s := haltCountStoreAt(t.TempDir())
+	s := haltCountStoreAt(testsupport.TempDir(t))
 	if filepath.Base(s.dir) != runTrackerHaltsDirName {
 		t.Fatalf("store dir = %q, want it to end in %q", s.dir, runTrackerHaltsDirName)
 	}
