@@ -1245,3 +1245,229 @@ func TestSweepCleanupQuietReasonAddsNoWarningLine(t *testing.T) {
 		t.Errorf("a quiet finding must not be copied into the entry message; got %q", e.Message)
 	}
 }
+
+// --- carried-child cleanup suffix -------------------------------------------
+
+// carriedRootCorpus is TestSweepFindsMergedImplemented's corpus: root 30 with
+// two implemented stacked children 31 and 32, every PR merged.
+func carriedRootCorpus(t *testing.T) (*fakeReader, *fakeFinalizeProber) {
+	t.Helper()
+	corpus := []StatusBlob{
+		finalizeBlob(30, "root", "implemented", "high", prRefFor(30), ""),
+		finalizeBlob(31, "childa", "implemented", "high", prRefFor(31), "stacked_on: 30\n"),
+		finalizeBlob(32, "childb", "implemented", "high", prRefFor(32), "stacked_on: 30\n"),
+	}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/root"),
+		prRefFor(31): withHead(mergedFacts(31, "feat/root"), "feat/childa"),
+		prRefFor(32): withHead(mergedFacts(32, "feat/root"), "feat/childb"),
+	}}
+	return reader, prober
+}
+
+// carriedRootOps scripts the root closeout carrying [31, 32] and both children's
+// own closeouts as stacked-merged.
+func carriedRootOps() *recordingSweepOps {
+	return &recordingSweepOps{closeout: map[int]CloseoutResult{
+		30: newCloseoutResult(ResultApplied, CloseoutResult{ID: 30, Disposition: CloseoutDispRootArchived, CarriedIDs: []int{31, 32}}),
+		31: newCloseoutResult(ResultApplied, CloseoutResult{ID: 31, Disposition: CloseoutDispStackedMerged}),
+		32: newCloseoutResult(ResultApplied, CloseoutResult{ID: 32, Disposition: CloseoutDispStackedMerged}),
+	}}
+}
+
+// sweepEntriesFor returns every entry of (kind, id), in report order.
+func sweepEntriesFor(entries []MaintenanceEntry, kind string, id int) []MaintenanceEntry {
+	var out []MaintenanceEntry
+	for _, e := range entries {
+		if e.ID == id && e.Kind == kind {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func countCalls(ops *recordingSweepOps, kind string, id int) int {
+	n := 0
+	for _, c := range ops.calls {
+		if c.kind == kind && c.id == id {
+			n++
+		}
+	}
+	return n
+}
+
+// lastCall returns the position and observation of the LAST recorded dispatch
+// of (kind, id), or -1 when none was recorded.
+func lastCall(ops *recordingSweepOps, kind string, id int) (int, *sweepObservation) {
+	pos, obs := -1, (*sweepObservation)(nil)
+	for i, c := range ops.calls {
+		if c.kind == kind && c.id == id {
+			pos, obs = i, c.obs
+		}
+	}
+	return pos, obs
+}
+
+// assertCarriedChildrenCleaned: the root's cleanup is followed by one cleanup
+// per carried child, in carried order, each on its own fresh observation, and
+// every member reports exactly one cleanup entry. A child that closed out on its
+// own earlier in the run already had its own suffix cleanup; the one run after
+// the root carried it supersedes that entry.
+func assertCarriedChildrenCleaned(t *testing.T, ops *recordingSweepOps, res MaintenanceResult) {
+	t.Helper()
+	rootPos, rootObs := lastCall(ops, sweepKindCleanup, 30)
+	if rootPos < 0 {
+		t.Fatalf("root 30 must be cleaned; calls=%v", ops.calls)
+	}
+	_, closeoutObs := lastCall(ops, sweepKindCloseout, 30)
+	seen := map[*sweepObservation]int{rootObs: 30}
+	prev := rootPos
+	for _, id := range []int{31, 32} {
+		pos, obs := lastCall(ops, sweepKindCleanup, id)
+		if pos <= prev {
+			t.Errorf("carried child %d must be cleaned after the root, in carried order; calls=%v", id, ops.calls)
+		}
+		prev = pos
+		if obs == nil || obs == closeoutObs {
+			t.Errorf("carried child %d cleanup must prepare its own observation", id)
+		} else if other, dup := seen[obs]; dup {
+			t.Errorf("cleanup %d reused cleanup %d's observation; each attempt prepares its own", id, other)
+		}
+		seen[obs] = id
+	}
+	for _, id := range []int{30, 31, 32} {
+		got := sweepEntriesFor(res.Entries, sweepKindCleanup, id)
+		if len(got) != 1 || got[0].Disposition != SweepDispApplied {
+			t.Errorf("cleanup entries for %d = %+v, want one applied", id, got)
+		}
+	}
+}
+
+// TestSweepCloseoutCleansCarriedChildren: a root closeout that carries its
+// stacked children cleans the root and then every carried child, each on a
+// fresh observation.
+func TestSweepCloseoutCleansCarriedChildren(t *testing.T) {
+	reader, prober := carriedRootCorpus(t)
+	ops := carriedRootOps()
+
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+
+	assertCarriedChildrenCleaned(t, ops, res)
+}
+
+// TestSweepImplementationScopeCleansCarriedChildren: implementation scope defers
+// records already final at the pinned inventory, but children a root carries in
+// this invocation still ride the root's cleanup suffix.
+func TestSweepImplementationScopeCleansCarriedChildren(t *testing.T) {
+	reader, prober := carriedRootCorpus(t)
+	ops := carriedRootOps()
+
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeImplementation)
+
+	assertCarriedChildrenCleaned(t, ops, res)
+}
+
+// TestSweepCarriedChildCleanupIsolated: one carried child's pending cleanup
+// never changes the root's entry or a sibling's, and the sibling is still
+// dispatched.
+func TestSweepCarriedChildCleanupIsolated(t *testing.T) {
+	reader, prober := carriedRootCorpus(t)
+	ops := carriedRootOps()
+	ops.cleanup = map[int]CleanupOpResult{
+		31: newCleanupResult(OperationFinalizeCleanup, ResultBlocked, CleanupOpResult{ID: 31, Disposition: CleanupDispPending}),
+	}
+
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+
+	if !ops.called(sweepKindCleanup, 32) {
+		t.Fatalf("sibling 32 must still be cleaned after 31's pending cleanup; calls=%v", ops.calls)
+	}
+	for _, id := range []int{30, 32} {
+		got := sweepEntriesFor(res.Entries, sweepKindCleanup, id)
+		if len(got) != 1 || got[0].Disposition != SweepDispApplied {
+			t.Errorf("cleanup entry for %d = %+v, want one applied", id, got)
+		}
+	}
+	got := sweepEntriesFor(res.Entries, sweepKindCleanup, 31)
+	if len(got) != 1 || got[0].Disposition != SweepDispBlocked {
+		t.Errorf("cleanup entry for 31 = %+v, want one blocked", got)
+	}
+}
+
+// TestSweepAlreadyClosedOutCarriesNoChildCleanup: a verified no-op closeout
+// carries nothing, so its suffix cleans only the root.
+func TestSweepAlreadyClosedOutCarriesNoChildCleanup(t *testing.T) {
+	corpus := []StatusBlob{
+		finalizeBlob(30, "root", "implemented", "high", prRefFor(30), ""),
+	}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/root"),
+	}}
+	ops := &recordingSweepOps{closeout: map[int]CloseoutResult{
+		30: newCloseoutResult(ResultNoOp, CloseoutResult{ID: 30, Disposition: CloseoutDispAlready}),
+	}}
+
+	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+
+	if got := ops.callIDs(sweepKindCleanup); fmt.Sprint(got) != "[30]" {
+		t.Fatalf("cleanup dispatches = %v, want only the root [30]", got)
+	}
+}
+
+// TestSweepCarriedChildNotCleanedTwice: a stacked-merged child already in the
+// pinned cleanup worklist that the root's closeout also carries is cleaned once,
+// by the root's suffix — and any pre-dispatch assessment entry for it is dropped
+// in favor of the suffix's outcome.
+func TestSweepCarriedChildNotCleanedTwice(t *testing.T) {
+	setup := func(t *testing.T) (*fakeReader, *fakeFinalizeProber, *recordingSweepOps) {
+		corpus := []StatusBlob{
+			finalizeBlob(30, "root", "implemented", "high", prRefFor(30), ""),
+			finalizeBlob(31, "child", "stacked-merged", "high", prRefFor(31), "stacked_on: 30\n"),
+		}
+		reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+		prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+			prRefFor(30): withHead(mergedFacts(30, "main"), "feat/root"),
+		}}
+		ops := &recordingSweepOps{closeout: map[int]CloseoutResult{
+			30: newCloseoutResult(ResultApplied, CloseoutResult{ID: 30, Disposition: CloseoutDispRootArchived, CarriedIDs: []int{31}}),
+		}}
+		return reader, prober, ops
+	}
+	assertOnce := func(t *testing.T, ops *recordingSweepOps, res MaintenanceResult) {
+		t.Helper()
+		if n := countCalls(ops, sweepKindCleanup, 31); n != 1 {
+			t.Errorf("cleanup dispatches for 31 = %d, want 1; calls=%v", n, ops.callIDs(sweepKindCleanup))
+		}
+		got := sweepEntriesFor(res.Entries, sweepKindCleanup, 31)
+		if len(got) != 1 || got[0].Disposition != SweepDispApplied || got[0].Operation == "" {
+			t.Errorf("cleanup entries for 31 = %+v, want the suffix's one applied entry", got)
+		}
+	}
+
+	t.Run("no assessment seam", func(t *testing.T) {
+		reader, prober, ops := setup(t)
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+		assertOnce(t, ops, res)
+	})
+
+	t.Run("assessment entry dropped", func(t *testing.T) {
+		reader, prober, ops := setup(t)
+		seam := ops.seam(reader, prober)
+		seam.assessHistorical = func(_ context.Context, _ sweepInventory, _ StatusPin, historical []sweepWorkItem) ([]MaintenanceEntry, []sweepWorkItem) {
+			var entries []MaintenanceEntry
+			for _, it := range historical {
+				entries = append(entries, sweepEntry(it.id, sweepKindCleanup, SweepDispSkipped, "", ReasonSweepSnapshotRetained, "retained"))
+			}
+			return entries, nil
+		}
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", seam, SweepScopeFull)
+		assertOnce(t, ops, res)
+		for _, e := range sweepEntriesFor(res.Entries, sweepKindCleanup, 31) {
+			if e.Reason == ReasonSweepSnapshotRetained {
+				t.Errorf("stale pre-dispatch entry for 31 survived: %+v", e)
+			}
+		}
+	})
+}

@@ -463,11 +463,27 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 
 	entries := make([]MaintenanceEntry, 0, len(items)+len(assessEntries))
 	entries = append(entries, assessEntries...)
+	// A root closeout's suffix cleans every id it carried. That cleanup ran
+	// after the carry, so it supersedes any earlier cleanup entry for the same
+	// id (a stale pre-dispatch assessment, or the child's own closeout suffix),
+	// and the pinned cleanup worklist never dispatches that id again. Each child
+	// reports one cleanup outcome per run.
+	suffixCleaned := map[int]bool{}
 	for _, it := range items {
 		switch it.kind {
 		case sweepKindCloseout:
-			entries = append(entries, sweepRunCloseout(ctx, ops, it.id)...)
+			got := sweepRunCloseout(ctx, ops, it.id)
+			for _, e := range got {
+				if e.Kind == sweepKindCleanup && e.ID != it.id {
+					suffixCleaned[e.ID] = true
+					entries = dropSweepEntries(entries, sweepKindCleanup, e.ID)
+				}
+			}
+			entries = append(entries, got...)
 		case sweepKindCleanup:
+			if suffixCleaned[it.id] {
+				continue
+			}
 			entries = append(entries, sweepRunCleanup(ctx, ops, it.id))
 		case sweepKindReclaim:
 			entries = append(entries, sweepRunReclaim(ctx, eff, ops, it.id))
@@ -690,9 +706,12 @@ func sweepWorklist(snap domain.Snapshot, queue []domain.FinalizeCandidate, eff c
 // verified closeout against it, and — only when the closeout SUCCEEDED (applied
 // or a verified no-op) — prepares AGAIN for the ownership-safe cleanup suffix (a
 // closeout may have moved paths or statuses, so the suffix never shares the
-// closeout's observation). A closeout that is unknown, contended, blocked, or
-// failed withholds the destructive suffix entirely: the suffix never runs after
-// an unresolved prerequisite.
+// closeout's observation). The suffix cleans the root, then every id in the
+// closeout's CarriedIDs in order, each through sweepRunCleanup with its own
+// fresh observation; one member's outcome never changes another's entry. A
+// replayed closeout carries no list, so it cleans only the root. A closeout that
+// is unknown, contended, blocked, or failed withholds the destructive suffix
+// entirely: the suffix never runs after an unresolved prerequisite.
 func sweepRunCloseout(ctx context.Context, ops sweepOps, id int) []MaintenanceEntry {
 	var out []MaintenanceEntry
 
@@ -720,7 +739,23 @@ func sweepRunCloseout(ctx context.Context, ops sweepOps, id int) []MaintenanceEn
 	}
 
 	out = append(out, sweepRunCleanup(ctx, ops, id))
+	for _, carried := range res.CarriedIDs {
+		out = append(out, sweepRunCleanup(ctx, ops, carried))
+	}
 	return out
+}
+
+// dropSweepEntries returns entries without any entry of (kind, id), reusing the
+// backing array.
+func dropSweepEntries(entries []MaintenanceEntry, kind string, id int) []MaintenanceEntry {
+	kept := entries[:0]
+	for _, e := range entries {
+		if e.Kind == kind && e.ID == id {
+			continue
+		}
+		kept = append(kept, e)
+	}
+	return kept
 }
 
 // sweepRunCleanup prepares ONE fresh metadata observation and dispatches the
