@@ -315,14 +315,25 @@ func blockedWorkspace(target Target, intendedPath string) Workspace {
 
 // ownsManifest reports whether a valid manifest is this repository's and this
 // target's: its ownership identity (CommonDir), its derived id and feature ref,
-// its recorded canonical path, and its change/slug must all match. A valid
-// manifest that fails any check occupies the slot but belongs to something else
-// and is blocked, never adopted.
+// its recorded canonical path, and its change/slug must all match exactly. A
+// valid manifest that fails any check occupies the slot but belongs to something
+// else and is blocked, never adopted.
+//
+// The base ref is part of the identity only for an allocating manifest. A
+// finished checkout (ready or cleaned) keeps its identity when its effective base
+// legitimately moves — a stacked child's base becomes the integration branch once
+// its stack parent lands (ADR-0092) — so for it the recorded BaseRef and
+// BaseCommit are history that readers still report, not an ownership condition.
+// An interrupted allocation resumes from its recorded BaseCommit (prepareResume),
+// so resuming it under a different base ref would pair the old commit with the
+// new ref: its base ref must still match, or it stays blocked.
 func ownsManifest(m Manifest, repo gitcli.Repository, target Target, intendedPath string) bool {
+	if m.Phase == PhaseAllocating && m.BaseRef != target.BaseRef {
+		return false
+	}
 	return m.CommonDir == repo.CommonDir &&
 		m.ID == workspaceID(target.FeatureRef) &&
 		m.FeatureRef == target.FeatureRef &&
-		m.BaseRef == target.BaseRef &&
 		m.ChangeID == target.ChangeID &&
 		m.Slug == target.Slug &&
 		m.Path == intendedPath

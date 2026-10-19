@@ -419,3 +419,139 @@ func assertInspectReadOnly(t *testing.T, svc *Service, r *wsRepos, repo gitcli.R
 	r.assertAllUnchanged(t, beforePreserve)
 	return insp
 }
+
+// TestIntegrationWorkspaceLifecycleOwnedAfterBaseChange proves a finished
+// workspace stays its change's own after its effective base moves. A stacked
+// child's manifest records its parent's branch as BaseRef; once the parent
+// lands, the child's target resolves to the integration branch. Inspect,
+// Prepare, PublishHead, and Cleanup must all treat the ready checkout (and,
+// after cleanup, its cleaned tombstone) as owned, while the manifest's recorded
+// BaseCommit stays the history every reader sees. An interrupted allocation
+// under another base ref stays blocked: it resumes from its recorded base
+// commit, so it must still match the base ref it was started under.
+func TestIntegrationWorkspaceLifecycleOwnedAfterBaseChange(t *testing.T) {
+	const oldBase = gitcli.RefName("refs/heads/feat/parent")
+
+	// setup prepares the target's workspace, then rewrites its manifest the way
+	// a stacked child's looks after its parent landed: the recorded base ref is
+	// the parent branch, not the target's current base. Each subtest gets its
+	// own repository so one row's mutations never leak into the next.
+	setup := func(t *testing.T) (*wsRepos, *Service, gitcli.Repository, Target, Manifest) {
+		t.Helper()
+		r := mainModeRepo(t)
+		svc, repo := r.newService(t)
+		tgt := freshTarget(t, 7)
+		if oldBase == tgt.BaseRef {
+			t.Fatalf("fixture: old base %q must differ from the target base", oldBase)
+		}
+		prepareOK(t, svc, repo, tgt)
+		m, present, err := loadManifest(metaDirOf(repo, tgt))
+		if err != nil || !present {
+			t.Fatalf("loadManifest present=%v err=%v", present, err)
+		}
+		m.BaseRef = oldBase
+		if err := writeManifest(metaDirOf(repo, tgt), m); err != nil {
+			t.Fatalf("writeManifest(old base ref): %v", err)
+		}
+		return r, svc, repo, tgt, m
+	}
+
+	t.Run("inspect-ready", func(t *testing.T) {
+		r, svc, repo, tgt, m := setup(t)
+		insp := assertInspectReadOnly(t, svc, r, repo, tgt)
+		if insp.Kind != StateReady {
+			t.Errorf("Kind = %q (detail %q); want ready after the base moved", insp.Kind, insp.Detail)
+		}
+		if insp.BaseCommit != m.BaseCommit {
+			t.Errorf("BaseCommit = %q; want the manifest's recorded %q", insp.BaseCommit, m.BaseCommit)
+		}
+	})
+
+	t.Run("prepare-existing", func(t *testing.T) {
+		_, svc, repo, tgt, m := setup(t)
+		ws := prepareOK(t, svc, repo, tgt)
+		if ws.Disposition != PrepareExisting {
+			t.Errorf("Disposition = %q; want existing after the base moved", ws.Disposition)
+		}
+		if ws.BaseCommit != m.BaseCommit {
+			t.Errorf("BaseCommit = %q; want the manifest's recorded %q", ws.BaseCommit, m.BaseCommit)
+		}
+	})
+
+	t.Run("publish", func(t *testing.T) {
+		r, svc, repo, tgt, _ := setup(t)
+		head := commitInWorkspace(t, wsPathOf(repo), "feature.txt", "feature work\n")
+		res, err := publishHead(t, svc, repo, tgt)
+		if err != nil {
+			t.Fatalf("PublishHead: %v; want success after the base moved", err)
+		}
+		if res.Disposition != PublishPublished {
+			t.Errorf("Disposition = %q; want published", res.Disposition)
+		}
+		if remote, ok := originFeatCommit(t, r); !ok || remote != head {
+			t.Errorf("origin feat ref = %q (present %v); want local head %q", remote, ok, head)
+		}
+	})
+
+	t.Run("cleanup-then-inspect-cleaned", func(t *testing.T) {
+		r, svc, repo, tgt, _ := setup(t)
+		ws := wsPathOf(repo)
+		if res := cleanupOK(t, svc, repo, tgt); res.Disposition != CleanupCleaned {
+			t.Fatalf("Cleanup Disposition = %q (blocked by %v); want cleaned after the base moved", res.Disposition, res.BlockedBy)
+		}
+		if _, err := os.Stat(ws); !os.IsNotExist(err) {
+			t.Errorf("worktree folder still present after cleanup (stat err %v)", err)
+		}
+		m, present, err := loadManifest(metaDirOf(repo, tgt))
+		if err != nil || !present {
+			t.Fatalf("loadManifest after cleanup present=%v err=%v", present, err)
+		}
+		if m.Phase != PhaseCleaned || m.BaseRef != oldBase {
+			t.Errorf("tombstone phase=%q base_ref=%q; want cleaned with the recorded %q kept", m.Phase, m.BaseRef, oldBase)
+		}
+		insp := assertInspectReadOnly(t, svc, r, repo, tgt)
+		if insp.Kind != StateCleaned {
+			t.Errorf("Inspect Kind = %q (detail %q); want cleaned, not foreign", insp.Kind, insp.Detail)
+		}
+		if res := cleanupOK(t, svc, repo, tgt); res.Disposition != CleanupAlreadyClean {
+			t.Errorf("second Cleanup Disposition = %q (blocked by %v); want already-clean", res.Disposition, res.BlockedBy)
+		}
+	})
+
+	t.Run("allocating-stays-blocked", func(t *testing.T) {
+		r, svc, repo, tgt, m := setup(t)
+		// Remove the checkout so the slot looks like an allocation interrupted
+		// before its worktree was added, under the parent's base ref.
+		gitOut(t, r.Primary, "worktree", "remove", wsPathOf(repo))
+		m.Phase = PhaseAllocating
+		if err := writeManifest(metaDirOf(repo, tgt), m); err != nil {
+			t.Fatalf("writeManifest(allocating): %v", err)
+		}
+		before, err := os.ReadFile(filepath.Join(metaDirOf(repo, tgt), manifestFileName))
+		if err != nil {
+			t.Fatalf("read manifest: %v", err)
+		}
+
+		ws := prepareOK(t, svc, repo, tgt)
+		if ws.Disposition != PrepareBlocked {
+			t.Errorf("Prepare Disposition = %q; want blocked for an allocation under another base ref", ws.Disposition)
+		}
+		if _, err := os.Stat(wsPathOf(repo)); !os.IsNotExist(err) {
+			t.Errorf("blocked Prepare created the worktree folder (stat err %v)", err)
+		}
+		insp := assertInspectReadOnly(t, svc, r, repo, tgt)
+		if insp.Kind != StateForeign {
+			t.Errorf("Inspect Kind = %q; want foreign", insp.Kind)
+		}
+		if !strings.Contains(insp.Detail, "manifest identity does not match") {
+			t.Errorf("Inspect Detail = %q; want the identity-mismatch detail", insp.Detail)
+		}
+		after, err := os.ReadFile(filepath.Join(metaDirOf(repo, tgt), manifestFileName))
+		if err != nil {
+			t.Fatalf("re-read manifest: %v", err)
+		}
+		if string(after) != string(before) {
+			t.Errorf("blocked allocation manifest changed:\nbefore %s\nafter  %s", before, after)
+		}
+	})
+}
