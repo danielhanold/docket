@@ -2,7 +2,7 @@
 id: 570
 slug: 'let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang'
 title: 'Let a loop carry on past a halt that concerns only one change'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/435'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-19T17:21:38Z'
@@ -64,3 +64,12 @@ Carrying a finalize loop past a blocked change: finalize keeps stopping on every
 ### 2026-10-19
 
 2026-10-19 — Reconciled against main at 9ec9eb2b9 (#560 hold landed; #559 done). Spec groomed today; every cited symbol (ChangeClaimRequest, changeClaimReceipt, persistRunVerdict, acquireResumeLock, PruneRunTrackerRecords, the resumeAttributed method, runTrackerSchemaVersion 4, bindingSchemaVersion 1) still exists as described, and neither run.max_consecutive_halts nor reset-halts exists yet. No scope change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: a15eb5631e270dca47664c8ddab5217407bca0ef
+ran_at:   2026-10-19T18:19:58Z
+<!-- docket:build-evidence:end -->

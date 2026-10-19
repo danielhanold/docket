@@ -1,12 +1,12 @@
 # Backlog
 
-**572 changes** — 🟢 1 in progress · 🟡 6 proposed · ⚪ 16 deferred · ✅ 405 done · 🗑️ 144 killed
+**572 changes** — 🔵 1 built · 🟡 6 proposed · ⚪ 16 deferred · ✅ 405 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0570](active/0570-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md) | Let a loop carry on past a halt that concerns only one change | `medium` | `feat` | [spec](../superpowers/specs/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md) | `feat/let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0570](active/0570-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md) | Let a loop carry on past a halt that concerns only one change | `medium` | `feat` | [#435](https://github.com/danielhanold/docket/pull/435) | awaiting merge |
 
 ## 🟡 Proposed (6)
 
