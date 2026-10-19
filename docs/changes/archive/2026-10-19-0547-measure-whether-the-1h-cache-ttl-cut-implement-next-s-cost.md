@@ -2,7 +2,7 @@
 id: 547
 slug: 'measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost'
 title: 'Measure whether the 1h cache TTL cut implement-next''s cost'
-status: 'in-progress'
+status: 'done'
 priority: 'medium'
 type: 'chore'
 created: '2026-10-11'
@@ -23,7 +23,7 @@ pr:
 blocked_by:
 reconciled: true
 deliverable: 'results-artifact'
-claimed_at: '2026-10-19T02:47:40Z'
+claimed_at:
 ---
 
 ## Artifacts

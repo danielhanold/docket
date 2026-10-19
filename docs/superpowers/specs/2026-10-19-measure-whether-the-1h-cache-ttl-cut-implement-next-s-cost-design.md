@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0547 — Measure whether the 1h cache TTL cut implement-next's cost](../../changes/active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md)**
+> ↩ **[Change 0547 — Measure whether the 1h cache TTL cut implement-next's cost](../../changes/archive/2026-10-19-0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md)**
 <!-- docket:backlink:end -->
 
 # Measure whether the 1h cache TTL cut implement-next's cost — design
