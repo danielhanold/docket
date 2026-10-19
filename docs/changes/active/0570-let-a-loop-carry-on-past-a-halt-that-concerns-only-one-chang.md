@@ -14,7 +14,7 @@ related: [559, 560]
 discovered_from: [560]
 adrs: [115, 148, 153]
 spec: 'docs/superpowers/specs/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md'
 results:
 trivial: false
 auto_groomable:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-19T17:03:13Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md](../../superpowers/specs/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang-design.md) |
+| Plan | [2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md](../../superpowers/plans/2026-10-19-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md) |
 | ADRs | [ADR-0115](../../adrs/0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md), [ADR-0148](../../adrs/0148-every-keyed-run-done-verdict-drives-the-successful-run-close.md), [ADR-0153](../../adrs/0153-a-hold-keeps-a-groomed-change-out-of-autonomous-build-select.md) |
 <!-- docket:artifacts:end -->
 
