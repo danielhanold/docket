@@ -32,7 +32,14 @@ import (
 // keeps the cleaned tombstone for replay and health attribution. A killed change
 // is final but never merged, so its workspace and branches are retained (a
 // no-op, killed-retained). A stacked-merged change retains its workspace and
-// branches until its root reaches the integration branch; an out-of-band parent
+// branches until its root reaches the integration branch. Once the root lands,
+// a carried child is done but its PR merged into its parent's branch, not the
+// integration branch: it is cleaned like any done change only after
+// finalizeCleanupProveCarried proves, with closeout's own carry walk and content
+// proof, that its work reached the integration branch through its stack, and
+// that content proof stands in for the local leg's merge-chain containment
+// check. An unproven carry keeps everything (destination-mismatch, or
+// carry-unproven with no delete advice). An out-of-band parent
 // merge with unretargeted children archives truthfully but retains the parent
 // branch and reports children-retarget-required. Any probe failure, moved ref,
 // unproven ancestry, blocked workspace, malformed manifest, or exact-lease
@@ -114,6 +121,12 @@ const (
 	ReasonCleanupRemoteMoved      = "remote-ref-moved"
 	ReasonCleanupLeaseRejected    = "remote-lease-rejected"
 	ReasonCleanupReceiptRead      = "receipt-read-failed"
+	// ReasonCleanupCarryUnproven: a done change merged into its stack parent's
+	// branch, its carry relationship up to the root is proven, but its work could
+	// not be found on the integration branch. Everything is kept, and it is
+	// deliberately not a kept-branch finding: the branch may be the only copy of
+	// that work, so no delete advice is ever given.
+	ReasonCleanupCarryUnproven = "carry-unproven"
 	// gate cleanup reasons
 	ReasonGateCleanupUnownable = "run-unownable"
 	ReasonGateCleanupLive      = "run-live"
@@ -359,19 +372,28 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 	// when close-out left it pending. Best-effort and independent: a failure is a
 	// retryable pr-backlink-pending finding and never blocks the other legs. It is
 	// non-destructive and needs only the PR number and the archived record, so it
-	// runs BEFORE the merge-destination refusal: a carried stacked descendant
-	// (merged into its parent's branch, never the integration branch) has no other
-	// retry for a close-out repoint that failed.
+	// runs BEFORE the merge-destination check: a carried stacked descendant
+	// (merged into its parent's branch, never the integration branch) whose carry
+	// cannot be proven still gets its retry for a close-out repoint that failed.
 	var findings []StatusFinding
 	if f := finalizeCleanupPRBacklinkRepair(ctx, deps, cc, ghRepo, number); f != nil {
 		findings = append(findings, *f)
 	}
 
+	git := cleanupGit(deps)
+
+	// A merge into any branch other than the integration branch is cleaned only as
+	// a carried stacked child: its relationship up to the stack root AND its work
+	// on the integration branch must both be proven, and that content proof stands
+	// in for the local leg's merge-chain containment check (the child's own merge
+	// result sits on its parent's branch, never on the integration branch).
+	carried := false
 	if facts.BaseRef != cc.integrationBranch {
-		r := cleanupRefusal(ResultBlocked, CleanupDispPending, ReasonCleanupDestination,
-			"the verified merge destination is not the integration branch; cleanup preserves the resources", id)
-		r.Findings = append(r.Findings, findings...)
-		return r
+		if r := finalizeCleanupProveCarried(ctx, deps, git, ghRepo, cc, facts); r != nil {
+			r.Findings = append(r.Findings, findings...)
+			return *r
+		}
+		carried = true
 	}
 
 	// Delete the change's own feature ref by its RECORDED branch, never a
@@ -385,7 +407,6 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 		return r
 	}
 	featureRef := gitcli.RefName(branchRefPrefix + featureBranch)
-	git := cleanupGit(deps)
 
 	var removed []string
 
@@ -408,8 +429,9 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 	}
 
 	// Leg 3: delete the local feature ref only under exact tip + worktree-detached
-	// + merge-chain containment.
-	localDone, localRef, localFinding := finalizeCleanupLocalRef(ctx, deps, git, cc, featureRef, featureBranch, facts)
+	// + merge-chain containment (for a proven carried child, the carry content
+	// proof above).
+	localDone, localRef, localFinding := finalizeCleanupLocalRef(ctx, deps, git, cc, featureRef, featureBranch, facts, carried)
 	if localFinding != nil {
 		findings = append(findings, *localFinding)
 	}
@@ -448,6 +470,103 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 		"cleanup is partially complete; the retained legs are independently retryable")
 	r.Findings = append(r.Findings, notes...)
 	return r
+}
+
+// finalizeCleanupProveCarried proves that a done change whose PR merged into a
+// branch other than the integration branch is a carried stacked child whose
+// work reached the integration branch through its stack. It returns nil only
+// when both are proven; otherwise it returns the pending refusal that keeps the
+// folder and both branches.
+//
+// The relationship is closeout's own carry walk (domain.ProveDoneCarry) over
+// freshly probed PR facts for the child and each ancestor up to the root; a
+// relationship that fails is today's destination-mismatch refusal. The content
+// is closeout's own per-descendant proof (proveCarriedContent) against the
+// root's merge result, after that merge result is re-checked as reachable from
+// the freshly fetched integration tip. A probe that errors is unknown, never a
+// verdict; an unproven content proof is carry-unproven, which never advises a
+// delete because the branch may be the only copy of the work.
+func finalizeCleanupProveCarried(ctx context.Context, deps FinalizeDeps, git FinalizeCleanupGit, ghRepo githubcli.Repository, cc *closeoutContext, childFacts githubcli.MergedFacts) *CleanupOpResult {
+	id := int(cc.change.ID())
+	refuse := func(result Result, reason, msg string) *CleanupOpResult {
+		r := cleanupRefusal(result, CleanupDispPending, reason, msg, id)
+		return &r
+	}
+	probeFailed := func() *CleanupOpResult {
+		return refuse(ResultExternalFailed, ReasonCleanupAncestryProbe,
+			"the integration branch could not be checked for this stacked change's work; cleanup preserves the resources")
+	}
+	unproven := func() *CleanupOpResult {
+		return refuse(ResultBlocked, ReasonCleanupCarryUnproven,
+			"change #"+itoa(id)+" merged into its stack parent's branch, but its work could not be found on "+cc.integrationBranch+
+				" through its stack, so its folder and branches were kept: the branch may be the only copy of that work. Cleanup tries again on the next full sweep.")
+	}
+
+	facts, err := probeCarryAncestorFacts(ctx, deps, ghRepo, cc.snap, cc.change, cc.integrationBranch)
+	if err != nil {
+		return refuse(ResultExternalFailed, ReasonCleanupProbeUnknown,
+			"a stack ancestor's pull request could not be read ("+err.Error()+"); cleanup preserves the resources")
+	}
+	number, _ := parsePRNumber(cc.change.PR().Value)
+	facts[cc.change.ID()] = mergedPRFacts(number, githubcli.MergeMerged, childFacts)
+	root, token := domain.ProveDoneCarry(cc.snap, cc.change.ID(), facts, cc.integrationBranch)
+	if token != "" {
+		return refuse(ResultBlocked, ReasonCleanupDestination,
+			"the verified merge destination is not the integration branch; cleanup preserves the resources")
+	}
+
+	rootMerge := gitcli.ObjectID(facts[root].MergeCommit)
+	if !validFullObjectID(string(rootMerge)) {
+		return unproven()
+	}
+	rev, err := git.FetchBranch(ctx, cc.repo, originRemote, gitcli.RefName(branchRefPrefix+cc.integrationBranch))
+	if err != nil {
+		return probeFailed()
+	}
+	reachable, err := git.IsAncestor(ctx, cc.repo, rootMerge, rev.Commit)
+	if err != nil {
+		return probeFailed()
+	}
+	if !reachable {
+		return unproven()
+	}
+	content, err := proveCarriedContent(ctx, git, cc.repo, childFacts.MergeCommit, rootMerge, rev.Commit)
+	if err != nil {
+		return probeFailed()
+	}
+	if !content.Proven {
+		return unproven()
+	}
+	return nil
+}
+
+// probeCarryAncestorFacts probes the live PR of each of c's stack ancestors,
+// nearest first, for domain.ProveDoneCarry. It stops right after the first
+// ancestor whose PR merged into integration: that ancestor is the stack root,
+// and nothing above it is part of the carry. An ancestor with no canonical PR
+// reference contributes no facts (the walk reads that as an unconfirmable
+// link); a probe error is returned so the caller keeps everything as unknown.
+func probeCarryAncestorFacts(ctx context.Context, deps FinalizeDeps, ghRepo githubcli.Repository, snap domain.Snapshot, c domain.Change, integration string) (map[domain.ChangeID]domain.PRFacts, error) {
+	facts := map[domain.ChangeID]domain.PRFacts{}
+	for _, aid := range domain.StackAncestors(snap, c) {
+		a, out := snap.Change(aid)
+		if out != domain.LookupFound {
+			continue
+		}
+		number, ok := parsePRNumber(a.PR().Value)
+		if !finalizeHasPRRef(a) || !ok {
+			continue
+		}
+		outcome, mf, err := deps.GitHub.ProbeMerged(ctx, ghRepo, number)
+		if err != nil {
+			return nil, err
+		}
+		facts[aid] = mergedPRFacts(number, outcome, mf)
+		if (outcome == githubcli.MergeMerged || outcome == githubcli.MergeAlreadyMerged) && mf.BaseRef == integration {
+			break
+		}
+	}
+	return facts, nil
 }
 
 // finalizeCleanupResult builds a pending/partial cleanup result.
@@ -540,9 +659,14 @@ func finalizeCleanupWorkspace(ctx context.Context, deps FinalizeDeps, cc *closeo
 // ancestor of the freshly-fetched integration tip). The containment proof keys
 // on the merge-result commit, not the original head, so it holds identically
 // for a two-parent merge commit, a single-parent squash, and a rebased chain.
+// containmentProven is true only for a carried stacked child whose content
+// proof (finalizeCleanupProveCarried) already established its work on the
+// integration branch; that proof replaces the merge-chain containment check,
+// which a carried child's merge result (on its parent's branch) can never pass.
+// The exact-tip, worktree-detached, and checked-delete proofs always run.
 // A cleanly-absent ref is an already-done leg; every unprovable probe or unmet
 // proof is a pending finding with the ref intact.
-func finalizeCleanupLocalRef(ctx context.Context, deps FinalizeDeps, git FinalizeCleanupGit, cc *closeoutContext, featureRef gitcli.RefName, featureBranch string, facts githubcli.MergedFacts) (done bool, removedRef string, finding *StatusFinding) {
+func finalizeCleanupLocalRef(ctx context.Context, deps FinalizeDeps, git FinalizeCleanupGit, cc *closeoutContext, featureRef gitcli.RefName, featureBranch string, facts githubcli.MergedFacts, containmentProven bool) (done bool, removedRef string, finding *StatusFinding) {
 	expectedTip := gitcli.ObjectID(facts.HeadOID)
 	if !validFullObjectID(string(expectedTip)) {
 		f := cleanupWarning(ReasonCleanupRefProbe, "the verified merge carries no usable head; the local ref is retained")
@@ -569,24 +693,26 @@ func finalizeCleanupLocalRef(ctx context.Context, deps FinalizeDeps, git Finaliz
 	// rewrites the head into a fresh chain the head is no longer an ancestor of,
 	// but the recorded merge commit is always contained in the integration tip.
 	// A fetch or ancestry probe error is unknown (retain).
-	mergeCommit := gitcli.ObjectID(facts.MergeCommit)
-	if !validFullObjectID(string(mergeCommit)) {
-		w := cleanupWarning(ReasonCleanupRefProbe, "the verified merge carries no usable merge-result commit; the local ref is retained")
-		return false, "", &w
-	}
-	rev, err := git.FetchBranch(ctx, cc.repo, originRemote, gitcli.RefName(branchRefPrefix+cc.integrationBranch))
-	if err != nil {
-		w := cleanupWarning(ReasonCleanupAncestryProbe, "the integration tip could not be fetched; the local ref is retained")
-		return false, "", &w
-	}
-	reachable, err := git.IsAncestor(ctx, cc.repo, mergeCommit, rev.Commit)
-	if err != nil {
-		w := cleanupWarning(ReasonCleanupAncestryProbe, "merge-chain containment could not be proven; the local ref is retained")
-		return false, "", &w
-	}
-	if !reachable {
-		w := keptBranchWarning(cc, ReasonCleanupUnreachable, featureBranch)
-		return false, "", &w
+	if !containmentProven {
+		mergeCommit := gitcli.ObjectID(facts.MergeCommit)
+		if !validFullObjectID(string(mergeCommit)) {
+			w := cleanupWarning(ReasonCleanupRefProbe, "the verified merge carries no usable merge-result commit; the local ref is retained")
+			return false, "", &w
+		}
+		rev, err := git.FetchBranch(ctx, cc.repo, originRemote, gitcli.RefName(branchRefPrefix+cc.integrationBranch))
+		if err != nil {
+			w := cleanupWarning(ReasonCleanupAncestryProbe, "the integration tip could not be fetched; the local ref is retained")
+			return false, "", &w
+		}
+		reachable, err := git.IsAncestor(ctx, cc.repo, mergeCommit, rev.Commit)
+		if err != nil {
+			w := cleanupWarning(ReasonCleanupAncestryProbe, "merge-chain containment could not be proven; the local ref is retained")
+			return false, "", &w
+		}
+		if !reachable {
+			w := keptBranchWarning(cc, ReasonCleanupUnreachable, featureBranch)
+			return false, "", &w
+		}
 	}
 
 	// Worktree-detached: the merged branch must be checked out nowhere.

@@ -442,9 +442,11 @@ func TestIntegrationFinalizeCleanupPRBacklinkRetry(t *testing.T) {
 
 // TestIntegrationFinalizeCleanupPRBacklinkRetryCarriedDescendant proves a
 // carried stacked descendant has a reachable PR-backlink retry: its PR merged
-// into the ROOT's branch (never the integration branch), so cleanup refuses its
-// destructive legs as destination-mismatch — but the non-destructive PR-body
-// repoint still runs first, landing the edit close-out left pending.
+// into the ROOT's branch (never the integration branch), and the
+// non-destructive PR-body repoint runs first, landing the edit close-out left
+// pending. The descendant's carry is proven, but it has no workspace of its own
+// on this machine, so cleanup stops at the workspace leg: nothing is removed and
+// the root's branches, which carry the descendant's merged work, stay intact.
 func TestIntegrationFinalizeCleanupPRBacklinkRetryCarriedDescendant(t *testing.T) {
 	requireRealGit(t)
 	f := setupCloseoutFixture(t, planRepoModes()[0])
@@ -489,16 +491,17 @@ func TestIntegrationFinalizeCleanupPRBacklinkRetryCarriedDescendant(t *testing.T
 	if got := pr.bodies[8]; strings.Contains(got, "`"+descActive+"`") || !strings.Contains(got, "docs/changes/archive/2026-08-18-0006-gadget.md") {
 		t.Fatalf("cleanup did not repoint the carried descendant's PR backlink:\n%s", got)
 	}
-	// The destructive legs are still refused: nothing removed, the root's branch
+	// The carry is proven, but the descendant has no workspace here, so the
+	// workspace leg holds the branch legs back: nothing removed, the root's branch
 	// (which carries the descendant's merged work) intact.
-	if res.Result != ResultBlocked || res.Disposition != CleanupDispPending || res.Reason != ReasonCleanupDestination {
-		t.Fatalf("cleanup = %q disp %q reason %q, want blocked/pending/%s", res.Result, res.Disposition, res.Reason, ReasonCleanupDestination)
+	if res.Result != ResultBlocked || res.Disposition != CleanupDispPending || res.Reason != ReasonCleanupWorkspaceBlocked {
+		t.Fatalf("cleanup = %q disp %q reason %q, want blocked/pending/%s", res.Result, res.Disposition, res.Reason, ReasonCleanupWorkspaceBlocked)
 	}
 	if len(res.RemovedRefs) != 0 || !f.localBranchPresent(t) || !f.remoteBranchPresent(t) {
-		t.Fatalf("a destination-mismatch cleanup must remove nothing; removed=%v", res.RemovedRefs)
+		t.Fatalf("a pending cleanup must remove nothing; removed=%v", res.RemovedRefs)
 	}
 
-	// A still-failing retry surfaces the retryable finding on the refusal.
+	// A still-failing retry surfaces the retryable finding on the pending result.
 	pr.bodies[8] = artifactWithBacklink(descActive, "Child", "child prose")
 	pr.editErr = errors.New("gh: HTTP 502")
 	again := FinalizeCleanup(context.Background(), deps, f.repo.invocation, 6)
@@ -506,8 +509,412 @@ func TestIntegrationFinalizeCleanupPRBacklinkRetryCarriedDescendant(t *testing.T
 	for _, fd := range again.Findings {
 		pending = pending || fd.Code == ReasonPRBacklinkPending
 	}
-	if again.Reason != ReasonCleanupDestination || !pending {
-		t.Fatalf("failing retry = reason %q findings %+v, want %s carrying a %s finding", again.Reason, again.Findings, ReasonCleanupDestination, ReasonPRBacklinkPending)
+	if again.Disposition != CleanupDispPending || !pending || len(again.RemovedRefs) != 0 {
+		t.Fatalf("failing retry = disp %q findings %+v removed %v, want pending carrying a %s finding with nothing removed",
+			again.Disposition, again.Findings, again.RemovedRefs, ReasonPRBacklinkPending)
+	}
+	if !f.localBranchPresent(t) || !f.remoteBranchPresent(t) {
+		t.Fatalf("a failing retry must leave the root's branches intact")
+	}
+}
+
+// --- carried stacked children ---------------------------------------------
+
+// carriedMember is one change of a real stack built by setupCarriedStackFixture:
+// its record identity, its prepared workspace, the head its PR merged, and the
+// merge result that PR produced on its parent's branch (on main for the root).
+type carriedMember struct {
+	id        int
+	slug      string
+	branch    string
+	pr        int
+	wp        string
+	forkPoint string // the parent branch tip the member's workspace was cut from
+	head      string
+	baseRef   string // the branch its PR merged into
+	merge     string
+}
+
+// facts are the member's authoritative merged-PR facts.
+func (m *carriedMember) facts() closeoutProbe {
+	return closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(m.head, m.baseRef, m.merge)}
+}
+
+// carriedStackFixture is a real stack whose root closed out: every member is
+// done and archived, and every member still has its workspace folder, local
+// branch, and remote branch.
+type carriedStackFixture struct {
+	*closeoutFixture
+	members []*carriedMember // root first, then each child in stack order
+}
+
+// cleanupFake answers every member's merged PR with its real facts.
+func (sf *carriedStackFixture) cleanupFake() *fakeCleanupGitHub {
+	merged := map[int]closeoutProbe{}
+	for _, m := range sf.members {
+		merged[m.pr] = m.facts()
+	}
+	return &fakeCleanupGitHub{repo: retargetRepo(), merged: merged, openByHead: map[string][]githubcli.PullRequest{}}
+}
+
+// clean runs FinalizeCleanup for one member through the real Git client and
+// workspace service.
+func (sf *carriedStackFixture) clean(t *testing.T, gh FinalizeGitHub, git FinalizeCleanupGit, id int) CleanupOpResult {
+	t.Helper()
+	return FinalizeCleanup(context.Background(), sf.cleanupDeps(gh, git, sf.svc), sf.repo.invocation, id)
+}
+
+// branchPresent reports whether branch exists locally and on origin.
+func (sf *carriedStackFixture) branchPresent(t *testing.T, branch string) (local, remote bool) {
+	t.Helper()
+	_, err := sf.deps.Client.ResolveRef(context.Background(), sf.gitrepo, gitcli.RefName("refs/heads/"+branch))
+	rr, rerr := sf.deps.Client.ProbeRemoteBranch(context.Background(), sf.gitrepo, "origin", gitcli.RefName("refs/heads/"+branch))
+	if rerr != nil {
+		t.Fatalf("remote probe %s: %v", branch, rerr)
+	}
+	return err == nil, rr.State == gitcli.RemoteRefFound
+}
+
+// assertGone fails unless the member's folder, local branch, and remote branch
+// are all gone.
+func (sf *carriedStackFixture) assertGone(t *testing.T, m *carriedMember) {
+	t.Helper()
+	if _, err := os.Stat(m.wp); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("change %d: workspace %s must be removed (stat err %v)", m.id, m.wp, err)
+	}
+	if local, remote := sf.branchPresent(t, m.branch); local || remote {
+		t.Fatalf("change %d: %s must be gone (local %v, remote %v)", m.id, m.branch, local, remote)
+	}
+}
+
+// assertKept fails unless the member's folder, local branch, and remote branch
+// all still exist.
+func (sf *carriedStackFixture) assertKept(t *testing.T, m *carriedMember) {
+	t.Helper()
+	if _, err := os.Stat(m.wp); err != nil {
+		t.Fatalf("change %d: workspace %s must be kept: %v", m.id, m.wp, err)
+	}
+	if local, remote := sf.branchPresent(t, m.branch); !local || !remote {
+		t.Fatalf("change %d: %s must be kept (local %v, remote %v)", m.id, m.branch, local, remote)
+	}
+}
+
+// setupCarriedStackFixture builds a real stack of depth members on the closeout
+// fixture's root (5 feat/widget, PR #7): child 6 (feat/gadget, PR #8) stacked on
+// 5 and, at depth 3, grandchild 7 (feat/gizmo, PR #9) stacked on 6. Each child
+// gets a real prepared workspace cut from its parent's branch, one commit, and a
+// published head. Every PR then lands REBASE-STYLE, bottom-up: a child's commits
+// are cherry-picked onto its parent's branch (in the parent's workspace, so the
+// parent's local branch and remote advance together), and the root's commits are
+// cherry-picked onto main. No merge result is an ancestor of main, so the carry
+// content proof needs ProvePreserved. The root then closes out, archiving every
+// member as done.
+func setupCarriedStackFixture(t *testing.T, depth int) *carriedStackFixture {
+	t.Helper()
+	ctx := context.Background()
+	f := setupCloseoutFixture(t, planRepoModeDocket())
+	root := &carriedMember{
+		id: f.id, slug: f.slug, branch: "feat/" + f.slug, pr: closeoutPR, wp: f.wp,
+		forkPoint: f.baseTip, head: f.head, baseRef: "main",
+	}
+	sf := &carriedStackFixture{closeoutFixture: f, members: []*carriedMember{root}}
+	children := []struct {
+		id   int
+		slug string
+		pr   int
+	}{{6, "gadget", 8}, {7, "gizmo", 9}}
+
+	records := map[string]string{}
+	for i := 1; i < depth; i++ {
+		parent, c := sf.members[i-1], children[i-1]
+		m := &carriedMember{id: c.id, slug: c.slug, branch: "feat/" + c.slug, pr: c.pr, forkPoint: parent.head, baseRef: parent.branch}
+		recPath, planPath := groomPath(c.id, c.slug), "docs/superpowers/plans/2026-08-16-"+c.slug+"-plan.md"
+		rec := closeoutRecord(c.id, c.slug, "stacked-merged", "github.com/acme/widget#"+itoa(c.pr), "", planPath, "")
+		records[recPath] = strings.Replace(rec, "stacked_on:\n", "stacked_on: "+itoa(parent.id)+"\n", 1)
+		records[planPath] = artifactWithBacklink(recPath, c.slug+" plan", "The "+c.slug+" plan.")
+
+		target, err := workspace.NewTarget(domain.ChangeID(c.id), c.slug, domain.EffectiveBase{Kind: domain.BaseResolved, Branch: parent.branch}, m.branch)
+		if err != nil {
+			t.Fatalf("NewTarget %d: %v", c.id, err)
+		}
+		ws, err := f.svc.Prepare(ctx, workspace.PrepareRequest{Repository: f.gitrepo, Remote: "origin", Target: target})
+		if err != nil {
+			t.Fatalf("prepare %d: %v", c.id, err)
+		}
+		m.wp = ws.Path
+		writeRepoFile(t, m.wp, c.slug+".txt", c.slug+" work\n")
+		runGit(t, m.wp, "add", "-A")
+		runGit(t, m.wp, "commit", "-q", "-m", "implement "+c.slug)
+		m.head = runGit(t, m.wp, "rev-parse", "HEAD")
+		if _, err := f.svc.PublishHead(ctx, workspace.PublishRequest{Repository: f.gitrepo, Remote: "origin", Target: target}); err != nil {
+			t.Fatalf("publish %d: %v", c.id, err)
+		}
+		sf.members = append(sf.members, m)
+	}
+	if len(records) > 0 {
+		f.repo.writerAdvance(t, f.branch, records)
+	}
+
+	// Land each child's PR on its parent's branch, deepest first. `-x` records
+	// the picked id in each message, so every merge result is a NEW commit even
+	// when it is picked onto the same parent within the same second (an identical
+	// commit would silently turn the rebase merge into a fast-forward).
+	for i := len(sf.members) - 1; i >= 1; i-- {
+		parent, m := sf.members[i-1], sf.members[i]
+		runGit(t, parent.wp, "cherry-pick", "-x", m.forkPoint+".."+m.head)
+		runGit(t, parent.wp, "push", "-q", "origin", "HEAD:refs/heads/"+parent.branch)
+		parent.head = runGit(t, parent.wp, "rev-parse", "HEAD")
+		m.merge = parent.head
+	}
+	// Land the root's PR on main.
+	w := f.repo.writer
+	runGit(t, w, "fetch", "-q", "origin", "+refs/heads/main:refs/remotes/origin/main", "+refs/heads/"+root.branch+":refs/remotes/origin/"+root.branch)
+	runGit(t, w, "checkout", "-q", "-B", "main", "origin/main")
+	runGit(t, w, "cherry-pick", "-x", root.forkPoint+".."+root.head)
+	runGit(t, w, "push", "-q", "origin", "main")
+	root.merge = runGit(t, w, "rev-parse", "HEAD")
+	f.fetchAllIntoInvocation(t)
+	// Pin the rebase shape: no child's merge result is on main, so the carry
+	// content proof can only pass through ProvePreserved, never plain ancestry.
+	for _, m := range sf.members[1:] {
+		if _, err := tryGit(f.repo.invocation, "merge-base", "--is-ancestor", m.merge, root.merge); err == nil {
+			t.Fatalf("fixture: change %d's merge result %s must not be an ancestor of the root merge %s", m.id, m.merge, root.merge)
+		}
+	}
+
+	merged := map[int]closeoutProbe{}
+	for _, m := range sf.members {
+		merged[m.pr] = m.facts()
+	}
+	res := FinalizeCloseout(ctx, f.closeoutDeps(&fakeCloseoutGitHub{repo: retargetRepo(), merged: merged}), f.repo.invocation, f.id, CloseoutNotes{})
+	if depth > 1 && (res.Result != ResultApplied || res.Disposition != CloseoutDispRootArchived || len(res.CarriedIDs) != depth-1) {
+		t.Fatalf("root closeout = %q disp %q carried %v (reason %q: %s)", res.Result, res.Disposition, res.CarriedIDs, res.Reason, res.Message)
+	}
+	return sf
+}
+
+// TestIntegrationFinalizeCleanupCarriedChildTwoLevel: once the root lands and is
+// cleaned (deleting the branch the child merged into), the carried child's
+// cleanup proves its work reached main through the root and removes its folder,
+// local branch, and remote branch. A replay removes nothing and is not pending.
+func TestIntegrationFinalizeCleanupCarriedChildTwoLevel(t *testing.T) {
+	requireRealGit(t)
+	sf := setupCarriedStackFixture(t, 2)
+	gh := sf.cleanupFake()
+	root, child := sf.members[0], sf.members[1]
+
+	if res := sf.clean(t, gh, sf.deps.Client, root.id); res.Disposition != CleanupDispCleaned {
+		t.Fatalf("root cleanup = %q disp %q reason %q (%s) findings %+v", res.Result, res.Disposition, res.Reason, res.Message, res.Findings)
+	}
+	sf.assertGone(t, root)
+
+	res := sf.clean(t, gh, sf.deps.Client, child.id)
+	if res.Result != ResultApplied || res.Disposition != CleanupDispCleaned {
+		t.Fatalf("child cleanup = %q disp %q reason %q (%s) findings %+v", res.Result, res.Disposition, res.Reason, res.Message, res.Findings)
+	}
+	sf.assertGone(t, child)
+	removed := strings.Join(res.RemovedRefs, ",")
+	for _, want := range []string{"local:" + child.branch, "remote:" + child.branch} {
+		if !strings.Contains(removed, want) {
+			t.Fatalf("removed refs %v lack %q", res.RemovedRefs, want)
+		}
+	}
+
+	replay := sf.clean(t, gh, sf.deps.Client, child.id)
+	if replay.Disposition == CleanupDispPending || len(replay.RemovedRefs) != 0 {
+		t.Fatalf("replay = %q disp %q removed %v reason %q, want a clean no-op", replay.Result, replay.Disposition, replay.RemovedRefs, replay.Reason)
+	}
+}
+
+// TestIntegrationFinalizeCleanupCarriedChildThreeLevel: a grandchild carried
+// through an intermediate child is proven through the whole chain; cleaning the
+// root, then the child, then the grandchild leaves no folder and no branch.
+func TestIntegrationFinalizeCleanupCarriedChildThreeLevel(t *testing.T) {
+	requireRealGit(t)
+	sf := setupCarriedStackFixture(t, 3)
+	gh := sf.cleanupFake()
+	for _, m := range sf.members {
+		res := sf.clean(t, gh, sf.deps.Client, m.id)
+		if res.Result != ResultApplied || res.Disposition != CleanupDispCleaned {
+			t.Fatalf("cleanup %d = %q disp %q reason %q (%s) findings %+v", m.id, res.Result, res.Disposition, res.Reason, res.Message, res.Findings)
+		}
+	}
+	for _, m := range sf.members {
+		sf.assertGone(t, m)
+	}
+}
+
+// probeErrOnPR is a cleanup GitHub fake whose merged-PR probe errors for one PR
+// only, so the child's own probe succeeds and an ancestor's fails.
+type probeErrOnPR struct {
+	*fakeCleanupGitHub
+	failPR int
+}
+
+func (p *probeErrOnPR) ProbeMerged(ctx context.Context, repo githubcli.Repository, number int) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+	if number == p.failPR {
+		return githubcli.MergeUnknown, githubcli.MergedFacts{}, errors.New("gh: HTTP 502")
+	}
+	return p.fakeCleanupGitHub.ProbeMerged(ctx, repo, number)
+}
+
+// TestIntegrationFinalizeCleanupCarriedChildFailClosed: whenever a carried
+// child's relationship or content can't be proven, or a probe can't be answered,
+// cleanup keeps its folder and both branches and reports pending.
+func TestIntegrationFinalizeCleanupCarriedChildFailClosed(t *testing.T) {
+	requireRealGit(t)
+	rows := []struct {
+		name   string
+		depth  int
+		result Result
+		reason string
+		run    func(t *testing.T, sf *carriedStackFixture) CleanupOpResult
+	}{
+		{
+			name: "content-unproven", depth: 2, result: ResultBlocked, reason: ReasonCleanupCarryUnproven,
+			run: func(t *testing.T, sf *carriedStackFixture) CleanupOpResult {
+				// The child's merge result is a real, pushed commit whose work never
+				// reached main.
+				dropped := sf.carryCommit(t, "gadget-dropped", sf.baseTip, map[string]string{"dropped.txt": "never shipped\n"})
+				sf.fetchAllIntoInvocation(t)
+				gh := sf.cleanupFake()
+				child := sf.members[1]
+				gh.merged[child.pr] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(child.head, child.baseRef, dropped)}
+				return sf.clean(t, gh, sf.deps.Client, child.id)
+			},
+		},
+		{
+			name: "root-merge-not-on-main", depth: 2, result: ResultBlocked, reason: ReasonCleanupCarryUnproven,
+			run: func(t *testing.T, sf *carriedStackFixture) CleanupOpResult {
+				// The root's reported merge result is its own branch tip, which holds
+				// the child's work but never reached main: the root's merge must be
+				// re-proven on main before it can vouch for the child.
+				gh := sf.cleanupFake()
+				root := sf.members[0]
+				gh.merged[root.pr] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(root.head, "main", root.head)}
+				return sf.clean(t, gh, sf.deps.Client, sf.members[1].id)
+			},
+		},
+		{
+			name: "ancestor-probe-error", depth: 2, result: ResultExternalFailed, reason: ReasonCleanupProbeUnknown,
+			run: func(t *testing.T, sf *carriedStackFixture) CleanupOpResult {
+				gh := &probeErrOnPR{fakeCleanupGitHub: sf.cleanupFake(), failPR: sf.members[0].pr}
+				return sf.clean(t, gh, sf.deps.Client, sf.members[1].id)
+			},
+		},
+		{
+			name: "preserve-probe-error", depth: 2, result: ResultExternalFailed, reason: ReasonCleanupAncestryProbe,
+			run: func(t *testing.T, sf *carriedStackFixture) CleanupOpResult {
+				return sf.clean(t, sf.cleanupFake(), &faultyCleanupGit{inner: sf.deps.Client, fail: "preserve"}, sf.members[1].id)
+			},
+		},
+		{
+			name: "destination-matches-no-parent", depth: 2, result: ResultBlocked, reason: ReasonCleanupDestination,
+			run: func(t *testing.T, sf *carriedStackFixture) CleanupOpResult {
+				gh := sf.cleanupFake()
+				child := sf.members[1]
+				gh.merged[child.pr] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(child.head, "feat/elsewhere", child.merge)}
+				return sf.clean(t, gh, sf.deps.Client, child.id)
+			},
+		},
+		{
+			name: "killed-link", depth: 3, result: ResultBlocked, reason: ReasonCleanupDestination,
+			run: func(t *testing.T, sf *carriedStackFixture) CleanupOpResult {
+				// Rewrite the intermediate child's archived record as killed.
+				runGit(t, sf.repo.writer, "fetch", "-q", "origin", sf.branch)
+				runGit(t, sf.repo.writer, "checkout", "-q", sf.branch)
+				runGit(t, sf.repo.writer, "reset", "-q", "--hard", "origin/"+sf.branch)
+				killed := strings.Replace(lifecycleChange(6, "gadget", "killed"), "stacked_on:\n", "stacked_on: 5\n", 1)
+				sf.repo.writerAdvance(t, sf.branch, map[string]string{"docs/changes/archive/2026-08-18-0006-gadget.md": killed})
+				return sf.clean(t, sf.cleanupFake(), sf.deps.Client, sf.members[2].id)
+			},
+		},
+	}
+	for _, row := range rows {
+		t.Run(row.name, func(t *testing.T) {
+			sf := setupCarriedStackFixture(t, row.depth)
+			res := row.run(t, sf)
+			if res.Result != row.result || res.Disposition != CleanupDispPending || res.Reason != row.reason {
+				t.Fatalf("cleanup = %q disp %q reason %q (%s), want %q/pending/%s", res.Result, res.Disposition, res.Reason, res.Message, row.result, row.reason)
+			}
+			if len(res.RemovedRefs) != 0 {
+				t.Fatalf("a refused cleanup removed %v", res.RemovedRefs)
+			}
+			sf.assertKept(t, sf.members[len(sf.members)-1])
+			for _, fd := range res.Findings {
+				if isKeptBranchFinding(fd) {
+					t.Fatalf("a refused carried-child cleanup must not carry a kept-branch finding: %+v", fd)
+				}
+			}
+			if row.reason == ReasonCleanupCarryUnproven {
+				if !strings.Contains(res.Message, "main") {
+					t.Fatalf("the carry-unproven message must name the integration branch: %q", res.Message)
+				}
+				for _, text := range []string{res.Message, res.HumanText()} {
+					for _, banned := range []string{"git branch -D", "--delete", "by hand"} {
+						if strings.Contains(text, banned) {
+							t.Fatalf("the carry-unproven text must not advise deleting by hand (%q): %q", banned, text)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestIntegrationFinalizeCleanupCarriedChildBranchMoved: a commit made on the
+// child's branch after its merge keeps the local branch with the named
+// kept-branch warning, while the clean folder is still removed.
+func TestIntegrationFinalizeCleanupCarriedChildBranchMoved(t *testing.T) {
+	requireRealGit(t)
+	sf := setupCarriedStackFixture(t, 2)
+	child := sf.members[1]
+	writeRepoFile(t, child.wp, "late.txt", "after the merge\n")
+	runGit(t, child.wp, "add", "-A")
+	runGit(t, child.wp, "commit", "-q", "-m", "after the merge")
+
+	res := sf.clean(t, sf.cleanupFake(), sf.deps.Client, child.id)
+	if res.Disposition != CleanupDispPending {
+		t.Fatalf("cleanup = %q disp %q reason %q (%s), want pending", res.Result, res.Disposition, res.Reason, res.Message)
+	}
+	if _, err := os.Stat(child.wp); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the clean workspace must still be removed (stat err %v)", err)
+	}
+	if local, _ := sf.branchPresent(t, child.branch); !local {
+		t.Fatalf("a branch moved past its merge must be kept")
+	}
+	var moved bool
+	for _, fd := range res.Findings {
+		moved = moved || fd.Code == ReasonCleanupTipMoved
+	}
+	if !moved || !strings.Contains(res.HumanText(), "git branch -D "+child.branch) {
+		t.Fatalf("want a %s kept-branch warning naming the branch, got findings %+v human %q", ReasonCleanupTipMoved, res.Findings, res.HumanText())
+	}
+}
+
+// TestIntegrationFinalizeCleanupCarriedChildOpenStackedPR: an open pull request
+// stacked on the carried child keeps the child's remote branch and reports
+// children-retarget-required, exactly as for any done change.
+func TestIntegrationFinalizeCleanupCarriedChildOpenStackedPR(t *testing.T) {
+	requireRealGit(t)
+	sf := setupCarriedStackFixture(t, 2)
+	child := sf.members[1]
+	runGit(t, sf.repo.writer, "fetch", "-q", "origin", sf.branch)
+	runGit(t, sf.repo.writer, "checkout", "-q", sf.branch)
+	runGit(t, sf.repo.writer, "reset", "-q", "--hard", "origin/"+sf.branch)
+	live := strings.Replace(lifecycleChange(7, "gizmo", "in-progress"), "stacked_on:\n", "stacked_on: "+itoa(child.id)+"\n", 1)
+	sf.repo.writerAdvance(t, sf.branch, map[string]string{groomPath(7, "gizmo"): live})
+	gh := sf.cleanupFake()
+	gh.openByHead["feat/gizmo"] = []githubcli.PullRequest{{
+		Number: 9, State: githubcli.StateOpen, HeadBranch: "feat/gizmo", BaseBranch: child.branch,
+	}}
+
+	res := sf.clean(t, gh, sf.deps.Client, child.id)
+	if res.Disposition != CleanupDispChildrenRetargetRequired {
+		t.Fatalf("cleanup = %q disp %q reason %q (%s), want %s", res.Result, res.Disposition, res.Reason, res.Message, CleanupDispChildrenRetargetRequired)
+	}
+	if _, remote := sf.branchPresent(t, child.branch); !remote {
+		t.Fatalf("an open stacked PR must keep the child's remote branch")
 	}
 }
 
