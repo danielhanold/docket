@@ -57,7 +57,8 @@ The hold is a **selection-only exclusion**. It must not make the change "not rea
   - `render.boardClassify` puts a spec-backed `proposed` change in Groomed when its readiness is `build-ready` or `on-hold`.
   - The Groomed table gains a last column, Readiness. Every row states its readiness: exactly `build-ready` or exactly `on hold`. No row is left blank, because a blank cell beside rows that carry a status would leave the reader to guess a default. `on hold` names the state the change is in, not the action of holding it.
   - A held trivial change has no spec, so it stays in the Proposed table as every trivial change does today. `render.boardReadinessCell` renders its cell as `on hold` instead of `build-ready (trivial)`.
-  - Update the column layouts in the `render` package comment and the board golden file.
+  - Update the column layouts in the `render` package comment, the board golden file, and the golden's `PROVENANCE.md`.
+- **In progress table (sibling fix).** Its Readiness column shows the run's state (`run halted — needs you`), not readiness, so rename it State, as the Built table's column is named. The cell contents do not change. Rename `render.boardInProgressReadinessCell` to `boardInProgressStateCell`, matching `boardBuiltStateCell`, and update `boardSectionTableHeader`, the package comment, the header assertion in `board_test.go`, the board golden file, and `PROVENANCE.md`.
 - **Everything else** that keys on readiness: dependents of a held change wait until it is done, and a change stacked on a held parent waits for the stack base as it would for any unbuilt parent. Neither needs code. Grep every switch over `ReadinessKind` (today `app.readinessReason` and `render.boardReadinessCell`, plus the equality checks in `SelectQueue`, `ClaimEligibility`, and `boardClassify`), and confirm each one handles `on-hold` deliberately.
 
 ### 3. Setting and lifting a hold
@@ -150,6 +151,7 @@ Mutation-test each new guard: strip the behavior and watch the test go red.
    - A held spec-backed change renders in the Groomed table with Readiness `on hold`.
    - An unheld spec-backed build-ready change renders in the Groomed table with Readiness `build-ready`; no Groomed row has an empty Readiness cell.
    - A held trivial change renders in the Proposed table with `on hold`.
+   - The In progress table's header names the last column State, and a halted row still reads `run halted — needs you`.
    - No record fault.
 4. **`change.groom`.**
    - Set with and without a reason. Replace a reason. Lift, which removes the section.

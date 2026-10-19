@@ -43,7 +43,7 @@ Today the only ways to keep one away are leaving it ungroomed on purpose (#547 d
 
 A change can carry a hold (`hold: true`). No autonomous build selection picks a held change: neither a drain over the whole backlog nor a drain over a list of ids. A run that names that one change still builds it.
 
-The hold needs no reason. An optional one is written as a `## Why on hold` section and removed when the hold is lifted. Grooming (every exit except abstain) and change creation can set and lift the hold. When grooming settles on a spec that needs manual work, docket suggests a hold, and the auto-groomer sets one itself. On the board, a held change that has a spec stays under Groomed, marked `on hold`; every other groomed row reads `build-ready`. implement-next learns one new skip reason, and an ADR records that build-ready no longer means a loop will build it. The spec holds the design.
+The hold needs no reason. An optional one is written as a `## Why on hold` section and removed when the hold is lifted. Grooming (every exit except abstain) and change creation can set and lift the hold. When grooming settles on a spec that needs manual work, docket suggests a hold, and the auto-groomer sets one itself. On the board, a held change that has a spec stays under Groomed, marked `on hold`; every other groomed row reads `build-ready`. The In progress table's Readiness column is renamed State, since it shows the run's state. implement-next learns one new skip reason, and an ADR records that build-ready no longer means a loop will build it. The spec holds the design.
 
 ## Out of scope
 
