@@ -206,8 +206,8 @@ the count. It never resets the count on its own; on your yes it runs `docket run
 you can also run yourself at any time. Set the limit to `1` to stop a loop at its first halt.
 
 - **Which runs count.** A run that picked its change from the queue: no id, or a set of two or more
-  ids. That includes a one-off "implement the next change". A named run (a single id) or a resume
-  never reads or changes the count, and its halt stops as before.
+  ids. That includes a one-off "implement the next change". A halt on a named run (a single id) or a resume
+  never reads or changes the count; that halt stops as before.
 - **What resets it.** A clean build (`run-done … run-complete`) sets the count back to 0, whether
   the change was named or picked, and so does `docket run reset-halts`. Nothing else does: a run
   that claimed nothing, including one that halted before its claim, leaves the count alone.

@@ -100,7 +100,7 @@ verdict, not the worker's report, says what may happen next.
 - **The halt count.** The tracker keeps one count per repository of
   implement-next runs in a row that halted on a change picked from the
   queue (no id, or a set of two or more ids — a loop, or a one-off
-  "implement the next change"). A named run or a resume never touches it.
+  "implement the next change"). A halt on a named run or a resume never touches it.
   While the count stays under `run.max_consecutive_halts` (default 2), such
   a halt prints `run-next <key> run-halted <id>` instead of
   `run-stop <key> run-halted <id>`: the halted change is never
@@ -108,7 +108,7 @@ verdict, not the worker's report, says what may happen next.
   halt that reaches the limit prints `run-stop … run-halted` with a note
   asking the person whether to reset the count. Only a clean build
   (`run-done … run-complete`), named or picked, sets the count back to 0,
-  and so does `docket run reset-halts`, which only a person runs. Each run
+  and so does `docket run reset-halts`, which runs only on the person's explicit yes, never on the agent's own. Each run
   changes the count at most once, however often its verdict is read again.
   The count lives in the repository's state folder, so every session and
   worktree shares it.

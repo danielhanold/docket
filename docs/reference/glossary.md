@@ -1990,8 +1990,8 @@ spends no attempt.
 The **halt count** is a separate limit on a loop, not on a change. `run.max_consecutive_halts` (default 2, minimum 1)
 caps how many implement-next runs in a row may halt on a change picked from the queue before the loop stops. A halt
 under the limit prints `run-next`; the halt that reaches it prints `run-stop … run-halted` with a note asking the
-person whether to reset the count. A named run or a resume never touches the count; a clean build (`run-complete`)
-sets it back to 0, and so does `docket run reset-halts`, which only a person runs. The limit is read when the verdict
+person whether to reset the count. A halt on a named run or a resume never touches the count; a clean build (`run-complete`)
+sets it back to 0, and so does `docket run reset-halts`, which runs only on the person's explicit yes, never on the agent's own. The limit is read when the verdict
 is printed, so a new value applies to the next halt. `1` stops a loop at its first halt.
 
 ```yaml
