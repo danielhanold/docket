@@ -334,6 +334,8 @@ func TestRepresentativeSignatures(t *testing.T) {
 		// change 0491: human Stop keyed by the run key alone — the two required
 		// flags sorted, then the optional repo dir; no positional tail.
 		"run.cancel": "--key <key> --reason <reason> [--repo-dir <dir>]",
+		// run.reset-halts sets the per-repository halt count back to 0: optional repo dir only.
+		"run.reset-halts": "[--repo-dir <dir>]",
 		// change 0489: the task owner and the scope/receipt flags are gone; every
 		// owner runs its resolved suite command, so there is no `--` argv tail.
 		// change 0493: --idempotent-suite-gate is gone (no drive relaunches).
@@ -363,6 +365,10 @@ func TestRepresentativeSignatures(t *testing.T) {
 	// on a cancelled or superseded predecessor, so it declares process-control.
 	if e, ok := entryByID(entries, "run.start"); !ok || strings.Join(e.Effects, " ") != "local-write process-control" {
 		t.Errorf("run.start effects = %v, want [local-write process-control]", e.Effects)
+	}
+	// run.reset-halts only rewrites the local halt-count file.
+	if e, ok := entryByID(entries, "run.reset-halts"); !ok || strings.Join(e.Effects, " ") != "local-write" {
+		t.Errorf("run.reset-halts effects = %v, want [local-write]", e.Effects)
 	}
 	// open reads the corpus, prepares the metadata checkout, and launches the
 	// system opener.

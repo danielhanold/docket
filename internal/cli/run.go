@@ -234,7 +234,27 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = cancel.MarkFlagRequired("key")
 	_ = cancel.MarkFlagRequired("reason")
 
-	runCmd.AddCommand(verify, runStart, runVerdict, gateClaim, cancel)
+	// reset-halts sets the per-repository halt count back to 0, so a loop stopped at
+	// run.max_consecutive_halts can carry on. Only a person runs it; an agent never
+	// resets the count on its own.
+	resetHalts := &cobra.Command{
+		Use:   "reset-halts",
+		Short: "Set the count of implement-next halts in a row back to 0",
+		Args:  cobra.NoArgs,
+		// local-write: rewrites the halt-count file under the per-repo state folder.
+		Annotations: capability("run.reset-halts", EffectLocalWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			setResult(app.RunResetHalts(repoDir))
+			return nil
+		},
+	}
+	resetHalts.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+
+	runCmd.AddCommand(verify, runStart, runVerdict, gateClaim, cancel, resetHalts)
 	return runCmd
 }
 

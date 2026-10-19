@@ -77,6 +77,7 @@ var assetIndependent = map[string]bool{
 	"run verdict":                    true,
 	"run continue":                   true,
 	"run cancel":                     true,
+	"run reset-halts":                true,
 	"learning":                       true, // the group itself; it reports a missing command
 	"learning record":                true,
 	"learning update":                true,

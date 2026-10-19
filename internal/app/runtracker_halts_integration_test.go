@@ -434,3 +434,66 @@ func TestIntegrationRunVerdictObserveNeverTouchesHaltCount(t *testing.T) {
 	}
 	haltsDirAbsent(t, repo)
 }
+
+func TestIntegrationRunVerdictResetHaltsZeroesCount(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	seedHaltCount(t, repo, 2)
+	res := RunResetHalts(repo)
+	if res.Result != ResultApplied || res.Operation != OperationRunResetHalts {
+		t.Fatalf("result/operation = %q/%q, want applied/%s (reason %q, message %q)", res.Result, res.Operation, OperationRunResetHalts, res.Reason, res.Message)
+	}
+	if res.Previous != 2 || res.PreviousUnreadable {
+		t.Fatalf("previous/unreadable = %d/%v, want 2/false", res.Previous, res.PreviousUnreadable)
+	}
+	if got, want := res.HumanText(), "halt count reset to 0 (was 2)"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if got := haltCountOf(t, repo); got != 0 {
+		t.Fatalf("count = %d, want 0", got)
+	}
+}
+
+func TestIntegrationRunVerdictResetHaltsRepairsCorruptCount(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	s := haltStoreOf(t, repo)
+	must(t, os.MkdirAll(s.dir, 0o700))
+	must(t, os.WriteFile(filepath.Join(s.dir, haltCountFileName), []byte("{"), 0o600))
+	res := RunResetHalts(repo)
+	if res.Result != ResultApplied || !res.PreviousUnreadable || res.Previous != 0 {
+		t.Fatalf("result/unreadable/previous = %q/%v/%d, want applied/true/0", res.Result, res.PreviousUnreadable, res.Previous)
+	}
+	if got, want := res.HumanText(), "halt count reset to 0 (the previous count was unreadable)"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if got := haltCountOf(t, repo); got != 0 {
+		t.Fatalf("count = %d, want 0", got)
+	}
+}
+
+func TestIntegrationRunVerdictResetHaltsLockBusy(t *testing.T) {
+	old := haltLockWait
+	haltLockWait = 100 * time.Millisecond
+	t.Cleanup(func() { haltLockWait = old })
+
+	repo := newRunTrackerRepo(t)
+	seedHaltCount(t, repo, 2)
+	s := haltStoreOf(t, repo)
+	f, err := os.OpenFile(filepath.Join(s.dir, haltLockFileName), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		t.Fatalf("open lock: %v", err)
+	}
+	t.Cleanup(func() { f.Close() })
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		t.Fatalf("flock: %v", err)
+	}
+	res := RunResetHalts(repo)
+	if res.Result != ResultContended || res.Reason != "halt-count-busy" {
+		t.Fatalf("result/reason = %q/%q, want contended/halt-count-busy", res.Result, res.Reason)
+	}
+	if got, want := res.HumanText(), "run.reset-halts: contended (halt-count-busy)"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if got := haltCountOf(t, repo); got != 2 {
+		t.Fatalf("count = %d, want 2 (nothing reset without the lock)", got)
+	}
+}
