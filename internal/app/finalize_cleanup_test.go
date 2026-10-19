@@ -78,7 +78,7 @@ func (f *fakeCleanupGitHub) MergePullRequest(context.Context, githubcli.Reposito
 // retained rather than destructive.
 type faultyCleanupGit struct {
 	inner *gitcli.Client
-	fail  string // "resolve" | "remote-probe" | "list" | "ancestor" | "fetch" | "delete"
+	fail  string // "resolve" | "remote-probe" | "list" | "ancestor" | "fetch" | "delete" | "preserve"
 }
 
 var errCleanupProbe = errors.New("injected cleanup probe failure")
@@ -121,6 +121,12 @@ func (g *faultyCleanupGit) DeleteLocalBranchChecked(ctx context.Context, repo gi
 }
 func (g *faultyCleanupGit) DeleteRemoteRefLease(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, ref gitcli.RefName, expectedTip gitcli.ObjectID) (gitcli.PushOutcome, error) {
 	return g.inner.DeleteRemoteRefLease(ctx, repo, remote, ref, expectedTip)
+}
+func (g *faultyCleanupGit) ProvePreserved(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, source, target gitcli.ObjectID) (gitcli.PreservationCheck, error) {
+	if g.fail == "preserve" {
+		return gitcli.PreservationCheck{}, errCleanupProbe
+	}
+	return g.inner.ProvePreserved(ctx, repo, remote, source, target)
 }
 
 // faultyCleanupWorkspace wraps the real service and injects a manifest/lock
@@ -473,6 +479,10 @@ func (g *raGit) DeleteRemoteRefLease(context.Context, gitcli.Repository, gitcli.
 	g.remoteCalls++
 	g.t.Errorf("a results-artifact cleanup must never delete a remote ref")
 	return gitcli.PushOutcome{}, errCleanupProbe
+}
+func (g *raGit) ProvePreserved(context.Context, gitcli.Repository, gitcli.RemoteName, gitcli.ObjectID, gitcli.ObjectID) (gitcli.PreservationCheck, error) {
+	g.t.Errorf("a results-artifact cleanup has no carried merge to prove preserved")
+	return gitcli.PreservationCheck{}, errCleanupProbe
 }
 
 // happyRAGit returns a git fake whose feature tip is contained in the
