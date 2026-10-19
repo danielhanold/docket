@@ -2,7 +2,7 @@
 id: 560
 slug: 'mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo'
 title: 'Put a groomed change on hold so loops skip it'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-17'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/434'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-19T02:38:45Z'
@@ -57,3 +57,12 @@ Grooming picks: a hold does not keep a stub out of groom-next's automatic pick o
 ### 2026-10-19
 
 Reconciled against main at c8ee0a39a. No hold field, `on-hold` readiness kind, or `## Why on hold` section exists yet; `domain.ReadinessKind` still carries exactly the seven kinds the spec assumes. Related #559 is done (its results-artifact `change.complete` path is the one the spec's claim-eligibility rule covers); #570 is still proposed and stays out of scope. Recent merges (carried stacked-child cleanup) do not touch readiness, selection, the board's Groomed/In progress tables, or `change.groom`. Scope and spec unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 5650c888949653c20535ccc9570ee9cb8914f43f
+ran_at:   2026-10-19T03:25:13Z
+<!-- docket:build-evidence:end -->
