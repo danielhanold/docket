@@ -22,7 +22,7 @@ Today the only ways to keep a groomed change away from the loop are to leave it 
 - The hold is generic. It records no required reason. An optional reason can be added as prose when the hold is set.
 - Grooming can set and lift the hold from day one, and so can capturing a new change.
 - When grooming settles on a spec that needs manual work, docket suggests a hold. The auto-groomer, which has no one to ask, sets the hold itself.
-- The board shows a held change as `hold`.
+- The board shows a held change as `on hold`. The cell names the state, not the action.
 
 ## Non-goals
 
@@ -53,7 +53,7 @@ The hold is a **selection-only exclusion**. It must not make the change "not rea
   - implement-next's id-allowlist drain, which filters that same `ready` array in skill prose.
 - **Claim eligibility.** `domain.ClaimEligibility` treats `on-hold` as eligible, exactly like `build-ready`. So `context.implementation --id`, `change.claim`, and `change.complete` on a `proposed` results-artifact change all accept a held change. The claim leaves the field in place. A change reclaimed back to `proposed` is still held, which is what the person asked for.
 - **Status rows.** A held row reports `readiness: on-hold`, `ready: false`, and a `readiness_reason` of "on hold" (`app.readinessReason`).
-- **Board.** `render.boardClassify` puts only `build-ready` spec-backed changes in the Groomed table, so a held change falls through to the Proposed table. That table carries the Readiness column. `render.boardReadinessCell` renders `on-hold` as exactly `hold`. This keeps the Groomed table's meaning exact: these are the changes a loop will build. A held trivial change shows `hold` instead of `build-ready (trivial)`.
+- **Board.** `render.boardClassify` puts only `build-ready` spec-backed changes in the Groomed table, so a held change falls through to the Proposed table. That table carries the Readiness column. `render.boardReadinessCell` renders `on-hold` as exactly `on hold`: the state the change is in, not the action of holding it. This keeps the Groomed table's meaning exact: these are the changes a loop will build. A held trivial change shows `on hold` instead of `build-ready (trivial)`.
 - **Everything else** that keys on readiness: dependents of a held change wait until it is done, and a change stacked on a held parent waits for the stack base as it would for any unbuilt parent. Neither needs code. Grep every switch over `ReadinessKind` (today `app.readinessReason` and `render.boardReadinessCell`, plus the equality checks in `SelectQueue`, `ClaimEligibility`, and `boardClassify`), and confirm each one handles `on-hold` deliberately.
 
 ### 3. Setting and lifting a hold
@@ -143,8 +143,8 @@ Mutation-test each new guard: strip the behavior and watch the test go red.
    - `context.implementation --id` and `change.claim` accept it, and the claim keeps the field.
    - `change.complete` accepts a held `proposed` results-artifact change.
 3. **Board.**
-   - A held spec-backed change renders in the Proposed table with Readiness `hold`, not in Groomed.
-   - A held trivial change renders `hold`.
+   - A held spec-backed change renders in the Proposed table with Readiness `on hold`, not in Groomed.
+   - A held trivial change renders `on hold`.
    - No record fault.
 4. **`change.groom`.**
    - Set with and without a reason. Replace a reason. Lift, which removes the section.
