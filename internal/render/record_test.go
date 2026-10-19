@@ -269,3 +269,50 @@ func TestChangeRecordWritesDeliverableAfterType(t *testing.T) {
 		}
 	}
 }
+
+// TestChangeRecordHold pins the hold field and its optional reason section: a
+// held record writes hold: true directly after auto_groomable, an unheld one a
+// valueless hold:, and a reason lands as the "## Why on hold" section after
+// "## Out of scope".
+func TestChangeRecordHold(t *testing.T) {
+	base := render.NewChangeRecord{
+		ID: 1, Slug: "s", Title: "T", Type: "feat", Priority: "medium", Created: goldenDate,
+		Why: "w", WhatChanges: "c", OutOfScope: "oos",
+	}
+
+	held := base
+	held.Hold = true
+	got, err := render.ChangeRecord(held)
+	if err != nil {
+		t.Fatalf("ChangeRecord: %v", err)
+	}
+	if s := string(got); !strings.Contains(s, "\nauto_groomable:\nhold: true\nbranch_prefix:\n") {
+		t.Errorf("held record missing hold: true after auto_groomable:\n%s", s)
+	}
+	if strings.Contains(string(got), "## Why on hold") {
+		t.Errorf("held record without a reason wrote the reason section:\n%s", got)
+	}
+
+	unheld, err := render.ChangeRecord(base)
+	if err != nil {
+		t.Fatalf("ChangeRecord: %v", err)
+	}
+	if s := string(unheld); !strings.Contains(s, "\nauto_groomable:\nhold:\nbranch_prefix:\n") {
+		t.Errorf("unheld record missing valueless hold:\n%s", s)
+	}
+
+	reasoned := held
+	reasoned.WhyOnHold = "Needs a sign-in."
+	got, err = render.ChangeRecord(reasoned)
+	if err != nil {
+		t.Fatalf("ChangeRecord: %v", err)
+	}
+	if s := string(got); !strings.HasSuffix(s, "## Out of scope\n\noos\n\n## Why on hold\n\nNeeds a sign-in.\n") {
+		t.Errorf("reason section not appended after Out of scope:\n%s", s)
+	}
+	for _, b := range [][]byte{got, unheld} {
+		if _, err := document.Parse(b); err != nil {
+			t.Errorf("record does not reparse: %v", err)
+		}
+	}
+}
