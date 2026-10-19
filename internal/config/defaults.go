@@ -42,7 +42,7 @@ func builtinEffective() Effective {
 			TestCommand: builtinValue(""),
 			MaxAttempts: builtinValue(4),
 		},
-		Run:       Run{MaxAttempts: builtinValue(2)},
+		Run:       Run{MaxAttempts: builtinValue(2), MaxConsecutiveHalts: builtinValue(2)},
 		Learnings: Learnings{Enabled: builtinValue(true)},
 		Reclaim: Reclaim{
 			LeaseTTL: builtinValue(72),

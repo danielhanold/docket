@@ -108,6 +108,9 @@ func decodeAcceptanceCases() []decodeCase {
 		{row: "run.max_attempts", path: "run.max_attempts",
 			block: "run:\n  max_attempts: 3\n",
 			flow:  "run: {max_attempts: 3}\n", value: 3},
+		{row: "run.max_consecutive_halts", path: "run.max_consecutive_halts",
+			block: "run:\n  max_consecutive_halts: 3\n",
+			flow:  "run: {max_consecutive_halts: 3}\n", value: 3},
 
 		{row: "review.min_fix_severity", path: "review.min_fix_severity",
 			block: "review:\n  min_fix_severity: blocker\n",

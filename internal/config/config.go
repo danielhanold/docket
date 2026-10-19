@@ -178,6 +178,10 @@ type Run struct {
 	// start, counting the original dispatch. Positive; snapshotted into the
 	// RunTrackerRecord at mint.
 	MaxAttempts Value[int] `json:"max_attempts"`
+	// MaxConsecutiveHalts caps how many changes picked from the queue may
+	// halt in a row before a tracked implement-next loop stops. Positive; read
+	// at verdict time, never snapshotted.
+	MaxConsecutiveHalts Value[int] `json:"max_consecutive_halts"`
 }
 
 type Learnings struct {

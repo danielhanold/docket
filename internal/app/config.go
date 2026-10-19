@@ -250,6 +250,7 @@ func effectiveLines(eff *config.Effective) []effectiveLine {
 		leafLine("build.test_command", textValue(eff.Build.TestCommand.Value), eff.Build.TestCommand.Provenance),
 		leafLine("build.max_attempts", strconv.Itoa(eff.Build.MaxAttempts.Value), eff.Build.MaxAttempts.Provenance),
 		leafLine("run.max_attempts", strconv.Itoa(eff.Run.MaxAttempts.Value), eff.Run.MaxAttempts.Provenance),
+		leafLine("run.max_consecutive_halts", strconv.Itoa(eff.Run.MaxConsecutiveHalts.Value), eff.Run.MaxConsecutiveHalts.Provenance),
 		leafLine("learnings.enabled", strconv.FormatBool(eff.Learnings.Enabled.Value), eff.Learnings.Enabled.Provenance),
 		leafLine("reclaim.lease_ttl", strconv.Itoa(eff.Reclaim.LeaseTTL.Value), eff.Reclaim.LeaseTTL.Provenance),
 		leafLine("reclaim.auto", strconv.FormatBool(eff.Reclaim.Auto.Value), eff.Reclaim.Auto.Provenance),

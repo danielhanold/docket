@@ -44,7 +44,7 @@ func TestSettingPathsSupportSplit(t *testing.T) {
 		"finalize.gate", "finalize.test_command", "finalize.require_pr_approval",
 		"finalize.resolver_max_attempts", "finalize.repair_max_attempts",
 		"build.gate", "build.test_command", "build.max_attempts",
-		"run.max_attempts",
+		"run.max_attempts", "run.max_consecutive_halts",
 		"review.min_fix_severity", "review.max_fix_tasks",
 		"reclaim.lease_ttl", "reclaim.auto",
 		"leak_check.match_word",

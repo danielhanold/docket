@@ -47,6 +47,7 @@ Each key has one scope:
 | `build.test_command` | `""` (unconfigured) | any layer | the suite the build gate runs |
 | `build.max_attempts` | `4` | any layer | full suite runs a build may spend, repairs included |
 | `run.max_attempts` | `2` | any layer | attempts a tracked implement-next run may make on one change |
+| `run.max_consecutive_halts` | `2` | any layer | halts in a row, on changes a loop picked from the queue, before the loop stops |
 | `review.min_fix_severity` | `minor` | any layer | the lowest review-finding severity the fix pass repairs |
 | `review.max_fix_tasks` | `10` | any layer | the most non-blocker fix tasks one fix pass dispatches |
 | `reclaim.lease_ttl` | `72` | any layer | hours a claim on an in-progress change lasts |

@@ -130,6 +130,14 @@ run:
   # scope: any layer
   max_attempts: 2
 
+  # max_consecutive_halts — how many changes picked from the queue may halt in a row before a
+  # tracked implement-next loop stops. A halted change always waits for a person; under this limit
+  # the loop moves on to the next build-ready change instead of ending the drain. 2 by default;
+  # 1 stops the loop at the first halt. A clean build resets the count, and so does
+  # `docket run reset-halts`. A whole number of 1 or more.
+  # scope: any layer
+  max_consecutive_halts: 2
+
 
 # ═══ review — what implement-next fixes after review ══════════════════════════════════════
 
