@@ -25,7 +25,7 @@ func TestRegistryPathSetMatchesV092(t *testing.T) {
 		"leak_check.match_word",
 		"open.artifacts",
 		"build.checkpoint", "build.gate", "build.test_command", "build.max_attempts",
-		"run.max_attempts",
+		"run.max_attempts", "run.max_consecutive_halts",
 		"review.min_fix_severity", "review.max_fix_tasks",
 		"gate_observation_budget", "delegation_observation_budget",
 		"board_surfaces",
@@ -131,6 +131,7 @@ func TestRegistryDefaults(t *testing.T) {
 		"build.test_command":             "",
 		"build.max_attempts":             4,
 		"run.max_attempts":               2,
+		"run.max_consecutive_halts":      2,
 		"review.min_fix_severity":        "minor",
 		"review.max_fix_tasks":           10,
 		"gate_observation_budget":        30,
@@ -328,6 +329,11 @@ func TestLeafValidators(t *testing.T) {
 		{"run max attempts zero", "run.max_attempts", "0", nil, CodeInvalidValue},
 		{"run max attempts negative", "run.max_attempts", "-2", nil, CodeInvalidValue},
 		{"run max attempts string", "run.max_attempts", `"two"`, nil, CodeInvalidType},
+		{"run halts explicit", "run.max_consecutive_halts", "5", 5, ""},
+		{"run halts one", "run.max_consecutive_halts", "1", 1, ""},
+		{"run halts zero", "run.max_consecutive_halts", "0", nil, CodeInvalidValue},
+		{"run halts negative", "run.max_consecutive_halts", "-1", nil, CodeInvalidValue},
+		{"run halts string", "run.max_consecutive_halts", `"two"`, nil, CodeInvalidType},
 
 		// enum membership.
 		{"enum ok", "finalize.gate", "local", "local", ""},

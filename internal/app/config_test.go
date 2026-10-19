@@ -809,6 +809,12 @@ func TestConfigDiagnosticsAttemptLimitsSurface(t *testing.T) {
 	if h := def.HumanText(); !strings.Contains(h, "run.max_attempts = 2  [built-in]") {
 		t.Errorf("human effective block lacks the built-in run attempt-limit line:\n%s", h)
 	}
+	if got := def.Effective.Run.MaxConsecutiveHalts.Value; got != 2 {
+		t.Errorf("effective JSON run.max_consecutive_halts = %d, want the built-in default 2", got)
+	}
+	if h := def.HumanText(); !strings.Contains(h, "run.max_consecutive_halts = 2  [built-in]") {
+		t.Errorf("human effective block lacks the built-in run halt-limit line:\n%s", h)
+	}
 
 	// Explicit repository-layer settings → 6/3 on both halves.
 	sources := []config.Source{{

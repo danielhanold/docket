@@ -314,6 +314,7 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 	set(assign(&eff.Build.TestCommand, r.declared, "build.test_command"))
 	set(assign(&eff.Build.MaxAttempts, r.declared, "build.max_attempts"))
 	set(assign(&eff.Run.MaxAttempts, r.declared, "run.max_attempts"))
+	set(assign(&eff.Run.MaxConsecutiveHalts, r.declared, "run.max_consecutive_halts"))
 	set(assign(&eff.Learnings.Enabled, r.declared, "learnings.enabled"))
 	set(assign(&eff.Reclaim.LeaseTTL, r.declared, "reclaim.lease_ttl"))
 	set(assign(&eff.Reclaim.Auto, r.declared, "reclaim.auto"))

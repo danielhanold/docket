@@ -329,6 +329,8 @@ func buildRegistry() []pathSpec {
 		// run. The outer implement-next run tracker's own attempt policy (change 0421).
 		{path: "run.max_attempts", kind: kindInt, def: 2,
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: intLeaf(1)},
+		{path: "run.max_consecutive_halts", kind: kindInt, def: 2,
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: intLeaf(1)},
 
 		// 16-17: review.
 		{path: "review.min_fix_severity", kind: kindString,

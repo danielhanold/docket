@@ -167,6 +167,7 @@ func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 		"build.test_command":             eff.Build.TestCommand.Value,
 		"build.max_attempts":             eff.Build.MaxAttempts.Value,
 		"run.max_attempts":               eff.Run.MaxAttempts.Value,
+		"run.max_consecutive_halts":      eff.Run.MaxConsecutiveHalts.Value,
 		"learnings.enabled":              eff.Learnings.Enabled.Value,
 		"reclaim.lease_ttl":              eff.Reclaim.LeaseTTL.Value,
 		"reclaim.auto":                   eff.Reclaim.Auto.Value,

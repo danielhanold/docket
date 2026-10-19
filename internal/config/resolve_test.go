@@ -84,6 +84,8 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 		return eff.Build.MaxAttempts.Value, eff.Build.MaxAttempts.Provenance, eff.Build.MaxAttempts.Explicit
 	case "run.max_attempts":
 		return eff.Run.MaxAttempts.Value, eff.Run.MaxAttempts.Provenance, eff.Run.MaxAttempts.Explicit
+	case "run.max_consecutive_halts":
+		return eff.Run.MaxConsecutiveHalts.Value, eff.Run.MaxConsecutiveHalts.Provenance, eff.Run.MaxConsecutiveHalts.Explicit
 	case "learnings.enabled":
 		return eff.Learnings.Enabled.Value, eff.Learnings.Enabled.Provenance, eff.Learnings.Enabled.Explicit
 	case "reclaim.lease_ttl":
@@ -125,6 +127,10 @@ func buildMax(n int) string {
 
 func runMax(n int) string {
 	return fmt.Sprintf("run:\n  max_attempts: %d\n", n)
+}
+
+func runHalts(n int) string {
+	return fmt.Sprintf("run:\n  max_consecutive_halts: %d\n", n)
 }
 
 // TestResolveBoardDefaults pins the built-in board presentation: the canonical
@@ -503,6 +509,39 @@ func TestPrecedenceRunMaxAttempts(t *testing.T) {
 			}
 			if got.Explicit != tc.explicit {
 				t.Errorf("run.max_attempts explicit = %v, want %v", got.Explicit, tc.explicit)
+			}
+		})
+	}
+}
+
+// TestPrecedenceRunMaxConsecutiveHalts pins run.max_consecutive_halts through the full four-layer
+// precedence — the built-in default is 2.
+func TestPrecedenceRunMaxConsecutiveHalts(t *testing.T) {
+	cases := []struct {
+		name     string
+		sources  []Source
+		want     int
+		layer    LayerKind
+		explicit bool
+	}{
+		{"nothing declared wins the built-in default", nil, 2, LayerBuiltIn, false},
+		{"global alone", []Source{srcG(runHalts(3))}, 3, LayerGlobal, true},
+		{"repository beats global", []Source{srcG(runHalts(3)), srcR(runHalts(4))}, 4, LayerRepository, true},
+		{"repository-local beats everything", []Source{srcG(runHalts(3)), srcR(runHalts(4)), srcL(runHalts(5))}, 5, LayerRepositoryLocal, true},
+		{"repository-local beats global with no repository layer", []Source{srcG(runHalts(3)), srcL(runHalts(5))}, 5, LayerRepositoryLocal, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := mustResolve(t, tc.sources, mainCtx)
+			got := res.effective.Run.MaxConsecutiveHalts
+			if got.Value != tc.want {
+				t.Errorf("run.max_consecutive_halts = %d, want %d", got.Value, tc.want)
+			}
+			if got.Provenance.Layer != tc.layer {
+				t.Errorf("run.max_consecutive_halts provenance layer = %q, want %q", got.Provenance.Layer, tc.layer)
+			}
+			if got.Explicit != tc.explicit {
+				t.Errorf("run.max_consecutive_halts explicit = %v, want %v", got.Explicit, tc.explicit)
 			}
 		})
 	}
