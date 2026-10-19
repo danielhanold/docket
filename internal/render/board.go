@@ -45,10 +45,10 @@ import (
 //     the Built State column carries the awaiting-merge wording. Emoji/title
 //     per group: 🟢 In progress, 🔵 Built, 🔴 Blocked, 🟣 Groomed,
 //     🟡 Proposed, ⚪ Deferred. Column layouts per group:
-//     in-progress: # | Title | Priority | Type | Spec | Branch | Readiness
+//     in-progress: # | Title | Priority | Type | Spec | Branch | State
 //     built:       # | Title | Priority | Type | PR | State
 //     blocked:     # | Title | Priority | Type | PR | Reason
-//     groomed:     # | Title | Priority | Type | Spec
+//     groomed:     # | Title | Priority | Type | Spec | Readiness
 //     proposed:    # | Title | Priority | Type | Readiness
 //     deferred:    # | Title | Priority | Type
 //     Priority renders the stored spelling, Type the stored token or "untyped"
@@ -60,11 +60,15 @@ import (
 //     lifecycle-blocked change and "finalize blocked — needs you" for a
 //     finalize-blocked implemented change; its PR cell comes from boardPRCell
 //     (empty when no pr:).
-//     The In progress Readiness cell is "run halted — needs you" when the
+//     The In progress State cell is "run halted — needs you" when the
 //     change carries the bare "## Run halted" body section (HasRunHalted),
-//     else empty.
+//     else "building".
+//     The Groomed Readiness cell is "build-ready", or "on hold" for a held
+//     change (a hold is selection-only, so a held spec-backed change stays
+//     Groomed).
 //     The Proposed Readiness cell:
 //     build-ready                                    → "build-ready" / "build-ready (trivial)"
+//     on-hold                                        → "on hold"
 //     needs-grooming                                 → "needs-grooming"
 //     auto-groom-blocked                             → "auto-groom blocked — needs you"
 //     waiting-dependency                             → "⏳ waiting on #<dep> — not yet built"
@@ -278,11 +282,14 @@ func boardClassify(in BoardInput, c domain.Change) (BoardSection, error) {
 	case domain.StatusStackedMerged:
 		return BoardSectionBuilt, nil
 	case domain.StatusProposed:
-		// Groomed means build-ready AND spec-backed: a trivial build-ready
-		// change with an empty spec stays Proposed.
-		if c.Spec().Value != "" &&
-			domain.EvaluateReadiness(in.Snapshot, c, in.Facts).Kind == domain.ReadyBuildReady {
-			return BoardSectionGroomed, nil
+		// Groomed means build-ready (or held, which is build-ready but for the
+		// hold) AND spec-backed: a trivial build-ready change with an empty
+		// spec stays Proposed.
+		if c.Spec().Value != "" {
+			switch domain.EvaluateReadiness(in.Snapshot, c, in.Facts).Kind {
+			case domain.ReadyBuildReady, domain.ReadyOnHold:
+				return BoardSectionGroomed, nil
+			}
 		}
 		return BoardSectionProposed, nil
 	case domain.StatusDeferred:
@@ -647,7 +654,7 @@ func boardSectionRow(in BoardInput, s BoardSection, c domain.Change) (string, er
 	case BoardSectionInProgress:
 		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | [spec](%s) | `%s` | %s |\n",
 			id, base, title, priority, ctype, boardSpecLink(c.Spec().Value), c.Branch().Value,
-			boardInProgressReadinessCell(c)), nil
+			boardInProgressStateCell(c)), nil
 	case BoardSectionBuilt:
 		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | %s | %s |\n",
 			id, base, title, priority, ctype, boardPRCell(c), boardBuiltStateCell(c)), nil
@@ -655,8 +662,12 @@ func boardSectionRow(in BoardInput, s BoardSection, c domain.Change) (string, er
 		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | %s | %s |\n",
 			id, base, title, priority, ctype, boardPRCell(c), boardBlockedReasonCell(c)), nil
 	case BoardSectionGroomed:
-		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | [spec](%s) |\n",
-			id, base, title, priority, ctype, boardSpecLink(c.Spec().Value)), nil
+		cell, err := boardGroomedReadinessCell(in, c)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | [spec](%s) | %s |\n",
+			id, base, title, priority, ctype, boardSpecLink(c.Spec().Value), cell), nil
 	case BoardSectionProposed:
 		cell, err := boardReadinessCell(in, c)
 		if err != nil {
@@ -693,16 +704,32 @@ func boardBlockedReasonCell(c domain.Change) string {
 	return c.BlockedBy().Value
 }
 
-// boardInProgressReadinessCell renders the In progress Readiness cell: an
+// boardInProgressStateCell renders the In progress State cell: an
 // in-progress change carrying the bare "## Run halted" body section (0237's
 // stop + surface disposition, decoded as HasRunHalted) surfaces the call to
 // action in the family idiom of boardBlockedReasonCell's
-// "finalize blocked — needs you"; every other row renders an empty cell.
-func boardInProgressReadinessCell(c domain.Change) string {
+// "finalize blocked — needs you"; every other row states "building", so no
+// In progress cell is blank.
+func boardInProgressStateCell(c domain.Change) string {
 	if c.HasRunHalted() {
 		return "run halted — needs you"
 	}
-	return ""
+	return "building"
+}
+
+// boardGroomedReadinessCell renders the Groomed Readiness cell: "build-ready",
+// or "on hold" for a held change. boardClassify admits only those two kinds to
+// Groomed, so any other kind is a per-record fault that cannot arise from
+// classification.
+func boardGroomedReadinessCell(in BoardInput, c domain.Change) (string, error) {
+	switch k := domain.EvaluateReadiness(in.Snapshot, c, in.Facts).Kind; k {
+	case domain.ReadyBuildReady:
+		return "build-ready", nil
+	case domain.ReadyOnHold:
+		return "on hold", nil
+	default:
+		return "", boardRecordFault{fmt.Sprintf("render: board: groomed change %04d has unexpected readiness %q", int(c.ID()), k)}
+	}
 }
 
 // boardReadinessCell renders the proposed-section Readiness cell from the
@@ -718,6 +745,10 @@ func boardReadinessCell(in BoardInput, c domain.Change) (string, error) {
 			return "build-ready (trivial)", nil
 		}
 		return "build-ready", nil
+	case domain.ReadyOnHold:
+		// Only a held trivial-without-spec change reaches Proposed with this
+		// kind (a held spec-backed change is Groomed).
+		return "on hold", nil
 	case domain.ReadyNeedsGrooming:
 		return "needs-grooming", nil
 	case domain.ReadyAutoGroomBlocked:
@@ -796,13 +827,13 @@ func boardTypeCell(c domain.Change) string {
 func boardSectionTableHeader(s BoardSection) string {
 	switch s {
 	case BoardSectionInProgress:
-		return "| # | Title | Priority | Type | Spec | Branch | Readiness |\n|---|-------|----------|------|------|--------|-----------|\n"
+		return "| # | Title | Priority | Type | Spec | Branch | State |\n|---|-------|----------|------|------|--------|-------|\n"
 	case BoardSectionBuilt:
 		return "| # | Title | Priority | Type | PR | State |\n|---|-------|----------|------|----|-------|\n"
 	case BoardSectionBlocked:
 		return "| # | Title | Priority | Type | PR | Reason |\n|---|-------|----------|------|----|--------|\n"
 	case BoardSectionGroomed:
-		return "| # | Title | Priority | Type | Spec |\n|---|-------|----------|------|------|\n"
+		return "| # | Title | Priority | Type | Spec | Readiness |\n|---|-------|----------|------|------|-----------|\n"
 	case BoardSectionProposed:
 		return "| # | Title | Priority | Type | Readiness |\n|---|-------|----------|------|-----------|\n"
 	case BoardSectionDeferred:

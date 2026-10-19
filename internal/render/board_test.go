@@ -206,6 +206,12 @@ func TestBoardClassifyEveryBucket(t *testing.T) {
 
 	needsGrooming := domain.NewChange(proposedChange(11, "needs", "Needs grooming"))
 
+	// proposed + spec + held → Groomed (a hold is selection-only, not a demotion).
+	heldSpec := proposedChange(14, "held", "Held")
+	heldSpec.Spec = optString("docs/superpowers/specs/held-design.md")
+	heldSpec.Hold = domain.OptionalBool{State: domain.FieldPresent, Value: true, Raw: "true"}
+	held := domain.NewChange(heldSpec)
+
 	agBlockedSpec := proposedChange(12, "agb", "AG blocked")
 	agBlockedSpec.HasAutoGroomBlocked = true
 	agBlocked := domain.NewChange(agBlockedSpec)
@@ -227,6 +233,7 @@ func TestBoardClassifyEveryBucket(t *testing.T) {
 		{"stacked-merged", stacked, nil, render.BoardSectionBuilt},
 		{"in-progress", inprog, nil, render.BoardSectionInProgress},
 		{"proposed spec build-ready", groomed, nil, render.BoardSectionGroomed},
+		{"proposed spec held", held, nil, render.BoardSectionGroomed},
 		{"proposed spec unmet dependency", waiter, []domain.Change{depTarget}, render.BoardSectionProposed},
 		{"proposed spec unresolved stack base", stackChild, []domain.Change{parent}, render.BoardSectionProposed},
 		{"proposed trivial no spec", trivial, nil, render.BoardSectionProposed},
@@ -352,10 +359,11 @@ func TestBoardReadinessAutoGroomBlocked(t *testing.T) {
 	}
 }
 
-// TestBoardInProgressReadinessRunHalted: an in-progress change carrying the
+// TestBoardInProgressStateRunHalted: an in-progress change carrying the
 // "## Run halted" marker surfaces the human call to action in the trailing
-// Readiness cell; a healthy in-progress row renders the cell empty.
-func TestBoardInProgressReadinessRunHalted(t *testing.T) {
+// State cell; a healthy in-progress row states "building". No In progress cell
+// is blank.
+func TestBoardInProgressStateRunHalted(t *testing.T) {
 	halted := domain.NewChange(domain.ChangeSpec{
 		ID: 12, Slug: "halted", Title: "Halted run", Status: domain.StatusInProgress,
 		Branch:       domain.OptionalString{State: domain.FieldPresent, Value: "feat/halted"},
@@ -370,15 +378,128 @@ func TestBoardInProgressReadinessRunHalted(t *testing.T) {
 		Location: domain.LocationActive, Path: "docs/changes/active/0013-running.md",
 	})
 	out := string(boardFrom(t, halted, running))
-	if !strings.Contains(out, "| # | Title | Priority | Type | Spec | Branch | Readiness |") {
-		t.Fatalf("In progress header missing trailing Readiness column:\n%s", out)
+	if !strings.Contains(out, "| # | Title | Priority | Type | Spec | Branch | State |\n|---|-------|----------|------|------|--------|-------|\n") {
+		t.Fatalf("In progress header missing trailing State column:\n%s", out)
 	}
-	if !strings.Contains(out, "| `feat/halted` | run halted — needs you |") {
-		t.Fatalf("run-halted Readiness cell not rendered:\n%s", out)
+	if !strings.Contains(out, "| `feat/halted` | run halted — needs you |\n") {
+		t.Fatalf("run-halted State cell not rendered:\n%s", out)
 	}
-	if !strings.Contains(out, "| `feat/running` |  |") {
-		t.Fatalf("healthy in-progress row must render an empty Readiness cell:\n%s", out)
+	if !strings.Contains(out, "| `feat/running` | building |\n") {
+		t.Fatalf("healthy in-progress row must state building:\n%s", out)
 	}
+	assertNoBlankLastCell(t, out, "## 🟢 In progress")
+	assertNoRepairNotice(t, out)
+}
+
+// sectionDataRows returns the table data rows of the section introduced by
+// heading (header and separator lines excluded).
+func sectionDataRows(t *testing.T, out, heading string) []string {
+	t.Helper()
+	body, ok := boardSectionBody(out, heading)
+	if !ok {
+		t.Fatalf("section %q missing:\n%s", heading, out)
+	}
+	var rows []string
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, "| [") {
+			rows = append(rows, line)
+		}
+	}
+	if len(rows) == 0 {
+		t.Fatalf("section %q has no data rows:\n%s", heading, out)
+	}
+	return rows
+}
+
+// assertNoBlankLastCell fails when any data row of the section ends in an
+// empty trailing cell.
+func assertNoBlankLastCell(t *testing.T, out, heading string) {
+	t.Helper()
+	for _, row := range sectionDataRows(t, out, heading) {
+		if strings.HasSuffix(row, "|  |") {
+			t.Fatalf("section %q row has a blank last cell: %q", heading, row)
+		}
+	}
+}
+
+// assertNoRepairNotice fails when the render routed any record to the
+// Needs repair notice.
+func assertNoRepairNotice(t *testing.T, out string) {
+	t.Helper()
+	if strings.Contains(out, "Needs repair") {
+		t.Fatalf("no fixture may land in the repair notice:\n%s", out)
+	}
+}
+
+// heldTrue is a stored "hold: true".
+var heldTrue = domain.OptionalBool{State: domain.FieldPresent, Value: true, Raw: "true"}
+
+// TestBoardGroomedReadinessCells: a held spec-backed change stays under
+// Groomed and states "on hold"; an unheld one states "build-ready". No Groomed
+// cell is blank.
+func TestBoardGroomedReadinessCells(t *testing.T) {
+	heldSpec := proposedChange(20, "held", "Held change")
+	heldSpec.Spec = optString("docs/superpowers/specs/held-design.md")
+	heldSpec.Hold = heldTrue
+	readySpec := proposedChange(21, "ready", "Ready change")
+	readySpec.Spec = optString("docs/superpowers/specs/ready-design.md")
+
+	out := string(boardFrom(t, domain.NewChange(heldSpec), domain.NewChange(readySpec)))
+	if !strings.Contains(out, "## 🟣 Groomed (2)") {
+		t.Fatalf("both changes must render under Groomed:\n%s", out)
+	}
+	if !strings.Contains(out, "| # | Title | Priority | Type | Spec | Readiness |\n|---|-------|----------|------|------|-----------|\n") {
+		t.Fatalf("Groomed header missing trailing Readiness column:\n%s", out)
+	}
+	if !strings.Contains(out, "| [0020](active/0020-held.md) | Held change | `` | `untyped` | [spec](../superpowers/specs/held-design.md) | on hold |\n") {
+		t.Fatalf("held Groomed row must state on hold:\n%s", out)
+	}
+	if !strings.Contains(out, "| [0021](active/0021-ready.md) | Ready change | `` | `untyped` | [spec](../superpowers/specs/ready-design.md) | build-ready |\n") {
+		t.Fatalf("unheld Groomed row must state build-ready:\n%s", out)
+	}
+	assertNoBlankLastCell(t, out, "## 🟣 Groomed")
+	assertNoRepairNotice(t, out)
+}
+
+// TestBoardHeldTrivialStaysProposed: a held trivial change without a spec stays
+// in Proposed and states "on hold", never "build-ready (trivial)".
+func TestBoardHeldTrivialStaysProposed(t *testing.T) {
+	spec := proposedChange(22, "held-triv", "Held trivial")
+	spec.Trivial = true
+	spec.Hold = heldTrue
+	out := string(boardFrom(t, domain.NewChange(spec)))
+	if !strings.Contains(out, "## 🟡 Proposed (1)") {
+		t.Fatalf("held trivial change must render under Proposed:\n%s", out)
+	}
+	if !strings.Contains(out, "| [0022](active/0022-held-triv.md) | Held trivial | `` | `untyped` | on hold |\n") {
+		t.Fatalf("held trivial cell must read on hold:\n%s", out)
+	}
+	if strings.Contains(out, "build-ready (trivial)") {
+		t.Fatalf("held trivial change must not read build-ready (trivial):\n%s", out)
+	}
+	assertNoRepairNotice(t, out)
+}
+
+// TestBoardHeldWaitingChangeShowsWaitingCell: a held change with an unmet
+// dependency keeps its earlier readiness, so the board shows the waiting cell
+// in Proposed, not "on hold".
+func TestBoardHeldWaitingChangeShowsWaitingCell(t *testing.T) {
+	dep := domain.NewChange(proposedChange(30, "dep", "Dep"))
+	spec := proposedChange(31, "held-wait", "Held waiter")
+	spec.Spec = optString("docs/superpowers/specs/held-wait-design.md")
+	spec.DependsOn = []domain.ChangeID{30}
+	spec.Hold = heldTrue
+	out := string(boardFrom(t, dep, domain.NewChange(spec)))
+	if strings.Contains(out, "🟣 Groomed") {
+		t.Fatalf("a held waiting change must not render under Groomed:\n%s", out)
+	}
+	if !strings.Contains(out, "| [0031](active/0031-held-wait.md) | Held waiter | `` | `untyped` | ⏳ waiting on #30 — not yet built |\n") {
+		t.Fatalf("held waiting change must show the waiting cell:\n%s", out)
+	}
+	if strings.Contains(out, "on hold") {
+		t.Fatalf("held waiting change must not read on hold:\n%s", out)
+	}
+	assertNoRepairNotice(t, out)
 }
 
 // TestBoardRunHaltedWholeLineContract: the cell keys on the decode layer's
@@ -442,10 +563,10 @@ func TestBoardRunHaltedWholeLineContract(t *testing.T) {
 	}
 	s := string(out)
 	if !strings.Contains(s, "| `feat/bare` | run halted — needs you |") {
-		t.Fatalf("bare heading did not light the Readiness cell:\n%s", s)
+		t.Fatalf("bare heading did not light the State cell:\n%s", s)
 	}
-	if !strings.Contains(s, "| `feat/dated` |  |") {
-		t.Fatalf("dated heading variant must render an empty Readiness cell:\n%s", s)
+	if !strings.Contains(s, "| `feat/dated` | building |") {
+		t.Fatalf("dated heading variant must state building:\n%s", s)
 	}
 }
 
