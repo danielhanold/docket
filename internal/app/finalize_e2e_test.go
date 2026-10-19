@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
@@ -832,7 +833,9 @@ func toStringSlice(v any) []string {
 // (open-children gate) and retains the child branch and its open PR; a child
 // merged into its live parent branch closes out to `stacked-merged` (retained,
 // not archived); and once the child is stacked-merged, the root's merge to the
-// integration branch closes out carrying every descendant to `done`.
+// integration branch closes out carrying every descendant to `done`. Cleanup in
+// the finalize skill's order (the root, then each carried id) then removes the
+// root's and the carried child's folders and branches.
 func TestE2EStack(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
@@ -928,8 +931,11 @@ func TestE2EStack(t *testing.T) {
 		t.Fatalf("root merge to integration = %q\n%s", mgRoot.result(), mgRoot.stdout)
 	}
 	coRoot := s.dk(t, "", "finalize", "closeout", "--id", strconv.Itoa(rootID))
-	if d := coRoot.str("disposition"); d != "root-archived" && d != "done-archived" {
+	if d := coRoot.str("disposition"); d != "root-archived" {
 		t.Fatalf("root closeout disposition = %q, want root-archived\n%s", d, coRoot.stdout)
+	}
+	if carried := toIntSlice(coRoot.doc["carried_ids"]); !containsInt(carried, childID) {
+		t.Fatalf("root closeout carried_ids = %v, want it to name the child %d\n%s", carried, childID, coRoot.stdout)
 	}
 	// Both root and child are archived (carried to done); neither remains active.
 	if _, ok := originFile(t, s.repo.origin, s.mode.branch, groomPath(rootID, rootSlug)); ok {
@@ -938,6 +944,379 @@ func TestE2EStack(t *testing.T) {
 	if _, ok := originFile(t, s.repo.origin, s.mode.branch, groomPath(childID, childSlug)); ok {
 		t.Errorf("carried descendant still active after root-carry closeout")
 	}
+
+	// (d) Cleanup in the finalize skill's step-10 order: the root first, then each
+	// carried id. The default policy merged both PRs by rebase, so the child's
+	// merge result is not itself on the integration branch; its cleanup proves the
+	// child's work reached it through the stack (the content-preservation arm) and
+	// then removes the child's folder and both branches like any done change.
+	clRoot := s.dk(t, "", "finalize", "cleanup", "--id", strconv.Itoa(rootID))
+	if clRoot.result() != "applied" || clRoot.str("disposition") != "cleaned" {
+		t.Fatalf("root cleanup = %q/%q, want applied/cleaned\n%s", clRoot.result(), clRoot.str("disposition"), clRoot.stdout)
+	}
+	clChild := s.dk(t, "", "finalize", "cleanup", "--id", strconv.Itoa(childID))
+	if clChild.str("disposition") != "cleaned" {
+		t.Fatalf("carried child cleanup disposition = %q, want cleaned\n%s", clChild.str("disposition"), clChild.stdout)
+	}
+	assertStackMemberCleaned(t, s, "root", root.wp, rootBranch)
+	assertStackMemberCleaned(t, s, "carried child", child.wp, childBranch)
+}
+
+// assertStackMemberCleaned asserts one stack member's worktree folder, its local
+// branch in the invocation clone, and its branch on the origin are all gone.
+func assertStackMemberCleaned(t *testing.T, s *e2eState, who, wp, branch string) {
+	t.Helper()
+	if _, err := os.Stat(wp); !os.IsNotExist(err) {
+		t.Errorf("%s worktree folder %s still exists after cleanup (stat err %v)", who, wp, err)
+	}
+	if localHasBranch(t, s.repo.invocation, branch) {
+		t.Errorf("%s local branch %q still exists after cleanup", who, branch)
+	}
+	if originHasBranch(t, s.repo.origin, branch) {
+		t.Errorf("%s origin branch %q still exists after cleanup", who, branch)
+	}
+}
+
+// localHasBranch reports whether the clone at dir carries the named local branch.
+func localHasBranch(t *testing.T, dir, branch string) bool {
+	t.Helper()
+	_, err := tryGit(dir, "rev-parse", "--verify", "-q", "refs/heads/"+branch)
+	return err == nil
+}
+
+// toIntSlice converts a decoded JSON number array to an []int.
+func toIntSlice(v any) []int {
+	arr, _ := v.([]any)
+	out := make([]int, 0, len(arr))
+	for _, e := range arr {
+		if f, ok := e.(float64); ok {
+			out = append(out, int(f))
+		}
+	}
+	return out
+}
+
+// containsInt reports whether xs contains x.
+func containsInt(xs []int, x int) bool {
+	for _, v := range xs {
+		if v == x {
+			return true
+		}
+	}
+	return false
+}
+
+// stackMergeFromWorktree drives one implemented stack member from its worktree's
+// current HEAD through finalize rebase, publish, and merge, and returns the head
+// the merge matched. The rebase reruns the local gate whenever HEAD moved past
+// the recorded evidence (a synced branch a child merged into), so publish carries
+// the fresh evidence then and the implemented-state evidence otherwise.
+func stackMergeFromWorktree(t *testing.T, s *e2eState, id int, slug, wp string, evidence []byte) string {
+	t.Helper()
+	head := runGit(t, wp, "rev-parse", "HEAD")
+	rb := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(id), "--revision", verStack(t, s, id, slug), "--head", head)
+	if rb.result() != "applied" && rb.result() != "no-op" {
+		t.Fatalf("change %d rebase = %q\n%s", id, rb.result(), rb.stdout)
+	}
+	head = rb.str("head")
+	evPath := s.writeInput(t, fmt.Sprintf("ev-%d.txt", id), rootEvidence(rb, evidence))
+	pub := s.dk(t, "", "finalize", "publish", "--id", strconv.Itoa(id),
+		"--attempt", rb.str("attempt"), "--head", head, "--evidence", evPath)
+	if pub.result() != "applied" && pub.result() != "no-op" {
+		t.Fatalf("change %d publish = %q\n%s", id, pub.result(), pub.stdout)
+	}
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(id), "--revision", verStack(t, s, id, slug), "--head", head)
+	if mg.result() != "applied" {
+		t.Fatalf("change %d merge = %q\n%s", id, mg.result(), mg.stdout)
+	}
+	return head
+}
+
+// stackCloseout runs `finalize closeout` for id and requires disposition want.
+func stackCloseout(t *testing.T, s *e2eState, id int, want string) dkResult {
+	t.Helper()
+	co := s.dk(t, "", "finalize", "closeout", "--id", strconv.Itoa(id))
+	if d := co.str("disposition"); d != want {
+		t.Fatalf("change %d closeout disposition = %q, want %q\n%s", id, d, want, co.stdout)
+	}
+	return co
+}
+
+// stackState wraps an implEnv as the e2eState the argv helpers drive. Its id
+// fields are unused by the stack helpers, which name each member explicitly.
+func stackState(env *implEnv) *e2eState {
+	return &e2eState{
+		repo: env.repo, mode: env.m, node: env.node, wdeps: env.wdeps,
+		docketBin: env.docketBin, ghBin: env.ghBin, stateFile: env.stateFile, xdgHome: env.xdgHome, env: env.env,
+	}
+}
+
+// e2eSweepEntries returns the decoded sweep entries of kind for id.
+func e2eSweepEntries(r dkResult, kind string, id int) []map[string]any {
+	var out []map[string]any
+	entries, _ := r.doc["entries"].([]any)
+	for _, raw := range entries {
+		e, _ := raw.(map[string]any)
+		if e == nil {
+			continue
+		}
+		eid, _ := e["id"].(float64)
+		if k, _ := e["kind"].(string); k == kind && int(eid) == id {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// TestE2EStackThreeLevelCleanedBySweep proves the sweep's closeout path cleans a
+// whole carried stack in one run: a grandchild merged into the child branch and a
+// child merged into the root branch (both stacked-merged), then the root merged to
+// the integration branch with NO closeout. One `maintenance sweep` closes the root
+// out carrying both descendants and cleans the root, the child, and the
+// grandchild exactly once each; a second sweep dispatches no cleanup for them.
+func TestE2EStackThreeLevelCleanedBySweep(t *testing.T) {
+	t.Parallel()
+	requireRealGit(t)
+	docketBin, ghBin := sharedBinaries(t)
+	m := planRepoModes()[0]
+
+	const (
+		rootID, rootSlug   = 3, "widget"
+		childID, childSlug = 4, "gadget"
+		grandID, grandSlug = 5, "gizmo"
+	)
+	env := newImplEnv(t, m, docketBin, ghBin, map[string]string{
+		groomPath(rootID, rootSlug):   buildReadyChange(rootID, rootSlug),
+		groomPath(childID, childSlug): stackedBuildReadyChange(childID, childSlug, rootID),
+		groomPath(grandID, grandSlug): stackedBuildReadyChange(grandID, grandSlug, childID),
+	})
+	root := env.implement(t, rootID, rootSlug, "docs/superpowers/plans/2026-08-17-widget-plan.md", "Add the widget")
+	child := env.implement(t, childID, childSlug, "docs/superpowers/plans/2026-08-17-gadget-plan.md", "Add the gadget")
+	grand := env.implement(t, grandID, grandSlug, "docs/superpowers/plans/2026-08-17-gizmo-plan.md", "Add the gizmo")
+	s := stackState(env)
+	rootBranch := featureBranchForHead(t, s.repo.origin, root.head)
+	childBranch := featureBranchForHead(t, s.repo.origin, child.head)
+	grandBranch := featureBranchForHead(t, s.repo.origin, grand.head)
+
+	// The grandchild merges into the child branch; the child, synced to that
+	// merge, merges into the root branch. Both close out stacked-merged.
+	stackMergeFromWorktree(t, s, grandID, grandSlug, grand.wp, grand.evidence)
+	stackCloseout(t, s, grandID, "stacked-merged")
+	syncWorktree(t, child.wp, childBranch, s.repo.origin)
+	stackMergeFromWorktree(t, s, childID, childSlug, child.wp, child.evidence)
+	stackCloseout(t, s, childID, "stacked-merged")
+
+	// The root, synced to the child's merge, lands on the integration branch with
+	// no closeout: the sweep owns the rest.
+	syncWorktree(t, root.wp, rootBranch, s.repo.origin)
+	stackMergeFromWorktree(t, s, rootID, rootSlug, root.wp, root.evidence)
+
+	sw := s.dk(t, "", "maintenance", "sweep")
+	if sw.result() != "applied" {
+		t.Fatalf("maintenance sweep = %q\n%s", sw.result(), sw.stdout)
+	}
+	co := e2eSweepEntries(sw, "closeout", rootID)
+	if len(co) != 1 {
+		t.Fatalf("sweep closeout entries for the root = %d, want 1\n%s", len(co), sw.stdout)
+	}
+	if carried := toIntSlice(co[0]["carried_ids"]); !containsInt(carried, childID) || !containsInt(carried, grandID) {
+		t.Fatalf("root closeout carried_ids = %v, want both %d and %d\n%s", carried, childID, grandID, sw.stdout)
+	}
+	for _, id := range []int{rootID, childID, grandID} {
+		cl := e2eSweepEntries(sw, "cleanup", id)
+		if len(cl) != 1 {
+			t.Errorf("sweep cleanup entries for %d = %d, want exactly 1\n%s", id, len(cl), sw.stdout)
+			continue
+		}
+		if d, _ := cl[0]["disposition"].(string); d != "applied" {
+			t.Errorf("sweep cleanup entry for %d disposition = %q, want applied: %v", id, d, cl[0])
+		}
+	}
+	assertStackMemberCleaned(t, s, "root", root.wp, rootBranch)
+	assertStackMemberCleaned(t, s, "child", child.wp, childBranch)
+	assertStackMemberCleaned(t, s, "grandchild", grand.wp, grandBranch)
+
+	again := s.dk(t, "", "maintenance", "sweep")
+	if again.result() != "applied" && again.result() != "no-op" {
+		t.Fatalf("second maintenance sweep = %q\n%s", again.result(), again.stdout)
+	}
+	for _, id := range []int{rootID, childID, grandID} {
+		for _, e := range e2eSweepEntries(again, "cleanup", id) {
+			if op, _ := e["operation"].(string); op != "" || e["reason"] != "snapshot-no-work" {
+				t.Errorf("second sweep still reports cleanup work for %d: %v", id, e)
+			}
+		}
+	}
+}
+
+// TestE2EStackLeftoverCleanedBySweep proves an existing leftover is cleaned by
+// one full sweep: after the root's carry closeout, only the root is cleaned, so
+// the carried child is done with its folder and both branches still present; the
+// next `maintenance sweep` cleans the child.
+func TestE2EStackLeftoverCleanedBySweep(t *testing.T) {
+	t.Parallel()
+	requireRealGit(t)
+	docketBin, ghBin := sharedBinaries(t)
+	m := planRepoModes()[0]
+
+	const (
+		rootID, rootSlug   = 3, "widget"
+		childID, childSlug = 4, "gadget"
+	)
+	env := newImplEnv(t, m, docketBin, ghBin, map[string]string{
+		groomPath(rootID, rootSlug):   buildReadyChange(rootID, rootSlug),
+		groomPath(childID, childSlug): stackedBuildReadyChange(childID, childSlug, rootID),
+	})
+	root := env.implement(t, rootID, rootSlug, "docs/superpowers/plans/2026-08-17-widget-plan.md", "Add the widget")
+	child := env.implement(t, childID, childSlug, "docs/superpowers/plans/2026-08-17-gadget-plan.md", "Add the gadget")
+	s := stackState(env)
+	rootBranch := featureBranchForHead(t, s.repo.origin, root.head)
+	childBranch := featureBranchForHead(t, s.repo.origin, child.head)
+
+	stackMergeFromWorktree(t, s, childID, childSlug, child.wp, child.evidence)
+	stackCloseout(t, s, childID, "stacked-merged")
+	syncWorktree(t, root.wp, rootBranch, s.repo.origin)
+	stackMergeFromWorktree(t, s, rootID, rootSlug, root.wp, root.evidence)
+	stackCloseout(t, s, rootID, "root-archived")
+	if cl := s.dk(t, "", "finalize", "cleanup", "--id", strconv.Itoa(rootID)); cl.str("disposition") != "cleaned" {
+		t.Fatalf("root cleanup disposition = %q, want cleaned\n%s", cl.str("disposition"), cl.stdout)
+	}
+
+	// The leftover: the child is done, but its folder and both branches remain.
+	if _, err := os.Stat(child.wp); err != nil {
+		t.Fatalf("precondition: the carried child's folder is already gone: %v", err)
+	}
+	if !localHasBranch(t, s.repo.invocation, childBranch) || !originHasBranch(t, s.repo.origin, childBranch) {
+		t.Fatalf("precondition: the carried child's branches are already gone")
+	}
+
+	sw := s.dk(t, "", "maintenance", "sweep")
+	if sw.result() != "applied" {
+		t.Fatalf("maintenance sweep = %q\n%s", sw.result(), sw.stdout)
+	}
+	cl := e2eSweepEntries(sw, "cleanup", childID)
+	if len(cl) != 1 {
+		t.Fatalf("sweep cleanup entries for the carried child = %d, want 1\n%s", len(cl), sw.stdout)
+	}
+	if d, _ := cl[0]["disposition"].(string); d != "applied" {
+		t.Fatalf("sweep cleanup of the carried child disposition = %q, want applied: %v", d, cl[0])
+	}
+	assertStackMemberCleaned(t, s, "carried child", child.wp, childBranch)
+}
+
+// TestE2EStackParentLandedFirst proves a stacked child whose parent landed first
+// finalizes normally. The parent's finalize retargets the open child PR onto the
+// parent's own base (the integration branch) and lands; the child's effective
+// base is now the integration branch while its workspace manifest still records
+// the parent's branch. The child's finalize must still own that workspace through
+// rebase, publish, merge, closeout, and cleanup.
+func TestE2EStackParentLandedFirst(t *testing.T) {
+	t.Parallel()
+	requireRealGit(t)
+	docketBin, ghBin := sharedBinaries(t)
+	m := planRepoModes()[0]
+
+	const (
+		parentID, parentSlug = 3, "widget"
+		childID, childSlug   = 4, "gadget"
+	)
+	env := newImplEnv(t, m, docketBin, ghBin, map[string]string{
+		groomPath(parentID, parentSlug): buildReadyChange(parentID, parentSlug),
+		groomPath(childID, childSlug):   stackedBuildReadyChange(childID, childSlug, parentID),
+	})
+	parent := env.implement(t, parentID, parentSlug, "docs/superpowers/plans/2026-08-17-widget-plan.md", "Add the widget")
+	child := env.implement(t, childID, childSlug, "docs/superpowers/plans/2026-08-17-gadget-plan.md", "Add the gadget")
+	s := stackState(env)
+	parentBranch := featureBranchForHead(t, s.repo.origin, parent.head)
+	childBranch := featureBranchForHead(t, s.repo.origin, child.head)
+
+	// The human authorizes retargeting the open child PR, by the exact PR
+	// revision the child's finalize context reports.
+	cx := s.dk(t, "", "context", "finalize", "--id", strconv.Itoa(childID))
+	pr, _ := soleCandidate(t, cx)["pr"].(map[string]any)
+	prRevision, _ := pr["revision"].(string)
+	if prRevision == "" {
+		t.Fatalf("child finalize context carried no PR revision\n%s", cx.stdout)
+	}
+	in := s.writeInput(t, "retarget.json", fmt.Sprintf(`{"children":[{"id":%d,"pr_number":%d,"pr_revision":%q}]}`,
+		childID, parsePRNum(child.prRef), prRevision))
+	rt := s.dk(t, "", "finalize", "retarget-children", "--id", strconv.Itoa(parentID),
+		"--revision", verStack(t, s, parentID, parentSlug), "--input", in)
+	if rt.str("disposition") != "retargeted" {
+		t.Fatalf("retarget-children disposition = %q, want retargeted\n%s", rt.str("disposition"), rt.stdout)
+	}
+
+	// The parent lands first and is cleaned up. Its own closeout cannot run here:
+	// a root closeout requires every stacked descendant to be stacked-merged into
+	// it, so a retargeted, still-open child refuses it (children-retarget-required).
+	// The fixture writes the done record that closeout would have written, so the
+	// rest of the story — the child's own finalize — runs entirely through argv.
+	stackMergeFromWorktree(t, s, parentID, parentSlug, parent.wp, parent.evidence)
+	archiveAsDoneOnOrigin(t, s, parentID, parentSlug)
+	if cl := s.dk(t, "", "finalize", "cleanup", "--id", strconv.Itoa(parentID)); cl.str("disposition") != "cleaned" {
+		t.Fatalf("parent cleanup disposition = %q, want cleaned\n%s", cl.str("disposition"), cl.stdout)
+	}
+
+	// The child now finalizes onto the integration branch: rebase, publish,
+	// merge, closeout, and cleanup all act on its own workspace.
+	stackMergeFromWorktree(t, s, childID, childSlug, child.wp, child.evidence)
+	stackCloseout(t, s, childID, "done-archived")
+	cl := s.dk(t, "", "finalize", "cleanup", "--id", strconv.Itoa(childID))
+	if cl.str("disposition") != "cleaned" {
+		t.Fatalf("child cleanup disposition = %q, want cleaned\n%s", cl.str("disposition"), cl.stdout)
+	}
+	assertStackMemberCleaned(t, s, "parent", parent.wp, parentBranch)
+	assertStackMemberCleaned(t, s, "child", child.wp, childBranch)
+}
+
+// archiveAsDoneOnOrigin writes, through the writer clone, the metadata state a
+// done-archived closeout leaves for one change: its active record moved to the
+// dated archive path with status done and no claim stamp, exactly the two field
+// edits closeout's mark-done makes in the record's first frontmatter block.
+func archiveAsDoneOnOrigin(t *testing.T, s *e2eState, id int, slug string) {
+	t.Helper()
+	w, branch := s.repo.writer, s.mode.branch
+	active := groomPath(id, slug)
+	archive := fmt.Sprintf("docs/changes/archive/%s-%s-%s.md", time.Now().UTC().Format("2006-01-02"), padID(id), slug)
+	runGit(t, w, "fetch", "-q", "origin", branch)
+	runGit(t, w, "checkout", "-q", "-B", branch, "FETCH_HEAD")
+	body, err := os.ReadFile(filepath.Join(w, active))
+	if err != nil {
+		t.Fatalf("read %s: %v", active, err)
+	}
+	text := string(body)
+	if !strings.HasPrefix(text, "---\n") {
+		t.Fatalf("%s has no leading frontmatter block", active)
+	}
+	end := strings.Index(text[len("---\n"):], "\n---\n")
+	if end < 0 {
+		t.Fatalf("%s has an unterminated frontmatter block", active)
+	}
+	front := text[:len("---\n")+end+1]
+	var status string
+	for _, quoted := range []string{"\nstatus: implemented\n", "\nstatus: 'implemented'\n"} {
+		if strings.Count(front, quoted) == 1 {
+			status = quoted
+		}
+	}
+	if status == "" {
+		t.Fatalf("%s frontmatter carries no single implemented status:\n%s", active, front)
+	}
+	front = strings.Replace(front, status, "\nstatus: done\n", 1)
+	// A done record holds no claim lease: closeout's mark-done clears claimed_at.
+	lines := strings.SplitAfter(front, "\n")
+	kept := lines[:0]
+	for _, l := range lines {
+		if !strings.HasPrefix(l, "claimed_at:") {
+			kept = append(kept, l)
+		}
+	}
+	text = strings.Join(kept, "") + text[len("---\n")+end+1:]
+	runGit(t, w, "rm", "-q", active)
+	writeRepoFile(t, w, archive, text)
+	runGit(t, w, "add", "-A")
+	runGit(t, w, "commit", "-q", "-m", fmt.Sprintf("archive %04d as done", id))
+	runGit(t, w, "push", "-q", "origin", branch)
 }
 
 // stackedBuildReadyChange is a build-ready change stacked on parent.
@@ -1655,6 +2034,7 @@ type pr struct {
 	Mergeable   string    ` + "`json:\"mergeable\"`" + `
 	MergedAt    string    ` + "`json:\"mergedAt\"`" + `
 	MergeCommit string    ` + "`json:\"mergeCommit\"`" + `
+	MergedHead  string    ` + "`json:\"mergedHead\"`" + `
 	Comments    []comment ` + "`json:\"comments\"`" + `
 }
 
@@ -1721,7 +2101,13 @@ func git(args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), err
 }
 
+// liveHead is the PR's head commit: the head branch's live tip while the PR is
+// open, and the head it merged at once merged. GitHub freezes a merged PR's
+// headRefOid, so it still reports that commit after the head branch is deleted.
 func liveHead(p pr) string {
+	if p.State == "MERGED" && p.MergedHead != "" {
+		return p.MergedHead
+	}
 	if oid, err := git("rev-parse", "refs/heads/"+p.HeadRefName); err == nil {
 		return oid
 	}
@@ -2042,6 +2428,7 @@ func doMerge(number int, matchHead, method string) {
 	}
 	list[i].State = "MERGED"
 	list[i].MergeCommit = mc
+	list[i].MergedHead = head
 	list[i].MergedAt = time.Now().UTC().Format(time.RFC3339)
 	save(list)
 }
