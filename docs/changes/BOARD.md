@@ -1,18 +1,13 @@
 # Backlog
 
-**571 changes** — 🟢 1 in progress · 🟣 1 groomed · 🟡 6 proposed · ⚪ 16 deferred · ✅ 403 done · 🗑️ 144 killed
+**571 changes** — 🟢 2 in progress · 🟡 6 proposed · ⚪ 16 deferred · ✅ 403 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0560](active/0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Put a groomed change on hold so loops skip it | `medium` | `feat` | [spec](../superpowers/specs/2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md) | `feat/mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo` |  |
-
-## 🟣 Groomed (1)
-
-| # | Title | Priority | Type | Spec |
-|---|-------|----------|------|------|
-| [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | [spec](../superpowers/specs/2026-10-19-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost-design.md) |
+| [0547](active/0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | `medium` | `chore` | [spec](../superpowers/specs/2026-10-19-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost-design.md) | `chore/measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost` |  |
 
 ## 🟡 Proposed (6)
 
