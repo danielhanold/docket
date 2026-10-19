@@ -136,6 +136,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0150](0150-docket-install-grants-claude-code-allow-rules-for-finalize-p.md) — docket install grants Claude Code allow rules for finalize publish and merge (Accepted) ← change #552 · relates to ADR-0145
 - [ADR-0151](0151-a-change-s-deliverable-decides-how-it-reaches-done-done-no-l.md) — A change's deliverable decides how it reaches done; done no longer implies a merge (Accepted) ← change #559 · relates to ADR-0129, ADR-0141, ADR-0148
 - [ADR-0152](0152-a-finished-workspace-s-identity-excludes-the-base-it-was-cut.md) — A finished workspace's identity excludes the base it was cut from (Accepted) ← change #567 · relates to ADR-0092, ADR-0035
+- [ADR-0153](0153-a-hold-keeps-a-groomed-change-out-of-autonomous-build-select.md) — A hold keeps a groomed change out of autonomous build selection; naming it overrides it (Accepted) ← change #560 · relates to ADR-0006
 
 ## Superseded / Reversed
 

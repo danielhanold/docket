@@ -11,7 +11,7 @@ depends_on: []
 stacked_on:
 related: [559, 570]
 discovered_from: [559]
-adrs: [6]
+adrs: [6, 153]
 spec: 'docs/superpowers/specs/2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md'
 plan: 'docs/superpowers/plans/2026-10-19-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md'
 results:
@@ -32,7 +32,7 @@ claimed_at: '2026-10-19T02:38:45Z'
 |---|---|
 | Spec | [2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md](../../superpowers/specs/2026-10-18-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo-design.md) |
 | Plan | [2026-10-19-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md](../../superpowers/plans/2026-10-19-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) |
-| ADRs | [ADR-0006](../../adrs/0006-autonomous-grooming-bounds.md) |
+| ADRs | [ADR-0006](../../adrs/0006-autonomous-grooming-bounds.md), [ADR-0153](../../adrs/0153-a-hold-keeps-a-groomed-change-out-of-autonomous-build-select.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
