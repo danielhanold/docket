@@ -281,3 +281,17 @@ func TestChangeCompleteResultFromOutcome(t *testing.T) {
 		t.Fatalf("failed = %+v", failed)
 	}
 }
+
+// TestChangeCompletePlanFromProposedHeld: completing a held proposed change
+// names it by id, so the hold does not refuse it.
+func TestChangeCompletePlanFromProposedHeld(t *testing.T) {
+	src := strings.Replace(completeRecord("proposed"), "trivial: false\n", "trivial: false\nhold: true\n", 1)
+	plan, opRes := completePlanFor(t, completeFiles(src), baseCompleteOp([]string{"inline"}))
+	if opRes.Refused {
+		t.Fatalf("complete of a held change refused: %v", opRes.Findings)
+	}
+	rec := killRecordBytes(t, plan, killArchivePath(3, miSlug))
+	if !strings.Contains(rec, "status: 'done'") {
+		t.Errorf("archived record not done:\n%s", rec)
+	}
+}

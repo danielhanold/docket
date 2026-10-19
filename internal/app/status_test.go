@@ -675,3 +675,40 @@ func TestStatusReportsDeliverable(t *testing.T) {
 		t.Errorf("status row JSON lacks a deliverable key: %s", b)
 	}
 }
+
+// TestStatusReportsHeldChange: a held spec-backed change reads on-hold with its
+// own reason and stays out of the ready queue, while an unheld sibling is ready.
+func TestStatusReportsHeldChange(t *testing.T) {
+	fake := &fakeReader{
+		pin: docketPin(t),
+		corpus: []StatusBlob{
+			changeBlob(11, "held", "feat", "high", "spec: docs/changes/specs/s11.md\nhold: true\n"),
+			changeBlob(12, "open", "feat", "low", "spec: docs/changes/specs/s12.md\n"),
+		},
+		facts: domain.NewBranchFacts(nil),
+		artifacts: map[string]bool{
+			"metadata|docs/changes/specs/s11.md": true,
+			"metadata|docs/changes/specs/s12.md": true,
+		},
+	}
+	got := Status(context.Background(), fake, StatusOptions{})
+	if got.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied; message=%q", got.Result, got.Message)
+	}
+	if len(got.Ready) != 1 || got.Ready[0] != 12 {
+		t.Errorf("ready = %v, want [12]", got.Ready)
+	}
+	var row *StatusChange
+	for i := range got.Changes {
+		if got.Changes[i].ID == 11 {
+			row = &got.Changes[i]
+		}
+	}
+	if row == nil {
+		t.Fatalf("no row for held change 11: %+v", got.Changes)
+	}
+	if row.Readiness != string(domain.ReadyOnHold) || row.ReadinessWhy != "on hold" || row.Ready {
+		t.Errorf("held row = readiness %q, reason %q, ready %v; want on-hold, \"on hold\", false",
+			row.Readiness, row.ReadinessWhy, row.Ready)
+	}
+}
