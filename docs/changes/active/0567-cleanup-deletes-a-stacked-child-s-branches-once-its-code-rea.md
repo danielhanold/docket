@@ -7,7 +7,7 @@ priority: 'high'
 type: 'fix'
 deliverable: 'pr'
 created: '2026-10-17'
-updated: '2026-10-18'
+updated: '2026-10-19'
 depends_on: []
 stacked_on:
 related: [562]
@@ -23,7 +23,7 @@ branch: 'fix/cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-18T23:57:46Z'
+claimed_at: '2026-10-19T01:09:11Z'
 ---
 
 ## Artifacts
