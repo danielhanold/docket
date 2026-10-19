@@ -66,6 +66,57 @@ var haltLockWait = 2 * time.Second
 // than haltLockWait.
 var errHaltCountBusy = errors.New("halt count busy")
 
+// OperationRunResetHalts is the operation key `run reset-halts` records in its envelope.
+const OperationRunResetHalts = "run.reset-halts"
+
+// RunResetHaltsResult is the outcome of run.reset-halts. Previous is the count before
+// the reset; PreviousUnreadable marks a count that could not be read (and that the
+// reset repaired). A failed reset carries a Reason token and a Message.
+type RunResetHaltsResult struct {
+	Envelope
+	Previous           int    `json:"previous"`
+	PreviousUnreadable bool   `json:"previous_unreadable,omitempty"`
+	Reason             string `json:"reason,omitempty"`
+	Message            string `json:"message,omitempty"`
+}
+
+// HumanText renders the one-line outcome.
+func (r RunResetHaltsResult) HumanText() string {
+	if r.Result == ResultApplied {
+		if r.PreviousUnreadable {
+			return "halt count reset to 0 (the previous count was unreadable)"
+		}
+		return fmt.Sprintf("halt count reset to 0 (was %d)", r.Previous)
+	}
+	return fmt.Sprintf("%s: %s (%s)", OperationRunResetHalts, r.Result, r.Reason)
+}
+
+// RunResetHalts sets repoDir's halt count back to 0, the person's way to let a loop
+// stopped at run.max_consecutive_halts carry on. A count that cannot be read is
+// repaired by the same write. Markers stay, so a key already counted is never
+// counted again.
+func RunResetHalts(repoDir string) RunResetHaltsResult {
+	fail := func(result Result, reason string, err error) RunResetHaltsResult {
+		r := RunResetHaltsResult{Reason: reason, Message: err.Error()}
+		r.Envelope = NewEnvelope(OperationRunResetHalts, result)
+		return r
+	}
+	s, err := openHaltCountStore(repoDir)
+	if err != nil {
+		return fail(ResultInvalidState, "run-tracker-unavailable", err)
+	}
+	previous, unreadable, err := s.resetAll()
+	if errors.Is(err, errHaltCountBusy) {
+		return fail(ResultContended, "halt-count-busy", err)
+	}
+	if err != nil {
+		return fail(ResultInternalError, "halt-count-unwritable", err)
+	}
+	r := RunResetHaltsResult{Previous: previous, PreviousUnreadable: unreadable}
+	r.Envelope = NewEnvelope(OperationRunResetHalts, ResultApplied)
+	return r
+}
+
 // haltCountStore is the halt-count folder of one repository.
 type haltCountStore struct{ dir string }
 

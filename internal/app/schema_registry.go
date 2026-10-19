@@ -115,6 +115,7 @@ var operationBindings = []OperationBinding{
 	{ID: "repository.sync-integration", Request: nil, Result: RepositorySyncResult{}},                      // RunRepositorySyncIntegration
 	{ID: "run.cancel", Request: nil, Result: RunCancelResult{}},                                            // RunCancel
 	{ID: "run.continue", Request: nil, Result: RunContinueResult{}},                                        // RunContinue
+	{ID: "run.reset-halts", Request: nil, Result: RunResetHaltsResult{}},                                   // RunResetHalts
 	{ID: "run.start", Request: nil, Result: RunStartResult{}},                                              // RunStart
 	{ID: "run.verdict", Request: nil, Result: RunVerdictResult{}},                                          // RunVerdict (observe mode returns RunVerdictObserveResult)
 	{ID: "run.verify", Request: nil, Result: RunVerifyResult{}},                                            // RunVerify
