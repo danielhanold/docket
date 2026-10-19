@@ -8,8 +8,8 @@
 |---|-------|----------|------|-----------|
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 | [0571](active/0571-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md) | Parent closeout waits on a retargeted child, so a parent that lands first never becomes done | `medium` | `fix` | needs-grooming |
+| [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `feat` | needs-grooming |
 | [0569](active/0569-flaky-and-failing-tests-standing-bucket.md) | Flaky and failing tests — standing bucket | `low` | `chore` | needs-grooming |
-| [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `fix` | needs-grooming |
 | [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 

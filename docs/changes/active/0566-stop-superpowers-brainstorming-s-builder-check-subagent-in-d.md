@@ -4,10 +4,10 @@ slug: 'stop-superpowers-brainstorming-s-builder-check-subagent-in-d'
 title: 'Stop superpowers brainstorming''s builder-check subagent in docket grooming'
 status: 'proposed'
 priority: 'medium'
-type: 'fix'
+type: 'feat'
 deliverable: 'pr'
 created: '2026-10-17'
-updated: '2026-10-17'
+updated: '2026-10-19'
 depends_on: []
 stacked_on:
 related: [563]
