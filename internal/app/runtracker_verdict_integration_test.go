@@ -872,7 +872,7 @@ func TestIntegrationRunVerdictVerdictAbsentBindingAdoptsSoleProof(t *testing.T) 
 		)
 		key := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
 		wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
-			{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
+			{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1", Selection: ClaimSelectionQueue},
 		}}
 
 		res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
@@ -882,6 +882,10 @@ func TestIntegrationRunVerdictVerdictAbsentBindingAdoptsSoleProof(t *testing.T) 
 		b, ok, err := LoadRunTrackerClaimBinding(f.repo.invocation, key)
 		if err != nil || !ok || !b.Confirmed || b.ChangeID != 3 {
 			t.Fatalf("binding = %+v ok=%v err=%v, want confirmed change 3 after adoption", b, ok, err)
+		}
+		// The adopted binding keeps the selection the committed receipt recorded.
+		if b.Selection != ClaimSelectionQueue {
+			t.Fatalf("adopted binding selection = %q, want queue (carried from the proof)", b.Selection)
 		}
 	})
 

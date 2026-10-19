@@ -84,6 +84,32 @@ type ChangeClaimRequest struct {
 	// (the digest, and a prefix in the request id — see claimRequestID) and
 	// recorded as the durable claim proof (change 0407).
 	RunContext string `json:"run_context,omitempty"`
+	// Selection says how the run chose this change: ClaimSelectionQueue (picked
+	// from the build-ready queue) or ClaimSelectionNamed (the run named it). It is
+	// optional and never refuses a claim: any other value, or none at all (an
+	// older skill copy), is recorded as unknown. It is deliberately outside
+	// claimDigestPayload and claimRequestID, so it never changes claim identity
+	// or idempotence; it is recorded in the committed receipt and mirrored on the
+	// run's claim binding, where the keyed verdict reads it when a run halts.
+	Selection string `json:"selection,omitempty"`
+}
+
+// The recognised claim selections. Anything else normalizes to "" (unknown).
+const (
+	ClaimSelectionQueue = "queue"
+	ClaimSelectionNamed = "named"
+)
+
+// claimSelection normalizes a caller-supplied selection: a recognised mode
+// (after trimming surrounding space) passes through, anything else is "" —
+// unknown, never a refusal.
+func claimSelection(raw string) string {
+	switch v := strings.TrimSpace(raw); v {
+	case ClaimSelectionQueue, ClaimSelectionNamed:
+		return v
+	default:
+		return ""
+	}
 }
 
 // claimDigestPayload is the semantic content of a claim request — everything
@@ -159,7 +185,12 @@ type changeClaimReceipt struct {
 	ID             int    `json:"id"`
 	Lease          string `json:"lease"`
 	Op             string `json:"op"`
-	Status         string `json:"status"`
+	// Selection is how the run chose this change (claimSelection's normalized
+	// value), omitted when unknown so an unknown claim's receipt is byte-identical
+	// to one written before the field existed. Placed between op and status to
+	// keep the json keys alphabetical.
+	Selection string `json:"selection,omitempty"`
+	Status    string `json:"status"`
 }
 
 // ChangeClaim validates the request, pins authoritative context, fetches the
@@ -202,6 +233,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	// is a typed refusal — never an ungated claim — and the gatedrive scope
 	// capability the test-drive operations consume is untouched.
 	var runKey, gateHash string
+	sel := claimSelection(req.Selection)
 	if req.RunContext != "" {
 		gateHash = runTrackerHashToken(req.RunContext)
 		key, gateRec, ferr := FindRunTrackerRecordByContextHash(repoDir, gateHash)
@@ -224,7 +256,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 			})
 		}
 		runKey = key
-		if rerr := ReserveRunTrackerClaim(repoDir, runKey, req.ID, claimRequestID(req)); rerr != nil {
+		if rerr := ReserveRunTrackerClaimSelection(repoDir, runKey, req.ID, claimRequestID(req), sel); rerr != nil {
 			return newChangeClaimResult(OperationChangeClaim, ResultInvalidState, ChangeClaimResult{
 				Disposition: ClaimDispositionRunContextConflict,
 				Findings: []StatusFinding{lifecycleFinding(FindingCode(ClaimDispositionRunContextConflict),
@@ -250,6 +282,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		link:           linkContextOf(pin),
 		changesDir:     eff.ChangesDir.Value,
 		runContextHash: gateHash,
+		selection:      sel,
 	}
 
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
@@ -565,6 +598,9 @@ type changeClaimOp struct {
 	// receipt as the durable ownership proof (change 0407); the raw token never
 	// reaches this struct.
 	runContextHash string
+	// selection is the normalized claim selection ("" = unknown, and always ""
+	// for a refresh), folded into the committed claim receipt.
+	selection string
 }
 
 func (o changeClaimOp) Key() transaction.OperationKey { return transaction.OperationKey(o.opKey) }
@@ -687,6 +723,7 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		ID:             o.changeID,
 		Lease:          lease,
 		Op:             o.opKey,
+		Selection:      o.selection,
 		Status:         string(result.Change.Status()),
 	})
 	if err != nil {

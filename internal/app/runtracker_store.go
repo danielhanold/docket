@@ -232,6 +232,12 @@ type RunTrackerClaimBinding struct {
 	RequestID string `json:"request_id"`
 	Confirmed bool   `json:"confirmed"`
 	Revision  string `json:"revision,omitempty"`
+	// Selection is how the claim's run chose the change (ClaimSelectionQueue or
+	// ClaimSelectionNamed; "" = unknown). Additive and optional: a binding written
+	// before the field existed reads as unknown, and the schema stays
+	// bindingSchemaVersion. It is set once at reservation and carried through
+	// ConfirmRunTrackerClaim's rewrite.
+	Selection string `json:"selection,omitempty"`
 }
 
 // runTrackerContinuationTripleOK reports whether rec's continuation triple is well
@@ -713,6 +719,15 @@ func readRunTrackerClaimBinding(dir, op string) (RunTrackerClaimBinding, bool, e
 // replay (nil); an existing binding for a different claim is ErrRunTrackerBindingConflict
 // — bind-once, a later attempt can never overwrite the first.
 func ReserveRunTrackerClaim(repoDir, key string, changeID int, requestID string) error {
+	return ReserveRunTrackerClaimSelection(repoDir, key, changeID, requestID, "")
+}
+
+// ReserveRunTrackerClaimSelection is ReserveRunTrackerClaim recording how the run
+// chose the change (see RunTrackerClaimBinding.Selection). The selection is not
+// part of the bind-once identity: reserveMatchOrConflict still compares only
+// (changeID, requestID), so a replay naming another selection is an idempotent
+// no-op that keeps the first one.
+func ReserveRunTrackerClaimSelection(repoDir, key string, changeID int, requestID, selection string) error {
 	dir, err := runKeyDir(repoDir, key, "reserve")
 	if err != nil {
 		return err
@@ -723,7 +738,7 @@ func ReserveRunTrackerClaim(repoDir, key string, changeID int, requestID string)
 	// pre-read that answered match-or-conflict on its own would make the CAS
 	// untestable and would race a concurrent writer): the conflict-checked write is
 	// authority.
-	buf, err := json.Marshal(RunTrackerClaimBinding{Schema: bindingSchemaVersion, ChangeID: changeID, RequestID: requestID, Confirmed: false})
+	buf, err := json.Marshal(RunTrackerClaimBinding{Schema: bindingSchemaVersion, ChangeID: changeID, RequestID: requestID, Confirmed: false, Selection: selection})
 	if err != nil {
 		return runTrackerErr(ErrRunTrackerIO, "reserve", err)
 	}
@@ -810,7 +825,9 @@ func ConfirmRunTrackerClaim(repoDir, key string, changeID int, requestID, revisi
 		return runTrackerErr(ErrRunTrackerBindingConflict, "confirm", nil)
 	}
 
-	confirmed := RunTrackerClaimBinding{Schema: bindingSchemaVersion, ChangeID: changeID, RequestID: requestID, Confirmed: true, Revision: revision}
+	// The confirmed binding is rebuilt from scratch, so it must carry the reserved
+	// selection forward: dropping it would read every claim as unknown.
+	confirmed := RunTrackerClaimBinding{Schema: bindingSchemaVersion, ChangeID: changeID, RequestID: requestID, Confirmed: true, Revision: revision, Selection: b.Selection}
 	if err := writeRunTrackerClaimBindingAtomic(dir, confirmed); err != nil {
 		return err
 	}

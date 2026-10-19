@@ -116,6 +116,33 @@ func TestIntegrationRunRecordConfirmRunTrackerClaimMirrorsRecord(t *testing.T) {
 	}
 }
 
+// TestIntegrationRunRecordConfirmKeepsSelection: confirm rewrites the binding
+// from scratch, so it must carry the reserved selection forward — dropping it
+// would read every loop-picked claim as unknown. A replayed reservation naming a
+// different selection is the same (change, request) and leaves the first one in
+// place (bind-once).
+func TestIntegrationRunRecordConfirmKeepsSelection(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	key := mintPlainRunTracker(t, repo)
+	if err := ReserveRunTrackerClaimSelection(repo, key, 3, "claim-3-v", ClaimSelectionQueue); err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	if err := ConfirmRunTrackerClaim(repo, key, 3, "claim-3-v", "r1", ""); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	b, ok, err := LoadRunTrackerClaimBinding(repo, key)
+	if err != nil || !ok || !b.Confirmed || b.Selection != ClaimSelectionQueue {
+		t.Fatalf("binding after confirm = %+v ok=%v err=%v; want confirmed with selection queue", b, ok, err)
+	}
+	if err := ReserveRunTrackerClaimSelection(repo, key, 3, "claim-3-v", ClaimSelectionNamed); err != nil {
+		t.Fatalf("replayed reserve: %v", err)
+	}
+	b, _, _ = LoadRunTrackerClaimBinding(repo, key)
+	if b.Selection != ClaimSelectionQueue {
+		t.Fatalf("binding selection after replay = %q, want queue (bind-once)", b.Selection)
+	}
+}
+
 // TestIntegrationRunRecordConfirmWithoutReservationFails: a failed or absent reservation can never
 // become a confirmed binding (spec: "Failed claims never become confirmed
 // bindings").
