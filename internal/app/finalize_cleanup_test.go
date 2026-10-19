@@ -733,7 +733,7 @@ func TestKeptBranchWarningsNameBranchAndCommand(t *testing.T) {
 	t.Run("pr-local-tip-moved", func(t *testing.T) {
 		git := happyRAGit(t)
 		facts := githubcli.MergedFacts{HeadOID: strings.Repeat("c", 40), MergeCommit: strings.Repeat("d", 40)}
-		_, _, f := finalizeCleanupLocalRef(ctx, FinalizeDeps{}, git, raContext(t, true), featureRefFor("research"), "feat/research", facts)
+		_, _, f := finalizeCleanupLocalRef(ctx, FinalizeDeps{}, git, raContext(t, true), featureRefFor("research"), "feat/research", facts, false)
 		if f == nil || f.Code != ReasonCleanupTipMoved {
 			t.Fatalf("finding = %+v, want %s", f, ReasonCleanupTipMoved)
 		}
@@ -746,7 +746,7 @@ func TestKeptBranchWarningsNameBranchAndCommand(t *testing.T) {
 		git := happyRAGit(t)
 		git.worktrees = []gitcli.WorktreeInfo{{Path: "/elsewhere", Branch: featureRefFor("research")}}
 		facts := githubcli.MergedFacts{HeadOID: string(git.tip), MergeCommit: strings.Repeat("d", 40)}
-		_, _, f := finalizeCleanupLocalRef(ctx, FinalizeDeps{}, git, raContext(t, true), featureRefFor("research"), "feat/research", facts)
+		_, _, f := finalizeCleanupLocalRef(ctx, FinalizeDeps{}, git, raContext(t, true), featureRefFor("research"), "feat/research", facts, false)
 		if f == nil || f.Code != ReasonCleanupCheckedOut {
 			t.Fatalf("finding = %+v, want %s", f, ReasonCleanupCheckedOut)
 		}
@@ -756,7 +756,7 @@ func TestKeptBranchWarningsNameBranchAndCommand(t *testing.T) {
 		git := happyRAGit(t)
 		git.ancestor = false
 		facts := githubcli.MergedFacts{HeadOID: string(git.tip), MergeCommit: strings.Repeat("d", 40)}
-		_, _, f := finalizeCleanupLocalRef(ctx, FinalizeDeps{}, git, raContext(t, true), featureRefFor("research"), "feat/research", facts)
+		_, _, f := finalizeCleanupLocalRef(ctx, FinalizeDeps{}, git, raContext(t, true), featureRefFor("research"), "feat/research", facts, false)
 		if f == nil || f.Code != ReasonCleanupUnreachable {
 			t.Fatalf("finding = %+v, want %s", f, ReasonCleanupUnreachable)
 		}
