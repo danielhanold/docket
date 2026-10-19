@@ -38,18 +38,18 @@ follow the default section order; rows sort `updated desc` within each section.
 
 Sections and rows:
 
-- **In progress** — two Readiness bands, sorted `updated desc`:
+- **In progress** — two State bands, sorted `updated desc`:
   - id 1 (updated 2026-08-10), with a `spec:` (Spec cell), a `branch:` (Branch
-    cell), and no `## Run halted` section (empty Readiness cell);
+    cell), and no `## Run halted` section (the `building` State cell);
   - id 8 (updated 2026-08-09), carrying the bare `## Run halted` body section:
-    the `run halted — needs you` Readiness cell (change 0261).
+    the `run halted — needs you` State cell (change 0261).
 - **Built** — id 7, an `implemented` change with no `## Finalize blocked`
   section: PR cell from a full PR URL and the `awaiting merge` State cell.
 - **Blocked** — id 5, a lifecycle-`blocked` change: empty PR cell (no `pr:`) and
   the stored `blocked_by` free-text Reason cell.
 - **Groomed** — id 2, a `proposed`, spec-backed, build-ready change (its
   `depends_on: [9]` points at a `done` change, so the dependency is satisfied):
-  a `[spec](…)` Spec cell.
+  a `[spec](…)` Spec cell and the `build-ready` Readiness cell.
 - **Proposed** — two readiness bands, sorted `updated desc`:
   - id 4 (updated 2026-08-04) waiting `⏳ waiting on #3 — not yet built` (dep on a
     non-built change);
@@ -68,8 +68,11 @@ Mermaid graph (outside section order/sorting — the presentation never reaches 
 Bands and surfaces the corpus deliberately does **not** cover — unit-tested
 directly instead:
 
-- the dated `## Run halted — <date>` variant NOT lighting the Readiness cell
+- the dated `## Run halted — <date>` variant NOT lighting the State cell
   (whole-line decode contract — `TestBoardRunHaltedWholeLineContract`);
+- the Groomed `on hold` Readiness cell for a held spec-backed change
+  (`TestBoardGroomedReadinessCells`) and the Proposed `on hold` cell for a held
+  trivial change (`TestBoardHeldTrivialStaysProposed`);
 - the classification precedence edges (finalize-blocked implemented → Blocked;
   spec-backed build-ready → Groomed vs trivial-without-spec → Proposed);
 - the Blocked `finalize blocked — needs you` Reason cell;
