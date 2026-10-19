@@ -124,6 +124,7 @@ type changeWire struct {
 	Results        scalar     `yaml:"results"`
 	Trivial        scalar     `yaml:"trivial"`
 	AutoGroomable  scalar     `yaml:"auto_groomable"`
+	Hold           scalar     `yaml:"hold"`
 	BranchPrefix   scalar     `yaml:"branch_prefix"`
 	Branch         scalar     `yaml:"branch"`
 	ClaimedAt      scalar     `yaml:"claimed_at"`
@@ -297,9 +298,10 @@ func (d *decoder) boolean(name string, s scalar) bool {
 // optionalBool converts a scalar into a tri-state boolean: absent and valueless
 // stay distinguishable from an explicit false, and a value that is not a YAML
 // boolean is a finding, never a silent true or false. The finding is a
-// warning: the only optional boolean is auto_groomable, human input that
+// warning: both optional booleans (auto_groomable, hold) are human input that
 // gates no record validity, so a bad value must not make publish or finalize
-// refuse a record that was otherwise valid — it is simply not a true.
+// refuse a record that was otherwise valid. Each accessor decides what a
+// malformed value means: auto_groomable reads it as not true, hold as held.
 func (d *decoder) optionalBool(name string, s scalar) domain.OptionalBool {
 	switch d.state(name, s) {
 	case domain.FieldAbsent:
@@ -576,6 +578,7 @@ func decodeChange(in InputDocument) (domain.Change, []domain.Finding) {
 	spec.Results = d.optionalString("results", wire.Results)
 	spec.Trivial = d.boolean("trivial", wire.Trivial)
 	spec.AutoGroomable = d.optionalBool("auto_groomable", wire.AutoGroomable)
+	spec.Hold = d.optionalBool("hold", wire.Hold)
 	spec.BranchPrefix = d.optionalString("branch_prefix", wire.BranchPrefix)
 	spec.Branch = d.optionalString("branch", wire.Branch)
 	spec.ClaimedAt = d.optionalTime("claimed_at", wire.ClaimedAt, stampLayout)
