@@ -110,6 +110,10 @@ type FinalizeCleanupGit interface {
 	FetchBranch(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, branch gitcli.RefName) (gitcli.Revision, error)
 	DeleteLocalBranchChecked(ctx context.Context, repo gitcli.Repository, branch gitcli.RefName, expectedTip gitcli.ObjectID) error
 	DeleteRemoteRefLease(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, ref gitcli.RefName, expectedTip gitcli.ObjectID) (gitcli.PushOutcome, error)
+	// ProvePreserved is the carried-child content proof's preservation leg
+	// (proveCarriedContent): it proves a carried child's merge result is exactly
+	// preserved at its stack root's merge result.
+	ProvePreserved(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, source, target gitcli.ObjectID) (gitcli.PreservationCheck, error)
 }
 
 // FinalizePRProber reads one change's live pull-request facts as the domain
@@ -788,6 +792,8 @@ var (
 	_ FinalizePRProber   = (*githubFinalizeProber)(nil)
 	_ FinalizeCleanupGit = (*gitcli.Client)(nil)
 	_ FinalizeReserveGit = (*gitcli.Client)(nil)
+	_ carryContentGit    = (*gitcli.Client)(nil)
+	_ carryContentGit    = FinalizeCleanupGit(nil)
 	_ SweepPRBatchReader = (*sweepPRBatchReader)(nil)
 	_ sweepGitHub        = (*githubcli.Client)(nil)
 )
