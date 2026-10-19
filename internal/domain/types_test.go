@@ -313,6 +313,20 @@ func TestChangeDeliverableEffectiveValue(t *testing.T) {
 
 // TestLifecycleActionCarriesDeliverable pins newChangeBuilder's copy: a
 // lifecycle write must keep the stored deliverable, known or unknown.
+func TestLifecycleActionCarriesHold(t *testing.T) {
+	c := NewChange(ChangeSpec{ID: 1, Slug: "s", Status: StatusProposed, Type: "feat", Trivial: true, Hold: holdTrue})
+	res, fail := Claim(c, actNow)
+	if fail != nil {
+		t.Fatalf("Claim: %v", fail)
+	}
+	if !res.Change.Held() {
+		t.Error("Held after Claim = false, want true")
+	}
+	if got := res.Change.Hold(); got != holdTrue {
+		t.Errorf("Hold after Claim = %+v, want %+v", got, holdTrue)
+	}
+}
+
 func TestLifecycleActionCarriesDeliverable(t *testing.T) {
 	for _, spec := range []ChangeSpec{
 		{ID: 1, Slug: "s", Status: StatusProposed, Deliverable: DeliverableResultsArtifact, RawDeliverable: "results-artifact"},

@@ -93,6 +93,7 @@ type ChangeSpec struct {
 	Results        OptionalString
 	Trivial        bool
 	AutoGroomable  OptionalBool   // per-change auto-groom opt-in; only an explicit true opts in
+	Hold           OptionalBool   // per-change hold; keeps the change out of autonomous build selection
 	BranchPrefix   OptionalString // per-change mint-prefix override; durable input
 	Branch         OptionalString
 	ClaimedAt      OptionalTime // second-precision UTC; Raw kept
@@ -202,6 +203,20 @@ func (c Change) Trivial() bool { return c.spec.Trivial }
 // false both mean it is not. The tri-state is kept so the record writer
 // round-trips what the human wrote.
 func (c Change) AutoGroomable() OptionalBool { return c.spec.AutoGroomable }
+
+// Hold returns the raw tri-state hold field, kept so the record writer
+// round-trips what the human wrote. Callers deciding whether the change is
+// held read Held.
+func (c Change) Hold() OptionalBool { return c.spec.Hold }
+
+// Held reports whether the change is on hold: an explicit true, or a malformed
+// value. A malformed value reads as held because the field exists to keep work
+// away from the autonomous loop, so a garbled hand edit fails safe rather than
+// releasing the change. Absent, valueless, and false all mean not held.
+func (c Change) Held() bool {
+	h := c.spec.Hold
+	return h.State == FieldMalformed || (h.State == FieldPresent && h.Value)
+}
 
 // BranchPrefix returns the optional per-change mint-prefix override. It is
 // durable human input consumed only at claim time; once branch: is populated

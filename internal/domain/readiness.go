@@ -9,6 +9,7 @@ type ReadinessKind string
 // The closed set of readiness outcomes.
 const (
 	ReadyBuildReady          ReadinessKind = "build-ready"
+	ReadyOnHold              ReadinessKind = "on-hold"
 	ReadyNeedsGrooming       ReadinessKind = "needs-grooming"
 	ReadyAutoGroomBlocked    ReadinessKind = "auto-groom-blocked"
 	ReadyWaitingDependency   ReadinessKind = "waiting-dependency"
@@ -47,7 +48,10 @@ type Readiness struct {
 //  5. stack resolution is consulted ONLY for a change that would otherwise be
 //     build-ready, and an unresolved effective base reports
 //     stack-base-unresolved; otherwise
-//  6. the change is build-ready.
+//  6. the change is build-ready, unless
+//  7. it is held (Change.Held): a would-be build-ready change that is held is
+//     on-hold. Every earlier outcome wins, so a held change that is also
+//     waiting, ungroomed, or on an unresolved stack base keeps that reason.
 //
 // A change carries design when it has a non-empty spec: reference or is marked
 // trivial; a present-but-empty spec: counts as no spec.
@@ -79,6 +83,9 @@ func EvaluateReadiness(s Snapshot, c Change, facts BranchFacts) Readiness {
 	kind := ReadyBuildReady
 	if base.Kind != BaseResolved {
 		kind = ReadyStackBaseUnresolved
+	}
+	if kind == ReadyBuildReady && c.Held() {
+		kind = ReadyOnHold
 	}
 	return Readiness{Kind: kind, Dependency: deps, StackBase: base}
 }

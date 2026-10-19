@@ -877,6 +877,54 @@ func TestClaimEligibility(t *testing.T) {
 	}
 }
 
+// A hold excludes a change from selection only; a single-id claim still builds
+// it, while any earlier readiness blocker still refuses.
+func TestClaimEligibilityAcceptsOnHold(t *testing.T) {
+	tests := []eligibilityCase{
+		{
+			name:    "a held spec-backed change is eligible",
+			specs:   []readySpec{{id: 2, status: StatusProposed, spec: specRef("s.md"), hold: holdTrue}},
+			subject: 2,
+		},
+		{
+			name: "a held change on an unresolved stack base refuses the claim",
+			specs: []readySpec{
+				{id: 1, status: StatusProposed, spec: specRef("p.md")},
+				{id: 2, status: StatusProposed, spec: specRef("s.md"), parent: parentEdge(1), hold: holdTrue},
+			},
+			subject:    2,
+			wantKind:   FailBlocked,
+			wantReason: "not-ready-stack-base-unresolved",
+		},
+		{
+			name: "a held change with an unmet dependency refuses the claim",
+			specs: []readySpec{
+				{id: 1, status: StatusProposed},
+				{id: 2, status: StatusProposed, spec: specRef("s.md"), dependsOn: []ChangeID{1}, hold: holdTrue},
+			},
+			subject:    2,
+			wantKind:   FailBlocked,
+			wantReason: "not-ready-waiting-dependency",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := readySnapshot(tt.specs...)
+			c, _ := s.Change(tt.subject)
+			fail := ClaimEligibility(s, c, remotes(tt.branches...))
+			if tt.wantReason == "" {
+				if fail != nil {
+					t.Fatalf("ClaimEligibility = %v; want eligible", fail)
+				}
+				return
+			}
+			if fail == nil || fail.Kind != tt.wantKind || fail.Reason != tt.wantReason {
+				t.Fatalf("ClaimEligibility = %v; want %s/%s", fail, tt.wantKind, tt.wantReason)
+			}
+		})
+	}
+}
+
 func TestClaimEligibilityDoesNotTransition(t *testing.T) {
 	c := NewChange(ChangeSpec{ID: 2, Slug: "a-slug", Status: StatusProposed, Type: "feat"})
 	s := NewSnapshot(SnapshotSpec{

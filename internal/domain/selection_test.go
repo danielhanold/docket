@@ -277,6 +277,32 @@ func TestSelectQueueExcludesAWaitingDependency(t *testing.T) {
 	}
 }
 
+// A hold is a selection-only exclusion: SelectQueue keeps only build-ready
+// changes, so a held change never enters the queue.
+func TestSelectQueueExcludesAHeldChange(t *testing.T) {
+	held := NewChange(ChangeSpec{
+		ID: 3, Slug: "a-slug", Status: StatusProposed, Priority: PriorityCritical, Trivial: true,
+		Hold: holdTrue,
+	})
+	open := selSpec{id: 2, priority: PriorityHigh}.build()
+
+	s := NewSnapshot(SnapshotSpec{
+		Policy:  RepositoryPolicy{IntegrationBranch: "main"},
+		Changes: []Change{held, open},
+	})
+	if got := ids(SelectQueue(s, remotes(), SelectionFilter{})); !equalIDs(got, []ChangeID{2}) {
+		t.Fatalf("SelectQueue = %v; want [2] — 3 is on hold", got)
+	}
+
+	only := NewSnapshot(SnapshotSpec{
+		Policy:  RepositoryPolicy{IntegrationBranch: "main"},
+		Changes: []Change{held},
+	})
+	if got := ids(SelectQueue(only, remotes(), SelectionFilter{})); len(got) != 0 {
+		t.Fatalf("SelectQueue = %v; want an empty queue when only a held change exists", got)
+	}
+}
+
 func TestSelectQueueFilters(t *testing.T) {
 	specs := []selSpec{
 		{id: 1, priority: PriorityHigh, kind: "feature", created: createdOn("2026-01-01")},
