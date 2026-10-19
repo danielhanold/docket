@@ -22,8 +22,8 @@ branch_prefix:
 branch: 'feat/let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-19T16:59:18Z'
+reconciled: true
+claimed_at: '2026-10-19T17:01:32Z'
 ---
 
 ## Artifacts
@@ -56,3 +56,9 @@ Give a loop a way to carry on past a halt that concerns one change, and a backst
 Keeping a change that needs a human away from the loop: #560's hold does that. How a run behaves when it reaches a human step: #559 settled that.
 
 Carrying a finalize loop past a blocked change: finalize keeps stopping on every block (a separate change). Typed halt reasons or classifying halt points. Any gate that prevents two loops of the same stage from running at once.
+
+## Reconcile log
+
+### 2026-10-19
+
+2026-10-19 — Reconciled against main at 9ec9eb2b9 (#560 hold landed; #559 done). Spec groomed today; every cited symbol (ChangeClaimRequest, changeClaimReceipt, persistRunVerdict, acquireResumeLock, PruneRunTrackerRecords, the resumeAttributed method, runTrackerSchemaVersion 4, bindingSchemaVersion 1) still exists as described, and neither run.max_consecutive_halts nor reset-halts exists yet. No scope change.
