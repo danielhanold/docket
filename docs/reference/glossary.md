@@ -1138,6 +1138,7 @@ code or the child's prose.
 |---|---|
 | `run-retry-once …` | The only line that authorises another dispatch — once, same key, for the id and unmet conditions it names. Granted at most `run.max_attempts - 1` times. |
 | `run-continue <key> run-waiting <id> <continuation-id> <phase>` | Non-terminal: the same attempt still owns work. Resume it with the continuation id; spends no retry. |
+| `run-next <key> run-halted <id>` | The change halted and needs a human; never re-dispatch it. Printed only for a change picked from the queue while the halt count is under `run.max_consecutive_halts`. A loop may start its next run with a fresh `run.start`; a single dispatch stops. |
 | `run-done …` | Finished (e.g. `run-done run-complete`). |
 | `run-stop …` | Stop; no re-dispatch (e.g. `run-stop run-tracker-unavailable takeover-ambiguous`). |
 | `run-observe …` | Observe only; no re-dispatch (e.g. `run-observe run-incomplete`). |
@@ -1389,7 +1390,8 @@ docket finalize clear-block --id 412 --revision <v> --head <sha> --pr-number 301
 Every finalize run ends with one of four outcomes: `advanced` (it closed a change out), `contended`
 (another writer got there first), `drained` (nothing eligible), or `halted` (a human is needed). A
 driver continues on `advanced`/`contended` and stops on `drained`/`halted`, which are the same four
-words implement-next uses.
+words implement-next uses. A finalize loop stops on every `halted`; only an implement-next loop may
+carry on past a halted change, when its verdict is `run-next`.
 
 **Used for:** closing out hands-free, one merge per iteration. Unlike implement-next, the finalize
 drain **does merge**. Naming ids bounds the run and authorizes merges `require_pr_approval` would hold.
@@ -1985,10 +1987,18 @@ post-rebase repair.
 next run or phase you start, never one already running. Explicit halts need a human whatever the budget. A cancel
 spends no attempt.
 
+The **halt count** is a separate limit on a loop, not on a change. `run.max_consecutive_halts` (default 2, minimum 1)
+caps how many implement-next runs in a row may halt on a change picked from the queue before the loop stops. A halt
+under the limit prints `run-next`; the halt that reaches it prints `run-stop … run-halted` with a note asking the
+person whether to reset the count. A named run or a resume never touches the count; a clean build (`run-complete`)
+sets it back to 0, and so does `docket run reset-halts`, which only a person runs. The limit is read when the verdict
+is printed, so a new value applies to the next halt. `1` stops a loop at its first halt.
+
 ```yaml
 # .docket.yml
 run:
   max_attempts: 2
+  max_consecutive_halts: 2
 build:
   max_attempts: 4
 ```

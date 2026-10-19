@@ -50,6 +50,9 @@ verdict, not the worker's report, says what may happen next.
        ├─ run-continue ────► the same attempt is still working: resume it or
        │                      dispatch again with its continuation id;
        │                      same key, spends no retry
+       ├─ run-next ────────► this change needs a human; never re-dispatch it.
+       │                      A loop may start its next run (fresh run start);
+       │                      a single dispatch stops
        ├─ run-stop ────────► no re-dispatch; run-stop … run-halted means the
        │                      change needs a human
        └─ run-observe ─────► an unattributed read (no key); never authorizes
@@ -94,6 +97,21 @@ verdict, not the worker's report, says what may happen next.
   again with the change id and the continuation id it names, keeping the
   same key and spending no retry. Every `run-stop` and every `run-observe`
   forbids a re-dispatch.
+- **The halt count.** The tracker keeps one count per repository of
+  implement-next runs in a row that halted on a change picked from the
+  queue (no id, or a set of two or more ids — a loop, or a one-off
+  "implement the next change"). A named run or a resume never touches it.
+  While the count stays under `run.max_consecutive_halts` (default 2), such
+  a halt prints `run-next <key> run-halted <id>` instead of
+  `run-stop <key> run-halted <id>`: the halted change is never
+  re-dispatched, but a loop may start a fresh run for the next change. The
+  halt that reaches the limit prints `run-stop … run-halted` with a note
+  asking the person whether to reset the count. Only a clean build
+  (`run-done … run-complete`), named or picked, sets the count back to 0,
+  and so does `docket run reset-halts`, which only a person runs. Each run
+  changes the count at most once, however often its verdict is read again.
+  The count lives in the repository's state folder, so every session and
+  worktree shares it.
 - **Verifying a change** (`docket run verify --id <id>`) checks one
   change's run against its postconditions — workspace and remote heads,
   build evidence, the pull request, the plan and results files, the claim
@@ -176,6 +194,8 @@ blocks as `mutation-pending:<op>`.
   than guessing.
 - Only `run-retry-once` and `run-continue` authorize another dispatch;
   every stop or observe line forbids it.
+- A halt never re-dispatches its change: `run-next` only lets a loop start
+  a new run for the next change, and only the person resets the halt count.
 - The verdict always exits 0; the decision lives in the report line, not
   the exit code.
 - A probe that cannot prove a process is alive is not evidence that it
