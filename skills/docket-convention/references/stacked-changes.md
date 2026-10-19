@@ -201,6 +201,10 @@ drop a descendant's work while every record still reads merged, so the Git carry
 condition. One unproven descendant leaves the root recoverable with zero descendant writes
 (fail-closed).
 
+Finalize and the sweep then clean each carried child's folder and branches right after the root's,
+once cleanup proves the child's work reached the integration branch. Until then the child keeps
+everything and reports `pending` with no delete advice; every full sweep retries it.
+
 **Two invokers reach this one transaction**, and neither substitutes for the other: the merge sweep
 (the `maintenance.sweep` operation), right after it sweeps a root to `done`; and `docket-finalize-change`,
 in its step-9 close-out. The sweep cannot cover for finalize — it only ever enumerates `active/` for
