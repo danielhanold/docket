@@ -109,7 +109,6 @@ func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps Workspa
 
 	repo := sweepAssessRepo(deps)
 	link := linkContextOf(pin)
-	integration := closeoutIntegrationBranch(pin)
 
 	for _, it := range candidates {
 		c, out := inv.snap.Change(domain.ChangeID(it.id))
@@ -182,11 +181,10 @@ func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps Workspa
 		}
 		wsClear := sweepAssessWorkspaceLeg(ctx, wdeps, repo, target, completed, &a)
 		// A leftover local branch is work only when cleanup would reach the branch
-		// leg: a blocked or unresolved workspace refuses first, and a possible
-		// carried descendant keeps its branch on purpose. A branch name a live
+		// leg: a blocked or unresolved workspace refuses first. A branch name a live
 		// record now records is that change's branch, never this record's leftover.
 		_, reused := branchInUseBy(inv.snap, c.ID(), branch)
-		presence := wsClear && !reused && (completed || !sweepMaybeCarriedDescendant(shared, c, integration))
+		presence := wsClear && !reused
 		sweepAssessLocalRefLeg(shared, featureRef, presence, &a)
 		if !completed {
 			sweepAssessRemoteRefLeg(shared, featureRef, &a)
@@ -361,22 +359,6 @@ func sweepAssessLocalRefLeg(shared sweepSharedFacts, featureRef gitcli.RefName, 
 	if _, ok := shared.localHeads[featureRef]; ok {
 		a.markWork()
 	}
-}
-
-// sweepMaybeCarriedDescendant reports whether cleanup may keep the record's
-// branch as a possible carried descendant, so branch presence alone is no
-// reason to dispatch. With live PR facts from the shared batch (a non-empty
-// BaseRef), the PR merged somewhere other than the integration branch — the same
-// destination comparison cleanup makes. On any lookup miss (no batch ran, the
-// number is absent, or no BaseRef) it falls back to the record: a stacked_on
-// value marks a stack. An empty stacked_on field is not a stack.
-func sweepMaybeCarriedDescendant(shared sweepSharedFacts, c domain.Change, integration string) bool {
-	if n, ok := parsePRNumber(c.PR().Value); ok {
-		if facts, found := shared.prFacts[n]; found && facts.BaseRef != "" {
-			return facts.BaseRef != integration
-		}
-	}
-	return c.StackedOn().State == domain.FieldPresent
 }
 
 // sweepAssessRemoteRefLeg resolves the remote-ref leg from the shared complete

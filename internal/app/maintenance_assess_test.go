@@ -798,49 +798,33 @@ func TestAssessFailedLocalBranchListIsUnknown(t *testing.T) {
 	}
 }
 
-// TestAssessCarriedDescendantByPRFactsGetsNoPresenceDispatch: a record whose PR
-// merged into a branch other than the integration branch may be carried by a
-// descendant, so cleanup would keep its branch: branch presence alone dispatches
-// nothing. The control (merged into the integration branch) is actionable.
-func TestAssessCarriedDescendantByPRFactsGetsNoPresenceDispatch(t *testing.T) {
+// TestAssessCarriedChildLeftoverLocalBranchDispatches: a record whose PR merged
+// into a stack parent's branch (a carried child) is cleaned like any other done
+// change once cleanup proves its work reached the integration branch, so a
+// leftover local branch alone is actionable.
+func TestAssessCarriedChildLeftoverLocalBranchDispatches(t *testing.T) {
 	f := newAssessFixture(t, []StatusBlob{assessArchivedDoneBlob(41, "archived")}, nil)
 	n := prNumberOf(t, f, 41)
 	body := "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" + assessInterior(t, f, 41) + "\n<!-- docket:backlink:end -->\n\nprose\n"
-	run := func(baseRef string) ([]MaintenanceEntry, []sweepWorkItem) {
-		shared := withLocal(prShared(map[int]string{n: body}), featureRefFor("archived"))
-		shared.prFacts = map[int]domain.PRFacts{n: {BaseRef: baseRef}}
-		return f.assess(t, cleanWS(), shared, 41)
-	}
-	entries, actionable := run("feat/parent")
-	if len(actionable) != 0 {
-		t.Fatalf("a possible carried descendant must not dispatch on presence; actionable=%v", actionable)
-	}
-	assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
-
-	if _, actionable := run(closeoutIntegrationBranch(f.pin)); !actionableHas(actionable, 41) {
-		t.Fatalf("control: a PR merged into the integration branch must be actionable; actionable=%v", actionable)
+	shared := withLocal(prShared(map[int]string{n: body}), featureRefFor("archived"))
+	shared.prFacts = map[int]domain.PRFacts{n: {BaseRef: "feat/parent"}}
+	if _, actionable := f.assess(t, cleanWS(), shared, 41); !actionableHas(actionable, 41) {
+		t.Fatalf("a carried child's leftover local branch must dispatch a cleanup; actionable=%v", actionable)
 	}
 }
 
-// TestAssessStackedOnRecordWithoutFactsGetsNoPresenceDispatch: with no PR facts,
-// a record carrying a stacked_on value may be a carried descendant and gets no
-// presence dispatch; today's worktree trigger still dispatches it.
-func TestAssessStackedOnRecordWithoutFactsGetsNoPresenceDispatch(t *testing.T) {
+// TestAssessStackedOnRecordLeftoverBranchDispatches: a done record carrying a
+// stacked_on value with only its local branch left is actionable; the stack link
+// no longer suppresses the presence retry.
+func TestAssessStackedOnRecordLeftoverBranchDispatches(t *testing.T) {
 	corpus := []StatusBlob{
 		finalizeBlob(5, "parent", "done", "high", prRefFor(5), ""),
 		finalizeBlob(41, "archived", "done", "high", prRefFor(41), "stacked_on: 5\n"),
 	}
 	f := newAssessFixture(t, corpus, nil)
 	shared := withLocal(sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}, featureRefFor("archived"))
-	entries, actionable := f.assess(t, cleanWS(), shared, 41)
-	if len(actionable) != 0 {
-		t.Fatalf("a stacked record without facts must not dispatch on presence; actionable=%v", actionable)
-	}
-	assertEntry(t, findEntry(entries, 41), SweepDispSkipped, ReasonSweepSnapshotNoWork)
-
-	shared.worktrees = []gitcli.WorktreeInfo{{Path: "/wt", Branch: featureRefFor("archived")}}
 	if _, actionable := f.assess(t, cleanWS(), shared, 41); !actionableHas(actionable, 41) {
-		t.Fatalf("the worktree trigger must still dispatch a stacked record; actionable=%v", actionable)
+		t.Fatalf("a stacked record's leftover local branch must dispatch a cleanup; actionable=%v", actionable)
 	}
 }
 
