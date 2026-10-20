@@ -312,6 +312,12 @@ func TestRepositoryPrepareForeignRootRefusesAsForeign(t *testing.T) {
 	if code := findingCode(t, v); code != "metadata-root-foreign" {
 		t.Errorf("finding code = %q, want metadata-root-foreign", code)
 	}
+	if v.finding.Message != reposetup.MetadataRootForeignMessage {
+		t.Errorf("finding message = %q, want reposetup.MetadataRootForeignMessage", v.finding.Message)
+	}
+	if v.finding.Remedy != reposetup.MetadataRootForeignRemedy {
+		t.Errorf("finding remedy = %q, want reposetup.MetadataRootForeignRemedy", v.finding.Remedy)
+	}
 }
 
 // TestRepositoryPrepareUnknownRootRefusesAsReachability — an UNREADABLE remote

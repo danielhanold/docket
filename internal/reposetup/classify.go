@@ -81,9 +81,12 @@ func Classify(f Facts) Classification {
 	}
 
 	// 3. Partial: an interrupted init/migration that is safe to resume. The
-	// seeded-but-unpruned shape (remote docket proven parentless, integration
-	// live surface still present) resolves here only because the RootForeign
-	// case above already claimed the non-corresponding seed tree as conflict.
+	// seeded-but-unpruned shape is a remote docket branch the caller's ownership
+	// check proved parentless while the integration live surface is still present.
+	// Under the quick structural check (prepare, check, repair, configure-tests,
+	// configure-harnesses) a branch only the full content proof would reject can
+	// land here. That route is safe: its remedy, `repository migrate`, runs the
+	// full check and refuses such a branch.
 	if f.RemoteMetadata.Presence == PresencePresent && f.MetadataRoot == RootParentless &&
 		f.LiveSurface == PresencePresent {
 		return Classification{State: StatePartial, Reasons: []string{"metadata-seeded-live-surface"}}
