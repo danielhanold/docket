@@ -16,7 +16,6 @@ adrs: []
 spec:
 plan:
 results:
-trivial: false
 auto_groomable:
 hold:
 branch_prefix:
