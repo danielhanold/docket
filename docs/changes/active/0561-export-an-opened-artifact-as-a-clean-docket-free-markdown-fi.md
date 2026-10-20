@@ -13,7 +13,7 @@ related: [559, 542, 573, 532]
 discovered_from: [559]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-10-20T13:27:53Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-design.md](../../superpowers/specs/2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-design.md) |
+| Plan | [2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md](../../superpowers/plans/2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
