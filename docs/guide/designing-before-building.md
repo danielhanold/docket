@@ -8,11 +8,10 @@ an adversarial check, and have a high-tier consultant write the final design doc
 
 A **change** (one unit of planned work, roughly one pull request, tracked as one markdown file)
 that was captured as a rough stub lands in the **needs-grooming** state (a proposed change
-with neither a spec nor a trivial mark; it needs a design conversation first). Grooming is what
-moves it out of that state and into **build-ready** (a proposed change that has a spec or is
-marked trivial and whose dependencies are all `done`). The output of grooming is a **spec** (the
-design document a change links to, written before building) — or, for genuinely mechanical work,
-a `trivial` mark that skips the spec.
+with no spec; it needs a design conversation first). Grooming is what moves it out of that
+state and into **build-ready** (a proposed change that has a spec and whose dependencies are all
+`done`). The output of grooming is a **spec** (the design document a change links to, written
+before building).
 
 ## Grooming a stub with a conversation
 
@@ -36,7 +35,7 @@ auto-groom skill drains the ones you have marked auto-groomable with **no human 
 Each stub is designed by a default-biased self-brainstorm, and — this is the safety rail — every
 resulting design is gated by an **adversarial critic**: a separately-run reviewer whose only job
 is to attack the draft. A design that survives the critic exits as a build-ready spec; one the
-critic rejects (or that comes out genuinely trivial) is handled accordingly, and anything the
+critic rejects is handled accordingly, and anything the
 groomer cannot settle confidently is handed back to your interactive queue rather than forced
 through.
 Such a stub shows as **auto-groom blocked — needs you** on the board. Once you have supplied the

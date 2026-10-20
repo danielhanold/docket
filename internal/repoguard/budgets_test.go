@@ -101,7 +101,7 @@ type skillBudget struct {
 //
 // Change 0410 re-baselined the required-results workflow surfaces upward once to
 // hold the durable-results contract prose (results are now a REQUIRED close-out
-// artifact for every implemented change, trivial included; the mandatory Step 6.5
+// artifact for every implemented change; the mandatory Step 6.5
 // checkpoint lifecycle; and the build/review capture-ownership boundaries):
 // docket-build/SKILL.md (390/3907 -> 404/4054), docket-convention/SKILL.md (word
 // 7807 -> 7969), docket-implement-next/SKILL.md (180/6991 -> 201/7530),

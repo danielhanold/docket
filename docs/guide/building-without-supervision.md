@@ -65,8 +65,8 @@ any work continues.
 
 A single implement-next run walks a fixed path and then stops:
 
-1. **Pick.** It selects the next **build-ready** change (a proposed change that has a spec or is
-   marked trivial and whose dependencies are all `done`). It never touches work that is not ready.
+1. **Pick.** It selects the next **build-ready** change (a proposed change that has a spec and
+   whose dependencies are all `done`). It never touches work that is not ready.
 2. **Claim.** It takes a **claim** on that change (the moment a change is picked up for building; it
    records which branch will carry the work and when it was taken) with a conflict-checked write on the
    change's status, so two runs in parallel can never grab the same change. The claim carries a

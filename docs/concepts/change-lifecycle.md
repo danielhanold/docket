@@ -28,7 +28,7 @@ human has to memorize a flowchart to file a piece of work.
       ├──────────────► needs-grooming ────(design a spec)──┐
       │  (no spec yet)                                      │
       │                                                     ▼
-      └──(has a spec or trivial mark, deps done)───────► build-ready
+      └──(has a spec, deps done)───────────────────────► build-ready
                                                              │
                                                      (build takes a claim)
                                                              ▼
@@ -50,11 +50,10 @@ human has to memorize a flowchart to file a piece of work.
       killed    — abandoned as obsolete; final, kept in the archive
 ```
 
-- **proposed** is the raw entry. A proposed change with neither a spec nor a
-  trivial mark is **needs-grooming** — it needs a design conversation first. A
-  proposed change that has a **spec** (the design document a change links to,
-  written before building) or is marked trivial, and whose dependencies are all
-  `done`, is **build-ready**. A build-ready change on hold reads **on-hold**:
+- **proposed** is the raw entry. A proposed change with no spec is
+  **needs-grooming** — it needs a design conversation first. A proposed change
+  that has a **spec** (the design document a change links to, written before
+  building) and whose dependencies are all `done` is **build-ready**. A build-ready change on hold reads **on-hold**:
   autonomous drains skip it, and it is built only when named.
 - **in-progress** means a build has taken a **claim** — the moment a change is
   picked up for building; it records which branch will carry the work and when it

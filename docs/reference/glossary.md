@@ -384,7 +384,7 @@ docket learning update --request finding-update.json   # {path, revision, hook, 
 
 The frontmatter block at the top of a change file. Its fields (`status`, `priority`, `type`,
 `depends_on`, `stacked_on`, `related`, `discovered_from`, `adrs`, `spec`, `plan`, `results`,
-`trivial`, `auto_groomable`, `deliverable`, `branch`, `claimed_at`, `pr`, `blocked_by`, `reconciled`, …) are owned
+`auto_groomable`, `deliverable`, `branch`, `claimed_at`, `pr`, `blocked_by`, `reconciled`, …) are owned
 by the `docket-convention` skill (see [`fields.md`](fields.md)).
 
 **Used for:** the machine-readable state of a change. Edit it only through typed operations; a
@@ -415,7 +415,7 @@ it: `change halt` / `change resume-halted`, `finalize block` / `finalize clear-b
 ### Results
 
 The close-out record of what a build actually did — required for every implemented change,
-trivial included, and the whole deliverable of a `results-artifact` change.
+and the whole deliverable of a `results-artifact` change.
 
 **Used for:** telling the human what to check (`**Human action:**`, `## Outcome`, verification,
 known follow-ups). `change attach-results` writes the file in `<results_dir>` on the metadata
@@ -445,17 +445,10 @@ the merge, the `## Artifacts` block adds a `Spec (merged)` row linking that copy
 
 ### Stub
 
-A change captured without a design — `proposed`, no spec, not trivial. In lifecycle terms it is
+A change captured without a design — `proposed`, no spec. In lifecycle terms it is
 **needs-grooming**.
 
 **Used for:** capturing an idea quickly and designing it later with grooming.
-
-### Trivial
-
-A change marked `trivial: true` — small and mechanical enough to need no spec.
-
-**Used for:** skipping the design step. A trivial change with its dependencies done is
-build-ready without a spec.
 
 ---
 
@@ -613,10 +606,9 @@ finalize run they start) takes the change the rest of the way. It is a handoff t
 
 ### Readiness: build-ready / needs-grooming / not-proposed
 
-**Build-ready** is a proposed change that has a spec or is marked trivial and whose dependencies
-are all `done`. **Needs-grooming** is a proposed change with neither a spec nor a trivial mark; it
-needs a design conversation first. Anything not `proposed` reads `not-proposed`. Status reports
-five more kinds: `on-hold` (see [Hold](#hold)), `auto-groom-blocked`, `waiting-dependency`,
+**Build-ready** is a proposed change that has a spec and whose dependencies are all `done`.
+**Needs-grooming** is a proposed change with no spec; it needs a design conversation first.
+Anything not `proposed` reads `not-proposed`. Status reports five more kinds: `on-hold` (see [Hold](#hold)), `auto-groom-blocked`, `waiting-dependency`,
 `stack-base-unresolved`, and `invalid`
 (see [Readiness reason](#readiness-reason--waiting-on-n--needs-you-cells)).
 
@@ -709,12 +701,11 @@ the parent holds the dialogue with you, then dispatches the **consultant**
 
 **Used for:** turning intent into a spec during `docket-new-change` or `docket-groom-next`.
 
-### Capture modes: designed / rough stub / trivial / scan
+### Capture modes: designed / rough stub / scan
 
 The ways work enters the backlog. **Designed**: brainstorm with `docket-new-change` into a spec, so
 the change is build-ready. **Rough stub**: capture without a design; it waits at needs-grooming.
-**Trivial**: mark it `trivial` and skip design. **Scan mode**: point `docket-new-change` at the
-project to mint several stubs in one pass.
+**Scan mode**: point `docket-new-change` at the project to mint several stubs in one pass.
 
 **Used for:** matching capture effort to how finished the idea is. Scan mode is opt-in and only
 creates stubs; it never designs or builds. Work an unattended run discovers is reported in its final
@@ -728,12 +719,12 @@ self-critiquing.
 
 ### Groom
 
-Taking a stub through design to build-ready. Exits: a linked spec, a trivial verdict, a kill, a
-defer, a revise of a `proposed` change (it keeps its groom state), or (autonomous only) an abstain.
+Taking a stub through design to build-ready. Exits: a linked spec, a kill, a defer, a
+revise of a `proposed` change (it keeps its groom state), or (autonomous only) an abstain.
 
 **Used for:** the step between capturing and building. Interactive grooming is
 `docket-groom-next`; the typed write underneath is `change.groom` with an `outcome` of `spec`,
-`trivial`, `revise`, `abstain`, or `re-enable`.
+`revise`, `abstain`, or `re-enable`.
 
 ```sh
 docket schema --operation change.groom
@@ -743,10 +734,10 @@ docket change groom --request groom.json
 ### Groom outcome `revise`
 
 The `change.groom` outcome that edits any `proposed` change without changing its groom state: a
-needs-grooming stub stays needs-grooming, and a spec'd or trivial change stays build-ready. It can
+needs-grooming stub stays needs-grooming, and a spec'd change stays build-ready. It can
 replace the linked spec's body (only when the change links a spec) and edit owned sections, the
 title, the priority, the type, the deliverable, the hold, the branch prefix, and relationship fields. A
-hold moves a change between build-ready and on-hold. It never sets `spec:`, `trivial:`, or
+hold moves a change between build-ready and on-hold. It never sets `spec:` or
 `auto_groomable:`, and it never edits `## Auto-groom blocked`, which only abstain and re-enable
 write.
 
@@ -1716,8 +1707,8 @@ has recorded yet. Its dispatch fallback is `inline`: without dispatch it runs in
 ### docket-auto-groom
 
 The autonomous groomer. It drains every auto-groomable stub in one invocation. For each stub
-it drafts a spec with an `## Assumptions` block, or a trivial verdict, then has the critic attack it.
-Each stub exits as spec, trivial, or abstain.
+it drafts a spec with an `## Assumptions` block, then has the critic attack it.
+Each stub exits as spec or abstain.
 
 **Used for:** grooming overnight or from a routine. Kill and defer are never autonomous. Arm a stub
 by committing `auto_groomable: true` on it.
@@ -1782,7 +1773,7 @@ skip. See *Finalize*.
 ### docket-groom-next
 
 The interactive groomer. It selects the next needs-grooming stub (or the id you name), opens with a
-cold-start recap, and brainstorms it with you. It exits with spec, trivial, kill, defer, revise, or
+cold-start recap, and brainstorms it with you. It exits with spec, kill, defer, revise, or
 re-enable. It never takes a claim and never mints ids.
 
 **Used for:** designing stubs together with you. Naming an already-groomed id, or asking to edit a
@@ -1796,8 +1787,8 @@ stub rather than groom it, routes to `revise`. It runs inline at the session mod
 ### docket-new-change
 
 The interactive producer, and the entry point a human runs to propose work. It allocates the change
-through `change.create`, brainstorms the design with you, and grooms it to a spec in one step. The
-trivial path skips the brainstorm; scan mode mints stubs.
+through `change.create`, brainstorms the design with you, and grooms it to a spec in one step. Scan
+mode mints stubs.
 
 **Used for:** capturing an idea as a tracked change. It writes markdown only, never branches or
 code, and it stops at the spec. To adjust a spec afterwards, use `docket-groom-next <id>` rather than
@@ -2135,7 +2126,7 @@ below.
 | `cleanup_dispositions` | `cleaned` `already-clean` `pending` `retained` `children-retarget-required` `rebase-scratch-cleared` | `finalize cleanup`, `gate cleanup` |
 | `closeout_dispositions` | `done-archived` `stacked-merged` `root-archived` `already-closed-out` `contended` `blocked` `unknown` `failed` | `finalize closeout` |
 | `complete_dispositions` | `completed` `already-completed` `contended` `failed` | `change complete` |
-| `groom_outcomes` | `spec` `trivial` `revise` `abstain` `re-enable` | `change groom` (request `outcome`) |
+| `groom_outcomes` | `spec` `revise` `abstain` `re-enable` | `change groom` (request `outcome`) |
 | `halt_dispositions` | `halted` `resumed` `contended` `refused` `failed` | `change halt`, `change resume-halted` |
 | `merge_dispositions` | `merged` `already-merged` `contended` `not-mergeable` `denied` `blocked` `unknown` | `finalize merge` |
 | `publish_dispositions` | `published` `noop` `contended` `unknown` `blocked` | `finalize publish` |
@@ -2357,7 +2348,7 @@ docket development install --source ~/dev/docket
 - [Build tier / escalation](#build-tier--escalation)
 - [Cancel](#cancel)
 - [Capability catalog](#capability-catalog)
-- [Capture modes: designed / rough stub / trivial / scan](#capture-modes-designed--rough-stub--trivial--scan)
+- [Capture modes: designed / rough stub / scan](#capture-modes-designed--rough-stub--scan)
 - [Change](#change)
 - [Change types](#change-types)
 - [Claim / claim lease / reclaim](#claim--claim-lease--reclaim)
@@ -2504,7 +2495,6 @@ docket development install --source ~/dev/docket
 - [Sweep](#sweep)
 - [Sync integration](#sync-integration)
 - [Tri-state verdict / halt exit code](#tri-state-verdict--halt-exit-code)
-- [Trivial](#trivial)
 - [Two invocation paths: skill-invoke vs agent-dispatch](#two-invocation-paths-skill-invoke-vs-agent-dispatch)
 - [Uninstall](#uninstall)
 - [Verify-run](#run-verify) — see Run verify

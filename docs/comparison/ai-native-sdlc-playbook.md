@@ -50,12 +50,11 @@ fail-closed operations. In return docket has depth the playbook never mentions.
 
 | Capability | Playbook | docket | Status |
 |---|---|---|---|
-| Spec committed beside the intent | `spec.md` beside `intent.md` as the audit record. | Spec on the metadata branch; `spec:`, `## Artifacts`, and the backlink written in one commit. Build-ready = spec or trivial. | Both |
+| Spec committed beside the intent | `spec.md` beside `intent.md` as the audit record. | Spec on the metadata branch; `spec:`, `## Artifacts`, and the backlink written in one commit. Build-ready = spec. | Both |
 | Flagged concerns resolved before build | Policy concerns resolved with policy owners. | Consultant critique concerns; auto-groom critic verdicts (sound / fixable / needs-human). Design concerns, not organisational policy. | Both (different source) |
 | Organisational policy skills at spec time | Brand, security, compliance, UX skills guide the session. | docket ships no policy skills; the harness's own may fire. | Playbook only |
 | Autonomous design with an adversarial gate | Not described. | `docket-auto-groom` + isolated critic; one revision round; abstain writes `## Auto-groom blocked`; kill and defer never autonomous. | docket only |
 | Pinned-model spec author | Not described. | `docket-brainstorm` dispatches `docket-brainstorm-consultant` once; capture-then-groom pins the whole conversation. | docket only |
-| Trivial path | Not described. | `trivial: true` keeps a small change build-ready with no spec. | docket only |
 | Grooming queue and selection bands | Not described. | Deterministic next-stub selection; abstained, then human-only, then auto-groomable. Grooming takes no claim. | docket only |
 | Measurement | Intent-to-spec time; rework by spec commits after the first plan commit. | None; reconcile-log entries make rework derivable. | Playbook only |
 
@@ -130,7 +129,7 @@ fail-closed operations. In return docket has depth the playbook never mentions.
 | Stage | Playbook artifact | docket artifact |
 |---|---|---|
 | 1 | `intent.md` | Change file on `docket`: frontmatter + Why / What changes / Out of scope / Open questions; board row. |
-| 2 | `spec.md` | Spec file on `docket` with a backlink header; `spec:` and `## Artifacts` on the change; or `trivial: true`. |
+| 2 | `spec.md` | Spec file on `docket` with a backlink header; `spec:` and `## Artifacts` on the change. |
 | 3 | `plan.md` + the diff | `## Reconcile log` and `reconciled: true`; plan on the metadata branch (frozen once closed out); one verified commit per task. |
 | 4 | PR with test results | Build-evidence record in the change record; results file; review disposition table in the PR body. |
 | 5 | Merged PR / commit | Merge proven reachable; change archived as `archive/<date>-<id>-<slug>.md` with optional `## Closeout notes`; branch and worktree cleaned; board re-rendered. |
@@ -163,7 +162,7 @@ no-test-edits guard during repair; an intake path from production or scanner fin
 | Page (goal) | Stage | Content | From today's README |
 |---|---|---|---|
 | README — what docket automates, and where you stay in control | Landing | Thesis in the playbook's vocabulary; artifact chain; reconcile; install; daily loop; map | Intro, How it works, Why docket, Quickstart |
-| Capturing work that outlives the session | 1 | Change file and manifest; lifecycle and board; priorities, types, dependencies, stacking; scan mode, trivial, discovered work | Lifecycle, convention manifest, auto_capture / change_types |
+| Capturing work that outlives the session | 1 | Change file and manifest; lifecycle and board; priorities, types, dependencies, stacking; scan mode, discovered work | Lifecycle, convention manifest, auto_capture / change_types |
 | Designing before building | 2 | Interactive grooming; autonomous grooming and the critic; consultant specs | Quickstart step 2, consultant brainstorm |
 | Building without supervision | 3 | implement-next; reconcile; plan authoring; build tiers and escalation; worktrees, claims, /loop, dispositions | Why docket, docket-build, draining hands-free |
 | Proving the build | 4 | Build gate and evidence; gate driver and budgets; integration repair; configuring the suite | docket-build gate paragraphs, gate references, tests/README |
