@@ -39,7 +39,7 @@ func TestIntegrationRecordOpsMarkImplementedAcceptsSkippedEvidence(t *testing.T)
 	// Through the production engine, the committed record carries the skipped
 	// evidence it verified as its "## Build evidence" section.
 	recPath := groomPath(3, miSlug)
-	real := newWorkingRepo(t, map[string]string{recPath: miRecord(3, miSlug, miPlanPath(), miResultsPath, true, false)})
+	real := newWorkingRepo(t, map[string]string{recPath: miRecord(3, miSlug, miPlanPath(), miResultsPath, true)})
 	realHead := miAdvanceHead(t, real)
 	advanceDocketOrigin(t, real, miMetadataResults())
 	if res := miRealRunWith(t, real, recPath, realHead, prSkippedEvidenceBytes(t, realHead)); res.Result != ResultApplied {
@@ -62,7 +62,7 @@ func TestIntegrationRecordOpsMarkImplementedUnrelatedInvalidRecordProgress(t *te
 	requireRealGit(t)
 	recPath := groomPath(3, miSlug)
 	repo := newWorkingRepo(t, map[string]string{
-		recPath:             miRecord(3, miSlug, miPlanPath(), miResultsPath, true, false),
+		recPath:             miRecord(3, miSlug, miPlanPath(), miResultsPath, true),
 		unrelatedBrokenPath: unrelatedBrokenBytes,
 	})
 	head := miAdvanceHead(t, repo)
@@ -79,7 +79,7 @@ func TestIntegrationRecordOpsMarkImplementedUnrelatedInvalidRecordProgress(t *te
 func TestIntegrationRecordOpsMarkImplementedUnrelatedInvalidRecordRefusals(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, miSlug)
-	src := miRecord(3, miSlug, miPlanPath(), miResultsPath, true, false)
+	src := miRecord(3, miSlug, miPlanPath(), miResultsPath, true)
 	for _, c := range unrelatedRefusalCases(t, 3, recPath, src, lifecycleChange(3, "dupe", "in-progress")) {
 		t.Run(c.name, func(t *testing.T) {
 			repo := newWorkingRepo(t, c.files)

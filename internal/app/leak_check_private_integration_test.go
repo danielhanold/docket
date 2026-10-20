@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/layout"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -39,9 +40,10 @@ type leakWorkspace struct {
 
 // prepareLeakWorkspace runs the opening steps of driveClaimToImplemented in
 // order — context, claim, reconcile, workspace prepare, and the spec-copy commit
-// — and fails unless each applies. A change without a spec (spec false) must
-// report no-spec instead, and its prepared head stands in for the spec commit.
-func prepareLeakWorkspace(t *testing.T, repo *gitRepo, branch string, id int, recPath string, spec bool) *leakWorkspace {
+// — and fails unless each applies. With commitSpec false the spec-copy step is
+// skipped (as a results-artifact ending skips it), and the prepared head stands
+// in for the spec commit.
+func prepareLeakWorkspace(t *testing.T, repo *gitRepo, branch string, id int, recPath string, commitSpec bool) *leakWorkspace {
 	t.Helper()
 	ctx := context.Background()
 	node := planningDepsFor(t, repo.invocation)
@@ -70,11 +72,7 @@ func prepareLeakWorkspace(t *testing.T, repo *gitRepo, branch string, id int, re
 	if prep.Result != ResultApplied {
 		t.Fatalf("workspace prepare = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
 	}
-	cs := WorkspaceCommitSpec(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: id})
-	if !spec {
-		if cs.Result != ResultNoOp || cs.Disposition != SpecCopyNoSpec {
-			t.Fatalf("workspace commit-spec = (%q, %q) (reason %q msg %q), want no-op/no-spec", cs.Result, cs.Disposition, cs.Reason, cs.Message)
-		}
+	if !commitSpec {
 		return &leakWorkspace{
 			node: node, wdeps: wdeps, id: id,
 			wp: prep.Path, specCommit: runGit(t, prep.Path, "rev-parse", "HEAD"),
@@ -82,6 +80,7 @@ func prepareLeakWorkspace(t *testing.T, repo *gitRepo, branch string, id int, re
 			origin:     repo.origin, writer: repo.writer, invocation: repo.invocation,
 		}
 	}
+	cs := WorkspaceCommitSpec(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: id})
 	if cs.Result != ResultApplied || cs.Disposition != SpecCopyCommitted {
 		t.Fatalf("workspace commit-spec = (%q, %q) (reason %q msg %q), want applied/committed", cs.Result, cs.Disposition, cs.Reason, cs.Message)
 	}
@@ -107,12 +106,13 @@ func prepareLeakWorkspace(t *testing.T, repo *gitRepo, branch string, id int, re
 // a spec — and prepares its workspace against the dckt store.
 func newPrivateLeakWorkspace(t *testing.T) (*leakWorkspace, layout.Layout) {
 	t.Helper()
-	return newPrivateLeakWorkspaceFor(t, validChangeCreateRequest(), true)
+	return newPrivateLeakWorkspaceFor(t, validChangeCreateRequest())
 }
 
 // newPrivateLeakWorkspaceFor is newPrivateLeakWorkspace for the given create
-// request, groomed with a spec (spec true) or as trivial (no spec copy).
-func newPrivateLeakWorkspaceFor(t *testing.T, create ChangeCreateRequest, spec bool) (*leakWorkspace, layout.Layout) {
+// request. The change is always groomed with a spec; the spec copy is committed
+// unless the change ends in a results artifact, whose ending skips that step.
+func newPrivateLeakWorkspaceFor(t *testing.T, create ChangeCreateRequest) (*leakWorkspace, layout.Layout) {
 	t.Helper()
 	ctx := context.Background()
 	r, _ := newPrivateInitRepo(t, nil)
@@ -141,15 +141,12 @@ func newPrivateLeakWorkspaceFor(t *testing.T, create ChangeCreateRequest, spec b
 		Outcome:      GroomSpec,
 		SpecMarkdown: "# Widget: design\n\nBuild the widget.\n",
 	}
-	if !spec {
-		req.Outcome, req.SpecMarkdown = GroomTrivial, ""
-		req.Sections = []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}}
-	}
 	groom := ChangeGroom(ctx, node.deps, node.dir, req)
-	if groom.Result != ResultApplied || (spec && groom.SpecPath == "") {
-		t.Fatalf("change groom = %q (%s, findings %v), want applied (with a spec: %v)", groom.Result, groom.HumanText(), groom.Findings, spec)
+	if groom.Result != ResultApplied || groom.SpecPath == "" {
+		t.Fatalf("change groom = %q (%s, findings %v), want applied with a spec", groom.Result, groom.HumanText(), groom.Findings)
 	}
-	return prepareLeakWorkspace(t, repo, privateFixtureBranch, created.ID, created.Path, spec), lay
+	commitSpec := create.Deliverable != string(domain.DeliverableResultsArtifact)
+	return prepareLeakWorkspace(t, repo, privateFixtureBranch, created.ID, created.Path, commitSpec), lay
 }
 
 // newSharedLeakWorkspace builds the shared (docket-branch) fixture
@@ -439,14 +436,16 @@ func TestIntegrationPrivateModeLeakCheckUnverifiedPushesNothing(t *testing.T) {
 
 // TestIntegrationPrivateModeLeakCheckScansBranchName proves the
 // pushed feature branch name is scanned like any other published text: a
-// trivial change titled "Fix the dckt alias" — no spec copy, clean commits —
-// still refuses, because its slug puts dckt in the branch origin would show.
+// change titled "Fix the alias table" with branch prefix dckt-fix — clean
+// title, slug, spec copy, and commits — still refuses, because its prefix puts
+// dckt in the branch origin would show. (A bare dckt prefix cannot be used: the
+// private store's local dckt branch blocks a dckt/ ref.)
 func TestIntegrationPrivateModeLeakCheckScansBranchName(t *testing.T) {
 	create := validChangeCreateRequest()
-	create.Title, create.Type = "Fix the dckt alias", "fix"
-	lw, _ := newPrivateLeakWorkspaceFor(t, create, false)
-	if lw.featureRef != "refs/heads/fix/fix-the-dckt-alias" {
-		t.Fatalf("feature ref = %q, want refs/heads/fix/fix-the-dckt-alias", lw.featureRef)
+	create.Title, create.Type, create.BranchPrefix = "Fix the alias table", "fix", "dckt-fix"
+	lw, _ := newPrivateLeakWorkspaceFor(t, create)
+	if lw.featureRef != "refs/heads/dckt-fix/fix-the-alias-table" {
+		t.Fatalf("feature ref = %q, want refs/heads/dckt-fix/fix-the-alias-table", lw.featureRef)
 	}
 
 	head := commitInWorkspace(t, lw.wp, "Tidy the alias table", map[string]string{"aliases.txt": "tidy\n"})

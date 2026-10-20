@@ -267,8 +267,7 @@ func assertIndexMatchesCommitted(t *testing.T, origin, branch, repoDir string) {
 // killableChangeWithSpec renders a proposed change record carrying a spec pointer
 // at specPath, so a kill exercises the metadata-resident-spec backlink retarget.
 func killableChangeWithSpec(id int, slug, specPath string) string {
-	src := groomableChange(id, slug)
-	return strings.Replace(src, "spec:\n", "spec: "+specPath+"\n", 1)
+	return withLinkedSpec(groomableChange(id, slug), specPath)
 }
 
 // specWithBacklink renders a minimal spec file: a docket:backlink managed block

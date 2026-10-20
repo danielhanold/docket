@@ -973,10 +973,10 @@ func TestIntegrationFinalizeCleanupResultsArtifactRealGit(t *testing.T) {
 		slug = "research"
 	)
 	recPath := groomPath(id, slug)
-	rec := strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: true\n", 1)
+	rec := withLinkedSpec(groomableChange(id, slug), fixtureSpecPath(slug))
 	rec = strings.Replace(rec, "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
 	m := planRepoModes()[0]
-	repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec})
+	repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec, fixtureSpecPath(slug): fixtureSpecFile(id, slug)})
 	lw := prepareLeakWorkspace(t, repo, m.branch, id, recPath, false)
 
 	runGit(t, lw.wp, "push", "-q", "origin", "HEAD:"+lw.featureRef)
@@ -995,7 +995,7 @@ func TestIntegrationFinalizeCleanupResultsArtifactPrivate(t *testing.T) {
 	requireRealGit(t)
 	create := validChangeCreateRequest()
 	create.Deliverable = string(domain.DeliverableResultsArtifact)
-	lw, lay := newPrivateLeakWorkspaceFor(t, create, false)
+	lw, lay := newPrivateLeakWorkspaceFor(t, create)
 	meta := lay.DefaultBareRemote
 	recPath := runGit(t, meta, "ls-tree", "-r", "--name-only", privateFixtureBranch, "docs/changes/active/")
 	if strings.Contains(recPath, "\n") || recPath == "" {
@@ -1085,10 +1085,10 @@ func TestIntegrationFinalizeCleanupResultsArtifactNeverPrepared(t *testing.T) {
 	)
 	setup := func(t *testing.T) (*gitRepo, realNode, FinalizeDeps, *workspace.Service) {
 		recPath := groomPath(id, slug)
-		rec := strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: true\n", 1)
+		rec := withLinkedSpec(groomableChange(id, slug), fixtureSpecPath(slug))
 		rec = strings.Replace(rec, "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
 		m := planRepoModes()[0]
-		repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec})
+		repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec, fixtureSpecPath(slug): fixtureSpecFile(id, slug)})
 		node, deps, svc := completeNeverPrepared(t, repo, m.branch, id, recPath)
 		return repo, node, deps, svc
 	}
@@ -1219,10 +1219,10 @@ func TestIntegrationFinalizeCleanupLeftoverBranchFullSweep(t *testing.T) {
 	setup := func(t *testing.T) (*leakWorkspace, FinalizeDeps) {
 		t.Helper()
 		recPath := groomPath(id, slug)
-		rec := strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: true\n", 1)
+		rec := withLinkedSpec(groomableChange(id, slug), fixtureSpecPath(slug))
 		rec = strings.Replace(rec, "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
 		m := planRepoModes()[0]
-		repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec})
+		repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec, fixtureSpecPath(slug): fixtureSpecFile(id, slug)})
 		lw := prepareLeakWorkspace(t, repo, m.branch, id, recPath, false)
 		deps := completeLeakWorkspace(t, lw, repo.meta, m.branch, recPath)
 

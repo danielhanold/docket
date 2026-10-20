@@ -1706,10 +1706,10 @@ func TestIntegrationRunVerdictCompletedResultsArtifactReadsDone(t *testing.T) {
 		slug = "research"
 	)
 	recPath := groomPath(id, slug)
-	rec := strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: true\n", 1)
+	rec := withLinkedSpec(groomableChange(id, slug), fixtureSpecPath(slug))
 	rec = strings.Replace(rec, "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
 	m := planRepoModes()[0]
-	repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec})
+	repo := buildConfiguredRepoWith(t, m, map[string]string{recPath: rec, fixtureSpecPath(slug): fixtureSpecFile(id, slug)})
 	lw := prepareLeakWorkspace(t, repo, m.branch, id, recPath, false)
 	completeLeakWorkspace(t, lw, repo.meta, m.branch, recPath)
 

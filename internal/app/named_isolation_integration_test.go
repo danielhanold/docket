@@ -185,6 +185,7 @@ func TestIntegrationNamedImplementationFlowIsolation(t *testing.T) {
 	resultsPath := "docs/results/2026-08-17-widget-results.md"
 	records := namedIsolationUnrelatedStack(t)
 	records[recPath] = buildReadyChange(id, slug)
+	records[fixtureSpecPath(slug)] = fixtureSpecFile(id, slug)
 	records[unrelatedBrokenPath] = unrelatedBrokenBytes
 	repo := newDocketModeRepo(t,
 		map[string]string{".docket.yml": "integration_branch: main\nbuild:\n  test_command: 'go test ./...'\nfinalize:\n  test_command: 'go test ./...'\n"},
@@ -309,6 +310,7 @@ func TestIntegrationNamedClaimRefusesDefectiveDependency(t *testing.T) {
 	}
 	records := namedIsolationUnrelatedStack(t)
 	records[recPath] = b
+	records[fixtureSpecPath("widget")] = fixtureSpecFile(id, "widget")
 	records[depPath] = dep
 	records[unrelatedBrokenPath] = unrelatedBrokenBytes
 	repo := newWorkingRepo(t, records)

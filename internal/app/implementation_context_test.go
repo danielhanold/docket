@@ -573,7 +573,7 @@ func TestContextImplementationBranchFactsFailure(t *testing.T) {
 // change is selected.
 func TestImplementationContextAutoSelectionSurvivesMalformedStackBranch(t *testing.T) {
 	pin := docketPin(t)
-	inner := &fakeReader{pin: pin, corpus: malformedStackCorpus(t), facts: domain.NewBranchFacts(map[string]bool{"feat/ok": true})}
+	inner := &fakeReader{pin: pin, corpus: malformedStackCorpus(t), facts: domain.NewBranchFacts(map[string]bool{"feat/ok": true}), artifactData: stackFixtureSpecArtifacts()}
 	reader := poisoned(inner, "feat/a..parent", "feat/a:b", "feat/a:c")
 	got := ContextImplementation(context.Background(), PlanningDeps{Reader: reader, Clock: testClock()}, "", ImplementationContextRequest{})
 	if got.Result == ResultExternalFailed {
