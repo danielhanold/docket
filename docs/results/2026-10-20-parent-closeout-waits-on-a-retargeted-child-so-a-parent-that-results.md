@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0571 — Close out a landed stack parent without waiting on children that never merged into it](../changes/active/0571-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md)**
+> ↩ **[Change 0571 — Close out a landed stack parent without waiting on children that never merged into it](../changes/archive/2026-10-20-0571-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md)**
 <!-- docket:backlink:end -->
 
 # Results — Close out a landed stack parent without waiting on children that never merged into it

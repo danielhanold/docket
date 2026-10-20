@@ -1,13 +1,12 @@
 # Backlog
 
-**573 changes** — 🔵 2 built · 🟡 5 proposed · ⚪ 16 deferred · ✅ 406 done · 🗑️ 144 killed
+**573 changes** — 🔵 1 built · 🟡 5 proposed · ⚪ 16 deferred · ✅ 407 done · 🗑️ 144 killed
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0573](active/0573-retire-trivial-every-build-ready-change-has-a-spec.md) | Retire trivial: every build-ready change has a spec | `high` | `refactor` | [#436](https://github.com/danielhanold/docket/pull/436) | awaiting merge |
-| [0571](active/0571-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md) | Close out a landed stack parent without waiting on children that never merged into it | `medium` | `fix` | [#437](https://github.com/danielhanold/docket/pull/437) | awaiting merge |
 
 ## 🟡 Proposed (5)
 
@@ -62,7 +61,6 @@ graph TD
   0561
   0566
   0569
-  0571
   0572
   0573
   0192:::done
@@ -72,10 +70,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (550)</summary>
+<details><summary>✅🗑️ Archive — done + killed (551)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0571](archive/2026-10-20-0571-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md) | Close out a landed stack parent without waiting on children that never merged into it | 2026-10-20 |
 | [0570](archive/2026-10-19-0570-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md) | Let a loop carry on past a halt that concerns only one change | 2026-10-19 |
 | [0567](archive/2026-10-19-0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Clean up stacked children when their stack lands, and finalize a child after its parent | 2026-10-19 |
 | [0560](archive/2026-10-19-0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Put a groomed change on hold so loops skip it | 2026-10-19 |
@@ -92,7 +91,6 @@ graph TD
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0528](archive/2026-10-17-0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | 2026-10-17 |
 | [0555](archive/2026-10-16-0555-give-claude-its-own-claude-md-block-when-agents-md-stops-bei.md) | Keep Claude's dispatch block in AGENTS.md while CLAUDE.md links to it | 2026-10-16 |
-| [0554](archive/2026-10-16-0554-update-cursor-review-tier-defaults-to-grok-4-7.md) | Refresh the shipped Claude and Cursor model defaults; drop the interactive-skill model advice | 2026-10-16 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
 | [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
 | [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
@@ -240,7 +238,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 63 done |
+| [2026-10](archive/) | 64 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
