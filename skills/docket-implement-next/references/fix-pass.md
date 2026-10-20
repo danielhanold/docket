@@ -43,7 +43,7 @@ character routing at or above `standard` is untouched, and the never-`max` ceili
 
 The rubric therefore doubles as the size ceiling; there is no separate knob for "too big to fix
 in-branch". A **max-character blocker halts** — abort-and-report, the change stays `in-progress`
-with `claimed_at` refreshed and the reason recorded. A **max-character important or minor** — rare
+with the reason recorded. A **max-character important or minor** — rare
 by construction, since unresolved architecture flagged as minor essentially does not occur —
 becomes a line in the PR body for the human's merge-time judgment, **not** a follow-up change.
 
@@ -89,8 +89,8 @@ private-repository writing rule.
 
 A fix worker that returns without a schema-valid outcome may still be **running**: never discard
 the worktree and dispatch a fresh worker for that finding, however dead the first one looks. Halt
-instead — abort-and-report, the change staying `in-progress` with `claimed_at` refreshed and the
-reason recorded, the worktree left exactly as it stands. The trigger is the malformed return you
+instead — abort-and-report, the change staying `in-progress` with the reason
+recorded, the worktree left exactly as it stands. The trigger is the malformed return you
 observed, never elapsed time; a blocked foreground controller has no clock.
 
 **If tier dispatch is unavailable** — established only per the convention's
@@ -139,7 +139,7 @@ docket-build's gate uses, and refresh the build-evidence record from the result.
    fixes stay: the run cannot proceed without them. They are the branch's tail by the dispatch
    order above, so the revert applies cleanly. **Should one conflict anyway** → **halt**: restore
    the worktree to its pre-revert state first, then abort-and-report, the change staying
-   `in-progress` with `claimed_at` refreshed and the reason recorded. A half-applied revert in a
+   `in-progress` with the reason recorded. A half-applied revert in a
    shared worktree is the one outcome worse than the red branch — the human must arrive at a
    coherent branch to inspect.
 2. **Re-run the suite once**, refreshing the build-evidence record from this run — the record must

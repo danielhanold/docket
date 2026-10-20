@@ -85,7 +85,7 @@ refreshes the copy; otherwise it is a no-op.
 **The results seam.** The results artifact is required for every change, so a resume
 must not lose it. On resume, **load the attached results from the metadata worktree
 (`metadata_worktree_path` in the `repository.prepare` context) at
-`<metadata_worktree_path>/<results path>`, after a re-sync, before starting new work**, and
+`<metadata_worktree_path>/<results path>` before starting new work**, and
 reuse the `results:` path whenever it is set — a changed authoring date **never mints a second file**; the canonical path is chosen once and reused.
 **Never overwrite newer remote work** — a resume that finds the remote ahead re-reads authority
 rather than force-writing its local view.

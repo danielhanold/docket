@@ -500,6 +500,37 @@ var proseContracts = []proseContract{
 		}},
 	{sentinel: "change_0560_hold", file: "skills/docket-status/SKILL.md",
 		present: []string{"a held change that would be build-ready shows **on hold**"}},
+	// change 0360 — the run looks its own record revision up locally before each
+	// post-claim write, re-syncs only where a docket write it did not make could
+	// have moved the record, and no longer refreshes the claim lease around long
+	// dispatches (claimed_at is stamped by claim, reconcile, and resume-halted).
+	{sentinel: "change_0360_revision_lookup", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{
+			"R=$(git -C <metadata_worktree_path> rev-parse HEAD:<record path>)",
+			"is the commit id, never a `--revision` value",
+			"re-sync once (the `repository.prepare` operation), look the revision up again, and retry the write once",
+			"Typed reads fetch on their own",
+			"reads `claim_eligible: false`",
+		},
+		absent: []string{
+			"change.refresh-claim",
+			"returns the new record revision",
+			"local tip == remote tip",
+			"re-sync the metadata worktree immediately before reading it",
+			"the claim refresh, plan attach, and every earlier checkpoint move the record",
+			"the `claimed_at` re-stamp",
+			"`claimed_at` refreshed",
+			"re-stamps `claimed_at: <UTC ISO-8601 now>` on every mutation",
+		}},
+	{sentinel: "change_0360_revision_lookup", file: "skills/docket-implement-next/references/results-artifact.md",
+		present: []string{"rev-parse HEAD:<record path>"},
+		absent:  []string{"change.refresh-claim"}},
+	{sentinel: "change_0360_revision_lookup", file: "skills/docket-implement-next/references/fix-pass.md",
+		present: []string{"the reason recorded"},
+		absent:  []string{"`claimed_at` refreshed"}},
+	{sentinel: "change_0360_revision_lookup", file: "skills/docket-convention/SKILL.md",
+		present: []string{"stamped by claim, reconcile, and resume-halted"},
+		absent:  []string{"refreshed at phase boundaries"}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation
