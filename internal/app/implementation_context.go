@@ -279,7 +279,7 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 		return newContextResult(result, reason, err.Error(), nil)
 	}
 
-	selected, refusal := selectContextChange(snap, facts, req)
+	selected, claimRefusal, refusal := selectContextChange(snap, facts, req)
 	if refusal != nil {
 		return *refusal
 	}
@@ -321,7 +321,8 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 		Spec:          specEntity,
 		Related:       relatedSummaries(snap, selected),
 		Readiness:     string(domain.EvaluateReadiness(snap, selected, facts).Kind),
-		ClaimEligible: true,
+		ClaimEligible: claimRefusal == "",
+		ClaimRefusal:  claimRefusal,
 		Halt: ContextHalt{
 			RunHalted:       selected.HasRunHalted(),
 			FinalizeBlocked: selected.HasFinalizeBlocked(),
@@ -333,10 +334,7 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 			BuildGate:         eff.Build.Gate.Value,
 			BuildTestCommand:  eff.Build.TestCommand.Value,
 			Remote:            string(originRemote),
-			// The context is produced BEFORE the claim, so no branch is recorded yet;
-			// this is the branch the imminent claim will mint and record, through the
-			// one branch constructor (never a bare slug-derived name).
-			FeatureBranch: domain.MintBranch(selected.Type(), selected.BranchPrefix(), selected.Slug()),
+			FeatureBranch:     contextFeatureBranch(selected),
 		},
 	}
 	bundle.Learnings, bundle.Warnings = learningEntries(snap)
@@ -344,21 +342,39 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 	return newContextResult(ResultApplied, "", "", bundle)
 }
 
+// contextFeatureBranch names the change's feature branch. Before the claim no
+// branch is recorded yet, so a proposed change previews the branch the imminent
+// claim will mint and record, through the one branch constructor (never a bare
+// slug-derived name). The run's own in-progress change (served by explicit id
+// after its claim, change 0360) reports the branch the claim recorded; a
+// malformed in-progress record with no recorded branch falls back to the mint
+// rather than an empty name.
+func contextFeatureBranch(c domain.Change) string {
+	if c.Status() == domain.StatusInProgress {
+		if b := c.Branch(); b.State == domain.FieldPresent && b.Value != "" {
+			return b.Value
+		}
+	}
+	return domain.MintBranch(c.Type(), c.BranchPrefix(), c.Slug())
+}
+
 // selectContextChange resolves the change the bundle describes: the first
 // build-ready candidate under the selection policy, or the exact requested id.
 // A hold is a selection-only exclusion: no-id selection never returns a held
 // change, while an explicit id accepts one (ClaimEligibility admits on-hold).
-// It returns a non-nil result pointer for every typed non-bundle outcome, and a
-// claim-eligible change with a nil pointer on success.
-func selectContextChange(snap domain.Snapshot, facts domain.BranchFacts, req ImplementationContextRequest) (domain.Change, *ImplementationContextResult) {
+// It returns a non-nil result pointer for every typed non-bundle outcome. On
+// success the pointer is nil and the middle return is the claim-refusal reason:
+// "" for a claim-eligible change, or the ClaimEligibility reason for the run's
+// own in-progress change, which an explicit id serves read-only.
+func selectContextChange(snap domain.Snapshot, facts domain.BranchFacts, req ImplementationContextRequest) (domain.Change, string, *ImplementationContextResult) {
 	if req.ID <= 0 {
 		queue := domain.SelectQueue(snap, facts, domain.SelectionFilter{})
 		if len(queue) == 0 {
 			r := newContextResult(ResultNoOp, ReasonContextNoCandidate,
 				"no build-ready change is available to implement", nil)
-			return domain.Change{}, &r
+			return domain.Change{}, "", &r
 		}
-		return queue[0], nil
+		return queue[0], "", nil
 	}
 
 	c, out := snap.Change(domain.ChangeID(req.ID))
@@ -366,20 +382,27 @@ func selectContextChange(snap domain.Snapshot, facts domain.BranchFacts, req Imp
 	case domain.LookupAbsent:
 		r := newContextResult(ResultInvalidInput, ReasonContextUnknownChange,
 			fmt.Sprintf("no change %04d is present in the corpus", req.ID), nil)
-		return domain.Change{}, &r
+		return domain.Change{}, "", &r
 	case domain.LookupAmbiguous:
 		r := newContextResult(ResultInvalidState, ReasonContextAmbiguousID,
 			fmt.Sprintf("more than one record claims change id %04d; refusing to choose", req.ID), nil)
-		return domain.Change{}, &r
+		return domain.Change{}, "", &r
 	}
 
-	// The explicit change must be claimable exactly as a claim requires.
+	// The explicit change must be claimable exactly as a claim requires, with
+	// one exception: the run's own in-progress change (a resume, or a re-read
+	// after the claim) is served read-only, reporting claim_eligible: false with
+	// its ClaimEligibility reason, so the run can read its current record
+	// revision and recorded branch (change 0360). Every other status refuses.
 	// ClaimEligibility keys on readiness and admits a held (on-hold)
 	// change, since naming it overrides the hold; any other non-ready change
 	// carries its exact reason token: an unusable identity is malformed, and
 	// every other non-ready outcome maps to not-ready-<kind> (including
 	// stack-base-unresolved for an unresolved effective base).
 	if fail := domain.ClaimEligibility(snap, c, facts); fail != nil {
+		if c.Status() == domain.StatusInProgress {
+			return c, fail.Reason, nil
+		}
 		reason := fail.Reason
 		if reason == "not-ready-"+string(domain.ReadyInvalid) {
 			reason = ReasonContextMalformed
@@ -389,9 +412,9 @@ func selectContextChange(snap domain.Snapshot, facts domain.BranchFacts, req Imp
 			result = ResultInvalidInput
 		}
 		r := newContextResult(result, reason, fail.Error(), nil)
-		return domain.Change{}, &r
+		return domain.Change{}, "", &r
 	}
-	return c, nil
+	return c, "", nil
 }
 
 // contextBase renders a resolved effective base as the bundle's tagged view.

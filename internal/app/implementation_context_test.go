@@ -312,6 +312,14 @@ func TestContextImplementationTypedAbsence(t *testing.T) {
 			wantResult: ResultInvalidState,
 			wantReason: "not-ready-" + string(domain.ReadyStackBaseUnresolved),
 		},
+		{
+			name:       "in-progress is never auto-selected",
+			corpus:     []StatusBlob{inProgressContextBlob("branch: 'hotfix/alpha'\n", "")},
+			artifacts:  map[string]StatusArtifact{sourceMetadata + "|" + specA: {Found: true, Data: []byte("x")}},
+			req:        ImplementationContextRequest{},
+			wantResult: ResultNoOp,
+			wantReason: ReasonContextNoCandidate,
+		},
 	}
 
 	for _, tc := range cases {
@@ -675,5 +683,119 @@ func TestContextImplementationExplicitIDBuildsHeldChange(t *testing.T) {
 	}
 	if got.Context.Readiness != string(domain.ReadyOnHold) || !got.Context.ClaimEligible {
 		t.Errorf("readiness=%q claim_eligible=%v, want on-hold/true", got.Context.Readiness, got.Context.ClaimEligible)
+	}
+}
+
+// inProgressContextBlob builds the run's own claimed (in-progress) change 0011
+// "alpha" with a spec at docs/changes/specs/spec-a.md. branchLine carries the
+// recorded branch: line (or "" for a malformed record without one); tail is
+// appended after the body (e.g. a "## Run halted" section).
+func inProgressContextBlob(branchLine, tail string) StatusBlob {
+	src := "---\nid: 11\nslug: alpha\ntitle: Alpha\nstatus: 'in-progress'\npriority: high\ntype: feat\ncreated: 2026-01-02\nspec: docs/changes/specs/spec-a.md\n" +
+		branchLine + "claimed_at: '2026-01-03T00:00:00Z'\nreconciled: true\n---\n\nBody.\n" + tail
+	return StatusBlob{
+		Kind: repository.KindChange, Location: repository.LocationActive,
+		Path: "docs/changes/active/0011-alpha.md", Revision: "v11", Data: []byte(src),
+	}
+}
+
+// TestContextImplementationServesInProgressChange: an explicit id naming the
+// run's own in-progress change (a resume, or a post-claim re-read) is served
+// read-only — an applied bundle that reports claim_eligible: false with the
+// not-proposed refusal, the current record revision, and the RECORDED feature
+// branch rather than a fresh mint (change 0360).
+func TestContextImplementationServesInProgressChange(t *testing.T) {
+	specA := "docs/changes/specs/spec-a.md"
+	artifacts := map[string]StatusArtifact{sourceMetadata + "|" + specA: {Found: true, Revision: "sa", Data: []byte("spec a\n")}}
+	run := func(t *testing.T, blob StatusBlob) ImplementationContextResult {
+		t.Helper()
+		fake := &fakeReader{pin: docketPin(t), corpus: []StatusBlob{blob}, artifactData: artifacts}
+		got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{ID: 11})
+		if got.Result != ResultApplied || got.Context == nil {
+			t.Fatalf("result=%q reason=%q message=%q", got.Result, got.Reason, got.Message)
+		}
+		return got
+	}
+
+	got := run(t, inProgressContextBlob("branch: 'hotfix/alpha'\n", ""))
+	c := got.Context
+	if c.ClaimEligible {
+		t.Error("ClaimEligible = true, want false for an already-claimed change")
+	}
+	if want := "not-ready-" + string(domain.ReadyNotProposed); c.ClaimRefusal != want {
+		t.Errorf("ClaimRefusal = %q, want %q", c.ClaimRefusal, want)
+	}
+	if c.Readiness != string(domain.ReadyNotProposed) {
+		t.Errorf("Readiness = %q, want %q", c.Readiness, domain.ReadyNotProposed)
+	}
+	if c.Change.Revision != "v11" {
+		t.Errorf("Change.Revision = %q, want v11", c.Change.Revision)
+	}
+	if c.Change.Summary == nil || c.Change.Summary.Status != "in-progress" {
+		t.Errorf("Change.Summary = %+v, want status in-progress", c.Change.Summary)
+	}
+	if c.Workflow.FeatureBranch != "hotfix/alpha" {
+		t.Errorf("FeatureBranch = %q, want the recorded hotfix/alpha (not the mint feat/alpha)", c.Workflow.FeatureBranch)
+	}
+	if c.Halt.RunHalted {
+		t.Error("Halt.RunHalted = true on a record with no run-halted section")
+	}
+
+	t.Run("run halted marker is readable", func(t *testing.T) {
+		got := run(t, inProgressContextBlob("branch: 'hotfix/alpha'\n", "\n## Run halted\n\n### 2026-08-14\n\nPaused.\n"))
+		if !got.Context.Halt.RunHalted {
+			t.Errorf("Halt.RunHalted = false, want true: %+v", got.Context.Halt)
+		}
+	})
+	t.Run("no recorded branch falls back to mint", func(t *testing.T) {
+		got := run(t, inProgressContextBlob("", ""))
+		if got.Context.Workflow.FeatureBranch != "feat/alpha" {
+			t.Errorf("FeatureBranch = %q, want the minted feat/alpha", got.Context.Workflow.FeatureBranch)
+		}
+	})
+}
+
+// TestContextImplementationRefusesOtherNonProposedStatuses: serving an explicit
+// id read-only is confined to in-progress; every other non-proposed status
+// refuses exactly as before — no bundle, not-ready-not-proposed.
+func TestContextImplementationRefusesOtherNonProposedStatuses(t *testing.T) {
+	specA := "docs/changes/specs/spec-a.md"
+	artifacts := map[string]StatusArtifact{sourceMetadata + "|" + specA: {Found: true, Data: []byte("x")}}
+	record := func(id int, slug, status, extra string, loc repository.RecordLocation, path string) StatusBlob {
+		src := fmt.Sprintf("---\nid: %d\nslug: %s\ntitle: Change %d\nstatus: '%s'\npriority: high\ntype: feat\ncreated: 2026-01-02\nspec: %s\n%s---\n\nBody.\n",
+			id, slug, id, status, specA, extra)
+		return StatusBlob{Kind: repository.KindChange, Location: loc, Path: path, Revision: fmt.Sprintf("v%d", id), Data: []byte(src)}
+	}
+	active := func(id int, slug string) string { return fmt.Sprintf("docs/changes/active/%04d-%s.md", id, slug) }
+	archived := func(id int, slug string) string {
+		return fmt.Sprintf("docs/changes/archive/2026-01-05-%04d-%s.md", id, slug)
+	}
+	cases := []struct {
+		name string
+		id   int
+		blob StatusBlob
+	}{
+		{"blocked", 31, record(31, "blk", "blocked", "blocked_by: 'x'\n", repository.LocationActive, active(31, "blk"))},
+		{"deferred", 32, record(32, "dfr", "deferred", "", repository.LocationActive, active(32, "dfr"))},
+		{"implemented", 33, record(33, "imp", "implemented",
+			"branch: 'feat/imp'\nclaimed_at: '2026-01-03T00:00:00Z'\nreconciled: true\nplan: docs/superpowers/plans/p.md\npr: 'https://example.com/pull/1'\n",
+			repository.LocationActive, active(33, "imp"))},
+		{"done", 34, record(34, "dn", "done", "", repository.LocationArchive, archived(34, "dn"))},
+		{"killed", 35, record(35, "kld", "killed", "", repository.LocationArchive, archived(35, "kld"))},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := &fakeReader{pin: docketPin(t), corpus: []StatusBlob{tc.blob}, artifactData: artifacts}
+			got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{ID: tc.id})
+			if got.Result != ResultInvalidState {
+				t.Errorf("result = %q, want %q (reason %q)", got.Result, ResultInvalidState, got.Reason)
+			}
+			if got.Reason != "not-ready-not-proposed" {
+				t.Errorf("reason = %q, want not-ready-not-proposed", got.Reason)
+			}
+			if got.Context != nil {
+				t.Errorf("refusal fabricated a bundle: %+v", got.Context)
+			}
+		})
 	}
 }

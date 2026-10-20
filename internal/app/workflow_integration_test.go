@@ -1264,6 +1264,74 @@ func TestIntegrationWorkflowRepoReconcileIndependentWriterWins(t *testing.T) {
 	}
 }
 
+// TestIntegrationWorkflowRepoContextServesClaimedChange: after a real claim, a
+// fresh clone's context.implementation --id read of the now in-progress change
+// is served (change 0360) rather than refused: claim_eligible is false with the
+// not-proposed refusal, the bundle revision is exactly the record blob on origin
+// (what `git rev-parse HEAD:<record path>` prints), and the feature branch is
+// the branch: value the claim recorded.
+func TestIntegrationWorkflowRepoContextServesClaimedChange(t *testing.T) {
+	requireRealGit(t)
+	const (
+		id   = 3
+		slug = "widget"
+	)
+	recPath := groomPath(id, slug)
+	for _, m := range planRepoModes() {
+		m := m
+		t.Run(m.name, func(t *testing.T) {
+			repo := m.build(t, map[string]string{
+				recPath:               buildReadyChange(id, slug),
+				fixtureSpecPath(slug): fixtureSpecFile(id, slug),
+			})
+			ctx := context.Background()
+
+			claimNode := planningDepsFor(t, cloneOrigin(t, repo.origin))
+			pre := ContextImplementation(ctx, claimNode.deps, claimNode.dir, ImplementationContextRequest{ID: id})
+			if pre.Result != ResultApplied || pre.Context == nil || !pre.Context.ClaimEligible {
+				t.Fatalf("pre-claim context read = %q (reason %q)", pre.Result, pre.Reason)
+			}
+			claim := ChangeClaim(ctx, claimNode.deps, claimNode.dir, ChangeClaimRequest{ID: id, Revision: pre.Context.Change.Revision})
+			if claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
+				t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
+			}
+
+			readNode := planningDepsFor(t, cloneOrigin(t, repo.origin))
+			got := ContextImplementation(ctx, readNode.deps, readNode.dir, ImplementationContextRequest{ID: id})
+			if got.Result != ResultApplied || got.Context == nil {
+				t.Fatalf("post-claim context read = %q (reason %q, message %q), want applied", got.Result, got.Reason, got.Message)
+			}
+			c := got.Context
+			if c.ClaimEligible {
+				t.Error("post-claim ClaimEligible = true, want false")
+			}
+			if c.ClaimRefusal != "not-ready-not-proposed" {
+				t.Errorf("ClaimRefusal = %q, want not-ready-not-proposed", c.ClaimRefusal)
+			}
+			if want := blobRevisionAt(t, repo.origin, m.branch, recPath); c.Change.Revision != want {
+				t.Errorf("Change.Revision = %q, want the origin record blob %q", c.Change.Revision, want)
+			}
+			rec, ok := originFile(t, repo.origin, m.branch, recPath)
+			if !ok {
+				t.Fatalf("record %s missing from origin after claim", recPath)
+			}
+			recorded := ""
+			for _, line := range strings.Split(rec, "\n") {
+				if v, found := strings.CutPrefix(line, "branch: "); found {
+					recorded = strings.Trim(v, "'\"")
+					break
+				}
+			}
+			if recorded == "" {
+				t.Fatalf("claimed record carries no branch: line:\n%s", rec)
+			}
+			if c.Workflow.FeatureBranch != recorded {
+				t.Errorf("FeatureBranch = %q, want the recorded branch %q", c.Workflow.FeatureBranch, recorded)
+			}
+		})
+	}
+}
+
 // TestRefreshClaimAppliesWhenBoardReRenderIsUnchanged: a refresh re-stamps a
 // claimed record's claimed_at and updated fields (a real change to the record)
 // and re-renders the inline board. The board's in-progress row shows only
