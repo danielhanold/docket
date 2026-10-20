@@ -17,7 +17,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
@@ -1246,13 +1245,11 @@ func TestE2EStackParentLandedFirst(t *testing.T) {
 		t.Fatalf("retarget-children disposition = %q, want retargeted\n%s", rt.str("disposition"), rt.stdout)
 	}
 
-	// The parent lands first and is cleaned up. Its own closeout cannot run here:
-	// a root closeout requires every stacked descendant to be stacked-merged into
-	// it, so a retargeted, still-open child refuses it (children-retarget-required).
-	// The fixture writes the done record that closeout would have written, so the
-	// rest of the story — the child's own finalize — runs entirely through argv.
+	// The parent lands first and closes out through the real closeout. Its
+	// retargeted, still-open child was never merged into the parent's branch, so
+	// it is not carried and does not block the parent's closeout.
 	stackMergeFromWorktree(t, s, parentID, parentSlug, parent.wp, parent.evidence)
-	archiveAsDoneOnOrigin(t, s, parentID, parentSlug)
+	stackCloseout(t, s, parentID, "done-archived")
 	if cl := s.dk(t, "", "finalize", "cleanup", "--id", strconv.Itoa(parentID)); cl.str("disposition") != "cleaned" {
 		t.Fatalf("parent cleanup disposition = %q, want cleaned\n%s", cl.str("disposition"), cl.stdout)
 	}
@@ -1267,56 +1264,6 @@ func TestE2EStackParentLandedFirst(t *testing.T) {
 	}
 	assertStackMemberCleaned(t, s, "parent", parent.wp, parentBranch)
 	assertStackMemberCleaned(t, s, "child", child.wp, childBranch)
-}
-
-// archiveAsDoneOnOrigin writes, through the writer clone, the metadata state a
-// done-archived closeout leaves for one change: its active record moved to the
-// dated archive path with status done and no claim stamp, exactly the two field
-// edits closeout's mark-done makes in the record's first frontmatter block.
-func archiveAsDoneOnOrigin(t *testing.T, s *e2eState, id int, slug string) {
-	t.Helper()
-	w, branch := s.repo.writer, s.mode.branch
-	active := groomPath(id, slug)
-	archive := fmt.Sprintf("docs/changes/archive/%s-%s-%s.md", time.Now().UTC().Format("2006-01-02"), padID(id), slug)
-	runGit(t, w, "fetch", "-q", "origin", branch)
-	runGit(t, w, "checkout", "-q", "-B", branch, "FETCH_HEAD")
-	body, err := os.ReadFile(filepath.Join(w, active))
-	if err != nil {
-		t.Fatalf("read %s: %v", active, err)
-	}
-	text := string(body)
-	if !strings.HasPrefix(text, "---\n") {
-		t.Fatalf("%s has no leading frontmatter block", active)
-	}
-	end := strings.Index(text[len("---\n"):], "\n---\n")
-	if end < 0 {
-		t.Fatalf("%s has an unterminated frontmatter block", active)
-	}
-	front := text[:len("---\n")+end+1]
-	var status string
-	for _, quoted := range []string{"\nstatus: implemented\n", "\nstatus: 'implemented'\n"} {
-		if strings.Count(front, quoted) == 1 {
-			status = quoted
-		}
-	}
-	if status == "" {
-		t.Fatalf("%s frontmatter carries no single implemented status:\n%s", active, front)
-	}
-	front = strings.Replace(front, status, "\nstatus: done\n", 1)
-	// A done record holds no claim lease: closeout's mark-done clears claimed_at.
-	lines := strings.SplitAfter(front, "\n")
-	kept := lines[:0]
-	for _, l := range lines {
-		if !strings.HasPrefix(l, "claimed_at:") {
-			kept = append(kept, l)
-		}
-	}
-	text = strings.Join(kept, "") + text[len("---\n")+end+1:]
-	runGit(t, w, "rm", "-q", active)
-	writeRepoFile(t, w, archive, text)
-	runGit(t, w, "add", "-A")
-	runGit(t, w, "commit", "-q", "-m", fmt.Sprintf("archive %04d as done", id))
-	runGit(t, w, "push", "-q", "origin", branch)
 }
 
 // stackedBuildReadyChange is a build-ready change stacked on parent.
