@@ -349,7 +349,7 @@ func TestRepresentativeSignatures(t *testing.T) {
 		"workspace.prepare":  "--id <id> --revision <revision> [--repo-dir <dir>]",
 		"workspace.checkout": "--id <id> [--head <ref>] [--repo-dir <dir>] [--revision <revision>]",
 		// positional target and optional id lead, the optional flags trail sorted.
-		"open": "<what> [<id>] [--print] [--repo-dir <dir>]",
+		"open": "<what> [<id>] [--export] [--output-path <path>] [--print] [--repo-dir <dir>] [--warnings <which>=all]",
 	}
 	for id, wantSig := range want {
 		e, ok := entryByID(entries, id)

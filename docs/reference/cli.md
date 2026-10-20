@@ -46,7 +46,9 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
   expired claims in one pass (`docket status` stays read-only). Verbs: `docket maintenance --help`.
 - **`docket open`** — open the board, or a change's record, spec, plan, results, or pull request,
   as a GitHub page or from the local metadata checkout. Without an id it opens the change whose
-  branch is checked out. Details: `docket open --help`.
+  branch is checked out. With `--export` it writes a clean Markdown copy of a change, spec, plan,
+  or results file, free of docket's links and generated blocks, and opens that copy. Details:
+  `docket open --help`.
 - **`docket pr`** — publish the ready-for-review pull request for an in-progress change's tested
   head. Verbs: `docket pr --help`.
 - **`docket repository`** — initialize, migrate, check, and repair the docket repository
