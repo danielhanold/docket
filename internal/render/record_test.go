@@ -63,6 +63,32 @@ func TestChangeRecordMatchesGolden(t *testing.T) {
 	}
 }
 
+// TestChangeRecordHasNoTrivialKey proves a new change record writes no
+// trivial: frontmatter line.
+func TestChangeRecordHasNoTrivialKey(t *testing.T) {
+	got, err := render.ChangeRecord(render.NewChangeRecord{
+		ID: 312, Slug: "add-planning-mutations", Title: "Add planning mutations: board and ADRs",
+		Type: "feat", Priority: "medium", Created: goldenDate,
+		Why: "w", WhatChanges: "wc", OutOfScope: "oos",
+	})
+	if err != nil {
+		t.Fatalf("ChangeRecord: %v", err)
+	}
+	lines := strings.Split(string(got), "\n")
+	if len(lines) == 0 || lines[0] != "---" {
+		t.Fatalf("record does not open with frontmatter:\n%s", got)
+	}
+	for _, line := range lines[1:] {
+		if line == "---" {
+			return
+		}
+		if strings.HasPrefix(line, "trivial:") {
+			t.Fatalf("new change record carries %q", line)
+		}
+	}
+	t.Fatalf("frontmatter never closed:\n%s", got)
+}
+
 // TestLearningRecordMatchesGolden pins the canonical learning shape.
 func TestLearningRecordMatchesGolden(t *testing.T) {
 	got, err := render.LearningRecord(render.NewLearningRecord{

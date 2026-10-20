@@ -66,7 +66,6 @@ func ChangeRecord(r NewChangeRecord) ([]byte, error) {
 		{Name: "spec", Value: document.Null()},
 		{Name: "plan", Value: document.Null()},
 		{Name: "results", Value: document.Null()},
-		{Name: "trivial", Value: document.Bool(false)},
 		{Name: "auto_groomable", Value: optionalBoolValue(r.AutoGroomable)},
 		{Name: "hold", Value: holdValue(r.Hold)},
 		{Name: "branch_prefix", Value: optionalStringValue(r.BranchPrefix)},
