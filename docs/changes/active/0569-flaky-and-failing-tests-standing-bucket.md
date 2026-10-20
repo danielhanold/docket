@@ -1,19 +1,19 @@
 ---
 id: 569
 slug: 'flaky-and-failing-tests-standing-bucket'
-title: 'Flaky and failing tests — standing bucket'
+title: 'Fix the flaky run-cancel worktree test'
 status: 'proposed'
 priority: 'low'
 type: 'chore'
 deliverable: 'pr'
 created: '2026-10-18'
-updated: '2026-10-18'
+updated: '2026-10-20'
 depends_on: []
 stacked_on:
 related: []
 discovered_from: [562]
-adrs: []
-spec:
+adrs: [132]
+spec: 'docs/superpowers/specs/2026-10-20-flaky-and-failing-tests-standing-bucket-design.md'
 plan:
 results:
 trivial: false
@@ -28,18 +28,22 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-20-flaky-and-failing-tests-standing-bucket-design.md](../../superpowers/specs/2026-10-20-flaky-and-failing-tests-standing-bucket-design.md) |
+| ADRs | [ADR-0132](../../adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-A standing catch-all for tests that flake or fail intermittently, so each one has a home instead of being rediscovered and re-explained every time it reds a full-suite gate. First entry: `TestIntegrationRunCancelFreesWorktreeForNextStart` went red once during change 562's gate (a `claim-busy` timing failure in run-cancel code that 562 does not touch). It passed 3 of 3 when run alone, so it looks timing- or contention-sensitive under the parallel suite.
+`TestIntegrationRunCancelFreesWorktreeForNextStart` failed once during #562's full parallel suite (`cancellation-pending` with a `claim-busy` finding) and passed 3 of 3 alone. When it fires, it fails a build or finalize gate for no reason and costs an attempt.
+
+The cause is in the test, not in run-cancel. The test cancels as soon as the suite reports "running", but the code that started the suite holds its launch claim a moment longer, until the run is recorded. A cancel in that gap correctly answers "not finished yet" (ADR-0132), and the parallel suite's disk load widens the gap.
 
 ## What changes
 
-Investigate and fix each flaky test listed here, one at a time, adding new entries as further flakes are found.
-
-- `TestIntegrationRunCancelFreesWorktreeForNextStart`: reproduce the `claim-busy` failure under parallel load, find the race or timing assumption, and fix it without weakening the test.
+The test waits until the launch has finished, meaning the launcher has released its claim, before it cancels. It uses a deterministic signal, not a timer, and still asserts that one cancel reports `cancelled`. The fix is proven by making the race happen on demand with a temporary delay: the old test goes red, the fixed test stays green. The builder also sweeps the suite for other tests that cancel the same way. Test-only: no production code changes.
 
 ## Out of scope
 
-Slow tests and budget breaches (the budget report owns those). New features in run-cancel itself.
+Changing cancel, census, or launch-claim behavior. Any other flaky test (a later one gets its own change). Slow tests and budget breaches (the budget report owns those).

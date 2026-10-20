@@ -1,6 +1,6 @@
 # Backlog
 
-**573 changes** — 🔵 1 built · 🟡 5 proposed · ⚪ 16 deferred · ✅ 407 done · 🗑️ 144 killed
+**573 changes** — 🔵 1 built · 🟣 1 groomed · 🟡 4 proposed · ⚪ 16 deferred · ✅ 407 done · 🗑️ 144 killed
 
 ## 🔵 Built (1)
 
@@ -8,13 +8,18 @@
 |---|-------|----------|------|----|-------|
 | [0573](active/0573-retire-trivial-every-build-ready-change-has-a-spec.md) | Retire trivial: every build-ready change has a spec | `high` | `refactor` | [#436](https://github.com/danielhanold/docket/pull/436) | awaiting merge |
 
-## 🟡 Proposed (5)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec | Readiness |
+|---|-------|----------|------|------|-----------|
+| [0569](active/0569-flaky-and-failing-tests-standing-bucket.md) | Fix the flaky run-cancel worktree test | `low` | `chore` | [spec](../superpowers/specs/2026-10-20-flaky-and-failing-tests-standing-bucket-design.md) | build-ready |
+
+## 🟡 Proposed (4)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `feat` | needs-grooming |
-| [0569](active/0569-flaky-and-failing-tests-standing-bucket.md) | Flaky and failing tests — standing bucket | `low` | `chore` | needs-grooming |
 | [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
