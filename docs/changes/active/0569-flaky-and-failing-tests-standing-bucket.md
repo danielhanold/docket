@@ -2,7 +2,7 @@
 id: 569
 slug: 'flaky-and-failing-tests-standing-bucket'
 title: 'Fix the flaky run-cancel worktree test'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'chore'
 deliverable: 'pr'
@@ -19,10 +19,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/flaky-and-failing-tests-standing-bucket'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-20T10:43:41Z'
 ---
 
 ## Artifacts

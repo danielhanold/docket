@@ -1,12 +1,12 @@
 # Backlog
 
-**573 changes** — 🟣 1 groomed · 🟡 4 proposed · ⚪ 16 deferred · ✅ 408 done · 🗑️ 144 killed
+**573 changes** — 🟢 1 in progress · 🟡 4 proposed · ⚪ 16 deferred · ✅ 408 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0569](active/0569-flaky-and-failing-tests-standing-bucket.md) | Fix the flaky run-cancel worktree test | `low` | `chore` | [spec](../superpowers/specs/2026-10-20-flaky-and-failing-tests-standing-bucket-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0569](active/0569-flaky-and-failing-tests-standing-bucket.md) | Fix the flaky run-cancel worktree test | `low` | `chore` | [spec](../superpowers/specs/2026-10-20-flaky-and-failing-tests-standing-bucket-design.md) | `chore/flaky-and-failing-tests-standing-bucket` | building |
 
 ## 🟡 Proposed (4)
 
