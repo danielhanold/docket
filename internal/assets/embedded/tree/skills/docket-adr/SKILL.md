@@ -37,11 +37,11 @@ The request object (`ADRRecordRequest`, decoded with `DisallowUnknownFields` —
 - `title` — the decision's title.
 - `context`, `decision`, `consequences`, `alternatives` — the ADR body sections.
 - `relates_to` — an array of existing ADR ids this decision relates to (optional; each id must resolve or the transaction refuses with `adr-dangling-reference`).
-- `change` — the producing change as `{id, path, revision}` (optional; supply it when a change produces this ADR, e.g. `docket-implement-next` step 6).
+- `change` — the producing change as `{id, path, revision}` (optional; supply it when a change produces this ADR). `docket-implement-next` step 6 supplies it in its dispatch payload; pass it through unchanged.
 
 One validated transaction lands atomically, in a single metadata commit: the next ADR number allocated (max `id:` + 1, 4-digit zero-pad `0024-…`), the new `<NNNN>-<slug>.md` record (`status: Accepted`, today's UTC `date:`, the optional `change:` back-link), graph validation, the re-rendered `<adrs_dir>/README.md` index, and — when `change` is supplied — that change's `adrs:` append and re-rendered `## Artifacts` block. There is **no** separate index commit and **no** hand-allocation, template-write, or manual conflict-checked-rename step: a typed conflict or refusal returns without writing anything, so re-read and retry the operation rather than patching the tree by hand.
 
-**Return the number** — read the allocated ADR id from the operation's result envelope so the caller (e.g. `docket-implement-next` step 6) can cite it in the change's `adrs:` field.
+**Return the number** — read the allocated ADR id from the operation's result envelope and return it. When `change` was supplied, the transaction has already appended the number to that change's `adrs:` — the caller only verifies it.
 
 **Where an ADR lives** — the ADR and its index live on the metadata branch; no ADR, change-tied or standalone, is copied to the integration branch.
 
