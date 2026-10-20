@@ -521,8 +521,9 @@ func catalogOpRefs() (*regexp.Regexp, int, error) {
 			opRefErr = fmt.Errorf("capabilities listed no operation references")
 			return
 		}
-		// Longest first: Go's alternation is leftmost-first, so change.refresh-claim
-		// must be tried before any shorter reference it contains.
+		// Longest first: Go's alternation is leftmost-first, so
+		// finalize.rebase-continue must be tried before the shorter finalize.rebase
+		// it contains.
 		sort.Slice(alts, func(i, j int) bool { return len(alts[i]) > len(alts[j]) })
 		opRefRe = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.-])(` + strings.Join(alts, "|") + `)(?:[^A-Za-z0-9_-]|$)`)
 	})

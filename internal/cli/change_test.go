@@ -139,19 +139,19 @@ func TestChangeRequestFileMissing(t *testing.T) {
 // never installed assets), so they are not refused on a machine with no
 // installation.
 func TestChangeCommandsAssetIndependent(t *testing.T) {
-	for _, key := range []string{"change", "change create", "change groom", "change block", "change defer", "change unblock", "change revive", "change kill", "change complete", "change claim", "change refresh-claim", "change reconcile"} {
+	for _, key := range []string{"change", "change create", "change groom", "change block", "change defer", "change unblock", "change revive", "change kill", "change complete", "change claim", "change reconcile"} {
 		if !assetIndependent[key] {
 			t.Errorf("%q is not registered asset-independent", key)
 		}
 	}
 }
 
-// TestChangeClaimCommandsRegistered proves claim and refresh-claim are wired as
-// change subcommands carrying the scalar --id/--revision flags (no --request:
-// they carry no authored Markdown).
+// TestChangeClaimCommandsRegistered proves claim is wired as a change
+// subcommand carrying the scalar --id/--revision flags (no --request: it
+// carries no authored Markdown).
 func TestChangeClaimCommandsRegistered(t *testing.T) {
 	root := captureTree(t)
-	for _, sub := range []string{"claim", "refresh-claim"} {
+	for _, sub := range []string{"claim"} {
 		cmd, _, err := root.Find([]string{"change", sub})
 		if err != nil || cmd == nil || cmd.Name() != sub {
 			t.Fatalf("change %s not registered: cmd=%v err=%v", sub, cmd, err)
@@ -166,7 +166,7 @@ func TestChangeClaimCommandsRegistered(t *testing.T) {
 }
 
 // TestChangeClaimRunContextFlag: claim registers the optional --run-context
-// flag and refresh-claim does NOT (refresh re-proves nothing about ownership).
+// flag.
 func TestChangeClaimRunContextFlag(t *testing.T) {
 	root := captureTree(t)
 	claimCmd, _, err := root.Find([]string{"change", "claim"})
@@ -176,12 +176,35 @@ func TestChangeClaimRunContextFlag(t *testing.T) {
 	if claimCmd.Flags().Lookup("run-context") == nil {
 		t.Fatalf("change claim must register --run-context")
 	}
-	refreshCmd, _, err := root.Find([]string{"change", "refresh-claim"})
-	if err != nil {
-		t.Fatalf("find refresh-claim: %v", err)
+}
+
+// TestChangeRefreshClaimRetired pins the deletion of change.refresh-claim
+// (change 0360): no command, no catalog entry, no schema binding — while
+// change.claim stays, so the catalog probe is not vacuous. The lease is stamped
+// only by claim, reconcile, and resume-halted.
+func TestChangeRefreshClaimRetired(t *testing.T) {
+	root := productionRootForTest(t)
+	if c, _, err := root.Find([]string{"change", "refresh-claim"}); err == nil && c != nil && c.Name() == "refresh-claim" {
+		t.Fatal("change refresh-claim is still registered")
 	}
-	if refreshCmd.Flags().Lookup("run-context") != nil {
-		t.Fatalf("refresh-claim must not register --run-context")
+	entries, err := collectCapabilities(root)
+	if err != nil {
+		t.Fatalf("collectCapabilities: %v", err)
+	}
+	if _, ok := entryByID(entries, "change.refresh-claim"); ok {
+		t.Fatal("catalog still lists change.refresh-claim")
+	}
+	if _, ok := entryByID(entries, "change.claim"); !ok {
+		t.Fatal("non-vacuity: change.claim missing from catalog")
+	}
+	if _, ok, _ := app.SchemaFor("change.refresh-claim", []string{"write"}); ok {
+		t.Fatal("schema registry still binds change.refresh-claim")
+	}
+	if _, ok, _ := app.SchemaFor("change.claim", []string{"write"}); !ok {
+		t.Fatal("non-vacuity: schema registry lost change.claim")
+	}
+	if _, _, code := runCLI(t, "change", "refresh-claim", "--id", "1", "--revision", "x", "--json"); code != 2 {
+		t.Fatalf("change refresh-claim exit = %d, want 2 (unknown command)", code)
 	}
 }
 
@@ -277,14 +300,13 @@ func TestChangeClaimFlagsRequired(t *testing.T) {
 	}
 }
 
-// TestChangeClaimCommandsReachOperation proves both claim commands decode their
+// TestChangeClaimCommandsReachOperation proves the claim command decodes its
 // flags and reach the operation, which returns exactly one protocol-v1 document
 // naming it. A bare tempdir is no docket repo, so the operation fails past its
 // shape check — but only after naming itself.
 func TestChangeClaimCommandsReachOperation(t *testing.T) {
 	cases := []struct{ sub, op string }{
 		{"claim", "change.claim"},
-		{"refresh-claim", "change.refresh-claim"},
 	}
 	for _, c := range cases {
 		out, errS, code := runCLI(t, "change", c.sub,

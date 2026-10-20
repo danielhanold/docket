@@ -17,13 +17,15 @@ import (
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
-// This file is the `change claim` and `change refresh-claim` planning
-// operations: two exact-revision metadata transitions that land a change's claim
-// fields and every affected v1-owned derived view (the change record's owned
-// lifecycle fields, its refreshed updated date, its re-rendered artifact block,
-// and the inline board) as one validated atomic transaction. The domain owns
-// legality: domain.Claim and domain.RefreshClaim decide whether the current
-// status may take the transition and yield the exact FieldChanges to apply.
+// This file is the `change claim` planning operation: an exact-revision
+// metadata transition that lands a change's claim fields and every affected
+// v1-owned derived view (the change record's owned lifecycle fields, its
+// refreshed updated date, its re-rendered artifact block, and the inline board)
+// as one validated atomic transaction. The domain owns legality: domain.Claim
+// decides whether the current status may take the transition and yields the
+// exact FieldChanges to apply. The lease is re-stamped only by claim,
+// change.reconcile, and change.resume-halted (change 0360 deleted the separate
+// refresh-claim operation).
 //
 // Claim additionally re-proves eligibility INSIDE the transaction against the
 // attempt's own fresh snapshot — proposed, uniquely identified, build-ready,
@@ -35,17 +37,12 @@ import (
 // Claim carries an idempotency key derived from its own (id, revision) request so
 // a lost response replays the original applied receipt as `already-claimed`
 // rather than allocating a second claim; a foreign edit that moved the record
-// fails the exact-revision expectation as `contended`. Refresh is a small
-// non-keyed exact-revision transaction — a revision mismatch is `contended`, which
-// instructs the caller to stop, never to overwrite a newer record. Neither
-// operation clears or steals an expired claim; reclaim is 0316.
+// fails the exact-revision expectation as `contended`. A claim never clears or
+// steals an expired claim; reclaim is 0316.
 
-// The operation keys the two claim transitions record in their result envelopes
-// and transaction trailers.
-const (
-	OperationChangeClaim        = "change.claim"
-	OperationChangeRefreshClaim = "change.refresh-claim"
-)
+// OperationChangeClaim is the operation key the claim transition records in its
+// result envelope and transaction trailer.
+const OperationChangeClaim = "change.claim"
 
 // The closed set of claim dispositions a result may carry. `applied` is a fresh
 // claim; `already-claimed` is an idempotent replay of this exact request's own
@@ -71,9 +68,9 @@ const (
 	ClaimDispositionRunContextConflict = "run-context-conflict"
 )
 
-// ChangeClaimRequest is the closed, caller-supplied request for one claim or
-// refresh-claim. ID names the change; Revision pins the exact submitted record
-// blob (the revision the authoritative context read reported).
+// ChangeClaimRequest is the closed, caller-supplied request for one claim. ID
+// names the change; Revision pins the exact submitted record blob (the revision
+// the authoritative context read reported).
 type ChangeClaimRequest struct {
 	ID       int    `json:"id" docket:"required"`
 	Revision string `json:"revision" docket:"required"`
@@ -126,11 +123,11 @@ type claimDigestPayload struct {
 	RunContextHash string `json:"gate_context_hash"`
 }
 
-// ChangeClaimResult is the protocol-v1 document `change claim` and
-// `change refresh-claim` return. It embeds the envelope; the claim fields are
-// populated on a successful apply or an idempotent replay, Disposition carries
-// the closed claim disposition, and Findings carries every refusal or validation
-// diagnostic (marshalled as [] never null).
+// ChangeClaimResult is the protocol-v1 document `change claim` returns. It
+// embeds the envelope; the claim fields are populated on a successful apply or
+// an idempotent replay, Disposition carries the closed claim disposition, and
+// Findings carries every refusal or validation diagnostic (marshalled as []
+// never null).
 type ChangeClaimResult struct {
 	Envelope
 	ID          int             `json:"id,omitempty"`
@@ -326,62 +323,9 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	return out
 }
 
-// ChangeRefreshClaim validates the request, pins authoritative context, and
-// drives one small non-keyed exact-revision transaction that re-stamps the
-// change's claimed_at (plus its refreshed updated date and derived views) and
-// nothing else. It requires the change to still be in-progress at the exact
-// submitted revision; a mismatch is `contended`, which stops the run rather than
-// overwriting a newer record.
-func ChangeRefreshClaim(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeClaimRequest) ChangeClaimResult {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
-	if len(findings) > 0 {
-		return newChangeClaimResult(OperationChangeRefreshClaim, ResultInvalidInput, ChangeClaimResult{Findings: findings})
-	}
-
-	pin, eff, inline, repo, pre := claimPreflight(ctx, deps, repoDir, OperationChangeRefreshClaim)
-	if pre != nil {
-		return *pre
-	}
-
-	// Resolve the record's current path (the request carries only id + revision).
-	// Refresh consults no branch facts — it re-proves nothing about readiness —
-	// so the resolved facts are discarded.
-	recPath, _, _, terr := resolveClaimTarget(ctx, deps, pin, eff, req.ID, OperationChangeRefreshClaim)
-	if terr != nil {
-		return *terr
-	}
-
-	op := changeClaimOp{
-		opKey:      OperationChangeRefreshClaim,
-		changeID:   req.ID,
-		refresh:    true,
-		eff:        eff,
-		clock:      deps.Clock,
-		ttlHours:   eff.Reclaim.LeaseTTL.Value,
-		inline:     inline,
-		link:       linkContextOf(pin),
-		changesDir: eff.ChangesDir.Value,
-	}
-
-	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
-		Repository: repo,
-		Remote:     metadataRemote(pin.Layout),
-		TargetRef:  metadataRef(pin.Layout),
-		Expected: []transaction.EntityExpectation{{
-			Path:     gitcli.RepoPath(recPath),
-			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
-		}},
-		Loader:    newPlanningLoader(eff),
-		Scope:     changeScope(req.ID, recPath, false),
-		Operation: op,
-	})
-
-	return claimResultFromOutcome(OperationChangeRefreshClaim, res, execErr)
-}
-
-// claimPreflight performs the shared pre-transaction plumbing both claim
-// transitions need: pin context, check the board surface, and discover the
-// repository. It returns a non-nil result pointer for any preflight failure.
+// claimPreflight performs the pre-transaction plumbing a claim needs: pin
+// context, check the board surface, and discover the repository. It returns a
+// non-nil result pointer for any preflight failure.
 func claimPreflight(ctx context.Context, deps PlanningDeps, repoDir, opKey string) (
 	pin StatusPin, eff config.Effective, inline bool, repo gitcli.Repository, refusal *ChangeClaimResult) {
 
@@ -578,14 +522,13 @@ func decodeChangeClaimReceipt(b []byte) (changeClaimReceipt, bool) {
 	return rec, true
 }
 
-// changeClaimOp is the SemanticOperation the engine drives per attempt for both
-// claim and refresh-claim. Every field is fixed before the transaction; the
-// state-dependent work (the eligibility re-proof, the domain gate, field
-// patching, rendering) re-runs from the attempt's own fresh state.
+// changeClaimOp is the SemanticOperation the engine drives per attempt for a
+// claim. Every field is fixed before the transaction; the state-dependent work
+// (the eligibility re-proof, the domain gate, field patching, rendering) re-runs
+// from the attempt's own fresh state.
 type changeClaimOp struct {
 	opKey      string
 	changeID   int
-	refresh    bool
 	facts      domain.BranchFacts
 	eff        config.Effective
 	clock      transaction.Clock
@@ -594,18 +537,17 @@ type changeClaimOp struct {
 	link       render.LinkContext
 	changesDir string
 	// runContextHash is the hashed run context this claim is bound to (""
-	// for an ungated claim or a refresh). It is folded into the committed claim
+	// for an ungated claim). It is folded into the committed claim
 	// receipt as the durable ownership proof (change 0407); the raw token never
 	// reaches this struct.
 	runContextHash string
-	// selection is the normalized claim selection ("" = unknown, and always ""
-	// for a refresh), folded into the committed claim receipt.
+	// selection is the normalized claim selection ("" = unknown), folded into the committed claim receipt.
 	selection string
 }
 
 func (o changeClaimOp) Key() transaction.OperationKey { return transaction.OperationKey(o.opKey) }
 
-// Plan re-proves eligibility (claim only) against the attempt's fresh snapshot,
+// Plan re-proves eligibility against the attempt's fresh snapshot,
 // gates the transition through the domain action, patches the owned claim fields
 // plus the refreshed updated date, applies any domain-owned section removals,
 // re-renders the artifact block, and assembles the closed plan: the mutated
@@ -622,26 +564,16 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		return refuseLifecycle(FindingCode(reason), fmt.Sprintf("change %04d is not a single record in the current corpus", o.changeID))
 	}
 
-	var result domain.ActionResult
-	if o.refresh {
-		r, fail := domain.RefreshClaim(c, o.clock.Now())
-		if fail != nil {
-			return refuseLifecyclePolicy(fail)
-		}
-		result = r
-	} else {
-		// In-transaction re-proof: proposed, uniquely identified, build-ready, and
-		// a resolved effective base — all from the attempt's own fresh snapshot.
-		// Stripping this line lets an ineligible change be claimed on stale facts;
-		// the refusal table mutation-tests exactly that.
-		if fail := domain.ClaimEligibility(snap, c, o.facts); fail != nil {
-			return refuseLifecyclePolicy(fail)
-		}
-		r, fail := domain.Claim(c, o.clock.Now())
-		if fail != nil {
-			return refuseLifecyclePolicy(fail)
-		}
-		result = r
+	// In-transaction re-proof: proposed, uniquely identified, build-ready, and
+	// a resolved effective base — all from the attempt's own fresh snapshot.
+	// Stripping this line lets an ineligible change be claimed on stale facts;
+	// the refusal table mutation-tests exactly that.
+	if fail := domain.ClaimEligibility(snap, c, o.facts); fail != nil {
+		return refuseLifecyclePolicy(fail)
+	}
+	result, fail := domain.Claim(c, o.clock.Now())
+	if fail != nil {
+		return refuseLifecyclePolicy(fail)
 	}
 
 	src, ok := st.State.Sources[c.Path()]
@@ -705,10 +637,8 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	}
 
 	if o.inline {
-		// A refresh re-stamps only claimed_at and the updated date — neither is
-		// board-visible — so includeBoard's declare-only-when-changed shape can
-		// render byte-identical to the committed board and correctly declare no
-		// board mutation.
+		// includeBoard declares a board mutation only when the re-render differs
+		// from the committed board.
 		boardPath := path.Join(o.changesDir, "BOARD.md")
 		if err := includeBoard(ctx, st.Tree, boardPath, candidate, boardUnrenderable(st.State, o.changesDir), boardPresentation(o.eff), &files); err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change claim: %w", err)
@@ -731,9 +661,6 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	}
 
 	subject := fmt.Sprintf("change %04d claimed", o.changeID)
-	if o.refresh {
-		subject = fmt.Sprintf("change %04d claim refreshed", o.changeID)
-	}
 	return transaction.MutationPlan{
 		Files:         files,
 		CommitSubject: subject,

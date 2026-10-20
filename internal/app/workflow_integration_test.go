@@ -1332,22 +1332,24 @@ func TestIntegrationWorkflowRepoContextServesClaimedChange(t *testing.T) {
 	}
 }
 
-// TestRefreshClaimAppliesWhenBoardReRenderIsUnchanged: a refresh re-stamps a
-// claimed record's claimed_at and updated fields (a real change to the record)
-// and re-renders the inline board. The board's in-progress row shows only
-// id/title/priority/type/spec/branch — none of which a refresh touches — so
-// the re-render is byte-identical to the board the claim already committed.
-// Pre-0335 the plan nonetheless DECLARED the board, and the engine's two-way
-// actual-delta guard rejected it as "a declared path is not an actual change"
-// (a *Failure at stage verify-delta), silently failing every such lease
-// refresh. Post-fix the plan declares only the record, so the refresh applies:
-// one metadata commit touching exactly the record, the lease re-stamped, the
+// TestIntegrationWorkflowRepoReconcileAppliesWhenBoardReRenderIsUnchanged: a
+// reconcile after a claim re-stamps the record's claimed_at and updated fields
+// and flips reconciled (a real change to the record) and re-renders the inline
+// board. The board's in-progress row shows only id/title/priority/type/spec/
+// branch — none of which a reconcile touches — so the re-render is
+// byte-identical to the board the claim already committed. Declaring that
+// unchanged board would trip the engine's two-way actual-delta guard ("a
+// declared path is not an actual change", a *Failure at stage verify-delta) —
+// the change 0335 bug, first seen on the since-deleted refresh-claim operation
+// (change 0360 retargeted this test at reconcile, which now owns re-stamping the
+// lease). The plan declares only the record, so the reconcile applies: one
+// metadata commit touching exactly the record, the lease re-stamped, the
 // committed board untouched and still matching a fresh render.
 //
-// The refresh runs a day after the claim (advanced clock) so the record
+// The reconcile runs a day after the claim (advanced clock) so the record
 // genuinely changes; that isolates the board as the sole would-be
 // declared-but-unchanged path.
-func TestIntegrationWorkflowRepoRefreshClaimAppliesWhenBoardReRenderIsUnchanged(t *testing.T) {
+func TestIntegrationWorkflowRepoReconcileAppliesWhenBoardReRenderIsUnchanged(t *testing.T) {
 	requireRealGit(t)
 	const (
 		id   = 3
@@ -1379,40 +1381,42 @@ func TestIntegrationWorkflowRepoRefreshClaimAppliesWhenBoardReRenderIsUnchanged(
 
 			claimedRevision := blobRevisionAt(t, repo.origin, m.branch, recPath)
 
-			// Refresh a day later: claimed_at/updated genuinely change on the
+			// Reconcile a day later: claimed_at/updated genuinely change on the
 			// record while the board re-renders byte-identical.
-			refreshNode := planningDepsForClock(t, cloneOrigin(t, repo.origin), advanced)
-			res := ChangeRefreshClaim(ctx, refreshNode.deps, refreshNode.dir, ChangeClaimRequest{ID: id, Revision: claimedRevision})
-			if res.Result != ResultApplied || res.Disposition != ClaimDispositionApplied {
-				t.Fatalf("refresh = (%q, %q), want applied/applied (failure %+v, findings %v)",
+			reconcileNode := planningDepsForClock(t, cloneOrigin(t, repo.origin), advanced)
+			res := ChangeReconcile(ctx, reconcileNode.deps, reconcileNode.dir, ChangeReconcileRequest{
+				ID: id, Revision: claimedRevision, ReconcileLogEntry: "Reconciled against current reality.\n",
+			})
+			if res.Result != ResultApplied {
+				t.Fatalf("reconcile = (%q, %q), want applied (failure %+v, findings %v)",
 					res.Result, res.Disposition, res.Failure, res.Findings)
 			}
 			if res.Revision == "" {
-				t.Fatal("applied refresh carried no committed revision")
+				t.Fatal("applied reconcile carried no committed revision")
 			}
 
-			// The refresh commit touches exactly the record — the
+			// The reconcile commit touches exactly the record — the
 			// byte-identical board was not declared, so it is not in the
 			// commit's changed-path set.
 			got := originCommitPaths(t, repo.origin, res.Revision)
 			if strings.Join(got, ",") != recPath {
-				t.Errorf("refresh commit changed %v, want exactly [%s] (unchanged board must not be declared)", got, recPath)
+				t.Errorf("reconcile commit changed %v, want exactly [%s] (unchanged board must not be declared)", got, recPath)
 			}
 
 			// The lease actually moved to the advanced clock.
 			final, ok := originFile(t, repo.origin, m.branch, recPath)
 			if !ok {
-				t.Fatalf("record %s missing from origin after refresh", recPath)
+				t.Fatalf("record %s missing from origin after reconcile", recPath)
 			}
 			if !strings.Contains(final, "claimed_at: '2026-08-17T12:00:00Z'") {
-				t.Errorf("refresh did not re-stamp claimed_at:\n%s", final)
+				t.Errorf("reconcile did not re-stamp claimed_at:\n%s", final)
 			}
 			if !strings.Contains(final, "updated: '2026-08-17'") {
-				t.Errorf("refresh did not re-stamp updated:\n%s", final)
+				t.Errorf("reconcile did not re-stamp updated:\n%s", final)
 			}
 
 			// The committed board still matches a fresh render of the corpus.
-			assertBoardMatchesCommitted(t, repo.origin, m.branch, refreshNode.dir)
+			assertBoardMatchesCommitted(t, repo.origin, m.branch, reconcileNode.dir)
 		})
 	}
 }

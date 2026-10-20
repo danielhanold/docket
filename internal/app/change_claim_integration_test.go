@@ -14,7 +14,6 @@ import (
 	"path"
 	"strings"
 	"testing"
-	"time"
 )
 
 // TestIntegrationRecordOpsClaimTransactionTargetsPinnedMetadataLayout pins the
@@ -315,7 +314,6 @@ func TestIntegrationRecordOpsChangeClaimUnrelatedInvalidRecordProgress(t *testin
 		unrelatedBrokenPath: unrelatedBrokenBytes,
 	})
 	node := planningDepsFor(t, repo.invocation)
-	later := planningDepsForClock(t, repo.invocation, fixedClock{t: time.Date(2026, 8, 17, 12, 0, 0, 0, time.UTC)})
 	ctx := context.Background()
 
 	claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath)})
@@ -342,14 +340,6 @@ func TestIntegrationRecordOpsChangeClaimUnrelatedInvalidRecordProgress(t *testin
 	if !strings.Contains(board, "| `"+unrelatedBrokenPath+"` | unclosed-frontmatter |") {
 		t.Errorf("board lacks the repair notice naming the unrelated record:\n%s", board)
 	}
-
-	refresh := ChangeRefreshClaim(ctx, later.deps, later.dir, ChangeClaimRequest{ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath)})
-	if refresh.Result != ResultApplied {
-		t.Fatalf("refresh-claim beside an unrelated unparseable record = %q (disposition %q findings %v), want applied",
-			refresh.Result, refresh.Disposition, refresh.Findings)
-	}
-	assertAppliedSurfacesUnrelated(t, refresh)
-	assertUnrelatedBrokenIntact(t, repo)
 }
 
 // TestIntegrationRecordOpsChangeClaimUnrelatedDependentsOfBrokenProgress is the canonical real-world
@@ -443,30 +433,6 @@ func TestIntegrationRecordOpsChangeClaimUnrelatedInvalidRecordRefusals(t *testin
 			assertRefusalBeyondUnrelated(t, res.Disposition, res.Findings)
 			if got := originTip(t, repo.origin, "docket"); got != tip {
 				t.Errorf("a refused claim moved the metadata branch %s -> %s", tip, got)
-			}
-		})
-	}
-}
-
-func TestIntegrationRecordOpsChangeRefreshClaimUnrelatedInvalidRecordRefusals(t *testing.T) {
-	requireRealGit(t)
-	const id = 3
-	recPath := groomPath(id, "widget")
-	src := lifecycleChange(id, "widget", "in-progress")
-	for _, c := range unrelatedRefusalCases(t, id, recPath, src, lifecycleChange(id, "dupe", "in-progress")) {
-		t.Run(c.name, func(t *testing.T) {
-			repo := newWorkingRepo(t, c.files)
-			node := planningDepsFor(t, repo.invocation)
-			tip := originTip(t, repo.origin, "docket")
-
-			res := ChangeRefreshClaim(context.Background(), node.deps, node.dir,
-				ChangeClaimRequest{ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath)})
-			if res.Result == ResultApplied {
-				t.Fatalf("refresh-claim applied despite %s; want a refusal", c.name)
-			}
-			assertRefusalBeyondUnrelated(t, res.Disposition, res.Findings)
-			if got := originTip(t, repo.origin, "docket"); got != tip {
-				t.Errorf("a refused refresh-claim moved the metadata branch %s -> %s", tip, got)
 			}
 		})
 	}

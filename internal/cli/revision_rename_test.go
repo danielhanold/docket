@@ -60,7 +60,7 @@ func TestRetiredRevisionRequestKeysRefused(t *testing.T) {
 // the record revision on a flag.
 var revisionFlagOps = [][]string{
 	{"change", "attach-plan"}, {"change", "attach-results"}, {"change", "claim"}, {"change", "halt"},
-	{"change", "mark-implemented"}, {"change", "reclaim"}, {"change", "refresh-claim"}, {"change", "resume-halted"},
+	{"change", "mark-implemented"}, {"change", "reclaim"}, {"change", "resume-halted"},
 	{"finalize", "block"}, {"finalize", "clear-block"}, {"finalize", "merge"}, {"finalize", "rebase"},
 	{"finalize", "retarget-children"}, {"workspace", "prepare"},
 }
@@ -181,7 +181,6 @@ func TestRevisionFlagReachesRequest(t *testing.T) {
 		args  []string
 	}{
 		{"", []string{"change", "claim", "--id", "1"}},
-		{"", []string{"change", "refresh-claim", "--id", "1"}},
 		{"", []string{"change", "reclaim", "--id", "1"}},
 		{"", []string{"change", "resume-halted", "--id", "1"}},
 		{"# Plan\n\nSteps.\n", []string{"change", "attach-plan", "--id", "1", "--path", "p.md", "--markdown", "-"}},

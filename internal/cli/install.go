@@ -45,7 +45,6 @@ var assetIndependent = map[string]bool{
 	"change kill":             true,
 	"change complete":         true,
 	"change claim":            true,
-	"change refresh-claim":    true,
 	"change reconcile":        true,
 	"change attach-plan":      true,
 	"change attach-results":   true,

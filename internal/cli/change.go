@@ -106,12 +106,6 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	claim.Flags().String("run-context", "", "run-context `token` from run start, binding this claim to its started run (optional; omitted for an untracked claim)")
 	claim.Flags().String("selection", "", "how this change was chosen: `mode` queue (picked from the build-ready queue) or named (the run named it); any other value is recorded as unknown")
 
-	refreshClaim := changeIDRevisionSubcommand("refresh-claim",
-		"Re-stamp an in-progress change's claim lease at an exact revision",
-		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
-			setResult(app.ChangeRefreshClaim(c.Context(), deps, repoDir, req))
-		}, EffectMetadataWrite)
-
 	reconcile := changeInputSubcommand("reconcile",
 		"Reconcile an in-progress change against current reality from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeReconcileRequest) {
@@ -152,7 +146,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	relink := newRelinkSubcommand(setResult)
 
-	changeCmd.AddCommand(create, groom, block, deferCmd, unblock, revive, kill, complete, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, reclaim, markImplemented, relink)
+	changeCmd.AddCommand(create, groom, block, deferCmd, unblock, revive, kill, complete, claim, reconcile, attachPlan, attachResults, halt, resumeHalted, reclaim, markImplemented, relink)
 	return changeCmd
 }
 
