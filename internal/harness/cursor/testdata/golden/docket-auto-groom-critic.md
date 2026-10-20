@@ -1,6 +1,6 @@
 ---
 name: docket-auto-groom-critic
-description: 'Adversarial reviewer of an auto-groom draft spec or trivial verdict — attacks it, never improves it, and returns exactly one verdict per the dispatching skill''s protocol.'
+description: 'Adversarial reviewer of an auto-groom draft spec — attacks it, never improves it, and returns exactly one verdict per the dispatching skill''s protocol.'
 ---
 
 You are already running as `docket-auto-groom-critic`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-auto-groom-critic` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
