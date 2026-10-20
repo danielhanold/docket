@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-17'
-updated: '2026-10-17'
+updated: '2026-10-20'
 depends_on: []
 stacked_on:
-related: [559]
+related: [559, 542, 573, 532]
 discovered_from: [559]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-design.md'
 plan:
 results:
 trivial: false
@@ -27,21 +27,26 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-design.md](../../superpowers/specs/2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Results files and other docket artifacts are often worth sharing with people outside the repository, for example as a Markdown file sent by email or Teams. As stored, they carry docket machinery a reader outside docket cannot use: frontmatter, generated backlink and artifact blocks with their markers, links into the metadata branch, and change and ADR references such as `#559` or `ADR-0141`.
+Results files and other docket artifacts — most often a spec — are worth sharing with teammates who do not all use docket, as a Markdown file sent by email or Teams. As stored, they carry docket machinery an outside reader cannot use: frontmatter, generated backlink and artifact blocks with their markers, the spec's change stamp, links into files the reader cannot open, and change references such as `change 0559`. Today the sender deletes these by hand.
 
 ## What changes
 
-Add an export for every file artifact `docket open` can open: the board, a change, and its spec, plan, and results (a PR is a URL and has nothing to export). The export writes a clean Markdown copy that:
+Add an `--export` flag to `docket open` for a change, its spec, its plan, and its results. It writes a clean Markdown copy — by default to `~/Downloads` on macOS or the home folder on Linux, with `--output-path` to override — named `<date>-<type>-<name>.md` (type `issue`, `spec`, `plan`, or `results`), and opens that copy. The copy:
 
-- removes everything docket-specific: frontmatter, managed and backlink blocks and their markers, docket-internal links, and change and ADR references;
-- formats the remaining Markdown cleanly: consistent headings, lists, and tables, and no leftover runs of blank lines.
+- removes frontmatter, managed blocks and their markers, and the spec's change stamp; a change exported as an issue keeps only its proposal sections under an H1 of its title;
+- removes every link and keeps its text;
+- turns explicit change references (`change 0559`, `the 0111 guard`) into the change's title in quotes, and leaves bare `#N`, PR, and ADR references as written;
+- comes out with one H1 and well-formed headings.
 
-To settle when grooming: the command's shape (a flag on `docket open` or a command of its own), where the exported file goes, and what a removed docket reference leaves behind in the surrounding sentence.
+A self-check of the output warns — never blocks — about docket leftovers and lists mentions of docket; `--warnings all|leftovers|mentions` picks which are shown. Every conversion is deterministic, for a person running the command in a shell.
 
 ## Out of scope
 
-Other export formats (.docx, PDF). Any change to how artifacts are stored.
+The board. Windows (docket ships only macOS and Linux). Other export formats (.docx, PDF). Any change to how artifacts are stored. Rewriting prose beyond the change-reference conversions.
