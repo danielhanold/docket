@@ -19,6 +19,7 @@ const (
 	proofMigrateReceipt                    // OpMigrateSeed receipt, source reachable, CopyDigest == root tree
 	proofLegacyEmpty                       // receiptless empty-tree root (legacy bootstrap)
 	proofLegacyEquivalent                  // receiptless root exactly equal to a historical source projection (Task 4)
+	proofShape                             // structural only (one parentless root, disjoint from integration); set by the quick check the everyday commands use
 )
 
 // metadataOwnership is the shared verifier's result. It is never a boolean:
@@ -33,19 +34,29 @@ type metadataOwnership struct {
 	Err            error  // retained diagnostics when Shape is RootUnknown
 }
 
-// verifyMetadataOwnership decides, at a single pinned metadata tip, whether the
-// tip's sole parentless-root lineage is a verified docket seed root
-// (RootParentless, with permitted descendants and merges), readable evidence
-// with no ownership proof (RootForeign), or incomplete/unreadable evidence
-// (RootUnknown). Every probe error maps to RootUnknown with the error retained —
-// never collapsed into absence or into foreign — and a receipt that claims
-// docket provenance but fails validation is foreign, never downgraded to the
-// receiptless legacy path. Receipt trailers are read from the ROOT COMMIT
-// ITSELF: a valid receipt on a descendant cannot authorize an unrecognized root.
+// ownershipCheck is the signature shared by the full verifier
+// (verifyMetadataOwnership) and the quick structural check
+// (quickOwnershipCheck), so a caller can be handed either one.
+type ownershipCheck func(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, tip, integrationTip gitcli.ObjectID, defaultBranch string) metadataOwnership
+
+// quickOwnershipCheck adapts verifyMetadataShape to ownershipCheck; the default
+// branch is unused because the quick check reads no historical configuration.
+func quickOwnershipCheck(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, tip, integrationTip gitcli.ObjectID, _ string) metadataOwnership {
+	return verifyMetadataShape(ctx, git, repo, tip, integrationTip)
+}
+
+// verifyMetadataShape is the quick ownership check. At a single pinned metadata
+// tip it runs only the two structural steps: exactly one parentless root is
+// reachable from tip (more than one is RootForeign), and tip shares no history
+// with integrationTip (shared history is RootForeign). It reads no receipt and
+// no file contents. Every probe error, and an unknown integrationTip, maps to
+// RootUnknown with the error retained — never foreign, never owned. Otherwise
+// the result is RootParentless with proofShape.
 //
-// defaultBranch is threaded through for the legacy historical-config resolution
-// (Task 4); it is unused by the topology and native-receipt proofs here.
-func verifyMetadataOwnership(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, tip, integrationTip gitcli.ObjectID, defaultBranch string) metadataOwnership {
+// The everyday repository commands (prepare, check, repair, configure-tests,
+// configure-harnesses) decide ownership with it; verifyMetadataOwnership runs it
+// first, so these structural steps have one source.
+func verifyMetadataShape(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, tip, integrationTip gitcli.ObjectID) metadataOwnership {
 	own := metadataOwnership{Tip: tip, Shape: reposetup.RootUnknown}
 	roots, err := git.RootCommits(ctx, repo, tip)
 	if err != nil {
@@ -70,6 +81,30 @@ func verifyMetadataOwnership(ctx context.Context, git *gitcli.Client, repo gitcl
 		own.Shape = reposetup.RootForeign
 		return own
 	}
+	own.Shape, own.Proof = reposetup.RootParentless, proofShape
+	return own
+}
+
+// verifyMetadataOwnership is the full verifier, reserved for repository init
+// and repository migrate, the commands that create or delete planning data. It
+// runs verifyMetadataShape first, then decides whether the tip's sole
+// parentless-root lineage is a verified docket seed root
+// (RootParentless, with permitted descendants and merges), readable evidence
+// with no ownership proof (RootForeign), or incomplete/unreadable evidence
+// (RootUnknown). Every probe error maps to RootUnknown with the error retained —
+// never collapsed into absence or into foreign — and a receipt that claims
+// docket provenance but fails validation is foreign, never downgraded to the
+// receiptless legacy path. Receipt trailers are read from the ROOT COMMIT
+// ITSELF: a valid receipt on a descendant cannot authorize an unrecognized root.
+//
+// defaultBranch is threaded through for the legacy historical-config resolution
+// (Task 4); it is unused by the topology and native-receipt proofs here.
+func verifyMetadataOwnership(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, tip, integrationTip gitcli.ObjectID, defaultBranch string) metadataOwnership {
+	own := verifyMetadataShape(ctx, git, repo, tip, integrationTip)
+	if own.Shape != reposetup.RootParentless {
+		return own
+	}
+	own.Shape, own.Proof = reposetup.RootUnknown, proofNone // receipt/content proofs below decide
 	// Receipt trailers are read from the ROOT COMMIT ITSELF; a valid receipt on
 	// a descendant cannot authorize an unrecognized root. The root is parentless,
 	// so a scan from the root sees exactly the root.
