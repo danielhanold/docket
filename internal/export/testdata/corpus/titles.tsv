@@ -1,0 +1,154 @@
+1	Change results artifact — linked, optional close-out file
+2	docket metadata branch — separate planning state from code history
+3	migrate-to-docket.sh targets the invoking repo ($PWD) — usable for consuming repos
+4	BOARD.md goes stale during a build — refresh it on status transitions (claim / implemented), not only at Step 0
+5	Extract the shared convention into a docket-convention skill — reference-loaded, not embedded
+6	Learnings ledger — an append-only per-repo memory that builds feed and future builds read
+7	Recurring change templates — scheduled maintenance work that spawns proposed instances
+8	Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes
+9	Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git
+10	Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md
+11	GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror
+12	Groom-next skill — pick the next needs-brainstorm stub and groom it to build-ready
+13	Groom-next recap — introduce the selected stub before the brainstorm starts
+14	docket-auto-groom — autonomous grooming drain over auto-groomable stubs
+15	finalize — rebase onto base + re-run tests before merge
+16	docket skills as model/effort-pinned subagents — foundation
+17	docket subagent composition — nested status/adr/critic dispatch
+18	Record the pure-bash YAML/frontmatter parsing stance as an ADR
+19	Finalize ci/both gate — functional test against real GitHub CI (poll/retry)
+20	Split the docket-convention skill via progressive disclosure — extract the GitHub board mirror first
+23	Decide and apply scripting vs model-driven for the merge sweep and health checks
+24	Retire or downgrade the inline board/source-drift health check once rendering is deterministic
+25	Extract the shared terminal-transition close-out mechanics into deterministic scripts
+26	Extract config resolution + bootstrap guard into a deterministic script
+28	Wire the close-out call sites to the extracted scripts
+30	Script docket-adr's deterministic passes — index render, ledger checks, ADR-only publish
+31	ADR status-consistency check — match the supersede/reverse verb, not just the target id
+34	Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo
+35	Artifact links — a generated link block at the top of every change
+38	Test suite — drop over-escaped dashes in test_docket_metadata_branch.sh grep (silences "stray \ before -")
+40	terminal-publish leaves the integration-branch ADR index stale — regenerate it when an ADR is published
+43	Model-tier indirection for agent model selection + config-driven advisories
+44	Configurable SDD build models for docket-implement-next
+46	Per-harness model overrides for docket agents
+47	Make the agent-config refresh workflow discoverable in the README
+50	Global config layer — full-schema ~/.config/docket/config.yml with a coordination-key fence
+51	Machine-local config layer (.docket.local.yml) + all-local agent generation
+53	Slim docket-convention + docket-status via progressive disclosure
+54	Slim docket-finalize-change — rewire close-out to the shared reference
+55	Slim docket-implement-next + propagate Step-0 preamble to the small skills
+59	board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set
+60	board-refresh.sh must not write an empty BOARD.md — non-empty guard on the atomic write
+64	Optional terminal-publish — per-repo opt-out to keep metadata on docket
+66	Auto-groom's critic re-check must be foreground — a forked skill that yields returns a half-done run to its caller
+67	Give the learnings ledger a promotion destination — it has no way to shrink
+70	Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms
+71	Encode the disabled board positively — an empty surfaces value is a wiring bug, not a configuration
+72	Rewire the operating skills and Step-0 to the facade — retire the eval preamble
+77	Codex harness — TOML agent generation + AGENTS.md dispatch block
+78	Codex CLI live-validation runbook — prove docket works end-to-end under Codex
+79	Cross-harness runner delegation framework (first runner — OpenAI Codex)
+80	link-skills.sh creates a missing skills subdir when the harness is present
+85	Second-round skill slimming — re-slim regrown skills + regrowth guard
+86	Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs
+88	Loop continuation — implement-next chains into the next ready change instead of stopping
+91	Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes
+92	Orphan detection script — cross-reference change ids in merged commits against archive state
+94	Selection-order backlog digest — implement-next selects from a digest instead of walking active/
+95	Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution
+96	An autonomous run can be halted by a sub-skill's interactive hand-off — pre-specify the outcome at every autonomous call site
+100	Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate
+101	.docket.yml.example — the canonical all-comprehensive config reference
+106	Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture
+110	Concurrent agents collide on the shared .docket worktree's dirty-tree window
+111	Guard the board-checks check-id enumerations against drift
+114	Decide the repo's posture on line-number comment anchors
+115	Extend the board-row-dropped invariant to archive/ files
+116	Single-source the remaining duplicated board vocabularies
+117	Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding
+124	Backlog triage pass — kill, defer, or arm each needs-brainstorm stub
+126	Apply the poison-value prelude uniformly to every resolver eval in the config suite
+129	Fix the pipefail-unsafe plain-format config assertion
+135	Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort
+136	Artifact back-links — a generated link at the top of every artifact pointing to the change
+137	Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline
+144	A board-checks.sh non-zero exit silently voids the entire health pass
+145	docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin
+150	Pin or report the resolved shell toolchain across the test suite
+152	Consolidate the two surviving hand-rolled GNU Bash 4+ validator copies
+154	Remove stale Bash instructions and duplicated runtime contracts from Docket skills
+156	render-board.sh exits 0 on malformed input and commits a corrupt board
+158	Batch mode for docket-implement-next — build several coupled changes on one branch
+164	Retune agent model/effort defaults for all three supported harnesses
+172	Normalize the banned producer-pipe shape across tests and helpers
+185	Test-suite profilers — per-assertion and per-command timing
+190	Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip
+193	Default the build and review roles to docket-build and docket-review
+195	Retune the opencode shipped model defaults for cost
+196	Shared AGENTS.md dispatch block — restate and test the single-owner assumptions
+197	Clear the unfixed review findings from change 0193
+200	Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance
+201	Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet
+204	Restore dropped doc rationale (compression losses) and complete AGENTS.md's frontmatter-edit rule
+214	AGENTS.md's promoted frontmatter rule omits the whitespace-class half that corrupted two field writes
+215	Escape newlines in board-checks sanitize now that -z can deliver a raw LF
+224	The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate
+226	Reframe auto-capture as capability discovery with strict admission gates
+234	Split gate-execution.md: probe evidence should not sit on a blocking-read surface
+248	Role self-description: enforce the positive half and harden the guard
+249	Build-worker contract: gate-execution pointer and staging discipline
+252	Harden test fixtures and hermeticity into tests-lib
+253	Settle and enforce the prose-anchored guard house pattern
+256	Config-reader consolidation: one extractor or a recorded ADR
+257	Clear the residual review findings from 0193 and 0201
+260	Tier finalize's in-context dispatches and name the push-denial posture
+263	Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown
+273	Put runtime budgets on a host-relative basis and re-seed the table
+276	Dummy mode — persona-calibrated human-facing language simplification
+278	test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention
+280	Shard or re-budget the test files the suite runner reports OVER BUDGET
+296	Shard tests/test_docket_status.sh — its runtime row is at the table's hard 60s ceiling
+300	Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating
+301	The convention doc's lifecycle cardinalities are hardcoded prose with no guard
+302	mint-stub dedup misses a general-form parent of a specific discovery
+323	docket uninstall and version-tree collection for the Go installer
+333	Partition slow Go integration tests and retire the race gate's 300s ceiling exemption
+349	Make the finalize rebase-resolver dispatch cap configurable
+371	Cut generated agent invocation over to native host dispatch
+373	Harden integration/race test isolation under parallel load
+380	Add a descendant-receipt negative fixture pinning the root-anchored trailer read
+381	Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake
+384	Launch compositional Docket agents in coordinator-capable harness contexts
+389	Speed up implement-next status sweeps and retire completed status children
+393	Enter compositional Docket roles as coordinator-capable Codex root threads
+396	finalize async gate WAITING has no CLI re-entry that resumes the same drive
+397	Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default
+400	Rewrite the README as a goal-first landing page and relocate its technical body to docs/
+401	Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption
+412	Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge)
+423	Certify native Multi-Agent V2 orchestration through Docket ImplementNext
+424	Validate Codex coordinator models against a versioned capability registry
+425	Restore native Codex dispatch for Multi-Agent V2 Docket coordinators
+426	Constrain agent.enter to explicit legacy and feature-worktree use
+433	Pilot top-level Codex coordinators with one-level native dispatch
+446	Orphaned halted gate drive blocks every new worktree's first gate admission
+448	Named implement-next skips unrelated maintenance preflight
+449	Unrelated invalid change records must not block a named change's metadata writes or board
+458	Attach refuses a same-path same-day re-attach with verify-delta invalid-state
+459	Worker's gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive
+461	Allow editing an existing change's title
+463	Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch
+500	committed-ignore-invalid remedies print the paste-ready managed block
+531	Keep the metadata branch on a local remote with neutral naming
+539	Describe repository-check drift findings by family in the docket-status skill
+544	Release v1.0.0-rc.1: Claude Code and Cursor tested, OpenCode shipped untested
+545	Confirm in a sandbox whether Cursor runs docket subagents at their pinned models
+546	Per-agent prompt-cache TTL pin, shipped 1h for implement-next
+547	Measure whether the 1h cache TTL cut implement-next's cost
+559	Let a change deliver a results artifact instead of a PR
+562	Sweep retries deleting a leftover local branch
+563	change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely
+565	Refuse a stack-parent kill that would strand built children
+567	Clean up stacked children when their stack lands, and finalize a child after its parent
+568	Stop deferring a change that is already being built

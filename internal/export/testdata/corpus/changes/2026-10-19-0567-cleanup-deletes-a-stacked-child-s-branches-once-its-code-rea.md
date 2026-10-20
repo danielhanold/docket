@@ -1,0 +1,76 @@
+---
+id: 567
+slug: 'cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea'
+title: 'Clean up stacked children when their stack lands, and finalize a child after its parent'
+status: 'done'
+priority: 'high'
+type: 'fix'
+deliverable: 'pr'
+created: '2026-10-17'
+updated: '2026-10-19'
+depends_on: []
+stacked_on:
+related: [562]
+discovered_from: [562]
+adrs: [92, 35, 152]
+spec: 'docs/superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md'
+plan: 'docs/superpowers/plans/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md'
+results: 'docs/results/2026-10-19-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-results.md'
+trivial: false
+auto_groomable:
+branch_prefix:
+branch: 'fix/cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea'
+pr: 'https://github.com/danielhanold/docket/pull/433'
+blocked_by:
+reconciled: true
+claimed_at:
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md](../../superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md) |
+| Spec (merged) | [2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-design.md) |
+| Plan | [2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md](../../superpowers/plans/2026-10-18-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) |
+| Results | [2026-10-19-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-results.md](../../results/2026-10-19-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea-results.md) |
+| ADRs | [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0035](../../adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0152](../../adrs/0152-a-finished-workspace-s-identity-excludes-the-base-it-was-cut.md) |
+<!-- docket:artifacts:end -->
+
+## Why
+
+Docket users stack changes in their own repositories, and finishing a stack is broken in two ways.
+
+First, when a stack's root lands on main, none of its children get cleaned up: each child keeps its worktree folder, its local branch, and its remote branch forever. Finalize and the sweep clean up only the root. When cleanup does run for a child, it refuses, because the child's PR merged into its parent's branch rather than main. Even past that refusal, the child's folder looks like it belongs to someone else: docket compares the branch the folder was cut from (the parent's) with the base it now expects (main), and they no longer match. On top of that, the usual "is the merge on main" proof can't pass for a child, because docket's rebase merges put rewritten copies of the child's commits on main, not the same commits.
+
+Second, the same folder comparison likely stops docket from finalizing a child whose parent landed on main first, after finalize moved the child's PR to main.
+
+Found while grooming #562, which deliberately left stacked children alone.
+
+## What changes
+
+- A finished worktree folder is recognized as its change's own even when the branch it was cut from is no longer its base. A half-created folder (creation interrupted) still has to match.
+- Cleanup proves a stacked child's work reached main through its stack, using the same check closeout already runs before marking the child done (shared, not copied). Then it removes the child's folder and both branches under the usual safety checks. If the proof fails, it keeps everything and says so, with no "delete it by hand" advice.
+- Finalize and the sweep clean up each child the root carried right after the root itself.
+- The sweep treats a stacked child's leftover branch like any other leftover, so leftovers already in users' repositories are cleaned on the first full sweep after upgrade.
+- A child whose parent landed first can be finalized normally.
+
+## Out of scope
+
+How stacked children merge or become done, and the rule that a child's branches are kept until its root lands. Ordinary (unstacked) cleanup, including removing a clean folder when the branch is kept. Killed changes' branches and worktrees. The killed-parent policy.
+
+## Reconcile log
+
+### 2026-10-18
+
+Reconciled against main at f42692b6d. The code the spec names is still present unchanged in shape: `ownsManifest` (internal/workspace/prepare.go), `proveCarry` (internal/domain/stackcloseout.go), `closeoutIntegrationDestination` and `finalizeCleanupDone` (internal/app), `sweepRunCloseout` and `sweepMaybeCarriedDescendant` (internal/app). The recently landed #568 (refuse killing a parent with built stacked children) touches the kill path only and does not overlap this change's cleanup, closeout, or workspace-identity work. #562 is done. Scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: e1358d8501b1e3422bb6054daf79f7c63097d9e5
+ran_at:   2026-10-19T01:25:16Z
+<!-- docket:build-evidence:end -->
