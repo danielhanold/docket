@@ -140,6 +140,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0155](0155-retire-trivial-every-build-ready-change-has-a-spec.md) — Retire trivial: every build-ready change has a spec (Accepted) ← change #573 → supersedes ADR-0006 · relates to ADR-0153
 - [ADR-0156](0156-a-stack-parent-carries-exactly-the-children-whose-prs-merged.md) — A stack parent carries exactly the children whose PRs merged into it (Accepted) ← change #571 · relates to ADR-0092
 - [ADR-0157](0157-everyday-repository-commands-recognize-the-metadata-branch-b.md) — Everyday repository commands recognize the metadata branch by name and shape (Accepted) ← change #574
+- [ADR-0158](0158-context-implementation-id-serves-the-named-in-progress-chang.md) — context.implementation --id serves the named in-progress change (Accepted) ← change #360 · relates to ADR-0126, ADR-0106
 
 ## Superseded / Reversed
 

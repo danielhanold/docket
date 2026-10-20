@@ -11,7 +11,7 @@ depends_on: []
 stacked_on:
 related: [315, 357, 313, 335, 324, 247, 294, 399, 549, 448, 530]
 discovered_from: []
-adrs: [3, 47, 20, 66, 92, 95, 129, 126, 106]
+adrs: [3, 47, 20, 66, 92, 95, 129, 126, 106, 158]
 spec: 'docs/superpowers/specs/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md'
 plan: 'docs/superpowers/plans/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess.md'
 results:
@@ -32,7 +32,7 @@ claimed_at: '2026-10-20T21:45:48Z'
 |---|---|
 | Spec | [2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md](../../superpowers/specs/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md) |
 | Plan | [2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess.md](../../superpowers/plans/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess.md) |
-| ADRs | [ADR-0003](../../adrs/0003-convention-reference-loading.md), [ADR-0047](../../adrs/0047-digest-only-read-tier-skips-preflight.md), [ADR-0020](../../adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0066](../../adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0095](../../adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0129](../../adrs/0129-collision-free-docket-vocabulary.md), [ADR-0126](../../adrs/0126-named-implement-next-skips-unrelated-maintenance-preflight.md), [ADR-0106](../../adrs/0106-implementation-preflight-is-a-deterministic-operation-not-a.md) |
+| ADRs | [ADR-0003](../../adrs/0003-convention-reference-loading.md), [ADR-0047](../../adrs/0047-digest-only-read-tier-skips-preflight.md), [ADR-0020](../../adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0066](../../adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0095](../../adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0129](../../adrs/0129-collision-free-docket-vocabulary.md), [ADR-0126](../../adrs/0126-named-implement-next-skips-unrelated-maintenance-preflight.md), [ADR-0106](../../adrs/0106-implementation-preflight-is-a-deterministic-operation-not-a.md), [ADR-0158](../../adrs/0158-context-implementation-id-serves-the-named-in-progress-chang.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
