@@ -45,16 +45,19 @@ import (
 //      is NOT archived; its feature branch and workspace are retained.
 //
 //   3. Stack root carry: the destination is the integration branch AND the change
-//      roots a stack of stacked-merged descendants. domain.DeriveRootCloseoutSet
-//      proves, from the authoritative graph and live PR facts, the chain of merged
-//      destinations that establishes the carry RELATIONSHIP for every descendant
-//      into the root; each descendant is then proven in Git — its merge result
-//      reachable in the pinned integration history, or exact-content preserved at
-//      the root's own merge result — before any archive write, because a merged
-//      destination is a relationship, never evidence the content survived a
-//      stale-worktree rewrite. One transaction archives the root plus every proven
-//      descendant using the ROOT's merge date for every archive filename, and
-//      renders one board over the final population. A single unproven descendant
+//      roots a stack. The root carries exactly the descendants whose PRs merged
+//      into their parent's branch, transitively — stacked-merged children and
+//      implemented children whose own closeout never ran alike — and no other
+//      child blocks it. domain.DeriveRootCloseoutSet derives that carried set from
+//      the authoritative graph and live PR facts through the one walk rebase,
+//      publish, and merge also use (domain.DeriveCarriedSet); each carried
+//      descendant is then proven in Git — its merge result reachable in the pinned
+//      integration history, or exact-content preserved at the root's own merge
+//      result — before any archive write, because a merged destination is a
+//      relationship, never evidence the content survived a stale-worktree
+//      rewrite. One transaction archives the root plus every proven descendant
+//      using the ROOT's merge date for every archive filename, and renders one
+//      board over the final population. A single unproven carried descendant
 //      keeps the whole root recoverable — zero descendant writes.
 //
 // Backlinks: every spec, plan, and results file lives on the metadata branch,
@@ -85,9 +88,6 @@ const (
 	// CloseoutDispAlready: the promised final state already exists (a response-
 	// lost replay); a verified no-op.
 	CloseoutDispAlready = "already-closed-out"
-	// CloseoutDispChildrenRetargetRequired: a descendant is not yet stacked-merged,
-	// so the root cannot be carried; retarget/finish the descendants first.
-	CloseoutDispChildrenRetargetRequired = "children-retarget-required"
 	// CloseoutDispContended: a lost race the caller resolves by re-reading context
 	// (an unreachable merge commit, a stale record revision).
 	CloseoutDispContended = "contended"
@@ -606,16 +606,13 @@ func closeoutTargetFor(c domain.Change, changesDir, archiveDate string) closeout
 }
 
 // closeoutUnprovenDisposition maps the first descendant refusal token to a
-// closeout disposition. A descendant that is not yet stacked-merged needs
-// retargeting/finishing (children-retarget-required); an unknown PR is unknown;
-// every other structural break is blocked.
+// closeout disposition: a stacked-merged descendant whose PR facts cannot be
+// established (pr-unknown) is unknown; every other refusal is blocked.
 func closeoutUnprovenDisposition(set []domain.CarriedDescendant) (string, string) {
 	for _, d := range set {
 		switch d.Proof {
 		case "":
 			continue
-		case "not-stacked-merged":
-			return CloseoutDispChildrenRetargetRequired, ReasonCloseoutChildUnproven
 		case "pr-unknown":
 			return CloseoutDispUnknown, ReasonCloseoutProbeUnknown
 		default:
@@ -626,14 +623,21 @@ func closeoutUnprovenDisposition(set []domain.CarriedDescendant) (string, string
 }
 
 // probeDescendantFacts reprobes the live PR of every transitive stack descendant
-// so DeriveRootCloseoutSet reasons over authoritative facts. A descendant with no
-// PR reference contributes no facts (DeriveRootCloseoutSet reads that as
-// pr-unknown); a probe error is returned so the caller retains it as unknown.
+// the carry walk can read facts for — status implemented or stacked-merged — so
+// the carried set (domain.DeriveCarriedSet, through DeriveRootCloseoutSet here)
+// reasons over authoritative facts. Any other descendant (unbuilt, in progress,
+// or archived done/killed) is never carried and costs no GitHub lookup. A
+// descendant with no PR reference contributes no facts (a stacked-merged one
+// reads as pr-unknown, an implemented one as not carried); a probe error is
+// returned so the caller retains it as unknown.
 func probeDescendantFacts(ctx context.Context, deps FinalizeDeps, ghRepo githubcli.Repository, snap domain.Snapshot, root domain.ChangeID) (map[domain.ChangeID]domain.PRFacts, error) {
 	facts := map[domain.ChangeID]domain.PRFacts{}
 	for _, id := range domain.StackDescendantsParentFirst(snap, root) {
 		d, out := snap.Change(id)
 		if out != domain.LookupFound {
+			continue
+		}
+		if st := d.Status(); st != domain.StatusImplemented && st != domain.StatusStackedMerged {
 			continue
 		}
 		number, ok := parsePRNumber(d.PR().Value)
