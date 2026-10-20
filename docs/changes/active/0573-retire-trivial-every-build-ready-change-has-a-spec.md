@@ -15,7 +15,7 @@ discovered_from: []
 adrs: [6, 153, 155]
 spec: 'docs/superpowers/specs/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md'
 plan: 'docs/superpowers/plans/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec.md'
-results:
+results: 'docs/results/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-results.md'
 trivial: false
 auto_groomable:
 hold:
@@ -34,6 +34,7 @@ claimed_at: '2026-10-20T00:02:25Z'
 |---|---|
 | Spec | [2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md](../../superpowers/specs/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md) |
 | Plan | [2026-10-19-retire-trivial-every-build-ready-change-has-a-spec.md](../../superpowers/plans/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec.md) |
+| Results | [2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-results.md](../../results/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-results.md) |
 | ADRs | [ADR-0006](../../adrs/0006-autonomous-grooming-bounds.md), [ADR-0153](../../adrs/0153-a-hold-keeps-a-groomed-change-out-of-autonomous-build-select.md), [ADR-0155](../../adrs/0155-retire-trivial-every-build-ready-change-has-a-spec.md) |
 <!-- docket:artifacts:end -->
 
