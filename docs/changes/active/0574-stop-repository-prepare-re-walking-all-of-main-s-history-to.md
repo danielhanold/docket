@@ -2,7 +2,7 @@
 id: 574
 slug: 'stop-repository-prepare-re-walking-all-of-main-s-history-to'
 title: 'Recognize the docket branch by its shape in the everyday repository commands'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'fix/stop-repository-prepare-re-walking-all-of-main-s-history-to'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/440'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-20T18:04:43Z'
@@ -62,3 +62,12 @@ Retiring `repository migrate` or the old single-branch layout support; it is unr
 ### 2026-10-20
 
 Re-traced against main c58321f27: `verifyMetadataOwnership` still has the five call sites the spec names (prepare, check augment, migrate x2, init); related #360 still proposed, #378 done. No drift; scope unchanged.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 7d83a4d05c1be983bd1908b89f3c5b00903060ca
+ran_at:   2026-10-20T18:44:01Z
+<!-- docket:build-evidence:end -->

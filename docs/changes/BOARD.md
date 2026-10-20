@@ -1,12 +1,12 @@
 # Backlog
 
-**574 changes** — 🟢 1 in progress · 🟡 3 proposed · ⚪ 16 deferred · ✅ 410 done · 🗑️ 144 killed
+**574 changes** — 🔵 1 built · 🟡 3 proposed · ⚪ 16 deferred · ✅ 410 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0574](active/0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) | Recognize the docket branch by its shape in the everyday repository commands | `medium` | `fix` | [spec](../superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md) | `fix/stop-repository-prepare-re-walking-all-of-main-s-history-to` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0574](active/0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) | Recognize the docket branch by its shape in the everyday repository commands | `medium` | `fix` | [#440](https://github.com/danielhanold/docket/pull/440) | awaiting merge |
 
 ## 🟡 Proposed (3)
 
