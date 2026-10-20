@@ -441,6 +441,29 @@ func TestIntegrationRepoOwnershipUnreadableTipIsUnknown(t *testing.T) {
 	}
 }
 
+// A probe error AFTER the structural steps pass must still be RootUnknown. A
+// migrate receipt naming a well-formed but absent source revision makes the
+// reachability probe fail. This pins the full verifier's reset of the quick
+// check's RootParentless back to RootUnknown before its receipt/content proofs:
+// without it, this probe error would return owned.
+func TestIntegrationRepoOwnershipMigrateReceiptAbsentSourceIsUnknown(t *testing.T) {
+	f := newOwnFixture(t)
+	proj := f.mktree(map[string]string{"docs/changes/active/0001-a.md": "a\n"})
+	root := f.commitTree(proj, nil, seedMessage("migrate absent source",
+		opTrailer(reposetup.OpMigrateSeed),
+		srcTrailer(strings.Repeat("b", 40)), // well-formed, but no such object
+		copyTrailer(proj),
+		repairTrailer("deadbeef")))
+
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(f.mainTip()))
+	if own.Shape != reposetup.RootUnknown {
+		t.Fatalf("Shape = %v Proof = %d, want RootUnknown when the source reachability probe fails (err=%v)", own.Shape, own.Proof, own.Err)
+	}
+	if own.Err == nil {
+		t.Error("Err is nil, want the retained probe error")
+	}
+}
+
 func TestIntegrationRepoOwnershipUnknownIntegrationTipIsUnknown(t *testing.T) {
 	f := newOwnFixture(t)
 	et := f.emptyTree()
@@ -456,6 +479,116 @@ func TestIntegrationRepoOwnershipUnknownIntegrationTipIsUnknown(t *testing.T) {
 	if own.Err == nil {
 		t.Error("Err is nil, want the retained diagnostic")
 	}
+}
+
+// --- Quick (structural-only) ownership check ---------------------------------
+//
+// verifyMetadataShape runs only the two structural steps: one parentless root,
+// and no shared history with the integration branch. It reads no receipt and no
+// file contents, so a root the full verifier refuses on content grounds is owned
+// here. The full-verifier assertions in the last two subtests prove the fixture
+// really exercises that gap.
+
+// verifyShape runs the quick structural check against this fixture.
+func (f *ownFixture) verifyShape(t *testing.T, tip, integration gitcli.ObjectID) metadataOwnership {
+	t.Helper()
+	return verifyMetadataShape(context.Background(), newGitClient(t), gitcli.Repository{PrimaryWorktree: f.dir}, tip, integration)
+}
+
+func TestIntegrationRepoOwnershipShapeCheck(t *testing.T) {
+	t.Run("two parentless roots", func(t *testing.T) {
+		f := newOwnFixture(t)
+		et := f.emptyTree()
+		r1 := f.commitTree(et, nil, "root one")
+		r2 := f.commitTree(f.mktree(map[string]string{"a": "1\n"}), nil, "root two")
+		merge := f.commitTree(et, []string{r1, r2}, "merge of two orphan roots")
+
+		own := f.verifyShape(t, gitcli.ObjectID(merge), gitcli.ObjectID(f.mainTip()))
+		if own.Shape != reposetup.RootForeign {
+			t.Fatalf("Shape = %v, want RootForeign for two parentless roots (err=%v)", own.Shape, own.Err)
+		}
+	})
+
+	t.Run("shared ancestry", func(t *testing.T) {
+		f := newOwnFixture(t)
+		foreign := f.commitTree(
+			f.mktree(map[string]string{"docs/changes/active/0001-a.md": "a\n"}),
+			[]string{f.mainTip()},
+			seedMessage("docket metadata seed", opTrailer(reposetup.OpInitRoot)))
+
+		own := f.verifyShape(t, gitcli.ObjectID(foreign), gitcli.ObjectID(f.mainTip()))
+		if own.Shape != reposetup.RootForeign {
+			t.Fatalf("Shape = %v, want RootForeign for shared ancestry with integration (err=%v)", own.Shape, own.Err)
+		}
+	})
+
+	t.Run("unreadable tip", func(t *testing.T) {
+		f := newOwnFixture(t)
+		own := f.verifyShape(t, gitcli.ObjectID(strings.Repeat("a", 40)), gitcli.ObjectID(f.mainTip()))
+		if own.Shape != reposetup.RootUnknown {
+			t.Fatalf("Shape = %v, want RootUnknown for an absent tip object", own.Shape)
+		}
+		if own.Err == nil {
+			t.Error("Err is nil, want the retained probe error")
+		}
+	})
+
+	t.Run("unknown integration tip", func(t *testing.T) {
+		f := newOwnFixture(t)
+		root := f.commitTree(f.emptyTree(), nil, seedMessage("docket init", opTrailer(reposetup.OpInitRoot)))
+
+		own := f.verifyShape(t, gitcli.ObjectID(root), "")
+		if own.Shape != reposetup.RootUnknown {
+			t.Fatalf("Shape = %v, want RootUnknown when disjointness is unprovable", own.Shape)
+		}
+		if own.Err == nil {
+			t.Fatal("Err is nil, want the retained diagnostic")
+		}
+		// Pin the guard's own text: without the guard the ancestry probe would
+		// still error into RootUnknown, hiding its removal.
+		if !strings.Contains(own.Err.Error(), "integration tip unknown") {
+			t.Errorf("Err = %v, want the integration-tip-unknown diagnostic", own.Err)
+		}
+	})
+
+	t.Run("receiptless nonempty root with no matching snapshot is owned", func(t *testing.T) {
+		f := newOwnFixture(t) // main carries only README: no historical snapshot can match
+		root := f.commitTree(f.mktree(map[string]string{"docs/changes/active/zzz.md": "x\n"}), nil, "receiptless seed")
+		desc := f.commitTree(f.mktree(map[string]string{"docs/changes/active/zzz.md": "y\n"}), []string{root}, "meta 1")
+
+		own := f.verifyShape(t, gitcli.ObjectID(desc), gitcli.ObjectID(f.mainTip()))
+		if own.Shape != reposetup.RootParentless {
+			t.Fatalf("quick Shape = %v, want RootParentless (err=%v)", own.Shape, own.Err)
+		}
+		if own.Proof != proofShape {
+			t.Errorf("quick Proof = %d, want proofShape", own.Proof)
+		}
+		if own.Root != gitcli.ObjectID(root) {
+			t.Errorf("quick Root = %s, want %s", own.Root, root)
+		}
+		if own.Tip != gitcli.ObjectID(desc) {
+			t.Errorf("quick Tip = %s, want %s", own.Tip, desc)
+		}
+		full := f.verify(t, gitcli.ObjectID(desc), gitcli.ObjectID(f.mainTip()))
+		if full.Shape != reposetup.RootForeign {
+			t.Fatalf("full Shape = %v, want RootForeign: the fixture must exercise the content-proof gap (err=%v)", full.Shape, full.Err)
+		}
+	})
+
+	t.Run("invalid receipt is owned", func(t *testing.T) {
+		f := newOwnFixture(t)
+		root := f.commitTree(f.mktree(map[string]string{"docs/changes/active/0001-a.md": "a\n"}), nil,
+			seedMessage("init but nonempty", opTrailer(reposetup.OpInitRoot)))
+
+		own := f.verifyShape(t, gitcli.ObjectID(root), gitcli.ObjectID(f.mainTip()))
+		if own.Shape != reposetup.RootParentless {
+			t.Fatalf("quick Shape = %v, want RootParentless (err=%v)", own.Shape, own.Err)
+		}
+		full := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(f.mainTip()))
+		if full.Shape != reposetup.RootForeign {
+			t.Fatalf("full Shape = %v, want RootForeign for an init receipt over a nonempty tree (err=%v)", full.Shape, full.Err)
+		}
+	})
 }
 
 // --- Task 4: receiptless legacy exact-tree equivalence ------------------------
