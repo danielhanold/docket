@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/export-an-opened-artifact-as-a-clean-docket-free-markdown-fi'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-20T13:25:41Z'
+reconciled: true
+claimed_at: '2026-10-20T13:26:20Z'
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ A self-check of the output warns — never blocks — about docket leftovers and
 ## Out of scope
 
 The board. Windows (docket ships only macOS and Linux). Other export formats (.docx, PDF). Any change to how artifacts are stored. Rewriting prose beyond the change-reference conversions.
+
+## Reconcile log
+
+### 2026-10-20
+
+2026-10-20 — Spec groomed today; traced against current code: `docket open` (internal/app/open.go) still exposes `localArtifact` and `resolveOpenChange` as the spec assumes, no `internal/export` package exists yet, and related #559/#542/#573/#532 are all done with nothing landing since grooming that touches this scope. No scope change.
