@@ -26,8 +26,8 @@ never widen or recurse beyond this set. Map each envelope locally and key succes
 
 An unrelated change's closeout is never attempted here, and a dependency unmet for any
 non-`implemented` reason keeps its ordinary local refusal unchanged. A `not-ready-stack-base-unresolved` refusal is never a closeout trigger and keeps its ordinary local
-refusal: an ancestor's closeout cannot prove the carry of a named change not yet `stacked-merged`
-(`children-retarget-required`).
+refusal: the bounded closeout covers only the named change's own `depends_on` set, and an
+unresolved stack base clears through the parent's own finalize or the next sweep.
 
 ## Reconcile-kill (Step 3, change OBSOLETE)
 

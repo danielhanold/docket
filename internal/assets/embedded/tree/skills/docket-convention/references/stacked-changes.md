@@ -59,7 +59,8 @@ What it does **not** satisfy:
 
 The merge sweep (the `maintenance.sweep` operation) is the only producer of the state; the typed finalize
 close-out (the `finalize.closeout` operation's `root-archived` disposition) is the only consumer that takes
-a change out of it, when the stack root reaches integration. See *The stack close-out is idempotent*
+a change out of it, when the stack root reaches integration. That same root close-out also takes an
+`implemented` child whose PR merged into its parent's branch straight to `done`. See *The stack close-out is idempotent*
 below.
 
 ## Resolving the base — `context.implementation` effective-base
@@ -191,15 +192,18 @@ proposed one reads *stack parent #A killed — re-parent, un-stack, or kill*. It
 ## The stack close-out is idempotent
 
 When a stack **root** merges, the typed close-out — the `finalize.closeout` operation's **`root-archived`**
-disposition — archives the root and every carried `stacked-merged` descendant to `done` in **one
+disposition — archives the root and every carried descendant to `done` in **one
 transaction**, all under the **root's** merge date, and renders the root's marker-bounded **Stack
 carried** table on the root's archived record. A descendant counts as *carried* only when **both**
-hold: its merged PR destinations establish the carry **relationship** into the root, **and** its work
-is proven still present in Git — reachable in the pinned integration history, or exact-content at the
+hold: its PR merged into its parent's branch (it reads `stacked-merged`, or still `implemented`
+because its own close-out never ran), down an unbroken chain of such links from the root, **and** its
+work is proven still present in Git — reachable in the pinned integration history, or exact-content at the
 root's merge result. A merged destination alone is only a relationship: a stale-worktree rebase can
 drop a descendant's work while every record still reads merged, so the Git carry is the promotion
 condition. One unproven descendant leaves the root recoverable with zero descendant writes
-(fail-closed).
+(fail-closed). A child in any other state — an open or retargeted PR, not yet built, killed, already
+`done` — is not carried, never blocks the root, and is left alone; a child beneath it waits for its
+own parent.
 
 Finalize and the sweep then clean each carried child's folder and branches right after the root's,
 once cleanup proves the child's work reached the integration branch. Until then the child keeps
@@ -214,8 +218,8 @@ permanently. The transaction gates on the root actually carrying descendants, so
 pays nothing.
 
 The archive date is the root's `mergedAt` in **UTC**, derived inside the transaction, never `now()`,
-so a re-run reuses the same descendant filenames. Route on the typed `disposition`: `root-archived` (every descendant proven),
-`children-retarget-required` (one is not yet `stacked-merged`), or `contended`/`blocked`.
+so a re-run reuses the same descendant filenames. Route on the typed `disposition`: `done-archived` (nothing carried),
+`root-archived` (every carried descendant proven), or `contended`/`blocked`/`unknown`.
 
 Re-running it is the designed recovery from a partial pass: an `already-closed-out` disposition replays a
 response-lost success as a keyed no-op, keyed on the descendant already being **archived on the

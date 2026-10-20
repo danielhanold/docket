@@ -92,7 +92,7 @@ Two outcomes look abort-shaped and are not: a `waiting` (`reason: gate-waiting`)
 - a **merge condition that fails at the fresh recheck** or an authoritatively **denied** merge —
   the `finalize.merge` operation returns the condition's token or `merge-denied`; a standing denial is
   `halted`, never retried;
-- an **open unauthorized child** on an autonomous run, or a `children-retarget-required` closeout;
+- an **open unauthorized child** on an autonomous run;
 - the **dispatch mechanism being unavailable** for either gate agent — the `no-fallback` posture,
   established only per the convention's *Dispatch-capability resolution*, never from a tool name,
   and never substituted inline;
