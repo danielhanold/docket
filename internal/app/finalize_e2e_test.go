@@ -289,7 +289,10 @@ func reachImplemented(t *testing.T, m planRepoMode, docketBin, ghBin string) *e2
 	)
 	recPath := groomPath(id, slug)
 	planPath := "docs/superpowers/plans/2026-08-17-widget-plan.md"
-	env := newImplEnv(t, m, docketBin, ghBin, map[string]string{recPath: buildReadyChange(id, slug)})
+	env := newImplEnv(t, m, docketBin, ghBin, map[string]string{
+		recPath:               buildReadyChange(id, slug),
+		fixtureSpecPath(slug): fixtureSpecFile(id, slug),
+	})
 	c := env.implement(t, id, slug, planPath, "Add the widget")
 	return &e2eState{
 		repo: env.repo, mode: m, node: env.node, wdeps: env.wdeps,
@@ -848,6 +851,8 @@ func TestE2EStack(t *testing.T) {
 	env := newImplEnv(t, m, docketBin, ghBin, map[string]string{
 		groomPath(rootID, rootSlug):   buildReadyChange(rootID, rootSlug),
 		groomPath(childID, childSlug): stackedBuildReadyChange(childID, childSlug, rootID),
+		fixtureSpecPath(rootSlug):     fixtureSpecFile(rootID, rootSlug),
+		fixtureSpecPath(childSlug):    fixtureSpecFile(childID, childSlug),
 	})
 	root := env.implement(t, rootID, rootSlug, "docs/superpowers/plans/2026-08-17-widget-plan.md", "Add the widget")
 	child := env.implement(t, childID, childSlug, "docs/superpowers/plans/2026-08-17-gadget-plan.md", "Add the gadget")
@@ -1088,6 +1093,9 @@ func TestE2EStackThreeLevelCleanedBySweep(t *testing.T) {
 		groomPath(rootID, rootSlug):   buildReadyChange(rootID, rootSlug),
 		groomPath(childID, childSlug): stackedBuildReadyChange(childID, childSlug, rootID),
 		groomPath(grandID, grandSlug): stackedBuildReadyChange(grandID, grandSlug, childID),
+		fixtureSpecPath(rootSlug):     fixtureSpecFile(rootID, rootSlug),
+		fixtureSpecPath(childSlug):    fixtureSpecFile(childID, childSlug),
+		fixtureSpecPath(grandSlug):    fixtureSpecFile(grandID, grandSlug),
 	})
 	root := env.implement(t, rootID, rootSlug, "docs/superpowers/plans/2026-08-17-widget-plan.md", "Add the widget")
 	child := env.implement(t, childID, childSlug, "docs/superpowers/plans/2026-08-17-gadget-plan.md", "Add the gadget")
@@ -1165,6 +1173,8 @@ func TestE2EStackLeftoverCleanedBySweep(t *testing.T) {
 	env := newImplEnv(t, m, docketBin, ghBin, map[string]string{
 		groomPath(rootID, rootSlug):   buildReadyChange(rootID, rootSlug),
 		groomPath(childID, childSlug): stackedBuildReadyChange(childID, childSlug, rootID),
+		fixtureSpecPath(rootSlug):     fixtureSpecFile(rootID, rootSlug),
+		fixtureSpecPath(childSlug):    fixtureSpecFile(childID, childSlug),
 	})
 	root := env.implement(t, rootID, rootSlug, "docs/superpowers/plans/2026-08-17-widget-plan.md", "Add the widget")
 	child := env.implement(t, childID, childSlug, "docs/superpowers/plans/2026-08-17-gadget-plan.md", "Add the gadget")
@@ -1222,6 +1232,8 @@ func TestE2EStackParentLandedFirst(t *testing.T) {
 	env := newImplEnv(t, m, docketBin, ghBin, map[string]string{
 		groomPath(parentID, parentSlug): buildReadyChange(parentID, parentSlug),
 		groomPath(childID, childSlug):   stackedBuildReadyChange(childID, childSlug, parentID),
+		fixtureSpecPath(parentSlug):     fixtureSpecFile(parentID, parentSlug),
+		fixtureSpecPath(childSlug):      fixtureSpecFile(childID, childSlug),
 	})
 	parent := env.implement(t, parentID, parentSlug, "docs/superpowers/plans/2026-08-17-widget-plan.md", "Add the widget")
 	child := env.implement(t, childID, childSlug, "docs/superpowers/plans/2026-08-17-gadget-plan.md", "Add the gadget")
