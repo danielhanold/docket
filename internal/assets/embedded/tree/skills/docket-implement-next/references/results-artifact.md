@@ -11,7 +11,7 @@ skill.
 No plan, no build, no PR. Skip `workspace.commit-spec` — the branch must keep no commits of its
 own, or cleanup keeps it — plus the plan-writer dispatch, the build role, the build gate, evidence
 records, the branch diff review, `workspace.publish`, `pr.publish`, and `change.mark-implemented`
-(it refuses a `results-artifact` change). The spec, or a trivial change's body, is the plan.
+(it refuses a `results-artifact` change). The spec is the plan.
 
 **Refresh the claim** (the `change.refresh-claim` operation, at a revision re-read after a re-sync)
 at each phase boundary below, as the `pr` path does: before the work, before review, and before
@@ -52,7 +52,7 @@ so everything it reads travels inline.
 <!-- docket:feature-dispatch:start targets=docket-review-standard -->
 Dispatch `docket-review-standard` foreground — the default tier when there is no build record — and tell it to review in its results-artifact mode, then stop. Its dispatch payload contains:
 Feature worktree: <absolute canonical feature-worktree root>
-It also contains, inline, the spec body (or the trivial change's body), the results artifact's text, the change title and scope, and the relevant learnings hooks. When the `docket-review` skill is missing, apply the convention's missing-skill rule: review the results inline against the same checks, warning prominently, and dispatch no reviewer. An undispatchable review tier — established only per the convention's *Dispatch-capability resolution* — makes the run **`halt`**.
+It also contains, inline, the spec body, the results artifact's text, the change title and scope, and the relevant learnings hooks. When the `docket-review` skill is missing, apply the convention's missing-skill rule: review the results inline against the same checks, warning prominently, and dispatch no reviewer. An undispatchable review tier — established only per the convention's *Dispatch-capability resolution* — makes the run **`halt`**.
 <!-- docket:feature-dispatch:end -->
 
 ## 5. Fix pass

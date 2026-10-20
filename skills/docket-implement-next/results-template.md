@@ -1,5 +1,5 @@
-<!-- results-template.md — REQUIRED close-out artifact for every implemented change (trivial
-     included). Authored and consolidated by the coordinator, written on the docket branch
+<!-- results-template.md — REQUIRED close-out artifact for every implemented change.
+     Authored and consolidated by the coordinator, written on the docket branch
      through change.attach-results at each checkpoint and finally before the implemented transition.
      Written for a mid-level engineer with little knowledge of Docket internals:
      lead with what the reader must do and what changed; implementation detail belongs in the
