@@ -59,8 +59,9 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
   (implemented with a PR, or a completed results artifact); also reset the count of implement-next
   halts in a row (`docket run reset-halts`).
   Verbs: `docket run --help`.
-- **`docket schema`** — emit request/result payload schemas and allowed values (read-only,
-  repository-independent). Verbs: `docket schema --help`.
+- **`docket schema [<id>]`** — emit request/result payload schemas and allowed values (read-only,
+  repository-independent). Narrow it to one operation by giving its id positionally or via
+  `--operation`. Verbs: `docket schema --help`.
 - **`docket status`** — report backlog status, readiness, selection, and repository health
   (read-only). Verbs: `docket status --help`.
 - **`docket uninstall`** — remove recorded harness integrations while retaining the CLI and
