@@ -14,7 +14,7 @@ related: []
 discovered_from: [562]
 adrs: [132]
 spec: 'docs/superpowers/specs/2026-10-20-flaky-and-failing-tests-standing-bucket-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-20-flaky-and-failing-tests-standing-bucket.md'
 results:
 trivial: false
 auto_groomable:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-20T10:47:21Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-20-flaky-and-failing-tests-standing-bucket-design.md](../../superpowers/specs/2026-10-20-flaky-and-failing-tests-standing-bucket-design.md) |
+| Plan | [2026-10-20-flaky-and-failing-tests-standing-bucket.md](../../superpowers/plans/2026-10-20-flaky-and-failing-tests-standing-bucket.md) |
 | ADRs | [ADR-0132](../../adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |
 <!-- docket:artifacts:end -->
 
