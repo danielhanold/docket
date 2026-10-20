@@ -306,16 +306,14 @@ var proseContracts = []proseContract{
 		present: []string{"has a `spec:`, and all `depends_on` are satisfied"},
 		absent:  []string{"trivial: true", "trivial:"}},
 	// change 0573 — every groom that makes a change build-ready writes a spec:
-	// the brainstorm is told so, and no trivial exit or verdict survives.
+	// the brainstorm is told so. That no trivial exit or verdict survives is
+	// guarded by shape, not by spelling — TestGroomSkillsNeverSayTrivial.
 	{sentinel: "change_0573_spec_always", file: "skills/docket-groom-next/SKILL.md",
-		present: []string{"always a written spec, sized to the change"},
-		absent:  []string{"outcome: trivial", "trivial: true", "Trivial path", "Trivial verdict"}},
+		present: []string{"always a written spec, sized to the change"}},
 	{sentinel: "change_0573_spec_always", file: "skills/docket-new-change/SKILL.md",
-		present: []string{"always a written spec, sized to the change"},
-		absent:  []string{"outcome: trivial", "trivial: true", "Trivial path", "Trivial verdict"}},
+		present: []string{"always a written spec, sized to the change"}},
 	{sentinel: "change_0573_auto_groom_spec_or_abstain", file: "skills/docket-auto-groom/SKILL.md",
-		present: []string{"Exit (one of two)"},
-		absent:  []string{"outcome: trivial", "trivial verdict", "trivial M"}},
+		present: []string{"Exit (one of two)"}},
 	// change 0410 — docket-build's end-of-build capture ownership: the controller
 	// may checkpoint on the coordinator's behalf, but task workers never write the
 	// results file and a checkpoint never independently launches tests (each an
@@ -570,6 +568,47 @@ func TestProseContracts(t *testing.T) {
 		// A satisfied contract produces no violation.
 		if got := scanProse("x.md", "must appear and nothing else", []string{"must appear"}, []string{"gone"}); len(got) != 0 {
 			t.Errorf("scanProse flagged a satisfied contract: %v", got)
+		}
+	})
+}
+
+// trivialWord matches the whole word "trivial" in any case, so every spelling of
+// the retired exit ("a trivial verdict", "**Trivial** —", "(spec/trivial") is
+// caught without enumerating them; "trivially" is a different word and passes.
+var trivialWord = regexp.MustCompile(`(?i)\btrivial\b`)
+
+// change 0573 — the grooming skills no longer offer a trivial exit, so none of
+// them may use the word at all.
+var noTrivialGroomSkills = []string{
+	"skills/docket-groom-next/SKILL.md",
+	"skills/docket-new-change/SKILL.md",
+	"skills/docket-auto-groom/SKILL.md",
+}
+
+func TestGroomSkillsNeverSayTrivial(t *testing.T) {
+	root := guardRoot(t)
+	for _, rel := range noTrivialGroomSkills {
+		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatalf("read %s: %v (fail closed)", rel, err)
+		}
+		for i, line := range strings.Split(string(b), "\n") {
+			if trivialWord.MatchString(line) {
+				t.Errorf("%s: line %d uses the retired word \"trivial\": %q", rel, i+1, line)
+			}
+		}
+	}
+
+	t.Run("non_vacuity", func(t *testing.T) {
+		for _, hit := range []string{"a trivial verdict", "**Trivial** —", "(spec/trivial", "TRIVIAL path"} {
+			if !trivialWord.MatchString(hit) {
+				t.Errorf("trivialWord missed %q", hit)
+			}
+		}
+		for _, miss := range []string{"trivially small", "nontrivial"} {
+			if trivialWord.MatchString(miss) {
+				t.Errorf("trivialWord flagged %q", miss)
+			}
 		}
 	})
 }
