@@ -23,7 +23,7 @@ branch: 'fix/parent-closeout-waits-on-a-retargeted-child-so-a-parent-that'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-20T02:12:57Z'
+claimed_at: '2026-10-20T02:15:29Z'
 ---
 
 ## Artifacts
