@@ -68,7 +68,6 @@ import (
 //     supported config.Effective finalize fields)
 //   - supported build gate configuration       → PrepareContext.Build (mirrors the
 //     supported config.Effective build fields; independent of finalize — change 0374)
-//   - resolved workflow skill bindings        → PrepareContext.Skills
 //   - configuration diagnostics               → PrepareContext.ConfigDiagnostics
 
 // OperationRepositoryPrepare is the operation key `repository prepare` records.
@@ -124,19 +123,6 @@ type PrepareBuild struct {
 	MaxAttempts int `json:"max_attempts"`
 }
 
-// PrepareSkills carries the resolved workflow skill-role bindings. In Go v1 the
-// skill roles are deferred capabilities: a valid repository leaves them unset, so
-// these resolve to their empty defaults today. They are typed (never a generic
-// map) so a later resolver fills named fields rather than reintroducing a stringly
-// transport blob.
-type PrepareSkills struct {
-	Brainstorm string `json:"brainstorm,omitempty"`
-	Plan       string `json:"plan,omitempty"`
-	Build      string `json:"build,omitempty"`
-	Review     string `json:"review,omitempty"`
-	Finish     string `json:"finish,omitempty"`
-}
-
 // PrepareContext is the closed typed context a workflow carries forward (spec
 // §Structured result). It is a closed struct derived from the consumer inventory:
 // no generic string map, no DOCKET_* names, and no shell-quoted or eval-shaped
@@ -170,7 +156,6 @@ type PrepareContext struct {
 
 	Finalize PrepareFinalize `json:"finalize"`
 	Build    PrepareBuild    `json:"build"`
-	Skills   PrepareSkills   `json:"skills"`
 
 	ConfigDiagnostics []string `json:"config_diagnostics,omitempty"`
 }
@@ -568,9 +553,6 @@ func buildPrepareContext(cfg config.Effective, sc setupContext, f reposetup.Fact
 			TestCommand: cfg.Build.TestCommand.Value,
 			MaxAttempts: cfg.Build.MaxAttempts.Value,
 		},
-		// Skills roles are deferred capabilities in Go v1; a valid repository leaves
-		// them unset, so they resolve to their empty defaults today.
-		Skills: PrepareSkills{},
 	}
 }
 
