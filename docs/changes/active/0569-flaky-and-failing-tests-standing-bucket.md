@@ -22,8 +22,8 @@ branch_prefix:
 branch: 'chore/flaky-and-failing-tests-standing-bucket'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-20T10:43:41Z'
+reconciled: true
+claimed_at: '2026-10-20T10:45:44Z'
 ---
 
 ## Artifacts
@@ -48,3 +48,9 @@ The test waits until the launch has finished, meaning the launcher has released 
 ## Out of scope
 
 Changing cancel, census, or launch-claim behavior. Any other flaky test (a later one gets its own change). Slow tests and budget breaches (the budget report owns those).
+
+## Reconcile log
+
+### 2026-10-20
+
+2026-10-20: Re-traced against main 731b8edd9. The spec still holds: Driver.launchScopeless still runs Launch, attachLaunch, then claim.close(); the test still cancels right after awaitRunPhase("running"); the only other running-phase caller (the vanished case of TestIntegrationRunCancelSignaledOrVanishedSupervisorIsCancelled) still waits on awaitStart before cancelling. No scope change.
