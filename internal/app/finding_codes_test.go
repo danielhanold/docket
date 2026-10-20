@@ -230,13 +230,12 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 	emitted = append(emitted, validateADRReplaceShape(ADRReplaceRequest{Target: ADRTarget{ID: 0}, Successor: adrContent})...)
 	emitted = append(emitted, validateLearningRecordShape(LearningRecordRequest{Topics: []string{""}})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomSpec})...)
-	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomTrivial})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise, SpecMarkdown: "# x\n"})...)
-	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomTrivial, SpecRevision: "a"})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomSpec, SpecRevision: "a"})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomOutcome("bogus")})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomAbstain, Sections: []SectionEditRequest{{Heading: "## Why", Intent: "remove"}}})...)
-	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomTrivial, BlockedNote: "x"})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomSpec, BlockedNote: "x"})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomAbstain, Title: "x"})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise, Title: "a\nb"})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomAbstain, Priority: "high"})...)
@@ -269,7 +268,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 		FCInvalidChangeDotID, FCEmptyChangePath, FCEmptyChangeRevision,
 		FCInvalidTargetID, FCEmptyTargetPath, FCEmptyTargetRevision,
 		FCEmptyHook, FCEmptyApply, FCEmptyWarStory, FCInvalidTopics,
-		FCEmptySpecMarkdown, FCEmptySpecRevision, FCInvalidSpecRevision, FCMissingRationale, FCInvalidOutcome,
+		FCEmptySpecMarkdown, FCEmptySpecRevision, FCInvalidSpecRevision, FCInvalidOutcome,
 		FCInvalidSpecSectionHeading, FCEmptyReconcileLogEntry,
 		FCEmptyBlockedNote, FCInvalidBlockedNote, FCInvalidSections,
 		FCInvalidPRNumber, FCInvalidAttempt, FCEmptyHead, FCInvalidPriority, FCUnknownPriority,
