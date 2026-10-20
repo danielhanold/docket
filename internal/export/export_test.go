@@ -72,6 +72,49 @@ func TestTransformSpecStampKeepsRest(t *testing.T) {
 		"\"Twelve\".\n")
 }
 
+// TestTransformSpecStampShapes covers the stamp shapes older specs carry. A stamp
+// is matched by its shape (a line opening "Change", "Change:", or "**Change:**"
+// and the change id), never by a list of spellings, and on link-stripped text.
+func TestTransformSpecStampShapes(t *testing.T) {
+	titles := Titles{36: "Thirty-six", 31: "Thirty-one", 51: "Fifty-one", 205: "Two oh five",
+		462: "Four six two", 398: "Three nine eight", 257: "Two five seven", 282: "Two eight two",
+		104: "One oh four", 234: "Two three four", 474: "Four seven four", 237: "Two three seven",
+		236: "Two three six", 401: "Four oh one", 74: "Seventy-four", 72: "Seventy-two", 554: "Five five four"}
+	cases := []struct{ name, line, want string }{
+		{"colon dot-run", "Change: #0036 · slug `s` · spec drafted 2026-06-21 (autonomous groom)", ""},
+		{"bold dash title", "**Change:** 0031 — match the supersede verb", ""},
+		{"bold paren slug", "**Change:** 0051 (`global-agents-middle-layer`)", ""},
+		{"spec date", "Change 0205. Spec date 2026-08-04.", ""},
+		{"paren then groomed", "Change 0462 (discovered from 0398). Groomed 2026-09-27.", ""},
+		{"plain dot-run", "Change 0257 · groomed 2026-08-07 (auto-groom) · consolidates the surviving items", ""},
+		{"colon auto-groomed", "Change: 0282. Auto-groomed 2026-08-09 (critic-gated).", ""},
+		{"bold linked", "**Change:** [#0104](../../changes/active/0104-x.md)", ""},
+		{"linked sentence", "Change [#0234](../../changes/active/0234-x.md).", ""},
+		{"colon slug", "Change: 0074-bootstrap-facade-verb", ""},
+		{"colon record path", "Change: docs/changes/active/0258-guard-x.md", ""},
+		{"bold code slug", "**Change:** #0072 `facade-skill-rewiring`", ""},
+		{"bold dot-separated fields", "**Change:** 0401. **Type:** docs. **Path:** bounded (files added).", ""},
+		{"later change field", "**Date:** 2026-07-10 · **Change:** 0053 · **Depends on:** 0051", ""},
+		{"author sentence stays", "Change 0237. Supersedes and absorbs change 0236 (killed into this one).",
+			"Supersedes and absorbs \"Two three six\" (killed into this one)."},
+		{"groomed then author sentence", "Change #554, groomed 2026-10-16. Revised the same day.", "Revised the same day."},
+		{"unfinished sentence stays", "Change: 0261. Discovered in review (merged 2026-08-08), which introduced the",
+			"Discovered in review (merged 2026-08-08), which introduced the"},
+		{"unclosed parenthesis stays", "Change: 0247 (consolidates two killed stubs and", "(consolidates two killed stubs and"},
+		{"prose opening with a reference", "Change 0474 is the last family change.", "\"Four seven four\" is the last family change."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Transform(Input{Kind: KindSpec, Source: []byte("# T\n\n" + tc.line + "\n\n## Body\n\nx\n"), Titles: titles})
+			want := "# T\n\n## Body\n\nx\n"
+			if tc.want != "" {
+				want = "# T\n\n" + tc.want + "\n\n## Body\n\nx\n"
+			}
+			assertMarkdown(t, got, want)
+		})
+	}
+}
+
 func TestTransformSpecStampOnlyBeforeFirstH2(t *testing.T) {
 	// A non-spec artifact never loses a stamp-shaped line; it converts instead.
 	src := "# T\n\nChange 12.\n"

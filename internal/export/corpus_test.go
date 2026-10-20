@@ -206,9 +206,10 @@ func readLines(md []byte) []mdLine {
 
 var (
 	// testStampRE is a grooming stamp shape in a spec's preamble: a line opening
-	// "Change N." / "Change #N,", or a "groomed <date>" sentence anywhere on it
-	// (which still shows once step 6 has turned the "Change N" into a title).
-	testStampRE = regexp.MustCompile(`(?i)^change #?\d+[.,]|\bgroomed \d{4}-\d{2}-\d{2}\b`)
+	// "Change N." / "Change #N,", a "Change:" label, a "Change" followed by a
+	// converted title, or a "groomed <date>" sentence anywhere on it (which still
+	// shows once step 6 has turned the "Change N" into a title).
+	testStampRE = regexp.MustCompile(`(?i)^change #?\d+[.,]|^change:|^change "|\bgroomed \d{4}-\d{2}-\d{2}\b`)
 	issueH2     = map[string]bool{"## Why": true, "## What changes": true, "## Out of scope": true, "## Open questions": true}
 )
 

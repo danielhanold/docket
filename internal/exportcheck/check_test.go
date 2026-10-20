@@ -59,6 +59,14 @@ func TestCheckFindsEachLeftoverKind(t *testing.T) {
 		{"stamp groomed dot", "# T\n\nChange 9373. Groomed 2026-09-02 (interactive). Rest\n", []lineRule{{3, RuleStamp}}},
 		{"stamp change only", "# T\n\nChange 9561.\n", []lineRule{{3, RuleStamp}}},
 		{"stamp bold", "# T\n\n**Change:** 9003 · **Type:** feat\n", []lineRule{{3, RuleStamp}}},
+		{"stamp bold converted title", "# T\n\n**Change:** \"Some title\" — x\n", []lineRule{{3, RuleStamp}}},
+		{"stamp colon converted title", "# T\n\nChange: \"Some title\" · slug\n", []lineRule{{3, RuleStamp}}},
+		{"stamp converted title", "# T\n\nChange \"Some title\".\n", []lineRule{{3, RuleStamp}}},
+		{"stamp colon record path", "# T\n\nChange: docs/changes/active/0258-x.md\n", []lineRule{{3, RuleStamp}}},
+		{"stamp dot-run", "# T\n\nChange #9036 · slug\n", []lineRule{{3, RuleStamp}}},
+		{"stamp parenthesis", "# T\n\nChange 9462 (discovered). Groomed\n", []lineRule{{3, RuleStamp}}},
+		{"stamp later field", "# T\n\n**Date:** 2026-07-10 · **Change:** \"Some title\" · **Type:** x\n", []lineRule{{3, RuleStamp}}},
+		{"stamp dot then author sentence", "# T\n\nChange 9237. Supersedes it.\n", []lineRule{{3, RuleStamp}}},
 		{"heading", "# T\n\n## A\n\n#### B\n", []lineRule{{5, RuleHeading}}},
 	}
 	for _, tc := range cases {
@@ -87,6 +95,7 @@ func TestCheckKeepsWhatTheExportKeeps(t *testing.T) {
 		"An unknown change 9999 and changes 9998 and 9997 stay.",
 		"A bare https://go.dev/x URL stays, and a 0559-export.md file, docs/0559, 0559.md too.",
 		"A converted \"Close a change to done without a PR\" title stays.",
+		"Change management is prose, and so is Changes: none.",
 		"Code: `<!-- docket:x:start -->`, `[a](b)`, `change 559`, ``a ` [x](y) ``, `#0559`, `↩`.",
 		"",
 		"## Section",
