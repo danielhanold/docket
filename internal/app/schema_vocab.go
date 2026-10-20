@@ -111,7 +111,7 @@ func SchemaVocabularies(effects []string) map[string]Vocabulary {
 	}}
 	v["closeout_dispositions"] = Vocabulary{Members: []string{
 		CloseoutDispDoneArchived, CloseoutDispStackedMerged, CloseoutDispRootArchived,
-		CloseoutDispAlready, CloseoutDispChildrenRetargetRequired, CloseoutDispContended,
+		CloseoutDispAlready, CloseoutDispContended,
 		CloseoutDispBlocked, CloseoutDispUnknown, CloseoutDispFailed,
 	}}
 	v["merge_dispositions"] = Vocabulary{Members: []string{

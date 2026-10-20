@@ -527,8 +527,10 @@ func (f *closeoutFixture) carryOntoRootFeature(t *testing.T, files map[string]st
 
 // TestCloseoutRootCarry proves a stack root merged to integration archives the
 // root plus every proven carried descendant in ONE transaction using the root's
-// merge date for every filename; a single unproven descendant keeps the root
-// recoverable with zero descendant writes; and — the change-0327 headline — the
+// merge date for every filename; it carries exactly the children whose PRs merged
+// into its branch (stacked-merged or still implemented), and no other child
+// blocks it; a single unproven carried descendant keeps the root recoverable
+// with zero descendant writes; and — the change-0327 headline — the
 // archive is refused unless every carried descendant's merged work is proven
 // PRESENT IN GIT (ancestry in the pinned integration history, or exact content at
 // the ROOT's merge result), never inferred from a metadata destination.
@@ -543,18 +545,80 @@ func TestIntegrationFinalizeArchiveRootCarry(t *testing.T) {
 
 	descPlan := "docs/superpowers/plans/2026-08-16-gadget-plan.md"
 
-	// seed returns a descendant record (id 6, gadget) stacked on the root (id 5)
-	// with the given status, carrying PR #8 whose destination is the root's branch.
-	seed := func(t *testing.T, descStatus string) *closeoutFixture {
+	// seedAt returns a descendant record (id 6, gadget) stacked on the root (id 5)
+	// with the given status at recPath, carrying PR #8. seed places it at the
+	// active path; an archived status (done, killed) lives at descArchived.
+	seedAt := func(t *testing.T, descStatus, recPath string) *closeoutFixture {
 		f := setupCloseoutFixture(t, m)
-		recPath := groomPath(6, "gadget")
 		desc := closeoutRecord(6, "gadget", descStatus, "github.com/acme/widget#8", "", descPlan, "")
 		desc = strings.Replace(desc, "stacked_on:\n", "stacked_on: 5\n", 1)
+		if descStatus == "done" {
+			// A done record keeps its branch/PR history but drops the claim stamp.
+			desc = strings.Replace(desc, "claimed_at: 2026-08-02T00:00:00Z\n", "", 1)
+		}
 		f.repo.writerAdvance(t, f.branch, map[string]string{
 			recPath:  desc,
 			descPlan: artifactWithBacklink(recPath, "Gadget plan", "The gadget plan."),
 		})
 		return f
+	}
+	seed := func(t *testing.T, descStatus string) *closeoutFixture {
+		return seedAt(t, descStatus, groomPath(6, "gadget"))
+	}
+	descArchived := "docs/changes/archive/2026-08-16-0006-gadget.md"
+	rootArchived := "docs/changes/archive/2026-08-18-0005-widget.md"
+
+	// assertRootOnlyArchived pins a closeout that archives the root alone: the
+	// root is done at its archive path, nothing is carried, and the descendant's
+	// record at descPath is byte-identical to descBefore.
+	assertRootOnlyArchived := func(t *testing.T, f *closeoutFixture, res CloseoutResult, descPath, descBefore string) {
+		t.Helper()
+		if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
+			t.Fatalf("root closeout = %q disp %q (reason %q msg %q findings %+v), want applied/%s", res.Result, res.Disposition, res.Reason, res.Message, res.Findings, CloseoutDispDoneArchived)
+		}
+		if len(res.CarriedIDs) != 0 {
+			t.Errorf("carried ids = %v, want none", res.CarriedIDs)
+		}
+		archived, ok := originFile(t, f.repo.origin, f.branch, rootArchived)
+		if !ok {
+			t.Fatalf("root archive record absent at %q", rootArchived)
+		}
+		if !strings.Contains(archived, "status: 'done'") {
+			t.Errorf("root archive record not done:\n%s", archived)
+		}
+		if _, ok := originFile(t, f.repo.origin, f.branch, "docs/changes/archive/2026-08-18-0006-gadget.md"); ok {
+			t.Errorf("a non-carried descendant was archived with the root")
+		}
+		after, ok := originFile(t, f.repo.origin, f.branch, descPath)
+		if !ok {
+			t.Fatalf("the non-carried descendant's record left %q", descPath)
+		}
+		if after != descBefore {
+			t.Errorf("the non-carried descendant's record changed:\nbefore:\n%s\nafter:\n%s", descBefore, after)
+		}
+		assertBoardMatchesCommitted(t, f.repo.origin, f.branch, f.repo.invocation)
+	}
+
+	// assertRefusedZeroWrites pins a blocked root carry: the metadata ref is
+	// byte-identical to before, nothing is archived, both active records remain.
+	assertRefusedZeroWrites := func(t *testing.T, f *closeoutFixture, res CloseoutResult, before string) {
+		t.Helper()
+		if res.Result != ResultBlocked || res.Disposition != CloseoutDispBlocked || res.Reason != ReasonCloseoutChildUnproven {
+			t.Fatalf("refused root carry = %q disp %q reason %q, want blocked/%s/%s", res.Result, res.Disposition, res.Reason, CloseoutDispBlocked, ReasonCloseoutChildUnproven)
+		}
+		if after := originTip(t, f.repo.origin, f.branch); after != before {
+			t.Errorf("a refused root carry moved the metadata ref: %q -> %q", before, after)
+		}
+		for _, p := range []string{rootArchived, "docs/changes/archive/2026-08-18-0006-gadget.md"} {
+			if _, ok := originFile(t, f.repo.origin, f.branch, p); ok {
+				t.Errorf("a refused root carry archived %q", p)
+			}
+		}
+		for _, p := range []string{groomPath(5, "widget"), groomPath(6, "gadget")} {
+			if _, ok := originFile(t, f.repo.origin, f.branch, p); !ok {
+				t.Errorf("a refused root carry removed the active record %q", p)
+			}
+		}
 	}
 
 	// rootFake scripts PR #7 (root) merged into main at rootMerge and PR #8
@@ -626,30 +690,103 @@ func TestIntegrationFinalizeArchiveRootCarry(t *testing.T) {
 		}
 	})
 
-	t.Run("one-unproven-descendant-keeps-root-recoverable", func(t *testing.T) {
-		f := seed(t, "implemented") // NOT stacked-merged: carry unproven
+	t.Run("unmerged-implemented-child-does-not-block-root", func(t *testing.T) {
+		// An implemented child whose PR #8 never merged (the fake answers cleanly
+		// not merged) is not carried and does not hold the landed root back: the
+		// root archives alone and the child stays active and implemented.
+		f := seed(t, "implemented")
+		descBefore, _ := originFile(t, f.repo.origin, f.branch, groomPath(6, "gadget"))
+		if !strings.Contains(descBefore, "status: implemented") {
+			t.Fatalf("fixture child is not implemented:\n%s", descBefore)
+		}
 		mergeCommit := f.mergeIntoBase(t)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(f.baselineMergedFake(f.head, mergeCommit)), f.repo.invocation, f.id, CloseoutNotes{})
+		assertRootOnlyArchived(t, f, res, groomPath(6, "gadget"), descBefore)
+	})
+
+	t.Run("non-carried-children-do-not-block-root", func(t *testing.T) {
+		// A child that is not implemented or stacked-merged is never carried and
+		// never looked up: the only GitHub probe is the root's own reprobe.
+		for _, tc := range []struct{ status, path string }{
+			{"proposed", groomPath(6, "gadget")},
+			{"in-progress", groomPath(6, "gadget")},
+			{"killed", descArchived},
+			{"done", descArchived},
+		} {
+			t.Run(tc.status, func(t *testing.T) {
+				f := seedAt(t, tc.status, tc.path)
+				descBefore, _ := originFile(t, f.repo.origin, f.branch, tc.path)
+				mergeCommit := f.mergeIntoBase(t)
+				gh := f.baselineMergedFake(f.head, mergeCommit)
+				res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
+				assertRootOnlyArchived(t, f, res, tc.path, descBefore)
+				if gh.probes != 1 {
+					t.Errorf("GitHub probes = %d, want 1 (only the root's own reprobe; a child at status %s is never looked up)", gh.probes, tc.status)
+				}
+			})
+		}
+	})
+
+	t.Run("implemented-child-merged-to-main-not-carried", func(t *testing.T) {
+		// The child was retargeted and its PR merged into main, not the root's
+		// branch: it is not the root's to carry, and it does not block the root.
+		f := seed(t, "implemented")
+		descBefore, _ := originFile(t, f.repo.origin, f.branch, groomPath(6, "gadget"))
+		childMerge := f.carryCommit(t, "gadget-mc", "main", map[string]string{"gadget.txt": "gadget work\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		f.fetchAllIntoInvocation(t)
 		gh := &fakeCloseoutGitHub{
 			repo: retargetRepo(),
 			merged: map[int]closeoutProbe{
 				closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "main", mergeCommit)},
+				8:          {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(childMerge, "main", childMerge)},
 			},
 		}
-		before := originTip(t, f.repo.origin, f.branch)
 		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
-		if res.Result == ResultApplied || res.Result == ResultNoOp {
-			t.Fatalf("an unproven descendant let the root close out: %q", res.Result)
+		assertRootOnlyArchived(t, f, res, groomPath(6, "gadget"), descBefore)
+		if gh.probes != 2 {
+			t.Errorf("GitHub probes = %d, want 2 (the root and its implemented child)", gh.probes)
 		}
-		if res.Disposition != CloseoutDispChildrenRetargetRequired {
-			t.Errorf("disposition = %q, want %q", res.Disposition, CloseoutDispChildrenRetargetRequired)
+	})
+
+	t.Run("implemented-merged-child-is-carried", func(t *testing.T) {
+		// The child's PR merged into the root's branch but its own closeout never
+		// ran (still implemented): the root carries it to done.
+		f := seed(t, "implemented")
+		childMerge := f.carryOntoRootFeature(t, map[string]string{"gadget.txt": "gadget work\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		f.fetchAllIntoInvocation(t)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(rootFake(f, mergeCommit, childMerge)), f.repo.invocation, f.id, CloseoutNotes{})
+		assertBothArchived(t, f, res)
+	})
+
+	t.Run("implemented-merged-child-parent-branch-deleted", func(t *testing.T) {
+		// The root's remote branch is gone (auto-delete after merge). The content
+		// proof reads the integration branch, so the implemented-but-merged child
+		// is still carried.
+		f := seed(t, "implemented")
+		childMerge := f.carryOntoRootFeature(t, map[string]string{"gadget.txt": "gadget work\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		runGit(t, f.repo.writer, "push", "-q", "origin", "--delete", "feat/"+f.slug)
+		runGit(t, f.repo.invocation, "fetch", "-q", "--prune", "origin", "+refs/heads/*:refs/remotes/origin/*")
+		if _, err := tryGit(f.repo.origin, "rev-parse", "--verify", "--quiet", "refs/heads/feat/"+f.slug); err == nil {
+			t.Fatalf("the root's remote branch must be deleted for this fixture")
 		}
-		// Zero writes: neither record moved.
-		if after := originTip(t, f.repo.origin, f.branch); after != before {
-			t.Errorf("an unproven root carry moved the metadata ref: %q -> %q", before, after)
-		}
-		if _, ok := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug)); !ok {
-			t.Errorf("the recoverable root was archived away")
-		}
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(rootFake(f, mergeCommit, childMerge)), f.repo.invocation, f.id, CloseoutNotes{})
+		assertBothArchived(t, f, res)
+	})
+
+	t.Run("implemented-merged-child-content-dropped-refuses", func(t *testing.T) {
+		// The implemented child's PR merged into the root's branch, but its work
+		// never reached the integration branch (a real merge object on a side
+		// branch, never on the root's branch): the root refuses, zero writes.
+		f := seed(t, "implemented")
+		childMerge := f.carryCommit(t, "gadget-mc", "main", map[string]string{"gadget.txt": "gadget work\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		f.fetchAllIntoInvocation(t)
+		before := originTip(t, f.repo.origin, f.branch)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(rootFake(f, mergeCommit, childMerge)), f.repo.invocation, f.id, CloseoutNotes{})
+		assertRefusedZeroWrites(t, f, res, before)
 	})
 
 	t.Run("absent-merge-object-refuses", func(t *testing.T) {
