@@ -2,7 +2,7 @@
 id: 571
 slug: 'parent-closeout-waits-on-a-retargeted-child-so-a-parent-that'
 title: 'Close out a landed stack parent without waiting on children that never merged into it'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 deliverable: 'pr'
@@ -19,10 +19,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/parent-closeout-waits-on-a-retargeted-child-so-a-parent-that'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-20T02:12:12Z'
 ---
 
 ## Artifacts
