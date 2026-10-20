@@ -7,14 +7,14 @@ priority: 'high'
 type: 'refactor'
 deliverable: 'pr'
 created: '2026-10-19'
-updated: '2026-10-19'
+updated: '2026-10-20'
 depends_on: []
 stacked_on:
 related: [566]
 discovered_from: []
 adrs: [6, 153, 155]
 spec: 'docs/superpowers/specs/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec.md'
 results:
 trivial: false
 auto_groomable:
@@ -33,6 +33,7 @@ claimed_at: '2026-10-19T23:48:51Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md](../../superpowers/specs/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md) |
+| Plan | [2026-10-19-retire-trivial-every-build-ready-change-has-a-spec.md](../../superpowers/plans/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec.md) |
 | ADRs | [ADR-0006](../../adrs/0006-autonomous-grooming-bounds.md), [ADR-0153](../../adrs/0153-a-hold-keeps-a-groomed-change-out-of-autonomous-build-select.md), [ADR-0155](../../adrs/0155-retire-trivial-every-build-ready-change-has-a-spec.md) |
 <!-- docket:artifacts:end -->
 
