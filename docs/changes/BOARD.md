@@ -1,12 +1,17 @@
 # Backlog
 
-**574 changes** — 🟡 4 proposed · ⚪ 16 deferred · ✅ 410 done · 🗑️ 144 killed
+**574 changes** — 🟣 1 groomed · 🟡 3 proposed · ⚪ 16 deferred · ✅ 410 done · 🗑️ 144 killed
 
-## 🟡 Proposed (4)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec | Readiness |
+|---|-------|----------|------|------|-----------|
+| [0574](active/0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) | Recognize the docket branch by its shape in the everyday repository commands | `medium` | `fix` | [spec](../superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md) | build-ready |
+
+## 🟡 Proposed (3)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0574](active/0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) | Stop repository prepare re-walking all of main's history to prove metadata ownership | `medium` | `fix` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `feat` | needs-grooming |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |

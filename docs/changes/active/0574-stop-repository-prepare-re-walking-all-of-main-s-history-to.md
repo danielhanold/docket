@@ -1,7 +1,7 @@
 ---
 id: 574
 slug: 'stop-repository-prepare-re-walking-all-of-main-s-history-to'
-title: 'Stop repository prepare re-walking all of main''s history to prove metadata ownership'
+title: 'Recognize the docket branch by its shape in the everyday repository commands'
 status: 'proposed'
 priority: 'medium'
 type: 'fix'
@@ -10,10 +10,10 @@ created: '2026-10-20'
 updated: '2026-10-20'
 depends_on: []
 stacked_on:
-related: [360]
-discovered_from: []
+related: [360, 378]
+discovered_from: [561]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md'
 plan:
 results:
 auto_groomable:
@@ -28,24 +28,27 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md](../../superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-`docket repository prepare` takes about 68 seconds on the docket repo with nothing else running (about 52s of CPU, nearly half of it system time), and almost every command runs it first, so `docket open` and similar commands each take about 70 seconds. Observed 2026-10-20 while building change 561; 561 did not cause it.
+`docket repository prepare` takes about 70 seconds on this repository, and nearly every docket workflow runs it first. `repository check`, `repair`, `configure-tests`, and `configure-harnesses` pay the same cost. Observed 2026-10-20 while building change 561.
 
-Cause (from reading the code, not yet profiled): the `.docket` branch's root commit ("seed metadata branch from main (migrate-to-docket dogfood)") has no seed receipt trailers, so ownership falls to the receiptless legacy path. `verifyLegacyEquivalence` in `internal/app/metadata_ownership.go` lists every commit reachable from main (4,462 here) and, newest first, reads each snapshot's `.docket.yml` and tree entries and sometimes builds a tree, each as its own git call, until one matches the seed. The matching snapshot is the old migration commit, so the walk goes nearly all the way back. The result is not kept, so every prepare repeats it. It is slower still while the test suite runs, because the git subprocesses compete for CPU.
+The cause is the metadata-ownership check. When the metadata branch's first commit has no docket seed receipt and is not empty, which is true of every repository seeded by the old Bash migration script, the check searches all of main's history for the snapshot the seed was copied from. It spawns thousands of separate git processes and keeps nothing, so every run repeats the search.
+
+That content proof only matters for the two commands that create or delete planning data: `repository init` and `repository migrate`. The everyday commands only write to the metadata branch. For them, two cheap structural checks catch the realistic accident, an ordinary branch someone named `docket`.
 
 ## What changes
 
-Make a repeat prepare on an already-proven repo cheap. Groom to choose among:
+The everyday repository commands (`prepare`, `check`, `repair`, `configure-tests`, `configure-harnesses`) recognize the metadata branch by its name plus two deterministic checks in the binary: it has exactly one starting commit, and it shares no history with the integration branch. A check that fails to run reads as unknown and refuses, as today. `repository init` and `repository migrate` keep the full content proof, unchanged.
 
-1. Record or cache the proof once the walk matches (a receipt, or a cached matching commit), so later prepares take the fast path. The code comment calls this path content-read-only, so writing a receipt is a design question.
-2. Re-prove only when the metadata root tree or main's tip changed since the last successful proof.
-3. Batch the per-commit git calls into one pass (`git log --raw` or `cat-file --batch`). A smaller win that does not remove the root cause.
+The foreign-branch finding that prepare and check show is reworded to name the structural reason in plain words. A new ADR records the split, so the content proof does not drift back into the everyday commands.
 
-The acceptance bar is a `docket repository prepare` on this repo that takes seconds, not a minute, with the same healthy/foreign/unknown outcomes.
+Acceptance: `docket repository prepare` on this repository takes seconds, not a minute.
 
 ## Out of scope
 
-Weakening the ownership check or treating a truncated search as foreign (the existing fail-closed behavior stays). Changing the receipt format for newly seeded repos. The coordination cost inside implement-next runs, which change 360 covers.
+Retiring `repository migrate` or the old single-branch layout support; it is unrelated to the ownership check. Any change to `repository init` or `repository migrate`. Speeding up the full content proof, for example by batching its git calls. Caching or storing a proof. The seed receipt format. The coordination cost inside implement-next runs, which change 360 covers.
