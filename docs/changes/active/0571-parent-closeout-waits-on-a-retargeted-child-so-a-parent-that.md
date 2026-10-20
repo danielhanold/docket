@@ -14,7 +14,7 @@ related: [567]
 discovered_from: [567]
 adrs: [92]
 spec: 'docs/superpowers/specs/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md'
 results:
 trivial: false
 auto_groomable:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-20T02:15:29Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-design.md](../../superpowers/specs/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-design.md) |
+| Plan | [2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md](../../superpowers/plans/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md) |
 | ADRs | [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
