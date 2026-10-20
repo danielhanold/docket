@@ -46,7 +46,7 @@ Checked by scanning every corpus file outside fences and code spans:
 | Images (`![alt](p)`) | `TestStripLinks` |
 | Reference-style links and link-reference definitions (`[t][r]`, `[r]: u`) | `TestStripLinks`, `TestIsLinkDefinition` |
 | HTML `<a href>` links | `TestStripLinks` |
-| Inline code spans that cross a line break (a known limitation: such a span is treated as plain text) | none; no corpus line outside a fence holds an unmatched backtick run |
+| Inline code spans that cross a line break (both the transform and the self-check find spans across a whole paragraph, so such a span stays code on each of its lines) | `TestTransformMasksCodeSpansAcrossLines`, `TestCheckMasksCodeSpansAcrossLines` |
 | Damaged markers and an unclosed frontmatter opener | `TestTransformDamagedSourceKeepsContent` |
 | CRLF line endings | `TestTransformNormalizesCRLF` |
 | An id two records claim | the app-layer export tests |

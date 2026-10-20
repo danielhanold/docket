@@ -25,42 +25,75 @@ const (
 // of exactly N backticks closes it. A backslash-escaped backtick outside a span
 // opens nothing, and a run with no matching closer stays plain text.
 func maskCode(line string) (masked string, restore func(string) string) {
-	var spans []string
-	var b strings.Builder
-	i := 0
-	for i < len(line) {
-		c := line[i]
-		if c == '\\' && i+1 < len(line) {
-			b.WriteString(line[i : i+2])
+	m, r := maskParagraph([]string{line})
+	return m[0], r[0]
+}
+
+// maskParagraph is maskCode over the lines of one paragraph, where a code span
+// may cross a line break: each line's part of such a span is masked on that
+// line, and each line gets its own restore.
+func maskParagraph(lines []string) (masked []string, restore []func(string) string) {
+	joined := strings.Join(lines, "\n")
+	ranges := codeSpanRanges(joined)
+	masked = make([]string, len(lines))
+	restore = make([]func(string) string, len(lines))
+	start := 0
+	for i, l := range lines {
+		end := start + len(l)
+		var spans []string
+		var b strings.Builder
+		pos := start
+		for _, r := range ranges {
+			from, to := max(r[0], start), min(r[1], end)
+			if from >= to {
+				continue
+			}
+			b.WriteString(joined[pos:from])
+			b.WriteString(placeholder(len(spans)))
+			spans = append(spans, joined[from:to])
+			pos = to
+		}
+		if len(spans) == 0 {
+			masked[i], restore[i] = l, func(s string) string { return s }
+		} else {
+			b.WriteString(joined[pos:end])
+			masked[i] = b.String()
+			restore[i] = func(s string) string {
+				for idx, span := range spans {
+					s = strings.ReplaceAll(s, placeholder(idx), span)
+				}
+				return s
+			}
+		}
+		start = end + 1
+	}
+	return masked, restore
+}
+
+// codeSpanRanges returns the byte range of every inline code span in s,
+// backticks included, by the CommonMark rule maskCode describes.
+func codeSpanRanges(s string) [][2]int {
+	var ranges [][2]int
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c == '\\' && i+1 < len(s) {
 			i += 2
 			continue
 		}
 		if c != '`' {
-			b.WriteByte(c)
 			i++
 			continue
 		}
-		n := backtickRun(line, i)
-		end := closingRun(line, i+n, n)
+		n := backtickRun(s, i)
+		end := closingRun(s, i+n, n)
 		if end < 0 {
-			b.WriteString(line[i : i+n])
 			i += n
 			continue
 		}
-		b.WriteString(placeholder(len(spans)))
-		spans = append(spans, line[i:end])
+		ranges = append(ranges, [2]int{i, end})
 		i = end
 	}
-	if len(spans) == 0 {
-		return line, func(s string) string { return s }
-	}
-	restore = func(s string) string {
-		for idx, span := range spans {
-			s = strings.ReplaceAll(s, placeholder(idx), span)
-		}
-		return s
-	}
-	return b.String(), restore
+	return ranges
 }
 
 // backtickRun returns the length of the backtick run starting at i.

@@ -227,6 +227,54 @@ func TestOpenExportOutputPath(t *testing.T) {
 	}
 }
 
+// TestOpenExportRefusesProtectedDestination: --output-path never overwrites the
+// source artifact and never writes into the metadata checkout, however the path
+// is spelled — exactly, relatively, as a directory, or through a symlinked
+// parent. The refusal writes nothing and opens nothing.
+func TestOpenExportRefusesProtectedDestination(t *testing.T) {
+	home := testsupport.TempDir(t)
+	cases := []struct {
+		name string
+		cwd  func(src string) string
+		path func(src string) string
+	}{
+		{"source file", nil, func(src string) string { return src }},
+		{"source file, unclean", nil, func(src string) string {
+			return filepath.Join(filepath.Dir(src), "..", filepath.Base(filepath.Dir(src)), filepath.Base(src))
+		}},
+		{"source file, relative", func(src string) string { return filepath.Dir(src) }, func(src string) string { return filepath.Base(src) }},
+		{"directory in the checkout", nil, func(src string) string { return filepath.Dir(src) }},
+		{"new file in the checkout", nil, func(src string) string { return filepath.Join(filepath.Dir(src), "copy.md") }},
+		{"symlinked parent into the checkout", nil, func(src string) string {
+			link := filepath.Join(testsupport.TempDir(t), "meta-link")
+			if err := os.Symlink(filepath.Dir(src), link); err != nil {
+				t.Fatal(err)
+			}
+			return filepath.Join(link, filepath.Base(src))
+		}},
+	}
+	for _, tc := range cases {
+		f := newOpenFixture(t, "", false, openWeb, exportCorpus()...)
+		src := f.writeBody(t, widgetSpec, exportSpecBody)
+		cwd := "/nowhere"
+		if tc.cwd != nil {
+			cwd = tc.cwd(src)
+		}
+		res := f.export(t, f.exportDeps(home, "linux", cwd), "spec", 7, func(o *OpenOptions) { o.OutputPath = tc.path(src) })
+		if res.Result != ResultInvalidState || res.Reason != ReasonOpenOutputPathProtected || res.ExportedPath != "" ||
+			strings.Contains(res.Message, "\n") || len(f.opener.targets) != 0 {
+			t.Errorf("%s: (%s, %s, %q, exported %q, opened %v)", tc.name, res.Result, res.Reason, res.Message, res.ExportedPath, f.opener.targets)
+		}
+		if got := readExport(t, src); got != exportSpecBody {
+			t.Errorf("%s: source artifact changed to %q", tc.name, got)
+		}
+		entries, _ := os.ReadDir(filepath.Dir(src))
+		if len(entries) != 1 {
+			t.Errorf("%s: the checkout directory holds %d entries, want only the source", tc.name, len(entries))
+		}
+	}
+}
+
 func TestOpenExportIssueNameAndH1(t *testing.T) {
 	f := newOpenFixture(t, "", false, openWeb, exportCorpus()...)
 	f.writeBody(t, "docs/changes/active/0007-widget.md",
@@ -258,7 +306,7 @@ func TestOpenExportWarningsFilter(t *testing.T) {
 			t.Errorf("%q: (%s, %q)", tc.warnings, res.Result, res.Message)
 			continue
 		}
-		wantLeft := []ExportLeftover{{Line: 3, Text: "<!-- docket:artifacts:start -->", Rule: ExportRuleStrayMarker}}
+		wantLeft := []ExportLeftover{{SourceLine: 3, Text: "<!-- docket:artifacts:start -->", Rule: ExportRuleStrayMarker}}
 		if !tc.leftovers {
 			wantLeft = nil
 		}
@@ -353,15 +401,19 @@ func TestValidateOpenExport(t *testing.T) {
 
 func TestOpenResultExportJSON(t *testing.T) {
 	raw, _ := json.Marshal(OpenResult{What: "spec", Notes: []string{}, ExportedPath: "/d/x.md", Replaced: true,
-		Leftovers: []ExportLeftover{{Line: 2, Text: "t", Rule: "link"}}, Mentions: &ExportMentions{Count: 1, Lines: []int{4}}})
+		Leftovers: []ExportLeftover{{SourceLine: 5, Text: "m", Rule: ExportRuleStrayMarker}, {Line: 2, Text: "t", Rule: "link"}},
+		Mentions:  &ExportMentions{Count: 1, Lines: []int{4}}})
 	var doc map[string]any
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatal(err)
 	}
 	want := map[string]any{
 		"exported_path": "/d/x.md", "replaced": true,
-		"leftovers": []any{map[string]any{"line": float64(2), "text": "t", "rule": "link"}},
-		"mentions":  map[string]any{"count": float64(1), "lines": []any{float64(4)}},
+		"leftovers": []any{
+			map[string]any{"source_line": float64(5), "text": "m", "rule": "stray-marker"},
+			map[string]any{"line": float64(2), "text": "t", "rule": "link"},
+		},
+		"mentions": map[string]any{"count": float64(1), "lines": []any{float64(4)}},
 	}
 	for k, w := range want {
 		if !reflect.DeepEqual(doc[k], w) {

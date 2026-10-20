@@ -132,3 +132,25 @@ func TestLinkLabels(t *testing.T) {
 		t.Errorf("linkLabels = %v, want only {ref one}", got)
 	}
 }
+
+// A code span may cross a line break inside a paragraph: its parts on both lines
+// stay as written, while text outside it still converts. A blank line ends the
+// paragraph, so a backtick run before it never pairs with one after it.
+func TestTransformMasksCodeSpansAcrossLines(t *testing.T) {
+	titles := Titles{559: "Close"}
+	cases := []struct{ in, want string }{
+		{
+			"# T\n\n- Markers (`<!-- x [y](z) change 0559 do not\n  hand-edit) -->` / `change 0559`); change 0559 and [a](b).\n",
+			"# T\n\n- Markers (`<!-- x [y](z) change 0559 do not\n  hand-edit) -->` / `change 0559`); \"Close\" and a.\n",
+		},
+		{
+			"# T\n\nopen ` change 0559\n\nchange 0559 ` close\n",
+			"# T\n\nopen ` \"Close\"\n\n\"Close\" ` close\n",
+		},
+	}
+	for _, tc := range cases {
+		if got := string(Transform(Input{Kind: KindPlan, Source: []byte(tc.in), Titles: titles}).Markdown); got != tc.want {
+			t.Errorf("Transform(%q)\n got %q\nwant %q", tc.in, got, tc.want)
+		}
+	}
+}

@@ -45,7 +45,8 @@ type Report struct {
 func Check(md []byte, known func(id int) bool) Report {
 	lines := splitLines(string(md))
 	code := fencedLines(lines)
-	defs := definitionLabels(lines, code)
+	plains := maskParagraphs(lines, code)
+	defs := definitionLabels(plains, code)
 	var r Report
 
 	for i, line := range lines {
@@ -67,7 +68,7 @@ func Check(md []byte, known func(id int) bool) Report {
 		if level, _ := headingLevel(line); level == 2 {
 			seenH2 = true
 		}
-		plain := maskSpans(line)
+		plain := plains[i]
 
 		if text, ok := findMarker(line, plain); ok {
 			add(RuleMarker, text)
@@ -204,12 +205,41 @@ func fencedLines(lines []string) []bool {
 	return code
 }
 
-// maskSpans blanks every inline code span, backticks included, with NUL bytes of
-// the same length, so offsets still index the original line. A backslash-escaped
-// backtick does not open a span, and a backtick run with no closing run of the
-// same length is literal text.
-func maskSpans(line string) string {
-	b := []byte(line)
+// maskParagraphs returns every line with its inline code spans blanked,
+// backticks included, by NUL bytes of the same length, so offsets still index the
+// original line. A span may cross a line break: spans are found across each
+// paragraph, a run of non-blank lines outside fences, and a line break inside a
+// span stays a line break. Code lines come back as they are.
+func maskParagraphs(lines []string, code []bool) []string {
+	out := make([]string, len(lines))
+	copy(out, lines)
+	inPara := func(i int) bool { return !code[i] && trimRight(lines[i]) != "" }
+	for i := 0; i < len(lines); {
+		if !inPara(i) {
+			i++
+			continue
+		}
+		var para []byte
+		first := i
+		for ; i < len(lines) && inPara(i); i++ {
+			if i > first {
+				para = append(para, '\n')
+			}
+			para = append(para, lines[i]...)
+		}
+		blankSpans(para)
+		for k, at := first, 0; k < i; k++ {
+			out[k] = string(para[at : at+len(lines[k])])
+			at += len(lines[k]) + 1
+		}
+	}
+	return out
+}
+
+// blankSpans overwrites every inline code span in b with NUL bytes, keeping
+// line breaks. A backslash-escaped backtick does not open a span, and a backtick
+// run with no closing run of the same length is literal text.
+func blankSpans(b []byte) {
 	for i := 0; i < len(b); {
 		if b[i] == '\\' {
 			i += 2
@@ -244,11 +274,12 @@ func maskSpans(line string) string {
 			continue
 		}
 		for j := open; j < closeAt; j++ {
-			b[j] = 0
+			if b[j] != '\n' {
+				b[j] = 0
+			}
 		}
 		i = closeAt
 	}
-	return string(b)
 }
 
 // findMarker finds managed-block marker text: an HTML comment that opens with a
@@ -329,14 +360,15 @@ func foldLabel(s string) string {
 	return string(b)
 }
 
-// definitionLabels collects the labels of every definition outside code.
-func definitionLabels(lines []string, code []bool) map[string]bool {
+// definitionLabels collects the labels of every definition outside code, from
+// the lines with their code spans masked.
+func definitionLabels(plains []string, code []bool) map[string]bool {
 	defs := map[string]bool{}
-	for i, line := range lines {
+	for i, plain := range plains {
 		if code[i] {
 			continue
 		}
-		if label, ok := definitionLabel(maskSpans(line)); ok {
+		if label, ok := definitionLabel(plain); ok {
 			defs[label] = true
 		}
 	}

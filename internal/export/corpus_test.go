@@ -211,7 +211,56 @@ var (
 	// shows once step 6 has turned the "Change N" into a title).
 	testStampRE = regexp.MustCompile(`(?i)^change #?\d+[.,]|^change:|^change "|\bgroomed \d{4}-\d{2}-\d{2}\b`)
 	issueH2     = map[string]bool{"## Why": true, "## What changes": true, "## Out of scope": true, "## Open questions": true}
+	// testWordRefRE is a "change N" / "changes N" reference; testPaddedRE a
+	// zero-padded four-digit id, optionally after '#'. Both are written here,
+	// apart from the transform's own patterns.
+	testWordRefRE = regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9_])changes?[ \t]+#?(\d+)`)
+	testPaddedRE  = regexp.MustCompile(`#?0[0-9]+`)
 )
+
+// knownRefsLeft returns the change references in plain (a line with its code
+// spans removed) whose id is known: a word-form "change N", or a padded id that
+// stands alone — not inside a path, filename, version, or longer number, and not
+// an "ADR"/"PR" number.
+func knownRefsLeft(plain string, titles Titles) []string {
+	var left []string
+	for _, m := range testWordRefRE.FindAllStringSubmatchIndex(plain, -1) {
+		end := m[3]
+		if end < len(plain) && (isAlnum(plain[end]) || plain[end] == '_') {
+			continue
+		}
+		if id, err := strconv.Atoi(plain[m[2]:m[3]]); err == nil {
+			if _, ok := titles[id]; ok {
+				left = append(left, plain[m[0]:m[1]])
+			}
+		}
+	}
+	for _, m := range testPaddedRE.FindAllStringIndex(plain, -1) {
+		start, end := m[0], m[1]
+		digits := strings.TrimPrefix(plain[start:end], "#")
+		if len(digits) != 4 {
+			continue
+		}
+		if start > 0 && strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_/.#-", rune(plain[start-1])) {
+			continue
+		}
+		if end < len(plain) {
+			c := plain[end]
+			if isAlnum(c) || c == '_' || c == '/' || c == '-' || (c == '.' && end+1 < len(plain) && isAlnum(plain[end+1])) {
+				continue
+			}
+		}
+		before := strings.ToUpper(plain[:start])
+		if strings.HasSuffix(before, "ADR ") || strings.HasSuffix(before, "ADR-") || strings.HasSuffix(before, "PR ") {
+			continue
+		}
+		id, _ := strconv.Atoi(digits)
+		if _, ok := titles[id]; ok {
+			left = append(left, plain[start:end])
+		}
+	}
+	return left
+}
 
 // corpusProblems checks one export: the independent detector finds no leftover,
 // and each removal is also asserted directly, so the test does not rest on the
@@ -249,6 +298,9 @@ func corpusProblems(kind Kind, src, out []byte, titles Titles) []string {
 		}
 		if kind == KindSpec && !seenH2 && (testStampRE.MatchString(l.text) || strings.Contains(l.plain, "**Change:**")) {
 			add("line %d: spec stamp before the first H2: %q", n, l.text)
+		}
+		for _, ref := range knownRefsLeft(l.plain, titles) {
+			add("line %d: known change reference %q outside code: %q", n, ref, l.text)
 		}
 		if strings.TrimSpace(l.text) == "" && i > 0 && !lines[i-1].fenced && strings.TrimSpace(lines[i-1].text) == "" {
 			add("line %d: two consecutive blank lines", n)

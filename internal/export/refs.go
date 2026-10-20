@@ -179,9 +179,11 @@ func applyEdits(line string, edits []refEdit) string {
 // parenEdits applies the references-only parenthesis reading: a parenthesis whose
 // whole content is reference items, at least one of them a fully convertible
 // form, loses its convertible items; the rest re-join, and an emptied parenthesis
-// goes with the one space before it. render gives a kept span's text. The spans
-// it consumed are reported so no other reading touches them.
-func parenEdits(line string, spans []refSpan, render func(refSpan) string) (edits []refEdit, consumed map[int]bool) {
+// goes with the one space before it. render gives a kept span's text. When
+// emptying it would leave an empty quote pair (`"(0559)"`), the quoted text is
+// instead replaced by its spans rendered by whole. The spans it consumed are
+// reported so no other reading touches them.
+func parenEdits(line string, spans []refSpan, render, whole func(refSpan) string) (edits []refEdit, consumed map[int]bool) {
 	consumed = map[int]bool{}
 	for open := strings.IndexByte(line, '('); open >= 0; {
 		closeRel := strings.IndexAny(line[open+1:], "()")
@@ -193,7 +195,7 @@ func parenEdits(line string, spans []refSpan, render func(refSpan) string) (edit
 			open = closeAt
 			continue
 		}
-		if e, used, ok := parenReading(line, open, closeAt, spans, render); ok {
+		if e, used, ok := parenReading(line, open, closeAt, spans, render, whole); ok {
 			edits = append(edits, e)
 			for _, i := range used {
 				consumed[i] = true
@@ -208,7 +210,7 @@ func parenEdits(line string, spans []refSpan, render func(refSpan) string) (edit
 	return edits, consumed
 }
 
-func parenReading(line string, open, closeAt int, spans []refSpan, render func(refSpan) string) (refEdit, []int, bool) {
+func parenReading(line string, open, closeAt int, spans []refSpan, render, whole func(refSpan) string) (refEdit, []int, bool) {
 	type token struct {
 		text    string
 		drop    bool
@@ -267,6 +269,13 @@ func parenReading(line string, open, closeAt int, spans []refSpan, render func(r
 		if start > 0 && line[start-1] == ' ' {
 			start--
 		}
+		if start > 0 && line[start-1] == '"' && closeAt+1 < len(line) && line[closeAt+1] == '"' {
+			parts := make([]string, len(toks))
+			for i, tk := range toks {
+				parts[i] = whole(spans[tk.spanIdx])
+			}
+			return refEdit{start: start - 1, end: closeAt + 2, text: joinList(parts)}, used, true
+		}
 		return refEdit{start: start, end: closeAt + 1}, used, true
 	}
 	lastAnd := toks[len(toks)-1].sepAnd
@@ -288,14 +297,17 @@ func parenReading(line string, open, closeAt int, spans []refSpan, render func(r
 
 // convertRefs runs step 6 on one masked line: every recognized form whose number
 // is a known change id is removed (references-only parenthesis, own-title dash)
-// or replaced by that change's cleaned title in double quotes.
+// or replaced by that change's cleaned title in double quotes. The author's own
+// quotes are respected: a fully convertible reference that is the whole of a
+// double-quoted text takes those quotes as its own, and a title inserted inside a
+// longer double-quoted phrase gets single quotes.
 func convertRefs(masked string, titles Titles) string {
 	spans := findRefs(masked, titles)
 	if len(spans) == 0 {
 		return masked
 	}
-	quoted := func(id int) string { return `"` + cleanTitle(titles[id], titles) + `"` }
-	render := func(s refSpan) string {
+	renderIn := func(s refSpan, q string) string {
+		quoted := func(id int) string { return q + cleanTitle(titles[id], titles) + q }
 		if !s.anyKnown() {
 			return masked[s.start:s.end]
 		}
@@ -317,9 +329,15 @@ func convertRefs(masked string, titles Titles) string {
 		}
 		return applyEdits(masked[s.start:s.end], edits)
 	}
-	edits, consumed := parenEdits(masked, spans, render)
+	render := func(s refSpan) string { return renderIn(s, quoteAt(masked, s.start)) }
+	whole := func(s refSpan) string { return renderIn(s, `"`) }
+	edits, consumed := parenEdits(masked, spans, render, whole)
 	for i, s := range spans {
 		if consumed[i] || !s.anyKnown() {
+			continue
+		}
+		if s.allKnown() && s.start > 0 && s.end < len(masked) && masked[s.start-1] == '"' && masked[s.end] == '"' {
+			edits = append(edits, refEdit{start: s.start - 1, end: s.end + 1, text: whole(s)})
 			continue
 		}
 		if end, ok := ownTitleDash(masked, s, titles); ok {
@@ -329,6 +347,16 @@ func convertRefs(masked string, titles Titles) string {
 		edits = append(edits, refEdit{start: s.start, end: s.end, text: render(s)})
 	}
 	return applyEdits(masked, edits)
+}
+
+// quoteAt returns the quote an inserted title at offset at takes: a single quote
+// inside an open double-quoted phrase (an odd number of '"' before it), else a
+// double quote.
+func quoteAt(line string, at int) string {
+	if strings.Count(line[:at], `"`)%2 == 1 {
+		return "'"
+	}
+	return `"`
 }
 
 // ownTitleDash reports a singular known reference followed by a spaced dash and
@@ -384,7 +412,7 @@ func cleanTitle(title string, titles Titles) string {
 		}
 		return applyEdits(masked[s.start:s.end], edits)
 	}
-	edits, consumed := parenEdits(masked, spans, render)
+	edits, consumed := parenEdits(masked, spans, render, render)
 	for i, s := range spans {
 		if consumed[i] || !s.anyKnown() {
 			continue

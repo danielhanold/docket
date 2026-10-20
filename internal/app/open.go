@@ -58,6 +58,9 @@ const (
 	ReasonOpenInvalidOption      = "invalid-option"      // an export flag used where it does not apply
 	ReasonOpenOutputPathInvalid  = "output-path-invalid" // the export destination cannot be written
 	ReasonOpenExportFailed       = "export-failed"       // reading the source or writing the copy failed
+	// ReasonOpenOutputPathProtected refuses an export destination that is the
+	// source artifact itself or lies inside the metadata checkout.
+	ReasonOpenOutputPathProtected = "output-path-protected"
 )
 
 // openNoteNotGitHub is the note attached when a GitHub page was wanted but the
@@ -265,7 +268,7 @@ func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 		}
 		res.Notes = append(res.Notes, openNoteNotGitHub)
 	}
-	path, notes, f := localArtifact(ctx, deps, dir, pin, rel)
+	path, _, notes, f := localArtifact(ctx, deps, dir, pin, rel)
 	res.Notes = append(res.Notes, notes...)
 	if f != nil {
 		return fail(*f)
@@ -275,13 +278,12 @@ func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 }
 
 // localArtifact prepares the metadata checkout and returns rel's path inside
-// it. A prepare that does not succeed never blocks the open: it adds a
-// staleness note, and the layout's metadata worktree stands in for prepare's
-// own path. A file absent from the checkout is refused.
-func localArtifact(ctx context.Context, deps OpenDeps, dir string, pin StatusPin, rel string) (string, []string, *openFailure) {
+// it, and the checkout's root. A prepare that does not succeed never blocks
+// the open: it adds a staleness note, and the layout's metadata worktree
+// stands in for prepare's own path. A file absent from the checkout is refused.
+func localArtifact(ctx context.Context, deps OpenDeps, dir string, pin StatusPin, rel string) (path, root string, notes []string, f *openFailure) {
 	pr := deps.Prepare(ctx, dir)
 	root, code := pin.Layout.MetadataWorktree, ""
-	var notes []string
 	if pr.Disposition == PrepareDispositionApplied || pr.Disposition == PrepareDispositionNoOp {
 		if pr.Context != nil && pr.Context.MetadataWorktreePath != "" {
 			root = pr.Context.MetadataWorktreePath
@@ -290,7 +292,7 @@ func localArtifact(ctx context.Context, deps OpenDeps, dir string, pin StatusPin
 		code = prepareFindingCode(pr)
 		notes = append(notes, openNoteStale(code))
 	}
-	path := filepath.Join(root, filepath.FromSlash(rel))
+	path = filepath.Join(root, filepath.FromSlash(rel))
 	if _, err := os.Stat(path); err != nil {
 		msg := fmt.Sprintf("%s is not in the metadata checkout", path)
 		if !errors.Is(err, fs.ErrNotExist) {
@@ -299,9 +301,9 @@ func localArtifact(ctx context.Context, deps OpenDeps, dir string, pin StatusPin
 		if code != "" {
 			msg += fmt.Sprintf(" (metadata checkout not synced: %s)", code)
 		}
-		return "", notes, &openFailure{ResultInvalidState, ReasonOpenFileMissing, msg}
+		return "", root, notes, &openFailure{ResultInvalidState, ReasonOpenFileMissing, msg}
 	}
-	return path, notes, nil
+	return path, root, notes, nil
 }
 
 // resolveOpenChange reads the pinned corpus and returns change id, or, when id
