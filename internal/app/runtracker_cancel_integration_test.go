@@ -1065,6 +1065,29 @@ func awaitRunPhase(t *testing.T, runRoot string, want ...string) (string, runMan
 	}
 }
 
+// awaitLaunchSettled waits until the drive id has released its launch claim. The
+// run's manifest reaches "running" inside d.proc.Launch, but launchScopeless keeps
+// holding the drive's launch claim through attachLaunch until claim.close, and a
+// cancel that lands in that gap correctly reports cancellation-pending (ADR-0132).
+// The production stop-free launch census reports claim-busy while the claim is
+// held and run-live once it is released; it stops nothing. Call it only after
+// awaitRunPhase has seen "running".
+func awaitLaunchSettled(t *testing.T, fx cancelFixture, id string) {
+	t.Helper()
+	observer := productionCancelSeams(fx.repo).launchObserver
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		report, err := observer.observe(fx.contextHash)
+		if err == nil && hasFinding(report.Findings, "run-live:"+id) && !hasFinding(report.Findings, "claim-busy:"+id) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("drive %s never released its launch claim within 30s (last findings=%v, err=%v)", id, report.Findings, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 // awaitStart receives the backgrounded Start's result, failing on a wedge.
 func awaitStart(t *testing.T, done <-chan GateDriveResult) GateDriveResult {
 	t.Helper()
@@ -1106,6 +1129,7 @@ func TestIntegrationRunCancelFreesWorktreeForNextStart(t *testing.T) {
 		t.Fatal("precondition: the running drive's supervisor must hold the worktree lock")
 	}
 	id := onlyDriveID(t, fx)
+	awaitLaunchSettled(t, fx, id)
 
 	res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
