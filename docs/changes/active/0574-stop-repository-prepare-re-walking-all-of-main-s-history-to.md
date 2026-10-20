@@ -2,7 +2,7 @@
 id: 574
 slug: 'stop-repository-prepare-re-walking-all-of-main-s-history-to'
 title: 'Recognize the docket branch by its shape in the everyday repository commands'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 deliverable: 'pr'
@@ -19,10 +19,11 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'fix/stop-repository-prepare-re-walking-all-of-main-s-history-to'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-20T17:55:52Z'
 ---
 
 ## Artifacts

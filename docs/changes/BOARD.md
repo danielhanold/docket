@@ -1,12 +1,12 @@
 # Backlog
 
-**574 changes** — 🟣 1 groomed · 🟡 3 proposed · ⚪ 16 deferred · ✅ 410 done · 🗑️ 144 killed
+**574 changes** — 🟢 1 in progress · 🟡 3 proposed · ⚪ 16 deferred · ✅ 410 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0574](active/0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) | Recognize the docket branch by its shape in the everyday repository commands | `medium` | `fix` | [spec](../superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0574](active/0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) | Recognize the docket branch by its shape in the everyday repository commands | `medium` | `fix` | [spec](../superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md) | `fix/stop-repository-prepare-re-walking-all-of-main-s-history-to` | building |
 
 ## 🟡 Proposed (3)
 
