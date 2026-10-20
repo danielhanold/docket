@@ -1,23 +1,23 @@
 package domain
 
-// CarriedDescendant is one stacked descendant's share of a root closeout. Proof
-// is empty when the descendant's carry RELATIONSHIP into the root is
-// established — an unbroken chain of merged PR destinations matching the recorded
-// parent branches; otherwise it is a closed refusal token naming the first broken
-// link. A merged-destination chain proves that relationship only: that the code
-// actually survived into the carrying head is proven separately, in Git, by the
-// caller. The descendant is always surfaced — a refusal is reported, never
-// dropped — so the caller can keep the whole root recoverable.
+// CarriedDescendant is one stacked descendant a parent carries. A parent
+// carries exactly the children whose pull requests merged into its recorded
+// branch, transitively: a child is carried when its status is stacked-merged or
+// implemented and its live PR facts show a merge whose base is its parent's
+// recorded branch. Proof is empty when that carry RELATIONSHIP is established;
+// otherwise it is a closed refusal token naming why a purported carried link
+// could not be confirmed. A merged destination proves the relationship only:
+// that the code actually survived into the carrying head or the integration
+// branch is proven separately, in Git, by the caller. A refusal is reported,
+// never dropped, so the caller can keep the whole parent recoverable.
 type CarriedDescendant struct {
 	ID    ChangeID
 	Proof string // "" when proven; else closed refusal token
 }
 
-// The closed set of root-closeout refusal tokens a CarriedDescendant.Proof
-// carries. Each names exactly why one descendant's carry into the root could
-// not be proven.
+// The closed set of carry refusal tokens a CarriedDescendant.Proof or
+// ProveDoneCarry returns. Each names exactly why one carry could not be proven.
 const (
-	carryNotStackedMerged    = "not-stacked-merged"   // the descendant itself is not stacked-merged
 	carryNotDone             = "not-done"             // a cleanup start record is not done
 	carryDestinationMismatch = "destination-mismatch" // a merged PR landed on the wrong branch
 	carryPRUnknown           = "pr-unknown"           // a carrying merge cannot be confirmed
@@ -26,22 +26,19 @@ const (
 	carryKilledAncestor      = "killed-ancestor"      // a killed change sits on the carry chain
 )
 
-// DeriveRootCloseoutSet verifies, for every change stacked transitively on root,
-// the chain of merged pull-request destinations that establishes its
-// stacked-merged code's carry RELATIONSHIP up into the root. A merged destination
-// proves that relationship only; that the code was actually preserved in Git —
-// reachable in the pinned integration history, or exact-content at the root's own
-// merge result — is the caller's separate obligation before any archive write.
-// The returned slice is parent-first (StackDescendantsParentFirst
-// order); each entry's Proof is empty when proven or a closed refusal token
-// otherwise. facts supplies each change's live PR state; a missing or unknown
-// entry is treated as an unconfirmable merge (pr-unknown), never a clean carry.
+// DeriveRootCloseoutSet is the carried set a landed root's closeout archives
+// with it: exactly DeriveCarriedSet's answer for root, so closeout and the
+// live-branch boundaries (rebase, publish, merge) share one carry rule. A child
+// the root does not carry never blocks the root's closeout. A merged destination
+// proves the carry relationship only; that each carried child's code was
+// actually preserved on the integration branch is the caller's separate
+// obligation before any archive write.
 //
 // The *PolicyFailure return is reserved for a structural problem with the root
 // argument itself — an absent or ambiguous record — and is nil once the root
-// resolves, in which case every per-descendant outcome travels through Proof.
-// The derivation reads only the stacked_on graph and injected PR facts: a
-// rendered relation (branch name, board table) never promotes a descendant.
+// resolves. A root whose own stacked_on ancestry cycles has no clean base to
+// carry into, so every descendant (StackDescendantsParentFirst order) refuses
+// with cycle; otherwise every per-descendant outcome travels through Proof.
 func DeriveRootCloseoutSet(s Snapshot, root ChangeID, facts map[ChangeID]PRFacts) ([]CarriedDescendant, *PolicyFailure) {
 	rootChange, out := s.Change(root)
 	switch out {
@@ -51,24 +48,16 @@ func DeriveRootCloseoutSet(s Snapshot, root ChangeID, facts map[ChangeID]PRFacts
 		return nil, &PolicyFailure{Kind: FailInvalidInput, Change: root, Reason: "root-ambiguous"}
 	}
 
-	descendants := StackDescendantsParentFirst(s, root)
-	set := make([]CarriedDescendant, 0, len(descendants))
-
-	// A root whose own stacked_on ancestry cycles has no clean base to carry
-	// into: every descendant refuses with cycle rather than the derivation
-	// looping. The check reuses the visited-set cycle-guard idiom from
-	// StackDescendantsParentFirst.
 	if rootAncestryCycles(s, rootChange) {
+		descendants := StackDescendantsParentFirst(s, root)
+		set := make([]CarriedDescendant, 0, len(descendants))
 		for _, id := range descendants {
 			set = append(set, CarriedDescendant{ID: id, Proof: carryCycle})
 		}
 		return set, nil
 	}
 
-	for _, id := range descendants {
-		set = append(set, CarriedDescendant{ID: id, Proof: proveCarry(s, root, id, facts)})
-	}
-	return set, nil
+	return DeriveCarriedSet(s, root, facts)
 }
 
 // RootCloseoutProven reports whether every carried descendant is proven. It is
@@ -84,16 +73,27 @@ func RootCloseoutProven(set []CarriedDescendant) bool {
 	return true
 }
 
-// DeriveCarriedSet selects, for a LIVE carrying change (a branch about to be
-// rewritten, published, or merged), every descendant whose stacked-merged code
-// that branch currently PROMISES to carry: children connected by an unbroken
-// chain of stacked-merged changes whose verified PR destinations match their
-// recorded parent branches. It stops descending into an open intermediate
-// child — grandchildren merged into a still-open child are not yet promised by
-// this branch. A purported carried link (a stacked-merged child) with unknown
-// or mismatched facts is surfaced with a refusal token, never omitted.
-// A merged PR destination proves a RELATIONSHIP only; Git preservation of the
-// content is the caller's separate obligation.
+// DeriveCarriedSet selects every descendant parent carries: the children whose
+// pull requests merged into parent's recorded branch, transitively. It is the
+// one carry rule rebase, publish, merge, and root closeout share. A child is
+// carried when its live PR facts show a merge whose base is its parent's
+// recorded branch and its status is either
+//
+//   - stacked-merged: its own closeout recorded the merge. Because that status
+//     claims a carry, a stacked-merged child whose facts are missing or unmerged
+//     is surfaced with pr-unknown, and one whose merge landed elsewhere (or whose
+//     parent records no branch) with destination-mismatch — never omitted.
+//   - implemented: the merge happened but the child's own closeout never ran.
+//     Merging into the parent's branch is the test, so any other PR state, or no
+//     usable PR at all, just means "not carried": no entry and no token.
+//
+// Any other status is not carried. The walk is parent-first (pre-order depth
+// first) and descends through carried children only: grandchildren beneath a
+// child that is not carried are not this parent's to carry, and neither appear
+// nor block. The walk reads only the stacked_on graph and the injected PR
+// facts: a rendered relation (branch name, board table) never promotes a
+// descendant. A merged PR destination proves a RELATIONSHIP only; Git
+// preservation of the content is the caller's separate obligation.
 //
 // The *PolicyFailure return is reserved for a structural problem with the
 // parent argument itself — an absent or ambiguous record — and is nil once the
@@ -124,23 +124,34 @@ func DeriveCarriedSet(s Snapshot, parent ChangeID, facts map[ChangeID]PRFacts) (
 				set = append(set, CarriedDescendant{ID: cid, Proof: carryChainBroken})
 				continue
 			}
-			if c.Status() != StatusStackedMerged {
+			f, ok := facts[cid]
+			branch := p.Branch()
+			switch c.Status() {
+			case StatusStackedMerged:
+				token := ""
+				switch {
+				case !ok || f.State != prStateMerged:
+					token = carryPRUnknown
+				case branch.State != FieldPresent || branch.Value == "" || f.BaseRef != branch.Value:
+					token = carryDestinationMismatch
+				}
+				set = append(set, CarriedDescendant{ID: cid, Proof: token})
+				if token == "" {
+					walk(c)
+				}
+			case StatusImplemented:
+				if !ok || f.State != prStateMerged ||
+					branch.State != FieldPresent || branch.Value == "" || f.BaseRef != branch.Value {
+					// Not merged into this parent's branch: not carried, and
+					// grandchildren beneath it are not descended.
+					continue
+				}
+				set = append(set, CarriedDescendant{ID: cid})
+				walk(c)
+			default:
 				// An open or final child claims no carry for this parent
 				// branch; grandchildren beneath it are not descended.
 				continue
-			}
-			token := ""
-			f, ok := facts[cid]
-			branch := p.Branch()
-			switch {
-			case !ok || f.State != prStateMerged:
-				token = carryPRUnknown
-			case branch.State != FieldPresent || branch.Value == "" || f.BaseRef != branch.Value:
-				token = carryDestinationMismatch
-			}
-			set = append(set, CarriedDescendant{ID: cid, Proof: token})
-			if token == "" {
-				walk(c)
 			}
 		}
 	}
@@ -148,32 +159,16 @@ func DeriveCarriedSet(s Snapshot, parent ChangeID, facts map[ChangeID]PRFacts) (
 	return set, nil
 }
 
-// proveCarry proves that id's stacked-merged code is carried into the closeout
-// root: the start must itself be stacked-merged, and walkCarryChain must reach
-// root through stacked-merged intermediates. It returns the empty string when
-// the chain reaches root cleanly, or the first refusal token otherwise.
-func proveCarry(s Snapshot, root, id ChangeID, facts map[ChangeID]PRFacts) string {
-	start, out := s.Change(id)
-	if out != LookupFound {
-		return carryChainBroken
-	}
-	if start.Status() != StatusStackedMerged {
-		return carryNotStackedMerged
-	}
-	_, token := walkCarryChain(s, start, facts, StatusStackedMerged, func(parent Change) bool {
-		return parent.ID() == root
-	})
-	return token
-}
-
 // ProveDoneCarry proves the carry RELATIONSHIP of a done change whose PR merged
-// into its stack parent's branch rather than the integration branch: the same
-// walk closeout uses (walkCarryChain), applied to a population that is now done
-// rather than stacked-merged. Every link must be done, and the walk ends at the
-// first done ancestor whose own PR merged into integration — the stack root,
-// whose id is returned with an empty token. Any other outcome returns a zero
-// root and the first refusal token: not-done when the start is not done,
-// chain-broken when it is absent or the walk never meets such an ancestor.
+// into its stack parent's branch rather than the integration branch, climbing
+// its stacked_on chain with walkCarryChain. Once a root's closeout has archived
+// everything it carried, each carried child is done with a PR merged into its
+// parent's branch, which is the population this walk expects. Every link must
+// be done, and the walk ends at the first done ancestor whose own PR merged
+// into integration — the stack root, whose id is returned with an empty token.
+// Any other outcome returns a zero root and the first refusal token: not-done
+// when the start is not done, chain-broken when it is absent or the walk never
+// meets such an ancestor.
 //
 // facts supplies each change's live PR state; a missing or unmerged entry is an
 // unconfirmable link, never a clean carry. A merged destination proves the
@@ -196,11 +191,12 @@ func ProveDoneCarry(s Snapshot, id ChangeID, facts map[ChangeID]PRFacts, integra
 	})
 }
 
-// walkCarryChain is the one stack carry walk closeout and cleanup share. It
-// climbs start's stacked_on chain, verifying at each link that no node is
-// revisited (cycle), the parent resolves (chain-broken), the parent is not
-// killed (killed-ancestor), the current node's PR is merged (pr-unknown), and
-// that merge landed on the parent's recorded branch (destination-mismatch).
+// walkCarryChain is the upward carry walk ProveDoneCarry uses for cleanup;
+// closeout, rebase, publish, and merge walk downward with DeriveCarriedSet
+// instead. It climbs start's stacked_on chain, verifying at each link that no
+// node is revisited (cycle), the parent resolves (chain-broken), the parent is
+// not killed (killed-ancestor), the current node's PR is merged (pr-unknown),
+// and that merge landed on the parent's recorded branch (destination-mismatch).
 // When isRoot accepts the parent, the walk returns its id with an empty token;
 // otherwise the parent must itself carry linkStatus — an intermediate carried
 // link — or the chain has a gap (chain-broken). On any refusal the returned id

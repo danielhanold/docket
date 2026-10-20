@@ -78,17 +78,6 @@ func TestDeriveRootCloseoutSetRefusals(t *testing.T) {
 		reason string
 	}{
 		{
-			name: "descendant still in-progress is not-stacked-merged",
-			specs: []stackSpec{
-				{id: 1, status: StatusImplemented, branch: "feat/1"},
-				{id: 2, status: StatusInProgress, parent: parentEdge(1), branch: "feat/2"},
-			},
-			facts:  map[ChangeID]PRFacts{2: mergedInto("feat/1")},
-			root:   1,
-			check:  2,
-			reason: "not-stacked-merged",
-		},
-		{
 			name: "merged into the wrong branch is destination-mismatch",
 			specs: []stackSpec{
 				{id: 1, status: StatusImplemented, branch: "feat/1"},
@@ -122,21 +111,6 @@ func TestDeriveRootCloseoutSetRefusals(t *testing.T) {
 			reason: "pr-unknown",
 		},
 		{
-			name: "a gap mid-chain is chain-broken for the node below it",
-			specs: []stackSpec{
-				{id: 1, status: StatusImplemented, branch: "feat/1"},
-				{id: 2, status: StatusInProgress, parent: parentEdge(1), branch: "feat/2"},
-				{id: 3, status: StatusStackedMerged, parent: parentEdge(2), branch: "feat/3"},
-			},
-			facts: map[ChangeID]PRFacts{
-				2: mergedInto("feat/1"),
-				3: mergedInto("feat/2"),
-			},
-			root:   1,
-			check:  3,
-			reason: "chain-broken",
-		},
-		{
 			name: "a cyclic stacked_on graph refuses with cycle and does not loop",
 			specs: []stackSpec{
 				{id: 1, status: StatusImplemented, parent: parentEdge(2), branch: "feat/1"},
@@ -146,21 +120,6 @@ func TestDeriveRootCloseoutSetRefusals(t *testing.T) {
 			root:   1,
 			check:  2,
 			reason: "cycle",
-		},
-		{
-			name: "a killed ancestor mid-chain is killed-ancestor",
-			specs: []stackSpec{
-				{id: 1, status: StatusImplemented, branch: "feat/1"},
-				{id: 2, status: StatusKilled, parent: parentEdge(1), branch: "feat/2"},
-				{id: 3, status: StatusStackedMerged, parent: parentEdge(2), branch: "feat/3"},
-			},
-			facts: map[ChangeID]PRFacts{
-				2: mergedInto("feat/1"),
-				3: mergedInto("feat/2"),
-			},
-			root:   1,
-			check:  3,
-			reason: "killed-ancestor",
 		},
 	}
 
@@ -176,6 +135,245 @@ func TestDeriveRootCloseoutSetRefusals(t *testing.T) {
 			}
 			if RootCloseoutProven(set) {
 				t.Fatalf("RootCloseoutProven = true; want false when a descendant is unproven")
+			}
+		})
+	}
+}
+
+// carryFixture is one stack shape rooted at change 1 plus the live PR facts its
+// carry derivation reads.
+type carryFixture struct {
+	name  string
+	specs []stackSpec
+	facts map[ChangeID]PRFacts
+}
+
+// nonCarriedChildFixtures are the shapes in which root 1's only child (2) is
+// not carried: it is neither stacked-merged nor an implemented change whose PR
+// merged into the root's recorded branch.
+func nonCarriedChildFixtures() []carryFixture {
+	child := func(name string, status Status, facts map[ChangeID]PRFacts) carryFixture {
+		return carryFixture{
+			name: name,
+			specs: []stackSpec{
+				{id: 1, status: StatusImplemented, branch: "feat/1"},
+				{id: 2, status: status, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts: facts,
+		}
+	}
+	mergedFacts := func() map[ChangeID]PRFacts { return map[ChangeID]PRFacts{2: mergedInto("feat/1")} }
+	return []carryFixture{
+		child("in-progress child", StatusInProgress, mergedFacts()),
+		child("proposed child", StatusProposed, mergedFacts()),
+		child("blocked child", StatusBlocked, mergedFacts()),
+		child("deferred child", StatusDeferred, mergedFacts()),
+		child("killed child", StatusKilled, mergedFacts()),
+		child("done child", StatusDone, mergedFacts()),
+		child("implemented child with no PR", StatusImplemented, map[ChangeID]PRFacts{}),
+		child("implemented child with an unmerged PR", StatusImplemented,
+			map[ChangeID]PRFacts{2: {State: "closed", Number: "8"}}),
+		child("implemented child merged into main", StatusImplemented,
+			map[ChangeID]PRFacts{2: mergedInto("main")}),
+		child("implemented child with an unknown-state probe", StatusImplemented,
+			map[ChangeID]PRFacts{2: {State: "unknown", BaseRef: "feat/1"}}),
+	}
+}
+
+// openChildStopsDescentFixtures stack a stacked-merged grandchild (3) merged
+// into child 2's branch, beneath a child 2 that root 1 does not carry.
+func openChildStopsDescentFixtures() []carryFixture {
+	shape := func(name string, status Status, childFacts PRFacts) carryFixture {
+		return carryFixture{
+			name: name,
+			specs: []stackSpec{
+				{id: 1, status: StatusImplemented, branch: "feat/1"},
+				{id: 2, status: status, parent: parentEdge(1), branch: "feat/2"},
+				{id: 3, status: StatusStackedMerged, parent: parentEdge(2), branch: "feat/3"},
+			},
+			facts: map[ChangeID]PRFacts{2: childFacts, 3: mergedInto("feat/2")},
+		}
+	}
+	return []carryFixture{
+		shape("in-progress child", StatusInProgress, mergedInto("feat/1")),
+		shape("killed child", StatusKilled, mergedInto("feat/1")),
+		shape("implemented child merged into main", StatusImplemented, mergedInto("main")),
+	}
+}
+
+// implementedMergedChildFixture is root 1 with an implemented child (2) whose
+// PR merged into the root's recorded branch but whose own closeout never ran.
+func implementedMergedChildFixture() carryFixture {
+	return carryFixture{
+		name: "implemented child merged into the root's branch",
+		specs: []stackSpec{
+			{id: 1, status: StatusImplemented, branch: "feat/1"},
+			{id: 2, status: StatusImplemented, parent: parentEdge(1), branch: "feat/2"},
+		},
+		facts: map[ChangeID]PRFacts{2: mergedInto("feat/1")},
+	}
+}
+
+// chainThroughImplementedMiddleFixture alternates implemented and
+// stacked-merged links, each merged into its parent's recorded branch.
+func chainThroughImplementedMiddleFixture() carryFixture {
+	return carryFixture{
+		name: "chain through an implemented middle",
+		specs: []stackSpec{
+			{id: 1, status: StatusImplemented, branch: "feat/1"},
+			{id: 2, status: StatusImplemented, parent: parentEdge(1), branch: "feat/2"},
+			{id: 3, status: StatusStackedMerged, parent: parentEdge(2), branch: "feat/3"},
+			{id: 4, status: StatusImplemented, parent: parentEdge(3), branch: "feat/4"},
+		},
+		facts: map[ChangeID]PRFacts{
+			2: mergedInto("feat/1"),
+			3: mergedInto("feat/2"),
+			4: mergedInto("feat/3"),
+		},
+	}
+}
+
+func TestDeriveRootCloseoutSetNonCarriedChildrenDoNotBlock(t *testing.T) {
+	for _, fx := range nonCarriedChildFixtures() {
+		t.Run(fx.name, func(t *testing.T) {
+			set, fail := DeriveRootCloseoutSet(stackSnapshot(fx.specs...), 1, fx.facts)
+			if fail != nil {
+				t.Fatalf("policy failure %+v; want nil", fail)
+			}
+			if len(set) != 0 {
+				t.Fatalf("carried set = %+v; want empty (a child that is not carried never blocks the root)", set)
+			}
+			if !RootCloseoutProven(set) {
+				t.Fatalf("RootCloseoutProven = false; want true")
+			}
+		})
+	}
+}
+
+func TestDeriveRootCloseoutSetOpenChildStopsDescent(t *testing.T) {
+	// A stacked-merged grandchild merged into a child the root does not carry
+	// is that child's to carry, not the root's: it is neither carried nor a
+	// blocker for the root.
+	for _, fx := range openChildStopsDescentFixtures() {
+		t.Run(fx.name, func(t *testing.T) {
+			set, fail := DeriveRootCloseoutSet(stackSnapshot(fx.specs...), 1, fx.facts)
+			if fail != nil {
+				t.Fatalf("policy failure %+v; want nil", fail)
+			}
+			if len(set) != 0 {
+				t.Fatalf("carried set = %+v; want empty (descent stops at a child that is not carried)", set)
+			}
+			if !RootCloseoutProven(set) {
+				t.Fatalf("RootCloseoutProven = false; want true")
+			}
+		})
+	}
+}
+
+func TestDeriveCarriedSetImplementedMergedChildIsCarried(t *testing.T) {
+	fx := implementedMergedChildFixture()
+	derivations := map[string]func(Snapshot, ChangeID, map[ChangeID]PRFacts) ([]CarriedDescendant, *PolicyFailure){
+		"DeriveCarriedSet":      DeriveCarriedSet,
+		"DeriveRootCloseoutSet": DeriveRootCloseoutSet,
+	}
+	for name, derive := range derivations {
+		t.Run(name, func(t *testing.T) {
+			set, fail := derive(stackSnapshot(fx.specs...), 1, fx.facts)
+			if fail != nil {
+				t.Fatalf("policy failure %+v; want nil", fail)
+			}
+			if want := []ChangeID{2}; !slices.Equal(idsOf(set), want) {
+				t.Fatalf("carried ids = %v; want %v", idsOf(set), want)
+			}
+			if got := proofOf(set, 2); got != "" {
+				t.Fatalf("descendant 2 proof = %q; want proven (empty)", got)
+			}
+			if !RootCloseoutProven(set) {
+				t.Fatalf("RootCloseoutProven = false; want true")
+			}
+		})
+	}
+}
+
+func TestDeriveCarriedSetChainThroughImplementedMiddle(t *testing.T) {
+	fx := chainThroughImplementedMiddleFixture()
+	set, fail := DeriveCarriedSet(stackSnapshot(fx.specs...), 1, fx.facts)
+	if fail != nil {
+		t.Fatalf("policy failure %+v; want nil", fail)
+	}
+	if want := []ChangeID{2, 3, 4}; !slices.Equal(idsOf(set), want) {
+		t.Fatalf("carried ids = %v; want %v", idsOf(set), want)
+	}
+	for _, d := range set {
+		if d.Proof != "" {
+			t.Fatalf("descendant %d proof = %q; want proven (empty)", d.ID, d.Proof)
+		}
+	}
+	if !RootCloseoutProven(set) {
+		t.Fatalf("RootCloseoutProven = false; want true")
+	}
+}
+
+func TestDeriveCarriedSetImplementedChildUnderBranchlessParentIsNotCarried(t *testing.T) {
+	// With no recorded parent branch there is no destination to have merged
+	// into, so even a PR whose base is empty never matches.
+	s := stackSnapshot(
+		stackSpec{id: 1, status: StatusImplemented},
+		stackSpec{id: 2, status: StatusImplemented, parent: parentEdge(1), branch: "feat/2"},
+	)
+	set, fail := DeriveCarriedSet(s, 1, map[ChangeID]PRFacts{2: mergedInto("")})
+	if fail != nil {
+		t.Fatalf("policy failure %+v; want nil", fail)
+	}
+	if len(set) != 0 {
+		t.Fatalf("carried set = %+v; want empty (no recorded parent branch)", set)
+	}
+}
+
+func TestDeriveRootCloseoutSetMatchesCarriedSet(t *testing.T) {
+	// The drift guard: root closeout and the live-branch boundaries (rebase,
+	// publish, merge) answer "what does this parent carry" with one rule, so on
+	// every non-cyclic shape the two derivations agree entry for entry.
+	fixtures := []carryFixture{
+		{
+			name: "stacked-merged chain",
+			specs: []stackSpec{
+				{id: 1, status: StatusImplemented, branch: "feat/1"},
+				{id: 2, status: StatusStackedMerged, parent: parentEdge(1), branch: "feat/2"},
+				{id: 3, status: StatusStackedMerged, parent: parentEdge(2), branch: "feat/3"},
+			},
+			facts: map[ChangeID]PRFacts{2: mergedInto("feat/1"), 3: mergedInto("feat/2")},
+		},
+		{
+			name: "stacked-merged child merged into the wrong branch",
+			specs: []stackSpec{
+				{id: 1, status: StatusImplemented, branch: "feat/1"},
+				{id: 2, status: StatusStackedMerged, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts: map[ChangeID]PRFacts{2: mergedInto("feat/wrong")},
+		},
+	}
+	fixtures = append(fixtures, nonCarriedChildFixtures()...)
+	fixtures = append(fixtures, openChildStopsDescentFixtures()...)
+	fixtures = append(fixtures, implementedMergedChildFixture(), chainThroughImplementedMiddleFixture())
+
+	proofsOf := func(set []CarriedDescendant) []string {
+		out := make([]string, 0, len(set))
+		for _, d := range set {
+			out = append(out, d.Proof)
+		}
+		return out
+	}
+	for _, fx := range fixtures {
+		t.Run(fx.name, func(t *testing.T) {
+			s := stackSnapshot(fx.specs...)
+			root, rootFail := DeriveRootCloseoutSet(s, 1, fx.facts)
+			carried, carriedFail := DeriveCarriedSet(s, 1, fx.facts)
+			if rootFail != nil || carriedFail != nil {
+				t.Fatalf("policy failures root=%+v carried=%+v; want nil", rootFail, carriedFail)
+			}
+			if !slices.Equal(idsOf(root), idsOf(carried)) || !slices.Equal(proofsOf(root), proofsOf(carried)) {
+				t.Fatalf("DeriveRootCloseoutSet = %+v; DeriveCarriedSet = %+v; want equal", root, carried)
 			}
 		})
 	}
@@ -442,8 +640,9 @@ func TestDeriveCarriedSetKilledOrProposedChildContributesNothing(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// The non-stacked-merged child (2) claims no carry and is not
-			// descended, so its own stacked-merged grandchild (3) never surfaces.
+			// A killed or proposed child (2) is never carried, whatever its PR
+			// facts, and is not descended, so its own stacked-merged grandchild
+			// (3) never surfaces.
 			s := stackSnapshot(
 				stackSpec{id: 1, status: StatusImplemented, branch: "feat/1"},
 				stackSpec{id: 2, status: tc.status, parent: parentEdge(1), branch: "feat/2"},
