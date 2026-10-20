@@ -334,7 +334,7 @@ func TestLifecycleActionCarriesDeliverable(t *testing.T) {
 // TestLifecycleActionCarriesHold pins newChangeBuilder's copy of the hold: a
 // claim keeps the stored hold rather than dropping it.
 func TestLifecycleActionCarriesHold(t *testing.T) {
-	c := NewChange(ChangeSpec{ID: 1, Slug: "s", Status: StatusProposed, Type: "feat", Trivial: true, Hold: holdTrue})
+	c := NewChange(ChangeSpec{ID: 1, Slug: "s", Status: StatusProposed, Type: "feat", Spec: specRef("docs/specs/a.md"), Hold: holdTrue})
 	res, fail := Claim(c, actNow)
 	if fail != nil {
 		t.Fatalf("Claim: %v", fail)

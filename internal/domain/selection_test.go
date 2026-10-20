@@ -20,14 +20,17 @@ type selSpec struct {
 }
 
 // build turns a selSpec into an immutable Change, defaulting to a
-// build-ready shape (proposed, and trivial when no spec: reference is given)
+// build-ready shape (proposed, with a spec: reference)
 // unless the case asks for a change carrying no design.
 func (sp selSpec) build() Change {
 	status := sp.status
 	if status == "" {
 		status = StatusProposed
 	}
-	trivial := !sp.noDesign && sp.spec.State != FieldPresent
+	spec := sp.spec
+	if !sp.noDesign && spec.State != FieldPresent {
+		spec = specRef("docs/specs/a.md")
+	}
 	slug := sp.slug
 	if slug == "" {
 		slug = "a-slug"
@@ -39,8 +42,7 @@ func (sp selSpec) build() Change {
 		Priority: sp.priority,
 		Created:  sp.created,
 		Type:     sp.kind,
-		Trivial:  trivial,
-		Spec:     sp.spec,
+		Spec:     spec,
 	})
 }
 
@@ -215,7 +217,7 @@ func TestSelectQueueOrdering(t *testing.T) {
 
 func TestSelectQueueExcludesNonBuildReady(t *testing.T) {
 	s := selSnapshot(
-		selSpec{id: 1, priority: PriorityHigh},                           // proposed + trivial
+		selSpec{id: 1, priority: PriorityHigh},                           // proposed + spec
 		selSpec{id: 2, priority: PriorityHigh, status: StatusInProgress}, // not proposed
 		selSpec{id: 3, priority: PriorityHigh, status: StatusDone},       // not proposed
 		selSpec{id: 4, priority: PriorityHigh, noDesign: true, spec: OptionalString{State: FieldEmpty}},
@@ -263,7 +265,7 @@ func TestSelectQueueExcludesAWaitingDependency(t *testing.T) {
 		selSpec{id: 2, priority: PriorityHigh},
 	)
 	dependent := NewChange(ChangeSpec{
-		ID: 3, Status: StatusProposed, Priority: PriorityCritical, Trivial: true,
+		ID: 3, Status: StatusProposed, Priority: PriorityCritical, Spec: specRef("docs/specs/a.md"),
 		DependsOn: []ChangeID{1},
 	})
 	s = NewSnapshot(SnapshotSpec{
@@ -281,7 +283,7 @@ func TestSelectQueueExcludesAWaitingDependency(t *testing.T) {
 // changes, so a held change never enters the queue.
 func TestSelectQueueExcludesAHeldChange(t *testing.T) {
 	held := NewChange(ChangeSpec{
-		ID: 3, Slug: "a-slug", Status: StatusProposed, Priority: PriorityCritical, Trivial: true,
+		ID: 3, Slug: "a-slug", Status: StatusProposed, Priority: PriorityCritical, Spec: specRef("docs/specs/a.md"),
 		Hold: holdTrue,
 	})
 	open := selSpec{id: 2, priority: PriorityHigh}.build()
