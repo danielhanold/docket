@@ -142,3 +142,77 @@ func TestSchemaCapabilityAnnotation(t *testing.T) {
 		t.Errorf("schema effects = %v, want [read]", e.Effects)
 	}
 }
+
+// TestSchemaCommandPositionalOperation pins the positional form (change 0360):
+// `docket schema <id>` is byte-identical to `--operation <id>`, an agreeing
+// pair is accepted, and a disagreeing pair or two positionals refuse as invalid
+// arguments rather than silently picking one.
+func TestSchemaCommandPositionalOperation(t *testing.T) {
+	a, errA, ca := runCLI(t, "schema", "change.create", "--json")
+	b, _, cb := runCLI(t, "schema", "--operation", "change.create", "--json")
+	if ca != 0 || cb != 0 {
+		t.Fatalf("positional exit=%d, flag exit=%d; want 0/0\n%s\n%s", ca, cb, a, errA)
+	}
+	if a != b {
+		t.Errorf("positional output differs from --operation output:\n%s\n---\n%s", a, b)
+	}
+
+	both, _, cboth := runCLI(t, "schema", "change.create", "--operation", "change.create", "--json")
+	if cboth != 0 || both != a {
+		t.Errorf("agreeing positional + --operation: exit=%d, same bytes=%v; want 0/true\n%s", cboth, both == a, both)
+	}
+
+	type refusal struct {
+		Result string `json:"result"`
+		Reason string `json:"reason"`
+	}
+	mis, _, cmis := runCLI(t, "schema", "change.create", "--operation", "change.claim", "--json")
+	if cmis != 2 {
+		t.Fatalf("disagreeing positional + --operation exit = %d, want 2\n%s", cmis, mis)
+	}
+	var r refusal
+	if err := json.Unmarshal([]byte(mis), &r); err != nil {
+		t.Fatalf("mismatch refusal is not valid JSON: %v\n%s", err, mis)
+	}
+	if r.Result != "invalid-input" || r.Reason != "invalid-arguments" {
+		t.Errorf("mismatch refusal = %+v, want invalid-input/invalid-arguments", r)
+	}
+
+	if two, _, ctwo := runCLI(t, "schema", "change.create", "change.claim", "--json"); ctwo != 2 {
+		t.Errorf("two positionals exit = %d, want 2\n%s", ctwo, two)
+	}
+
+	bad, _, cbad := runCLI(t, "schema", "no.such.operation", "--json")
+	if cbad != 2 {
+		t.Fatalf("unknown positional exit = %d, want 2\n%s", cbad, bad)
+	}
+	var badDoc struct {
+		Findings []struct {
+			Code string `json:"code"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(bad), &badDoc); err != nil {
+		t.Fatalf("unknown-operation refusal is not valid JSON: %v\n%s", err, bad)
+	}
+	found := false
+	for _, f := range badDoc.Findings {
+		if f.Code == "unknown-operation" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("unknown positional refusal missing finding code unknown-operation: %v", badDoc.Findings)
+	}
+
+	entries, err := collectCapabilities(productionRootForTest(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, ok := entryByID(entries, "schema")
+	if !ok {
+		t.Fatal("schema is absent from the capability catalog")
+	}
+	if want := "[<id>] [--operation <id>]"; e.Signature != want {
+		t.Errorf("schema signature = %q, want %q", e.Signature, want)
+	}
+}

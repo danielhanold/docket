@@ -17,12 +17,21 @@ import (
 // which reflects the operation-schema registry.
 func newSchemaCommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "schema",
-		Short:       "Emit request/result payload schemas and allowed values (read-only, repository-independent)",
-		Args:        cobra.NoArgs,
+		Use:         "schema [<id>]",
+		Short:       "Emit request/result payload schemas and allowed values; one operation by positional <id> or --operation (read-only, repository-independent)",
+		Args:        cobra.MaximumNArgs(1),
 		Annotations: capability("schema", EffectRead),
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: func(c *cobra.Command, args []string) error {
 			op, _ := c.Flags().GetString("operation")
+			// The operation id may be given positionally or via --operation
+			// (change 0360). Both at once must agree: a disagreement refuses as
+			// invalid arguments rather than silently picking one.
+			if len(args) == 1 {
+				if op != "" && op != args[0] {
+					return fmt.Errorf("schema: positional id %q and --operation %q disagree", args[0], op)
+				}
+				op = args[0]
+			}
 			effects := sortedEffectStrings()
 			if op == "" {
 				doc, err := app.Schema(effects)
@@ -44,7 +53,7 @@ func newSchemaCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().String("operation", "", "emit only this operation `id` (e.g. change.create)")
+	cmd.Flags().String("operation", "", "emit only this operation `id` (e.g. change.create); same as the positional <id>")
 	return cmd
 }
 
