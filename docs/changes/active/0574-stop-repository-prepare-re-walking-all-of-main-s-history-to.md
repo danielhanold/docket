@@ -12,7 +12,7 @@ depends_on: []
 stacked_on:
 related: [360, 378]
 discovered_from: [561]
-adrs: []
+adrs: [157]
 spec: 'docs/superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md'
 plan: 'docs/superpowers/plans/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to.md'
 results:
@@ -33,6 +33,7 @@ claimed_at: '2026-10-20T18:04:43Z'
 |---|---|
 | Spec | [2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md](../../superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md) |
 | Plan | [2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to.md](../../superpowers/plans/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) |
+| ADRs | [ADR-0157](../../adrs/0157-everyday-repository-commands-recognize-the-metadata-branch-b.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
