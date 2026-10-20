@@ -260,12 +260,15 @@ func checkRevisions(facts reposetup.Facts) map[string]string {
 func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Facts, sc setupContext) {
 	metaRef := metadataRef(sc.layout)
 
-	// Metadata root shape: the shared ownership verifier decides, at the FETCHED
-	// remote docket tip, whether the tip's sole parentless-root lineage is a
-	// verified docket seed root (RootParentless — a native init/migrate receipt or
-	// a receiptless legacy-equivalent tree, with any number of permitted
-	// descendants and merges; the root need not equal the tip), readable evidence
-	// with no ownership proof (RootForeign), or unreadable evidence (RootUnknown).
+	// Metadata root shape: the quick structural check (verifyMetadataShape)
+	// decides at the FETCHED remote docket tip — exactly one parentless root and
+	// no shared history with the integration branch is owned (RootParentless, with
+	// any number of descendants; the root need not equal the tip), more than one
+	// root or shared history is RootForeign, and a probe error is RootUnknown. It
+	// reads no receipt and no file contents: the content proof
+	// (verifyMetadataOwnership) is reserved for init and migrate, the commands
+	// that create or delete planning data. check, configure-tests, and
+	// configure-harnesses all read ownership here, so they agree on healthy.
 	// The fetched tip is the single authority (learning
 	// decide-and-act-on-the-same-copy): it becomes RemoteMetadata's reported
 	// revision and the remote side of syncRelationship, so the
@@ -284,7 +287,7 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 			f.MetadataRoot = reposetup.RootUnknown
 		} else {
 			f.RemoteMetadata.Tip = string(rev.Commit)
-			own := verifyMetadataOwnership(ctx, git, sc.repo, rev.Commit, gitcli.ObjectID(sc.sourceRevision), sc.defaultBranch)
+			own := verifyMetadataShape(ctx, git, sc.repo, rev.Commit, gitcli.ObjectID(sc.sourceRevision))
 			f.MetadataRoot = own.Shape
 		}
 	}

@@ -30,11 +30,11 @@ import (
 // earlier copied predicate in prepareAugment (`len(roots)==1 && roots[0]==tip`)
 // misclassified every such chain as RootForeign — the root is not the tip once a
 // descendant lands — and refused every real docket repository. prepareAugment now
-// consumes the shared verifyMetadataOwnership verifier (the same one
-// repository_check.go uses), which proves the init-seed root owns the chain
+// consumes the quick structural check verifyMetadataShape (the same one
+// repository_check.go uses), which proves the sole parentless root owns the chain
 // (RootParentless) regardless of how many descendants sit on top. Under the old
-// predicate these scenarios refuse with metadata-root-foreign; under the verifier
-// they classify owned and reach their true disposition.
+// predicate these scenarios refuse with metadata-root-foreign; under the shape
+// check they classify owned and reach their true disposition.
 //
 // Every refusal scenario asserts the `.docket` worktree bytes and tip are untouched
 // AFTER the refusal (positive evidence), not merely that the disposition is refused:
@@ -149,8 +149,8 @@ func prepareFinding(res RepositoryPrepareResult, code string) bool {
 // proof of the prepareAugment rewire: a healthy remote whose docket branch is a real
 // multi-commit chain (root != tip) is classified OWNED (RootParentless) and prepared,
 // never refused as a foreign metadata root. Under the old copied root-equals-tip
-// predicate this refused with metadata-root-foreign; the shared verifier proves the
-// init-seed root owns the whole chain.
+// predicate this refused with metadata-root-foreign; the shape check proves the
+// sole parentless root owns the whole chain.
 func TestIntegrationRepoPrepareMultiCommitChainClassifiesOwned(t *testing.T) {
 	r := newPrepareOrigin(t)
 	if n := r.originDocketCommitCount(t); n < 2 {

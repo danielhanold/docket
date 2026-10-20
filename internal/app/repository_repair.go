@@ -193,7 +193,7 @@ func repairPreflight(ctx context.Context, d SetupDeps) (setupContext, string, *R
 		r := repairFromMigrateResult(migrateGatherFailure(err))
 		return setupContext{}, "", &r
 	}
-	phase, refusal := migrateRoute(ctx, d.Git, facts, &sc)
+	phase, refusal := migrateRoute(ctx, d.Git, facts, &sc, quickOwnershipCheck)
 	if refusal != nil {
 		if refusal.RepositoryState == string(reposetup.StateFresh) {
 			r := repairRefusal(reposetup.StateFresh,

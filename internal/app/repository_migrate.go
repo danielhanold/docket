@@ -141,7 +141,7 @@ func RunRepositoryMigrate(ctx context.Context, d SetupDeps, o MigrateOptions) Re
 // selected phase to a result. It is split out so the debris sweep can wrap it
 // without threading its report through every branch.
 func migratePhaseDispatch(ctx context.Context, d SetupDeps, o MigrateOptions, facts reposetup.Facts, sc setupContext) RepositoryMigrateResult {
-	phase, refusal := migrateRoute(ctx, d.Git, facts, &sc)
+	phase, refusal := migrateRoute(ctx, d.Git, facts, &sc, verifyMetadataOwnership)
 	if refusal != nil {
 		return *refusal
 	}
@@ -223,15 +223,20 @@ func migratePhaseDispatch(ctx context.Context, d SetupDeps, o MigrateOptions, fa
 
 // migrateRoute classifies the gathered remote postconditions into a migration
 // phase or a refusal. When the metadata branch is present it fetches it and runs
-// the shared ownership verifier (verifyMetadataOwnership) at the re-read remote
-// tip — the base gatherer deliberately leaves the root shape unproven so the
+// checkOwnership at the re-read remote tip. The routing is shared by migrate and
+// repair, which pass different checks: repository migrate passes the full
+// verifier (verifyMetadataOwnership), because it deletes the planning surface
+// from the integration branch and must first prove the metadata branch holds it;
+// repository repair passes the quick structural check (quickOwnershipCheck).
+// Only own.Shape is consumed, never which proof matched, so either check fits.
+// The base gatherer deliberately leaves the root shape unproven so the
 // authoritative adopt/conflict decision keys on the promised remote state, not a
 // gather-time proxy. It pins sc.metadataTip to that re-read tip so a local-finish
 // resume attaches at the ACTUAL latest tip (not the seed root), and an established
 // migrated branch is recognized however many descendants it has grown. Every probe
 // error is surfaced, never read as a clean absence (learning
 // probe-error-is-not-clean-absence).
-func migrateRoute(ctx context.Context, git *gitcli.Client, facts reposetup.Facts, sc *setupContext) (migratePhase, *RepositoryMigrateResult) {
+func migrateRoute(ctx context.Context, git *gitcli.Client, facts reposetup.Facts, sc *setupContext, checkOwnership ownershipCheck) (migratePhase, *RepositoryMigrateResult) {
 	if u := migrateUnknownProbes(facts); len(u) > 0 {
 		r := migrateRefusal(reposetup.StateUnknown,
 			"a required repository probe could not be resolved ("+strings.Join(u, ", ")+"); run `docket repository check` after ensuring the remote is configured and reachable")
@@ -265,7 +270,7 @@ func migrateRoute(ctx context.Context, git *gitcli.Client, facts reposetup.Facts
 		// established migrated branch with descendants is finished at its latest tip,
 		// never reset to the seed.
 		sc.metadataTip = string(rev.Commit)
-		own := verifyMetadataOwnership(ctx, git, sc.repo, rev.Commit, gitcli.ObjectID(sc.sourceRevision), sc.defaultBranch)
+		own := checkOwnership(ctx, git, sc.repo, rev.Commit, gitcli.ObjectID(sc.sourceRevision), sc.defaultBranch)
 		switch own.Shape {
 		case reposetup.RootUnknown:
 			// Incomplete or unreadable evidence: an external failure retaining the probe
