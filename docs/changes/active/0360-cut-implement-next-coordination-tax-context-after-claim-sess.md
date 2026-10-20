@@ -2,7 +2,7 @@
 id: 360
 slug: 'cut-implement-next-coordination-tax-context-after-claim-sess'
 title: 'Stop implement-next tripping over its own bookkeeping'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'feat'
 created: '2026-08-27'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/cut-implement-next-coordination-tax-context-after-claim-sess'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-20T21:34:00Z'
 ---
 
 ## Artifacts

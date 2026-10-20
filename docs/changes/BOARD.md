@@ -1,12 +1,12 @@
 # Backlog
 
-**575 changes** — 🟣 1 groomed · 🟡 3 proposed · ⚪ 16 deferred · ✅ 411 done · 🗑️ 144 killed
+**575 changes** — 🟢 1 in progress · 🟡 3 proposed · ⚪ 16 deferred · ✅ 411 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | `high` | `feat` | [spec](../superpowers/specs/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | `high` | `feat` | [spec](../superpowers/specs/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md) | `feat/cut-implement-next-coordination-tax-context-after-claim-sess` | building |
 
 ## 🟡 Proposed (3)
 
