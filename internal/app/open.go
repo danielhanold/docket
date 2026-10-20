@@ -55,6 +55,9 @@ const (
 	ReasonOpenFileMissing        = "file-missing"
 	ReasonOpenNoOpener           = "no-opener"
 	ReasonOpenOpenerFailed       = "opener-failed"
+	ReasonOpenInvalidOption      = "invalid-option"      // an export flag used where it does not apply
+	ReasonOpenOutputPathInvalid  = "output-path-invalid" // the export destination cannot be written
+	ReasonOpenExportFailed       = "export-failed"       // reading the source or writing the copy failed
 )
 
 // openNoteNotGitHub is the note attached when a GitHub page was wanted but the
@@ -73,6 +76,11 @@ type OpenOptions struct {
 	What    string
 	ID      int // 0 = infer from the checked-out branch
 	Print   bool
+
+	// Export writes a clean Markdown copy of the artifact and opens the copy.
+	Export     bool
+	OutputPath string // "" = the default destination
+	Warnings   string // "" = WarningsAll
 }
 
 // OpenDeps is what Open reads and runs, injected so tests start no real git
@@ -82,6 +90,11 @@ type OpenDeps struct {
 	Checkout func(ctx context.Context, dir string) (gitcli.CheckoutState, error)
 	Prepare  func(ctx context.Context, repoDir string) RepositoryPrepareResult
 	Opener   Opener
+
+	// The export destination's seams; production sets all three.
+	HomeDir func() (string, error)
+	Getwd   func() (string, error)
+	GOOS    string
 }
 
 // OpenResult is the document `docket open` emits for every outcome. ChangeID is
@@ -96,6 +109,12 @@ type OpenResult struct {
 	Notes      []string `json:"notes"`
 	Reason     string   `json:"reason,omitempty"`
 	Message    string   `json:"message,omitempty"`
+
+	// Export fields, set only by --export; Leftovers and Mentions follow --warnings.
+	ExportedPath string           `json:"exported_path,omitempty"`
+	Replaced     bool             `json:"replaced,omitempty"`
+	Leftovers    []ExportLeftover `json:"leftovers,omitempty"`
+	Mentions     *ExportMentions  `json:"mentions,omitempty"`
 }
 
 // HumanText renders the result for a terminal: the target alone on success
@@ -158,7 +177,9 @@ func ParseOpenArgs(args []string) (string, int, error) {
 // records when the id is 0) to a target and opens it. A private repository,
 // open.artifacts: local, or a non-GitHub origin opens the file from the
 // metadata checkout after preparing it; otherwise the GitHub blob page opens.
-// A change's PR always opens its URL. With Print set nothing is launched.
+// A change's PR always opens its URL. With Export set the local file is always
+// read and its clean copy (openExport) is what opens. With Print set nothing is
+// launched.
 func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 	res := OpenResult{What: o.What, ChangeID: o.ID, Notes: []string{}}
 	fail := func(f openFailure) OpenResult {
@@ -173,6 +194,9 @@ func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 		}
 		_, _, err := ParseOpenArgs(args)
 		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidTarget, err.Error()})
+	}
+	if err := ValidateOpenExport(o); err != nil {
+		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidOption, err.Error()})
 	}
 	if o.RepoDir == "" {
 		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidTarget, "a repository directory is required"})
@@ -197,14 +221,19 @@ func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 		return fail(openFailure{result, reason, err.Error()})
 	}
 	eff := pin.Config.Effective
-	var rel string
+	var (
+		rel  string
+		c    domain.Change
+		snap domain.Snapshot
+	)
 	if o.What == "board" {
 		if !slices.Contains(eff.BoardSurfaces.Value, boardSurfaceInline) {
 			return fail(openFailure{ResultInvalidState, ReasonOpenBoardDisabled, "this repository has no board (board_surfaces has no inline surface)"})
 		}
 		rel = boardCorpusPath(eff)
 	} else {
-		c, f := resolveOpenChange(ctx, deps.Reader, pin, o.ID, branch)
+		var f *openFailure
+		c, snap, f = resolveOpenChange(ctx, deps.Reader, pin, o.ID, branch)
 		if f != nil {
 			return fail(*f)
 		}
@@ -225,6 +254,9 @@ func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 	// or linked.
 	if !filepath.IsLocal(filepath.FromSlash(rel)) {
 		return fail(openFailure{ResultInvalidState, ReasonOpenPathInvalid, fmt.Sprintf("%s path %q is not a path inside the repository", o.What, rel)})
+	}
+	if o.Export {
+		return openExport(ctx, deps, o, dir, pin, c, snap, rel, res)
 	}
 	if pin.Layout.Mode != layout.Private && eff.Open.Artifacts.Value != "local" {
 		if u := linkContextOf(pin).BlobURL(rel); u != "" {
@@ -273,30 +305,32 @@ func localArtifact(ctx context.Context, deps OpenDeps, dir string, pin StatusPin
 }
 
 // resolveOpenChange reads the pinned corpus and returns change id, or, when id
-// is 0, the change whose recorded branch is branch.
-func resolveOpenChange(ctx context.Context, reader StatusReader, pin StatusPin, id int, branch string) (domain.Change, *openFailure) {
+// is 0, the change whose recorded branch is branch, plus the snapshot it built.
+func resolveOpenChange(ctx context.Context, reader StatusReader, pin StatusPin, id int, branch string) (domain.Change, domain.Snapshot, *openFailure) {
 	blobs, err := reader.ReadCorpus(ctx, pin)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		return domain.Change{}, &openFailure{result, reason, err.Error()}
+		return domain.Change{}, domain.Snapshot{}, &openFailure{result, reason, err.Error()}
 	}
 	inputs, _ := parseCorpus(blobs)
 	build, err := repository.BuildSnapshot(repository.BuildInput{Config: pin.Config.Effective, Documents: inputs})
 	if err != nil {
-		return domain.Change{}, &openFailure{ResultInternalError, ReasonStatusInternalError, err.Error()}
+		return domain.Change{}, domain.Snapshot{}, &openFailure{ResultInternalError, ReasonStatusInternalError, err.Error()}
 	}
+	snap := build.Snapshot
 	if id == 0 {
-		return inferChangeFromBranch(build.Snapshot, branch)
+		c, f := inferChangeFromBranch(snap, branch)
+		return c, snap, f
 	}
-	c, out := build.Snapshot.Change(domain.ChangeID(id))
+	c, out := snap.Change(domain.ChangeID(id))
 	switch out {
 	case domain.LookupFound:
-		return c, nil
+		return c, snap, nil
 	case domain.LookupAmbiguous:
-		return domain.Change{}, &openFailure{ResultInvalidState, ReasonOpenAmbiguousChange,
+		return domain.Change{}, snap, &openFailure{ResultInvalidState, ReasonOpenAmbiguousChange,
 			fmt.Sprintf("more than one record claims change %d — refusing to choose", id)}
 	}
-	return domain.Change{}, &openFailure{ResultInvalidInput, ReasonOpenUnknownChange, fmt.Sprintf("no change %d", id)}
+	return domain.Change{}, snap, &openFailure{ResultInvalidInput, ReasonOpenUnknownChange, fmt.Sprintf("no change %d", id)}
 }
 
 // changeArtifactPath returns the repository-relative path what names for c: the

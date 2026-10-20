@@ -185,6 +185,19 @@ func (f *openFixture) writeFile(t *testing.T, rel string) string {
 	return p
 }
 
+// writeBody writes body at rel inside the metadata checkout and returns its path.
+func (f *openFixture) writeBody(t *testing.T, rel, body string) string {
+	t.Helper()
+	p := filepath.Join(f.root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
 func (f *openFixture) refusePrepare(code string) {
 	f.prepare = RepositoryPrepareResult{Envelope: NewEnvelope(OperationRepositoryPrepare, ResultInvalidState),
 		Disposition: PrepareDispositionRefused, Findings: []reposetup.Finding{{Code: code}}}
