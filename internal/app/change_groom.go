@@ -20,17 +20,17 @@ import (
 )
 
 // This file is the `change groom` planning operation: it grooms a proposed,
-// needs-design change to build-ready by one of two authored outcomes — a full
-// spec, or a trivial verdict — or, by the third outcome (revise), edits any
-// proposed change in place without changing its groom state: a whole-body
-// replace of its existing linked spec and/or owned proposal-section edits,
-// never touching spec:, trivial:, or auto_groomable:. The abstain outcome
+// needs-design change to build-ready by landing an authored spec (the spec
+// outcome) or, by the revise outcome, edits any proposed change in place
+// without changing its groom state: a whole-body replace of its existing
+// linked spec and/or owned proposal-section edits, never touching spec: or
+// auto_groomable:. The abstain outcome
 // records an autonomous groom's abstain on a needs-design change —
 // auto_groomable: false plus one dated
 // "## Auto-groom blocked" entry — under the same groom gate; the re-enable outcome
 // clears it — auto_groomable: true, the section removed — under that gate too,
-// optionally with owned-section edits in the same commit. The spec, trivial,
-// revise, and re-enable outcomes also set or lift a hold (hold:, plus the
+// optionally with owned-section edits in the same commit. The spec, revise,
+// and re-enable outcomes also set or lift a hold (hold:, plus the
 // optional "## Why on hold" reason section only the hold keys write), which
 // never changes the groom state; abstain refuses a hold. Every outcome
 // lands the change's source mutation and every affected v1-owned derived view (the change record's owned proposal sections,
@@ -41,7 +41,7 @@ import (
 // revision with an exact-blob entity expectation rather than an idempotency key
 // (a spec-body revise also checks the linked spec file's blob id in Plan), and
 // it never touches claim metadata. It decides no lifecycle policy beyond the
-// groom gate the spec fixes here (proposed, needs-design, not yet trivial) and
+// groom gate the spec fixes here (proposed, needs-design) and
 // the revise gate (any proposed change).
 
 // OperationChangeGroom is the operation key `change groom` records in its result
@@ -54,21 +54,18 @@ type GroomOutcome string
 const (
 	// GroomSpec lands an authored design spec and links it from the change.
 	GroomSpec GroomOutcome = "spec"
-	// GroomTrivial marks the change trivial with an authored rationale, writing
-	// no spec file.
-	GroomTrivial GroomOutcome = "trivial"
 	// GroomRevise edits any proposed change without changing its groom state:
 	// a whole-body replace of its existing linked spec, owned proposal-section
 	// edits, a retitle, relationship-field updates, or a combination. It never
-	// writes spec:, trivial:, or auto_groomable:, so a change can never flip
-	// between needs-grooming, spec'd, and trivial through this outcome, and it
+	// writes spec: or auto_groomable:, so a change can never flip between
+	// needs-grooming and spec'd through this outcome, and it
 	// never edits the ## Auto-groom blocked section (abstain and re-enable own it).
 	// It may set or lift a hold: a hold excludes the change from autonomous
 	// build selection only, so it is no part of the groom state.
 	GroomRevise GroomOutcome = "revise"
 	// GroomAbstain records an autonomous groom's abstain on a needs-grooming
 	// change: it sets auto_groomable: false and appends one dated entry to the
-	// ## Auto-groom blocked section. It never writes spec: or trivial:, and it
+	// ## Auto-groom blocked section. It never writes spec:, and it
 	// accepts no section, spec, relationship, or hold edits — an autonomous
 	// caller cannot rewrite the proposal through it.
 	GroomAbstain GroomOutcome = "abstain"
@@ -149,13 +146,13 @@ type ChangeGroomRequest struct {
 	BlockedNote string `json:"blocked_note,omitempty"`
 
 	// Title, when non-empty, retitles the change (change 0461). The spec,
-	// trivial, revise, and re-enable outcomes accept it; abstain refuses it, since an
+	// revise, and re-enable outcomes accept it; abstain refuses it, since an
 	// abstain cannot rewrite the proposal. Empty leaves the title unchanged. A
 	// retitle renames nothing: the slug, record path, spec path, and branch stay put.
 	Title string `json:"title,omitempty"`
 
 	// Priority, when non-empty, re-prioritizes the change (change 0550). The
-	// spec, trivial, revise, and re-enable outcomes accept it; abstain refuses
+	// spec, revise, and re-enable outcomes accept it; abstain refuses
 	// it, since an autonomous abstain cannot re-rank the proposal. Empty leaves
 	// the priority unchanged. It draws on the same closed vocabulary as
 	// change.create's priority.
@@ -163,7 +160,7 @@ type ChangeGroomRequest struct {
 
 	// Deliverable, Type, and BranchPrefix edit how the change ends and how its
 	// next claim names its branch (change 0559). Like Title and Priority, the
-	// spec, trivial, revise, and re-enable outcomes accept each and abstain
+	// spec, revise, and re-enable outcomes accept each and abstain
 	// refuses each. An empty Deliverable or Type leaves the field unchanged;
 	// Deliverable draws on change.create's closed vocabulary and Type must be one
 	// of the configured change_types. BranchPrefix is three-state: nil leaves it
@@ -180,7 +177,7 @@ type ChangeGroomRequest struct {
 	// false clears the key and removes any "## Why on hold" section. HoldReason
 	// is accepted only with Hold true in the same request; it replaces that
 	// section, and an omitted reason leaves an existing one alone. The spec,
-	// trivial, revise, and re-enable outcomes accept both; abstain refuses Hold.
+	// revise, and re-enable outcomes accept both; abstain refuses Hold.
 	Hold       *bool  `json:"hold,omitempty"`
 	HoldReason string `json:"hold_reason,omitempty"`
 
@@ -229,7 +226,7 @@ func (r ChangeGroomResult) HumanText() string {
 		if r.SpecPath != "" {
 			return fmt.Sprintf("change %04d groomed (spec %s) — %s", r.ID, r.SpecPath, r.Revision)
 		}
-		return fmt.Sprintf("change %04d groomed (trivial) — %s", r.ID, r.Revision)
+		return fmt.Sprintf("change %04d groomed — %s", r.ID, r.Revision)
 	default:
 		var b strings.Builder
 		fmt.Fprintf(&b, "change groom: %s", r.Result)
@@ -254,8 +251,8 @@ func newChangeGroomResult(result Result, r ChangeGroomResult) ChangeGroomResult 
 
 // changeGroomReceipt is the canonical receipt persisted with a groom commit.
 // Field order is alphabetical so json.Marshal emits the canonical, sorted-key
-// compact form the engine's receipt validator requires; SpecPath is omitted for
-// the trivial outcome.
+// compact form the engine's receipt validator requires; SpecPath is omitted when
+// no spec file was written or replaced (abstain, re-enable, a sections-only revise).
 type changeGroomReceipt struct {
 	ID       int    `json:"id"`
 	Op       string `json:"op"`
@@ -405,10 +402,6 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		} else if msg := specMarkdownShapeProblem(req.SpecMarkdown); msg != "" {
 			addShape(FCInvalidSpecMarkdown, msg)
 		}
-	case GroomTrivial:
-		if !hasAuthoredRationale(req.Sections) {
-			addShape(FCMissingRationale, "the trivial outcome requires a non-empty authored rationale among the section edits")
-		}
 	case GroomRevise:
 		if strings.TrimSpace(req.SpecMarkdown) != "" {
 			if msg := specMarkdownShapeProblem(req.SpecMarkdown); msg != "" {
@@ -478,7 +471,7 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 			}
 		}
 	default:
-		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, trivial, revise, abstain, re-enable", req.Outcome))
+		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, revise, abstain, re-enable", req.Outcome))
 	}
 
 	// A title retitles the change on every other outcome (change 0461); an empty
@@ -608,17 +601,6 @@ func autoGroomBlockedMarkdown(oldBody string, present bool, date, note string) s
 	return entry
 }
 
-// hasAuthoredRationale reports whether the section edits carry at least one
-// replace with a non-empty body — the trivial outcome's required rationale.
-func hasAuthoredRationale(sections []SectionEditRequest) bool {
-	for _, s := range sections {
-		if s.Intent == string(render.SectionReplace) && strings.TrimSpace(s.Markdown) != "" {
-			return true
-		}
-	}
-	return false
-}
-
 // hasRelationshipEdit reports whether the request sets any relationship field:
 // an explicit list (even empty) for depends_on, related, discovered_from, or
 // adrs, or any stacked_on (0 clears it). Each one alone is an effective revise.
@@ -722,7 +704,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	}
 	// Groom/revise gate. The groom gate admits only a proposed, needs-design
 	// change. The revise gate admits any proposed change, needs-design or
-	// already groomed: revise never writes spec:, trivial:, or auto_groomable:,
+	// already groomed: revise never writes spec: or auto_groomable:,
 	// so it cannot change a change's groom state, and a needs-design change
 	// satisfies both gates. Neither gate inspects or sets claim metadata.
 	if o.req.Outcome == GroomRevise {
@@ -975,7 +957,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	}
 	if reviseSpec {
 		// A revise that replaced the spec body names the existing linked path; a
-		// sections-only revise leaves it empty, like the trivial outcome.
+		// sections-only revise leaves it empty.
 		receiptSpecPath = c.Spec().Value
 	}
 	receipt, err := json.Marshal(changeGroomReceipt{
@@ -1010,8 +992,6 @@ func (o changeGroomOp) fieldEdits(specPath string) []groomFieldEdit {
 	switch o.req.Outcome {
 	case GroomSpec:
 		out = append(out, groomFieldEdit{"spec", document.String(specPath)})
-	case GroomTrivial:
-		out = append(out, groomFieldEdit{"trivial", document.Bool(true)})
 	case GroomAbstain:
 		out = append(out, groomFieldEdit{"auto_groomable", document.Bool(false)})
 	case GroomReEnable:

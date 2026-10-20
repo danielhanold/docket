@@ -158,7 +158,6 @@ const (
 	FCInvalidSpecMarkdown       FindingCode = "invalid-spec_markdown"
 	FCEmptySpecRevision         FindingCode = "empty-spec_revision"
 	FCInvalidSpecRevision       FindingCode = "invalid-spec_revision"
-	FCMissingRationale          FindingCode = "missing-rationale"
 	FCEmptyRevise               FindingCode = "empty-revise"
 	FCEmptyBlockedNote          FindingCode = "empty-blocked_note"
 	FCInvalidBlockedNote        FindingCode = "invalid-blocked_note"
@@ -220,7 +219,7 @@ const (
 // through their addShape/adrFinding/learningFinding closures are now registered
 // FindingCode constants (change 0399, review): invalid-request_id,
 // invalid-stacked_on, invalid-{target-id,topics,change-id,outcome,pr_number,
-// attempt,spec_markdown,spec_revision,spec-section-heading}, missing-rationale, and the
+// attempt,spec_markdown,spec_revision,spec-section-heading}, and the
 // enumerated empty-<field> expansions (empty-{title,why,what_changes,
 // out_of_scope,context,decision,consequences,alternatives,change-path,
 // change-revision,target-path,target-revision,hook,apply,war_story,spec_markdown,
@@ -347,7 +346,6 @@ var AllFindingCodes = []FindingCode{
 	FCMetadataWorktreeDirty,
 	FCMigrationIncomplete,
 	FindingCode("missing-claim-stamp"),
-	FCMissingRationale,
 	FCNotDeferrable,
 	FCNotFound,
 	FindingCode(ReasonImplementedNotPRDeliverable),

@@ -55,7 +55,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 		}, EffectMetadataWrite)
 
 	groom := changeSubcommand("change", "groom",
-		"Groom a proposed change to build-ready (spec or trivial), record or clear an auto-groom abstain (abstain, re-enable), or revise any proposed change without changing its groom state, from a JSON request",
+		"Groom a proposed change to build-ready with a spec, record or clear an auto-groom abstain (abstain, re-enable), or revise any proposed change without changing its groom state, from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeGroomRequest) {
 			setResult(app.ChangeGroom(c.Context(), deps, repoDir, req))
 		}, EffectMetadataWrite)

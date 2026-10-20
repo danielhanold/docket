@@ -94,6 +94,7 @@ func TestChangeGroomRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		{"empty path", func(r *ChangeGroomRequest) { r.Path = "" }, "empty-path"},
 		{"empty revision", func(r *ChangeGroomRequest) { r.Revision = "" }, "empty-revision"},
 		{"unknown outcome", func(r *ChangeGroomRequest) { r.Outcome = "maybe" }, "invalid-outcome"},
+		{"retired trivial outcome", func(r *ChangeGroomRequest) { r.Outcome = "trivial"; r.SpecMarkdown = "" }, "invalid-outcome"},
 		{"spec outcome empty markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "" }, "empty-spec_markdown"},
 		{"spec outcome unparseable markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "---\nid: 1\n" }, "invalid-spec_markdown"},
 		// The writer prepends the backlink block itself; an authored one would
@@ -131,31 +132,6 @@ func TestChangeGroomRejectsBadShapeWithoutEngineCall(t *testing.T) {
 				t.Errorf("missing finding %q; got %v", c.code, res.Findings)
 			}
 		})
-	}
-}
-
-func TestChangeGroomTrivialRequiresRationale(t *testing.T) {
-	req := ChangeGroomRequest{
-		ChangeID: 2,
-		Path:     groomPath(2, "add-a-widget"),
-		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Outcome:  GroomTrivial,
-		// No section carrying an authored rationale.
-	}
-	engine := &recordingEngine{}
-	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
-	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := ChangeGroom(context.Background(), deps, "", req)
-
-	if res.Result != ResultInvalidInput {
-		t.Fatalf("result = %q, want invalid-input", res.Result)
-	}
-	if len(engine.calls) != 0 {
-		t.Errorf("engine called despite a missing trivial rationale")
-	}
-	if !hasFindingCode(res.Findings, "missing-rationale") {
-		t.Errorf("missing finding missing-rationale; got %v", res.Findings)
 	}
 }
 
@@ -271,35 +247,6 @@ func TestChangeGroomPlanSpecOutcomeFileSet(t *testing.T) {
 	// The spec backlink links the record relatively from the spec's directory.
 	if !strings.Contains(spec, "](../../changes/active/0002-add-a-widget.md)**") {
 		t.Errorf("spec backlink does not target the change record path:\n%s", spec)
-	}
-}
-
-func TestChangeGroomPlanTrivialOutcomeFileSet(t *testing.T) {
-	req := ChangeGroomRequest{
-		ChangeID: 2,
-		Path:     groomPath(2, "add-a-widget"),
-		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Outcome:  GroomTrivial,
-		Sections: []SectionEditRequest{
-			{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"},
-		},
-	}
-	files := map[string]string{
-		groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget"),
-	}
-	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
-	if opRes.Refused {
-		t.Fatalf("unexpected refusal: %v", opRes.Findings)
-	}
-	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
-		groomPath(2, "add-a-widget"): transaction.MutationReplace,
-	})
-	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
-	if !strings.Contains(rec, "trivial: true") {
-		t.Errorf("trivial not set true:\n%s", rec)
-	}
-	if strings.Contains(rec, "spec: '") {
-		t.Errorf("trivial groom must not set a spec:\n%s", rec)
 	}
 }
 
@@ -1362,8 +1309,36 @@ func TestChangeGroomRetiredRearmOutcomeRefused(t *testing.T) {
 	}
 	// The message echoes the offending value via %q ("rearm"), so assert on the
 	// listed outcome set only: it must end with the live spelling.
-	if !strings.HasSuffix(msg, "must be one of spec, trivial, revise, abstain, re-enable") {
+	if !strings.HasSuffix(msg, "must be one of spec, revise, abstain, re-enable") {
 		t.Errorf("invalid-outcome message %q must list exactly the live outcomes ending in re-enable", msg)
+	}
+}
+
+// TestChangeGroomRetiredTrivialOutcomeRefused pins the retirement of the
+// trivial outcome: every build-ready change has a spec, so "trivial" is no
+// longer an outcome and the refusal lists only the live set.
+func TestChangeGroomRetiredTrivialOutcomeRefused(t *testing.T) {
+	req := ChangeGroomRequest{
+		ChangeID: 2,
+		Path:     groomPath(2, "add-a-widget"),
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Outcome:  GroomOutcome("trivial"),
+		Sections: []SectionEditRequest{
+			{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"},
+		},
+	}
+	findings := validateChangeGroomShape(req)
+	var msg string
+	for _, f := range findings {
+		if f.Code == "invalid-outcome" {
+			msg = f.Message
+		}
+	}
+	if msg == "" {
+		t.Fatalf("outcome trivial: want invalid-outcome, got %v", findings)
+	}
+	if !strings.HasSuffix(msg, "must be one of spec, revise, abstain, re-enable") {
+		t.Errorf("invalid-outcome message %q must list exactly the live outcomes", msg)
 	}
 }
 
@@ -1540,21 +1515,6 @@ func titleOnlyReviseRequest(title string) ChangeGroomRequest {
 	return r
 }
 
-// titledTrivialRequest is a well-formed trivial groom of the groomable fixture
-// at id 2 that also retitles it.
-func titledTrivialRequest(title string) ChangeGroomRequest {
-	return ChangeGroomRequest{
-		ChangeID: 2,
-		Path:     groomPath(2, "add-a-widget"),
-		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Outcome:  GroomTrivial,
-		Title:    title,
-		Sections: []SectionEditRequest{
-			{Heading: "## Why", Intent: "replace", Markdown: "Trivial: a rename only.\n"},
-		},
-	}
-}
-
 func TestChangeGroomTitleShapeValidation(t *testing.T) {
 	withTitle := func(r ChangeGroomRequest, title string) ChangeGroomRequest {
 		r.Title = title
@@ -1566,7 +1526,6 @@ func TestChangeGroomTitleShapeValidation(t *testing.T) {
 		code string // "" means the request must pass shape validation
 	}{
 		{"spec accepts title", withTitle(validGroomSpecRequest(), "Renamed widget"), ""},
-		{"trivial accepts title", titledTrivialRequest("Renamed widget"), ""},
 		{"re-enable accepts title", withTitle(reEnableRequest(), "Renamed widget"), ""},
 		{"revise accepts a title alone", titleOnlyReviseRequest("Renamed widget"), ""},
 		{"revise accepts title with sections", withTitle(validReviseRequest(), "Renamed widget"), ""},
@@ -1710,22 +1669,6 @@ func TestChangeGroomPlanTitleOnSpecOutcome(t *testing.T) {
 	}
 	if rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget"))); !strings.Contains(rec, "title: 'Renamed widget'") {
 		t.Errorf("record not retitled:\n%s", rec)
-	}
-}
-
-func TestChangeGroomPlanTitleOnTrivialOutcome(t *testing.T) {
-	files := map[string]string{groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget")}
-	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, titledTrivialRequest("Renamed widget")))
-	if opRes.Refused {
-		t.Fatalf("unexpected refusal: %v", opRes.Findings)
-	}
-	// No spec file is touched.
-	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
-		groomPath(2, "add-a-widget"): transaction.MutationReplace,
-	})
-	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
-	if !strings.Contains(rec, "title: 'Renamed widget'") || !strings.Contains(rec, "trivial: true") {
-		t.Errorf("record not retitled/trivialled:\n%s", rec)
 	}
 }
 
@@ -1913,7 +1856,6 @@ func TestChangeGroomPriorityShapeValidation(t *testing.T) {
 		not  string // a code that must NOT be emitted ("" = no check)
 	}{
 		{"spec accepts priority", withPriority(validGroomSpecRequest(), "high"), "", ""},
-		{"trivial accepts priority", withPriority(titledTrivialRequest("Renamed widget"), "low"), "", ""},
 		{"re-enable accepts priority", withPriority(reEnableRequest(), "critical"), "", ""},
 		{"revise accepts a priority alone", priorityOnlyReviseRequest("high"), "", ""},
 		{"revise accepts priority with sections", withPriority(validReviseRequest(), "medium"), "", ""},
@@ -2033,21 +1975,15 @@ func assertPriorityLanded(t *testing.T, plan transaction.MutationPlan, want stri
 }
 
 // TestChangeGroomPlanPriorityLandsOnEveryAcceptingOutcome pins spec test 1:
-// spec, trivial, revise, and re-enable each write the new priority to the
+// spec, revise, and re-enable each write the new priority to the
 // record and the board row in the same plan.
 func TestChangeGroomPlanPriorityLandsOnEveryAcceptingOutcome(t *testing.T) {
-	trivial := ChangeGroomRequest{
-		ChangeID: 2, Path: groomPath(2, "add-a-widget"),
-		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Outcome: GroomTrivial,
-		Sections: []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}},
-	}
 	cases := []struct {
 		name string
 		rec  string
 		req  ChangeGroomRequest
 	}{
 		{"spec", groomableChange(2, "add-a-widget"), validGroomSpecRequest()},
-		{"trivial", groomableChange(2, "add-a-widget"), trivial},
 		{"revise", groomableChange(2, "add-a-widget"), priorityOnlyReviseRequest("")},
 		{"re-enable", abstainedChange(2, "add-a-widget"), reEnableRequest()},
 	}
@@ -2228,18 +2164,12 @@ func resultsArtifactChange(id int, slug string) string {
 }
 
 func TestChangeGroomEditsDeliverableTypeAndPrefixOnEveryAcceptingOutcome(t *testing.T) {
-	trivial := ChangeGroomRequest{
-		ChangeID: 2, Path: groomPath(2, "add-a-widget"),
-		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Outcome: GroomTrivial,
-		Sections: []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}},
-	}
 	cases := []struct {
 		name string
 		rec  string
 		req  ChangeGroomRequest
 	}{
 		{"spec", groomableChange(2, "add-a-widget"), validGroomSpecRequest()},
-		{"trivial", groomableChange(2, "add-a-widget"), trivial},
 		{"revise", groomableChange(2, "add-a-widget"), fieldOnlyReviseRequest(func(*ChangeGroomRequest) {})},
 		{"re-enable", abstainedChange(2, "add-a-widget"), reEnableRequest()},
 	}
@@ -2804,14 +2734,8 @@ func TestChangeGroomEachRelationshipFieldAloneIsAValidRevise(t *testing.T) {
 
 func TestChangeGroomStackedOnShape(t *testing.T) {
 	const wantMsg = "stacked_on must be a positive change id, or 0 to clear"
-	trivial := ChangeGroomRequest{
-		ChangeID: 2, Path: groomPath(2, "add-a-widget"),
-		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Outcome: GroomTrivial,
-		Sections: []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}},
-	}
 	negatives := map[string]ChangeGroomRequest{
 		"spec":      validGroomSpecRequest(),
-		"trivial":   trivial,
 		"revise":    fieldOnlyReviseRequest(func(*ChangeGroomRequest) {}),
 		"re-enable": reEnableRequest(),
 	}
@@ -2999,18 +2923,12 @@ func holdPlanRecord(t *testing.T, rec string, req ChangeGroomRequest) string {
 }
 
 func TestChangeGroomSetsHoldOnEveryAcceptingOutcome(t *testing.T) {
-	trivial := ChangeGroomRequest{
-		ChangeID: 2, Path: groomPath(2, "add-a-widget"),
-		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Outcome: GroomTrivial,
-		Sections: []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}},
-	}
 	cases := []struct {
 		name string
 		rec  string
 		req  ChangeGroomRequest
 	}{
 		{"spec", groomableChange(2, "add-a-widget"), validGroomSpecRequest()},
-		{"trivial", groomableChange(2, "add-a-widget"), trivial},
 		{"revise", groomableChange(2, "add-a-widget"), fieldOnlyReviseRequest(func(*ChangeGroomRequest) {})},
 		{"re-enable", abstainedChange(2, "add-a-widget"), reEnableRequest()},
 	}
@@ -3119,11 +3037,6 @@ func TestChangeGroomHoldAloneIsAValidRevise(t *testing.T) {
 }
 
 func TestChangeGroomHoldRefusals(t *testing.T) {
-	trivial := ChangeGroomRequest{
-		ChangeID: 2, Path: groomPath(2, "add-a-widget"),
-		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Outcome: GroomTrivial,
-		Sections: []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"}},
-	}
 	revise := fieldOnlyReviseRequest(func(r *ChangeGroomRequest) { r.Priority = "high" })
 	withHold := func(base ChangeGroomRequest, hold *bool, reason string) ChangeGroomRequest {
 		base.Hold, base.HoldReason = hold, reason
@@ -3149,7 +3062,6 @@ func TestChangeGroomHoldRefusals(t *testing.T) {
 		{"reason carrying a heading", withHold(revise, boolPtr(true), "text\n## Heading\n"), FCInvalidHoldReason},
 		{"reason leaving a fence open", withHold(revise, boolPtr(true), "text\n```\ncode\n"), FCInvalidHoldReason},
 		{"section edit on spec", withSection(validGroomSpecRequest()), FCInvalidSectionHeading},
-		{"section edit on trivial", withSection(trivial), FCInvalidSectionHeading},
 		{"section edit on revise", withSection(revise), FCInvalidSectionHeading},
 		{"section edit on revise with a hold", withSection(withHold(revise, boolPtr(true), "")), FCInvalidSectionHeading},
 		{"section edit on re-enable", withSection(reEnableRequest()), FCInvalidSectionHeading},
