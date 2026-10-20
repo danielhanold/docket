@@ -2,7 +2,7 @@
 id: 573
 slug: 'retire-trivial-every-build-ready-change-has-a-spec'
 title: 'Retire trivial: every build-ready change has a spec'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'refactor'
 deliverable: 'pr'
@@ -24,7 +24,7 @@ branch: 'refactor/retire-trivial-every-build-ready-change-has-a-spec'
 pr: 'https://github.com/danielhanold/docket/pull/436'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-20T00:02:25Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -33,6 +33,7 @@ claimed_at: '2026-10-20T00:02:25Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md](../../superpowers/specs/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md) |
+| Spec (merged) | [2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-design.md) |
 | Plan | [2026-10-19-retire-trivial-every-build-ready-change-has-a-spec.md](../../superpowers/plans/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec.md) |
 | Results | [2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-results.md](../../results/2026-10-19-retire-trivial-every-build-ready-change-has-a-spec-results.md) |
 | ADRs | [ADR-0006](../../adrs/0006-autonomous-grooming-bounds.md), [ADR-0153](../../adrs/0153-a-hold-keeps-a-groomed-change-out-of-autonomous-build-select.md), [ADR-0155](../../adrs/0155-retire-trivial-every-build-ready-change-has-a-spec.md) |

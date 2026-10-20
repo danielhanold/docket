@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0573 — Retire trivial: every build-ready change has a spec](../../changes/active/0573-retire-trivial-every-build-ready-change-has-a-spec.md)**
+> ↩ **[Change 0573 — Retire trivial: every build-ready change has a spec](../../changes/archive/2026-10-20-0573-retire-trivial-every-build-ready-change-has-a-spec.md)**
 <!-- docket:backlink:end -->
 
 # Retire `trivial`: every build-ready change has a spec — Implementation Plan
