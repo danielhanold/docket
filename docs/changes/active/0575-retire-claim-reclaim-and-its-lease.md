@@ -62,3 +62,11 @@ Retire claim reclaim end to end (the design is settled at grooming):
 - #360's own edits (deleting `change.refresh-claim`, and the claim-time wording in implement-next).
 - `docket install collect`'s unrelated use of the word "reclaim".
 - Rewriting archived records, specs, plans, or results that mention reclaim.
+
+## Open questions
+
+- **`claimed_at`.** With reclaim gone nothing reads it. Should it stay as an informational "claimed on" stamp, or stop being written? If it stops, how are existing in-progress records and validation treated?
+- **Retired config keys.** Repos may still carry `reclaim:` in `.docket.yml`, `.docket.local.yml`, or the global config. Follow the existing retired-key path (an old config carrying `finalize.skip_results_only_delta` still loads), and decide whether it warns or stays silent.
+- **Other readers to trace.** Check what each of these does with reclaim or the lease: `runtracker_verdict.go`, `finalize_context.go` (`reclaim_lease_ttl_hours`), `change_relink.go`, `derived_views.go`, `finding_codes.go`, `repository/transaction/cleanup.go`, and the `docket-status` and `edge-paths.md` skill prose. Some may use "reclaim" for something else.
+- **ADR.** Retiring a lifecycle edge changes the convention's lifecycle diagram. Does that need an ADR?
+- **Order.** Build after #360: both edit the convention's claim-time wording and `change_claim.go` (set as `depends_on`).
