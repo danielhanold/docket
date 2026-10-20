@@ -92,3 +92,30 @@ func TestPresentHumanNotesGoToStderr(t *testing.T) {
 		t.Errorf("JSON mode wrote stderr %q", errBuf.String())
 	}
 }
+
+// TestPresenterWritesWarningsToStderr pins the export output: stdout is
+// exactly the exported path, stderr carries the notes and then one "warning:"
+// line each, and JSON mode writes nothing to stderr.
+func TestPresenterWritesWarningsToStderr(t *testing.T) {
+	r := app.OpenResult{
+		Envelope: app.NewEnvelope(app.OperationOpen, app.ResultApplied), What: "spec",
+		Target: "/d/2026-01-02-spec-widget.md", ExportedPath: "/d/2026-01-02-spec-widget.md",
+		Notes:     []string{"replaced /d/2026-01-02-spec-widget.md"},
+		Leftovers: []app.ExportLeftover{{Line: 4, Text: "[a](b)", Rule: "link"}},
+		Mentions:  &app.ExportMentions{Count: 2, Lines: []int{1, 7}},
+	}
+	var out, errBuf bytes.Buffer
+	Presenter{Stdout: &out, Stderr: &errBuf}.Present(r)
+	wantErr := "note: replaced /d/2026-01-02-spec-widget.md\n"
+	for _, w := range r.HumanWarnings() {
+		wantErr += "warning: " + w + "\n"
+	}
+	if out.String() != "/d/2026-01-02-spec-widget.md\n" || errBuf.String() != wantErr || len(r.HumanWarnings()) != 2 {
+		t.Errorf("stdout %q stderr %q, want stderr %q", out.String(), errBuf.String(), wantErr)
+	}
+	out.Reset()
+	errBuf.Reset()
+	if (Presenter{Stdout: &out, Stderr: &errBuf, JSON: true}).Present(r); errBuf.Len() != 0 {
+		t.Errorf("JSON mode wrote stderr %q", errBuf.String())
+	}
+}

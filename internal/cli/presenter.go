@@ -40,6 +40,12 @@ func (p Presenter) Present(r app.OperationResult) int {
 			fmt.Fprintf(p.Stderr, "note: %s\n", note)
 		}
 	}
+	// Warnings (an export's leftovers and mentions) follow the notes on stderr.
+	if w, ok := r.(interface{ HumanWarnings() []string }); ok {
+		for _, line := range w.HumanWarnings() {
+			fmt.Fprintf(p.Stderr, "warning: %s\n", line)
+		}
+	}
 	return app.ExitCode(r.Env().Result)
 }
 
