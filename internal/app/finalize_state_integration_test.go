@@ -736,6 +736,46 @@ func TestIntegrationFinalizeStatePublishCarriedDescendant(t *testing.T) {
 		}
 	})
 
+	t.Run("implemented-merged-child-dropped-refuses-before-rewrite", func(t *testing.T) {
+		// An implemented child merged into the parent's branch is carried even
+		// though its own closeout never ran: a dropped merge refuses the publish.
+		f := setupPublishFixture(t, m)
+		remoteBefore := f.remoteFeatureTip(t)
+		if remoteBefore != f.origHead {
+			t.Fatalf("precondition: remote tip = %q, want the original pre-rewrite head", remoteBefore)
+		}
+		seedRebaseCarryChildAt(t, f.rebaseFixture, "implemented")
+		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "Y\n"})
+		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", dropped); err != nil {
+			t.Fatalf("the child merge object must exist to pin a drop (not a missing object): %v", err)
+		}
+		gh := &fakePublishCarryGitHub{
+			fakePublishGitHub: &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, authoredPRBody(t, f.origHead))},
+			merged:            map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.rewritten, "feat/widget", dropped)}},
+		}
+		witness := &publishRewriteWitness{FinalizeWorkspace: f.svc}
+		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: witness}
+		_, evBytes := recFor(t, f.rewritten)
+		res := FinalizePublish(ctx, deps, f.repo.invocation,
+			FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes})
+
+		if res.Result != ResultBlocked || res.Reason != ReasonCarryUnproven {
+			t.Fatalf("refusal = (%q, %q), want (%q, %q) [disp %q msg %q]", res.Result, res.Reason, ResultBlocked, ReasonCarryUnproven, res.Disposition, res.Message)
+		}
+		if res.Disposition != PublishDispBlocked {
+			t.Errorf("disposition = %q, want %q", res.Disposition, PublishDispBlocked)
+		}
+		if len(res.Findings) == 0 {
+			t.Errorf("a carry refusal carried no findings naming the unproven descendant")
+		}
+		if witness.calls != 0 {
+			t.Errorf("PublishRewrite ran %d time(s) on a carry refusal; want 0 (gate must precede the rewrite)", witness.calls)
+		}
+		if after := f.remoteFeatureTip(t); after != remoteBefore {
+			t.Errorf("a carry refusal touched the remote feature ref: %q -> %q", remoteBefore, after)
+		}
+	})
+
 	t.Run("preserved-carry-publishes-and-fires-the-rewrite-witness", func(t *testing.T) {
 		f := setupPublishFixture(t, m)
 		seedRebaseCarryChild(t, f.rebaseFixture)

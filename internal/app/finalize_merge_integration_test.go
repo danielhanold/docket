@@ -706,6 +706,58 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 		}
 	})
 
+	t.Run("implemented-merged-child-lost-refuses-zero-merge-calls", func(t *testing.T) {
+		t.Parallel()
+		// An implemented child merged into the parent's branch is carried even
+		// though its own closeout never ran, so its lost work refuses the merge.
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
+		seedRebaseCarryChildAt(t, f.rebaseFixture, "implemented")
+		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "Y\n"})
+		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", dropped); err != nil {
+			t.Fatalf("the child merge object must exist to pin a drop: %v", err)
+		}
+		gh := f.carryFake(t, true)
+		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
+		gh.mergeOutcome = githubcli.MergeMerged
+		gh.mergeFacts = mergedFactsFor(f.head, "main", dropped)
+
+		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Reason != ReasonCarryUnproven || res.Result != ResultBlocked || res.Disposition != MergeDispBlocked {
+			t.Fatalf("carry-lost merge = result %q disp %q reason %q, want blocked/blocked/%s", res.Result, res.Disposition, res.Reason, ReasonCarryUnproven)
+		}
+		if res.Merge != nil {
+			t.Fatalf("a carry refusal carried a VerifiedMerge")
+		}
+		if len(res.Findings) == 0 {
+			t.Fatalf("a carry refusal carried no findings naming the unproven descendant")
+		}
+		if gh.mergeCalls != 0 {
+			t.Fatalf("a carry refusal issued %d merge call(s); want 0 (witness: no external merge)", gh.mergeCalls)
+		}
+	})
+
+	t.Run("retargeted-child-merged-to-main-merges", func(t *testing.T) {
+		t.Parallel()
+		// An implemented child retargeted and merged to main is not the parent's to
+		// carry: its work (absent from the parent's head) never blocks the merge.
+		f := setupMergeFixtureWithNode(t, m, parallelPlanningNode)
+		seedRebaseCarryChildAt(t, f.rebaseFixture, "implemented")
+		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "R\n"})
+		mergeCommit := f.mergeFeatureIntoBase(t)
+		gh := f.carryFake(t, true)
+		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "main", dropped)}
+		gh.mergeOutcome = githubcli.MergeMerged
+		gh.mergeFacts = mergedFactsFor(f.head, "main", mergeCommit)
+
+		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Result != ResultApplied || res.Disposition != MergeDispMerged || res.Merge == nil {
+			t.Fatalf("retargeted-child merge = %q disp %q merge %v (reason %q msg %q), want applied/merged verified", res.Result, res.Disposition, res.Merge, res.Reason, res.Message)
+		}
+		if gh.mergeCalls != 1 {
+			t.Fatalf("the retargeted-child merge issued %d merge call(s); want exactly 1", gh.mergeCalls)
+		}
+	})
+
 	t.Run("ordinary-change-merges-witness-fires-on-happy-path", func(t *testing.T) {
 		t.Parallel()
 		// No stack descendants: the proof is vacuously satisfied with zero probes and
