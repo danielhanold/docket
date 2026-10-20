@@ -1,19 +1,19 @@
 ---
 id: 571
 slug: 'parent-closeout-waits-on-a-retargeted-child-so-a-parent-that'
-title: 'Parent closeout waits on a retargeted child, so a parent that lands first never becomes done'
+title: 'Close out a landed stack parent without waiting on children that never merged into it'
 status: 'proposed'
 priority: 'medium'
 type: 'fix'
 deliverable: 'pr'
 created: '2026-10-19'
-updated: '2026-10-19'
+updated: '2026-10-20'
 depends_on: []
 stacked_on:
 related: [567]
 discovered_from: [567]
-adrs: []
-spec:
+adrs: [92]
+spec: 'docs/superpowers/specs/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-design.md'
 plan:
 results:
 trivial: false
@@ -28,16 +28,26 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-design.md](../../superpowers/specs/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-design.md) |
+| ADRs | [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-When a stacked parent lands on main before its child, the child's PR is retargeted to main. The parent's closeout still requires every stacked child to be stacked-merged into the parent and counts the retargeted child, so closeout refuses with `children-retarget-required` while that child is open. The parent then never reaches done. Found while building #567 (PR #433): the end-to-end test for the child-after-parent flow has to write the parent's done record by hand to get past this.
+When a stacked parent's PR merges to main, its closeout refuses unless every change stacked on it has already merged into the parent's branch. So the parent stays `implemented` forever if any stacked child is in another state: its PR was moved to main before the parent landed, it is only groomed or still being built, it was killed, or it already landed on main by itself. The sweep retries the parent every run and gets the same refusal.
+
+The merge step, and the check of what a parent carries that rebase, publish, and merge run, already ignore those children. Closeout is the one step that disagrees. Found while building #567 (PR #433): its end-to-end test for the parent-landed-first flow writes the parent's done record by hand to get past this.
 
 ## What changes
 
-Decide whether a retargeted child belongs in the parent's carry set, and change closeout so a parent whose remaining children were retargeted to main can reach done. Replace the hand-written done record in the #567 end-to-end test with the real closeout path.
+- A landed parent's closeout takes to done exactly the children whose PRs merged into it, down the chain, once each child's work is proven on main. No other child blocks it.
+- A child whose PR merged into the parent's branch but whose own closeout never ran goes to done with the parent, after the same proof, instead of holding the parent until its own closeout runs (which can never happen once the parent's branch is deleted).
+- Rebase, publish, merge, and closeout share one definition of what a parent carries.
+- Closeout's `children-retarget-required` result goes away, with the docs and skill text that describe it.
+- #567's end-to-end test uses the real parent closeout instead of a hand-written done record.
 
 ## Out of scope
 
-Cleanup of carried children's branches after the root lands (that is #567). Changing how a child is retargeted.
+How a child's PR is retargeted. Cleanup of carried children's branches and folders (#567). Letting implement-next's bounded closeout close out a stack ancestor to unblock a named stacked child. The killed-parent policy.

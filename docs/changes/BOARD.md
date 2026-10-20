@@ -1,6 +1,6 @@
 # Backlog
 
-**573 changes** — 🔵 1 built · 🟡 6 proposed · ⚪ 16 deferred · ✅ 406 done · 🗑️ 144 killed
+**573 changes** — 🔵 1 built · 🟣 1 groomed · 🟡 5 proposed · ⚪ 16 deferred · ✅ 406 done · 🗑️ 144 killed
 
 ## 🔵 Built (1)
 
@@ -8,12 +8,17 @@
 |---|-------|----------|------|----|-------|
 | [0573](active/0573-retire-trivial-every-build-ready-change-has-a-spec.md) | Retire trivial: every build-ready change has a spec | `high` | `refactor` | [#436](https://github.com/danielhanold/docket/pull/436) | awaiting merge |
 
-## 🟡 Proposed (6)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec | Readiness |
+|---|-------|----------|------|------|-----------|
+| [0571](active/0571-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md) | Close out a landed stack parent without waiting on children that never merged into it | `medium` | `fix` | [spec](../superpowers/specs/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-design.md) | build-ready |
+
+## 🟡 Proposed (5)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
-| [0571](active/0571-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md) | Parent closeout waits on a retargeted child, so a parent that lands first never becomes done | `medium` | `fix` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `feat` | needs-grooming |
 | [0569](active/0569-flaky-and-failing-tests-standing-bucket.md) | Flaky and failing tests — standing bucket | `low` | `chore` | needs-grooming |
 | [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | needs-grooming |
