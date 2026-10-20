@@ -45,6 +45,7 @@ type Report struct {
 func Check(md []byte, known func(id int) bool) Report {
 	lines := splitLines(string(md))
 	code := fencedLines(lines)
+	defs := definitionLabels(lines, code)
 	var r Report
 
 	for i, line := range lines {
@@ -74,10 +75,10 @@ func Check(md []byte, known func(id int) bool) Report {
 		if i == 0 && trimRight(line) == "---" {
 			add(RuleFrontmatter, "---")
 		}
-		if idx := indexOf(plain, "↩"); idx >= 0 {
+		if isBanner(plain) {
 			add(RuleBanner, trimRight(line))
 		}
-		if text, ok := findLink(line, plain); ok {
+		if text, ok := findLink(line, plain, defs); ok {
 			add(RuleLink, text)
 		}
 		if text, ok := findChangeRef(line, plain, known); ok {
@@ -274,21 +275,82 @@ func findMarker(line, plain string) (string, bool) {
 	return "", false
 }
 
-// findLink finds any link syntax: an inline link or image ("](" after a bracketed
-// text), a full or collapsed reference link ("][" after a bracketed text), a
-// link-reference definition line, an autolink "<scheme:…>", or an HTML anchor.
-// A shortcut "[text]" alone is not flagged: it is a link only when a definition
-// exists, and a definition is itself flagged.
-func findLink(line, plain string) (string, bool) {
-	// Definition: up to three spaces, "[label]:".
+// isBanner reports the backlink banner's shape: up to three spaces, a ">"
+// blockquote mark, optional blanks, then "↩". A "↩" anywhere else is prose.
+func isBanner(plain string) bool {
+	i := 0
+	for i < len(plain) && i < 4 && plain[i] == ' ' {
+		i++
+	}
+	if i > 3 || i >= len(plain) || plain[i] != '>' {
+		return false
+	}
+	i++
+	for i < len(plain) && (plain[i] == ' ' || plain[i] == '\t') {
+		i++
+	}
+	return hasPrefix(plain[i:], "↩")
+}
+
+// definitionLabel reports a link-reference definition line, up to three spaces
+// then "[label]:", and returns its label folded for matching.
+func definitionLabel(plain string) (string, bool) {
 	indent := 0
 	for indent < len(plain) && plain[indent] == ' ' {
 		indent++
 	}
-	if indent <= 3 && indent < len(plain) && plain[indent] == '[' {
-		if c := indexOf(plain[indent:], "]"); c > 1 && indent+c+1 < len(plain) && plain[indent+c+1] == ':' {
-			return trimRight(line), true
+	if indent > 3 || indent >= len(plain) || plain[indent] != '[' {
+		return "", false
+	}
+	c := indexOf(plain[indent:], "]")
+	if c <= 1 || indent+c+1 >= len(plain) || plain[indent+c+1] != ':' {
+		return "", false
+	}
+	return foldLabel(plain[indent+1 : indent+c]), true
+}
+
+// foldLabel folds a reference label for matching: ASCII case ignored, outer
+// blanks trimmed, inner blank runs collapsed to one space.
+func foldLabel(s string) string {
+	var b []byte
+	blank := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == ' ' || c == '\t' {
+			blank = len(b) > 0
+			continue
 		}
+		if blank {
+			b = append(b, ' ')
+			blank = false
+		}
+		b = append(b, lower(c))
+	}
+	return string(b)
+}
+
+// definitionLabels collects the labels of every definition outside code.
+func definitionLabels(lines []string, code []bool) map[string]bool {
+	defs := map[string]bool{}
+	for i, line := range lines {
+		if code[i] {
+			continue
+		}
+		if label, ok := definitionLabel(maskSpans(line)); ok {
+			defs[label] = true
+		}
+	}
+	return defs
+}
+
+// findLink finds any link syntax: an inline link or image ("](" after a bracketed
+// text), a full or collapsed reference link whose label has a definition in the
+// document, a link-reference definition line, an autolink "<scheme:…>", or an
+// HTML anchor element. A "[x][y]" with no definition behind it renders as
+// literal text, as does a shortcut "[text]"; a definition is itself flagged.
+func findLink(line, plain string, defs map[string]bool) (string, bool) {
+	if _, ok := definitionLabel(plain); ok {
+		return trimRight(line), true
 	}
 	for i := 0; i < len(plain); i++ {
 		switch plain[i] {
@@ -298,23 +360,80 @@ func findLink(line, plain string) (string, bool) {
 				continue
 			}
 			after := i + 1 + c + 1
-			if after < len(plain) && (plain[after] == '(' || plain[after] == '[') {
-				start := i
-				if start > 0 && plain[start-1] == '!' {
-					start--
-				}
+			if after >= len(plain) {
+				continue
+			}
+			start := i
+			if start > 0 && plain[start-1] == '!' {
+				start--
+			}
+			if plain[after] == '(' {
 				return line[start : after+1], true
+			}
+			if plain[after] == '[' {
+				r := indexOf(plain[after+1:], "]")
+				if r < 0 {
+					continue
+				}
+				label := plain[after+1 : after+1+r]
+				if r == 0 {
+					label = plain[i+1 : i+1+c]
+				}
+				if defs[foldLabel(label)] {
+					return line[start : after+1+r+1], true
+				}
 			}
 		case '<':
 			if text, ok := autolinkAt(line, plain, i); ok {
 				return text, true
 			}
-			if i+2 < len(plain) && lower(plain[i+1]) == 'a' && (plain[i+2] == ' ' || plain[i+2] == '\t' || plain[i+2] == '>') {
-				return line[i : i+2], true
+			if text, ok := anchorAt(line, plain, i); ok {
+				return text, true
 			}
 		}
 	}
 	return "", false
+}
+
+// anchorAt matches an HTML anchor element at i, ignoring case: "<a" then blanks
+// and an attribute name followed by "=", or a "<a"/"<a>" on a line that also
+// closes one with "</a>". A bare "<a>" placeholder in prose is not an anchor.
+func anchorAt(line, plain string, i int) (string, bool) {
+	if !hasFoldAt(plain, i, "<a") {
+		return "", false
+	}
+	j := i + 2
+	if j < len(plain) && (plain[j] == ' ' || plain[j] == '\t') {
+		for j < len(plain) && (plain[j] == ' ' || plain[j] == '\t') {
+			j++
+		}
+		k := j
+		for k < len(plain) && (isWord(plain[k]) || plain[k] == '-' || plain[k] == ':') {
+			k++
+		}
+		if k > j {
+			for k < len(plain) && (plain[k] == ' ' || plain[k] == '\t') {
+				k++
+			}
+			if k < len(plain) && plain[k] == '=' {
+				return line[i : i+2], true
+			}
+		}
+	}
+	if j < len(plain) && (plain[j] == '>' || plain[j] == ' ' || plain[j] == '\t') && hasFoldIn(plain[i:], "</a>") {
+		return line[i : i+2], true
+	}
+	return "", false
+}
+
+// hasFoldIn reports word (lower case) anywhere in s, ignoring ASCII case.
+func hasFoldIn(s, word string) bool {
+	for i := 0; i+len(word) <= len(s); i++ {
+		if hasFoldAt(s, i, word) {
+			return true
+		}
+	}
+	return false
 }
 
 // autolinkAt matches "<scheme:rest>" at i: a letter, then 1–31 letters, digits,

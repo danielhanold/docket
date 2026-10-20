@@ -43,10 +43,13 @@ func TestCheckFindsEachLeftoverKind(t *testing.T) {
 		{"inline link", "# T\n\nsee [docs](https://x)\n", []lineRule{{3, RuleLink}}},
 		{"image", "# T\n\n![alt](p.png)\n", []lineRule{{3, RuleLink}}},
 		{"autolink", "# T\n\nsee <https://go.dev/x>\n", []lineRule{{3, RuleLink}}},
-		{"reference link", "# T\n\nsee [text][ref]\n", []lineRule{{3, RuleLink}}},
-		{"collapsed reference link", "# T\n\nsee [text][]\n", []lineRule{{3, RuleLink}}},
+		{"banner indented", "# T\n\n  >↩ Back\n", []lineRule{{3, RuleBanner}}},
+		{"reference link", "# T\n\nsee [text][Ref]\n\n[ref]: https://x\n", []lineRule{{3, RuleLink}, {5, RuleLink}}},
+		{"collapsed reference link", "# T\n\nsee [Text][]\n\n[text]: https://x\n", []lineRule{{3, RuleLink}, {5, RuleLink}}},
 		{"link definition", "# T\n\n[ref]: https://x\n", []lineRule{{3, RuleLink}}},
 		{"html anchor", "# T\n\nsee <a href=\"x\">t</a>\n", []lineRule{{3, RuleLink}}},
+		{"html anchor upper", "# T\n\nsee <A\tNAME='x'>t\n", []lineRule{{3, RuleLink}}},
+		{"html anchor bare with close", "# T\n\nsee <a>t</A>\n", []lineRule{{3, RuleLink}}},
 		{"word form", "# T\n\nfrom change 559 on\n", []lineRule{{3, RuleChangeRef}}},
 		{"word form hash", "# T\n\nChange #547 holds\n", []lineRule{{3, RuleChangeRef}}},
 		{"word form list", "# T\n\nchanges 9999, 4444 and 0120\n", []lineRule{{3, RuleChangeRef}}},
@@ -121,6 +124,34 @@ func TestCheckKeepsWhatTheExportKeeps(t *testing.T) {
 	r := Check([]byte(md), known)
 	if len(r.Leftovers) != 0 {
 		t.Fatalf("Check flagged what the export keeps on purpose: %+v", r.Leftovers)
+	}
+}
+
+// TestCheckKeepsProseThatOnlyResemblesMachinery covers author prose the transform
+// leaves alone on purpose: a ↩ that is not the banner's "> ↩" line, an <a>
+// placeholder that is not an anchor element, and a "[x][y]" with no definition
+// behind it, which Markdown renders as literal text.
+func TestCheckKeepsProseThatOnlyResemblesMachinery(t *testing.T) {
+	cases := []struct{ name, md string }{
+		{"arrow in prose", "# T\n\nThe ↩ backlink banner goes.\n"},
+		{"arrow later in a quote", "> a quote about the ↩ banner\n"},
+		{"placeholder a", "# T\n\nThe main tree is at <a>, the dckt branch at <b>.\n"},
+		{"placeholder A", "# T\n\nCompare <A> with <B>.\n"},
+		{"a then words", "# T\n\nwrite <a and b> here\n"},
+		{"index pair", "# T\n\nread x[i][j] twice\n"},
+		{"undefined reference", "# T\n\nsee [t][r] here\n"},
+		{"undefined collapsed reference", "# T\n\nsee [t][] here\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			md := tc.md
+			if !strings.HasPrefix(md, "# ") {
+				md = "# T\n\n" + md
+			}
+			if r := Check([]byte(md), known); len(r.Leftovers) != 0 {
+				t.Fatalf("Check(%q) flagged prose: %+v", md, r.Leftovers)
+			}
+		})
 	}
 }
 
