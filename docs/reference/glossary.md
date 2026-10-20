@@ -848,7 +848,9 @@ The build and finalize gates both run the whole suite. The page that covers them
 ### Implementation context
 
 The read-only bundle implement-next assembles before claiming: the selected change, its readiness,
-and what it needs to proceed.
+and what it needs to proceed. Read by id, it also serves the run's own `in-progress` change (after
+the claim, or on a resume), reporting `claim_eligible: false` with the record's current revision
+and recorded branch.
 
 ```sh
 docket context implementation --id 412 --json
