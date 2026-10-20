@@ -1,14 +1,19 @@
 # Backlog
 
-**574 changes** — 🟡 3 proposed · ⚪ 16 deferred · ✅ 411 done · 🗑️ 144 killed
+**574 changes** — 🟣 1 groomed · 🟡 2 proposed · ⚪ 16 deferred · ✅ 411 done · 🗑️ 144 killed
 
-## 🟡 Proposed (3)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec | Readiness |
+|---|-------|----------|------|------|-----------|
+| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | `high` | `feat` | [spec](../superpowers/specs/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md) | build-ready |
+
+## 🟡 Proposed (2)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `feat` | needs-grooming |
-| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-grooming |
 
 ## ⚪ Deferred (16)
 
