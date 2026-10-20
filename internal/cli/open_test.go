@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -74,5 +75,53 @@ func TestOpenCLIUsageErrors(t *testing.T) {
 	}
 	if len(*got) != 0 {
 		t.Errorf("usage errors reached the operation: %+v", *got)
+	}
+}
+
+func TestOpenCLIExportOptions(t *testing.T) {
+	got := stubOpen(t, openOK("/tmp/x/2026-01-02-spec-widget.md"))
+	if _, errS, code := runCLI(t, "open", "spec", "541", "--export", "--output-path", "/tmp/x", "--warnings", "leftovers", "--print", "--repo-dir", "/tmp/repo"); code != 0 {
+		t.Fatalf("code %d stderr %q", code, errS)
+	}
+	if _, errS, code := runCLI(t, "open", "spec", "541", "--export", "--repo-dir", "/tmp/repo"); code != 0 {
+		t.Fatalf("default-warnings code %d stderr %q", code, errS)
+	}
+	want := []app.OpenOptions{
+		{RepoDir: "/tmp/repo", What: "spec", ID: 541, Print: true, Export: true, OutputPath: "/tmp/x", Warnings: "leftovers"},
+		{RepoDir: "/tmp/repo", What: "spec", ID: 541, Export: true},
+	}
+	if len(*got) != 2 || (*got)[0] != want[0] || (*got)[1] != want[1] {
+		t.Fatalf("options = %+v, want %+v", *got, want)
+	}
+}
+
+func TestOpenCLIExportUsageErrors(t *testing.T) {
+	got := stubOpen(t, openOK("x"))
+	for _, args := range [][]string{
+		{"open", "board", "--export"},
+		{"open", "pr", "5", "--export"},
+		{"open", "spec", "5", "--output-path", "x"},
+		{"open", "spec", "5", "--warnings", "all"},
+		{"open", "spec", "5", "--export", "--warnings", "bogus"},
+		{"open", "spec", "5", "--export", "--output-path", ""},
+	} {
+		if _, errS, code := runCLI(t, args...); code != 2 || errS == "" || strings.Contains(strings.TrimRight(errS, "\n"), "\n") {
+			t.Errorf("%q: code %d stderr %q, want exit 2 and one line", args, code, errS)
+		}
+	}
+	if len(*got) != 0 {
+		t.Errorf("usage errors reached the operation: %+v", *got)
+	}
+}
+
+// TestOpenCLIExportDepsWiring pins the production wiring the export needs:
+// the app layer refuses an export when any of these is unset.
+func TestOpenCLIExportDepsWiring(t *testing.T) {
+	d, err := openDepsFor()
+	if err != nil {
+		t.Skipf("git unavailable: %v", err)
+	}
+	if d.GOOS != runtime.GOOS || d.HomeDir == nil || d.Getwd == nil {
+		t.Fatalf("GOOS %q (want %q), HomeDir set %v, Getwd set %v", d.GOOS, runtime.GOOS, d.HomeDir != nil, d.Getwd != nil)
 	}
 }
