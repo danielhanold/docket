@@ -49,6 +49,18 @@ func TestConvertRefs(t *testing.T) {
 		{"mirroring 0088", `mirroring "Y"`},
 		{"#0559", `"Close a change to done without a PR"`},
 		{"done in 0559.", `done in "Close a change to done without a PR".`},
+		// The author's own quotes around a reference: the whole quoted text is the
+		// reference, so the title takes those quotes; inside a longer quoted phrase
+		// the title takes single quotes; a quoted references-only parenthesis never
+		// leaves an empty quote pair.
+		{`the "change 0559" note`, `the "Close a change to done without a PR" note`},
+		{`"#0559"`, `"Close a change to done without a PR"`},
+		{`"changes 0113 and 0114"`, `"C" and "D"`},
+		{`"changes 0113 and 9999"`, `"changes 'C' and 9999"`},
+		{`as "(0559)" said`, `as "Close a change to done without a PR" said`},
+		{`as "(0113, 0114)" said`, `as "C" and "D" said`},
+		{`("groom 0559")`, `("groom 'Close a change to done without a PR'")`},
+		{`said "see change 0559 now" and change 0113`, `said "see 'Close a change to done without a PR' now" and "C"`},
 		// Left exactly as written.
 		{"#559", "#559"},
 		{"PR #559", "PR #559"},

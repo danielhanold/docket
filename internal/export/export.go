@@ -315,7 +315,9 @@ func dropMetadataSentences(s string) string {
 
 // inlineSteps runs steps 5 and 6 on every line outside fences: link-reference
 // definitions go, then each line is code-masked, its links are stripped, and its
-// change references are converted, before its code spans are restored.
+// change references are converted, before its code spans are restored. Masking
+// runs over a whole paragraph (consecutive non-blank lines outside fences), so a
+// code span that crosses a line break is masked on both lines.
 func inlineSteps(lines []line, titles Titles, links, refs bool) []line {
 	if !links && !refs {
 		return lines
@@ -330,18 +332,27 @@ func inlineSteps(lines []line, titles Titles, links, refs bool) []line {
 		labels = linkLabels(texts, info)
 		lines = filter(lines, func(l line) bool { return l.fenced() || !isLinkDefinition(l.text) })
 	}
-	for i, l := range lines {
-		if l.fenced() {
+	for i := 0; i < len(lines); {
+		if lines[i].fenced() || blank(lines[i]) {
+			i++
 			continue
 		}
-		masked, restore := maskCode(l.text)
-		if links {
-			masked = stripLinks(masked, labels)
+		j := i
+		var texts []string
+		for ; j < len(lines) && !lines[j].fenced() && !blank(lines[j]); j++ {
+			texts = append(texts, lines[j].text)
 		}
-		if refs {
-			masked = convertRefs(masked, titles)
+		masked, restore := maskParagraph(texts)
+		for k, m := range masked {
+			if links {
+				m = stripLinks(m, labels)
+			}
+			if refs {
+				m = convertRefs(m, titles)
+			}
+			lines[i+k].text = restore[k](m)
 		}
-		lines[i].text = restore(masked)
+		i = j
 	}
 	return lines
 }

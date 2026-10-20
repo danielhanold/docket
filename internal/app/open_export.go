@@ -27,15 +27,17 @@ const (
 )
 
 // ExportRuleStrayMarker is the leftover rule of an unpaired or malformed marker
-// line the transform removed from the source; its Line is a source line.
+// line the transform removed from the source; it carries a SourceLine, not a Line.
 const ExportRuleStrayMarker = "stray-marker"
 
 // ExportLeftover is one piece of docket machinery the self-check found in the
-// exported copy, or a damaged marker the transform removed from the source.
+// exported copy, located by its output Line, or a damaged marker the transform
+// removed from the source, located by its SourceLine. Exactly one is set.
 type ExportLeftover struct {
-	Line int    `json:"line"`
-	Text string `json:"text"`
-	Rule string `json:"rule"`
+	Line       int    `json:"line,omitempty"`
+	SourceLine int    `json:"source_line,omitempty"`
+	Text       string `json:"text"`
+	Rule       string `json:"rule"`
 }
 
 // ExportMentions lists the exported lines, code included, that name docket.
@@ -73,7 +75,7 @@ func (r OpenResult) HumanWarnings() []string {
 	out := []string{}
 	for _, l := range r.Leftovers {
 		if l.Rule == ExportRuleStrayMarker {
-			out = append(out, fmt.Sprintf("damaged marker removed at source line %d: %s — the source has an unpaired marker; the exported file is clean", l.Line, l.Text))
+			out = append(out, fmt.Sprintf("damaged marker removed at source line %d: %s — the source has an unpaired marker; the exported file is clean", l.SourceLine, l.Text))
 			continue
 		}
 		out = append(out, fmt.Sprintf("leftover line %d (%s): %s — docket machinery the export did not remove; edit it out before sharing", l.Line, l.Rule, l.Text))
@@ -109,7 +111,7 @@ func openExport(ctx context.Context, deps OpenDeps, o OpenOptions, dir string, p
 	if deps.HomeDir == nil || deps.Getwd == nil || deps.GOOS == "" {
 		return fail(openFailure{ResultInternalError, ReasonOpenExportFailed, "export is not wired: home directory, working directory, and platform are required"})
 	}
-	src, notes, f := localArtifact(ctx, deps, dir, pin, rel)
+	src, root, notes, f := localArtifact(ctx, deps, dir, pin, rel)
 	res.Notes = append(res.Notes, notes...)
 	if f != nil {
 		return fail(*f)
@@ -126,6 +128,9 @@ func openExport(ctx context.Context, deps OpenDeps, o OpenOptions, dir string, p
 	}
 	dest, f := exportDestination(deps, o.OutputPath, export.FileName(kind, rel, created, c.Slug()))
 	if f != nil {
+		return fail(*f)
+	}
+	if f := protectedDestination(dest, src, root); f != nil {
 		return fail(*f)
 	}
 
@@ -148,7 +153,7 @@ func openExport(ctx context.Context, deps OpenDeps, o OpenOptions, dir string, p
 	}
 	if warnings != WarningsMentions {
 		for _, s := range out.Stray {
-			res.Leftovers = append(res.Leftovers, ExportLeftover{Line: s.SourceLine, Text: s.Text, Rule: ExportRuleStrayMarker})
+			res.Leftovers = append(res.Leftovers, ExportLeftover{SourceLine: s.SourceLine, Text: s.Text, Rule: ExportRuleStrayMarker})
 		}
 		for _, l := range report.Leftovers {
 			res.Leftovers = append(res.Leftovers, ExportLeftover{Line: l.Line, Text: l.Text, Rule: l.Rule})
@@ -216,6 +221,33 @@ func exportDestination(deps OpenDeps, outputPath, name string) (string, *openFai
 		return invalid(fmt.Sprintf("%s is not an existing directory — create it or choose another --output-path", parent))
 	}
 	return path, nil
+}
+
+// protectedDestination refuses a destination that is the source artifact or
+// lies inside the metadata checkout, compared after cleaning the path and
+// resolving the symlinks of its parent directory (and of the source and the
+// checkout root), so no spelling of the path slips past.
+func protectedDestination(dest, src, root string) *openFailure {
+	refuse := func(msg string) *openFailure {
+		return &openFailure{ResultInvalidState, ReasonOpenOutputPathProtected, msg}
+	}
+	d := filepath.Join(resolveSymlinks(filepath.Dir(filepath.Clean(dest))), filepath.Base(dest))
+	if d == resolveSymlinks(src) {
+		return refuse(fmt.Sprintf("%s is the source artifact — choose another --output-path", dest))
+	}
+	if rel, err := filepath.Rel(resolveSymlinks(root), d); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return refuse(fmt.Sprintf("%s is inside the metadata checkout — choose another --output-path", dest))
+	}
+	return nil
+}
+
+// resolveSymlinks returns p cleaned and with its symlinks resolved, or cleaned
+// alone when it cannot be resolved.
+func resolveSymlinks(p string) string {
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	return filepath.Clean(p)
 }
 
 // writeExport writes data to dest atomically (a temp file beside it, mode 0644,

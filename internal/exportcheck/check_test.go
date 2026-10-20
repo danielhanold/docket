@@ -206,3 +206,18 @@ func TestCheckHeadingRules(t *testing.T) {
 		})
 	}
 }
+
+// TestCheckMasksCodeSpansAcrossLines: a code span may cross a line break inside
+// a paragraph, so marker-, link-, and reference-shaped text on either of its
+// lines is code. A blank line ends the paragraph: a backtick run before it never
+// pairs with one after it.
+func TestCheckMasksCodeSpansAcrossLines(t *testing.T) {
+	md := "# T\n\n- Markers (`<!-- docket:dispatch:start (managed by docket — do not\n" +
+		"  hand-edit) -->` / `<!-- docket:dispatch:end -->`); see `x`.\n\n" +
+		"open ` [a](b)\n\nchange 0559 ` close\n"
+	got := lineRules(Check([]byte(md), known))
+	want := []lineRule{{6, RuleLink}, {8, RuleChangeRef}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("leftovers = %v, want %v", got, want)
+	}
+}
