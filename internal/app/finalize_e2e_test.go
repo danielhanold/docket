@@ -1676,8 +1676,10 @@ func reachInProgress(t *testing.T, docketBin, ghBin string) *e2eState {
 	requireRealGit(t)
 	m := planRepoModes()[0]
 	records := map[string]string{
-		groomPath(3, "widget"): buildReadyChange(3, "widget"),
-		groomPath(4, "gadget"): buildReadyChange(4, "gadget"),
+		groomPath(3, "widget"):    buildReadyChange(3, "widget"),
+		groomPath(4, "gadget"):    buildReadyChange(4, "gadget"),
+		fixtureSpecPath("widget"): fixtureSpecFile(3, "widget"),
+		fixtureSpecPath("gadget"): fixtureSpecFile(4, "gadget"),
 	}
 	repo := newWorkingRepo(t, mergeMaps(map[string]string{
 		".docket.yml": "reclaim:\n  lease_ttl: 1\n  auto: false\nbuild:\n  test_command: 'exit 0'\nfinalize:\n  test_command: 'exit 0'\n",
