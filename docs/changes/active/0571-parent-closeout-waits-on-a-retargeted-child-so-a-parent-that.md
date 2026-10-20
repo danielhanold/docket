@@ -22,8 +22,8 @@ branch_prefix:
 branch: 'fix/parent-closeout-waits-on-a-retargeted-child-so-a-parent-that'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-20T02:12:12Z'
+reconciled: true
+claimed_at: '2026-10-20T02:12:57Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ The merge step, and the check of what a parent carries that rebase, publish, and
 ## Out of scope
 
 How a child's PR is retargeted. Cleanup of carried children's branches and folders (#567). Letting implement-next's bounded closeout close out a stack ancestor to unblock a named stacked child. The killed-parent policy.
+
+## Reconcile log
+
+### 2026-10-20
+
+Reconciled against origin/main 0ea3b6a86. The spec (groomed 2026-10-19) still matches the code: DeriveRootCloseoutSet, DeriveCarriedSet, CloseoutDispChildrenRetargetRequired, and archiveAsDoneOnOrigin are all present as described. #567 is done. No scope change.
