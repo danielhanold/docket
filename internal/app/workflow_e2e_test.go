@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/testsupport"
@@ -364,18 +363,15 @@ func buildConfiguredRepoWith(t *testing.T, m planRepoMode, metadata map[string]s
 }
 
 // specLinkedBuildReadyChange is a proposed, build-ready change record whose
-// design is the spec at specPath (not a trivial verdict).
+// design is the spec at specPath.
 func specLinkedBuildReadyChange(id int, slug, specPath string) string {
-	return strings.Replace(groomableChange(id, slug), "spec:\n", "spec: "+specPath+"\n", 1)
+	return withLinkedSpec(groomableChange(id, slug), specPath)
 }
 
 // workflowMetadataSpec is a spec as the metadata branch stores it: a
 // docket:backlink block above the authored title.
 func workflowMetadataSpec(id int, slug string) string {
-	return "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
-		"> ↩ **[Change " + fmt.Sprintf("%04d", id) + " — A change](../../changes/active/" + fmt.Sprintf("%04d", id) + "-" + slug + ".md)**\n" +
-		"<!-- docket:backlink:end -->\n\n" +
-		"# Widget: design\n\nBuild the widget.\n"
+	return fixtureSpecFile(id, slug)
 }
 
 // assertDeferredCapabilityBlocksClaim proves a `.docket.yml` that actively

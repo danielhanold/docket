@@ -1944,18 +1944,9 @@ func TestIntegrationChangeRuntimeMarkImplementedConditions(t *testing.T) {
 			},
 			reason: ReasonImplementedPRReferenceMismatch,
 		},
-		{ // condition 5 — required (change 0410): an empty results field refuses,
-			// trivial changes included (there is no trivial exemption to remove).
+		{ // condition 5 — required (change 0410): an empty results field refuses.
 			name:   "no results artifact is attached",
 			mutate: func(k *miKit) { k.results = "" },
-			reason: ReasonImplementedResultsMissing,
-		},
-		{ // condition 5 — required for a trivial change too (pin, not a branch change).
-			name: "trivial change with no results artifact still refuses",
-			mutate: func(k *miKit) {
-				k.results = ""
-				k.trivial = true
-			},
 			reason: ReasonImplementedResultsMissing,
 		},
 		{ // condition 5 — the attached path is a metadata file with the correct

@@ -14,10 +14,10 @@ import (
 )
 
 // claimableChange renders a proposed, build-ready change: the canonical proposed
-// record with trivial: true (so it carries a design outcome) and no claim
-// fields yet. Claiming it must INSERT branch/claimed_at/reconciled.
+// record linking a spec (so it carries a design) and no claim fields yet.
+// Claiming it must INSERT branch/claimed_at/reconciled.
 func claimableChange(id int, slug string) string {
-	return strings.Replace(lifecycleChange(id, slug, "proposed"), "trivial: false\n", "trivial: true\n", 1)
+	return withLinkedSpec(lifecycleChange(id, slug, "proposed"), fixtureSpecPath(slug))
 }
 
 // stackedOn rewrites a record's empty stacked_on edge to point at parent.
@@ -527,7 +527,7 @@ func assertUnrelatedShapeIntact(t *testing.T, repo *gitRepo, branch string, shap
 // and the claimed record keeps the hold for the human to lift.
 func TestChangeClaimAcceptsHeldChangeAndKeepsField(t *testing.T) {
 	recPath := groomPath(3, "widget")
-	src := strings.Replace(claimableChange(3, "widget"), "trivial: true\n", "trivial: true\nhold: true\n", 1)
+	src := strings.Replace(claimableChange(3, "widget"), "trivial: false\n", "trivial: false\nhold: true\n", 1)
 	plan, opRes := claimPlanFor(t, map[string]string{recPath: src}, baseClaimOp([]string{"inline"}, 3, domain.NewBranchFacts(nil)))
 	if opRes.Refused {
 		t.Fatalf("claim of a held change refused: %v", opRes.Findings)

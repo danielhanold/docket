@@ -49,14 +49,26 @@ func poisoned(inner StatusReader, branches ...string) *poisonBranchReader {
 	return &poisonBranchReader{StatusReader: inner, poison: set}
 }
 
+// stackFixtureSpecPath is the spec every stackFixtureBlob record links.
+const stackFixtureSpecPath = "docs/superpowers/specs/x-design.md"
+
+// stackFixtureSpecArtifacts serves stackFixtureSpecPath from the metadata
+// branch, for a fake reader whose operation reads the linked spec.
+func stackFixtureSpecArtifacts() map[string]StatusArtifact {
+	return map[string]StatusArtifact{
+		sourceMetadata + "|" + stackFixtureSpecPath: {Found: true, Revision: "specx", Data: []byte("# X: design\n")},
+	}
+}
+
 // stackFixtureBlob renders a change record for the stackBranchesFor fixture.
+// Every record links stackFixtureSpecPath, so a proposed one is build-ready.
 func stackFixtureBlob(id int, slug, status, branch, extra string) StatusBlob {
 	branchField := ""
 	if branch != "" {
 		branchField = "branch: '" + branch + "'\nclaimed_at: '2026-01-03T00:00:00Z'\nreconciled: true\n"
 	}
-	fm := fmt.Sprintf("---\nid: %d\nslug: %s\ntitle: Change %d\nstatus: '%s'\npriority: medium\ntype: feat\ncreated: 2026-01-02\ntrivial: true\n%s%s---\n\nBody of %d.\n",
-		id, slug, id, status, branchField, extra, id)
+	fm := fmt.Sprintf("---\nid: %d\nslug: %s\ntitle: Change %d\nstatus: '%s'\npriority: medium\ntype: feat\ncreated: 2026-01-02\nspec: '%s'\n%s%s---\n\nBody of %d.\n",
+		id, slug, id, status, stackFixtureSpecPath, branchField, extra, id)
 	return StatusBlob{
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
@@ -122,7 +134,7 @@ func TestContextImplementationNamedIDProbesOnlyOwnStack(t *testing.T) {
 
 	t.Run("unrelated-poison-does-not-block", func(t *testing.T) {
 		corpus := append(append([]StatusBlob(nil), unrelated...), stackFixtureBlob(30, "b", "proposed", "", ""))
-		reader := poisoned(&fakeReader{pin: pin, corpus: corpus, facts: domain.NewBranchFacts(nil)}, "feat/a-parent")
+		reader := poisoned(&fakeReader{pin: pin, corpus: corpus, facts: domain.NewBranchFacts(nil), artifactData: stackFixtureSpecArtifacts()}, "feat/a-parent")
 		got := ContextImplementation(context.Background(), PlanningDeps{Reader: reader, Clock: testClock()}, "", ImplementationContextRequest{ID: 30})
 		if got.Result != ResultApplied {
 			t.Fatalf("named context beside an unprobeable unrelated stack = %q (%s: %s), want applied", got.Result, got.Reason, got.Message)

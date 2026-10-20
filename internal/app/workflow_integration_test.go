@@ -397,7 +397,8 @@ func TestIntegrationWorkflowRepoClaimRaceLosesCleanly(t *testing.T) {
 		m := m
 		t.Run(m.name, func(t *testing.T) {
 			repo := m.build(t, map[string]string{
-				recPath: buildReadyChange(id, slug),
+				recPath:               buildReadyChange(id, slug),
+				fixtureSpecPath(slug): fixtureSpecFile(id, slug),
 			})
 			ctx := context.Background()
 
@@ -494,7 +495,8 @@ func TestIntegrationWorkflowRepoClaimForeignRunContextSameRevisionContends(t *te
 		m := m
 		t.Run(m.name, func(t *testing.T) {
 			repo := m.build(t, map[string]string{
-				recPath: buildReadyChange(id, slug),
+				recPath:               buildReadyChange(id, slug),
+				fixtureSpecPath(slug): fixtureSpecFile(id, slug),
 			})
 			ctx := context.Background()
 			nodeA := planningDepsFor(t, cloneOrigin(t, repo.origin))
@@ -556,7 +558,8 @@ func TestIntegrationWorkflowRepoClaimRetryAfterLostResponse(t *testing.T) {
 		m := m
 		t.Run(m.name, func(t *testing.T) {
 			repo := m.build(t, map[string]string{
-				recPath: buildReadyChange(id, slug),
+				recPath:               buildReadyChange(id, slug),
+				fixtureSpecPath(slug): fixtureSpecFile(id, slug),
 			})
 			node := planningDepsFor(t, repo.invocation)
 			ctx := context.Background()
@@ -1288,7 +1291,8 @@ func TestIntegrationWorkflowRepoRefreshClaimAppliesWhenBoardReRenderIsUnchanged(
 		m := m
 		t.Run(m.name, func(t *testing.T) {
 			repo := m.build(t, map[string]string{
-				recPath: buildReadyChange(id, slug),
+				recPath:               buildReadyChange(id, slug),
+				fixtureSpecPath(slug): fixtureSpecFile(id, slug),
 			})
 			ctx := context.Background()
 
@@ -1369,8 +1373,8 @@ func TestIntegrationWorkflowRepoStackedContextClaimWorkspaceFromParentBranch(t *
 	)
 	parentRec := groomPath(parentID, parentSlug)
 	childRec := groomPath(childID, childSlug)
-	// The child is proposed + designed (trivial: true stands in for a spec,
-	// as in buildReadyChange) and stacked on the live parent.
+	// The child is proposed + designed (it links a spec, as in
+	// buildReadyChange) and stacked on the live parent.
 	childBody := strings.Replace(buildReadyChange(childID, childSlug),
 		"stacked_on:\n", "stacked_on: 20\n", 1)
 
@@ -1378,8 +1382,9 @@ func TestIntegrationWorkflowRepoStackedContextClaimWorkspaceFromParentBranch(t *
 		m := m
 		t.Run(m.name, func(t *testing.T) {
 			repo := m.build(t, map[string]string{
-				parentRec: lifecycleChange(parentID, parentSlug, "in-progress"),
-				childRec:  childBody,
+				parentRec:                  lifecycleChange(parentID, parentSlug, "in-progress"),
+				childRec:                   childBody,
+				fixtureSpecPath(childSlug): fixtureSpecFile(childID, childSlug),
 			})
 			ctx := context.Background()
 

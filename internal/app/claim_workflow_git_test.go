@@ -2,7 +2,6 @@ package app
 
 import (
 	"github.com/danielhanold/docket/internal/repository/transaction"
-	"strings"
 	"testing"
 )
 
@@ -25,12 +24,12 @@ import (
 // origin, never the invocation clone's stale local tree.
 
 // buildReadyChange renders a proposed, unstacked, build-ready change record: the
-// canonical groomable record with trivial flipped true, so EvaluateReadiness
-// reports build-ready (design present) and ClaimEligibility passes without a
-// separate spec artifact. It is the fixture the claim race/retry tests start
-// from — a change a fresh context read reports claim-eligible.
+// canonical groomable record linking a spec, so EvaluateReadiness reports
+// build-ready (design present) and ClaimEligibility passes. It is the fixture
+// the claim race/retry tests start from — a change a fresh context read reports
+// claim-eligible.
 func buildReadyChange(id int, slug string) string {
-	return strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: true\n", 1)
+	return withLinkedSpec(groomableChange(id, slug), fixtureSpecPath(slug))
 }
 
 // --- claim race: two claimants, same context revision, one loses cleanly -----

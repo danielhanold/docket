@@ -20,13 +20,10 @@ const miRevision = "1234123412341234123412341234123412341234"
 
 // miRecord renders an in-progress change record with the given plan/results
 // linkage and reconciled flag — the shape mark-implemented reprobes.
-func miRecord(id int, slug, plan, results string, reconciled, trivial bool) string {
+func miRecord(id int, slug, plan, results string, reconciled bool) string {
 	src := lifecycleChange(id, slug, "in-progress")
 	if !reconciled {
 		src = strings.Replace(src, "reconciled: true", "reconciled: false", 1)
-	}
-	if trivial {
-		src = strings.Replace(src, "trivial: false", "trivial: true", 1)
 	}
 	if plan != "" {
 		src = strings.Replace(src, "plan:\n", "plan: '"+plan+"'\n", 1)
@@ -100,7 +97,7 @@ func TestMarkImplementedApplies(t *testing.T) {
 	recPath := groomPath(3, "widget")
 	planPath := "docs/superpowers/plans/2026-08-17-widget-plan.md"
 	files := map[string]string{
-		recPath:                 miRecord(3, "widget", planPath, "", true, false),
+		recPath:                 miRecord(3, "widget", planPath, "", true),
 		"docs/changes/BOARD.md": "# Backlog\n\nold\n",
 	}
 	plan, opRes := implementedPlanFor(t, files, baseImplementedOp([]string{"inline"}, 3, "github.com/acme/widget#42"))
@@ -216,7 +213,6 @@ func miAdvanceHead(t *testing.T, repo *gitRepo) string {
 // condition's stable reason, having never called the engine.
 type miKit struct {
 	reconciled  bool
-	trivial     bool
 	plan        string
 	results     string
 	revision    string // corpus blob revision
@@ -243,7 +239,7 @@ func buildMI(t *testing.T, client *gitcli.Client, invocation string, k miKit) (
 		Location: repository.LocationActive,
 		Path:     groomPath(3, miSlug),
 		Revision: k.revision,
-		Data:     []byte(miDeliverable(miRecord(3, miSlug, k.plan, k.results, k.reconciled, k.trivial), k.deliverable)),
+		Data:     []byte(miDeliverable(miRecord(3, miSlug, k.plan, k.results, k.reconciled), k.deliverable)),
 	}
 	artifacts := map[string]StatusArtifact{}
 	for p, content := range miMetadataResults() {
