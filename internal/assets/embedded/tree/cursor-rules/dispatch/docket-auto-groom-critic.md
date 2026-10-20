@@ -1,11 +1,11 @@
 ## docket-auto-groom-critic — dispatch only
 
 This agent wraps no skill and is normally dispatched **by** docket-auto-groom as its adversarial gate,
-not invoked directly. If you are asked to adversarially review an auto-groom draft spec or trivial
-verdict, dispatch it rather than reviewing inline.
+not invoked directly. If you are asked to adversarially review an auto-groom draft spec, dispatch it
+rather than reviewing inline.
 
 Dispatch to the subagent `docket-auto-groom-critic`, foreground, using this mode's subagent-launch
-mechanism. The prompt must include the draft spec / trivial verdict under review and the dispatching
+mechanism. The prompt must include the draft spec under review and the dispatching
 skill's verdict protocol.
 
 Do NOT let it improve the draft — it only attacks and returns exactly one verdict.

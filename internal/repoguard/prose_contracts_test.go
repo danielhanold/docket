@@ -305,6 +305,17 @@ var proseContracts = []proseContract{
 	{sentinel: "change_0573_convention_spec_required", file: "skills/docket-convention/SKILL.md",
 		present: []string{"has a `spec:`, and all `depends_on` are satisfied"},
 		absent:  []string{"trivial: true", "trivial:"}},
+	// change 0573 — every groom that makes a change build-ready writes a spec:
+	// the brainstorm is told so, and no trivial exit or verdict survives.
+	{sentinel: "change_0573_spec_always", file: "skills/docket-groom-next/SKILL.md",
+		present: []string{"always a written spec, sized to the change"},
+		absent:  []string{"outcome: trivial", "trivial: true", "Trivial path", "Trivial verdict"}},
+	{sentinel: "change_0573_spec_always", file: "skills/docket-new-change/SKILL.md",
+		present: []string{"always a written spec, sized to the change"},
+		absent:  []string{"outcome: trivial", "trivial: true", "Trivial path", "Trivial verdict"}},
+	{sentinel: "change_0573_auto_groom_spec_or_abstain", file: "skills/docket-auto-groom/SKILL.md",
+		present: []string{"Exit (one of two)"},
+		absent:  []string{"outcome: trivial", "trivial verdict", "trivial M"}},
 	// change 0410 — docket-build's end-of-build capture ownership: the controller
 	// may checkpoint on the coordinator's behalf, but task workers never write the
 	// results file and a checkpoint never independently launches tests (each an
