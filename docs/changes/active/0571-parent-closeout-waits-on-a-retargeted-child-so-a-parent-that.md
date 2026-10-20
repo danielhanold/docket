@@ -2,7 +2,7 @@
 id: 571
 slug: 'parent-closeout-waits-on-a-retargeted-child-so-a-parent-that'
 title: 'Close out a landed stack parent without waiting on children that never merged into it'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/parent-closeout-waits-on-a-retargeted-child-so-a-parent-that'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/437'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-20T02:23:06Z'
@@ -60,3 +60,12 @@ How a child's PR is retargeted. Cleanup of carried children's branches and folde
 ### 2026-10-20
 
 Reconciled against origin/main 0ea3b6a86. The spec (groomed 2026-10-19) still matches the code: DeriveRootCloseoutSet, DeriveCarriedSet, CloseoutDispChildrenRetargetRequired, and archiveAsDoneOnOrigin are all present as described. #567 is done. No scope change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 7c4f0dc7d77eb41b56675c7180698c89ed3a9e32
+ran_at:   2026-10-20T03:07:44Z
+<!-- docket:build-evidence:end -->
