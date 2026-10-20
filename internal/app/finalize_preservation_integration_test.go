@@ -258,3 +258,85 @@ func TestIntegrationFinalizeRebaseRecoveryCarryHelperPreservation(t *testing.T) 
 		}
 	})
 }
+
+// TestIntegrationFinalizeRebaseRecoveryCarryHelperImplementedChild drives the
+// carry helper over an "implemented" descendant: its own closeout never ran, so
+// it is carried exactly when its PR merged into the parent's branch. Carried, its
+// content is proven like any other carried child; not carried (merged elsewhere,
+// or not merged), it contributes nothing and is never a relationship refusal.
+func TestIntegrationFinalizeRebaseRecoveryCarryHelperImplementedChild(t *testing.T) {
+	requireRealGit(t)
+	ctx := context.Background()
+
+	f := setupCloseoutFixture(t, planRepoModes()[0])
+	seedCarryChild(t, f, "implemented")
+
+	//   ancestor line: mcAnc <- tgtAnc (tgtAnc descends mcAnc)
+	mcAnc := f.carryCommit(t, "line-anc", "main", map[string]string{"anc1.txt": "1\n"})
+	tgtAnc := f.carryCommit(t, "line-anc", "", map[string]string{"anc2.txt": "2\n"})
+	//   content-dropped: source adds catalog.yaml=Y; target drops it
+	mcDropped := f.carryCommit(t, "line-srcd", "main", map[string]string{"catalog.yaml": "Y\n"})
+	tgtDropped := f.carryCommit(t, "line-tgtd", "main", map[string]string{"other.txt": "o\n"})
+	f.fetchAllIntoInvocation(t)
+
+	cc, refusal := loadCloseoutContext(ctx, f.closeoutDeps(f.baselineMergedFake(f.head, mcAnc)), f.repo.invocation, f.id)
+	if refusal != nil {
+		t.Fatalf("loadCloseoutContext refused: %+v", *refusal)
+	}
+	childID := fmt.Sprintf("%04d", 6)
+
+	run := func(gh *fakeCloseoutGitHub, target string) (carryProof, error) {
+		return proveCarriedOnHead(ctx, f.closeoutDeps(gh), f.repo.invocation, cc.repo, cc.snap, cc.change, gitcli.ObjectID(target))
+	}
+	assertProvenNone := func(t *testing.T, proof carryProof, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatalf("errored: %v", err)
+		}
+		if !proof.Proven || len(proof.Findings) != 0 {
+			t.Fatalf("= proven %v findings %+v, want proven with none", proof.Proven, proof.Findings)
+		}
+	}
+
+	t.Run("merged-into-parent-content-dropped", func(t *testing.T) {
+		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", mcDropped); err != nil {
+			t.Fatalf("the source merge object must exist to pin a drop (not a missing object): %v", err)
+		}
+		proof, err := run(carryFake(f.head, "feat/widget", mcDropped), tgtDropped)
+		if err != nil {
+			t.Fatalf("content-dropped row errored: %v", err)
+		}
+		if proof.Proven || len(proof.Findings) != 1 {
+			t.Fatalf("content-dropped row = proven %v findings %+v, want unproven with one finding", proof.Proven, proof.Findings)
+		}
+		fd := proof.Findings[0]
+		if fd.Code != ReasonCarryUnproven {
+			t.Errorf("finding code = %q, want %q", fd.Code, ReasonCarryUnproven)
+		}
+		for _, want := range []string{CarryFindingUnpreserved, childID, mcDropped} {
+			if !strings.Contains(fd.Message, want) {
+				t.Errorf("finding does not name %q:\n%s", want, fd.Message)
+			}
+		}
+	})
+
+	t.Run("merged-into-parent-preserved", func(t *testing.T) {
+		proof, err := run(carryFake(f.head, "feat/widget", mcAnc), tgtAnc)
+		assertProvenNone(t, proof, err)
+	})
+
+	t.Run("merged-to-main-not-carried", func(t *testing.T) {
+		// Retargeted and merged to main: not the parent's to carry, so the dropped
+		// content against the target is never examined.
+		proof, err := run(carryFake(f.head, "main", mcDropped), tgtDropped)
+		assertProvenNone(t, proof, err)
+	})
+
+	t.Run("open-pr-not-carried", func(t *testing.T) {
+		// #8 is not merged: an implemented child is simply not carried — never a
+		// relationship refusal the way an unconfirmed stacked-merged child is.
+		gh := &fakeCloseoutGitHub{repo: retargetRepo(), merged: map[int]closeoutProbe{}}
+		proof, err := run(gh, tgtDropped)
+		assertProvenNone(t, proof, err)
+	})
+}

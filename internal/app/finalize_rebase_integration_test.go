@@ -1298,8 +1298,16 @@ func (f *fakeRebaseCarryGitHub) MergePullRequest(context.Context, githubcli.Repo
 // snapshot the rebase reads promises to carry the child's merged work.
 func seedRebaseCarryChild(t *testing.T, f *rebaseFixture) {
 	t.Helper()
+	seedRebaseCarryChildAt(t, f, "stacked-merged")
+}
+
+// seedRebaseCarryChildAt seeds the same descendant at the given lifecycle
+// status. An "implemented" child is carried only when its PR merged into the
+// parent's branch, so the scripted facts decide whether it is promised.
+func seedRebaseCarryChildAt(t *testing.T, f *rebaseFixture, status string) {
+	t.Helper()
 	recPath := groomPath(6, "gadget")
-	desc := closeoutRecord(6, "gadget", "stacked-merged", "github.com/acme/widget#8", "",
+	desc := closeoutRecord(6, "gadget", status, "github.com/acme/widget#8", "",
 		"docs/superpowers/plans/2026-08-16-gadget-plan.md", "")
 	desc = strings.Replace(desc, "stacked_on:\n", "stacked_on: 5\n", 1)
 	f.repo.writerAdvance(t, f.branch, map[string]string{recPath: desc})
@@ -1363,6 +1371,37 @@ func TestIntegrationFinalizeRebaseRecoveryCarryPreservation(t *testing.T) {
 		}
 		// The missing effects: no owned receipt, workspace head unchanged, remote
 		// feature ref untouched — a pre-rewrite refusal leaves Git untouched.
+		f.receiptAbsent(t)
+		if f.localHead() != f.head {
+			t.Errorf("a pre-rewrite carry refusal moved the workspace head: %q -> %q", f.head, f.localHead())
+		}
+		if after := originTip(t, f.repo.origin, "feat/"+f.slug); after != remoteBefore {
+			t.Errorf("a pre-rewrite carry refusal touched the remote feature ref: %q -> %q", remoteBefore, after)
+		}
+	})
+
+	t.Run("pre-rewrite-refusal-implemented-merged-child", func(t *testing.T) {
+		// An implemented child whose PR merged into the parent's branch is carried
+		// even though its own closeout never ran: a dropped merge refuses the same way.
+		f := setupRebaseFixture(t, main)
+		seedRebaseCarryChildAt(t, f, "implemented")
+		dropped := carryDroppedCommit(t, f, map[string]string{"catalog.yaml": "Y\n"})
+		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", dropped); err != nil {
+			t.Fatalf("the child merge object must exist to pin a drop (not a missing object): %v", err)
+		}
+		gh := &fakeRebaseCarryGitHub{
+			repo:   retargetRepo(),
+			prs:    []githubcli.PullRequest{f.prForHead(f.head, "")},
+			merged: map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}},
+		}
+		remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
+		res := FinalizeRebase(ctx, f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
+
+		assertRebaseRefused(t, res, ResultBlocked, ReasonCarryUnproven)
+		if len(res.Findings) == 0 {
+			t.Errorf("a carry refusal carried no findings naming the unproven descendant")
+		}
 		f.receiptAbsent(t)
 		if f.localHead() != f.head {
 			t.Errorf("a pre-rewrite carry refusal moved the workspace head: %q -> %q", f.head, f.localHead())

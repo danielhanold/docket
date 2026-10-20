@@ -10,15 +10,19 @@ import (
 	"github.com/danielhanold/docket/internal/githubcli"
 )
 
-// This file is the shared app-layer join that the four enforcement boundaries
-// (FinalizeRebase, FinalizePublish, FinalizeMerge, and stacked closeout) reuse:
-// it takes the descendants a live carrying branch PROMISES to carry
-// (domain.DeriveCarriedSet over authoritative GitHub facts) and proves, in Git,
-// that each one's merged work is preserved at exactly the immutable target commit
-// (gitcli.ProvePreserved). A merged PR destination proves a relationship only;
-// preservation of the CONTENT is this helper's separate obligation. Every refusal
-// names its category and its ids so a stuck gate is self-diagnosing, and an
-// observation error is returned as an error — never laundered into a verdict.
+// This file is the shared app-layer join the rebase, publish, and merge
+// enforcement boundaries (FinalizeRebase, FinalizePublish, FinalizeMerge) reuse
+// through proveCarriedOnHead: it takes the descendants a live carrying branch
+// PROMISES to carry (domain.DeriveCarriedSet over authoritative GitHub facts) and
+// proves, in Git, that each one's merged work is preserved at exactly the
+// immutable target commit (gitcli.ProvePreserved). Root closeout derives the same
+// carried set (domain.DeriveRootCloseoutSet over domain.DeriveCarriedSet) and
+// proves each child on the integration branch with proveCarriedContent; stacked
+// closeout uses requireStackedPreservation. A merged PR destination proves a
+// relationship only; preservation of the CONTENT is this helper's separate
+// obligation. Every refusal names its category and its ids so a stuck gate is
+// self-diagnosing, and an observation error is returned as an error — never
+// laundered into a verdict.
 
 // The closed per-descendant preservation finding categories. Each names WHY one
 // carried descendant's preservation could not be established, keeping the missing
@@ -37,9 +41,9 @@ const (
 	CarryFindingUnpreserved = "carry-content-unpreserved"
 )
 
-// ReasonCarryUnproven is the shared refusal reason the rebase, publish, merge,
-// and stacked-closeout boundaries report when a carried descendant's preservation
-// is not proven. Every carry finding carries it as its Code so a caller branches
+// ReasonCarryUnproven is the shared refusal reason the rebase, publish, and
+// merge boundaries report when a carried descendant's preservation is not proven
+// (proveCarriedOnHead). Every carry finding carries it as its Code so a caller branches
 // on one stable token regardless of which boundary raised it.
 const ReasonCarryUnproven = "carried-descendant-unproven"
 
