@@ -14,7 +14,7 @@ related: [360, 378]
 discovered_from: [561]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to.md'
 results:
 auto_groomable:
 hold:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-20T17:58:17Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md](../../superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md) |
+| Plan | [2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to.md](../../superpowers/plans/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
