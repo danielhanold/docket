@@ -33,7 +33,6 @@ var privateRuleWriters = []string{
 	"skills/docket-build/SKILL.md",
 	"skills/docket-implement-next/SKILL.md",
 	"skills/docket-implement-next/references/fix-pass.md",
-	"skills/docket-implement-next/references/edge-paths.md",
 	"skills/docket-new-change/SKILL.md",
 	"skills/docket-groom-next/SKILL.md",
 	"skills/docket-auto-groom/SKILL.md",
@@ -90,8 +89,11 @@ func TestPrivateWritingRuleReachesEveryWriter(t *testing.T) {
 		}
 	}
 
-	if len(privateRuleWriters) < 10 {
-		t.Fatalf("writer table shrank to %d rows, floor is 10", len(privateRuleWriters))
+	// Floor 9: change 0360 moved the PR-body rules (and their private-rule
+	// clauses) from edge-paths.md into docket-implement-next/SKILL.md, which is
+	// still a writer row, so edge-paths.md left the table.
+	if len(privateRuleWriters) < 9 {
+		t.Fatalf("writer table shrank to %d rows, floor is 9", len(privateRuleWriters))
 	}
 	for _, rel := range privateRuleWriters {
 		if !strings.Contains(normalizeProse(readRepoFile(t, rel)), privateRulePhrase) {

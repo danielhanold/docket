@@ -531,6 +531,34 @@ var proseContracts = []proseContract{
 	{sentinel: "change_0360_revision_lookup", file: "skills/docket-convention/SKILL.md",
 		present: []string{"stamped by claim, reconcile, and resume-halted"},
 		absent:  []string{"refreshed at phase boundaries"}},
+	// change 0360 — Step 3 sends a minimal reconcile request when nothing
+	// changed (the operation writes the dated heading); Step 6 writes the
+	// evidence.record receipt's block to a file instead of a separate verify
+	// call, passes the producing change to docket-adr so adr.record appends the
+	// ADR number itself, and sizes the review against the effective base; the
+	// PR-body rules move from edge-paths.md into Step 7.
+	{sentinel: "change_0360_step_wording", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{
+			"the operation writes the `### YYYY-MM-DD` heading",
+			"Unchanged against `<integration tip>`",
+			"the receipt's `block` field",
+			"passes the producing change as `{id, path, revision}`",
+			"one at a time, each with a fresh lookup",
+			"`git diff --shortstat <effective base>...HEAD`",
+			"**Best-effort PR→issue reference.**",
+			"**PR-body back-link.**",
+		},
+		absent: []string{
+			"the `evidence.verify` operation",
+			"repeat the record → verify chain",
+			"record that number in the change's `adrs:` relation through a `change.reconcile`",
+			"git diff --shortstat origin/<integration_branch>...HEAD",
+			"Before assembling it, **read `references/edge-paths.md` now (blocking)**",
+		}},
+	{sentinel: "change_0360_step_wording", file: "skills/docket-implement-next/references/edge-paths.md",
+		absent: []string{"## PR-body assembly (Step 7)", "Step 7's PR-body assembly"}},
+	{sentinel: "change_0360_step_wording", file: "skills/docket-adr/SKILL.md",
+		present: []string{"has already appended the number to that change's `adrs:`"}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation
