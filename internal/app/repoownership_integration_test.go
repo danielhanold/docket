@@ -910,7 +910,7 @@ func TestIntegrationRepoOwnershipLegacyUnreadableHistoryIsUnknown(t *testing.T) 
 	}
 }
 
-// --- Check-level scenarios: augmentCheckFacts consumes the verifier -----------
+// --- Check-level scenarios: augmentCheckFacts consumes the quick check --------
 //
 // These drive the read-only `repository check` service end to end against the
 // real bare-upstream + clone fixture (newHealthyRepo, from
@@ -1001,10 +1001,16 @@ func TestIntegrationRepoOwnershipCheckDescendantsPreserveFrontmatterFindings(t *
 	}
 }
 
-// TestIntegrationRepoOwnershipCheckForeignNonemptyRoot proves a single-root
-// nonempty metadata branch that carries no seed receipt and matches no historical
-// snapshot is still reported foreign at the check boundary.
-func TestIntegrationRepoOwnershipCheckForeignNonemptyRoot(t *testing.T) {
+// TestIntegrationRepoOwnershipCheckReceiptlessNonemptyRootIsOwned proves the
+// everyday check no longer runs the content proof: a single-root nonempty
+// metadata branch that carries no seed receipt and matches no historical
+// snapshot passes the quick structural check (one parentless root, no shared
+// history with the integration branch), so check reports no
+// metadata-root-foreign. repository migrate still runs the full verifier and
+// refuses such a root (TestIntegrationRepoOwnershipEverydayCommandsSkipContentProof).
+// The local docket branch is left unsynced, so the state may be conflict for
+// that reason; only the foreign finding is asserted.
+func TestIntegrationRepoOwnershipCheckReceiptlessNonemptyRootIsOwned(t *testing.T) {
 	r := newHealthyRepo(t)
 	// Replace origin/docket with a disjoint parentless NONEMPTY commit (built on an
 	// orphan branch in the writer clone) carrying no receipt.
@@ -1016,8 +1022,123 @@ func TestIntegrationRepoOwnershipCheckForeignNonemptyRoot(t *testing.T) {
 	runGit(t, r.writer, "push", "-q", "-f", "origin", "foreign-docket:docket")
 
 	res := r.runCheck(t)
-	if !findingWithCode(res, "metadata-root-foreign") {
-		t.Errorf("foreign nonempty root not reported foreign; state=%q findings=%+v", res.RepositoryState, res.Findings)
+	if findingWithCode(res, "metadata-root-foreign") {
+		t.Errorf("check reported metadata-root-foreign for a structurally owned receiptless nonempty root; state=%q findings=%+v", res.RepositoryState, res.Findings)
+	}
+}
+
+// publishReceiptlessLegacyRoot replaces origin/docket with a parentless,
+// receiptless, NONEMPTY root (one valid change record) that matches no
+// integration snapshot, then moves the invocation clone's .docket worktree
+// (and so its local docket branch) to it, so local and remote stay in sync.
+func (r *initRepo) publishReceiptlessLegacyRoot(t *testing.T) string {
+	t.Helper()
+	wf := &ownFixture{t: t, dir: r.writer}
+	tree := wf.mktree(map[string]string{"docs/changes/active/0001-legacy.md": changeRecord(1, "legacy", "Legacy seed")})
+	tip := r.publishCraftedDocket(t, wf.commitTree(tree, nil, "legacy seed"))
+	dotDocket := filepath.Join(r.invocation, ".docket")
+	runGit(t, dotDocket, "fetch", "-q", "origin", "docket")
+	runGit(t, dotDocket, "reset", "-q", "--hard", "FETCH_HEAD")
+	return tip
+}
+
+// TestIntegrationRepoOwnershipEverydayCommandsSkipContentProof is the
+// deterministic stand-in for the speed fix: on a metadata root the full
+// verifier rejects only on content (receiptless, nonempty, no matching
+// snapshot), the everyday commands decide ownership from shape alone and accept
+// it, while repository migrate keeps the full verifier and still refuses it.
+func TestIntegrationRepoOwnershipEverydayCommandsSkipContentProof(t *testing.T) {
+	r := newHealthyRepo(t)
+	tip := r.publishReceiptlessLegacyRoot(t)
+
+	// Oracle: the full verifier rejects this root, so the fixture exercises the
+	// content-proof gap rather than a root either check would accept.
+	integration := runGit(t, r.invocation, "rev-parse", "origin/main")
+	if own := verifyMetadataOwnership(context.Background(), newGitClient(t), gitcli.Repository{PrimaryWorktree: r.invocation},
+		gitcli.ObjectID(tip), gitcli.ObjectID(integration), "main"); own.Shape != reposetup.RootForeign {
+		t.Fatalf("full verifier Shape = %v (err=%v), want RootForeign: the fixture would prove nothing", own.Shape, own.Err)
+	}
+
+	if res := runPrepareAt(t, r.invocation); res.Disposition != PrepareDispositionNoOp || prepareFinding(res, "metadata-root-foreign") {
+		t.Errorf("prepare disposition = %q, findings = %+v; want no-op with no metadata-root-foreign", res.Disposition, res.Findings)
+	}
+
+	check := r.runCheck(t)
+	if check.RepositoryState != string(reposetup.StateHealthy) {
+		t.Errorf("check RepositoryState = %q (%s), want healthy", check.RepositoryState, check.HumanText())
+	}
+	if findingWithCode(check, "metadata-root-foreign") {
+		t.Errorf("check reported metadata-root-foreign:\n%s", check.HumanText())
+	}
+	if code := check.CheckExitCode(); code != 0 {
+		t.Errorf("check exit = %d (%s), want 0", code, check.HumanText())
+	}
+
+	if ct := r.runConfigureTests(t); ct.Result == ResultInvalidState || ct.RepositoryState == string(reposetup.StateConflict) {
+		t.Errorf("configure-tests = %q / %q (%s), want not refused on ownership", ct.Result, ct.RepositoryState, ct.HumanText())
+	}
+
+	repair := r.runRepair(t, RepairOptions{})
+	if repair.RepositoryState == string(reposetup.StateConflict) {
+		t.Errorf("repair preview RepositoryState = conflict (%s), want it past the ownership routing", repair.HumanText())
+	}
+	if repair.SourceRevision != tip {
+		t.Errorf("repair preview SourceRevision = %q, want the crafted tip %q (the already-migrated phase pins it)", repair.SourceRevision, tip)
+	}
+
+	// Migrate last: it keeps the full verifier and refuses the unprovable root.
+	mig := r.runMigrate(t, MigrateOptions{})
+	if mig.RepositoryState != string(reposetup.StateConflict) {
+		t.Errorf("migrate RepositoryState = %q (%s), want conflict", mig.RepositoryState, mig.HumanText())
+	}
+	if !strings.Contains(mig.HumanText(), "not a verified docket metadata branch") {
+		t.Errorf("migrate text %q must refuse the branch as not a verified docket metadata branch", mig.HumanText())
+	}
+}
+
+// TestIntegrationRepoOwnershipEverydayCommandsRefuseStructuralForeign proves the
+// quick check still refuses both structural shapes in prepare, check, and
+// repair: a metadata branch with two parentless roots, and one sharing history
+// with the integration branch. The local docket branch is not synced; the
+// foreign verdict comes first in every route.
+func TestIntegrationRepoOwnershipEverydayCommandsRefuseStructuralForeign(t *testing.T) {
+	cases := []struct {
+		name  string
+		craft func(t *testing.T, r *initRepo, wf *ownFixture) string
+	}{
+		{"two parentless roots", func(t *testing.T, r *initRepo, wf *ownFixture) string {
+			runGit(t, r.writer, "fetch", "-q", "origin", "docket")
+			root1 := runGit(t, r.writer, "rev-parse", "FETCH_HEAD")
+			root2 := wf.commitTree(wf.mktree(map[string]string{"other.txt": "unrelated\n"}), nil, "second root")
+			return wf.commitTree(wf.emptyTree(), []string{root1, root2}, "merge an unrelated history")
+		}},
+		{"shared ancestry", func(t *testing.T, r *initRepo, wf *ownFixture) string {
+			runGit(t, r.writer, "fetch", "-q", "origin", "main")
+			mainTip := runGit(t, r.writer, "rev-parse", "FETCH_HEAD")
+			tree := wf.mktree(map[string]string{"docs/changes/active/0001-x.md": changeRecord(1, "x", "X")})
+			return wf.commitTree(tree, []string{mainTip}, "docket cut from integration")
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newHealthyRepo(t)
+			wf := &ownFixture{t: t, dir: r.writer}
+			r.publishCraftedDocket(t, tc.craft(t, r, wf))
+
+			if res := runPrepareAt(t, r.invocation); res.Disposition != PrepareDispositionRefused || !prepareFinding(res, "metadata-root-foreign") {
+				t.Errorf("prepare disposition = %q, findings = %+v; want refused with metadata-root-foreign", res.Disposition, res.Findings)
+			}
+			if check := r.runCheck(t); !findingWithCode(check, "metadata-root-foreign") {
+				t.Errorf("check did not report metadata-root-foreign; state=%q findings=%+v", check.RepositoryState, check.Findings)
+			}
+			repair := r.runRepair(t, RepairOptions{})
+			if repair.RepositoryState != string(reposetup.StateConflict) {
+				t.Errorf("repair RepositoryState = %q (%s), want conflict", repair.RepositoryState, repair.HumanText())
+			}
+			if !strings.Contains(repair.HumanText(), "not a verified docket metadata branch") {
+				t.Errorf("repair text %q must refuse the branch as not a verified docket metadata branch", repair.HumanText())
+			}
+		})
 	}
 }
 

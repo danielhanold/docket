@@ -634,19 +634,19 @@ func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts,
 	metaRef := metadataRef(sc.layout)
 
 	// Metadata root shape at the FETCHED remote docket tip (fetch it first so the
-	// object is local on a clone that never fetched docket). The shared ownership
-	// verifier — the same one repository_check.go's augmentCheckFacts consumes via
-	// `verifyMetadataOwnership(` — decides whether the tip's sole parentless-root
-	// lineage is a verified docket seed root (RootParentless: a native init/migrate
-	// receipt or a receiptless legacy-equivalent tree, with ANY number of permitted
-	// descendants and merges, so the root need NOT equal the tip — a real
-	// multi-commit docket branch is owned, not foreign), readable evidence with no
-	// ownership proof (RootForeign), or unreadable evidence (RootUnknown). This
-	// replaces the earlier copied root-equals-tip predicate, which misclassified
-	// every real multi-commit docket chain as RootForeign and refused it. A fetch
-	// error is the safe RootUnknown, which the router refuses on rather than reading
-	// parentless (never a stale object, never a false shape); the fetched tip is the
-	// single authority the ownership proof is computed at.
+	// object is local on a clone that never fetched docket). The quick structural
+	// check — the same one repository_check.go's augmentCheckFacts consumes via
+	// `verifyMetadataShape(` — decides: exactly one parentless root and no shared
+	// history with the integration branch is owned (RootParentless, with ANY number
+	// of descendants and merges, so the root need NOT equal the tip — a real
+	// multi-commit docket branch is owned, not foreign), more than one root or
+	// shared history is RootForeign, and a probe error is RootUnknown. It reads no
+	// receipt and no file contents: the content proof (verifyMetadataOwnership),
+	// whose history search costs a full walk of the integration branch, is
+	// reserved for init and migrate. A fetch error is the safe RootUnknown, which
+	// the router refuses on rather than reading parentless (never a stale object,
+	// never a false shape); the fetched tip is the single authority the ownership
+	// check is computed at.
 	metaTip := sc.metadataTip
 	if metaTip != "" {
 		rev, ferr := git.FetchBranch(ctx, sc.repo, metadataRemote(sc.layout), metaRef)
@@ -655,7 +655,7 @@ func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts,
 		} else {
 			metaTip = string(rev.Commit)
 			f.RemoteMetadata.Tip = metaTip
-			own := verifyMetadataOwnership(ctx, git, sc.repo, rev.Commit, gitcli.ObjectID(sc.sourceRevision), sc.defaultBranch)
+			own := verifyMetadataShape(ctx, git, sc.repo, rev.Commit, gitcli.ObjectID(sc.sourceRevision))
 			f.MetadataRoot = own.Shape
 		}
 	}
