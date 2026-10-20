@@ -1,6 +1,6 @@
 # Backlog
 
-**574 changes** — 🟣 1 groomed · 🟡 2 proposed · ⚪ 16 deferred · ✅ 411 done · 🗑️ 144 killed
+**575 changes** — 🟣 1 groomed · 🟡 3 proposed · ⚪ 16 deferred · ✅ 411 done · 🗑️ 144 killed
 
 ## 🟣 Groomed (1)
 
@@ -8,10 +8,11 @@
 |---|-------|----------|------|------|-----------|
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | `high` | `feat` | [spec](../superpowers/specs/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md) | build-ready |
 
-## 🟡 Proposed (2)
+## 🟡 Proposed (3)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0575](active/0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | `medium` | `refactor` | ⏳ waiting on #360 — not yet built |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `feat` | needs-grooming |
 
@@ -57,6 +58,7 @@ graph TD
   0511 --> 0514
   0566
   0572
+  0360 --> 0575
   0192:::done
   0251:::done
   0511:::done
