@@ -24,8 +24,7 @@ import (
 // as one validated atomic transaction. The domain owns legality: domain.Claim
 // decides whether the current status may take the transition and yields the
 // exact FieldChanges to apply. The lease is re-stamped only by claim,
-// change.reconcile, and change.resume-halted (change 0360 deleted the separate
-// refresh-claim operation).
+// change.reconcile, and change.resume-halted.
 //
 // Claim additionally re-proves eligibility INSIDE the transaction against the
 // attempt's own fresh snapshot — proposed, uniquely identified, build-ready,
