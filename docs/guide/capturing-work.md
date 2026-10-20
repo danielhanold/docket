@@ -29,9 +29,8 @@ write in prose. As you meet them, the manifest fields are:
 - `depends_on` — the ids of other changes that must be `done` before this one can start.
 - `spec`, `plan`, `results` — the design document a change links to, written before building;
   the task-by-task breakdown a build follows, written on the metadata branch; and the required
-  close-out record of what a build actually did (one per implemented change, trivial included).
+  close-out record of what a build actually did (one per implemented change).
   Filled in as the change moves through its life.
-- `trivial` — a flag that says "this is small and mechanical enough to skip the design step."
 - `branch`, `pr` — the feature branch and pull request, recorded once the build starts.
 
 The exact field list and its rules are owned by the reference tier — see
@@ -47,8 +46,8 @@ proposed  →  in-progress  →  implemented  →  done
 ```
 
 - **proposed** — captured, waiting to be built. A proposed change that has not been designed
-  enough to build (no spec, not marked `trivial`) sits in a **needs-grooming** state (a
-  proposed change with neither a spec nor a trivial mark; it needs a design conversation first)
+  enough to build (no spec) sits in a **needs-grooming** state (a proposed change with no spec;
+  it needs a design conversation first)
   until it is groomed — see [Designing before building](./designing-before-building.md).
 - **in-progress** — a run has claimed it and is building.
 - **implemented** — a pull request is open, waiting for your merge.
@@ -120,7 +119,7 @@ is when you write it down.
 **A fully designed change.** When you already know what you want, capture it with the
 `docket-new-change` skill — a **skill** being a named, reusable instruction set an agent loads for
 one job. You describe the idea, docket brainstorms it with you into a **build-ready** change (a
-proposed change that has a spec or is marked trivial and whose dependencies are all `done`) — a
+proposed change that has a spec and whose dependencies are all `done`) — a
 spec written, dependencies noted — and commits the change file to the backlog. Because the
 backlog is durable, you can capture now and build later; the idea does not evaporate with the
 session.
@@ -130,10 +129,8 @@ design step — it lands at `needs-grooming` and waits. You groom it later, in a
 whatever model you choose. Grooming is its own page: [Designing before
 building](./designing-before-building.md).
 
-**Small and mechanical.** When the work is so small and mechanical that a design conversation
-would be ceremony — a rename, a dependency bump — mark it `trivial`. A trivial change skips
-needs-grooming entirely and is build-ready the moment its dependencies are clear, without a
-spec.
+**Small and mechanical.** Small work — a rename, a dependency bump — still gets a spec, just a
+short one.
 
 **Scan mode.** Instead of describing one idea, you can point the new-change skill at the project
 and have it *scan* for candidate work — gaps, TODOs, obvious follow-ups — and mint them as

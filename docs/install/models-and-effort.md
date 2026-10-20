@@ -17,7 +17,7 @@ worker with its own context, pinned to a model and effort (`docket-implement-nex
 
 The two interactive skills, `docket-new-change` and `docket-groom-next`, run at whatever model and
 effort your session uses, so you choose them. Pick by preference and by how complex you expect the
-change to be: a quick stub, a trivial verdict, or a small revise needs little, while a net-new
+change to be: a quick stub or a small revise needs little, while a net-new
 design, a cross-cutting change, or a stub whose premise needs tracing through the code is worth
 your strongest model at higher effort.
 
