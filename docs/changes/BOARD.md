@@ -1,12 +1,6 @@
 # Backlog
 
-**573 changes** — 🔵 1 built · 🟡 4 proposed · ⚪ 16 deferred · ✅ 408 done · 🗑️ 144 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0569](active/0569-flaky-and-failing-tests-standing-bucket.md) | Fix the flaky run-cancel worktree test | `low` | `chore` | [#438](https://github.com/danielhanold/docket/pull/438) | awaiting merge |
+**573 changes** — 🟡 4 proposed · ⚪ 16 deferred · ✅ 409 done · 🗑️ 144 killed
 
 ## 🟡 Proposed (4)
 
@@ -59,7 +53,6 @@ graph TD
   0511 --> 0514
   0561
   0566
-  0569
   0572
   0192:::done
   0251:::done
@@ -68,12 +61,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (552)</summary>
+<details><summary>✅🗑️ Archive — done + killed (553)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
 | [0573](archive/2026-10-20-0573-retire-trivial-every-build-ready-change-has-a-spec.md) | Retire trivial: every build-ready change has a spec | 2026-10-20 |
 | [0571](archive/2026-10-20-0571-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md) | Close out a landed stack parent without waiting on children that never merged into it | 2026-10-20 |
+| [0569](archive/2026-10-20-0569-flaky-and-failing-tests-standing-bucket.md) | Fix the flaky run-cancel worktree test | 2026-10-20 |
 | [0570](archive/2026-10-19-0570-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md) | Let a loop carry on past a halt that concerns only one change | 2026-10-19 |
 | [0567](archive/2026-10-19-0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Clean up stacked children when their stack lands, and finalize a child after its parent | 2026-10-19 |
 | [0560](archive/2026-10-19-0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Put a groomed change on hold so loops skip it | 2026-10-19 |
@@ -88,7 +82,6 @@ graph TD
 | [0559](archive/2026-10-17-0559-close-a-change-to-done-without-a-pr.md) | Let a change deliver a results artifact instead of a PR | 2026-10-17 |
 | [0556](archive/2026-10-17-0556-a-typed-docket-implement-next-in-claude-code-starts-an-untra.md) | A typed /docket-implement-next in Claude Code starts an untracked run | 2026-10-17 |
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
-| [0528](archive/2026-10-17-0528-make-the-solo-budget-re-check-detect-a-concurrent-suite-in-a.md) | Make the solo budget re-check detect a concurrent suite in another worktree | 2026-10-17 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
 | [0166](archive/2026-10-16-0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | 2026-10-16 |
 | [0545](archive/2026-10-12-0545-confirm-in-a-sandbox-whether-cursor-runs-docket-subagents-at.md) | Confirm in a sandbox whether Cursor runs docket subagents at their pinned models | 2026-10-12 |
@@ -236,7 +229,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 65 done |
+| [2026-10](archive/) | 66 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

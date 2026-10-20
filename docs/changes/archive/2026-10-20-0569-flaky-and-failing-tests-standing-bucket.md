@@ -2,7 +2,7 @@
 id: 569
 slug: 'flaky-and-failing-tests-standing-bucket'
 title: 'Fix the flaky run-cancel worktree test'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'chore'
 deliverable: 'pr'
@@ -23,7 +23,7 @@ branch: 'chore/flaky-and-failing-tests-standing-bucket'
 pr: 'https://github.com/danielhanold/docket/pull/438'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-20T10:51:48Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -32,6 +32,7 @@ claimed_at: '2026-10-20T10:51:48Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-20-flaky-and-failing-tests-standing-bucket-design.md](../../superpowers/specs/2026-10-20-flaky-and-failing-tests-standing-bucket-design.md) |
+| Spec (merged) | [2026-10-20-flaky-and-failing-tests-standing-bucket-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-20-flaky-and-failing-tests-standing-bucket-design.md) |
 | Plan | [2026-10-20-flaky-and-failing-tests-standing-bucket.md](../../superpowers/plans/2026-10-20-flaky-and-failing-tests-standing-bucket.md) |
 | Results | [2026-10-20-flaky-and-failing-tests-standing-bucket-results.md](../../results/2026-10-20-flaky-and-failing-tests-standing-bucket-results.md) |
 | ADRs | [ADR-0132](../../adrs/0132-worktree-admission-is-a-supervisor-held-kernel-lock.md) |

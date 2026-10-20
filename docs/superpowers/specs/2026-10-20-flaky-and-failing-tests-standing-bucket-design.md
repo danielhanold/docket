@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0569 — Fix the flaky run-cancel worktree test](../../changes/active/0569-flaky-and-failing-tests-standing-bucket.md)**
+> ↩ **[Change 0569 — Fix the flaky run-cancel worktree test](../../changes/archive/2026-10-20-0569-flaky-and-failing-tests-standing-bucket.md)**
 <!-- docket:backlink:end -->
 
 # The run-cancel worktree test waits for the launch to finish before it cancels — design
