@@ -1,12 +1,12 @@
 # Backlog
 
-**573 changes** — 🟢 1 in progress · 🟡 3 proposed · ⚪ 16 deferred · ✅ 409 done · 🗑️ 144 killed
+**573 changes** — 🔵 1 built · 🟡 3 proposed · ⚪ 16 deferred · ✅ 409 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | [spec](../superpowers/specs/2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-design.md) | `feat/export-an-opened-artifact-as-a-clean-docket-free-markdown-fi` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0561](active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | `medium` | `feat` | [#439](https://github.com/danielhanold/docket/pull/439) | awaiting merge |
 
 ## 🟡 Proposed (3)
 

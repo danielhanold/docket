@@ -2,7 +2,7 @@
 id: 561
 slug: 'export-an-opened-artifact-as-a-clean-docket-free-markdown-fi'
 title: 'Export an opened artifact as a clean, docket-free Markdown file'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-17'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/export-an-opened-artifact-as-a-clean-docket-free-markdown-fi'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/439'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-20T13:37:07Z'
@@ -59,3 +59,12 @@ The board. Windows (docket ships only macOS and Linux). Other export formats (.d
 ### 2026-10-20
 
 2026-10-20 — Spec groomed today; traced against current code: `docket open` (internal/app/open.go) still exposes `localArtifact` and `resolveOpenChange` as the spec assumes, no `internal/export` package exists yet, and related #559/#542/#573/#532 are all done with nothing landing since grooming that touches this scope. No scope change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: e707401323e302730029b7b177f501fa2ff1a38c
+ran_at:   2026-10-20T15:16:50Z
+<!-- docket:build-evidence:end -->
