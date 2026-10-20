@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:98ddce21935afa973ca1337ad84abbb3386c6ccd1a1cff03e2693392c1d83fe0",
+  "asset_set_id": "sha256:76848de6cfa2d9b0e62e2a7af32f2ff001f542674e4664836d96b1e4729b21d0",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -322,8 +322,8 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 53532,
-      "sha256": "c53fb6037c675224b506f99373c8a71571b41af9b2ad9c79912b9d8c4d04ca66"
+      "size": 53504,
+      "sha256": "58bac591609e709cebcf9afd598737607924fb3c140351a8eee2e55f69c22f4d"
     },
     {
       "path": "skills/docket-convention/references/agent-layer.md",
@@ -378,29 +378,29 @@
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 59299,
-      "sha256": "15b342ac83767c92a1a73c105e14fbedd03a47951b357b37dd87b54a02aad144"
+      "size": 59161,
+      "sha256": "d73a245822cef26ac3ec7dbaf5771da114297b6adb97de7ad0fc001ce8295a3c"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",
       "role": "skill",
       "mode": 420,
-      "size": 8704,
-      "sha256": "a83e24ce2559df496643b2c79956cec0115a8b6c00768754335fb39ea168f930"
+      "size": 8686,
+      "sha256": "d49a2c17489c9e024236db8ac3972b04d3054dea01fd51edf07508fa57dc5dc6"
     },
     {
       "path": "skills/docket-implement-next/references/fix-pass.md",
       "role": "skill",
       "mode": 420,
-      "size": 12497,
-      "sha256": "e52c26a900915c8eac7cbdeff9224decd5f9c7fbbe4c14f98a2ade6523c3fd36"
+      "size": 12416,
+      "sha256": "40a735e9b05c1ee3529b98751cda9a332c6b8bf4aa11f69051cc0e9b9931613a"
     },
     {
       "path": "skills/docket-implement-next/references/results-artifact.md",
       "role": "skill",
       "mode": 420,
-      "size": 5071,
-      "sha256": "b7112b747ec1d24ed5d6a83ff4e537a507be4f60bab28679e540a744ca041937"
+      "size": 4899,
+      "sha256": "9581a92f684da771010a23a38f77b826c16e1ba651f4e5600547821c24333b61"
     },
     {
       "path": "skills/docket-implement-next/results-template.md",

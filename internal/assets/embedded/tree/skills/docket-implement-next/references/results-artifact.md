@@ -13,10 +13,6 @@ own, or cleanup keeps it — plus the plan-writer dispatch, the build role, the 
 records, the branch diff review, `workspace.publish`, `pr.publish`, and `change.mark-implemented`
 (it refuses a `results-artifact` change). The spec is the plan.
 
-**Refresh the claim** (the `change.refresh-claim` operation, at a revision re-read after a re-sync)
-at each phase boundary below, as the `pr` path does: before the work, before review, and before
-completion. A refresh `contended` stops new work.
-
 ## 1. Do the work
 
 Do what the spec describes, in the feature worktree. **Never commit** to the branch, never publish
@@ -67,7 +63,8 @@ and how its findings ended.
 ## 6. Complete, then clean up
 
 1. Run the `change.complete` operation with a request file holding `{change_id, path, revision}`,
-   pinned from the `status` operation's `--json` output after a re-sync. `completed` (or
+   `path` from the bundle and `revision` looked up locally (`git -C <metadata_worktree_path>
+   rev-parse HEAD:<record path>`, as for every write). `completed` (or
    `already-completed` on a lost-response retry) means the change is `done` and archived; any
    refusal halts, naming its reason.
 2. Run the `finalize.cleanup` operation with `--id <id>`. It removes a clean worktree and a local
