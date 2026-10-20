@@ -2,7 +2,7 @@
 id: 561
 slug: 'export-an-opened-artifact-as-a-clean-docket-free-markdown-fi'
 title: 'Export an opened artifact as a clean, docket-free Markdown file'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-17'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/export-an-opened-artifact-as-a-clean-docket-free-markdown-fi'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-20T13:25:41Z'
 ---
 
 ## Artifacts
