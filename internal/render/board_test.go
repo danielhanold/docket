@@ -151,8 +151,8 @@ func boardWith(t *testing.T, pres render.BoardPresentation, facts domain.BranchF
 
 // TestBoardClassifyEveryBucket pins boardClassify's precedence: exactly one
 // rendered section per active change, including the two precedence edges
-// (finalize-blocked implemented → Blocked over Built; spec-backed build-ready →
-// Groomed while trivial-build-ready-without-spec stays Proposed).
+// (finalize-blocked implemented → Blocked over Built; build-ready → Groomed
+// over Proposed).
 func TestBoardClassifyEveryBucket(t *testing.T) {
 	blocked := domain.NewChange(domain.ChangeSpec{
 		ID: 1, Slug: "blk", Title: "Blocked", Status: domain.StatusBlocked,
@@ -198,12 +198,6 @@ func TestBoardClassifyEveryBucket(t *testing.T) {
 	stackChildSpec.StackedOn = domain.OptionalInt{State: domain.FieldPresent, Value: 9}
 	stackChild := domain.NewChange(stackChildSpec)
 
-	// proposed + trivial, no spec (build-ready) → proposed, because the groomed
-	// label means build-ready AND spec-backed.
-	trivialSpec := proposedChange(10, "triv", "Trivial")
-	trivialSpec.Trivial = true
-	trivial := domain.NewChange(trivialSpec)
-
 	needsGrooming := domain.NewChange(proposedChange(11, "needs", "Needs grooming"))
 
 	// proposed + spec + held → Groomed (a hold is selection-only, not a demotion).
@@ -236,7 +230,6 @@ func TestBoardClassifyEveryBucket(t *testing.T) {
 		{"proposed spec held", held, nil, render.BoardSectionGroomed},
 		{"proposed spec unmet dependency", waiter, []domain.Change{depTarget}, render.BoardSectionProposed},
 		{"proposed spec unresolved stack base", stackChild, []domain.Change{parent}, render.BoardSectionProposed},
-		{"proposed trivial no spec", trivial, nil, render.BoardSectionProposed},
 		{"proposed needs-grooming", needsGrooming, nil, render.BoardSectionProposed},
 		{"proposed auto-groom-blocked", agBlocked, nil, render.BoardSectionProposed},
 		{"deferred lifecycle", deferred, nil, render.BoardSectionDeferred},
@@ -352,7 +345,7 @@ func TestBoardReadinessNeedsMerge(t *testing.T) {
 // retained auto-groom-blocked marker reports the human call to action.
 func TestBoardReadinessAutoGroomBlocked(t *testing.T) {
 	c := proposedChange(7, "blocked-groom", "Blocked groom")
-	c.HasAutoGroomBlocked = true // no spec, not trivial
+	c.HasAutoGroomBlocked = true // no spec
 	out := string(boardFrom(t, domain.NewChange(c)))
 	if !strings.Contains(out, "| Blocked groom | `` | `untyped` | auto-groom blocked — needs you |") {
 		t.Fatalf("auto-groom-blocked cell not rendered:\n%s", out)
@@ -458,25 +451,6 @@ func TestBoardGroomedReadinessCells(t *testing.T) {
 		t.Fatalf("unheld Groomed row must state build-ready:\n%s", out)
 	}
 	assertNoBlankLastCell(t, out, "## 🟣 Groomed")
-	assertNoRepairNotice(t, out)
-}
-
-// TestBoardHeldTrivialStaysProposed: a held trivial change without a spec stays
-// in Proposed and states "on hold", never "build-ready (trivial)".
-func TestBoardHeldTrivialStaysProposed(t *testing.T) {
-	spec := proposedChange(22, "held-triv", "Held trivial")
-	spec.Trivial = true
-	spec.Hold = heldTrue
-	out := string(boardFrom(t, domain.NewChange(spec)))
-	if !strings.Contains(out, "## 🟡 Proposed (1)") {
-		t.Fatalf("held trivial change must render under Proposed:\n%s", out)
-	}
-	if !strings.Contains(out, "| [0022](active/0022-held-triv.md) | Held trivial | `` | `untyped` | on hold |\n") {
-		t.Fatalf("held trivial cell must read on hold:\n%s", out)
-	}
-	if strings.Contains(out, "build-ready (trivial)") {
-		t.Fatalf("held trivial change must not read build-ready (trivial):\n%s", out)
-	}
 	assertNoRepairNotice(t, out)
 }
 
@@ -602,28 +576,17 @@ func killedStackParent(id int, slug string) domain.Change {
 }
 
 // TestBoardReadinessKilledStackParent pins the plain killed-parent cell for a
-// spec'd and a trivial proposal stacked on a killed parent.
+// spec'd proposal stacked on a killed parent.
 func TestBoardReadinessKilledStackParent(t *testing.T) {
-	for _, tc := range []struct {
-		name    string
-		trivial bool
-	}{{"spec", false}, {"trivial", true}} {
-		t.Run(tc.name, func(t *testing.T) {
-			child := proposedChange(9, "child", "Child")
-			if tc.trivial {
-				child.Trivial = true
-			} else {
-				child.Spec = optString("docs/superpowers/specs/child-design.md")
-			}
-			child.StackedOn = domain.OptionalInt{State: domain.FieldPresent, Value: 8}
-			out := string(boardFromFacts(t, domain.BranchFacts{}, killedStackParent(8, "parent"), domain.NewChange(child)))
-			if !strings.Contains(out, "stack parent #0008 killed — re-parent, un-stack, or kill") {
-				t.Fatalf("killed-parent cell not rendered:\n%s", out)
-			}
-			if strings.Contains(out, "waiting on #0008") {
-				t.Fatalf("killed parent still rendered as waiting:\n%s", out)
-			}
-		})
+	child := proposedChange(9, "child", "Child")
+	child.Spec = optString("docs/superpowers/specs/child-design.md")
+	child.StackedOn = domain.OptionalInt{State: domain.FieldPresent, Value: 8}
+	out := string(boardFromFacts(t, domain.BranchFacts{}, killedStackParent(8, "parent"), domain.NewChange(child)))
+	if !strings.Contains(out, "stack parent #0008 killed — re-parent, un-stack, or kill") {
+		t.Fatalf("killed-parent cell not rendered:\n%s", out)
+	}
+	if strings.Contains(out, "waiting on #0008") {
+		t.Fatalf("killed parent still rendered as waiting:\n%s", out)
 	}
 }
 
@@ -1225,21 +1188,6 @@ func TestBoardRepeatRenderByteStable(t *testing.T) {
 	}
 	if !bytes.Equal(a, b) {
 		t.Fatalf("non-deterministic board under non-default presentation:\n%s\n---\n%s", a, b)
-	}
-}
-
-// TestBoardProposedTrivialBuildReadyCell pins that a trivial, spec-less
-// build-ready proposal renders "build-ready (trivial)" under Proposed (the only
-// build-ready row that reaches Proposed — spec-backed build-ready is Groomed).
-func TestBoardProposedTrivialBuildReadyCell(t *testing.T) {
-	spec := proposedChange(10, "triv", "Trivial")
-	spec.Trivial = true
-	out := string(boardFrom(t, domain.NewChange(spec)))
-	if !strings.Contains(out, "## 🟡 Proposed (1)") {
-		t.Fatalf("Proposed section missing:\n%s", out)
-	}
-	if !strings.Contains(out, "| build-ready (trivial) |") {
-		t.Fatalf("trivial build-ready cell missing:\n%s", out)
 	}
 }
 

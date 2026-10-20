@@ -40,8 +40,8 @@ import (
 //	(4) exactly one open PR for the feature branch targets the resolved
 //	    effective-base branch, names that head, and matches the supplied PR number
 //	    (parsePRRef reads the --pr assertion as either the full URL or shorthand);
-//	(5) a results artifact is attached (required since change 0410, trivial
-//	    changes included) and resolves to a file on the metadata branch that
+//	(5) a results artifact is attached (required since change 0410, for every
+//	    implemented change) and resolves to a file on the metadata branch that
 //	    carries this change's backlink and satisfies the final results content
 //	    contract.
 //
@@ -114,8 +114,8 @@ const (
 	// this change (condition 5); invalid-state.
 	ReasonImplementedResultsIdentity = "results-identity-broken"
 	// ReasonImplementedResultsMissing: the change carries no attached results path;
-	// a results artifact is REQUIRED at the implemented boundary — trivial changes
-	// included (change 0410, condition 5); maps to invalid-state.
+	// a results artifact is REQUIRED at the implemented boundary for every
+	// implemented change (change 0410, condition 5); maps to invalid-state.
 	ReasonImplementedResultsMissing = "results-missing"
 	// ReasonImplementedResultsInvalid: the attached results artifact fails the FINAL
 	// results content contract on the metadata branch (change 0410, condition 5);
@@ -312,7 +312,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 	}
 
 	// (Condition 5) a results artifact is REQUIRED at the implemented boundary
-	// (change 0410) — for trivial changes too. The attached path must resolve to a
+	// (change 0410) — for every implemented change. The attached path must resolve to a
 	// file on the pinned metadata tip, carry THIS change's backlink, and satisfy
 	// the FINAL results content contract. The feature head is never consulted.
 	resultsPath := strings.TrimSpace(c.Results().Value)

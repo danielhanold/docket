@@ -523,6 +523,28 @@ func assertUnrelatedShapeIntact(t *testing.T, repo *gitRepo, branch string, shap
 	t.Errorf("%s: status no longer reports a finding on the unrelated records; findings %+v", shape.name, st.Findings)
 }
 
+// TestChangeClaimRefusesLegacyTrivialRecord: a legacy record carrying
+// trivial: true and no spec is a stub, not build-ready, so a claim refuses it
+// as needs-grooming and writes nothing.
+func TestChangeClaimRefusesLegacyTrivialRecord(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	src := strings.Replace(lifecycleChange(3, "widget", "proposed"), "\ntrivial: false\n", "\ntrivial: true\n", 1)
+	if !strings.Contains(src, "\ntrivial: true\n") || !strings.Contains(src, "\nspec:\n") {
+		t.Fatalf("fixture is not a spec-less legacy trivial record:\n%s", src)
+	}
+	plan, opRes := claimPlanFor(t, map[string]string{recPath: src}, baseClaimOp([]string{"inline"}, 3, domain.NewBranchFacts(nil)))
+	if !opRes.Refused || len(plan.Files) != 0 {
+		t.Fatalf("claim of a legacy trivial record not refused: refused=%v files=%d", opRes.Refused, len(plan.Files))
+	}
+	found := false
+	for _, f := range opRes.Findings {
+		found = found || f.Code == "not-ready-needs-grooming"
+	}
+	if !found {
+		t.Errorf("missing not-ready-needs-grooming; got %v", opRes.Findings)
+	}
+}
+
 // TestChangeClaimAcceptsHeldChangeAndKeepsField: a hold never refuses a claim,
 // and the claimed record keeps the hold for the human to lift.
 func TestChangeClaimAcceptsHeldChangeAndKeepsField(t *testing.T) {

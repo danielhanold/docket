@@ -96,7 +96,7 @@ const (
 	oldSpec       = "docs/superpowers/specs/2025-12-01-old-design.md"
 )
 
-// 7 fully linked, 3 archived, 8 bare, 9 trivial, 10 shorthand pr.
+// 7 fully linked, 3 archived, 8 bare, 9 legacy trivial, 10 shorthand pr.
 func openCorpus() []StatusBlob {
 	return []StatusBlob{
 		openChange(7, "widget", false, "branch: feat/widget\nspec: "+widgetSpec+"\nplan: "+widgetPlan+"\nresults: "+widgetResults+"\npr: '"+widgetPR+"'\n"),
@@ -271,7 +271,7 @@ func TestOpenErrors(t *testing.T) {
 		{"plan", 8, st, ReasonOpenArtifactUnset, "change 8 has no plan yet"},
 		{"results", 8, st, ReasonOpenArtifactUnset, "change 8 has no results yet"},
 		{"pr", 8, st, ReasonOpenArtifactUnset, "change 8 has no PR yet"},
-		{"spec", 9, st, ReasonOpenTrivialNoSpec, "change 9 is trivial — it has no spec"},
+		{"spec", 9, st, ReasonOpenArtifactUnset, "change 9 has no spec yet"},
 		{"board", 0, st, ReasonOpenBoardDisabled, "this repository has no board (board_surfaces has no inline surface)"},
 		{"pr", 10, st, ReasonOpenPRNotURL, "change 10 pr: acme/widget#12 is not a URL"},
 		{"bogus", 7, inv, ReasonOpenInvalidTarget, ""},

@@ -8,7 +8,6 @@ type readySpec struct {
 	slug         string
 	status       Status
 	spec         OptionalString
-	trivial      bool
 	dependsOn    []ChangeID
 	parent       OptionalInt
 	branch       string
@@ -39,7 +38,6 @@ func (rp readySpec) build() Change {
 		Slug:      slug,
 		Status:    rp.status,
 		Spec:      rp.spec,
-		Trivial:   rp.trivial,
 		DependsOn: rp.dependsOn,
 		StackedOn: rp.parent,
 		Hold:      rp.hold,
@@ -136,7 +134,7 @@ func TestEvaluateReadinessPrecedence(t *testing.T) {
 			want:    ReadyWaitingDependency,
 		},
 		{
-			name:    "proposed, no spec, not trivial is needs-grooming",
+			name:    "proposed, no spec is needs-grooming",
 			specs:   []readySpec{{id: 2, status: StatusProposed}},
 			subject: 2,
 			want:    ReadyNeedsGrooming,
@@ -156,12 +154,6 @@ func TestEvaluateReadinessPrecedence(t *testing.T) {
 		{
 			name:    "the marker is ignored once design exists",
 			specs:   []readySpec{{id: 2, status: StatusProposed, spec: specRef("s.md"), groomBlocked: true}},
-			subject: 2,
-			want:    ReadyBuildReady,
-		},
-		{
-			name:    "trivial with no spec is build-ready",
-			specs:   []readySpec{{id: 2, status: StatusProposed, trivial: true}},
 			subject: 2,
 			want:    ReadyBuildReady,
 		},
@@ -216,12 +208,6 @@ func TestEvaluateReadinessPrecedence(t *testing.T) {
 		{
 			name:    "a held spec-backed change is on-hold",
 			specs:   []readySpec{{id: 2, status: StatusProposed, spec: specRef("s.md"), hold: holdTrue}},
-			subject: 2,
-			want:    ReadyOnHold,
-		},
-		{
-			name:    "a held trivial change is on-hold",
-			specs:   []readySpec{{id: 2, status: StatusProposed, trivial: true, hold: holdTrue}},
 			subject: 2,
 			want:    ReadyOnHold,
 		},
@@ -379,7 +365,7 @@ func TestNeedsDesign(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "proposed with no spec and not trivial needs design",
+			name: "proposed with no spec needs design",
 			spec: readySpec{id: 2, status: StatusProposed},
 			want: true,
 		},
@@ -401,11 +387,6 @@ func TestNeedsDesign(t *testing.T) {
 		{
 			name: "a spec'd change needs no design",
 			spec: readySpec{id: 2, status: StatusProposed, spec: specRef("s.md")},
-			want: false,
-		},
-		{
-			name: "a trivial change needs no design",
-			spec: readySpec{id: 2, status: StatusProposed, trivial: true},
 			want: false,
 		},
 		{

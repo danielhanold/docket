@@ -296,7 +296,7 @@ func TestContextImplementationTypedAbsence(t *testing.T) {
 		},
 		{
 			name:       "not ready",
-			corpus:     []StatusBlob{changeBlob(15, "no-design", "feat", "high", "")}, // no spec, not trivial
+			corpus:     []StatusBlob{changeBlob(15, "no-design", "feat", "high", "")}, // no spec
 			req:        ImplementationContextRequest{ID: 15},
 			wantResult: ResultInvalidState,
 			wantReason: "not-ready-" + string(domain.ReadyNeedsGrooming),

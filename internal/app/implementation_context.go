@@ -69,7 +69,7 @@ type ContextEntitySummary struct {
 // path, exact loss-preserving source bytes (base64 in JSON, as a Go []byte),
 // opaque record revision (blob object id), and — for a record — its parsed
 // summary. A zero ContextEntity (empty Path) means the bundle carries no such
-// document (e.g. a trivial change with no spec).
+// document (e.g. a change with no spec).
 type ContextEntity struct {
 	Path     string                `json:"path,omitempty"`
 	Source   []byte                `json:"source,omitempty"`

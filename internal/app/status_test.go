@@ -712,3 +712,37 @@ func TestStatusReportsHeldChange(t *testing.T) {
 			row.Readiness, row.ReadinessWhy, row.Ready)
 	}
 }
+
+// TestStatusLegacyTrivialRecordReadsNeedsGrooming: a legacy record carrying
+// trivial: true and no spec is a stub — status reports it needs-grooming and
+// keeps it out of the build-ready queue, while a spec'd sibling is ready.
+func TestStatusLegacyTrivialRecordReadsNeedsGrooming(t *testing.T) {
+	fake := &fakeReader{
+		pin: docketPin(t),
+		corpus: []StatusBlob{
+			changeBlob(15, "legacy", "feat", "high", "trivial: true\n"),
+			changeBlob(16, "groomed", "feat", "low", "spec: docs/changes/specs/s16.md\n"),
+		},
+		facts:     domain.NewBranchFacts(nil),
+		artifacts: map[string]bool{"metadata|docs/changes/specs/s16.md": true},
+	}
+	got := Status(context.Background(), fake, StatusOptions{})
+	if got.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied; message=%q", got.Result, got.Message)
+	}
+	if len(got.Ready) != 1 || got.Ready[0] != 16 {
+		t.Errorf("ready = %v, want [16] (the legacy trivial record is not build-ready)", got.Ready)
+	}
+	var row *StatusChange
+	for i := range got.Changes {
+		if got.Changes[i].ID == 15 {
+			row = &got.Changes[i]
+		}
+	}
+	if row == nil {
+		t.Fatalf("no row for legacy change 15: %+v", got.Changes)
+	}
+	if row.Readiness != string(domain.ReadyNeedsGrooming) || row.Ready {
+		t.Errorf("legacy trivial row = readiness %q, ready %v; want needs-grooming, false", row.Readiness, row.Ready)
+	}
+}

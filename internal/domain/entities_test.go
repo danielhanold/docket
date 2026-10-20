@@ -44,7 +44,6 @@ func fullChangeSpec(t *testing.T) ChangeSpec {
 		Spec:           OptionalString{State: FieldPresent, Value: "docs/specs/x.md"},
 		Plan:           OptionalString{State: FieldEmpty},
 		Results:        OptionalString{State: FieldAbsent},
-		Trivial:        true,
 		Branch:         OptionalString{State: FieldPresent, Value: "feat/domain-snapshot"},
 		ClaimedAt:      OptionalTime{State: FieldPresent, Value: time.Date(2026, 8, 13, 4, 5, 6, 0, time.UTC), Raw: "2026-08-13T04:05:06Z"},
 		PR:             OptionalString{State: FieldPresent, Value: "https://example.test/pr/1"},
@@ -110,9 +109,6 @@ func TestChangeAccessorsRoundTrip(t *testing.T) {
 	}
 	if got := c.ADRs(); !slices.Equal(got, spec.ADRs) {
 		t.Errorf("ADRs() = %v; want %v", got, spec.ADRs)
-	}
-	if got := c.Trivial(); got != spec.Trivial {
-		t.Errorf("Trivial() = %v; want %v", got, spec.Trivial)
 	}
 	if got := c.Branch(); got != spec.Branch {
 		t.Errorf("Branch() = %+v; want %+v", got, spec.Branch)

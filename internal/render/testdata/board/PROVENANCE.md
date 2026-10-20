@@ -53,7 +53,7 @@ Sections and rows:
 - **Proposed** — two readiness bands, sorted `updated desc`:
   - id 4 (updated 2026-08-04) waiting `⏳ waiting on #3 — not yet built` (dep on a
     non-built change);
-  - id 3 (updated 2026-08-03) `needs-grooming` (no spec, not trivial).
+  - id 3 (updated 2026-08-03) `needs-grooming` (no spec).
 - **Deferred** — id 6.
 - **Archive `<details>`** — id 9 (`done`) and id 10 (`killed`); summary emoji +
   `done + killed` label; Merged date from the archive filename prefix.
@@ -71,17 +71,15 @@ directly instead:
 - the dated `## Run halted — <date>` variant NOT lighting the State cell
   (whole-line decode contract — `TestBoardRunHaltedWholeLineContract`);
 - the Groomed `on hold` Readiness cell for a held spec-backed change
-  (`TestBoardGroomedReadinessCells`) and the Proposed `on hold` cell for a held
-  trivial change (`TestBoardHeldTrivialStaysProposed`);
+  (`TestBoardGroomedReadinessCells`);
 - the classification precedence edges (finalize-blocked implemented → Blocked;
-  spec-backed build-ready → Groomed vs trivial-without-spec → Proposed);
+  spec-backed build-ready → Groomed);
 - the Blocked `finalize blocked — needs you` Reason cell;
 - the Built `merged into #NNNN` State cell for a stacked-merged change;
 - proposed `⏳ … — needs your merge` (dependency on an `implemented` change);
 - proposed `auto-groom blocked — needs you`;
 - proposed `⏳ waiting on #NNNN — stack base not built`;
 - proposed `stack parent #NNNN killed — re-parent, un-stack, or kill`;
-- proposed `build-ready (trivial)` (trivial, spec-less build-ready);
 - non-default section orders and per-section sort keys, same-date id-desc ties,
   and the unknown-date band;
 - the empty-priority / `untyped`-type cells;

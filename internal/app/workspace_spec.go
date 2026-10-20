@@ -42,8 +42,8 @@ const (
 	SpecCopyRefreshed = "refreshed"
 	// SpecCopyCurrent: the feature head already carries the exact copy (no-op).
 	SpecCopyCurrent = "current"
-	// SpecCopyNoSpec: the change links no spec (a trivial change), so there is
-	// no copy (no-op).
+	// SpecCopyNoSpec: the change links no spec (a legacy record claimed with
+	// none), so there is no copy (no-op).
 	SpecCopyNoSpec = "no-spec"
 )
 

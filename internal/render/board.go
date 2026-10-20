@@ -19,9 +19,9 @@ import (
 // invalid presentation — see BoardPresentation.validate). Each active change is
 // classified into exactly one rendered group by boardClassify — a mapping that
 // is deliberately NOT one-to-one with lifecycle status (finalize-blocked
-// implemented changes render Blocked; spec-backed build-ready proposals render
-// Groomed). testdata/board/board.golden is the byte-drift guard: it is the
-// reviewed canonical render of testdata/board/corpus/ under the DEFAULT
+// implemented changes render Blocked; build-ready proposals render Groomed).
+// testdata/board/board.golden is the byte-drift guard: it is the reviewed
+// canonical render of testdata/board/corpus/ under the DEFAULT
 // presentation (see testdata/board/PROVENANCE.md), re-founded at change 0367
 // when the default output changed by design. A diff there is a real change to
 // the board surface and must be re-blessed deliberately.
@@ -64,11 +64,8 @@ import (
 //     change carries the bare "## Run halted" body section (HasRunHalted),
 //     else "building".
 //     The Groomed Readiness cell is "build-ready", or "on hold" for a held
-//     change (a hold is selection-only, so a held spec-backed change stays
-//     Groomed).
+//     change (a hold is selection-only, so a held change stays Groomed).
 //     The Proposed Readiness cell:
-//     build-ready                                    → "build-ready" / "build-ready (trivial)"
-//     on-hold                                        → "on hold"
 //     needs-grooming                                 → "needs-grooming"
 //     auto-groom-blocked                             → "auto-groom blocked — needs you"
 //     waiting-dependency                             → "⏳ waiting on #<dep> — not yet built"
@@ -79,9 +76,7 @@ import (
 //     id; the stack cell names the change's immediate stacked_on parent,
 //     zero-padded. The parent-killed cell instead names the killed ancestor
 //     (StackBase.Cause), zero-padded, and carries no "needs you" suffix
-//     because no marker section drives it. A build-ready proposal that reaches Proposed is necessarily
-//     trivial-without-spec (spec-backed build-ready is Groomed) and renders
-//     "build-ready (trivial)".
+//     because no marker section drives it.
 //  4. A mermaid graph: "\n```mermaid\ngraph TD\n", then every active change in
 //     ascending id order — one "  <dep> --> <id>" edge per depends_on entry
 //     (padded), or a bare "  <id>" node when it has none — then every archived
@@ -140,8 +135,8 @@ type BoardUnrenderable struct {
 // BoardSection is one rendered board group — a set of allowed values deliberately
 // distinct from the lifecycle statuses a change carries (change 0367). A change
 // is classified into exactly one section; the mapping is not one-to-one with
-// status (finalize-blocked implemented changes render Blocked, spec-backed
-// build-ready proposals render Groomed).
+// status (finalize-blocked implemented changes render Blocked, build-ready
+// proposals render Groomed).
 type BoardSection string
 
 const (
@@ -283,13 +278,10 @@ func boardClassify(in BoardInput, c domain.Change) (BoardSection, error) {
 		return BoardSectionBuilt, nil
 	case domain.StatusProposed:
 		// Groomed means build-ready (or held, which is build-ready but for the
-		// hold) AND spec-backed: a trivial build-ready change with an empty
-		// spec stays Proposed.
-		if c.Spec().Value != "" {
-			switch domain.EvaluateReadiness(in.Snapshot, c, in.Facts).Kind {
-			case domain.ReadyBuildReady, domain.ReadyOnHold:
-				return BoardSectionGroomed, nil
-			}
+		// hold); readiness already requires a spec.
+		switch domain.EvaluateReadiness(in.Snapshot, c, in.Facts).Kind {
+		case domain.ReadyBuildReady, domain.ReadyOnHold:
+			return BoardSectionGroomed, nil
 		}
 		return BoardSectionProposed, nil
 	case domain.StatusDeferred:
@@ -737,18 +729,6 @@ func boardGroomedReadinessCell(in BoardInput, c domain.Change) (string, error) {
 func boardReadinessCell(in BoardInput, c domain.Change) (string, error) {
 	r := domain.EvaluateReadiness(in.Snapshot, c, in.Facts)
 	switch r.Kind {
-	case domain.ReadyBuildReady:
-		// The only build-ready row that reaches Proposed is trivial-without-spec
-		// (spec-backed build-ready is Groomed); mark it so the reader sees why it
-		// skipped grooming.
-		if c.Trivial() {
-			return "build-ready (trivial)", nil
-		}
-		return "build-ready", nil
-	case domain.ReadyOnHold:
-		// Only a held trivial-without-spec change reaches Proposed with this
-		// kind (a held spec-backed change is Groomed).
-		return "on hold", nil
 	case domain.ReadyNeedsGrooming:
 		return "needs-grooming", nil
 	case domain.ReadyAutoGroomBlocked:
@@ -762,7 +742,8 @@ func boardReadinessCell(in BoardInput, c domain.Change) (string, error) {
 		}
 		return fmt.Sprintf("⏳ waiting on #%04d — stack base not built", int(c.StackedOn().Value)), nil
 	default:
-		// A proposed row never reaches here for a well-formed corpus: readiness
+		// A proposed row never reaches here for a well-formed corpus: a
+		// build-ready or on-hold change classifies as Groomed, readiness
 		// reports not-proposed only for a non-proposed change, and invalid only
 		// for a duplicate/negative id or an unusable slug. A corpus carrying such
 		// an unrelated defect is still rendered (change 0449), so this is a

@@ -483,7 +483,6 @@ func newChangeBuilder(c Change) *changeBuilder {
 		Spec:           c.Spec(),
 		Plan:           c.Plan(),
 		Results:        c.Results(),
-		Trivial:        c.Trivial(),
 		AutoGroomable:  c.AutoGroomable(),
 		Hold:           c.Hold(),
 		BranchPrefix:   c.BranchPrefix(),
