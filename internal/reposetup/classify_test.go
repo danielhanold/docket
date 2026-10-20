@@ -159,7 +159,7 @@ func TestClassify(t *testing.T) {
 			reasonsReq: true,
 		},
 		{
-			// The seed tree does not correspond: the gatherer sets RootForeign,
+			// The caller's ownership check reports RootForeign,
 			// so the seeded-live-surface shape resolves to conflict, not partial.
 			name: "metadata present + live surface present but root foreign -> conflict",
 			facts: func() Facts {

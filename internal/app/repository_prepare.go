@@ -319,8 +319,8 @@ func prepareRoute(f reposetup.Facts, heldElsewhere prepareHolder) prepareVerdict
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
 			Code:     string(FCMetadataRootForeign),
 			Severity: reposetup.SeverityError,
-			Message:  "The remote docket branch is not a docket-created parentless orphan root.",
-			Remedy:   "Inspect the remote docket branch and resolve it manually with a human, then run `docket repository check`.",
+			Message:  reposetup.MetadataRootForeignMessage,
+			Remedy:   reposetup.MetadataRootForeignRemedy,
 		})
 	}
 	// A metadata branch published alongside a still-live integration surface is an

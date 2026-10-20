@@ -1249,3 +1249,28 @@ func TestRepairFindingFindingCode(t *testing.T) {
 		})
 	}
 }
+
+// TestMetadataRootForeignFindingNamesStructuralReason — the metadata-root-foreign
+// finding names the structural reason the everyday commands refuse a branch
+// (more than one starting commit, or shared history with the integration
+// branch) in plain words, and check and prepare share the same text.
+func TestMetadataRootForeignFindingNamesStructuralReason(t *testing.T) {
+	f := findingFor("metadata-root-foreign", Facts{})
+	if f.Code != "metadata-root-foreign" {
+		t.Errorf("Code = %q, want metadata-root-foreign", f.Code)
+	}
+	if f.Message != MetadataRootForeignMessage {
+		t.Errorf("Message = %q, want MetadataRootForeignMessage", f.Message)
+	}
+	if f.Remedy != MetadataRootForeignRemedy {
+		t.Errorf("Remedy = %q, want MetadataRootForeignRemedy", f.Remedy)
+	}
+	for _, want := range []string{"more than one starting commit", "shares history"} {
+		if !strings.Contains(f.Message, want) {
+			t.Errorf("Message %q does not name %q", f.Message, want)
+		}
+	}
+	if strings.Contains(f.Message, "docket-created") {
+		t.Errorf("Message %q still carries the old docket-created wording", f.Message)
+	}
+}

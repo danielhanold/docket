@@ -174,8 +174,8 @@ func findingFor(reason string, f Facts) Finding {
 		return Finding{
 			Code:     "metadata-root-foreign",
 			Severity: SeverityError,
-			Message:  "The remote docket branch is not a docket-created orphan root (foreign or non-corresponding tree).",
-			Remedy:   "Inspect the remote docket branch and resolve it with a human before any repository operation; leave it unchanged.",
+			Message:  MetadataRootForeignMessage,
+			Remedy:   MetadataRootForeignRemedy,
 		}
 	case "docket-dir-foreign":
 		return Finding{
@@ -247,6 +247,15 @@ func findingFor(reason string, f Facts) Finding {
 		}
 	}
 }
+
+// MetadataRootForeignMessage and MetadataRootForeignRemedy are the one copy of
+// the metadata-root-foreign finding text. findingFor (check and the configure
+// commands) and prepareRoute (prepare) both use them, so the two never drift. The
+// message names the structural reason both ownership checks share.
+const (
+	MetadataRootForeignMessage = "The remote docket branch has more than one starting commit, or shares history with the integration branch, so docket will not treat it as its own."
+	MetadataRootForeignRemedy  = "Leave the remote docket branch unchanged and resolve it with a human, then run `docket repository check`."
+)
 
 // TestConfigMissingCode is the stable machine token for the test-policy health
 // finding: a local suite gate cannot run because no command is configured (or a
