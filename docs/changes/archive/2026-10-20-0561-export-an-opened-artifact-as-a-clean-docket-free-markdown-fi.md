@@ -2,7 +2,7 @@
 id: 561
 slug: 'export-an-opened-artifact-as-a-clean-docket-free-markdown-fi'
 title: 'Export an opened artifact as a clean, docket-free Markdown file'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-10-17'
@@ -22,7 +22,7 @@ branch: 'feat/export-an-opened-artifact-as-a-clean-docket-free-markdown-fi'
 pr: 'https://github.com/danielhanold/docket/pull/439'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-20T13:37:07Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-20T13:37:07Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-design.md](../../superpowers/specs/2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-design.md) |
+| Spec (merged) | [2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-design.md) |
 | Plan | [2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md](../../superpowers/plans/2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) |
 | Results | [2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-results.md](../../results/2026-10-20-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi-results.md) |
 <!-- docket:artifacts:end -->

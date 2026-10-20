@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0561 — Export an opened artifact as a clean, docket-free Markdown file](../changes/active/0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md)**
+> ↩ **[Change 0561 — Export an opened artifact as a clean, docket-free Markdown file](../changes/archive/2026-10-20-0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md)**
 <!-- docket:backlink:end -->
 
 # Export an opened artifact as a clean, docket-free Markdown file — Results
