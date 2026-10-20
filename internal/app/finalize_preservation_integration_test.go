@@ -332,11 +332,14 @@ func TestIntegrationFinalizeRebaseRecoveryCarryHelperImplementedChild(t *testing
 		assertProvenNone(t, proof, err)
 	})
 
-	t.Run("open-pr-not-carried", func(t *testing.T) {
+	t.Run("not-merged-pr-not-carried", func(t *testing.T) {
 		// #8 is not merged: an implemented child is simply not carried — never a
 		// relationship refusal the way an unconfirmed stacked-merged child is.
 		gh := &fakeCloseoutGitHub{repo: retargetRepo(), merged: map[int]closeoutProbe{}}
 		proof, err := run(gh, tgtDropped)
 		assertProvenNone(t, proof, err)
+		if gh.probes != 1 {
+			t.Fatalf("probes = %d, want 1: the child must be looked up, then dropped", gh.probes)
+		}
 	})
 }
