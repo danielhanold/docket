@@ -2,7 +2,7 @@
 id: 573
 slug: 'retire-trivial-every-build-ready-change-has-a-spec'
 title: 'Retire trivial: every build-ready change has a spec'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'refactor'
 deliverable: 'pr'
@@ -21,7 +21,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'refactor/retire-trivial-every-build-ready-change-has-a-spec'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/436'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-20T00:02:25Z'
@@ -55,3 +55,12 @@ Rewriting archived records or other repositories' records (pre-1.0.0; an unbuilt
 ### 2026-10-19
 
 Spec written today (2026-10-19); origin/main has moved only by docs/test commits on halt counting and claim selection (0f4453cc2..0ea3b6a86), none touching trivial handling. Scope, decisions, and the grep-derived file list stand unchanged; #566 remains proposed and out of scope.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: cbc393a5c86f402c66ec3efabdff48cff3439543
+ran_at:   2026-10-20T01:10:29Z
+<!-- docket:build-evidence:end -->
