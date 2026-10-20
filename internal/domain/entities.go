@@ -91,7 +91,6 @@ type ChangeSpec struct {
 	Spec           OptionalString
 	Plan           OptionalString
 	Results        OptionalString
-	Trivial        bool
 	AutoGroomable  OptionalBool   // per-change auto-groom opt-in; only an explicit true opts in
 	Hold           OptionalBool   // per-change hold; keeps the change out of autonomous build selection
 	BranchPrefix   OptionalString // per-change mint-prefix override; durable input
@@ -194,9 +193,6 @@ func (c Change) Plan() OptionalString { return c.spec.Plan }
 
 // Results returns the optional results artifact reference.
 func (c Change) Results() OptionalString { return c.spec.Results }
-
-// Trivial reports whether the change is marked trivial.
-func (c Change) Trivial() bool { return c.spec.Trivial }
 
 // AutoGroomable returns the optional per-change auto-groom opt-in. Only an
 // explicit true makes a stub auto-groomable; unset (absent or valueless) and

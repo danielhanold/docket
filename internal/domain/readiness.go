@@ -54,8 +54,8 @@ type Readiness struct {
 //     on-hold. Every earlier outcome wins, so a held change that is also
 //     waiting, ungroomed, or on an unresolved stack base keeps that reason.
 //
-// A change carries design when it has a non-empty spec: reference or is marked
-// trivial; a present-but-empty spec: counts as no spec.
+// A change carries design only when it has a non-empty spec: reference; a
+// present-but-empty spec: counts as no spec.
 func EvaluateReadiness(s Snapshot, c Change, facts BranchFacts) Readiness {
 	if c.Status() != StatusProposed {
 		return Readiness{Kind: ReadyNotProposed}
@@ -92,16 +92,15 @@ func EvaluateReadiness(s Snapshot, c Change, facts BranchFacts) Readiness {
 }
 
 // NeedsDesign reports whether c still needs a design pass: proposed, carrying
-// no spec, and not marked trivial. It deliberately ignores dependency
-// satisfaction, so interactive grooming can design a change ahead of the work
-// it depends on.
+// no spec. It deliberately ignores dependency satisfaction, so interactive
+// grooming can design a change ahead of the work it depends on.
 func NeedsDesign(c Change) bool {
 	return c.Status() == StatusProposed && !hasDesign(c)
 }
 
 // hasDesign reports whether c carries a design outcome — a non-empty spec:
-// reference or trivial: true. A spec: key present with no value is no spec.
+// reference. A spec: key present with no value is no spec.
 func hasDesign(c Change) bool {
 	spec := c.Spec()
-	return c.Trivial() || (spec.State == FieldPresent && spec.Value != "")
+	return spec.State == FieldPresent && spec.Value != ""
 }

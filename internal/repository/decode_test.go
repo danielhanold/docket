@@ -136,9 +136,6 @@ func TestDecodeChangeHappyPath(t *testing.T) {
 	if got := change.Results(); got.State != domain.FieldEmpty {
 		t.Errorf("Results = %+v", got)
 	}
-	if change.Trivial() {
-		t.Error("Trivial = true, want false")
-	}
 	if got := change.Branch(); got.State != domain.FieldPresent ||
 		got.Value != "feat/domain-snapshot-validation-graphs-and-selection" {
 		t.Errorf("Branch = %+v", got)
@@ -788,19 +785,35 @@ func TestDecodeChangeIDMalformed(t *testing.T) {
 	}
 }
 
-// TestDecodeChangeBooleanMalformed — trivial/reconciled are booleans; a
-// non-boolean is a finding, not a silent false.
+// TestDecodeChangeBooleanMalformed — reconciled is a boolean; a non-boolean is
+// a finding, not a silent false.
 func TestDecodeChangeBooleanMalformed(t *testing.T) {
-	const source = "---\nid: 1\nslug: s\ntrivial: maybe\nreconciled: true\n---\n\nbody\n"
+	const source = "---\nid: 1\nslug: s\nreconciled: maybe\n---\n\nbody\n"
 	change, findings := decodeChange(input(t, KindChange, LocationActive, "docs/changes/active/0001-s.md", source))
-	if change.Trivial() {
-		t.Error("Trivial = true for a malformed value")
+	if change.Reconciled() {
+		t.Error("Reconciled = true for a malformed value")
 	}
-	if !change.Reconciled() {
-		t.Error("Reconciled = false, want true")
+	if !hasFinding(findings, CodeFieldMalformed, "reconciled") {
+		t.Errorf("no field-malformed finding for reconciled: %v", findingCodes(findings))
 	}
-	if !hasFinding(findings, CodeFieldMalformed, "trivial") {
-		t.Errorf("no field-malformed finding for trivial: %v", findingCodes(findings))
+}
+
+// TestDecodeLegacyTrivialKeyIsInert — a legacy trivial: line is unread data:
+// trivial: true with an empty spec: still needs design, and a malformed
+// trivial: value produces no finding.
+func TestDecodeLegacyTrivialKeyIsInert(t *testing.T) {
+	const legacy = "---\nid: 1\nslug: s\nstatus: proposed\nspec:\ntrivial: true\n---\n\nbody\n"
+	change, findings := decodeChange(input(t, KindChange, LocationActive, "docs/changes/active/0001-s.md", legacy))
+	if len(findings) != 0 {
+		t.Fatalf("legacy trivial: true produced findings: %v", findingCodes(findings))
+	}
+	if !domain.NeedsDesign(change) {
+		t.Errorf("legacy trivial: true with no spec must need design; spec = %+v", change.Spec())
+	}
+
+	const malformed = "---\nid: 1\nslug: s\nstatus: proposed\ntrivial: maybe\n---\n\nbody\n"
+	if _, findings := decodeChange(input(t, KindChange, LocationActive, "docs/changes/active/0001-s.md", malformed)); len(findings) != 0 {
+		t.Errorf("malformed legacy trivial: produced findings: %v", findingCodes(findings))
 	}
 }
 

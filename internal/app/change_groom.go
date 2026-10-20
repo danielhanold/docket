@@ -703,19 +703,20 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		return refuseGroom("not-found", fmt.Sprintf("change %04d is not present in the current corpus", o.req.ChangeID))
 	}
 	// Groom/revise gate. The groom gate admits only a proposed, needs-design
-	// change. The revise gate admits any proposed change, needs-design or
-	// already groomed: revise never writes spec: or auto_groomable:,
-	// so it cannot change a change's groom state, and a needs-design change
-	// satisfies both gates. Neither gate inspects or sets claim metadata.
+	// change (one with no spec). The revise gate admits any proposed change,
+	// needs-design or already groomed: revise never writes spec: or
+	// auto_groomable:, so it cannot change a change's groom state, and a
+	// needs-design change satisfies both gates. Neither gate inspects or sets
+	// claim metadata.
 	if o.req.Outcome == GroomRevise {
 		if c.Status() != domain.StatusProposed {
 			return refuseGroom("not-revisable",
 				fmt.Sprintf("change %04d is not a proposed change (status %q)", o.req.ChangeID, c.Status()))
 		}
-	} else if c.Status() != domain.StatusProposed || c.Spec().Value != "" || c.Trivial() {
+	} else if c.Status() != domain.StatusProposed || c.Spec().Value != "" {
 		return refuseGroom("not-groomable",
-			fmt.Sprintf("change %04d is not a proposed, needs-design change (status %q, spec %q, trivial %v)",
-				o.req.ChangeID, c.Status(), c.Spec().Value, c.Trivial()))
+			fmt.Sprintf("change %04d is not a proposed, needs-design change (status %q, spec %q)",
+				o.req.ChangeID, c.Status(), c.Spec().Value))
 	}
 
 	// Retitle gate (change 0461). A proposed change carrying branch:, plan:, or

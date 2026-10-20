@@ -1769,7 +1769,7 @@ func commitSpecMetadataSpec(body string) string {
 }
 
 // commitSpecRecord is change 31 in-progress, its spec: field set to specPath
-// ("" leaves it empty — a trivial change).
+// ("" leaves it empty — a change claimed with no spec).
 func commitSpecRecord(specPath string) string {
 	rec := lifecycleChange(31, "copyme", "in-progress")
 	if specPath != "" {
@@ -1937,11 +1937,16 @@ func TestIntegrationWorkflowLifecycleCommitSpecRefreshesRevisedSpec(t *testing.T
 	env.assertClean(t)
 }
 
-// TestIntegrationWorkflowLifecycleCommitSpecTrivialNoSpec: a change with no
-// spec has no copy — a no-op that commits nothing.
-func TestIntegrationWorkflowLifecycleCommitSpecTrivialNoSpec(t *testing.T) {
+// TestIntegrationWorkflowLifecycleCommitSpecNoSpec: a legacy change claimed
+// with no spec (its record still carrying an inert trivial: true line) has no
+// copy — it still gets the no-spec no-op, which commits nothing.
+func TestIntegrationWorkflowLifecycleCommitSpecNoSpec(t *testing.T) {
+	legacy := strings.Replace(commitSpecRecord(""), "\ntrivial: false\n", "\ntrivial: true\n", 1)
+	if !strings.Contains(legacy, "\ntrivial: true\n") {
+		t.Fatal("legacy fixture lacks its trivial: true line")
+	}
 	env := newCommitSpecEnv(t, nil, map[string]string{
-		groomPath(31, "copyme"): commitSpecRecord(""),
+		groomPath(31, "copyme"): legacy,
 	})
 	before := env.head(t)
 	res := env.commitSpec(t)

@@ -45,7 +45,6 @@ const (
 	ReasonOpenUnknownChange      = "unknown-change"
 	ReasonOpenAmbiguousChange    = "ambiguous-change"
 	ReasonOpenArtifactUnset      = "artifact-unset"
-	ReasonOpenTrivialNoSpec      = "trivial-no-spec"
 	ReasonOpenBoardDisabled      = "board-disabled"
 	ReasonOpenPRNotURL           = "pr-not-url"
 	ReasonOpenPathInvalid        = "artifact-path-invalid"
@@ -301,18 +300,14 @@ func resolveOpenChange(ctx context.Context, reader StatusReader, pin StatusPin, 
 }
 
 // changeArtifactPath returns the repository-relative path what names for c: the
-// record itself, or its spec, plan, or results. A trivial change has no spec;
-// an unset or malformed field is refused as not there yet.
+// record itself, or its spec, plan, or results. An unset or malformed field (a
+// stub's spec included) is refused as not there yet.
 func changeArtifactPath(c domain.Change, what string) (string, *openFailure) {
 	var field domain.OptionalString
 	switch what {
 	case "change":
 		return c.Path(), nil
 	case "spec":
-		if c.Trivial() {
-			return "", &openFailure{ResultInvalidState, ReasonOpenTrivialNoSpec,
-				fmt.Sprintf("change %d is trivial — it has no spec", int(c.ID()))}
-		}
 		field = c.Spec()
 	case "plan":
 		field = c.Plan()

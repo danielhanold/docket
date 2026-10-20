@@ -11,7 +11,7 @@ import (
 )
 
 // groomableChange renders a canonical proposed change record eligible for
-// grooming: proposed status, empty spec, trivial false, every relationship
+// grooming: proposed status, empty spec, an inert legacy trivial: false line, every relationship
 // field present and empty, the empty docket:artifacts block, and the four
 // authored proposal sections (including ## Open questions, so its removal is
 // observable).
@@ -256,7 +256,6 @@ func TestChangeGroomPlanRefusesNonGroomable(t *testing.T) {
 		mutate func(string) string
 	}{
 		{"already has spec", func(s string) string { return strings.Replace(s, "spec:\n", "spec: 'docs/x.md'\n", 1) }},
-		{"already trivial", func(s string) string { return strings.Replace(s, "trivial: false", "trivial: true", 1) }},
 		{"not proposed", func(s string) string {
 			return strings.Replace(s, "status: proposed\n", "status: blocked\nblocked_by: 'waiting on infra'\n", 1)
 		}},
@@ -356,8 +355,9 @@ func revisableChange(id int, slug, specPath string) string {
 	return strings.Replace(groomableChange(id, slug), "spec:\n", "spec: '"+specPath+"'\n", 1)
 }
 
-// trivialChange renders a proposed change already groomed by trivial verdict.
-func trivialChange(id int, slug string) string {
+// legacyTrivialChange renders a record carrying a legacy trivial: true line and
+// no spec — a stub.
+func legacyTrivialChange(id int, slug string) string {
 	return strings.Replace(groomableChange(id, slug), "trivial: false", "trivial: true", 1)
 }
 
@@ -628,8 +628,8 @@ func TestChangeGroomPlanReviseSectionsOnly(t *testing.T) {
 	if !strings.Contains(rec, "spec: '"+reviseSpecPath+"'") {
 		t.Errorf("spec field changed under revise:\n%s", rec)
 	}
-	if !strings.Contains(rec, "trivial: false") {
-		t.Errorf("trivial field changed under revise:\n%s", rec)
+	if !strings.Contains(rec, "\ntrivial: false\n") {
+		t.Errorf("inert legacy trivial: false line not left byte-identical under revise:\n%s", rec)
 	}
 	// A sections-only revise replaced no spec body, so its receipt names none.
 	assertGroomReceiptSpecPath(t, plan, "")
@@ -676,8 +676,11 @@ func TestChangeGroomPlanReviseSpecBodyOnly(t *testing.T) {
 	if !strings.Contains(rec, "updated: '2026-08-16'") {
 		t.Errorf("updated not stamped:\n%s", rec)
 	}
-	if !strings.Contains(rec, "spec: '"+reviseSpecPath+"'") || !strings.Contains(rec, "trivial: false") {
-		t.Errorf("groomed-outcome fields changed under a spec-only revise:\n%s", rec)
+	if !strings.Contains(rec, "spec: '"+reviseSpecPath+"'") {
+		t.Errorf("spec field changed under a spec-only revise:\n%s", rec)
+	}
+	if !strings.Contains(rec, "\ntrivial: false\n") {
+		t.Errorf("inert legacy trivial: false line not left byte-identical under a spec-only revise:\n%s", rec)
 	}
 	// The receipt names the existing linked spec path the revise replaced.
 	assertGroomReceiptSpecPath(t, plan, reviseSpecPath)
@@ -695,28 +698,55 @@ func TestChangeGroomPlanReviseBoth(t *testing.T) {
 	})
 }
 
-func TestChangeGroomPlanReviseTrivialRationale(t *testing.T) {
-	// Spec item 4: sections-only revise of a trivial-verdicted change.
-	files := map[string]string{
-		groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget"),
+// TestChangeGroomPlanLegacyTrivialRecordGroomsAsStub pins that a legacy
+// record carrying trivial: true and no spec is an ordinary stub: (a) the spec
+// outcome grooms it, and (b) a sections-only revise edits it, and both leave the
+// legacy trivial: true line byte-identical (it is inert data no writer touches).
+func TestChangeGroomPlanLegacyTrivialRecordGroomsAsStub(t *testing.T) {
+	const legacyLine = "\ntrivial: true\n"
+	assertLegacyLine := func(t *testing.T, rec string) {
+		t.Helper()
+		if n := strings.Count(rec, legacyLine); n != 1 || strings.Contains(rec, "trivial: false") {
+			t.Errorf("legacy trivial: true line not byte-identical (count %d):\n%s", n, rec)
+		}
 	}
-	req := validReviseRequest()
-	// A trivial change links no spec, so there is no spec file to pin.
-	req.SpecMarkdown, req.SpecRevision = "", ""
-	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
-	if opRes.Refused {
-		t.Fatalf("unexpected refusal: %v", opRes.Findings)
-	}
-	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
-		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+
+	t.Run("spec outcome", func(t *testing.T) {
+		files := map[string]string{groomPath(2, "add-a-widget"): legacyTrivialChange(2, "add-a-widget")}
+		plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, validGroomSpecRequest()))
+		if opRes.Refused {
+			t.Fatalf("spec outcome refused a legacy trivial record: %v", opRes.Findings)
+		}
+		specPath := "docs/superpowers/specs/2026-08-16-add-a-widget-design.md"
+		assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+			groomPath(2, "add-a-widget"): transaction.MutationReplace,
+			specPath:                     transaction.MutationCreate,
+		})
+		rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+		if !strings.Contains(rec, "\nspec: '"+specPath+"'\n") {
+			t.Errorf("spec: not written:\n%s", rec)
+		}
+		assertLegacyLine(t, rec)
 	})
-	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
-	if !strings.Contains(rec, "trivial: true") {
-		t.Errorf("trivial verdict lost under revise:\n%s", rec)
-	}
-	if strings.Contains(rec, "spec: '") {
-		t.Errorf("revise of a trivial change wrote a spec link:\n%s", rec)
-	}
+
+	t.Run("sections-only revise", func(t *testing.T) {
+		files := map[string]string{groomPath(2, "add-a-widget"): legacyTrivialChange(2, "add-a-widget")}
+		plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, stubSectionReviseRequest()))
+		if opRes.Refused {
+			t.Fatalf("sections-only revise refused a legacy trivial record: %v", opRes.Findings)
+		}
+		assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+			groomPath(2, "add-a-widget"): transaction.MutationReplace,
+		})
+		rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+		if !strings.Contains(rec, "Sharpened why.") {
+			t.Errorf("## Why section not replaced:\n%s", rec)
+		}
+		if !strings.Contains(rec, "\nspec:\n") {
+			t.Errorf("revise of a legacy trivial record wrote a spec link:\n%s", rec)
+		}
+		assertLegacyLine(t, rec)
+	})
 }
 
 func TestChangeGroomPlanReviseRefusals(t *testing.T) {
@@ -726,9 +756,9 @@ func TestChangeGroomPlanReviseRefusals(t *testing.T) {
 		mut   func(*ChangeGroomRequest)
 		code  string
 	}{
-		// Spec item 5: spec_markdown against a trivial-only (no-spec) change.
+		// Spec item 5: spec_markdown against a legacy trivial (no-spec) record.
 		{"spec-not-linked", map[string]string{
-			groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget"),
+			groomPath(2, "add-a-widget"): legacyTrivialChange(2, "add-a-widget"),
 		}, func(r *ChangeGroomRequest) {}, "spec-not-linked"},
 		// A needs-grooming stub is revisable, but it links no spec, so a
 		// spec-body revise of it refuses before any mutation is assembled.
@@ -802,7 +832,7 @@ func stubSectionReviseRequest() ChangeGroomRequest {
 
 // TestChangeGroomPlanReviseNeedsGroomingStub pins that revise edits a
 // needs-grooming stub's owned sections and leaves its groom state alone: no
-// spec: written, trivial: still false, auto_groomable: untouched, a fresh
+// spec: written, the inert trivial: false line untouched, auto_groomable: untouched, a fresh
 // updated:, the artifacts block intact, and the board row still needs-grooming.
 func TestChangeGroomPlanReviseNeedsGroomingStub(t *testing.T) {
 	files := map[string]string{
@@ -824,8 +854,8 @@ func TestChangeGroomPlanReviseNeedsGroomingStub(t *testing.T) {
 	if strings.Contains(rec, "spec: '") {
 		t.Errorf("revise of a stub wrote a spec link:\n%s", rec)
 	}
-	if !strings.Contains(rec, "trivial: false") || strings.Contains(rec, "trivial: true") {
-		t.Errorf("revise of a stub changed trivial:\n%s", rec)
+	if !strings.Contains(rec, "\ntrivial: false\n") || strings.Contains(rec, "trivial: true") {
+		t.Errorf("revise of a stub did not leave the inert trivial: false line byte-identical:\n%s", rec)
 	}
 	if !strings.Contains(rec, "auto_groomable: false") || strings.Contains(rec, "auto_groomable: true") {
 		t.Errorf("revise of a stub changed auto_groomable:\n%s", rec)
@@ -931,7 +961,7 @@ func TestChangeGroomPlanReviseAbstainedStubKeepsMarker(t *testing.T) {
 }
 
 // TestChangeGroomPlanReviseSpecNotLinkedMessage pins the reworded refusal: it
-// covers both a trivial change and a needs-grooming stub, so it names neither.
+// covers any change that links no spec, so it names no groom state.
 func TestChangeGroomPlanReviseSpecNotLinkedMessage(t *testing.T) {
 	files := map[string]string{groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget")}
 	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, validReviseRequest()))
@@ -1169,7 +1199,8 @@ func TestChangeGroomPlanAbstainSetsFlagSectionAndBoard(t *testing.T) {
 				"updated: '2026-08-16'",
 				"## Auto-groom blocked\n\nRecorded 2026-08-16 (UTC).\n\nThe storage decision needs a human.",
 				"### What to supply",
-				"\nspec:\n", "trivial: false", // groom scalars untouched
+				"\nspec:\n",                          // groom state untouched
+				"\ntrivial: false\n",                 // inert legacy line byte-identical
 				"Original why.", "An open question.", // proposal untouched
 			} {
 				if !strings.Contains(rec, want) {
@@ -1214,7 +1245,6 @@ func TestChangeGroomPlanAbstainRefusesNonGroomable(t *testing.T) {
 		rec  string
 	}{
 		{"spec'd", revisableChange(2, "add-a-widget", reviseSpecPath)},
-		{"trivial", trivialChange(2, "add-a-widget")},
 		{"not proposed", strings.Replace(groomableChange(2, "add-a-widget"), "status: proposed\n", "status: blocked\nblocked_by: 'waiting on infra'\n", 1)},
 	}
 	for _, c := range cases {
@@ -1413,7 +1443,6 @@ func TestChangeGroomPlanReEnableRefusals(t *testing.T) {
 		code  string
 	}{
 		{"nothing to re-enable", map[string]string{groomPath(2, "add-a-widget"): armed}, "nothing-to-re-enable"},
-		{"trivial", map[string]string{groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget")}, "not-groomable"},
 		{"spec'd", reviseFixtureFiles(), "not-groomable"},
 	}
 	for _, c := range cases {
@@ -1695,19 +1724,6 @@ func TestChangeGroomPlanTitleWithSpecBodyRevise(t *testing.T) {
 	if !strings.Contains(spec, "Change 0002 — Renamed widget") || !strings.Contains(spec, "The revised design body.") {
 		t.Errorf("spec lacks the new title or the new body:\n%s", spec)
 	}
-}
-
-// TestChangeGroomPlanTitleOnlyReviseOfTrivialChange pins Review Focus 5: a
-// trivial-verdicted change links no spec, so a retitle writes only the record.
-func TestChangeGroomPlanTitleOnlyReviseOfTrivialChange(t *testing.T) {
-	files := map[string]string{groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget")}
-	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, titleOnlyReviseRequest("Renamed widget")))
-	if opRes.Refused {
-		t.Fatalf("unexpected refusal: %v", opRes.Findings)
-	}
-	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
-		groomPath(2, "add-a-widget"): transaction.MutationReplace,
-	})
 }
 
 // revivedReviseFiles is the revise fixture for a proposed change that still

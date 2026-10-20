@@ -468,7 +468,7 @@ func TestIntegrationChangeAuthoringClaimRefusals(t *testing.T) {
 		},
 		{
 			name:   "not build-ready",
-			files:  map[string]string{recPath: lifecycleChange(3, "widget", "proposed")}, // trivial:false, no spec
+			files:  map[string]string{recPath: lifecycleChange(3, "widget", "proposed")}, // no spec
 			reason: "not-ready-" + string(domain.ReadyNeedsGrooming),
 		},
 		{
