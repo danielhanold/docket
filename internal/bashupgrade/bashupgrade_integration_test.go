@@ -22,6 +22,13 @@ var ownershipRefusals = []string{
 	"metadata-presence-unknown", "docket-dir-foreign",
 }
 
+// TestIntegrationBashUpgradeOwnership requires every saved Bash-made docket branch
+// to be accepted as docket-owned by both ownership checks. repository prepare and
+// repository check decide ownership with the quick structural check (one
+// parentless root, no history shared with the integration branch); the full proof,
+// which also reads seed receipts and compares the root's contents against the
+// integration history, runs only in repository init and migrate, so the test
+// reaches it through the unauthorized migrate preview.
 func TestIntegrationBashUpgradeOwnership(t *testing.T) {
 	for _, tag := range savedTags(t) {
 		t.Run(tag, func(t *testing.T) {
@@ -49,7 +56,30 @@ func TestIntegrationBashUpgradeOwnership(t *testing.T) {
 				}
 				t.Logf("%s exit %d\nstdout:\n%s\nstderr:\n%s", strings.Join(args, " "), r.Code, r.Stdout, r.Stderr)
 			}
+			assertMigrateAcceptsOwnership(t, c)
 		})
+	}
+}
+
+// assertMigrateAcceptsOwnership runs the unauthorized repository migrate preview on
+// the adopted case. migrate routes through the full ownership proof (receipt and
+// content equivalence), so on an already-migrated Bash case it must report the
+// no-op, never refuse the branch as unverified. The preview writes nothing: it is
+// not authorized, and prepare has already attached the .docket worktree.
+func assertMigrateAcceptsOwnership(t *testing.T, c *upgradeCase) {
+	t.Helper()
+	r := c.run(t, c.Clone, c.Docket, "repository", "migrate", "--json")
+	t.Logf("repository migrate --json exit %d\nstdout:\n%s\nstderr:\n%s", r.Code, r.Stdout, r.Stderr)
+	var doc struct {
+		Result          string `json:"result"`
+		RepositoryState string `json:"repository_state"`
+	}
+	if err := json.Unmarshal([]byte(r.Stdout), &doc); err != nil {
+		t.Fatalf("repository migrate produced no JSON (code %d): %v\nstderr:\n%s", r.Code, err, r.Stderr)
+	}
+	if r.Code != 0 || doc.Result != "no-op" {
+		t.Fatalf("BLOCKED: repository migrate's full ownership proof did not accept the Bash-made docket branch "+
+			"(code %d, result %q, state %q)\nstdout:\n%s\nstderr:\n%s", r.Code, doc.Result, doc.RepositoryState, r.Stdout, r.Stderr)
 	}
 }
 
