@@ -141,6 +141,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0156](0156-a-stack-parent-carries-exactly-the-children-whose-prs-merged.md) — A stack parent carries exactly the children whose PRs merged into it (Accepted) ← change #571 · relates to ADR-0092
 - [ADR-0157](0157-everyday-repository-commands-recognize-the-metadata-branch-b.md) — Everyday repository commands recognize the metadata branch by name and shape (Accepted) ← change #574
 - [ADR-0158](0158-context-implementation-id-serves-the-named-in-progress-chang.md) — context.implementation --id serves the named in-progress change (Accepted) ← change #360 · relates to ADR-0126, ADR-0106
+- [ADR-0159](0159-claim-lease-stamped-only-at-claim-reconcile-and-resume-halte.md) — Claim lease stamped only at claim, reconcile, and resume-halted; refresh-claim deleted (Accepted) ← change #360 · relates to ADR-0158
 
 ## Superseded / Reversed
 
