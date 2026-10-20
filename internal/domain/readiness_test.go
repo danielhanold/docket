@@ -101,7 +101,7 @@ func TestEvaluateReadinessPrecedence(t *testing.T) {
 		},
 		{
 			name:    "a negative id is invalid",
-			specs:   []readySpec{{id: -3, status: StatusProposed, trivial: true}},
+			specs:   []readySpec{{id: -3, status: StatusProposed, spec: specRef("docs/specs/a.md")}},
 			subject: -3,
 			want:    ReadyInvalid,
 		},
@@ -113,7 +113,7 @@ func TestEvaluateReadinessPrecedence(t *testing.T) {
 		},
 		{
 			name:    "a leading-hyphen slug is invalid",
-			specs:   []readySpec{{id: 2, slug: "-leading", status: StatusProposed, trivial: true}},
+			specs:   []readySpec{{id: 2, slug: "-leading", status: StatusProposed, spec: specRef("docs/specs/a.md")}},
 			subject: 2,
 			want:    ReadyInvalid,
 		},
@@ -302,7 +302,7 @@ func TestEvaluateReadinessPrecedence(t *testing.T) {
 // A record with no slug at all cannot be expressed through readySpec, whose
 // empty slug means "use the default", so this case is built directly.
 func TestEvaluateReadinessRejectsAnEmptySlug(t *testing.T) {
-	c := NewChange(ChangeSpec{ID: 2, Status: StatusProposed, Trivial: true})
+	c := NewChange(ChangeSpec{ID: 2, Status: StatusProposed, Spec: specRef("docs/specs/a.md")})
 	s := NewSnapshot(SnapshotSpec{
 		Policy:  RepositoryPolicy{IntegrationBranch: "main"},
 		Changes: []Change{c},
@@ -347,7 +347,7 @@ func TestEvaluateReadinessPopulatesStackBaseWhenConsulted(t *testing.T) {
 		readySpec{id: 1, status: StatusKilled},
 		readySpec{id: 2, status: StatusProposed, spec: specRef("s.md"), parent: parentEdge(1)},
 		readySpec{id: 4, status: StatusInProgress, branch: "feat/four"},
-		readySpec{id: 5, status: StatusProposed, trivial: true, parent: parentEdge(4)},
+		readySpec{id: 5, status: StatusProposed, spec: specRef("docs/specs/a.md"), parent: parentEdge(4)},
 	)
 
 	blocked, _ := s.Change(2)
