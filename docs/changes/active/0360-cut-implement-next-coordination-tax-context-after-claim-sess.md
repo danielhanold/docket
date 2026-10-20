@@ -2,7 +2,7 @@
 id: 360
 slug: 'cut-implement-next-coordination-tax-context-after-claim-sess'
 title: 'Stop implement-next tripping over its own bookkeeping'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'feat'
 created: '2026-08-27'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/cut-implement-next-coordination-tax-context-after-claim-sess'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/441'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-20T21:45:48Z'
@@ -83,3 +83,12 @@ One change (design in the linked spec):
 ### 2026-10-20
 
 Unchanged against main 3f197de6d. The spec was groomed today (2026-10-20) against the current tree; no related change landed since that alters scope, and the effective base is main.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 21d18b60fabf343f5421253646e9d6165c025c72
+ran_at:   2026-10-20T22:25:43Z
+<!-- docket:build-evidence:end -->

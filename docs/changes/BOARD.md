@@ -1,18 +1,18 @@
 # Backlog
 
-**575 changes** — 🟢 1 in progress · 🟡 3 proposed · ⚪ 16 deferred · ✅ 411 done · 🗑️ 144 killed
+**575 changes** — 🔵 1 built · 🟡 3 proposed · ⚪ 16 deferred · ✅ 411 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | `high` | `feat` | [spec](../superpowers/specs/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md) | `feat/cut-implement-next-coordination-tax-context-after-claim-sess` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | `high` | `feat` | [#441](https://github.com/danielhanold/docket/pull/441) | awaiting merge |
 
 ## 🟡 Proposed (3)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0575](active/0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | `medium` | `refactor` | ⏳ waiting on #360 — not yet built |
+| [0575](active/0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | `medium` | `refactor` | ⏳ waiting on #360 — needs your merge |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `feat` | needs-grooming |
 
