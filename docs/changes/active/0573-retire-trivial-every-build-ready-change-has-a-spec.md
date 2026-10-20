@@ -61,6 +61,6 @@ Spec written today (2026-10-19); origin/main has moved only by docs/test commits
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: 12bab9846bed769695a786d840b1dc3f95277dd8
-ran_at:   2026-10-20T10:23:24Z
+head_sha: b3732c03ab08aee38c6ce84fdf6a09383cc4d6ee
+ran_at:   2026-10-20T10:39:10Z
 <!-- docket:build-evidence:end -->
