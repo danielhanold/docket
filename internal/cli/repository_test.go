@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -252,8 +253,8 @@ func TestRepositoryPrepareJSONEnvelope(t *testing.T) {
 
 // TestRepositoryPrepareHumanSummaryRedacted proves the non-JSON path presents a
 // one-line summary through the result's HumanText and never dumps the full
-// context: neither the origin URL credentials nor the resolved skills map reach
-// human stdout, even when the returned context carries both.
+// context: the origin URL credentials never reach human stdout, even when the
+// returned context carries them.
 func TestRepositoryPrepareHumanSummaryRedacted(t *testing.T) {
 	old := repositoryPrepareRunner
 	repositoryPrepareRunner = func(ctx context.Context, d app.SetupDeps, o app.PrepareOptions) app.OperationResult {
@@ -264,7 +265,6 @@ func TestRepositoryPrepareHumanSummaryRedacted(t *testing.T) {
 			Context: &app.PrepareContext{
 				RepoRoot:  "/repo",
 				OriginURL: "https://user:s3cr3ttoken@github.com/acme/docket.git",
-				Skills:    app.PrepareSkills{Brainstorm: "docket-brainstorm-secret", Plan: "docket-plan", Build: "docket-build"},
 			},
 		}
 	}
@@ -280,8 +280,58 @@ func TestRepositoryPrepareHumanSummaryRedacted(t *testing.T) {
 	if strings.Contains(out, "s3cr3ttoken") {
 		t.Errorf("human output leaked origin URL credentials: %q", out)
 	}
-	if strings.Contains(out, "docket-brainstorm-secret") {
-		t.Errorf("human output dumped the resolved skills map: %q", out)
+}
+
+// TestRepositoryPrepareJSONHasNoSkillsKey proves the prepare context carries no
+// `skills` key — neither in the emitted JSON nor in the published schema — while
+// sibling keys decoded through the same path are present (non-vacuity).
+func TestRepositoryPrepareJSONHasNoSkillsKey(t *testing.T) {
+	old := repositoryPrepareRunner
+	repositoryPrepareRunner = func(ctx context.Context, d app.SetupDeps, o app.PrepareOptions) app.OperationResult {
+		return app.RepositoryPrepareResult{
+			Envelope:        app.NewEnvelope(app.OperationRepositoryPrepare, app.ResultApplied),
+			Disposition:     app.PrepareDispositionApplied,
+			RepositoryState: "healthy",
+			Context:         &app.PrepareContext{RepoRoot: "/repo"},
+		}
+	}
+	defer func() { repositoryPrepareRunner = old }()
+
+	out, _, code := runCLI(t, "repository", "prepare", "--json")
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	var doc struct {
+		Context map[string]json.RawMessage `json:"context"`
+	}
+	if err := json.Unmarshal([]byte(out), &doc); err != nil {
+		t.Fatalf("decode prepare JSON: %v\n%s", err, out)
+	}
+	if _, ok := doc.Context["repo_root"]; !ok {
+		t.Fatalf("context is missing repo_root (vacuous decode?): %s", out)
+	}
+	if _, ok := doc.Context["skills"]; ok {
+		t.Errorf("context still carries the dead skills key: %s", out)
+	}
+
+	sch, ok, err := app.SchemaFor("repository.prepare", []string{"read"})
+	if err != nil || !ok || len(sch.Operations) != 1 {
+		t.Fatalf("SchemaFor(repository.prepare): ok=%v err=%v", ok, err)
+	}
+	keys := map[string]bool{}
+	var walk func([]app.FieldDescriptor)
+	walk = func(fs []app.FieldDescriptor) {
+		for _, f := range fs {
+			keys[f.Key] = true
+			walk(f.Fields)
+		}
+	}
+	walk(sch.Operations[0].Result.Fields)
+	if !keys["metadata_worktree_path"] {
+		t.Fatalf("schema is missing metadata_worktree_path (vacuous walk?): %v", keys)
+	}
+	if keys["skills"] {
+		t.Errorf("schema still publishes a skills field for repository.prepare")
 	}
 }
 
