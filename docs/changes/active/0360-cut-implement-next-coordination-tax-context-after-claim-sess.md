@@ -22,7 +22,7 @@ branch: 'feat/cut-implement-next-coordination-tax-context-after-claim-sess'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-20T21:34:21Z'
+claimed_at: '2026-10-20T21:34:42Z'
 ---
 
 ## Artifacts
