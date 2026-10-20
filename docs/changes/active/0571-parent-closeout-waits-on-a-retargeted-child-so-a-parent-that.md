@@ -15,7 +15,7 @@ discovered_from: [567]
 adrs: [92, 156]
 spec: 'docs/superpowers/specs/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-design.md'
 plan: 'docs/superpowers/plans/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md'
-results:
+results: 'docs/results/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -33,6 +33,7 @@ claimed_at: '2026-10-20T02:23:06Z'
 |---|---|
 | Spec | [2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-design.md](../../superpowers/specs/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-design.md) |
 | Plan | [2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md](../../superpowers/plans/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md) |
+| Results | [2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-results.md](../../results/2026-10-20-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that-results.md) |
 | ADRs | [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0156](../../adrs/0156-a-stack-parent-carries-exactly-the-children-whose-prs-merged.md) |
 <!-- docket:artifacts:end -->
 
