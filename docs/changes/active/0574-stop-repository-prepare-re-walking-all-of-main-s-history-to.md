@@ -22,8 +22,8 @@ branch_prefix:
 branch: 'fix/stop-repository-prepare-re-walking-all-of-main-s-history-to'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-20T17:55:52Z'
+reconciled: true
+claimed_at: '2026-10-20T17:56:49Z'
 ---
 
 ## Artifacts
@@ -53,3 +53,9 @@ Acceptance: `docket repository prepare` on this repository takes seconds, not a 
 ## Out of scope
 
 Retiring `repository migrate` or the old single-branch layout support; it is unrelated to the ownership check. Any change to `repository init` or `repository migrate`. Speeding up the full content proof, for example by batching its git calls. Caching or storing a proof. The seed receipt format. The coordination cost inside implement-next runs, which change 360 covers.
+
+## Reconcile log
+
+### 2026-10-20
+
+Re-traced against main c58321f27: `verifyMetadataOwnership` still has the five call sites the spec names (prepare, check augment, migrate x2, init); related #360 still proposed, #378 done. No drift; scope unchanged.
