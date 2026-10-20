@@ -70,7 +70,7 @@ TDD discipline (the build owns its own mechanics), and anything the green suite 
 
 ## Results-artifact mode
 
-When the payload carries a spec body (or a trivial change's body) and a results artifact's text
+When the payload carries a spec body and a results artifact's text
 instead of a branch and an evidence record, the change delivers findings, not code. Skip evidence
 verification and the branch diff, and check that:
 

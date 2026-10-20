@@ -286,19 +286,25 @@ var proseContracts = []proseContract{
 	{sentinel: "change_0410_implement_next_results", file: "skills/docket-implement-next/SKILL.md",
 		present: []string{
 			"Step 6.5 — Results (required)",
-			"required for every change, trivial included",
+			"required for every implemented change",
 			"never commit or move HEAD beneath a live gate, a running worker, or a transferred drive",
 		},
-		absent: []string{"Results close-out (optional)"}},
+		absent: []string{"Results close-out (optional)", "trivial included"}},
 	// change 0410 — the convention now describes results as a REQUIRED close-out
 	// artifact in both the directory-map row and the lifecycle paragraph. (The
 	// existing frozen-records row above — sentinel test_results_artifact — is left
 	// untouched and still pins "Closed-out plans and results are frozen build records.")
 	{sentinel: "change_0410_convention_results", file: "skills/docket-convention/SKILL.md",
 		present: []string{
-			"required close-out artifacts (one per implemented change, trivial included)",
-			"required close-out artifact for every implemented change, trivial included.",
-		}},
+			"required close-out artifacts (one per implemented change)",
+			"required close-out artifact for every implemented change.",
+		},
+		absent: []string{"trivial included"}},
+	// change 0573 — build-readiness is a spec plus satisfied dependencies; the
+	// convention no longer names a trivial flag anywhere.
+	{sentinel: "change_0573_convention_spec_required", file: "skills/docket-convention/SKILL.md",
+		present: []string{"has a `spec:`, and all `depends_on` are satisfied"},
+		absent:  []string{"trivial: true", "trivial:"}},
 	// change 0410 — docket-build's end-of-build capture ownership: the controller
 	// may checkpoint on the coordinator's behalf, but task workers never write the
 	// results file and a checkpoint never independently launches tests (each an
