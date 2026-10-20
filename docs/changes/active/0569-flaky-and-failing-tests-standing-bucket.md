@@ -2,7 +2,7 @@
 id: 569
 slug: 'flaky-and-failing-tests-standing-bucket'
 title: 'Fix the flaky run-cancel worktree test'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'chore'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/flaky-and-failing-tests-standing-bucket'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/438'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-20T10:51:48Z'
@@ -56,3 +56,12 @@ Changing cancel, census, or launch-claim behavior. Any other flaky test (a later
 ### 2026-10-20
 
 2026-10-20: Re-traced against main 731b8edd9. The spec still holds: Driver.launchScopeless still runs Launch, attachLaunch, then claim.close(); the test still cancels right after awaitRunPhase("running"); the only other running-phase caller (the vanished case of TestIntegrationRunCancelSignaledOrVanishedSupervisorIsCancelled) still waits on awaitStart before cancelling. No scope change.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: b5e6d4883fb2370c460445d57f762c49a357a57f
+ran_at:   2026-10-20T11:04:18Z
+<!-- docket:build-evidence:end -->
