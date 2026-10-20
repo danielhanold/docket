@@ -1,0 +1,168 @@
+package exportcheck
+
+import (
+	"reflect"
+	"strings"
+	"testing"
+)
+
+// knownIDs reports the ids the crafted inputs treat as real changes.
+func knownIDs(ids ...int) func(int) bool {
+	set := map[int]bool{}
+	for _, id := range ids {
+		set[id] = true
+	}
+	return func(id int) bool { return set[id] }
+}
+
+var known = knownIDs(559, 113, 120, 547, 88, 282)
+
+type lineRule struct {
+	Line int
+	Rule string
+}
+
+func lineRules(r Report) []lineRule {
+	var out []lineRule
+	for _, l := range r.Leftovers {
+		out = append(out, lineRule{l.Line, l.Rule})
+	}
+	return out
+}
+
+func TestCheckFindsEachLeftoverKind(t *testing.T) {
+	cases := []struct {
+		name string
+		md   string
+		want []lineRule
+	}{
+		{"marker docket", "# T\n\n<!-- docket:artifacts:start -->\n", []lineRule{{3, RuleMarker}}},
+		{"marker dckt", "# T\n\ntext <!-- dckt:backlink:end --> more\n", []lineRule{{3, RuleMarker}}},
+		{"frontmatter", "---\nid: 1\n---\n# T\n", []lineRule{{1, RuleFrontmatter}}},
+		{"banner", "# T\n\n> ↩ **Back**\n", []lineRule{{3, RuleBanner}}},
+		{"inline link", "# T\n\nsee [docs](https://x)\n", []lineRule{{3, RuleLink}}},
+		{"image", "# T\n\n![alt](p.png)\n", []lineRule{{3, RuleLink}}},
+		{"autolink", "# T\n\nsee <https://go.dev/x>\n", []lineRule{{3, RuleLink}}},
+		{"reference link", "# T\n\nsee [text][ref]\n", []lineRule{{3, RuleLink}}},
+		{"collapsed reference link", "# T\n\nsee [text][]\n", []lineRule{{3, RuleLink}}},
+		{"link definition", "# T\n\n[ref]: https://x\n", []lineRule{{3, RuleLink}}},
+		{"html anchor", "# T\n\nsee <a href=\"x\">t</a>\n", []lineRule{{3, RuleLink}}},
+		{"word form", "# T\n\nfrom change 559 on\n", []lineRule{{3, RuleChangeRef}}},
+		{"word form hash", "# T\n\nChange #547 holds\n", []lineRule{{3, RuleChangeRef}}},
+		{"word form list", "# T\n\nchanges 9999, 4444 and 0120\n", []lineRule{{3, RuleChangeRef}}},
+		{"padded hash", "# T\n\nsee #0559 now\n", []lineRule{{3, RuleChangeRef}}},
+		{"padded paren", "# T\n\nfields (0113)\n", []lineRule{{3, RuleChangeRef}}},
+		{"padded bare", "# T\n\nmirroring 0088\n", []lineRule{{3, RuleChangeRef}}},
+		{"padded possessive", "# T\n\n0282's rule.\n", []lineRule{{3, RuleChangeRef}}},
+		{"padded sentence end", "# T\n\nas in 0559.\n", []lineRule{{3, RuleChangeRef}}},
+		{"stamp groomed", "# T\n\nChange #561, groomed 2026-10-20.\n", []lineRule{{3, RuleStamp}}},
+		{"stamp groomed dot", "# T\n\nChange 9373. Groomed 2026-09-02 (interactive). Rest\n", []lineRule{{3, RuleStamp}}},
+		{"stamp change only", "# T\n\nChange 9561.\n", []lineRule{{3, RuleStamp}}},
+		{"stamp bold", "# T\n\n**Change:** 9003 · **Type:** feat\n", []lineRule{{3, RuleStamp}}},
+		{"heading", "# T\n\n## A\n\n#### B\n", []lineRule{{5, RuleHeading}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := lineRules(Check([]byte(tc.md), known))
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("Check(%q) leftovers = %v, want %v", tc.md, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCheckLeftoverCarriesText(t *testing.T) {
+	r := Check([]byte("# T\n\nsee [docs](https://x) here\n"), known)
+	if len(r.Leftovers) != 1 || !strings.Contains(r.Leftovers[0].Text, "[docs](") {
+		t.Fatalf("leftover text = %+v, want the matched link text", r.Leftovers)
+	}
+}
+
+func TestCheckKeepsWhatTheExportKeeps(t *testing.T) {
+	md := strings.Join([]string{
+		"# Title",
+		"",
+		"Bare #559 and PR #12 and PR #0559 stay.",
+		"ADR-0147, ADR 0559, and ADR-0065's rule stay.",
+		"An unknown change 9999 and changes 9998 and 9997 stay.",
+		"A bare https://go.dev/x URL stays, and a 0559-export.md file, docs/0559, 0559.md too.",
+		"A converted \"Close a change to done without a PR\" title stays.",
+		"Code: `<!-- docket:x:start -->`, `[a](b)`, `change 559`, ``a ` [x](y) ``, `#0559`, `↩`.",
+		"",
+		"## Section",
+		"",
+		"```md",
+		"---",
+		"<!-- dckt:backlink:start -->",
+		"> ↩ back",
+		"[a](b) ![c](d) <https://x> [r]: u <a href=\"x\">t</a>",
+		"change 559, #0559, (0113), mirroring 0088",
+		"# H1 in code",
+		"#### skipped in code",
+		"```",
+		"",
+		"~~~~",
+		"Change #561, groomed 2026-10-20.",
+		"```",
+		"still code",
+		"~~~~",
+		"",
+		"Tail.",
+	}, "\n") + "\n"
+	r := Check([]byte(md), known)
+	if len(r.Leftovers) != 0 {
+		t.Fatalf("Check flagged what the export keeps on purpose: %+v", r.Leftovers)
+	}
+}
+
+func TestCheckStampOnlyBeforeFirstH2(t *testing.T) {
+	r := Check([]byte("# T\n\n## Why\n\nChange 9561.\n"), known)
+	if len(r.Leftovers) != 0 {
+		t.Fatalf("a stamp shape after the first H2 is prose: %+v", r.Leftovers)
+	}
+}
+
+func TestCheckFrontmatterOnlyOnFirstLine(t *testing.T) {
+	r := Check([]byte("# T\n\n---\n\ntext\n"), known)
+	if len(r.Leftovers) != 0 {
+		t.Fatalf("a thematic break below the top is not frontmatter: %+v", r.Leftovers)
+	}
+}
+
+func TestCheckMentions(t *testing.T) {
+	md := "# T\n" +
+		"docket keeps this\n" +
+		"\n" +
+		"```\n" +
+		"run DCKT now\n" +
+		"```\n" +
+		"Docketed is not the word\n"
+	got := Check([]byte(md), known).Mentions
+	want := Mentions{Count: 2, Lines: []int{2, 5}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Mentions = %+v, want %+v", got, want)
+	}
+}
+
+func TestCheckHeadingRules(t *testing.T) {
+	cases := []struct {
+		name string
+		md   string
+		want []lineRule
+	}{
+		{"two H1s", "# A\n\ntext\n\n# B\n", []lineRule{{5, RuleHeading}}},
+		{"H2 before the H1", "## Pre\n\n# A\n", []lineRule{{3, RuleHeading}}},
+		{"skipped level", "# A\n\n## B\n\n#### C\n", []lineRule{{5, RuleHeading}}},
+		{"no H1", "## A\n\ntext\n", []lineRule{{1, RuleHeading}}},
+		{"no heading at all", "text\n", []lineRule{{1, RuleHeading}}},
+		{"clean", "# A\n\n## B\n\n### C\n\n## D\n", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := lineRules(Check([]byte(tc.md), known))
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("Check(%q) = %v, want %v", tc.md, got, tc.want)
+			}
+		})
+	}
+}
