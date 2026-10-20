@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/cut-implement-next-coordination-tax-context-after-claim-sess'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-20T21:34:00Z'
+reconciled: true
+claimed_at: '2026-10-20T21:34:21Z'
 ---
 
 ## Artifacts
@@ -76,3 +76,8 @@ One change (design in the linked spec):
 - Auto-detecting non-pytest Python test scripts (`configure-tests --command` covers it).
 - Anything already fixed by #448, #374, #489, #517, #530, #399, #520, #521, or #502.
 
+## Reconcile log
+
+### 2026-10-20
+
+Unchanged against main 3f197de6d. The spec was groomed today (2026-10-20) against the current tree; no related change landed since that alters scope, and the effective base is main.
