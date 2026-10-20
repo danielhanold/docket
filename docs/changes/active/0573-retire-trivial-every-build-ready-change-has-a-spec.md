@@ -24,7 +24,7 @@ branch: 'refactor/retire-trivial-every-build-ready-change-has-a-spec'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-19T23:48:51Z'
+claimed_at: '2026-10-20T00:02:25Z'
 ---
 
 ## Artifacts
