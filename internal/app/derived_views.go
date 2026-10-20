@@ -150,7 +150,7 @@ func renderCanonicalADRIndex(snap domain.Snapshot, unrenderable []render.BoardUn
 // kill, lifecycle, mark-implemented, reclaim, relink, closeout) always render a
 // board that differs from the committed one, so the board is always declared —
 // as a create when BOARD.md is absent, a replace otherwise. Operations whose
-// edits are NOT board-visible (attach, claim refresh, reconcile, clear-block via
+// edits are NOT board-visible (attach, reconcile, clear-block via
 // planInlineBoard) can render a board byte-identical to the committed one; the
 // transaction engine's verify-delta refuses a declared path that is not an
 // actual change ("a declared path is not an actual change"), so those must skip

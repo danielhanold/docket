@@ -527,17 +527,17 @@ docket finalize cleanup --id 412
 ### Claim / claim lease / reclaim
 
 A **claim** is the moment a change is picked up for building; it records which branch will carry
-the work and when it was taken. The **claim lease** is a timestamp on a claim (`claimed_at:`);
-when it expires with no branch behind it, the change goes back to the queue. **Reclaim** is that
+the work and when it was taken. The **claim lease** is a timestamp on a claim (`claimed_at:`),
+stamped at claim and re-stamped at reconcile and resume-halted; when it expires with no branch
+behind it, the change goes back to the queue. **Reclaim** is that
 return trip (`in-progress → proposed`), logged in `## Reclaim log`.
 
 **Used for:** making sure an abandoned build never holds a change forever. A claim that already
 has a feature branch or a workspace (real work) is never reclaimed. Grooming never takes a claim.
 
 ```sh
-docket change claim         --id 412 --revision <v>
-docket change refresh-claim --id 412 --revision <v>   # extend the lease at a phase boundary
-docket change reclaim       --id 412 --revision <v>   # refuses with lease-not-expired if still live
+docket change claim   --id 412 --revision <v>
+docket change reclaim --id 412 --revision <v>   # refuses with lease-not-expired if still live
 ```
 
 Config: `reclaim.lease_ttl` (hours) and `reclaim.auto`.
@@ -2124,7 +2124,7 @@ below.
 |---|---|---|
 | `block_dispositions` | `recorded` `already-recorded` `cleared` `nothing-to-clear` `unknown` `contended` `refused` `failed` | `finalize block`, `finalize clear-block` |
 | `cancel_dispositions` | `cancelled` `already-cancelled` `cancellation-pending` `refused` | `run cancel` |
-| `claim_dispositions` | `applied` `already-claimed` `contended` `failed` `run-context-invalid` `run-context-conflict` | `change claim`, `change refresh-claim` |
+| `claim_dispositions` | `applied` `already-claimed` `contended` `failed` `run-context-invalid` `run-context-conflict` | `change claim` |
 | `cleanup_dispositions` | `cleaned` `already-clean` `pending` `retained` `children-retarget-required` `rebase-scratch-cleared` | `finalize cleanup`, `gate cleanup` |
 | `closeout_dispositions` | `done-archived` `stacked-merged` `root-archived` `already-closed-out` `contended` `blocked` `unknown` `failed` | `finalize closeout` |
 | `complete_dispositions` | `completed` `already-completed` `contended` `failed` | `change complete` |

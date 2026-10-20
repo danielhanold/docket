@@ -40,12 +40,10 @@ func buildReadyChange(id int, slug string) string {
 
 // --- attach-plan lands change record + board in ONE metadata commit ----------
 
-// --- 0335: refresh-claim succeeds when the re-rendered board is unchanged ---
-
-// planningDepsForClock is planningDepsFor with an explicit clock, so a refresh
-// run can happen at a later wall time than the claim that preceded it against the
-// same origin — the record's claimed_at/updated then genuinely change while the
-// inline board (which shows none of those fields) re-renders byte-identical.
+// planningDepsForClock is planningDepsFor with an explicit clock, so a
+// reconcile can run at a later wall time than the claim that preceded it against
+// the same origin — the record's claimed_at/updated then genuinely change while
+// the inline board (which shows none of those fields) re-renders byte-identical.
 func planningDepsForClock(t *testing.T, dir string, clock transaction.Clock) realNode {
 	t.Helper()
 	client := newGitClient(t)

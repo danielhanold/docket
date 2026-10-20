@@ -61,7 +61,6 @@ var operationBindings = []OperationBinding{
 	{ID: "change.mark-implemented", Request: nil, Result: ChangeLifecycleResult{}},                         // ChangeMarkImplemented
 	{ID: "change.reclaim", Request: nil, Result: ChangeReclaimResult{}},                                    // ChangeReclaim
 	{ID: "change.reconcile", Request: ChangeReconcileRequest{}, Result: ChangeReconcileResult{}},           // ChangeReconcile
-	{ID: "change.refresh-claim", Request: nil, Result: ChangeClaimResult{}},                                // ChangeRefreshClaim
 	{ID: "change.relink", Request: nil, Result: RelinkResult{}},                                            // Relink
 	{ID: "change.resume-halted", Request: nil, Result: HaltResult{}},                                       // ChangeResumeHalted
 	{ID: "change.revive", Request: ChangeReviveRequest{}, Result: ChangeLifecycleResult{}},                 // ChangeRevive

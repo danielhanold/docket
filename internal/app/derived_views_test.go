@@ -189,7 +189,7 @@ func TestIncludeBoardReplacesWhenBoardPresentAndDiffers(t *testing.T) {
 
 // TestIncludeBoardSkipsWhenByteIdentical proves the declare-only-when-changed
 // shape: when the committed board already equals the canonical render (the
-// not-board-visible mutations: attach, claim refresh, reconcile, clear-block),
+// not-board-visible mutations: attach, reconcile, clear-block),
 // no board mutation is declared, so the engine's verify-delta does not refuse.
 func TestIncludeBoardSkipsWhenByteIdentical(t *testing.T) {
 	snap, boardPath, _, want := derivedViewsSnapshot(t)

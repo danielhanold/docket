@@ -239,7 +239,7 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 		t.Fatalf("baseline verdict = %q, want %q", got, want)
 	}
 
-	// Refresh id 3's claimed_at and priority (a real refresh-claim / groom edit
+	// Refresh id 3's claimed_at and priority (a real reconcile / groom edit
 	// leaves the change complete), and add two sibling in-progress claims — exactly
 	// the churn the pre-0407 before-set/run inference keyed on.
 	refreshed := string(evidenced)

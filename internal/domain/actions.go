@@ -171,7 +171,8 @@ func Claim(c Change, now time.Time) (ActionResult, *PolicyFailure) {
 }
 
 // RefreshClaim re-stamps an in-progress change's lease without changing any
-// other field.
+// other field. Its callers are change.reconcile and change.resume-halted; the
+// standalone change.refresh-claim operation was deleted (change 0360).
 func RefreshClaim(c Change, now time.Time) (ActionResult, *PolicyFailure) {
 	if fail := requireStatus(c, "refresh-claim", StatusInProgress); fail != nil {
 		return ActionResult{}, fail
