@@ -496,55 +496,74 @@ func afterPR(s string, at int) bool {
 	return i >= 0 && s[i:at] == "PR " && (i == 0 || !isWord(s[i-1]))
 }
 
-// isStamp reports a grooming change stamp: "Change N, groomed YYYY-MM-DD…",
-// "Change N. Groomed YYYY-MM-DD…", a line that is only "Change N.", or a line
-// opening with a bold "**Change:** N" field.
+// isStamp reports a grooming change stamp by its shape, not by a list of
+// spellings: a "Change:" or "**Change:**" label whatever follows it, opening
+// the line or a "·"-separated field of it; or a line opening with "Change" and
+// a quoted converted title, or with "Change", an optional "[" and "#", and a
+// number that ends the stamp: end of line, one of ".,;:]", or a space and then
+// "(", "·", or a dash.
 func isStamp(plain string) bool {
 	s := trimRight(plain)
-	if hasPrefix(s, "**Change:** ") {
-		k := len("**Change:** ")
-		if k < len(s) && s[k] == '#' {
-			k++
+	if changeLabel(s) {
+		return true
+	}
+	for t := s; ; {
+		i := indexOf(t, "·")
+		if i < 0 {
+			break
 		}
-		_, _, ok := numberAt(s, k)
-		return ok
+		t = t[i+len("·"):]
+		for hasPrefix(t, " ") {
+			t = t[1:]
+		}
+		if changeLabel(t) {
+			return true
+		}
+	}
+	if hasPrefix(s, "Change \"") {
+		return true
 	}
 	if !hasPrefix(s, "Change ") {
 		return false
 	}
 	k := len("Change ")
+	if k < len(s) && s[k] == '[' {
+		k++
+	}
 	if k < len(s) && s[k] == '#' {
 		k++
 	}
 	_, end, ok := numberAt(s, k)
-	if !ok || end >= len(s) || (s[end] != ',' && s[end] != '.') {
+	if !ok {
 		return false
 	}
-	rest := s[end+1:]
-	if rest == "" {
-		return s[end] == '.'
+	rest := s[end:]
+	if rest == "" || indexOf(".,;:]", rest[:1]) >= 0 {
+		return true
 	}
-	if !hasPrefix(rest, " groomed ") && !hasPrefix(rest, " Groomed ") {
+	if rest[0] != ' ' {
 		return false
 	}
-	date := rest[len(" groomed "):]
-	return len(date) >= 10 && isDate(date[:10])
+	rest = rest[1:]
+	for _, p := range []string{"(", "·", "—", "–"} {
+		if hasPrefix(rest, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// changeLabel reports s opening with a "Change:" or "**Change:**" label.
+func changeLabel(s string) bool {
+	for _, label := range []string{"**Change:**", "Change:"} {
+		if hasPrefix(s, label) && (len(s) == len(label) || s[len(label)] == ' ' || s[len(label)] == '\t') {
+			return true
+		}
+	}
+	return false
 }
 
 func hasPrefix(s, p string) bool { return len(s) >= len(p) && s[:len(p)] == p }
-
-func isDate(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if i == 4 || i == 7 {
-			if s[i] != '-' {
-				return false
-			}
-		} else if !isDigit(s[i]) {
-			return false
-		}
-	}
-	return true
-}
 
 // headingLevel returns the level of an ATX heading line (up to three spaces of
 // indent, one to six '#', then a space, a tab, or the end), or 0.

@@ -194,15 +194,20 @@ func keepIssueSections(lines []line, title string) []line {
 }
 
 var (
-	// stampSentenceRE is a grooming stamp sentence at the start of a line.
-	stampSentenceRE = regexp.MustCompile(`^Change #?\d+[,.] [Gg]roomed \d{4}-\d{2}-\d{2}(?: \([^)]*\))?\.`)
-	changeOnlyRE    = regexp.MustCompile(`^Change #?\d+\.$`)
-	boldChangeRE    = regexp.MustCompile(`^\*\*Change:\*\* #?\d+$`)
-	boldPairRE      = regexp.MustCompile(`^\*\*[^*]+:\*\* \S.*$`)
+	// stampLabelRE is a labelled stamp head: "Change:" or "**Change:**", then the
+	// change id, which older specs also spell with its slug or as a record path.
+	stampLabelRE = regexp.MustCompile(`^(?:\*\*Change:\*\*|Change:)[ \t]+(?:#?\d+(?:-[\w.-]+)?|[\w./-]*\d[\w./-]*)`)
+	// stampSentenceRE is a sentence stamp head: "Change", then the change id.
+	stampSentenceRE = regexp.MustCompile(`^Change[ \t]+#?\d+`)
+	isoDateRE       = regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}\b`)
+	boldLabelRE     = regexp.MustCompile(`^\*\*[^*]+:\*\*`)
 )
 
-// removeStamps is step 4: before the first H2 of a spec, every shape of the
-// grooming change stamp goes, and the rest of a stamp sentence's line stays.
+// removeStamps is step 4: before the first H2 of a spec, the grooming change
+// stamp goes. A stamp is known by its shape, not by a list of spellings, and is
+// matched on the line with its links stripped, so a linked id is a stamp too.
+// Only the stamp and the metadata after it go; an author sentence that follows
+// stays and continues to step 6.
 func removeStamps(lines []line) []line {
 	var out []line
 	for i, l := range lines {
@@ -213,35 +218,99 @@ func removeStamps(lines []line) []line {
 			out = append(out, l)
 			continue
 		}
-		if loc := stampSentenceRE.FindStringIndex(l.text); loc != nil {
-			l.text = strings.TrimLeft(l.text[loc[1]:], " \t")
-		}
-		if changeOnlyRE.MatchString(l.text) || boldChangeRE.MatchString(l.text) || isBoldChangeRun(l.text) {
-			continue
+		masked, restore := maskCode(l.text)
+		if rest, ok := stripStamp(restore(stripLinks(masked, nil))); ok {
+			if rest == "" {
+				continue
+			}
+			l.text = rest
 		}
 		out = append(out, l)
 	}
 	return out
 }
 
-// isBoldChangeRun reports a "·"-separated run of **Key:** value pairs that
-// includes **Change:**.
-func isBoldChangeRun(text string) bool {
+// stripStamp reports whether text opens with a change stamp and returns what
+// stays of the line once it goes: the stamp head and an id-trailing parenthetical
+// or code span always go; a "·" metadata run (including one whose change field
+// comes later) or a " — title" after the id takes the whole line; after a "."
+// or "," the complete sentences that carry a date or open with a bold "**Key:**"
+// label go, and the first other sentence and everything after it stay. A
+// sentence the line does not finish stays, since its continuation sits on the
+// next line.
+func stripStamp(text string) (string, bool) {
+	var rest string
+	if loc := stampLabelRE.FindStringIndex(text); loc != nil {
+		rest = text[loc[1]:]
+	} else if loc := stampSentenceRE.FindStringIndex(text); loc != nil && stampFollows(text[loc[1]:]) {
+		rest = text[loc[1]:]
+	} else if isChangeFieldRun(text) {
+		return "", true
+	} else {
+		return text, false
+	}
+	rest = skipEnclosed(strings.TrimLeft(rest, " \t"), "(", ")")
+	rest = skipEnclosed(rest, "`", "`")
+	switch {
+	case rest == "" || strings.HasPrefix(rest, "·") || strings.HasPrefix(rest, "—") || strings.HasPrefix(rest, "–"):
+		return "", true
+	case strings.IndexByte(".,;:", rest[0]) >= 0:
+		return dropMetadataSentences(rest[1:]), true
+	}
+	return rest, true
+}
+
+// isChangeFieldRun reports a "·"-separated metadata run whose later field is the
+// change label ("**Date:** … · **Change:** N · …").
+func isChangeFieldRun(text string) bool {
 	parts := strings.Split(text, "·")
-	if len(parts) < 2 {
-		return false
-	}
-	hasChange := false
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if !boldPairRE.MatchString(p) {
-			return false
-		}
-		if strings.HasPrefix(p, "**Change:**") {
-			hasChange = true
+	for _, p := range parts[1:] {
+		if stampLabelRE.MatchString(strings.TrimLeft(p, " \t")) {
+			return true
 		}
 	}
-	return hasChange
+	return false
+}
+
+// stampFollows reports that what follows a sentence head's id ends the stamp
+// ("Change 12." / "Change 12 · …"), rather than continuing a sentence that only
+// opens with a change reference ("Change 12 is …"), which step 6 converts.
+func stampFollows(s string) bool {
+	if s == "" || strings.IndexByte(".,;:", s[0]) >= 0 {
+		return true
+	}
+	t := strings.TrimLeft(s, " \t")
+	return len(t) < len(s) && (t == "" || strings.HasPrefix(t, "(") || strings.HasPrefix(t, "·") ||
+		strings.HasPrefix(t, "—") || strings.HasPrefix(t, "–"))
+}
+
+// skipEnclosed drops a leading open…close run closed on the same line.
+func skipEnclosed(s, open, close string) string {
+	if !strings.HasPrefix(s, open) {
+		return s
+	}
+	if i := strings.Index(s[len(open):], close); i >= 0 {
+		return strings.TrimLeft(s[len(open)+i+len(close):], " \t")
+	}
+	return s
+}
+
+// dropMetadataSentences drops leading complete sentences that carry a date or
+// open with a bold "**Key:**" label, and returns the rest.
+func dropMetadataSentences(s string) string {
+	for {
+		s = strings.TrimLeft(s, " \t")
+		sentence, next := s, ""
+		if i := strings.Index(s, ". "); i >= 0 {
+			sentence, next = s[:i+1], s[i+2:]
+		} else if !strings.HasSuffix(s, ".") {
+			return s
+		}
+		if !isoDateRE.MatchString(sentence) && !boldLabelRE.MatchString(sentence) {
+			return s
+		}
+		s = next
+	}
 }
 
 // inlineSteps runs steps 5 and 6 on every line outside fences: link-reference
