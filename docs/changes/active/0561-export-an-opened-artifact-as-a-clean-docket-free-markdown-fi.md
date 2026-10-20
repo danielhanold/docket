@@ -22,7 +22,7 @@ branch: 'feat/export-an-opened-artifact-as-a-clean-docket-free-markdown-fi'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-20T13:26:20Z'
+claimed_at: '2026-10-20T13:27:53Z'
 ---
 
 ## Artifacts
