@@ -2,7 +2,7 @@
 id: 574
 slug: 'stop-repository-prepare-re-walking-all-of-main-s-history-to'
 title: 'Recognize the docket branch by its shape in the everyday repository commands'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 deliverable: 'pr'
@@ -23,7 +23,7 @@ branch: 'fix/stop-repository-prepare-re-walking-all-of-main-s-history-to'
 pr: 'https://github.com/danielhanold/docket/pull/440'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-20T18:04:43Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -32,6 +32,7 @@ claimed_at: '2026-10-20T18:04:43Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md](../../superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md) |
+| Spec (merged) | [2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-design.md) |
 | Plan | [2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to.md](../../superpowers/plans/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) |
 | Results | [2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-results.md](../../results/2026-10-20-stop-repository-prepare-re-walking-all-of-main-s-history-to-results.md) |
 | ADRs | [ADR-0157](../../adrs/0157-everyday-repository-commands-recognize-the-metadata-branch-b.md) |

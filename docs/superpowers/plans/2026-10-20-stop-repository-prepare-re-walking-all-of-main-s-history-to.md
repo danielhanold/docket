@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0574 — Recognize the docket branch by its shape in the everyday repository commands](../../changes/active/0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md)**
+> ↩ **[Change 0574 — Recognize the docket branch by its shape in the everyday repository commands](../../changes/archive/2026-10-20-0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md)**
 <!-- docket:backlink:end -->
 
 # Recognize the docket branch by its shape in the everyday repository commands Implementation Plan
