@@ -369,10 +369,11 @@ var proseContracts = []proseContract{
 			"## Named invocation's own merged dependencies (Step 0, bounded closeout)",
 			"For **each** id in that set — and never any other change — run one `finalize.closeout` operation",
 			"An unrelated change's closeout is never attempted here",
-			// A stack-base refusal never triggers closeout: closing out an
-			// ancestor while the named change is not yet stacked-merged fails
-			// its carry proof (children-retarget-required), so the only
-			// closeout trigger is the waiting-dependency refusal.
+			// A stack-base refusal never triggers closeout: the bounded
+			// closeout covers only the named change's own depends_on set, and
+			// an unresolved stack base clears through the parent's own
+			// finalize or the next sweep, so the only closeout trigger is the
+			// waiting-dependency refusal.
 			"A `not-ready-stack-base-unresolved` refusal is never a closeout trigger",
 			// The status projection exposes the unmet set as the id list
 			// `unmet_dependencies` (app.StatusChange), never a `depends_on`
