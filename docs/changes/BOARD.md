@@ -1,18 +1,12 @@
 # Backlog
 
-**575 changes** — 🔵 1 built · 🟡 3 proposed · ⚪ 16 deferred · ✅ 411 done · 🗑️ 144 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | `high` | `feat` | [#441](https://github.com/danielhanold/docket/pull/441) | awaiting merge |
+**575 changes** — 🟡 3 proposed · ⚪ 16 deferred · ✅ 412 done · 🗑️ 144 killed
 
 ## 🟡 Proposed (3)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0575](active/0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | `medium` | `refactor` | ⏳ waiting on #360 — needs your merge |
+| [0575](active/0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | `medium` | `refactor` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `feat` | needs-grooming |
 
@@ -49,7 +43,6 @@ graph TD
   0263
   0251 --> 0273
   0302
-  0360
   0409
   0412
   0433
@@ -61,15 +54,17 @@ graph TD
   0360 --> 0575
   0192:::done
   0251:::done
+  0360:::done
   0511:::done
   0544:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (555)</summary>
+<details><summary>✅🗑️ Archive — done + killed (556)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0360](archive/2026-10-21-0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | 2026-10-21 |
 | [0574](archive/2026-10-20-0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) | Recognize the docket branch by its shape in the everyday repository commands | 2026-10-20 |
 | [0573](archive/2026-10-20-0573-retire-trivial-every-build-ready-change-has-a-spec.md) | Retire trivial: every build-ready change has a spec | 2026-10-20 |
 | [0571](archive/2026-10-20-0571-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md) | Close out a landed stack parent without waiting on children that never merged into it | 2026-10-20 |
@@ -84,7 +79,6 @@ graph TD
 | [0563](archive/2026-10-18-0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | 2026-10-18 |
 | [0562](archive/2026-10-18-0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | 2026-10-18 |
 | [0558](archive/2026-10-18-0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Point the budget-report rule in AGENTS.md at tests/README.md instead of listing the lines | 2026-10-18 |
-| [0557](archive/2026-10-18-0557-retire-the-suite-runner-s-unused-strict-budget-mode.md) | Retire the suite runner's unused strict budget mode | 2026-10-18 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
@@ -234,7 +228,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 68 done |
+| [2026-10](archive/) | 69 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

@@ -2,11 +2,11 @@
 id: 360
 slug: 'cut-implement-next-coordination-tax-context-after-claim-sess'
 title: 'Stop implement-next tripping over its own bookkeeping'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'feat'
 created: '2026-08-27'
-updated: '2026-10-20'
+updated: '2026-10-21'
 depends_on: []
 stacked_on:
 related: [315, 357, 313, 335, 324, 247, 294, 399, 549, 448, 530]
@@ -22,7 +22,7 @@ branch: 'feat/cut-implement-next-coordination-tax-context-after-claim-sess'
 pr: 'https://github.com/danielhanold/docket/pull/441'
 blocked_by:
 reconciled: true
-claimed_at: '2026-10-20T21:45:48Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,7 @@ claimed_at: '2026-10-20T21:45:48Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md](../../superpowers/specs/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md) |
+| Spec (merged) | [2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-design.md) |
 | Plan | [2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess.md](../../superpowers/plans/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess.md) |
 | Results | [2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-results.md](../../results/2026-10-20-cut-implement-next-coordination-tax-context-after-claim-sess-results.md) |
 | ADRs | [ADR-0003](../../adrs/0003-convention-reference-loading.md), [ADR-0047](../../adrs/0047-digest-only-read-tier-skips-preflight.md), [ADR-0020](../../adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0066](../../adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0092](../../adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0095](../../adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0129](../../adrs/0129-collision-free-docket-vocabulary.md), [ADR-0126](../../adrs/0126-named-implement-next-skips-unrelated-maintenance-preflight.md), [ADR-0106](../../adrs/0106-implementation-preflight-is-a-deterministic-operation-not-a.md), [ADR-0158](../../adrs/0158-context-implementation-id-serves-the-named-in-progress-chang.md), [ADR-0159](../../adrs/0159-claim-lease-stamped-only-at-claim-reconcile-and-resume-halte.md) |

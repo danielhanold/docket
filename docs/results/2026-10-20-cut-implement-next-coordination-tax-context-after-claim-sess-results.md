@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0360 — Stop implement-next tripping over its own bookkeeping](../changes/active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md)**
+> ↩ **[Change 0360 — Stop implement-next tripping over its own bookkeeping](../changes/archive/2026-10-21-0360-cut-implement-next-coordination-tax-context-after-claim-sess.md)**
 <!-- docket:backlink:end -->
 
 # Stop implement-next tripping over its own bookkeeping — Results
