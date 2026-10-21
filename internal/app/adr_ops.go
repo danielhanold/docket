@@ -454,7 +454,8 @@ func validateADRReferences(relatesTo []int, snap domain.Snapshot) []domain.Findi
 				Severity: domain.SeverityError,
 				Entity:   domain.EntityRef{Kind: domain.EntityADR},
 				Field:    "relates_to",
-				Detail:   map[string]string{"reference": fmt.Sprintf("%d", id)},
+				Related:  []domain.EntityRef{{Kind: domain.EntityADR, ID: id}},
+				Detail:   map[string]string{"lookup": "absent"},
 			})
 		}
 	}

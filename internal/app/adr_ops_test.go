@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 	"strings"
 	"testing"
@@ -184,6 +185,16 @@ func TestADRRecordPlanRefusesDanglingRelatesTo(t *testing.T) {
 	}
 	if !hasDomainFindingCode(opRes.Findings, "adr-dangling-reference") {
 		t.Errorf("missing adr-dangling-reference finding: %v", opRes.Findings)
+	}
+	// The rendered text names the missing ADR, never a placeholder change.
+	for _, f := range opRes.Findings {
+		if f.Code != "adr-dangling-reference" {
+			continue
+		}
+		msg := explainValidation(f, reposetup.RecordLocator{Checkout: ".docket"}).Message
+		if !strings.Contains(msg, "ADR 0999") || strings.Contains(msg, "change 0000") {
+			t.Errorf("dangling relates_to message does not name ADR 0999: %q", msg)
+		}
 	}
 }
 
