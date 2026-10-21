@@ -25,10 +25,10 @@ Invoke the `docket-convention` skill via the Skill tool first — unless already
 
 ### Create
 
-Build the ADR as a JSON request and hand it to the record transaction on stdin:
+Hand the record transaction a JSON request on stdin:
 
 ```
-adr.record  --request -   # resolve argv from the capability catalog
+adr.record  --request - --repo-dir <dir> --json   # resolve argv from the capability catalog
 ```
 
 The request object (`ADRRecordRequest`, decoded with `DisallowUnknownFields` — an unknown key is rejected) carries:
@@ -50,10 +50,10 @@ One validated transaction lands atomically, in a single metadata commit: the nex
 Never edit an `Accepted` ADR's body. To replace a decision, hand the replace transaction a JSON request on stdin:
 
 ```
-adr.supersede  --request -   # resolve argv from the capability catalog
+adr.supersede  --request - --repo-dir <dir> --json   # resolve argv from the capability catalog
 ```
 
-(or the `adr.reverse` operation with `--request -` to reverse rather than supersede). The request object (`ADRReplaceRequest`, `DisallowUnknownFields`) carries:
+(or `adr.reverse`, same flags, to reverse rather than supersede). The request object (`ADRReplaceRequest`, `DisallowUnknownFields`) carries:
 
 - `request_id` — the caller-chosen idempotency key (the outer key governs; the `successor`'s own `request_id` is ignored).
 - `target` — the ADR being replaced, as `{id, path, revision}`. The target must be `Accepted`, else the transaction refuses.
