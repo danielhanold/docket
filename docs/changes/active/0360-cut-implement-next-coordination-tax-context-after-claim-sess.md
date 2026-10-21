@@ -89,6 +89,6 @@ Unchanged against main 3f197de6d. The spec was groomed today (2026-10-20) agains
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: 21d18b60fabf343f5421253646e9d6165c025c72
-ran_at:   2026-10-20T22:25:43Z
+head_sha: 0c987267ac85d4234ced7ea2d8edf0e893614a64
+ran_at:   2026-10-21T00:28:18Z
 <!-- docket:build-evidence:end -->
