@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0575 — Retire claim reclaim and its lease](../changes/active/0575-retire-claim-reclaim-and-its-lease.md)**
+> ↩ **[Change 0575 — Retire claim reclaim and its lease](../changes/archive/2026-10-22-0575-retire-claim-reclaim-and-its-lease.md)**
 <!-- docket:backlink:end -->
 
 # Retire claim reclaim and its lease — Results

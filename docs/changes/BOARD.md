@@ -1,12 +1,6 @@
 # Backlog
 
-**577 changes** — 🔵 1 built · 🟡 4 proposed · ⚪ 16 deferred · ✅ 412 done · 🗑️ 144 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0575](active/0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | `medium` | `refactor` | [#442](https://github.com/danielhanold/docket/pull/442) | awaiting merge |
+**577 changes** — 🟡 4 proposed · ⚪ 16 deferred · ✅ 413 done · 🗑️ 144 killed
 
 ## 🟡 Proposed (4)
 
@@ -58,21 +52,20 @@ graph TD
   0511 --> 0514
   0566
   0572
-  0360 --> 0575
   0576
   0577
   0192:::done
   0251:::done
-  0360:::done
   0511:::done
   0544:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (556)</summary>
+<details><summary>✅🗑️ Archive — done + killed (557)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0575](archive/2026-10-22-0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | 2026-10-22 |
 | [0360](archive/2026-10-21-0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | 2026-10-21 |
 | [0574](archive/2026-10-20-0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) | Recognize the docket branch by its shape in the everyday repository commands | 2026-10-20 |
 | [0573](archive/2026-10-20-0573-retire-trivial-every-build-ready-change-has-a-spec.md) | Retire trivial: every build-ready change has a spec | 2026-10-20 |
@@ -87,7 +80,6 @@ graph TD
 | [0565](archive/2026-10-18-0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | 2026-10-18 |
 | [0563](archive/2026-10-18-0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | 2026-10-18 |
 | [0562](archive/2026-10-18-0562-sweep-retries-deleting-a-leftover-local-branch.md) | Sweep retries deleting a leftover local branch | 2026-10-18 |
-| [0558](archive/2026-10-18-0558-name-the-serial-confirmation-not-counted-budget-line-in-agen.md) | Point the budget-report rule in AGENTS.md at tests/README.md instead of listing the lines | 2026-10-18 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
@@ -237,7 +229,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 69 done |
+| [2026-10](archive/) | 70 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
