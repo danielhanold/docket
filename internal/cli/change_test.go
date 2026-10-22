@@ -208,6 +208,35 @@ func TestChangeRefreshClaimRetired(t *testing.T) {
 	}
 }
 
+// TestChangeReclaimRetired pins the deletion of change.reclaim: no command, no
+// catalog entry, no schema binding — while change.claim stays, so the catalog
+// probe is not vacuous. Stranded-run recovery is resume by id.
+func TestChangeReclaimRetired(t *testing.T) {
+	root := productionRootForTest(t)
+	if c, _, err := root.Find([]string{"change", "reclaim"}); err == nil && c != nil && c.Name() == "reclaim" {
+		t.Fatal("change reclaim is still registered")
+	}
+	entries, err := collectCapabilities(root)
+	if err != nil {
+		t.Fatalf("collectCapabilities: %v", err)
+	}
+	if _, ok := entryByID(entries, "change.reclaim"); ok {
+		t.Fatal("catalog still lists change.reclaim")
+	}
+	if _, ok := entryByID(entries, "change.claim"); !ok {
+		t.Fatal("non-vacuity: change.claim missing from catalog")
+	}
+	if _, ok, _ := app.SchemaFor("change.reclaim", []string{"write"}); ok {
+		t.Fatal("schema registry still binds change.reclaim")
+	}
+	if _, ok, _ := app.SchemaFor("change.claim", []string{"write"}); !ok {
+		t.Fatal("non-vacuity: schema registry lost change.claim")
+	}
+	if _, _, code := runCLI(t, "change", "reclaim", "--id", "1", "--revision", "x", "--json"); code != 2 {
+		t.Fatalf("change reclaim exit = %d, want 2 (unknown command)", code)
+	}
+}
+
 // TestChangeReconcileRegistered proves reconcile is wired as a change subcommand
 // carrying the scalar --input request-file flag (authored Markdown rides in the
 // JSON body, never shell-escaped flags).
@@ -588,53 +617,6 @@ func TestChangeResumeHaltedReachesOperation(t *testing.T) {
 	}
 	if !strings.Contains(out, `"reason":"quiescence-not-acknowledged"`) {
 		t.Fatalf("resume without acknowledgement should refuse: %q", out)
-	}
-	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
-		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
-	}
-}
-
-// --- change reclaim --------------------------------------------------------
-
-// TestChangeReclaimRegistered proves `change reclaim` is wired with the scalar
-// identity flags and is asset-independent.
-func TestChangeReclaimRegistered(t *testing.T) {
-	root := captureTree(t)
-	cmd, _, err := root.Find([]string{"change", "reclaim"})
-	if err != nil || cmd == nil || cmd.Name() != "reclaim" {
-		t.Fatalf("change reclaim not registered: cmd=%v err=%v", cmd, err)
-	}
-	for _, flag := range []string{"id", "revision", "repo-dir"} {
-		if cmd.Flags().Lookup(flag) == nil {
-			t.Errorf("change reclaim: missing --%s flag", flag)
-		}
-	}
-	if !assetIndependent["change reclaim"] {
-		t.Errorf("%q is not registered asset-independent", "change reclaim")
-	}
-}
-
-// TestChangeReclaimFlagsRequired proves --id and --revision are required: omitting
-// them is an argument error (exit 2) before any operation runs.
-func TestChangeReclaimFlagsRequired(t *testing.T) {
-	_, errS, code := runCLI(t, "change", "reclaim")
-	if code != 2 || errS == "" {
-		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
-	}
-}
-
-// TestChangeReclaimReachesOperation proves reclaim decodes its scalar flags and
-// reaches the operation, which returns exactly one protocol-v1 document naming
-// it. A non-repository repo-dir refuses while pinning context, so no live
-// metadata is mutated.
-func TestChangeReclaimReachesOperation(t *testing.T) {
-	out, errS, _ := runCLI(t, "change", "reclaim",
-		"--id", "3", "--revision", "1234123412341234123412341234123412341234", "--repo-dir", testsupport.TempDir(t), "--json")
-	if errS != "" {
-		t.Fatalf("unexpected stderr %q", errS)
-	}
-	if !strings.Contains(out, `"operation":"change.reclaim"`) {
-		t.Fatalf("document did not name the operation: %q", out)
 	}
 	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
 		t.Fatalf("must be exactly one newline-terminated document, got %q", out)

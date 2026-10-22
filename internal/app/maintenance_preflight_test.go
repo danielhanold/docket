@@ -16,7 +16,6 @@ func cleanSweep() MaintenanceResult {
 		Scope: string(SweepScopeImplementation),
 		Entries: []MaintenanceEntry{
 			{ID: 12, Kind: "closeout", Disposition: SweepDispApplied},
-			{ID: 13, Kind: "reclaim", Disposition: SweepDispSkipped, Reason: ReasonSweepReclaimAutoDisabled},
 			{ID: 14, Kind: "closeout", Disposition: SweepDispNoOp},
 		},
 		DeferredHistoricalCleanups: 241,
@@ -40,7 +39,7 @@ func TestPreflightCleanComposesBothHalves(t *testing.T) {
 	if res.Preflight != PreflightClean {
 		t.Fatalf("verdict: %q", res.Preflight)
 	}
-	if len(res.Sweep.Entries) != 3 || len(res.Sweep.ProblemEntries) != 0 || res.Sweep.DeferredHistoricalCleanups != 241 {
+	if len(res.Sweep.Entries) != 2 || len(res.Sweep.ProblemEntries) != 0 || res.Sweep.DeferredHistoricalCleanups != 241 {
 		t.Fatalf("sweep half: %+v", res.Sweep)
 	}
 	if res.Sweep.Scope != string(SweepScopeImplementation) {
@@ -99,7 +98,6 @@ func TestPreflightCleanDispositionsStayClean(t *testing.T) {
 		Entries: []MaintenanceEntry{
 			{ID: 30, Kind: "closeout", Disposition: SweepDispApplied},
 			{ID: 31, Kind: "closeout", Disposition: SweepDispNoOp},
-			{ID: 32, Kind: "reclaim", Disposition: SweepDispSkipped, Reason: ReasonSweepReclaimAutoDisabled},
 			{ID: 33, Kind: "cleanup", Disposition: SweepDispSkipped, Reason: ReasonSweepItemVanished},
 		},
 	})
@@ -159,7 +157,7 @@ func TestPreflightStatusFailureKeepsSweepHalf(t *testing.T) {
 	if res.Result != ResultExternalFailed {
 		t.Fatalf("result = %q, want external-failed (mirrored)", res.Result)
 	}
-	if len(res.Sweep.Entries) != 3 {
+	if len(res.Sweep.Entries) != 2 {
 		t.Fatalf("sweep half not preserved: %+v", res.Sweep)
 	}
 	if res.Status != nil {

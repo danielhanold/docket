@@ -166,7 +166,6 @@ func TestVocabularyConstCompleteness(t *testing.T) {
 		{vocab: "groom_outcomes", byType: "GroomOutcome"},
 		{vocab: "claim_dispositions", byPrefix: "ClaimDisposition"},
 		{vocab: "halt_dispositions", byPrefix: "HaltDisp"},
-		{vocab: "reclaim_dispositions", byPrefix: "ReclaimDisp"},
 		{vocab: "reconcile_dispositions", byPrefix: "ReconcileDisposition"},
 		{vocab: "complete_dispositions", byPrefix: "CompleteDisp"},
 		{vocab: "block_dispositions", byPrefix: "BlockDisp"},

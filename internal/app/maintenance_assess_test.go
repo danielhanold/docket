@@ -592,17 +592,14 @@ func TestLegacyArchivedPRBacklinkIsFullSweepWorkOnly(t *testing.T) {
 	f := newAssessFixture(t, []StatusBlob{blob}, nil)
 	n := prNumberOf(t, f, 41)
 	c, _ := f.inv.snap.Change(domain.ChangeID(41))
-	eff := f.pin.Config.Effective
-	now := testClock().Now()
-
 	// Implementation scope: deferred, never enqueued, never assessed.
-	implItems, implDeferred := sweepWorklist(f.inv.snap, nil, eff, now, SweepScopeImplementation)
+	implItems, implDeferred := sweepWorklist(f.inv.snap, nil, SweepScopeImplementation)
 	if len(implItems) != 0 || implDeferred != 1 {
 		t.Fatalf("implementation scope must defer the legacy record untouched: items=%v deferred=%d", implItems, implDeferred)
 	}
 
 	// Full scope: enqueued as a cleanup and assessed as PR-backlink work.
-	fullItems, fullDeferred := sweepWorklist(f.inv.snap, nil, eff, now, SweepScopeFull)
+	fullItems, fullDeferred := sweepWorklist(f.inv.snap, nil, SweepScopeFull)
 	if fullDeferred != 0 || len(fullItems) != 1 || fullItems[0].id != 41 || fullItems[0].kind != sweepKindCleanup {
 		t.Fatalf("full scope must enqueue the legacy record as a cleanup: items=%v deferred=%d", fullItems, fullDeferred)
 	}
@@ -614,7 +611,7 @@ func TestLegacyArchivedPRBacklinkIsFullSweepWorkOnly(t *testing.T) {
 
 	// The dispatched cleanup's PR-backlink leg repoints it — no prior attempt needed.
 	pr := newFakePRBody(map[int]string{n: stale})
-	cc := &closeoutContext{eff: eff, change: c, body: blob.Data, link: linkContextOf(f.pin)}
+	cc := &closeoutContext{eff: f.pin.Config.Effective, change: c, body: blob.Data, link: linkContextOf(f.pin)}
 	if fnd := finalizeCleanupPRBacklinkRepair(context.Background(), FinalizeDeps{PRBody: pr}, cc, githubcli.Repository{}, n); fnd != nil {
 		t.Fatalf("cleanup's PR-backlink leg returned a finding: %+v", *fnd)
 	}

@@ -32,8 +32,7 @@ import (
 //     empty-path, empty-pr, empty-reason, empty-report, empty-revision,
 //     empty-why_deferred, empty-why_killed, invalid-change_id, invalid-child_id,
 //     invalid-child_pr_number, invalid-head, invalid-id, invalid-note-entry,
-//     workspace-service-unavailable, artifact-render-failed, not-found,
-//     path-mismatch, section-edit-failed.
+//     artifact-render-failed, not-found, path-mismatch, section-edit-failed.
 //
 //   Non-literal mints that already reference a constant and so are not scanned:
 //     parse-failed (migrated to string(FCParseFailed)), the ReasonStatus* tokens,
@@ -91,7 +90,7 @@ func appPackageDir(t *testing.T) string {
 func TestNoInlineFindingCodeLiterals(t *testing.T) {
 	codeLit := regexp.MustCompile(`Code:\s*"[^"]*"`)
 	convLit := regexp.MustCompile(`FindingCode\(\s*"`)
-	ctorLit := regexp.MustCompile(`(?:lifecycleFinding|refuseLifecycle|attachRefusal|haltRefusal|implementedRefusal|reclaimSkip|relinkRefusal|closeoutRefusal|mergeRefusal|maintenanceRefusal|prRefusal|backlinkRefusal|addShape|adrFinding|learningFinding)\(\s*"`)
+	ctorLit := regexp.MustCompile(`(?:lifecycleFinding|refuseLifecycle|attachRefusal|haltRefusal|implementedRefusal|relinkRefusal|closeoutRefusal|mergeRefusal|maintenanceRefusal|prRefusal|backlinkRefusal|addShape|adrFinding|learningFinding)\(\s*"`)
 	root := appPackageDir(t)
 	var violations []string
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {

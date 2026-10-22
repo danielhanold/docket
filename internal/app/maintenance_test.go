@@ -12,24 +12,22 @@ import (
 	"github.com/danielhanold/docket/internal/repository"
 )
 
-// This file drives `maintenance sweep` — the batch driver that reclaims
-// docket's closing half — over a fake corpus reader, a scriptable PR prober,
-// and RECORDING operation seams. The three verified operations (closeout,
-// cleanup, reclaim) are heavy real-git effects proved in their own tasks; here
-// they are injected fakes so the sweep's orchestration is proved in isolation:
-// the deterministic worklist, children-before-ancestors closeout order, the
-// per-item destructive-suffix rule, reclaim gating on reclaim.auto, item
-// isolation, the structured sorted report, and — the premium-risk property — ONE
+// This file drives `maintenance sweep` — the batch driver for docket's closing
+// half — over a fake corpus reader, a scriptable PR prober, and RECORDING
+// operation seams. The two verified operations (closeout and cleanup) are heavy
+// real-git effects proved in their own tasks; here they are injected fakes so
+// the sweep's orchestration is proved in isolation: the deterministic worklist,
+// children-before-ancestors closeout order, the per-item destructive-suffix
+// rule, item isolation, the structured sorted report, and — the premium-risk property — ONE
 // fresh metadata observation prepared per dispatched operation attempt, shared
 // between that attempt's presence check and its dispatched op.
 
 // --- recording ops seam ---------------------------------------------------
 
 type sweepCall struct {
-	kind     string
-	id       int
-	revision string
-	obs      *sweepObservation // the shared observation this dispatch received
+	kind string
+	id   int
+	obs  *sweepObservation // the shared observation this dispatch received
 }
 
 // recordingSweepOps records every dispatch and answers from scripted results,
@@ -42,7 +40,6 @@ type recordingSweepOps struct {
 	calls    []sweepCall
 	closeout map[int]CloseoutResult
 	cleanup  map[int]CleanupOpResult
-	reclaim  map[int]ChangeReclaimResult
 
 	// reader is the reload source Prepare pins/builds from (defaults to the
 	// inventory reader; a test may point it at a divergent corpus to script a
@@ -116,13 +113,6 @@ func (r *recordingSweepOps) seam(reader StatusReader, prober FinalizePRProber) s
 			}
 			return newCleanupResult(OperationFinalizeCleanup, ResultApplied, CleanupOpResult{ID: id, Disposition: CleanupDispCleaned})
 		},
-		reclaim: func(_ context.Context, id int, revision string, obs *sweepObservation) ChangeReclaimResult {
-			r.calls = append(r.calls, sweepCall{kind: sweepKindReclaim, id: id, revision: revision, obs: obs})
-			if res, ok := r.reclaim[id]; ok {
-				return res
-			}
-			return newChangeReclaimResult(ResultApplied, ChangeReclaimResult{ID: id, Disposition: ReclaimDispReclaimed})
-		},
 	}
 }
 
@@ -158,18 +148,15 @@ func (r *recordingSweepOps) called(kind string, id int) bool {
 
 // --- corpus + deps helpers ------------------------------------------------
 
-// sweepPin clones the docket-mode pin and sets reclaim policy for the run.
-func sweepPin(t *testing.T, auto bool, ttlHours int) StatusPin {
+// sweepPin clones the docket-mode pin for the run.
+func sweepPin(t *testing.T) StatusPin {
 	t.Helper()
-	p := docketPin(t)
-	p.Config.Effective.Reclaim.Auto.Value = auto
-	p.Config.Effective.Reclaim.LeaseTTL.Value = ttlHours
-	return p
+	return docketPin(t)
 }
 
 // sweepInProgressBlob builds an in-progress record with an old claim stamp
-// (2026-08-02, well before the fixed test clock's 2026-08-16), so its lease is
-// strictly expired under any small TTL.
+// (2026-08-02, well before the fixed test clock's 2026-08-16): the kind of
+// long-stranded claim the sweep must leave alone.
 func sweepInProgressBlob(id int, slug string) StatusBlob {
 	return StatusBlob{
 		Kind:     repository.KindChange,
@@ -216,7 +203,7 @@ func TestSweepFindsMergedImplemented(t *testing.T) {
 		finalizeBlob(31, "childa", "implemented", "high", prRefFor(31), "stacked_on: 30\n"),
 		finalizeBlob(32, "childb", "implemented", "high", prRefFor(32), "stacked_on: 30\n"),
 	}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/root"),
 		prRefFor(31): withHead(mergedFacts(31, "feat/root"), "feat/childa"),
@@ -269,7 +256,7 @@ func TestSweepRetriesSuffixes(t *testing.T) {
 		finalizeBlob(40, "completed", "stacked-merged", "high", prRefFor(40), ""),
 		finalizeBlob(41, "archived", "done", "high", prRefFor(41), ""),
 	}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
 	ops := &recordingSweepOps{}
 
@@ -289,41 +276,6 @@ func TestSweepRetriesSuffixes(t *testing.T) {
 	}
 }
 
-// TestSweepReclaimGatedOnAuto: an eligible (in-progress, strictly-expired) record
-// is reclaimed only when reclaim.auto is true; with auto false it is surfaced as
-// skipped with the reclaim-auto-disabled reason and no reclaim is dispatched.
-func TestSweepReclaimGatedOnAuto(t *testing.T) {
-	corpus := []StatusBlob{sweepInProgressBlob(50, "stale")}
-	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
-
-	t.Run("auto true reclaims", func(t *testing.T) {
-		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
-		ops := &recordingSweepOps{}
-		maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
-		if !ops.called(sweepKindReclaim, 50) {
-			t.Fatalf("auto reclaim must dispatch reclaim for 50; calls=%v", ops.calls)
-		}
-	})
-
-	t.Run("auto false skips with reason", func(t *testing.T) {
-		reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
-		ops := &recordingSweepOps{}
-		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
-		if ops.called(sweepKindReclaim, 50) {
-			t.Fatalf("reclaim.auto:false must NOT dispatch reclaim; calls=%v", ops.calls)
-		}
-		var entry *MaintenanceEntry
-		for i := range res.Entries {
-			if res.Entries[i].ID == 50 && res.Entries[i].Kind == sweepKindReclaim {
-				entry = &res.Entries[i]
-			}
-		}
-		if entry == nil || entry.Disposition != SweepDispSkipped || entry.Reason != ReasonSweepReclaimAutoDisabled {
-			t.Fatalf("want skipped/reclaim-auto-disabled entry, got %+v", entry)
-		}
-	})
-}
-
 // TestSweepNeverEscalates: the sweep acts only on merged-recovery closeout work;
 // an implemented change whose PR is still OPEN is left entirely alone (merging it
 // is the attended finalize flow's job, never the sweep's). A merged implemented
@@ -334,7 +286,7 @@ func TestSweepNeverEscalates(t *testing.T) {
 		finalizeBlob(60, "merged", "implemented", "high", prRefFor(60), ""),
 		finalizeBlob(61, "open", "implemented", "high", prRefFor(61), ""),
 	}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(60): withHead(mergedFacts(60, "main"), "feat/merged"),
 		prRefFor(61): openFacts(61, "MERGEABLE", 2, 20),
@@ -366,7 +318,7 @@ func TestSweepItemIsolation(t *testing.T) {
 		finalizeBlob(70, "unknownitem", "implemented", "high", prRefFor(70), ""),
 		finalizeBlob(71, "gooditem", "implemented", "high", prRefFor(71), ""),
 	}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(70): withHead(mergedFacts(70, "main"), "feat/unknownitem"),
 		prRefFor(71): withHead(mergedFacts(71, "main"), "feat/gooditem"),
@@ -408,9 +360,8 @@ func TestSweepStructuredReport(t *testing.T) {
 	corpus := []StatusBlob{
 		finalizeBlob(80, "merged", "implemented", "high", prRefFor(80), ""),
 		finalizeBlob(81, "stack", "stacked-merged", "high", prRefFor(81), ""),
-		sweepInProgressBlob(82, "stale"),
 	}
-	reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(80): withHead(mergedFacts(80, "main"), "feat/merged"),
 	}}
@@ -446,9 +397,8 @@ func TestSweepStructuredReport(t *testing.T) {
 func TestSweepReloadsBeforeMutation(t *testing.T) {
 	corpus := []StatusBlob{
 		finalizeBlob(90, "merged", "implemented", "high", prRefFor(90), ""),
-		sweepInProgressBlob(91, "stale"), // reclaim.auto false ⇒ skipped, no preparation
 	}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(90): withHead(mergedFacts(90, "main"), "feat/merged"),
 	}}
@@ -456,12 +406,12 @@ func TestSweepReloadsBeforeMutation(t *testing.T) {
 
 	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
 
-	// 90: closeout (applied) + cleanup suffix = 2 dispatches. 91: skipped, none.
+	// 90: closeout (applied) + cleanup suffix = 2 dispatches.
 	dispatches := len(ops.calls)
 	if dispatches != 2 {
 		t.Fatalf("dispatches = %d, want 2 (closeout+suffix for 90); calls=%v", dispatches, ops.calls)
 	}
-	// One preparation per dispatch, and none for the skipped reclaim.
+	// One preparation per dispatch.
 	if len(ops.prepared) != dispatches {
 		t.Fatalf("prepared %d observations, want %d (one per dispatch)", len(ops.prepared), dispatches)
 	}
@@ -479,7 +429,7 @@ func TestSweepReloadsBeforeMutation(t *testing.T) {
 // exactly one attempt to inspect.
 func TestEachAttemptPreparesOnceAndSharesObservation(t *testing.T) {
 	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
 	}}
@@ -508,7 +458,7 @@ func TestEachAttemptPreparesOnceAndSharesObservation(t *testing.T) {
 // must observe freshly.
 func TestCleanupSuffixPreparesAgain(t *testing.T) {
 	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
 	}}
@@ -530,40 +480,12 @@ func TestCleanupSuffixPreparesAgain(t *testing.T) {
 	}
 }
 
-// TestDisabledReclaimPreparesNothing: with reclaim.auto false the eligible record
-// is surfaced as skipped and NOTHING is prepared — the auto gate precedes any
-// metadata preparation.
-func TestDisabledReclaimPreparesNothing(t *testing.T) {
-	corpus := []StatusBlob{sweepInProgressBlob(50, "stale")}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
-	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
-	ops := &recordingSweepOps{}
-
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
-
-	if len(ops.prepared) != 0 {
-		t.Fatalf("reclaim.auto:false must prepare nothing; prepared=%d", len(ops.prepared))
-	}
-	if ops.called(sweepKindReclaim, 50) {
-		t.Fatalf("reclaim.auto:false must not dispatch reclaim")
-	}
-	var e *MaintenanceEntry
-	for i := range res.Entries {
-		if res.Entries[i].ID == 50 && res.Entries[i].Kind == sweepKindReclaim {
-			e = &res.Entries[i]
-		}
-	}
-	if e == nil || e.Disposition != SweepDispSkipped || e.Reason != ReasonSweepReclaimAutoDisabled {
-		t.Fatalf("want skipped/reclaim-auto-disabled entry, got %+v", e)
-	}
-}
-
 // TestPrepareFailureIsReloadFailedSkipNoDispatch: a failed metadata preparation
 // (the fetch could not be read) yields a skipped/reload-failed entry and
 // dispatches no operation for that item.
 func TestPrepareFailureIsReloadFailedSkipNoDispatch(t *testing.T) {
 	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
 	}}
@@ -593,11 +515,11 @@ func TestPrepareFailureIsReloadFailedSkipNoDispatch(t *testing.T) {
 // built from a divergent reader whose corpus dropped it.
 func TestVanishedOnObservationSkipsAfterThatPrepare(t *testing.T) {
 	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
-	invReader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	invReader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
 	}}
-	reloadReader := &fakeReader{pin: sweepPin(t, false, 24), corpus: []StatusBlob{}}
+	reloadReader := &fakeReader{pin: sweepPin(t), corpus: []StatusBlob{}}
 	ops := &recordingSweepOps{}
 
 	res := maintenanceSweep(context.Background(), sweepDeps(invReader, prober), "repo", ops.seam(reloadReader, prober), SweepScopeFull)
@@ -622,47 +544,9 @@ func TestVanishedOnObservationSkipsAfterThatPrepare(t *testing.T) {
 	}
 }
 
-// TestReclaimRevisionFromObservation: the exact blob revision the reclaim is pinned
-// to comes from the SHARED observation the attempt prepared — obs.inv
-// .revisionByPath[path] — not a separate re-pin.
-func TestReclaimRevisionFromObservation(t *testing.T) {
-	corpus := []StatusBlob{sweepInProgressBlob(50, "stale")}
-	reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
-	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
-	ops := &recordingSweepOps{}
-
-	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
-
-	if len(ops.prepared) != 1 {
-		t.Fatalf("expected exactly one reclaim preparation, got %d", len(ops.prepared))
-	}
-	obs := ops.prepared[0]
-	c, out := obs.inv.snap.Change(domain.ChangeID(50))
-	if out != domain.LookupFound {
-		t.Fatalf("record 50 must be present in the observation")
-	}
-	want := obs.inv.revisionByPath[c.Path()]
-	if want == "" {
-		t.Fatalf("observation carried no blob revision for 50")
-	}
-	var got string
-	found := false
-	for _, cl := range ops.calls {
-		if cl.kind == sweepKindReclaim && cl.id == 50 {
-			got, found = cl.revision, true
-		}
-	}
-	if !found {
-		t.Fatalf("reclaim was not dispatched for 50; calls=%v", ops.calls)
-	}
-	if got != want {
-		t.Fatalf("reclaim revision = %q, want %q (from obs.inv.revisionByPath)", got, want)
-	}
-}
-
 // TestSweepImplementationScopeDefersHistorical: implementation scope schedules
-// current merged-implemented closeouts (whose cleanup SUFFIX still runs) and
-// gated reclaims, but enqueues NO independent cleanup item for a record that was
+// current merged-implemented closeouts (whose cleanup SUFFIX still runs), but
+// enqueues NO independent cleanup item for a record that was
 // already done/stacked-merged at the pinned inventory. Those are counted as a
 // scope summary, never rendered as per-item outcomes. Full scope on the same
 // corpus retains the historical retries.
@@ -671,14 +555,13 @@ func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
 		finalizeBlob(30, "current", "implemented", "high", prRefFor(30), ""),
 		finalizeBlob(40, "completed", "stacked-merged", "high", prRefFor(40), ""),
 		finalizeBlob(41, "archived", "done", "high", prRefFor(41), ""),
-		sweepInProgressBlob(50, "stale"),
 	}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/current"),
 	}}
 
-	t.Run("implementation defers historical, keeps closeout+suffix+reclaim", func(t *testing.T) {
-		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
+	t.Run("implementation defers historical, keeps closeout+suffix", func(t *testing.T) {
+		reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 		ops := &recordingSweepOps{}
 		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeImplementation)
 
@@ -687,9 +570,6 @@ func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
 		}
 		if !ops.called(sweepKindCleanup, 30) {
 			t.Errorf("the closeout's cleanup SUFFIX must still run in implementation scope; calls=%v", ops.calls)
-		}
-		if !ops.called(sweepKindReclaim, 50) {
-			t.Errorf("reclaim gating must be preserved (auto=true dispatches); calls=%v", ops.calls)
 		}
 		for _, id := range []int{40, 41} {
 			if ops.called(sweepKindCleanup, id) {
@@ -710,7 +590,7 @@ func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
 	})
 
 	t.Run("full retains historical retries and reports zero deferred", func(t *testing.T) {
-		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
+		reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 		ops := &recordingSweepOps{}
 		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
 		if !ops.called(sweepKindCleanup, 40) || !ops.called(sweepKindCleanup, 41) {
@@ -726,7 +606,7 @@ func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
 // values is a fail-closed input refusal that dispatches nothing and reads
 // nothing (defense in depth behind the CLI's own validation).
 func TestSweepInvalidScopeRefusesBeforeAnyRead(t *testing.T) {
-	reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: nil}
+	reader := &fakeReader{pin: sweepPin(t), corpus: nil}
 	ops := &recordingSweepOps{}
 	res := maintenanceSweep(context.Background(), sweepDeps(reader, &fakeFinalizeProber{}), "repo", ops.seam(reader, &fakeFinalizeProber{}), SweepScope("bogus"))
 	if res.Result != ResultInvalidInput || res.Reason != ReasonSweepScopeInvalid {
@@ -782,7 +662,7 @@ func (s *recordingSyncSeam) fn() func(context.Context) *SyncOutcome {
 // after the (empty) item loop; the outcome rides IntegrationSync, and a skipped
 // sync never inflates the envelope past no-op.
 func TestSweepRunsIntegrationSyncOnceOnEmptyFullScope(t *testing.T) {
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: []StatusBlob{}}
+	reader := &fakeReader{pin: sweepPin(t), corpus: []StatusBlob{}}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
 	ops := &recordingSweepOps{}
 	seam := ops.seam(reader, prober)
@@ -811,7 +691,7 @@ func TestSweepRunsIntegrationSyncOncePerImplementationScope(t *testing.T) {
 		finalizeBlob(70, "unknownitem", "implemented", "high", prRefFor(70), ""),
 		finalizeBlob(71, "gooditem", "implemented", "high", prRefFor(71), ""),
 	}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(70): withHead(mergedFacts(70, "main"), "feat/unknownitem"),
 		prRefFor(71): withHead(mergedFacts(71, "main"), "feat/gooditem"),
@@ -843,10 +723,14 @@ func TestSweepRunsIntegrationSyncOncePerImplementationScope(t *testing.T) {
 // an otherwise no-op sweep to applied, but the sync advance is NOT an entry and
 // must never inflate the entry-derived applied count.
 func TestSweepIntegrationSyncAdvanceUpgradesNoOpToApplied(t *testing.T) {
-	corpus := []StatusBlob{sweepInProgressBlob(50, "stale")} // reclaim.auto false ⇒ skipped, no applied entry
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	// One historical cleanup whose fake result is a verified no-op: the sweep
+	// dispatches it, but its entry is noop, so no entry is applied.
+	corpus := []StatusBlob{finalizeBlob(41, "archived", "done", "high", prRefFor(41), "")}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
-	ops := &recordingSweepOps{}
+	ops := &recordingSweepOps{cleanup: map[int]CleanupOpResult{
+		41: newCleanupResult(OperationFinalizeCleanup, ResultNoOp, CleanupOpResult{ID: 41, Disposition: CleanupDispAlready}),
+	}}
 	seam := ops.seam(reader, prober)
 	sync := &recordingSyncSeam{out: &SyncOutcome{Disposition: SyncDispAdvanced, IntegrationBranch: "main"}}
 	seam.syncIntegration = sync.fn()
@@ -865,6 +749,35 @@ func TestSweepIntegrationSyncAdvanceUpgradesNoOpToApplied(t *testing.T) {
 	if applied != 0 {
 		t.Fatalf("applied ENTRY count = %d, want 0 (the sync advance rides IntegrationSync, not entries)", applied)
 	}
+	if len(res.Entries) != 1 || res.Entries[0].ID != 41 || res.Entries[0].Disposition != SweepDispNoOp {
+		t.Fatalf("want exactly one noop entry for 41, got %+v", res.Entries)
+	}
+}
+
+// TestSweepIgnoresInProgressRecords: an in-progress record, however long ago it
+// was claimed, is never a sweep item in either scope — no entry, no
+// preparation, no dispatch. Stranded-run recovery is resume's job.
+func TestSweepIgnoresInProgressRecords(t *testing.T) {
+	for _, scope := range []SweepScope{SweepScopeFull, SweepScopeImplementation} {
+		t.Run(string(scope), func(t *testing.T) {
+			corpus := []StatusBlob{sweepInProgressBlob(50, "stale")}
+			reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
+			prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
+			ops := &recordingSweepOps{}
+
+			res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), scope)
+
+			if res.Reason != "" {
+				t.Fatalf("sweep refused: %s %s", res.Reason, res.Message)
+			}
+			if len(res.Entries) != 0 {
+				t.Fatalf("an in-progress record must yield no sweep entry, got %+v", res.Entries)
+			}
+			if len(ops.prepared) != 0 || len(ops.calls) != 0 {
+				t.Fatalf("nothing may be prepared or dispatched; prepared=%d calls=%v", len(ops.prepared), ops.calls)
+			}
+		})
+	}
 }
 
 // TestSweepIntegrationSyncFailureNeverDowngradesAppliedSweep: a sync failure is
@@ -872,7 +785,7 @@ func TestSweepIntegrationSyncAdvanceUpgradesNoOpToApplied(t *testing.T) {
 // entry-derived envelope result.
 func TestSweepIntegrationSyncFailureNeverDowngradesAppliedSweep(t *testing.T) {
 	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
 	}}
@@ -896,7 +809,7 @@ func TestSweepIntegrationSyncFailureNeverDowngradesAppliedSweep(t *testing.T) {
 // IntegrationSync.
 func TestSweepRefusalSkipsIntegrationSync(t *testing.T) {
 	t.Run("invalid scope", func(t *testing.T) {
-		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: nil}
+		reader := &fakeReader{pin: sweepPin(t), corpus: nil}
 		prober := &fakeFinalizeProber{}
 		ops := &recordingSweepOps{}
 		seam := ops.seam(reader, prober)
@@ -911,7 +824,7 @@ func TestSweepRefusalSkipsIntegrationSync(t *testing.T) {
 		}
 	})
 	t.Run("pin error", func(t *testing.T) {
-		reader := &fakeReader{pin: sweepPin(t, true, 24), pinErr: errors.New("boom")}
+		reader := &fakeReader{pin: sweepPin(t), pinErr: errors.New("boom")}
 		prober := &fakeFinalizeProber{}
 		ops := &recordingSweepOps{}
 		seam := ops.seam(reader, prober)
@@ -930,7 +843,7 @@ func TestSweepRefusalSkipsIntegrationSync(t *testing.T) {
 // TestSweepCancelledContextSkipsIntegrationSync: a cancelled context before the
 // suffix skips the sync (no detached work) and leaves IntegrationSync nil.
 func TestSweepCancelledContextSkipsIntegrationSync(t *testing.T) {
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: []StatusBlob{}}
+	reader := &fakeReader{pin: sweepPin(t), corpus: []StatusBlob{}}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
 	ops := &recordingSweepOps{}
 	seam := ops.seam(reader, prober)
@@ -953,7 +866,7 @@ func TestSweepCancelledContextSkipsIntegrationSync(t *testing.T) {
 // syncIntegration nil (the pre-0388 shape) runs without panic and leaves
 // IntegrationSync nil — existing orchestration tests stay green.
 func TestSweepNilIntegrationSyncSeamIsNoPanic(t *testing.T) {
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: []StatusBlob{}}
+	reader := &fakeReader{pin: sweepPin(t), corpus: []StatusBlob{}}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
 	ops := &recordingSweepOps{}
 	seam := ops.seam(reader, prober) // syncIntegration left nil
@@ -1019,7 +932,7 @@ func TestSweepSelectionUsesBatchedFactsNotPerChangeProbe(t *testing.T) {
 	corpus := []StatusBlob{
 		finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), ""),
 	}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	// The per-change prober must NEVER be consulted by the sweep.
 	cp := &countingProber{inner: &fakeFinalizeProber{}}
 	batch := &fakeSweepBatchReader{result: SweepPRSetResult{
@@ -1058,13 +971,12 @@ func TestSweepImplementationScopeDoesNotGrowWithHistory(t *testing.T) {
 		t.Helper()
 		corpus := []StatusBlob{
 			finalizeBlob(30, "current", "implemented", "high", prRefFor(30), ""),
-			sweepInProgressBlob(50, "stale"),
 		}
 		for i := 0; i < historical; i++ {
 			id := 1000 + i
 			corpus = append(corpus, finalizeBlob(id, fmt.Sprintf("hist%04d", i), "done", "high", prRefFor(id), ""))
 		}
-		cr := &countingReader{inner: &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}}
+		cr := &countingReader{inner: &fakeReader{pin: sweepPin(t), corpus: corpus}}
 		cp := &countingProber{inner: &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 			prRefFor(30): withHead(mergedFacts(30, "main"), "feat/current"),
 		}}}
@@ -1108,7 +1020,7 @@ func TestSweepImplementationScopeDoesNotGrowWithHistory(t *testing.T) {
 // the safety-net path.
 func TestSweepCleanupSurfacesWorkspaceRemnant(t *testing.T) {
 	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
 	}}
@@ -1149,7 +1061,7 @@ func TestSweepCleanupSurfacesWorkspaceRemnant(t *testing.T) {
 func sweepKeptBranchRun(t *testing.T, findings []StatusFinding) (MaintenanceResult, MaintenanceEntry) {
 	t.Helper()
 	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
 	}}
@@ -1205,7 +1117,7 @@ func TestSweepCleanupKeptBranchSetsEmptyReason(t *testing.T) {
 	// A kept-branch warning that is not the result's first finding still
 	// supplies the entry reason when the result carried none.
 	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
 	}}
@@ -1257,7 +1169,7 @@ func carriedRootCorpus(t *testing.T) (*fakeReader, *fakeFinalizeProber) {
 		finalizeBlob(31, "childa", "implemented", "high", prRefFor(31), "stacked_on: 30\n"),
 		finalizeBlob(32, "childb", "implemented", "high", prRefFor(32), "stacked_on: 30\n"),
 	}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/root"),
 		prRefFor(31): withHead(mergedFacts(31, "feat/root"), "feat/childa"),
@@ -1401,7 +1313,7 @@ func TestSweepAlreadyClosedOutCarriesNoChildCleanup(t *testing.T) {
 	corpus := []StatusBlob{
 		finalizeBlob(30, "root", "implemented", "high", prRefFor(30), ""),
 	}
-	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/root"),
 	}}
@@ -1426,7 +1338,7 @@ func TestSweepCarriedChildNotCleanedTwice(t *testing.T) {
 			finalizeBlob(30, "root", "implemented", "high", prRefFor(30), ""),
 			finalizeBlob(31, "child", "stacked-merged", "high", prRefFor(31), "stacked_on: 30\n"),
 		}
-		reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+		reader := &fakeReader{pin: sweepPin(t), corpus: corpus}
 		prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 			prRefFor(30): withHead(mergedFacts(30, "main"), "feat/root"),
 		}}

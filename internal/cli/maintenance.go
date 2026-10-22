@@ -57,7 +57,7 @@ func newSweepFinalizeDeps() (app.FinalizeDeps, error) {
 // operation over the real Git/GitHub/workspace seams, and let the presenter own
 // the outcome. `docket status` stays read-only; batch mutation of docket's
 // closing half is reached only through `docket maintenance sweep`. Every
-// lifecycle, Git, GitHub, stack, reclaim, and cleanup policy belongs to
+// lifecycle, Git, GitHub, stack, and cleanup policy belongs to
 // internal/app, so no body here branches on repository content.
 
 // newMaintenanceCommand builds the `maintenance` command group. setResult is the
@@ -66,7 +66,7 @@ func newSweepFinalizeDeps() (app.FinalizeDeps, error) {
 func newMaintenanceCommand(setResult func(app.OperationResult)) *cobra.Command {
 	maintenanceCmd := &cobra.Command{
 		Use:   "maintenance",
-		Short: "Reclaim docket's closing half in batch (docket status stays read-only)",
+		Short: "Run docket's closing half in batch (docket status stays read-only)",
 		// A command group resolves its subcommand before Args runs, so anything
 		// reaching here named no subcommand; NoArgs names an offending token and
 		// the bare `docket maintenance` falls through to RunE's missing-command
@@ -126,18 +126,18 @@ func newMaintenancePreflightSubcommand(setResult func(app.OperationResult)) *cob
 // newMaintenanceSweepSubcommand builds `maintenance sweep`: one pinned inventory,
 // processed in a deterministic order, that closes out merged changes (stacked
 // children before ancestors), retries PR backlink repair and ownership-safe
-// cleanup for archived/done records and completed stacks, and reclaims expired
-// claims when reclaim.auto is on. It reloads fresh authority before every
+// cleanup for archived/done records and completed stacks. It reloads fresh
+// authority before every
 // mutation and reports every item as a structured entry. Two flags ride on it —
 // --repo-dir names the target directory and --scope selects the closed sweep
 // scope (full or implementation) — and there is no authored request body.
 func newMaintenanceSweepSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sweep",
-		Short: "Close out merged changes, retry close-out cleanup, and reclaim expired claims in one pass",
+		Short: "Close out merged changes and retry close-out cleanup in one pass",
 		Args:  cobra.NoArgs,
-		// metadata-write + local-write + external-write: composes closeout,
-		// cleanup, and reclaim and inherits the full union of their effects.
+		// metadata-write + local-write + external-write: composes closeout and
+		// cleanup and inherits the full union of their effects.
 		Annotations: capability("maintenance.sweep", EffectMetadataWrite, EffectLocalWrite, EffectExternalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			// Scope resolves once, here, to a typed value — the app layer never

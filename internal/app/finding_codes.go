@@ -14,26 +14,25 @@ type FindingCode string
 const (
 	// Request-shape findings on the change/lifecycle/finalize operations
 	// (minted through lifecycleFinding and the StatusFinding literal form).
-	FCAuthoredInputTooLarge       FindingCode = "authored-input-too-large"
-	FCEmptyAttempt                FindingCode = "empty-attempt"
-	FCEmptyChildPRRevision        FindingCode = "empty-child_pr_revision"
-	FCEmptyEvidence               FindingCode = "empty-evidence"
-	FCEmptyNoteEntry              FindingCode = "empty-note-entry"
-	FCEmptyPath                   FindingCode = "empty-path"
-	FCEmptyPR                     FindingCode = "empty-pr"
-	FCEmptyReason                 FindingCode = "empty-reason"
-	FCEmptyReport                 FindingCode = "empty-report"
-	FCEmptyRevision               FindingCode = "empty-revision"
-	FCEmptyWhyDeferred            FindingCode = "empty-why_deferred"
-	FCEmptyWhyKilled              FindingCode = "empty-why_killed"
-	FCDuplicateChildID            FindingCode = "duplicate-child_id"
-	FCInvalidChangeID             FindingCode = "invalid-change_id"
-	FCInvalidChildID              FindingCode = "invalid-child_id"
-	FCInvalidChildPRNumber        FindingCode = "invalid-child_pr_number"
-	FCInvalidHead                 FindingCode = "invalid-head"
-	FCInvalidID                   FindingCode = "invalid-id"
-	FCInvalidNoteEntry            FindingCode = "invalid-note-entry"
-	FCWorkspaceServiceUnavailable FindingCode = "workspace-service-unavailable"
+	FCAuthoredInputTooLarge FindingCode = "authored-input-too-large"
+	FCEmptyAttempt          FindingCode = "empty-attempt"
+	FCEmptyChildPRRevision  FindingCode = "empty-child_pr_revision"
+	FCEmptyEvidence         FindingCode = "empty-evidence"
+	FCEmptyNoteEntry        FindingCode = "empty-note-entry"
+	FCEmptyPath             FindingCode = "empty-path"
+	FCEmptyPR               FindingCode = "empty-pr"
+	FCEmptyReason           FindingCode = "empty-reason"
+	FCEmptyReport           FindingCode = "empty-report"
+	FCEmptyRevision         FindingCode = "empty-revision"
+	FCEmptyWhyDeferred      FindingCode = "empty-why_deferred"
+	FCEmptyWhyKilled        FindingCode = "empty-why_killed"
+	FCDuplicateChildID      FindingCode = "duplicate-child_id"
+	FCInvalidChangeID       FindingCode = "invalid-change_id"
+	FCInvalidChildID        FindingCode = "invalid-child_id"
+	FCInvalidChildPRNumber  FindingCode = "invalid-child_pr_number"
+	FCInvalidHead           FindingCode = "invalid-head"
+	FCInvalidID             FindingCode = "invalid-id"
+	FCInvalidNoteEntry      FindingCode = "invalid-note-entry"
 
 	// State-shape refusals built by refuseLifecycle inside a Plan closure.
 	FCArtifactRenderFailed FindingCode = "artifact-render-failed"
@@ -248,7 +247,6 @@ var AllFindingCodes = []FindingCode{
 	FCBinaryAliasMissing,
 	FCBranchLeftBehind,
 	FCBranchMalformed,
-	FindingCode("branch-still-exists"),
 	FCBuiltStackDescendants,
 	FCCollectionPending,
 	FCDanglingReference,
@@ -337,15 +335,12 @@ var AllFindingCodes = []FindingCode{
 	FCInvalidTitle,
 	FCInvalidTopics,
 	FCInvalidType,
-	FindingCode("lease-not-expired"),
 	FCLocalMetadataAhead,
 	FCLocalMetadataDiverged,
-	FindingCode("malformed-claim-stamp"),
 	FCMetadataRootForeign,
 	FCMetadataRootUnresolved,
 	FCMetadataWorktreeDirty,
 	FCMigrationIncomplete,
-	FindingCode("missing-claim-stamp"),
 	FCNotDeferrable,
 	FCNotFound,
 	FindingCode(ReasonImplementedNotPRDeliverable),
@@ -373,7 +368,6 @@ var AllFindingCodes = []FindingCode{
 	FCUnknownOperation,
 	FCUnknownPriority,
 	FCUnknownType,
-	FCWorkspaceServiceUnavailable,
 }
 
 // invalidIDCodeByKey selects the id-shape finding code for a lifecycle request

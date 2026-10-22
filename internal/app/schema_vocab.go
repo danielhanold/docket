@@ -87,10 +87,6 @@ func SchemaVocabularies(effects []string) map[string]Vocabulary {
 		HaltDispHalted, HaltDispResumed, HaltDispContended,
 		HaltDispRefused, HaltDispFailed,
 	}}
-	v["reclaim_dispositions"] = Vocabulary{Members: []string{
-		ReclaimDispReclaimed, ReclaimDispSkipped,
-		ReclaimDispContended, ReclaimDispFailed,
-	}}
 	v["complete_dispositions"] = Vocabulary{Members: []string{
 		CompleteDispCompleted, CompleteDispAlreadyCompleted,
 		CompleteDispContended, CompleteDispFailed,
