@@ -1,11 +1,12 @@
 # Backlog
 
-**575 changes** — 🟡 3 proposed · ⚪ 16 deferred · ✅ 412 done · 🗑️ 144 killed
+**576 changes** — 🟡 4 proposed · ⚪ 16 deferred · ✅ 412 done · 🗑️ 144 killed
 
-## 🟡 Proposed (3)
+## 🟡 Proposed (4)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0575](active/0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | `medium` | `refactor` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 | [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `feat` | needs-grooming |
@@ -52,6 +53,7 @@ graph TD
   0566
   0572
   0360 --> 0575
+  0576
   0192:::done
   0251:::done
   0360:::done
