@@ -2503,7 +2503,7 @@ func TestChangeGroomTypeEditChangesNextClaimBranch(t *testing.T) {
 			if out != domain.LookupFound {
 				t.Fatalf("change 2 not found after groom")
 			}
-			res, fail := domain.Claim(ch, testClock().Now())
+			res, fail := domain.Claim(ch)
 			if fail != nil {
 				t.Fatalf("claim failed: %v", fail)
 			}

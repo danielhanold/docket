@@ -95,7 +95,6 @@ type ChangeSpec struct {
 	Hold           OptionalBool   // per-change hold; keeps the change out of autonomous build selection
 	BranchPrefix   OptionalString // per-change mint-prefix override; durable input
 	Branch         OptionalString
-	ClaimedAt      OptionalTime // second-precision UTC; Raw kept
 	PR             OptionalString
 	Issue          OptionalString
 	BlockedBy      OptionalString
@@ -221,9 +220,6 @@ func (c Change) BranchPrefix() OptionalString { return c.spec.BranchPrefix }
 
 // Branch returns the optional feature branch name.
 func (c Change) Branch() OptionalString { return c.spec.Branch }
-
-// ClaimedAt returns the optional claim timestamp.
-func (c Change) ClaimedAt() OptionalTime { return c.spec.ClaimedAt }
 
 // PR returns the optional pull request reference.
 func (c Change) PR() OptionalString { return c.spec.PR }

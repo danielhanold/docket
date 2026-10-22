@@ -1625,7 +1625,7 @@ func TestE2EMergeMethodUnavailable(t *testing.T) {
 // TestE2EHaltResume proves the implementation-side recovery path through CLI
 // argv: a persistent `change halt` records a durable run-halted marker on an
 // in-progress change and `change resume-halted --acknowledge-quiescent` clears
-// it and refreshes the claim.
+// it.
 func TestE2EHaltResume(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)

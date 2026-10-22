@@ -24,10 +24,8 @@ import (
 // depending on changeClaimReceipt having grown that field yet.
 type wireClaimReceipt struct {
 	Branch         string `json:"branch"`
-	ClaimedAt      string `json:"claimed_at"`
 	RunContextHash string `json:"gate_context_hash"`
 	ID             int    `json:"id"`
-	Lease          string `json:"lease"`
 	Op             string `json:"op"`
 	Selection      string `json:"selection,omitempty"`
 	Status         string `json:"status"`
@@ -62,16 +60,16 @@ func commitClaimTrailers(t *testing.T, dir, subject string, trailers ...string) 
 func TestIntegrationRecordOpsScanClaimProofsReadsCommittedReceipt(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 
-	// Older claim commit: change id 3, ungated (gate_context_hash "").
+	// Older claim commit: change id 3, ungated (gate_context_hash ""), committed
+	// by an older docket whose receipt still carried the retired claimed_at and
+	// lease keys. The scanner must still read it as a proof.
 	older := commitClaimTrailers(t, repo, "claim 3",
 		"Docket-Transaction-ID: t1",
 		"Docket-Operation: "+OperationChangeClaim,
 		"Docket-Request-ID: claim-3-v1",
 		"Docket-Request-Digest: sha256:aaaa",
-		"Docket-Result: "+encodeClaimReceipt(t, wireClaimReceipt{
-			Branch: "fix/x", ClaimedAt: "2026-09-07T00:00:00Z", RunContextHash: "",
-			ID: 3, Lease: "live", Op: OperationChangeClaim, Status: "in-progress",
-		}))
+		"Docket-Result: "+base64.RawURLEncoding.EncodeToString([]byte(
+			`{"branch":"fix/x","claimed_at":"2026-09-07T00:00:00Z","gate_context_hash":"","id":3,"lease":"fresh","op":"change.claim","status":"in-progress"}`)))
 
 	// A non-claim commit that carries a request id but a different operation: it
 	// is returned by the trailer scan yet must be filtered out by the op check.
@@ -90,8 +88,8 @@ func TestIntegrationRecordOpsScanClaimProofsReadsCommittedReceipt(t *testing.T) 
 		"Docket-Request-ID: claim-4-v2",
 		"Docket-Request-Digest: sha256:cccc",
 		"Docket-Result: "+encodeClaimReceipt(t, wireClaimReceipt{
-			Branch: "fix/y", ClaimedAt: "2026-09-07T01:00:00Z", RunContextHash: "abc123",
-			ID: 4, Lease: "live", Op: OperationChangeClaim, Status: "in-progress",
+			Branch: "fix/y", RunContextHash: "abc123",
+			ID: 4, Op: OperationChangeClaim, Status: "in-progress",
 		}))
 
 	deps := PlanningDeps{
@@ -138,8 +136,8 @@ func TestIntegrationRecordOpsScanClaimProofsReadsSelection(t *testing.T) {
 		"Docket-Request-ID: claim-3-v1",
 		"Docket-Request-Digest: sha256:aaaa",
 		"Docket-Result: "+encodeClaimReceipt(t, wireClaimReceipt{
-			Branch: "fix/x", ClaimedAt: "2026-09-07T00:00:00Z", RunContextHash: "h3",
-			ID: 3, Lease: "live", Op: OperationChangeClaim, Status: "in-progress",
+			Branch: "fix/x", RunContextHash: "h3",
+			ID: 3, Op: OperationChangeClaim, Status: "in-progress",
 		}))
 	tip := commitClaimTrailers(t, repo, "claim 4",
 		"Docket-Transaction-ID: t2",
@@ -147,8 +145,8 @@ func TestIntegrationRecordOpsScanClaimProofsReadsSelection(t *testing.T) {
 		"Docket-Request-ID: claim-4-v2",
 		"Docket-Request-Digest: sha256:bbbb",
 		"Docket-Result: "+encodeClaimReceipt(t, wireClaimReceipt{
-			Branch: "fix/y", ClaimedAt: "2026-09-07T01:00:00Z", RunContextHash: "h4",
-			ID: 4, Lease: "live", Op: OperationChangeClaim, Selection: ClaimSelectionQueue, Status: "in-progress",
+			Branch: "fix/y", RunContextHash: "h4",
+			ID: 4, Op: OperationChangeClaim, Selection: ClaimSelectionQueue, Status: "in-progress",
 		}))
 
 	deps := PlanningDeps{

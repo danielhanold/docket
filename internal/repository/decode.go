@@ -33,12 +33,8 @@ const (
 	CodeLearningPromotionUnknown = "learning-promotion-unknown"
 )
 
-// dateLayout is the stored date-only spelling; stampLayout the claim
-// timestamp's second-precision UTC spelling.
-const (
-	dateLayout  = "2006-01-02"
-	stampLayout = time.RFC3339
-)
+// dateLayout is the stored date-only spelling.
+const dateLayout = "2006-01-02"
 
 // archiveDatePrefixLen is the length of an archive filename's "YYYY-MM-DD"
 // prefix, which is followed by a hyphen.
@@ -126,7 +122,6 @@ type changeWire struct {
 	Hold           scalar     `yaml:"hold"`
 	BranchPrefix   scalar     `yaml:"branch_prefix"`
 	Branch         scalar     `yaml:"branch"`
-	ClaimedAt      scalar     `yaml:"claimed_at"`
 	PR             scalar     `yaml:"pr"`
 	Issue          scalar     `yaml:"issue"`
 	BlockedBy      scalar     `yaml:"blocked_by"`
@@ -579,7 +574,6 @@ func decodeChange(in InputDocument) (domain.Change, []domain.Finding) {
 	spec.Hold = d.optionalBool("hold", wire.Hold)
 	spec.BranchPrefix = d.optionalString("branch_prefix", wire.BranchPrefix)
 	spec.Branch = d.optionalString("branch", wire.Branch)
-	spec.ClaimedAt = d.optionalTime("claimed_at", wire.ClaimedAt, stampLayout)
 	spec.PR = d.optionalString("pr", wire.PR)
 	spec.Issue = d.optionalString("issue", wire.Issue)
 	spec.BlockedBy = d.optionalString("blocked_by", wire.BlockedBy)

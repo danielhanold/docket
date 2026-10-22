@@ -1333,18 +1333,18 @@ func TestIntegrationWorkflowRepoContextServesClaimedChange(t *testing.T) {
 }
 
 // TestIntegrationWorkflowRepoReconcileAppliesWhenBoardReRenderIsUnchanged: a
-// reconcile after a claim re-stamps the record's claimed_at and updated fields
-// and flips reconciled (a real change to the record) and re-renders the inline
-// board. The board's in-progress row shows only id/title/priority/type/spec/
+// reconcile after a claim re-stamps the record's updated field, appends a dated
+// ## Reconcile log entry, and flips reconciled (a real change to the record) and
+// re-renders the inline board. The board's in-progress row shows only id/title/priority/type/spec/
 // branch — none of which a reconcile touches — so the re-render is
 // byte-identical to the board the claim already committed. Declaring that
 // unchanged board would trip the engine's two-way actual-delta guard ("a
 // declared path is not an actual change", a *Failure at stage verify-delta) —
 // the change 0335 bug, first seen on the since-deleted refresh-claim operation
-// (change 0360 retargeted this test at reconcile, which now owns re-stamping the
-// lease). The plan declares only the record, so the reconcile applies: one
-// metadata commit touching exactly the record, the lease re-stamped, the
-// committed board untouched and still matching a fresh render.
+// (change 0360 retargeted this test at reconcile). The plan declares only the
+// record, so the reconcile applies: one metadata commit touching exactly the
+// record, updated: and the reconcile log advanced, the committed board untouched
+// and still matching a fresh render.
 //
 // The reconcile runs a day after the claim (advanced clock) so the record
 // genuinely changes; that isolates the board as the sole would-be
@@ -1381,8 +1381,8 @@ func TestIntegrationWorkflowRepoReconcileAppliesWhenBoardReRenderIsUnchanged(t *
 
 			claimedRevision := blobRevisionAt(t, repo.origin, m.branch, recPath)
 
-			// Reconcile a day later: claimed_at/updated genuinely change on the
-			// record while the board re-renders byte-identical.
+			// Reconcile a day later: updated: and the reconcile log genuinely
+			// change on the record while the board re-renders byte-identical.
 			reconcileNode := planningDepsForClock(t, cloneOrigin(t, repo.origin), advanced)
 			res := ChangeReconcile(ctx, reconcileNode.deps, reconcileNode.dir, ChangeReconcileRequest{
 				ID: id, Revision: claimedRevision, ReconcileLogEntry: "Reconciled against current reality.\n",
@@ -1403,16 +1403,20 @@ func TestIntegrationWorkflowRepoReconcileAppliesWhenBoardReRenderIsUnchanged(t *
 				t.Errorf("reconcile commit changed %v, want exactly [%s] (unchanged board must not be declared)", got, recPath)
 			}
 
-			// The lease actually moved to the advanced clock.
+			// The record actually moved with the advanced clock: updated: and a
+			// new dated reconcile-log entry. No claim stamp is written.
 			final, ok := originFile(t, repo.origin, m.branch, recPath)
 			if !ok {
 				t.Fatalf("record %s missing from origin after reconcile", recPath)
 			}
-			if !strings.Contains(final, "claimed_at: '2026-08-17T12:00:00Z'") {
-				t.Errorf("reconcile did not re-stamp claimed_at:\n%s", final)
-			}
 			if !strings.Contains(final, "updated: '2026-08-17'") {
 				t.Errorf("reconcile did not re-stamp updated:\n%s", final)
+			}
+			if !strings.Contains(final, "## Reconcile log") || !strings.Contains(final, "### 2026-08-17\n\nReconciled against current reality.\n") {
+				t.Errorf("reconcile did not append its dated log entry:\n%s", final)
+			}
+			if strings.Contains(final, "claimed_at") {
+				t.Errorf("claim or reconcile wrote a claimed_at line:\n%s", final)
 			}
 
 			// The committed board still matches a fresh render of the corpus.

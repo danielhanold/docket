@@ -78,9 +78,9 @@ func baseReconcileOp(surfaces []string, req ChangeReconcileRequest) changeReconc
 
 // TestChangeReconcileAppliesPatch proves the structured edit: the owned proposal
 // section is replaced, one dated log entry is appended under ## Reconcile log,
-// reconciled flips true, claimed_at is restamped, relations are written as
-// unquoted flow collections, and everything outside the patch — an unknown
-// frontmatter key and the trailing ## Custom notes section — stays
+// reconciled flips true, relations are written as unquoted flow collections,
+// and everything outside the patch — an unknown frontmatter key, an older
+// record's claimed_at: line, and the trailing ## Custom notes section — stays
 // byte-identical.
 func TestChangeReconcileAppliesPatch(t *testing.T) {
 	recPath := groomPath(3, "widget")
@@ -100,7 +100,7 @@ func TestChangeReconcileAppliesPatch(t *testing.T) {
 	rec := lifecycleRecordBytes(t, plan, recPath)
 	for _, want := range []string{
 		"reconciled: true",
-		"claimed_at: '2026-08-16T12:00:00Z'",
+		"\nclaimed_at: 2026-08-02T00:00:00Z\n",
 		"updated: '2026-08-16'",
 		"depends_on: [1]",
 		"Refined why.",

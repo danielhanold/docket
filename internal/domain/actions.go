@@ -68,9 +68,6 @@ const ReasonBuiltStackDescendants = "built-stack-descendants"
 // ReasonNotDeferrable is the policy reason Defer gives for a change being built.
 const ReasonNotDeferrable = "not-deferrable"
 
-// stampLayout is the second-precision UTC layout for claimed_at.
-const stampLayout = time.RFC3339
-
 // dateLayout is the date-only layout for created:/updated:.
 const dateLayout = "2006-01-02"
 
@@ -130,9 +127,9 @@ func ClaimEligibility(s Snapshot, c Change, facts BranchFacts) *PolicyFailure {
 
 // Claim moves a proposed change to in-progress, recording the minted
 // <type>/<slug> branch, or <branch_prefix>/<slug> when the optional per-change
-// override is present, the injected timestamp as claimed_at, and reconciled:
-// false. A historical "## Run halted" section is reported as an owned removal
-// — the domain identifies the marker; the document layer removes it.
+// override is present, and reconciled: false. A historical "## Run halted"
+// section is reported as an owned removal — the domain identifies the marker;
+// the document layer removes it.
 //
 // Claim guards only what it can see from the record itself: a legal source
 // status, a slug that is a usable branch component, and a mint component (the
@@ -141,7 +138,7 @@ func ClaimEligibility(s Snapshot, c Change, facts BranchFacts) *PolicyFailure {
 // an unambiguous id — is NOT checked here, because it needs the Snapshot this
 // signature deliberately does not take; ClaimEligibility is that condition and
 // the workflow layer calls it first.
-func Claim(c Change, now time.Time) (ActionResult, *PolicyFailure) {
+func Claim(c Change) (ActionResult, *PolicyFailure) {
 	if fail := requireStatus(c, "claim", StatusProposed); fail != nil {
 		return ActionResult{}, fail
 	}
@@ -162,22 +159,10 @@ func Claim(c Change, now time.Time) (ActionResult, *PolicyFailure) {
 	b := newChangeBuilder(c)
 	b.setStatus(StatusInProgress)
 	b.setBranch(MintBranch(c.Type(), c.BranchPrefix(), c.Slug()))
-	b.setClaimedAt(now)
 	b.setReconciled(false)
 	if c.HasRunHalted() {
 		b.own(RunHaltedSection)
 	}
-	return b.result(), nil
-}
-
-// RefreshClaim re-stamps an in-progress change's lease without changing any
-// other field. Its callers are change.reconcile and change.resume-halted.
-func RefreshClaim(c Change, now time.Time) (ActionResult, *PolicyFailure) {
-	if fail := requireStatus(c, "refresh-claim", StatusInProgress); fail != nil {
-		return ActionResult{}, fail
-	}
-	b := newChangeBuilder(c)
-	b.setClaimedAt(now)
 	return b.result(), nil
 }
 
@@ -241,8 +226,8 @@ func Revive(c Change) (ActionResult, *PolicyFailure) {
 	return b.result(), nil
 }
 
-// Kill terminates a proposed or in-progress change, clearing its claim stamp
-// and recorded branch: a killed record holds no lease and owns no branch.
+// Kill terminates a proposed or in-progress change, clearing its recorded
+// branch: a killed record owns no branch.
 func Kill(c Change) (ActionResult, *PolicyFailure) {
 	if fail := requireStatus(c, "kill", StatusProposed, StatusInProgress); fail != nil {
 		return ActionResult{}, fail
@@ -254,7 +239,6 @@ func Kill(c Change) (ActionResult, *PolicyFailure) {
 func killedResult(c Change) ActionResult {
 	b := newChangeBuilder(c)
 	b.setStatus(StatusKilled)
-	b.clearClaimedAt()
 	b.setBranch("")
 	return b.result()
 }
@@ -373,8 +357,7 @@ func MarkStackedMerged(c Change, parentBranch string, f MergeFacts) (ActionResul
 }
 
 // MarkDone terminates an implemented or stacked-merged change once
-// reachability from the integration branch is supplied as a verified fact. The
-// claim stamp is cleared: an archived record holds no lease.
+// reachability from the integration branch is supplied as a verified fact.
 func MarkDone(c Change, f DoneFacts) (ActionResult, *PolicyFailure) {
 	if fail := requireStatus(c, "mark-done", StatusImplemented, StatusStackedMerged); fail != nil {
 		return ActionResult{}, fail
@@ -384,16 +367,14 @@ func MarkDone(c Change, f DoneFacts) (ActionResult, *PolicyFailure) {
 	}
 	b := newChangeBuilder(c)
 	b.setStatus(StatusDone)
-	b.clearClaimedAt()
 	return b.result(), nil
 }
 
 // Complete is the results-artifact ending: it terminates a proposed or
 // in-progress change whose deliverable is results-artifact, carries attached
 // results, and records no PR, moving it straight to done without a PR. The
-// claim stamp is cleared (an archived record holds no lease); the recorded
-// branch is kept, so finalize cleanup can find and delete it. A historical
-// "## Run halted" section is an owned removal. The deliverable check keys on
+// recorded branch is kept, so finalize cleanup can find and delete it. A
+// historical "## Run halted" section is an owned removal. The deliverable check keys on
 // the effective value, so an absent field (pr) and an unknown stored value are
 // both refused rather than guessed. updated: is left to the persisting layer.
 func Complete(c Change) (ActionResult, *PolicyFailure) {
@@ -415,7 +396,6 @@ func Complete(c Change) (ActionResult, *PolicyFailure) {
 	}
 	b := newChangeBuilder(c)
 	b.setStatus(StatusDone)
-	b.clearClaimedAt()
 	if c.HasRunHalted() {
 		b.own(RunHaltedSection)
 	}
@@ -483,7 +463,6 @@ func newChangeBuilder(c Change) *changeBuilder {
 		Hold:           c.Hold(),
 		BranchPrefix:   c.BranchPrefix(),
 		Branch:         c.Branch(),
-		ClaimedAt:      c.ClaimedAt(),
 		PR:             c.PR(),
 		Issue:          c.Issue(),
 		BlockedBy:      c.BlockedBy(),
@@ -546,20 +525,6 @@ func (b *changeBuilder) setOptionalString(field string, target *OptionalString, 
 	}
 	b.record(field, target.Value, next.Value)
 	*target = next
-}
-
-// setClaimedAt stamps the lease at second-precision UTC.
-func (b *changeBuilder) setClaimedAt(now time.Time) {
-	stamp := now.UTC().Truncate(time.Second)
-	next := OptionalTime{State: FieldPresent, Value: stamp, Raw: stamp.Format(stampLayout)}
-	b.record("claimed_at", b.spec.ClaimedAt.Raw, next.Raw)
-	b.spec.ClaimedAt = next
-}
-
-// clearClaimedAt drops the lease stamp entirely.
-func (b *changeBuilder) clearClaimedAt() {
-	b.record("claimed_at", b.spec.ClaimedAt.Raw, "")
-	b.spec.ClaimedAt = OptionalTime{}
 }
 
 // setUpdated stamps the date-only updated: field from the injected time.

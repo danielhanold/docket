@@ -23,8 +23,7 @@ import (
 // refreshed updated date, its re-rendered artifact block, and the inline board)
 // as one validated atomic transaction. The domain owns legality: domain.Claim
 // decides whether the current status may take the transition and yields the
-// exact FieldChanges to apply. The lease is re-stamped only by claim,
-// change.reconcile, and change.resume-halted.
+// exact FieldChanges to apply.
 //
 // Claim additionally re-proves eligibility INSIDE the transaction against the
 // attempt's own fresh snapshot — proposed, uniquely identified, build-ready,
@@ -132,8 +131,6 @@ type ChangeClaimResult struct {
 	ID          int             `json:"id,omitempty"`
 	Status      string          `json:"status,omitempty" docket:"success-only,enum=statuses"`
 	Branch      string          `json:"branch,omitempty"`
-	ClaimedAt   string          `json:"claimed_at,omitempty"`
-	Lease       string          `json:"lease,omitempty"`
 	Revision    string          `json:"committed_revision,omitempty"`
 	Disposition string          `json:"disposition,omitempty" docket:"enum=claim_dispositions"`
 	Findings    []StatusFinding `json:"findings"`
@@ -144,7 +141,7 @@ type ChangeClaimResult struct {
 func (r ChangeClaimResult) HumanText() string {
 	switch r.Result {
 	case ResultApplied:
-		return fmt.Sprintf("change %04d %s (%s) lease %s — %s", r.ID, r.Disposition, r.Branch, r.Lease, r.Revision)
+		return fmt.Sprintf("change %04d %s (%s) — %s", r.ID, r.Disposition, r.Branch, r.Revision)
 	default:
 		disp := r.Disposition
 		if disp == "" {
@@ -167,19 +164,19 @@ func newChangeClaimResult(opKey string, result Result, r ChangeClaimResult) Chan
 // changeClaimReceipt is the canonical receipt persisted with a claim commit and
 // replayed verbatim on an idempotent re-run. Field order is alphabetical so
 // json.Marshal emits the canonical, sorted-key compact form the engine's receipt
-// validator requires.
+// validator requires. A receipt committed by an older docket may also carry
+// claimed_at and lease keys; json.Unmarshal ignores them, so such a receipt
+// still replays.
 type changeClaimReceipt struct {
-	Branch    string `json:"branch"`
-	ClaimedAt string `json:"claimed_at"`
+	Branch string `json:"branch"`
 	// RunContextHash is the hashed run context this claim was bound to (""
 	// for an ungated claim). It is the durable, authoritative proof the keyed
 	// verdict path resolves ownership from (change 0407). Placed between
-	// claimed_at and id so the struct's field order stays alphabetical by json key
+	// branch and id so the struct's field order stays alphabetical by json key
 	// — json.Marshal then emits the canonical sorted-key form the receipt
 	// validator requires.
 	RunContextHash string `json:"gate_context_hash"`
 	ID             int    `json:"id"`
-	Lease          string `json:"lease"`
 	Op             string `json:"op"`
 	// Selection is how the run chose this change (claimSelection's normalized
 	// value), omitted when unknown so an unknown claim's receipt is byte-identical
@@ -273,7 +270,6 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		facts:          facts,
 		eff:            eff,
 		clock:          deps.Clock,
-		ttlHours:       eff.Reclaim.LeaseTTL.Value,
 		inline:         inline,
 		link:           linkContextOf(pin),
 		changesDir:     eff.ChangesDir.Value,
@@ -454,8 +450,6 @@ func claimResultFromOutcome(opKey string, res transaction.Result, execErr error)
 			out.ID = rec.ID
 			out.Status = rec.Status
 			out.Branch = rec.Branch
-			out.ClaimedAt = rec.ClaimedAt
-			out.Lease = rec.Lease
 		}
 		out.Revision = string(res.AppliedCommit)
 	}
@@ -531,7 +525,6 @@ type changeClaimOp struct {
 	facts      domain.BranchFacts
 	eff        config.Effective
 	clock      transaction.Clock
-	ttlHours   int
 	inline     bool
 	link       render.LinkContext
 	changesDir string
@@ -570,7 +563,7 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	if fail := domain.ClaimEligibility(snap, c, o.facts); fail != nil {
 		return refuseLifecyclePolicy(fail)
 	}
-	result, fail := domain.Claim(c, o.clock.Now())
+	result, fail := domain.Claim(c)
 	if fail != nil {
 		return refuseLifecyclePolicy(fail)
 	}
@@ -590,9 +583,10 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 
 	// First patch pass: the domain's owned claim FieldChanges plus the refreshed
 	// updated date. Each field is upserted in its own parse/apply cycle rather
-	// than batched, because a claim inserts SEVERAL absent fields (branch,
-	// claimed_at) into a proposed record and two InsertFields batched into one
-	// PatchSet resolve to the same pre-fence position — an overlapping edit.
+	// than batched, because a claim can insert SEVERAL absent fields (branch,
+	// and updated on a record without one) into a proposed record and two
+	// InsertFields batched into one PatchSet resolve to the same pre-fence
+	// position — an overlapping edit.
 	intermediate := edited
 	for _, fc := range result.Changed {
 		intermediate, err = upsertFieldBytes(intermediate, fc.Field, lifecycleFieldValue(fc.To))
@@ -644,13 +638,10 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		}
 	}
 
-	lease := string(domain.EvaluateLease(result.Change, o.clock.Now(), o.ttlHours))
 	receipt, err := json.Marshal(changeClaimReceipt{
 		Branch:         result.Change.Branch().Value,
-		ClaimedAt:      result.Change.ClaimedAt().Raw,
 		RunContextHash: o.runContextHash,
 		ID:             o.changeID,
-		Lease:          lease,
 		Op:             o.opKey,
 		Selection:      o.selection,
 		Status:         string(result.Change.Status()),

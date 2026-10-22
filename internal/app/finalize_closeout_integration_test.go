@@ -382,8 +382,8 @@ func TestIntegrationFinalizeArchiveOrdinary(t *testing.T) {
 				t.Fatalf("archive path = %q, want %q", res.ArchivePath, archivePath)
 			}
 
-			// The active record is gone; the archived record is done, claimless, and
-			// stamped with the merge date.
+			// The active record is gone; the archived record is done and stamped
+			// with the merge date, its older claimed_at: line left byte-identical.
 			recPath := groomPath(f.id, f.slug)
 			if _, ok := originFile(t, f.repo.origin, f.branch, recPath); ok {
 				t.Errorf("active record still present after closeout (marker-section state)")
@@ -398,8 +398,8 @@ func TestIntegrationFinalizeArchiveOrdinary(t *testing.T) {
 			if !strings.Contains(archived, "updated: '2026-08-18'") {
 				t.Errorf("archived record not stamped with the merge date:\n%s", archived)
 			}
-			if strings.Contains(archived, "claimed_at: '2026-08-02") {
-				t.Errorf("archived record still carries a claim stamp:\n%s", archived)
+			if !strings.Contains(archived, "\nclaimed_at: 2026-08-02T00:00:00Z\n") {
+				t.Errorf("closeout rewrote the claimed_at line:\n%s", archived)
 			}
 			// Historical branch/PR fields survive.
 			if !strings.Contains(archived, "pr: '"+closeoutRef+"'") {

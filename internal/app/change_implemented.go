@@ -476,7 +476,7 @@ func resultsArtifactProblem(resultsPath string, data []byte, found bool, ch doma
 // transaction as well as at the pre-transaction reprobe), upserts the owned
 // fields (status, pr, plan, updated), re-renders the artifact block, writes the
 // verified evidence record as the record's "## Build evidence" section, and —
-// when inline is enabled — the board. It never touches claimed_at or branch: the claim
+// when inline is enabled — the board. It never touches branch: the claim
 // survives the transition (0316 owns claim release).
 type changeImplementedOp struct {
 	changeID   int
@@ -527,8 +527,8 @@ func (o changeImplementedOp) Plan(ctx context.Context, st transaction.AttemptSta
 	// First patch pass: the domain's owned FieldChanges (status, pr, plan) plus the
 	// refreshed updated date. Each field is upserted in its own parse/apply cycle
 	// so an inserted absent field (pr on a record that never carried one) never
-	// collides with another at the pre-fence insertion point. claimed_at and branch
-	// are absent from result.Changed, so they are left byte-identical.
+	// collides with another at the pre-fence insertion point. branch is absent
+	// from result.Changed, so it is left byte-identical.
 	intermediate := src
 	var err error
 	for _, fc := range result.Changed {

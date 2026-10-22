@@ -19,7 +19,6 @@ type actSpec struct {
 	typ          string // change type token; build defaults an empty value to "feat"
 	branchPrefix string // per-change branch_prefix override, present when non-empty
 	branch       string
-	claimedAt    string
 	blockedBy    string
 	pr           string
 	plan         string
@@ -55,13 +54,6 @@ func (as actSpec) build() Change {
 	}
 	if as.branch != "" {
 		cs.Branch = OptionalString{State: FieldPresent, Value: as.branch}
-	}
-	if as.claimedAt != "" {
-		stamp, err := time.Parse(time.RFC3339, as.claimedAt)
-		if err != nil {
-			panic(err)
-		}
-		cs.ClaimedAt = OptionalTime{State: FieldPresent, Value: stamp, Raw: as.claimedAt}
 	}
 	if as.blockedBy != "" {
 		cs.BlockedBy = OptionalString{State: FieldPresent, Value: as.blockedBy}
@@ -105,7 +97,6 @@ var allStatuses = []Status{
 func fingerprint(c Change) string {
 	return string(c.Status()) + "|" + c.RawStatus() + "|" +
 		c.Branch().Value + "|" + string(rune('0'+int(c.Branch().State))) + "|" +
-		c.ClaimedAt().Raw + "|" + string(rune('0'+int(c.ClaimedAt().State))) + "|" +
 		c.BlockedBy().Value + "|" + string(rune('0'+int(c.BlockedBy().State))) + "|" +
 		c.PR().Value + "|" + c.Plan().Value + "|" + c.Updated().Raw + "|" +
 		map[bool]string{true: "T", false: "F"}[c.Reconciled()]
@@ -153,13 +144,8 @@ type actionCase struct {
 var matrixActions = []actionCase{
 	{
 		name:  "Claim",
-		apply: func(c Change) (ActionResult, *PolicyFailure) { return Claim(c, actNow) },
+		apply: Claim,
 		legal: map[Status]Status{StatusProposed: StatusInProgress},
-	},
-	{
-		name:  "RefreshClaim",
-		apply: func(c Change) (ActionResult, *PolicyFailure) { return RefreshClaim(c, actNow) },
-		legal: map[Status]Status{StatusInProgress: StatusInProgress},
 	},
 	{
 		name:  "Block",
@@ -221,7 +207,6 @@ func TestActionSourceStateMatrix(t *testing.T) {
 					slug:       "a-slug",
 					status:     from,
 					branch:     "feat/a-slug",
-					claimedAt:  "2026-08-10T00:00:00Z",
 					pr:         "#7",
 					plan:       "docs/plan.md",
 					reconciled: true,
@@ -268,10 +253,10 @@ func TestActionSourceStateMatrix(t *testing.T) {
 	}
 }
 
-func TestClaimSetsBranchStampAndReconciled(t *testing.T) {
+func TestClaimSetsBranchAndReconciled(t *testing.T) {
 	input := actSpec{id: 12, slug: "widget-work", status: StatusProposed, reconciled: true}.build()
 
-	got, fail := Claim(input, actNow)
+	got, fail := Claim(input)
 	if fail != nil {
 		t.Fatalf("Claim failed: %v", fail)
 	}
@@ -282,20 +267,16 @@ func TestClaimSetsBranchStampAndReconciled(t *testing.T) {
 	if b := got.Change.Branch(); b.State != FieldPresent || b.Value != wantBranch {
 		t.Fatalf("branch = %+v, want %q", b, wantBranch)
 	}
-	stamp := got.Change.ClaimedAt()
-	if stamp.State != FieldPresent || stamp.Raw != "2026-08-14T09:30:15Z" {
-		t.Fatalf("claimed_at = %+v, want the injected now", stamp)
-	}
-	if !stamp.Value.Equal(actNow) {
-		t.Fatalf("claimed_at value = %v, want %v", stamp.Value, actNow)
-	}
 	if got.Change.Reconciled() {
 		t.Fatal("reconciled should be cleared by a claim")
 	}
-	for _, field := range []string{"status", "branch", "claimed_at", "reconciled"} {
+	for _, field := range []string{"status", "branch", "reconciled"} {
 		if !hasField(got, field) {
 			t.Fatalf("Changed set omits %q: %v", field, changedFields(got))
 		}
+	}
+	if hasField(got, "claimed_at") {
+		t.Fatalf("a claim writes no claimed_at: %v", changedFields(got))
 	}
 	if len(got.OwnedRemovals) != 0 {
 		t.Fatalf("OwnedRemovals = %v, want none without a run-halted section", got.OwnedRemovals)
@@ -304,7 +285,7 @@ func TestClaimSetsBranchStampAndReconciled(t *testing.T) {
 
 func TestClaimOwnsRunHaltedRemovalOnlyWhenPresent(t *testing.T) {
 	halted := actSpec{id: 3, slug: "s", status: StatusProposed, runHalted: true}.build()
-	got, fail := Claim(halted, actNow)
+	got, fail := Claim(halted)
 	if fail != nil {
 		t.Fatalf("Claim failed: %v", fail)
 	}
@@ -315,30 +296,6 @@ func TestClaimOwnsRunHaltedRemovalOnlyWhenPresent(t *testing.T) {
 		if name == "" {
 			t.Fatal("OwnedRemovals carries an empty string")
 		}
-	}
-}
-
-func TestRefreshClaimRestampsOnly(t *testing.T) {
-	input := actSpec{
-		id: 5, slug: "s", status: StatusInProgress,
-		branch: "feat/s", claimedAt: "2026-08-01T00:00:00Z",
-	}.build()
-
-	got, fail := RefreshClaim(input, actNow)
-	if fail != nil {
-		t.Fatalf("RefreshClaim failed: %v", fail)
-	}
-	if got.Change.Status() != StatusInProgress {
-		t.Fatalf("status = %q", got.Change.Status())
-	}
-	if fields := changedFields(got); len(fields) != 1 || fields[0] != "claimed_at" {
-		t.Fatalf("Changed = %v, want only claimed_at", fields)
-	}
-	if to, _ := fieldTo(got, "claimed_at"); to != "2026-08-14T09:30:15Z" {
-		t.Fatalf("claimed_at To = %q", to)
-	}
-	if got.Change.Branch().Value != "feat/s" {
-		t.Fatal("refresh must not touch the branch")
 	}
 }
 
@@ -387,10 +344,10 @@ func TestUnblockClearsReason(t *testing.T) {
 	}
 }
 
-func TestKillClearsClaimAndBranch(t *testing.T) {
+func TestKillClearsBranch(t *testing.T) {
 	input := actSpec{
 		id: 4, slug: "s", status: StatusInProgress,
-		branch: "feat/s", claimedAt: "2026-08-01T00:00:00Z",
+		branch: "feat/s",
 	}.build()
 
 	got, fail := Kill(input)
@@ -400,15 +357,14 @@ func TestKillClearsClaimAndBranch(t *testing.T) {
 	if got.Change.Status() != StatusKilled {
 		t.Fatalf("status = %q", got.Change.Status())
 	}
-	if got.Change.ClaimedAt().State != FieldAbsent || got.Change.Branch().State != FieldAbsent {
-		t.Fatalf("kill must clear claimed_at and branch: %+v %+v",
-			got.Change.ClaimedAt(), got.Change.Branch())
+	if got.Change.Branch().State != FieldAbsent {
+		t.Fatalf("kill must clear branch: %+v", got.Change.Branch())
 	}
-	for _, field := range []string{"claimed_at", "branch"} {
-		to, ok := fieldTo(got, field)
-		if !ok || to != "" {
-			t.Fatalf("Changed %q To = %q, ok=%v", field, to, ok)
-		}
+	if to, ok := fieldTo(got, "branch"); !ok || to != "" {
+		t.Fatalf("Changed branch To = %q, ok=%v", to, ok)
+	}
+	if hasField(got, "claimed_at") {
+		t.Fatalf("a kill writes no claimed_at: %v", changedFields(got))
 	}
 }
 
@@ -534,7 +490,7 @@ func TestMarkDoneRequiresReachability(t *testing.T) {
 	for _, from := range []Status{StatusImplemented, StatusStackedMerged} {
 		input := actSpec{
 			id: 2, slug: "s", status: from,
-			branch: "feat/s", claimedAt: "2026-08-01T00:00:00Z",
+			branch: "feat/s",
 		}.build()
 
 		if _, fail := MarkDone(input, DoneFacts{}); fail == nil {
@@ -550,8 +506,8 @@ func TestMarkDoneRequiresReachability(t *testing.T) {
 		if got.Change.Status() != StatusDone {
 			t.Fatalf("%s: status = %q", from, got.Change.Status())
 		}
-		if got.Change.ClaimedAt().State != FieldAbsent {
-			t.Fatal("a done record must carry no claim stamp")
+		if hasField(got, "claimed_at") {
+			t.Fatalf("%s: MarkDone writes no claimed_at: %v", from, changedFields(got))
 		}
 	}
 }
@@ -669,8 +625,7 @@ func TestKillInSnapshotTerminatesOnCycle(t *testing.T) {
 }
 
 func TestKillInSnapshotLeavesDescendantsUntouched(t *testing.T) {
-	parent := actSpec{id: 1, slug: "root", status: StatusInProgress, branch: "feat/root",
-		claimedAt: "2026-08-01T00:00:00Z"}
+	parent := actSpec{id: 1, slug: "root", status: StatusInProgress, branch: "feat/root"}
 	snap := actSnapshot(parent, actSpec{id: 2, slug: "kid", status: StatusProposed, parent: edge(1)})
 	before := map[ChangeID]string{}
 	for _, c := range snap.Changes() {
@@ -690,7 +645,7 @@ func TestKillInSnapshotLeavesDescendantsUntouched(t *testing.T) {
 	}
 	for _, f := range changedFields(result) {
 		switch f {
-		case "status", "claimed_at", "branch":
+		case "status", "branch":
 		default:
 			t.Fatalf("Changed names %q; a kill rewrites only the parent's own fields", f)
 		}
@@ -734,7 +689,7 @@ func TestActionsPreserveUnrelatedFields(t *testing.T) {
 		dependsOn: []ChangeID{1, 2},
 	}.build()
 
-	got, fail := Claim(input, actNow)
+	got, fail := Claim(input)
 	if fail != nil {
 		t.Fatalf("Claim failed: %v", fail)
 	}
@@ -937,7 +892,7 @@ func TestClaimEligibilityDoesNotTransition(t *testing.T) {
 	}
 	// Claim itself stays a pure status transition: the eligibility condition is
 	// the workflow layer's to call, so Claim still succeeds here.
-	if _, fail := Claim(c, actNow); fail != nil {
+	if _, fail := Claim(c); fail != nil {
 		t.Fatalf("Claim failed: %v", fail)
 	}
 }
@@ -947,7 +902,7 @@ func TestClaimRefusesUnusableSlug(t *testing.T) {
 	for _, slug := range bad {
 		t.Run("slug="+slug, func(t *testing.T) {
 			c := NewChange(ChangeSpec{ID: 4, Slug: slug, Status: StatusProposed})
-			_, fail := Claim(c, actNow)
+			_, fail := Claim(c)
 			if fail == nil {
 				t.Fatalf("Claim accepted slug %q", slug)
 			}
@@ -960,7 +915,7 @@ func TestClaimRefusesUnusableSlug(t *testing.T) {
 	for _, slug := range []string{"a-slug", "2fa-support", "x"} {
 		t.Run("ok="+slug, func(t *testing.T) {
 			c := NewChange(ChangeSpec{ID: 4, Slug: slug, Status: StatusProposed, Type: "feat"})
-			got, fail := Claim(c, actNow)
+			got, fail := Claim(c)
 			if fail != nil {
 				t.Fatalf("Claim(%q) failed: %v", slug, fail)
 			}
@@ -981,7 +936,7 @@ func TestClaimMintsTypePrefixedBranch(t *testing.T) {
 	} {
 		t.Run(tc.typ, func(t *testing.T) {
 			c := actSpec{id: 20, slug: "widget", status: StatusProposed, typ: tc.typ}.build()
-			got, fail := Claim(c, actNow)
+			got, fail := Claim(c)
 			if fail != nil {
 				t.Fatalf("Claim failed: %v", fail)
 			}
@@ -996,7 +951,7 @@ func TestClaimHonorsBranchPrefixOverride(t *testing.T) {
 	c := actSpec{
 		id: 21, slug: "widget", status: StatusProposed, typ: "fix", branchPrefix: "hotfix",
 	}.build()
-	got, fail := Claim(c, actNow)
+	got, fail := Claim(c)
 	if fail != nil {
 		t.Fatalf("Claim failed: %v", fail)
 	}
@@ -1017,7 +972,7 @@ func TestClaimRejectsInvalidBranchComponent(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			input := tc.spec.build()
 			before := fingerprint(input)
-			_, fail := Claim(input, actNow)
+			_, fail := Claim(input)
 			if fail == nil {
 				t.Fatal("Claim accepted an invalid branch component")
 			}
@@ -1059,7 +1014,7 @@ func TestCompleteMatrix(t *testing.T) {
 		t.Run(fmt.Sprintf("in-progress completes (run halted %v)", halted), func(t *testing.T) {
 			got, fail := Complete(actSpec{
 				id: 9, slug: "s", status: StatusInProgress, branch: "feat/s",
-				claimedAt: "2026-08-01T00:00:00Z", deliverable: ra, results: res, runHalted: halted,
+				deliverable: ra, results: res, runHalted: halted,
 			}.build())
 			if fail != nil {
 				t.Fatalf("Complete failed: %v", fail)
@@ -1067,11 +1022,8 @@ func TestCompleteMatrix(t *testing.T) {
 			if got.Change.Status() != StatusDone {
 				t.Fatalf("status = %q, want done", got.Change.Status())
 			}
-			if got.Change.ClaimedAt().State != FieldAbsent {
-				t.Fatalf("claimed_at not cleared: %+v", got.Change.ClaimedAt())
-			}
-			if to, ok := fieldTo(got, "claimed_at"); !ok || to != "" {
-				t.Fatalf("Changed claimed_at To = %q, ok=%v", to, ok)
+			if hasField(got, "claimed_at") {
+				t.Fatalf("Complete writes no claimed_at: %v", changedFields(got))
 			}
 			if got.Change.Branch().Value != "feat/s" {
 				t.Fatalf("branch = %+v, want kept", got.Change.Branch())
@@ -1124,7 +1076,7 @@ func TestCompleteMatrix(t *testing.T) {
 // deferred; every other non-proposed source keeps illegal-source-status.
 func TestDeferRefusesInProgressAsNotDeferrable(t *testing.T) {
 	in := actSpec{id: 7, slug: "a-slug", status: StatusInProgress, branch: "feat/a-slug",
-		claimedAt: "2026-08-10T00:00:00Z", plan: "docs/plan.md", reconciled: true}.build()
+		plan: "docs/plan.md", reconciled: true}.build()
 	before := fingerprint(in)
 	_, fail := Defer(in)
 	if fingerprint(in) != before {

@@ -42,8 +42,9 @@ func buildReadyChange(id int, slug string) string {
 
 // planningDepsForClock is planningDepsFor with an explicit clock, so a
 // reconcile can run at a later wall time than the claim that preceded it against
-// the same origin — the record's claimed_at/updated then genuinely change while
-// the inline board (which shows none of those fields) re-renders byte-identical.
+// the same origin — the record's updated: field and its dated reconcile-log
+// entry then genuinely change while the inline board (which shows neither)
+// re-renders byte-identical.
 func planningDepsForClock(t *testing.T, dir string, clock transaction.Clock) realNode {
 	t.Helper()
 	client := newGitClient(t)

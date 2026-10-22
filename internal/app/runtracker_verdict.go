@@ -136,10 +136,11 @@ const (
 	// ReasonRunBindingConflict: more than one committed claim proof matches the
 	// record's context hash with no binding to arbitrate — unsafe ownership.
 	ReasonRunBindingConflict = "binding-conflict"
-	// ReasonRunClaimReplaced: the bound change was reclaimed and re-claimed by
-	// another run — the old gate must detect that replacement and cannot retry or
-	// take over the new claim (spec: "the old gate must detect that replacement and
-	// cannot retry or take over the new claim").
+	// ReasonRunClaimReplaced: a newer claim proof exists for the bound change —
+	// another run claimed it again — so the old gate must detect that
+	// replacement and cannot retry or take over the new claim (spec: "the old
+	// gate must detect that replacement and cannot retry or take over the new
+	// claim").
 	ReasonRunClaimReplaced = "claim-replaced"
 	// ReasonRunProofUnavailable: committed claim proofs could not be read (no
 	// scanner wired, a scan fault, or the binding's own receipt unseeable) — without
@@ -813,8 +814,8 @@ func resolveRunTrackerOwnership(ctx context.Context, deps PlanningDeps, wdeps Wo
 	switch {
 	case hasBinding && binding.Confirmed:
 		// Continuity: the NEWEST proof naming the bound change must still be this
-		// binding's own claim. A newer proof under a different request id means the
-		// change was reclaimed and re-claimed by another run.
+		// binding's own claim. A newer proof under a different request id means
+		// another run claimed the change again after this binding's claim.
 		newest, found := runTrackerNewestProofForChange(proofs, binding.ChangeID)
 		if !found {
 			// The binding's own confirmed receipt could not even be seen (truncated

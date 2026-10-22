@@ -45,7 +45,6 @@ func fullChangeSpec(t *testing.T) ChangeSpec {
 		Plan:           OptionalString{State: FieldEmpty},
 		Results:        OptionalString{State: FieldAbsent},
 		Branch:         OptionalString{State: FieldPresent, Value: "feat/domain-snapshot"},
-		ClaimedAt:      OptionalTime{State: FieldPresent, Value: time.Date(2026, 8, 13, 4, 5, 6, 0, time.UTC), Raw: "2026-08-13T04:05:06Z"},
 		PR:             OptionalString{State: FieldPresent, Value: "https://example.test/pr/1"},
 		Issue:          OptionalString{State: FieldMalformed, Value: "#"},
 		BlockedBy:      OptionalString{State: FieldEmpty},
@@ -113,9 +112,6 @@ func TestChangeAccessorsRoundTrip(t *testing.T) {
 	if got := c.Branch(); got != spec.Branch {
 		t.Errorf("Branch() = %+v; want %+v", got, spec.Branch)
 	}
-	if got := c.ClaimedAt(); got != spec.ClaimedAt {
-		t.Errorf("ClaimedAt() = %+v; want %+v", got, spec.ClaimedAt)
-	}
 	if got := c.PR(); got != spec.PR {
 		t.Errorf("PR() = %+v; want %+v", got, spec.PR)
 	}
@@ -154,26 +150,26 @@ func TestChangeAccessorsRoundTrip(t *testing.T) {
 // TestChangeOptionalFieldStates walks all four FieldStates through the
 // optional accessors the decoder relies on most.
 func TestChangeOptionalFieldStates(t *testing.T) {
-	claimRaw := "2026-08-13T04:05:06Z"
-	claimVal := time.Date(2026, 8, 13, 4, 5, 6, 0, time.UTC)
+	updatedRaw := "2026-08-13"
+	updatedVal := time.Date(2026, 8, 13, 0, 0, 0, 0, time.UTC)
 	tests := []struct {
-		name  string
-		spec  OptionalString
-		claim OptionalTime
+		name    string
+		spec    OptionalString
+		updated OptionalTime
 	}{
 		{"absent", OptionalString{State: FieldAbsent}, OptionalTime{State: FieldAbsent}},
 		{"empty", OptionalString{State: FieldEmpty}, OptionalTime{State: FieldEmpty, Raw: ""}},
 		{"malformed", OptionalString{State: FieldMalformed, Value: "  "}, OptionalTime{State: FieldMalformed, Raw: "yesterday"}},
-		{"present", OptionalString{State: FieldPresent, Value: "docs/spec.md"}, OptionalTime{State: FieldPresent, Value: claimVal, Raw: claimRaw}},
+		{"present", OptionalString{State: FieldPresent, Value: "docs/spec.md"}, OptionalTime{State: FieldPresent, Value: updatedVal, Raw: updatedRaw}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := NewChange(ChangeSpec{Spec: tc.spec, ClaimedAt: tc.claim})
+			c := NewChange(ChangeSpec{Spec: tc.spec, Updated: tc.updated})
 			if got := c.Spec(); got != tc.spec {
 				t.Errorf("Spec() = %+v; want %+v", got, tc.spec)
 			}
-			if got := c.ClaimedAt(); got != tc.claim {
-				t.Errorf("ClaimedAt() = %+v; want %+v", got, tc.claim)
+			if got := c.Updated(); got != tc.updated {
+				t.Errorf("Updated() = %+v; want %+v", got, tc.updated)
 			}
 		})
 	}

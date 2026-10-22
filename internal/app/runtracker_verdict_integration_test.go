@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/repository"
@@ -22,10 +21,10 @@ import (
 )
 
 // These are the `docket run verdict <key>` (attributed mode) tests (change
-// 0334, Task 3). run verdict loads the durable gate record, attributes exactly
-// one new in-progress claim through the three filters (id not in the before-set;
-// claimed_at parses; claimed_at >= dispatch time), then delegates the run
-// predicate to RunVerify and maps its verdict onto the attributed vocabulary —
+// 0334, Task 3). run verdict loads the durable gate record, resolves the run's
+// change from its confirmed claim binding and the exact committed claim proof
+// (never from a record's claim timestamp), then delegates the run predicate to
+// RunVerify and maps its verdict onto the attributed vocabulary —
 // consuming the single retry permit BEFORE emitting so a lost retry is the safe
 // failure, and failing closed to run-tracker-unavailable on any load error or
 // unrecognized verdict. Every outcome is a report line that exits 0.
@@ -34,19 +33,6 @@ import (
 // fixture's invocation clone); attribution reads the fakeReader corpus; the
 // RunVerify delegation is driven by the run_verify_test.go fixtures (rvFixture,
 // rvRecord, rvInProgressRecord, rvPR, rvAgreeingReceipt).
-
-// runTrackerClaimUnix is the Unix epoch of runTrackerDefaultClaimedAt — the claim instant
-// lifecycleChange stamps on an in-progress record. Attribution filter (c)
-// compares a candidate's claimed_at against the record's DispatchedAt, so tests
-// straddle this value.
-func runTrackerClaimUnix(t *testing.T) int64 {
-	t.Helper()
-	tm, err := time.Parse(time.RFC3339, runTrackerDefaultClaimedAt)
-	if err != nil {
-		t.Fatalf("parse %q: %v", runTrackerDefaultClaimedAt, err)
-	}
-	return tm.Unix()
-}
 
 // runTrackerLightDeps wires a planning-only deps set over the given corpus (no git
 // client, no workspace/github seams) for attribution paths that never reach
@@ -908,8 +894,8 @@ func TestIntegrationRunVerdictVerdictAbsentBindingAdoptsSoleProof(t *testing.T) 
 }
 
 // TestIntegrationRunVerdictVerdictClaimReplacedStops: a confirmed binding whose bound change carries a
-// NEWER proof under a different request id means the change was reclaimed and
-// re-claimed by another run — the old gate must neither retry nor take over the
+// NEWER proof under a different request id means another run claimed the
+// change again — the old gate must neither retry nor take over the
 // replacement. The binding is left unchanged and the retry is never spent.
 func TestIntegrationRunVerdictVerdictClaimReplacedStops(t *testing.T) {
 	repo := newRunTrackerRepo(t)
