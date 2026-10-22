@@ -128,10 +128,14 @@ func TestClassifyMatrix(t *testing.T) {
 			want:    []capWant{{"learnings.cap", Inert, false, false, LayerRepository}},
 		},
 
-		// Rows 13-14 — reclaim is supported.
+		// Rows 13-14 — reclaim is an obsolete tombstone: inactive, never blocks.
 		{
-			name:    "reclaim classifies to nothing",
+			name:    "reclaim leaves are obsolete",
 			sources: []Source{srcR("reclaim:\n  lease_ttl: 12\n  auto: true\n")},
+			want: []capWant{
+				{"reclaim.auto", Obsolete, false, false, LayerRepository},
+				{"reclaim.lease_ttl", Obsolete, false, false, LayerRepository},
+			},
 		},
 
 		// Row 15 — build.checkpoint.

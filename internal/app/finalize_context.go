@@ -267,7 +267,7 @@ type FinalizeCandidateReport struct {
 }
 
 // FinalizePolicy is the repository-wide finalize configuration the bundle
-// reports: refs and the resolved gate/suite/approval/reclaim policy. Go v1
+// reports: refs and the resolved gate/suite/approval policy. Go v1
 // supports one metadata topology, so no mode-shaped field appears (change 0363).
 type FinalizePolicy struct {
 	IntegrationBranch string `json:"integration_branch"`
@@ -276,11 +276,9 @@ type FinalizePolicy struct {
 	// 0374): finalize reads finalize.gate/finalize.test_command, independent of
 	// the build role's pair. The generic gate/test_command keys are retired
 	// (spec Touch point 3).
-	FinalizeGate         string `json:"finalize_gate"`
-	FinalizeTestCommand  string `json:"finalize_test_command,omitempty"`
-	RequirePRApproval    bool   `json:"require_pr_approval"`
-	ReclaimAuto          bool   `json:"reclaim_auto"`
-	ReclaimLeaseTTLHours int    `json:"reclaim_lease_ttl_hours"`
+	FinalizeGate        string `json:"finalize_gate"`
+	FinalizeTestCommand string `json:"finalize_test_command,omitempty"`
+	RequirePRApproval   bool   `json:"require_pr_approval"`
 }
 
 // FinalizeContextResult is the protocol-v1 document `context finalize` returns.
@@ -579,13 +577,11 @@ func probeFinalizeFacts(ctx context.Context, prober FinalizePRProber, repoDir st
 func finalizePolicy(pin StatusPin) FinalizePolicy {
 	eff := pin.Config.Effective
 	return FinalizePolicy{
-		IntegrationBranch:    pin.IntegrationBranch,
-		Remote:               string(originRemote),
-		FinalizeGate:         eff.Finalize.Gate.Value,
-		FinalizeTestCommand:  eff.Finalize.TestCommand.Value,
-		RequirePRApproval:    eff.Finalize.RequirePRApproval.Value,
-		ReclaimAuto:          eff.Reclaim.Auto.Value,
-		ReclaimLeaseTTLHours: eff.Reclaim.LeaseTTL.Value,
+		IntegrationBranch:   pin.IntegrationBranch,
+		Remote:              string(originRemote),
+		FinalizeGate:        eff.Finalize.Gate.Value,
+		FinalizeTestCommand: eff.Finalize.TestCommand.Value,
+		RequirePRApproval:   eff.Finalize.RequirePRApproval.Value,
 	}
 }
 

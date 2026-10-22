@@ -296,11 +296,15 @@ func buildRegistry() []pathSpec {
 		{path: "learnings.cap", kind: kindInt, def: 300,
 			merge: mergeScalar, scope: scopeAny, disp: dispInert, validate: intLeaf(0)},
 
-		// 13-14: reclaim.
-		{path: "reclaim.lease_ttl", kind: kindInt, def: 72,
-			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: intLeaf(0)},
-		{path: "reclaim.auto", kind: kindBool, def: false,
-			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
+		// reclaim.lease_ttl and reclaim.auto are obsolete tombstones: they set
+		// when a stale claim was returned to the backlog, and docket no longer
+		// returns claimed changes there. Like finalize.skip_results_only_delta
+		// they decode in every layer (default scopeAny) and decode excludes them
+		// as obsolete after the type check, so they never resolve and never block.
+		{path: "reclaim.lease_ttl", kind: kindInt, merge: mergeScalar,
+			disp: dispObsolete, validate: intLeaf(0)},
+		{path: "reclaim.auto", kind: kindBool, merge: mergeScalar,
+			disp: dispObsolete, validate: boolLeaf()},
 
 		// leak_check: whether the private-repository leak check matches the bare
 		// word "docket". A shared repository never runs the check.

@@ -251,7 +251,7 @@ const privateSwitchYML = defaultSetupYML + "agent_harnesses: [codex]\nbuild:\n  
 
 // privateSwitchLocalYML is the clone-local configuration whose leaves must
 // survive the fold.
-const privateSwitchLocalYML = "reclaim:\n  auto: true\n"
+const privateSwitchLocalYML = "finalize:\n  require_pr_approval: true\n"
 
 // newPrivateSwitchRepo is a shared repository right after init whose init
 // output is committed and pushed (so the working tree is clean), with
@@ -395,8 +395,8 @@ func TestIntegrationRepoVisibilityPrivateHappyPath(t *testing.T) {
 	if v := snap.Effective.Build.TestCommand.Value; v != "make" {
 		t.Errorf("build.test_command = %q, want make", v)
 	}
-	if !snap.Effective.Reclaim.Auto.Value {
-		t.Errorf("reclaim.auto = false, want the local key carried:\n%s", folded)
+	if !snap.Effective.Finalize.RequirePRApproval.Value {
+		t.Errorf("finalize.require_pr_approval = false, want the local key carried:\n%s", folded)
 	}
 	if saved, err := os.ReadFile(filepath.Join(gitDir, "dckt", layout.PrivateLocalKeysFile)); err != nil || string(saved) != privateSwitchLocalYML {
 		t.Errorf("local-keys.yml = %q (%v), want the old local file verbatim", saved, err)
@@ -1282,12 +1282,12 @@ func TestIntegrationRepoVisibilitySharedRestoresLocalKeys(t *testing.T) {
 	requireSwitchApplied(t, r.switchVisibility(t, SetVisibilityOptions{Target: "shared"}), "shared")
 
 	local := mustReadFile(t, filepath.Join(r.invocation, localConfigRel))
-	vals, err := reposetup.ConfigLeafValues(local, []string{"reclaim.auto", "visibility"})
+	vals, err := reposetup.ConfigLeafValues(local, []string{"finalize.require_pr_approval", "visibility"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if vals["reclaim.auto"] != "true" {
-		t.Errorf(".docket.local.yml = %q, want reclaim.auto: true restored", local)
+	if vals["finalize.require_pr_approval"] != "true" {
+		t.Errorf(".docket.local.yml = %q, want finalize.require_pr_approval: true restored", local)
 	}
 	if _, ok := vals["visibility"]; ok {
 		t.Errorf(".docket.local.yml = %q, want no visibility", local)
@@ -1296,7 +1296,7 @@ func TestIntegrationRepoVisibilitySharedRestoresLocalKeys(t *testing.T) {
 		string(mustReadFile(t, filepath.Join(r.invocation, ".docket.yml"))),
 		runGit(t, r.invocation, "show", "HEAD:.docket.yml"),
 	} {
-		if strings.Contains(yml, "reclaim") {
+		if strings.Contains(yml, "require_pr_approval") {
 			t.Errorf(".docket.yml carries the clone-local key:\n%s", yml)
 		}
 	}

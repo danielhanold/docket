@@ -61,13 +61,12 @@ func classifyCorpusPath(rel string) (RecordKind, RecordLocation) {
 	}
 }
 
-// effectiveConfig is a resolved configuration with the four leaves the
+// effectiveConfig is a resolved configuration with the three leaves the
 // repository policy is allowed to carry.
 func effectiveConfig() config.Effective {
 	var cfg config.Effective
 	cfg.IntegrationBranch.Value = "main"
 	cfg.ChangeTypes.Value = []string{"feat", "fix", "chore", "docs"}
-	cfg.Reclaim.LeaseTTL.Value = 24
 	cfg.Learnings.Enabled.Value = true
 	return cfg
 }
@@ -179,7 +178,6 @@ func TestBuildSnapshotTranslatesPolicy(t *testing.T) {
 	cfg := effectiveConfig()
 	cfg.IntegrationBranch.Value = "trunk"
 	cfg.ChangeTypes.Value = []string{"feat", "chore"}
-	cfg.Reclaim.LeaseTTL.Value = 6
 	cfg.Learnings.Enabled.Value = false
 
 	result, err := BuildSnapshot(BuildInput{Config: cfg})
@@ -192,9 +190,6 @@ func TestBuildSnapshotTranslatesPolicy(t *testing.T) {
 	}
 	if !slices.Equal(policy.ChangeTypes, []string{"feat", "chore"}) {
 		t.Errorf("ChangeTypes = %v", policy.ChangeTypes)
-	}
-	if policy.ReclaimTTLHours != 6 {
-		t.Errorf("ReclaimTTLHours = %d", policy.ReclaimTTLHours)
 	}
 	if policy.LearningsEnabled {
 		t.Error("LearningsEnabled = true, want false")

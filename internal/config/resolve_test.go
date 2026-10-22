@@ -88,10 +88,6 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 		return eff.Run.MaxConsecutiveHalts.Value, eff.Run.MaxConsecutiveHalts.Provenance, eff.Run.MaxConsecutiveHalts.Explicit
 	case "learnings.enabled":
 		return eff.Learnings.Enabled.Value, eff.Learnings.Enabled.Provenance, eff.Learnings.Enabled.Explicit
-	case "reclaim.lease_ttl":
-		return eff.Reclaim.LeaseTTL.Value, eff.Reclaim.LeaseTTL.Provenance, eff.Reclaim.LeaseTTL.Explicit
-	case "reclaim.auto":
-		return eff.Reclaim.Auto.Value, eff.Reclaim.Auto.Provenance, eff.Reclaim.Auto.Explicit
 	case "leak_check.match_word":
 		return eff.LeakCheck.MatchWord.Value, eff.LeakCheck.MatchWord.Provenance, eff.LeakCheck.MatchWord.Explicit
 	case "open.artifacts":
@@ -111,7 +107,7 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 	return nil, Provenance{}, false
 }
 
-func leaseTTL(n int) string { return fmt.Sprintf("reclaim:\n  lease_ttl: %d\n", n) }
+func maxFixTasks(n int) string { return fmt.Sprintf("review:\n  max_fix_tasks: %d\n", n) }
 
 func resolverMax(n int) string {
 	return fmt.Sprintf("finalize:\n  resolver_max_attempts: %d\n", n)
@@ -354,24 +350,24 @@ func TestPrecedencePerLeaf(t *testing.T) {
 		layer    LayerKind
 		explicit bool
 	}{
-		{"nothing declared wins the built-in default", nil, 72, LayerBuiltIn, false},
-		{"global alone", []Source{srcG(leaseTTL(10))}, 10, LayerGlobal, true},
-		{"repository beats global", []Source{srcG(leaseTTL(10)), srcR(leaseTTL(20))}, 20, LayerRepository, true},
-		{"repository-local beats everything", []Source{srcG(leaseTTL(10)), srcR(leaseTTL(20)), srcL(leaseTTL(30))}, 30, LayerRepositoryLocal, true},
-		{"repository-local beats global with no repository layer", []Source{srcG(leaseTTL(10)), srcL(leaseTTL(30))}, 30, LayerRepositoryLocal, true},
+		{"nothing declared wins the built-in default", nil, 10, LayerBuiltIn, false},
+		{"global alone", []Source{srcG(maxFixTasks(3))}, 3, LayerGlobal, true},
+		{"repository beats global", []Source{srcG(maxFixTasks(3)), srcR(maxFixTasks(4))}, 4, LayerRepository, true},
+		{"repository-local beats everything", []Source{srcG(maxFixTasks(3)), srcR(maxFixTasks(4)), srcL(maxFixTasks(5))}, 5, LayerRepositoryLocal, true},
+		{"repository-local beats global with no repository layer", []Source{srcG(maxFixTasks(3)), srcL(maxFixTasks(5))}, 5, LayerRepositoryLocal, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			res := mustResolve(t, tc.sources, mainCtx)
-			got := res.effective.Reclaim.LeaseTTL
+			got := res.effective.Review.MaxFixTasks
 			if got.Value != tc.want {
-				t.Errorf("lease_ttl = %d, want %d", got.Value, tc.want)
+				t.Errorf("max_fix_tasks = %d, want %d", got.Value, tc.want)
 			}
 			if got.Provenance.Layer != tc.layer {
-				t.Errorf("lease_ttl provenance layer = %q, want %q", got.Provenance.Layer, tc.layer)
+				t.Errorf("max_fix_tasks provenance layer = %q, want %q", got.Provenance.Layer, tc.layer)
 			}
 			if got.Explicit != tc.explicit {
-				t.Errorf("lease_ttl explicit = %v, want %v", got.Explicit, tc.explicit)
+				t.Errorf("max_fix_tasks explicit = %v, want %v", got.Explicit, tc.explicit)
 			}
 		})
 	}
@@ -379,7 +375,7 @@ func TestPrecedencePerLeaf(t *testing.T) {
 
 // TestPrecedenceResolverMaxAttempts pins finalize.resolver_max_attempts through
 // the full four-layer precedence (repository-local > repository-committed >
-// global > built-in), the same shape as reclaim.lease_ttl and its finalize
+// global > built-in), the same shape as review.max_fix_tasks and its finalize
 // sibling finalize.require_pr_approval.
 func TestPrecedenceResolverMaxAttempts(t *testing.T) {
 	cases := []struct {
@@ -568,19 +564,19 @@ func TestPrecedenceForNonEffectiveLeaf(t *testing.T) {
 }
 
 func TestExplicitDefaultProvenance(t *testing.T) {
-	res := mustResolve(t, []Source{srcR("reclaim:\n  auto: false\n")}, mainCtx)
-	got := res.effective.Reclaim.Auto
+	res := mustResolve(t, []Source{srcR("finalize:\n  require_pr_approval: false\n")}, mainCtx)
+	got := res.effective.Finalize.RequirePRApproval
 	if got.Value != false {
-		t.Errorf("reclaim.auto = %v, want false", got.Value)
+		t.Errorf("finalize.require_pr_approval = %v, want false", got.Value)
 	}
 	if !got.Explicit {
-		t.Error("reclaim.auto explicit = false, want true: a declaration that repeats the default is still a declaration")
+		t.Error("finalize.require_pr_approval explicit = false, want true: a declaration that repeats the default is still a declaration")
 	}
 	if got.Provenance.Layer != LayerRepository || got.Provenance.Source != ".docket.yml" {
-		t.Errorf("reclaim.auto provenance = %+v, want the repository layer", got.Provenance)
+		t.Errorf("finalize.require_pr_approval provenance = %+v, want the repository layer", got.Provenance)
 	}
 	if got.Provenance.Line != 2 {
-		t.Errorf("reclaim.auto provenance line = %d, want 2", got.Provenance.Line)
+		t.Errorf("finalize.require_pr_approval provenance line = %d, want 2", got.Provenance.Line)
 	}
 }
 

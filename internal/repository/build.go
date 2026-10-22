@@ -84,7 +84,6 @@ func translatePolicy(cfg config.Effective) domain.RepositoryPolicy {
 	return domain.RepositoryPolicy{
 		IntegrationBranch: cfg.IntegrationBranch.Value,
 		ChangeTypes:       cfg.ChangeTypes.Value,
-		ReclaimTTLHours:   cfg.Reclaim.LeaseTTL.Value,
 		LearningsEnabled:  cfg.Learnings.Enabled.Value,
 	}
 }

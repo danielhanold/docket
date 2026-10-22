@@ -122,8 +122,6 @@ func TestRegistryDefaults(t *testing.T) {
 		"finalize.repair_max_attempts":   6,
 		"learnings.enabled":              true,
 		"learnings.cap":                  300,
-		"reclaim.lease_ttl":              72,
-		"reclaim.auto":                   false,
 		"leak_check.match_word":          true,
 		"open.artifacts":                 "github",
 		"build.checkpoint":               false,
