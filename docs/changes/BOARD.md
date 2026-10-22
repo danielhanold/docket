@@ -1,20 +1,20 @@
 # Backlog
 
-**577 changes** — 🟡 4 proposed · ⚪ 16 deferred · ✅ 413 done · 🗑️ 144 killed
+**577 changes** — 🟡 3 proposed · ⚪ 17 deferred · ✅ 413 done · 🗑️ 144 killed
 
-## 🟡 Proposed (4)
+## 🟡 Proposed (3)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0577](active/0577-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md) | Fix duplicate originHasBranch breaking combined-tag go vet | `low` | `fix` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
-| [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `feat` | needs-grooming |
 
-## ⚪ Deferred (16)
+## ⚪ Deferred (17)
 
 | # | Title | Priority | Type |
 |---|-------|----------|------|
+| [0566](active/0566-stop-superpowers-brainstorming-s-builder-check-subagent-in-d.md) | Stop superpowers brainstorming's builder-check subagent in docket grooming | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `medium` | `fix` |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` |

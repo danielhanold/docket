@@ -2,12 +2,12 @@
 id: 566
 slug: 'stop-superpowers-brainstorming-s-builder-check-subagent-in-d'
 title: 'Stop superpowers brainstorming''s builder-check subagent in docket grooming'
-status: 'proposed'
+status: 'deferred'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
 created: '2026-10-17'
-updated: '2026-10-19'
+updated: '2026-10-22'
 depends_on: []
 stacked_on:
 related: [563]
@@ -41,3 +41,7 @@ Stop the builder-check dispatch when docket's interactive workflows run the brai
 ## Out of scope
 
 Patching or forking the superpowers plugin. The plan-time and reconcile reviews themselves. The autonomous `docket-auto-groom` critic gate.
+
+## Why deferred
+
+The builder-check subagent behavior is now considered helpful rather than a problem. The remaining concern, its high cost, is tracked in #576.
