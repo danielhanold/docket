@@ -38,9 +38,6 @@ run:
 review:
   min_fix_severity: minor
   max_fix_tasks: 10
-reclaim:
-  lease_ttl: 72
-  auto: false
 learnings:
   enabled: true              # false = read/write gate, never a purge
 gate_observation_budget: 30  # minutes; enforced by the gate driver
@@ -95,7 +92,7 @@ When dispatch is genuinely unavailable the kinds are **not** equivalent, so the 
 |---|---|---|
 | **`inline` — deterministic** | the `docket-status` and `docket-adr` composition dispatches | Run the same work **inline** — a **first-class equivalent path**, neither a degradation nor a warning, because the contract is git state on the metadata branch, not an in-context return. Every obligation holds unchanged: re-sync before reading, derive from fresh origin, never adopt or commit another agent's uncommitted files. |
 | **`abstain` — adversarial** | the `docket-auto-groom-critic` gate | **Abstain**, per *Autonomous grooming*. Self-critique by the agent that drafted the spec is not an adversarial gate, and the abstain is a path that skill already owns. |
-| **`halt` — discipline** | the **plan-writer dispatch**, the `build` role skill's required nested dispatches, the controller's own review-tier dispatch (the `docket-review` skill itself never dispatches), and the in-branch fix workers (which run the `build` role's own contract) | **`halt`** — the run stops: the change stays `in-progress` with the halt reason recorded through `change.halt`. **No new status, no new field** — the reclaim lease self-heals an abandoned claim. |
+| **`halt` — discipline** | the **plan-writer dispatch**, the `build` role skill's required nested dispatches, the controller's own review-tier dispatch (the `docket-review` skill itself never dispatches), and the in-branch fix workers (which run the `build` role's own contract) | **`halt`** — the run stops: the change stays `in-progress` with the halt reason recorded through `change.halt`. **No new status, no new field** — the caller resumes it by id, through `change.resume-halted`. |
 
 **Outside the table — `no-fallback`.** `docket-finalize-change`'s two finalize-gate dispatches — `docket-rebase-resolver` and `docket-integration-repair` — sit **outside** this table rather than in a row of it, because their contract is an **in-context report** gating the merge, not git state on the metadata branch. Neither fallback can be borrowed for them: `inline`'s first-class-equivalent path presupposes a git-state transition to reproduce, and `halt` belongs to the workflow roles, and these dispatches are not a role. When dispatch is genuinely unavailable for either — established per the resolution rule above, never from a tool name — the posture is finalize's own pre-existing **abort-and-report**: the gate stops, the PR stays open, the change stays `implemented`, and the reason is recorded through the three channels `docket-finalize-change`'s failure reference owns. **Inline substitution is forbidden** for both, and that is the point of `no-fallback` rather than a table row: reconciling the conflict, or authoring the repair, inside the very agent that would then merge that work is the same self-approval shape `abstain` exists to avoid for the critic.
 
@@ -189,12 +186,11 @@ plan:                     # plan FILE on the metadata branch; FILE and FIELD wri
 results:                  # results FILE on the metadata branch; FILE and FIELD written together by change.attach-results at the first checkpoint, required before the implemented transition
 auto_groomable:           # `true` makes a stub auto-groomable; unset or `false` means not
 hold:                     # `true` keeps a groomed change out of autonomous build selection; naming it still builds it
-branch_prefix:            # optional one unqualified branch-path component; overrides <type> at mint, consumed only at claim, inert once branch: is populated, survives reclaim
+branch_prefix:            # optional one unqualified branch-path component; overrides <type> at mint, consumed only at claim, inert once branch: is populated
 branch:                   # minted <type>/<slug> (or <branch_prefix>/<slug>) name, set on claim; sole feature-head source of truth after, never reconstructed; branch itself created at build (step 4)
 pr:                       # set when the PR is opened
 blocked_by:               # free text; set only when status: blocked
 reconciled: false         # set true after the just-in-time reconcile pass
-claimed_at:               # UTC ISO-8601 claim lease (YYYY-MM-DDTHH:MM:SSZ); stamped by claim, reconcile, and resume-halted; cleared on leaving in-progress
 ---
 ```
 
@@ -222,7 +218,6 @@ change, never in the frozen artifact.
 - `## Open questions` — unknowns to resolve during reconcile/design.
 - `## Reconcile log` — dated entries appended by the implementer's reconcile pass.
 - `## Closeout notes` — final-only, **optional**, and the **final authored body section** of an archived record. Written solely by the `finalize.closeout` operation from its structured request (`verification_outcomes` / `late_findings`, rendered as `### Verification` / `### Late findings` bullet lists); never hand-edited, copied to a stacked descendant, or a link-bearing artifact. The closed-out `results:` file stays a frozen build record — the freeze rule above is unchanged.
-- `## Reclaim log` — dated entries appended by the `change.reclaim` operation when an expired-lease, no-branch claim self-heals back to `proposed`.
 - `## Auto-groom blocked` — dated abstain record written by `change.groom` `outcome: abstain`; contents and lifecycle (including removal by `outcome: re-enable`) are defined by the *Autonomous grooming* shared definition below.
 - `## Finalize blocked` — dated record appended by `docket-finalize-change` when a gate failure leaves a change needing a human; presence drives the board's `finalize blocked — needs you` cell. It is a visible note that never stops finalize selection or merge, so the next finalize run retries the change. The clearing rule is owned by `docket-finalize-change` and not restated here.
 - `## Run halted` — written by the `change.halt` operation when an autonomous run stops needing a human (the `halted` disposition); the heading is **bare**, never dated — the reader is a whole-line match, so the date sits inside the body. **Marker-section state**, in the same family as `## Auto-groom blocked` and `## Finalize blocked`: while the section is present the `run.verify` operation reports `run-halted`, which is what makes a `halted` disposition verifiable in git rather than a claim in a completion report. It is removed by the `change.resume-halted` operation, and by the claim when a halted change is claimed again.
@@ -262,8 +257,7 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
      │                    │                              │                   (archive/)
      │                    ├──results attached + change.complete (results-artifact; also from proposed)──▶ done
      │                    │                              └──into stack parent──▶ stacked-merged ──root lands──▶ done
-     │                    ├──blocker──▶ blocked ──clears──▶ in-progress
-     │                    └──lease expired, no branch (reclaim)──▶ proposed
+     │                    └──blocker──▶ blocked ──clears──▶ in-progress
      ├──── deferred (shelved; revive → proposed)
      └──── killed (obsolete — from proposed, or from in-progress via reconcile; → archive/) ────▶
 ```
@@ -280,8 +274,6 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
 | `killed` | abandoned — obsolete or never shipped (sad final status) | `archive/` |
 
 **Rules.** `active/` holds every non-final status; `archive/` holds the two final outcomes. `stacked-merged` is non-final for that reason: merged into its stack parent, not the integration branch, so it stays in `active/` until the stack close-out promotes it when the stack root lands. The single physical move (`active/ → archive/`, date-prefixed) happens once on the final transition and is **idempotent**: re-pull, re-read `status` on the metadata branch, no-op if already final. `deferred` is entered only from `proposed` (add `## Why deferred`; a change being built is blocked or killed instead) and revived to `proposed`; clear a blocker with `change.unblock` (`blocked` → `in-progress`, clearing `blocked_by`) and revive with `change.revive` (`deferred` → `proposed`) — typed operations, no file move. A change whose `depends_on` is unsatisfied is *implicitly* blocked — the selector skips it and the board shows it **waiting on #N**. A dependency is **satisfied when it reaches `done`**; if `#N` is still `implemented` the board flags **waiting on #N — needs your merge**, distinct from **waiting on #N — not yet built**. Reserve explicit `blocked` for external blockers the system can't infer.
-
-**Reclaim edge (`in-progress → proposed`).** An `in-progress` change whose claim lease (`claimed_at:` + `reclaim.lease_ttl`) has expired AND that has no feature branch is flipped back to `proposed` by the reclaim operation (opt-in via `reclaim.auto`, or an explicit `change.reclaim`), clearing `branch:`/`claimed_at:` and resetting `reconciled: false` so a fresh reconcile runs on re-claim. The has-branch case is never auto-reclaimed (it may carry real work) — it stays flagged for a human.
 
 **Board refresh on status writes.** Every board-authoritative typed mutation re-renders `BOARD.md` **atomically inside its own metadata commit** — the same commit that writes the change record it reflects — so there is **no separate Board pass**, and no skill hand-renders, hand-commits, or three-way-merges the board. The shared app-layer inclusion path owns the whole decision: it resolves the enabled surfaces (fail-closed), renders the `inline` surface, and writes `BOARD.md` only when it actually changed. **No surfaces value is ever passed or spelled by a skill**: the caller never resolves or forwards one — so an unresolved config can never be mistaken for a disabled board. A read-only `status` read never writes a board; a repo with `board_surfaces: []` renders and commits nothing, and a pre-existing `BOARD.md` is left untouched rather than truncated. Exceptional out-of-band board drift (a hand-edit, an interrupted legacy write) is surfaced by `repository.check` and repaired by the authorized `repository.repair` operation (resolve argv from the capability catalog; a human authorizes its `--yes` apply) — never a hand-render. The board is a derived view and must never trail the change files.
 

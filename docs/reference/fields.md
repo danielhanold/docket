@@ -15,8 +15,8 @@ skill is reorganized).
   one unit of planned work, roughly one pull request, tracked as one markdown file) — owned by the
   convention section **"Change manifest (frontmatter at the top of each change file)"**. That
   section is the live list of every manifest key and its meaning: identity and title, lifecycle
-  status, priority and type, dependencies (`depends_on`), the claim fields that record which branch
-  will carry the work and when it was taken, and the spec/plan/results/pr links.
+  status, priority and type, dependencies (`depends_on`), the claim field that records which branch
+  will carry the work, and the spec/plan/results/pr links.
 - **Change body sections** (the headings the manifest's prose body may carry) — owned by the
   convention section **"Change body sections"**.
 - **ADR fields and body** — owned by the convention section **"ADR file (`<adrs_dir>/<NNNN>-<slug>.md`)"**,

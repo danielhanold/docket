@@ -68,11 +68,8 @@ A single implement-next run walks a fixed path and then stops:
 1. **Pick.** It selects the next **build-ready** change (a proposed change that has a spec and
    whose dependencies are all `done`). It never touches work that is not ready.
 2. **Claim.** It takes a **claim** on that change (the moment a change is picked up for building; it
-   records which branch will carry the work and when it was taken) with a conflict-checked write on the
-   change's status, so two runs in parallel can never grab the same change. The claim carries a
-   **claim lease** (a timestamp on a claim; when it expires with no branch behind it, the change
-   goes back to the queue), which is what lets a crashed run's change self-heal instead of sitting
-   stuck — see [Keeping the backlog honest](./keeping-the-backlog-honest.md).
+   records which branch will carry the work) with a conflict-checked write on the change's status,
+   so two runs in parallel can never grab the same change.
 3. **Reconcile.** The step above — freshen the change against reality, or kill or escalate it.
 4. **Plan.** It cuts a feature branch, creates an isolated working copy of the repo on that branch
    (a *worktree*), commits a copy of the change's spec as the branch's first commit, and authors a

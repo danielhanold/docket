@@ -118,7 +118,7 @@ fail-closed operations. In return docket has depth the playbook never mentions.
 | Scheduled security scans | Claude Security; validated findings; patches through the PR gate. | None. | Playbook only |
 | Incident channels and ticket triage | Claude in Slack/Teams as first responder. | None. | Playbook only |
 | Findings re-enter the pipeline | From production and scans. | From builds and close-outs, reported; a human files with `docket change create`. | Both (different source, manual capture) |
-| Backlog hygiene and self-healing | Not described. | `docket status` (read-only), `maintenance sweep`, reclaim of expired branchless claims, `change resume-halted`. | docket only |
+| Backlog hygiene and self-healing | Not described. | `docket status` (read-only), `maintenance sweep`, resume by id, `change resume-halted`. | docket only |
 | Health checks with typed findings | Not described. | Validation, artifact integrity, derived-view drift, topology, prepare-time refusals; two judgement checks warn-only. | docket only |
 | Decision ledger | Not described. | Immutable numbered ADRs; supersede and reverse as new records; 96 today. | docket only |
 | Build-loop memory with relevance-gated reads | `CLAUDE.md` always in context. | Findings read per relevance at groom, plan, review; only unprompted rules promoted. Harvest and index deferred. | docket · deferred |
@@ -144,7 +144,7 @@ is current when build starts; docket assumes it is not.
 |---|---|---|---|
 | Governance as configuration | Skills, hooks, managed settings; `CLAUDE.md` and `REVIEW.md` reviewed like code. | Four config layers per key; shared-setting guard; every key documented in `.docket.example.yml` or the suite fails; the capability catalog is the only hard-coded CLI spelling. | Both (different content) |
 | Human judgement points | Intent, plan approval, design review, PR approval, findings triage, policy changes. | Change creation and grooming, the PR merge, finalize confirmations, learnings promotion, filing discovered work, abstained stubs. Plan approval deliberately not a human point. | Both |
-| Audit trail | Git history; logged hook decisions; incident conversations. | Every transition a metadata commit; marker sections; receipts and leases; frozen plan/results records; ADR supersessions as new files. | Both |
+| Audit trail | Git history; logged hook decisions; incident conversations. | Every transition a metadata commit; marker sections; receipts; frozen plan/results records; ADR supersessions as new files. | Both |
 | Legacy tracker integration | One system of record per artifact. | One-way GitHub Issues mirror; Projects v2 guarded but unwired. | Both (GitHub issues only) |
 | Autonomy without a human channel | Scoped subagents; gates ask a human. | Abort-and-report wrappers; autonomy precedence; forked children never yield; four dispositions drive any loop. | docket only |
 | Run-tracker bracketing for dispatched runs | Not described. | `run start` / `run verdict` / `run continue`; retry-once accounting in durable records. | docket only |
@@ -168,7 +168,7 @@ no-test-edits guard during repair; an intake path from production or scanner fin
 | Proving the build | 4 | Build gate and evidence; gate driver and budgets; integration repair; configuring the suite | docket-build gate paragraphs, gate references, tests/README |
 | Reviewing before the human does | 5 | Reviewer contract and tiers; fix loop and disposition table; why the suite runs in the build gate | docket-review section, fix-loop reference |
 | Landing changes safely | 5 | Finalize end to end; blocked and relink; branch protection; /loop finalize | Closing out hands-free, hands-off finalize |
-| Keeping the backlog honest | 6 | Status vs sweep; health codes; reclaim; halted recovery | Reclaiming stale claims, docket-status |
+| Keeping the backlog honest | 6 | Status vs sweep; health codes; halted recovery | docket-status |
 | Remembering why | 6 | ADRs; learnings and promotion; what is human-curated today | Learnings, docket-adr |
 | Governing through configuration | cross | Layers and the shared-setting guard; every config block by purpose; skills map; capability catalog; dummy_mode | Configuration, convention config |
 | Running on your harness | cross | Install and update; model pins; invocation paths; Cursor/Codex/opencode; runner delegation | Install, Updating, Tuning, Runner delegation, docs/* |

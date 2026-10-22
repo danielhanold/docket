@@ -384,7 +384,7 @@ docket learning update --request finding-update.json   # {path, revision, hook, 
 
 The frontmatter block at the top of a change file. Its fields (`status`, `priority`, `type`,
 `depends_on`, `stacked_on`, `related`, `discovered_from`, `adrs`, `spec`, `plan`, `results`,
-`auto_groomable`, `deliverable`, `branch`, `claimed_at`, `pr`, `blocked_by`, `reconciled`, …) are owned
+`auto_groomable`, `deliverable`, `branch`, `pr`, `blocked_by`, `reconciled`, …) are owned
 by the `docket-convention` skill (see [`fields.md`](fields.md)).
 
 **Used for:** the machine-readable state of a change. Edit it only through typed operations; a
@@ -461,7 +461,7 @@ Statuses: `proposed` · `in-progress` · `blocked` · `deferred` · `implemented
 
 | Status | Meaning | Moved there by |
 |---|---|---|
-| `proposed` | Drafted, awaiting work | `change create`, `change revive`, `change reclaim` |
+| `proposed` | Drafted, awaiting work | `change create`, `change revive` |
 | `in-progress` | Claimed, being built | `change claim`, `change unblock` |
 | `blocked` | External blocker, recorded in `blocked_by:` | `change block` |
 | `deferred` | Consciously shelved, may revive | `change defer` |
@@ -524,23 +524,16 @@ docket change complete --request complete.json   # {change_id, path, revision}
 docket finalize cleanup --id 412
 ```
 
-### Claim / claim lease / reclaim
+### Claim
 
 A **claim** is the moment a change is picked up for building; it records which branch will carry
-the work and when it was taken. The **claim lease** is a timestamp on a claim (`claimed_at:`),
-stamped at claim and re-stamped at reconcile and resume-halted; when it expires with no branch
-behind it, the change goes back to the queue. **Reclaim** is that
-return trip (`in-progress → proposed`), logged in `## Reclaim log`.
+the work. A change already in progress is resumed by id, never claimed again.
 
-**Used for:** making sure an abandoned build never holds a change forever. A claim that already
-has a feature branch or a workspace (real work) is never reclaimed. Grooming never takes a claim.
+**Used for:** making sure two runs never build the same change. Grooming never takes a claim.
 
 ```sh
-docket change claim   --id 412 --revision <v>
-docket change reclaim --id 412 --revision <v>   # refuses with lease-not-expired if still live
+docket change claim --id 412 --revision <v>
 ```
-
-Config: `reclaim.lease_ttl` (hours) and `reclaim.auto`.
 
 ### Dependency (`depends_on`) / implicitly blocked
 
@@ -1813,7 +1806,7 @@ tier agents and is never invoked by a human. See *Review tier* and *Fix pass*.
 
 The backlog read-and-janitor skill. A see-only request runs the read-only `docket status`. An
 explicit refresh first runs `docket maintenance sweep` (close out merged changes, retry close-out
-cleanup, reclaim expired claims, sync the integration branch), then reads status.
+cleanup, sync the integration branch), then reads status.
 
 **Used for:** knowing what is ready, stuck, or merged, and recovering a PR merged with the GitHub
 button. Health findings come from the status read and are warn-only: it never auto-fixes. Its dispatch fallback is `inline`: without dispatch it runs
@@ -2067,20 +2060,6 @@ docket diagnostic config --repo-dir . --json   # shows which layer each value ca
 Set by `change create` (default `medium`) and changed on a `proposed` change by `change groom`'s
 optional `priority` (any outcome but `abstain`).
 
-### `reclaim.auto` / `reclaim.lease_ttl`
-
-`reclaim.lease_ttl` (default 72 hours) is how long a claim lease lasts. `reclaim.auto` (default
-`false`) decides what the maintenance sweep does with an eligible claim: an expired lease, no
-feature branch, and no workspace. With `false`, the sweep reports it as skipped
-(`reclaim-auto-disabled`); with `true`, the sweep reclaims it back to `proposed`.
-
-**Used for:** letting crashed runs self-heal without a human. Detection is always on; only the
-mutation is opt-in. A claim with a branch is never reclaimed automatically.
-
-```sh
-docket change reclaim --id 412 --revision <v>   # the explicit, one-off reclaim
-```
-
 ### Reserved type tokens `all` / `untyped`, and migrating to typed changes
 
 `all` and `untyped` match the change-type grammar but are reserved, so they may never be configured
@@ -2132,7 +2111,6 @@ below.
 | `halt_dispositions` | `halted` `resumed` `contended` `refused` `failed` | `change halt`, `change resume-halted` |
 | `merge_dispositions` | `merged` `already-merged` `contended` `not-mergeable` `denied` `blocked` `unknown` | `finalize merge` |
 | `publish_dispositions` | `published` `noop` `contended` `unknown` `blocked` | `finalize publish` |
-| `reclaim_dispositions` | `reclaimed` `skipped` `contended` `failed` | `change reclaim` |
 | `reconcile_dispositions` | `applied` `contended` `failed` | `change reconcile` |
 | `sync_dispositions` | `advanced` `already-current` `failed` `refused` `skipped` | `repository sync-integration`, `maintenance sweep` |
 | `section_intents` | `preserve` `replace` `remove` | `change groom` (request `sections[].intent`) |
@@ -2353,7 +2331,7 @@ docket development install --source ~/dev/docket
 - [Capture modes: designed / rough stub / scan](#capture-modes-designed--rough-stub--scan)
 - [Change](#change)
 - [Change types](#change-types)
-- [Claim / claim lease / reclaim](#claim--claim-lease--reclaim)
+- [Claim](#claim)
 - [Close-out](#closeout--closeout-notes) — see Closeout / closeout notes
 - [Closeout / closeout notes](#closeout--closeout-notes)
 - [Complete (change complete)](#complete-change-complete)
@@ -2458,7 +2436,6 @@ docket development install --source ~/dev/docket
 - [Rebase receipt / attempt token (--attempt)](#rebase-receipt--attempt-token---attempt)
 - [Rebase resolver / integration repair](#rebase-resolver--integration-repair)
 - [Re-certify (evidence recertify)](#re-certify-evidence-recertify)
-- [reclaim.auto / reclaim.lease_ttl](#reclaimauto--reclaimlease_ttl)
 - [Reconcile / reconcile log](#reconcile--reconcile-log)
 - [Related / discovered_from](#related--discovered_from)
 - [Relink (change relink)](#relink-change-relink)
