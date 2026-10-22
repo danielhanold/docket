@@ -29,8 +29,8 @@ func TestRepairableFamilyRemediesNameRepairNotMigrate(t *testing.T) {
 	malformedFM := strings.Replace(derivedChangeFM, "id: 1\nslug: example", "id: 4\nslug: malformed", 1)
 	corpus := checkCorpus{
 		records: []corpusRecord{
-			// repairable frontmatter: a real claim stamp on a final archived record
-			{path: "docs/changes/archive/2026-01-02-0003-archived-change.md", bytes: []byte("---\nid: 3\nslug: archived-change\nstatus: done\ntitle: Change archived-change\ntype: feature\nclaimed_at: 2026-08-01T10:00:00Z\n---\n\nBody.\n"), kind: repository.KindChange, location: repository.LocationArchive},
+			// repairable frontmatter: an unquoted boolean-keyword title
+			{path: "docs/changes/archive/2026-01-02-0003-archived-change.md", bytes: []byte("---\nid: 3\nslug: archived-change\nstatus: done\ntitle: yes\ntype: feature\n---\n\nBody.\n"), kind: repository.KindChange, location: repository.LocationArchive},
 			// manual-review frontmatter: an unsafe scalar with an ambiguous decode
 			{path: "docs/changes/active/0002-other.md", bytes: []byte("---\nid: 2\nslug: other\nstatus: proposed\ntitle: true\ntype: feature\n---\n\nBody.\n"), kind: repository.KindChange, location: repository.LocationActive},
 			// repairable derived: a stale artifact-links block
@@ -69,7 +69,7 @@ func TestRepairableFamilyRemediesNameRepairNotMigrate(t *testing.T) {
 	// Population floor (marker-scoped-guard-needs-a-population-floor): both
 	// producers, both polarities.
 	for _, code := range []string{
-		string(reposetup.RepairDropClaimedAt), reposetup.CodeFrontmatterManualReview, repository.CodeChangeReferenceDangling,
+		string(reposetup.RepairQuoteScalar), reposetup.CodeFrontmatterManualReview, repository.CodeChangeReferenceDangling,
 		reposetup.CodeBoardStale, reposetup.CodeArtifactLinksStale, reposetup.CodeArtifactLinksMalformed,
 	} {
 		if !seen[code] {

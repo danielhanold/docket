@@ -24,29 +24,24 @@ var updateCatalog = flag.Bool("update", false, "rewrite testdata/finding-catalog
 const findingCatalogPath = "testdata/finding-catalog.txt"
 
 // catalogFrontmatterShapes is one source per frontmatter-repair shape
-// PlanRepairs words (the same seven shapes TestRepairFindingsCarryThreeParts
+// PlanRepairs words (the same five shapes TestRepairFindingsCarryThreeParts
 // pins in package reposetup), each rendered as the check would print it.
 func catalogFrontmatterShapes() []struct {
-	name     string
-	src      string
-	archived bool
+	name string
+	src  string
 } {
 	fm := func(extra string) string {
 		return "---\nid: 1\nslug: wisdom-ai-bastion\nstatus: done\ntitle: T\ntype: feature\n" + extra + "---\n\nBody.\n"
 	}
-	claimed := fm("claimed_at: 2026-05-20T10:00:00Z\n")
 	return []struct {
-		name     string
-		src      string
-		archived bool
+		name string
+		src  string
 	}{
-		{"drop-final-claimed-at", claimed, true},
-		{"quote-unsafe-scalar", strings.Replace(fm(""), "title: T", "title: yes", 1), false},
-		{"scalar-to-list", fm("depends_on: 3, 4\n"), false},
-		{"ambiguous value", strings.Replace(fm(""), "title: T", "title: true", 1), false},
-		{"non-id list", fm("related: foo\n"), false},
-		{"claimed_at, not done", strings.Replace(claimed, "status: done", "status: proposed", 1), true},
-		{"undecodable", "---\nid: 1\nid: 2\n---\nbody\n", false},
+		{"quote-unsafe-scalar", strings.Replace(fm(""), "title: T", "title: yes", 1)},
+		{"scalar-to-list", fm("depends_on: 3, 4\n")},
+		{"ambiguous value", strings.Replace(fm(""), "title: T", "title: true", 1)},
+		{"non-id list", fm("related: foo\n")},
+		{"undecodable", "---\nid: 1\nid: 2\n---\nbody\n"},
 	}
 }
 
@@ -109,7 +104,7 @@ func renderFindingCatalog(t *testing.T) string {
 	b.WriteString("\n## Frontmatter-repair findings\n")
 	rel := "docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md"
 	for _, shape := range catalogFrontmatterShapes() {
-		rfs, err := reposetup.PlanRepairs(rel, []byte(shape.src), shape.archived, dotDocket)
+		rfs, err := reposetup.PlanRepairs(rel, []byte(shape.src), dotDocket)
 		if err != nil {
 			t.Fatalf("PlanRepairs(%s): %v", shape.name, err)
 		}
@@ -136,7 +131,7 @@ func renderFindingCatalog(t *testing.T) string {
 	blocked := checkRecordLocator(layout.Layout{}, reposetup.StateNeedsReview)
 	fmt.Fprintf(&b, "\n### validator (%s)\nremedy: %s\n", danglingDep().Code, explainValidation(danglingDep(), blocked).Remedy)
 	for _, shape := range catalogFrontmatterShapes() {
-		rfs, err := reposetup.PlanRepairs(rel, []byte(shape.src), shape.archived, blocked)
+		rfs, err := reposetup.PlanRepairs(rel, []byte(shape.src), blocked)
 		if err != nil {
 			t.Fatalf("PlanRepairs(%s): %v", shape.name, err)
 		}
@@ -190,7 +185,7 @@ func TestFindingCatalogGolden(t *testing.T) {
 	got := renderFindingCatalog(t)
 
 	floor := []string{
-		string(reposetup.RepairQuoteScalar), string(reposetup.RepairScalarToList), string(reposetup.RepairDropClaimedAt),
+		string(reposetup.RepairQuoteScalar), string(reposetup.RepairScalarToList),
 		reposetup.CodeFrontmatterManualReview,
 		reposetup.CodeBoardStale, reposetup.CodeADRIndexStale,
 		reposetup.CodeArtifactLinksStale, reposetup.CodeArtifactLinksMissing, reposetup.CodeArtifactLinksMalformed,
@@ -202,8 +197,8 @@ func TestFindingCatalogGolden(t *testing.T) {
 			t.Errorf("catalog has no %q finding block", code)
 		}
 	}
-	if n := strings.Count(got, "] "+reposetup.CodeFrontmatterManualReview+" "); n < 4 {
-		t.Errorf("catalog has %d %s blocks, want at least 4 (one per non-repairable frontmatter shape)", n, reposetup.CodeFrontmatterManualReview)
+	if n := strings.Count(got, "] "+reposetup.CodeFrontmatterManualReview+" "); n < 3 {
+		t.Errorf("catalog has %d %s blocks, want at least 3 (one per non-repairable frontmatter shape)", n, reposetup.CodeFrontmatterManualReview)
 	}
 
 	path := filepath.FromSlash(findingCatalogPath)

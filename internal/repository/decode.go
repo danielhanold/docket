@@ -189,8 +189,8 @@ func (d *decoder) malformedWarning(field, raw string) {
 }
 
 // state classifies how a captured scalar appeared. FieldEmpty is decided by
-// document.EmptyValue — the one empty-value rule reposetup's claimed_at planner
-// shares — over the located frontmatter entry and the parsed node, so a key the
+// document.EmptyValue, docket's one empty-value rule, over the located
+// frontmatter entry and the parsed node, so a key the
 // YAML tree resolves to null and a key the byte locator sees as valueless agree.
 //
 // FieldMalformed here means only "written as something other than a scalar";

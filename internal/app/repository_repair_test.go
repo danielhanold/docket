@@ -13,11 +13,18 @@ import (
 )
 
 // repairArchivedDone is a minimal valid ARCHIVED done record (the same shape the
-// migration fixtures use) carrying the given claimed_at line.
-func repairArchivedDone(claimedLine string) []byte {
-	return []byte("---\nid: 3\nslug: archived-change\nstatus: done\ntitle: Change archived-change\ntype: feature\n" +
-		claimedLine + "\n---\n\nBody for archived-change.\n")
+// migration fixtures use) with the given title token and extra frontmatter lines.
+func repairArchivedDone(title string, extraLines ...string) []byte {
+	extra := ""
+	for _, l := range extraLines {
+		extra += l + "\n"
+	}
+	return []byte("---\nid: 3\nslug: archived-change\nstatus: done\ntitle: " + title + "\ntype: feature\n" +
+		extra + "---\n\nBody for archived-change.\n")
 }
+
+// repairArchivedTitle is the archived record's ordinary, already-safe title.
+const repairArchivedTitle = "Change archived-change"
 
 const repairArchivedPath = "docs/changes/archive/2026-01-02-0003-archived-change.md"
 
@@ -68,10 +75,10 @@ func TestPlanRepositoryRepairComposesFrontmatterAndArtifactLinks(t *testing.T) {
 func TestPlanRepositoryRepairBoardRecomputedOverRepairedCorpus(t *testing.T) {
 	cfg := derivedTestConfig()
 	path, canonical := canonicalChangeRecord(t, cfg)
-	stamped := corpusRecord{path: repairArchivedPath, bytes: repairArchivedDone("claimed_at: 2026-08-01T10:00:00Z"), kind: repository.KindChange, location: repository.LocationArchive}
+	unquoted := corpusRecord{path: repairArchivedPath, bytes: repairArchivedDone("yes"), kind: repository.KindChange, location: repository.LocationArchive}
 	active := corpusRecord{path: path, bytes: canonical, kind: repository.KindChange, location: repository.LocationActive}
 	corpus := checkCorpus{
-		records: []corpusRecord{active, stamped},
+		records: []corpusRecord{active, unquoted},
 		link:    repairLink(),
 		board:   corpusFile{present: true, bytes: []byte("# Backlog\n\nstale bytes\n")},
 	}
@@ -81,7 +88,7 @@ func TestPlanRepositoryRepairBoardRecomputedOverRepairedCorpus(t *testing.T) {
 	}
 	board := boardCorpusPath(cfg)
 	if !planHasFile(plan.files, board) || !planHasFile(plan.files, repairArchivedPath) {
-		t.Fatalf("files = %v, want the board and the stamped archived record", plan.files)
+		t.Fatalf("files = %v, want the board and the unquoted archived record", plan.files)
 	}
 	repairedRecs := []corpusRecord{active, {path: repairArchivedPath, bytes: plan.contents[repairArchivedPath], kind: repository.KindChange, location: repository.LocationArchive}}
 	snap, ok := buildCorpusSnapshot(cfg, repairedRecs)
@@ -95,25 +102,28 @@ func TestPlanRepositoryRepairBoardRecomputedOverRepairedCorpus(t *testing.T) {
 	if !bytes.Equal(plan.contents[board], want) {
 		t.Errorf("board bytes are not the canonical render over the repaired corpus")
 	}
-	if bytes.Contains(plan.contents[repairArchivedPath], []byte("claimed_at")) {
-		t.Errorf("stamped archived record still carries claimed_at:\n%s", plan.contents[repairArchivedPath])
+	if !bytes.Contains(plan.contents[repairArchivedPath], []byte("\ntitle: 'yes'\n")) {
+		t.Errorf("archived record's title was not quoted:\n%s", plan.contents[repairArchivedPath])
 	}
 }
 
-// TestPlanRepositoryRepairEmptyClaimedAtIsClean proves the 269-record shape — a
-// final archived record with the empty cleared claimed_at — plans nothing, while
-// the same record with a real stamp (the control) plans the drop.
-func TestPlanRepositoryRepairEmptyClaimedAtIsClean(t *testing.T) {
+// TestPlanRepositoryRepairClaimedAtIsClean proves a final archived record
+// carrying a leftover claimed_at — empty or stamped — plans nothing, while the
+// same record with an unquoted boolean-keyword title (the control) plans the
+// quote.
+func TestPlanRepositoryRepairClaimedAtIsClean(t *testing.T) {
 	cfg := derivedTestConfig()
 	for _, tc := range []struct {
-		name, line string
-		wantFiles  int
+		name      string
+		src       []byte
+		wantFiles int
 	}{
-		{"empty cleared form", "claimed_at:", 0},
-		{"control: real stamp", "claimed_at: 2026-08-01T10:00:00Z", 1},
+		{"empty cleared form", repairArchivedDone(repairArchivedTitle, "claimed_at:"), 0},
+		{"leftover stamp", repairArchivedDone(repairArchivedTitle, "claimed_at: 2026-08-01T10:00:00Z"), 0},
+		{"control: unquoted title", repairArchivedDone("yes"), 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			rec := corpusRecord{path: repairArchivedPath, bytes: repairArchivedDone(tc.line), kind: repository.KindChange, location: repository.LocationArchive}
+			rec := corpusRecord{path: repairArchivedPath, bytes: tc.src, kind: repository.KindChange, location: repository.LocationArchive}
 			plan, err := planRepositoryRepair(setupContext{cfg: cfg}, checkCorpus{records: []corpusRecord{rec}, link: repairLink()})
 			if err != nil {
 				t.Fatalf("planRepositoryRepair: %v", err)
@@ -167,7 +177,7 @@ func TestPlanRepositoryRepairMalformedMarkerIsManualOnly(t *testing.T) {
 // repair kinds, and names --yes.
 func TestRepairConfirmationRequiredNamesYes(t *testing.T) {
 	plan := repositoryRepairPlan{
-		frontmatter: []reposetup.RepairFinding{{Path: repairArchivedPath, Field: "claimed_at", Code: reposetup.RepairDropClaimedAt, Repairable: true, Patch: []byte("-claimed_at: x\n")}},
+		frontmatter: []reposetup.RepairFinding{{Path: repairArchivedPath, Field: "title", Code: reposetup.RepairQuoteScalar, Repairable: true, Patch: []byte("-title: x\n")}},
 		derived:     []reposetup.DerivedFinding{{Code: reposetup.CodeBoardStale, Path: "docs/changes/BOARD.md", Repairable: true}},
 		files:       []string{"docs/changes/BOARD.md", repairArchivedPath},
 		contents:    map[string][]byte{},
@@ -183,7 +193,7 @@ func TestRepairConfirmationRequiredNamesYes(t *testing.T) {
 		t.Errorf("preview sets = files %v repairs %v views %v", out.RepairedFiles, out.Repairs, out.RepairedViews)
 	}
 	h := out.HumanText()
-	for _, want := range []string{"--yes", "[drop-final-claimed-at] " + repairArchivedPath, "[board-stale] docs/changes/BOARD.md", "-claimed_at: x"} {
+	for _, want := range []string{"--yes", "[quote-unsafe-scalar] " + repairArchivedPath, "[board-stale] docs/changes/BOARD.md", "-title: x"} {
 		if !strings.Contains(h, want) {
 			t.Errorf("preview human lacks %q:\n%s", want, h)
 		}
@@ -269,7 +279,7 @@ func TestRepairFromMigrateResultRestampsOperation(t *testing.T) {
 // TestRepairResultJSONFieldNames pins the protocol-v1 keys.
 func TestRepairResultJSONFieldNames(t *testing.T) {
 	out := repairApplied("newtip", "priortip", repositoryRepairPlan{
-		frontmatter: []reposetup.RepairFinding{{Path: repairArchivedPath, Code: reposetup.RepairDropClaimedAt, Repairable: true}},
+		frontmatter: []reposetup.RepairFinding{{Path: repairArchivedPath, Code: reposetup.RepairQuoteScalar, Repairable: true}},
 		derived:     []reposetup.DerivedFinding{{Code: reposetup.CodeBoardStale, Path: "docs/changes/BOARD.md", Repairable: true}},
 		manual:      []string{"[x] y: z"},
 		files:       []string{"docs/changes/BOARD.md", repairArchivedPath},
@@ -304,7 +314,7 @@ func planHasFile(files []string, p string) bool {
 }
 
 // TestPlanRepositoryRepairBoardRendersFrontmatterRepairedRecord is the
-// discriminating companion to the test above, whose claimed_at drop never changes
+// discriminating companion to the test above, whose title quoting never changes
 // what the board renders: a scalar id-list field (`depends_on: 3`) decodes as a
 // malformed list with no dependency, while the repaired `[3]` decodes as a
 // dependency on #3, so the board rendered over the unrepaired corpus differs from
@@ -315,7 +325,7 @@ func TestPlanRepositoryRepairBoardRendersFrontmatterRepairedRecord(t *testing.T)
 	cfg := derivedTestConfig()
 	path := "docs/changes/active/0001-example.md"
 	listed := corpusRecord{path: path, bytes: changeRecordBytes(derivedChangeFM+"depends_on: 3\n", ""), kind: repository.KindChange, location: repository.LocationActive}
-	archived := corpusRecord{path: repairArchivedPath, bytes: repairArchivedDone("claimed_at:"), kind: repository.KindChange, location: repository.LocationArchive}
+	archived := corpusRecord{path: repairArchivedPath, bytes: repairArchivedDone(repairArchivedTitle, "claimed_at:"), kind: repository.KindChange, location: repository.LocationArchive}
 	corpus := checkCorpus{
 		records: []corpusRecord{listed, archived},
 		link:    repairLink(),

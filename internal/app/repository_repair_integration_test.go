@@ -89,27 +89,32 @@ func (r *initRepo) runRepair(t *testing.T, o RepairOptions) RepositoryRepairResu
 }
 
 const (
-	repairStampPath = "docs/changes/archive/2026-01-02-0003-archived-change.md"
+	repairQuotePath = "docs/changes/archive/2026-01-02-0003-archived-change.md"
 	repairEmptyPath = "docs/changes/archive/2026-01-03-0004-archived-empty.md"
 )
 
-// repairArchivedRecord renders a minimal valid archived done record carrying the
-// given claimed_at line.
-func repairArchivedRecord(id int, slug, claimedLine string) string {
-	return "---\nid: " + strconv.Itoa(id) + "\nslug: " + slug + "\nstatus: done\ntitle: Change " + slug +
-		"\ntype: feature\n" + claimedLine + "\n---\n\nBody for " + slug + ".\n"
+// repairArchivedRecord renders a minimal valid archived done record with the
+// given title token and extra frontmatter lines.
+func repairArchivedRecord(id int, slug, title string, extraLines ...string) string {
+	var extra string
+	for _, l := range extraLines {
+		extra += l + "\n"
+	}
+	return "---\nid: " + strconv.Itoa(id) + "\nslug: " + slug + "\nstatus: done\ntitle: " + title +
+		"\ntype: feature\n" + extra + "---\n\nBody for " + slug + ".\n"
 }
 
-// publishFrontmatterDrift publishes one archived done record with a REAL claim
-// stamp (a repairable drop-final-claimed-at) and one with the EMPTY cleared form
-// (not a finding; it must survive every repair byte-identical).
+// publishFrontmatterDrift publishes one archived done record with an unquoted
+// boolean-keyword title (a repairable quote-unsafe-scalar) and one with an
+// EMPTY claimed_at (not a finding; it must survive every repair
+// byte-identical).
 func (r *initRepo) publishFrontmatterDrift(t *testing.T) {
 	t.Helper()
 	dotDocket := filepath.Join(r.invocation, ".docket")
-	writeRepoFile(t, dotDocket, repairStampPath, repairArchivedRecord(3, "archived-change", "claimed_at: 2026-08-01T10:00:00Z"))
-	writeRepoFile(t, dotDocket, repairEmptyPath, repairArchivedRecord(4, "archived-empty", "claimed_at:"))
-	runGit(t, dotDocket, "add", "--", repairStampPath, repairEmptyPath)
-	runGit(t, dotDocket, "commit", "-q", "-m", "publish archived claim stamps")
+	writeRepoFile(t, dotDocket, repairQuotePath, repairArchivedRecord(3, "archived-change", "yes"))
+	writeRepoFile(t, dotDocket, repairEmptyPath, repairArchivedRecord(4, "archived-empty", "Change archived-empty", "claimed_at:"))
+	runGit(t, dotDocket, "add", "--", repairQuotePath, repairEmptyPath)
+	runGit(t, dotDocket, "commit", "-q", "-m", "publish archived frontmatter drift")
 	runGit(t, dotDocket, "push", "-q", "origin", string(layout.SharedName))
 }
 
@@ -130,7 +135,7 @@ func TestIntegrationRepoRepairPreviewListsBothKindsAndWritesNothing(t *testing.T
 	if res.SourceRevision != before {
 		t.Errorf("SourceRevision = %q, want the pinned docket tip %q", res.SourceRevision, before)
 	}
-	for _, p := range []string{"docs/changes/BOARD.md", "docs/changes/active/0001-example.md", repairStampPath} {
+	for _, p := range []string{"docs/changes/BOARD.md", "docs/changes/active/0001-example.md", repairQuotePath} {
 		if !containsPath(res.RepairedFiles, p) {
 			t.Errorf("RepairedFiles = %v, want %s", res.RepairedFiles, p)
 		}
@@ -138,10 +143,10 @@ func TestIntegrationRepoRepairPreviewListsBothKindsAndWritesNothing(t *testing.T
 	if containsPath(res.RepairedFiles, repairEmptyPath) {
 		t.Errorf("the empty claimed_at record must not be a repair: %v", res.RepairedFiles)
 	}
-	if len(res.Repairs) != 1 || res.Repairs[0].Code != reposetup.RepairDropClaimedAt || res.Repairs[0].Path != repairStampPath {
-		t.Errorf("Repairs = %+v, want exactly the stamped record's drop", res.Repairs)
+	if len(res.Repairs) != 1 || res.Repairs[0].Code != reposetup.RepairQuoteScalar || res.Repairs[0].Path != repairQuotePath {
+		t.Errorf("Repairs = %+v, want exactly the unquoted title's quote", res.Repairs)
 	}
-	for _, want := range []string{"--yes", "[drop-final-claimed-at] " + repairStampPath, "[board-stale] docs/changes/BOARD.md"} {
+	for _, want := range []string{"--yes", "[quote-unsafe-scalar] " + repairQuotePath, "[board-stale] docs/changes/BOARD.md"} {
 		if !strings.Contains(res.HumanText(), want) {
 			t.Errorf("preview human lacks %q:\n%s", want, res.HumanText())
 		}
@@ -192,8 +197,8 @@ func TestIntegrationRepoRepairAppliesOneDescendantCommit(t *testing.T) {
 	if !strings.Contains(record, "| Spec |") || !strings.Contains(record, repairAuthoredSentinel) {
 		t.Errorf("repaired record must carry the Spec row and the untouched prose:\n%s", record)
 	}
-	if stamped := showDocketFile(t, r, repairStampPath); strings.Contains(stamped, "claimed_at") {
-		t.Errorf("stamped archived record still carries claimed_at:\n%s", stamped)
+	if quoted := showDocketFile(t, r, repairQuotePath); !strings.Contains(quoted, "\ntitle: 'yes'\n") {
+		t.Errorf("archived record's title was not quoted:\n%s", quoted)
 	}
 	if got := showDocketFile(t, r, repairEmptyPath); got != emptyBefore {
 		t.Errorf("empty claimed_at record changed:\n%s", got)
@@ -534,7 +539,7 @@ func TestIntegrationRepoRepairRefusesFreshRepository(t *testing.T) {
 // repository.
 func TestIntegrationRepoRepairEmptyClaimedAtIsCleanNoOp(t *testing.T) {
 	r := newHealthyRepo(t)
-	r.writeDocketFileAndPush(t, repairEmptyPath, repairArchivedRecord(4, "archived-empty", "claimed_at:"), "publish an archived record with the cleared claimed_at")
+	r.writeDocketFileAndPush(t, repairEmptyPath, repairArchivedRecord(4, "archived-empty", "Change archived-empty", "claimed_at:"), "publish an archived record with the cleared claimed_at")
 	before := currentDocketTip(t, r)
 
 	res := r.runRepair(t, RepairOptions{Authorized: true})

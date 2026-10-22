@@ -6,11 +6,10 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// TestEmptyValueSpellings pins the one empty-value rule shared by the
-// repository decoder's FieldEmpty classification and reposetup's claimed_at
-// planner (change 0496): every empty spelling is empty, every non-empty value —
-// including a collection — is not, and an undecoded entry (nil node) falls back
-// to the located shape alone. Mutation probe: drop any clause of EmptyValue
+// TestEmptyValueSpellings pins the one empty-value rule the repository
+// decoder's FieldEmpty classification uses: every empty spelling is empty,
+// every non-empty value — including a collection — is not, and an undecoded
+// entry (nil node) falls back to the located shape alone. Mutation probe: drop any clause of EmptyValue
 // (the ShapeEmpty check, the !!null tag check, or the empty-string check) and
 // the matching subtests redden.
 func TestEmptyValueSpellings(t *testing.T) {

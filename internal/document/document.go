@@ -295,9 +295,8 @@ func (d Document) Field(name string) (Field, bool) {
 // empty here. node is the caller's own parsed node for the entry, nil when the
 // YAML tree has none; located/locatedOK are Field's results for the same key.
 //
-// The repository decoder's FieldEmpty classification and reposetup's
-// claimed_at planner both decide through this one function, so the planner and
-// the snapshot validator cannot drift apart on what "no stamp" means (0496).
+// The repository decoder's FieldEmpty classification decides through this
+// function.
 func EmptyValue(located Field, locatedOK bool, node *yaml.Node) bool {
 	if locatedOK && located.Shape == ShapeEmpty {
 		return true

@@ -448,13 +448,6 @@ var validationTexts = map[string]validationExplainer{
 			Remedy:  handEdit(f, loc, "rename the file to start with the date it was archived, such as `2026-05-28-`"),
 		}
 	},
-	repository.CodeChangeFinalClaimStamp: func(f domain.Finding, loc reposetup.RecordLocator) findingText {
-		return findingText{
-			Message: fmt.Sprintf("%s is %s but still has `claimed_at: %s` from when it was being built.", subjectOf(f.Entity), f.Detail["status"], f.Detail["raw"]),
-			Impact:  "It's harmless: nothing reads it once a change is closed. Older docket versions left it behind.",
-			Remedy:  loc.RepairOrHandEdit("remove it", "delete the `claimed_at:` line", validationRecordPath(f)),
-		}
-	},
 	repository.CodeChangeStateIncoherent: func(f domain.Finding, loc reposetup.RecordLocator) findingText {
 		status := f.Detail["status"]
 		return findingText{

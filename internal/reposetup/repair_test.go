@@ -11,9 +11,9 @@ import (
 
 // planOne runs PlanRepairs and returns the findings; it fails the test on a
 // non-nil error, which the roster never produces for a well-formed call.
-func planOne(t *testing.T, path string, src string, archived bool) []RepairFinding {
+func planOne(t *testing.T, path string, src string) []RepairFinding {
 	t.Helper()
-	fs, err := PlanRepairs(path, []byte(src), archived, RecordLocator{})
+	fs, err := PlanRepairs(path, []byte(src), RecordLocator{})
 	if err != nil {
 		t.Fatalf("PlanRepairs(%q) unexpected error: %v", path, err)
 	}
@@ -65,7 +65,7 @@ func TestRepairQuoteScalarEligible(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fs := planOne(t, "docs/changes/active/0001-x.md", tc.src, false)
+			fs := planOne(t, "docs/changes/active/0001-x.md", tc.src)
 			f := repairableWithCode(t, fs, RepairQuoteScalar)
 			if f.Field != "title" {
 				t.Fatalf("Field = %q, want title", f.Field)
@@ -93,7 +93,7 @@ func TestRepairQuoteScalarRefused(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fs := planOne(t, "docs/changes/active/0001-x.md", tc.src, false)
+			fs := planOne(t, "docs/changes/active/0001-x.md", tc.src)
 			if hasRepairableCode(fs, RepairQuoteScalar) {
 				t.Fatalf("expected no repairable quote finding, got %+v", fs)
 			}
@@ -120,7 +120,7 @@ func TestRepairScalarToListEligible(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fs := planOne(t, "docs/changes/active/0001-x.md", tc.src, false)
+			fs := planOne(t, "docs/changes/active/0001-x.md", tc.src)
 			f := repairableWithCode(t, fs, RepairScalarToList)
 			if f.Field != "depends_on" {
 				t.Fatalf("Field = %q, want depends_on", f.Field)
@@ -147,90 +147,9 @@ func TestRepairScalarToListRefused(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fs := planOne(t, "docs/changes/active/0001-x.md", tc.src, false)
+			fs := planOne(t, "docs/changes/active/0001-x.md", tc.src)
 			if hasRepairableCode(fs, RepairScalarToList) {
 				t.Fatalf("expected no repairable list finding, got %+v", fs)
-			}
-		})
-	}
-}
-
-func TestRepairDropClaimedAtEligible(t *testing.T) {
-	cases := []struct {
-		name string
-		src  string
-		want string
-	}{
-		{
-			name: "done record",
-			src:  "---\nid: 7\nstatus: done\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n",
-			want: "---\nid: 7\nstatus: done\n---\nbody\n",
-		},
-		{
-			name: "killed record",
-			src:  "---\nid: 7\nclaimed_at: 2026-08-01T10:00:00Z\nstatus: killed\n---\nbody\n",
-			want: "---\nid: 7\nstatus: killed\n---\nbody\n",
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			fs := planOne(t, "docs/changes/archive/2026-08-01-0007-x.md", tc.src, true)
-			f := repairableWithCode(t, fs, RepairDropClaimedAt)
-			if f.Field != "claimed_at" {
-				t.Fatalf("Field = %q, want claimed_at", f.Field)
-			}
-			out, err := ApplyRepairs([]byte(tc.src), fs)
-			if err != nil {
-				t.Fatalf("ApplyRepairs: %v", err)
-			}
-			if string(out) != tc.want {
-				t.Fatalf("ApplyRepairs =\n%q\nwant\n%q", out, tc.want)
-			}
-		})
-	}
-}
-
-func TestRepairDropClaimedAtRefused(t *testing.T) {
-	cases := []struct {
-		name     string
-		src      string
-		archived bool
-	}{
-		// Mutation-probe target: the final-status check refuses this.
-		{"non-final archived record", "---\nid: 7\nstatus: in-progress\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n", true},
-		// An active (unarchived) record legitimately holds a claim lease.
-		{"active unarchived record", "---\nid: 7\nstatus: done\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n", false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			fs := planOne(t, "docs/changes/x.md", tc.src, tc.archived)
-			if hasRepairableCode(fs, RepairDropClaimedAt) {
-				t.Fatalf("expected no repairable drop finding, got %+v", fs)
-			}
-		})
-	}
-}
-
-// TestRepairClaimedAtUnsettledStatusWording pins that an absent status is
-// worded as absent, never quoted as if `missing` were the stored value.
-func TestRepairClaimedAtUnsettledStatusWording(t *testing.T) {
-	cases := []struct{ name, src, want, never string }{
-		{"stored status", "---\nid: 7\nstatus: in-progress\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n",
-			"its status is `in-progress`, not done or killed", ""},
-		{"no status", "---\nid: 7\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n",
-			"it has no `status:`", "`missing`"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			fs := planOne(t, "docs/changes/archive/2026-05-28-0007-x.md", tc.src, true)
-			var msg string
-			for _, f := range fs {
-				if f.Field == "claimed_at" {
-					msg = f.Message
-				}
-			}
-			if !strings.Contains(msg, tc.want) || (tc.never != "" && strings.Contains(msg, tc.never)) {
-				t.Errorf("Message = %q, want it to contain %q", msg, tc.want)
 			}
 		})
 	}
@@ -240,7 +159,7 @@ func TestRepairUndecodableSingleFinding(t *testing.T) {
 	// Duplicate key: document.Parse rejects it, so the whole record is named
 	// once as non-repairable rather than partially repaired.
 	src := "---\nid: 7\nid: 8\n---\nbody\n"
-	fs := planOne(t, "docs/changes/active/0001-x.md", src, false)
+	fs := planOne(t, "docs/changes/active/0001-x.md", src)
 	if len(fs) != 1 {
 		t.Fatalf("want exactly one finding, got %d: %+v", len(fs), fs)
 	}
@@ -254,7 +173,7 @@ func TestRepairUndecodableSingleFinding(t *testing.T) {
 
 func TestApplyRepairsTamperedPatchErrors(t *testing.T) {
 	src := "---\nid: 7\ntitle: yes\n---\nbody\n"
-	fs := planOne(t, "docs/changes/active/0001-x.md", src, false)
+	fs := planOne(t, "docs/changes/active/0001-x.md", src)
 	f := repairableWithCode(t, fs, RepairQuoteScalar)
 	// Tamper the preview so it no longer matches the canonical repair.
 	tampered := f
@@ -270,8 +189,8 @@ func TestApplyRepairsTamperedPatchErrors(t *testing.T) {
 func TestRepairDigestStableAndSensitive(t *testing.T) {
 	srcA := "---\nid: 7\ntitle: yes\n---\nbody\n"
 	srcB := "---\nid: 7\ndepends_on: 3\n---\nbody\n"
-	a := planOne(t, "a.md", srcA, false)
-	b := planOne(t, "b.md", srcB, false)
+	a := planOne(t, "a.md", srcA)
+	b := planOne(t, "b.md", srcB)
 
 	// Stable across runs.
 	if RepairDigest(a) != RepairDigest(a) {
@@ -304,7 +223,7 @@ func TestRepairDigestStableAndSensitive(t *testing.T) {
 // scalar blocked_by must never be converted to a flow sequence.
 func TestRepairListFieldRosterExcludesBlockedBy(t *testing.T) {
 	src := "---\nid: 7\nblocked_by: 3\n---\nbody\n"
-	fs := planOne(t, "docs/changes/active/0001-x.md", src, false)
+	fs := planOne(t, "docs/changes/active/0001-x.md", src)
 	if hasRepairableCode(fs, RepairScalarToList) {
 		t.Fatalf("blocked_by must not be list-converted: %+v", fs)
 	}
@@ -390,7 +309,7 @@ func TestRepairWellFormedQuotedScalarNoFinding(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if fs := planOne(t, "docs/changes/active/0001-x.md", tc.src, false); len(fs) != 0 {
+			if fs := planOne(t, "docs/changes/active/0001-x.md", tc.src); len(fs) != 0 {
 				t.Fatalf("want no findings for a well-formed quoted scalar, got %+v", fs)
 			}
 		})
@@ -402,7 +321,7 @@ func TestRepairWellFormedQuotedScalarNoFinding(t *testing.T) {
 // malformed quoting still yields a non-empty (undecodable-record) finding.
 func TestRepairBareScalarsKeepTheirVerdict(t *testing.T) {
 	t.Run("bare true stays manual review", func(t *testing.T) {
-		fs := planOne(t, "docs/changes/active/0001-x.md", "---\nid: 7\ntitle: true\n---\nbody\n", false)
+		fs := planOne(t, "docs/changes/active/0001-x.md", "---\nid: 7\ntitle: true\n---\nbody\n")
 		if len(fs) != 1 {
 			t.Fatalf("want exactly one finding, got %d: %+v", len(fs), fs)
 		}
@@ -416,7 +335,7 @@ func TestRepairBareScalarsKeepTheirVerdict(t *testing.T) {
 		"---\nid: 7\ntitle: 'a' b\n---\nbody\n", // trailing content
 	} {
 		t.Run(fmt.Sprintf("malformed %q", src), func(t *testing.T) {
-			fs := planOne(t, "docs/changes/active/0001-x.md", src, false)
+			fs := planOne(t, "docs/changes/active/0001-x.md", src)
 			if len(fs) == 0 {
 				t.Fatalf("malformed quoting must not be silently accepted; got no findings")
 			}
@@ -494,79 +413,32 @@ func assertParity(t *testing.T, path string, rec []byte, s string) {
 	if !bytes.Contains(rec, []byte("\ntitle: '")) {
 		t.Fatalf("writer did not single-quote the title; parity row is vacuous:\n%s", rec)
 	}
-	if fs := planOne(t, path, string(rec), false); len(fs) != 0 {
+	if fs := planOne(t, path, string(rec)); len(fs) != 0 {
 		t.Fatalf("checker disagrees with writer for %q: %+v\n%s", s, fs, rec)
 	}
 }
 
-// TestRepairDropClaimedAtSpelling pins ADR-0129 row 58 (change 0474).
-func TestRepairDropClaimedAtSpelling(t *testing.T) {
-	if got := string(RepairDropClaimedAt); got != "drop-final-claimed-at" {
-		t.Errorf("RepairDropClaimedAt = %q, want drop-final-claimed-at", got)
-	}
-}
-
-// TestRepairDropClaimedAtEmptyValueIsNoStamp pins change 0496: an EMPTY claimed_at
-// is docket's deliberate cleared form (closeout's clearClaimedAt writes the bare
-// null), and the decode layer reads every empty spelling as FieldEmpty — "no
-// stamp". planClaimedAt must agree: no finding at all (neither repairable nor
-// manual review), for every empty spelling, on final AND non-final archived
-// records. Mutation probe: delete the claimedAtHoldsValue gate in planClaimedAt —
-// every subtest here must redden.
-func TestRepairDropClaimedAtEmptyValueIsNoStamp(t *testing.T) {
-	spellings := []struct{ name, line string }{
-		{"bare key", "claimed_at:"},
-		{"bare key trailing space", "claimed_at: "},
-		{"single-quoted empty", "claimed_at: ''"},
-		{"double-quoted empty", `claimed_at: ""`},
-		{"null keyword", "claimed_at: null"},
-		{"tilde", "claimed_at: ~"},
-	}
-	for _, sp := range spellings {
-		for _, status := range []string{"done", "killed", "in-progress"} {
-			t.Run(sp.name+"/"+status, func(t *testing.T) {
-				src := "---\nid: 7\nstatus: " + status + "\n" + sp.line + "\n---\nbody\n"
-				fs := planOne(t, "docs/changes/archive/2026-08-01-0007-x.md", src, true)
-				for _, f := range fs {
-					if f.Field == "claimed_at" {
-						t.Fatalf("empty claimed_at (%q) on a %s archived record must yield no finding, got %+v", sp.line, status, f)
-					}
-				}
-			})
-		}
-	}
-}
-
-// TestRepairDropClaimedAtNonEmptyUnchanged proves the empty-value gate leaves every
-// NON-empty value on the existing path: a timestamp and a malformed non-empty
-// value on a final archived record still yield the repairable drop with the
-// unchanged patch preview; a timestamp on a non-final archived record is still a
-// manual-review finding.
-func TestRepairDropClaimedAtNonEmptyUnchanged(t *testing.T) {
-	for _, tc := range []struct{ name, value string }{
-		{"timestamp", "2026-08-01T10:00:00Z"},
-		{"malformed non-empty", "not-a-timestamp"},
+// TestPlanRepairsIgnoresClaimedAt pins that the repair planner never reports a
+// leftover claim stamp, whatever the record's status or placement.
+func TestPlanRepairsIgnoresClaimedAt(t *testing.T) {
+	for _, tc := range []struct{ name, path, src string }{
+		{"archived done", "docs/changes/archive/2026-08-01-0007-x.md",
+			"---\nid: 7\nstatus: done\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n"},
+		{"archived proposed", "docs/changes/archive/2026-08-01-0007-x.md",
+			"---\nid: 7\nstatus: proposed\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n"},
+		{"active in-progress", "docs/changes/active/0007-x.md",
+			"---\nid: 7\nstatus: in-progress\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			src := "---\nid: 7\nstatus: done\nclaimed_at: " + tc.value + "\n---\nbody\n"
-			fs := planOne(t, "docs/changes/archive/2026-08-01-0007-x.md", src, true)
-			f := repairableWithCode(t, fs, RepairDropClaimedAt)
-			if want := "-claimed_at: " + tc.value + "\n"; string(f.Patch) != want {
-				t.Errorf("Patch = %q, want %q (preview must be unchanged)", f.Patch, want)
+			fs, err := PlanRepairs(tc.path, []byte(tc.src), RecordLocator{})
+			if err != nil {
+				t.Fatalf("PlanRepairs: %v", err)
+			}
+			for _, f := range fs {
+				if f.Field == "claimed_at" {
+					t.Fatalf("unexpected claimed_at finding: %+v", f)
+				}
 			}
 		})
 	}
-	t.Run("non-final timestamp is manual review", func(t *testing.T) {
-		src := "---\nid: 7\nstatus: in-progress\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n"
-		fs := planOne(t, "docs/changes/archive/2026-08-01-0007-x.md", src, true)
-		var got *RepairFinding
-		for i := range fs {
-			if fs[i].Field == "claimed_at" {
-				got = &fs[i]
-			}
-		}
-		if got == nil || got.Repairable {
-			t.Fatalf("non-final archived timestamp must stay a manual-review finding, got %+v", fs)
-		}
-	})
 }

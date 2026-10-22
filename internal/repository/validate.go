@@ -45,9 +45,6 @@ const (
 	// CodeChangeArchiveDateInvalid marks an archived record whose filename
 	// carries no usable YYYY-MM-DD prefix.
 	CodeChangeArchiveDateInvalid = "change-archive-date-invalid"
-	// CodeChangeFinalClaimStamp marks an archived record that still
-	// carries a claim stamp — a lease nothing can ever release.
-	CodeChangeFinalClaimStamp = "change-final-claim-stamp"
 	// CodeChangeStateIncoherent marks a lifecycle state missing a fact the
 	// state itself guarantees. Field names the missing fact.
 	CodeChangeStateIncoherent = "change-state-incoherent"
@@ -251,10 +248,6 @@ func changePlacement(c domain.Change) []domain.Finding {
 			findings = append(findings, finding(CodeChangeArchiveDateInvalid, domain.SeverityError, ref, "path",
 				map[string]string{"base": path.Base(c.Path())}))
 		}
-		if final && c.ClaimedAt().State == domain.FieldPresent {
-			findings = append(findings, finding(CodeChangeFinalClaimStamp, domain.SeverityError, ref, "claimed_at",
-				map[string]string{"raw": c.ClaimedAt().Raw, "status": string(c.Status())}))
-		}
 	}
 	return findings
 }
@@ -268,7 +261,7 @@ func changeCoherence(c domain.Change) []domain.Finding {
 	var missing []string
 	switch c.Status() {
 	case domain.StatusInProgress:
-		missing = append(missing, claimFacts(c)...)
+		missing = append(missing, branchFacts(c)...)
 	case domain.StatusBlocked:
 		if !present(c.BlockedBy()) {
 			missing = append(missing, "blocked_by")
@@ -289,22 +282,20 @@ func changeCoherence(c domain.Change) []domain.Finding {
 	return findings
 }
 
-// claimFacts names the claim facts a held lease requires.
-func claimFacts(c domain.Change) []string {
+// branchFacts names the facts a claimed change carries: the branch its work
+// lives on.
+func branchFacts(c domain.Change) []string {
 	var missing []string
 	if !present(c.Branch()) {
 		missing = append(missing, "branch")
 	}
-	if c.ClaimedAt().State != domain.FieldPresent {
-		missing = append(missing, "claimed_at")
-	}
 	return missing
 }
 
-// implementedFacts names the facts an implemented record carries: the claim
-// facts plus the delivery evidence.
+// implementedFacts names the facts an implemented record carries: the branch
+// plus the delivery evidence.
 func implementedFacts(c domain.Change) []string {
-	missing := claimFacts(c)
+	missing := branchFacts(c)
 	if !present(c.Plan()) {
 		missing = append(missing, "plan")
 	}
