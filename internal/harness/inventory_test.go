@@ -308,7 +308,7 @@ func TestSkillDirsFromEmbedded(t *testing.T) {
 			t.Errorf("SkillDirs not strictly sorted at %d: %q then %q", i, got[i-1], d)
 		}
 	}
-	for _, known := range []string{"docket-build", "docket-build-task", "docket-convention"} {
+	for _, known := range []string{"docket-build", "docket-build-task", "docket-convention", "docket-export"} {
 		if !want[known] {
 			t.Fatalf("bundle no longer carries the %q skill; the fixture assumption is stale", known)
 		}

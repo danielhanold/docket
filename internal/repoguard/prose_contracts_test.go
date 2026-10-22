@@ -1508,6 +1508,25 @@ var alignmentContracts = []proseContract{
 			"an untracked driver has no verdict and stops on every `halted`",
 		},
 		absent: []string{"The driver's decision is binary"}},
+	// change 0578 — the inline export skill: never a hand-built or raw export;
+	// a failed export posts nothing; shared repositories get no rewrite pass and
+	// no stop; private (or unknown) repositories get the rewrite pass, the word
+	// check, and a before → after stop.
+	{sentinel: "change_0578_export_skill", file: "skills/docket-export/SKILL.md",
+		present: []string{
+			"**Never build an export by hand, and never send the raw file.**",
+			"`--export --print --json`",
+			"**A failed export posts nothing.**",
+			"If `result` is not `applied` or there is no `exported_path`, tell the person the `message` and stop",
+			"Never fall back to the raw file or a hand cleanup",
+			"the visibility is unknown, so **treat the repository as private**",
+			"this is not a docket artifact",
+			"**A shared repository gets no rewrite pass and no stop.**",
+			"**Rewrite pass.** When the export reported any `leftovers` or `mentions`, edit the exported copy in place",
+			"Search the rewritten copy for \"docket\" and \"dckt\" as whole words, case-insensitive, code included",
+			"show the person every change as before → after and **post only after they say go**",
+		},
+		absent: []string{"context: fork", "agent: docket-export"}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.
