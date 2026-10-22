@@ -2,7 +2,7 @@
 id: 575
 slug: 'retire-claim-reclaim-and-its-lease'
 title: 'Retire claim reclaim and its lease'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'refactor/retire-claim-reclaim-and-its-lease'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/442'
 blocked_by:
 reconciled: true
 claimed_at: '2026-10-22T10:29:53Z'
@@ -81,3 +81,12 @@ Retire claim reclaim and the claim lease end to end (settled at grooming; the sp
 ### 2026-10-22
 
 Unchanged against main 657c48a7e: #360 (dependency) landed in 42ddcb472 as the spec assumes, and the reclaim command, lease_ttl/reclaim.auto keys, and sweep reclaim leg are all still present on main.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 2a91537828af8b999fa91e01fbc390a862deafc2
+ran_at:   2026-10-22T12:09:37Z
+<!-- docket:build-evidence:end -->

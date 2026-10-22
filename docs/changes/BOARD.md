@@ -1,12 +1,12 @@
 # Backlog
 
-**576 changes** — 🟢 1 in progress · 🟡 3 proposed · ⚪ 16 deferred · ✅ 412 done · 🗑️ 144 killed
+**576 changes** — 🔵 1 built · 🟡 3 proposed · ⚪ 16 deferred · ✅ 412 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0575](active/0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | `medium` | `refactor` | [spec](../superpowers/specs/2026-10-22-retire-claim-reclaim-and-its-lease-design.md) | `refactor/retire-claim-reclaim-and-its-lease` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0575](active/0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | `medium` | `refactor` | [#442](https://github.com/danielhanold/docket/pull/442) | awaiting merge |
 
 ## 🟡 Proposed (3)
 
