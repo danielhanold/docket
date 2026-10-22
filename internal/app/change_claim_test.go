@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
@@ -15,7 +16,7 @@ import (
 
 // claimableChange renders a proposed, build-ready change: the canonical proposed
 // record linking a spec (so it carries a design) and no claim fields yet.
-// Claiming it must INSERT branch/claimed_at/reconciled.
+// Claiming it must INSERT branch and set reconciled.
 func claimableChange(id int, slug string) string {
 	return withLinkedSpec(lifecycleChange(id, slug, "proposed"), fixtureSpecPath(slug))
 }
@@ -143,8 +144,8 @@ func appliedGateResult(t *testing.T, id int) transaction.Result {
 		Disposition:   transaction.DispositionApplied,
 		AppliedCommit: gateClaimCommit,
 		Receipt: mustMarshal(t, changeClaimReceipt{
-			Branch: "feat/widget", ClaimedAt: "2026-08-16T12:00:00Z",
-			ID: id, Lease: "fresh", Op: OperationChangeClaim, Status: "in-progress",
+			Branch: "feat/widget",
+			ID:     id, Op: OperationChangeClaim, Status: "in-progress",
 		}),
 	}
 }
@@ -452,6 +453,67 @@ func assertUnrelatedShapeIntact(t *testing.T, repo *gitRepo, branch string, shap
 		}
 	}
 	t.Errorf("%s: status no longer reports a finding on the unrelated records; findings %+v", shape.name, st.Findings)
+}
+
+// TestClaimWritesNoClaimStamp: a claim records the branch and nothing that
+// dates the claim — the committed record gains no claimed_at: line, the
+// receipt carries no claimed_at or lease key, and the human line names
+// identity, disposition, branch, and revision only.
+func TestClaimWritesNoClaimStamp(t *testing.T) {
+	recPath := groomPath(1, "widget")
+	src := claimableChange(1, "widget")
+	if strings.Contains(src, "claimed_at") {
+		t.Fatalf("fixture already carries claimed_at:\n%s", src)
+	}
+	plan, opRes := claimPlanFor(t, map[string]string{recPath: src}, baseClaimOp([]string{"inline"}, 1, domain.NewBranchFacts(nil)))
+	if opRes.Refused {
+		t.Fatalf("claim refused: %v", opRes.Findings)
+	}
+	rec := killRecordBytes(t, plan, recPath)
+	if strings.Contains(rec, "claimed_at") {
+		t.Errorf("claimed record carries a claimed_at line:\n%s", rec)
+	}
+	if !strings.Contains(rec, "branch: 'feat/widget'") && !strings.Contains(rec, "branch: feat/widget") {
+		t.Errorf("claimed record lacks its branch:\n%s", rec)
+	}
+
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(plan.Receipt, &keys); err != nil {
+		t.Fatalf("receipt %s: %v", plan.Receipt, err)
+	}
+	for _, retired := range []string{"claimed_at", "lease"} {
+		if _, ok := keys[retired]; ok {
+			t.Errorf("claim receipt carries retired key %q: %s", retired, plan.Receipt)
+		}
+	}
+
+	out := claimResultFromOutcome(OperationChangeClaim, transaction.Result{
+		Disposition: transaction.DispositionApplied, AppliedCommit: gateClaimCommit, Receipt: plan.Receipt,
+	}, nil)
+	if want := "change 0001 applied (feat/widget) — " + gateClaimCommit; out.HumanText() != want {
+		t.Errorf("HumanText = %q, want %q", out.HumanText(), want)
+	}
+}
+
+// TestDecodeChangeClaimReceiptToleratesRetiredKeys: a receipt committed before
+// the claim lease was retired still carries claimed_at and lease; it must still
+// decode, so an idempotent replay of that claim reports id, status, and branch.
+func TestDecodeChangeClaimReceiptToleratesRetiredKeys(t *testing.T) {
+	old := []byte(`{"branch":"feat/x","claimed_at":"2026-08-02T00:00:00Z","gate_context_hash":"","id":7,"lease":"fresh","op":"change.claim","status":"in-progress"}`)
+	rec, ok := decodeChangeClaimReceipt(old)
+	if !ok {
+		t.Fatalf("pre-change receipt did not decode: %s", old)
+	}
+	if rec.ID != 7 || rec.Branch != "feat/x" || rec.Status != "in-progress" {
+		t.Errorf("decoded receipt = %+v, want id 7, branch feat/x, status in-progress", rec)
+	}
+	out := claimResultFromOutcome(OperationChangeClaim, transaction.Result{
+		Disposition: transaction.DispositionAlreadyApplied, AppliedCommit: gateClaimCommit, Receipt: old,
+	}, nil)
+	if out.Result != ResultApplied || out.Disposition != ClaimDispositionAlreadyClaimed ||
+		out.ID != 7 || out.Branch != "feat/x" || out.Status != "in-progress" {
+		t.Errorf("replay of a pre-change receipt = %+v, want already-claimed with id, branch, and status", out)
+	}
 }
 
 // TestChangeClaimRefusesLegacyTrivialRecord: a legacy record carrying

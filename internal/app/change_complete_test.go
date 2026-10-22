@@ -135,8 +135,8 @@ func TestChangeCompletePlanFromProposed(t *testing.T) {
 			t.Errorf("archived record lacks %q:\n%s", want, rec)
 		}
 	}
-	if strings.Contains(rec, "claimed_at: 2026") {
-		t.Errorf("archived record carries a claim stamp:\n%s", rec)
+	if strings.Contains(rec, "claimed_at") {
+		t.Errorf("completing a proposed record wrote a claimed_at line:\n%s", rec)
 	}
 	results := killRecordBytes(t, plan, miResultsPath)
 	if !strings.Contains(results, "../changes/archive/2026-08-16-0003-widget.md") {
@@ -163,8 +163,8 @@ func TestChangeCompletePlanFromInProgressWithAndWithoutRunHalted(t *testing.T) {
 			if !strings.Contains(rec, "status: 'done'") {
 				t.Errorf("status not done:\n%s", rec)
 			}
-			if strings.Contains(rec, "claimed_at: 2026") {
-				t.Errorf("claim stamp not cleared:\n%s", rec)
+			if !strings.Contains(rec, "\nclaimed_at: 2026-08-02T00:00:00Z\n") {
+				t.Errorf("completion rewrote the claimed_at line:\n%s", rec)
 			}
 			if !strings.Contains(rec, "branch: feat/widget") {
 				t.Errorf("branch not kept:\n%s", rec)

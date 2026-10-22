@@ -22,9 +22,9 @@ import (
 // a whole-record replacement — it patches the owned proposal sections, appends
 // one dated ## Reconcile log entry, updates the complete desired relationship
 // values, optionally patches the still-mutable linked spec's sections, flips
-// reconciled: true, and refreshes the claim (re-stamps claimed_at). Everything
-// it does not name — unknown frontmatter, authored sections outside the patch,
-// line endings, unrelated files — stays byte-identical.
+// reconciled: true, and stamps updated:. Everything it does not name — unknown
+// frontmatter, authored sections outside the patch, line endings, unrelated
+// files — stays byte-identical.
 //
 // It is a non-allocating edit of an existing record, so it pins the submitted
 // record revision with an exact-blob entity expectation rather than an
@@ -355,7 +355,7 @@ func (o changeReconcileOp) Key() transaction.OperationKey { return transaction.O
 
 // Plan gates the reconcile against the attempt's fresh snapshot, splices the
 // owned proposal sections, appends the dated reconcile-log entry, patches the
-// reconciled/claim/updated fields and the desired relationships, patches the
+// reconciled/updated fields and the desired relationships, patches the
 // linked spec's named sections, re-renders the artifact block, and assembles
 // the closed plan: the reconciled record, the patched spec (when requested),
 // and the re-rendered board when inline is enabled.
@@ -394,22 +394,13 @@ func (o changeReconcileOp) Plan(ctx context.Context, st transaction.AttemptState
 		return refuseReconcile("reconcile-log-append-failed", err.Error())
 	}
 
-	// 3. Patch the typed fields: refresh the claim (claimed_at), flip reconciled,
-	//    stamp updated, and write the complete desired relationships. domain.
-	//    RefreshClaim yields the claimed_at FieldChange (the in-progress gate above
-	//    guarantees it succeeds).
-	refreshed, fail := domain.RefreshClaim(c, o.clock.Now())
-	if fail != nil {
-		return refuseLifecyclePolicy(fail)
-	}
+	// 3. Patch the typed fields: flip reconciled, stamp updated, and write the
+	//    complete desired relationships.
 	doc1, err := document.Parse(edited)
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change reconcile: reparsing edited record: %w", err)
 	}
 	var ps document.PatchSet
-	for _, fc := range refreshed.Changed {
-		upsertField(&ps, doc1, fc.Field, lifecycleFieldValue(fc.To))
-	}
 	upsertField(&ps, doc1, "reconciled", document.Bool(true))
 	upsertField(&ps, doc1, "updated", document.String(o.clock.Now().UTC().Format("2006-01-02")))
 	if rel := o.req.Relations; rel != nil {

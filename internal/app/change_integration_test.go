@@ -343,16 +343,16 @@ func TestIntegrationChangeAuthoringBlockAppliedResult(t *testing.T) {
 
 // TestChangeClaimApplies proves both halves of a successful claim: the app layer
 // submits the exact expected revision, an idempotency key, and the metadata
-// target ref (recordingEngine); and the plan closure patches status/branch/
-// claimed_at and names the record, board, and artifact surfaces.
+// target ref (recordingEngine); and the plan closure patches status/branch
+// and names the record, board, and artifact surfaces.
 func TestIntegrationChangeAuthoringClaimApplies(t *testing.T) {
 	const revision = "1234123412341234123412341234123412341234"
 
 	t.Run("submitted request", func(t *testing.T) {
 		repoDir := newWorkingRepo(t, nil).invocation
 		receipt := mustMarshal(t, changeClaimReceipt{
-			Branch: "feat/widget", ClaimedAt: "2026-08-16T12:00:00Z",
-			ID: 3, Lease: "fresh", Op: OperationChangeClaim, Status: "in-progress",
+			Branch: "feat/widget",
+			ID:     3, Op: OperationChangeClaim, Status: "in-progress",
 		})
 		engine := &recordingEngine{result: transaction.Result{
 			Disposition:   transaction.DispositionApplied,
@@ -370,11 +370,8 @@ func TestIntegrationChangeAuthoringClaimApplies(t *testing.T) {
 		if res.Disposition != ClaimDispositionApplied {
 			t.Errorf("disposition = %q, want applied", res.Disposition)
 		}
-		if res.Branch != "feat/widget" || res.Lease != "fresh" || res.Status != "in-progress" {
-			t.Errorf("result echoes (branch=%q lease=%q status=%q); want the claim receipt", res.Branch, res.Lease, res.Status)
-		}
-		if res.ClaimedAt != "2026-08-16T12:00:00Z" {
-			t.Errorf("claimed_at = %q", res.ClaimedAt)
+		if res.Branch != "feat/widget" || res.Status != "in-progress" {
+			t.Errorf("result echoes (branch=%q status=%q); want the claim receipt", res.Branch, res.Status)
 		}
 		if res.Revision != "cafebabecafebabecafebabecafebabecafebabe" {
 			t.Errorf("revision = %q", res.Revision)
@@ -427,7 +424,6 @@ func TestIntegrationChangeAuthoringClaimApplies(t *testing.T) {
 		for _, want := range []string{
 			"status: 'in-progress'",
 			"branch: 'feat/widget'",
-			"claimed_at: '2026-08-16T12:00:00Z'",
 			"updated: '2026-08-16'",
 			"docket:artifacts:start",
 		} {
@@ -547,8 +543,8 @@ func TestIntegrationChangeAuthoringClaimRetryConvergence(t *testing.T) {
 
 	t.Run("matching identity replays as already-claimed", func(t *testing.T) {
 		receipt := mustMarshal(t, changeClaimReceipt{
-			Branch: "feat/widget", ClaimedAt: "2026-08-16T12:00:00Z",
-			ID: 3, Lease: "fresh", Op: OperationChangeClaim, Status: "in-progress",
+			Branch: "feat/widget",
+			ID:     3, Op: OperationChangeClaim, Status: "in-progress",
 		})
 		res := setup(t, transaction.Result{
 			Disposition:   transaction.DispositionAlreadyApplied,
@@ -2687,8 +2683,7 @@ func TestIntegrationChangeRuntimeRelinkWorkspaceConflictBlocks(t *testing.T) {
 
 // TestChangeResumeHalted proves the full recovery: a live-writer reprobe refuses
 // and leaves the marker; a revision drift is contended; a quiescent reprobe
-// refreshes the claim, removes exactly the marker section, and preserves every
-// other byte.
+// removes exactly the marker section and preserves every other byte.
 func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 	for _, m := range planRepoModes() {
 		t.Run(m.name, func(t *testing.T) {
@@ -2718,8 +2713,8 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 				}
 			})
 
-			// A quiescent reprobe recovers: claim refreshed, marker removed, other
-			// bytes preserved.
+			// A quiescent reprobe recovers: marker removed, every other byte —
+			// the older claimed_at: line included — preserved.
 			t.Run("quiescent-resumes", func(t *testing.T) {
 				f := setupHaltedFixture(t, m)
 				got := ChangeResumeHalted(context.Background(), f.deps,
@@ -2732,8 +2727,8 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 				if strings.Contains(rec, "## Run halted") {
 					t.Errorf("marker not removed on resume:\n%s", rec)
 				}
-				if !strings.Contains(rec, "claimed_at: '2026-08-16T12:00:00Z'") {
-					t.Errorf("claim lease not refreshed:\n%s", rec)
+				if !strings.Contains(rec, "\nclaimed_at: 2026-08-02T00:00:00Z\n") {
+					t.Errorf("resume rewrote the claimed_at line:\n%s", rec)
 				}
 				// Preserved: branch and the authored ## Why section byte-identical.
 				for _, want := range []string{"branch: feat/widget", "## Why\n\nOriginal why."} {
@@ -3092,13 +3087,14 @@ func TestIntegrationChangeRuntimeResumeHaltedPreallocation(t *testing.T) {
 				t.Fatalf("resume through the real service: result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
 			}
 
-			// Marker removed; claim refreshed; status and recorded branch preserved.
+			// Marker removed; status, recorded branch, and the older claimed_at:
+			// line preserved.
 			rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
 			if strings.Contains(rec, "## Run halted") {
 				t.Errorf("halt marker survived resume:\n%s", rec)
 			}
-			if !strings.Contains(rec, "claimed_at: '2026-08-16T12:00:00Z'") {
-				t.Errorf("claim lease not refreshed:\n%s", rec)
+			if !strings.Contains(rec, "\nclaimed_at: 2026-08-02T00:00:00Z\n") {
+				t.Errorf("resume rewrote the claimed_at line:\n%s", rec)
 			}
 			for _, want := range []string{"status: in-progress", "branch: feat/widget"} {
 				if !strings.Contains(rec, want) {

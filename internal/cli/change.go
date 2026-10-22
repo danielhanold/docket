@@ -210,13 +210,13 @@ func newRelinkSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 // newResumeHaltedSubcommand builds `change resume-halted`: human-authorized
 // recovery of a halted run. It requires the exact marked record, the explicit
 // --acknowledge-quiescent acknowledgement, reprobes the owned workspace, then
-// refreshes the claim and removes the marker. The scalar identity rides on flags;
+// removes the marker. The scalar identity rides on flags;
 // there is no authored request body. It composes the read-only planning seams and
 // the workspace service (to reprobe the owned checkout).
 func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "resume-halted",
-		Short:       "Recover a halted run: reprobe the workspace, refresh the claim, and remove the marker",
+		Short:       "Recover a halted run: reprobe the workspace and remove the marker",
 		Args:        cobra.NoArgs,
 		Annotations: capability("change.resume-halted", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {

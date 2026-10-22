@@ -120,7 +120,7 @@ func driveClaimToImplemented(t *testing.T, repo *gitRepo, branch, ghBin string, 
 			t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
 		}
 
-		// (3) Reconcile: sets reconciled:true and refreshes the claim.
+		// (3) Reconcile: sets reconciled:true and appends a reconcile-log entry.
 		rec := ChangeReconcile(ctx, node.deps, node.dir, ChangeReconcileRequest{
 			ID: id, Revision: ver(),
 			ReconcileLogEntry: "Reconciled against current reality.\n",

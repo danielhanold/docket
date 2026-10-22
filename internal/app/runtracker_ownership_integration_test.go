@@ -210,7 +210,7 @@ func TestIntegrationRunFenceTwoRunsEachVerifyOnlyTheirOwn(t *testing.T) {
 
 // TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership — spec acceptance item 2 / item 6 first
 // half: after binding A→3, mutating the corpus (sibling in-progress claims, a
-// refreshed claimed_at on 3, a priority edit) and adding sibling proofs under other
+// re-stamped updated: on 3, a priority edit) and adding sibling proofs under other
 // context hashes leaves the verdict unchanged — same id, same run-complete outcome.
 // Ownership rests on the confirmed binding + the exact committed proof, never on the
 // current claim set.
@@ -239,12 +239,23 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 		t.Fatalf("baseline verdict = %q, want %q", got, want)
 	}
 
-	// Refresh id 3's claimed_at and priority (a real reconcile / groom edit
+	// Re-stamp id 3's updated: and priority (a real reconcile / groom edit
 	// leaves the change complete), and add two sibling in-progress claims — exactly
-	// the churn the pre-0407 before-set/run inference keyed on.
+	// the churn the pre-0407 before-set/run inference keyed on. Each edit must
+	// land, or the churn is a no-op and the ownership assert below proves nothing.
 	refreshed := string(evidenced)
-	refreshed = strings.Replace(refreshed, "claimed_at: 2026-08-02T00:00:00Z", "claimed_at: 2026-09-05T00:00:00Z", 1)
-	refreshed = strings.Replace(refreshed, "priority: medium", "priority: high", 1)
+	for _, edit := range [][2]string{
+		{"\nupdated: 2026-08-02\n", "\nupdated: 2026-09-05\n"},
+		{"\npriority: medium\n", "\npriority: high\n"},
+	} {
+		if strings.Count(refreshed, edit[0]) != 1 {
+			t.Fatalf("churn edit %q does not match the record exactly once:\n%s", edit[0], refreshed)
+		}
+		refreshed = strings.Replace(refreshed, edit[0], edit[1], 1)
+	}
+	if refreshed == string(evidenced) {
+		t.Fatal("the churn left change 3's record byte-identical")
+	}
 	churnedCorpus := []StatusBlob{
 		mxBlob(3, "widget", []byte(refreshed)),
 		runTrackerInProgressBlob(9, "sibling", "2026-09-01T00:00:00Z"),
@@ -266,8 +277,7 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 
 // TestIntegrationRunFenceReplacementClaimBlocksOldRun — spec acceptance item 6 second half: after A
 // is confirmed-bound to change 3 at claim-3-v1, a NEWER committed proof for change 3
-// under a different request id means the change was reclaimed and re-claimed by
-// another run. A's verdict stops run-tracker-unavailable claim-replaced, never spends the
+// under a different request id means another run claimed the change again. A's verdict stops run-tracker-unavailable claim-replaced, never spends the
 // retry, and a subsequent verdict still refuses — the old gate never takes over the
 // replacement run.
 func TestIntegrationRunFenceReplacementClaimBlocksOldRun(t *testing.T) {

@@ -59,7 +59,7 @@ func TestChangeHaltPreservesCheckpoints(t *testing.T) {
 	if !strings.Contains(rec, "## Run halted") || !strings.Contains(rec, "Blocked on infra; see run 7.") {
 		t.Errorf("halt report not recorded:\n%s", rec)
 	}
-	// Branch and claim lease byte-identical — halt touches no frontmatter.
+	// Branch and claim fields byte-identical — halt touches no frontmatter.
 	for _, want := range []string{"branch: feat/widget", "claimed_at: 2026-08-02T00:00:00Z", "reconciled: true"} {
 		if !strings.Contains(rec, want) {
 			t.Errorf("halt altered a preserved field; missing %q:\n%s", want, rec)
@@ -72,6 +72,42 @@ func TestChangeHaltPreservesCheckpoints(t *testing.T) {
 		changeHaltOp{id: 3, report: "x\n", eff: planningTestConfig(nil), clock: testClock(), changesDir: "docs/changes"})
 	if !opRes2.Refused || firstFindingCode(opRes2.Findings) != ReasonHaltNotInProgress {
 		t.Fatalf("proposed change: refused=%v code=%q, want %q", opRes2.Refused, firstFindingCode(opRes2.Findings), ReasonHaltNotInProgress)
+	}
+}
+
+// TestResumeHaltedLeavesFrontmatterByteIdentical proves resume-halted removes
+// exactly the "## Run halted" section and writes no frontmatter field: an older
+// record's claimed_at: line, like every other field, is byte-identical after.
+func TestResumeHaltedLeavesFrontmatterByteIdentical(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	inProgress := lifecycleChange(3, "widget", "in-progress")
+	const stamped = "\nclaimed_at: 2026-08-02T00:00:00Z\n"
+	if !strings.Contains(inProgress, stamped) {
+		t.Fatalf("fixture lacks a stamped claimed_at line:\n%s", inProgress)
+	}
+	halted := inProgress + "\n## Run halted\n\n### 2026-08-10\n\nStopped at the gate.\n"
+	files := map[string]string{
+		recPath:                 halted,
+		"docs/changes/BOARD.md": "# Backlog\n\nold\n",
+	}
+	op := resumeHaltedOp{id: 3, eff: planningTestConfig([]string{"inline"}), inline: true, changesDir: "docs/changes"}
+	plan, opRes := blockPlanFor(t, files, planningTestConfig([]string{"inline"}), op)
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := lifecycleRecordBytes(t, plan, recPath)
+	if strings.Contains(rec, "## Run halted") {
+		t.Errorf("run-halted section survived the resume:\n%s", rec)
+	}
+	frontmatter := func(s string) string {
+		end := strings.Index(s[len("---\n"):], "\n---\n")
+		if !strings.HasPrefix(s, "---\n") || end < 0 {
+			t.Fatalf("record has no frontmatter block:\n%s", s)
+		}
+		return s[:len("---\n")+end+len("\n---\n")]
+	}
+	if got, want := frontmatter(rec), frontmatter(halted); got != want {
+		t.Errorf("resume rewrote the frontmatter:\n got: %s\nwant: %s", got, want)
 	}
 }
 

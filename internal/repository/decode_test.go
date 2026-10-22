@@ -3,6 +3,7 @@ package repository
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"strings"
 	"testing"
 	"time"
 
@@ -140,12 +141,6 @@ func TestDecodeChangeHappyPath(t *testing.T) {
 		got.Value != "feat/domain-snapshot-validation-graphs-and-selection" {
 		t.Errorf("Branch = %+v", got)
 	}
-	claimed := change.ClaimedAt()
-	if claimed.State != domain.FieldPresent ||
-		!claimed.Value.Equal(time.Date(2026, 8, 14, 2, 39, 23, 0, time.UTC)) ||
-		claimed.Raw != "2026-08-14T02:39:23Z" {
-		t.Errorf("ClaimedAt = %+v", claimed)
-	}
 	if got := change.PR(); got.State != domain.FieldPresent ||
 		got.Value != "https://github.com/danielhanold/docket/pull/7" {
 		t.Errorf("PR = %+v", got)
@@ -217,18 +212,9 @@ func TestDecodeChangeOptionalStates(t *testing.T) {
 			field:       "created",
 		},
 		{
-			name:        "claimed_at malformed timestamp",
-			frontmatter: "id: 1\nslug: s\nclaimed_at: yesterday\n",
-			want:        func(c domain.Change) (domain.FieldState, string) { return c.ClaimedAt().State, c.ClaimedAt().Raw },
-			wantState:   domain.FieldMalformed,
-			wantRaw:     "yesterday",
-			wantFinding: true,
-			field:       "claimed_at",
-		},
-		{
-			name:        "claimed_at empty is never malformed",
-			frontmatter: "id: 1\nslug: s\nclaimed_at:\n",
-			want:        func(c domain.Change) (domain.FieldState, string) { return c.ClaimedAt().State, c.ClaimedAt().Raw },
+			name:        "updated empty is never malformed",
+			frontmatter: "id: 1\nslug: s\nupdated:\n",
+			want:        func(c domain.Change) (domain.FieldState, string) { return c.Updated().State, c.Updated().Raw },
 			wantState:   domain.FieldEmpty,
 		},
 		{
@@ -261,6 +247,30 @@ func TestDecodeChangeOptionalStates(t *testing.T) {
 			if got != tc.wantFinding {
 				t.Errorf("field-malformed finding on %q = %v, want %v (codes %v)",
 					tc.field, got, tc.wantFinding, findingCodes(findings))
+			}
+		})
+	}
+}
+
+// TestDecodeIgnoresClaimedAt pins that a retired claimed_at: line is
+// compatibility data: an older record carrying it stamped, empty, or malformed
+// decodes with no finding, because nothing reads the line any more.
+func TestDecodeIgnoresClaimedAt(t *testing.T) {
+	const stamped = "claimed_at: 2026-08-14T02:39:23Z\n"
+	if n := strings.Count(happyChange, stamped); n != 1 {
+		t.Fatalf("happyChange carries %d stamped claimed_at lines, want 1", n)
+	}
+	for name, line := range map[string]string{
+		"stamped":   stamped,
+		"empty":     "claimed_at:\n",
+		"malformed": "claimed_at: not-a-time\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			src := strings.Replace(happyChange, stamped, line, 1)
+			_, findings := decodeChange(input(t, KindChange, LocationActive,
+				"docs/changes/active/0307-domain-snapshot-validation-graphs-and-selection.md", src))
+			if len(findings) != 0 {
+				t.Errorf("claimed_at %q produced findings %v; the retired line must load silently", line, findingCodes(findings))
 			}
 		})
 	}

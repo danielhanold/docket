@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/danielhanold/docket/internal/config"
-	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
@@ -23,8 +22,8 @@ import (
 // A run halt and a finalize block are DIFFERENT states with different source
 // and recovery, so they use different sections. `change halt` upserts one
 // bounded authored report into a single "## Run halted" section on an
-// in-progress change WITHOUT touching its branch, claim lease, workspace, or
-// build evidence — the work is paused, not abandoned. `run verify` reports the
+// in-progress change WITHOUT touching its branch, workspace, or build
+// evidence — the work is paused, not abandoned. `run verify` reports the
 // closed `run-halted` verdict for such a change (run_verify.go), and `context
 // implementation --id` surfaces the durable halt checkpoints
 // (implementation_context.go).
@@ -32,10 +31,10 @@ import (
 // `change resume-halted` is human-authorized recovery of the SAME work, not a
 // second claim. It requires the exact marked record and an explicit
 // acknowledgement that the prior worker is quiescent, reprobes the owned
-// branch/workspace (refusing when a live writer may still hold it), refreshes
-// the claim, removes exactly the marker section, and preserves every valid
-// checkpoint. It never discards, resets, adopts, or reassigns a workspace whose
-// writer may still be live.
+// branch/workspace (refusing when a live writer may still hold it), removes
+// exactly the marker section, and preserves every valid checkpoint and every
+// frontmatter field. It never discards, resets, adopts, or reassigns a
+// workspace whose writer may still be live.
 //
 // The reprobe is classified against a CLOSED admission set (classifyResumeAdmission):
 // a state outside the set never authorizes resume. A workspace proven cleanly
@@ -190,7 +189,7 @@ type haltReceipt struct {
 
 // ChangeHalt records one bounded authored halt report into the single "## Run
 // halted" section on an in-progress change, in one exact-revision transaction.
-// The change's branch, claim lease, workspace, and build evidence are untouched.
+// The change's branch, workspace, and build evidence are untouched.
 func ChangeHalt(ctx context.Context, deps PlanningDeps, repoDir string, req HaltRequest) HaltResult {
 	if findings := validateHaltShape(req); len(findings) > 0 {
 		return newHaltResult(OperationChangeHalt, ResultInvalidInput, HaltResult{ID: req.ID, Findings: findings})
@@ -229,8 +228,8 @@ func ChangeHalt(ctx context.Context, deps PlanningDeps, repoDir string, req Halt
 
 // ChangeResumeHalted is human-authorized recovery of a halted run. It requires
 // the explicit acknowledgement, reprobes the owned workspace (refusing when a
-// live writer may hold it), then refreshes the claim and removes the marker in
-// one exact-revision transaction, preserving every other byte.
+// live writer may hold it), then removes the marker in one exact-revision
+// transaction, preserving every other byte.
 func ChangeResumeHalted(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req ResumeRequest) HaltResult {
 	if findings := validateResumeShape(req); len(findings) > 0 {
 		return newHaltResult(OperationChangeResumeHalted, ResultInvalidInput, HaltResult{ID: req.ID, Findings: findings})
@@ -321,7 +320,6 @@ func ChangeResumeHalted(ctx context.Context, deps PlanningDeps, wdeps WorkspaceD
 	op := resumeHaltedOp{
 		id:         req.ID,
 		eff:        eff,
-		clock:      deps.Clock,
 		inline:     inline,
 		changesDir: eff.ChangesDir.Value,
 	}
@@ -608,14 +606,13 @@ func (o changeHaltOp) haltReportBody() string {
 }
 
 // resumeHaltedOp is the SemanticOperation the engine drives for `change
-// resume-halted`. It gates the in-progress status on fresh state, refreshes the
-// claim lease (re-stamps claimed_at), removes exactly the "## Run halted"
-// section, and rerenders the inline board. Every other byte — branch, plan,
-// results, checkpoints — is preserved.
+// resume-halted`. It gates the in-progress status on fresh state, removes
+// exactly the "## Run halted" section, and rerenders the inline board. Every
+// other byte — every frontmatter field, plan, results, checkpoints — is
+// preserved.
 type resumeHaltedOp struct {
 	id         int
 	eff        config.Effective
-	clock      transaction.Clock
 	inline     bool
 	changesDir string
 }
@@ -630,8 +627,8 @@ func (o resumeHaltedOp) Plan(ctx context.Context, st transaction.AttemptState) (
 	if out != domain.LookupFound {
 		return refuseHalt("not-found", fmt.Sprintf("change %04d is not present in the current corpus", o.id))
 	}
-	// A resume refreshes an in-progress claim; RefreshClaim itself requires
-	// in-progress, so the gate is remapped to `contended` on a moved fresh status.
+	// A resume continues an in-progress run, so the gate is remapped to
+	// `contended` on a moved fresh status.
 	if c.Status() != domain.StatusInProgress {
 		return refuseHalt(ReasonResumeNotHalted,
 			fmt.Sprintf("change %04d is %q, not in-progress; there is no halted run to resume", o.id, c.Status()))
@@ -645,34 +642,16 @@ func (o resumeHaltedOp) Plan(ctx context.Context, st transaction.AttemptState) (
 			fmt.Sprintf("change %04d carries no run-halted marker in the fresh state; there is nothing to resume", o.id))
 	}
 
-	// Remove exactly the marker section over the exact source bytes.
+	// Remove exactly the marker section over the exact source bytes; no
+	// frontmatter field is written.
 	edited, err := render.ApplySectionEdits(src, []string{runHaltedSectionHeading},
 		[]render.SectionEdit{{Heading: runHaltedSectionHeading, Intent: render.SectionRemove}})
 	if err != nil {
 		return refuseHalt("marker-remove-failed", err.Error())
 	}
 
-	// Refresh the claim lease (re-stamp claimed_at). The in-progress gate above
-	// guarantees RefreshClaim succeeds.
-	refreshed, fail := domain.RefreshClaim(c, o.clock.Now())
-	if fail != nil {
-		return refuseLifecyclePolicy(fail)
-	}
-	doc, err := document.Parse(edited)
-	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change resume-halted: reparsing edited record: %w", err)
-	}
-	var ps document.PatchSet
-	for _, fc := range refreshed.Changed {
-		upsertField(&ps, doc, fc.Field, lifecycleFieldValue(fc.To))
-	}
-	finalBytes, err := doc.Apply(ps)
-	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change resume-halted: patching claim field: %w", err)
-	}
-
 	files := []transaction.FileMutation{
-		{Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: finalBytes},
+		{Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: edited},
 	}
 	files, err = planInlineBoard(ctx, st, snap, o.inline, o.changesDir, boardPresentation(o.eff), files)
 	if err != nil {

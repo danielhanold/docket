@@ -155,12 +155,13 @@ func TestChangeKillPlanFileSet(t *testing.T) {
 	if !strings.Contains(rec, "docket:artifacts:start") {
 		t.Errorf("artifact block missing:\n%s", rec)
 	}
-	// Kill clears the lease and the recorded branch.
+	// Kill clears the recorded branch; an older record's claimed_at: line is
+	// compatibility data and survives byte-identical.
 	if strings.Contains(rec, "branch: feat/widget") {
 		t.Errorf("branch not cleared:\n%s", rec)
 	}
-	if strings.Contains(rec, "claimed_at: 2026-08-02") {
-		t.Errorf("claimed_at not cleared:\n%s", rec)
+	if !strings.Contains(rec, "\nclaimed_at: 2026-08-02T00:00:00Z\n") {
+		t.Errorf("kill rewrote the claimed_at line:\n%s", rec)
 	}
 }
 
