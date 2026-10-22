@@ -22,7 +22,7 @@ branch_prefix:
 branch: 'fix/fix-duplicate-originhasbranch-breaking-combined-tag-go-vet'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ Rename the integration-tag test helper `originHasBranch`, which checks a full re
 
 - A suite check or CI step that vets the combined tags. Nothing runs both tags together, so a guard would turn a harmless future clash into a failed build (decided at grooming).
 - A shared helper across the two tags, or any change to the e2e helper's probe.
+
+## Reconcile log
+
+### 2026-10-22
+
+Unchanged against `main` f0dbb18fd: the combined-tag vet still fails with `originHasBranch redeclared`; callers match the spec (integration files leak_check_private_integration_test.go and finalize_cleanup_integration_test.go).
