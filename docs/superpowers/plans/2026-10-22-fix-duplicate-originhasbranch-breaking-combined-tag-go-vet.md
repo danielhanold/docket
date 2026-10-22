@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0577 — Fix duplicate originHasBranch breaking combined-tag go vet](../../changes/active/0577-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md)**
+> ↩ **[Change 0577 — Fix duplicate originHasBranch breaking combined-tag go vet](../../changes/archive/2026-10-22-0577-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md)**
 <!-- docket:backlink:end -->
 
 # Fix duplicate originHasBranch breaking combined-tag go vet Implementation Plan

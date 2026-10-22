@@ -2,7 +2,7 @@
 id: 577
 slug: 'fix-duplicate-originhasbranch-breaking-combined-tag-go-vet'
 title: 'Fix duplicate originHasBranch breaking combined-tag go vet'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'fix'
 deliverable: 'pr'
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md](../../superpowers/specs/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md) |
+| Spec (merged) | [2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md) |
 | Plan | [2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md](../../superpowers/plans/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md) |
 | Results | [2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-results.md](../../results/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-results.md) |
 <!-- docket:artifacts:end -->
