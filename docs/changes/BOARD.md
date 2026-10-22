@@ -1,12 +1,12 @@
 # Backlog
 
-**578 changes** — 🟣 1 groomed · 🟡 2 proposed · ⚪ 17 deferred · ✅ 414 done · 🗑️ 144 killed
+**578 changes** — 🟢 1 in progress · 🟡 2 proposed · ⚪ 17 deferred · ✅ 414 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0578](active/0578-invoke-the-artifact-export-from-an-agent-session.md) | Invoke the artifact export from an agent session | `medium` | `feat` | [spec](../superpowers/specs/2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0578](active/0578-invoke-the-artifact-export-from-an-agent-session.md) | Invoke the artifact export from an agent session | `medium` | `feat` | [spec](../superpowers/specs/2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md) | `feat/invoke-the-artifact-export-from-an-agent-session` | building |
 
 ## 🟡 Proposed (2)
 

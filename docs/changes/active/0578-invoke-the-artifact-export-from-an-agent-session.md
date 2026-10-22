@@ -2,7 +2,7 @@
 id: 578
 slug: 'invoke-the-artifact-export-from-an-agent-session'
 title: 'Invoke the artifact export from an agent session'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'feat/invoke-the-artifact-export-from-an-agent-session'
 pr:
 blocked_by:
 reconciled: false
