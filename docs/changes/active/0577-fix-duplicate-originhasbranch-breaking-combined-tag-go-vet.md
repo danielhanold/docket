@@ -2,7 +2,7 @@
 id: 577
 slug: 'fix-duplicate-originhasbranch-breaking-combined-tag-go-vet'
 title: 'Fix duplicate originHasBranch breaking combined-tag go vet'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'fix'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'fix/fix-duplicate-originhasbranch-breaking-combined-tag-go-vet'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/443'
 blocked_by:
 reconciled: true
 ---
@@ -53,3 +53,12 @@ Rename the integration-tag test helper `originHasBranch`, which checks a full re
 ### 2026-10-22
 
 Unchanged against `main` f0dbb18fd: the combined-tag vet still fails with `originHasBranch redeclared`; callers match the spec (integration files leak_check_private_integration_test.go and finalize_cleanup_integration_test.go).
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 0d1190aabbf4603d34ed2b1e6a2ba3322ad2102c
+ran_at:   2026-10-22T22:04:29Z
+<!-- docket:build-evidence:end -->
