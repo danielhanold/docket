@@ -1750,6 +1750,16 @@ selection, the bootstrap guard, and the branch model.
 writes, or git operations, and it is injected into most generated wrappers rather than run as an
 agent.
 
+### docket-export
+
+The skill an agent session uses to hand a change, spec, plan, or results file to anything outside
+docket. It runs the `open` operation's export (`--export --print --json`) and passes the clean copy
+to a file or another tool, never the raw file. In a private repository it also rewrites what the
+export leaves that names docket, checks the result, and shows you before → after before posting.
+
+**Used for:** putting a spec or other artifact into a ticket, document, or message from an agent
+session. It runs inline, because it posts with your session's own tools and may ask you first.
+
 ### docket-finalize-change
 
 The close-out sequencer for an approved or merged PR. It retargets stacked children, rebases,
@@ -1828,8 +1838,8 @@ Only skills that never need the human mid-run are forked, because a forked subag
 back to the human. The forked skills are `docket-status`, `docket-adr`, `docket-implement-next`, and
 `docket-auto-groom` (`context: fork` + `agent:` frontmatter).
 
-**Used for:** explaining why `docket-new-change`, `docket-groom-next`, and `docket-finalize-change`
-run inline. A headless finalize is authorized by naming ids instead.
+**Used for:** explaining why `docket-new-change`, `docket-groom-next`, `docket-export`, and
+`docket-finalize-change` run inline. A headless finalize is authorized by naming ids instead.
 
 ### Harness
 
@@ -1853,6 +1863,8 @@ every harness. It is program data, not user config, and each harness block is co
 abort-and-report rule: implement-next, auto-groom, finalize-change, status, adr, build-task, and
 review. **Interactive** skills (`docket-new-change`, `docket-groom-next`) stay inline at the session
 model, because the conversation with you is the point. They only advise a model at startup.
+`docket-export` also stays inline, because it posts with your session's own tools and may ask you
+first.
 
 **Used for:** knowing which skills you can dispatch and walk away from, and which need you at the
 keyboard.
@@ -2357,6 +2369,7 @@ docket development install --source ~/dev/docket
 - [docket-build](#docket-build)
 - [docket-build-task](#docket-build-task)
 - [docket-convention](#docket-convention)
+- [docket-export](#docket-export)
 - [docket-finalize-change](#docket-finalize-change)
 - [docket-groom-next](#docket-groom-next)
 - [docket-new-change](#docket-new-change)

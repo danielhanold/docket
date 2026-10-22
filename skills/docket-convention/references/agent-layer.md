@@ -196,7 +196,7 @@ four headless-safe autonomous skills (`docket-status`, `docket-adr`, `docket-imp
 carry `context: fork` + `agent: docket-<name>` frontmatter in their `SKILL.md`, forking a directly-invoked skill
 into the same pinned wrapper — inert in every other harness. **Fork-exclusion principle:** only skills that never
 need the human mid-run are forked, since a forked subagent has no channel back to the human; the two interactive
-skills stay inline, and `docket-finalize-change` stays unforked — its headless merge is gated by a permission
+skills and `docket-export` stay inline, and `docket-finalize-change` stays unforked — its headless merge is gated by a permission
 classifier (ADR-0043).
 
 A forked skill-invoke (`/docket-status`) and an explicit agent dispatch (`@docket-status`, or a subagent dispatch
