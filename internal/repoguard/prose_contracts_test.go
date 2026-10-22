@@ -1527,6 +1527,12 @@ var alignmentContracts = []proseContract{
 			"show the person every change as before → after and **post only after they say go**",
 		},
 		absent: []string{"context: fork", "agent: docket-export"}},
+	{sentinel: "change_0578_export_skill", file: "skills/docket-convention/SKILL.md",
+		present: []string{"(`docket-new-change`, `docket-groom-next`) and `docket-export` stay inline"}},
+	{sentinel: "change_0578_export_skill", file: "docs/reference/cli.md",
+		present: []string{"Agent sessions reach the export through the `docket-export` skill."}},
+	{sentinel: "change_0578_export_skill", file: "docs/reference/skills-and-agents.md",
+		present: []string{"- **docket-export** —"}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.

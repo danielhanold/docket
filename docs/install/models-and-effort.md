@@ -21,6 +21,9 @@ change to be: a quick stub or a small revise needs little, while a net-new
 design, a cross-cutting change, or a stub whose premise needs tracing through the code is worth
 your strongest model at higher effort.
 
+`docket-export` also runs inline at your session's model and effort; it runs one export and needs
+no particular model.
+
 To change the model or effort an autonomous skill runs at:
 
 **1. Edit your global config.** Pins live in the `agents:` block of your global
@@ -103,7 +106,8 @@ are forked — a forked subagent has no channel to the human (Claude Code withho
 the two interactive brainstorm skills (`docket-new-change`, `docket-groom-next`) and
 `docket-finalize-change` (which keeps a real prompt — the multi-candidate batch confirmation — so a
 headless drive is authorized by
-[naming ids](../guide/landing-changes.md) instead) do not.
+[naming ids](../guide/landing-changes.md) instead) do not, and neither does `docket-export`, which
+posts through your session's own tools and may ask you before a private-repository post.
 
 **The two invocation paths.** **Dispatch** — launching a named agent to do a step and waiting for it
 to return — is one way to reach a pinned wrapper; a plain skill-invoke, forked, is the other. Both

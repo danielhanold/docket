@@ -47,8 +47,8 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
 - **`docket open`** — open the board, or a change's record, spec, plan, results, or pull request,
   as a GitHub page or from the local metadata checkout. Without an id it opens the change whose
   branch is checked out. With `--export` it writes a clean Markdown copy of a change, spec, plan,
-  or results file, free of docket's links and generated blocks, and opens that copy. Details:
-  `docket open --help`.
+  or results file, free of docket's links and generated blocks, and opens that copy. Agent
+  sessions reach the export through the `docket-export` skill. Details: `docket open --help`.
 - **`docket pr`** — publish the ready-for-review pull request for an in-progress change's tested
   head. Verbs: `docket pr --help`.
 - **`docket repository`** — initialize, migrate, check, and repair the docket repository
