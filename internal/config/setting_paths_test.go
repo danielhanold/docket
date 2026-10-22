@@ -46,7 +46,6 @@ func TestSettingPathsSupportSplit(t *testing.T) {
 		"build.gate", "build.test_command", "build.max_attempts",
 		"run.max_attempts", "run.max_consecutive_halts",
 		"review.min_fix_severity", "review.max_fix_tasks",
-		"reclaim.lease_ttl", "reclaim.auto",
 		"leak_check.match_word",
 		"open.artifacts",
 		"learnings.enabled",
@@ -70,7 +69,7 @@ func TestSettingPathsSupportSplit(t *testing.T) {
 	}
 	// One sample per unsupported disposition family.
 	for _, p := range []string{
-		"metadata_branch", "runtime.bash", "finalize.skip_results_only_delta", // obsolete
+		"metadata_branch", "runtime.bash", "finalize.skip_results_only_delta", "reclaim.lease_ttl", "reclaim.auto", // obsolete
 		"learnings.cap", "delegation_observation_budget", "github_project", // inert
 		"build.checkpoint", "terminal_publish", "auto_groom", // deferred
 		"auto_capture.types", "dummy_mode.persona", "runners.*.shim_model", // inert companion

@@ -418,16 +418,14 @@ func TestNewRepositoryPolicyDefensiveCopies(t *testing.T) {
 	in := RepositoryPolicy{
 		IntegrationBranch: "docket",
 		ChangeTypes:       []string{"feat", "fix"},
-		ReclaimTTLHours:   24,
 		LearningsEnabled:  true,
 	}
 	p := NewRepositoryPolicy(in)
 
-	if p.IntegrationBranch != in.IntegrationBranch || p.ReclaimTTLHours != in.ReclaimTTLHours ||
-		p.LearningsEnabled != in.LearningsEnabled {
-		t.Errorf("scalar fields = %q/%d/%v; want %q/%d/%v",
-			p.IntegrationBranch, p.ReclaimTTLHours, p.LearningsEnabled,
-			in.IntegrationBranch, in.ReclaimTTLHours, in.LearningsEnabled)
+	if p.IntegrationBranch != in.IntegrationBranch || p.LearningsEnabled != in.LearningsEnabled {
+		t.Errorf("scalar fields = %q/%v; want %q/%v",
+			p.IntegrationBranch, p.LearningsEnabled,
+			in.IntegrationBranch, in.LearningsEnabled)
 	}
 	if !slices.Equal(p.ChangeTypes, []string{"feat", "fix"}) {
 		t.Fatalf("ChangeTypes = %v; want [feat fix]", p.ChangeTypes)

@@ -18,9 +18,12 @@ for docket at the time. None was captured from a real repository. Each holds a `
 - `sparse-defaults/` — a repository with no configuration files at all (the
   `repo/.gitkeep` placeholder exists only so git tracks the empty directory).
 - `example-activated/` — every supported setting declared explicitly at its
-  shipped default.
+  shipped default. Its `reclaim.*` leaves are now obsolete settings, kept so
+  old configs are proven to keep loading.
 - `four-layer-collision/` — the same leaves declared in the global, repository,
   and repository-local layers, with scalar, list, nested, and agent collisions.
+  Its `reclaim.*` leaves are now obsolete settings, kept so old configs are
+  proven to keep loading.
 - `mode-main-custom-paths/` — main-mode repository with an explicit integration
   branch and all three docket directories relocated.
 - `mode-docket/` — docket-mode repository leaving `integration_branch: auto`.

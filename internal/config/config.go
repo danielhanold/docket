@@ -128,7 +128,6 @@ type Effective struct {
 	Build             Build           `json:"build"`
 	Run               Run             `json:"run"`
 	Learnings         Learnings       `json:"learnings"`
-	Reclaim           Reclaim         `json:"reclaim"`
 	LeakCheck         LeakCheck       `json:"leak_check"`
 	Open              Open            `json:"open"`
 	Review            Review          `json:"review"`
@@ -186,11 +185,6 @@ type Run struct {
 
 type Learnings struct {
 	Enabled Value[bool] `json:"enabled"`
-}
-
-type Reclaim struct {
-	LeaseTTL Value[int]  `json:"lease_ttl"` // hours
-	Auto     Value[bool] `json:"auto"`
 }
 
 type LeakCheck struct {

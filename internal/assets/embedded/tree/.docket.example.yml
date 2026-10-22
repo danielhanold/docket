@@ -156,20 +156,6 @@ review:
   max_fix_tasks: 10
 
 
-# ═══ reclaim — releasing abandoned claims ═════════════════════════════════════════════════
-
-reclaim:
-  # lease_ttl — hours a claim on an in-progress change lasts. A change whose lease has expired,
-  # with no feature branch and no workspace, is eligible to return to the backlog.
-  # scope: any layer
-  lease_ttl: 72
-
-  # auto — false (default): `docket maintenance sweep` reports an eligible change as skipped
-  # (reclaim-auto-disabled). true: the sweep reclaims it.
-  # scope: any layer
-  auto: false
-
-
 # ═══ leak_check — keeping docket out of a private repository's shared surfaces ═══════════
 
 leak_check:

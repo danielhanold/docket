@@ -180,8 +180,6 @@ func TestFixtureSparseDefaults(t *testing.T) {
 		{"finalize.test_command", eff.Finalize.TestCommand.Explicit, eff.Finalize.TestCommand.Provenance.Layer},
 		{"finalize.require_pr_approval", eff.Finalize.RequirePRApproval.Explicit, eff.Finalize.RequirePRApproval.Provenance.Layer},
 		{"learnings.enabled", eff.Learnings.Enabled.Explicit, eff.Learnings.Enabled.Provenance.Layer},
-		{"reclaim.lease_ttl", eff.Reclaim.LeaseTTL.Explicit, eff.Reclaim.LeaseTTL.Provenance.Layer},
-		{"reclaim.auto", eff.Reclaim.Auto.Explicit, eff.Reclaim.Auto.Provenance.Layer},
 		{"leak_check.match_word", eff.LeakCheck.MatchWord.Explicit, eff.LeakCheck.MatchWord.Provenance.Layer},
 		{"open.artifacts", eff.Open.Artifacts.Explicit, eff.Open.Artifacts.Provenance.Layer},
 		{"review.min_fix_severity", eff.Review.MinFixSeverity.Explicit, eff.Review.MinFixSeverity.Provenance.Layer},
@@ -246,8 +244,6 @@ func TestFixtureExampleActivated(t *testing.T) {
 	check("finalize.test_command", eff.Finalize.TestCommand.Explicit, eff.Finalize.TestCommand.Provenance)
 	check("finalize.require_pr_approval", eff.Finalize.RequirePRApproval.Explicit, eff.Finalize.RequirePRApproval.Provenance)
 	check("learnings.enabled", eff.Learnings.Enabled.Explicit, eff.Learnings.Enabled.Provenance)
-	check("reclaim.lease_ttl", eff.Reclaim.LeaseTTL.Explicit, eff.Reclaim.LeaseTTL.Provenance)
-	check("reclaim.auto", eff.Reclaim.Auto.Explicit, eff.Reclaim.Auto.Provenance)
 	check("review.min_fix_severity", eff.Review.MinFixSeverity.Explicit, eff.Review.MinFixSeverity.Provenance)
 	check("review.max_fix_tasks", eff.Review.MaxFixTasks.Explicit, eff.Review.MaxFixTasks.Provenance)
 	check("gate_observation_budget", eff.GateObservation.Explicit, eff.GateObservation.Provenance)
@@ -268,8 +264,8 @@ func TestFixtureExampleActivated(t *testing.T) {
 	if eff.IntegrationBranch.Value != "main" {
 		t.Errorf("integration_branch = %q, want the context's default branch", eff.IntegrationBranch.Value)
 	}
-	if !eff.Learnings.Enabled.Value || eff.Reclaim.LeaseTTL.Value != def.Reclaim.LeaseTTL.Value || eff.Reclaim.Auto.Value {
-		t.Errorf("learnings/reclaim drifted from the built-ins: %+v %+v", eff.Learnings, eff.Reclaim)
+	if !eff.Learnings.Enabled.Value {
+		t.Errorf("learnings drifted from the built-ins: %+v", eff.Learnings)
 	}
 	if eff.Review.MinFixSeverity.Value != def.Review.MinFixSeverity.Value || eff.Review.MaxFixTasks.Value != def.Review.MaxFixTasks.Value {
 		t.Errorf("review drifted from the built-ins: %+v", eff.Review)
@@ -282,6 +278,20 @@ func TestFixtureExampleActivated(t *testing.T) {
 
 	if !PreflightMutation(snap).Allowed {
 		t.Errorf("preflight blocked a fully supported configuration: %v", blockerPaths(snap))
+	}
+
+	// The sample still declares the retired reclaim.* leaves: an old config
+	// keeps loading, each leaf is one obsolete warning, and neither blocks.
+	for _, p := range []string{"reclaim.lease_ttl", "reclaim.auto"} {
+		var obs []Diagnostic
+		for _, d := range snap.Diagnostics {
+			if d.Path == p && d.Code == CodeObsoleteSetting {
+				obs = append(obs, d)
+			}
+		}
+		if len(obs) != 1 || obs[0].Classification != Obsolete || obs[0].Severity != SeverityWarning {
+			t.Errorf("%s: want exactly one obsolete warning, got %s", p, formatDiags(obs))
+		}
 	}
 }
 
@@ -314,13 +324,28 @@ func TestFixtureFourLayerCollision(t *testing.T) {
 		t.Errorf("learnings.cap provenance source %q, want .docket.local.yml", capEntry.Provenance.Source)
 	}
 
-	// Nested scalar collision the machine-local layer does NOT enter: the
-	// repository layer beats the global one and keeps the leaf.
-	if eff.Reclaim.LeaseTTL.Value != 200 {
-		t.Errorf("reclaim.lease_ttl = %d, want 200", eff.Reclaim.LeaseTTL.Value)
+	// The sample's nested reclaim.lease_ttl collision (repository 200, global
+	// 100) is now an obsolete setting: each file's declaration is one obsolete
+	// warning and none resolves. Repository-beats-global for a nested scalar
+	// the machine-local layer does not enter is carried by
+	// TestPrecedencePerLeaf's "repository beats global" case.
+	leaseObs := map[LayerKind]int{}
+	for _, d := range snap.Diagnostics {
+		if d.Path == "reclaim.lease_ttl" {
+			if d.Code != CodeObsoleteSetting || d.Classification != Obsolete || d.Provenance == nil {
+				t.Errorf("reclaim.lease_ttl: unexpected diagnostic %s", formatDiags([]Diagnostic{d}))
+				continue
+			}
+			leaseObs[d.Provenance.Layer]++
+		}
 	}
-	if eff.Reclaim.LeaseTTL.Provenance.Layer != LayerRepository {
-		t.Errorf("reclaim.lease_ttl provenance layer %q, want %q", eff.Reclaim.LeaseTTL.Provenance.Layer, LayerRepository)
+	if leaseObs[LayerRepository] != 1 || leaseObs[LayerGlobal] != 1 || len(leaseObs) != 2 {
+		t.Errorf("reclaim.lease_ttl obsolete warnings by layer = %v, want one each from repository and global", leaseObs)
+	}
+	for _, c := range snap.Capabilities {
+		if c.Path == "reclaim.lease_ttl" && c.Active {
+			t.Errorf("reclaim.lease_ttl capability is active: %+v", c)
+		}
 	}
 
 	// List collision: lists replace whole, so the repository's list wins

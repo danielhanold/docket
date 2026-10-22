@@ -44,10 +44,6 @@ func builtinEffective() Effective {
 		},
 		Run:       Run{MaxAttempts: builtinValue(2), MaxConsecutiveHalts: builtinValue(2)},
 		Learnings: Learnings{Enabled: builtinValue(true)},
-		Reclaim: Reclaim{
-			LeaseTTL: builtinValue(72),
-			Auto:     builtinValue(false),
-		},
 		LeakCheck: LeakCheck{MatchWord: builtinValue(true)},
 		Open:      Open{Artifacts: builtinValue("github")},
 		Review: Review{

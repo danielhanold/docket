@@ -177,6 +177,17 @@ func (d *layerDecoder) decodeLeaf(path string, spec *pathSpec, key, val *yaml.No
 		diag.Remedy = "remove finalize.skip_results_only_delta from " + d.src.Name
 		d.diags = append(d.diags, diag)
 		return
+	case "reclaim.lease_ttl", "reclaim.auto":
+		// Obsolete in EVERY layer: docket no longer returns a stale claim to the
+		// backlog, so neither the lease length nor the automatic return selects
+		// anything. A malformed value already failed its type check above.
+		diag := leafDiag(d.src, path, CodeObsoleteSetting, key,
+			"docket no longer returns claimed changes to the backlog; it is ignored")
+		diag.Severity = SeverityWarning
+		diag.Classification = Obsolete
+		diag.Remedy = "remove " + spec.path + " from " + d.src.Name
+		d.diags = append(d.diags, diag)
+		return
 	case "board_surfaces":
 		value = d.keepKnownSurfaces(path, val, value.([]string))
 	case "board.section_order":

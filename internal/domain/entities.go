@@ -464,7 +464,6 @@ func (d DerivedView) Kind() DerivedViewKind { return d.spec.Kind }
 type RepositoryPolicy struct {
 	IntegrationBranch string
 	ChangeTypes       []string
-	ReclaimTTLHours   int
 	LearningsEnabled  bool
 }
 

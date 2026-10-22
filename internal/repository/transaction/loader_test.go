@@ -107,13 +107,12 @@ func classifyRecordPath(rel string) (repository.RecordKind, repository.RecordLoc
 	}
 }
 
-// loaderConfig is a resolved configuration carrying the four leaves repository
+// loaderConfig is a resolved configuration carrying the three leaves repository
 // policy may consult, matching internal/repository's own test config.
 func loaderConfig() config.Effective {
 	var cfg config.Effective
 	cfg.IntegrationBranch.Value = "main"
 	cfg.ChangeTypes.Value = []string{"feat", "fix", "chore", "docs"}
-	cfg.Reclaim.LeaseTTL.Value = 24
 	cfg.Learnings.Enabled.Value = true
 	return cfg
 }

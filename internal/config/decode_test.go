@@ -86,9 +86,9 @@ func decodeAcceptanceCases() []decodeCase {
 			block: "learnings:\n  cap: 42\n", flow: "learnings: {cap: 42}\n", value: 42},
 
 		{row: "reclaim.lease_ttl", path: "reclaim.lease_ttl",
-			block: "reclaim:\n  lease_ttl: 24\n", flow: "reclaim: {lease_ttl: 24}\n", value: 24},
+			block: "reclaim:\n  lease_ttl: 24\n", flow: "reclaim: {lease_ttl: 24}\n", obsolete: true},
 		{row: "reclaim.auto", path: "reclaim.auto",
-			block: "reclaim:\n  auto: true\n", flow: "reclaim: {auto: true}\n", value: true},
+			block: "reclaim:\n  auto: true\n", flow: "reclaim: {auto: true}\n", obsolete: true},
 		{row: "leak_check.match_word", path: "leak_check.match_word",
 			block: "leak_check:\n  match_word: false\n", flow: "leak_check: {match_word: false}\n", value: false},
 		{row: "open.artifacts", path: "open.artifacts",
@@ -472,6 +472,69 @@ func TestSkipResultsOnlyDeltaIsObsoleteTombstone(t *testing.T) {
 	}
 }
 
+// TestReclaimKeysAreObsoleteTombstones: reclaim.lease_ttl and reclaim.auto
+// configured returning stale claims to the backlog, which docket no longer
+// does, so in every layer each is one obsolete-setting warning naming its
+// removal, never a resolved value, and never a mutation blocker. A malformed
+// value still fails its type check first, exactly as before.
+func TestReclaimKeysAreObsoleteTombstones(t *testing.T) {
+	const msg = "docket no longer returns claimed changes to the backlog; it is ignored"
+	for _, tc := range []struct {
+		path        string
+		block, flow string
+	}{
+		{"reclaim.lease_ttl", "reclaim:\n  lease_ttl: 24\n", "reclaim: {lease_ttl: 24}\n"},
+		{"reclaim.auto", "reclaim:\n  auto: true\n", "reclaim: {auto: true}\n"},
+	} {
+		path := tc.path
+		for _, src := range []Source{
+			srcR(tc.block), srcR(tc.flow),
+			srcL(tc.block), srcL(tc.flow),
+			srcG(tc.block), srcG(tc.flow),
+		} {
+			t.Run(path+"/"+string(src.Layer), func(t *testing.T) {
+				res := mustResolve(t, []Source{src}, mainCtx)
+				if _, ok := res.declared[path]; ok {
+					t.Fatalf("%s resolved to a honored declaration; it must be excluded", path)
+				}
+				obs := diagsWithCode(res, CodeObsoleteSetting)
+				if len(obs) != 1 || obs[0].Path != path {
+					t.Fatalf("want exactly one obsolete-setting diagnostic on %s, got %v", path, diagSummary(res))
+				}
+				if obs[0].Severity != SeverityWarning || obs[0].Classification != Obsolete {
+					t.Errorf("diagnostic = %s/%s, want warning/obsolete", obs[0].Severity, obs[0].Classification)
+				}
+				if !strings.Contains(obs[0].Message, msg) {
+					t.Errorf("message = %q, want it to contain %q", obs[0].Message, msg)
+				}
+				if want := "remove " + path + " from " + src.Name; obs[0].Remedy != want {
+					t.Errorf("remedy = %q, want %q", obs[0].Remedy, want)
+				}
+				for _, code := range []string{CodeDeferredSetting, CodeDeferredCapRequested, CodeSharedSettingIgnored} {
+					if got := diagsWithCode(res, code); len(got) != 0 {
+						t.Errorf("unexpected %s diagnostic: %v", code, diagSummary(res))
+					}
+				}
+				snap := mustSnapshot(t, src)
+				if d := PreflightMutation(snap); !d.Allowed {
+					t.Errorf("preflight blocked on an obsolete setting: %+v", d.Blockers)
+				}
+				for _, c := range snap.Capabilities {
+					if c.Path == path && (c.Classification != Obsolete || c.Active || c.MutationBlock) {
+						t.Errorf("capability = %+v, want inactive non-blocking obsolete", c)
+					}
+				}
+			})
+		}
+	}
+
+	// A malformed value is still a type error, not a tombstone warning.
+	_, diags := decodeDoc(t, "reclaim:\n  auto: maybe\n")
+	if len(diags) != 1 || diags[0].Path != "reclaim.auto" || diags[0].Code == CodeObsoleteSetting {
+		t.Fatalf("want one type-error diagnostic on reclaim.auto, got %+v", diags)
+	}
+}
+
 // TestDecodeObsoleteScalarAutoCaptureRemedy: the pre-0127 scalar shape must
 // tell the reader the nested replacement, not merely refuse.
 func TestDecodeObsoleteScalarAutoCaptureRemedy(t *testing.T) {
@@ -527,12 +590,12 @@ func TestDecodeMultipleLeaves(t *testing.T) {
 // TestDecodeEmptySection: a section header with nothing under it declares
 // nothing — neither a leaf nor a complaint.
 func TestDecodeEmptySection(t *testing.T) {
-	leaves, diags := decodeDoc(t, "finalize:\nreclaim:\n  auto: true\n")
+	leaves, diags := decodeDoc(t, "review:\nfinalize:\n  require_pr_approval: true\n")
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics %+v", diags)
 	}
-	if len(leaves) != 1 || leaves[0].path != "reclaim.auto" {
-		t.Fatalf("want only reclaim.auto, got %+v", leaves)
+	if len(leaves) != 1 || leaves[0].path != "finalize.require_pr_approval" {
+		t.Fatalf("want only finalize.require_pr_approval, got %+v", leaves)
 	}
 }
 
