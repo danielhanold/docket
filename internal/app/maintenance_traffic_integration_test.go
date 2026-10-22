@@ -46,18 +46,18 @@ import (
 // proved cleanly at the session seam by sweep_session_integration_test.go
 // (TestIntegrationContextProbePrepareIsOneMetadataFetchZeroSetupProbes, TestIntegrationContextProbeBoundReaderNeverFetches) with
 // the same real-process counting. It is NOT re-asserted as a bare fetch count
-// around a live mutation here, because a dispatched reclaim's transaction engine
+// around a live mutation here, because a dispatched closeout's transaction engine
 // legitimately re-fetches the metadata branch for its own fresh-origin CAS commit
 // (learning cas-re-read-fresh-origin) — that fetch is required proof, not a
 // duplicate reader read, so a naive "one fetch per op" count around a real
 // mutation would be counting two different, both-correct things.
 //
 // Gaps deliberately left to their existing owners / noted precisely:
-//   - A successful closeout+cleanup SUFFIX over a fake `gh` executable would need a
-//     scripted gh speaking the full merged-facts reprobe/merge surface; that live
-//     end-to-end suffix is exercised by the CLI e2e matrix (finalize_e2e_test.go),
-//     not re-built here. The dispatched-operation traffic proof here uses reclaim,
-//     which needs no gh.
+//   - The dispatched-operation traffic proof here is one applied closeout over a
+//     scripted gh that answers only the selection batch and the merged reprobe;
+//     its cleanup suffix stops at the workspace leg. A fully successful
+//     closeout+cleanup suffix is exercised by the CLI e2e matrix
+//     (finalize_e2e_test.go), not re-built here.
 //   - Mid-sweep source movement between prepare points (Step 4's two-phase hook) is
 //     proved at the session seam by sweep_session_integration_test.go's
 //     TestIntegrationContextProbePrepareObservesFreshMetadataTip; the movement
@@ -581,61 +581,114 @@ func TestIntegrationSweepImplementationScopeInspectsNoDeferredResources(t *testi
 	}
 }
 
-// --- Step 1 (dispatched op): reclaim keeps setup once ---------------------
+// --- Step 1 (dispatched op): closeout keeps setup once --------------------
 
-// TestIntegrationSweepDispatchedReclaimKeepsSetupOnce drives a REAL dispatched
-// mutation (an expired-lease reclaim, reclaim.auto on) end-to-end and proves the
-// invocation still runs full setup exactly ONCE: one default-branch probe and no
-// shared inventory (a reclaim is not a done candidate). The reclaim dispatch runs
-// the workspace inspection and the transaction's own fresh-origin CAS re-read — so
-// this also witnesses that a dispatched operation adds no setup re-probe. The
-// bytes-level "one preparation fetch shared by nested readers" property is proved
-// at the session seam (sweep_session_integration_test.go); see this file's header note.
-func TestIntegrationSweepDispatchedReclaimKeepsSetupOnce(t *testing.T) {
+// trafficGHMerged is trafficGH for a corpus whose one PR is merged: `repo view`
+// answers the fixed acme/widgets identity, `api graphql` (the batched selection
+// read) answers alias pr0 with prDoc, and `pr view` (the closeout's authoritative
+// reprobe) answers prDoc. Every other verb — the best-effort PR-backlink edit —
+// answers `{}`. Every invocation is logged to logPath.
+func trafficGHMerged(t *testing.T, logPath, prDoc string) *githubcli.Client {
+	t.Helper()
+	dir := testsupport.TempDir(t)
+	if err := os.WriteFile(filepath.Join(dir, "pr.json"), []byte(prDoc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "batch.json"), []byte(`{"data":{"repository":{"pr0":`+prDoc+`}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	wrapper := filepath.Join(dir, "gh")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '" + logPath + "'\n" +
+		"case \"$1 $2\" in\n" +
+		"'repo view') printf '%s' '{\"nameWithOwner\":\"acme/widgets\",\"owner\":{\"login\":\"acme\"},\"name\":\"widgets\",\"url\":\"https://github.com/acme/widgets\"}';;\n" +
+		"'api graphql') cat '" + filepath.Join(dir, "batch.json") + "';;\n" +
+		"'pr view') cat '" + filepath.Join(dir, "pr.json") + "';;\n" +
+		"*) printf '%s' '{}';;\n" +
+		"esac\n"
+	if err := os.WriteFile(wrapper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	client, err := githubcli.NewClient(githubcli.WithExecutable(wrapper))
+	if err != nil {
+		t.Fatalf("githubcli.NewClient: %v", err)
+	}
+	return client
+}
+
+// TestIntegrationSweepDispatchedCloseoutKeepsSetupOnce drives a REAL dispatched
+// mutation (the closeout of an implemented record whose PR the fake gh reports
+// merged into main, at a merge commit that is main's real tip) end-to-end and
+// proves the invocation still runs full setup exactly ONCE: one default-branch
+// probe for the sweep plus the integration-sync suffix's one. The closeout runs
+// its own authoritative reprobe, the integration-tip fetch and ancestry proof,
+// and the transaction's fresh-origin CAS re-read — so this also witnesses that a
+// dispatched operation adds no setup re-probe. The bytes-level "one preparation
+// fetch shared by nested readers" property is proved at the session seam
+// (sweep_session_integration_test.go); see this file's header note.
+func TestIntegrationSweepDispatchedCloseoutKeepsSetupOnce(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{
-		// An in-progress record whose claim (2026-08-02) is well before the fixed
-		// test clock (2026-08-16); a 12-hour lease is strictly expired.
-		"docs/changes/active/0050-stale.md": lifecycleChange(50, "stale", "in-progress"),
+		"docs/changes/active/0030-current.md": closeoutRecord(30, "current", "implemented", "acme/widgets#30",
+			"docs/superpowers/specs/2026-08-16-current.md",
+			"docs/superpowers/plans/2026-08-16-current.md",
+			"docs/changes/results/0030-current-results.md"),
 	}
-	r := trafficRepo(t, "integration_branch: main\nreclaim:\n  lease_ttl: 12\n  auto: true\n", records)
+	r := trafficRepo(t, "", records)
+	mergeCommit := strings.TrimSpace(runGit(t, r.origin, "rev-parse", "refs/heads/main"))
+	prDoc := `{"number":30,"url":"https://github.com/acme/widgets/pull/30","state":"MERGED","isDraft":false,` +
+		`"headRefName":"feat/current","headRefOid":"` + strings.Repeat("a", 40) + `","baseRefName":"main",` +
+		`"title":"A change","body":"","reviewDecision":null,"mergedAt":"2026-08-10T00:00:00Z",` +
+		`"mergeCommit":{"oid":"` + mergeCommit + `"},"mergeable":"UNKNOWN"}`
 	gitLog := filepath.Join(testsupport.TempDir(t), "git.log")
-	deps := trafficDeps(t, trafficGit(t, gitLog, ""), trafficGH(t, filepath.Join(testsupport.TempDir(t), "gh.log")))
+	deps := trafficDeps(t, trafficGit(t, gitLog, ""), trafficGHMerged(t, filepath.Join(testsupport.TempDir(t), "gh.log"), prDoc))
 
 	res := MaintenanceSweep(context.Background(), deps, r.invocation, SweepScopeFull)
 
-	// The reclaim was actually dispatched and applied (WorkspaceInspect ran).
-	var reclaim *MaintenanceEntry
+	// The closeout was actually dispatched and applied.
+	var closeout *MaintenanceEntry
 	for i := range res.Entries {
-		if res.Entries[i].ID == 50 && res.Entries[i].Kind == sweepKindReclaim {
-			reclaim = &res.Entries[i]
+		if res.Entries[i].ID == 30 && res.Entries[i].Kind == sweepKindCloseout {
+			closeout = &res.Entries[i]
 		}
 	}
-	if reclaim == nil {
-		t.Fatalf("reclaim was not dispatched for the expired record; entries=%+v", res.Entries)
+	if closeout == nil {
+		t.Fatalf("closeout was not dispatched for the merged record; entries=%+v", res.Entries)
 	}
-	if reclaim.Disposition != SweepDispApplied || reclaim.Operation != OperationChangeReclaim {
-		t.Fatalf("reclaim entry = %+v, want an applied change.reclaim dispatch", *reclaim)
+	if closeout.Disposition != SweepDispApplied || closeout.Operation != OperationFinalizeCloseout {
+		t.Fatalf("closeout entry = %+v, want an applied finalize.closeout dispatch", *closeout)
+	}
+	// The cleanup suffix ran after the applied closeout (a dispatched op of its
+	// own). It stops at the workspace leg — this fixture publishes no feature
+	// workspace — which is fine: the proof here is setup traffic, not cleanup.
+	var suffix *MaintenanceEntry
+	for i := range res.Entries {
+		if res.Entries[i].ID == 30 && res.Entries[i].Kind == sweepKindCleanup {
+			suffix = &res.Entries[i]
+		}
+	}
+	if suffix == nil || suffix.Operation != OperationFinalizeCleanup {
+		t.Fatalf("the applied closeout's cleanup suffix was not dispatched; entries=%+v", res.Entries)
 	}
 	gl := gitLogLines(t, gitLog)
 	// Full setup ran once even across the dispatched mutation, plus the once-per-sweep
 	// integration-sync suffix's one bounded operational-context load (change 0388) —
-	// a fixed 1 + 1. The dispatched reclaim itself adds NO setup re-probe; the extra
+	// a fixed 1 + 1. The dispatched closeout itself adds NO setup re-probe; the extra
 	// probe is the sync suffix's, not a per-history or per-op re-pin.
 	wantProbes := 1 + syncSuffixDefaultBranchProbes
 	if got := countMatching(gl, "ls-remote", "--symref"); got != wantProbes {
 		t.Errorf("default-branch probes ran %d times, want exactly %d across a dispatched op (sweep setup + one bounded integration-sync load)", got, wantProbes)
 	}
-	// A reclaim is not a done candidate: no snapshot assessment, no shared inventory.
+	// The shared `ls-remote --heads` inventory is gathered only for FULL-scope
+	// historical assessment, and only when the PINNED inventory holds a done
+	// candidate. Here the one record was implemented at the pin: the closeout
+	// reads its merge facts from gh and its destination from one integration-tip
+	// fetch, and the suffix stops at the workspace leg before any remote-branch
+	// read. So the count is zero by what these two operations need, not by a
+	// per-history rule — a fan-out would show up on the discovery and scaling
+	// tests above, which assert on a growing done population.
 	if got := countMatching(gl, "ls-remote", "--heads"); got != 0 {
-		t.Errorf("a reclaim-only sweep must gather no shared inventory, got %d ls-remote --heads", got)
+		t.Errorf("a closeout-only sweep must gather no shared inventory, got %d ls-remote --heads", got)
 	}
-	// NOTE: a dispatched reclaim's own feature-branch check (`ls-remote …
-	// refs/heads/feat/stale`) is REQUIRED operation-specific proof, not a forbidden
-	// per-HISTORY assessment probe — so featureRefProbes is deliberately NOT asserted
-	// zero here. The forbidden-per-item-probe invariant is asserted on the
-	// non-dispatched assessment path (discovery/scaling/unknown-advertisement tests),
-	// where any feature-ref ls-remote would be a per-history fan-out.
 }
 
 // --- Step 2: blocked-probe / required-access regressions ------------------

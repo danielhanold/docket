@@ -17,7 +17,7 @@ import (
 // the outcome. The closing-half mutation subcommands land here in later change
 // 0316 tasks; today the group is registered so its tree and shared dependency
 // wiring exist for those subcommands to attach to. Every lifecycle, Git,
-// GitHub, stack, reclaim, and cleanup policy belongs to internal/app, so no body
+// GitHub, stack, and cleanup policy belongs to internal/app, so no body
 // here branches on repository content.
 
 // newFinalizeCommand builds the `finalize` command group. setResult is the

@@ -37,7 +37,7 @@ import (
 // a lost response replays the original applied receipt as `already-claimed`
 // rather than allocating a second claim; a foreign edit that moved the record
 // fails the exact-revision expectation as `contended`. A claim never clears or
-// steals an expired claim; reclaim is 0316.
+// steals an existing claim.
 
 // OperationChangeClaim is the operation key the claim transition records in its
 // result envelope and transaction trailer.

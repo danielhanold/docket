@@ -2,7 +2,7 @@
 # docket-suite: go
 # tests/test_go_integration_app_changeruntime.sh — Go integration shard (change 0434):
 # the change run-lifecycle real-repository tests (run-tracker start/verdict, run-verify,
-# repair, reclaim, halt/resume, mark-implemented, pr-publish), behind the
+# repair, halt/resume, mark-implemented, pr-publish), behind the
 # `integration` build tag, prefix ^TestIntegrationChangeRuntime. Split out of
 # tests/test_go_integration_app_change.sh. Declarations only — execution and inspection live in
 # tests/lib/go-integration-shard.sh; the completeness contract is

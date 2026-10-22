@@ -32,7 +32,7 @@ import (
 //   - CHANGE-PATH shape: the write's Path is gitcli.RepoPath(X.Path()) — a CALL
 //     of a no-arg method named Path. In today's corpus this call form appears
 //     ONLY on a domain.Change value (`c.Path()`), so it uniquely marks an
-//     in-place change-record rewrite (claim, attach, implemented, reclaim,
+//     in-place change-record rewrite (claim, attach, implemented,
 //     reconcile, relink, halt, resume-halted, block, clear-block, stacked
 //     closeout). Every non-change write instead uses a plain identifier
 //     (recPath, adrRelPath, activePath, archivePath, specPath, p) or a field

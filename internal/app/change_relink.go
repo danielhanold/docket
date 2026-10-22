@@ -389,7 +389,7 @@ type githubPR struct {
 }
 
 // relinkProveCandidateBranch proves the branch the record will carry is present
-// on the remote (the same remote branch-facts probe reclaim gathers). An absent
+// on the remote through the remote branch-facts probe. An absent
 // branch, or a probe that cannot be answered, is candidate-branch-absent —
 // never adopted on an unknown (probe-error-is-not-clean-absence).
 func relinkProveCandidateBranch(ctx context.Context, deps PlanningDeps, repo gitcli.Repository, branch string, id int) *RelinkResult {

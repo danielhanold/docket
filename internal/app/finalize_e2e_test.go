@@ -32,7 +32,7 @@ import (
 // isolated configuration. They prove the spec's "End-to-end and mutation tests"
 // section bullet-for-bullet: ordinary finalize to archive+cleanup in both
 // repository modes, conflict/repair, response-loss convergence, the
-// stack outcomes, out-of-band merge recovery, halt/resume plus reclaim, the
+// stack outcomes, out-of-band merge recovery, halt/resume, the
 // deferred-capability refusal, and no dependence on a PATH `docket`.
 //
 // Isolation contract (per the Global Constraints and the spec):
@@ -1620,22 +1620,18 @@ func TestE2EMergeMethodUnavailable(t *testing.T) {
 	}
 }
 
-// --- TestE2EHaltResumeAndReclaim ------------------------------------------
+// --- TestE2EHaltResume ----------------------------------------------------
 
-// TestE2EHaltResumeAndReclaim proves the two implementation-side recovery paths
-// through CLI argv: a persistent `change halt` records a durable run-halted
-// marker on an in-progress change and `change resume-halted --acknowledge-
-// quiescent` clears it and refreshes the claim; and an expired, no-work in-
-// progress change (claim past its lease TTL, no branch or workspace) is reclaimed
-// back to proposed.
-func TestE2EHaltResumeAndReclaim(t *testing.T) {
+// TestE2EHaltResume proves the implementation-side recovery path through CLI
+// argv: a persistent `change halt` records a durable run-halted marker on an
+// in-progress change and `change resume-halted --acknowledge-quiescent` clears
+// it and refreshes the claim.
+func TestE2EHaltResume(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
 	docketBin, ghBin := sharedBinaries(t)
 
-	// Two claimed, in-progress changes: id 3 exercises halt/resume; id 4 is left
-	// to expire and be reclaimed. lease_ttl is 1h so the testClock claim stamp is
-	// unambiguously expired against the binary's real system clock.
+	// One claimed, in-progress change (id 3) exercises halt/resume.
 	s := reachInProgress(t, docketBin, ghBin)
 
 	// --- halt then resume (id 3) ---
@@ -1658,43 +1654,27 @@ func TestE2EHaltResumeAndReclaim(t *testing.T) {
 	if res2.result() == "applied" {
 		t.Fatalf("resume-halted replayed as a success though the marker was cleared\n%s", res2.stdout)
 	}
-
-	// --- expired no-work reclaim (id 4) ---
-	rc := s.dk(t, "", "change", "reclaim", "--id", "4", "--revision", verOf(t, s, 4))
-	if rc.result() != "applied" {
-		t.Fatalf("change reclaim of an expired no-work change = %q\n%s", rc.result(), rc.stdout)
-	}
-	// The reclaimed change is back to proposed (its claim released). The status
-	// scalar may be quoted, so match either spelling.
-	body, ok := originFile(t, s.repo.origin, s.mode.branch, groomPath(4, "gadget"))
-	if !ok || (!strings.Contains(body, "status: proposed") && !strings.Contains(body, "status: 'proposed'")) {
-		t.Errorf("reclaimed change 4 is not back to proposed:\n%s", body)
-	}
 }
 
 // verOf reads the current record revision for one id from the origin oracle.
 func verOf(t *testing.T, s *e2eState, id int) string {
 	t.Helper()
-	slug := map[int]string{3: "widget", 4: "gadget"}[id]
+	slug := map[int]string{3: "widget"}[id]
 	return blobRevisionAt(t, s.repo.origin, s.mode.branch, groomPath(id, slug))
 }
 
-// reachInProgress builds a main-mode repo with two claimed (in-progress) changes
-// and a short reclaim lease TTL, returning the argv harness state. No workspace
-// is prepared and no feature branch is pushed, so the changes present as no-work
-// for the reclaim path.
+// reachInProgress builds a main-mode repo with one claimed (in-progress) change
+// that owns a prepared workspace, returning the argv harness state.
 func reachInProgress(t *testing.T, docketBin, ghBin string) *e2eState {
 	t.Helper()
 	requireRealGit(t)
 	m := planRepoModes()[0]
 	records := map[string]string{
 		groomPath(3, "widget"):    buildReadyChange(3, "widget"),
-		groomPath(4, "gadget"):    buildReadyChange(4, "gadget"),
 		fixtureSpecPath("widget"): fixtureSpecFile(3, "widget"),
-		fixtureSpecPath("gadget"): fixtureSpecFile(4, "gadget"),
 	}
 	repo := newWorkingRepo(t, mergeMaps(map[string]string{
-		".docket.yml": "reclaim:\n  lease_ttl: 1\n  auto: false\nbuild:\n  test_command: 'exit 0'\nfinalize:\n  test_command: 'exit 0'\n",
+		".docket.yml": "build:\n  test_command: 'exit 0'\nfinalize:\n  test_command: 'exit 0'\n",
 	}, records))
 
 	node := e2eNode(t, repo.invocation)
@@ -1705,7 +1685,7 @@ func reachInProgress(t *testing.T, docketBin, ghBin string) *e2eState {
 	wdeps := WorkspaceDeps{Service: svc}
 	ctx := context.Background()
 	ver := func(id int, slug string) string { return blobRevisionAt(t, repo.origin, m.branch, groomPath(id, slug)) }
-	for _, id := range []int{3, 4} {
+	for _, id := range []int{3} {
 		cx := ContextImplementation(ctx, node.deps, node.dir, ImplementationContextRequest{ID: id})
 		if cx.Result != ResultApplied || cx.Context == nil {
 			t.Fatalf("context implementation id %d = %q", id, cx.Result)
@@ -1716,7 +1696,7 @@ func reachInProgress(t *testing.T, docketBin, ghBin string) *e2eState {
 		}
 	}
 	// id 3 gets an owned workspace so resume-halted has a matching-ownership,
-	// quiescent workspace to reprobe; id 4 is left no-work for the reclaim path.
+	// quiescent workspace to reprobe.
 	prep := WorkspacePrepare(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: 3, Revision: ver(3, "widget")})
 	if prep.Result != ResultApplied {
 		t.Fatalf("workspace prepare id 3 = %q (reason %q)", prep.Result, prep.Reason)
@@ -1803,7 +1783,6 @@ func TestE2EUnsupportedConfigRefused(t *testing.T) {
 		{"closeout", []string{"finalize", "closeout", "--id", strconv.Itoa(s.id)}},
 		{"halt", []string{"change", "halt", "--id", strconv.Itoa(s.id), "--revision", revision, "--input", reportPath}},
 		{"resume-halted", []string{"change", "resume-halted", "--id", strconv.Itoa(s.id), "--revision", revision, "--acknowledge-quiescent"}},
-		{"reclaim", []string{"change", "reclaim", "--id", strconv.Itoa(s.id), "--revision", revision}},
 		{"maintenance-sweep", []string{"maintenance", "sweep"}},
 	}
 	for _, op := range refused {
