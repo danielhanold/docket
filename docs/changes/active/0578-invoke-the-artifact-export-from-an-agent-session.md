@@ -14,7 +14,7 @@ related: [561, 542, 532]
 discovered_from: [561]
 adrs: [144]
 spec: 'docs/superpowers/specs/2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-22-invoke-the-artifact-export-from-an-agent-session.md'
 results:
 auto_groomable:
 hold:
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md](../../superpowers/specs/2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md) |
+| Plan | [2026-10-22-invoke-the-artifact-export-from-an-agent-session.md](../../superpowers/plans/2026-10-22-invoke-the-artifact-export-from-an-agent-session.md) |
 | ADRs | [ADR-0144](../../adrs/0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md) |
 <!-- docket:artifacts:end -->
 
