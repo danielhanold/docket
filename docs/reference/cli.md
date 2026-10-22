@@ -42,8 +42,8 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
   installation is current and writes nothing, and `docket install collect`, which reclaims
   verified unreferenced installed version trees. Verbs: `docket install --help`.
 - **`docket learning`** — record and update learning findings. Verbs: `docket learning --help`.
-- **`docket maintenance`** — close out merged changes, retry close-out cleanup, and reclaim
-  expired claims in one pass (`docket status` stays read-only). Verbs: `docket maintenance --help`.
+- **`docket maintenance`** — close out merged changes and retry close-out cleanup in one pass
+  (`docket status` stays read-only). Verbs: `docket maintenance --help`.
 - **`docket open`** — open the board, or a change's record, spec, plan, results, or pull request,
   as a GitHub page or from the local metadata checkout. Without an id it opens the change whose
   branch is checked out. With `--export` it writes a clean Markdown copy of a change, spec, plan,

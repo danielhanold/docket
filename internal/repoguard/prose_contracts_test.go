@@ -502,8 +502,8 @@ var proseContracts = []proseContract{
 		present: []string{"a held change that would be build-ready shows **on hold**"}},
 	// change 0360 — the run looks its own record revision up locally before each
 	// post-claim write, re-syncs only where a docket write it did not make could
-	// have moved the record, and no longer refreshes the claim lease around long
-	// dispatches (claimed_at is stamped by claim, reconcile, and resume-halted).
+	// have moved the record, and no longer refreshes the claim around long
+	// dispatches.
 	{sentinel: "change_0360_revision_lookup", file: "skills/docket-implement-next/SKILL.md",
 		present: []string{
 			"R=$(git -C <metadata_worktree_path> rev-parse HEAD:<record path>)",
@@ -529,8 +529,23 @@ var proseContracts = []proseContract{
 		present: []string{"the reason recorded"},
 		absent:  []string{"`claimed_at` refreshed"}},
 	{sentinel: "change_0360_revision_lookup", file: "skills/docket-convention/SKILL.md",
-		present: []string{"stamped by claim, reconcile, and resume-halted"},
-		absent:  []string{"refreshed at phase boundaries"}},
+		absent: []string{"refreshed at phase boundaries"}},
+	// change 0575 — claim reclaim and the claimed_at lease are retired; a stranded
+	// run recovers only by resuming the change by id, with the run tracker deciding.
+	{sentinel: "change_0575_no_reclaim", file: "skills/docket-convention/SKILL.md",
+		present: []string{"and by the claim when a halted change is claimed again"},
+		absent: []string{
+			"`change.reclaim`", "## Reclaim log", "reclaim.lease_ttl", "lease_ttl:",
+			"claimed_at:", "self-heals", "Reclaim edge",
+		}},
+	{sentinel: "change_0575_no_reclaim", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{"the `run.start` operation with `implement-next --resume <id>`"},
+		absent:  []string{"`change.reclaim`", "claimed_at", "refreshes the claim", "lease classification"}},
+	{sentinel: "change_0575_no_reclaim", file: "skills/docket-implement-next/references/edge-paths.md",
+		present: []string{"the `run.start` operation with `implement-next --resume <id>`"},
+		absent:  []string{"refreshes the claim", "no reclaim"}},
+	{sentinel: "change_0575_no_reclaim", file: "skills/docket-status/SKILL.md",
+		absent: []string{"reclaim"}},
 	// change 0360 — Step 3 sends a minimal reconcile request when nothing
 	// changed (the operation writes the dated heading); Step 6 writes the
 	// evidence.record receipt's block to a file instead of a separate verify

@@ -12,7 +12,7 @@ with `--json` (a write-free read) and take the named change's `unmet_dependencie
 
 For **each** id in that set — and never any other change — run one `finalize.closeout` operation
 with `--id <that id>` (resolve argv from the capability catalog). The operation itself re-proves the
-merged PR and applies the one verified final shape, so run no cleanup suffix and no reclaim, and
+merged PR and applies the one verified final shape, so run no cleanup suffix, and
 never widen or recurse beyond this set. Map each envelope locally and key success on the envelope `result` `applied` or `no-op` — never on its `disposition` token:
 
 - Every closeout succeeds → re-run the `repository.prepare` operation and re-run
@@ -47,15 +47,15 @@ non-interactive).
 `run-halted` verdict — resumes only through the `change.resume-halted` operation with `--id <id>
 --revision <revision> --acknowledge-quiescent`, never a fresh claim or a hand-deleted section.
 The operation requires the exact marked record and the explicit acknowledgement that the prior
-worker is quiescent, reprobes the branch/workspace/live gate, refreshes the claim, and removes
+worker is quiescent, reprobes the branch/workspace/live gate, and removes
 exactly the marker section while preserving every other byte and checkpoint. It refuses (writing
 nothing) without the acknowledgement, on revision drift (`contended`), or on a live gate lock — it
 never resets or adopts a workspace whose writer may still be live. Once resumed, the change re-enters
 this resume path with its marker gone.
 
-**Starting a resume over a live run.** Resuming a change starts the run tracker again too, and one
-worktree carries at most one live run. When the caller starts the resume (`run.start … --resume
-<id>`), `run.start` refuses to open a second run over one that has not verifiably stopped:
+**Starting a resume over a live run.** A stranded run recovers only by resuming its change by id
+(the `run.start` operation with `implement-next --resume <id>`); one worktree carries at most one
+live run, so `run.start` refuses to open a second run over one that has not verifiably stopped:
 
 - Prior run still **active** (an undispatched earlier resume start counts) → refused
   `resume-active-run`, naming the change and run key, with the remedy: cancel the prior run via the
@@ -94,6 +94,6 @@ rather than force-writing its local view.
 or a checkpoint boundary is reached while the ownership or gate-drive contract forbids a safe write,
 the results artifact cannot be captured yet. That case keeps its **existing disposition** (the halt
 or the continuation it was already going to take) and **reports the capture limitation through the
-existing halt/continuation channel** — no fabricated results path, no stolen lease, and no delayed
+existing halt/continuation channel** — no fabricated results path, no stolen claim, and no delayed
 gate handoff to make room for a write. The missing capture is a reported limitation, never a reason
 to force a workspace, a commit, or a HEAD move.

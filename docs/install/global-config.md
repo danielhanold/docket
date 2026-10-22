@@ -17,7 +17,7 @@ Two kinds of setting belong here:
   [`agents/harness-defaults.yml`](../../agents/harness-defaults.yml), a shipped file you read but
   never edit. To change one, see [Models](models-and-effort.md), then re-run the install.
 - **Any `scope: any layer` key you want as your personal default** across repositories — for
-  example `review.min_fix_severity` or `reclaim.lease_ttl`. A repository's own files still win.
+  example `review.min_fix_severity` or `review.max_fix_tasks`. A repository's own files still win.
 
 The canonical reference for every key is [`.docket.example.yml`](../../.docket.example.yml): every
 supported key at its built-in default, with a short note and a scope tag saying which layers may

@@ -68,15 +68,9 @@ parent rather than into your main line, so its code has not shipped yet — it p
 [Building without supervision](./building-without-supervision.md) page covers stacking from the
 build side.
 
-There is also one edge running *backward*: `in-progress → proposed`. A **claim** (the moment a
-change is picked up for building; it records which branch will carry the work and when it was
-taken) carries a **claim lease** (a timestamp on a claim; when it expires with no branch behind
-it, the change can go back to the queue). If a run crashes before it ever pushes a branch, the
-change would otherwise sit stuck at `in-progress` forever; instead, once the lease has expired and
-the change has no feature branch and no workspace, it can be reclaimed back to `proposed` —
-by `docket maintenance sweep` when `reclaim.auto` is `true`, or by you with `docket change reclaim`
-(the sweep reports such a change as skipped while `reclaim.auto` is `false`, the default).
-Recovering these is covered in [Keeping the backlog honest](./keeping-the-backlog-honest.md).
+A **claim** (the moment a change is picked up for building) records which branch will carry the
+work. If a run crashes or is stopped, its change stays `in-progress` until you resume it by id —
+see [Keeping the backlog honest](./keeping-the-backlog-honest.md).
 
 The **board** (the generated overview of every change and its state, never edited by hand) is
 your at-a-glance view. It groups every change into six sections — in progress, built, blocked,

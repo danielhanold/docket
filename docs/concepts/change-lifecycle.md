@@ -89,7 +89,7 @@ and it moves to `done` once the root of its stack lands.
   truth, and the board is derived from it, never hand-edited into disagreement.
 - Grooming a change to build-ready records no claim — only a build does — so a
   groom and a build never fight over the same change.
-- A claim records which branch will carry the work and when it was taken.
+- A claim records which branch will carry the work.
 - A dependency is satisfied only when it is `done`; a change waits until every
   dependency is `done` before it is build-ready.
 - A stacked change's base is its parent's branch while the parent is live, and

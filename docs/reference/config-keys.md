@@ -50,8 +50,6 @@ Each key has one scope:
 | `run.max_consecutive_halts` | `2` | any layer | halts in a row, on changes a loop picked from the queue, before the loop stops |
 | `review.min_fix_severity` | `minor` | any layer | the lowest review-finding severity the fix pass repairs |
 | `review.max_fix_tasks` | `10` | any layer | the most non-blocker fix tasks one fix pass dispatches |
-| `reclaim.lease_ttl` | `72` | any layer | hours a claim on an in-progress change lasts |
-| `reclaim.auto` | `false` | any layer | whether `docket maintenance sweep` reclaims an eligible change or reports it skipped |
 | `learnings.enabled` | `true` | any layer | whether learnings are written and read |
 | `open.artifacts` | `github` | any layer | where `docket open` shows a shared repository's board and change artifacts: `github` pages, or the `local` metadata checkout's files |
 | `gate_observation_budget` | `30` | any layer | minutes docket waits for a test-suite run it started to finish |
