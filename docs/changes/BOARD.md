@@ -1,12 +1,12 @@
 # Backlog
 
-**578 changes** — 🟢 1 in progress · 🟡 2 proposed · ⚪ 17 deferred · ✅ 414 done · 🗑️ 144 killed
+**578 changes** — 🔵 1 built · 🟡 2 proposed · ⚪ 17 deferred · ✅ 414 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0578](active/0578-invoke-the-artifact-export-from-an-agent-session.md) | Invoke the artifact export from an agent session | `medium` | `feat` | [spec](../superpowers/specs/2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md) | `feat/invoke-the-artifact-export-from-an-agent-session` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0578](active/0578-invoke-the-artifact-export-from-an-agent-session.md) | Invoke the artifact export from an agent session | `medium` | `feat` | [#444](https://github.com/danielhanold/docket/pull/444) | awaiting merge |
 
 ## 🟡 Proposed (2)
 

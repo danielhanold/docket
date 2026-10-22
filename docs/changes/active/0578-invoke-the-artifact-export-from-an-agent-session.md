@@ -2,7 +2,7 @@
 id: 578
 slug: 'invoke-the-artifact-export-from-an-agent-session'
 title: 'Invoke the artifact export from an agent session'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'feat/invoke-the-artifact-export-from-an-agent-session'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/444'
 blocked_by:
 reconciled: true
 ---
@@ -57,3 +57,12 @@ Any change to what the export produces or how it cleans an artifact (owned by #5
 ### 2026-10-22
 
 Unchanged against main 2dcf560b0: no docket-export skill exists yet, the export (#561) and its catalog entry are as the spec describes.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: b75f6fd9b712a78dc34483c0a652d940d8f52278
+ran_at:   2026-10-22T23:43:01Z
+<!-- docket:build-evidence:end -->
