@@ -22,7 +22,7 @@ branch_prefix:
 branch: 'feat/invoke-the-artifact-export-from-an-agent-session'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -49,3 +49,9 @@ In a shared repository the exported text goes to the target unchanged. In a priv
 ## Out of scope
 
 Any change to what the export produces or how it cleans an artifact (owned by #561's code), its flags, or its catalog entry. New export formats. Exporting the board or a pull request. Sending logic in the skill: posting is done by the agent's own tools, and the skill carries nothing specific to Jira or any other tool. A rewrite pass in a shared repository. An always-loaded instruction or a `docket-convention` entry for the export.
+
+## Reconcile log
+
+### 2026-10-22
+
+Unchanged against main 2dcf560b0: no docket-export skill exists yet, the export (#561) and its catalog entry are as the spec describes.
