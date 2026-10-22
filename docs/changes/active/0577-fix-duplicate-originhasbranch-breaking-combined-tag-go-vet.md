@@ -14,7 +14,7 @@ related: []
 discovered_from: [575]
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md'
 results:
 auto_groomable:
 hold:
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md](../../superpowers/specs/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md) |
+| Plan | [2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md](../../superpowers/plans/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
