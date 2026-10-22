@@ -17,7 +17,7 @@ Run `docket capabilities --json` as its own call — the one docket spelling thi
 
 Run the `repository.prepare` argv with `--repo-dir <repo root> --json` as its own call and read `context.visibility` (`shared` or `private`).
 
-- The directory is not a git repository, or `repository_state` is `fresh` (no docket set up): this is not a docket artifact. Say so in one line and handle the request without this skill.
+- The directory is not a git repository (`result` is `invalid-input` with an empty `repository_state`), or `repository_state` is `fresh` (no docket set up): this is not a docket artifact. Say so in one line and handle the request without this skill.
 - Any other refusal or error: the visibility is unknown, so **treat the repository as private**. A leak cannot be undone.
 
 In a private repository, also run the `diagnostic.config` argv with `--repo-dir <repo root> --json` and read `effective.leak_check.match_word.value`. When it cannot be read, treat it as `true`.
@@ -40,12 +40,12 @@ Run the `open` argv as `<open argv> <what> [<id>] --export --print --json --repo
 Nothing that names docket may leave.
 
 1. **Rewrite pass.** When the export reported any `leftovers` or `mentions`, edit the exported copy in place until it holds none of these: the words "docket" or "dckt", docket marker comments, `Docket-` trailers, `.docket` or `dckt` paths, change ids or change references from docket, ADR numbers from docket's ledger, or references to the backlog or board. Every edited line must read naturally to an outside reader.
-   - Fix each leftover: remove the marker, unwrap the link, drop the stamp line.
+   - Fix each leftover: remove the marker, unwrap the link, drop the stamp line. A `stray-marker` leftover (it carries `source_line`, not `line`) is already gone from the copy: name it in the report, never edit for it.
    - Rewrite each line on the `mentions` list so it no longer names docket or dckt ("the docket build gate runs the suite" becomes "the build gate runs the suite"). A mention inside code is generalized or dropped, at your judgment.
    - When `leak_check.match_word` is `false`, the bare word "docket" may stay; "dckt", markers, ids, and ADR numbers are still handled.
    - Change only these lines: no other rewording, summarizing, or fixing.
 
-   **Always rewrite docket's ADR numbers and change numbers, whether or not the export reported `leftovers` or `mentions`** — the export never reports them, so search the whole copy on every private export. Rewrite each into what it refers to, or drop it; the person's team cannot open them. An ADR is docket's when a file for its number exists under `<metadata_worktree_path>/<adrs_dir>`, and a `#N` is one of docket's changes when a record for that id exists under `<metadata_worktree_path>/<changes_dir>` (paths from the prepare context). The team's own ADRs stay, and so does a `#N` that is not one of docket's changes, such as a Jira or pull request number.
+   **Always rewrite docket's ADR numbers and change numbers, whether or not the export reported `leftovers` or `mentions`** — the export never reports them, so search the whole copy on every private export. Rewrite each into what it refers to, or drop it; the person's team cannot open them. An ADR is docket's when a file for its number exists under `<metadata_worktree_path>/<adrs_dir>`, and a `#N` is one of docket's changes when a record for that id exists under `<metadata_worktree_path>/<changes_dir>` (paths from the prepare context). When the prepare context is unavailable, treat every ADR number and every `#N` or four-digit change id as docket's, or ask the person. The team's own ADRs stay, and so does a `#N` that is not one of docket's changes, such as a Jira or pull request number.
 2. **Word check.** Search the rewritten copy for "docket" and "dckt" as whole words, case-insensitive, code included (the bare word "docket" is exempt when `leak_check.match_word` is `false`). Any hit: stop, show the person the path and the lines, and post nothing until they decide.
 3. **Show, then post.** If the rewrite pass changed anything, show the person every change as before → after and **post only after they say go**. If nothing needed rewriting, post straight away. A file request gets the same pass and check — the file goes to outsiders too — and the before → after list comes with the path, with no stop, since nothing is posted.
 
