@@ -1,11 +1,12 @@
 # Backlog
 
-**577 changes** — 🟡 3 proposed · ⚪ 17 deferred · ✅ 413 done · 🗑️ 144 killed
+**578 changes** — 🟡 4 proposed · ⚪ 17 deferred · ✅ 413 done · 🗑️ 144 killed
 
-## 🟡 Proposed (3)
+## 🟡 Proposed (4)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0578](active/0578-invoke-the-artifact-export-from-an-agent-session.md) | Invoke the artifact export from an agent session | `medium` | `feat` | needs-grooming |
 | [0577](active/0577-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md) | Fix duplicate originHasBranch breaking combined-tag go vet | `low` | `fix` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
@@ -54,6 +55,7 @@ graph TD
   0572
   0576
   0577
+  0578
   0192:::done
   0251:::done
   0511:::done
