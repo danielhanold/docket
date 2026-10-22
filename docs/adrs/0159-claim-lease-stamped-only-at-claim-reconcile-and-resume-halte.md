@@ -2,7 +2,7 @@
 id: 159
 slug: 'claim-lease-stamped-only-at-claim-reconcile-and-resume-halte'
 title: 'Claim lease stamped only at claim, reconcile, and resume-halted; refresh-claim deleted'
-status: 'Accepted'
+status: 'Superseded by ADR-0160'
 date: '2026-10-20'
 supersedes: []
 reverses: []

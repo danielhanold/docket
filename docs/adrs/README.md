@@ -141,7 +141,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0156](0156-a-stack-parent-carries-exactly-the-children-whose-prs-merged.md) — A stack parent carries exactly the children whose PRs merged into it (Accepted) ← change #571 · relates to ADR-0092
 - [ADR-0157](0157-everyday-repository-commands-recognize-the-metadata-branch-b.md) — Everyday repository commands recognize the metadata branch by name and shape (Accepted) ← change #574
 - [ADR-0158](0158-context-implementation-id-serves-the-named-in-progress-chang.md) — context.implementation --id serves the named in-progress change (Accepted) ← change #360 · relates to ADR-0126, ADR-0106
-- [ADR-0159](0159-claim-lease-stamped-only-at-claim-reconcile-and-resume-halte.md) — Claim lease stamped only at claim, reconcile, and resume-halted; refresh-claim deleted (Accepted) ← change #360 · relates to ADR-0158
+- [ADR-0160](0160-no-claim-lease-and-no-reclaim-stranded-runs-recover-only-by.md) — No claim lease and no reclaim — stranded runs recover only by resume-by-id (Accepted) ← change #575 → supersedes ADR-0159 · relates to ADR-0059, ADR-0084, ADR-0101
 
 ## Superseded / Reversed
 
@@ -162,6 +162,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0114](0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) — Anchor Codex feature-scoped role entry to the owning worktree (Superseded by ADR-0119) ← change #393 → supersedes ADR-0103 · relates to ADR-0083, ADR-0103
 - [ADR-0117](0117-sequential-test-drives-within-one-worker-recovery-scope.md) — Sequential test drives within one worker recovery scope (Superseded by ADR-0130) ← change #405 · relates to ADR-0107
 - [ADR-0118](0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) — Worktree-wide gate admission and explicit human-cancellation authority (Superseded by ADR-0132) ← change #375 · relates to ADR-0087, ADR-0095, ADR-0107, ADR-0111, ADR-0117
+- [ADR-0159](0159-claim-lease-stamped-only-at-claim-reconcile-and-resume-halte.md) — Claim lease stamped only at claim, reconcile, and resume-halted; refresh-claim deleted (Superseded by ADR-0160) ← change #360 · relates to ADR-0158
 
 ## Deprecated
 
