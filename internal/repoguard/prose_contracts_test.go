@@ -1527,6 +1527,13 @@ var alignmentContracts = []proseContract{
 			"show the person every change as before → after and **post only after they say go**",
 		},
 		absent: []string{"context: fork", "agent: docket-export"}},
+	// 0578 review: the export reports neither ADR numbers nor bare #N, so the private
+	// ADR/change-number rewrite runs on every private export, not only on leftovers or mentions.
+	{sentinel: "change_0578_export_skill", file: "skills/docket-export/SKILL.md",
+		present: []string{
+			"**Always rewrite docket's ADR numbers and change numbers, whether or not the export reported `leftovers` or `mentions`**",
+			"the export never reports them, so search the whole copy on every private export",
+		}},
 	{sentinel: "change_0578_export_skill", file: "skills/docket-convention/SKILL.md",
 		present: []string{"(`docket-new-change`, `docket-groom-next`) and `docket-export` stay inline"}},
 	{sentinel: "change_0578_export_skill", file: "docs/reference/cli.md",
