@@ -1,12 +1,12 @@
 # Backlog
 
-**576 changes** — 🟣 1 groomed · 🟡 3 proposed · ⚪ 16 deferred · ✅ 412 done · 🗑️ 144 killed
+**576 changes** — 🟢 1 in progress · 🟡 3 proposed · ⚪ 16 deferred · ✅ 412 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0575](active/0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | `medium` | `refactor` | [spec](../superpowers/specs/2026-10-22-retire-claim-reclaim-and-its-lease-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0575](active/0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | `medium` | `refactor` | [spec](../superpowers/specs/2026-10-22-retire-claim-reclaim-and-its-lease-design.md) | `refactor/retire-claim-reclaim-and-its-lease` | building |
 
 ## 🟡 Proposed (3)
 

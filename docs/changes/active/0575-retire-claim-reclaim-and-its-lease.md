@@ -2,7 +2,7 @@
 id: 575
 slug: 'retire-claim-reclaim-and-its-lease'
 title: 'Retire claim reclaim and its lease'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'refactor'
 deliverable: 'pr'
@@ -19,10 +19,11 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'refactor/retire-claim-reclaim-and-its-lease'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-10-22T10:29:32Z'
 ---
 
 ## Artifacts
