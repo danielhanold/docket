@@ -13,7 +13,7 @@ stacked_on:
 related: []
 discovered_from: [575]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md'
 plan:
 results:
 auto_groomable:
@@ -28,6 +28,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md](../../superpowers/specs/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -36,8 +39,9 @@ reconciled: false
 
 ## What changes
 
-Remove the duplicate declaration, for example by sharing one helper between the two tagged test files, so `go vet -tags integration,e2e ./...` compiles.
+Rename the integration-tag test helper `originHasBranch`, which checks a full ref, to `originHasRef` at its declaration and at every caller, so `go vet -tags integration,e2e ./...` compiles. The e2e helper keeps its name and behavior. The build proves the fix once by running the combined vet.
 
 ## Out of scope
 
-Adding a CI step that vets the combined tags, unless grooming decides it belongs here.
+- A suite check or CI step that vets the combined tags. Nothing runs both tags together, so a guard would turn a harmless future clash into a failed build (decided at grooming).
+- A shared helper across the two tags, or any change to the e2e helper's probe.
