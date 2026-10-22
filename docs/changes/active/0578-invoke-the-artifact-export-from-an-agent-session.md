@@ -10,10 +10,10 @@ created: '2026-10-22'
 updated: '2026-10-22'
 depends_on: []
 stacked_on:
-related: [561]
+related: [561, 542, 532]
 discovered_from: [561]
-adrs: []
-spec:
+adrs: [144]
+spec: 'docs/superpowers/specs/2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md'
 plan:
 results:
 auto_groomable:
@@ -28,16 +28,24 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md](../../superpowers/specs/2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md) |
+| ADRs | [ADR-0144](../../adrs/0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-#561 added a clean Markdown export of a change, spec, plan, or results file, reached today only by a person typing `docket open <what> <id> --export` in a shell (for example `docket open spec 9 --export`). Inside an agent session there is no docket workflow that does this, so a request like "export the spec for 9" leaves the agent to guess: run the command by hand, or worse, rebuild the cleanup itself in prose. A hand-rebuilt export drifts from the real one and skips its self-check warnings.
+#561 added a clean Markdown export of a change, spec, plan, or results file, reached today only by a person typing `docket open <what> <id> --export` in a shell (for example `docket open spec 9 --export`). Inside an agent session nothing points at it, and nothing tells the agent that docket content needs cleaning before it leaves the repository. Asked to export an artifact, or to put one into another tool such as a Jira ticket through an MCP integration, agents have more than once skipped the export entirely and passed the content on with every docket reference, link, and generated block still in it.
+
+In a private repository that is a leak the team must never see, and the export alone does not prevent it: by design it leaves sentences that name docket as written and only reports them.
 
 ## What changes
 
-Give agent sessions a docket-owned way to ask for an export that runs the exact same export logic as the CLI flag, with no second implementation. The stub's starting hypothesis is a new skill (and, if it earns one, a matching `docket-*` agent) that resolves the export operation from the capability catalog, passes the artifact kind, change id, and any output path or warning filter through unchanged, and reports back the written file's path and any warnings. Grooming decides whether this is a skill, an agent, both, or simply an existing workflow learning to route the request; whether the export needs its own catalog entry or the `open` entry is enough; and how the agent gets the path without opening a viewer when no one is at the screen.
+A new inline skill, `docket-export`, whose description matches any request to export a docket change, spec, plan, or results file, or to put one into anything outside docket. It has the agent run the real export — the `open` command from the capability catalog with `--export --print --json`, so no viewer opens — never the raw file or a hand cleanup. A failed export means nothing is posted.
+
+In a shared repository the exported text goes to the target unchanged. In a private repository the agent also rewrites what the export leaves (lines naming docket, leftovers, docket's own change and ADR numbers) so they read naturally to an outsider, checks the result for the words docket and dckt, and, when it rewrote anything, shows the person before → after and posts only on their go. No agent, no new catalog entry, and no change to the export itself.
 
 ## Out of scope
 
-Any change to what the export produces or how it cleans an artifact (owned by #561's code). New export formats. Exporting the board. Sending or attaching the exported file anywhere.
+Any change to what the export produces or how it cleans an artifact (owned by #561's code), its flags, or its catalog entry. New export formats. Exporting the board or a pull request. Sending logic in the skill: posting is done by the agent's own tools, and the skill carries nothing specific to Jira or any other tool. A rewrite pass in a shared repository. An always-loaded instruction or a `docket-convention` entry for the export.
