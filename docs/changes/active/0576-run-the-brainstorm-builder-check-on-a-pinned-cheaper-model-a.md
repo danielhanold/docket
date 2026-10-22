@@ -56,3 +56,12 @@ Run the builder check on a deterministic, cheaper model and effort, without drop
 - Patching or forking the superpowers plugin.
 - The already-pinned `docket-brainstorm-consultant` and `docket-auto-groom-critic`.
 - Changing a person's own Claude Code settings: docs may mention options 3 and 4, but docket does not set them.
+
+## Open questions
+
+- **Mechanism.** Which option: a docket-owned pinned agent (the likely shape), a per-dispatch direction, or something else? And how does the direction reach a dispatch the vendored skill makes, without patching it?
+- **Which model and effort keep it useful.** What default per harness, and how is it proven? One way: re-run a few past builder checks, whose findings are recorded in their grooms, at the cheaper setting and compare what each catches.
+- **Code reading.** Reading the code is what makes the check both useful and expensive (110 tool calls on #575). Should the brief bound or focus it, for example the files the spec names plus one whole-repo grep, rather than only lowering the tier?
+- **Fallback.** What happens when the pinned agent is not installed, or dispatch fails: fall back to `general-purpose` at the session defaults, or skip with a warning? A builder check is not a gate, so it must never block a groom.
+- **Fit with #566.** If #566 also suppresses other superpowers steps, or moves the brainstorm role to a docket-owned skill, the pinned reviewer may belong there. Settle the two scopes together.
+- **Other harnesses.** Do Cursor, Codex, and OpenCode brainstorms dispatch the check at all, and does each need a `harness-defaults.yml` row?
