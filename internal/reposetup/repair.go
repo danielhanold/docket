@@ -11,7 +11,7 @@ package reposetup
 // fails one of those gates is reported as a NON-repairable finding, never
 // silently repaired.
 //
-// The three roster entries are:
+// The two roster entries are:
 //
 //	quote-unsafe-scalar   a plain string scalar whose decoded text is an
 //	                      unambiguous string but whose token SHAPE violates the
@@ -22,9 +22,6 @@ package reposetup
 //	                      parses as an exact valid sequence of the item type —
 //	                      re-emitted as an UNQUOTED flow sequence, same items,
 //	                      same order.
-//	drop-final-claimed-at      a NON-EMPTY claimed_at removed from an
-//	                      already-final (done/killed) archived change; an empty
-//	                      claimed_at is the cleared form and is never a finding.
 //
 // Byte edits are produced by internal/document's own PatchSet/serializer, so
 // YAML validity and the reparse gate are construction properties, not hopes.
@@ -39,7 +36,6 @@ import (
 	"strings"
 
 	"github.com/danielhanold/docket/internal/document"
-	"github.com/danielhanold/docket/internal/domain"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -48,9 +44,8 @@ import (
 type RepairCode string
 
 const (
-	RepairQuoteScalar   RepairCode = "quote-unsafe-scalar"
-	RepairScalarToList  RepairCode = "scalar-to-list"
-	RepairDropClaimedAt RepairCode = "drop-final-claimed-at"
+	RepairQuoteScalar  RepairCode = "quote-unsafe-scalar"
+	RepairScalarToList RepairCode = "scalar-to-list"
 )
 
 // RepairFinding is one diagnosis about a single change record. A repairable
@@ -125,11 +120,10 @@ var changeStringFields = map[string]bool{
 // non-repairable findings for the shapes it can name but must not touch. An
 // undecodable frontmatter block (including a duplicate key, which document.Parse
 // rejects) yields a single non-repairable finding naming the whole record.
-// archived enables RepairDropClaimedAt, and only for a final-status record.
 // Every finding carries the three plain-language parts — Message, Impact, and
 // Remedy — and loc names where the record is really edited in the remedy; the
 // text never feeds RepairDigest or ApplyRepairs.
-func PlanRepairs(path string, src []byte, archived bool, loc RecordLocator) ([]RepairFinding, error) {
+func PlanRepairs(path string, src []byte, loc RecordLocator) ([]RepairFinding, error) {
 	doc, err := document.Parse(src)
 	if err != nil {
 		return []RepairFinding{{
@@ -156,9 +150,6 @@ func PlanRepairs(path string, src []byte, archived bool, loc RecordLocator) ([]R
 				findings = append(findings, fnd)
 			}
 		}
-	}
-	if fnd, ok := planClaimedAt(path, src, doc, archived, loc); ok {
-		findings = append(findings, fnd)
 	}
 	return findings, nil
 }
@@ -241,102 +232,6 @@ func planList(path string, src []byte, doc document.Document, f document.Field, 
 		Remedy:     loc.RepairOrHandEdit("rewrite it as `"+newToken+"`", "rewrite it as `"+f.Name+": "+newToken+"`", path),
 		Patch:      preview,
 	}, true
-}
-
-// planClaimedAt decides the drop-final-claimed-at roster entry. An EMPTY
-// claimed_at (the bare null closeout's clearClaimedAt writes, or any other
-// spelling the decode layer reads as FieldEmpty) is not a claim stamp and is
-// never a finding — the snapshot validator raises CodeChangeFinalClaimStamp only
-// for FieldPresent, and this planner agrees (change 0496).
-func planClaimedAt(path string, src []byte, doc document.Document, archived bool, loc RecordLocator) (RepairFinding, bool) {
-	f, ok := doc.Field("claimed_at")
-	if !ok {
-		return RepairFinding{}, false
-	}
-	if !claimedAtHoldsValue(doc, f) {
-		return RepairFinding{}, false
-	}
-	if !archived {
-		// An active record legitimately holds a claim lease; leave it alone.
-		return RepairFinding{}, false
-	}
-	if !finalStatus(doc) {
-		statusText := "it has no `status:`, so it is not done or killed"
-		if st := rawStatus(doc); st != "" {
-			statusText = "its status is `" + st + "`, not done or killed"
-		}
-		return RepairFinding{
-			Path:       path,
-			Field:      "claimed_at",
-			Repairable: false,
-			Message:    "This archived change still has a `claimed_at` timestamp, but " + statusText + ".",
-			Impact:     "An archived change should be done or killed; docket won't remove the timestamp until the status is settled.",
-			Remedy:     loc.HandEditThenRepair("set `status:` to `done` or `killed` (or move the file back into `active/` if the change is still open)", path),
-		}, true
-	}
-	_, preview, err := buildRepair(doc, src, RepairDropClaimedAt, "claimed_at")
-	if err != nil {
-		return RepairFinding{}, false
-	}
-	return RepairFinding{
-		Path:       path,
-		Field:      "claimed_at",
-		Code:       RepairDropClaimedAt,
-		Repairable: true,
-		Message:    "This finished change still has a `claimed_at` timestamp from when it was being built.",
-		Impact:     "It's harmless: nothing reads it once a change is closed. Older docket versions left it behind.",
-		Remedy:     loc.RepairOrHandEdit("remove it", "delete the `claimed_at:` line", path),
-		Patch:      preview,
-	}, true
-}
-
-// claimedAtHoldsValue reports whether the located claimed_at entry carries a
-// value. It decides through document.EmptyValue, the same empty-value rule the
-// decode layer's (*decoder).state uses to classify FieldEmpty, so the planner
-// and the snapshot validator cannot drift: a valueless key, a YAML null (`null`,
-// `~`), and an empty string are no stamp; anything else — a timestamp, a
-// malformed non-empty value, a collection — holds a value. An undecodable
-// frontmatter block is judged on the located shape alone, failing toward
-// "holds a value", which keeps the pre-0496 finding rather than hiding one.
-func claimedAtHoldsValue(doc document.Document, f document.Field) bool {
-	var node *yaml.Node
-	var m map[string]yaml.Node
-	if err := doc.DecodeFrontmatter(&m); err == nil {
-		n, ok := m["claimed_at"]
-		if !ok {
-			return false
-		}
-		node = &n
-	}
-	return !document.EmptyValue(f, true, node)
-}
-
-// finalStatus reports whether the record's decoded status is a final end
-// state (done or killed).
-func finalStatus(doc document.Document) bool {
-	var head struct {
-		Status string `yaml:"status"`
-	}
-	if err := doc.DecodeFrontmatter(&head); err != nil {
-		return false
-	}
-	st, ok := domain.ParseStatus(head.Status)
-	return ok && st.Final()
-}
-
-// rawStatus returns the record's status as written, for wording a finding
-// only — never for a decision (finalStatus decides). It decodes status exactly
-// as finalStatus does and returns "" when the status is empty or the
-// frontmatter cannot be decoded, so the caller words that case as absent
-// rather than quoting a placeholder as if it were stored.
-func rawStatus(doc document.Document) string {
-	var head struct {
-		Status string `yaml:"status"`
-	}
-	if err := doc.DecodeFrontmatter(&head); err != nil {
-		return ""
-	}
-	return head.Status
 }
 
 // booleanKeywords are the scalar spellings the house rule requires quoting
@@ -491,19 +386,6 @@ func buildRepair(doc document.Document, src []byte, code RepairCode, field strin
 		}
 		return cand, diffPreview(field, oldToken, tokenOf(cand, field)), nil
 
-	case RepairDropClaimedAt:
-		if field != "claimed_at" {
-			return nil, nil, fmt.Errorf("reposetup: drop applies only to claimed_at")
-		}
-		cand := spliceOut(src, f.Entry)
-		if _, perr := document.Parse(cand); perr != nil {
-			return nil, nil, fmt.Errorf("reposetup: claimed_at removal did not reparse: %w", perr)
-		}
-		if fieldStillPresent(cand, "claimed_at") {
-			return nil, nil, fmt.Errorf("reposetup: claimed_at still present after removal")
-		}
-		return cand, []byte("-" + field + ": " + oldToken + "\n"), nil
-
 	default:
 		return nil, nil, fmt.Errorf("reposetup: unknown repair code %q", code)
 	}
@@ -590,24 +472,6 @@ func decodedString(candidate []byte, field string) (string, bool) {
 		return "", false
 	}
 	return s, true
-}
-
-// fieldStillPresent reports whether field survives in candidate's frontmatter.
-func fieldStillPresent(candidate []byte, field string) bool {
-	cdoc, err := document.Parse(candidate)
-	if err != nil {
-		return true // fail closed: an unreadable candidate is not proof of removal
-	}
-	_, ok := cdoc.Field(field)
-	return ok
-}
-
-// spliceOut returns src with the half-open byte range span removed.
-func spliceOut(src []byte, span document.Span) []byte {
-	out := make([]byte, 0, len(src)-(span.End-span.Start))
-	out = append(out, src[:span.Start]...)
-	out = append(out, src[span.End:]...)
-	return out
 }
 
 // ApplyRepairs applies the given repairable findings to src and returns the

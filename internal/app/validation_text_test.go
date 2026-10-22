@@ -245,10 +245,6 @@ func validationFixtures() map[string][]validationFixture {
 			{"date", f(repository.CodeChangeArchiveDateInvalid, E, domain.EntityRef{Kind: domain.EntityChange, ID: 263, Slug: "x", Path: "docs/changes/archive/0263-x.md"}, "path",
 				map[string]string{"base": "0263-x.md"})},
 		},
-		repository.CodeChangeFinalClaimStamp: {
-			{"stamp", f(repository.CodeChangeFinalClaimStamp, E, fxArchived(1, "wisdom-ai-bastion"), "claimed_at",
-				map[string]string{"raw": "2026-05-01T10:00:00Z", "status": "done"})},
-		},
 		repository.CodeChangeStateIncoherent: {
 			{"missing", f(repository.CodeChangeStateIncoherent, E, fxChange(263, "x"), "branch", map[string]string{"status": "in-progress"})},
 		},

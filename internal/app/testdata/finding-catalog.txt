@@ -129,11 +129,6 @@ Change 0263's file is named `0263-y.md`, but its frontmatter says `id: 0263` and
 Links and lookups that build the file name from the id and slug miss this record.
 remedy: In `.docket/docs/changes/active/0263-y.md`, make the file name and the `id:` and `slug:` fields agree; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
-### change-final-claim-stamp — stamp (error)
-Change 0001 is done but still has `claimed_at: 2026-05-01T10:00:00Z` from when it was being built.
-It's harmless: nothing reads it once a change is closed. Older docket versions left it behind.
-remedy: Run `docket repository repair` to remove it (it shows the edit first). Or edit it by hand: in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, delete the `claimed_at:` line; then commit and push it from `.docket`.
-
 ### change-id-duplicate — two (error)
 Change 0263's number is also used by 1 other record.
 docket can't tell these changes apart, so every command that names this number refuses.
@@ -355,13 +350,6 @@ remedy: In `docs/changes/active/0263-x.md` on the metadata branch, remove `172` 
 
 ## Frontmatter-repair findings
 
-### drop-final-claimed-at
-
-- [warning] drop-final-claimed-at (docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md)
-  This finished change still has a `claimed_at` timestamp from when it was being built.
-  It's harmless: nothing reads it once a change is closed. Older docket versions left it behind.
-  remedy: Run `docket repository repair` to remove it (it shows the edit first). Or edit it by hand: in `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, delete the `claimed_at:` line; then commit and push it from `.docket`.
-
 ### quote-unsafe-scalar
 
 - [warning] quote-unsafe-scalar (docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md)
@@ -389,13 +377,6 @@ remedy: In `docs/changes/active/0263-x.md` on the metadata branch, remove `172` 
   `related: foo` is written as plain text, and it isn't a list of change or ADR numbers.
   docket can't read it as a list, so it ignores this field.
   remedy: In `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, rewrite it as a list of numbers, such as `related: [12, 40]`, or delete the line; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
-
-### claimed_at, not done
-
-- [error] frontmatter-manual-review (docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md)
-  This archived change still has a `claimed_at` timestamp, but its status is `proposed`, not done or killed.
-  An archived change should be done or killed; docket won't remove the timestamp until the status is settled.
-  remedy: In `.docket/docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md`, set `status:` to `done` or `killed` (or move the file back into `active/` if the change is still open); then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
 ### undecodable
 
@@ -448,9 +429,6 @@ remedy: In `docs/changes/active/0263-x.md` on the metadata branch, remove `172` 
 ### validator (change-reference-dangling)
 remedy: In `docs/changes/active/0263-x.md` on the metadata branch, remove `172` from `depends_on:` or correct it to the right number; then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
 
-### drop-final-claimed-at — drop-final-claimed-at
-remedy: Edit it by hand: in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, delete the `claimed_at:` line; then commit and push it. Or, once the setup finding above is resolved, run `docket repository repair` to remove it (it shows the edit first).
-
 ### quote-unsafe-scalar — quote-unsafe-scalar
 remedy: Edit it by hand: in `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, quote the `title:` value; then commit and push it. Or, once the setup finding above is resolved, run `docket repository repair` to add the quotes (it shows the edit first).
 
@@ -462,9 +440,6 @@ remedy: In `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the me
 
 ### frontmatter-manual-review — non-id list
 remedy: In `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, rewrite it as a list of numbers, such as `related: [12, 40]`, or delete the line; then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
-
-### frontmatter-manual-review — claimed_at, not done
-remedy: In `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, set `status:` to `done` or `killed` (or move the file back into `active/` if the change is still open); then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.
 
 ### frontmatter-manual-review — undecodable
 remedy: In `docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md` on the metadata branch, fix the frontmatter between the two `---` lines; then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up.

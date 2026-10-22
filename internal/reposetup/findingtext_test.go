@@ -50,15 +50,15 @@ func TestRecordLocatorEmptyRelNamesNoFile(t *testing.T) {
 	if got != want {
 		t.Errorf("HandEditThenRepair(empty rel):\n got %q\nwant %q", got, want)
 	}
-	got = RecordLocator{Checkout: ".docket"}.RepairOrHandEdit("remove it", "delete the `claimed_at:` line", "")
+	got = RecordLocator{Checkout: ".docket"}.RepairOrHandEdit("add the quotes", "quote the `title:` value", "")
 	if strings.Contains(got, "push it") || !strings.Contains(got, "commit and push the edited records") {
 		t.Errorf("RepairOrHandEdit(empty rel) = %q", got)
 	}
 }
 
 func TestRecordLocatorRepairOrHandEdit(t *testing.T) {
-	got := RecordLocator{Checkout: ".docket"}.RepairOrHandEdit("remove it", "delete the `claimed_at:` line", locatorRel)
-	want := "Run `docket repository repair` to remove it (it shows the edit first). Or edit it by hand: in `.docket/" + locatorRel + "`, delete the `claimed_at:` line; then commit and push it from `.docket`."
+	got := RecordLocator{Checkout: ".docket"}.RepairOrHandEdit("add the quotes", "quote the `title:` value", locatorRel)
+	want := "Run `docket repository repair` to add the quotes (it shows the edit first). Or edit it by hand: in `.docket/" + locatorRel + "`, quote the `title:` value; then commit and push it from `.docket`."
 	if got != want {
 		t.Errorf("RepairOrHandEdit:\n got %q\nwant %q", got, want)
 	}
@@ -74,8 +74,8 @@ func TestRecordLocatorSetupBlocked(t *testing.T) {
 			"In `" + locatorRel + "` on the metadata branch, remove `172` from `depends_on`; then commit and push it. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up."},
 		{"hand edit, several records", loc.HandEditThenRepair(locatorInstr, ""),
 			"Remove `172` from `depends_on`; then commit and push the edited records. Once the setup finding above is resolved, run `docket repository repair` so the board and link blocks catch up."},
-		{"repair or hand edit", loc.RepairOrHandEdit("remove it", "delete the `claimed_at:` line", locatorRel),
-			"Edit it by hand: in `" + locatorRel + "` on the metadata branch, delete the `claimed_at:` line; then commit and push it. Or, once the setup finding above is resolved, run `docket repository repair` to remove it (it shows the edit first)."},
+		{"repair or hand edit", loc.RepairOrHandEdit("add the quotes", "quote the `title:` value", locatorRel),
+			"Edit it by hand: in `" + locatorRel + "` on the metadata branch, quote the `title:` value; then commit and push it. Or, once the setup finding above is resolved, run `docket repository repair` to add the quotes (it shows the edit first)."},
 		{"run repair", loc.RunRepair(" to regenerate it"),
 			"Once the setup finding above is resolved, run `docket repository repair` to regenerate it."},
 		{"run repair, healthy", RecordLocator{Checkout: ".docket"}.RunRepair(""),

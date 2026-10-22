@@ -23,22 +23,19 @@ func TestRepairFindingsCarryThreeParts(t *testing.T) {
 	cases := []struct {
 		name       string
 		src        string
-		archived   bool
 		field      string // "" selects the whole-record finding
 		repairable bool
 		msg        string
 	}{
-		{"drop-final-claimed-at", fm("claimed_at: 2026-05-20T10:00:00Z\n"), true, "claimed_at", true, "`claimed_at`"},
-		{"quote-unsafe-scalar", strings.Replace(fm(""), "title: T", "title: yes", 1), false, "title", true, "`title: yes`"},
-		{"scalar-to-list", fm("depends_on: 3, 4\n"), false, "depends_on", true, "`depends_on: 3, 4`"},
-		{"ambiguous value", strings.Replace(fm(""), "title: T", "title: true", 1), false, "title", false, "`title: true`"},
-		{"non-id list", fm("related: foo\n"), false, "related", false, "`related: foo`"},
-		{"claimed_at not done", strings.Replace(fm("claimed_at: 2026-05-20T10:00:00Z\n"), "status: done", "status: proposed", 1), true, "claimed_at", false, "`proposed`"},
-		{"undecodable", "---\nid: 1\nid: 2\n---\nbody\n", false, "", false, "frontmatter"},
+		{"quote-unsafe-scalar", strings.Replace(fm(""), "title: T", "title: yes", 1), "title", true, "`title: yes`"},
+		{"scalar-to-list", fm("depends_on: 3, 4\n"), "depends_on", true, "`depends_on: 3, 4`"},
+		{"ambiguous value", strings.Replace(fm(""), "title: T", "title: true", 1), "title", false, "`title: true`"},
+		{"non-id list", fm("related: foo\n"), "related", false, "`related: foo`"},
+		{"undecodable", "---\nid: 1\nid: 2\n---\nbody\n", "", false, "frontmatter"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fs, err := PlanRepairs(rel, []byte(tc.src), tc.archived, loc)
+			fs, err := PlanRepairs(rel, []byte(tc.src), loc)
 			if err != nil {
 				t.Fatalf("PlanRepairs: %v", err)
 			}
@@ -73,28 +70,5 @@ func TestRepairFindingsCarryThreeParts(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// TestDropFinalClaimedAtText pins the spec's worked example byte for byte.
-func TestDropFinalClaimedAtText(t *testing.T) {
-	rel := "docs/changes/archive/2026-05-28-0001-wisdom-ai-bastion.md"
-	src := "---\nid: 1\nslug: wisdom-ai-bastion\nstatus: done\ntitle: T\ntype: feature\nclaimed_at: 2026-05-20T10:00:00Z\n---\n\nBody.\n"
-	fs, err := PlanRepairs(rel, []byte(src), true, RecordLocator{Checkout: ".docket"})
-	if err != nil || len(fs) != 1 {
-		t.Fatalf("PlanRepairs = %+v, %v; want one finding", fs, err)
-	}
-	f := fs[0]
-	wantMsg := "This finished change still has a `claimed_at` timestamp from when it was being built."
-	wantImpact := "It's harmless: nothing reads it once a change is closed. Older docket versions left it behind."
-	wantRemedy := "Run `docket repository repair` to remove it (it shows the edit first). Or edit it by hand: in `.docket/" + rel + "`, delete the `claimed_at:` line; then commit and push it from `.docket`."
-	if f.Message != wantMsg {
-		t.Errorf("message:\n got %q\nwant %q", f.Message, wantMsg)
-	}
-	if f.Impact != wantImpact {
-		t.Errorf("impact:\n got %q\nwant %q", f.Impact, wantImpact)
-	}
-	if f.Remedy != wantRemedy {
-		t.Errorf("remedy:\n got %q\nwant %q", f.Remedy, wantRemedy)
 	}
 }

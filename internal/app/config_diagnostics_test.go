@@ -340,9 +340,9 @@ func TestConfigDiagnosticLine(t *testing.T) {
 // the remedy, and absent entirely when the finding carries no impact.
 func TestAppendFindingBlockPrintsImpactBetweenMessageAndRemedy(t *testing.T) {
 	var b strings.Builder
-	appendFindingBlock(&b, reposetup.Finding{Code: "drop-final-claimed-at", Severity: reposetup.SeverityWarning,
+	appendFindingBlock(&b, reposetup.Finding{Code: "quote-unsafe-scalar", Severity: reposetup.SeverityWarning,
 		Ref: "docs/x.md", Message: "what is wrong", Impact: "whether it matters", Remedy: "what to do"})
-	if want := "\n- [warning] drop-final-claimed-at (docs/x.md)\n  what is wrong\n  whether it matters\n  remedy: what to do"; b.String() != want {
+	if want := "\n- [warning] quote-unsafe-scalar (docs/x.md)\n  what is wrong\n  whether it matters\n  remedy: what to do"; b.String() != want {
 		t.Fatalf("with impact:\n got %q\nwant %q", b.String(), want)
 	}
 	b.Reset()

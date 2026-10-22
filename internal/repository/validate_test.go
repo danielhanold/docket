@@ -180,30 +180,12 @@ func TestValidateSingleSnapshot(t *testing.T) {
 			entity:   changeEntity(42, "widget", "docs/changes/archive/0042-widget.md"),
 		},
 		{
-			name: "archived final record still holding a claim stamp",
-			docs: []InputDocument{record(t, KindChange, LocationArchive, archivePath,
-				minimalChange(42, "widget", "done", "claimed_at: 2026-08-01T10:00:00Z"))},
-			code:     CodeChangeFinalClaimStamp,
-			severity: domain.SeverityError,
-			field:    "claimed_at",
-			entity:   changeEntity(42, "widget", archivePath),
-		},
-		{
 			name: "in-progress without a branch",
 			docs: []InputDocument{record(t, KindChange, LocationActive, activePath,
 				minimalChange(42, "widget", "in-progress", "claimed_at: 2026-08-01T10:00:00Z"))},
 			code:     CodeChangeStateIncoherent,
 			severity: domain.SeverityError,
 			field:    "branch",
-			entity:   changeEntity(42, "widget", activePath),
-		},
-		{
-			name: "in-progress with an unreadable claim stamp",
-			docs: []InputDocument{record(t, KindChange, LocationActive, activePath,
-				minimalChange(42, "widget", "in-progress", "branch: feat/widget", "claimed_at: yesterday"))},
-			code:     CodeChangeStateIncoherent,
-			severity: domain.SeverityError,
-			field:    "claimed_at",
 			entity:   changeEntity(42, "widget", activePath),
 		},
 		{
@@ -561,11 +543,8 @@ func TestValidateReportIsDeterministic(t *testing.T) {
 	}
 }
 
-// TestFinalLifecycleFindingSpellings pins ADR-0129 rows 58 and 59 (change 0474).
+// TestFinalLifecycleFindingSpellings pins ADR-0129 row 59 (change 0474).
 func TestFinalLifecycleFindingSpellings(t *testing.T) {
-	if got := string(CodeChangeFinalClaimStamp); got != "change-final-claim-stamp" {
-		t.Errorf("CodeChangeFinalClaimStamp = %q", got)
-	}
 	if got := string(CodeADRUpdateAfterFinal); got != "adr-update-after-final" {
 		t.Errorf("CodeADRUpdateAfterFinal = %q", got)
 	}
@@ -599,5 +578,31 @@ func TestChangeIdentityDeliverableUnknown(t *testing.T) {
 	f := got[0]
 	if f.Severity != domain.SeverityWarning || f.Field != "deliverable" || f.Detail["raw"] != "research" || f.Detail["status"] != "proposed" {
 		t.Errorf("finding = %+v, want warning on deliverable with raw research, status proposed", f)
+	}
+}
+
+// TestInProgressWithoutClaimStampIsCoherent pins that an in-progress record
+// needs only its branch: no claim stamp is a fact the state guarantees.
+func TestInProgressWithoutClaimStampIsCoherent(t *testing.T) {
+	const path = "docs/changes/active/0042-widget.md"
+	findings := buildRecords(t, record(t, KindChange, LocationActive, path,
+		minimalChange(42, "widget", "in-progress", "branch: 'feat/x'"))).Report.Findings()
+	for _, f := range findings {
+		if f.Code == CodeChangeStateIncoherent {
+			t.Fatalf("unexpected %s/%s on %+v", f.Code, f.Field, f.Entity)
+		}
+	}
+}
+
+// TestArchivedFinalRecordWithClaimStampHasNoFinding pins that a leftover claim
+// stamp on a closed record is not a finding: nothing reads it.
+func TestArchivedFinalRecordWithClaimStampHasNoFinding(t *testing.T) {
+	const path = "docs/changes/archive/2026-08-01-0042-widget.md"
+	findings := buildRecords(t, record(t, KindChange, LocationArchive, path,
+		minimalChange(42, "widget", "done", "claimed_at: '2026-05-20T10:00:00Z'"))).Report.Findings()
+	for _, f := range findings {
+		if f.Field == "claimed_at" {
+			t.Fatalf("unexpected %s/%s on %+v", f.Code, f.Field, f.Entity)
+		}
 	}
 }
