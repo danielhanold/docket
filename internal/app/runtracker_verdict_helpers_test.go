@@ -16,27 +16,14 @@ import (
 // runtracker_verdict_integration_test.go (change 0465); these fixtures, fakes and
 // probes stay untagged because other untagged test files still reference them.
 
-const runTrackerDefaultClaimedAt = "2026-08-02T00:00:00Z"
-
-// runTrackerInProgressBlob builds an in-progress change blob whose claimed_at is the
-// default stamp ("keep"), removed (""), or replaced with the given raw value.
-func runTrackerInProgressBlob(id int, slug, claimedAt string) StatusBlob {
-	src := lifecycleChange(id, slug, "in-progress")
-	const def = "claimed_at: " + runTrackerDefaultClaimedAt
-	switch claimedAt {
-	case "keep":
-		// leave the default stamp in place
-	case "":
-		src = strings.Replace(src, def+"\n", "", 1)
-	default:
-		src = strings.Replace(src, def, "claimed_at: "+claimedAt, 1)
-	}
+// runTrackerInProgressBlob builds an in-progress change blob.
+func runTrackerInProgressBlob(id int, slug string) StatusBlob {
 	return StatusBlob{
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
 		Revision: miRevision,
-		Data:     []byte(src),
+		Data:     []byte(lifecycleChange(id, slug, "in-progress")),
 	}
 }
 

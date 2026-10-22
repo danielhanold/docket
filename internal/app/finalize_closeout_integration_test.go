@@ -552,10 +552,6 @@ func TestIntegrationFinalizeArchiveRootCarry(t *testing.T) {
 		f := setupCloseoutFixture(t, m)
 		desc := closeoutRecord(6, "gadget", descStatus, "github.com/acme/widget#8", "", descPlan, "")
 		desc = strings.Replace(desc, "stacked_on:\n", "stacked_on: 5\n", 1)
-		if descStatus == "done" {
-			// A done record keeps its branch/PR history but drops the claim stamp.
-			desc = strings.Replace(desc, "claimed_at: 2026-08-02T00:00:00Z\n", "", 1)
-		}
 		f.repo.writerAdvance(t, f.branch, map[string]string{
 			recPath:  desc,
 			descPlan: artifactWithBacklink(recPath, "Gadget plan", "The gadget plan."),

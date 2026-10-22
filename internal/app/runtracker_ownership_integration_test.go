@@ -258,8 +258,8 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 	}
 	churnedCorpus := []StatusBlob{
 		mxBlob(3, "widget", []byte(refreshed)),
-		runTrackerInProgressBlob(9, "sibling", "2026-09-01T00:00:00Z"),
-		runTrackerInProgressBlob(10, "sibling2", "2026-09-02T00:00:00Z"),
+		runTrackerInProgressBlob(9, "sibling"),
+		runTrackerInProgressBlob(10, "sibling2"),
 	}
 	churnedProofs := []ClaimProof{
 		{RequestID: "sib-9", ChangeID: 9, RunContextHash: "OTHER"},

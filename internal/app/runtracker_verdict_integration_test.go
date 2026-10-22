@@ -1018,7 +1018,7 @@ func TestIntegrationRunVerdictVerdictResumeBindingSkipsContinuity(t *testing.T) 
 // Mutation partner: re-introducing run/before-set inference reddens exactly this.
 func TestIntegrationRunVerdictVerdictOwnershipIgnoresBeforeSetAndRun(t *testing.T) {
 	repo := newRunTrackerRepo(t)
-	deps := runTrackerLightDeps(t, []StatusBlob{runTrackerInProgressBlob(9, "sibling", "keep")})
+	deps := runTrackerLightDeps(t, []StatusBlob{runTrackerInProgressBlob(9, "sibling")})
 	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
 		{RequestID: "sib", ChangeID: 9, RunContextHash: "OTHER"},
