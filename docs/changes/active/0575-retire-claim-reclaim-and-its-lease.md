@@ -22,8 +22,8 @@ branch_prefix:
 branch: 'refactor/retire-claim-reclaim-and-its-lease'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-10-22T10:29:32Z'
+reconciled: true
+claimed_at: '2026-10-22T10:29:53Z'
 ---
 
 ## Artifacts
@@ -74,3 +74,8 @@ Retire claim reclaim and the claim lease end to end (settled at grooming; the sp
 - Other uses of the word "reclaim": `docket install collect`'s version trees, the transaction cleanup's abandoned worktrees, and gate-drive claims.
 - Rewriting archived records, specs, plans, results, release notes, Accepted ADR bodies, learnings war stories, or frozen fixtures that mention reclaim or `claimed_at`.
 
+## Reconcile log
+
+### 2026-10-22
+
+Unchanged against main 657c48a7e: #360 (dependency) landed in 42ddcb472 as the spec assumes, and the reclaim command, lease_ttl/reclaim.auto keys, and sweep reclaim leg are all still present on main.
