@@ -1,12 +1,12 @@
 # Backlog
 
-**578 changes** — 🟣 1 groomed · 🟡 3 proposed · ⚪ 17 deferred · ✅ 413 done · 🗑️ 144 killed
+**578 changes** — 🟢 1 in progress · 🟡 3 proposed · ⚪ 17 deferred · ✅ 413 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0577](active/0577-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md) | Fix duplicate originHasBranch breaking combined-tag go vet | `low` | `fix` | [spec](../superpowers/specs/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0577](active/0577-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md) | Fix duplicate originHasBranch breaking combined-tag go vet | `low` | `fix` | [spec](../superpowers/specs/2026-10-22-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet-design.md) | `fix/fix-duplicate-originhasbranch-breaking-combined-tag-go-vet` | building |
 
 ## 🟡 Proposed (3)
 

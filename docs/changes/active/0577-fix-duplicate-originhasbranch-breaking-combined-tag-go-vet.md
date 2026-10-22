@@ -2,7 +2,7 @@
 id: 577
 slug: 'fix-duplicate-originhasbranch-breaking-combined-tag-go-vet'
 title: 'Fix duplicate originHasBranch breaking combined-tag go vet'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'fix'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'fix/fix-duplicate-originhasbranch-breaking-combined-tag-go-vet'
 pr:
 blocked_by:
 reconciled: false
