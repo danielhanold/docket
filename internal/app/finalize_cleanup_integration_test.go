@@ -982,7 +982,7 @@ func TestIntegrationFinalizeCleanupResultsArtifactRealGit(t *testing.T) {
 	runGit(t, lw.wp, "push", "-q", "origin", "HEAD:"+lw.featureRef)
 	deps := completeLeakWorkspace(t, lw, repo.meta, m.branch, recPath)
 	assertResultsArtifactCleaned(t, lw, deps)
-	if !originHasBranch(t, lw.origin, lw.featureRef) {
+	if !originHasRef(t, lw.origin, lw.featureRef) {
 		t.Fatalf("cleanup of a completed change must never delete a remote branch")
 	}
 }

@@ -185,10 +185,10 @@ func resetWorkspace(t *testing.T, wp, commit string) {
 	runGit(t, wp, "reset", "-q", "--hard", commit)
 }
 
-// originHasBranch reports whether the bare origin carries ref. A probe that
+// originHasRef reports whether the bare origin carries ref. A probe that
 // fails for any reason other than an absent ref fails the test, so an
 // unreadable origin never reads as "absent".
-func originHasBranch(t *testing.T, origin, ref string) bool {
+func originHasRef(t *testing.T, origin, ref string) bool {
 	t.Helper()
 	out := runGit(t, origin, "for-each-ref", "--format=%(refname)", ref)
 	return out == ref
@@ -197,7 +197,7 @@ func originHasBranch(t *testing.T, origin, ref string) bool {
 // originRefTip returns ref's commit on the bare origin, failing when absent.
 func originRefTip(t *testing.T, origin, ref string) string {
 	t.Helper()
-	if !originHasBranch(t, origin, ref) {
+	if !originHasRef(t, origin, ref) {
 		t.Fatalf("origin lacks %s", ref)
 	}
 	return runGit(t, origin, "rev-parse", ref)
@@ -275,7 +275,7 @@ func TestIntegrationPrivateModeLeakCheckBlocksSeededLeaks(t *testing.T) {
 			resetWorkspace(t, lw.wp, lw.specCommit)
 			head := commitInWorkspace(t, lw.wp, tc.msg, tc.files)
 			requireLeakRefusal(t, lw.publish(t, head), tc.want(head))
-			if originHasBranch(t, lw.origin, lw.featureRef) {
+			if originHasRef(t, lw.origin, lw.featureRef) {
 				t.Errorf("a refused publish left %s on origin", lw.featureRef)
 			}
 		})
@@ -295,7 +295,7 @@ func TestIntegrationPrivateModeLeakCheckBlocksSeededLeaks(t *testing.T) {
 		if !strings.Contains(pub.Message, shortCommit(added)) {
 			t.Errorf("refusal message does not name the adding commit %s: %q", shortCommit(added), pub.Message)
 		}
-		if originHasBranch(t, lw.origin, lw.featureRef) {
+		if originHasRef(t, lw.origin, lw.featureRef) {
 			t.Errorf("a refused publish left %s on origin", lw.featureRef)
 		}
 	})
@@ -429,7 +429,7 @@ func TestIntegrationPrivateModeLeakCheckUnverifiedPushesNothing(t *testing.T) {
 		t.Fatalf("publish of an unscannable head = %q/%q (msg %q), want %s/%s",
 			pub.Result, pub.Reason, pub.Message, ResultExternalFailed, ReasonLeakCheckUnverified)
 	}
-	if originHasBranch(t, lw.origin, lw.featureRef) {
+	if originHasRef(t, lw.origin, lw.featureRef) {
 		t.Errorf("an unverified scan still pushed %s to origin", lw.featureRef)
 	}
 }
@@ -450,7 +450,7 @@ func TestIntegrationPrivateModeLeakCheckScansBranchName(t *testing.T) {
 
 	head := commitInWorkspace(t, lw.wp, "Tidy the alias table", map[string]string{"aliases.txt": "tidy\n"})
 	requireLeakRefusal(t, lw.publish(t, head), LeakHit{Source: "branch-name", Text: "dckt", Rule: "alias"})
-	if originHasBranch(t, lw.origin, lw.featureRef) {
+	if originHasRef(t, lw.origin, lw.featureRef) {
 		t.Errorf("a refused publish left %s on origin", lw.featureRef)
 	}
 }
