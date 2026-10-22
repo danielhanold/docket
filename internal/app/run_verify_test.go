@@ -337,13 +337,10 @@ func TestRunVerifyHaltedPrecedesMissingResults(t *testing.T) {
 
 // rvResultsArtifactRecord renders change 3 as a results-artifact change in the
 // given status, optionally linking results and carrying the ## Run halted
-// marker. A done record drops claimed_at, as change complete leaves it.
+// marker. Any claimed_at line the base carries is a legacy line nothing reads.
 func rvResultsArtifactRecord(status, results string, halted bool) []byte {
 	src := lifecycleChange(3, rvSlug, status)
 	src = strings.Replace(src, "type: feat\n", "type: feat\ndeliverable: results-artifact\n", 1)
-	if status == "done" {
-		src = strings.Replace(src, "claimed_at: 2026-08-02T00:00:00Z\n", "", 1)
-	}
 	if results != "" {
 		src = strings.Replace(src, "results:\n", "results: '"+results+"'\n", 1)
 	}

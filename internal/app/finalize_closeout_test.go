@@ -96,8 +96,9 @@ type closeoutFixture struct {
 
 func closeoutRecord(id int, slug, status, pr, specPath, planPath, resultsPath string) string {
 	// An implemented/stacked-merged record is coherent only when it carries the
-	// claim facts (branch, claimed_at, reconciled) an in-progress base supplies; a
-	// proposed base has none, which is what the illegal-source test wants.
+	// claim facts (branch, reconciled) an in-progress base supplies; a proposed
+	// base has none, which is what the illegal-source test wants. claimed_at is
+	// neither required nor written; the base's legacy line is ignored.
 	base := status
 	coherentClaim := status == "implemented" || status == "stacked-merged"
 	if coherentClaim {

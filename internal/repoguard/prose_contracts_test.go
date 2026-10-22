@@ -532,20 +532,16 @@ var proseContracts = []proseContract{
 		absent: []string{"refreshed at phase boundaries"}},
 	// change 0575 — claim reclaim and the claimed_at lease are retired; a stranded
 	// run recovers only by resuming the change by id, with the run tracker deciding.
+	// Every spelling of the word itself is TestReclaimRetiredFromSkills's job.
 	{sentinel: "change_0575_no_reclaim", file: "skills/docket-convention/SKILL.md",
 		present: []string{"and by the claim when a halted change is claimed again"},
-		absent: []string{
-			"`change.reclaim`", "## Reclaim log", "reclaim.lease_ttl", "lease_ttl:",
-			"claimed_at:", "self-heals", "Reclaim edge",
-		}},
+		absent:  []string{"lease_ttl:", "claimed_at:", "self-heals"}},
 	{sentinel: "change_0575_no_reclaim", file: "skills/docket-implement-next/SKILL.md",
 		present: []string{"the `run.start` operation with `implement-next --resume <id>`"},
-		absent:  []string{"`change.reclaim`", "claimed_at", "refreshes the claim", "lease classification"}},
+		absent:  []string{"claimed_at", "refreshes the claim", "lease classification"}},
 	{sentinel: "change_0575_no_reclaim", file: "skills/docket-implement-next/references/edge-paths.md",
 		present: []string{"the `run.start` operation with `implement-next --resume <id>`"},
-		absent:  []string{"refreshes the claim", "no reclaim"}},
-	{sentinel: "change_0575_no_reclaim", file: "skills/docket-status/SKILL.md",
-		absent: []string{"reclaim"}},
+		absent:  []string{"refreshes the claim"}},
 	// change 0360 — Step 3 sends a minimal reconcile request when nothing
 	// changed (the operation writes the dated heading); Step 6 writes the
 	// evidence.record receipt's block to a file instead of a separate verify
@@ -682,6 +678,49 @@ func TestGroomSkillsNeverSayTrivial(t *testing.T) {
 		for _, miss := range []string{"trivially small", "nontrivial"} {
 			if trivialWord.MatchString(miss) {
 				t.Errorf("trivialWord flagged %q", miss)
+			}
+		}
+	})
+}
+
+// reclaimWord matches the word "reclaim" and every inflection of it in any case
+// ("`change.reclaim`", "## Reclaim log", "reclaimed", "reclaims"), so no spelling
+// of the retired recovery path needs enumerating. A word that merely contains it
+// ("unreclaimable") is a different word and passes.
+var reclaimWord = regexp.MustCompile(`(?i)\breclaim\w*`)
+
+// change 0575 — claim reclaim is retired; resuming the change by id is the only
+// recovery, so the skills that described reclaim may not use the word at all.
+var noReclaimSkills = []string{
+	"skills/docket-convention/SKILL.md",
+	"skills/docket-implement-next/SKILL.md",
+	"skills/docket-implement-next/references/edge-paths.md",
+	"skills/docket-status/SKILL.md",
+}
+
+func TestReclaimRetiredFromSkills(t *testing.T) {
+	root := guardRoot(t)
+	for _, rel := range noReclaimSkills {
+		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatalf("read %s: %v (fail closed)", rel, err)
+		}
+		for i, line := range strings.Split(string(b), "\n") {
+			if reclaimWord.MatchString(line) {
+				t.Errorf("%s: line %d uses the retired word \"reclaim\": %q", rel, i+1, line)
+			}
+		}
+	}
+
+	t.Run("non_vacuity", func(t *testing.T) {
+		for _, hit := range []string{"`change.reclaim`", "## Reclaim log", "a reclaimed claim", "it reclaims", "RECLAIM edge", "reclaim.lease_ttl"} {
+			if !reclaimWord.MatchString(hit) {
+				t.Errorf("reclaimWord missed %q", hit)
+			}
+		}
+		for _, miss := range []string{"unreclaimable", "the claim", "claimed again"} {
+			if reclaimWord.MatchString(miss) {
+				t.Errorf("reclaimWord flagged %q", miss)
 			}
 		}
 	})
