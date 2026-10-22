@@ -14,7 +14,7 @@ related: [89, 268, 316, 368, 568]
 discovered_from: [360]
 adrs: [59, 84, 101, 111, 159]
 spec: 'docs/superpowers/specs/2026-10-22-retire-claim-reclaim-and-its-lease-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-22-retire-claim-reclaim-and-its-lease.md'
 results:
 auto_groomable:
 hold:
@@ -32,6 +32,7 @@ claimed_at: '2026-10-22T10:29:53Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-22-retire-claim-reclaim-and-its-lease-design.md](../../superpowers/specs/2026-10-22-retire-claim-reclaim-and-its-lease-design.md) |
+| Plan | [2026-10-22-retire-claim-reclaim-and-its-lease.md](../../superpowers/plans/2026-10-22-retire-claim-reclaim-and-its-lease.md) |
 | ADRs | [ADR-0059](../../adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0084](../../adrs/0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md), [ADR-0101](../../adrs/0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md), [ADR-0111](../../adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0159](../../adrs/0159-claim-lease-stamped-only-at-claim-reconcile-and-resume-halte.md) |
 <!-- docket:artifacts:end -->
 
