@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0579 — Release v1.0.0-rc.2: the changes since rc.1, published as the build to test](../../changes/active/0579-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the.md)**
+> ↩ **[Change 0579 — Release v1.0.0-rc.2: the changes since rc.1, published as the build to test](../../changes/archive/2026-10-23-0579-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the.md)**
 <!-- docket:backlink:end -->
 
 # v1.0.0-rc.2 — release candidate publication

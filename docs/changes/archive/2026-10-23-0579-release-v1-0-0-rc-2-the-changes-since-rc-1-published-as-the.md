@@ -2,7 +2,7 @@
 id: 579
 slug: 'release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the'
 title: 'Release v1.0.0-rc.2: the changes since rc.1, published as the build to test'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'chore'
 deliverable: 'pr'
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md](../../superpowers/specs/2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md) |
+| Spec (merged) | [2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md) |
 | Plan | [2026-10-23-release-v1-0-0-rc-2.md](../../superpowers/plans/2026-10-23-release-v1-0-0-rc-2.md) |
 | Results | [2026-10-23-release-v1-0-0-rc-2.md](../../results/2026-10-23-release-v1-0-0-rc-2.md) |
 <!-- docket:artifacts:end -->
