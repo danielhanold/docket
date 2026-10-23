@@ -12,3 +12,9 @@
 ## Source added since rc.1
 - `git log --oneline v1.0.0-rc.1..4a64bc3bb`: 267 commits
 - `git diff --stat v1.0.0-rc.1 4a64bc3bb -- . ':!docs'`: 485 files changed, 34223 insertions(+), 7408 deletions(-)
+
+## Phase 2 (2026-10-23)
+- Workflow run 39952716960 at the candidate: success, every job green; evidence and checksums verified; no STOP lines. BUDGET WATCH lines recorded in candidate/run.txt (screening only).
+
+## Phase 3 — coverage statement
+No harness test and no public-install check, by the human's decision of 2026-10-23. rc.2 is the build the human tests with. The candidate is gated by the full suite in Phase 2. The downloader is unchanged since rc.1, whose public-install check proved no quarantine attribute and a valid signature.
