@@ -14,7 +14,7 @@ related: [544, 512, 513, 514, 545, 555, 570, 573, 575]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-23-release-v1-0-0-rc-2.md'
 results:
 auto_groomable:
 hold:
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md](../../superpowers/specs/2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md) |
+| Plan | [2026-10-23-release-v1-0-0-rc-2.md](../../superpowers/plans/2026-10-23-release-v1-0-0-rc-2.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
