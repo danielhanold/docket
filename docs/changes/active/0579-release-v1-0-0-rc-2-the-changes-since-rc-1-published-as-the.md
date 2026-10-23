@@ -2,7 +2,7 @@
 id: 579
 slug: 'release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the'
 title: 'Release v1.0.0-rc.2: the changes since rc.1, published as the build to test'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'chore'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'chore/release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/445'
 blocked_by:
 reconciled: true
 ---
@@ -64,3 +64,12 @@ The human will test these by installing rc.2 from the GitHub release on their ow
 ### 2026-10-23
 
 Reconciled against candidate 4a64bc3bb (origin/main, 2026-10-23): spec still matches reality; no open PRs, no other in-progress change; release tooling unchanged since rc.1.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 82a15bc563a28d3634067fd0029a1456545d5395
+ran_at:   2026-10-23T14:05:54Z
+<!-- docket:build-evidence:end -->
