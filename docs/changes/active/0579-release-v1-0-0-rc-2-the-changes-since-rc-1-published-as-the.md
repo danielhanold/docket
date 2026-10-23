@@ -15,7 +15,7 @@ discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md'
 plan: 'docs/superpowers/plans/2026-10-23-release-v1-0-0-rc-2.md'
-results:
+results: 'docs/results/2026-10-23-release-v1-0-0-rc-2.md'
 auto_groomable:
 hold:
 branch_prefix:
@@ -32,6 +32,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md](../../superpowers/specs/2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md) |
 | Plan | [2026-10-23-release-v1-0-0-rc-2.md](../../superpowers/plans/2026-10-23-release-v1-0-0-rc-2.md) |
+| Results | [2026-10-23-release-v1-0-0-rc-2.md](../../results/2026-10-23-release-v1-0-0-rc-2.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
