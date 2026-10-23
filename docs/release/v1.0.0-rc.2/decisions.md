@@ -18,3 +18,6 @@
 
 ## Phase 3 — coverage statement
 No harness test and no public-install check, by the human's decision of 2026-10-23. rc.2 is the build the human tests with. The candidate is gated by the full suite in Phase 2. The downloader is unchanged since rc.1, whose public-install check proved no quarantine attribute and a valid signature.
+
+## Phase 4 approval (2026-10-23)
+- Human (Daniel) approved release-notes.md and gave the explicit "publish". origin/main re-probed: still the candidate.
