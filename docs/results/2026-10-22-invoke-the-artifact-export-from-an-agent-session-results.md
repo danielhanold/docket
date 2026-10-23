@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0578 — Invoke the artifact export from an agent session](../changes/active/0578-invoke-the-artifact-export-from-an-agent-session.md)**
+> ↩ **[Change 0578 — Invoke the artifact export from an agent session](../changes/archive/2026-10-23-0578-invoke-the-artifact-export-from-an-agent-session.md)**
 <!-- docket:backlink:end -->
 
 # Invoke the artifact export from an agent session — results

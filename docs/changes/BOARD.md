@@ -1,12 +1,6 @@
 # Backlog
 
-**578 changes** — 🔵 1 built · 🟡 2 proposed · ⚪ 17 deferred · ✅ 414 done · 🗑️ 144 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0578](active/0578-invoke-the-artifact-export-from-an-agent-session.md) | Invoke the artifact export from an agent session | `medium` | `feat` | [#444](https://github.com/danielhanold/docket/pull/444) | awaiting merge |
+**578 changes** — 🟡 2 proposed · ⚪ 17 deferred · ✅ 415 done · 🗑️ 144 killed
 
 ## 🟡 Proposed (2)
 
@@ -58,7 +52,6 @@ graph TD
   0566
   0572
   0576
-  0578
   0192:::done
   0251:::done
   0511:::done
@@ -66,10 +59,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (558)</summary>
+<details><summary>✅🗑️ Archive — done + killed (559)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0578](archive/2026-10-23-0578-invoke-the-artifact-export-from-an-agent-session.md) | Invoke the artifact export from an agent session | 2026-10-23 |
 | [0577](archive/2026-10-22-0577-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md) | Fix duplicate originHasBranch breaking combined-tag go vet | 2026-10-22 |
 | [0575](archive/2026-10-22-0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | 2026-10-22 |
 | [0360](archive/2026-10-21-0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | 2026-10-21 |
@@ -84,7 +78,6 @@ graph TD
 | [0547](archive/2026-10-19-0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | 2026-10-19 |
 | [0568](archive/2026-10-18-0568-add-a-typed-way-to-clear-branch-on-a-proposed-change.md) | Stop deferring a change that is already being built | 2026-10-18 |
 | [0565](archive/2026-10-18-0565-make-killed-parent-stacking-behavior-match-its-documented-po.md) | Refuse a stack-parent kill that would strand built children | 2026-10-18 |
-| [0563](archive/2026-10-18-0563-let-change-groom-clear-stacked-on.md) | change.groom: clear stacked_on, accept relationship-only revises, insert missing fields safely | 2026-10-18 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
@@ -234,7 +227,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 71 done |
+| [2026-10](archive/) | 72 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

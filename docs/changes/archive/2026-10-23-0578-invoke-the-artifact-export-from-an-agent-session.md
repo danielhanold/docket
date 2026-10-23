@@ -2,12 +2,12 @@
 id: 578
 slug: 'invoke-the-artifact-export-from-an-agent-session'
 title: 'Invoke the artifact export from an agent session'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
 created: '2026-10-22'
-updated: '2026-10-22'
+updated: '2026-10-23'
 depends_on: []
 stacked_on:
 related: [561, 542, 532]
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md](../../superpowers/specs/2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md) |
+| Spec (merged) | [2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-10-22-invoke-the-artifact-export-from-an-agent-session-design.md) |
 | Plan | [2026-10-22-invoke-the-artifact-export-from-an-agent-session.md](../../superpowers/plans/2026-10-22-invoke-the-artifact-export-from-an-agent-session.md) |
 | Results | [2026-10-22-invoke-the-artifact-export-from-an-agent-session-results.md](../../results/2026-10-22-invoke-the-artifact-export-from-an-agent-session-results.md) |
 | ADRs | [ADR-0144](../../adrs/0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md) |
