@@ -34,10 +34,10 @@ Download `install.sh` and `checksums.txt` from the release, verify the script ag
 darwin and linux on amd64 and arm64.
 
 ```bash
-base=https://github.com/danielhanold/docket/releases/download/v1.0.0-rc.1
+base=https://github.com/danielhanold/docket/releases/download/v1.0.0-rc.2
 curl -fsSLO "$base/install.sh" -O "$base/checksums.txt"
 grep ' install.sh$' checksums.txt          # compare with: shasum -a 256 install.sh
-sh install.sh --version v1.0.0-rc.1 --harness claude --harness cursor
+sh install.sh --version v1.0.0-rc.2 --harness claude --harness cursor
 ```
 
 `--harness` is repeatable and limits the install to the harnesses you name; `--bin-dir <dir>`

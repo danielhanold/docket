@@ -82,9 +82,9 @@ Install from a release: download `install.sh` and `checksums.txt` from the relea
 script, then run it.
 
 ```bash
-base=https://github.com/danielhanold/docket/releases/download/v1.0.0-rc.1
+base=https://github.com/danielhanold/docket/releases/download/v1.0.0-rc.2
 curl -fsSLO "$base/install.sh" -O "$base/checksums.txt"
-sh install.sh --version v1.0.0-rc.1 --harness claude --harness cursor
+sh install.sh --version v1.0.0-rc.2 --harness claude --harness cursor
 ```
 
 Claude Code and Cursor are supported and tested; opencode installs but is untested; Codex is
