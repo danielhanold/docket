@@ -13,7 +13,7 @@ stacked_on:
 related: [544, 512, 513, 514, 545, 555, 570, 573, 575]
 discovered_from: []
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md'
 plan:
 results:
 auto_groomable:
@@ -28,6 +28,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md](../../superpowers/specs/2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
