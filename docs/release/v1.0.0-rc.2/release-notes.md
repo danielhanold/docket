@@ -50,7 +50,7 @@ The `shasum` line must print `install.sh: OK`; if it prints anything else, do no
 - **Groom and stacks** (0550, 0563, 0564, 0565, 0567, 0568, 0571): groom can set priority and clear `stacked_on`; stack-parent kills and deferrals are refused when they would strand built children; a landed parent closes out without waiting on children that never merged into it.
 - **Other** (0549, 0551, 0554, 0555, 0562): the local metadata checkout is refreshed after every write; a change built on another machine can be checked out into its own worktree; shipped model defaults refreshed; Claude's dispatch block stays in `AGENTS.md` with `CLAUDE.md` linking to it; sweeps retry deleting a leftover local branch.
 
-**Fixes and internal work:** the docket branch is recognized by its shape in everyday repository commands (0574); implement-next no longer trips over its own bookkeeping (0158); prompt-cache TTL pin for implement-next (0546, 0547); test-suite housekeeping, fixture naming, and shard budgets (0548, 0557, 0558, 0569, 0577).
+**Fixes and internal work:** the docket branch is recognized by its shape in everyday repository commands (0574); implement-next no longer trips over its own bookkeeping; prompt-cache TTL pin for implement-next (0546, 0547); test-suite housekeeping, fixture naming, and shard budgets (0548, 0557, 0558, 0569, 0577).
 
 ## Known gaps
 
