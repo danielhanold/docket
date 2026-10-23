@@ -2,7 +2,7 @@
 id: 579
 slug: 'release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the'
 title: 'Release v1.0.0-rc.2: the changes since rc.1, published as the build to test'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'chore'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'chore/release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the'
 pr:
 blocked_by:
 reconciled: false

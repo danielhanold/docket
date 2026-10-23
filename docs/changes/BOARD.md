@@ -1,12 +1,12 @@
 # Backlog
 
-**579 changes** — 🟣 1 groomed · 🟡 2 proposed · ⚪ 17 deferred · ✅ 415 done · 🗑️ 144 killed
+**579 changes** — 🟢 1 in progress · 🟡 2 proposed · ⚪ 17 deferred · ✅ 415 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0579](active/0579-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the.md) | Release v1.0.0-rc.2: the changes since rc.1, published as the build to test | `high` | `chore` | [spec](../superpowers/specs/2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0579](active/0579-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the.md) | Release v1.0.0-rc.2: the changes since rc.1, published as the build to test | `high` | `chore` | [spec](../superpowers/specs/2026-10-23-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the-design.md) | `chore/release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the` | building |
 
 ## 🟡 Proposed (2)
 
