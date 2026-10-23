@@ -1,0 +1,34 @@
+{
+  "source_commit": "4a64bc3bbb66f0368cc3e8d30d4031a596922f45",
+  "head_version": "v1.0.0-rc.2",
+  "base_version": "",
+  "checksums_txt": "eacacb44cb30e0ab8ca8749723b53b503fbf0af3774725da45fafc9d802e81d0  docket_v1.0.0-rc.2_darwin_amd64.tar.gz\n56ae3343675fbcc7b722e8606a1e01cb8afab4c530ec0613e209baf8568fde2f  docket_v1.0.0-rc.2_darwin_arm64.tar.gz\n207c8a311e4771e3338124ac04fbde64db98aefbeba5818fc30c4f8e9a6976ea  docket_v1.0.0-rc.2_linux_amd64.tar.gz\ndd343f303412e945579e618ea28298dcef353e7bc1113d30e7c20e79a20d71e9  docket_v1.0.0-rc.2_linux_arm64.tar.gz\n4d5d5c6d6a0758151a62a857b6e3b16dab80123edd8d722c00e7697cfe657af1  install.sh\n",
+  "smoke_result": "success",
+  "tuples": [
+    {
+      "tuple": "darwin/amd64",
+      "runner": "macos-15-intel",
+      "version": "v1.0.0-rc.2",
+      "verdict": "success"
+    },
+    {
+      "tuple": "darwin/arm64",
+      "runner": "macos-15",
+      "version": "v1.0.0-rc.2",
+      "verdict": "success"
+    },
+    {
+      "tuple": "linux/amd64",
+      "runner": "ubuntu-24.04",
+      "version": "v1.0.0-rc.2",
+      "verdict": "success"
+    },
+    {
+      "tuple": "linux/arm64",
+      "runner": "ubuntu-24.04-arm",
+      "version": "v1.0.0-rc.2",
+      "verdict": "success"
+    }
+  ],
+  "live_host_acceptance": "outstanding — see docs/release/four-harness-acceptance.md"
+}

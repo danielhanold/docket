@@ -1,0 +1,19 @@
+run: https://github.com/danielhanold/docket/actions/runs/39952716960 (headSha 4a64bc3bbb66f0368cc3e8d30d4031a596922f45, conclusion success, all 7 jobs green)
+copy: $SCRATCH/rc2-copy (read-only)
+d4c636da1bce4851c923c0935267e2504e8f02bf76d2bb66235da7d4da0a9d42  checksums.txt
+eacacb44cb30e0ab8ca8749723b53b503fbf0af3774725da45fafc9d802e81d0  docket_v1.0.0-rc.2_darwin_amd64.tar.gz
+56ae3343675fbcc7b722e8606a1e01cb8afab4c530ec0613e209baf8568fde2f  docket_v1.0.0-rc.2_darwin_arm64.tar.gz
+207c8a311e4771e3338124ac04fbde64db98aefbeba5818fc30c4f8e9a6976ea  docket_v1.0.0-rc.2_linux_amd64.tar.gz
+dd343f303412e945579e618ea28298dcef353e7bc1113d30e7c20e79a20d71e9  docket_v1.0.0-rc.2_linux_arm64.tar.gz
+491d0f15b42029ec875bbf0367af442079cc48cef75e5d76a10615c5a899aa16  evidence.json
+4d5d5c6d6a0758151a62a857b6e3b16dab80123edd8d722c00e7697cfe657af1  install.sh
+source-gate go version: go1.26.8 darwin/arm64 (package job: go1.26.9 linux/amd64)
+source-gate	Run the resolved test suite	2026-10-23T12:21:54.8588920Z ^[[36;1mscreening="$(grep -nE '^(BUDGET WATCH|PARALLEL-SENSITIVE):' suite.log || true)"^[[0m
+source-gate	Run the resolved test suite	2026-10-23T12:37:01.9372320Z test_go_integration_bashupgrade                        30s  rc=0  ok=4     notok=0   
+source-gate	Run the resolved test suite	2026-10-23T12:37:01.9391390Z SUITE files=91 passed=91 failed=0 asserts=613 wall=900s
+source-gate	Run the resolved test suite	2026-10-23T12:37:01.9392320Z BUDGET WATCH: /Users/runner/work/docket/docket/tests/test_go_finalize_e2e.sh — 122s under -j3; consecutive parallel-overrun streak 1/5
+source-gate	Run the resolved test suite	2026-10-23T12:37:01.9393180Z BUDGET WATCH: /Users/runner/work/docket/docket/tests/test_go_integration_app_merge.sh — 38s under -j3; consecutive parallel-overrun streak 1/5
+source-gate	Run the resolved test suite	2026-10-23T12:37:01.9394000Z BUDGET WATCH: /Users/runner/work/docket/docket/tests/test_go_race.sh — 345s under -j3; consecutive parallel-overrun streak 1/5
+evidence.json: source_commit = candidate, head_version = v1.0.0-rc.2, checksums_txt byte-equal to checksums.txt; all five files match checksums.txt
+bash upgrade shard (TestIntegrationBashUpgrade): ran, rc=0 ok=4 notok=0
+STOP lines (OVER BUDGET / SERIAL CONFIRMED OVER BUDGET): none
