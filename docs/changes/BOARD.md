@@ -1,11 +1,12 @@
 # Backlog
 
-**579 changes** — 🟡 2 proposed · ⚪ 17 deferred · ✅ 416 done · 🗑️ 144 killed
+**580 changes** — 🟡 3 proposed · ⚪ 17 deferred · ✅ 416 done · 🗑️ 144 killed
 
-## 🟡 Proposed (2)
+## 🟡 Proposed (3)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0580](active/0580-release-v1-0-0-stable-release-with-version-free-install-docs.md) | Release v1.0.0: stable release with version-free install docs | `high` | `chore` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 
@@ -52,6 +53,7 @@ graph TD
   0566
   0572
   0576
+  0580
   0192:::done
   0251:::done
   0511:::done
