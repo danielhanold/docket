@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/docket-lockup-light.png" alt="docket — ai sdlc automation for your harness" width="640">
+</p>
+
 # docket
 
 docket keeps a backlog of planned work as plain markdown files inside your repo and ships
