@@ -13,7 +13,7 @@ stacked_on:
 related: [579, 544, 513, 514]
 discovered_from: []
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-design.md'
 plan:
 results:
 auto_groomable: false
@@ -28,6 +28,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-design.md](../../superpowers/specs/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -1,12 +1,17 @@
 # Backlog
 
-**580 changes** — 🟡 3 proposed · ⚪ 17 deferred · ✅ 416 done · 🗑️ 144 killed
+**580 changes** — 🟣 1 groomed · 🟡 2 proposed · ⚪ 17 deferred · ✅ 416 done · 🗑️ 144 killed
 
-## 🟡 Proposed (3)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec | Readiness |
+|---|-------|----------|------|------|-----------|
+| [0580](active/0580-release-v1-0-0-stable-release-with-version-free-install-docs.md) | Release v1.0.0: stable release with version-free install docs | `high` | `chore` | [spec](../superpowers/specs/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-design.md) | build-ready |
+
+## 🟡 Proposed (2)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0580](active/0580-release-v1-0-0-stable-release-with-version-free-install-docs.md) | Release v1.0.0: stable release with version-free install docs | `high` | `chore` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 
