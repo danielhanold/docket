@@ -2,11 +2,11 @@
 id: 514
 slug: 'retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0'
 title: 'Retire the saved Bash upgrade test cases when stable v1.0.0 ships'
-status: 'deferred'
+status: 'proposed'
 priority: 'low'
 type: 'chore'
 created: '2026-10-04'
-updated: '2026-10-04'
+updated: '2026-10-28'
 depends_on: [511]
 stacked_on:
 related: [511, 366]
