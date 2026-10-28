@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0580 — Release v1.0.0: stable release with version-free install docs](../../changes/active/0580-release-v1-0-0-stable-release-with-version-free-install-docs.md)**
+> ↩ **[Change 0580 — Release v1.0.0: stable release with version-free install docs](../../changes/archive/2026-10-28-0580-release-v1-0-0-stable-release-with-version-free-install-docs.md)**
 <!-- docket:backlink:end -->
 
 # v1.0.0 — stable release publication
