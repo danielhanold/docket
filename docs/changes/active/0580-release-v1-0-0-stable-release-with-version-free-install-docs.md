@@ -15,7 +15,7 @@ discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-design.md'
 plan: 'docs/superpowers/plans/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-plan.md'
-results:
+results: 'docs/results/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-results.md'
 auto_groomable: false
 hold:
 branch_prefix:
@@ -32,6 +32,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-design.md](../../superpowers/specs/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-design.md) |
 | Plan | [2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-plan.md](../../superpowers/plans/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-plan.md) |
+| Results | [2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-results.md](../../results/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
