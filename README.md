@@ -82,13 +82,13 @@ monitor production, or feed incidents back into the backlog.
 
 ## Install and the five steps
 
-Install from a release: download `install.sh` and `checksums.txt` from the release, verify the
+Install the latest release: download `install.sh` and `checksums.txt`, verify the
 script, then run it.
 
 ```bash
-base=https://github.com/danielhanold/docket/releases/download/v1.0.0-rc.2
+base=https://github.com/danielhanold/docket/releases/latest/download
 curl -fsSLO "$base/install.sh" -O "$base/checksums.txt"
-sh install.sh --version v1.0.0-rc.2 --harness claude --harness cursor
+sh install.sh --harness claude --harness cursor
 ```
 
 Claude Code and Cursor are supported and tested; opencode installs but is untested; Codex is

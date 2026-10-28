@@ -15,7 +15,7 @@ Use this guide if all of these are true:
 - You use docket with Claude Code, Cursor, or both.
 
 Repositories that keep their records on the default branch (the single-branch layout) are not
-covered. The guide covers Claude Code and Cursor. OpenCode follows in a later pre-release. Codex is
+covered. The guide covers Claude Code and Cursor. OpenCode follows in a later release. Codex is
 not supported.
 
 ## 2. Before you start
@@ -34,9 +34,8 @@ you use only one of them, drop the other one's `--harness` flag, here and in sec
 <!-- upgrade-step: install-binary -->
 ```sh
 mkdir -p ~/docket-download && cd ~/docket-download
-VERSION=v1.0.0-alpha.2
-curl -fsSLO "https://github.com/danielhanold/docket/releases/download/$VERSION/install.sh"
-curl -fsSLO "https://github.com/danielhanold/docket/releases/download/$VERSION/checksums.txt"
+curl -fsSLO "https://github.com/danielhanold/docket/releases/latest/download/install.sh"
+curl -fsSLO "https://github.com/danielhanold/docket/releases/latest/download/checksums.txt"
 grep '  install.sh$' checksums.txt | shasum -a 256 -c -
 sh install.sh --harness claude --harness cursor
 ```
