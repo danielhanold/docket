@@ -14,7 +14,7 @@ related: [579, 544, 513, 514]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-plan.md'
 results:
 auto_groomable: false
 hold:
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-design.md](../../superpowers/specs/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-design.md) |
+| Plan | [2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-plan.md](../../superpowers/plans/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
