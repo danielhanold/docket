@@ -15,5 +15,4 @@ Docket tracks your planned work as changes kept in your own repository, on a met
 - **A backlog that stays honest.** `docket status` reports what is stale or broken, and the maintenance sweep and halt recovery fix it. ([guide](https://github.com/danielhanold/docket/blob/main/docs/guide/keeping-the-backlog-honest.md))
 - **Decisions and lessons remembered.** Architecture decisions and build learnings are kept as records, so later runs know why. ([guide](https://github.com/danielhanold/docket/blob/main/docs/guide/remembering-why.md))
 - **Planning kept apart from code.** Records live on their own metadata branch, with commands to set a repository up, check it, and repair it. ([guide](https://github.com/danielhanold/docket/blob/main/docs/guide/where-the-metadata-lives.md))
-- **Private repositories.** Keep docket's records out of a shared repository entirely, in a private remote of your own.
 - **Per-agent model pins.** Run each docket skill at its own model and effort instead of one session-wide tier. ([docs](https://github.com/danielhanold/docket/blob/main/docs/install/models-and-effort.md))

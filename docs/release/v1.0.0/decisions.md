@@ -22,3 +22,6 @@
 
 ## Phase 3 — coverage statement
 No harness test and no public-install check, by the human's decision of 2026-10-27 (Claude Code and Cursor tested enough through rc.2). The candidate is gated by the full suite in Phase 2. The downloader is unchanged since rc.1, whose public-install check proved no quarantine attribute and a valid signature.
+
+## Phase 4 approval (2026-10-27)
+- Human (Daniel) approved release-notes.md after removing the private-repositories highlight, and gave the explicit "publish". origin/main re-probed: still the candidate.
