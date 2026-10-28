@@ -22,7 +22,7 @@ branch_prefix:
 branch: 'chore/release-v1-0-0-stable-release-with-version-free-install-docs'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -53,3 +53,9 @@ The install docs pin a release version, so every release needs a doc edit, and t
 - Reviving or building #513 (full OpenCode support) or #514 (retiring the Bash upgrade test cases); Codex.
 - Notarization, Homebrew, Windows.
 - Docs beyond the install-command edits.
+
+## Reconcile log
+
+### 2026-10-28
+
+2026-10-27 attended reconcile against candidate 0cf3ab4de (origin/main): the spec's Phase 0 docs PR #446 merged as 0cf3ab4de; since v1.0.0-rc.2 main adds only rc.2 evidence commits, the logo (095ec9327), and the version-free install docs. Release tooling unchanged. No in-progress change other than this one; no open PR. The spec holds as written.
