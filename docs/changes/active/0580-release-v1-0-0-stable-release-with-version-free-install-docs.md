@@ -2,7 +2,7 @@
 id: 580
 slug: 'release-v1-0-0-stable-release-with-version-free-install-docs'
 title: 'Release v1.0.0: stable release with version-free install docs'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'chore'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable: false
 hold:
 branch_prefix:
 branch: 'chore/release-v1-0-0-stable-release-with-version-free-install-docs'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/447'
 blocked_by:
 reconciled: true
 ---
@@ -61,3 +61,12 @@ The install docs pin a release version, so every release needs a doc edit, and t
 ### 2026-10-28
 
 2026-10-27 attended reconcile against candidate 0cf3ab4de (origin/main): the spec's Phase 0 docs PR #446 merged as 0cf3ab4de; since v1.0.0-rc.2 main adds only rc.2 evidence commits, the logo (095ec9327), and the version-free install docs. Release tooling unchanged. No in-progress change other than this one; no open PR. The spec holds as written.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 0e4e7534dfa819ec129196df873917104977fba6
+ran_at:   2026-10-28T01:25:50Z
+<!-- docket:build-evidence:end -->

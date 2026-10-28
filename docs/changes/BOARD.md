@@ -1,12 +1,12 @@
 # Backlog
 
-**580 changes** — 🟢 1 in progress · 🟡 2 proposed · ⚪ 17 deferred · ✅ 416 done · 🗑️ 144 killed
+**580 changes** — 🔵 1 built · 🟡 2 proposed · ⚪ 17 deferred · ✅ 416 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0580](active/0580-release-v1-0-0-stable-release-with-version-free-install-docs.md) | Release v1.0.0: stable release with version-free install docs | `high` | `chore` | [spec](../superpowers/specs/2026-10-27-release-v1-0-0-stable-release-with-version-free-install-docs-design.md) | `chore/release-v1-0-0-stable-release-with-version-free-install-docs` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0580](active/0580-release-v1-0-0-stable-release-with-version-free-install-docs.md) | Release v1.0.0: stable release with version-free install docs | `high` | `chore` | [#447](https://github.com/danielhanold/docket/pull/447) | awaiting merge |
 
 ## 🟡 Proposed (2)
 
