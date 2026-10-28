@@ -2,12 +2,12 @@
 id: 580
 slug: 'release-v1-0-0-stable-release-with-version-free-install-docs'
 title: 'Release v1.0.0: stable release with version-free install docs'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'chore'
 deliverable: 'pr'
 created: '2026-10-27'
-updated: '2026-10-27'
+updated: '2026-10-28'
 depends_on: []
 stacked_on:
 related: [579, 544, 513, 514]
@@ -19,7 +19,7 @@ results:
 auto_groomable: false
 hold:
 branch_prefix:
-branch:
+branch: 'chore/release-v1-0-0-stable-release-with-version-free-install-docs'
 pr:
 blocked_by:
 reconciled: false
