@@ -1,0 +1,24 @@
+run: https://github.com/danielhanold/docket/actions/runs/40609036031 (headSha 0cf3ab4de2fd81c5799106830d1e28ab60ad3109, conclusion success, all 7 jobs green)
+copy: $TMPDIR/docket-v1.0.0-candidate.tXaSzS/head (read-only)
+f81ebe84999469ea3a58eb0019c7b2fc81aa01f46f877176ca2998b3e6909842  checksums.txt
+48a1ef2b7b05c6400587ebc53e3ca17bb84dbb299eb09f4e6551fbe310303eac  docket_v1.0.0_darwin_amd64.tar.gz
+8b4001a544d5762fae3f405d966f871b72ec8ab87b669d53a991cae949726717  docket_v1.0.0_darwin_arm64.tar.gz
+be13858cd278c004cbc55f9e7868ce4d9bcbefb0b5c6741678cd34fcbf90c640  docket_v1.0.0_linux_amd64.tar.gz
+23c15b89486272dd9a18632991ac7d35795479de638d0a1ad43102551924d1fa  docket_v1.0.0_linux_arm64.tar.gz
+2aad5d147d732c066a07517fddced253a36c18bac24b24fda5aca384d6ddf9e0  evidence.json
+ad3d428ffc9b045ddf50d7d740ad546a15c438e50bcb9f5ac8a4410154cbe9a7  install.sh
+source-gate go version: go1.26.8 darwin/arm64 (package job: go1.26.9 linux/amd64)
+SUITE files=91 passed=91 failed=0 asserts=613 wall=1496s
+BUDGET WATCH: tests/test_go_finalize_e2e.sh — 225s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_cleanup.sh — 136s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_concurrency.sh — 112s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_evidence.sh — 98s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_merge.sh — 44s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_repoownership.sh — 77s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_repovisibility_private.sh — 299s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_repovisibility_shared.sh — 265s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_race.sh — 634s under -j3; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_toolchain.sh — 138s under -j3; consecutive parallel-overrun streak 1/5
+evidence.json: source_commit = candidate, head_version = v1.0.0, checksums_txt byte-equal to checksums.txt (trailing newline included); all five files match checksums.txt, no unmatched line
+bash upgrade shard (TestIntegrationBashUpgrade): ran, rc=0 ok=4 notok=0
+STOP lines (OVER BUDGET / SERIAL CONFIRMED OVER BUDGET): none

@@ -16,3 +16,9 @@
 ## Source added since rc.2
 - `git log --oneline v1.0.0-rc.2..0cf3ab4de`: 8 commits (rc.2 evidence commits, the logo 095ec9327, the docs merge 0cf3ab4de)
 - `git diff --stat v1.0.0-rc.2 0cf3ab4de -- . ':!docs'`: README.md (7+, 3-), assets/docket-lockup-light.png (new); 2 files changed
+
+## Phase 2 (2026-10-27)
+- Workflow run 40609036031 at the candidate: success, every job green; evidence and checksums verified; no STOP lines. BUDGET WATCH lines recorded in candidate/run.txt (screening only).
+
+## Phase 3 — coverage statement
+No harness test and no public-install check, by the human's decision of 2026-10-27 (Claude Code and Cursor tested enough through rc.2). The candidate is gated by the full suite in Phase 2. The downloader is unchanged since rc.1, whose public-install check proved no quarantine attribute and a valid signature.
