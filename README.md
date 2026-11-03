@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/docket-lockup-light.png" alt="docket — ai sdlc automation for your harness" width="640">
+  <img src="assets/docket-banner-blue.png" alt="docket — ai sdlc automation for your harness" width="100%">
 </p>
 
 # docket
