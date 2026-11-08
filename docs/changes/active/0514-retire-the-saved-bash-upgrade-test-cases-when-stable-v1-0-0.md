@@ -2,7 +2,7 @@
 id: 514
 slug: 'retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0'
 title: 'Retire the saved Bash upgrade test cases when stable v1.0.0 ships'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'chore'
 created: '2026-10-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable: false
 branch_prefix:
 branch: 'chore/retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/448'
 blocked_by:
 reconciled: true
 ---
@@ -55,3 +55,12 @@ Change 0511 adds saved v0.9.2 and v0.9.3 Bash state under `testdata/bash-upgrade
 ### 2026-11-08
 
 Unchanged against `main` 2ee250bdc: every file the spec names still exists and the maintained grep hits match the spec.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 7516bc437ab45f21fc2c244f9396628dcb87226b
+ran_at:   2026-11-08T13:48:20Z
+<!-- docket:build-evidence:end -->

@@ -1,12 +1,12 @@
 # Backlog
 
-**580 changes** — 🟢 1 in progress · 🟡 2 proposed · ⚪ 16 deferred · ✅ 417 done · 🗑️ 144 killed
+**580 changes** — 🔵 1 built · 🟡 2 proposed · ⚪ 16 deferred · ✅ 417 done · 🗑️ 144 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0514](active/0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) | Retire the saved Bash upgrade test cases when stable v1.0.0 ships | `low` | `chore` | [spec](../superpowers/specs/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md) | `chore/retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0514](active/0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) | Retire the saved Bash upgrade test cases when stable v1.0.0 ships | `low` | `chore` | [#448](https://github.com/danielhanold/docket/pull/448) | awaiting merge |
 
 ## 🟡 Proposed (2)
 
