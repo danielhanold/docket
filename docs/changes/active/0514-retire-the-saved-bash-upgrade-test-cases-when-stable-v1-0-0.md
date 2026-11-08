@@ -14,7 +14,7 @@ discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md'
 plan: 'docs/superpowers/plans/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md'
-results:
+results: 'docs/results/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-results.md'
 trivial: false
 auto_groomable: false
 branch_prefix:
@@ -31,6 +31,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md](../../superpowers/specs/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md) |
 | Plan | [2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md](../../superpowers/plans/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) |
+| Results | [2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-results.md](../../results/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
