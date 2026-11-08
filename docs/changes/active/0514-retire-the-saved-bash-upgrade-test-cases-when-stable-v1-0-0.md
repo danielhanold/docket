@@ -21,7 +21,7 @@ branch_prefix:
 branch: 'chore/retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -48,3 +48,8 @@ Change 0511 adds saved v0.9.2 and v0.9.3 Bash state under `testdata/bash-upgrade
 - Any change to the installer's v0.9.2 takeover (ADR-0096).
 - Editing point-in-time records (release decisions, archived specs/plans/results, the frozen export corpus) that mention the test.
 
+## Reconcile log
+
+### 2026-11-08
+
+Unchanged against `main` 2ee250bdc: every file the spec names still exists and the maintained grep hits match the spec.
