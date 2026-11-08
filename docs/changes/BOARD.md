@@ -1,12 +1,12 @@
 # Backlog
 
-**580 changes** — 🟣 1 groomed · 🟡 2 proposed · ⚪ 16 deferred · ✅ 417 done · 🗑️ 144 killed
+**580 changes** — 🟢 1 in progress · 🟡 2 proposed · ⚪ 16 deferred · ✅ 417 done · 🗑️ 144 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0514](active/0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) | Retire the saved Bash upgrade test cases when stable v1.0.0 ships | `low` | `chore` | [spec](../superpowers/specs/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0514](active/0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) | Retire the saved Bash upgrade test cases when stable v1.0.0 ships | `low` | `chore` | [spec](../superpowers/specs/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md) | `chore/retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0` | building |
 
 ## 🟡 Proposed (2)
 

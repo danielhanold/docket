@@ -2,7 +2,7 @@
 id: 514
 slug: 'retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0'
 title: 'Retire the saved Bash upgrade test cases when stable v1.0.0 ships'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'chore'
 created: '2026-10-04'
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable: false
 branch_prefix:
-branch:
+branch: 'chore/retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0'
 pr:
 blocked_by:
 reconciled: false
