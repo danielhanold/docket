@@ -1,6 +1,12 @@
 # Backlog
 
-**580 changes** — 🟡 2 proposed · ⚪ 16 deferred · ✅ 418 done · 🗑️ 144 killed
+**580 changes** — 🟣 1 groomed · 🟡 2 proposed · ⚪ 15 deferred · ✅ 418 done · 🗑️ 144 killed
+
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec | Readiness |
+|---|-------|----------|------|------|-----------|
+| [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | [spec](../superpowers/specs/2026-08-09-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the-design.md) | build-ready |
 
 ## 🟡 Proposed (2)
 
@@ -9,7 +15,7 @@
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 
-## ⚪ Deferred (16)
+## ⚪ Deferred (15)
 
 | # | Title | Priority | Type |
 |---|-------|----------|------|
@@ -20,7 +26,6 @@
 | [0503](active/0503-auto-name-claude-code-sessions-from-docket-workflow-prompts.md) | Auto-name Claude Code sessions from docket workflow prompts | `low` | `feat` |
 | [0513](active/0513-release-v1-0-0-alpha-3-prove-and-publish-opencode-support.md) | Full OpenCode support after v1.0.0: prove and publish the OpenCode harness | `high` | `chore` |
 | [0433](active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md) | Pilot top-level Codex coordinators with one-level native dispatch | `high` | `refactor` |
-| [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` |
 | [0263](active/0263-guard-the-remaining-agents-md-shell-rules-across-scripts-tes.md) | Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown | `medium` | `chore` |
 | [0257](active/0257-clear-the-residual-review-findings-from-0193-and-0201.md) | Clear the residual review findings from 0193 and 0201 | `low` | `chore` |
 | [0248](active/0248-role-self-description-enforce-the-positive-half-and-harden-t.md) | Role self-description: enforce the positive half and harden the guard | `low` | `chore` |

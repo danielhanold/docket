@@ -2,11 +2,11 @@
 id: 273
 slug: put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the
 title: 'Put runtime budgets on a host-relative basis and re-seed the table'
-status: 'deferred'
+status: 'proposed'
 priority: high
 type: refactor
 created: 2026-08-08
-updated: '2026-09-07'
+updated: '2026-11-08'
 depends_on: [251]
 related: [251, 229]
 discovered_from: [242]
