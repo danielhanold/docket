@@ -47,8 +47,8 @@ Docket pins the model and effort of every agent it dispatches itself: a per-harn
 - v5.0.0 (2026-03-09) added a spec-document reviewer subagent (`spec-document-reviewer-prompt.md`) after the written design.
 - v5.0.6 (2026-03-24) replaced it with an inline self-review checklist, with no subagent.
 - v7.0.0 (2026-10-09, obra/superpowers PR #2463) brought a subagent back as the builder check (`builder-check-prompt.md`), replacing the spec-document reviewer.
-- v7.0.1 (2026-10-21) runs the builder check **only for project-sized work**. A small change gets a short design doc that goes straight to the human, without the check. This alone may remove most of the cost, if brainstorming sizes docket grooms as small changes often enough.
-- v7.0.2 (2026-11-03) is the latest release. It retunes brainstorming's questions and leaves the builder check text unchanged, on both `main` and `dev`. This repository's sessions above ran 7.0.0.
+- The check has been project-only since 7.0.0. There, "The Written Design" opens "For a project, write a plain document…", and a small change was agreed in chat with no document, so no check ran. v7.0.1 (2026-10-21, PR #2571) gives a small change a short design doc too and says outright that it goes to the human "without the builder check"; the builder check heading now reads "(for a project)". That makes the existing limit explicit rather than adding a new one. The 21 checks above all ran under 7.0.0, so each was already a groom brainstorming had sized as a project. Upgrading alone is therefore not expected to cut the cost, unless the retuned sizing in 7.0.1 or 7.0.2 classes fewer docket grooms as projects.
+- v7.0.2 (2026-11-03) is the latest release. It retunes brainstorming's questions and leaves the sizing table and builder check text unchanged, on both `main` and `dev`.
 
 **No way to pin it.** The prompt says only "dispatch a fresh general-purpose subagent". It names no model and no effort, and superpowers has no setting for either. This contradicts superpowers' own rule in subagent-driven development (since v6.0.0): every dispatch names its model, because "an omitted model silently inherits the session's most expensive one."
 
@@ -81,7 +81,7 @@ Run the builder check on a deterministic, cheaper model and effort, without drop
 
 ## Open questions
 
-- **Still needed after upgrading superpowers?** Upgrade from 7.0.0 to the latest release (7.0.2 at research time) and watch how often brainstorming sizes a docket groom as project-sized and runs the check. If v7.0.1's project-only gating removes enough of the cost, this change may shrink or be killed; groom it only after that observation.
+- **Still needed after upgrading superpowers?** Upgrade from 7.0.0 to the latest release (7.0.2 at research time) and watch how often brainstorming sizes a docket groom as project-sized and runs the check. The check was already project-only in 7.0.0 (7.0.1 only made that explicit), so a saving needs the newer sizing to class fewer docket grooms as projects. If it does, this change may shrink or be killed; groom it only after that observation.
 - **Mechanism.** Which option: a docket-owned pinned agent (the likely shape), a per-dispatch direction, or something else? And how does the direction reach a dispatch the vendored skill makes, without patching it?
 - **Which model and effort keep it useful.** What default per harness, and how is it proven? One way: re-run a few past builder checks, whose findings are recorded in their grooms, at the cheaper setting and compare what each catches.
 - **Code reading.** Reading the code is what makes the check both useful and expensive (110 tool calls on #575). Should the brief bound or focus it, for example the files the spec names plus one whole-repo grep, rather than only lowering the tier?
