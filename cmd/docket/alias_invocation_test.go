@@ -1,4 +1,4 @@
-package bashupgrade
+package main
 
 import (
 	"os"
@@ -11,10 +11,10 @@ import (
 )
 
 // The alias is only useful if the binary behaves the same whatever name it was
-// invoked by. This uses the real built binary (shared with the upgrade tests via
-// buildDocket's sync.Once, so it costs no extra build) behind a dckt symlink.
+// invoked by. This puts the binary TestMain builds once (binPath) behind a dckt
+// symlink, so it costs no extra build.
 func TestAliasInvocationMatchesDocket(t *testing.T) {
-	bin := buildDocket(t)
+	bin := binPath
 	dir := testsupport.TempDir(t)
 	alias := filepath.Join(dir, install.AliasName)
 	if err := os.Symlink(bin, alias); err != nil {
