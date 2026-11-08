@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0514 — Retire the saved Bash upgrade test cases when stable v1.0.0 ships](../changes/active/0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md)**
+> ↩ **[Change 0514 — Retire the saved Bash upgrade test cases when stable v1.0.0 ships](../changes/archive/2026-11-08-0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md)**
 <!-- docket:backlink:end -->
 
 # Retire the saved Bash upgrade test cases — results

@@ -1,12 +1,6 @@
 # Backlog
 
-**580 changes** — 🔵 1 built · 🟡 2 proposed · ⚪ 16 deferred · ✅ 417 done · 🗑️ 144 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0514](active/0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) | Retire the saved Bash upgrade test cases when stable v1.0.0 ships | `low` | `chore` | [#448](https://github.com/danielhanold/docket/pull/448) | awaiting merge |
+**580 changes** — 🟡 2 proposed · ⚪ 16 deferred · ✅ 418 done · 🗑️ 144 killed
 
 ## 🟡 Proposed (2)
 
@@ -53,21 +47,20 @@ graph TD
   0433
   0503
   0544 --> 0513
-  0511 --> 0514
   0566
   0572
   0576
   0192:::done
   0251:::done
-  0511:::done
   0544:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (561)</summary>
+<details><summary>✅🗑️ Archive — done + killed (562)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0514](archive/2026-11-08-0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) | Retire the saved Bash upgrade test cases when stable v1.0.0 ships | 2026-11-08 |
 | [0580](archive/2026-10-28-0580-release-v1-0-0-stable-release-with-version-free-install-docs.md) | Release v1.0.0: stable release with version-free install docs | 2026-10-28 |
 | [0579](archive/2026-10-23-0579-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the.md) | Release v1.0.0-rc.2: the changes since rc.1, published as the build to test | 2026-10-23 |
 | [0578](archive/2026-10-23-0578-invoke-the-artifact-export-from-an-agent-session.md) | Invoke the artifact export from an agent session | 2026-10-23 |
@@ -82,7 +75,6 @@ graph TD
 | [0570](archive/2026-10-19-0570-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md) | Let a loop carry on past a halt that concerns only one change | 2026-10-19 |
 | [0567](archive/2026-10-19-0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Clean up stacked children when their stack lands, and finalize a child after its parent | 2026-10-19 |
 | [0560](archive/2026-10-19-0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Put a groomed change on hold so loops skip it | 2026-10-19 |
-| [0547](archive/2026-10-19-0547-measure-whether-the-1h-cache-ttl-cut-implement-next-s-cost.md) | Measure whether the 1h cache TTL cut implement-next's cost | 2026-10-19 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
@@ -232,7 +224,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 74 done |
+| [2026-10](archive/) | 75 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

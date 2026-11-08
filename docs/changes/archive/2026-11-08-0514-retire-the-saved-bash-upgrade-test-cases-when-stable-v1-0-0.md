@@ -2,7 +2,7 @@
 id: 514
 slug: 'retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0'
 title: 'Retire the saved Bash upgrade test cases when stable v1.0.0 ships'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'chore'
 created: '2026-10-04'
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md](../../superpowers/specs/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md) |
+| Spec (merged) | [2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md) |
 | Plan | [2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md](../../superpowers/plans/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) |
 | Results | [2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-results.md](../../results/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-results.md) |
 <!-- docket:artifacts:end -->
