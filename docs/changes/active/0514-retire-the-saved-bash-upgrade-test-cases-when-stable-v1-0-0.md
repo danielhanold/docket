@@ -13,7 +13,7 @@ related: [511, 366]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md'
 results:
 trivial: false
 auto_groomable: false
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md](../../superpowers/specs/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md) |
+| Plan | [2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md](../../superpowers/plans/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
