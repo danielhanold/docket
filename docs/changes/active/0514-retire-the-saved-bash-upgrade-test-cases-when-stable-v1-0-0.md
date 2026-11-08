@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'low'
 type: 'chore'
 created: '2026-10-04'
-updated: '2026-10-28'
+updated: '2026-11-08'
 depends_on: [511]
 stacked_on:
 related: [511, 366]
 discovered_from: []
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md](../../superpowers/specs/2026-11-08-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,14 +38,13 @@ Change 0511 adds saved v0.9.2 and v0.9.3 Bash state under `testdata/bash-upgrade
 
 ## What changes
 
-- Delete `testdata/bash-upgrade/` and the `TestBashUpgrade` test, plus its runtime budget row and anything else that only exists for it.
-- Keep `docs/release/upgrading-from-bash.md` as a frozen document. Add one line saying it was last verified against v1.0.0.
+- Delete the saved Bash cases (`testdata/bash-upgrade/`), the `internal/bashupgrade/` package, its integration shard `tests/test_go_integration_bashupgrade.sh` and budget row, and the `testdata/README.md` section describing the cases.
+- Keep the `dckt` alias test that lived in that package by moving it to `cmd/docket`, which already builds the binary.
+- Edit `docs/release/upgrading-from-bash.md` so it describes only the upgrade: remove or rewrite every sentence about the retired test and drop its step markers. Steps, commands, and tables are unchanged.
 
 ## Out of scope
 
-- Deleting or rewriting the guide itself.
+- Changing any upgrade step, command, or table in the guide.
 - Any change to the installer's v0.9.2 takeover (ADR-0096).
+- Editing point-in-time records (release decisions, archived specs/plans/results, the frozen export corpus) that mention the test.
 
-## Why deferred
-
-Parked on purpose until stable v1.0.0 ships (human decision, 2026-10-04). Until then the saved Bash cases and their test keep the upgrade guide (0511) honest through alpha.2 and alpha.3. Revive this once v1.0.0 is published.
