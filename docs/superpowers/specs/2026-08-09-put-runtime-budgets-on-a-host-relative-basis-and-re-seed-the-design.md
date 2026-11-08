@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0273 — Put runtime budgets on a host-relative basis and re-seed the table](../../changes/active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md)**
+> ↩ **[Change 0273 — Put runtime budgets on a host-relative basis and re-seed the table](../../changes/archive/2026-11-08-0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md)**
 <!-- docket:backlink:end -->
 
 # Put runtime budgets on a host-relative basis and re-seed the table — design

@@ -1,12 +1,6 @@
 # Backlog
 
-**580 changes** — 🟣 1 groomed · 🟡 2 proposed · ⚪ 15 deferred · ✅ 418 done · 🗑️ 144 killed
-
-## 🟣 Groomed (1)
-
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | [spec](../superpowers/specs/2026-08-09-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the-design.md) | build-ready |
+**580 changes** — 🟡 2 proposed · ⚪ 15 deferred · ✅ 418 done · 🗑️ 145 killed
 
 ## 🟡 Proposed (2)
 
@@ -45,7 +39,6 @@ graph TD
   0248
   0257
   0263
-  0251 --> 0273
   0302
   0409
   0412
@@ -56,16 +49,16 @@ graph TD
   0572
   0576
   0192:::done
-  0251:::done
   0544:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (562)</summary>
+<details><summary>✅🗑️ Archive — done + killed (563)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
 | [0514](archive/2026-11-08-0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) | Retire the saved Bash upgrade test cases when stable v1.0.0 ships | 2026-11-08 |
+| [0273](archive/2026-11-08-0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | 2026-11-08 |
 | [0580](archive/2026-10-28-0580-release-v1-0-0-stable-release-with-version-free-install-docs.md) | Release v1.0.0: stable release with version-free install docs | 2026-10-28 |
 | [0579](archive/2026-10-23-0579-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the.md) | Release v1.0.0-rc.2: the changes since rc.1, published as the build to test | 2026-10-23 |
 | [0578](archive/2026-10-23-0578-invoke-the-artifact-export-from-an-agent-session.md) | Invoke the artifact export from an agent session | 2026-10-23 |

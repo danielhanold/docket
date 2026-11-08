@@ -2,7 +2,7 @@
 id: 273
 slug: put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the
 title: 'Put runtime budgets on a host-relative basis and re-seed the table'
-status: 'proposed'
+status: 'killed'
 priority: high
 type: refactor
 created: 2026-08-08
@@ -148,3 +148,7 @@ The underlying portability limitation is still present: ScreenOver and SoloOver 
 The linked spec is not suitable for direct implementation: it targets deleted Bash runner/test surfaces, and its fork/git/I/O canary has not been shown to represent today's mixture of Go compilation, race tests, and integration tests. A single scaling ratio requires fresh evidence rather than a mechanical port of the old design.
 
 Revival criterion: obtain repeatable false serial budget breaches on unchanged Go code that can be attributed to host speed, separating them from contention and actual test-cost growth. Re-groom against internal/suiterunner and the current tests/runtime-budgets.tsv, validate a representative calibration workload, and reassess priority before returning this change to the build queue.
+
+## Why killed
+
+The spec targets the deleted Bash runner and its canary (tests/lib/budget-canary.sh, run-tests.sh, test_run_tests.sh) and eight deleted test files; the budget regime now lives in internal/suiterunner. Recorded serial ratios were below the 1.5x threshold, and no repeatable host-speed false breaches on unchanged Go code have been shown. If that evidence appears, groom a fresh change against internal/suiterunner.
