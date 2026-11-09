@@ -15,7 +15,7 @@ discovered_from: []
 adrs: [7, 12, 19, 44, 71, 141, 144]
 spec: 'docs/superpowers/specs/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-design.md'
 plan:
-results:
+results: 'docs/results/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-results.md'
 auto_groomable:
 hold:
 branch_prefix:
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-09-split-the-ticket-integration-design-into-buildable-changes-design.md](../../superpowers/specs/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-design.md) |
+| Results | [2026-11-09-split-the-ticket-integration-design-into-buildable-changes-results.md](../../results/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-results.md) |
 | ADRs | [ADR-0007](../../adrs/0007-github-board-mirror-boundary.md), [ADR-0012](../../adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0019](../../adrs/0019-global-config-fence-classification.md), [ADR-0044](../../adrs/0044-autonomy-precedence-call-site-pre-specification.md), [ADR-0071](../../adrs/0071-writer-guarantees-yaml-validity-by-construction.md), [ADR-0141](../../adrs/0141-build-artifacts-plan-results-evidence-live-on-the-metadata-b.md), [ADR-0144](../../adrs/0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md) |
 <!-- docket:artifacts:end -->
 
