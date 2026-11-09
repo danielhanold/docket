@@ -573,3 +573,127 @@ func TestArtifactBlockLegacyDonePRUnchanged(t *testing.T) {
 		t.Fatalf("legacy done pr Results row %q missing:\n%s", row, got)
 	}
 }
+
+// ticketChange returns fixture A (spec + ADRs) carrying the given ticket
+// field values; "" leaves a field absent.
+func ticketChange(provider, id, url string) domain.Change {
+	field := func(v string) domain.OptionalString {
+		if v == "" {
+			return domain.OptionalString{}
+		}
+		return optString(v)
+	}
+	return domain.NewChange(domain.ChangeSpec{
+		ID:             7,
+		Slug:           "alpha-change",
+		Title:          "Alpha change",
+		ADRs:           adrIDs(1, 2),
+		Spec:           optString("docs/superpowers/specs/2026-08-16-alpha-change-design.md"),
+		Location:       domain.LocationActive,
+		Path:           "docs/changes/active/0007-alpha-change.md",
+		TicketProvider: field(provider),
+		TicketID:       field(id),
+		TicketURL:      field(url),
+	})
+}
+
+// ticketRows returns the block's lines that are the Ticket row.
+func ticketRows(block string) []string {
+	var rows []string
+	for _, l := range strings.Split(block, "\n") {
+		if strings.HasPrefix(l, "| Ticket |") {
+			rows = append(rows, l)
+		}
+	}
+	return rows
+}
+
+func TestArtifactTicketRow(t *testing.T) {
+	const url = "https://tickets.example.com/browse/CLOUD-123"
+	got, err := render.ArtifactBlockContent(ticketChange("jira", "CLOUD-123", url), adrSnapshot(), githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent: %v", err)
+	}
+	lines := strings.Split(strings.TrimSuffix(got, "\n"), "\n")
+	want := "| Ticket | [CLOUD-123](" + url + ") |"
+	if last := lines[len(lines)-1]; last != want {
+		t.Fatalf("last row = %q, want %q\n%s", last, want, got)
+	}
+	if prev := lines[len(lines)-2]; !strings.HasPrefix(prev, "| ADRs |") {
+		t.Fatalf("Ticket row does not follow the ADRs row:\n%s", got)
+	}
+
+	bare := domain.NewChange(domain.ChangeSpec{ID: 9, Slug: "gamma", Title: "Gamma", Path: "docs/changes/active/0009-gamma.md"})
+	empty, err := render.ArtifactBlockContent(bare, domain.Snapshot{}, githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent: %v", err)
+	}
+	if empty != "" {
+		t.Fatalf("no-field change rendered %q, want \"\"", empty)
+	}
+
+	onlyTicket := domain.NewChange(domain.ChangeSpec{
+		ID: 9, Slug: "gamma", Title: "Gamma", Path: "docs/changes/active/0009-gamma.md",
+		TicketProvider: optString("jira"), TicketID: optString("CLOUD-123"), TicketURL: optString(url),
+	})
+	solo, err := render.ArtifactBlockContent(onlyTicket, domain.Snapshot{}, relativeLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent: %v", err)
+	}
+	if wantSolo := "| Artifact | Link |\n|---|---|\n" + want + "\n"; solo != wantSolo {
+		t.Fatalf("ticket-only block = %q, want %q", solo, wantSolo)
+	}
+}
+
+func TestArtifactTicketRowAbsentWhenNotLinked(t *testing.T) {
+	for name, c := range map[string]domain.Change{
+		"partial":    ticketChange("jira", "CLOUD-123", ""),
+		"javascript": ticketChange("jira", "CLOUD-123", "javascript:x"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := render.ArtifactBlockContent(c, adrSnapshot(), githubLink)
+			if err != nil {
+				t.Fatalf("ArtifactBlockContent: %v", err)
+			}
+			if rows := ticketRows(got); len(rows) != 0 {
+				t.Fatalf("unlinked change rendered a Ticket row: %q", rows)
+			}
+		})
+	}
+}
+
+func TestArtifactTicketRowEscapes(t *testing.T) {
+	c := ticketChange("jira", "A|B]C[", "https://tickets.example.com/a b(c)|d<e>")
+	got, err := render.ArtifactBlockContent(c, adrSnapshot(), githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent: %v", err)
+	}
+	rows := ticketRows(got)
+	if len(rows) != 1 {
+		t.Fatalf("want exactly one Ticket row, got %q\n%s", rows, got)
+	}
+	row := rows[0]
+	for _, want := range []string{`[A\|B\]C\[]`, "(https://tickets.example.com/a%20b%28c%29%7Cd%3Ce%3E)"} {
+		if !strings.Contains(row, want) {
+			t.Fatalf("row %q lacks %q", row, want)
+		}
+	}
+	unescaped := strings.Count(row, "|") - strings.Count(row, `\|`)
+	if unescaped != 3 {
+		t.Fatalf("row %q holds %d unescaped pipes, want 3", row, unescaped)
+	}
+}
+
+func TestArtifactTicketRowEscapesBackslash(t *testing.T) {
+	// A hand-edited id cannot be linked with a line break (ValidateTicket
+	// refuses it), so this pins the escaper's own flattening through a
+	// backslash, which a valid id may carry.
+	c := ticketChange("jira", `A\B`, "https://tickets.example.com/x")
+	got, err := render.ArtifactBlockContent(c, adrSnapshot(), githubLink)
+	if err != nil {
+		t.Fatalf("ArtifactBlockContent: %v", err)
+	}
+	if rows := ticketRows(got); len(rows) != 1 || !strings.Contains(rows[0], `[A\\B]`) {
+		t.Fatalf("backslash not escaped: %q", rows)
+	}
+}

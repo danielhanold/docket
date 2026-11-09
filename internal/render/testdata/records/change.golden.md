@@ -21,6 +21,9 @@ hold:
 branch_prefix:
 branch:
 pr:
+ticket_provider:
+ticket_id:
+ticket_url:
 blocked_by:
 reconciled: false
 ---
