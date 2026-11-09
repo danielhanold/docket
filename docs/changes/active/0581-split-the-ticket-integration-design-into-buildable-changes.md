@@ -22,7 +22,7 @@ branch_prefix:
 branch: 'chore/split-the-ticket-integration-design-into-buildable-changes'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -57,3 +57,9 @@ The run re-traces the code the spec names before splitting, and resolves the thr
 ## Out of scope
 
 Writing any code, committing to any branch, or creating the planned changes. docket-implement-next only writes the plan; after this change completes, the human creates the planned changes from the final results artifact and grooms each one by hand. Re-opening decisions the spec settles. Specs for the planned changes. The two unrelated findings the spec lists at its end (a stale convention sentence and the disagreement about what produces `stacked-merged`), apart from the trace item the plan itself needs.
+
+## Reconcile log
+
+### 2026-11-09
+
+Unchanged against main `89e2c58b0`, the commit the spec was traced at; related #561 and #578 are done and fold in nothing new. The run re-traces the named code as part of the work.
