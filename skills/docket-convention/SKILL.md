@@ -209,11 +209,12 @@ change, never in the frozen artifact.
 
 ### Change body sections
 
-`change.create` writes `## Artifacts`, `## Why`, `## What changes`, and `## Out of scope`; `## Open questions` and every later section are added by later operations.
+`change.create` writes `## Artifacts`, `## Why`, `## What changes`, `## Out of scope`, and — when given — `## Acceptance criteria`; `## Open questions` and every later section are added by later operations.
 
 - `## Artifacts` — **first body section** (immediately after the frontmatter closing `---`, above `## Why`). Marker-bounded (`<!-- docket:artifacts:start (generated — do not hand-edit) -->` / `<!-- docket:artifacts:end -->`); rendered from frontmatter by the Go app-layer link-block renderer inside the owning metadata transaction; **never hand-edited** — the renderer is the sole writer. Seeded empty by `change.create`; regenerated after every frontmatter field write. Its **reciprocal** is the `docket:backlink` block (markers `<!-- docket:backlink:start … -->` / `<!-- docket:backlink:end -->`) stamped at the TOP of each artifact (spec, plan, results, PR body) pointing home to the change on the metadata branch, from one shared renderer. Same-branch links (rows and file backlinks) are relative; the PR body's are absolute. `change.attach-plan`, `change.attach-results`, and `change.groom` write the file blocks, `pr.publish` the PR body's, which `finalize.closeout` (retried by `finalize.cleanup`, `maintenance.sweep`) or `repository.repair` with `--pr-backlinks` repoints at the archived record (ADRs excluded, back-referenced by `change:`).
 - `## Why` — the motivation, as detailed as warranted (no length limit).
 - `## What changes` — scope of the work.
+- `## Acceptance criteria` — optional; verifiable conditions that belong to this change. Written by `change.create` (between What changes and Out of scope) when given; a later owned-section edit that adds it places it in proposal order. Never a build gate.
 - `## Out of scope` — explicit non-goals.
 - `## Open questions` — unknowns to resolve during reconcile/design.
 - `## Reconcile log` — dated entries appended by the implementer's reconcile pass.
@@ -224,6 +225,8 @@ change, never in the frozen artifact.
 - `## Build evidence` — the build-evidence block for the certified feature head, written by `change.mark-implemented`, `finalize.publish`, and `evidence.recertify`; never hand-edited.
 - `## Why deferred` / `## Why killed` — added when entering those states.
 - `## Why on hold` — the optional hold reason, written only by the `hold_reason` key; lifting the hold removes it.
+
+The proposal sections keep the order `## Why`, `## What changes`, `## Acceptance criteria`, `## Out of scope`, `## Open questions` — an edit that adds one places it in that order; every other section added later is appended at the end of the file.
 
 The change body is a **PM-altitude proposal** (intent + scope). Detailed design lives in the linked superpowers spec; the task breakdown in the linked superpowers plan. Different zoom levels, no duplication.
 
