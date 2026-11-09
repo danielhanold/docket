@@ -96,7 +96,7 @@ func (r OpenResult) HumanWarnings() []string {
 
 // exportKinds maps an exportable target to its export kind.
 var exportKinds = map[string]export.Kind{
-	"change": export.KindIssue, "spec": export.KindSpec, "plan": export.KindPlan, "results": export.KindResults,
+	"change": export.KindTicket, "spec": export.KindSpec, "plan": export.KindPlan, "results": export.KindResults,
 }
 
 // openExport reads rel from the local metadata checkout (whatever the

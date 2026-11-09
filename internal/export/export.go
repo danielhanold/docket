@@ -11,7 +11,7 @@ import (
 type Kind string
 
 const (
-	KindIssue   Kind = "issue"
+	KindTicket  Kind = "ticket"
 	KindSpec    Kind = "spec"
 	KindPlan    Kind = "plan"
 	KindResults Kind = "results"
@@ -21,7 +21,7 @@ const (
 type Input struct {
 	Kind   Kind
 	Source []byte // the artifact bytes from the metadata checkout
-	Title  string // the change's raw title (the issue H1)
+	Title  string // the change's raw title (the ticket H1)
 	Titles Titles
 }
 
@@ -45,21 +45,22 @@ type step int
 const (
 	stepFrontmatter step = iota + 1
 	stepBlocks
-	stepIssueSections
+	stepTicketSections
 	stepStamps
 	stepLinks
 	stepRefs
 	stepCleanup
 )
 
-var allSteps = []step{stepFrontmatter, stepBlocks, stepIssueSections, stepStamps, stepLinks, stepRefs, stepCleanup}
+var allSteps = []step{stepFrontmatter, stepBlocks, stepTicketSections, stepStamps, stepLinks, stepRefs, stepCleanup}
 
-// issueSections is the allowlist of H2 sections a change record keeps.
-var issueSections = map[string]bool{
-	"Why":            true,
-	"What changes":   true,
-	"Out of scope":   true,
-	"Open questions": true,
+// ticketSections is the allowlist of H2 sections a change record keeps.
+var ticketSections = map[string]bool{
+	"Why":                 true,
+	"What changes":        true,
+	"Acceptance criteria": true,
+	"Out of scope":        true,
+	"Open questions":      true,
 }
 
 // line is one physical line moving through the pipeline.
@@ -88,8 +89,8 @@ func transform(in Input, skip map[step]bool) Output {
 	if !skip[stepBlocks] {
 		lines, out.Stray = removeBlocks(lines)
 	}
-	if in.Kind == KindIssue && !skip[stepIssueSections] {
-		lines = keepIssueSections(lines, cleanTitle(in.Title, in.Titles))
+	if in.Kind == KindTicket && !skip[stepTicketSections] {
+		lines = keepTicketSections(lines, cleanTitle(in.Title, in.Titles))
 	}
 	if in.Kind == KindSpec && !skip[stepStamps] {
 		lines = removeStamps(lines)
@@ -177,14 +178,14 @@ func blockEnd(lines []line, i int) int {
 
 func isH2(l line) bool { return !l.fenced() && strings.HasPrefix(l.text, "## ") }
 
-// keepIssueSections is step 3: only the allowlisted H2 sections stay, in source
+// keepTicketSections is step 3: only the allowlisted H2 sections stay, in source
 // order, under an H1 of the cleaned change title.
-func keepIssueSections(lines []line, title string) []line {
+func keepTicketSections(lines []line, title string) []line {
 	out := []line{{text: "# " + title}, {text: ""}}
 	keep := false
 	for _, l := range lines {
 		if isH2(l) {
-			keep = issueSections[strings.TrimSpace(l.text[len("## "):])]
+			keep = ticketSections[strings.TrimSpace(l.text[len("## "):])]
 		}
 		if keep {
 			out = append(out, l)

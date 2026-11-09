@@ -122,7 +122,7 @@ func TestTransformSpecStampOnlyBeforeFirstH2(t *testing.T) {
 	assertMarkdown(t, got, "# T\n\n\"Twelve\".\n")
 }
 
-const issueFixture = "---\n" +
+const ticketFixture = "---\n" +
 	"id: 7\n" +
 	"title: Seven\n" +
 	"---\n" +
@@ -143,6 +143,10 @@ const issueFixture = "---\n" +
 	"\n" +
 	"Things.\n" +
 	"\n" +
+	"## Acceptance criteria\n" +
+	"\n" +
+	"- Works.\n" +
+	"\n" +
 	"## Reconcile log\n" +
 	"\n" +
 	"- log\n" +
@@ -155,7 +159,7 @@ const issueFixture = "---\n" +
 	"\n" +
 	"None.\n"
 
-const issueWant = "# Seven\n" +
+const ticketWant = "# Seven\n" +
 	"\n" +
 	"## Why\n" +
 	"\n" +
@@ -165,29 +169,53 @@ const issueWant = "# Seven\n" +
 	"\n" +
 	"Things.\n" +
 	"\n" +
+	"## Acceptance criteria\n" +
+	"\n" +
+	"- Works.\n" +
+	"\n" +
 	"## Out of scope\n" +
 	"\n" +
 	"None.\n"
 
-func TestTransformIssue(t *testing.T) {
+func TestTransformTicket(t *testing.T) {
 	got := Transform(Input{
-		Kind:   KindIssue,
-		Source: []byte(issueFixture),
+		Kind:   KindTicket,
+		Source: []byte(ticketFixture),
 		Title:  "Seven (0008)",
 		Titles: Titles{8: "Eight"},
 	})
-	assertMarkdown(t, got, issueWant)
+	assertMarkdown(t, got, ticketWant)
+}
+
+// TestTransformTicketWithoutAcceptanceCriteria pins that a change record with no
+// "## Acceptance criteria" section exports the same sections it always did.
+func TestTransformTicketWithoutAcceptanceCriteria(t *testing.T) {
+	src := strings.Replace(ticketFixture, "## Acceptance criteria\n\n- Works.\n\n", "", 1)
+	if src == ticketFixture {
+		t.Fatal("fixture no longer holds the acceptance criteria section")
+	}
+	want := strings.Replace(ticketWant, "## Acceptance criteria\n\n- Works.\n\n", "", 1)
+	got := Transform(Input{
+		Kind:   KindTicket,
+		Source: []byte(src),
+		Title:  "Seven (0008)",
+		Titles: Titles{8: "Eight"},
+	})
+	assertMarkdown(t, got, want)
+	if strings.Contains(string(got.Markdown), "Acceptance criteria") {
+		t.Fatalf("criteria-less export grew a criteria section: %q", got.Markdown)
+	}
 }
 
 func TestTransformNormalizesCRLF(t *testing.T) {
-	crlf := strings.ReplaceAll(issueFixture, "\n", "\r\n")
+	crlf := strings.ReplaceAll(ticketFixture, "\n", "\r\n")
 	got := Transform(Input{
-		Kind:   KindIssue,
+		Kind:   KindTicket,
 		Source: []byte(crlf),
 		Title:  "Seven (0008)",
 		Titles: Titles{8: "Eight"},
 	})
-	assertMarkdown(t, got, issueWant)
+	assertMarkdown(t, got, ticketWant)
 	if strings.Contains(string(got.Markdown), "\r") {
 		t.Fatalf("output still holds a carriage return: %q", got.Markdown)
 	}
@@ -249,7 +277,7 @@ func TestTransformFenceHeadingsAreContent(t *testing.T) {
 		"<!-- docket:x:start -->\n" +
 		"```\n"
 	src := "---\ntitle: T\n---\n\n## Why\n\n" + fence + "\nMore.\n\n## Reconcile log\n\n- gone\n"
-	got := Transform(Input{Kind: KindIssue, Source: []byte(src), Title: "T", Titles: Titles{559: "Z"}})
+	got := Transform(Input{Kind: KindTicket, Source: []byte(src), Title: "T", Titles: Titles{559: "Z"}})
 	assertMarkdown(t, got, "# T\n\n## Why\n\n"+fence+"\nMore.\n")
 }
 
