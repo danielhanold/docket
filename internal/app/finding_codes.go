@@ -1,5 +1,7 @@
 package app
 
+import "github.com/danielhanold/docket/internal/repository"
+
 // FindingCode is the typed vocabulary of stable machine reasons that surface as
 // StatusFinding.Code and domain.Finding.Code on the request/result schema. Every
 // production finding code in package app is minted from a constant declared
@@ -367,6 +369,7 @@ var AllFindingCodes = []FindingCode{
 	FCSectionEditFailed,
 	FindingCode("self-reference"),
 	FCSweepPRFactsUnresolved,
+	FindingCode(repository.CodeTicketLinkInvalid),
 	FindingCode("unknown-adr"),
 	FindingCode("unknown-change"),
 	FCUnknownDeliverable,

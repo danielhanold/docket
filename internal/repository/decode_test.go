@@ -3,6 +3,7 @@ package repository
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -144,9 +145,6 @@ func TestDecodeChangeHappyPath(t *testing.T) {
 	if got := change.PR(); got.State != domain.FieldPresent ||
 		got.Value != "https://github.com/danielhanold/docket/pull/7" {
 		t.Errorf("PR = %+v", got)
-	}
-	if got := change.Issue(); got.State != domain.FieldPresent || got.Value != "42" {
-		t.Errorf("Issue = %+v", got)
 	}
 	if got := change.BlockedBy(); got.State != domain.FieldEmpty {
 		t.Errorf("BlockedBy = %+v", got)
@@ -974,5 +972,135 @@ func TestDecodeChangeHold(t *testing.T) {
 					warned, tc.wantWarning, findingCodes(findings))
 			}
 		})
+	}
+}
+
+const ticketFixtureURL = "https://tickets.example.com/browse/CLOUD-123"
+
+// decodeTicketRecord decodes a minimal change record carrying the given
+// frontmatter lines.
+func decodeTicketRecord(t *testing.T, lines string) (domain.Change, []domain.Finding) {
+	t.Helper()
+	src := "---\nid: 1\nslug: s\n" + lines + "---\n\nbody\n"
+	return decodeChange(input(t, KindChange, LocationActive, "docs/changes/active/0001-s.md", src))
+}
+
+// onlyTicketWarning returns the single finding, failing unless it is exactly
+// one warning-severity ticket-link-invalid finding.
+func onlyTicketWarning(t *testing.T, findings []domain.Finding) domain.Finding {
+	t.Helper()
+	if len(findings) != 1 {
+		t.Fatalf("findings = %v; want exactly one %s", findingCodes(findings), CodeTicketLinkInvalid)
+	}
+	f := findings[0]
+	if f.Code != CodeTicketLinkInvalid || f.Severity != domain.SeverityWarning {
+		t.Fatalf("finding = %s/%s; want %s/warning", f.Code, f.Severity, CodeTicketLinkInvalid)
+	}
+	return f
+}
+
+func TestDecodeTicketCompleteSetLinked(t *testing.T) {
+	change, findings := decodeTicketRecord(t,
+		"ticket_provider: jira\nticket_id: CLOUD-123\nticket_url: '"+ticketFixtureURL+"'\n")
+	if len(findings) != 0 {
+		t.Fatalf("findings = %v; want none", findingCodes(findings))
+	}
+	got, ok := change.Ticket()
+	want := domain.Ticket{Provider: "jira", ID: "CLOUD-123", URL: ticketFixtureURL}
+	if !ok || got != want {
+		t.Fatalf("Ticket() = %+v, %v; want %+v, true", got, ok, want)
+	}
+}
+
+func TestDecodeTicketPartialSetWarns(t *testing.T) {
+	change, findings := decodeTicketRecord(t, "ticket_id: CLOUD-123\nticket_url: '"+ticketFixtureURL+"'\n")
+	f := onlyTicketWarning(t, findings)
+	if f.Field != domain.TicketFieldProvider {
+		t.Errorf("Field = %q; want %q", f.Field, domain.TicketFieldProvider)
+	}
+	if f.Detail["missing"] != "ticket_provider" {
+		t.Errorf("Detail[missing] = %q; want ticket_provider", f.Detail["missing"])
+	}
+	if _, has := f.Detail["invalid"]; has {
+		t.Errorf("Detail carries invalid %q; want no key", f.Detail["invalid"])
+	}
+	if _, ok := change.Ticket(); ok {
+		t.Error("Ticket() ok on a partial set")
+	}
+}
+
+func TestDecodeTicketMissingListsInFieldOrder(t *testing.T) {
+	_, findings := decodeTicketRecord(t, "ticket_provider: jira\nticket_id:\n")
+	f := onlyTicketWarning(t, findings)
+	if f.Detail["missing"] != "ticket_id,ticket_url" {
+		t.Errorf("Detail[missing] = %q; want ticket_id,ticket_url", f.Detail["missing"])
+	}
+	if f.Field != domain.TicketFieldID {
+		t.Errorf("Field = %q; want ticket_id", f.Field)
+	}
+}
+
+func TestDecodeTicketInvalidURLWarns(t *testing.T) {
+	change, findings := decodeTicketRecord(t,
+		"ticket_provider: jira\nticket_id: CLOUD-123\nticket_url: 'javascript:alert(1)'\n")
+	f := onlyTicketWarning(t, findings)
+	if !strings.HasPrefix(f.Detail["invalid"], "ticket_url: ") {
+		t.Errorf("Detail[invalid] = %q; want a ticket_url: prefix", f.Detail["invalid"])
+	}
+	if _, has := f.Detail["missing"]; has {
+		t.Errorf("Detail carries missing %q; want no key", f.Detail["missing"])
+	}
+	if f.Field != domain.TicketFieldURL {
+		t.Errorf("Field = %q; want ticket_url", f.Field)
+	}
+	if _, ok := change.Ticket(); ok {
+		t.Error("Ticket() ok with an invalid URL")
+	}
+}
+
+func TestDecodeTicketNonScalarIsWarningOnly(t *testing.T) {
+	_, findings := decodeTicketRecord(t, "ticket_provider: jira\nticket_id: CLOUD-123\nticket_url: {a: b}\n")
+	f := onlyTicketWarning(t, findings)
+	if hasFinding(findings, CodeFieldMalformed, "ticket_url") {
+		t.Error("a non-text ticket_url raised field-malformed; want the ticket warning only")
+	}
+	if f.Detail["invalid"] != "ticket_url: a single text value" {
+		t.Errorf("Detail[invalid] = %q", f.Detail["invalid"])
+	}
+}
+
+func TestDecodeTicketAbsentKeysNoFinding(t *testing.T) {
+	for name, lines := range map[string]string{
+		"absent":    "",
+		"valueless": "ticket_provider:\nticket_id:\nticket_url:\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			change, findings := decodeTicketRecord(t, lines)
+			if len(findings) != 0 {
+				t.Errorf("findings = %v; want none", findingCodes(findings))
+			}
+			if _, ok := change.Ticket(); ok {
+				t.Error("Ticket() ok with no ticket values")
+			}
+		})
+	}
+}
+
+// TestDecodeIgnoresRetiredIssueKey pins that the retired issue: key loads
+// silently as unknown compatibility data and is no longer decoded.
+func TestDecodeIgnoresRetiredIssueKey(t *testing.T) {
+	if !strings.Contains(happyChange, "\nissue: 42\n") {
+		t.Fatal("happyChange no longer carries issue: 42")
+	}
+	_, findings := decodeChange(input(t, KindChange, LocationActive,
+		"docs/changes/active/0307-domain-snapshot-validation-graphs-and-selection.md", happyChange))
+	if len(findings) != 0 {
+		t.Errorf("findings = %v; want none", findingCodes(findings))
+	}
+	wire := reflect.TypeOf(changeWire{})
+	for i := 0; i < wire.NumField(); i++ {
+		if wire.Field(i).Tag.Get("yaml") == "issue" {
+			t.Errorf("changeWire.%s still decodes issue:", wire.Field(i).Name)
+		}
 	}
 }

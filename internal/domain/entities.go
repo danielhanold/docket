@@ -99,7 +99,6 @@ type ChangeSpec struct {
 	TicketProvider OptionalString // ticket link: see Ticket and ValidateTicket
 	TicketID       OptionalString
 	TicketURL      OptionalString
-	Issue          OptionalString
 	BlockedBy      OptionalString
 	Reconciled     bool
 	Location       RecordLocation
@@ -226,9 +225,6 @@ func (c Change) Branch() OptionalString { return c.spec.Branch }
 
 // PR returns the optional pull request reference.
 func (c Change) PR() OptionalString { return c.spec.PR }
-
-// Issue returns the optional issue reference.
-func (c Change) Issue() OptionalString { return c.spec.Issue }
 
 // BlockedBy returns the optional blocking reason.
 func (c Change) BlockedBy() OptionalString { return c.spec.BlockedBy }

@@ -334,6 +334,16 @@ docket can't read the frontmatter of `docs/changes/active/0263-x.md`: yaml: line
 docket skips this record, so it is missing from the board and from every other check.
 remedy: In `.docket/docs/changes/active/0263-x.md`, fix the frontmatter between the two `---` lines; then commit and push it from `.docket`, and run `docket repository repair` so the board and link blocks catch up.
 
+### ticket-link-invalid — partial (warning)
+The change record `docs/changes/active/0263-x.md` has an incomplete or invalid ticket link: `ticket_provider` is missing.
+docket treats the change as not linked to a ticket: its Artifacts block shows no Ticket row, and its pull request carries no ticket line.
+remedy: Run the `change.link-ticket` operation with all three ticket fields and `replace: true` to set the link, or with `unlink: true` to clear it.
+
+### ticket-link-invalid — invalid (warning)
+The change record `docs/changes/active/0263-x.md` has an incomplete or invalid ticket link: `ticket_url` must be an absolute http or https web address.
+docket treats the change as not linked to a ticket: its Artifacts block shows no Ticket row, and its pull request carries no ticket line.
+remedy: Run the `change.link-ticket` operation with all three ticket fields and `replace: true` to set the link, or with `unlink: true` to clear it.
+
 ## Remedy locations by layout
 
 ### shared checkout

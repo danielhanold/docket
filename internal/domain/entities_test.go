@@ -49,7 +49,6 @@ func fullChangeSpec(t *testing.T) ChangeSpec {
 		TicketProvider: OptionalString{State: FieldPresent, Value: "jira"},
 		TicketID:       OptionalString{State: FieldEmpty},
 		TicketURL:      OptionalString{State: FieldMalformed, Value: "{a: b}"},
-		Issue:          OptionalString{State: FieldMalformed, Value: "#"},
 		BlockedBy:      OptionalString{State: FieldEmpty},
 		Reconciled:     true,
 		Location:       LocationActive,
@@ -117,9 +116,6 @@ func TestChangeAccessorsRoundTrip(t *testing.T) {
 	}
 	if got := c.PR(); got != spec.PR {
 		t.Errorf("PR() = %+v; want %+v", got, spec.PR)
-	}
-	if got := c.Issue(); got != spec.Issue {
-		t.Errorf("Issue() = %+v; want %+v", got, spec.Issue)
 	}
 	if got := c.TicketProvider(); got != spec.TicketProvider {
 		t.Errorf("TicketProvider() = %+v; want %+v", got, spec.TicketProvider)

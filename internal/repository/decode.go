@@ -31,6 +31,14 @@ const (
 	CodeADRStatusUnparseable = "adr-status-unparseable"
 	// CodeLearningPromotionUnknown marks an unrecognized promotion state.
 	CodeLearningPromotionUnknown = "learning-promotion-unknown"
+	// CodeTicketLinkInvalid marks a change carrying some ticket field but not
+	// a complete, valid ticket link; the change reads as not linked. A warning
+	// only: a bad hand-edited ticket set never invalidates the record.
+	// Field is the first offending field; Detail["missing"] comma-joins the
+	// absent or empty fields and Detail["invalid"] joins "<field>: <rule>"
+	// entries with "; ", each in domain.TicketFields order and omitted when
+	// none.
+	CodeTicketLinkInvalid = "ticket-link-invalid"
 )
 
 // dateLayout is the stored date-only spelling.
@@ -123,7 +131,9 @@ type changeWire struct {
 	BranchPrefix   scalar     `yaml:"branch_prefix"`
 	Branch         scalar     `yaml:"branch"`
 	PR             scalar     `yaml:"pr"`
-	Issue          scalar     `yaml:"issue"`
+	TicketProvider scalar     `yaml:"ticket_provider"`
+	TicketID       scalar     `yaml:"ticket_id"`
+	TicketURL      scalar     `yaml:"ticket_url"`
 	BlockedBy      scalar     `yaml:"blocked_by"`
 	Reconciled     scalar     `yaml:"reconciled"`
 }
@@ -223,6 +233,72 @@ func (d *decoder) optionalString(name string, s scalar) domain.OptionalString {
 		return domain.OptionalString{}
 	}
 	return domain.OptionalString{State: st, Value: s.raw}
+}
+
+// ticketString is optionalString for a ticket field, but it never reports
+// field-malformed: a non-text value keeps State FieldMalformed and checkTicket
+// reports it, at warning severity, inside the one ticket finding.
+func (d *decoder) ticketString(name string, s scalar) domain.OptionalString {
+	st := d.state(name, s)
+	if st == domain.FieldAbsent {
+		return domain.OptionalString{}
+	}
+	return domain.OptionalString{State: st, Value: s.raw}
+}
+
+// ticketRuleSingleValue is the rule a non-text ticket field fails.
+const ticketRuleSingleValue = "a single text value"
+
+// checkTicket reports one ticket-link-invalid warning when the change carries
+// any ticket field with content but not a complete, valid set. The values
+// arrive in domain.TicketFields order.
+func (d *decoder) checkTicket(provider, id, url domain.OptionalString) {
+	fields := []domain.OptionalString{provider, id, url}
+	if !domain.NewChange(domain.ChangeSpec{TicketProvider: provider, TicketID: id, TicketURL: url}).HasTicketFields() {
+		return
+	}
+	bad := make(map[string]string, len(fields)) // field -> rule; "" means missing
+	var missing []string
+	for i, f := range fields {
+		name := domain.TicketFields[i]
+		switch {
+		case f.State == domain.FieldMalformed:
+			bad[name] = ticketRuleSingleValue
+		case f.State != domain.FieldPresent || f.Value == "":
+			bad[name] = ""
+			missing = append(missing, name)
+		}
+	}
+	for _, p := range domain.ValidateTicket(domain.Ticket{Provider: provider.Value, ID: id.Value, URL: url.Value}) {
+		if _, seen := bad[p.Field]; !seen {
+			bad[p.Field] = p.Rule
+		}
+	}
+	if len(bad) == 0 {
+		return
+	}
+	var first string
+	var invalid []string
+	for _, name := range domain.TicketFields {
+		rule, ok := bad[name]
+		if !ok {
+			continue
+		}
+		if first == "" {
+			first = name
+		}
+		if rule != "" {
+			invalid = append(invalid, name+": "+rule)
+		}
+	}
+	detail := map[string]string{}
+	if len(missing) > 0 {
+		detail["missing"] = strings.Join(missing, ",")
+	}
+	if len(invalid) > 0 {
+		detail["invalid"] = strings.Join(invalid, "; ")
+	}
+	d.report(CodeTicketLinkInvalid, first, domain.SeverityWarning, detail)
 }
 
 // optionalInt converts a scalar into an optional integer field, keeping the
@@ -575,7 +651,10 @@ func decodeChange(in InputDocument) (domain.Change, []domain.Finding) {
 	spec.BranchPrefix = d.optionalString("branch_prefix", wire.BranchPrefix)
 	spec.Branch = d.optionalString("branch", wire.Branch)
 	spec.PR = d.optionalString("pr", wire.PR)
-	spec.Issue = d.optionalString("issue", wire.Issue)
+	spec.TicketProvider = d.ticketString(domain.TicketFieldProvider, wire.TicketProvider)
+	spec.TicketID = d.ticketString(domain.TicketFieldID, wire.TicketID)
+	spec.TicketURL = d.ticketString(domain.TicketFieldURL, wire.TicketURL)
+	d.checkTicket(spec.TicketProvider, spec.TicketID, spec.TicketURL)
 	spec.BlockedBy = d.optionalString("blocked_by", wire.BlockedBy)
 	spec.Reconciled = d.boolean("reconciled", wire.Reconciled)
 

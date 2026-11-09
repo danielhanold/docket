@@ -101,6 +101,27 @@ func TestRepairQuoteScalarRefused(t *testing.T) {
 	}
 }
 
+// TestRepairQuoteTicketFieldsLikePR pins that the three ticket fields join the
+// free-text quote roster exactly like pr:, and that the retired issue: left it.
+func TestRepairQuoteTicketFieldsLikePR(t *testing.T) {
+	const url = "https://tickets.example.com/browse/X"
+	for _, value := range []string{url, ":30"} {
+		prFS := planOne(t, "docs/changes/active/0001-x.md", "---\nid: 7\npr: "+value+"\n---\nbody\n")
+		for _, field := range []string{"ticket_provider", "ticket_id", "ticket_url"} {
+			fs := planOne(t, "docs/changes/active/0001-x.md", "---\nid: 7\n"+field+": "+value+"\n---\nbody\n")
+			if got, want := hasRepairableCode(fs, RepairQuoteScalar), hasRepairableCode(prFS, RepairQuoteScalar); got != want {
+				t.Errorf("%s: %q quote candidate = %v; pr: gives %v", field, value, got, want)
+			}
+		}
+	}
+	if fs := planOne(t, "docs/changes/active/0001-x.md", "---\nid: 7\nticket_url: :30\n---\nbody\n"); !hasRepairableCode(fs, RepairQuoteScalar) {
+		t.Errorf("ticket_url: :30 is not a quote candidate: %+v", fs)
+	}
+	if fs := planOne(t, "docs/changes/active/0001-x.md", "---\nid: 7\nissue: :30\n---\nbody\n"); len(fs) != 0 {
+		t.Errorf("retired issue: still planned: %+v", fs)
+	}
+}
+
 func TestRepairScalarToListEligible(t *testing.T) {
 	cases := []struct {
 		name string

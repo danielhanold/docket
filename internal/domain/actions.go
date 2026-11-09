@@ -467,7 +467,6 @@ func newChangeBuilder(c Change) *changeBuilder {
 		TicketProvider: c.TicketProvider(),
 		TicketID:       c.TicketID(),
 		TicketURL:      c.TicketURL(),
-		Issue:          c.Issue(),
 		BlockedBy:      c.BlockedBy(),
 		Reconciled:     c.Reconciled(),
 		Location:       c.Location(),
