@@ -1,11 +1,12 @@
 # Backlog
 
-**587 changes** — 🟡 8 proposed · ⚪ 15 deferred · ✅ 419 done · 🗑️ 145 killed
+**588 changes** — 🟡 9 proposed · ⚪ 15 deferred · ✅ 419 done · 🗑️ 145 killed
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | ⏳ waiting on #586 — not yet built |
 | [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | ⏳ waiting on #584 — not yet built |
 | [0586](active/0586-post-a-ticket-update-on-request-in-a-private-repository.md) | Post a ticket update on request in a private repository | `medium` | `feat` | ⏳ waiting on #585 — not yet built |
 | [0585](active/0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | `medium` | `feat` | ⏳ waiting on #583 — not yet built |
@@ -62,6 +63,8 @@ graph TD
   0585 --> 0586
   0584 --> 0587
   0585 --> 0587
+  0586 --> 0588
+  0587 --> 0588
   0192:::done
   0544:::done
   classDef done fill:#d3f9d8;
