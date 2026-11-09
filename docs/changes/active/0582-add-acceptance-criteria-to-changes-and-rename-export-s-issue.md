@@ -41,13 +41,13 @@ A ticket needs acceptance criteria that belong to the change, and the export tha
 
 Two small foundations for the ticket integration:
 
-- **Acceptance criteria.** An optional `## Acceptance criteria` change-body section. `change.create` writes it between What changes and Out of scope when given; `change.groom` (outcomes `spec` and `revise`) can add or edit it as an owned section, and adding it later appends it at end of file. It is never a build gate. The convention documents it.
+- **Acceptance criteria.** An optional `## Acceptance criteria` change-body section. `change.create` writes it between What changes and Out of scope when given; `change.groom` (outcomes `spec` and `revise`) can add or edit it as an owned section. When any of the five proposal sections (Why, What changes, Acceptance criteria, Out of scope, Open questions) is added to an existing change, it is placed in that order rather than at end of file. It is never a build gate. The convention documents it.
 - **Export kind rename.** Export's `issue` kind becomes `ticket`, with its internal identifiers renamed alongside it and no compatibility alias. Its section allowlist gains Acceptance criteria, and a change exports as `<date>-ticket-<slug>.md`.
 
-**Acceptance criteria:** A change created with acceptance criteria shows the section between What changes and Out of scope; groom adds it at end of file or replaces it in place; `docket open change <id> --export` writes `<date>-ticket-<slug>.md` and keeps the section; a change without the section builds as before and exports the same sections as before, under the `ticket` filename.
+**Acceptance criteria:** A change created with acceptance criteria shows the section between What changes and Out of scope; groom adds it between What changes and Out of scope or replaces it in place; `docket open change <id> --export` writes `<date>-ticket-<slug>.md` and keeps the section; a change without the section builds as before and exports the same sections as before, under the `ticket` filename.
 
 The linked spec carries the full design, including the decisions settled by change 581.
 
 ## Out of scope
 
-Reviewers checking a build against acceptance criteria; the legacy `issue:` frontmatter field (change 583); ordered insertion of sections added after creation; renaming export's "another issue" reference wording.
+Reviewers checking a build against acceptance criteria; the legacy `issue:` frontmatter field (change 583); reordering existing records whose sections are already out of order; ordered placement for non-proposal sections; renaming export's "another issue" reference wording.
