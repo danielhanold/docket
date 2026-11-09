@@ -142,6 +142,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0157](0157-everyday-repository-commands-recognize-the-metadata-branch-b.md) — Everyday repository commands recognize the metadata branch by name and shape (Accepted) ← change #574
 - [ADR-0158](0158-context-implementation-id-serves-the-named-in-progress-chang.md) — context.implementation --id serves the named in-progress change (Accepted) ← change #360 · relates to ADR-0126, ADR-0106
 - [ADR-0160](0160-no-claim-lease-and-no-reclaim-stranded-runs-recover-only-by.md) — No claim lease and no reclaim — stranded runs recover only by resume-by-id (Accepted) ← change #575 → supersedes ADR-0159 · relates to ADR-0059, ADR-0084, ADR-0101
+- [ADR-0161](0161-ticket-fields-are-three-flat-stored-scalars-and-issue-is-ret.md) — Ticket fields are three flat stored scalars, and `issue:` is retired (Accepted) ← change #583 · relates to ADR-0071, ADR-0019
 
 ## Superseded / Reversed
 
