@@ -159,6 +159,7 @@ func TestReflectDescriptorChangeCreateRequest(t *testing.T) {
 		"why", "what_changes", "acceptance_criteria", "out_of_scope",
 		"depends_on", "stacked_on", "related", "discovered_from", "adrs",
 		"auto_groomable", "branch_prefix", "hold", "hold_reason",
+		"ticket_provider", "ticket_id", "ticket_url",
 	}
 	if !reflect.DeepEqual(keys, want) {
 		t.Fatalf("keys = %v, want %v", keys, want)
@@ -192,6 +193,11 @@ func TestReflectDescriptorChangeCreateRequest(t *testing.T) {
 	}
 	if f := fieldByKey(t, d, "acceptance_criteria"); f.Required || f.Repeated || f.Type != "string" {
 		t.Errorf("acceptance_criteria = %+v, want optional non-repeated string", f)
+	}
+	for _, k := range []string{"ticket_provider", "ticket_id", "ticket_url"} {
+		if f := fieldByKey(t, d, k); f.Required || f.Repeated || f.Type != "string" {
+			t.Errorf("%s = %+v, want optional non-repeated string", k, f)
+		}
 	}
 
 	// Required set per Task 4's tags.

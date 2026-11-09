@@ -75,6 +75,12 @@ type ChangeCreateRequest struct {
 	// HoldReason is the optional "## Why on hold" section body, accepted only
 	// with Hold true in the same request.
 	HoldReason string `json:"hold_reason,omitempty"`
+	// TicketProvider, TicketID, and TicketURL are the optional ticket link:
+	// all three together or none, each checked by domain.ValidateTicket and
+	// stored exactly as given.
+	TicketProvider string `json:"ticket_provider,omitempty"`
+	TicketID       string `json:"ticket_id,omitempty"`
+	TicketURL      string `json:"ticket_url,omitempty"`
 }
 
 // ChangeCreateResult is the protocol-v1 document `change create` returns. It
@@ -158,6 +164,11 @@ type changeCreatePayload struct {
 	// AcceptanceCriteria is omitempty and blank-normalized so a request without
 	// it digests exactly as before the field existed and an older retry replays.
 	AcceptanceCriteria string `json:"acceptance_criteria,omitempty"`
+	// The ticket keys are omitempty so a request without a ticket link digests
+	// exactly as before the fields existed and an older retry still replays.
+	TicketProvider string `json:"ticket_provider,omitempty"`
+	TicketID       string `json:"ticket_id,omitempty"`
+	TicketURL      string `json:"ticket_url,omitempty"`
 }
 
 func changeCreateSemanticPayload(req ChangeCreateRequest) changeCreatePayload {
@@ -180,6 +191,9 @@ func changeCreateSemanticPayload(req ChangeCreateRequest) changeCreatePayload {
 		HoldReason:     req.HoldReason,
 
 		AcceptanceCriteria: normalizedAcceptanceCriteria(req),
+		TicketProvider:     req.TicketProvider,
+		TicketID:           req.TicketID,
+		TicketURL:          req.TicketURL,
 	}
 }
 
@@ -420,6 +434,7 @@ func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 		}
 	}
 	boundAuthored(&findings, "acceptance_criteria", req.AcceptanceCriteria)
+	findings = append(findings, ticketRequestFindings(req.TicketProvider, req.TicketID, req.TicketURL)...)
 	return findings
 }
 
@@ -634,6 +649,9 @@ func (o changeCreateOp) Plan(ctx context.Context, st transaction.AttemptState) (
 		AcceptanceCriteria: normalizedAcceptanceCriteria(o.req),
 		Hold:               requestHeld(o.req),
 		WhyOnHold:          o.req.HoldReason,
+		TicketProvider:     o.req.TicketProvider,
+		TicketID:           o.req.TicketID,
+		TicketURL:          o.req.TicketURL,
 	})
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change create: serializing record: %w", err)
@@ -645,8 +663,9 @@ func (o changeCreateOp) Plan(ctx context.Context, st transaction.AttemptState) (
 	// render the board (which must reflect the new change) and to resolve the new
 	// record's ADR references to their paths. It is built only when something
 	// consumes it.
+	fillArtifacts := len(o.req.ADRs) > 0 || ticketRequestComplete(o.req.TicketProvider, o.req.TicketID, o.req.TicketURL)
 	var candidate domain.Snapshot
-	if o.inline || len(o.req.ADRs) > 0 {
+	if o.inline || fillArtifacts {
 		candidate, err = buildCandidateSnapshot(o.eff, st.State.Documents, recordBytes, activePath)
 		if err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, err
@@ -654,10 +673,11 @@ func (o changeCreateOp) Plan(ctx context.Context, st transaction.AttemptState) (
 	}
 
 	// Fill the artifact block. A freshly created change has no spec/plan/results,
-	// so the only possible row is ADRs; when there are none the serializer's empty
-	// block is already correct.
+	// so the only possible rows are ADRs and Ticket (shape validation already
+	// guaranteed a complete ticket link is valid); when there are neither the
+	// serializer's empty block is already correct.
 	finalBytes := recordBytes
-	if len(o.req.ADRs) > 0 {
+	if fillArtifacts {
 		c, out := candidate.Change(newID)
 		if out != domain.LookupFound {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change create: new record %04d absent from candidate snapshot", int(newID))

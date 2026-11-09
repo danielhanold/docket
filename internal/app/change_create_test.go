@@ -1044,3 +1044,102 @@ func TestChangeCreateDigestUnchangedWithoutAcceptanceCriteria(t *testing.T) {
 		t.Error("a non-blank acceptance_criteria must change the digest")
 	}
 }
+
+func TestChangeCreateTicketShape(t *testing.T) {
+	req := validChangeCreateRequest()
+	req.TicketID = "CLOUD-123"
+	if !hasFindingCode(validateChangeCreateShape(req), string(FCPartialTicket)) {
+		t.Errorf("a lone ticket_id must emit %s", FCPartialTicket)
+	}
+	req.TicketProvider = "jira"
+	req.TicketURL = testTicketURL
+	for _, f := range validateChangeCreateShape(req) {
+		if strings.Contains(f.Code, "ticket") {
+			t.Errorf("a valid ticket link emitted %s: %s", f.Code, f.Message)
+		}
+	}
+}
+
+func TestChangeCreatePlanLinkedRecord(t *testing.T) {
+	files := map[string]string{
+		"docs/changes/active/0001-first.md": fixtureChange(1, "first"),
+	}
+	op := baseOp([]string{})
+	op.req.TicketProvider = "jira"
+	op.req.TicketID = "CLOUD-123"
+	op.req.TicketURL = testTicketURL
+	plan, opRes := planFor(t, files, op)
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	var recordBytes []byte
+	for _, f := range plan.Files {
+		if strings.HasSuffix(string(f.Path), "0002-add-a-widget.md") {
+			recordBytes = f.Bytes
+		}
+	}
+	if recordBytes == nil {
+		t.Fatal("new record not planned")
+	}
+	body := string(recordBytes)
+	for _, line := range []string{
+		"ticket_provider: 'jira'",
+		"ticket_id: 'CLOUD-123'",
+		"ticket_url: '" + testTicketURL + "'",
+		"| Ticket | [CLOUD-123](" + testTicketURL + ") |",
+	} {
+		if !strings.Contains(body, line) {
+			t.Errorf("record missing %q:\n%s", line, body)
+		}
+	}
+}
+
+func TestChangeCreateTicketDigestCompatible(t *testing.T) {
+	// legacyPayload is changeCreatePayload as it stood before the ticket fields.
+	type legacyPayload struct {
+		Title              string `json:"title"`
+		Type               string `json:"type"`
+		Priority           string `json:"priority"`
+		Why                string `json:"why"`
+		WhatChanges        string `json:"what_changes"`
+		OutOfScope         string `json:"out_of_scope"`
+		DependsOn          []int  `json:"depends_on"`
+		StackedOn          *int   `json:"stacked_on"`
+		Related            []int  `json:"related"`
+		DiscoveredFrom     []int  `json:"discovered_from"`
+		ADRs               []int  `json:"adrs"`
+		AutoGroomable      *bool  `json:"auto_groomable,omitempty"`
+		BranchPrefix       string `json:"branch_prefix,omitempty"`
+		Deliverable        string `json:"deliverable,omitempty"`
+		Hold               bool   `json:"hold,omitempty"`
+		HoldReason         string `json:"hold_reason,omitempty"`
+		AcceptanceCriteria string `json:"acceptance_criteria,omitempty"`
+	}
+	req := validChangeCreateRequest()
+	req.AcceptanceCriteria = "- x"
+	legacy := legacyPayload{
+		Title: req.Title, Type: req.Type, Priority: req.Priority,
+		Why: req.Why, WhatChanges: req.WhatChanges, OutOfScope: req.OutOfScope,
+		AcceptanceCriteria: req.AcceptanceCriteria,
+	}
+	want, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatalf("marshal legacy: %v", err)
+	}
+	got, err := json.Marshal(changeCreateSemanticPayload(req))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("payload without ticket fields = %s, want the pre-field %s", got, want)
+	}
+	linked := req
+	linked.TicketProvider, linked.TicketID, linked.TicketURL = "jira", "CLOUD-123", testTicketURL
+	withTicket, err := json.Marshal(changeCreateSemanticPayload(linked))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if string(withTicket) == string(want) {
+		t.Error("a ticket link must change the digest payload")
+	}
+}
