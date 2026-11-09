@@ -1,8 +1,14 @@
 # Backlog
 
-**588 changes** — 🟡 8 proposed · ⚪ 15 deferred · ✅ 420 done · 🗑️ 145 killed
+**588 changes** — 🟣 1 groomed · 🟡 7 proposed · ⚪ 15 deferred · ✅ 420 done · 🗑️ 145 killed
 
-## 🟡 Proposed (8)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec | Readiness |
+|---|-------|----------|------|------|-----------|
+| [0583](active/0583-link-a-change-to-a-ticket.md) | Link a change to a ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-09-link-a-change-to-a-ticket-design.md) | build-ready |
+
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -11,7 +17,6 @@
 | [0586](active/0586-post-a-ticket-update-on-request-in-a-private-repository.md) | Post a ticket update on request in a private repository | `medium` | `feat` | ⏳ waiting on #585 — not yet built |
 | [0585](active/0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | `medium` | `feat` | ⏳ waiting on #583 — not yet built |
 | [0584](active/0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | `medium` | `feat` | ⏳ waiting on #583 — not yet built |
-| [0583](active/0583-link-a-change-to-a-ticket.md) | Link a change to a ticket | `medium` | `feat` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 

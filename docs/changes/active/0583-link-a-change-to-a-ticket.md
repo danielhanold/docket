@@ -13,7 +13,7 @@ stacked_on:
 related: [581]
 discovered_from: [581]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-11-09-link-a-change-to-a-ticket-design.md'
 plan:
 results:
 auto_groomable:
@@ -28,6 +28,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-11-09-link-a-change-to-a-ticket-design.md](../../superpowers/specs/2026-11-09-link-a-change-to-a-ticket-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -36,15 +39,20 @@ Every ticket capability needs a durable, typed link from a change to its ticket 
 
 ## What changes
 
-Three flat fields, `ticket_provider`, `ticket_id`, `ticket_url`, written together by one operation (link, replace, unlink; refuses a partial set; any status; `## Artifacts` re-rendered with a Ticket row) and accepted by `change.create`. A partial set is reported as a finding only. The `tickets.*` keys, per-repo only, all automatic switches off. The PR body gets one plain line linking the ticket. `issue:` is removed from decode, domain, builder, repair, and implement-next. Fixed by the spec: field names, flatness, stored provider and id, no ticket-type key, no master switch. Left to grooming: the operation's name and request shape; whether the four archived empty `issue:` values stay as unknown data or are dropped.
+A change gets three flat fields, `ticket_provider`, `ticket_id`, and `ticket_url`, stored as given rather than derived. One new operation, `change.link-ticket`, writes them together in any status: link, replace (only on an explicit request, which a human may make in plain words), and unlink. It refuses a partial set and re-renders `## Artifacts` with a Ticket row. `change.create` accepts the same three fields. A hand-edited partial or invalid set counts as not linked and is reported as a warning finding, never a block.
 
-**Acceptance criteria:** Linking writes all three fields and a Ticket row in one commit; unlinking clears them; a partial request is refused; `tickets.*` set in global or local config is warned and ignored; implement-next's PR body carries the ticket line; no record or operation reads `issue:`; docket's own `.docket.yml` carries no `tickets.*` key (a test guards it).
+The `tickets.*` config keys (`provider`, `site`, `project`, and the five `auto.*` event switches, all off) arrive as normal per-repo-only settings; nothing reads them until later ticket changes. implement-next's PR body gets one plain line linking the ticket, read from a typed field in the implementation context. The unused `issue:` field is removed from every read path; the four archived records that carry it empty are left alone. A stale "issue" in `docket open --help` is corrected to "ticket".
 
-**Covers (581 spec):** decision 5 (all parts, including the retirement of `issue:` and the PR-body ticket line), decision 8 (config keys), decision 13's repository guard
+## Acceptance criteria
 
-**Likely touches:** frontmatter decode, domain model, `newChangeBuilder`, `ChangeRecord`, repair's field lists, `ArtifactBlockContent` (Ticket row); a new revision-pinned operation that sets or clears the three fields in any status (modelled on `change.relink`); `change.create` ticket keys; `internal/config` (`tickets.provider`, `site`, `project`, `auto.*`, all `scopeRepoOnly`) with defaults, `assemble`, `diagnostic.config`, `.docket.example.yml` (with the tool table as a comment); implement-next Step 7 (ticket line replaces the "Best-effort PR→issue reference"); convention field sketch and embedded twins
-
-**Design source:** this change is position 2 of the ticket-integration split planned by change 581. The settled design lives in 581's spec, `docs/superpowers/specs/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-design.md`, and its plan in `docs/results/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-results.md` (the entry for position 2, *Coverage check*, *ADRs*, and *Trace notes*). Binding sections: Decisions 5 (Ticket fields on the change), 8 (Config), and 13 (Testing — the repository guard), plus *Vocabulary*, *Out of scope*, and *What the code says today*. Grooming must read those sections and **restate the settled decisions this change carries in its own spec** — do not merely link to them — so the build needs nothing from change 581. Anything 581 marks as fixed is not reopened; only the points it leaves to grooming are decided here.
+- Linking writes all three fields and a Ticket row in one commit; re-linking the same ticket writes nothing; linking over a different ticket is refused without an explicit replace; unlinking clears all three; a partial request is refused.
+- `change.create` with all three fields creates a linked change; with one or two it refuses.
+- Linking works on an archived (`done`) change.
+- A hand-edited partial or invalid set produces a warning finding and is treated as not linked.
+- `tickets.*` set in global or machine-local config is warned and ignored.
+- implement-next's PR body carries the ticket line when the change is linked.
+- No record or operation reads `issue:`.
+- docket's own `.docket.yml` carries no `tickets.*` key, and a test guards it.
 
 ## Out of scope
 
