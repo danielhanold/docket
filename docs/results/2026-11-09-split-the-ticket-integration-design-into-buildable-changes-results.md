@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0581 — Split the ticket integration design into buildable changes](../changes/active/0581-split-the-ticket-integration-design-into-buildable-changes.md)**
+> ↩ **[Change 0581 — Split the ticket integration design into buildable changes](../changes/archive/2026-11-09-0581-split-the-ticket-integration-design-into-buildable-changes.md)**
 <!-- docket:backlink:end -->
 
 # Split the ticket integration design into buildable changes — Results

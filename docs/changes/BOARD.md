@@ -1,12 +1,6 @@
 # Backlog
 
-**581 changes** — 🟢 1 in progress · 🟡 2 proposed · ⚪ 15 deferred · ✅ 418 done · 🗑️ 145 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0581](active/0581-split-the-ticket-integration-design-into-buildable-changes.md) | Split the ticket integration design into buildable changes | `medium` | `chore` | [spec](../superpowers/specs/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-design.md) | `chore/split-the-ticket-integration-design-into-buildable-changes` | building |
+**581 changes** — 🟡 2 proposed · ⚪ 15 deferred · ✅ 419 done · 🗑️ 145 killed
 
 ## 🟡 Proposed (2)
 
@@ -54,16 +48,16 @@ graph TD
   0566
   0572
   0576
-  0581
   0192:::done
   0544:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (563)</summary>
+<details><summary>✅🗑️ Archive — done + killed (564)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0581](archive/2026-11-09-0581-split-the-ticket-integration-design-into-buildable-changes.md) | Split the ticket integration design into buildable changes | 2026-11-09 |
 | [0514](archive/2026-11-08-0514-retire-the-saved-bash-upgrade-test-cases-when-stable-v1-0-0.md) | Retire the saved Bash upgrade test cases when stable v1.0.0 ships | 2026-11-08 |
 | [0273](archive/2026-11-08-0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | 2026-11-08 |
 | [0580](archive/2026-10-28-0580-release-v1-0-0-stable-release-with-version-free-install-docs.md) | Release v1.0.0: stable release with version-free install docs | 2026-10-28 |
@@ -79,7 +73,6 @@ graph TD
 | [0561](archive/2026-10-20-0561-export-an-opened-artifact-as-a-clean-docket-free-markdown-fi.md) | Export an opened artifact as a clean, docket-free Markdown file | 2026-10-20 |
 | [0570](archive/2026-10-19-0570-let-a-loop-carry-on-past-a-halt-that-concerns-only-one-chang.md) | Let a loop carry on past a halt that concerns only one change | 2026-10-19 |
 | [0567](archive/2026-10-19-0567-cleanup-deletes-a-stacked-child-s-branches-once-its-code-rea.md) | Clean up stacked children when their stack lands, and finalize a child after its parent | 2026-10-19 |
-| [0560](archive/2026-10-19-0560-mark-a-build-ready-change-as-off-limits-to-the-autonomous-lo.md) | Put a groomed change on hold so loops skip it | 2026-10-19 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
@@ -229,7 +222,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 75 done |
+| [2026-10](archive/) | 76 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
