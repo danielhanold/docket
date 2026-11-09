@@ -2,7 +2,7 @@
 id: 582
 slug: 'add-acceptance-criteria-to-changes-and-rename-export-s-issue'
 title: 'Add acceptance criteria to changes and rename export''s issue kind to ticket'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md](../../superpowers/specs/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md) |
+| Spec (merged) | [2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md) |
 | Plan | [2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md](../../superpowers/plans/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md) |
 | Results | [2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-results.md](../../results/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-results.md) |
 <!-- docket:artifacts:end -->

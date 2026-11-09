@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0582 — Add acceptance criteria to changes and rename export's issue kind to ticket](../../changes/active/0582-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md)**
+> ↩ **[Change 0582 — Add acceptance criteria to changes and rename export's issue kind to ticket](../../changes/archive/2026-11-09-0582-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md)**
 <!-- docket:backlink:end -->
 
 # Acceptance Criteria on Changes and Export `ticket` Kind Implementation Plan
