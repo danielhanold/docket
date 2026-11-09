@@ -181,6 +181,13 @@ const (
 	// usable as the "## Acceptance criteria" section body.
 	FCInvalidAcceptanceCriteria FindingCode = "invalid-acceptance_criteria"
 
+	// Ticket link request findings (change.create): the three ticket fields
+	// come together or not at all, and each must pass domain.ValidateTicket.
+	FCPartialTicket         FindingCode = "partial-ticket"
+	FCInvalidTicketProvider FindingCode = "invalid-ticket-provider"
+	FCInvalidTicketID       FindingCode = "invalid-ticket-id"
+	FCInvalidTicketURL      FindingCode = "invalid-ticket-url"
+
 	// Install-maintenance findings. collection-pending is the reason an explicit
 	// `install collect` reports and the warning code an automatic post-install
 	// collection surfaces when a version tree could not be reclaimed; the primary
@@ -339,6 +346,9 @@ var AllFindingCodes = []FindingCode{
 	FCInvalidStackedOn,
 	FindingCode("invalid-successor-id"),
 	FCInvalidTargetID,
+	FCInvalidTicketID,
+	FCInvalidTicketProvider,
+	FCInvalidTicketURL,
 	FCInvalidTitle,
 	FCInvalidTopics,
 	FCInvalidType,
@@ -356,6 +366,7 @@ var AllFindingCodes = []FindingCode{
 	FCNotRetitleable,
 	FCNothingToReEnable,
 	FCParseFailed,
+	FCPartialTicket,
 	FCPathMismatch,
 	FindingCode("pr-recorded"),
 	FCPrepareLocalStateUnknown,

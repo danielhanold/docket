@@ -226,6 +226,8 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{BranchPrefix: "a/b"})...)
 	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{Title: "a\nb"})...)
 	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{AcceptanceCriteria: "x\n## H\n"})...)
+	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{TicketID: "X-1"})...)
+	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{TicketProvider: "JIRA", TicketID: " ", TicketURL: "x"})...)
 	emitted = append(emitted, validateADRRecordShape(adrContent)...)
 	emitted = append(emitted, validateADRReplaceShape(ADRReplaceRequest{Target: ADRTarget{ID: 0}, Successor: adrContent})...)
 	emitted = append(emitted, validateLearningRecordShape(LearningRecordRequest{Topics: []string{""}})...)
@@ -274,6 +276,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 		FCInvalidPRNumber, FCInvalidAttempt, FCEmptyHead, FCInvalidPriority, FCUnknownPriority,
 		FCInvalidHold, FCHoldReasonWithoutHold, FCInvalidHoldReason,
 		FCInvalidAcceptanceCriteria,
+		FCPartialTicket, FCInvalidTicketProvider, FCInvalidTicketID, FCInvalidTicketURL,
 	}
 	for _, c := range floor {
 		if !seen[string(c)] {
