@@ -58,6 +58,9 @@ func TestRequiredTagMatchesValidator(t *testing.T) {
 		{"change.unblock", ChangeUnblockRequest{}, func() []StatusFinding {
 			return ChangeUnblock(context.Background(), PlanningDeps{}, "", ChangeUnblockRequest{}).Findings
 		}},
+		{"change.link-ticket", ChangeLinkTicketRequest{}, func() []StatusFinding {
+			return ChangeLinkTicket(context.Background(), PlanningDeps{}, "", ChangeLinkTicketRequest{}).Findings
+		}},
 		{"change.revive", ChangeReviveRequest{}, func() []StatusFinding {
 			return ChangeRevive(context.Background(), PlanningDeps{}, "", ChangeReviveRequest{}).Findings
 		}},
