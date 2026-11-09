@@ -315,6 +315,27 @@ func deliverableRemedy(f domain.Finding, loc reposetup.RecordLocator) string {
 	return "Revise the change with docket-groom-next, or run `docket change groom` with a revise request, and set its deliverable to pr or results-artifact. To edit it by hand instead: " + lowerFirst(hand)
 }
 
+// ticketProblems words a ticket-link-invalid finding's Detail: each missing
+// field, then each invalid field with the rule it fails.
+func ticketProblems(f domain.Finding) string {
+	var parts []string
+	if m := f.Detail["missing"]; m != "" {
+		for _, name := range strings.Split(m, ",") {
+			parts = append(parts, "`"+name+"` is missing")
+		}
+	}
+	if inv := f.Detail["invalid"]; inv != "" {
+		for _, entry := range strings.Split(inv, "; ") {
+			name, rule, _ := strings.Cut(entry, ": ")
+			parts = append(parts, "`"+name+"` must be "+rule)
+		}
+	}
+	if len(parts) == 0 {
+		return "`" + f.Field + "` needs fixing"
+	}
+	return strings.Join(parts, "; ")
+}
+
 // validationTexts is the plain-language table, keyed by validator code.
 var validationTexts = map[string]validationExplainer{
 	repository.CodeRecordUndecodable: func(f domain.Finding, loc reposetup.RecordLocator) findingText {
@@ -348,6 +369,13 @@ var validationTexts = map[string]validationExplainer{
 			Message: fmt.Sprintf("%s has %s, but a type must be %s.", subjectOf(f.Entity), fieldValue("type", f.Detail["raw"]), typeRule),
 			Impact:  "docket can't label or group the change by its type.",
 			Remedy:  handEdit(f, loc, "set `type:` to "+typeRule+", such as `feature` or `fix`"),
+		}
+	},
+	repository.CodeTicketLinkInvalid: func(f domain.Finding, loc reposetup.RecordLocator) findingText {
+		return findingText{
+			Message: fmt.Sprintf("%s has an incomplete or invalid ticket link: %s.", subjectOf(f.Entity), ticketProblems(f)),
+			Impact:  "docket treats the change as not linked to a ticket: its Artifacts block shows no Ticket row, and its pull request carries no ticket line.",
+			Remedy:  "Run the `change.link-ticket` operation with all three ticket fields and `replace: true` to set the link, or with `unlink: true` to clear it.",
 		}
 	},
 	repository.CodeADRStatusUnparseable: func(f domain.Finding, loc reposetup.RecordLocator) findingText {

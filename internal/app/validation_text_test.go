@@ -172,6 +172,12 @@ func validationFixtures() map[string][]validationFixture {
 			{"item", f(repository.CodeListItemMalformed, E, fxDecoded(domain.EntityChange, changePath), "depends_on", map[string]string{"raw": "#12", "index": "1"})},
 			{"raw empty", f(repository.CodeListItemMalformed, E, fxDecoded(domain.EntityChange, changePath), "related", map[string]string{"raw": "", "index": "0"})},
 		},
+		repository.CodeTicketLinkInvalid: {
+			{"partial", f(repository.CodeTicketLinkInvalid, W, fxDecoded(domain.EntityChange, changePath), "ticket_provider",
+				map[string]string{"missing": "ticket_provider"})},
+			{"invalid", f(repository.CodeTicketLinkInvalid, W, fxDecoded(domain.EntityChange, changePath), "ticket_url",
+				map[string]string{"invalid": "ticket_url: an absolute http or https web address"})},
+		},
 		repository.CodeChangeTypeInvalid: {
 			{"type", f(repository.CodeChangeTypeInvalid, E, fxDecoded(domain.EntityChange, changePath), "type", map[string]string{"raw": "Big Feature"})},
 		},
@@ -394,6 +400,23 @@ func TestExplainValidationTypeRuleMatchesValidator(t *testing.T) {
 	for _, ok := range []string{"feature", "fix"} {
 		if !domain.ValidTypeToken(ok) || !strings.Contains(got.Remedy, "`"+ok+"`") {
 			t.Errorf("example %q: valid=%v, in remedy=%v", ok, domain.ValidTypeToken(ok), strings.Contains(got.Remedy, "`"+ok+"`"))
+		}
+	}
+}
+
+// TestExplainValidationTicketLinkNamesOperation pins that a bad ticket set's
+// text names the offending field and points at change.link-ticket for both
+// the replace and the unlink route.
+func TestExplainValidationTicketLinkNamesOperation(t *testing.T) {
+	for _, x := range validationFixtures()[repository.CodeTicketLinkInvalid] {
+		got := explainValidation(x.finding, reposetup.RecordLocator{Checkout: ".docket"})
+		for _, want := range []string{"change.link-ticket", "replace: true", "unlink: true"} {
+			if !strings.Contains(got.Remedy, want) {
+				t.Errorf("%s: Remedy %q lacks %q", x.label, got.Remedy, want)
+			}
+		}
+		if !strings.Contains(got.Message, "`"+x.finding.Field+"`") {
+			t.Errorf("%s: Message %q does not name `%s`", x.label, got.Message, x.finding.Field)
 		}
 	}
 }

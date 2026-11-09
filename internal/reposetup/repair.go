@@ -106,13 +106,15 @@ var changeListFields = map[string]bool{
 // changeStringFields is the set of change-manifest fields the decode layer reads
 // as free-text strings: decode.go's decodeChange (*decoder).text /
 // (*decoder).optionalString call sites (slug, title, type, spec, plan, results,
-// branch_prefix, branch, pr, issue, blocked_by). Quoting is type-safe only for
+// branch_prefix, branch, pr, ticket_provider, ticket_id, ticket_url,
+// blocked_by). Quoting is type-safe only for
 // these — quoting an int/date/bool field would change its decoded type — so the
 // quote roster is gated on membership here.
 var changeStringFields = map[string]bool{
 	"slug": true, "title": true, "type": true, "spec": true, "plan": true,
 	"results": true, "branch_prefix": true, "branch": true, "pr": true,
-	"issue": true, "blocked_by": true,
+	"ticket_provider": true, "ticket_id": true, "ticket_url": true,
+	"blocked_by": true,
 }
 
 // PlanRepairs inspects one change record's bytes and returns the ordered set of
