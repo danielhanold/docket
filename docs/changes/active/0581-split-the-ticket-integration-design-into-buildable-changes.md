@@ -2,7 +2,7 @@
 id: 581
 slug: 'split-the-ticket-integration-design-into-buildable-changes'
 title: 'Split the ticket integration design into buildable changes'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'chore'
 deliverable: 'results-artifact'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'chore/split-the-ticket-integration-design-into-buildable-changes'
 pr:
 blocked_by:
 reconciled: false

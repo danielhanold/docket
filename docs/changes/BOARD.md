@@ -1,12 +1,12 @@
 # Backlog
 
-**581 changes** — 🟣 1 groomed · 🟡 2 proposed · ⚪ 15 deferred · ✅ 418 done · 🗑️ 145 killed
+**581 changes** — 🟢 1 in progress · 🟡 2 proposed · ⚪ 15 deferred · ✅ 418 done · 🗑️ 145 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0581](active/0581-split-the-ticket-integration-design-into-buildable-changes.md) | Split the ticket integration design into buildable changes | `medium` | `chore` | [spec](../superpowers/specs/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0581](active/0581-split-the-ticket-integration-design-into-buildable-changes.md) | Split the ticket integration design into buildable changes | `medium` | `chore` | [spec](../superpowers/specs/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-design.md) | `chore/split-the-ticket-integration-design-into-buildable-changes` | building |
 
 ## 🟡 Proposed (2)
 
