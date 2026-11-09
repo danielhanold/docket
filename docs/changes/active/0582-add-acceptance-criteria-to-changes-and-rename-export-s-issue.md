@@ -14,7 +14,7 @@ related: [581, 583]
 discovered_from: [581]
 adrs: []
 spec: 'docs/superpowers/specs/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md'
 results:
 auto_groomable:
 hold:
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md](../../superpowers/specs/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md) |
+| Plan | [2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md](../../superpowers/plans/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
