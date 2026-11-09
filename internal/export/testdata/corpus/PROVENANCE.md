@@ -5,7 +5,7 @@ Frozen inputs for `corpus_test.go`. Every file under `changes/`, `specs/`, `plan
 `a6c555422f1fdb17577ef472309f0b3859f519ec`, copied on 2026-10-20. Never edit them: a leftover
 found here is fixed in the transform. The files under `constructed/` are hand-built.
 
-The folder sets the export kind: `changes/` exports as an issue, `specs/` as a spec, `plans/`
+The folder sets the export kind: `changes/` exports as a ticket, `specs/` as a spec, `plans/`
 and `constructed/` as a plan, `results/` as results.
 
 ## titles.tsv
@@ -35,7 +35,7 @@ that record's frontmatter `title:` on the same commit. No id is claimed by two r
 | `results/2026-10-17-let-change-groom-clear-stacked-on-results.md` | `docs/results/` | Results dense with references: a padded list in a heading, a references-only parenthesis of seven ids removed whole, `0007-shaped` (not a form), bare `#565` kept. |
 | `results/2026-10-08-release-v1-0-0-rc-1-claude-code-and-cursor-tested-opencode-s-results.md` | `docs/results/` | A bare URL ending a sentence, kept as written; backlink block. |
 | `constructed/code.md` | hand-built | Reference-, link-, and marker-shaped text inside a backtick fence, a tilde fence, single- and double-backtick code spans; a bare URL, `#559` (a known id), `PR #433`, `ADR-0012`, and the unknown padded id `0998` in prose. |
-| `constructed/frontmatter.md` | hand-built | A non-issue artifact with leading frontmatter. No spec, plan, or results file on the metadata branch has one, and an issue's frontmatter is also dropped by the section allowlist, so without this file disabling step 1 would leave the corpus green. |
+| `constructed/frontmatter.md` | hand-built | A non-ticket artifact with leading frontmatter. No spec, plan, or results file on the metadata branch has one, and a ticket's frontmatter is also dropped by the section allowlist, so without this file disabling step 1 would leave the corpus green. |
 
 ## What the corpus does not contain
 
@@ -50,3 +50,4 @@ Checked by scanning every corpus file outside fences and code spans:
 | Damaged markers and an unclosed frontmatter opener | `TestTransformDamagedSourceKeepsContent` |
 | CRLF line endings | `TestTransformNormalizesCRLF` |
 | An id two records claim | the app-layer export tests |
+| A `## Acceptance criteria` section | `TestTransformTicket` |

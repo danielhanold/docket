@@ -23,7 +23,7 @@ const corpusDir = "testdata/corpus"
 
 // corpusKinds maps a corpus folder to the kind its files export as.
 var corpusKinds = map[string]Kind{
-	"changes":     KindIssue,
+	"changes":     KindTicket,
 	"specs":       KindSpec,
 	"plans":       KindPlan,
 	"results":     KindResults,
@@ -56,7 +56,7 @@ func loadCorpus(t *testing.T) []corpusFile {
 				t.Fatal(err)
 			}
 			in := Input{Kind: kind, Source: src, Titles: titles}
-			if kind == KindIssue {
+			if kind == KindTicket {
 				in.Title = frontmatterTitle(t, p, src)
 			}
 			files = append(files, corpusFile{rel: filepath.ToSlash(strings.TrimPrefix(p, corpusDir+string(filepath.Separator))), kind: kind, src: src, in: in})
@@ -210,7 +210,7 @@ var (
 	// converted title, or a "groomed <date>" sentence anywhere on it (which still
 	// shows once step 6 has turned the "Change N" into a title).
 	testStampRE = regexp.MustCompile(`(?i)^change #?\d+[.,]|^change:|^change "|\bgroomed \d{4}-\d{2}-\d{2}\b`)
-	issueH2     = map[string]bool{"## Why": true, "## What changes": true, "## Out of scope": true, "## Open questions": true}
+	ticketH2    = map[string]bool{"## Why": true, "## What changes": true, "## Acceptance criteria": true, "## Out of scope": true, "## Open questions": true}
 	// testWordRefRE is a "change N" / "changes N" reference; testPaddedRE a
 	// zero-padded four-digit id, optionally after '#'. Both are written here,
 	// apart from the transform's own patterns.
@@ -292,8 +292,8 @@ func corpusProblems(kind Kind, src, out []byte, titles Titles) []string {
 		}
 		if l.heading == 2 {
 			seenH2 = true
-			if kind == KindIssue && !issueH2[strings.TrimRight(l.text, " \t")] {
-				add("line %d: issue keeps a non-allowlisted section: %q", n, l.text)
+			if kind == KindTicket && !ticketH2[strings.TrimRight(l.text, " \t")] {
+				add("line %d: ticket keeps a non-allowlisted section: %q", n, l.text)
 			}
 		}
 		if kind == KindSpec && !seenH2 && (testStampRE.MatchString(l.text) || strings.Contains(l.plain, "**Change:**")) {
@@ -347,11 +347,11 @@ func codeRegions(lines []mdLine) []string {
 }
 
 // exportScope is the part of src whose content an export keeps: never the
-// frontmatter or a marker-delimited generated block, and for an issue only the
+// frontmatter or a marker-delimited generated block, and for a ticket only the
 // allowlisted sections.
 func exportScope(kind Kind, src []byte) []mdLine {
 	var scope []mdLine
-	inBlock, keepSection := "", kind != KindIssue
+	inBlock, keepSection := "", kind != KindTicket
 	for _, l := range readLines(src) {
 		switch {
 		case l.kind == document.LineFrontmatter:
@@ -367,8 +367,8 @@ func exportScope(kind Kind, src []byte) []mdLine {
 		case inBlock != "":
 			continue
 		}
-		if kind == KindIssue && l.heading == 2 {
-			keepSection = issueH2[strings.TrimRight(l.text, " \t")]
+		if kind == KindTicket && l.heading == 2 {
+			keepSection = ticketH2[strings.TrimRight(l.text, " \t")]
 		}
 		if keepSection {
 			scope = append(scope, l)

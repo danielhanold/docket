@@ -275,18 +275,18 @@ func TestOpenExportRefusesProtectedDestination(t *testing.T) {
 	}
 }
 
-func TestOpenExportIssueNameAndH1(t *testing.T) {
+func TestOpenExportTicketNameAndH1(t *testing.T) {
 	f := newOpenFixture(t, "", false, openWeb, exportCorpus()...)
 	f.writeBody(t, "docs/changes/active/0007-widget.md",
 		"---\nid: 7\ntitle: Widget export\n---\n\n# Widget export\n\n## Why\n\nBecause change 0003 broke.\n\n## Reconcile log\n\nnoise\n")
 	out := testsupport.TempDir(t)
 	res := f.export(t, f.exportDeps(testsupport.TempDir(t), "linux", "/nowhere"), "change", 7, func(o *OpenOptions) { o.OutputPath, o.Print = out, true })
-	want := filepath.Join(out, "2026-01-02-issue-widget.md")
+	want := filepath.Join(out, "2026-01-02-ticket-widget.md")
 	if res.Result != ResultApplied || res.ExportedPath != want {
 		t.Fatalf("(%s, %q, %q)", res.Result, res.ExportedPath, res.Message)
 	}
 	if got, w := readExport(t, want), "# Widget export\n\n## Why\n\nBecause \"Old gadget\" broke.\n"; got != w {
-		t.Errorf("issue = %q, want %q", got, w)
+		t.Errorf("ticket = %q, want %q", got, w)
 	}
 }
 

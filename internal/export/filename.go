@@ -11,7 +11,7 @@ var leadingDateRE = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})-(.+)$`)
 
 // FileName returns the exported file's name, <date>-<type>-<name>.md.
 //
-// For a change record (KindIssue) the date is created and the name is slug. For a
+// For a change record (KindTicket) the date is created and the name is slug. For a
 // spec, plan, or results artifact the date is the source basename's leading
 // YYYY-MM-DD and the name is the rest of the stem; a stem with no leading date
 // takes created and keeps the whole stem. A spec's trailing "-design" and a
@@ -20,7 +20,7 @@ var leadingDateRE = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})-(.+)$`)
 // the type word.
 func FileName(kind Kind, sourcePath, created, slug string) string {
 	date, name := created, slug
-	if kind != KindIssue {
+	if kind != KindTicket {
 		base := filepath.Base(sourcePath)
 		name = strings.TrimSuffix(base, filepath.Ext(base))
 		if m := leadingDateRE.FindStringSubmatch(name); m != nil {
