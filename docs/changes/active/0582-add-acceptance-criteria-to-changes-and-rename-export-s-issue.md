@@ -15,7 +15,7 @@ discovered_from: [581]
 adrs: []
 spec: 'docs/superpowers/specs/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md'
 plan: 'docs/superpowers/plans/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md'
-results:
+results: 'docs/results/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-results.md'
 auto_groomable:
 hold:
 branch_prefix:
@@ -32,6 +32,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md](../../superpowers/specs/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md) |
 | Plan | [2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md](../../superpowers/plans/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md) |
+| Results | [2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-results.md](../../results/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
