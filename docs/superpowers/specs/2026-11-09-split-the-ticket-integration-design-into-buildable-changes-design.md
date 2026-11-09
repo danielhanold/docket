@@ -81,15 +81,17 @@ The agent running the workflow at the event posts, using the harness's own conne
 All three are attended: the human asks, or, for an automatic ticket at change creation, docket-new-change is running with the human in the session.
 
 - **Link** an existing change to an existing ticket by recording the ticket fields (decision 5). Works in any status. Replacing an existing link and unlinking are explicit requests.
-- **Import** ("make a change from CLOUD-123"): read the ticket through the connector and distill its contents into a new proposed change (Why, What changes, Acceptance criteria, Out of scope, Open questions), with the ticket fields set at creation. One time only: there is no ongoing inbound sync. An imported change never fires change-created, since it is already linked.
+- **Import** ("make a change from CLOUD-123"): read the ticket through the connector and distill its contents into a new proposed change (Why, What changes, Acceptance criteria, Out of scope, Open questions), with the ticket fields set at creation. The change's `type` is mapped from the ticket's type to one of the configured `change_types` (a Bug becomes `fix`, a Story `feat`); with no obvious match, the agent asks. One time only: there is no ongoing inbound sync. An imported change never fires change-created, since it is already linked.
 - **Create** a ticket from a change:
   1. **Readiness check.** Could another engineer take ownership of this as a user story? The check covers the problem and why it matters; the desired outcome; bounded scope and non-goals; genuine constraints, kept distinct from implementation preferences; clear, verifiable acceptance criteria that belong to this change; and no open question that blocks understanding. Technical questions may stay open: the request must be ready for ownership, not necessarily for coding. A spec is not required, and an existing spec never turns its technical choices into requirements.
   2. **Refinement, only if needed.** Ask targeted questions about what is missing and write the answers into the change through `change.groom`'s owned sections, which works only while the change is `proposed`. For a change past `proposed`, the ticket is built from the change as it stands; if that is not story-ready, the agent names what is missing and the human decides. The agent never invents scope or acceptance criteria and never promotes an unreviewed solution into a requirement.
-  3. **Draft.** The ticket body is the change exported with export's `ticket` kind (decision 7), with private cleanup in a private repository.
+  3. **Draft.** The ticket body is the change exported with export's `ticket` kind (decision 7), with private cleanup in a private repository. The ticket type comes from the change's type (see *Ticket type* below).
   4. **Approval.** On request, the agent shows the drafted ticket and creates it on the human's go. Automatic (the change-created switch is on): there is no draft approval; if the change is not ready, the targeted questions are asked in the same docket-new-change session; if the human declines to refine, no ticket is created.
   5. **Record.** After the connector confirms the ticket was created, record the ticket fields on the change.
 
-  Scan-mode stubs never create tickets automatically. Where a new ticket goes comes from config (`tickets.provider`, `site`, `project`, `type`; decision 8). On request with those values missing, the agent asks; automatically with them missing, no ticket is created and the session gets one line saying why.
+  Scan-mode stubs never create tickets automatically. Where a new ticket goes comes from config (`tickets.provider`, `site`, `project`; decision 8). On request with those values missing, the agent asks; automatically with them missing, no ticket is created and the session gets one line saying why.
+
+  **Ticket type.** No ticket type is configured. The agent maps the change's `type` to one of the ticket types the project actually has, which it reads through the connector (in Jira, `listJiraProjectIssueTypesMetadata`, reachable through the connector's `discover` tool): `fix` maps to the bug type, `feat` to the story or feature type, and anything else to the task type. With no obvious match, the agent asks the human, who is always present when a ticket is created: on request, and in docket-new-change for the automatic change-created event. No autonomous workflow ever creates a ticket. A tool without ticket types (Linear, Asana, Trello) gets none. On request, the mapped type appears in the draft the human approves.
 
   Creating a ticket writes its description once. Docket never rewrites a ticket's description afterwards; every later update is a comment.
 
@@ -147,7 +149,6 @@ tickets:
   provider: jira              # which tool
   site: acme.atlassian.net    # where it lives
   project: CLOUD              # where new tickets go
-  type: Story                 # kind of ticket, optional
   auto:                       # act on its own after each event; all false by default
     change_created: false     # create the ticket (readiness check first)
     spec_written: false
@@ -159,9 +160,10 @@ tickets:
 - **Every `tickets.*` key is per-repo only**, applying ADR-0019's existing classification: a key whose effect writes external objects is fenced. Set in the global config or `.docket.local.yml`, it is warned and ignored. In a shared repository it lives in the committed `.docket.yml`, so it is the team's setting; in a private repository it lives in `.git/dckt/config.yml`. This applies an existing rule, so it needs no new ADR.
 - **No master on/off switch.** With every event switch off by default and every update needing a linked ticket, a fresh repository posts nothing; a master switch would only block the human's explicit requests.
 - **No "enable all" switch.** Each event is set on its own, as docket's config works everywhere else.
-- **`project` and `type` are generic**, and `docket-link-ticket` maps them to the provider's own terms. `type` is optional.
+- **`project` is generic**, and `docket-link-ticket` maps it to the provider's own term.
+- **There is no ticket-type key.** The type comes from the change's own `type` (decision 4). A single configured default would not work: no one value exists in every tool ("Task" does not), some tools have no ticket types at all, and since every ticket creation has a human present, the agent can ask when the mapping finds no match.
 
-| Tool | `project` means | `type` means |
+| Tool | `project` means | Ticket types the mapping targets (decision 4) |
 |---|---|---|
 | Jira | project | issue type (Story, Task, Bug) |
 | Azure DevOps | project | work item type |
@@ -171,7 +173,7 @@ tickets:
 | Linear | team | none (labels) |
 | Asana / Trello | project / board | none |
 
-- Each key is a fixed path in the config registry, since the registry has no user-named map keys. The example config carries the table above as a comment.
+- Each key is a fixed path in the config registry, since the registry has no user-named map keys. That is also why change-type → ticket-type is not a config map: change types are user-defined (`change_types` can be replaced wholesale), and the registry rejects an unknown name in a named position (`matchPath` in `internal/config/decode.go`). The example config carries the table above as a comment.
 
 ### 9. Delivery by visibility
 
