@@ -246,11 +246,13 @@ change_types: [chore, docs, feat, fix, refactor, perf]
 
 # ═══ Tickets ══════════════════════════════════════════════════════════════════════════════
 
-# tickets — the ticket system this repository's changes link to. Linking a change to a ticket
-# keeps the two together: the change shows the ticket in its artifacts, and the pull request
-# docket opens names it. `provider` names the tool (jira, linear, …), `site` names where it lives
-# (tickets.example.com), and `project` names where new tickets go. Each is a single line; empty
-# (the default) means not set.
+# tickets — the ticket system this repository's changes link to. `provider` names the tool
+# (jira, linear, …), `site` names where it lives (tickets.example.com), and `project` names where
+# new tickets go. Each is a single line; empty (the default) means not set.
+#
+# No docket command reads these settings yet, so setting them has no effect today. Linking a
+# change to a ticket does not consult them either: the ticket a change links to, and its tool,
+# are whatever that change's link records.
 #
 # What `project` means, and what kind of ticket each tool creates, depends on the tool:
 #
@@ -264,9 +266,9 @@ change_types: [chore, docs, feat, fix, refactor, perf]
 #   | Linear         | team             | none (labels)                                |
 #   | Asana / Trello | project / board  | none                                         |
 #
-# The `auto` switches let docket act on a linked ticket on its own after each event: a change is
-# created, its spec is written, its pull request opens, its pull request merges, or its results
-# are complete. All are off by default.
+# The `auto` switches name five events: a change is created, its spec is written, its pull
+# request opens, its pull request merges, or its results are complete. All are off by default,
+# and like the settings above, docket does not act on them yet.
 #
 # These settings belong to the repository: a value in the global config or `.docket.local.yml` is
 # ignored with a warning.

@@ -57,16 +57,20 @@ Each key has one scope:
 | `board.section_order` | `[in-progress, built, blocked, groomed, proposed, deferred]` | any layer | the order of the board's sections |
 | `board.sorting.<section>.by` / `.direction` | `updated` / `desc` | any layer | how each board section is sorted |
 | `change_types` | `[chore, docs, feat, fix, refactor, perf]` | any layer | the types a change can be classified as |
-| `tickets.provider` | `""` (unset) | repo-only | the ticket system this repository's changes link to (jira, linear, …) |
-| `tickets.site` | `""` (unset) | repo-only | where that ticket system lives |
-| `tickets.project` | `""` (unset) | repo-only | where new tickets go (a project, team, repository, or board, by tool) |
-| `tickets.auto.change_created` | `false` | repo-only | whether docket acts on the linked ticket when a change is created |
-| `tickets.auto.spec_written` | `false` | repo-only | whether docket acts on the linked ticket when a change's spec is written |
-| `tickets.auto.pr_opened` | `false` | repo-only | whether docket acts on the linked ticket when a change's pull request opens |
-| `tickets.auto.pr_merged` | `false` | repo-only | whether docket acts on the linked ticket when a change's pull request merges |
-| `tickets.auto.results_completed` | `false` | repo-only | whether docket acts on the linked ticket when a change's results are complete |
+| `tickets.provider` | `""` (unset) | repo-only | the ticket system this repository's changes link to (jira, linear, …); no effect yet |
+| `tickets.site` | `""` (unset) | repo-only | where that ticket system lives; no effect yet |
+| `tickets.project` | `""` (unset) | repo-only | where new tickets go (a project, team, repository, or board, by tool); no effect yet |
+| `tickets.auto.change_created` | `false` | repo-only | a switch for when a change is created; no effect yet |
+| `tickets.auto.spec_written` | `false` | repo-only | a switch for when a change's spec is written; no effect yet |
+| `tickets.auto.pr_opened` | `false` | repo-only | a switch for when a change's pull request opens; no effect yet |
+| `tickets.auto.pr_merged` | `false` | repo-only | a switch for when a change's pull request merges; no effect yet |
+| `tickets.auto.results_completed` | `false` | repo-only | a switch for when a change's results are complete; no effect yet |
 | `agent_harnesses` | none | any layer | the dispatch opt-in (below) |
 | `agents.<harness>.<agent>.model` / `.effort` | the built-in table | global-only | model and effort pins for docket's agents |
+
+**`tickets`** settings are accepted and checked, but no docket command reads them yet, so setting
+them has no effect today. Linking a change to a ticket does not consult them: the ticket a change
+links to, and its tool, are whatever that change's link records.
 
 **`agent_harnesses`** opts a repository in to docket's parent-facing dispatch surfaces: the
 managed block in `CLAUDE.md` / `AGENTS.md` and, for Cursor, `.cursor/rules/docket-dispatch.mdc`.
