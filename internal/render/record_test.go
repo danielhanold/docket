@@ -89,6 +89,51 @@ func TestChangeRecordHasNoTrivialKey(t *testing.T) {
 	t.Fatalf("frontmatter never closed:\n%s", got)
 }
 
+// TestChangeRecordAcceptanceCriteria proves the optional acceptance criteria
+// land between "## What changes" and "## Out of scope", and that an empty
+// value writes no section.
+func TestChangeRecordAcceptanceCriteria(t *testing.T) {
+	base := func() render.NewChangeRecord {
+		return render.NewChangeRecord{
+			ID: 1, Slug: "s", Title: "T", Type: "feat", Priority: "medium", Created: goldenDate,
+			Why: "w", WhatChanges: "c", OutOfScope: "oos",
+		}
+	}
+	render1 := func(r render.NewChangeRecord) []byte {
+		t.Helper()
+		got, err := render.ChangeRecord(r)
+		if err != nil {
+			t.Fatalf("ChangeRecord: %v", err)
+		}
+		if _, err := document.Parse(got); err != nil {
+			t.Fatalf("document.Parse: %v\n%s", err, got)
+		}
+		return got
+	}
+
+	withAC := base()
+	withAC.AcceptanceCriteria = "- ac"
+	if got, want := string(render1(withAC)), "## What changes\n\nc\n\n## Acceptance criteria\n\n- ac\n\n## Out of scope\n\noos\n"; !strings.HasSuffix(got, want) {
+		t.Fatalf("criteria placement:\n%s", got)
+	}
+
+	held := withAC
+	held.Hold, held.WhyOnHold = true, "h"
+	if got, want := string(render1(held)), "## Acceptance criteria\n\n- ac\n\n## Out of scope\n\noos\n\n## Why on hold\n\nh\n"; !strings.HasSuffix(got, want) {
+		t.Fatalf("criteria with hold:\n%s", got)
+	}
+
+	without := render1(base())
+	if bytes.Contains(without, []byte("## Acceptance criteria")) {
+		t.Fatalf("empty criteria wrote a section:\n%s", without)
+	}
+	explicitEmpty := base()
+	explicitEmpty.AcceptanceCriteria = ""
+	if !bytes.Equal(without, render1(explicitEmpty)) {
+		t.Fatal("empty criteria changed the rendered bytes")
+	}
+}
+
 // TestLearningRecordMatchesGolden pins the canonical learning shape.
 func TestLearningRecordMatchesGolden(t *testing.T) {
 	got, err := render.LearningRecord(render.NewLearningRecord{
