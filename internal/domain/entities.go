@@ -96,6 +96,9 @@ type ChangeSpec struct {
 	BranchPrefix   OptionalString // per-change mint-prefix override; durable input
 	Branch         OptionalString
 	PR             OptionalString
+	TicketProvider OptionalString // ticket link: see Ticket and ValidateTicket
+	TicketID       OptionalString
+	TicketURL      OptionalString
 	Issue          OptionalString
 	BlockedBy      OptionalString
 	Reconciled     bool
