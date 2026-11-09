@@ -139,6 +139,33 @@ func TestLinkTicketPlanLinks(t *testing.T) {
 	}
 }
 
+// TestLinkTicketPlanFillsEmptyKeys links a record already carrying the three
+// valueless ticket keys, the shape change.create and unlink produce.
+func TestLinkTicketPlanFillsEmptyKeys(t *testing.T) {
+	recPath := groomPath(7, "widget")
+	body := strings.Replace(lifecycleChange(7, "widget", "in-progress"),
+		"status: in-progress\n", "status: in-progress\nticket_provider:\nticket_id:\nticket_url:\n", 1)
+	if !strings.Contains(body, "ticket_id:\n") {
+		t.Fatalf("fixture lacks empty ticket keys:\n%s", body)
+	}
+	files := map[string]string{recPath: body}
+	plan, opRes := linkTicketPlanFor(t, files, linkTicketOpFor(nil, 7, recPath, cloud123, false, false))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := lifecycleRecordBytes(t, plan, recPath)
+	for _, want := range []string{
+		"ticket_provider: 'jira'", "ticket_id: 'CLOUD-123'", "ticket_url: '" + ticketTestURL + "'",
+	} {
+		if strings.Count(rec, want) != 1 {
+			t.Errorf("record should carry %q exactly once:\n%s", want, rec)
+		}
+	}
+	if got := linkTicketReceipt(t, plan).Disposition; got != LinkTicketDispLinked {
+		t.Errorf("receipt disposition = %q, want linked", got)
+	}
+}
+
 func TestLinkTicketPlanInsertsMissingKeys(t *testing.T) {
 	recPath := groomPath(7, "widget")
 	files := map[string]string{recPath: lifecycleChange(7, "widget", "in-progress")}

@@ -131,12 +131,13 @@ func SchemaVocabularies(effects []string) map[string]Vocabulary {
 		CancelDispositionCancelled, CancelDispositionAlreadyCancelled,
 		CancelDispositionPending, CancelDispositionRefused,
 	}}
-	// The conflict-resolver report's closed disposition set (ResolverReport,
-	// the request finalize.rebase-continue and finalize.rebase-abort decode).
+	// The change.link-ticket receipt's closed disposition set.
 	v["link_ticket_dispositions"] = Vocabulary{Members: []string{
 		LinkTicketDispLinked, LinkTicketDispAlreadyLinked, LinkTicketDispReplaced,
 		LinkTicketDispUnlinked, LinkTicketDispNothingToUnlink,
 	}}
+	// The conflict-resolver report's closed disposition set (ResolverReport,
+	// the request finalize.rebase-continue and finalize.rebase-abort decode).
 	v["resolver_dispositions"] = Vocabulary{Members: []string{
 		ResolverResolved, ResolverStuck,
 	}}
