@@ -312,3 +312,143 @@ func TestValidateSectionBodyErrorsCarryNoBodyContent(t *testing.T) {
 		}
 	}
 }
+
+// proposalBase is the shared fixture for the proposal-order placement tests:
+// an unowned lead section, then Why, What changes, Out of scope in order.
+const proposalBase = "---\nid: 7\n---\n\n## Artifacts\n\nA\n\n## Why\n\nW\n\n## What changes\n\nC\n\n## Out of scope\n\nO\n"
+
+// applyProposalEdits runs ApplySectionEdits over the change owned set and
+// compares the full output against want byte for byte.
+func applyProposalEdits(t *testing.T, src, want string, edits ...render.SectionEdit) {
+	t.Helper()
+	out, err := render.ApplySectionEdits([]byte(src), render.ChangeOwnedHeadings, edits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out, []byte(want)) {
+		t.Fatalf("placement produced:\n%q\nwant:\n%q", out, want)
+	}
+}
+
+func replaceEdit(heading, markdown string) render.SectionEdit {
+	return render.SectionEdit{Heading: heading, Intent: render.SectionReplace, Markdown: markdown}
+}
+
+// TestApplySectionEditsProposalInsertAfterPredecessor: an absent proposal
+// section lands right after its nearest present earlier proposal section.
+func TestApplySectionEditsProposalInsertAfterPredecessor(t *testing.T) {
+	want := "---\nid: 7\n---\n\n## Artifacts\n\nA\n\n## Why\n\nW\n\n## What changes\n\nC\n\n## Acceptance criteria\n\nAC\n\n## Out of scope\n\nO\n"
+	applyProposalEdits(t, proposalBase, want, replaceEdit("## Acceptance criteria", "AC\n"))
+}
+
+// TestApplySectionEditsProposalInsertAfterPredecessorAheadOfEventSections: a
+// proposal section added after the last proposal section still lands ahead of
+// trailing non-proposal sections.
+func TestApplySectionEditsProposalInsertAfterPredecessorAheadOfEventSections(t *testing.T) {
+	src := proposalBase + "\n## Reconcile log\n\nR\n\n## Why on hold\n\nH\n"
+	want := "---\nid: 7\n---\n\n## Artifacts\n\nA\n\n## Why\n\nW\n\n## What changes\n\nC\n\n## Out of scope\n\nO\n\n## Open questions\n\nQ\n\n## Reconcile log\n\nR\n\n## Why on hold\n\nH\n"
+	applyProposalEdits(t, src, want, replaceEdit("## Open questions", "Q\n"))
+}
+
+// TestApplySectionEditsProposalInsertBeforeSuccessor: with no earlier proposal
+// section present, the added one lands before the nearest present later one.
+func TestApplySectionEditsProposalInsertBeforeSuccessor(t *testing.T) {
+	src := "---\nid: 7\n---\n\n## Artifacts\n\nA\n\n## Out of scope\n\nO\n"
+	want := "---\nid: 7\n---\n\n## Artifacts\n\nA\n\n## Why\n\nW\n\n## Out of scope\n\nO\n"
+	applyProposalEdits(t, src, want, replaceEdit("## Why", "W\n"))
+}
+
+// TestApplySectionEditsProposalAppendsWhenNoProposalPresent: with no proposal
+// neighbour present, the added proposal section is appended at EOF.
+func TestApplySectionEditsProposalAppendsWhenNoProposalPresent(t *testing.T) {
+	src := "---\nid: 7\n---\n\n## Artifacts\n\nA\n\n## Reconcile log\n\nR\n"
+	want := "---\nid: 7\n---\n\n## Artifacts\n\nA\n\n## Reconcile log\n\nR\n\n## Why\n\nW\n"
+	applyProposalEdits(t, src, want, replaceEdit("## Why", "W\n"))
+}
+
+// TestApplySectionEditsProposalTwoInOneRequestLandInOrder: an earlier
+// insertion in the same request counts as present for the next one.
+func TestApplySectionEditsProposalTwoInOneRequestLandInOrder(t *testing.T) {
+	src := "---\nid: 7\n---\n\n## Why\n\nW\n\n## Out of scope\n\nO\n\n## Reconcile log\n\nR\n"
+	want := "---\nid: 7\n---\n\n## Why\n\nW\n\n## Acceptance criteria\n\nAC\n\n## Out of scope\n\nO\n\n## Open questions\n\nQ\n\n## Reconcile log\n\nR\n"
+	applyProposalEdits(t, src, want,
+		replaceEdit("## Open questions", "Q\n"),
+		replaceEdit("## Acceptance criteria", "AC\n"),
+	)
+}
+
+// TestApplySectionEditsProposalAfterLastSectionKeepsEOFLayout: a predecessor
+// that ends the file yields the ordinary EOF append layout.
+func TestApplySectionEditsProposalAfterLastSectionKeepsEOFLayout(t *testing.T) {
+	want := proposalBase + "\n## Open questions\n\nQ\n"
+	applyProposalEdits(t, proposalBase, want, replaceEdit("## Open questions", "Q\n"))
+}
+
+// TestApplySectionEditsProposalPresentReplaceStaysInPlace: replacing a present
+// proposal section never moves it, even when it sits out of order.
+func TestApplySectionEditsProposalPresentReplaceStaysInPlace(t *testing.T) {
+	src := "---\nid: 7\n---\n\n## Why\n\nW\n\n## Reconcile log\n\nR\n\n## Open questions\n\nold\n"
+	want := "---\nid: 7\n---\n\n## Why\n\nW\n\n## Reconcile log\n\nR\n\n## Open questions\n\nnew\n"
+	applyProposalEdits(t, src, want, replaceEdit("## Open questions", "new\n"))
+}
+
+// TestApplySectionEditsNonProposalStillAppends: a non-proposal owned section is
+// appended at EOF even when proposal sections are present.
+func TestApplySectionEditsNonProposalStillAppends(t *testing.T) {
+	want := proposalBase + "\n## Why deferred\n\nD\n"
+	applyProposalEdits(t, proposalBase, want, replaceEdit("## Why deferred", "D\n"))
+}
+
+// TestApplySectionEditsProposalInsertAddsMissingBlankLine: when the
+// predecessor's body runs straight into the next heading, the insertion still
+// sits behind exactly one blank line and deletes no existing byte.
+func TestApplySectionEditsProposalInsertAddsMissingBlankLine(t *testing.T) {
+	src := "---\nid: 7\n---\n\n## What changes\n\nC\n## Out of scope\n\nO\n"
+	want := "---\nid: 7\n---\n\n## What changes\n\nC\n\n## Acceptance criteria\n\nAC\n\n## Out of scope\n\nO\n"
+	applyProposalEdits(t, src, want, replaceEdit("## Acceptance criteria", "AC\n"))
+}
+
+// TestApplySectionEditsProposalJudgedAgainstEditedRecord: "present" is judged
+// after the request's in-place splices, so a predecessor removed in the same
+// request does not anchor the insertion.
+func TestApplySectionEditsProposalJudgedAgainstEditedRecord(t *testing.T) {
+	want := "---\nid: 7\n---\n\n## Artifacts\n\nA\n\n## Why\n\nW\n\n## Acceptance criteria\n\nAC\n\n## Out of scope\n\nO\n"
+	applyProposalEdits(t, proposalBase, want,
+		render.SectionEdit{Heading: "## What changes", Intent: render.SectionRemove},
+		replaceEdit("## Acceptance criteria", "AC\n"),
+	)
+}
+
+// TestApplySectionEditsProposalInsertCRLF: a CRLF record gets a CRLF section at
+// the mid-file insertion point and keeps every surrounding byte.
+func TestApplySectionEditsProposalInsertCRLF(t *testing.T) {
+	crlf := func(s string) string { return strings.ReplaceAll(s, "\n", "\r\n") }
+	want := "---\nid: 7\n---\n\n## Artifacts\n\nA\n\n## Why\n\nW\n\n## What changes\n\nC\n\n## Acceptance criteria\n\nAC\n\n## Out of scope\n\nO\n"
+	applyProposalEdits(t, crlf(proposalBase), crlf(want), replaceEdit("## Acceptance criteria", "AC\n"))
+}
+
+// TestApplySectionEditsProposalIgnoresFencedHeading: a proposal heading inside
+// a fenced code block is content, not a present section.
+func TestApplySectionEditsProposalIgnoresFencedHeading(t *testing.T) {
+	src := "---\nid: 7\n---\n\n## Why\n\nW\n\n```text\n## What changes\n```\n\n## Out of scope\n\nO\n"
+	want := "---\nid: 7\n---\n\n## Why\n\nW\n\n```text\n## What changes\n```\n\n## Acceptance criteria\n\nAC\n\n## Out of scope\n\nO\n"
+	applyProposalEdits(t, src, want, replaceEdit("## Acceptance criteria", "AC\n"))
+}
+
+// TestProposalHeadingsAreOwnedChangeHeadings: the proposal order is the five
+// verbatim headings, and every one is an owned change heading.
+func TestProposalHeadingsAreOwnedChangeHeadings(t *testing.T) {
+	want := []string{"## Why", "## What changes", "## Acceptance criteria", "## Out of scope", "## Open questions"}
+	if strings.Join(render.ProposalHeadings, "|") != strings.Join(want, "|") {
+		t.Fatalf("ProposalHeadings = %q, want %q", render.ProposalHeadings, want)
+	}
+	owned := make(map[string]bool, len(render.ChangeOwnedHeadings))
+	for _, h := range render.ChangeOwnedHeadings {
+		owned[h] = true
+	}
+	for _, h := range render.ProposalHeadings {
+		if !owned[h] {
+			t.Errorf("proposal heading %q is not in ChangeOwnedHeadings", h)
+		}
+	}
+}
