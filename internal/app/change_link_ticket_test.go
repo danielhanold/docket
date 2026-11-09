@@ -338,3 +338,79 @@ func TestLinkTicketResultHumanText(t *testing.T) {
 		t.Errorf("refused = %q, want %q", got, want)
 	}
 }
+
+// unsupportedTicketURLShapes are hand-edited ticket_url values the decoder
+// accepts as a ticket-link-invalid warning but the field patcher cannot edit
+// in place: a mapping, a block scalar, and a multi-line plain scalar.
+var unsupportedTicketURLShapes = map[string]string{
+	"mapping":           "ticket_url: {a: b}\n",
+	"block-mapping":     "ticket_url:\n  a: b\n",
+	"block-scalar":      "ticket_url: |\n  https://tickets.example.com/browse/OLD-1\n  more\n",
+	"multi-line-scalar": "ticket_url: https://tickets.example.com/browse/OLD-1\n  continued\n",
+}
+
+// unsupportedTicketRecord carries provider and id plus one unsupported
+// ticket_url entry, followed by a field the rewrite must leave untouched.
+func unsupportedTicketRecord(urlLines string) string {
+	return withTicketLines(lifecycleChange(7, "widget", "in-progress"),
+		"ticket_provider: 'jira'\nticket_id: 'OLD-1'\n"+urlLines)
+}
+
+func TestLinkTicketPlanReplaceOverUnsupportedShape(t *testing.T) {
+	recPath := groomPath(7, "widget")
+	for name, urlLines := range unsupportedTicketURLShapes {
+		t.Run(name, func(t *testing.T) {
+			files := map[string]string{recPath: unsupportedTicketRecord(urlLines)}
+			plan, opRes := linkTicketPlanFor(t, files, linkTicketOpFor(nil, 7, recPath, cloud123, true, false))
+			if opRes.Refused {
+				t.Fatalf("refused: %v", opRes.Findings)
+			}
+			if got := linkTicketReceipt(t, plan).Disposition; got != LinkTicketDispReplaced {
+				t.Errorf("receipt disposition = %q, want replaced", got)
+			}
+			rec := lifecycleRecordBytes(t, plan, recPath)
+			if !strings.Contains(rec, "\nticket_url: '"+ticketTestURL+"'\n") ||
+				!strings.Contains(rec, "| Ticket | [CLOUD-123](") {
+				t.Errorf("record not a valid CLOUD-123 link:\n%s", rec)
+			}
+			for _, gone := range []string{"OLD-1", "a: b", "continued", "more"} {
+				if strings.Contains(rec, gone) {
+					t.Errorf("record still carries %q from the old entry:\n%s", gone, rec)
+				}
+			}
+			if strings.Count(rec, "ticket_url:") != 1 {
+				t.Errorf("record carries ticket_url more than once:\n%s", rec)
+			}
+		})
+	}
+}
+
+func TestLinkTicketPlanUnlinkOverUnsupportedShape(t *testing.T) {
+	recPath := groomPath(7, "widget")
+	for name, urlLines := range unsupportedTicketURLShapes {
+		t.Run(name, func(t *testing.T) {
+			files := map[string]string{recPath: unsupportedTicketRecord(urlLines)}
+			plan, opRes := linkTicketPlanFor(t, files, linkTicketOpFor(nil, 7, recPath, domain.Ticket{}, false, true))
+			if opRes.Refused {
+				t.Fatalf("refused: %v", opRes.Findings)
+			}
+			if got := linkTicketReceipt(t, plan).Disposition; got != LinkTicketDispUnlinked {
+				t.Errorf("receipt disposition = %q, want unlinked", got)
+			}
+			rec := lifecycleRecordBytes(t, plan, recPath)
+			for _, want := range []string{"\nticket_provider:\n", "\nticket_id:\n", "\nticket_url:\n"} {
+				if !strings.Contains(rec, want) {
+					t.Errorf("record lacks valueless %q:\n%s", strings.TrimSpace(want), rec)
+				}
+			}
+			for _, gone := range []string{"OLD-1", "a: b", "continued", "more", "| Ticket |"} {
+				if strings.Contains(rec, gone) {
+					t.Errorf("unlinked record still carries %q:\n%s", gone, rec)
+				}
+			}
+			if strings.Count(rec, "ticket_url:") != 1 {
+				t.Errorf("record carries ticket_url more than once:\n%s", rec)
+			}
+		})
+	}
+}
