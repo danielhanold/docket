@@ -22,7 +22,7 @@ branch_prefix:
 branch: 'feat/add-acceptance-criteria-to-changes-and-rename-export-s-issue'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ The linked spec carries the full design, including the decisions settled by chan
 ## Out of scope
 
 Reviewers checking a build against acceptance criteria; the legacy `issue:` frontmatter field (change 583); reordering existing records whose sections are already out of order; ordered placement for non-proposal sections; renaming export's "another issue" reference wording.
+
+## Reconcile log
+
+### 2026-11-09
+
+Unchanged against `main` at 89e2c58b0; export kind, owned headings, and section splicer are as the spec describes.
