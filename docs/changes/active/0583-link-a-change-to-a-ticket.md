@@ -15,7 +15,7 @@ discovered_from: [581]
 adrs: [161]
 spec: 'docs/superpowers/specs/2026-11-09-link-a-change-to-a-ticket-design.md'
 plan: 'docs/superpowers/plans/2026-11-09-link-a-change-to-a-ticket.md'
-results:
+results: 'docs/results/2026-11-09-link-a-change-to-a-ticket-results.md'
 auto_groomable:
 hold:
 branch_prefix:
@@ -32,6 +32,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-11-09-link-a-change-to-a-ticket-design.md](../../superpowers/specs/2026-11-09-link-a-change-to-a-ticket-design.md) |
 | Plan | [2026-11-09-link-a-change-to-a-ticket.md](../../superpowers/plans/2026-11-09-link-a-change-to-a-ticket.md) |
+| Results | [2026-11-09-link-a-change-to-a-ticket-results.md](../../results/2026-11-09-link-a-change-to-a-ticket-results.md) |
 | ADRs | [ADR-0161](../../adrs/0161-ticket-fields-are-three-flat-stored-scalars-and-issue-is-ret.md) |
 <!-- docket:artifacts:end -->
 
