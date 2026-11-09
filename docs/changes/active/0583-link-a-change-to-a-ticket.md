@@ -2,7 +2,7 @@
 id: 583
 slug: 'link-a-change-to-a-ticket'
 title: 'Link a change to a ticket'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'feat/link-a-change-to-a-ticket'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/450'
 blocked_by:
 reconciled: true
 ---
@@ -66,3 +66,12 @@ Any connector call; skills that create or update tickets (changes 584–588); bo
 ### 2026-11-09
 
 Unchanged against main 64018716f: the export-kind rename (KindTicket) the folded-in open-help fix depends on has landed, and the issue: read sites the spec names are still present.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: b7897978c7bfe5c2cdc78885c8b294e6ef4e0805
+ran_at:   2026-11-09T23:54:34Z
+<!-- docket:build-evidence:end -->
