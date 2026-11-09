@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -102,6 +103,22 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 		return eff.BoardSurfaces.Value, eff.BoardSurfaces.Provenance, eff.BoardSurfaces.Explicit
 	case "change_types":
 		return eff.ChangeTypes.Value, eff.ChangeTypes.Provenance, eff.ChangeTypes.Explicit
+	case "tickets.provider":
+		return eff.Tickets.Provider.Value, eff.Tickets.Provider.Provenance, eff.Tickets.Provider.Explicit
+	case "tickets.site":
+		return eff.Tickets.Site.Value, eff.Tickets.Site.Provenance, eff.Tickets.Site.Explicit
+	case "tickets.project":
+		return eff.Tickets.Project.Value, eff.Tickets.Project.Provenance, eff.Tickets.Project.Explicit
+	case "tickets.auto.change_created":
+		return eff.Tickets.Auto.ChangeCreated.Value, eff.Tickets.Auto.ChangeCreated.Provenance, eff.Tickets.Auto.ChangeCreated.Explicit
+	case "tickets.auto.spec_written":
+		return eff.Tickets.Auto.SpecWritten.Value, eff.Tickets.Auto.SpecWritten.Provenance, eff.Tickets.Auto.SpecWritten.Explicit
+	case "tickets.auto.pr_opened":
+		return eff.Tickets.Auto.PROpened.Value, eff.Tickets.Auto.PROpened.Provenance, eff.Tickets.Auto.PROpened.Explicit
+	case "tickets.auto.pr_merged":
+		return eff.Tickets.Auto.PRMerged.Value, eff.Tickets.Auto.PRMerged.Provenance, eff.Tickets.Auto.PRMerged.Explicit
+	case "tickets.auto.results_completed":
+		return eff.Tickets.Auto.ResultsCompleted.Value, eff.Tickets.Auto.ResultsCompleted.Provenance, eff.Tickets.Auto.ResultsCompleted.Explicit
 	}
 	t.Fatalf("effectiveLeaf: %q is not an Effective leaf", path)
 	return nil, Provenance{}, false
@@ -618,6 +635,77 @@ func guardCases() []guardCase {
 		{"github_project", "github_project: {owner: acme, number: 7}\n", "github_project: auto\n",
 			githubProject{Owner: "acme", Number: 7}},
 		{"terminal_publish", "terminal_publish: true\n", "terminal_publish: false\n", true},
+		{"tickets.provider", "tickets:\n  provider: jira\n", "tickets:\n  provider: linear\n", "jira"},
+		{"tickets.site", "tickets:\n  site: tickets.example.com\n", "tickets:\n  site: other.example.com\n", "tickets.example.com"},
+		{"tickets.project", "tickets:\n  project: CLOUD\n", "tickets:\n  project: OPS\n", "CLOUD"},
+		{"tickets.auto.change_created", "tickets:\n  auto: {change_created: true}\n", "tickets:\n  auto: {change_created: false}\n", true},
+		{"tickets.auto.spec_written", "tickets:\n  auto: {spec_written: true}\n", "tickets:\n  auto: {spec_written: false}\n", true},
+		{"tickets.auto.pr_opened", "tickets:\n  auto: {pr_opened: true}\n", "tickets:\n  auto: {pr_opened: false}\n", true},
+		{"tickets.auto.pr_merged", "tickets:\n  auto: {pr_merged: true}\n", "tickets:\n  auto: {pr_merged: false}\n", true},
+		{"tickets.auto.results_completed", "tickets:\n  auto: {results_completed: true}\n", "tickets:\n  auto: {results_completed: false}\n", true},
+	}
+}
+
+// TestTicketsKeysRepoOnly: the ticket settings belong to the repository. A
+// machine layer (global or repository-local) declaring one is warned about
+// per key and leaves the built-in value in force; the committed layer's
+// declaration resolves with repository provenance and blocks nothing.
+func TestTicketsKeysRepoOnly(t *testing.T) {
+	const doc = "tickets:\n  provider: jira\n  auto:\n    pr_opened: true\n"
+	for _, build := range []func(string) Source{srcG, srcL} {
+		src := build(doc)
+		t.Run(string(src.Layer), func(t *testing.T) {
+			snap := mustSnapshot(t, src)
+			ignored := diagPathSet(snap, CodeSharedSettingIgnored)
+			for _, p := range []string{"tickets.provider", "tickets.auto.pr_opened"} {
+				if !ignored[p] {
+					t.Errorf("%s declared in the %s layer produced no shared-setting-ignored warning", p, src.Layer)
+				}
+			}
+			for _, d := range snap.Diagnostics {
+				if d.Code == CodeSharedSettingIgnored && d.Severity != SeverityWarning {
+					t.Errorf("%s: severity %q, want warning", d.Path, d.Severity)
+				}
+			}
+			eff := snap.Effective
+			if eff.Tickets.Provider.Value != "" || eff.Tickets.Provider.Explicit {
+				t.Errorf("tickets.provider = %q (explicit %v), want the built-in \"\"", eff.Tickets.Provider.Value, eff.Tickets.Provider.Explicit)
+			}
+			if eff.Tickets.Auto.PROpened.Value || eff.Tickets.Auto.PROpened.Explicit {
+				t.Errorf("tickets.auto.pr_opened = %v (explicit %v), want the built-in false", eff.Tickets.Auto.PROpened.Value, eff.Tickets.Auto.PROpened.Explicit)
+			}
+		})
+	}
+
+	snap := mustSnapshot(t, srcR(doc))
+	eff := snap.Effective
+	if eff.Tickets.Provider.Value != "jira" || eff.Tickets.Provider.Provenance.Layer != LayerRepository {
+		t.Errorf("tickets.provider = %q from %q, want jira from the repository layer", eff.Tickets.Provider.Value, eff.Tickets.Provider.Provenance.Layer)
+	}
+	if !eff.Tickets.Auto.PROpened.Value || eff.Tickets.Auto.PROpened.Provenance.Layer != LayerRepository {
+		t.Errorf("tickets.auto.pr_opened = %v from %q, want true from the repository layer", eff.Tickets.Auto.PROpened.Value, eff.Tickets.Auto.PROpened.Provenance.Layer)
+	}
+	if !PreflightMutation(snap).Allowed {
+		t.Errorf("preflight blocked a repository declaring ticket settings: %v", blockerPaths(snap))
+	}
+}
+
+// TestTicketsStringSingleLine: a ticket string setting is one line; a value
+// carrying a line break is rejected rather than stored.
+func TestTicketsStringSingleLine(t *testing.T) {
+	for _, doc := range []string{
+		"tickets:\n  site: \"a\\nb\"\n",
+		"tickets:\n  project: \"a\\rb\"\n",
+		"tickets:\n  provider: \"jira\\n\"\n",
+	} {
+		_, diags := decodeDoc(t, doc)
+		if len(diags) != 1 || diags[0].Code != CodeInvalidValue {
+			t.Errorf("%q: want one %s diagnostic, got %+v", doc, CodeInvalidValue, diags)
+			continue
+		}
+		if !strings.Contains(diags[0].Message, "must be a single line") {
+			t.Errorf("%q: message %q does not say the value must be a single line", doc, diags[0].Message)
+		}
 	}
 }
 

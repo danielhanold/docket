@@ -382,6 +382,30 @@ func buildRegistry() []pathSpec {
 				reserved: reservedChangeTypes,
 			})},
 
+		// The ticket settings: which ticket system a repository links to, where
+		// new tickets go, and the per-event automation switches. All belong to
+		// the repository, so a machine layer's declaration is ignored with a
+		// warning.
+		{path: "tickets.provider", kind: kindString, def: "",
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported,
+			validate: singleLineStringLeaf()},
+		{path: "tickets.site", kind: kindString, def: "",
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported,
+			validate: singleLineStringLeaf()},
+		{path: "tickets.project", kind: kindString, def: "",
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported,
+			validate: singleLineStringLeaf()},
+		{path: "tickets.auto.change_created", kind: kindBool, def: false,
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: boolLeaf()},
+		{path: "tickets.auto.spec_written", kind: kindBool, def: false,
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: boolLeaf()},
+		{path: "tickets.auto.pr_opened", kind: kindBool, def: false,
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: boolLeaf()},
+		{path: "tickets.auto.pr_merged", kind: kindBool, def: false,
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: boolLeaf()},
+		{path: "tickets.auto.results_completed", kind: kindBool, def: false,
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: boolLeaf()},
+
 		// 25-26: auto capture. The subset check against effective change_types
 		// cannot run here — it is cross-leaf, so resolution owns it.
 		{path: "auto_capture.enabled", kind: kindBool, def: false,
@@ -588,6 +612,23 @@ func stringLeaf(nonEmpty, spaceFree, relPath bool) leafValidator {
 			if diag, bad := relPathDiag(src, path, n, v); bad {
 				return nil, []Diagnostic{diag}
 			}
+		}
+		return v, nil
+	}
+}
+
+// singleLineStringLeaf is stringLeaf with no other constraint, except that the
+// value must be one line: a carriage return or line feed is rejected.
+func singleLineStringLeaf() leafValidator {
+	base := stringLeaf(false, false, false)
+	return func(src Source, path string, n *yaml.Node) (any, []Diagnostic) {
+		v, diags := base(src, path, n)
+		if diags != nil {
+			return nil, diags
+		}
+		if strings.ContainsAny(n.Value, "\r\n") {
+			return nil, []Diagnostic{leafDiag(src, path, CodeInvalidValue, n,
+				"must be a single line")}
 		}
 		return v, nil
 	}

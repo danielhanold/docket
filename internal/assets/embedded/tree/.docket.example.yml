@@ -21,7 +21,7 @@
 # ── Copying this file ─────────────────────────────────────────────────────────────────────
 # Safe to copy: copied verbatim as `.docket.yml`, it behaves exactly like having no file, because
 # every active value below is the built-in default. Copy only the keys you want to change.
-# For `.docket.local.yml` or the global config, copy only `scope: any layer` keys: the four
+# For `.docket.local.yml` or the global config, copy only `scope: any layer` keys: the
 # `scope: repo-only` keys are ignored with a warning there.
 #
 # ── Scope tags ────────────────────────────────────────────────────────────────────────────
@@ -242,6 +242,45 @@ board:
 # type as well as add one. `all` and `untyped` are reserved and may not appear.
 # scope: any layer
 change_types: [chore, docs, feat, fix, refactor, perf]
+
+
+# ═══ Tickets ══════════════════════════════════════════════════════════════════════════════
+
+# tickets — the ticket system this repository's changes link to. Linking a change to a ticket
+# keeps the two together: the change shows the ticket in its artifacts, and the pull request
+# docket opens names it. `provider` names the tool (jira, linear, …), `site` names where it lives
+# (tickets.example.com), and `project` names where new tickets go. Each is a single line; empty
+# (the default) means not set.
+#
+# What `project` means, and what kind of ticket each tool creates, depends on the tool:
+#
+#   | Tool           | `project` means  | Ticket types                                 |
+#   |----------------|------------------|----------------------------------------------|
+#   | Jira           | project          | issue type (Story, Task, Bug)                |
+#   | Azure DevOps   | project          | work item type                               |
+#   | GitLab         | project          | issue type                                   |
+#   | GitHub Issues  | repository       | issue type, where the organization has them  |
+#   | Shortcut       | team             | story type                                   |
+#   | Linear         | team             | none (labels)                                |
+#   | Asana / Trello | project / board  | none                                         |
+#
+# The `auto` switches let docket act on a linked ticket on its own after each event: a change is
+# created, its spec is written, its pull request opens, its pull request merges, or its results
+# are complete. All are off by default.
+#
+# These settings belong to the repository: a value in the global config or `.docket.local.yml` is
+# ignored with a warning.
+# scope: repo-only (shared-setting guarded)
+tickets:
+  provider: ""
+  site: ""
+  project: ""
+  auto:
+    change_created: false
+    spec_written: false
+    pr_opened: false
+    pr_merged: false
+    results_completed: false
 
 
 # ═══ Agent harnesses & agent models ═══════════════════════════════════════════════════════

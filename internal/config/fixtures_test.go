@@ -187,6 +187,14 @@ func TestFixtureSparseDefaults(t *testing.T) {
 		{"gate_observation_budget", eff.GateObservation.Explicit, eff.GateObservation.Provenance.Layer},
 		{"board_surfaces", eff.BoardSurfaces.Explicit, eff.BoardSurfaces.Provenance.Layer},
 		{"change_types", eff.ChangeTypes.Explicit, eff.ChangeTypes.Provenance.Layer},
+		{"tickets.provider", eff.Tickets.Provider.Explicit, eff.Tickets.Provider.Provenance.Layer},
+		{"tickets.site", eff.Tickets.Site.Explicit, eff.Tickets.Site.Provenance.Layer},
+		{"tickets.project", eff.Tickets.Project.Explicit, eff.Tickets.Project.Provenance.Layer},
+		{"tickets.auto.change_created", eff.Tickets.Auto.ChangeCreated.Explicit, eff.Tickets.Auto.ChangeCreated.Provenance.Layer},
+		{"tickets.auto.spec_written", eff.Tickets.Auto.SpecWritten.Explicit, eff.Tickets.Auto.SpecWritten.Provenance.Layer},
+		{"tickets.auto.pr_opened", eff.Tickets.Auto.PROpened.Explicit, eff.Tickets.Auto.PROpened.Provenance.Layer},
+		{"tickets.auto.pr_merged", eff.Tickets.Auto.PRMerged.Explicit, eff.Tickets.Auto.PRMerged.Provenance.Layer},
+		{"tickets.auto.results_completed", eff.Tickets.Auto.ResultsCompleted.Explicit, eff.Tickets.Auto.ResultsCompleted.Provenance.Layer},
 	} {
 		if leaf.explicit {
 			t.Errorf("%s: Explicit is true with no configuration file present", leaf.path)

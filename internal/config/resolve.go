@@ -330,6 +330,14 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 		eff.Board.Sorting[s] = srt
 	}
 	set(assign(&eff.ChangeTypes, r.declared, "change_types"))
+	set(assign(&eff.Tickets.Provider, r.declared, "tickets.provider"))
+	set(assign(&eff.Tickets.Site, r.declared, "tickets.site"))
+	set(assign(&eff.Tickets.Project, r.declared, "tickets.project"))
+	set(assign(&eff.Tickets.Auto.ChangeCreated, r.declared, "tickets.auto.change_created"))
+	set(assign(&eff.Tickets.Auto.SpecWritten, r.declared, "tickets.auto.spec_written"))
+	set(assign(&eff.Tickets.Auto.PROpened, r.declared, "tickets.auto.pr_opened"))
+	set(assign(&eff.Tickets.Auto.PRMerged, r.declared, "tickets.auto.pr_merged"))
+	set(assign(&eff.Tickets.Auto.ResultsCompleted, r.declared, "tickets.auto.results_completed"))
 	set(assign(&eff.AgentHarnesses, r.declared, "agent_harnesses"))
 	if len(errs) > 0 {
 		return eff, errs[0]
