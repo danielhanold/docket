@@ -746,3 +746,48 @@ func TestStatusLegacyTrivialRecordReadsNeedsGrooming(t *testing.T) {
 		t.Errorf("legacy trivial row = readiness %q, ready %v; want needs-grooming, false", row.Readiness, row.Ready)
 	}
 }
+
+// TestStatusReportsTicketLinkInvalid: a change carrying a partial ticket set
+// raises one warning-severity ticket-link-invalid finding, adds no error
+// finding, and is still listed.
+func TestStatusReportsTicketLinkInvalid(t *testing.T) {
+	fake := &fakeReader{
+		pin: docketPin(t),
+		corpus: []StatusBlob{
+			changeBlob(61, "partial", "feat", "high", "ticket_provider: jira\nticket_id: CLOUD-123\n"),
+		},
+		facts: domain.NewBranchFacts(nil),
+	}
+	got := Status(context.Background(), fake, StatusOptions{})
+	if got.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied; message=%q", got.Result, got.Message)
+	}
+	found := 0
+	for _, f := range got.Findings {
+		if f.Code != "ticket-link-invalid" {
+			continue
+		}
+		found++
+		if f.Severity != "warning" {
+			t.Errorf("ticket-link-invalid severity = %q, want warning", f.Severity)
+		}
+		if f.Identity != "0061" {
+			t.Errorf("ticket-link-invalid identity = %q, want 0061", f.Identity)
+		}
+	}
+	if found != 1 {
+		t.Errorf("ticket-link-invalid findings = %d, want 1: %+v", found, got.Findings)
+	}
+	if got.Summary.ErrorFindings != 0 {
+		t.Errorf("error findings = %d, want 0: %+v", got.Summary.ErrorFindings, got.Findings)
+	}
+	listed := false
+	for _, c := range got.Changes {
+		if c.ID == 61 {
+			listed = true
+		}
+	}
+	if !listed {
+		t.Errorf("change 61 not listed: %+v", got.Changes)
+	}
+}
