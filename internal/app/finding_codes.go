@@ -175,6 +175,10 @@ const (
 	FCHoldReasonWithoutHold FindingCode = "hold-reason-without-hold"
 	FCInvalidHoldReason     FindingCode = "invalid-hold_reason"
 
+	// FCInvalidAcceptanceCriteria: change.create's acceptance_criteria is not
+	// usable as the "## Acceptance criteria" section body.
+	FCInvalidAcceptanceCriteria FindingCode = "invalid-acceptance_criteria"
+
 	// Install-maintenance findings. collection-pending is the reason an explicit
 	// `install collect` reports and the warning code an automatic post-install
 	// collection surfaces when a version tree could not be reclaimed; the primary
@@ -297,6 +301,7 @@ var AllFindingCodes = []FindingCode{
 	FindingCode("illegal-source-status"),
 	FindingCode(ReasonStatusInternalError),
 	FindingCode(ReasonStatusInterrupted),
+	FCInvalidAcceptanceCriteria,
 	FCInvalidADRs,
 	FCInvalidAttempt,
 	FCInvalidBlockedNote,
