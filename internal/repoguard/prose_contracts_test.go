@@ -556,7 +556,6 @@ var proseContracts = []proseContract{
 			"passes the producing change as `{id, path, revision}`",
 			"one at a time, each with a fresh lookup",
 			"`git diff --shortstat <effective base>...HEAD`",
-			"**Best-effort PR→issue reference.**",
 			"**PR-body back-link.**",
 		},
 		absent: []string{
@@ -565,6 +564,25 @@ var proseContracts = []proseContract{
 			"record that number in the change's `adrs:` relation through a `change.reconcile`",
 			"git diff --shortstat origin/<integration_branch>...HEAD",
 			"Before assembling it, **read `references/edge-paths.md` now (blocking)**",
+		}},
+	// change 0583 — a change links to a ticket through three stored fields; the
+	// PR body carries a Ticket line from the implementation context, and the
+	// retired `issue:` field and its `#<issue>` reference are gone.
+	{sentinel: "change_0583_ticket_link", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{
+			"**Ticket line.**",
+			"`change.summary.ticket`",
+			"`Ticket: [<id>](<url>)`",
+		},
+		absent: []string{"`issue:`", "#<issue>", "PR→issue"}},
+	{sentinel: "change_0583_ticket_link", file: "skills/docket-convention/SKILL.md",
+		present: []string{
+			"change.link-ticket",
+			"`ticket_provider:`",
+			"`ticket_url:`",
+			"`replace: true`",
+			"never replace a link on its own initiative",
+			"`ticket-link-invalid`",
 		}},
 	{sentinel: "change_0360_step_wording", file: "skills/docket-implement-next/references/edge-paths.md",
 		absent: []string{"## PR-body assembly (Step 7)", "Step 7's PR-body assembly"}},

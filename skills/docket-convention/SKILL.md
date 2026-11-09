@@ -189,6 +189,9 @@ hold:                     # `true` keeps a groomed change out of autonomous buil
 branch_prefix:            # optional one unqualified branch-path component; overrides <type> at mint, consumed only at claim, inert once branch: is populated
 branch:                   # minted <type>/<slug> (or <branch_prefix>/<slug>) name, set on claim; sole feature-head source of truth after, never reconstructed; branch itself created at build (step 4)
 pr:                       # set when the PR is opened
+ticket_provider:          # the ticket system of the linked ticket (jira, linear, …); the three ticket fields are written together by change.link-ticket
+ticket_id:                # the ticket's id as that system shows it (CLOUD-123)
+ticket_url:               # the ticket's web address
 blocked_by:               # free text; set only when status: blocked
 reconciled: false         # set true after the just-in-time reconcile pass
 ---
@@ -197,6 +200,17 @@ reconciled: false         # set true after the just-in-time reconcile pass
 `stacked_on:` names exactly one parent as a single **integer scalar** (never a flow collection), is
 the sole source of truth for that relationship — the parent-side link is derived at render time —
 and is never copied into `related:` or `depends_on:`.
+
+**Ticket link.** A change links to a ticket in the team's ticket system through all three fields —
+`ticket_provider:`, `ticket_id:`, and `ticket_url:` — or none. The `change.link-ticket` operation
+(request file: `change_id`, `path`, `revision`, then either the three fields or `unlink: true`)
+links in any status, archived changes included, and re-renders `## Artifacts` with a Ticket row.
+Re-linking the same ticket writes nothing. A link to a different ticket is refused unless the
+request carries `replace: true`. A human's plain-words request ("switch it to CLOUD-456", "this is
+actually CLOUD-456") is that explicit replace request, and the agent sends `replace: true` for it;
+an agent must never replace a link on its own initiative. `change.create` accepts the same three
+fields. A hand-edited partial or invalid set counts as not linked and is reported as the warning
+`ticket-link-invalid`, never a block.
 
 **Closed-out plans and results are frozen build records.** Once a change is closed out, its `plan:` and
 `results:` files are never hand-edited again — not to correct a stale line reference, not to update a
