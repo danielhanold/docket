@@ -209,7 +209,7 @@ change, never in the frozen artifact.
 
 ### Change body sections
 
-`change.create` writes `## Artifacts`, `## Why`, `## What changes`, `## Out of scope`, and — when given — `## Acceptance criteria`; `## Open questions` and every later section are added by later operations.
+`change.create` writes `## Artifacts`, `## Why`, `## What changes`, `## Acceptance criteria` (only when given), and `## Out of scope`; `## Open questions` and every later section are added by later operations.
 
 - `## Artifacts` — **first body section** (immediately after the frontmatter closing `---`, above `## Why`). Marker-bounded (`<!-- docket:artifacts:start (generated — do not hand-edit) -->` / `<!-- docket:artifacts:end -->`); rendered from frontmatter by the Go app-layer link-block renderer inside the owning metadata transaction; **never hand-edited** — the renderer is the sole writer. Seeded empty by `change.create`; regenerated after every frontmatter field write. Its **reciprocal** is the `docket:backlink` block (markers `<!-- docket:backlink:start … -->` / `<!-- docket:backlink:end -->`) stamped at the TOP of each artifact (spec, plan, results, PR body) pointing home to the change on the metadata branch, from one shared renderer. Same-branch links (rows and file backlinks) are relative; the PR body's are absolute. `change.attach-plan`, `change.attach-results`, and `change.groom` write the file blocks, `pr.publish` the PR body's, which `finalize.closeout` (retried by `finalize.cleanup`, `maintenance.sweep`) or `repository.repair` with `--pr-backlinks` repoints at the archived record (ADRs excluded, back-referenced by `change:`).
 - `## Why` — the motivation, as detailed as warranted (no length limit).
