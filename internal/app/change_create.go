@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -48,7 +49,10 @@ type ChangeCreateRequest struct {
 
 	Why         string `json:"why" docket:"required"`
 	WhatChanges string `json:"what_changes" docket:"required"`
-	OutOfScope  string `json:"out_of_scope" docket:"required"`
+	// AcceptanceCriteria is the optional "## Acceptance criteria" section body,
+	// written between What changes and Out of scope. Whitespace-only is absent.
+	AcceptanceCriteria string `json:"acceptance_criteria,omitempty"`
+	OutOfScope         string `json:"out_of_scope" docket:"required"`
 
 	DependsOn      []int `json:"depends_on"`
 	StackedOn      *int  `json:"stacked_on"`
@@ -151,6 +155,9 @@ type changeCreatePayload struct {
 	// older retry still replays.
 	Hold       bool   `json:"hold,omitempty"`
 	HoldReason string `json:"hold_reason,omitempty"`
+	// AcceptanceCriteria is omitempty and blank-normalized so a request without
+	// it digests exactly as before the field existed and an older retry replays.
+	AcceptanceCriteria string `json:"acceptance_criteria,omitempty"`
 }
 
 func changeCreateSemanticPayload(req ChangeCreateRequest) changeCreatePayload {
@@ -171,7 +178,35 @@ func changeCreateSemanticPayload(req ChangeCreateRequest) changeCreatePayload {
 		Deliverable:    normalizedDeliverable(req),
 		Hold:           requestHeld(req),
 		HoldReason:     req.HoldReason,
+
+		AcceptanceCriteria: normalizedAcceptanceCriteria(req),
 	}
+}
+
+// normalizedAcceptanceCriteria is the stored, digested spelling of the
+// request's acceptance criteria: whitespace-only digests and renders as absent.
+func normalizedAcceptanceCriteria(req ChangeCreateRequest) string {
+	if strings.TrimSpace(req.AcceptanceCriteria) == "" {
+		return ""
+	}
+	return req.AcceptanceCriteria
+}
+
+// acceptanceCriteriaHeading is the section an acceptance_criteria body becomes.
+const acceptanceCriteriaHeading = "## Acceptance criteria"
+
+// acceptanceCriteriaProblem returns why a non-blank acceptance_criteria body is
+// unusable as the "## Acceptance criteria" section, or "" when it is usable.
+// The message never echoes the body.
+func acceptanceCriteriaProblem(body string) string {
+	err := render.ValidateSectionBody([]byte(body))
+	if err == nil {
+		return ""
+	}
+	if errors.Is(err, render.ErrSectionBodyUnterminatedFence) {
+		return "acceptance_criteria leaves a code fence unterminated; close the fence so the sections after \"" + acceptanceCriteriaHeading + "\" stay visible"
+	}
+	return "acceptance_criteria carries a column-zero \"## \" heading outside fenced code; the operation owns the \"" + acceptanceCriteriaHeading + "\" heading — author body text, lists, or \"###\"-or-deeper subsections, and put heading examples inside closed code fences"
 }
 
 // requestHeld reports whether the request creates the change already on hold.
@@ -378,6 +413,13 @@ func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 		}
 	}
 	boundAuthored(&findings, "hold_reason", req.HoldReason)
+	// acceptance_criteria becomes the "## Acceptance criteria" body; blank is absent.
+	if normalizedAcceptanceCriteria(req) != "" {
+		if msg := acceptanceCriteriaProblem(req.AcceptanceCriteria); msg != "" {
+			addShape(FCInvalidAcceptanceCriteria, msg)
+		}
+	}
+	boundAuthored(&findings, "acceptance_criteria", req.AcceptanceCriteria)
 	return findings
 }
 
@@ -588,8 +630,10 @@ func (o changeCreateOp) Plan(ctx context.Context, st transaction.AttemptState) (
 		Why:            o.req.Why,
 		WhatChanges:    o.req.WhatChanges,
 		OutOfScope:     o.req.OutOfScope,
-		Hold:           requestHeld(o.req),
-		WhyOnHold:      o.req.HoldReason,
+
+		AcceptanceCriteria: normalizedAcceptanceCriteria(o.req),
+		Hold:               requestHeld(o.req),
+		WhyOnHold:          o.req.HoldReason,
 	})
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change create: serializing record: %w", err)

@@ -225,6 +225,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{StackedOn: &zero})...)
 	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{BranchPrefix: "a/b"})...)
 	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{Title: "a\nb"})...)
+	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{AcceptanceCriteria: "x\n## H\n"})...)
 	emitted = append(emitted, validateADRRecordShape(adrContent)...)
 	emitted = append(emitted, validateADRReplaceShape(ADRReplaceRequest{Target: ADRTarget{ID: 0}, Successor: adrContent})...)
 	emitted = append(emitted, validateLearningRecordShape(LearningRecordRequest{Topics: []string{""}})...)
@@ -272,6 +273,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 		FCEmptyBlockedNote, FCInvalidBlockedNote, FCInvalidSections,
 		FCInvalidPRNumber, FCInvalidAttempt, FCEmptyHead, FCInvalidPriority, FCUnknownPriority,
 		FCInvalidHold, FCHoldReasonWithoutHold, FCInvalidHoldReason,
+		FCInvalidAcceptanceCriteria,
 	}
 	for _, c := range floor {
 		if !seen[string(c)] {

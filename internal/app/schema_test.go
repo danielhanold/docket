@@ -156,7 +156,7 @@ func TestReflectDescriptorChangeCreateRequest(t *testing.T) {
 	keys := descriptorKeys(d)
 	want := []string{
 		"request_id", "title", "type", "priority", "deliverable",
-		"why", "what_changes", "out_of_scope",
+		"why", "what_changes", "acceptance_criteria", "out_of_scope",
 		"depends_on", "stacked_on", "related", "discovered_from", "adrs",
 		"auto_groomable", "branch_prefix", "hold", "hold_reason",
 	}
@@ -189,6 +189,9 @@ func TestReflectDescriptorChangeCreateRequest(t *testing.T) {
 	}
 	if f := fieldByKey(t, d, "hold_reason"); f.Required || f.Repeated || f.Type != "string" {
 		t.Errorf("hold_reason = %+v, want optional string", f)
+	}
+	if f := fieldByKey(t, d, "acceptance_criteria"); f.Required || f.Repeated || f.Type != "string" {
+		t.Errorf("acceptance_criteria = %+v, want optional non-repeated string", f)
 	}
 
 	// Required set per Task 4's tags.

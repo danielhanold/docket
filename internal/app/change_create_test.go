@@ -914,3 +914,133 @@ func TestChangeCreateDigestUnchangedWithoutHold(t *testing.T) {
 		t.Error("a hold_reason must change the digest")
 	}
 }
+
+// TestChangeCreateAcceptanceCriteria: a non-blank acceptance_criteria writes the
+// "## Acceptance criteria" section between What changes and Out of scope; a
+// blank or omitted one writes no section.
+func TestChangeCreateAcceptanceCriteria(t *testing.T) {
+	recPath := "docs/changes/active/0002-add-a-widget.md"
+	fenced := "### Core\n\n- a\n\n```md\n## Example\n```\n"
+	cases := []struct {
+		name        string
+		criteria    string
+		wantSection bool
+		wantText    string
+	}{
+		{"present", "- It works.\n", true, "## What changes\n\nAdds the widget.\n\n## Acceptance criteria\n\n- It works.\n\n## Out of scope\n"},
+		{"blank", " \n\t ", false, ""},
+		{"omitted", "", false, ""},
+		{"subsection and fenced heading", fenced, true, "\n## Acceptance criteria\n\n" + fenced + "\n## Out of scope\n"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			op := baseOp([]string{})
+			op.req.AcceptanceCriteria = c.criteria
+			plan, opRes := planFor(t, map[string]string{
+				"docs/changes/active/0001-first.md": fixtureChange(1, "first"),
+			}, op)
+			if opRes.Refused {
+				t.Fatalf("unexpected refusal: %v", opRes.Findings)
+			}
+			rec := string(groomedRecordBytes(t, plan, recPath))
+			if got := strings.Count(rec, "\n## Acceptance criteria\n"); got != map[bool]int{true: 1, false: 0}[c.wantSection] {
+				t.Errorf("acceptance criteria headings = %d, want present=%v:\n%s", got, c.wantSection, rec)
+			}
+			if c.wantText != "" && !strings.Contains(rec, c.wantText) {
+				t.Errorf("record missing %q:\n%s", c.wantText, rec)
+			}
+		})
+	}
+}
+
+// TestChangeCreateAcceptanceCriteriaRefusals: an unusable acceptance_criteria
+// is refused before any engine call.
+func TestChangeCreateAcceptanceCriteriaRefusals(t *testing.T) {
+	cases := []struct {
+		name     string
+		criteria string
+		code     string
+	}{
+		{"column-zero heading", "text\n## Heading\n", "invalid-acceptance_criteria"},
+		{"unterminated fence", "text\n```\ncode\n", "invalid-acceptance_criteria"},
+		{"too large", strings.Repeat("a", maxAuthoredMarkdownBytes+1), string(FCAuthoredInputTooLarge)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := validChangeCreateRequest()
+			req.AcceptanceCriteria = c.criteria
+			engine := &recordingEngine{}
+			reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+			deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+			res := ChangeCreate(context.Background(), deps, "", req)
+
+			if res.Result != ResultInvalidInput {
+				t.Fatalf("result = %q, want invalid-input", res.Result)
+			}
+			if len(engine.calls) != 0 {
+				t.Errorf("engine called %d times on a refused acceptance_criteria, want 0", len(engine.calls))
+			}
+			if !hasFindingCode(res.Findings, c.code) {
+				t.Errorf("missing finding %q; got %v", c.code, res.Findings)
+			}
+		})
+	}
+}
+
+// TestChangeCreateDigestUnchangedWithoutAcceptanceCriteria: a request without
+// acceptance_criteria, or with a blank one, digests exactly as the payload did
+// before the field existed, so an older retry still replays.
+func TestChangeCreateDigestUnchangedWithoutAcceptanceCriteria(t *testing.T) {
+	// legacyPayload is changeCreatePayload as it stood before acceptance_criteria.
+	type legacyPayload struct {
+		Title          string `json:"title"`
+		Type           string `json:"type"`
+		Priority       string `json:"priority"`
+		Why            string `json:"why"`
+		WhatChanges    string `json:"what_changes"`
+		OutOfScope     string `json:"out_of_scope"`
+		DependsOn      []int  `json:"depends_on"`
+		StackedOn      *int   `json:"stacked_on"`
+		Related        []int  `json:"related"`
+		DiscoveredFrom []int  `json:"discovered_from"`
+		ADRs           []int  `json:"adrs"`
+		AutoGroomable  *bool  `json:"auto_groomable,omitempty"`
+		BranchPrefix   string `json:"branch_prefix,omitempty"`
+		Deliverable    string `json:"deliverable,omitempty"`
+		Hold           bool   `json:"hold,omitempty"`
+		HoldReason     string `json:"hold_reason,omitempty"`
+	}
+	req := validChangeCreateRequest()
+	req.Hold = boolPtr(true)
+	req.HoldReason = "Needs a sign-in."
+	legacy := legacyPayload{
+		Title: req.Title, Type: req.Type, Priority: req.Priority,
+		Why: req.Why, WhatChanges: req.WhatChanges, OutOfScope: req.OutOfScope,
+		Hold: true, HoldReason: req.HoldReason,
+	}
+	want, err := canonicalDigest(OperationChangeCreate, legacy)
+	if err != nil {
+		t.Fatalf("canonicalDigest: %v", err)
+	}
+	for _, criteria := range []string{"", " \n\t "} {
+		r := req
+		r.AcceptanceCriteria = criteria
+		got, err := canonicalDigest(OperationChangeCreate, changeCreateSemanticPayload(r))
+		if err != nil {
+			t.Fatalf("canonicalDigest: %v", err)
+		}
+		if got != want {
+			t.Errorf("acceptance_criteria %q digests %s, want the pre-field %s", criteria, got, want)
+		}
+	}
+	withCriteria := req
+	withCriteria.AcceptanceCriteria = "- x"
+	got, err := canonicalDigest(OperationChangeCreate, changeCreateSemanticPayload(withCriteria))
+	if err != nil {
+		t.Fatalf("canonicalDigest: %v", err)
+	}
+	if got == want {
+		t.Error("a non-blank acceptance_criteria must change the digest")
+	}
+}
