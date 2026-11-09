@@ -57,6 +57,18 @@ func builtinEffective() Effective {
 			Sorting:      builtinBoardSorting(),
 		},
 		ChangeTypes: builtinValue([]string{"chore", "docs", "feat", "fix", "refactor", "perf"}),
+		Tickets: Tickets{
+			Provider: builtinValue(""),
+			Site:     builtinValue(""),
+			Project:  builtinValue(""),
+			Auto: TicketsAuto{
+				ChangeCreated:    builtinValue(false),
+				SpecWritten:      builtinValue(false),
+				PROpened:         builtinValue(false),
+				PRMerged:         builtinValue(false),
+				ResultsCompleted: builtinValue(false),
+			},
+		},
 		// No built-in default: an absent agent_harnesses is the touch-nothing
 		// state, so the built-in value is a nil list that stays non-explicit.
 		AgentHarnesses: builtinValue([]string(nil)),

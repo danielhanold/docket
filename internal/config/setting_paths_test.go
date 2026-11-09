@@ -13,7 +13,10 @@ import (
 // the leaves a machine layer may not declare and a visibility switch never
 // carries out of the local file.
 func TestRepoOnlyPaths(t *testing.T) {
-	want := []string{"integration_branch", "changes_dir", "adrs_dir", "results_dir", "github_project", "terminal_publish"}
+	want := []string{"integration_branch", "changes_dir", "adrs_dir", "results_dir", "github_project", "terminal_publish",
+		"tickets.provider", "tickets.site", "tickets.project",
+		"tickets.auto.change_created", "tickets.auto.spec_written", "tickets.auto.pr_opened",
+		"tickets.auto.pr_merged", "tickets.auto.results_completed"}
 	got := RepoOnlyPaths()
 	if len(got) != len(want) {
 		t.Fatalf("RepoOnlyPaths() = %v, want %v", got, want)
@@ -52,6 +55,9 @@ func TestSettingPathsSupportSplit(t *testing.T) {
 		"gate_observation_budget",
 		"board_surfaces", "board.section_order",
 		"change_types", "agent_harnesses",
+		"tickets.provider", "tickets.site", "tickets.project",
+		"tickets.auto.change_created", "tickets.auto.spec_written", "tickets.auto.pr_opened",
+		"tickets.auto.pr_merged", "tickets.auto.results_completed",
 		"agents.*.*.model", "agents.*.*.effort", "agents.*.*.cache_ttl",
 	}
 	for _, s := range BoardSectionTokens {

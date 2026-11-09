@@ -176,6 +176,14 @@ func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 		"gate_observation_budget":        eff.GateObservation.Value,
 		"board_surfaces":                 eff.BoardSurfaces.Value,
 		"change_types":                   eff.ChangeTypes.Value,
+		"tickets.provider":               eff.Tickets.Provider.Value,
+		"tickets.site":                   eff.Tickets.Site.Value,
+		"tickets.project":                eff.Tickets.Project.Value,
+		"tickets.auto.change_created":    eff.Tickets.Auto.ChangeCreated.Value,
+		"tickets.auto.spec_written":      eff.Tickets.Auto.SpecWritten.Value,
+		"tickets.auto.pr_opened":         eff.Tickets.Auto.PROpened.Value,
+		"tickets.auto.pr_merged":         eff.Tickets.Auto.PRMerged.Value,
+		"tickets.auto.results_completed": eff.Tickets.Auto.ResultsCompleted.Value,
 	}
 	// The board presentation block mirrors the registry the same way: the
 	// section-order list and every per-section sort leaf, keyed and walked by

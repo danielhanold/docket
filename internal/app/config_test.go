@@ -899,3 +899,66 @@ func TestConfigDiagnosticsAgentCacheTTLSurface(t *testing.T) {
 		}
 	}
 }
+
+// TestConfigDiagnosticsTicketsSurface pins that DiagnosticConfig lists every
+// tickets.* setting with its effective value, on both halves: the reflected
+// `effective` JSON and the hand-maintained human block, after change_types.
+func TestConfigDiagnosticsTicketsSurface(t *testing.T) {
+	def := DiagnosticConfig(sparseSources(), mainCtx(), false).HumanText()
+	for _, want := range []string{
+		"tickets.provider = (unset)  [built-in]",
+		"tickets.site = (unset)  [built-in]",
+		"tickets.project = (unset)  [built-in]",
+		"tickets.auto.change_created = false  [built-in]",
+		"tickets.auto.spec_written = false  [built-in]",
+		"tickets.auto.pr_opened = false  [built-in]",
+		"tickets.auto.pr_merged = false  [built-in]",
+		"tickets.auto.results_completed = false  [built-in]",
+	} {
+		if !strings.Contains(def, want) {
+			t.Errorf("default inspection lacks %q:\n%s", want, def)
+		}
+	}
+	if ct, tp := strings.Index(def, "change_types = "), strings.Index(def, "tickets.provider = "); ct < 0 || tp < ct {
+		t.Errorf("tickets.provider (%d) must follow change_types (%d):\n%s", tp, ct, def)
+	}
+
+	src := []config.Source{{Layer: config.LayerRepository, Name: ".docket.yml", Data: []byte(
+		"tickets:\n  provider: jira\n  site: tickets.example.com\n  project: CLOUD\n" +
+			"  auto:\n    change_created: true\n    spec_written: true\n    pr_opened: true\n" +
+			"    pr_merged: true\n    results_completed: true\n")}}
+	r := DiagnosticConfig(src, mainCtx(), false)
+	if r.Effective == nil {
+		t.Fatalf("no effective document:\n%s", r.HumanText())
+	}
+	tk := r.Effective.Tickets
+	if tk.Provider.Value != "jira" || tk.Site.Value != "tickets.example.com" || tk.Project.Value != "CLOUD" ||
+		!tk.Auto.ChangeCreated.Value || !tk.Auto.SpecWritten.Value || !tk.Auto.PROpened.Value ||
+		!tk.Auto.PRMerged.Value || !tk.Auto.ResultsCompleted.Value {
+		t.Errorf("effective tickets = %+v, want every declared value", tk)
+	}
+	text := r.HumanText()
+	for _, want := range []string{
+		"tickets.provider = jira  [repository .docket.yml:2]",
+		"tickets.site = tickets.example.com",
+		"tickets.project = CLOUD",
+		"tickets.auto.change_created = true",
+		"tickets.auto.spec_written = true",
+		"tickets.auto.pr_opened = true",
+		"tickets.auto.pr_merged = true",
+		"tickets.auto.results_completed = true",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("inspection lacks %q:\n%s", want, text)
+		}
+	}
+	raw, err := json.Marshal(r.Effective)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"tickets":`, `"provider":`, `"auto":`, `"change_created":`, `"results_completed":`} {
+		if !strings.Contains(string(raw), want) {
+			t.Errorf("effective JSON lacks %s: %s", want, raw)
+		}
+	}
+}

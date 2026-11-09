@@ -135,6 +135,7 @@ type Effective struct {
 	BoardSurfaces     Value[[]string] `json:"board_surfaces"`
 	Board             Board           `json:"board"`
 	ChangeTypes       Value[[]string] `json:"change_types"`
+	Tickets           Tickets         `json:"tickets"`
 	// AgentHarnesses is the repository's explicit parent-facing dispatch opt-in.
 	// Write authority for repository surfaces exists iff it is Explicit AND its
 	// provenance is the repository or repository-local layer; a global-layer
@@ -143,6 +144,25 @@ type Effective struct {
 	// the touch-nothing state.
 	AgentHarnesses Value[[]string] `json:"agent_harnesses"`
 	Agents         AgentsTable     `json:"agents"`
+}
+
+// Tickets names the repository's ticket system and where new tickets go, plus
+// the per-event automation switches. Every leaf is repository-only.
+type Tickets struct {
+	Provider Value[string] `json:"provider"`
+	Site     Value[string] `json:"site"`
+	Project  Value[string] `json:"project"`
+	Auto     TicketsAuto   `json:"auto"`
+}
+
+// TicketsAuto holds the switches that let docket act on a linked ticket on
+// its own after each event. All default off.
+type TicketsAuto struct {
+	ChangeCreated    Value[bool] `json:"change_created"`
+	SpecWritten      Value[bool] `json:"spec_written"`
+	PROpened         Value[bool] `json:"pr_opened"`
+	PRMerged         Value[bool] `json:"pr_merged"`
+	ResultsCompleted Value[bool] `json:"results_completed"`
 }
 
 type Finalize struct {

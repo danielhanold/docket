@@ -273,6 +273,14 @@ func effectiveLines(eff *config.Effective) []effectiveLine {
 	}
 	lines = append(lines,
 		leafLine("change_types", listValue(eff.ChangeTypes.Value), eff.ChangeTypes.Provenance),
+		leafLine("tickets.provider", textValue(eff.Tickets.Provider.Value), eff.Tickets.Provider.Provenance),
+		leafLine("tickets.site", textValue(eff.Tickets.Site.Value), eff.Tickets.Site.Provenance),
+		leafLine("tickets.project", textValue(eff.Tickets.Project.Value), eff.Tickets.Project.Provenance),
+		leafLine("tickets.auto.change_created", strconv.FormatBool(eff.Tickets.Auto.ChangeCreated.Value), eff.Tickets.Auto.ChangeCreated.Provenance),
+		leafLine("tickets.auto.spec_written", strconv.FormatBool(eff.Tickets.Auto.SpecWritten.Value), eff.Tickets.Auto.SpecWritten.Provenance),
+		leafLine("tickets.auto.pr_opened", strconv.FormatBool(eff.Tickets.Auto.PROpened.Value), eff.Tickets.Auto.PROpened.Provenance),
+		leafLine("tickets.auto.pr_merged", strconv.FormatBool(eff.Tickets.Auto.PRMerged.Value), eff.Tickets.Auto.PRMerged.Provenance),
+		leafLine("tickets.auto.results_completed", strconv.FormatBool(eff.Tickets.Auto.ResultsCompleted.Value), eff.Tickets.Auto.ResultsCompleted.Provenance),
 	)
 	return append(lines, agentLines(eff.Agents)...)
 }
