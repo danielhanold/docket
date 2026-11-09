@@ -34,7 +34,12 @@ type NewChangeRecord struct {
 	Hold           bool   // true ⇒ hold: true; false ⇒ a valueless hold:
 	Why            string // markdown body, no heading line
 	WhatChanges    string // markdown body, no heading line
-	OutOfScope     string // markdown body, no heading line
+	// AcceptanceCriteria is the optional acceptance criteria, a markdown body
+	// with no heading line; "" writes no section, otherwise
+	// "## Acceptance criteria" sits between "## What changes" and
+	// "## Out of scope".
+	AcceptanceCriteria string
+	OutOfScope         string // markdown body, no heading line
 	// WhyOnHold is the optional hold reason, a markdown body with no heading
 	// line; "" writes no section, otherwise "## Why on hold" follows
 	// "## Out of scope".
@@ -78,8 +83,11 @@ func ChangeRecord(r NewChangeRecord) ([]byte, error) {
 		section("## Artifacts", artifactsBlockBody),
 		section("## Why", r.Why),
 		section("## What changes", r.WhatChanges),
-		section("## Out of scope", r.OutOfScope),
 	}
+	if r.AcceptanceCriteria != "" {
+		sections = append(sections, section("## Acceptance criteria", r.AcceptanceCriteria))
+	}
+	sections = append(sections, section("## Out of scope", r.OutOfScope))
 	if r.WhyOnHold != "" {
 		sections = append(sections, section("## Why on hold", r.WhyOnHold))
 	}
