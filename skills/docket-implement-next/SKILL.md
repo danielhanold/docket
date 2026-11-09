@@ -142,9 +142,9 @@ The results artifact is **required for every implemented change** — there is n
 
 **Publish the feature head.** The `workspace.publish` operation with `--id <id> --head <feature head>` inspects the owned workspace and pushes the exact head through the landed non-forcing publication, returning the verified remote head. It refuses when the reinspected head differs from `--head`; a divergent remote ref is `contended`, unknown post-effect state is `unknown` (reprobe on retry) — neither forces, and no PR opens here.
 
-**PR-body assembly.** The PR body carries no build-evidence block. In a private repository the authored title and body follow the private-repository writing rule: no `#<issue>` reference, no change id in the title, and `pr.publish` publishes the body verbatim, with no back-link line and no links block.
+**PR-body assembly.** The PR body carries no build-evidence block. In a private repository the authored title and body follow the private-repository writing rule: no change id in the title, and `pr.publish` publishes the body verbatim, with no back-link line and no links block.
 
-**Best-effort PR→issue reference.** If the change carries an `issue:` value, add a plain `#<issue>` reference to the PR body — but **never `Closes #N`**, so merging the PR never auto-closes the referenced issue. Skip silently when `issue:` is unset — the reference is a one-time courtesy, not a build gate.
+**Ticket line.** When the implementation context's `change.summary.ticket` is present, the authored PR body carries one plain line, `Ticket: [<id>](<url>)`, with that ticket's `id` and `url`; otherwise it carries none. The line goes in a private repository too: a ticket link is not docket machinery, and `pr.publish`'s leak check scans it with the rest of the body. Never a build gate.
 
 **PR-body back-link.** `pr.publish` renders and upserts a **back-link line** pointing home to the change on the metadata branch — a first body line of the shape `↩ Change <padded-id> — <title>` linking to the change file on `docket` (built with the same blob-or-bare-path logic) — plus a Docket-owned links block pointing at the plan and results files on the metadata branch; never author either in the body.
 

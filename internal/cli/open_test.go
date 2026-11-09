@@ -125,3 +125,18 @@ func TestOpenCLIExportDepsWiring(t *testing.T) {
 		t.Fatalf("GOOS %q (want %q), HomeDir set %v, Getwd set %v", d.GOOS, runtime.GOOS, d.HomeDir != nil, d.Getwd != nil)
 	}
 }
+
+// TestOpenCLIHelpNamesTicketKind pins that the export copy's type list names
+// the ticket kind, never the retired issue kind.
+func TestOpenCLIHelpNamesTicketKind(t *testing.T) {
+	out, errS, code := runCLI(t, "open", "--help")
+	if code != 0 {
+		t.Fatalf("open --help exit %d, stderr %q", code, errS)
+	}
+	if !strings.Contains(out, "type one of ticket, spec, plan, or") {
+		t.Errorf("open --help must name the ticket export kind:\n%s", out)
+	}
+	if strings.Contains(out, "one of issue") {
+		t.Errorf("open --help still names the retired issue kind:\n%s", out)
+	}
+}

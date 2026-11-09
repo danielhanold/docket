@@ -58,7 +58,7 @@ and markers, every link (keeping its text), and docket-only sections; explicit
 change references become quoted titles. Fenced code and inline code stay
 exactly as written.
 
-The copy is named <date>-<type>-<name>.md, type one of issue, spec, plan, or
+The copy is named <date>-<type>-<name>.md, type one of ticket, spec, plan, or
 results, and lands in ~/Downloads on macOS or the home directory on Linux.
 --output-path names a directory to write into or the exact file to write; an
 existing file is replaced. Leftover docket machinery and mentions of docket are
