@@ -46,6 +46,9 @@ func fullChangeSpec(t *testing.T) ChangeSpec {
 		Results:        OptionalString{State: FieldAbsent},
 		Branch:         OptionalString{State: FieldPresent, Value: "feat/domain-snapshot"},
 		PR:             OptionalString{State: FieldPresent, Value: "https://example.test/pr/1"},
+		TicketProvider: OptionalString{State: FieldPresent, Value: "jira"},
+		TicketID:       OptionalString{State: FieldEmpty},
+		TicketURL:      OptionalString{State: FieldMalformed, Value: "{a: b}"},
 		Issue:          OptionalString{State: FieldMalformed, Value: "#"},
 		BlockedBy:      OptionalString{State: FieldEmpty},
 		Reconciled:     true,
@@ -117,6 +120,25 @@ func TestChangeAccessorsRoundTrip(t *testing.T) {
 	}
 	if got := c.Issue(); got != spec.Issue {
 		t.Errorf("Issue() = %+v; want %+v", got, spec.Issue)
+	}
+	if got := c.TicketProvider(); got != spec.TicketProvider {
+		t.Errorf("TicketProvider() = %+v; want %+v", got, spec.TicketProvider)
+	}
+	if got := c.TicketID(); got != spec.TicketID {
+		t.Errorf("TicketID() = %+v; want %+v", got, spec.TicketID)
+	}
+	if got := c.TicketURL(); got != spec.TicketURL {
+		t.Errorf("TicketURL() = %+v; want %+v", got, spec.TicketURL)
+	}
+	rebuilt := newChangeBuilder(c).result().Change
+	if got := rebuilt.TicketProvider(); got != spec.TicketProvider {
+		t.Errorf("builder TicketProvider() = %+v; want %+v", got, spec.TicketProvider)
+	}
+	if got := rebuilt.TicketID(); got != spec.TicketID {
+		t.Errorf("builder TicketID() = %+v; want %+v", got, spec.TicketID)
+	}
+	if got := rebuilt.TicketURL(); got != spec.TicketURL {
+		t.Errorf("builder TicketURL() = %+v; want %+v", got, spec.TicketURL)
 	}
 	if got := c.BlockedBy(); got != spec.BlockedBy {
 		t.Errorf("BlockedBy() = %+v; want %+v", got, spec.BlockedBy)
