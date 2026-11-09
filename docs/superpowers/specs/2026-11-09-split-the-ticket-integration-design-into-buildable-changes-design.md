@@ -125,7 +125,20 @@ Having reviewers check a build against its acceptance criteria is out of scope; 
 
 ### 7. Export's `issue` kind becomes `ticket`
 
-`docket open change <id> --export` writes `<date>-issue-<slug>.md` today (`KindIssue`). Rename the kind to `ticket`, so the file becomes `<date>-ticket-<slug>.md` and one term runs through docket. The filename change is user-visible, and no compatibility alias is kept.
+`docket open change <id> --export` writes `<date>-issue-<slug>.md` today, because the export kind's value is the filename token: `KindIssue Kind = "issue"` in `internal/export/export.go`, used by `FileName`. Rename the kind and its internal identifiers together, so that one term runs through docket and no name contradicts its value:
+
+| Today | Becomes |
+|---|---|
+| `KindIssue Kind = "issue"` | `KindTicket Kind = "ticket"` |
+| `issueSections`, the section allowlist (which also gains `Acceptance criteria`, decision 6) | `ticketSections` |
+| `stepIssueSections`, `keepIssueSections` | `stepTicketSections`, `keepTicketSections` |
+| tests: `issueH2` in `corpus_test.go`, the expected `issue-x.md` in `filename_test.go` | their `ticket` equivalents |
+
+Plus the `"change"` → kind mapping in `internal/app/open_export.go`. The exported file becomes `<date>-ticket-<slug>.md`.
+
+- The rename is internal apart from that filename. No JSON field carries the kind (`open`'s `target_kind` is `file`, a different thing), and no skill or guide names the `-issue-` filename.
+- No compatibility alias is kept.
+- The `"issue"` key in `internal/reposetup/repair.go` is the legacy frontmatter field, which is retired under decision 5. It is not part of this rename.
 
 ### 8. Config
 
