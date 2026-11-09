@@ -1,12 +1,12 @@
 # Backlog
 
-**588 changes** — 🟣 1 groomed · 🟡 8 proposed · ⚪ 15 deferred · ✅ 419 done · 🗑️ 145 killed
+**588 changes** — 🟢 1 in progress · 🟡 8 proposed · ⚪ 15 deferred · ✅ 419 done · 🗑️ 145 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0582](active/0582-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md) | Add acceptance criteria to changes and rename export's issue kind to ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0582](active/0582-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md) | Add acceptance criteria to changes and rename export's issue kind to ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md) | `feat/add-acceptance-criteria-to-changes-and-rename-export-s-issue` | building |
 
 ## 🟡 Proposed (8)
 

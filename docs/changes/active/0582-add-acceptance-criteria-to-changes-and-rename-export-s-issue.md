@@ -2,7 +2,7 @@
 id: 582
 slug: 'add-acceptance-criteria-to-changes-and-rename-export-s-issue'
 title: 'Add acceptance criteria to changes and rename export''s issue kind to ticket'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'feat/add-acceptance-criteria-to-changes-and-rename-export-s-issue'
 pr:
 blocked_by:
 reconciled: false
