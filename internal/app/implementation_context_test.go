@@ -799,3 +799,65 @@ func TestContextImplementationRefusesOtherNonProposedStatuses(t *testing.T) {
 		})
 	}
 }
+
+// ticketContext returns the bundle for change 11 carrying the given extra
+// frontmatter, failing the test unless the operation applied.
+func ticketContext(t *testing.T, extra string) *ImplementationContext {
+	t.Helper()
+	specPath := "docs/changes/specs/spec-alpha.md"
+	fake := &fakeReader{
+		pin:    docketPin(t),
+		corpus: []StatusBlob{changeBlob(11, "alpha", "feat", "high", "spec: "+specPath+"\n"+extra)},
+		artifactData: map[string]StatusArtifact{
+			sourceMetadata + "|" + specPath: {Found: true, Revision: "specblob-alpha", Data: []byte("# Spec Alpha\n")},
+		},
+	}
+	got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{ID: 11})
+	if got.Result != ResultApplied || got.Context == nil || got.Context.Change.Summary == nil {
+		t.Fatalf("result=%q reason=%q message=%q", got.Result, got.Reason, got.Message)
+	}
+	return got.Context
+}
+
+// TestContextImplementationCarriesTicket: a change with a valid ticket link
+// carries all three stored values in its summary, under the "ticket" JSON key.
+func TestContextImplementationCarriesTicket(t *testing.T) {
+	b := ticketContext(t, "ticket_provider: jira\nticket_id: CLOUD-123\nticket_url: 'https://tickets.example.com/browse/CLOUD-123'\n")
+	want := &ContextTicket{Provider: "jira", ID: "CLOUD-123", URL: "https://tickets.example.com/browse/CLOUD-123"}
+	if !reflect.DeepEqual(b.Change.Summary.Ticket, want) {
+		t.Fatalf("summary ticket = %+v, want %+v", b.Change.Summary.Ticket, want)
+	}
+	raw, err := json.Marshal(b.Change.Summary)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(raw), `"ticket":{"provider":"jira","id":"CLOUD-123","url":"https://tickets.example.com/browse/CLOUD-123"}`) {
+		t.Errorf("summary JSON lacks the ticket object: %s", raw)
+	}
+}
+
+// TestContextImplementationOmitsInvalidTicket: a partial set, an invalid
+// complete set, and no ticket fields at all each leave the summary's ticket
+// nil, and the JSON carries no "ticket" key.
+func TestContextImplementationOmitsInvalidTicket(t *testing.T) {
+	cases := map[string]string{
+		"partial":     "ticket_provider: jira\nticket_id: CLOUD-123\n",
+		"invalid-url": "ticket_provider: jira\nticket_id: CLOUD-123\nticket_url: 'javascript:x'\n",
+		"absent":      "",
+	}
+	for name, extra := range cases {
+		t.Run(name, func(t *testing.T) {
+			b := ticketContext(t, extra)
+			if b.Change.Summary.Ticket != nil {
+				t.Errorf("summary ticket = %+v, want nil", b.Change.Summary.Ticket)
+			}
+			raw, err := json.Marshal(b.Change.Summary)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			if strings.Contains(string(raw), `"ticket"`) {
+				t.Errorf("summary JSON carries a ticket key: %s", raw)
+			}
+		})
+	}
+}

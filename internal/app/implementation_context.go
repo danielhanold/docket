@@ -63,6 +63,27 @@ type ContextEntitySummary struct {
 	Type        string `json:"type,omitempty"`
 	Priority    string `json:"priority,omitempty"`
 	Deliverable string `json:"deliverable,omitempty"`
+	// Ticket is the selected change's ticket link, set only when Change.Ticket
+	// reports a complete, valid link; any other ticket state is omitted.
+	Ticket *ContextTicket `json:"ticket,omitempty"`
+}
+
+// contextTicket returns the change's ticket link for the context summary, or
+// nil when Change.Ticket reports the change as not linked.
+func contextTicket(c domain.Change) *ContextTicket {
+	t, ok := c.Ticket()
+	if !ok {
+		return nil
+	}
+	return &ContextTicket{Provider: t.Provider, ID: t.ID, URL: t.URL}
+}
+
+// ContextTicket is a change's linked ticket: the three stored values, exactly
+// as recorded.
+type ContextTicket struct {
+	Provider string `json:"provider"`
+	ID       string `json:"id"`
+	URL      string `json:"url"`
 }
 
 // ContextEntity is one document the bundle carries: its canonical repo-relative
@@ -316,6 +337,7 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 				Type:        selected.Type(),
 				Priority:    selected.RawPriority(),
 				Deliverable: deliverableText(selected),
+				Ticket:      contextTicket(selected),
 			},
 		},
 		Spec:          specEntity,
