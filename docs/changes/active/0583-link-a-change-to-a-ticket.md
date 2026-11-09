@@ -22,7 +22,7 @@ branch_prefix:
 branch: 'feat/link-a-change-to-a-ticket'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -57,3 +57,9 @@ The `tickets.*` config keys (`provider`, `site`, `project`, and the five `auto.*
 ## Out of scope
 
 Any connector call; skills that create or update tickets (changes 584–588); board changes.
+
+## Reconcile log
+
+### 2026-11-09
+
+Unchanged against main 64018716f: the export-kind rename (KindTicket) the folded-in open-help fix depends on has landed, and the issue: read sites the spec names are still present.
