@@ -1,12 +1,12 @@
 # Backlog
 
-**588 changes** — 🟢 1 in progress · 🟡 8 proposed · ⚪ 15 deferred · ✅ 419 done · 🗑️ 145 killed
+**588 changes** — 🔵 1 built · 🟡 8 proposed · ⚪ 15 deferred · ✅ 419 done · 🗑️ 145 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0582](active/0582-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md) | Add acceptance criteria to changes and rename export's issue kind to ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md) | `feat/add-acceptance-criteria-to-changes-and-rename-export-s-issue` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0582](active/0582-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md) | Add acceptance criteria to changes and rename export's issue kind to ticket | `medium` | `feat` | [#449](https://github.com/danielhanold/docket/pull/449) | awaiting merge |
 
 ## 🟡 Proposed (8)
 
@@ -16,7 +16,7 @@
 | [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | ⏳ waiting on #584 — not yet built |
 | [0586](active/0586-post-a-ticket-update-on-request-in-a-private-repository.md) | Post a ticket update on request in a private repository | `medium` | `feat` | ⏳ waiting on #585 — not yet built |
 | [0585](active/0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | `medium` | `feat` | ⏳ waiting on #583 — not yet built |
-| [0584](active/0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | `medium` | `feat` | ⏳ waiting on #582 — not yet built |
+| [0584](active/0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | `medium` | `feat` | ⏳ waiting on #582 — needs your merge |
 | [0583](active/0583-link-a-change-to-a-ticket.md) | Link a change to a ticket | `medium` | `feat` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |

@@ -2,7 +2,7 @@
 id: 582
 slug: 'add-acceptance-criteria-to-changes-and-rename-export-s-issue'
 title: 'Add acceptance criteria to changes and rename export''s issue kind to ticket'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'feat/add-acceptance-criteria-to-changes-and-rename-export-s-issue'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/449'
 blocked_by:
 reconciled: true
 ---
@@ -59,3 +59,12 @@ Reviewers checking a build against acceptance criteria; the legacy `issue:` fron
 ### 2026-11-09
 
 Unchanged against `main` at 89e2c58b0; export kind, owned headings, and section splicer are as the spec describes.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 07f5c869de244faca90da5aca324cd49b10ab954
+ran_at:   2026-11-09T19:03:48Z
+<!-- docket:build-evidence:end -->
