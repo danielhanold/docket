@@ -175,6 +175,7 @@ func TestVocabularyConstCompleteness(t *testing.T) {
 		{vocab: "publish_dispositions", byPrefix: "PublishDisp"},
 		{vocab: "sync_dispositions", byPrefix: "SyncDisp"},
 		{vocab: "cancel_dispositions", byPrefix: "CancelDisposition"},
+		{vocab: "link_ticket_dispositions", byPrefix: "LinkTicketDisp"},
 		{vocab: "resolver_dispositions", byPrefix: "Resolver"},
 	}
 

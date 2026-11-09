@@ -26,7 +26,7 @@ func runCLIStdin(t *testing.T, stdin string, args ...string) (stdout, stderr str
 // flag and a --repo-dir flag, and the bare group reports a missing command.
 func TestChangeCommandsRegistered(t *testing.T) {
 	root := captureTree(t)
-	for _, sub := range []string{"create", "groom", "block", "defer", "unblock", "revive", "kill", "complete"} {
+	for _, sub := range []string{"create", "groom", "block", "defer", "unblock", "revive", "kill", "complete", "link-ticket"} {
 		cmd, _, err := root.Find([]string{"change", sub})
 		if err != nil || cmd == nil || cmd.Name() != sub {
 			t.Fatalf("change %s not registered: cmd=%v err=%v", sub, cmd, err)
@@ -87,6 +87,7 @@ func TestChangeCommandsReachOperation(t *testing.T) {
 		{"revive", "change.revive"},
 		{"kill", "change.kill"},
 		{"complete", "change.complete"},
+		{"link-ticket", "change.link-ticket"},
 	}
 	for _, c := range cases {
 		out, errS, code := runCLIStdin(t, `{}`, "change", c.sub, "--request", "-", "--repo-dir", testsupport.TempDir(t), "--json")
@@ -139,7 +140,7 @@ func TestChangeRequestFileMissing(t *testing.T) {
 // never installed assets), so they are not refused on a machine with no
 // installation.
 func TestChangeCommandsAssetIndependent(t *testing.T) {
-	for _, key := range []string{"change", "change create", "change groom", "change block", "change defer", "change unblock", "change revive", "change kill", "change complete", "change claim", "change reconcile"} {
+	for _, key := range []string{"change", "change create", "change groom", "change block", "change defer", "change unblock", "change revive", "change kill", "change complete", "change link-ticket", "change claim", "change reconcile"} {
 		if !assetIndependent[key] {
 			t.Errorf("%q is not registered asset-independent", key)
 		}

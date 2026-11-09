@@ -188,6 +188,14 @@ const (
 	FCInvalidTicketID       FindingCode = "invalid-ticket-id"
 	FCInvalidTicketURL      FindingCode = "invalid-ticket-url"
 
+	// change.link-ticket findings: unlink takes no ticket field and no replace;
+	// a link request names at least one ticket field; and a record already
+	// carrying a different link (or broken ticket fields) is replaced only on
+	// an explicit replace request.
+	FCUnlinkWithTicket       FindingCode = "unlink-with-ticket"
+	FCEmptyTicketRequest     FindingCode = "empty-request"
+	FCAlreadyLinkedElsewhere FindingCode = "already-linked-elsewhere"
+
 	// Install-maintenance findings. collection-pending is the reason an explicit
 	// `install collect` reports and the warning code an automatic post-install
 	// collection surfaces when a version tree could not be reclaimed; the primary
@@ -249,6 +257,7 @@ const (
 var AllFindingCodes = []FindingCode{
 	FindingCode("adr-not-accepted"),
 	FCAgentCacheTTLDropped,
+	FCAlreadyLinkedElsewhere,
 	FindingCode("ambiguous-adr"),
 	FindingCode("ambiguous-change"),
 	FCArtifactMissing,
@@ -292,6 +301,7 @@ var AllFindingCodes = []FindingCode{
 	FCEmptyReason,
 	FCEmptyReconcileLogEntry,
 	FCEmptyReport,
+	FCEmptyTicketRequest,
 	FCEmptyRevise,
 	FCEmptyRevision,
 	FCEmptySpecMarkdown,
@@ -387,6 +397,7 @@ var AllFindingCodes = []FindingCode{
 	FCUnknownOperation,
 	FCUnknownPriority,
 	FCUnknownType,
+	FCUnlinkWithTicket,
 }
 
 // invalidIDCodeByKey selects the id-shape finding code for a lifecycle request

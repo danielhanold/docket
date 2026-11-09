@@ -58,6 +58,7 @@ var operationBindings = []OperationBinding{
 	{ID: "change.groom", Request: ChangeGroomRequest{}, Result: ChangeGroomResult{}},                       // ChangeGroom
 	{ID: "change.halt", Request: ChangeHaltInput{}, Result: HaltResult{}},                                  // ChangeHalt
 	{ID: "change.kill", Request: ChangeKillRequest{}, Result: ChangeKillResult{}},                          // ChangeKill
+	{ID: "change.link-ticket", Request: ChangeLinkTicketRequest{}, Result: ChangeLinkTicketResult{}},       // ChangeLinkTicket
 	{ID: "change.mark-implemented", Request: nil, Result: ChangeLifecycleResult{}},                         // ChangeMarkImplemented
 	{ID: "change.reconcile", Request: ChangeReconcileRequest{}, Result: ChangeReconcileResult{}},           // ChangeReconcile
 	{ID: "change.relink", Request: nil, Result: RelinkResult{}},                                            // Relink
