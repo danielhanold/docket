@@ -1,11 +1,12 @@
 # Backlog
 
-**580 changes** — 🟡 2 proposed · ⚪ 15 deferred · ✅ 418 done · 🗑️ 145 killed
+**581 changes** — 🟡 3 proposed · ⚪ 15 deferred · ✅ 418 done · 🗑️ 145 killed
 
-## 🟡 Proposed (2)
+## 🟡 Proposed (3)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0581](active/0581-split-the-ticket-integration-design-into-buildable-changes.md) | Split the ticket integration design into buildable changes | `medium` | `chore` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 
@@ -48,6 +49,7 @@ graph TD
   0566
   0572
   0576
+  0581
   0192:::done
   0544:::done
   classDef done fill:#d3f9d8;
