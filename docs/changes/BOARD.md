@@ -1,8 +1,14 @@
 # Backlog
 
-**588 changes** — 🟡 9 proposed · ⚪ 15 deferred · ✅ 419 done · 🗑️ 145 killed
+**588 changes** — 🟣 1 groomed · 🟡 8 proposed · ⚪ 15 deferred · ✅ 419 done · 🗑️ 145 killed
 
-## 🟡 Proposed (9)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec | Readiness |
+|---|-------|----------|------|------|-----------|
+| [0582](active/0582-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md) | Add acceptance criteria to changes and rename export's issue kind to ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-09-add-acceptance-criteria-to-changes-and-rename-export-s-issue-design.md) | build-ready |
+
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -12,7 +18,6 @@
 | [0585](active/0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | `medium` | `feat` | ⏳ waiting on #583 — not yet built |
 | [0584](active/0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | `medium` | `feat` | ⏳ waiting on #582 — not yet built |
 | [0583](active/0583-link-a-change-to-a-ticket.md) | Link a change to a ticket | `medium` | `feat` | needs-grooming |
-| [0582](active/0582-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md) | Add acceptance criteria to changes and rename export's issue kind to ticket | `medium` | `feat` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 
