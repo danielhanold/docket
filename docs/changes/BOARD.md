@@ -1,11 +1,12 @@
 # Backlog
 
-**583 changes** — 🟡 4 proposed · ⚪ 15 deferred · ✅ 419 done · 🗑️ 145 killed
+**584 changes** — 🟡 5 proposed · ⚪ 15 deferred · ✅ 419 done · 🗑️ 145 killed
 
-## 🟡 Proposed (4)
+## 🟡 Proposed (5)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0584](active/0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | `medium` | `feat` | ⏳ waiting on #582 — not yet built |
 | [0583](active/0583-link-a-change-to-a-ticket.md) | Link a change to a ticket | `medium` | `feat` | needs-grooming |
 | [0582](active/0582-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md) | Add acceptance criteria to changes and rename export's issue kind to ticket | `medium` | `feat` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
@@ -52,6 +53,8 @@ graph TD
   0576
   0582
   0583
+  0582 --> 0584
+  0583 --> 0584
   0192:::done
   0544:::done
   classDef done fill:#d3f9d8;
