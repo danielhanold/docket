@@ -14,7 +14,7 @@ related: [581]
 discovered_from: [581]
 adrs: []
 spec: 'docs/superpowers/specs/2026-11-09-link-a-change-to-a-ticket-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-11-09-link-a-change-to-a-ticket.md'
 results:
 auto_groomable:
 hold:
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-09-link-a-change-to-a-ticket-design.md](../../superpowers/specs/2026-11-09-link-a-change-to-a-ticket-design.md) |
+| Plan | [2026-11-09-link-a-change-to-a-ticket.md](../../superpowers/plans/2026-11-09-link-a-change-to-a-ticket.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
