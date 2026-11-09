@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -329,7 +330,7 @@ func (o changeLinkTicketOp) Plan(ctx context.Context, st transaction.AttemptStat
 			continue
 		}
 		var err error
-		intermediate, err = upsertFieldBytes(intermediate, key, v)
+		intermediate, err = rewriteTicketFieldBytes(intermediate, key, v)
 		if err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("link ticket: patching %s: %w", key, err)
 		}
@@ -373,6 +374,31 @@ func (o changeLinkTicketOp) Plan(ctx context.Context, st transaction.AttemptStat
 	}
 
 	return o.plan(files, disposition)
+}
+
+// rewriteTicketFieldBytes upserts one ticket field into src. A hand-edited
+// ticket value the field patcher cannot edit in place — a mapping, a block
+// scalar, a multi-line scalar — is rewritten whole: its entry lines are first
+// reduced to a valueless "key:" line at the same position, which the patcher
+// then fills with v. Replace and unlink clear whatever is present, so the
+// ticket-link-invalid remedy works on every shape the decoder accepts.
+func rewriteTicketFieldBytes(src []byte, key string, v document.Value) ([]byte, error) {
+	doc, err := document.Parse(src)
+	if err != nil {
+		return nil, err
+	}
+	if f, ok := doc.Field(key); ok && f.Shape == document.ShapeUnsupported {
+		ending := "\n"
+		if bytes.HasSuffix(src[f.Entry.Start:f.Entry.End], []byte("\r\n")) {
+			ending = "\r\n"
+		}
+		cleared := make([]byte, 0, len(src))
+		cleared = append(cleared, src[:f.Entry.Start]...)
+		cleared = append(cleared, key+":"+ending...)
+		cleared = append(cleared, src[f.Entry.End:]...)
+		src = cleared
+	}
+	return upsertFieldBytes(src, key, v)
 }
 
 // noOpPlan is the empty plan the engine reports as a no-op. It writes no file,
