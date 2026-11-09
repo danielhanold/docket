@@ -387,3 +387,21 @@ func TestChangeRecordHold(t *testing.T) {
 		}
 	}
 }
+
+func TestChangeRecordTicketFields(t *testing.T) {
+	got, err := render.ChangeRecord(render.NewChangeRecord{
+		ID: 1, Slug: "s", Title: "T", Type: "feat", Priority: "medium", Created: goldenDate,
+		Why: "w", WhatChanges: "c", OutOfScope: "oos",
+		TicketProvider: "jira", TicketID: "CLOUD-123", TicketURL: "https://tickets.example.com/browse/CLOUD-123",
+	})
+	if err != nil {
+		t.Fatalf("ChangeRecord: %v", err)
+	}
+	if _, err := document.Parse(got); err != nil {
+		t.Fatalf("document.Parse: %v\n%s", err, got)
+	}
+	want := "pr:\nticket_provider: 'jira'\nticket_id: 'CLOUD-123'\nticket_url: 'https://tickets.example.com/browse/CLOUD-123'\nblocked_by:\n"
+	if !strings.Contains(string(got), want) {
+		t.Fatalf("ticket lines missing or out of order:\n%s", got)
+	}
+}

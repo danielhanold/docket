@@ -20,9 +20,10 @@ const (
 
 // ArtifactBlockContent renders the body of the managed docket:artifacts block —
 // the table BETWEEN the markers, no marker lines — for one change, from its
-// typed fields: Spec, Plan, Results paths and the ADRs list. Rows appear in the
-// fixed order Spec, Spec (merged), Plan, Results, ADRs; a row is omitted when
-// its field is unset/empty. Empty content ("") means "no artifacts" — the caller
+// typed fields: Spec, Plan, Results paths, the ADRs list, and the ticket link. Rows appear in the
+// fixed order Spec, Spec (merged), Plan, Results, ADRs, Ticket; a row is
+// omitted when its field is unset/empty, and the Ticket row appears only when
+// the change is linked (domain.Change.Ticket). Empty content ("") means "no artifacts" — the caller
 // still writes the (empty) block via document.ReplaceBlock, which supplies the
 // markers this function omits.
 //
@@ -78,6 +79,10 @@ func ArtifactBlockContent(c domain.Change, snap domain.Snapshot, link LinkContex
 		rows = append(rows, "| ADRs | "+cell+" |")
 	}
 
+	if t, ok := c.Ticket(); ok {
+		rows = append(rows, ticketRow(t))
+	}
+
 	if len(rows) == 0 {
 		return "", nil
 	}
@@ -89,6 +94,27 @@ func ArtifactBlockContent(c domain.Change, snap domain.Snapshot, link LinkContex
 		b.WriteByte('\n')
 	}
 	return b.String(), nil
+}
+
+// ticketLinkTextReplacer escapes the characters that would end a Markdown
+// link text or a table cell early, and flattens line breaks to spaces (the
+// boardCellReplacer rule plus the link-text brackets and backslash).
+var ticketLinkTextReplacer = strings.NewReplacer(
+	"\\", "\\\\", "[", "\\[", "]", "\\]", "|", "\\|",
+	"\r\n", " ", "\n", " ", "\r", " ",
+)
+
+// ticketLinkTargetReplacer percent-encodes the characters that would end a
+// Markdown link target or a table cell early.
+var ticketLinkTargetReplacer = strings.NewReplacer(
+	" ", "%20", "(", "%28", ")", "%29", "|", "%7C", "<", "%3C", ">", "%3E",
+)
+
+// ticketRow renders the Ticket row: the ticket id as the link text and the
+// ticket URL as the target, each escaped so the row stays one table row with
+// a working link.
+func ticketRow(t domain.Ticket) string {
+	return fmt.Sprintf("| Ticket | [%s](%s) |", ticketLinkTextReplacer.Replace(t.ID), ticketLinkTargetReplacer.Replace(t.URL))
 }
 
 // legacyArtifactBranch reports whether a change's plan and results live off

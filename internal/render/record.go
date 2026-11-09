@@ -44,6 +44,10 @@ type NewChangeRecord struct {
 	// line; "" writes no section, otherwise "## Why on hold" follows
 	// "## Out of scope".
 	WhyOnHold string
+	// TicketProvider, TicketID, and TicketURL are the optional ticket link,
+	// stored as given; "" leaves a field unset (a valueless key), so every
+	// new record names all three, the way it names pr:.
+	TicketProvider, TicketID, TicketURL string
 }
 
 // ChangeRecord serializes r as a canonical brand-new proposed change record.
@@ -76,6 +80,9 @@ func ChangeRecord(r NewChangeRecord) ([]byte, error) {
 		{Name: "branch_prefix", Value: optionalStringValue(r.BranchPrefix)},
 		{Name: "branch", Value: document.Null()},
 		{Name: "pr", Value: document.Null()},
+		{Name: domain.TicketFieldProvider, Value: optionalStringValue(r.TicketProvider)},
+		{Name: domain.TicketFieldID, Value: optionalStringValue(r.TicketID)},
+		{Name: domain.TicketFieldURL, Value: optionalStringValue(r.TicketURL)},
 		{Name: "blocked_by", Value: document.Null()},
 		{Name: "reconciled", Value: document.Bool(false)},
 	}
