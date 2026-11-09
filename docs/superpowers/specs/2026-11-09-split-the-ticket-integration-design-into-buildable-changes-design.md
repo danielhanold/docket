@@ -4,7 +4,7 @@
 
 # Ticket integration: final design and change split
 
-Change #581, groomed interactively on 2026-11-08.
+Change #581, groomed interactively on 2026-11-09.
 
 ## What this change delivers
 
@@ -12,7 +12,11 @@ This change ends in a results artifact, not code: a project plan that splits the
 
 This spec is the integration's final design. It replaces an earlier draft ("Docket external project management integration", 2026-11-07) that left five groups of questions open and had not been checked against the code. Every open question from that draft is answered here, and the facts it relied on were re-traced at main `89e2c58b0` and docket `57d34bed9` (see *What the code says today*).
 
-The plan is produced by docket-implement-next's results-artifact ending: the run reads this spec, re-traces the code it names, and writes the plan. It never writes code and never creates the changes. The human creates them from the plan and grooms each one by hand.
+### How the work flows
+
+1. **docket-implement-next builds this change.** Its results-artifact ending reads this spec, re-traces the code it names, and writes the project plan as this change's results artifact. It writes no code and creates no changes. Completing the results artifact completes this change.
+2. **The human creates the planned changes from the final results artifact.** After this change is done, the human reads the plan and creates each change it lists, using the stub text and field values the plan gives for it.
+3. **The human grooms each planned change by hand**, building each one before grooming the changes that depend on it.
 
 ## Why
 
@@ -236,7 +240,7 @@ The harness owner installs and configures connectors, credentials, and permissio
 
 ## The deliverable: the project plan
 
-The results artifact follows the results template. Its body contains:
+The results artifact follows the results template. It is what the human creates the planned changes from, so it must be complete enough to create each one without re-reading this spec. Its body contains:
 
 1. **An ordered list of proposed changes**, each roughly one PR. For each: the title; the type; the decisions above that it covers, by number; `depends_on`, by position in the list; what it touches (binary operations, skills, config, docs); a rough size; and ready-to-use stub text (Why, What changes, Acceptance criteria, Out of scope) written at the change body's PM altitude, saying which design decisions this spec has already fixed and which are left to that change's own grooming.
 2. **A coverage check**: a table mapping every decision (1–13), broken into its parts (for example decision 4's link, import, and create, or decision 9's shared and private delivery), and every out-of-scope item to the change that implements or guards it. Every part lands in exactly one change, and no change adds anything this spec does not ask for.
@@ -248,7 +252,7 @@ The results artifact follows the results template. Its body contains:
 
 - Each change is one PR that leaves docket working and, where possible, adds one capability a person can use once it merges (for example, "link a ticket", then "ask for an update in a shared repository"), rather than layers that do nothing until the last one lands.
 - Order the changes for just-in-time grooming. The human grooms each stub by hand, after everything it depends on has been built and merged. Foundations come first, and no stub may need a later change's design in order to be groomed.
-- Stubs are plain proposed changes: no spec, `auto_groomable` unset, `depends_on` set, and both `related` to and `discovered_from` this change.
+- The human creates each planned change from the final results artifact as a plain proposed stub: no spec, `auto_groomable` unset, `depends_on` set, and both `related` to and `discovered_from` this change. The plan gives each stub's title, type, and field values so it can be created in one step.
 - Keep the count small enough to groom one at a time; merge slices that cannot be used or tested on their own.
 
 **How the run works:**
@@ -258,7 +262,7 @@ The results artifact follows the results template. Its body contains:
   - (a) Which path produces `stacked-merged`. `skills/docket-convention/references/stacked-changes.md` says the merge sweep is "the only producer of the state", while docket-finalize-change lists `stacked-merged` as a `finalize.closeout` disposition. If only the sweep produces it, a stacked child's PR-merged update can only ever be on request under the "maintenance never posts" rule, and the plan says so.
   - (b) Whether docket-export's private before → after stop is skipped through a direction from the caller or a new docket-export mode (decision 10); recommend one.
   - (c) The read operation's shape, and whether `diagnostic.config` and `status --json` already cover any part of it.
-- **No code, no commits, no change creation, and no ticket-system calls** (decision 13). If the split turns out to need a code change, or a file the results artifact cannot carry, halt as the results-artifact ending describes.
+- **No code, no commits, no change creation, and no ticket-system calls** (decision 13). The run never creates the planned changes; the human does, from the final results artifact. If the split turns out to need a code change, or a file the results artifact cannot carry, halt as the results-artifact ending describes.
 
 ## What the code says today
 

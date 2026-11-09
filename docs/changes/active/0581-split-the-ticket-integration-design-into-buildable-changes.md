@@ -56,4 +56,4 @@ The run re-traces the code the spec names before splitting, and resolves the thr
 
 ## Out of scope
 
-Writing any code, committing to any branch, or creating the planned changes: the human creates them from the plan and grooms each one by hand. Re-opening decisions the spec settles. Specs for the planned changes. The two unrelated findings the spec lists at its end (a stale convention sentence and the disagreement about what produces `stacked-merged`), apart from the trace item the plan itself needs.
+Writing any code, committing to any branch, or creating the planned changes. docket-implement-next only writes the plan; after this change completes, the human creates the planned changes from the final results artifact and grooms each one by hand. Re-opening decisions the spec settles. Specs for the planned changes. The two unrelated findings the spec lists at its end (a stale convention sentence and the disagreement about what produces `stacked-merged`), apart from the trace item the plan itself needs.
