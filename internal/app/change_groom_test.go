@@ -3190,3 +3190,58 @@ func TestChangeGroomHoldCodesAreRegistered(t *testing.T) {
 		}
 	}
 }
+
+// TestChangeGroomReviseAddsAcceptanceCriteriaInProposalOrder: a revise adding
+// the absent ## Acceptance criteria section places it in proposal order,
+// between ## What changes and ## Out of scope, not at EOF.
+func TestChangeGroomReviseAddsAcceptanceCriteriaInProposalOrder(t *testing.T) {
+	req := validReviseRequest()
+	req.SpecMarkdown = ""
+	req.Sections = []SectionEditRequest{{Heading: "## Acceptance criteria", Intent: "replace", Markdown: "- It works.\n"}}
+	plan, opRes := groomPlanFor(t, reviseFixtureFiles(), baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	want := "## What changes\n\nOriginal what.\n\n## Acceptance criteria\n\n- It works.\n\n## Out of scope\n"
+	if !strings.Contains(rec, want) {
+		t.Errorf("acceptance criteria not placed in proposal order; want substring %q in:\n%s", want, rec)
+	}
+}
+
+// TestChangeGroomReviseReplacesAcceptanceCriteriaInPlace: a revise replacing a
+// present ## Acceptance criteria section rewrites it where it stands.
+func TestChangeGroomReviseReplacesAcceptanceCriteriaInPlace(t *testing.T) {
+	files := reviseFixtureFiles()
+	p := groomPath(2, "add-a-widget")
+	files[p] = strings.Replace(files[p], "## Out of scope\n", "## Acceptance criteria\n\nOld.\n\n## Out of scope\n", 1)
+	req := validReviseRequest()
+	req.SpecMarkdown = ""
+	req.Sections = []SectionEditRequest{{Heading: "## Acceptance criteria", Intent: "replace", Markdown: "New.\n"}}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, p))
+	want := "## What changes\n\nOriginal what.\n\n## Acceptance criteria\n\nNew.\n\n## Out of scope\n"
+	if !strings.Contains(rec, want) || strings.Contains(rec, "Old.") {
+		t.Errorf("acceptance criteria not replaced in place; want substring %q in:\n%s", want, rec)
+	}
+}
+
+// TestChangeGroomSpecAcceptsAcceptanceCriteriaSection: a spec-outcome groom may
+// write ## Acceptance criteria, which lands in proposal order.
+func TestChangeGroomSpecAcceptsAcceptanceCriteriaSection(t *testing.T) {
+	req := validGroomSpecRequest()
+	req.Sections = append(req.Sections, SectionEditRequest{Heading: "## Acceptance criteria", Intent: "replace", Markdown: "- It works.\n"})
+	files := map[string]string{groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget")}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	want := "## What changes\n\nOriginal what.\n\n## Acceptance criteria\n\n- It works.\n\n## Out of scope\n"
+	if !strings.Contains(rec, want) {
+		t.Errorf("acceptance criteria not placed in proposal order; want substring %q in:\n%s", want, rec)
+	}
+}

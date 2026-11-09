@@ -37,8 +37,17 @@ type SectionEdit struct {
 
 // Owned heading sets, exported for app operations.
 var ChangeOwnedHeadings = []string{
-	"## Why", "## What changes", "## Out of scope", "## Open questions",
+	"## Why", "## What changes", "## Acceptance criteria", "## Out of scope", "## Open questions",
 	"## Why deferred", "## Why killed", "## Auto-groom blocked",
+}
+
+// ProposalHeadings is the proposal order of a change record's design sections.
+// When ApplySectionEdits adds one of these headings to a record that lacks it,
+// the section lands right after the nearest present earlier proposal section,
+// else right before the nearest present later one, else at EOF. Sections
+// already present are never moved.
+var ProposalHeadings = []string{
+	"## Why", "## What changes", "## Acceptance criteria", "## Out of scope", "## Open questions",
 }
 
 var LearningOwnedHeadings = []string{"## Apply", "## War story"}
@@ -186,8 +195,13 @@ func ValidateSectionBody(body []byte) error {
 //     top-level "## " heading outside fences, or EOF.
 //   - Every owned heading present in src must be unique; a duplicate refuses the
 //     whole edit set. All edits are validated before any splice.
-//   - replace: substitute the section body (appended at EOF, preceded by exactly
-//     one blank line, when the section is absent). remove: delete heading and
+//   - replace: substitute the section body. When the section is absent, a
+//     heading in ProposalHeadings is placed in proposal order — right after the
+//     nearest present earlier proposal section, else right before the nearest
+//     present later one, else at EOF — judged against the record after this
+//     request's in-place splices and earlier insertions; every other absent
+//     heading is appended at EOF. A new section is preceded by exactly one blank
+//     line. remove: delete heading and
 //     body (error when absent). preserve: assert untouched (no-op, valid whether
 //     present or not).
 //   - Splices apply from the last edit position toward the first, then the
@@ -250,7 +264,8 @@ func ApplySectionEdits(src []byte, owned []string, edits []SectionEdit) ([]byte,
 	le := detectLineEnding(src)
 
 	// Split edits into in-place splices (replace-present, remove) applied against
-	// original offsets, and appends (replace-absent) applied after at EOF.
+	// original offsets, and additions (replace-absent) applied after, in request
+	// order: proposal headings at their proposal-order position, all others at EOF.
 	type splice struct {
 		start, end int
 		repl       []byte
@@ -289,6 +304,10 @@ func ApplySectionEdits(src []byte, owned []string, edits []SectionEdit) ([]byte,
 		out = next
 	}
 	for _, e := range appends {
+		if off, ok := proposalInsertOffset(out, e.Heading); ok {
+			out = insertSectionAt(out, off, e.Heading, e.Markdown, le)
+			continue
+		}
 		out = appendSection(out, e.Heading, e.Markdown, le)
 	}
 
@@ -296,6 +315,60 @@ func ApplySectionEdits(src []byte, owned []string, edits []SectionEdit) ([]byte,
 		return nil, fmt.Errorf("edited candidate does not reparse: %w", err)
 	}
 	return out, nil
+}
+
+// proposalInsertOffset returns where an absent proposal heading belongs in src:
+// the end of the nearest present earlier proposal section, else the start of
+// the nearest present later one. ok is false when heading is not a proposal
+// heading or no proposal neighbour is present (the caller appends at EOF).
+// Presence is the first fence-aware occurrence, per scanH2Headings.
+func proposalInsertOffset(src []byte, heading string) (int, bool) {
+	idx := -1
+	for i, h := range ProposalHeadings {
+		if h == heading {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return 0, false
+	}
+	heads := scanH2Headings(src)
+	first := make(map[string]int, len(heads))
+	for k, h := range heads {
+		if _, ok := first[h.heading]; !ok {
+			first[h.heading] = k
+		}
+	}
+	for i := idx - 1; i >= 0; i-- {
+		if k, ok := first[ProposalHeadings[i]]; ok {
+			return sectionEnd(heads, k, len(src)), true
+		}
+	}
+	for i := idx + 1; i < len(ProposalHeadings); i++ {
+		if k, ok := first[ProposalHeadings[i]]; ok {
+			return heads[k].start, true
+		}
+	}
+	return 0, false
+}
+
+// insertSectionAt inserts a new section at off, a line start in src. At EOF it
+// is appendSection; elsewhere it adds one line ending first when the preceding
+// bytes do not already end in a blank line, then the section followed by a
+// blank line. It never deletes an existing byte.
+func insertSectionAt(src []byte, off int, heading, markdown, le string) []byte {
+	if off >= len(src) {
+		return appendSection(src, heading, markdown, le)
+	}
+	section := renderSection(heading, markdown, le, false)
+	out := make([]byte, 0, len(src)+len(section)+len(le))
+	out = append(out, src[:off]...)
+	if off > 0 && !bytes.HasSuffix(src[:off], []byte(le+le)) {
+		out = append(out, le...)
+	}
+	out = append(out, section...)
+	return append(out, src[off:]...)
 }
 
 // sectionEnd returns the byte offset one past section k: the start of the next
