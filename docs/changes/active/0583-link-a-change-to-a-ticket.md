@@ -2,7 +2,7 @@
 id: 583
 slug: 'link-a-change-to-a-ticket'
 title: 'Link a change to a ticket'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'feat/link-a-change-to-a-ticket'
 pr:
 blocked_by:
 reconciled: false
