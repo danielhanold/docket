@@ -1,6 +1,6 @@
 ---
 name: docket-export
-description: Use when asked to export a docket change, spec, plan, or results file, or to put one into anything outside docket — a Jira ticket body or comment, a document, a message, an email — so its content comes from docket's own export, never the raw file or a hand cleanup.
+description: Use when asked to export a docket change, spec, plan, or results file, or to put one into anything outside docket — a document, a message, an email — so its content comes from docket's own export, never the raw file or a hand cleanup.
 ---
 
 # docket-export
@@ -8,6 +8,8 @@ description: Use when asked to export a docket change, spec, plan, or results fi
 Docket artifacts carry links, generated blocks, and references that mean nothing outside docket, and the export writes a clean Markdown copy of them. Use it every time a change, spec, plan, or results file leaves docket. **Never build an export by hand, and never send the raw file.**
 
 This skill runs inline, in your own session: you post with your own tools, and you ask the person directly where a step below says to.
+
+Creating a ticket from a change, or linking or importing one, is `docket-link-ticket`'s job; it calls this skill only for a file export.
 
 ## 1. Resolve the operations
 

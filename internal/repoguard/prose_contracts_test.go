@@ -1543,8 +1543,9 @@ var alignmentContracts = []proseContract{
 			"**Rewrite pass.** When the export reported any `leftovers` or `mentions`, edit the exported copy in place",
 			"Search the rewritten copy for \"docket\" and \"dckt\" as whole words, case-insensitive, code included",
 			"show the person every change as before → after and **post only after they say go**",
+			"Creating a ticket from a change, or linking or importing one, is `docket-link-ticket`'s job; it calls this skill only for a file export.",
 		},
-		absent: []string{"context: fork", "agent: docket-export"}},
+		absent: []string{"context: fork", "agent: docket-export", "a Jira ticket body or comment"}},
 	// 0578 review: the export reports neither ADR numbers nor bare #N, so the private
 	// ADR/change-number rewrite runs on every private export, not only on leftovers or mentions.
 	{sentinel: "change_0578_export_skill", file: "skills/docket-export/SKILL.md",

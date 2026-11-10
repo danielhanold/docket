@@ -92,6 +92,15 @@ func TestExportSkillIsInline(t *testing.T) {
 		"export a docket change, spec, plan, or results file",
 		"put one into anything outside docket",
 	})
+	// Ticket work belongs to docket-link-ticket: the export skill's description
+	// must not route ticket requests here.
+	body := readRepoFile(t, "skills/docket-export/SKILL.md")
+	desc := strings.ToLower(collapseWS(frontmatterValue(body, "description")))
+	for _, word := range []string{"ticket", "jira"} {
+		if strings.Contains(desc, word) {
+			t.Errorf("skills/docket-export/SKILL.md description names %q; ticket work is docket-link-ticket's: %q", word, desc)
+		}
+	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
 		got, err := skillFrontmatterKeys("---\nname: x\ndescription: y\ncontext: fork\nagent: x\n---\nbody\n")
