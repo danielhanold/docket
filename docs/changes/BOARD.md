@@ -1,11 +1,12 @@
 # Backlog
 
-**590 changes** — 🟡 8 proposed · ⚪ 15 deferred · ✅ 422 done · 🗑️ 145 killed
+**591 changes** — 🟡 9 proposed · ⚪ 15 deferred · ✅ 422 done · 🗑️ 145 killed
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0591](active/0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) | Follow the team's own ticket skill for project-specific ticket details | `medium` | `feat` | ⏳ waiting on #585 — not yet built |
 | [0590](active/0590-have-reviewers-check-a-build-against-its-acceptance-criteria.md) | Have reviewers check a build against its acceptance criteria when the change has them | `medium` | `feat` | needs-grooming |
 | [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | needs-grooming |
 | [0585](active/0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | `medium` | `feat` | needs-grooming |
@@ -62,6 +63,7 @@ graph TD
   0587 --> 0588
   0589
   0590
+  0585 --> 0591
   0192:::done
   0544:::done
   0583:::done
