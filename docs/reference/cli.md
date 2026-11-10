@@ -35,6 +35,10 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
   (`docket diagnostic config`). Verbs: `docket diagnostic --help`.
 - **`docket evidence`** — record and verify the build evidence that certifies an exact tested
   commit. Verbs: `docket evidence --help`.
+- **`docket export`** — write a clean Markdown copy of a change, spec, plan, or results file,
+  free of docket's links and generated blocks, and open it. Without an id it exports the change
+  whose branch is checked out. Agent sessions reach the export through the `docket-export`
+  skill. Details: `docket export --help`.
 - **`docket finalize`** — sequence a change's closing half: rebase, publish, merge, and closeout. Verbs: `docket finalize --help`.
 - **`docket gate`** — launch, observe, stop, and recover supervised local gate runs. Verbs: `docket gate --help`.
 - **`docket install`** — install docket's skills, agents, and dispatch material into your
@@ -46,9 +50,7 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
   (`docket status` stays read-only). Verbs: `docket maintenance --help`.
 - **`docket open`** — open the board, or a change's record, spec, plan, results, or pull request,
   as a GitHub page or from the local metadata checkout. Without an id it opens the change whose
-  branch is checked out. With `--export` it writes a clean Markdown copy of a change, spec, plan,
-  or results file, free of docket's links and generated blocks, and opens that copy. Agent
-  sessions reach the export through the `docket-export` skill. Details: `docket open --help`.
+  branch is checked out. Details: `docket open --help`.
 - **`docket pr`** — publish the ready-for-review pull request for an in-progress change's tested
   head. Verbs: `docket pr --help`.
 - **`docket repository`** — initialize, migrate, check, and repair the docket repository

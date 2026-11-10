@@ -1529,11 +1529,13 @@ var alignmentContracts = []proseContract{
 	// change 0578 — the inline export skill: never a hand-built or raw export;
 	// a failed export posts nothing; shared repositories get no rewrite pass and
 	// no stop; private (or unknown) repositories get the rewrite pass, the word
-	// check, and a before → after stop.
+	// check, and a before → after stop. Change 0589: the export runs through the
+	// `export` operation, never `open --export`.
 	{sentinel: "change_0578_export_skill", file: "skills/docket-export/SKILL.md",
 		present: []string{
 			"**Never build an export by hand, and never send the raw file.**",
-			"`--export --print --json`",
+			"Run the `export` argv as `<export argv> <what> [<id>] --print --json --repo-dir <repo root>`",
+			"take the `argv` of the entries `export`, `repository.prepare`, and `diagnostic.config`",
 			"**A failed export posts nothing.**",
 			"If `result` is not `applied` or there is no `exported_path`, tell the person the `message` and stop",
 			"Never fall back to the raw file or a hand cleanup",
@@ -1545,7 +1547,7 @@ var alignmentContracts = []proseContract{
 			"show the person every change as before → after and **post only after they say go**",
 			"Creating a ticket from a change, or linking or importing one, is `docket-link-ticket`'s job; it calls this skill only for a file export.",
 		},
-		absent: []string{"context: fork", "agent: docket-export", "a Jira ticket body or comment"}},
+		absent: []string{"context: fork", "agent: docket-export", "a Jira ticket body or comment", "--export", "the `open` argv"}},
 	// 0578 review: the export reports neither ADR numbers nor bare #N, so the private
 	// ADR/change-number rewrite runs on every private export, not only on leftovers or mentions.
 	{sentinel: "change_0578_export_skill", file: "skills/docket-export/SKILL.md",
