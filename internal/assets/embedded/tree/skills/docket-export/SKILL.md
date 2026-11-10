@@ -13,7 +13,7 @@ Creating a ticket from a change, or linking or importing one, is `docket-link-ti
 
 ## 1. Resolve the operations
 
-Run `docket capabilities --json` as its own call — the one docket spelling this skill hard-codes. Check that `protocol_version` is 1 and take the `argv` of the entries `open`, `repository.prepare`, and `diagnostic.config`. If the binary is missing or an entry is absent, tell the person their docket installation is broken and stop — never a hand-made export.
+Run `docket capabilities --json` as its own call — the one docket spelling this skill hard-codes. Check that `protocol_version` is 1 and take the `argv` of the entries `export`, `repository.prepare`, and `diagnostic.config`. If the binary is missing or an entry is absent, tell the person their docket installation is broken and stop — never a hand-made export.
 
 ## 2. Learn the visibility
 
@@ -26,7 +26,7 @@ In a private repository, also run the `diagnostic.config` argv with `--repo-dir 
 
 ## 3. Run the export
 
-Run the `open` argv as `<open argv> <what> [<id>] --export --print --json --repo-dir <repo root>`, where `<what>` is `change`, `spec`, `plan`, or `results` and `<id>` is the change the person named (omit it to use the change whose branch is checked out). Always `--export --print --json`: `--print` opens no viewer — the person may not be at the screen, and can ask you to open the file. Never pass `--warnings` unless the person asked for a filter on a file request; the default reports everything the private pass reads.
+Run the `export` argv as `<export argv> <what> [<id>] --print --json --repo-dir <repo root>`, where `<what>` is `change`, `spec`, `plan`, or `results` and `<id>` is the change the person named (omit it to use the change whose branch is checked out). Always `--print --json`: `--print` opens no viewer — the person may not be at the screen, and can ask you to open the file. Never pass `--warnings` unless the person asked for a filter on a file request; the default reports everything the private pass reads.
 
 - **File request** ("export the spec for 9"): the export's default destination, or `--output-path <place>` when the person names one.
 - **Outside-tool request** ("put the spec for 9 in a message to the design channel"): `--output-path` set to a fresh directory from `mktemp -d "${TMPDIR:-/tmp}/docket-export.XXXXXX"`, so the person's downloads folder does not collect one file per post. Leave the file there and report its path.
