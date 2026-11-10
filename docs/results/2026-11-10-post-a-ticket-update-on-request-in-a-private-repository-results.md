@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0586 — Post a ticket update on request in a private repository](../changes/active/0586-post-a-ticket-update-on-request-in-a-private-repository.md)**
+> ↩ **[Change 0586 — Post a ticket update on request in a private repository](../changes/archive/2026-11-10-0586-post-a-ticket-update-on-request-in-a-private-repository.md)**
 <!-- docket:backlink:end -->
 
 # Results: Post a ticket update on request in a private repository
