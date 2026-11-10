@@ -13,7 +13,7 @@ stacked_on:
 related: [561, 578, 582]
 discovered_from: [581]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md'
 plan:
 results:
 auto_groomable:
@@ -31,6 +31,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md](../../superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,15 +42,17 @@ Exporting an artifact is a different job from opening one, but the CLI spells it
 
 ## What changes
 
-- Add a top-level `docket export <type> [<change_id>]` command, `<type>` one of change, spec, plan, or results. It does what `docket open … --export` does today: the same clean copy, file name, destination default, `--output-path`, `--warnings`, and JSON result.
-- Remove `--export`, and the flags that only work with it, from `docket open`, so `open` only opens.
-- Give the new command its own capability-catalog entry, and point the `docket-export` skill (and any other skill or doc that names `open … --export`) at it.
-
-Left to grooming: whether `docket export` opens the copy afterwards (today's `--export` opens it unless `--print` is given) or only writes it and prints its path; whether `docket open --export` is removed outright or kept briefly with a message naming the new command; and the catalog entry's id.
+- Add a top-level `docket export <type> [<change_id>]` command, `<type>` one of change, spec, plan, or results, with its own capability-catalog entry (`export`). It writes the same clean copy `docket open … --export` writes today, with the same file name, destination default, `--output-path`, `--warnings`, and export fields in its JSON result.
+- Opening: with no `--output-path` it writes to the default destination and opens the copy; with `--output-path` it writes there, prints the path, and opens nothing; `--print` writes and prints without opening, whatever the destination.
+- Remove `--export`, `--output-path`, and `--warnings` from `docket open` outright, with no alias, so `open` only opens.
+- Point the `docket-export` skill and the docs that name `open … --export` at the new command.
 
 ## Acceptance criteria
 
-`docket export spec <id>` writes the same file `docket open spec <id> --export` writes today, with the same JSON result; `docket open` no longer accepts `--export`, `--output-path`, or `--warnings`; the capability catalog lists the export command, and the docket-export skill resolves its argv from that entry.
+- `docket export spec <id> --print --json` writes the same file, with the same bytes, that `docket open spec <id> --export --print --json` writes today, and reports the same `exported_path`, `replaced`, `leftovers`, and `mentions`.
+- `docket export spec <id>` opens the copy; with `--output-path` or `--print` it opens nothing and prints the path.
+- `docket open` rejects `--export`, `--output-path`, and `--warnings` as unknown flags.
+- The capability catalog lists `export`, and the `docket-export` skill resolves its argv from that entry.
 
 ## Out of scope
 

@@ -1,14 +1,19 @@
 # Backlog
 
-**591 changes** — 🟡 7 proposed · ⚪ 15 deferred · ✅ 424 done · 🗑️ 145 killed
+**591 changes** — 🟣 1 groomed · 🟡 6 proposed · ⚪ 15 deferred · ✅ 424 done · 🗑️ 145 killed
 
-## 🟡 Proposed (7)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec | Readiness |
+|---|-------|----------|------|------|-----------|
+| [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | [spec](../superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md) | build-ready |
+
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0591](active/0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) | Follow the team's own ticket skill for project-specific ticket details | `medium` | `feat` | needs-grooming |
 | [0590](active/0590-have-reviewers-check-a-build-against-its-acceptance-criteria.md) | Have reviewers check a build against its acceptance criteria when the change has them | `medium` | `feat` | needs-grooming |
-| [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | needs-grooming |
 | [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | ⏳ waiting on #587 — not yet built |
 | [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
