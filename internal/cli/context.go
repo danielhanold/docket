@@ -21,7 +21,7 @@ import (
 func newContextCommand(setResult func(app.OperationResult)) *cobra.Command {
 	contextCmd := &cobra.Command{
 		Use:   "context",
-		Short: "Assemble read-only context bundles for the implementation workflow",
+		Short: "Assemble read-only context bundles for docket workflows",
 		// A command group resolves its subcommand before Args runs, so anything
 		// reaching here named no subcommand; NoArgs names an offending token and
 		// the bare `docket context` falls through to RunE's missing-command error.
@@ -77,6 +77,30 @@ func newContextCommand(setResult func(app.OperationResult)) *cobra.Command {
 	finalize.Flags().Int("id", 0, "inspect this exact change `id` instead of applying the selection policy")
 	finalize.Flags().IntSlice("allowlist", nil, "bound the finalize selection to these change `id`s (repeatable/comma-separated)")
 
-	contextCmd.AddCommand(implementation, finalize)
+	ticket := &cobra.Command{
+		Use:         "ticket",
+		Short:       "Assemble what a ticket update needs for one change (read-only)",
+		Args:        cobra.NoArgs,
+		Annotations: capability("context.ticket", EffectRead),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			id, _ := c.Flags().GetInt("id")
+			event, _ := c.Flags().GetString("event")
+			deps, err := newPlanningDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.ContextTicketRead(c.Context(), deps, repoDir, app.TicketContextRequest{ID: id, Event: event}))
+			return nil
+		},
+	}
+	ticket.Flags().String("repo-dir", "", "repository `dir` to read (default: current directory)")
+	ticket.Flags().Int("id", 0, "the change `id` to read")
+	ticket.Flags().String("event", "", "the `event` the update follows: spec_written, pr_opened, pr_merged, or results_completed; omit for an update with no event")
+
+	contextCmd.AddCommand(implementation, finalize, ticket)
 	return contextCmd
 }

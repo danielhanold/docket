@@ -80,7 +80,7 @@ func TestContextImplementationHumanMode(t *testing.T) {
 // context commands read the repository, never installed assets, so they must be
 // asset-independent (not refused on a machine with no installation).
 func TestContextCommandsAssetIndependent(t *testing.T) {
-	for _, key := range []string{"context", "context implementation", "context finalize"} {
+	for _, key := range []string{"context", "context implementation", "context finalize", "context ticket"} {
 		if !assetIndependent[key] {
 			t.Errorf("%q is not registered asset-independent", key)
 		}
@@ -136,5 +136,56 @@ func TestContextFinalizeRoutesFlags(t *testing.T) {
 	_, errBad, codeBad := runCLI(t, "context", "finalize", "--id", "notanint", "--repo-dir", testsupport.TempDir(t))
 	if codeBad != 2 || !strings.Contains(errBad, "id") {
 		t.Fatalf("non-integer --id not rejected as an argument error: err=%q code=%d", errBad, codeBad)
+	}
+}
+
+// TestContextTicketRegistered: `docket context ticket` is registered under the
+// `context` group carrying --id, --event, and --repo-dir flags, annotated as the
+// read-only context.ticket operation.
+func TestContextTicketRegistered(t *testing.T) {
+	root := captureTree(t)
+
+	cmd, _, err := root.Find([]string{"context", "ticket"})
+	if err != nil || cmd == nil || cmd.Name() != "ticket" {
+		t.Fatalf("context ticket not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "event", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("context ticket: missing --%s flag", flag)
+		}
+	}
+	if got := cmd.Annotations[capAnnotationID]; got != "context.ticket" {
+		t.Errorf("capability id = %q, want context.ticket", got)
+	}
+	if got := cmd.Annotations[capAnnotationEffects]; got != string(EffectRead) {
+		t.Errorf("effects = %q, want exactly %q", got, EffectRead)
+	}
+}
+
+// TestContextTicketCLIRejectsUnknownEvent: an --event outside the closed set is
+// refused as a typed invalid-input document, before any repository read.
+func TestContextTicketCLIRejectsUnknownEvent(t *testing.T) {
+	out, _, _ := runCLI(t, "context", "ticket", "--id", "7", "--event", "pr-opened", "--repo-dir", testsupport.TempDir(t), "--json")
+	for _, want := range []string{`"operation":"context.ticket"`, `"result":"invalid-input"`, `"reason":"unknown-event"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("document missing %s: %q", want, out)
+		}
+	}
+}
+
+// TestContextTicketCLIEnvelope is the JSON-mode wiring assertion: the command
+// reaches app.ContextTicketRead, which — against a non-repository directory —
+// returns exactly one protocol-v1 document naming the operation, not a cobra
+// error.
+func TestContextTicketCLIEnvelope(t *testing.T) {
+	out, errS, code := runCLI(t, "context", "ticket", "--id", "7", "--event", "pr_opened", "--repo-dir", testsupport.TempDir(t), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
+	}
+	if !strings.Contains(out, `"operation":"context.ticket"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
 	}
 }

@@ -67,6 +67,7 @@ var operationBindings = []OperationBinding{
 	{ID: "change.unblock", Request: ChangeUnblockRequest{}, Result: ChangeLifecycleResult{}},               // ChangeUnblock
 	{ID: "context.finalize", Request: nil, Result: FinalizeContextResult{}},                                // ContextFinalize
 	{ID: "context.implementation", Request: nil, Result: ImplementationContextResult{}},                    // ContextImplementation
+	{ID: "context.ticket", Request: nil, Result: TicketContextResult{}},                                    // ContextTicketRead
 	{ID: "development.install", Request: nil, Result: InstallResult{}},                                     // RunDevelopmentInstall
 	{ID: "diagnostic.config", Request: nil, Result: ConfigInspectionResult{}},                              // DiagnosticConfig
 	{ID: "diagnostic.runtime", Request: nil, Result: RuntimeResult{}},                                      // DiagnosticRuntime
