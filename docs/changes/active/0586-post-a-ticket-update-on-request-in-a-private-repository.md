@@ -14,7 +14,7 @@ related: [581, 585, 588]
 discovered_from: [581]
 adrs: []
 spec: 'docs/superpowers/specs/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository.md'
 results:
 auto_groomable:
 hold:
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-design.md](../../superpowers/specs/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-design.md) |
+| Plan | [2026-11-10-post-a-ticket-update-on-request-in-a-private-repository.md](../../superpowers/plans/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
