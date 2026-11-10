@@ -109,7 +109,6 @@ var excludedResultTypes = map[string]string{
 	"LocalGateResult":         "internal finalize gate seam return (RunLocalGate); carries no Envelope, is not an op document",
 	"SweepPRSetResult":        "internal batched-PR-read seam return (ProbePRSet); carries no Envelope, is not an op document",
 	"RunVerdictObserveResult": "run.verdict's observe-mode (--unattributed) result variant; the op binds its attributed result RunVerdictResult",
-	"TicketContextResult":     "context.ticket's result, not yet bound: its binding lands with its command, and this exclusion must be removed then (the honesty check below reddens once it is reachable)",
 	"SchemaResult":            "the schema document's own container; self-referential (FieldDescriptor nests []FieldDescriptor) and carries map[string]Vocabulary, so it is unreflectable and deliberately unbound — the wired `schema` op is the cli-side selfReferentialSchemaOps exception",
 }
 

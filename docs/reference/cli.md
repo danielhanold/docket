@@ -28,7 +28,7 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
   repository-independent). Verbs: `docket capabilities --help`.
 - **`docket change`** — create and transition changes in the backlog. Verbs: `docket change --help`
   (`docket schema` lists the request keys, including `hold`).
-- **`docket context`** — assemble read-only context bundles for the implementation workflow. Verbs: `docket context --help`.
+- **`docket context`** — assemble read-only context bundles for docket workflows (implementation, finalize, ticket updates). Verbs: `docket context --help`.
 - **`docket development`** — contributor operations against a docket checkout: install from a
   checkout and run the complete test suite. Verbs: `docket development --help`.
 - **`docket diagnostic`** — read-only diagnostics, including the resolved configuration
